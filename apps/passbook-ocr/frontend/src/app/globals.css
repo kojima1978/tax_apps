@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply text-gray-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700
+           transition-colors font-medium shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300
+           transition-colors font-medium;
+  }
+
+  .input-field {
+    @apply px-3 py-2 border border-gray-300 rounded-lg focus:ring-2
+           focus:ring-primary-500 focus:border-transparent outline-none
+           transition-all;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  }
+
+  .table-cell {
+    @apply px-3 py-2 border-b border-gray-200 text-sm;
+  }
+
+  .table-cell-editable {
+    @apply table-cell hover:bg-blue-50 cursor-text transition-colors;
+  }
+
+  .status-badge {
+    @apply px-2 py-1 rounded text-xs font-medium;
+  }
+
+  .status-valid {
+    @apply status-badge bg-success-50 text-success-600;
+  }
+
+  .status-invalid {
+    @apply status-badge bg-error-50 text-error-600;
+  }
+
+  .status-warning {
+    @apply status-badge bg-warning-50 text-warning-600;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

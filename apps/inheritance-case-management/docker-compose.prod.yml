@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: itcm-prod-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: inheritance_tax_db
+    volumes:
+      - postgres_main_data:/var/lib/postgresql/data
+    ports:
+      - "3022:5432"
+
+  backend:
+    build:
+      context: ./Back
+      dockerfile: Dockerfile
+    container_name: itcm-prod-api
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3021
+      # Internal Docker network URL for DB connection
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/inheritance_tax_db?schema=public
+      # Client browser URL
+      FRONTEND_URL: http://localhost:3020
+    ports:
+      - "3021:3021"
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: ./Front
+      dockerfile: Dockerfile
+      args:
+        # Baked into the build for client-side fetching
+        NEXT_PUBLIC_API_URL: http://localhost:3021/api
+    container_name: itcm-prod-web
+    restart: always
+    ports:
+      - "3020:3020"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_main_data:

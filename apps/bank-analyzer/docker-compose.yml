@@ -1,0 +1,63 @@
+services:
+  app:
+    build: .
+    container_name: inheritance-bank-analyzer
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      # ユーザー設定ファイルをホストと共有する場合（手動で作成が必要）
+      # - ./data/user_settings.json:/app/data/user_settings.json
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434/api/generate
+      - OLLAMA_MODEL=gemma2:2b
+      - LARGE_AMOUNT_THRESHOLD=50000
+      - TRANSFER_DAYS_WINDOW=3
+      - TRANSFER_AMOUNT_TOLERANCE=1000
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-service
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    # GPUを使用する場合（NVIDIA Container Toolkitが必要）
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

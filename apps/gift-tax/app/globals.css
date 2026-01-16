@@ -1,0 +1,334 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #1b5e20;
+  /* 緑系基調 */
+  --primary-light: #4c8c4a;
+  --primary-dark: #003300;
+  --bg-color: #f4f6f4;
+  --text-color: #333;
+  --error-color: #d32f2f;
+  --white: #ffffff;
+}
+
+body {
+  font-family: var(--font-noto-sans-jp), sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.container-custom {
+  width: 100%;
+  max-width: 900px;
+  background-color: var(--white);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ヘッダー */
+.header-custom {
+  background-color: var(--primary-color);
+  color: var(--white);
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-custom h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.btn-print {
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: var(--white);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.btn-print:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 入力セクション */
+.input-section {
+  padding: 1.5rem;
+  background-color: #fff;
+  border-bottom: 1px solid #eee;
+}
+
+.input-group-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.input-item {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 200px;
+}
+
+.input-item label {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--primary-color);
+  font-size: 0.9rem;
+}
+
+.input-item input[type="text"],
+.input-item select {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-item input[type="text"] {
+  text-align: right;
+  font-family: var(--font-roboto-mono), monospace;
+}
+
+.btn-calc {
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  height: 50px;
+}
+
+.btn-calc:hover {
+  background-color: var(--primary-light);
+}
+
+.error-msg {
+  color: var(--error-color);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  min-height: 1.2em;
+  font-weight: bold;
+}
+
+/* 結果セクション */
+.result-section {
+  padding: 1.5rem;
+}
+
+/* テーブル */
+.table-container {
+  overflow-x: auto;
+  margin-bottom: 2rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+th,
+td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #ddd;
+  text-align: right;
+}
+
+th {
+  background-color: #e8f5e9;
+  color: var(--primary-dark);
+  text-align: center;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+td:first-child {
+  text-align: left;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+tr:hover {
+  background-color: #f1f8e9;
+}
+
+.highlight-total {
+  font-weight: bold;
+  color: var(--primary-dark);
+}
+
+/* グラフエリア */
+.chart-container-custom {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+/* 印刷用スタイル */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 5mm;
+    /* マージンを最小限に */
+  }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    overflow: visible !important;
+  }
+
+  .container-custom {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  /* 非表示要素 */
+  .btn-print,
+  .btn-calc,
+  .input-section noscript {
+    display: none !important;
+  }
+
+  /* 入力セクションの簡素化 */
+  .input-section {
+    padding: 5px 0 !important;
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .input-group-row {
+    gap: 20px;
+  }
+
+  .input-item {
+    min-width: auto !important;
+    flex: unset !important;
+  }
+
+  .input-item label {
+    font-size: 10pt;
+    color: #000;
+  }
+
+  .input-item input,
+  .input-item select {
+    border: none !important;
+    padding: 0 !important;
+    font-size: 11pt;
+    background: transparent;
+    text-align: left;
+    height: auto;
+    width: auto;
+  }
+
+  /* ヘッダー */
+  .header-custom {
+    padding: 10px 0 !important;
+    color: #000 !important;
+    background: transparent !important;
+    border-bottom: 2px solid var(--primary-color);
+  }
+
+  .header-custom h1 {
+    font-size: 16pt !important;
+    color: var(--primary-color);
+  }
+
+  /* 結果セクション */
+  .result-section {
+    padding: 10px 0 !important;
+  }
+
+  /* グラフ調整 - はみ出し防止のためサイズ固定 */
+  .chart-container-custom {
+    page-break-inside: avoid;
+    height: 300px !important;
+    width: 100% !important;
+    max-width: 170mm !important;
+    /* A4の印刷可能範囲に強制的に収める */
+    margin: 10px auto !important;
+    position: relative !important;
+  }
+
+  .chart-container-custom canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
+  /* テーブル調整 */
+  .table-container {
+    margin-bottom: 10px;
+    width: 100% !important;
+  }
+
+  table {
+    font-size: 9pt !important;
+    /* フォントサイズ縮小 */
+    width: 100% !important;
+  }
+
+  th,
+  td {
+    padding: 4px 6px !important;
+    /* パディング縮小 */
+    white-space: nowrap;
+    /* 不自然な改行防止 */
+  }
+
+  /* 注釈 */
+  p {
+    font-size: 8pt !important;
+  }
+
+  /* 全体の縮小 (安全策) */
+  body {
+    transform: scale(0.95);
+    /* 全体を95%に縮小して余裕を持たせる */
+    transform-origin: top left;
+    width: 105%;
+    /* 縮小分横幅を広げる */
+  }
+}

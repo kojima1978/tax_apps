@@ -1,0 +1,341 @@
+services:
+  # ===========================================
+  # Nginx Gateway (リバースプロキシ)
+  # ===========================================
+  gateway:
+    image: nginx:alpine
+    container_name: gateway_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - portal-app
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # ポータルサイト (メインダッシュボード)
+  # Port: 3000
+  # ===========================================
+  portal-app:
+    build:
+      context: ../apps/portal/app
+      dockerfile: Dockerfile
+    container_name: portal_app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../apps/portal/app:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # 医療法人株式評価システム
+  # Port: 3010 (dev), 3011 (prod)
+  # ===========================================
+  medical-stock-valuation:
+    build:
+      context: ../apps/medical-stock-valuation
+      dockerfile: Dockerfile
+      target: builder
+    container_name: medical_stock_valuation
+    ports:
+      - "3010:3010"
+    volumes:
+      - ../apps/medical-stock-valuation:/app
+      - /app/node_modules
+      - /app/.next
+      - ../apps/medical-stock-valuation/data:/app/data
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - PORT=3010
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # 非上場株式評価システム
+  # Port: 3012
+  # ===========================================
+  shares-valuation:
+    build:
+      context: ../apps/shares-valuation
+      dockerfile: Dockerfile
+    container_name: shares_valuation
+    ports:
+      - "3012:3012"
+    volumes:
+      - ../apps/shares-valuation:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - PORT=3012
+    command: sh -c "npm install && npm run dev -- -p 3012"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # 相続税案件管理システム
+  # Port: 3020 (frontend), 3021 (backend), 3022 (postgres)
+  # ===========================================
+  itcm-postgres:
+    image: postgres:15-alpine
+    container_name: itcm_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: inheritance_tax_db
+    volumes:
+      - itcm_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "3022:5432"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  itcm-backend:
+    build:
+      context: ../apps/inheritance-case-management/Back
+      dockerfile: Dockerfile
+    container_name: itcm_backend
+    environment:
+      NODE_ENV: production
+      PORT: 3021
+      DATABASE_URL: postgresql://postgres:password@itcm-postgres:5432/inheritance_tax_db?schema=public
+      FRONTEND_URL: http://localhost:3020
+    ports:
+      - "3021:3021"
+    depends_on:
+      - itcm-postgres
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  itcm-frontend:
+    build:
+      context: ../apps/inheritance-case-management/Front
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3021/api
+    container_name: itcm_frontend
+    ports:
+      - "3020:3020"
+    depends_on:
+      - itcm-backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # 相続銀行分析システム (Streamlit + Ollama)
+  # Port: 8501 (app), 11434 (ollama)
+  # ===========================================
+  bank-analyzer:
+    build:
+      context: ../apps/bank-analyzer
+      dockerfile: Dockerfile
+    container_name: bank_analyzer
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../apps/bank-analyzer/data:/app/data
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434/api/generate
+      - OLLAMA_MODEL=gemma2:2b
+      - LARGE_AMOUNT_THRESHOLD=50000
+      - TRANSFER_DAYS_WINDOW=3
+      - TRANSFER_AMOUNT_TOLERANCE=1000
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_service
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "ollama list || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ===========================================
+  # 通帳OCRシステム
+  # Port: 8000 (backend), 3002 (frontend)
+  # ===========================================
+  passbook-ocr-backend:
+    build:
+      context: ../apps/passbook-ocr/backend
+      dockerfile: Dockerfile.cpu
+    container_name: passbook_ocr_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../apps/passbook-ocr/data:/app/data
+    environment:
+      - OCR_ENGINE=easyocr
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  passbook-ocr-frontend:
+    build:
+      context: ../apps/passbook-ocr/frontend
+      dockerfile: Dockerfile
+    container_name: passbook_ocr_frontend
+    ports:
+      - "3002:3000"
+    volumes:
+      - ../apps/passbook-ocr/frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - passbook-ocr-backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # 相続税計算アプリ (Vite/React)
+  # Port: 5173
+  # ===========================================
+  inheritance-tax-app:
+    build:
+      context: ../apps/inheritance-tax-app
+      dockerfile: Dockerfile
+    container_name: inheritance_tax_app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../apps/inheritance-tax-app:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run dev -- --host
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # 贈与税計算システム
+  # Port: 3001
+  # ===========================================
+  gift-tax:
+    build:
+      context: ../apps/gift-tax
+      dockerfile: Dockerfile
+    container_name: gift_tax
+    ports:
+      - "3001:3001"
+    volumes:
+      - ../apps/gift-tax:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+    command: npm run dev -- -p 3001
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # 贈与税申告 必要書類案内
+  # Port: 3002
+  # ===========================================
+  gift-tax-docs:
+    build:
+      context: ../apps/gift-tax-docs
+      dockerfile: Dockerfile
+    container_name: gift_tax_docs
+    ports:
+      - "3002:3002"
+    volumes:
+      - ../apps/gift-tax-docs:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+    command: npm run dev -- -p 3002
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # 相続税申告 資料準備ガイド
+  # Port: 3003
+  # ===========================================
+  inheritance-tax-docs:
+    build:
+      context: ../apps/inheritance-tax-docs
+      dockerfile: Dockerfile
+    container_name: inheritance_tax_docs
+    ports:
+      - "3003:3003"
+    volumes:
+      - ../apps/inheritance-tax-docs:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+    command: npm run dev -- -p 3003
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ===========================================
+  # 不動産取得税計算システム
+  # Port: 3004
+  # ===========================================
+  real-estate-tax:
+    build:
+      context: ../apps/real-estate-tax
+      dockerfile: Dockerfile
+    container_name: real_estate_tax
+    ports:
+      - "3004:3004"
+    volumes:
+      - ../apps/real-estate-tax:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+    command: npm run dev -- -p 3004
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  itcm_postgres_data:
+  ollama_data:

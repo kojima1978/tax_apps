@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model InheritanceCase {
+  id                String   @id @default(uuid())
+  deceasedName      String
+  dateOfDeath       String
+  status            String   // "未着手" | "進行中" | "完了" | "請求済"
+  taxAmount         Int?
+  assignee          String?
+  feeAmount         Int?
+  fiscalYear        Int
+  referrer          String?
+  estimateAmount    Int?
+  propertyValue     Int?
+  referralFeeRate   Float?
+  referralFeeAmount Int?
+  contacts          Json?    // Contact[]
+  progress          Json?    // ProgressStep[]
+  acceptanceStatus  String?  // "受託可" | "受託不可" | "未判定" | "保留"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Assignee {
+  id          String  @id @default(uuid())
+  name        String
+  employeeId  String?
+  department  String?
+  active      Boolean @default(true)
+}
+
+model Referrer {
+  id          String  @id @default(uuid())
+  company     String
+  name        String
+  department  String?
+  active      Boolean @default(true)
+}

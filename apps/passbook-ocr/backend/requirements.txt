@@ -1,0 +1,29 @@
+# Core Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# OCR Engine
+paddlepaddle==2.6.2
+paddleocr==2.8.1
+
+# Image Processing
+opencv-python==4.9.0.80
+Pillow==10.2.0
+numpy==1.26.3
+
+# Database
+sqlalchemy==2.0.25
+aiosqlite==0.19.0
+
+# Utilities
+python-dateutil==2.8.2
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Export
+openpyxl==3.1.2
+pandas==2.2.0
+
+# CUDA/GPU Support (for RTX 3060)
+# Ensure CUDA 12.x is installed on the host system

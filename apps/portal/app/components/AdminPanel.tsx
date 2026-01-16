@@ -1,0 +1,101 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import ApplicationForm from './ApplicationForm';
+import ApplicationList from './ApplicationList';
+
+interface Application {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  icon: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface AdminPanelProps {
+  applications: Application[];
+}
+
+export default function AdminPanel({ applications }: AdminPanelProps) {
+  const router = useRouter();
+  const [editingApp, setEditingApp] = useState<Application | null>(null);
+
+  const handleAddApplication = async (data: Omit<Application, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const response = await fetch('/api/applications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'アプリケーションの作成に失敗しました');
+    }
+
+    router.refresh();
+  };
+
+  const handleUpdateApplication = async (data: Omit<Application, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!editingApp) return;
+
+    const response = await fetch(`/api/applications/${editingApp.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'アプリケーションの更新に失敗しました');
+    }
+
+    setEditingApp(null);
+    router.refresh();
+  };
+
+  const handleDeleteApplication = async (id: string) => {
+    const response = await fetch(`/api/applications/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'アプリケーションの削除に失敗しました');
+    }
+
+    router.refresh();
+  };
+
+  const handleEdit = (app: Application) => {
+    setEditingApp(app);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingApp(null);
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Form Section */}
+      <ApplicationForm
+        application={editingApp || undefined}
+        onSubmit={editingApp ? handleUpdateApplication : handleAddApplication}
+        onCancel={editingApp ? handleCancelEdit : undefined}
+      />
+
+      {/* List Section */}
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">登録済みアプリケーション</h2>
+        <ApplicationList
+          applications={applications}
+          onEdit={handleEdit}
+          onDelete={handleDeleteApplication}
+        />
+      </div>
+    </div>
+  );
+}
