@@ -95,9 +95,9 @@ services:
     image: postgres:15-alpine
     container_name: itcm_postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: inheritance_tax_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-inheritance_tax_db}
     volumes:
       - itcm_postgres_data:/var/lib/postgresql/data
     ports:
@@ -114,7 +114,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3021
-      DATABASE_URL: postgresql://postgres:password@itcm-postgres:5432/inheritance_tax_db?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@itcm-postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
       FRONTEND_URL: http://localhost:3020
     ports:
       - "3021:3021"
