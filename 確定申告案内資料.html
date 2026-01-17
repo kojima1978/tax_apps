@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>確定申告 必要書類案内システム</title>
+    <!-- Tailwind CSS (スタイリング用) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons (アイコン用) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @media print {
+            body { background: white; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .shadow-xl, .shadow-lg, .shadow { box-shadow: none !important; }
+            .rounded-xl, .rounded-2xl { border-radius: 0; }
+            .bg-blue-600 { background-color: white !important; color: black !important; border-bottom: 2px solid #000; }
+            .text-white { color: black !important; }
+            @page { margin: 1.5cm; }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
+
+    <!-- アプリケーションのルート要素 -->
+    <div id="app" class="max-w-4xl mx-auto p-4 md:p-8">
+        <!-- ここにJavaScriptでコンテンツが描画されます -->
+    </div>
+
+    <script>
+        // -----------------------------------------------------------------------------
+        // データ定義 (確定申告案内資料.pdfに基づく)
+        // -----------------------------------------------------------------------------
+        const taxReturnData = {
+            title: "確定申告 必要書類案内",
+            description: "申告される所得の種類や、適用する控除を選択してください。",
+            contactInfo: {
+                office: "税理士法人 マスエージェント",
+                address: "〒770-0002 徳島県徳島市春日２丁目３−３３",
+                tel: "088-632-6228",
+                fax: "088-631-9870" // 以前の資料に基づき補完
+            },
+            // 常に表示する共通書類などがあればここに追加
+            baseRequired: [
+                {
+                    category: "基本情報・本人確認（必須）",
+                    documents: [
+                        "マイナンバーカード（または通知カード＋身分証明書）",
+                        "利用者識別番号（e-Tax用ID・パスワード）※お持ちの方",
+                        "前年の確定申告書の控え（お持ちの方）"
+                    ],
+                    note: "※初めて当事務所にご依頼される場合は、過去の申告書控えをご用意ください。"
+                }
+            ],
+            // 選択項目（所得の種類など）
+            options: [
+                {
+                    id: "business_general",
+                    label: "事業を行っていますか？（一般事業・フリーランスなど）",
+                    documents: [
+                        "【金融機関】借入金の残高証明書（12月末現在）",
+                        "【金融機関】預貯金の残高証明書（12月末現在）",
+                        "通帳のコピー（事業用口座）",
+                        "領収書綴り・請求書綴り",
+                        "現金出納帳",
+                        "売掛帳・買掛帳",
+                        "固定資産台帳",
+                        "棚卸表（在庫表・12月末現在）",
+                        "売上集計表・給与台帳",
+                        "取引先台帳",
+                        "受領した支払調書",
+                        "未収入金リスト・未払費用リスト（12月末現在）"
+                    ]
+                },
+                {
+                    id: "business_medical",
+                    label: "医業・歯科医業を行っていますか？",
+                    documents: [
+                        "【金融機関】借入金の残高証明書（12月末現在）",
+                        "【金融機関】預貯金の残高証明書（12月末現在）",
+                        "レセプト総括表（データダウンロード）",
+                        "社保の支払調書（令和年分）",
+                        "国保の支払通知書",
+                        "金属使用量リスト（歯科の場合）",
+                        "自費収入の自家消費リスト（歯科の場合）",
+                        "通帳コピー・小切手のミミ",
+                        "現金出納帳・経費領収書綴り",
+                        "棚卸表（在庫表・仕掛明細）",
+                        "未収入金リスト・未払費用リスト"
+                    ]
+                },
+                {
+                    id: "real_estate",
+                    label: "不動産収入（家賃・駐車場など）はありますか？",
+                    documents: [
+                        "家賃収入管理表（賃貸借契約書など）",
+                        "敷金・礼金・更新料の管理表",
+                        "固定資産税納税通知書",
+                        "損害保険料（火災保険など）の証明書",
+                        "借入金返済予定表",
+                        "【金融機関】借入金の残高証明書（12月末現在）",
+                        "不動産所得用の通帳コピー",
+                        "修繕費等の領収書・請求書",
+                        "未収入金リスト・未払費用リスト"
+                    ]
+                },
+                {
+                    id: "salary_pension",
+                    label: "給与・年金・退職金の受給はありますか？",
+                    documents: [
+                        "給与所得の源泉徴収票（令和年分）",
+                        "公的年金等の源泉徴収票",
+                        "退職所得の源泉徴収票"
+                    ]
+                },
+                {
+                    id: "transfer_stock",
+                    label: "土地・建物や株式等の売却（譲渡）はありましたか？",
+                    documents: [
+                        "【不動産譲渡】売買契約書（売却時・購入時ともに）",
+                        "【不動産譲渡】仲介手数料等の領収書（経費のわかるもの）",
+                        "【不動産譲渡】登記事項証明書（原本）",
+                        "【不動産譲渡】譲渡資産の取得価額がわかる資料",
+                        "【株式譲渡】特定口座年間取引報告書",
+                        "【株式譲渡】証券会社からの売買報告書（一般口座の場合）",
+                        "配当等の支払通知書（配当控除を受ける場合）"
+                    ]
+                }
+            ],
+            // 控除項目
+            deductions: [
+                {
+                    id: "medical",
+                    label: "医療費控除を受けますか？",
+                    documents: [
+                        "医療費の領収書・明細書（人ごと・病院ごとに整理してください）",
+                        "医療費のお知らせ（健康保険組合等から届くハガキ）",
+                        "保険金などで補填された金額がわかる書類",
+                        "セルフメディケーション税制適用の証明書類（該当する場合）"
+                    ]
+                },
+                {
+                    id: "furusato",
+                    label: "ふるさと納税・寄附金控除を受けますか？",
+                    documents: [
+                        "寄附金の受領証明書（ふるさと納税）",
+                        "寄附金控除に関する証明書（特定事業者発行）",
+                        "その他寄附金の領収書・受領書"
+                    ]
+                },
+                {
+                    id: "insurance",
+                    label: "生命保険・地震保険・社会保険の控除がありますか？",
+                    documents: [
+                        "生命保険料控除証明書",
+                        "地震（損害）保険料控除証明書",
+                        "国民年金保険料控除証明書",
+                        "国民年金基金掛金控除証明書",
+                        "小規模企業共済掛金払込証明書",
+                        "国民健康保険の支払額がわかるもの"
+                    ]
+                },
+                {
+                    id: "housing_loan",
+                    label: "住宅ローン控除を受けますか？",
+                    documents: [
+                        "住宅取得資金に係る借入金の年末残高証明書（金融機関発行）",
+                        "家屋（土地）の登記事項証明書（初年度）",
+                        "売買契約書・請負契約書の写し（初年度）",
+                        "交付を受ける補助金等の額を証する書類（該当する場合）"
+                    ]
+                },
+                {
+                    id: "others_deduction",
+                    label: "その他の控除（雑損、扶養など）",
+                    documents: [
+                        "【雑損】盗難届の控え・り災証明書",
+                        "【雑損】災害関連支出の領収書",
+                        "【扶養】親族関係書類・送金関係書類（国外居住親族の場合）",
+                        "【障害者】障害者手帳のコピー等"
+                    ]
+                }
+            ]
+        };
+
+        // -----------------------------------------------------------------------------
+        // 状態管理 (State)
+        // -----------------------------------------------------------------------------
+        const state = {
+            step: 'menu', // 'menu', 'check', 'result'
+            selectedOptions: {},
+            selectedDeductions: {},
+            isFullListMode: false
+        };
+
+        // -----------------------------------------------------------------------------
+        // アプリケーションロジック
+        // -----------------------------------------------------------------------------
+
+        function setState(newState) {
+            Object.assign(state, newState);
+            render();
+        }
+
+        function toggleOption(id) {
+            const newOptions = { ...state.selectedOptions };
+            newOptions[id] = !newOptions[id];
+            setState({ selectedOptions: newOptions });
+        }
+
+        function toggleDeduction(id) {
+            const newDeductions = { ...state.selectedDeductions };
+            newDeductions[id] = !newDeductions[id];
+            setState({ selectedDeductions: newDeductions });
+        }
+
+        function generateResultList() {
+            let results = [];
+
+            // 1. 基本書類
+            results.push(...taxReturnData.baseRequired);
+
+            // 2. 所得の種類別
+            taxReturnData.options.forEach(opt => {
+                if (state.isFullListMode || state.selectedOptions[opt.id]) {
+                    results.push({
+                        category: `【所得】${opt.label.replace(/ですか？|ますか？|ありますか？|ありましたか？/g, "")}`,
+                        documents: opt.documents
+                    });
+                }
+            });
+
+            // 3. 控除項目
+            taxReturnData.deductions.forEach(ded => {
+                if (state.isFullListMode || state.selectedDeductions[ded.id]) {
+                    results.push({
+                        category: `【控除】${ded.label.replace(/ですか？|ますか？/g, "")}`,
+                        documents: ded.documents
+                    });
+                }
+            });
+
+            return results;
+        }
+
+        // -----------------------------------------------------------------------------
+        // レンダリング関数 (View)
+        // -----------------------------------------------------------------------------
+
+        function render() {
+            const app = document.getElementById('app');
+            app.innerHTML = '';
+
+            if (state.step === 'menu') {
+                app.appendChild(createMenuScreen());
+            } else if (state.step === 'check') {
+                app.appendChild(createCheckScreen());
+            } else if (state.step === 'result') {
+                app.appendChild(createResultScreen());
+            }
+
+            lucide.createIcons();
+        }
+
+        // 1. メニュー画面
+        function createMenuScreen() {
+            const container = document.createElement('div');
+            container.className = "bg-white shadow-xl rounded-2xl overflow-hidden fade-in";
+            
+            container.innerHTML = `
+                <header class="bg-blue-600 p-10 text-center text-white">
+                    <h1 class="text-3xl font-bold mb-3">${taxReturnData.title}</h1>
+                    <p class="text-blue-100 text-lg">申告内容に合わせて、ご用意いただく書類をご案内します。</p>
+                </header>
+                <div class="p-10">
+                    <h2 class="text-xl font-semibold text-center mb-10 text-slate-600">ご希望の案内方法を選択してください</h2>
+                    <div class="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+                        <button id="btn-start-check" class="group relative flex flex-col items-center p-8 bg-white border-2 border-blue-100 rounded-2xl shadow-sm hover:border-blue-500 hover:shadow-xl transition-all duration-300 text-center w-full">
+                            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors">
+                                <i data-lucide="check-circle-2" class="w-10 h-10 text-blue-600 group-hover:text-white"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-slate-800 mb-3">質問に答えて選ぶ</h3>
+                            <p class="text-sm text-slate-500 leading-relaxed">
+                                「事業をしている」「医療費控除がある」などの質問に答えて、<br/>
+                                <span class="font-bold text-blue-600">お客様専用のリスト</span>を作成します。
+                            </p>
+                            <div class="mt-8 flex items-center px-6 py-2 bg-blue-50 text-blue-700 rounded-full font-bold group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                スタート <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+                            </div>
+                        </button>
+                        <button id="btn-show-all" class="group relative flex flex-col items-center p-8 bg-white border-2 border-slate-200 rounded-2xl shadow-sm hover:border-slate-500 hover:shadow-xl transition-all duration-300 text-center w-full">
+                            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-slate-600 transition-colors">
+                                <i data-lucide="list" class="w-10 h-10 text-slate-600 group-hover:text-white"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-slate-800 mb-3">全リストを表示</h3>
+                            <p class="text-sm text-slate-500 leading-relaxed">
+                                網羅的なリストが必要な場合に、<br/>
+                                <span class="font-bold text-slate-600">すべての必要書類一覧</span>を表示・印刷します。
+                            </p>
+                            <div class="mt-8 flex items-center px-6 py-2 bg-slate-50 text-slate-700 rounded-full font-bold group-hover:bg-slate-600 group-hover:text-white transition-colors">
+                                一覧を見る <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            container.querySelector('#btn-start-check').onclick = () => {
+                setState({ step: 'check', isFullListMode: false, selectedOptions: {}, selectedDeductions: {} });
+            };
+            container.querySelector('#btn-show-all').onclick = () => {
+                setState({ step: 'result', isFullListMode: true, selectedOptions: {}, selectedDeductions: {} });
+            };
+
+            return container;
+        }
+
+        // 2. チェックリスト画面
+        function createCheckScreen() {
+            const container = document.createElement('div');
+            container.className = "max-w-3xl mx-auto fade-in";
+
+            const createCheckbox = (item, type) => {
+                const isChecked = type === 'option' ? !!state.selectedOptions[item.id] : !!state.selectedDeductions[item.id];
+                const fn = type === 'option' ? `toggleOption('${item.id}')` : `toggleDeduction('${item.id}')`;
+                
+                return `
+                    <label class="flex items-start p-3 rounded-lg border-2 cursor-pointer transition-all ${isChecked ? 'border-blue-500 bg-blue-50' : 'border-slate-100 hover:border-slate-300'}" id="label-${item.id}">
+                        <div class="mt-1 w-5 h-5 flex items-center justify-center border rounded ${isChecked ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}">
+                            ${isChecked ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}
+                        </div>
+                        <span class="ml-3 text-slate-700 font-medium">${item.label}</span>
+                    </label>
+                `;
+            };
+
+            container.innerHTML = `
+                <div class="flex items-center justify-between mb-6">
+                    <button id="btn-back-top" class="flex items-center text-slate-500 hover:text-slate-800 transition-colors">
+                        <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> TOPに戻る
+                    </button>
+                    <div class="px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-700">ヒアリングシート</div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="bg-blue-600 p-6 text-white">
+                        <h2 class="text-2xl font-bold mb-2">確定申告 書類確認シート</h2>
+                        <p class="opacity-90">${taxReturnData.description}</p>
+                    </div>
+
+                    <div class="p-6 md:p-8 space-y-8">
+                        <div>
+                            <h3 class="flex items-center text-lg font-bold text-slate-700 mb-4 pb-2 border-b border-slate-200">
+                                <i data-lucide="briefcase" class="w-5 h-5 mr-2 text-blue-600"></i>
+                                1. 収入・所得の種類を選択してください
+                            </h3>
+                            <div class="grid gap-3" id="income-list"></div>
+                        </div>
+
+                        <div>
+                            <h3 class="flex items-center text-lg font-bold text-slate-700 mb-4 pb-2 border-b border-slate-200">
+                                <i data-lucide="calculator" class="w-5 h-5 mr-2 text-blue-600"></i>
+                                2. 適用する控除を選択してください
+                            </h3>
+                            <div class="grid gap-3" id="deduction-list"></div>
+                        </div>
+
+                        <div class="pt-6 border-t border-slate-100 flex flex-col items-center space-y-4">
+                            <button id="btn-generate" class="flex items-center px-10 py-4 rounded-full text-white text-lg font-bold shadow-lg transform transition hover:-translate-y-1 bg-blue-600 hover:bg-blue-700">
+                                案内を作成する <i data-lucide="chevron-right" class="ml-2 w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const incomeList = container.querySelector('#income-list');
+            taxReturnData.options.forEach(opt => {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = createCheckbox(opt, 'option');
+                wrapper.firstElementChild.onclick = (e) => { e.preventDefault(); toggleOption(opt.id); };
+                incomeList.appendChild(wrapper);
+            });
+
+            const deductionList = container.querySelector('#deduction-list');
+            taxReturnData.deductions.forEach(ded => {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = createCheckbox(ded, 'deduction');
+                wrapper.firstElementChild.onclick = (e) => { e.preventDefault(); toggleDeduction(ded.id); };
+                deductionList.appendChild(wrapper);
+            });
+
+            container.querySelector('#btn-back-top').onclick = () => setState({ step: 'menu', selectedOptions: {}, selectedDeductions: {} });
+            container.querySelector('#btn-generate').onclick = () => setState({ step: 'result' });
+
+            return container;
+        }
+
+        // 3. 結果画面
+        function createResultScreen() {
+            const results = generateResultList();
+            const currentDate = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const container = document.createElement('div');
+            container.className = "fade-in";
+
+            container.innerHTML = `
+                <div class="no-print flex items-center justify-between mb-6">
+                    <button id="btn-back" class="flex items-center bg-white px-4 py-2 rounded-lg shadow text-slate-600 hover:text-slate-900 transition-colors">
+                        <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i> ${state.isFullListMode ? 'TOPへ戻る' : '修正する'}
+                    </button>
+                    <div class="flex space-x-3">
+                        <button onclick="window.print()" class="flex items-center px-6 py-2 rounded-lg text-white shadow hover:opacity-90 bg-blue-600 font-bold">
+                            <i data-lucide="printer" class="w-4 h-4 mr-2"></i> 印刷 / PDF保存
+                        </button>
+                        <button id="btn-reset" class="flex items-center bg-slate-700 text-white px-4 py-2 rounded-lg shadow hover:bg-slate-800">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i> TOP
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl">
+                    <div class="border-b-2 border-slate-800 pb-6 mb-8 flex justify-between items-end">
+                        <div>
+                            <h1 class="text-3xl font-bold text-slate-900 mb-2">${taxReturnData.title}</h1>
+                            <p class="text-slate-600">
+                                ${state.isFullListMode ? '<span class="inline-block px-2 py-0.5 bg-slate-200 text-slate-700 text-xs font-bold rounded mr-2 align-middle">全リスト表示</span>' : ''}
+                                以下の書類をご準備の上、ご来所またはご郵送ください。
+                            </p>
+                        </div>
+                        <div class="text-right text-sm text-slate-500">
+                            <p>発行日: ${currentDate}</p>
+                            <p class="font-bold text-slate-700">${taxReturnData.contactInfo.office}</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-8" id="result-list-container">
+                        <!-- JSでリスト注入 -->
+                    </div>
+
+                    <div class="mt-12 pt-6 border-t border-slate-300">
+                        <div class="flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <i data-lucide="alert-circle" class="w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0"></i>
+                            <div class="text-sm text-slate-600 space-y-1">
+                                <p><strong>【お問い合わせ先】</strong></p>
+                                <p class="font-bold text-lg text-slate-700">${taxReturnData.contactInfo.office}</p>
+                                <p>${taxReturnData.contactInfo.address}</p>
+                                <p>TEL: ${taxReturnData.contactInfo.tel}${taxReturnData.contactInfo.fax ? ` / FAX: ${taxReturnData.contactInfo.fax}` : ''}</p>
+                                <br>
+                                <p><strong>※ご留意事項</strong></p>
+                                <p>・原本が必要な書類と、コピーで対応可能な書類がございます。詳細はお問い合わせください。</p>
+                                ${state.isFullListMode ? '<p class="text-blue-600 font-semibold">・本リストは「全項目表示」モードです。お客様の状況に関係のない書類も含まれています。</p>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const listContainer = container.querySelector('#result-list-container');
+            
+            if (results.length === 0 && !state.isFullListMode) {
+                listContainer.innerHTML = `<p class="text-center text-slate-400 py-10">選択された項目がありません。</p>`;
+            } else {
+                results.forEach(group => {
+                    const groupDiv = document.createElement('div');
+                    groupDiv.className = "break-inside-avoid";
+                    
+                    let docsHtml = group.documents.map(doc => `
+                        <li class="flex items-start text-slate-700 py-1 border-b border-dashed border-slate-100 last:border-0">
+                            <span class="inline-block w-4 h-4 mr-3 mt-1 border-2 border-blue-300 rounded-sm flex-shrink-0 print:border-slate-400"></span>
+                            <span>${doc}</span>
+                        </li>
+                    `).join('');
+
+                    groupDiv.innerHTML = `
+                        <h3 class="font-bold text-lg mb-3 px-3 py-1 bg-blue-50 border-l-4 border-blue-500 text-slate-800 flex items-center">
+                            ${group.category}
+                        </h3>
+                        <ul class="list-none pl-1 space-y-2">
+                            ${docsHtml}
+                        </ul>
+                        ${group.note ? `
+                        <p class="mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded flex items-start">
+                            <i data-lucide="info" class="w-4 h-4 mr-1 mt-0.5 flex-shrink-0"></i>
+                            ${group.note}
+                        </p>` : ''}
+                    `;
+                    listContainer.appendChild(groupDiv);
+                });
+            }
+
+            container.querySelector('#btn-back').onclick = () => {
+                if (state.isFullListMode) {
+                    setState({ step: 'menu', selectedOptions: {}, selectedDeductions: {}, isFullListMode: false });
+                } else {
+                    setState({ step: 'check' });
+                }
+            };
+            container.querySelector('#btn-reset').onclick = () => {
+                setState({ step: 'menu', selectedOptions: {}, selectedDeductions: {}, isFullListMode: false });
+            };
+
+            return container;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            render();
+        });
+
+    </script>
+</body>
+</html>
