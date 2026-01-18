@@ -7,6 +7,7 @@
 - 書類リストの一覧表示・編集
 - カテゴリごとの書類管理
 - 書類の追加・削除・編集
+- 小項目（サブアイテム）の追加
 - チェックボックスによる準備状況管理
 - ドラッグ&ドロップによる並び替え
 - Excel出力
@@ -14,11 +15,12 @@
 - 顧客・担当者・年度別のデータ保存
 - 翌年度へのデータコピー
 - 保存データ管理画面（検索・編集・削除）
+- 自動保存機能（5秒後）
 
 ## 技術スタック
 
 ### フロントエンド
-- Next.js 16
+- Next.js 15
 - React 19
 - TypeScript
 - Tailwind CSS v4
@@ -35,28 +37,49 @@
 
 ```
 Required-documents-for-tax-return/
-├── frontend/          # Next.jsフロントエンド
+├── frontend/              # Next.jsフロントエンド
 │   ├── src/
-│   │   ├── app/       # ページコンポーネント
-│   │   ├── components/# UIコンポーネント
-│   │   ├── data/      # 書類データ定義
-│   │   └── utils/     # ユーティリティ
+│   │   ├── app/           # ページコンポーネント
+│   │   │   ├── page.tsx   # メインページ
+│   │   │   ├── layout.tsx # レイアウト
+│   │   │   └── data-management/
+│   │   │       └── page.tsx  # 保存データ管理画面
+│   │   ├── components/    # UIコンポーネント
+│   │   │   ├── MenuScreen.tsx         # トップ画面
+│   │   │   ├── DocumentListScreen.tsx # 書類編集画面
+│   │   │   └── YearSelector.tsx       # 年度選択
+│   │   ├── data/          # 書類データ定義
+│   │   │   └── taxReturnData.ts
+│   │   └── utils/         # ユーティリティ
+│   │       ├── api.ts     # API関数
+│   │       ├── date.ts    # 日付ユーティリティ
+│   │       └── exportExcel.ts # Excel出力
 │   ├── Dockerfile
 │   └── package.json
-├── backend/           # Expressバックエンド
+├── backend/               # Expressバックエンド
 │   ├── src/
-│   │   ├── index.ts   # APIサーバー
-│   │   └── db.ts      # データベース操作
+│   │   ├── index.ts       # APIサーバー
+│   │   └── db.ts          # データベース操作
+│   ├── data/              # SQLiteデータベース格納
 │   ├── Dockerfile
+│   ├── ER図.md            # データベース設計
 │   └── package.json
-├── docker-compose.yml # ローカル開発用
+├── docker-compose.yml     # ローカル開発用
 └── README.md
 ```
+
+## データベース設計
+
+詳細は [backend/ER図.md](backend/ER図.md) を参照してください。
+
+### テーブル構成
+- **customers**: 顧客情報（お客様名、担当者名）
+- **document_records**: 年度別書類データ（JSON形式で保存）
 
 ## 開発環境のセットアップ
 
 ### 前提条件
-- Node.js 20以上
+- Node.js 24以上（LTS推奨）
 - npm
 
 ### インストール
@@ -115,8 +138,10 @@ docker-compose up tax-docs-frontend tax-docs-backend
 | GET | /api/health | ヘルスチェック |
 | GET | /api/customers | 顧客一覧 |
 | GET | /api/staff-names | 担当者一覧 |
-| GET | /api/customer-names | お客様名一覧 |
-| GET | /api/available-years | 年度一覧 |
+| GET | /api/customer-names | お客様名一覧（担当者でフィルタ可能） |
+| GET | /api/available-years | 年度一覧（顧客・担当者でフィルタ可能） |
+| GET | /api/years | 顧客の年度一覧 |
+| GET | /api/search | 顧客検索 |
 | GET | /api/documents | 書類データ取得 |
 | POST | /api/documents | 書類データ保存/翌年度コピー |
 | GET | /api/records | 保存データ一覧（管理画面用） |
@@ -125,17 +150,20 @@ docker-compose up tax-docs-frontend tax-docs-backend
 
 ## 画面構成
 
-1. **トップ画面（MenuScreen）**
-   - 保存済みデータの選択・読み込み
-   - 新規作成
+### 1. トップ画面（MenuScreen）
+- 保存済みデータの選択・読み込み（担当者 → お客様名 → 年度の順で絞り込み）
+- 新規作成（年度を選択して開始）
+- 保存データ管理画面へのリンク
 
-2. **書類編集画面（DocumentListScreen）**
-   - カテゴリ別書類一覧
-   - 書類の追加・編集・削除
-   - チェック・並び替え
-   - 保存・印刷・Excel出力
+### 2. 書類編集画面（DocumentListScreen）
+- カテゴリ別書類一覧
+- 書類・小項目の追加・編集・削除
+- チェックボックスで準備状況管理
+- ドラッグ&ドロップで並び替え
+- 保存・印刷・Excel出力
+- 翌年度更新機能
 
-3. **保存データ管理画面（/data-management）**
-   - 担当者・お客様名・年度での検索
-   - 顧客情報の編集
-   - データの削除
+### 3. 保存データ管理画面（/data-management）
+- 担当者・お客様名・年度での検索・フィルタ
+- 顧客情報の編集
+- データの削除

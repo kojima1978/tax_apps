@@ -3,42 +3,38 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Trash2, Edit2, Check, X, Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { fetchRecords, deleteDocument, updateCustomer, DataRecord } from '@/utils/api';
+import { formatDateTime } from '@/utils/date';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
-interface DataRecord {
-  id: number;
-  customer_name: string;
-  staff_name: string;
-  year: number;
-  updated_at: string;
+interface EditState {
+  id: number | null;
+  customerName: string;
+  staffName: string;
+  originalCustomerName: string;
+  originalStaffName: string;
 }
+
+const initialEditState: EditState = {
+  id: null,
+  customerName: '',
+  staffName: '',
+  originalCustomerName: '',
+  originalStaffName: '',
+};
 
 export default function DataManagementPage() {
   const [records, setRecords] = useState<DataRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // 個別検索フィルター
   const [searchStaff, setSearchStaff] = useState('');
   const [searchCustomer, setSearchCustomer] = useState('');
   const [searchYear, setSearchYear] = useState<number | ''>('');
+  const [editState, setEditState] = useState<EditState>(initialEditState);
 
-  // 編集中の状態
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editCustomerName, setEditCustomerName] = useState('');
-  const [editStaffName, setEditStaffName] = useState('');
-  const [originalCustomerName, setOriginalCustomerName] = useState('');
-  const [originalStaffName, setOriginalStaffName] = useState('');
-
-  // データ一覧を取得
-  const fetchRecords = useCallback(async () => {
+  const loadRecords = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/records`);
-      if (response.ok) {
-        const data = await response.json();
-        setRecords(data.records || []);
-      }
+      const data = await fetchRecords();
+      setRecords(data);
     } catch (error) {
       console.error('データの取得に失敗:', error);
     } finally {
@@ -47,21 +43,17 @@ export default function DataManagementPage() {
   }, []);
 
   useEffect(() => {
-    fetchRecords();
-  }, [fetchRecords]);
+    loadRecords();
+  }, [loadRecords]);
 
-  // 削除
   const handleDelete = async (id: number, customerName: string, year: number) => {
     if (!confirm(`「${customerName}」の令和${year}年のデータを削除しますか？\nこの操作は取り消せません。`)) {
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/documents/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
+      const success = await deleteDocument(id);
+      if (success) {
         setRecords((prev) => prev.filter((r) => r.id !== id));
       } else {
         alert('削除に失敗しました');
@@ -72,56 +64,45 @@ export default function DataManagementPage() {
     }
   };
 
-  // 編集開始
   const startEdit = (record: DataRecord) => {
-    setEditingId(record.id);
-    setEditCustomerName(record.customer_name);
-    setEditStaffName(record.staff_name);
-    setOriginalCustomerName(record.customer_name);
-    setOriginalStaffName(record.staff_name);
+    setEditState({
+      id: record.id,
+      customerName: record.customer_name,
+      staffName: record.staff_name,
+      originalCustomerName: record.customer_name,
+      originalStaffName: record.staff_name,
+    });
   };
 
-  // 編集キャンセル
   const cancelEdit = () => {
-    setEditingId(null);
-    setEditCustomerName('');
-    setEditStaffName('');
-    setOriginalCustomerName('');
-    setOriginalStaffName('');
+    setEditState(initialEditState);
   };
 
-  // 編集保存
   const saveEdit = async () => {
-    if (!editCustomerName.trim() || !editStaffName.trim()) {
+    if (!editState.customerName.trim() || !editState.staffName.trim()) {
       alert('お客様名と担当者名を入力してください');
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/customers`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          oldCustomerName: originalCustomerName,
-          oldStaffName: originalStaffName,
-          newCustomerName: editCustomerName.trim(),
-          newStaffName: editStaffName.trim(),
-        }),
-      });
+      const result = await updateCustomer(
+        editState.originalCustomerName,
+        editState.originalStaffName,
+        editState.customerName.trim(),
+        editState.staffName.trim()
+      );
 
-      if (response.ok) {
-        // 同じ顧客の全レコードを更新
+      if (result.success) {
         setRecords((prev) =>
           prev.map((r) =>
-            r.customer_name === originalCustomerName && r.staff_name === originalStaffName
-              ? { ...r, customer_name: editCustomerName.trim(), staff_name: editStaffName.trim() }
+            r.customer_name === editState.originalCustomerName && r.staff_name === editState.originalStaffName
+              ? { ...r, customer_name: editState.customerName.trim(), staff_name: editState.staffName.trim() }
               : r
           )
         );
         cancelEdit();
       } else {
-        const data = await response.json();
-        alert(data.error || '更新に失敗しました');
+        alert(result.error || '更新に失敗しました');
       }
     } catch (error) {
       console.error('更新エラー:', error);
@@ -129,30 +110,21 @@ export default function DataManagementPage() {
     }
   };
 
-  // 登録されている年度一覧を取得
   const availableYears = [...new Set(records.map((r) => r.year))].sort((a, b) => b - a);
 
-  // フィルタリング
   const filteredRecords = records.filter((record) => {
-    const staffMatch = searchStaff === '' || record.staff_name.toLowerCase().includes(searchStaff.toLowerCase());
-    const customerMatch = searchCustomer === '' || record.customer_name.toLowerCase().includes(searchCustomer.toLowerCase());
+    const staffMatch = !searchStaff || record.staff_name.toLowerCase().includes(searchStaff.toLowerCase());
+    const customerMatch = !searchCustomer || record.customer_name.toLowerCase().includes(searchCustomer.toLowerCase());
     const yearMatch = searchYear === '' || record.year === searchYear;
     return staffMatch && customerMatch && yearMatch;
   });
 
-  // 検索条件があるかどうか
   const hasSearchFilter = searchStaff || searchCustomer || searchYear;
 
-  // 日付フォーマット
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const clearSearch = () => {
+    setSearchStaff('');
+    setSearchCustomer('');
+    setSearchYear('');
   };
 
   return (
@@ -177,7 +149,6 @@ export default function DataManagementPage() {
             <h2 className="text-sm font-bold text-slate-700">検索フィルター</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 担当者検索 */}
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">担当者</label>
               <input
@@ -188,7 +159,6 @@ export default function DataManagementPage() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
-            {/* お客様名検索 */}
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">お客様名</label>
               <input
@@ -199,7 +169,6 @@ export default function DataManagementPage() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
-            {/* 年度検索 */}
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">年度</label>
               <select
@@ -209,24 +178,14 @@ export default function DataManagementPage() {
               >
                 <option value="">すべて</option>
                 {availableYears.map((y) => (
-                  <option key={y} value={y}>
-                    令和{y}年
-                  </option>
+                  <option key={y} value={y}>令和{y}年</option>
                 ))}
               </select>
             </div>
           </div>
-          {/* クリアボタン */}
           {hasSearchFilter && (
             <div className="mt-4 flex justify-end">
-              <button
-                onClick={() => {
-                  setSearchStaff('');
-                  setSearchCustomer('');
-                  setSearchYear('');
-                }}
-                className="text-sm text-slate-500 hover:text-slate-700 underline"
-              >
+              <button onClick={clearSearch} className="text-sm text-slate-500 hover:text-slate-700 underline">
                 検索条件をクリア
               </button>
             </div>
@@ -259,11 +218,11 @@ export default function DataManagementPage() {
                   {filteredRecords.map((record) => (
                     <tr key={record.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-sm">
-                        {editingId === record.id ? (
+                        {editState.id === record.id ? (
                           <input
                             type="text"
-                            value={editStaffName}
-                            onChange={(e) => setEditStaffName(e.target.value)}
+                            value={editState.staffName}
+                            onChange={(e) => setEditState((prev) => ({ ...prev, staffName: e.target.value }))}
                             className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
                           />
                         ) : (
@@ -271,11 +230,11 @@ export default function DataManagementPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        {editingId === record.id ? (
+                        {editState.id === record.id ? (
                           <input
                             type="text"
-                            value={editCustomerName}
-                            onChange={(e) => setEditCustomerName(e.target.value)}
+                            value={editState.customerName}
+                            onChange={(e) => setEditState((prev) => ({ ...prev, customerName: e.target.value }))}
                             className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
                           />
                         ) : (
@@ -288,23 +247,15 @@ export default function DataManagementPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-500">
-                        {formatDate(record.updated_at)}
+                        {formatDateTime(record.updated_at)}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {editingId === record.id ? (
+                        {editState.id === record.id ? (
                           <div className="flex items-center justify-center space-x-2">
-                            <button
-                              onClick={saveEdit}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                              title="保存"
-                            >
+                            <button onClick={saveEdit} className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="保存">
                               <Check className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={cancelEdit}
-                              className="p-1.5 text-slate-400 hover:bg-slate-100 rounded"
-                              title="キャンセル"
-                            >
+                            <button onClick={cancelEdit} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded" title="キャンセル">
                               <X className="w-4 h-4" />
                             </button>
                           </div>

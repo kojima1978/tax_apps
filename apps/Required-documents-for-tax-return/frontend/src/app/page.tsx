@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import MenuScreen from '@/components/MenuScreen';
 import DocumentListScreen, { CategoryGroup, generateInitialDocumentGroups } from '@/components/DocumentListScreen';
-
-// バックエンドAPIのベースURL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { fetchDocuments, saveDocuments, copyToNextYear as apiCopyToNextYear } from '@/utils/api';
+import { getDefaultReiwaYear } from '@/utils/date';
 
 type Step = 'menu' | 'editor';
 
@@ -19,17 +18,6 @@ interface AppState {
   isLoading: boolean;
   lastSaved: Date | null;
   saveError: string | null;
-}
-
-// デフォルトの年度を計算（現在の年から令和年に変換）
-function getDefaultReiwaYear(): number {
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-  // 1-3月の場合は前年の確定申告なので前年の令和年を返す
-  if (currentMonth <= 3) {
-    return currentYear - 2018 - 1;
-  }
-  return currentYear - 2018;
 }
 
 export default function Home() {
@@ -47,35 +35,14 @@ export default function Home() {
     saveError: null,
   });
 
-  // データを保存する関数
   const saveData = useCallback(async () => {
-    if (!state.customerName.trim() || !state.staffName.trim()) {
-      return; // お客様名と担当者名が入力されていない場合は保存しない
-    }
+    if (!state.customerName.trim() || !state.staffName.trim()) return;
 
     setState((prev) => ({ ...prev, isSaving: true, saveError: null }));
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerName: state.customerName,
-          staffName: state.staffName,
-          year: state.year,
-          documentGroups: state.documentGroups,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('保存に失敗しました');
-      }
-
-      setState((prev) => ({
-        ...prev,
-        isSaving: false,
-        lastSaved: new Date(),
-      }));
+      await saveDocuments(state.customerName, state.staffName, state.year, state.documentGroups);
+      setState((prev) => ({ ...prev, isSaving: false, lastSaved: new Date() }));
     } catch (error) {
       setState((prev) => ({
         ...prev,
@@ -85,23 +52,13 @@ export default function Home() {
     }
   }, [state.customerName, state.staffName, state.year, state.documentGroups]);
 
-  // データを読み込む関数
-  const loadData = useCallback(async (customerName: string, staffName: string, year: number) => {
-    if (!customerName.trim() || !staffName.trim()) {
-      return false;
-    }
+  const loadData = useCallback(async (customerName: string, staffName: string, year: number): Promise<boolean> => {
+    if (!customerName.trim() || !staffName.trim()) return false;
 
     setState((prev) => ({ ...prev, isLoading: true }));
 
     try {
-      const params = new URLSearchParams({
-        customerName,
-        staffName,
-        year: String(year),
-      });
-
-      const response = await fetch(`${API_BASE_URL}/api/documents?${params}`);
-      const data = await response.json();
+      const data = await fetchDocuments(customerName, staffName, year);
 
       if (data.found && data.documentGroups) {
         setState((prev) => ({
@@ -121,34 +78,21 @@ export default function Home() {
     }
   }, []);
 
-  // 翌年度更新関数
-  const copyToNextYear = useCallback(async () => {
+  const handleCopyToNextYear = useCallback(async () => {
     if (!state.customerName.trim() || !state.staffName.trim()) {
       alert('お客様名と担当者名を入力してください');
       return;
     }
 
-    // まず現在のデータを保存
     await saveData();
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerName: state.customerName,
-          staffName: state.staffName,
-          year: state.year,
-          action: 'copyToNextYear',
-        }),
-      });
+      const data = await apiCopyToNextYear(state.customerName, state.staffName, state.year);
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         alert(`令和${state.year}年のデータを令和${state.year + 1}年にコピーしました。\n年度を切り替えて確認してください。`);
       } else {
-        alert(data.error || '翌年度更新に失敗しました');
+        alert('翌年度更新に失敗しました');
       }
     } catch (error) {
       console.error('翌年度更新に失敗しました:', error);
@@ -156,57 +100,28 @@ export default function Home() {
     }
   }, [state.customerName, state.staffName, state.year, saveData]);
 
-  // 自動保存（documentGroupsが変更されたら5秒後に保存）
+  // 自動保存（5秒後）
   useEffect(() => {
     if (state.step !== 'editor') return;
     if (!state.customerName.trim() || !state.staffName.trim()) return;
 
-    const timeoutId = setTimeout(() => {
-      saveData();
-    }, 5000);
-
+    const timeoutId = setTimeout(saveData, 5000);
     return () => clearTimeout(timeoutId);
   }, [state.documentGroups, state.step, state.customerName, state.staffName, saveData]);
 
   const handleYearChange = async (year: number) => {
-    // 年度が変わった場合、まずデータベースから読み込みを試みる
-    setState((prev) => ({
-      ...prev,
-      year,
-    }));
+    setState((prev) => ({ ...prev, year }));
 
-    // お客様名と担当者名が設定されている場合はデータを読み込む
     if (state.customerName.trim() && state.staffName.trim()) {
       const loaded = await loadData(state.customerName, state.staffName, year);
       if (!loaded) {
-        // データがない場合は新規生成
-        setState((prev) => ({
-          ...prev,
-          documentGroups: generateInitialDocumentGroups(year),
-        }));
+        setState((prev) => ({ ...prev, documentGroups: generateInitialDocumentGroups(year) }));
       }
     } else {
-      // お客様名と担当者名がない場合は新規生成
-      setState((prev) => ({
-        ...prev,
-        documentGroups: generateInitialDocumentGroups(year),
-      }));
+      setState((prev) => ({ ...prev, documentGroups: generateInitialDocumentGroups(year) }));
     }
   };
 
-  const handleDocumentGroupsChange = (documentGroups: CategoryGroup[]) => {
-    setState((prev) => ({ ...prev, documentGroups }));
-  };
-
-  const handleCustomerNameChange = (customerName: string) => {
-    setState((prev) => ({ ...prev, customerName }));
-  };
-
-  const handleStaffNameChange = (staffName: string) => {
-    setState((prev) => ({ ...prev, staffName }));
-  };
-
-  // データ読み込み関数（ボタンクリック用）
   const handleLoadData = async () => {
     if (!state.customerName.trim() || !state.staffName.trim()) {
       alert('お客様名と担当者名を入力してください');
@@ -214,14 +129,9 @@ export default function Home() {
     }
 
     const loaded = await loadData(state.customerName, state.staffName, state.year);
-    if (loaded) {
-      alert('データを読み込みました');
-    } else {
-      alert('保存されたデータが見つかりませんでした');
-    }
+    alert(loaded ? 'データを読み込みました' : '保存されたデータが見つかりませんでした');
   };
 
-  // 手動保存関数
   const handleSaveData = async () => {
     if (!state.customerName.trim() || !state.staffName.trim()) {
       alert('お客様名と担当者名を入力してください');
@@ -234,21 +144,6 @@ export default function Home() {
     }
   };
 
-  const handleStartEditor = () => {
-    setState((prev) => ({
-      ...prev,
-      step: 'editor',
-    }));
-  };
-
-  const handleBackToMenu = () => {
-    setState((prev) => ({
-      ...prev,
-      step: 'menu',
-    }));
-  };
-
-  // 検索結果からデータを読み込んでエディタに遷移
   const handleLoadCustomerData = async (customerName: string, staffName: string, year: number) => {
     setState((prev) => ({
       ...prev,
@@ -259,31 +154,16 @@ export default function Home() {
     }));
 
     try {
-      const params = new URLSearchParams({
-        customerName,
-        staffName,
-        year: String(year),
-      });
+      const data = await fetchDocuments(customerName, staffName, year);
 
-      const response = await fetch(`${API_BASE_URL}/api/documents?${params}`);
-      const data = await response.json();
-
-      if (data.found && data.documentGroups) {
-        setState((prev) => ({
-          ...prev,
-          documentGroups: data.documentGroups as CategoryGroup[],
-          isLoading: false,
-          step: 'editor',
-        }));
-      } else {
-        // データが見つからない場合は新規生成してエディタに遷移
-        setState((prev) => ({
-          ...prev,
-          documentGroups: generateInitialDocumentGroups(year),
-          isLoading: false,
-          step: 'editor',
-        }));
-      }
+      setState((prev) => ({
+        ...prev,
+        documentGroups: data.found && data.documentGroups
+          ? (data.documentGroups as CategoryGroup[])
+          : generateInitialDocumentGroups(year),
+        isLoading: false,
+        step: 'editor',
+      }));
     } catch (error) {
       console.error('データの読み込みに失敗しました:', error);
       setState((prev) => ({
@@ -302,7 +182,7 @@ export default function Home() {
           <MenuScreen
             year={state.year}
             onYearChange={handleYearChange}
-            onStartEditor={handleStartEditor}
+            onStartEditor={() => setState((prev) => ({ ...prev, step: 'editor' }))}
             onLoadCustomerData={handleLoadCustomerData}
           />
         )}
@@ -310,16 +190,16 @@ export default function Home() {
           <DocumentListScreen
             year={state.year}
             documentGroups={state.documentGroups}
-            onDocumentGroupsChange={handleDocumentGroupsChange}
-            onBack={handleBackToMenu}
+            onDocumentGroupsChange={(documentGroups) => setState((prev) => ({ ...prev, documentGroups }))}
+            onBack={() => setState((prev) => ({ ...prev, step: 'menu' }))}
             onYearChange={handleYearChange}
             customerName={state.customerName}
             staffName={state.staffName}
-            onCustomerNameChange={handleCustomerNameChange}
-            onStaffNameChange={handleStaffNameChange}
+            onCustomerNameChange={(customerName) => setState((prev) => ({ ...prev, customerName }))}
+            onStaffNameChange={(staffName) => setState((prev) => ({ ...prev, staffName }))}
             onSave={handleSaveData}
             onLoad={handleLoadData}
-            onCopyToNextYear={copyToNextYear}
+            onCopyToNextYear={handleCopyToNextYear}
             isSaving={state.isSaving}
             isLoading={state.isLoading}
             lastSaved={state.lastSaved}

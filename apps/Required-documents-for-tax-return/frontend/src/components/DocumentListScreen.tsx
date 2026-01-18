@@ -23,6 +23,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, Printer, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight, AlertCircle, Info, GripVertical, FileSpreadsheet, Save, Download, Copy, Loader2 } from 'lucide-react';
 import { exportToExcel } from '@/utils/exportExcel';
 import { taxReturnData, replaceYearPlaceholder } from '@/data/taxReturnData';
+import { generateReiwaYears, formatDate } from '@/utils/date';
 
 // サブアイテムの型
 export interface SubItem {
@@ -719,11 +720,7 @@ export default function DocumentListScreen({
   const [addingSubItemToDocId, setAddingSubItemToDocId] = useState<string | null>(null);
   const [newSubItemText, setNewSubItemText] = useState('');
 
-  const currentDate = new Date().toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
+  const currentDate = formatDate();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -1015,13 +1012,7 @@ export default function DocumentListScreen({
     onDocumentGroupsChange(newGroups);
   };
 
-  // 年度セレクタを生成
-  const currentYear = new Date().getFullYear();
-  const years: number[] = [];
-  for (let y = currentYear; y >= 2019; y--) {
-    years.push(y - 2018);
-  }
-
+  const years = generateReiwaYears();
   const activeGroup = activeId ? documentGroups.find((g) => g.id === activeId) : null;
 
   return (
