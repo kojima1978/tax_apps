@@ -340,7 +340,7 @@ services:
     build:
       context: ../apps/Required-documents-for-tax-return/backend
       dockerfile: Dockerfile
-    container_name: tax_docs_backend
+    container_name: tax-docs-backend
     ports:
       - "3006:3001"
     volumes:
@@ -360,7 +360,7 @@ services:
     build:
       context: ../apps/Required-documents-for-tax-return/frontend
       dockerfile: Dockerfile
-    container_name: tax_docs_frontend
+    container_name: tax-docs-frontend
     ports:
       - "3005:3000"
     volumes:

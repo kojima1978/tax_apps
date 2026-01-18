@@ -18,6 +18,7 @@
 | 贈与税計算 | `/gift-tax/` | 3001 | Next.js | 贈与税シミュレーション |
 | 相続税申告書類案内 | `/inheritance-tax-docs/` | 3003 | Next.js | 必要書類ガイド・Excel出力 |
 | 贈与税申告書類案内 | `/gift-tax-docs/` | 3002 | Next.js | 必要書類ガイド |
+| 確定申告必要書類 | `/tax-docs/` | 3005/3006 | Next.js + Express + SQLite | 確定申告書類管理 |
 | 医療法人株式評価 | `/medical/` | 3010 | Next.js | 医療法人の株式評価 |
 | 非上場株式評価 | `/shares/` | 3012 | Next.js | 非上場株式の評価 |
 | 案件管理 | `/itcm/` | 3020 | Next.js + Express + PostgreSQL | 相続税案件管理 |
@@ -35,6 +36,7 @@ tax_apps/
 │   ├── gift-tax/                  # 贈与税計算
 │   ├── inheritance-tax-docs/      # 相続税申告書類案内
 │   ├── gift-tax-docs/             # 贈与税申告書類案内
+│   ├── Required-documents-for-tax-return/ # 確定申告必要書類
 │   ├── medical-stock-valuation/   # 医療法人株式評価
 │   ├── shares-valuation/          # 非上場株式評価
 │   ├── inheritance-case-management/ # 案件管理
