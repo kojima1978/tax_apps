@@ -332,6 +332,51 @@ services:
       - app-network
     restart: unless-stopped
 
+  # ===========================================
+  # 確定申告 必要書類
+  # Port: 3005 (frontend), 3006 (backend)
+  # ===========================================
+  tax-docs-backend:
+    build:
+      context: ../apps/Required-documents-for-tax-return/backend
+      dockerfile: Dockerfile
+    container_name: tax_docs_backend
+    ports:
+      - "3006:3001"
+    volumes:
+      - ../apps/Required-documents-for-tax-return/backend:/app
+      - /app/node_modules
+      - /app/dist
+      - tax_docs_data:/app/data
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+    command: npm run dev
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  tax-docs-frontend:
+    build:
+      context: ../apps/Required-documents-for-tax-return/frontend
+      dockerfile: Dockerfile
+    container_name: tax_docs_frontend
+    ports:
+      - "3005:3000"
+    volumes:
+      - ../apps/Required-documents-for-tax-return/frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3006
+    command: npm run dev
+    depends_on:
+      - tax-docs-backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
 networks:
   app-network:
     driver: bridge
@@ -339,3 +384,4 @@ networks:
 volumes:
   itcm_postgres_data:
   ollama_data:
+  tax_docs_data:

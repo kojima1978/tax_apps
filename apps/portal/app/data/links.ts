@@ -78,4 +78,11 @@ export const appLinks: AppLink[] = [
     url: '/real-estate-tax/',
     icon: 'Home',
   },
+  {
+    id: '11',
+    title: '確定申告 必要書類',
+    description: '確定申告に必要な書類を確認・管理',
+    url: '/tax-docs/',
+    icon: 'FileCheck',
+  },
 ];

@@ -2,6 +2,11 @@
 node_modules/
 .pnp
 .pnp.js
+.yarn/
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # Build outputs
 .next/
@@ -16,10 +21,8 @@ build/
 
 # Environment files
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
 # IDE
 .idea/
@@ -32,6 +35,7 @@ build/
 .DS_Store
 Thumbs.db
 desktop.ini
+*.pem
 
 # Logs
 logs/
@@ -62,11 +66,8 @@ env/
 *.temp
 .cache/
 
-# Package manager locks (keep only one per project)
-# Uncomment if you want to ignore lock files
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
+# Vercel
+.vercel
 
 # Prisma
 apps/*/prisma/migrations/
@@ -81,3 +82,4 @@ apps/*/data/*
 
 # Generated files
 apps/*/app/generated/
+next-env.d.ts
