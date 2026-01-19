@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  basePath: '/tax-docs',
+  trailingSlash: true,
 };
 
 export default nextConfig;

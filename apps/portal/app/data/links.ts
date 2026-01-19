@@ -1,3 +1,5 @@
+
+
 export interface AppLink {
   id: string;
   title: string;
@@ -6,7 +8,6 @@ export interface AppLink {
   icon: string;
 }
 
-// サンプルデータ（実際のアプリケーションは管理画面から登録）
 export const appLinks: AppLink[] = [
   {
     id: '1',

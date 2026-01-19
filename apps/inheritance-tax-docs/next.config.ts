@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  basePath: '/inheritance-tax-docs',
+  trailingSlash: true,
 };
 
 export default nextConfig;

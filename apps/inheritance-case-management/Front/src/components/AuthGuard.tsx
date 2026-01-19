@@ -16,7 +16,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     const checkAuth = async () => {
       // ログインページはスキップ
-      if (pathname === "/login") {
+      if (pathname?.startsWith("/login")) {
         setIsChecking(false);
         return;
       }
@@ -41,7 +41,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }, [pathname, router]);
 
   // ログインページの場合は認証チェックなしで表示
-  if (pathname === "/login") {
+  if (pathname?.startsWith("/login")) {
     return <>{children}</>;
   }
 

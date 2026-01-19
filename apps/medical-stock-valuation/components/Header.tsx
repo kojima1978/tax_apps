@@ -32,7 +32,7 @@ export default function Header({ showClearButton = false }: HeaderProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <img
-            src="/calculator.svg"
+            src="/medical/calculator.svg"
             alt="計算機"
             width="60"
             height="60"

@@ -3,19 +3,10 @@
 import { useState } from 'react';
 import AppCard from './AppCard';
 import { Search } from 'lucide-react';
-
-interface Application {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  icon: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { AppLink } from '@/data/links';
 
 interface LauncherGridProps {
-  applications: Application[];
+  applications: AppLink[];
 }
 
 export default function LauncherGrid({ applications }: LauncherGridProps) {

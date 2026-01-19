@@ -1,7 +1,7 @@
 # Backend Dockerfile
 
 # Stage 1: Build
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 # Install including devDependencies for tsc
@@ -12,7 +12,7 @@ RUN npm run build
 RUN npx prisma generate
 
 # Stage 2: Run
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 RUN apk add --no-cache openssl
 ENV NODE_ENV=production

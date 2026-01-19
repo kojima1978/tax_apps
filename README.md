@@ -13,18 +13,18 @@
 
 | アプリ名 | パス | ポート | 技術スタック | 説明 |
 |---------|------|--------|-------------|------|
-| ポータル | `/` | 3000 | Next.js + Prisma | ランチャーダッシュボード |
-| 相続税計算 | `/inheritance-tax-app/` | 5173 | Vite/React | 相続税シミュレーション |
-| 贈与税計算 | `/gift-tax/` | 3001 | Next.js | 贈与税シミュレーション |
-| 相続税申告書類案内 | `/inheritance-tax-docs/` | 3003 | Next.js | 必要書類ガイド・Excel出力 |
-| 贈与税申告書類案内 | `/gift-tax-docs/` | 3002 | Next.js | 必要書類ガイド |
-| 確定申告必要書類 | `/tax-docs/` | 3005/3006 | Next.js + Express + SQLite | 確定申告書類管理 |
-| 医療法人株式評価 | `/medical/` | 3010 | Next.js | 医療法人の株式評価 |
-| 非上場株式評価 | `/shares/` | 3012 | Next.js | 非上場株式の評価 |
-| 案件管理 | `/itcm/` | 3020 | Next.js + Express + PostgreSQL | 相続税案件管理 |
-| 通帳OCR | `/ocr/` | 3000 | Next.js + FastAPI + PaddleOCR | 通帳画像のOCR |
-| 銀行分析 | `/bank-analyzer/` | 8501 | Streamlit + Ollama | 預金移動分析 |
-| 不動産取得税 | `/real-estate-tax/` | 3004 | Next.js | 不動産取得税計算 |
+| ポータル | `/` | 3000 | Next.js (Static) | ランチャーダッシュボード |
+| 相続税計算 | `/inheritance-tax-app/` | 3001 | Vite/React | 相続税シミュレーション |
+| 贈与税計算 | `/gift-tax/` | 3002 | Next.js | 贈与税シミュレーション |
+| 不動産取得税 | `/real-estate-tax/` | 3003 | Next.js | 不動産取得税計算 |
+| 医療法人株式評価 | `/medical/` | 3004 | Next.js | 医療法人の株式評価 |
+| 非上場株式評価 | `/shares/` | 3005 | Next.js | 非上場株式の評価 |
+| 確定申告必要書類 | `/tax-docs/` | 3006 | Next.js + Express | 確定申告書類管理 |
+| 通帳OCR | `/ocr/` | 3007 | Next.js + FastAPI | 通帳画像のOCR |
+| 相続税申告書類案内 | `/inheritance-tax-docs/` | 3008 | Next.js | 必要書類ガイド |
+| 贈与税申告書類案内 | `/gift-tax-docs/` | 3009 | Next.js | 必要書類ガイド |
+| 案件管理 | `/itcm/` | 3020 | Next.js + Express + Postgres | 相続税案件管理 |
+| 銀行分析 | `/bank-analyzer/` | 8000 | Streamlit + Ollama | 預金移動分析 |
 
 ## ディレクトリ構造
 

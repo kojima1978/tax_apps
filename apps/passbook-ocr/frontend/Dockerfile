@@ -1,5 +1,5 @@
 # Frontend Dockerfile - Next.js 16
-FROM node:20-alpine
+FROM node:24-alpine
 
 # Set working directory
 WORKDIR /app

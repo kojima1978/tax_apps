@@ -61,40 +61,40 @@ export default function Step0BasicInfo({
     // ユーザー一覧を取得
     const fetchUsers = async () => {
         try {
-            const response = await fetch('/api/users');
+            const response = await fetch('/medical/api/users');
             if (response.ok) {
                 const data = await response.json();
                 setUsers(data);
             }
         } catch (error) {
-            console.error('ユーザー一覧の取得に失敗しました:', error);
+            console.error('Failed to fetch users:', error);
         }
     };
 
     // 会社一覧を取得
     const fetchCompanies = async () => {
         try {
-            const response = await fetch('/api/companies');
+            const response = await fetch('/medical/api/companies');
             if (response.ok) {
                 const data = await response.json();
                 setCompanies(data);
             }
         } catch (error) {
-            console.error('会社一覧の取得に失敗しました:', error);
+            console.error('Failed to fetch companies:', error);
         }
     };
 
     // 類似業種データが登録されている年度を取得
     const fetchRegisteredYears = async () => {
         try {
-            const response = await fetch('/api/similar-industry');
+            const response = await fetch('/medical/api/similar-industry');
             if (response.ok) {
                 const data = await response.json();
                 const years = data.map((item: { fiscal_year: string }) => item.fiscal_year);
                 setRegisteredYears(years);
             }
         } catch (error) {
-            console.error('類似業種データの取得に失敗しました:', error);
+            console.error('Failed to fetch similar industry data:', error);
         }
     };
 
@@ -105,7 +105,7 @@ export default function Step0BasicInfo({
             return;
         }
         try {
-            const response = await fetch(`/api/similar-industry?fiscalYear=${year}`);
+            const response = await fetch(`/medical/api/similar-industry?fiscalYear=${year}`);
             if (response.ok) {
                 const data = await response.json();
                 // フォールバックデータの場合は「未登録」扱い

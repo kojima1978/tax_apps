@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  basePath: '/ocr',
+  trailingSlash: true,
   reactStrictMode: true,
   images: {
     remotePatterns: [

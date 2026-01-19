@@ -1,5 +1,5 @@
 # ベースイメージとしてNode.js 20を使用
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 
 # 依存関係のインストール用ステージ
 FROM base AS deps

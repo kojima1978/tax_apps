@@ -30,7 +30,6 @@ services:
     volumes:
       - ../apps/portal/app:/app
       - /app/node_modules
-      - /app/.next
     environment:
       - NODE_ENV=development
     command: npm run dev
@@ -129,7 +128,7 @@ services:
       context: ../apps/inheritance-case-management/Front
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:3021/api
+        NEXT_PUBLIC_API_URL: /itcm-api/api
     container_name: itcm_frontend
     ports:
       - "3020:3020"
@@ -209,14 +208,14 @@ services:
       dockerfile: Dockerfile
     container_name: passbook_ocr_frontend
     ports:
-      - "3002:3000"
+      - "3007:3000"
     volumes:
       - ../apps/passbook-ocr/frontend:/app
       - /app/node_modules
       - /app/.next
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=/ocr-api
     depends_on:
       - passbook-ocr-backend
     networks:
@@ -231,6 +230,7 @@ services:
     build:
       context: ../apps/inheritance-tax-app
       dockerfile: Dockerfile
+      target: builder
     container_name: inheritance_tax_app
     ports:
       - "5173:5173"
@@ -340,6 +340,7 @@ services:
     build:
       context: ../apps/Required-documents-for-tax-return/backend
       dockerfile: Dockerfile
+      target: builder
     container_name: tax-docs-backend
     ports:
       - "3006:3001"
@@ -360,6 +361,7 @@ services:
     build:
       context: ../apps/Required-documents-for-tax-return/frontend
       dockerfile: Dockerfile
+      target: deps
     container_name: tax-docs-frontend
     ports:
       - "3005:3000"
@@ -369,7 +371,7 @@ services:
       - /app/.next
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:3006
+      - NEXT_PUBLIC_API_URL=/tax-docs-api
     command: npm run dev
     depends_on:
       - tax-docs-backend

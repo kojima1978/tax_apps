@@ -46,8 +46,8 @@ export default function AppCard({ app }: AppCardProps) {
   }
 
   return (
-    <Link href={app.url}>
+    <a href={app.url}>
       {cardContent}
-    </Link>
+    </a>
   );
 }
