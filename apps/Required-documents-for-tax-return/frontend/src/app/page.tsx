@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import MenuScreen from '@/components/MenuScreen';
-import DocumentListScreen, { CategoryGroup, generateInitialDocumentGroups } from '@/components/DocumentListScreen';
+import DocumentListScreen from '@/components/DocumentListScreen';
+import { generateInitialDocumentGroups } from '@/utils/documentUtils';
+import { CategoryGroup } from '@/types';
 import { fetchDocuments, saveDocuments, copyToNextYear as apiCopyToNextYear } from '@/utils/api';
 import { getDefaultReiwaYear } from '@/utils/date';
 

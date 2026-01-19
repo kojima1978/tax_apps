@@ -1,5 +1,5 @@
 import XLSX from 'xlsx-js-style';
-import { CategoryGroup } from '@/components/DocumentListScreen';
+import { CategoryGroup } from '@/types';
 
 // スタイル定義
 const styles = {
