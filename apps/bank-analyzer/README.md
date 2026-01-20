@@ -56,7 +56,7 @@ Dockerを使用すると、LLM（Ollama）による取引分類機能も含め�
 
 ```bash
 # コンテナをビルド・起動
-docker compose up -d --build
+docker compose up -d --build bank-analyzer
 
 # Ollamaにモデルをダウンロード（初回のみ、数分かかります）
 docker compose exec ollama ollama pull gemma2:2b
@@ -182,6 +182,7 @@ inheritance-bank-analyzer/
 LARGE_AMOUNT_THRESHOLD = 50_000       # 多額取引の閾値（円）
 TRANSFER_DAYS_WINDOW = 3                # 資金移動判定の日付誤差（日）
 TRANSFER_AMOUNT_TOLERANCE = 1_000       # 資金移動判定の金額誤差（円）
+OLLAMA_BASE_URL = "http://ollama:11434/api/generate" # Ollama APIのエンドポイント
 ```
 
 ## トラブルシューティング

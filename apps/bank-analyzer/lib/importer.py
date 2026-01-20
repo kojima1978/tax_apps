@@ -1,6 +1,6 @@
 import pandas as pd
 import polars as pl
-from typing import Optional
+
 
 def load_csv(file) -> pd.DataFrame:
     """
@@ -149,7 +149,8 @@ def validate_balance(df: pd.DataFrame) -> pd.DataFrame:
     # 日付昇順、元の行順でソート（同じ日付の場合は元の順序を維持）
     df = df.sort_values(["date", "_original_order"]).reset_index(drop=True)
     
-    check_results = []
+    # チェックリスト作成（未使用なら削除、または実装）
+    # is_balance_error フラグは既に validate_balance で付与されている
     prev_balance = None
     
     # 計算列追加（検証用）

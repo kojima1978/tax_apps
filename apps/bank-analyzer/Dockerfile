@@ -1,53 +1,69 @@
-FROM python:3.14-slim
+FROM python:3.12-slim AS builder
 
-# 作業ディレクトリ設定
 WORKDIR /app
 
-# システムパッケージの更新と必要なツールのインストール
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# 非rootユーザー作成（セキュリティ向上）
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
-
-# 必要なパッケージをインストール
+# Install python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m venv .venv && \
+    . .venv/bin/activate && \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt
 
-# 環境変数のデフォルト値設定
-ENV LARGE_AMOUNT_THRESHOLD=50000
-ENV TRANSFER_DAYS_WINDOW=3
-ENV TRANSFER_AMOUNT_TOLERANCE=1000
-ENV OLLAMA_BASE_URL=http://ollama:11434
+# ==========================================
+# Runner Stage
+# ==========================================
+FROM python:3.12-slim AS runner
 
-# Streamlit設定
-ENV STREAMLIT_SERVER_PORT=8501
-ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
-ENV STREAMLIT_SERVER_HEADLESS=true
-ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+WORKDIR /app
 
-# アプリケーションコードをコピー
+# Create non-root user
+RUN useradd -m -u 1000 appuser
+
+# Install runtime dependencies (curl for healthcheck)
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+
+# Copy application code
 COPY --chown=appuser:appuser . .
 
-# dataディレクトリを作成
+# Set environment variables
+ENV PATH="/app/.venv/bin:$PATH" \
+    LARGE_AMOUNT_THRESHOLD=50000 \
+    TRANSFER_DAYS_WINDOW=3 \
+    TRANSFER_AMOUNT_TOLERANCE=1000 \
+    OLLAMA_BASE_URL=http://ollama:11434/api/generate \
+    STREAMLIT_SERVER_PORT=8501 \
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
+    STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+
+# Create data directory
 RUN mkdir -p data && chown -R appuser:appuser data
 
-# データを永続化するためのボリュームポイント
+# Set volume
 VOLUME /app/data
 
-# 非rootユーザーに切り替え
+# Switch to non-root user
 USER appuser
 
-# Streamlitのポートを開放
+# Expose port
 EXPOSE 8501
 
-# ヘルスチェック
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
-# 起動コマンド
+# Start command
 CMD ["streamlit", "run", "main.py", "--server.address=0.0.0.0"]

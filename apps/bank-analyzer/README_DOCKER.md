@@ -10,7 +10,7 @@ Docker Composeを使用して、相続税通帳分析システムとOllama（LLM
 
 1. **コンテナのビルドと起動**
    ```bash
-   docker-compose up -d
+   docker compose up -d bank-analyzer
    ```
    初回はDockerイメージのダウンロードとビルドに数分かかります。
 
@@ -18,7 +18,7 @@ Docker Composeを使用して、相続税通帳分析システムとOllama（LLM
    Ollamaコンテナが起動した後、モデルをダウンロードする必要があります。（初回のみ）
    
    ```bash
-   docker-compose exec ollama ollama pull gemma2:2b
+   docker compose exec ollama ollama pull gemma2:2b
    ```
    ※ `llama3` など他のモデルを使う場合は `docker-compose.yml` の `OLLAMA_MODEL` 環境変数も変更してください。
 
@@ -28,7 +28,7 @@ Docker Composeを使用して、相続税通帳分析システムとOllama（LLM
 ## 停止方法
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ## 設定の変更

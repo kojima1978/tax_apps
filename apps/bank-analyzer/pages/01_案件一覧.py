@@ -1,31 +1,29 @@
 import streamlit as st
-import os
-import shutil
-from lib import config, db_manager
+from lib import db_manager
 
 st.set_page_config(page_title="案件一覧", page_icon="📂")
-st.title("📂 案件一覧")
 
-# 新規作成
-with st.expander("新規案件作成", expanded=True):
-    new_case_name = st.text_input("案件名（例：山田太郎_相続）")
-    if st.button("作成"):
-        if new_case_name:
-            if new_case_name in db_manager.get_all_cases():
-                st.error("その案件名は既に存在します")
-            else:
-                db_manager.init_db(new_case_name)
-                st.success(f"案件「{new_case_name}」を作成しました")
+st.markdown("## 案件一覧")
+
+# 新規案件作成
+with st.expander("新規案件作成"):
+    with st.form("create_case"):
+        new_case_name = st.text_input("案件名（例: 山田太郎様 相続）")
+        submitted = st.form_submit_button("作成")
+        if submitted and new_case_name:
+            if db_manager.create_case(new_case_name):
+                st.success(f"案件 '{new_case_name}' を作成しました。")
                 st.rerun()
+            else:
+                st.error("案件の作成に失敗しました（同名案件が存在する可能性があります）。")
 
-# 一覧表示
-st.subheader("既存の案件")
+# 案件選択
 cases = db_manager.get_all_cases()
-
 if not cases:
-    st.info("案件がまだありません。")
+    st.info("案件がありません。新規作成してください。")
 else:
-    for case in cases:
+    for case_data in cases:
+        case = case_data["name"]
         with st.container(border=True):
             col1, col2 = st.columns([4, 1])
             with col1:
@@ -102,7 +100,7 @@ else:
                             # 現在選択中の案件が削除対象の場合、セッション状態をクリア
                             if st.session_state.get("current_case") == case:
                                 del st.session_state["current_case"]
-
+                            
                             # 確認フラグをクリア
                             del st.session_state[f"confirm_delete_{case}"]
 
@@ -117,5 +115,5 @@ else:
                         st.rerun()
 
 if "current_case" in st.session_state:
-    st.markdown(f"---")
+    st.markdown("---")
     st.info(f"現在選択中の案件: **{st.session_state['current_case']}**")

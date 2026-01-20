@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from lib import db_manager
+# AI分析モジュール
+from lib import llm_classifier
 
 st.set_page_config(page_title="分析・表示", page_icon="📊", layout="wide")
 st.title("📊 分析結果")
@@ -37,8 +38,7 @@ if missing_cols:
     st.info("「CSVインポート」から再度データをインポートしてください。")
     st.stop()
 
-# AI分析モジュール
-from lib import llm_classifier
+
 
 # サイドバーに分析実行ボタン
 with st.sidebar:
@@ -145,7 +145,7 @@ tab1, tab2, tab3 = st.tabs(["資金移動フロー", "多額取引", "全取引�
 with tab1:
     st.subheader("資金移動の分析")
     # 資金移動フラグがあるもののみ抽出
-    transfers = df[df["is_transfer"] == True]
+    transfers = df[df["is_transfer"]]
 
     if transfers.empty:
         st.info("検知された資金移動はありません。")
@@ -238,7 +238,7 @@ with tab1:
 
 with tab2:
     st.subheader("多額出金・入金リスト")
-    large_tx = df[df["is_large"] == True].sort_values("date", ascending=False)
+    large_tx = df[df["is_large"]].sort_values("date", ascending=False)
 
     if large_tx.empty:
         st.info("設定閾値を超える取引はありません。")

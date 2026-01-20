@@ -1,5 +1,5 @@
 import requests
-import json
+
 import pandas as pd
 from . import config
 
@@ -45,7 +45,7 @@ def load_classification_patterns():
                 with open(config.CONFIG_FILE, "r", encoding="utf-8") as f:
                     settings = json.load(f)
                     return settings.get("CLASSIFICATION_PATTERNS", default_patterns)
-        except:
+        except Exception:
             pass
 
     return default_patterns
@@ -54,7 +54,6 @@ def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
     """
     ルールベースで分類（Ollama不要、高速）
     """
-    text_lower = text.lower()
 
     # 設定ファイルからパターンを読み込み
     patterns = load_classification_patterns()
@@ -95,7 +94,7 @@ def check_ollama_available() -> bool:
     try:
         response = requests.get("http://localhost:11434/api/tags", timeout=2)
         return response.status_code == 200
-    except:
+    except Exception:
         return False
 
 def classify_transactions(df: pd.DataFrame, use_ollama: bool = None) -> pd.DataFrame:

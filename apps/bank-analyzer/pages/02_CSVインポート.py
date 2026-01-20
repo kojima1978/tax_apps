@@ -97,7 +97,7 @@ if uploaded_file is not None:
                 # 検証（残高チェック）
                 df = importer.validate_balance(df)
 
-                error_rows = df[df["is_balance_error"] == True]
+                error_rows = df[df["is_balance_error"]]
                 if not error_rows.empty:
                     st.warning(f"⚠️ {len(error_rows)} 件の残高不整合があります。")
                     st.caption("残高不整合は、OCRの読み取りミスや、データの欠損が原因の可能性があります。")
