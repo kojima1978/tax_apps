@@ -1,0 +1,17 @@
+services:
+  gift-tax-docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: gift-tax-docs
+    ports:
+      - "3002:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+    restart: unless-stopped
