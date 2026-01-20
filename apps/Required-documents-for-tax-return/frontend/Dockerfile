@@ -8,6 +8,13 @@ FROM base AS deps
 COPY package*.json ./
 RUN npm ci
 
+# 開発用ステージ
+FROM base AS dev
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_PUBLIC_API_URL=http://localhost:3001
+CMD ["npm", "run", "dev"]
+
 # ビルドステージ
 FROM base AS builder
 

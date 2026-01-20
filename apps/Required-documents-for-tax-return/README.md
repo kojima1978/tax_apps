@@ -113,12 +113,14 @@ npm run dev
 ### ローカル開発用
 
 ```bash
-cd Required-documents-for-tax-return
-docker-compose up --build
+cd apps/Required-documents-for-tax-return
+docker compose up -d --build
 ```
 
-- フロントエンド: http://localhost:3000
+- フロントエンド: http://localhost:3000/tax-docs
 - バックエンドAPI: http://localhost:3001
+
+※ `docker-compose.yml` は開発用の設定になっており、`dev` ステージのイメージを使用してホットリロードが有効になっています。
 
 ### 統合環境（tax_apps全体）
 

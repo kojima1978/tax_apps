@@ -11,8 +11,23 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 依存関係のインストール
+# 依存関係のインストール
 COPY package*.json ./
 RUN npm ci
+
+# 開発用ステージ
+FROM node:24-slim AS dev
+WORKDIR /app
+# better-sqlite3のビルドに必要なパッケージをインストール
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm ci
+COPY . .
+CMD ["npm", "run", "dev"]
 
 # ソースコードをコピーしてビルド
 COPY . .
