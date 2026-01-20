@@ -9,6 +9,7 @@ import {
     Title,
     Tooltip,
     Legend,
+    TooltipItem,
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { CalculationResult } from '@/lib/tax-calculation';
@@ -52,7 +53,7 @@ const TaxChart: React.FC<Props> = ({ results }) => {
             },
             tooltip: {
                 callbacks: {
-                    label: function (context: any) {
+                    label: function (context: TooltipItem<'bar'>) {
                         let label = context.dataset.label || '';
                         if (label) {
                             label += ': ';
@@ -69,8 +70,11 @@ const TaxChart: React.FC<Props> = ({ results }) => {
             y: {
                 beginAtZero: true,
                 ticks: {
-                    callback: function (value: any) {
-                        return new Intl.NumberFormat('ja-JP').format(value);
+                    callback: function (value: number | string) {
+                        if (typeof value === 'number') {
+                            return new Intl.NumberFormat('ja-JP').format(value);
+                        }
+                        return value;
                     }
                 }
             }

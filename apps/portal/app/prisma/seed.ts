@@ -20,9 +20,9 @@ async function main() {
       icon: 'Calculator',
     },
     {
-      title: '贈与税計算',
-      description: '贈与税のシミュレーション計算',
-      url: '/gift-tax/',
+      title: '贈与税計算シミュレーター',
+      description: '贈与税のシミュレーション',
+      url: '/gift-tax-simulator/',
       icon: 'Gift',
     },
     {

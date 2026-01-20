@@ -248,15 +248,16 @@ services:
   # 贈与税計算システム
   # Port: 3001
   # ===========================================
-  gift-tax:
+  gift-tax-simulator:
     build:
-      context: ../apps/gift-tax
+      context: ../apps/gift-tax-simulator
       dockerfile: Dockerfile
-    container_name: gift_tax
+      target: dev
+    container_name: gift_tax_simulator
     ports:
       - "3001:3001"
     volumes:
-      - ../apps/gift-tax:/app
+      - ../apps/gift-tax-simulator:/app
       - /app/node_modules
       - /app/.next
     environment:

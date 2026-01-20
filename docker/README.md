@@ -63,7 +63,7 @@ Nginx Gateway (Port 80) を経由して各アプリケーションにアクセ�
 |------------------|----------------|-------------------|------|
 | **Portal Site** | [`http://localhost/`](http://localhost/) | 3000 | メインポータル・ダッシュボード |
 | **Inheritance Tax** | [`http://localhost/inheritance-tax-app/`](http://localhost/inheritance-tax-app/) | 3001 | 相続税計算アプリ |
-| **Gift Tax** | [`http://localhost/gift-tax/`](http://localhost/gift-tax/) | 3002 | 贈与税計算システム |
+| **Gift Tax Simulator** | [`http://localhost/gift-tax-simulator/`](http://localhost/gift-tax-simulator/) | 3001 | 贈与税計算シミュレーター |
 | **Real Estate Tax** | [`http://localhost/real-estate-tax/`](http://localhost/real-estate-tax/) | 3003 | 不動産取得税計算システム |
 | **Medical Stock** | [`http://localhost/medical/`](http://localhost/medical/) | 3004 | 医療法人株式評価システム |
 | **Shares Valuation** | [`http://localhost/shares/`](http://localhost/shares/) | 3005 | 非上場株式評価システム |
