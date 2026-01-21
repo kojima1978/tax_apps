@@ -278,6 +278,7 @@ services:
     build:
       context: ../apps/gift-tax-docs
       dockerfile: Dockerfile
+      target: dev
     container_name: gift_tax_docs
     ports:
       - "3002:3002"

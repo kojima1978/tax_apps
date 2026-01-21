@@ -16,6 +16,7 @@ import {
   Info,
   Check,
   FileSpreadsheet,
+  Layout,
 } from 'lucide-react';
 
 // データ定義
@@ -39,11 +40,10 @@ const giftData = {
     {
       category: '本人確認書類（共通・必須）',
       documents: [
-        '受贈者（もらった人）の本人確認書類（マイナンバーカード、免許証等）',
-        '受贈者（もらった人の戸籍謄本または住民票（必要に応じて）',
-        '贈与者（あげた人）の氏名・生年月日・住所・続柄のメモ',
+        '受贈者（もらった人）の本人確認書類（マイナンバーカード、住民票等）',
+        '受贈者（もらった人）の利用者識別番号（国税庁の16桁の番号）',
+        '贈与者（あげた人）の本人確認書類（マイナンバーカード、住民票等）',
       ],
-      note: '※e-Tax利用時はマイナンバーカードとパスワード（利用者証明用・署名用）が必要です。',
     },
   ],
   options: [
@@ -68,30 +68,37 @@ const giftData = {
       label: '現金・預貯金をもらいましたか？',
       documents: [
         '贈与契約書',
-        '預貯金の通帳（入金が確認できるもの）',
-        '振込明細書など',
+        '預貯金の通帳・振込明細書（入金が確認できるもの）',
       ],
     },
     {
       id: 'gift_stock_listed',
       label: '上場株式をもらいましたか？',
       documents: [
-        '上場株式の評価明細書',
-        '証券会社発行の残高証明書等（評価額のわかるもの）',
         '贈与契約書',
+        '証券会社発行の残高証明書等（評価額のわかるもの）',
       ],
     },
     {
       id: 'gift_stock_unlisted',
       label: '取引相場のない株式（非上場株式）をもらいましたか？',
       documents: [
-        '取引相場のない株式（出資）の評価明細書',
-        '当該法人の決算書等（株価算定用）☆別途ご案内させていただきます。',
         '贈与契約書',
+        '当該法人の決算書等（株価算定用）☆別途ご案内させていただきます。',
       ],
     },
   ] as Option[],
   specials: [
+    {
+      id: 'sp_tax_rate',
+      label: '「贈与税の税率の特例」を適用しますか？',
+      documents: [
+        '受贈者（もらった人）の戸籍の謄本又は抄本等で次の内容を証する書類',
+        '　イ　受贈者（もらった人）の氏名、生年月日',
+        '　ロ　受贈者（もらった人）が贈与者（あげた人）の子・孫に該当すること',
+      ],
+      note: '基礎控除及び配偶者控除の規定による控除後の課税価格が300万円以下である場合には、添付は不要です。',
+    },
     {
       id: 'sp_seisan',
       label: '「相続時精算課税制度」を選択しますか？',
@@ -100,7 +107,7 @@ const giftData = {
         '受贈者（もらった人）の戸籍の附票（住所の証明）',
         '贈与者（あげた人）の住民票の除票（贈与者が亡くなっている場合）',
       ],
-      note: '※過去に届出書を提出済みの場合は添付不要な場合があります。',
+      note: '過去に届出書を提出済みの場合は添付不要です。',
     },
     {
       id: 'sp_spouse',
@@ -108,7 +115,7 @@ const giftData = {
       documents: [
         '受贈者（もらった人）の戸籍謄本または抄本（婚姻期間20年以上等の証明）',
         '受贈者（もらった人）の戸籍の附票の写し',
-        '居住用不動産の登記事項証明書（取得の証明）',
+        '必要書類の詳細は、「贈与税の配偶者控除の特例」チェックシートをご確認ください。',
       ],
     },
     {
@@ -118,7 +125,7 @@ const giftData = {
         '受贈者（もらった人）の戸籍謄本（氏名、親族関係の証明）',
         '源泉徴収票または確定申告書控え（所得要件の確認）',
         '工事請負契約書または売買契約書の写し',
-        '登記事項証明書（新築・取得後）',
+        '必要書類の詳細は、「住宅取得等資金の非課税」のチェックシートをご確認ください。',
       ],
     },
   ] as Option[],
@@ -130,6 +137,7 @@ export default function GiftTaxDocGuide() {
   const [step, setStep] = useState<Step>('menu');
   const [selectedOptions, setSelectedOptions] = useState<Record<string, boolean>>({});
   const [isFullListMode, setIsFullListMode] = useState(false);
+  const [isTwoColumnPrint, setIsTwoColumnPrint] = useState(false);
 
   const toggleOption = (id: string) => {
     setSelectedOptions((prev) => ({
@@ -262,6 +270,10 @@ export default function GiftTaxDocGuide() {
         font: { sz: 10, color: { rgb: '78716C' } },
         alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
       },
+      cautionTextRed: {
+        font: { sz: 10, color: { rgb: 'FF0000' } },
+        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+      },
       footer: {
         font: { sz: 9, color: { rgb: '9CA3AF' } },
         alignment: { horizontal: 'center', vertical: 'center' },
@@ -275,16 +287,24 @@ export default function GiftTaxDocGuide() {
     // 行番号追跡
     let rowNum = 0;
 
+    // セル結合用配列
+    const merges: XLSX.Range[] = [];
+
+    // タイトル行
     // タイトル行
     wsData.push([{ v: giftData.title, s: styles.title }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
     rowNum++;
 
     // サブタイトル
     wsData.push([{ v: `発行日: ${currentDate}`, s: styles.subTitle }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
     rowNum++;
     wsData.push([{ v: '税理士法人 マスエージェント', s: styles.subTitle }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
     rowNum++;
     wsData.push([{ v: isFullListMode ? '【全リスト表示】' : '【お客様専用リスト】', s: styles.badge }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
     rowNum++;
 
     // 空行
@@ -319,17 +339,13 @@ export default function GiftTaxDocGuide() {
 
     // 注意事項ヘッダー
     wsData.push([{ v: '【ご留意事項】', s: styles.cautionHeader }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
     rowNum++;
 
     // 注意事項
-    wsData.push([{ v: '・原本が必要な書類と、コピーで対応可能な書類がございます。ご不明な点は担当者にご確認ください。', s: styles.cautionText }]);
+    wsData.push([{ v: '・電子申告を行う場合、原本資料はご返却いたします。', s: styles.cautionTextRed }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
     rowNum++;
-    wsData.push([{ v: '・公的機関（市役所等）で取得する証明書は、原則として発行後3ヶ月以内のものをご用意ください。', s: styles.cautionText }]);
-    rowNum++;
-    if (isFullListMode) {
-      wsData.push([{ v: '・本リストは「全項目表示」モードで出力されています。お客様の状況により不要な書類も含まれていますのでご注意ください。', s: styles.cautionText }]);
-      rowNum++;
-    }
 
     // 空行
     wsData.push([]);
@@ -337,6 +353,7 @@ export default function GiftTaxDocGuide() {
 
     // フッター
     wsData.push([{ v: '〒770-0002 徳島県徳島市春日２丁目３番３３号 / TEL 088-632-6228 / FAX 088-631-9870', s: styles.footer }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
 
     // ワークシート作成
     const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -354,13 +371,8 @@ export default function GiftTaxDocGuide() {
       { hpt: 35 }, // タイトル行
     ];
 
-    // セル結合（タイトル行）
-    ws['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, // タイトル
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } }, // 発行日
-      { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } }, // 事務所名
-      { s: { r: 3, c: 0 }, e: { r: 3, c: 3 } }, // モード表示
-    ];
+    // セル結合設定
+    ws['!merges'] = merges;
 
     XLSX.utils.book_append_sheet(wb, ws, '必要書類リスト');
 
@@ -383,7 +395,7 @@ export default function GiftTaxDocGuide() {
             <p className="text-emerald-100 text-lg">
               お客様の状況に合わせて、申告に必要な書類をご案内します。
             </p>
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 flex flex-col items-center space-y-3">
               <a
                 href="https://www.nta.go.jp/about/organization/tokyo/topics/check/r07/01.htm"
                 target="_blank"
@@ -397,6 +409,23 @@ export default function GiftTaxDocGuide() {
                   </span>
                   <span className="font-bold border-b border-transparent group-hover:border-white transition-colors">
                     資産税（相続税、贈与税、財産評価及び譲渡所得）関係チェックシート等
+                  </span>
+                </span>
+                <ExternalLink className="w-4 h-4 ml-3 opacity-60 group-hover:opacity-100" />
+              </a>
+              <a
+                href="https://www.e-tax.nta.go.jp/tetsuzuki/tetsuzuki6.htm"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center px-5 py-3 rounded-xl bg-emerald-800 bg-opacity-40 text-emerald-50 hover:bg-opacity-100 hover:text-white transition-all text-sm border border-emerald-600 hover:border-emerald-400 hover:shadow-lg"
+              >
+                <FileText className="w-5 h-5 mr-3 text-emerald-200 group-hover:text-white" />
+                <span className="text-left">
+                  <span className="block text-xs text-emerald-300 group-hover:text-emerald-100 mb-0.5">
+                    参考リンク（e-Tax）
+                  </span>
+                  <span className="font-bold border-b border-transparent group-hover:border-white transition-colors">
+                    イメージデータにより提出可能な添付書類
                   </span>
                 </span>
                 <ExternalLink className="w-4 h-4 ml-3 opacity-60 group-hover:opacity-100" />
@@ -508,18 +537,16 @@ export default function GiftTaxDocGuide() {
                   <label
                     key={opt.id}
                     onClick={() => toggleOption(opt.id)}
-                    className={`flex items-start p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedOptions[opt.id]
-                        ? 'border-emerald-500 bg-emerald-50'
-                        : 'border-slate-100 hover:border-slate-300'
-                    }`}
+                    className={`flex items-start p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedOptions[opt.id]
+                      ? 'border-emerald-500 bg-emerald-50'
+                      : 'border-slate-100 hover:border-slate-300'
+                      }`}
                   >
                     <div
-                      className={`mt-1 w-5 h-5 flex items-center justify-center border rounded ${
-                        selectedOptions[opt.id]
-                          ? 'bg-emerald-600 border-emerald-600'
-                          : 'bg-white border-gray-300'
-                      }`}
+                      className={`mt-1 w-5 h-5 flex items-center justify-center border rounded ${selectedOptions[opt.id]
+                        ? 'bg-emerald-600 border-emerald-600'
+                        : 'bg-white border-gray-300'
+                        }`}
                     >
                       {selectedOptions[opt.id] && (
                         <Check className="w-3 h-3 text-white" />
@@ -543,18 +570,16 @@ export default function GiftTaxDocGuide() {
                   <label
                     key={sp.id}
                     onClick={() => toggleOption(sp.id)}
-                    className={`flex items-start p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedOptions[sp.id]
-                        ? 'border-emerald-500 bg-emerald-50'
-                        : 'border-slate-100 hover:border-slate-300'
-                    }`}
+                    className={`flex items-start p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedOptions[sp.id]
+                      ? 'border-emerald-500 bg-emerald-50'
+                      : 'border-slate-100 hover:border-slate-300'
+                      }`}
                   >
                     <div
-                      className={`mt-1 w-5 h-5 flex items-center justify-center border rounded ${
-                        selectedOptions[sp.id]
-                          ? 'bg-emerald-600 border-emerald-600'
-                          : 'bg-white border-gray-300'
-                      }`}
+                      className={`mt-1 w-5 h-5 flex items-center justify-center border rounded ${selectedOptions[sp.id]
+                        ? 'bg-emerald-600 border-emerald-600'
+                        : 'bg-white border-gray-300'
+                        }`}
                     >
                       {selectedOptions[sp.id] && (
                         <Check className="w-3 h-3 text-white" />
@@ -620,6 +645,16 @@ export default function GiftTaxDocGuide() {
         </button>
         <div className="flex space-x-3">
           <button
+            onClick={() => setIsTwoColumnPrint(!isTwoColumnPrint)}
+            className={`flex items-center px-4 py-2 rounded-lg shadow hover:opacity-90 font-bold transition-colors ${isTwoColumnPrint
+              ? 'bg-purple-600 text-white'
+              : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+          >
+            <Layout className="w-4 h-4 mr-2" />
+            {isTwoColumnPrint ? '印刷: 2列' : '印刷: 1列'}
+          </button>
+          <button
             onClick={handleExcelExport}
             className="flex items-center px-6 py-2 rounded-lg text-white shadow hover:opacity-90 bg-blue-600 font-bold"
           >
@@ -645,12 +680,15 @@ export default function GiftTaxDocGuide() {
       </div>
 
       <div className="bg-white p-8 md:p-12 rounded-xl shadow-xl print:p-0 print:shadow-none">
-        <div className="border-b-2 border-slate-800 pb-6 mb-8 print:pb-4 print:mb-6 flex justify-between items-end">
+        <div className={`border-b-2 border-slate-800 pb-6 mb-8 flex justify-between items-end ${isTwoColumnPrint ? 'print:pb-0 print:mb-2 print:border-b' : 'print:pb-4 print:mb-6'
+          }`}>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2 print:text-2xl">
+            <h1 className={`text-3xl font-bold text-slate-900 mb-2 ${isTwoColumnPrint ? 'print:text-lg print:mb-0' : 'print:text-2xl print:mb-2'
+              }`}>
               {giftData.title}
             </h1>
-            <p className="text-slate-600 print:text-sm">
+            <p className={`text-slate-600 ${isTwoColumnPrint ? 'print:text-[10px]' : 'print:text-sm'
+              }`}>
               {isFullListMode && (
                 <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded mr-2 align-middle print:border print:border-blue-800">
                   全リスト表示
@@ -666,26 +704,33 @@ export default function GiftTaxDocGuide() {
           </div>
         </div>
 
-        <div className="space-y-8 print:space-y-4">
+        <div className={`space-y-8 print:block ${isTwoColumnPrint ? 'print:columns-2 print:gap-4 print:space-y-0' : 'print:space-y-6'
+          }`}>
           {results.map((group, idx) => (
-            <div key={idx} className="break-inside-avoid">
-              <h3 className="font-bold text-lg mb-3 px-3 py-1 bg-emerald-50 border-l-4 border-emerald-500 text-slate-800 flex items-center print:mb-2 print:text-sm print:py-0.5">
+            <div key={idx} className={`break-inside-avoid ${isTwoColumnPrint ? 'print:mb-1' : 'print:mb-6'
+              }`}>
+              <h3 className={`font-bold text-lg mb-3 px-3 py-1 bg-emerald-50 border-l-4 border-emerald-500 text-slate-800 flex items-center ${isTwoColumnPrint ? 'print:mb-0.5 print:text-xs print:py-0 print:h-5' : 'print:mb-2 print:text-base print:py-1'
+                }`}>
                 {group.category}
               </h3>
               <ul className="list-none pl-1 space-y-2 print:space-y-0">
                 {group.documents.map((doc, docIdx) => (
                   <li
                     key={docIdx}
-                    className="flex items-start text-slate-700 py-1 border-b border-dashed border-slate-100 last:border-0 print:py-0.5"
+                    className={`flex items-start text-slate-700 py-1 border-b border-dashed border-slate-100 last:border-0 ${isTwoColumnPrint ? 'print:py-0.5' : 'print:py-1'
+                      }`}
                   >
-                    <span className="inline-block w-4 h-4 mr-3 mt-1 border-2 border-emerald-300 rounded-sm flex-shrink-0 print:border-slate-400 print:w-3 print:h-3" />
-                    <span className="print:text-sm">{doc}</span>
+                    <span className={`inline-block w-4 h-4 mr-3 mt-1 border-2 border-emerald-300 rounded-sm flex-shrink-0 border-slate-400 ${isTwoColumnPrint ? 'print:w-2 print:h-2 print:mt-0.5 print:mr-1' : 'print:w-3 print:h-3 print:mt-1 print:mr-2'
+                      }`} />
+                    <span className={isTwoColumnPrint ? 'print:text-[10px] print:leading-tight' : 'print:text-sm'}>{doc}</span>
                   </li>
                 ))}
               </ul>
               {group.note && (
-                <p className="mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded flex items-start print:mt-2 print:p-2 print:text-xs">
-                  <Info className="w-4 h-4 mr-1 mt-0.5 flex-shrink-0 print:w-3 print:h-3" />
+                <p className={`mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded flex items-start ${isTwoColumnPrint ? 'print:mt-1 print:p-1 print:text-[10px]' : 'print:mt-2 print:p-2 print:text-xs'
+                  }`}>
+                  <Info className={`w-4 h-4 mr-1 mt-0.5 flex-shrink-0 ${isTwoColumnPrint ? 'print:w-3 print:h-3' : 'print:w-4 print:h-4'
+                    }`} />
                   {group.note}
                 </p>
               )}
@@ -693,27 +738,24 @@ export default function GiftTaxDocGuide() {
           ))}
         </div>
 
-        <div className="mt-12 pt-6 border-t border-slate-300 print:mt-8 print:pt-6">
-          <div className="flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 print:p-4">
-            <AlertCircle className="w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0" />
+        <div className={`mt-12 pt-6 border-t border-slate-300 ${isTwoColumnPrint ? 'print:mt-2 print:pt-2 print:border-t' : 'print:mt-8 print:pt-6'
+          }`}>
+          <div className={`flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 ${isTwoColumnPrint ? 'print:p-1' : 'print:p-4'
+            }`}>
+            <AlertCircle className={`w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0 ${isTwoColumnPrint ? 'print:w-3 print:h-3' : 'print:w-5 print:h-5'
+              }`} />
             <div className="text-sm text-slate-600 space-y-1">
               <p>
                 <strong>ご留意事項</strong>
               </p>
-              <p>
-                ・原本が必要な書類と、コピーで対応可能な書類がございます。ご不明な点は担当者にご確認ください。
+              <p className={`text-red-600 font-bold ${isTwoColumnPrint ? 'print:text-[10px]' : 'print:text-sm'
+                }`}>
+                ・電子申告を行う場合、原本資料はご返却いたします。
               </p>
-              <p>
-                ・公的機関（市役所等）で取得する証明書は、原則として発行後3ヶ月以内のものをご用意ください。
-              </p>
-              {isFullListMode && (
-                <p className="text-blue-600 font-semibold print:text-slate-600">
-                  ・本リストは「全項目表示」モードで出力されています。お客様の状況により不要な書類も含まれていますのでご注意ください。
-                </p>
-              )}
             </div>
           </div>
-          <div className="mt-8 text-center text-sm text-slate-400 print:mt-8">
+          <div className={`mt-8 text-center text-sm text-slate-400 ${isTwoColumnPrint ? 'print:mt-2 print:text-[9px] print:leading-tight' : 'print:mt-8 print:text-xs'
+            }`}>
             〒770-0002 徳島県徳島市春日２丁目３番３３号
             <br />
             TEL 088-632-6228 / FAX 088-631-9870
