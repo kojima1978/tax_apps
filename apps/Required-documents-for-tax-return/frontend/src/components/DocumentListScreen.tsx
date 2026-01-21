@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -22,6 +22,7 @@ import { exportToExcel } from '@/utils/exportExcel';
 import { CategoryGroup } from '@/types';
 import { SortableCategory } from './document-list/SortableCategory';
 import { formatDate, generateReiwaYears } from '@/utils/date';
+import { fetchStaff, fetchCustomerNames } from '@/utils/api';
 
 interface DocumentListScreenProps {
   year: number;
@@ -80,6 +81,22 @@ export default function DocumentListScreen({
   const [editSubItemText, setEditSubItemText] = useState('');
   const [addingSubItemToDocId, setAddingSubItemToDocId] = useState<string | null>(null);
   const [newSubItemText, setNewSubItemText] = useState('');
+
+  // Staff list for dropdown
+  const [staffList, setStaffList] = useState<{ id: number, staff_name: string }[]>([]);
+  const [customerNames, setCustomerNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchStaff().then(data => setStaffList(data));
+  }, []);
+
+  useEffect(() => {
+    if (staffName) {
+      fetchCustomerNames(staffName).then(names => setCustomerNames(names));
+    } else {
+      setCustomerNames([]);
+    }
+  }, [staffName]);
 
   const currentDate = formatDate();
 
@@ -472,27 +489,41 @@ export default function DocumentListScreen({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1">
-                    お客様名 <span className="text-red-500">*</span>
+                    担当者名 <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => onCustomerNameChange(e.target.value)}
-                    placeholder="例: 山田 太郎"
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
+                  <select
+                    value={staffName}
+                    onChange={(e) => onStaffNameChange(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  >
+                    <option value="">選択してください</option>
+                    {staffList.map((s) => (
+                      <option key={s.id} value={s.staff_name}>
+                        {s.staff_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1">
-                    担当者名 <span className="text-red-500">*</span>
+                    お客様名 <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={staffName}
-                    onChange={(e) => onStaffNameChange(e.target.value)}
-                    placeholder="例: 佐藤"
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
+                  <select
+                    value={customerName}
+                    onChange={(e) => onCustomerNameChange(e.target.value)}
+                    disabled={!staffName}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">選択してください</option>
+                    {customerNames.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                  {!staffName && (
+                    <p className="text-xs text-slate-400 mt-1">先に担当者を選択してください</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -500,36 +531,37 @@ export default function DocumentListScreen({
 
           <div className="mt-3 flex items-center justify-between">
             <div className="text-xs text-slate-500">
-              {lastSaved && (
-                <span className="flex items-center">
-                  <Check className="w-3 h-3 mr-1 text-emerald-500" />
+              {lastSaved ? (
+                <span className="flex items-center text-emerald-600">
+                  <Check className="w-3 h-3 mr-1" />
                   保存済み: {lastSaved.toLocaleTimeString()}
                 </span>
+              ) : (
+                '未保存'
               )}
             </div>
-
             <div className="flex space-x-2">
               <button
                 onClick={onCopyToNextYear}
                 disabled={isSaving || !customerName || !staffName}
-                className="flex items-center px-3 py-1.5 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 font-medium"
-                title="現在のデータを翌年度にコピーします"
+                className="flex items-center px-3 py-1.5 text-xs bg-white border border-slate-300 text-slate-600 rounded hover:bg-slate-50 disabled:opacity-50"
+                title="現在の内容を翌年度にコピーします"
               >
-                <Copy className="w-3.5 h-3.5 mr-1.5" />
-                翌年度更新
+                <Copy className="w-3 h-3 mr-1" />
+                翌年度へコピー
               </button>
               <button
                 onClick={handlePrint}
-                className="flex items-center px-3 py-1.5 bg-slate-600 text-white rounded text-sm hover:bg-slate-700 font-medium"
+                className="flex items-center px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800"
               >
-                <Printer className="w-3.5 h-3.5 mr-1.5" />
+                <Printer className="w-3 h-3 mr-1" />
                 印刷
               </button>
               <button
                 onClick={handleExportExcel}
-                className="flex items-center px-3 py-1.5 bg-green-700 text-white rounded text-sm hover:bg-green-800 font-medium"
+                className="flex items-center px-3 py-1.5 text-xs bg-[#217346] text-white rounded hover:bg-[#1e6b41]"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
+                <FileSpreadsheet className="w-3 h-3 mr-1" />
                 Excel出力
               </button>
             </div>
@@ -537,31 +569,7 @@ export default function DocumentListScreen({
         </div>
       </div>
 
-      <div className="pb-20 max-w-4xl mx-auto p-4 print-container">
-        {/* 印刷用ヘッダー */}
-        <div className="hidden print-header mb-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold border-b-2 border-slate-800 pb-2 mb-4 inline-block">
-              令和{year - 2018}年分 確定申告 必要書類リスト
-            </h1>
-            <div className="flex justify-between items-end mb-4 px-4">
-              <div className="text-left">
-                <p className="text-lg font-bold underline decoration-dotted decoration-slate-400">
-                  {customerName || '__________________'} 様
-                </p>
-              </div>
-              <div className="text-right text-sm text-slate-500">
-                <p>作成日: {currentDate}</p>
-                <p>担当: {staffName || '______'}</p>
-              </div>
-            </div>
-          </div>
-          <p className="text-sm mb-4 px-4">
-            いつも大変お世話になっております。本年の確定申告にあたり、下記の書類をご用意くださいますようお願い申し上げます。
-            ご不明な点がございましたら、お気軽にお問い合わせください。
-          </p>
-        </div>
-
+      <div className="max-w-4xl mx-auto px-4 py-8 pb-32 print:p-0 print:pb-0">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -569,51 +577,55 @@ export default function DocumentListScreen({
           onDragStart={handleCategoryDragStart}
         >
           <SortableContext
-            items={documentGroups.map((group) => group.id)}
+            items={documentGroups.map((g) => g.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-6">
+            <div className="space-y-6 print:space-y-4">
               {documentGroups.map((group) => (
                 <SortableCategory
                   key={group.id}
                   group={group}
-                  isExpanded={expandedGroups[group.id]}
+                  isExpanded={expandedGroups[group.id] || false}
                   onToggleExpand={() => toggleGroup(group.id)}
+                  onToggleCheck={(docId) => toggleDocumentCheck(group.id, docId)}
+                  onDeleteDocument={(docId) => deleteDocument(group.id, docId)}
+                  onStartEditDocument={startEditDocument}
+                  editingDocId={editingDocId}
+                  editText={editText}
+                  onEditTextChange={setEditText}
+                  onSaveEditDocument={() => saveEditDocument(group.id)}
+                  onCancelEditDocument={cancelEditDocument}
+                  isOver={activeId !== null && activeId !== group.id}
+                  onDocumentsReorder={(activeId, overId) =>
+                    handleDocumentsReorder(group.id, activeId, overId)
+                  }
+                  addingToGroupId={addingToGroupId}
+                  newDocText={newDocText}
+                  onNewDocTextChange={setNewDocText}
+                  onStartAddDocument={() => startAddDocument(group.id)}
+                  onAddDocument={() => addDocument(group.id)}
+                  onCancelAddDocument={cancelAddDocument}
+                  onDeleteCategory={() => deleteCategory(group.id)}
+                  onStartEditCategory={startEditCategory}
                   editingCategoryId={editingCategoryId}
                   editCategoryName={editCategoryName}
                   onEditCategoryNameChange={setEditCategoryName}
                   onSaveEditCategory={saveEditCategory}
                   onCancelEditCategory={cancelEditCategory}
-                  onStartEditCategory={() => startEditCategory(group.id, group.category)}
-                  onDeleteCategory={() => deleteCategory(group.id)}
-                  editingDocId={editingDocId}
-                  editText={editText}
-                  onEditTextChange={setEditText}
-                  onSaveEditDocument={saveEditDocument}
-                  onCancelEditDocument={cancelEditDocument}
-                  onStartEditDocument={startEditDocument}
-                  onToggleDocumentCheck={toggleDocumentCheck}
-                  onDeleteDocument={deleteDocument}
-                  addingToGroupId={addingToGroupId}
-                  newDocText={newDocText}
-                  onNewDocTextChange={setNewDocText}
-                  onAddDocument={addDocument}
-                  onStartAddDocument={startAddDocument}
-                  onCancelAddDocument={cancelAddDocument}
-                  onDocumentsReorder={handleDocumentsReorder}
+                  // サブアイテム用props
+                  onToggleSubItemCheck={(docId, subId) => toggleSubItemCheck(group.id, docId, subId)}
+                  onStartEditSubItem={startEditSubItem}
                   editingSubItemId={editingSubItemId}
                   editSubItemText={editSubItemText}
                   onEditSubItemTextChange={setEditSubItemText}
-                  onStartEditSubItem={startEditSubItem}
-                  onSaveEditSubItem={saveEditSubItem}
+                  onSaveEditSubItem={(docId) => saveEditSubItem(group.id, docId)}
                   onCancelEditSubItem={cancelEditSubItem}
-                  onToggleSubItemCheck={toggleSubItemCheck}
-                  onDeleteSubItem={deleteSubItem}
+                  onDeleteSubItem={(docId, subId) => deleteSubItem(group.id, docId, subId)}
+                  onStartAddSubItem={startAddSubItem}
                   addingSubItemToDocId={addingSubItemToDocId}
                   newSubItemText={newSubItemText}
                   onNewSubItemTextChange={setNewSubItemText}
-                  onAddSubItem={addSubItem}
-                  onStartAddSubItem={startAddSubItem}
+                  onAddSubItem={(docId) => addSubItem(group.id, docId)}
                   onCancelAddSubItem={cancelAddSubItem}
                 />
               ))}
@@ -621,33 +633,39 @@ export default function DocumentListScreen({
           </SortableContext>
         </DndContext>
 
-        {/* カテゴリ追加ボタン */}
-        <div className="mt-8 no-print">
+        <div className="mt-8 pt-8 border-t border-slate-200 no-print">
           {addingNewCategory ? (
-            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-sm text-slate-700 mb-2">新しいカテゴリを追加</h3>
-              <div className="flex items-center">
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm animate-fade-in">
+              <h3 className="font-bold text-slate-700 mb-3">新しいカテゴリを追加</h3>
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder="カテゴリ名を入力..."
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="カテゴリ名（例: 給与所得）"
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') addCategory();
-                    if (e.key === 'Escape') setAddingNewCategory(false);
+                    if (e.key === 'Escape') {
+                      setAddingNewCategory(false);
+                      setNewCategoryName('');
+                    }
                   }}
                 />
                 <button
                   onClick={addCategory}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-r-lg hover:bg-emerald-700"
+                  disabled={!newCategoryName.trim()}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 font-bold"
                 >
                   追加
                 </button>
                 <button
-                  onClick={() => setAddingNewCategory(false)}
-                  className="ml-2 p-2 text-slate-400 hover:text-slate-600"
+                  onClick={() => {
+                    setAddingNewCategory(false);
+                    setNewCategoryName('');
+                  }}
+                  className="px-4 py-2 bg-slate-200 text-slate-700 rounded hover:bg-slate-300"
                 >
                   キャンセル
                 </button>
@@ -656,7 +674,7 @@ export default function DocumentListScreen({
           ) : (
             <button
               onClick={() => setAddingNewCategory(true)}
-              className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-emerald-500 hover:text-emerald-600 font-medium transition-colors"
+              className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
             >
               + 新しいカテゴリを追加
             </button>
@@ -664,23 +682,18 @@ export default function DocumentListScreen({
         </div>
       </div>
 
-      <style jsx global>{`
-        @media print {
-          .no-print {
-            display: none !important;
-          }
-          .print-header {
-            display: block !important;
-          }
-          .print-container {
-            max-width: 100% !important;
-            padding: 0 !important;
-          }
-          body {
-            background-color: white !important;
-          }
-        }
-      `}</style>
+      {/* 印刷用フッター */}
+      <div className="hidden print:block mt-8 pt-8 border-t border-slate-800 text-center text-xs">
+        <div className="flex justify-between items-end">
+          <div className="text-left">
+            <p>※ このリストは{year}年分の確定申告に必要な書類の目安です。</p>
+            <p>※ 個別の事情により、追加の書類が必要になる場合があります。</p>
+          </div>
+          <div className="text-right">
+            <p>作成日: {currentDate}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

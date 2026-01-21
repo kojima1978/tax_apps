@@ -24,6 +24,8 @@ export interface DataRecord {
   staff_name: string;
   year: number;
   updated_at: string;
+  customer_id: number;
+  staff_id: number | null;
 }
 
 export interface StaffNamesResponse {
@@ -108,26 +110,7 @@ export async function deleteDocument(id: number): Promise<boolean> {
   return response.ok;
 }
 
-export async function updateCustomer(
-  oldCustomerName: string,
-  oldStaffName: string,
-  newCustomerName: string,
-  newStaffName: string
-): Promise<{ success: boolean; error?: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/customers`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      oldCustomerName,
-      oldStaffName,
-      newCustomerName,
-      newStaffName,
-    }),
-  });
 
-  const data = await response.json();
-  return { success: response.ok, error: data.error };
-}
 
 export async function fetchStaffNames(): Promise<string[]> {
   const response = await fetch(`${API_BASE_URL}/api/staff-names`);
@@ -157,4 +140,91 @@ export async function fetchAvailableYears(customerName?: string, staffName?: str
   if (!response.ok) return [];
   const data: YearsResponse = await response.json();
   return data.years || [];
+}
+
+// Customer Management APIs
+import { Customer } from '@/types';
+
+export async function fetchCustomers(): Promise<Customer[]> {
+  const response = await fetch(`${API_BASE_URL}/api/customers`);
+  if (!response.ok) return [];
+  const data: { customers: Customer[] } = await response.json();
+  return data.customers || [];
+}
+
+export async function addCustomer(customerName: string, staffId: number): Promise<Customer> {
+  const response = await fetch(`${API_BASE_URL}/api/customers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ customerName, staffId }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to add customer');
+  }
+  const data: { customer: Customer } = await response.json();
+  return data.customer;
+}
+
+export async function updateCustomerName(id: number, customerName: string, staffId: number): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/customers/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ customerName, staffId }),
+  });
+  return response.ok;
+}
+
+export async function deleteCustomer(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/customers/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to delete customer');
+  }
+}
+
+// Staff Management APIs
+import { Staff } from '@/types';
+// ... rest of staff apis
+
+export async function fetchStaff(): Promise<Staff[]> {
+  const response = await fetch(`${API_BASE_URL}/api/staff`);
+  if (!response.ok) return [];
+  const data: { staff: Staff[] } = await response.json();
+  return data.staff || [];
+}
+
+export async function addStaff(staffName: string): Promise<Staff> {
+  const response = await fetch(`${API_BASE_URL}/api/staff`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ staffName }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to add staff');
+  }
+  const data: { staff: Staff } = await response.json();
+  return data.staff;
+}
+
+export async function updateStaffName(id: number, staffName: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/staff/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ staffName }),
+  });
+  return response.ok;
+}
+
+export async function deleteStaff(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/staff/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to delete staff');
+  }
 }

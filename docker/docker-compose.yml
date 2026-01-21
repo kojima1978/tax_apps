@@ -376,7 +376,7 @@ services:
       - /app/.next
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=/tax-docs-api
+      - NEXT_PUBLIC_API_URL=http://localhost:3006
     command: npm run dev
     depends_on:
       - tax-docs-backend

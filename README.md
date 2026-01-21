@@ -11,20 +11,20 @@
 
 ### アプリケーション一覧
 
-| アプリ名 | パス | ポート | 技術スタック | 説明 |
-|---------|------|--------|-------------|------|
-| ポータル | `/` | 3000 | Next.js (Static) | ランチャーダッシュボード |
-| 相続税計算 | `/inheritance-tax-app/` | 3001 | Vite/React | 相続税シミュレーション |
-| 贈与税計算 | `/gift-tax/` | 3002 | Next.js | 贈与税シミュレーション |
-| 不動産取得税 | `/real-estate-tax/` | 3003 | Next.js | 不動産取得税計算 |
-| 医療法人株式評価 | `/medical/` | 3004 | Next.js | 医療法人の株式評価 |
-| 非上場株式評価 | `/shares/` | 3005 | Next.js | 非上場株式の評価 |
-| 確定申告必要書類 | `/tax-docs/` | 3006 | Next.js + Express | 確定申告書類管理 |
-| 通帳OCR | `/ocr/` | 3007 | Next.js + FastAPI | 通帳画像のOCR |
-| 相続税申告書類案内 | `/inheritance-tax-docs/` | 3008 | Next.js | 必要書類ガイド |
-| 贈与税申告書類案内 | `/gift-tax-docs/` | 3009 | Next.js | 必要書類ガイド |
-| 案件管理 | `/itcm/` | 3020 | Next.js + Express + Postgres | 相続税案件管理 |
-| 銀行分析 | `/bank-analyzer/` | 8000 | Streamlit + Ollama | 預金移動分析 |
+| アプリ名 | パス | 直接アクセスURL | 技術スタック | 説明 |
+|---------|------|----------------|-------------|------|
+| ポータル | `/` | http://localhost:3000/ | Next.js (Static) | ランチャーダッシュボード |
+| 相続税計算 | `/inheritance-tax-app/` | http://localhost:5173/inheritance-tax-app/ | Vite/React | 相続税シミュレーション |
+| 贈与税計算 | `/gift-tax-simulator/` | http://localhost:3001/gift-tax-simulator/ | Next.js | 贈与税シミュレーション |
+| 贈与税申告書類案内 | `/gift-tax-docs/` | http://localhost:3002/gift-tax-docs/ | Next.js | 必要書類ガイド |
+| 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost:3003/inheritance-tax-docs/ | Next.js | 必要書類ガイド |
+| 不動産取得税 | `/real-estate-tax/` | http://localhost:3004/real-estate-tax/ | Next.js | 不動産取得税計算 |
+| 確定申告必要書類 | `/tax-docs/` | http://localhost:3005/tax-docs/ | Next.js + Express | 確定申告書類管理 |
+| 通帳OCR | `/ocr/` | http://localhost:3007/ocr/ | Next.js + FastAPI | 通帳画像のOCR |
+| 医療法人株式評価 | `/medical/` | http://localhost:3010/medical/ | Next.js | 医療法人の株式評価 |
+| 非上場株式評価 | `/shares/` | http://localhost:3012/shares/ | Next.js | 非上場株式の評価 |
+| 案件管理 | `/itcm/` | http://localhost:3020/itcm/ | Next.js + Express + Postgres | 相続税案件管理 |
+| 銀行分析 | `/bank-analyzer/` | http://localhost:8501/ | Streamlit + Ollama | 預金移動分析 |
 
 ## ディレクトリ構造
 
@@ -33,7 +33,7 @@ tax_apps/
 ├── apps/                          # アプリケーション群
 │   ├── portal/                    # ポータルランチャー
 │   ├── inheritance-tax-app/       # 相続税計算
-│   ├── gift-tax/                  # 贈与税計算
+│   ├── gift-tax-simulator/        # 贈与税計算
 │   ├── inheritance-tax-docs/      # 相続税申告書類案内
 │   ├── gift-tax-docs/             # 贈与税申告書類案内
 │   ├── Required-documents-for-tax-return/ # 確定申告必要書類

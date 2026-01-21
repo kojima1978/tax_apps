@@ -16,7 +16,13 @@ import {
   getYearsByCustomerAndStaff,
   getAllDocumentRecords,
   deleteDocumentRecord,
-  updateCustomerInfo,
+  updateCustomer,
+  createCustomer,
+  deleteCustomer,
+  getAllStaff,
+  createStaff,
+  updateStaff,
+  deleteStaff,
 } from './db';
 
 const app = express();
@@ -25,7 +31,7 @@ const PORT = process.env.PORT || 3001;
 // ミドルウェア
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost'],
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost', 'http://localhost:3005'],
     credentials: true,
   })
 );
@@ -37,6 +43,57 @@ initializeDb();
 // ヘルスチェック
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+// [NEW] Customer Management API
+
+// Create customer
+app.post('/api/customers', (req, res) => {
+  const { customerName, staffId } = req.body;
+  if (!customerName || typeof customerName !== 'string' || !customerName.trim() || !staffId) {
+    return res.status(400).json({ error: 'Valid customerName and staffId are required' });
+  }
+
+  try {
+    const customer = createCustomer(customerName.trim(), Number(staffId));
+    res.json({ customer });
+  } catch (e: any) {
+    if (e.message.includes('already exists')) {
+      return res.status(409).json({ error: e.message });
+    }
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Update customer
+app.put('/api/customers/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { customerName, staffId } = req.body;
+
+  if (isNaN(id) || !customerName || typeof customerName !== 'string' || !customerName.trim() || !staffId) {
+    return res.status(400).json({ error: 'Valid ID, customerName, and staffId are required' });
+  }
+
+  const success = updateCustomer(id, customerName.trim(), Number(staffId));
+  if (!success) {
+    return res.status(404).json({ error: 'Customer not found or duplicate name' });
+  }
+
+  res.json({ success: true });
+});
+
+// Delete customer
+app.delete('/api/customers/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid ID' });
+  }
+
+  const success = deleteCustomer(id);
+  if (!success) {
+    return res.status(404).json({ error: 'Customer not found' });
+  }
+  res.json({ success: true });
 });
 
 // 顧客一覧を取得
@@ -61,6 +118,66 @@ app.get('/api/search', (req, res) => {
 app.get('/api/staff-names', (_req, res) => {
   const staffNames = getDistinctStaffNames();
   res.json({ staffNames });
+});
+
+// [NEW] Staff Management API
+
+// Get all staff
+app.get('/api/staff', (_req, res) => {
+  const staff = getAllStaff();
+  res.json({ staff });
+});
+
+// Create staff
+app.post('/api/staff', (req, res) => {
+  const { staffName } = req.body;
+  if (!staffName || typeof staffName !== 'string' || !staffName.trim()) {
+    return res.status(400).json({ error: 'Valid staffName is required' });
+  }
+  try {
+    const staff = createStaff(staffName.trim());
+    res.json({ staff });
+  } catch (e: any) {
+    if (e.message.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ error: 'Staff name already exists' });
+    }
+    throw e;
+  }
+});
+
+// Update staff
+app.put('/api/staff/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { staffName } = req.body;
+
+  if (isNaN(id) || !staffName || typeof staffName !== 'string' || !staffName.trim()) {
+    return res.status(400).json({ error: 'Valid ID and staffName are required' });
+  }
+
+  const success = updateStaff(id, staffName.trim());
+  if (!success) {
+    return res.status(404).json({ error: 'Staff not found' });
+  }
+
+  res.json({ success: true });
+});
+
+// Delete staff
+app.delete('/api/staff/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid ID' });
+  }
+
+  try {
+    const success = deleteStaff(id);
+    if (!success) {
+      return res.status(404).json({ error: 'Staff not found' });
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    return res.status(400).json({ error: e.message });
+  }
 });
 
 // お客様名一覧を取得（担当者でフィルタ可能）
@@ -182,21 +299,7 @@ app.delete('/api/documents/:id', (req, res) => {
   res.json({ success: true, message: 'データを削除しました' });
 });
 
-// 顧客情報を更新
-app.put('/api/customers', (req, res) => {
-  const { oldCustomerName, oldStaffName, newCustomerName, newStaffName } = req.body;
 
-  if (!oldCustomerName || !oldStaffName || !newCustomerName || !newStaffName) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-
-  const success = updateCustomerInfo(oldCustomerName, oldStaffName, newCustomerName, newStaffName);
-  if (!success) {
-    return res.status(400).json({ error: '更新に失敗しました（重複または対象が見つかりません）' });
-  }
-
-  res.json({ success: true, message: '顧客情報を更新しました' });
-});
 
 // エラーハンドリングミドルウェア
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {

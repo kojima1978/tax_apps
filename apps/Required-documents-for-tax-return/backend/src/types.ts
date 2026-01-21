@@ -1,6 +1,15 @@
 export interface Customer {
     id: number;
     customer_name: string;
+    staff_name: string; // Deprecated, kept for backward compatibility during migration
+    staff_id?: number | null;
+    staff?: Staff;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface Staff {
+    id: number;
     staff_name: string;
     created_at?: string;
     updated_at?: string;
@@ -25,4 +34,7 @@ export interface DocumentRecordWithCustomer {
     staff_name: string;
     year: number;
     updated_at: string;
+    customer_id: number;
+    staff_id: number | null;
 }
+

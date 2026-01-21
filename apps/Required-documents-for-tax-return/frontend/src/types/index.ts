@@ -11,9 +11,25 @@ export interface DocumentItem {
     subItems?: SubItem[];
 }
 
+export interface Staff {
+    id: number;
+    staff_name: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface CategoryGroup {
     id: string;
     category: string;
     documents: DocumentItem[];
     note?: string;
+}
+
+export interface Customer {
+    id: number;
+    customer_name: string;
+    staff_name: string;
+    staff_id?: number;
+    created_at?: string;
+    updated_at?: string;
 }
