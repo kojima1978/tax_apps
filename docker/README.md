@@ -62,31 +62,41 @@ Nginx Gateway (Port 80) を経由して各アプリケーションにアクセ�
 | アプリケーション | ゲートウェイURL | 直接ポート(Debug用) | 説明 |
 |------------------|----------------|-------------------|------|
 | **Portal Site** | [`http://localhost/`](http://localhost/) | 3000 | メインポータル・ダッシュボード |
-| **Inheritance Tax** | [`http://localhost/inheritance-tax-app/`](http://localhost/inheritance-tax-app/) | 3001 | 相続税計算アプリ |
+| **Inheritance Tax** | [`http://localhost/inheritance-tax-app/`](http://localhost/inheritance-tax-app/) | 5173 | 相続税計算アプリ |
 | **Gift Tax Simulator** | [`http://localhost/gift-tax-simulator/`](http://localhost/gift-tax-simulator/) | 3001 | 贈与税計算シミュレーター |
-| **Real Estate Tax** | [`http://localhost/real-estate-tax/`](http://localhost/real-estate-tax/) | 3003 | 不動産取得税計算システム |
-| **Medical Stock** | [`http://localhost/medical/`](http://localhost/medical/) | 3004 | 医療法人株式評価システム |
-| **Shares Valuation** | [`http://localhost/shares/`](http://localhost/shares/) | 3005 | 非上場株式評価システム |
-| **Tax Docs** | [`http://localhost/tax-docs/`](http://localhost/tax-docs/) | 3006 | 確定申告 必要書類案内 |
+| **Gift Tax Docs** | [`http://localhost/gift-tax-docs/`](http://localhost/gift-tax-docs/) | 3002 | 贈与税申告 必要書類案内 |
+| **Inheritance Tax Docs** | [`http://localhost/inheritance-tax-docs/`](http://localhost/inheritance-tax-docs/) | 3003 | 相続税申告 資料準備ガイド |
+| **Real Estate Tax** | [`http://localhost/real-estate-tax/`](http://localhost/real-estate-tax/) | 3004 | 不動産取得税計算システム |
+| **Tax Docs** | [`http://localhost/tax-docs/`](http://localhost/tax-docs/) | 3005 | 確定申告 必要書類案内 |
 | **Passbook OCR** | [`http://localhost/ocr/`](http://localhost/ocr/) | 3007 | 通帳OCRシステム |
-| **Inheritance Tax Docs** | [`http://localhost/inheritance-tax-docs/`](http://localhost/inheritance-tax-docs/) | 3008 | 相続税申告 資料準備ガイド |
-| **Gift Tax Docs** | [`http://localhost/gift-tax-docs/`](http://localhost/gift-tax-docs/) | 3009 | 贈与税申告 必要書類案内 |
+| **Medical Stock** | [`http://localhost/medical/`](http://localhost/medical/) | 3010 | 医療法人株式評価システム |
+| **Shares Valuation** | [`http://localhost/shares/`](http://localhost/shares/) | 3012 | 非上場株式評価システム |
 | **ITCM** | [`http://localhost/itcm/`](http://localhost/itcm/) | 3020 | 相続税案件管理システム |
-| **Bank Analyzer** | [`http://localhost/bank-analyzer/`](http://localhost/bank-analyzer/) | 8000 | 相続銀行分析システム |
+| **Bank Analyzer** | [`http://localhost/bank-analyzer/`](http://localhost/bank-analyzer/) | 8501 | 相続銀行分析システム |
 
 ## ディレクトリ構造
 
 ```
-dev/
-├── gateway/                    # 統合管理・Nginx設定
+tax_apps/
+├── apps/                       # アプリケーションコード
+│   ├── bank-analyzer/
+│   ├── gift-tax-docs/
+│   ├── gift-tax-simulator/
+│   ├── inheritance-case-management/
+│   ├── inheritance-tax-app/
+│   ├── inheritance-tax-docs/
+│   ├── medical-stock-valuation/
+│   ├── passbook-ocr/
+│   ├── portal/
+│   ├── real-estate-tax/
+│   ├── Required-documents-for-tax-return/
+│   └── shares-valuation/
+├── docker/                     # Docker設定
 │   ├── docker-compose.yml
-│   └── nginx/
-├── portal-project/             # ポータルサイト (Next.js)
-├── Valuation_of_medical_corporation_stock/ # 医療法人評価 (Next.js)
-├── Valuation_of_shares_without_a_market_price/ # 非上場株式評価 (Next.js)
-├── inheritance-tax-app/        # 相続税計算
-├── Inheritance-Tax-Case-Management-System/ # ITCM (案件管理)
-└── passbook-ocr/               # 通帳OCR
+│   └── .env
+└── nginx/                      # Nginx設定
+    ├── default.conf
+    └── nginx.conf
 ```
 
 ## 開発・トラブルシューティング
