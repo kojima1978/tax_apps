@@ -8,6 +8,19 @@ def get_case_db_path(case_name: str) -> str:
     os.makedirs(case_dir, exist_ok=True)
     return os.path.join(case_dir, "transactions.db")
 
+def create_case(case_name: str) -> bool:
+    """新規案件を作成（フォルダとDBを作成）"""
+    case_dir = os.path.join(config.DATA_DIR, case_name)
+    if os.path.exists(case_dir):
+        return False
+    
+    try:
+        init_db(case_name)
+        return True
+    except Exception as e:
+        print(f"案件作成エラー: {e}")
+        return False
+
 def init_db(case_name: str):
     db_path = get_case_db_path(case_name)
     conn = sqlite3.connect(db_path)

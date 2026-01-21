@@ -151,6 +151,9 @@ services:
       - "8501:8501"
     volumes:
       - ../apps/bank-analyzer/data:/app/data
+      - ../apps/bank-analyzer/lib:/app/lib
+      - ../apps/bank-analyzer/pages:/app/pages
+      - ../apps/bank-analyzer/main.py:/app/main.py
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434/api/generate
       - OLLAMA_MODEL=gemma2:2b

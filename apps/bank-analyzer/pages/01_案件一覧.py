@@ -23,7 +23,7 @@ if not cases:
     st.info("案件がありません。新規作成してください。")
 else:
     for case_data in cases:
-        case = case_data["name"]
+        case = case_data
         with st.container(border=True):
             col1, col2 = st.columns([4, 1])
             with col1:
