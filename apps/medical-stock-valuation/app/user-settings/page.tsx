@@ -33,7 +33,7 @@ export default function UserSettingsPage() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const url = showInactive ? '/api/users?showInactive=true' : '/api/users';
+      const url = showInactive ? '/medical/api/users?showInactive=true' : '/medical/api/users';
       const response = await fetch(url);
       if (response.ok) {
         const result = await response.json();
@@ -78,7 +78,7 @@ export default function UserSettingsPage() {
     };
 
     const result = await handleFormSubmit(
-      '/api/users',
+      '/medical/api/users',
       formMode === 'create' ? 'POST' : 'PUT',
       requestData
     );
@@ -97,7 +97,7 @@ export default function UserSettingsPage() {
       id,
       name: userName,
       action: 'deactivate',
-      apiEndpoint: '/api/users',
+      apiEndpoint: '/medical/api/users',
       onSuccess: loadUsers,
       toast,
     });
@@ -108,7 +108,7 @@ export default function UserSettingsPage() {
       id,
       name: userName,
       action: 'activate',
-      apiEndpoint: '/api/users',
+      apiEndpoint: '/medical/api/users',
       onSuccess: loadUsers,
       toast,
     });
@@ -119,7 +119,7 @@ export default function UserSettingsPage() {
       id,
       name: userName,
       action: 'delete',
-      apiEndpoint: '/api/users',
+      apiEndpoint: '/medical/api/users',
       onSuccess: loadUsers,
       toast,
     });

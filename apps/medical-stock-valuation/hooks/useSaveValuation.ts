@@ -24,7 +24,7 @@ export function useSaveValuation() {
         id: newId,
       };
 
-      const response = await fetch('/api/valuations', {
+      const response = await fetch('/medical/api/valuations/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export function useSaveValuation() {
         };
       }
 
-      const response = await fetch('/api/valuations', {
+      const response = await fetch('/medical/api/valuations/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -50,7 +50,7 @@ function SimilarIndustrySettingsContent() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const url = showInactive ? '/api/similar-industry?showInactive=true' : '/api/similar-industry';
+      const url = showInactive ? '/medical/api/similar-industry?showInactive=true' : '/medical/api/similar-industry';
       const response = await fetch(url);
       if (response.ok) {
         const result = await response.json();
@@ -123,7 +123,7 @@ function SimilarIndustrySettingsContent() {
     };
 
     const result = await handleFormSubmit(
-      '/api/similar-industry',
+      '/medical/api/similar-industry',
       formMode === 'create' ? 'POST' : 'PUT',
       requestData
     );
@@ -142,7 +142,7 @@ function SimilarIndustrySettingsContent() {
       id,
       name: fiscal_year,
       action: 'deactivate',
-      apiEndpoint: '/api/similar-industry',
+      apiEndpoint: '/medical/api/similar-industry',
       onSuccess: loadData,
       toast,
     });
@@ -153,7 +153,7 @@ function SimilarIndustrySettingsContent() {
       id,
       name: fiscal_year,
       action: 'activate',
-      apiEndpoint: '/api/similar-industry',
+      apiEndpoint: '/medical/api/similar-industry',
       onSuccess: loadData,
       toast,
     });
@@ -164,7 +164,7 @@ function SimilarIndustrySettingsContent() {
       id,
       name: fiscal_year,
       action: 'delete',
-      apiEndpoint: '/api/similar-industry',
+      apiEndpoint: '/medical/api/similar-industry',
       onSuccess: loadData,
       toast,
     });

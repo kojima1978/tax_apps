@@ -1251,25 +1251,25 @@ export default function InheritanceTaxDocGuide() {
 
       <div
         ref={printRef}
-        className="bg-white p-8 md:p-12 rounded-xl shadow-xl print:p-6 print:shadow-none"
+        className="bg-white p-8 md:p-12 rounded-xl shadow-xl print:shadow-none print-compact"
       >
         {/* ヘッダー */}
-        <div className="border-b-2 border-blue-800 pb-6 mb-8 print:pb-4 print:mb-6">
+        <div className="border-b-2 border-blue-800 pb-6 mb-8 print-compact-header">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-2 print:text-2xl">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2 print-compact-title">
                 相続税申告 資料準備ガイド
               </h1>
-              <p className="text-slate-600 print:text-sm">
+              <p className="text-slate-600 print-compact-subtitle">
                 {isFullListMode && (
-                  <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded mr-2 align-middle print:border print:border-emerald-800">
+                  <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded mr-2 align-middle print:border print:border-emerald-800 print:px-1 print:py-0">
                     全リスト表示
                   </span>
                 )}
                 以下の書類をご準備の上、ご来所・ご郵送ください。
               </p>
             </div>
-            <div className="text-right text-sm text-slate-500">
+            <div className="text-right text-sm text-slate-500 print:text-xs">
               <p>発行日: {currentDate}</p>
               <p>税理士法人 マスエージェント</p>
             </div>
@@ -1277,23 +1277,23 @@ export default function InheritanceTaxDocGuide() {
 
           {/* 基本情報表示 */}
           {(clientName || deceasedName || deadline) && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg grid md:grid-cols-3 gap-4 print:bg-white print:border print:border-blue-200">
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg grid md:grid-cols-3 gap-4 print:bg-white print:border print:border-blue-200 print-compact-info">
               {clientName && (
                 <div>
-                  <span className="text-xs text-slate-500">お客様名</span>
-                  <p className="font-bold text-slate-800">{clientName} 様</p>
+                  <span className="text-xs text-slate-500 print:text-[9px]">お客様名</span>
+                  <p className="font-bold text-slate-800 print:text-xs">{clientName} 様</p>
                 </div>
               )}
               {deceasedName && (
                 <div>
-                  <span className="text-xs text-slate-500">被相続人</span>
-                  <p className="font-bold text-slate-800">{deceasedName} 様</p>
+                  <span className="text-xs text-slate-500 print:text-[9px]">被相続人</span>
+                  <p className="font-bold text-slate-800 print:text-xs">{deceasedName} 様</p>
                 </div>
               )}
               {deadline && (
                 <div>
-                  <span className="text-xs text-slate-500">資料収集期限（目安）</span>
-                  <p className="font-bold text-slate-800">
+                  <span className="text-xs text-slate-500 print:text-[9px]">資料収集期限（目安）</span>
+                  <p className="font-bold text-slate-800 print:text-xs">
                     {new Date(deadline).toLocaleDateString('ja-JP', {
                       year: 'numeric',
                       month: 'long',
@@ -1307,17 +1307,17 @@ export default function InheritanceTaxDocGuide() {
         </div>
 
         {/* 注意事項 */}
-        <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg print:mb-6">
+        <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg print-compact-notice">
           <div className="flex items-start">
-            <Info className="w-5 h-5 text-amber-600 mr-2 mt-0.5 flex-shrink-0" />
+            <Info className="w-5 h-5 text-amber-600 mr-2 mt-0.5 flex-shrink-0 print:w-4 print:h-4" />
             <div className="text-sm text-amber-800">
-              <p className="font-bold mb-1">ご確認ください</p>
-              <ul className="list-disc list-inside space-y-1">
+              <p className="font-bold mb-1 print:mb-0 print:text-xs">ご確認ください</p>
+              <ul className="list-disc list-inside space-y-1 print:space-y-0">
                 <li>
                   資料は原本、コピー、データなどどのような形でお送りいただいても結構です。原本はスキャンやコピーを行った後、すべてお返しいたします。
                 </li>
                 <li>
-                  <span className="bg-amber-200 px-1 rounded">取得代行可</span>{' '}
+                  <span className="bg-amber-200 px-1 rounded print:px-0.5">取得代行可</span>{' '}
                   の書類は弊社で取得代行を行うことが可能です。詳しくは担当者にお尋ねください。
                 </li>
                 <li>
@@ -1329,25 +1329,25 @@ export default function InheritanceTaxDocGuide() {
         </div>
 
         {/* 書類リスト */}
-        <div className="space-y-8 print:space-y-6">
+        <div className="space-y-8 print:space-y-3">
           {results.map(({ category, documents }) => (
-            <div key={category.id} className="break-inside-avoid">
+            <div key={category.id} className="break-inside-avoid print-compact-section">
               <h3
-                className={`font-bold text-lg mb-3 px-3 py-2 rounded-lg flex items-center print:mb-2 print:text-base print:py-1 ${category.bgColor} ${category.color}`}
+                className={`font-bold text-lg mb-3 px-3 py-2 rounded-lg flex items-center print-compact-category-header ${category.bgColor} ${category.color}`}
               >
-                <span className="mr-2">{category.icon}</span>
+                <span className="mr-2 print:mr-1">{category.icon}</span>
                 {category.name}
-                <span className="ml-2 text-sm font-normal">({documents.length}件)</span>
+                <span className="ml-2 text-sm font-normal print:text-xs print:ml-1">({documents.length}件)</span>
               </h3>
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="border border-slate-200 rounded-lg overflow-hidden print:rounded-sm">
+                <table className="w-full text-sm print-compact-table">
                   <thead className="bg-slate-100">
                     <tr>
-                      <th className="w-8 px-2 py-2 text-center print:py-1">✓</th>
-                      <th className="px-3 py-2 text-left font-bold text-slate-700 print:py-1">
+                      <th className="w-8 px-2 py-2 text-center print:w-6">✓</th>
+                      <th className="px-3 py-2 text-left font-bold text-slate-700">
                         必要書類名
                       </th>
-                      <th className="px-3 py-2 text-left font-bold text-slate-700 print:py-1 hidden md:table-cell print:table-cell">
+                      <th className="px-3 py-2 text-left font-bold text-slate-700 hidden md:table-cell print:table-cell">
                         内容説明
                       </th>
                     </tr>
@@ -1358,21 +1358,21 @@ export default function InheritanceTaxDocGuide() {
                         key={doc.id}
                         className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}
                       >
-                        <td className="px-2 py-3 text-center print:py-2">
-                          <span className="inline-block w-4 h-4 border-2 border-slate-300 rounded-sm print:border-slate-400" />
+                        <td className="px-2 py-3 text-center">
+                          <span className="inline-block w-4 h-4 border-2 border-slate-300 rounded-sm print:border-slate-400 print:w-3 print:h-3 print:border" />
                         </td>
-                        <td className="px-3 py-3 print:py-2">
+                        <td className="px-3 py-3">
                           <div className="flex items-center flex-wrap">
-                            <span className="font-medium text-slate-800">{doc.name}</span>
+                            <span className="font-medium text-slate-800 doc-name">{doc.name}</span>
                             {doc.canDelegate && (
-                              <span className="ml-2 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded print:border print:border-amber-700">
-                                取得代行可
+                              <span className="ml-2 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded print:border print:border-amber-700 print:ml-1 print:px-1 print:py-0 print:text-[8px]">
+                                代行可
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500 mt-1 md:hidden">{doc.description}</p>
+                          <p className="text-xs text-slate-500 mt-1 md:hidden doc-desc">{doc.description}</p>
                         </td>
-                        <td className="px-3 py-3 text-slate-600 hidden md:table-cell print:table-cell print:py-2 print:text-xs">
+                        <td className="px-3 py-3 text-slate-600 hidden md:table-cell print:table-cell doc-desc">
                           {doc.description}
                         </td>
                       </tr>
@@ -1385,10 +1385,10 @@ export default function InheritanceTaxDocGuide() {
         </div>
 
         {/* フッター */}
-        <div className="mt-12 pt-6 border-t border-slate-300 print:mt-8 print:pt-6">
-          <div className="flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 print:p-4">
-            <AlertCircle className="w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-slate-600 space-y-1">
+        <div className="mt-12 pt-6 border-t border-slate-300 print-compact-footer">
+          <div className="flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 print-compact-footer-box">
+            <AlertCircle className="w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0 print:w-4 print:h-4" />
+            <div className="text-sm text-slate-600 space-y-1 print:space-y-0">
               <p>
                 <strong>ご留意事項</strong>
               </p>
@@ -1405,10 +1405,8 @@ export default function InheritanceTaxDocGuide() {
               )}
             </div>
           </div>
-          <div className="mt-8 text-center text-sm text-slate-400 print:mt-8">
-            〒770-0002 徳島県徳島市春日２丁目３番３３号
-            <br />
-            TEL 088-632-6228 / FAX 088-631-9870
+          <div className="mt-8 text-center text-sm text-slate-400 print-compact-address">
+            〒770-0002 徳島県徳島市春日２丁目３番３３号 / TEL 088-632-6228 / FAX 088-631-9870
           </div>
         </div>
       </div>

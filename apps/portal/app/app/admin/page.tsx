@@ -1,5 +1,6 @@
 import Header from '@/components/Header';
 import AdminPanel from '@/components/AdminPanel';
+import AdminAppSort from '@/components/AdminAppSort';
 import { prisma } from '@/lib/prisma';
 
 export default async function AdminPage() {
@@ -17,6 +18,12 @@ export default async function AdminPage() {
             <p className="text-gray-600 mt-2">ポータルのアプリケーションを追加、編集、削除できます</p>
           </div>
           <AdminPanel applications={applications} />
+
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">並び替え</h2>
+            <p className="text-gray-600 mb-4">ドラッグ＆ドロップでホーム画面での表示順を変更できます</p>
+            <AdminAppSort applications={applications} />
+          </div>
         </div>
       </main>
     </div>

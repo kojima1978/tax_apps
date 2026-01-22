@@ -33,7 +33,7 @@ export default function CompanySettingsPage() {
   const loadCompanies = async () => {
     try {
       setLoading(true);
-      const url = showInactive ? '/api/companies?showInactive=true' : '/api/companies';
+      const url = showInactive ? '/medical/api/companies?showInactive=true' : '/medical/api/companies';
       const response = await fetch(url);
       if (response.ok) {
         const result = await response.json();
@@ -78,7 +78,7 @@ export default function CompanySettingsPage() {
     };
 
     const result = await handleFormSubmit(
-      '/api/companies',
+      '/medical/api/companies',
       formMode === 'create' ? 'POST' : 'PUT',
       requestData
     );
@@ -97,7 +97,7 @@ export default function CompanySettingsPage() {
       id,
       name: companyName,
       action: 'deactivate',
-      apiEndpoint: '/api/companies',
+      apiEndpoint: '/medical/api/companies',
       onSuccess: loadCompanies,
       toast,
     });
@@ -108,7 +108,7 @@ export default function CompanySettingsPage() {
       id,
       name: companyName,
       action: 'activate',
-      apiEndpoint: '/api/companies',
+      apiEndpoint: '/medical/api/companies',
       onSuccess: loadCompanies,
       toast,
     });
@@ -119,7 +119,7 @@ export default function CompanySettingsPage() {
       id,
       name: companyName,
       action: 'delete',
-      apiEndpoint: '/api/companies',
+      apiEndpoint: '/medical/api/companies',
       onSuccess: loadCompanies,
       toast,
     });

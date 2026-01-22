@@ -30,7 +30,7 @@ export default function Results() {
         // 年度から類似業種データを取得
         if (data.fiscalYear) {
           try {
-            const response = await fetch(`/api/similar-industry?fiscalYear=${data.fiscalYear}`);
+            const response = await fetch(`/medical/api/similar-industry?fiscalYear=${data.fiscalYear}`);
             if (response.ok) {
               const similarData = await response.json();
               data.similarIndustryData = similarData;

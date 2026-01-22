@@ -44,7 +44,7 @@ body {
 /* 印刷時のスタイル設定 */
 @media print {
   @page {
-    margin: 10mm;
+    margin: 6mm 8mm;
     size: A4;
   }
 
@@ -52,6 +52,8 @@ body {
     background: white;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    font-size: 10px;
+    line-height: 1.3;
   }
 
   .no-print {
@@ -71,7 +73,7 @@ body {
   .rounded-xl,
   .rounded-2xl,
   .rounded-lg {
-    border-radius: 0 !important;
+    border-radius: 2px !important;
   }
 
   .bg-slate-50 {
@@ -95,5 +97,90 @@ body {
 
   thead {
     display: table-header-group;
+  }
+
+  /* コンパクト印刷用スタイル */
+  .print-compact {
+    padding: 12px !important;
+  }
+
+  .print-compact-header {
+    padding-bottom: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .print-compact-title {
+    font-size: 18px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .print-compact-subtitle {
+    font-size: 11px !important;
+  }
+
+  .print-compact-info {
+    margin-top: 6px !important;
+    padding: 6px 8px !important;
+    gap: 8px !important;
+  }
+
+  .print-compact-notice {
+    margin-bottom: 10px !important;
+    padding: 6px 8px !important;
+  }
+
+  .print-compact-notice ul {
+    margin: 0 !important;
+    font-size: 9px !important;
+    line-height: 1.4 !important;
+  }
+
+  .print-compact-notice li {
+    margin-bottom: 1px !important;
+  }
+
+  .print-compact-section {
+    margin-bottom: 10px !important;
+  }
+
+  .print-compact-category-header {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .print-compact-table th {
+    padding: 3px 6px !important;
+    font-size: 10px !important;
+  }
+
+  .print-compact-table td {
+    padding: 3px 6px !important;
+    font-size: 9px !important;
+    line-height: 1.3 !important;
+  }
+
+  .print-compact-table .doc-name {
+    font-size: 10px !important;
+  }
+
+  .print-compact-table .doc-desc {
+    font-size: 8px !important;
+  }
+
+  .print-compact-footer {
+    margin-top: 12px !important;
+    padding-top: 8px !important;
+  }
+
+  .print-compact-footer-box {
+    padding: 6px 8px !important;
+    font-size: 9px !important;
+    line-height: 1.4 !important;
+  }
+
+  .print-compact-address {
+    margin-top: 8px !important;
+    font-size: 9px !important;
   }
 }

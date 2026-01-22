@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppCard from './AppCard';
 import { Search } from 'lucide-react';
 import { AppLink } from '@/data/links';
@@ -11,8 +11,39 @@ interface LauncherGridProps {
 
 export default function LauncherGrid({ applications }: LauncherGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [orderedApps, setOrderedApps] = useState<AppLink[]>(applications);
 
-  const filteredApps = applications.filter((app) =>
+  useEffect(() => {
+    // Load order from localStorage
+    const savedOrder = localStorage.getItem('portal_app_order');
+    if (savedOrder) {
+      try {
+        const orderIds = JSON.parse(savedOrder) as string[];
+        const newOrder = [...applications].sort((a, b) => {
+          const indexA = orderIds.indexOf(a.id);
+          const indexB = orderIds.indexOf(b.id);
+          // If both IDs are in the saved list, sort by index
+          if (indexA !== -1 && indexB !== -1) {
+            return indexA - indexB;
+          }
+          // If only A is in list, it comes first
+          if (indexA !== -1) return -1;
+          // If only B is in list, it comes first
+          if (indexB !== -1) return 1;
+          // If neither, keep original order (or put at end)
+          return 0;
+        });
+        setOrderedApps(newOrder);
+      } catch (e) {
+        console.error('Failed to parse saved order', e);
+        setOrderedApps(applications);
+      }
+    } else {
+      setOrderedApps(applications);
+    }
+  }, [applications]);
+
+  const filteredApps = orderedApps.filter((app) =>
     app.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     app.description.toLowerCase().includes(searchQuery.toLowerCase())
   );

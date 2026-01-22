@@ -49,10 +49,13 @@ export default function SavedDataPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/valuations');
+      const response = await fetch('/medical/api/valuations/');
 
       if (!response.ok) {
-        throw new Error('データの取得に失敗しました');
+        console.error(`API Error: ${response.status} ${response.statusText}`);
+        const text = await response.text();
+        console.error('Response body:', text);
+        throw new Error(`データの取得に失敗しました (${response.status})`);
       }
 
       const result = await response.json();
@@ -96,7 +99,7 @@ export default function SavedDataPage() {
     }
 
     try {
-      const response = await fetch(`/api/valuations?id=${id}`, {
+      const response = await fetch(`/medical/api/valuations/?id=${id}`, {
         method: 'DELETE',
       });
 
