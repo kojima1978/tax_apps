@@ -9,6 +9,7 @@ const dbPath = path.join(__dirname, '..', 'data', 'tax_documents.db');
 function getDb(): Database.Database {
   const db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
   return db;
 }
 
@@ -50,6 +51,8 @@ export function initializeDb(): void {
     `);
 
     // Add staff_id column if not exists (Migration)
+    // Legacy migration code - can be kept for robust startup but commenting out if we assume fresh start or already migrated.
+    // Keeping it active for safety as it handles idempotent check.
     try {
       const columns = db.pragma('table_info(customers)') as { name: string }[];
       const hasStaffId = columns.some(col => col.name === 'staff_id');
@@ -132,7 +135,7 @@ export function deleteStaff(id: number): boolean {
     // Check if used
     const used = db.prepare('SELECT COUNT(*) as count FROM customers WHERE staff_id = ?').get(id) as { count: number };
     if (used.count > 0) {
-      throw new Error('This staff is assigned to customers and cannot be deleted.');
+      throw new Error('この担当者はお客様に紐づいているため削除できません。');
     }
     const info = db.prepare('DELETE FROM staff WHERE id = ?').run(id);
     return info.changes > 0;
@@ -399,7 +402,6 @@ export function getDistinctCustomerNames(): string[] {
         `
         SELECT DISTINCT c.customer_name
         FROM customers c
-        INNER JOIN document_records d ON c.id = d.customer_id
         ORDER BY c.customer_name
       `
       )
@@ -416,14 +418,14 @@ export function getDistinctStaffNames(): string[] {
     const staffs = db.prepare('SELECT staff_name FROM staff ORDER BY staff_name').all() as { staff_name: string }[];
     if (staffs.length > 0) return staffs.map(s => s.staff_name);
 
-    // Fallback if staff table empty (shouldn't happen after migration)
+    // Winter fallback for legacy data if needed, but simple select is safer
     const legacyStaffs = db
       .prepare(
         `
-        SELECT DISTINCT c.staff_name
-        FROM customers c
-        INNER JOIN document_records d ON c.id = d.customer_id
-        ORDER BY c.staff_name
+        SELECT DISTINCT staff_name
+        FROM customers
+        WHERE staff_name IS NOT NULL
+        ORDER BY staff_name
       `
       )
       .all() as { staff_name: string }[];
@@ -452,7 +454,6 @@ export function getCustomerNamesByStaff(staffName: string): string[] {
         SELECT DISTINCT c.customer_name
         FROM customers c
         LEFT JOIN staff s ON c.staff_id = s.id
-        INNER JOIN document_records d ON c.id = d.customer_id
         WHERE c.staff_name = ? OR s.staff_name = ?
         ORDER BY c.customer_name
       `

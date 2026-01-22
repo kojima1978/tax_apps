@@ -92,7 +92,7 @@ export default function Home() {
       const data = await apiCopyToNextYear(state.customerName, state.staffName, state.year);
 
       if (data.success) {
-        alert(`令和${state.year}年のデータを令和${state.year + 1}年にコピーしました。\n年度を切り替えて確認してください。`);
+        alert(`令和${state.year - 2018}年のデータを令和${state.year + 1 - 2018}年にコピーしました。\n年度を切り替えて確認してください。`);
       } else {
         alert('翌年度更新に失敗しました');
       }

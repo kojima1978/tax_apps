@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { FileEdit, ChevronRight, Database, Loader2, Settings, Users, UserPlus } from 'lucide-react';
+import { ChevronRight, Database, Loader2, Settings, Users, UserPlus } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { taxReturnData } from '@/data/taxReturnData';
 import { fetchStaff, fetchCustomerNames, fetchAvailableYears } from '@/utils/api';
-import YearSelector from './YearSelector';
-import StaffManagementModal from './StaffManagementModal';
-import CustomerManagementModal from './CustomerManagementModal';
+// import YearSelector from './YearSelector';
 
 interface MenuScreenProps {
   year: number;
@@ -17,6 +16,7 @@ interface MenuScreenProps {
 }
 
 export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCustomerData }: MenuScreenProps) {
+  const router = useRouter();
   const [staffList, setStaffList] = useState<{ id: number, staff_name: string }[]>([]);
   const [customerNames, setCustomerNames] = useState<string[]>([]);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
@@ -24,8 +24,18 @@ export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCu
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [selectedYear, setSelectedYear] = useState<number | ''>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
-  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+
+  // Default years to show if no history exists (Current year and Previous year)
+  // Default years to show if no history exists (Current year and Previous year)
+  const currentYear = new Date().getFullYear();
+  const defaultYears = [];
+  for (let y = currentYear; y >= 2019; y--) {
+    defaultYears.push(y);
+  }
+
+  // Merge available years with default years for display
+  const displayYears = Array.from(new Set([...availableYears, ...defaultYears]))
+    .sort((a, b) => b - a);
 
   const loadStaff = useCallback(async () => {
     const staff = await fetchStaff();
@@ -70,8 +80,16 @@ export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCu
     if (!selectedStaffName || !selectedCustomer || !selectedYear) return;
 
     setIsLoading(true);
-    await onLoadCustomerData(selectedCustomer, selectedStaffName, selectedYear);
+    await onLoadCustomerData(selectedCustomer, selectedStaffName, Number(selectedYear));
     setIsLoading(false);
+  };
+
+  const handleAddStaff = () => {
+    router.push('/staff/create');
+  };
+
+  const handleAddCustomer = () => {
+    router.push('/customers/create');
   };
 
   const canLoad = selectedStaffName && selectedCustomer && selectedYear;
@@ -84,6 +102,20 @@ export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCu
         <p className="text-emerald-100 text-lg">必要書類を確認・編集して、準備リストを作成できます。</p>
 
         <div className="absolute top-4 right-4 flex gap-3">
+          <Link
+            href="/staff"
+            className="p-2 bg-emerald-700 hover:bg-emerald-800 rounded-full transition-colors text-white"
+            title="担当者管理"
+          >
+            <Users className="w-5 h-5" />
+          </Link>
+          <Link
+            href="/customers"
+            className="p-2 bg-emerald-700 hover:bg-emerald-800 rounded-full transition-colors text-white"
+            title="お客様管理"
+          >
+            <UserPlus className="w-5 h-5" />
+          </Link>
         </div>
       </header>
 
@@ -100,13 +132,13 @@ export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCu
                 このアプリでは、担当者ごとにお客様のデータを管理します。<br />
                 まずはあなたの名前（または担当者名）を登録してください。
               </p>
-              <button
-                onClick={() => setIsStaffModalOpen(true)}
+              <Link
+                href="/staff/create"
                 className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-xl transition-all flex items-center justify-center gap-2"
               >
                 <Database className="w-5 h-5" />
                 担当者を登録する
-              </button>
+              </Link>
             </div>
           </div>
         )}
@@ -120,89 +152,63 @@ export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCu
                 <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center mr-3 text-emerald-600">
                   <span className="font-bold">1</span>
                 </div>
-                <h2 className="text-xl font-bold text-slate-800">編集するデータを選択</h2>
+                <h2 className="text-xl font-bold text-slate-800">
+                  データを選択して開始
+                </h2>
               </div>
 
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <SelectField
-                    label="担当者"
-                    value={selectedStaffName}
-                    onChange={setSelectedStaffName}
-                    options={staffList.map(s => s.staff_name)}
-                    onAdd={() => setIsStaffModalOpen(true)}
-                    addLabel="新規登録"
-                  />
-                  <SelectField
-                    label="お客様名"
-                    value={selectedCustomer}
-                    onChange={setSelectedCustomer}
-                    options={customerNames}
-                    disabled={!selectedStaffName}
-                    onAdd={() => setIsCustomerModalOpen(true)}
-                    addLabel="新規登録"
-                  />
-                  <SelectField
-                    label="年度"
-                    value={selectedYear}
-                    onChange={(val) => setSelectedYear(val ? Number(val) : '')}
-                    options={availableYears}
-                    formatOption={(y) => `令和${y}年`}
-                    disabled={!selectedCustomer}
-                  />
+              <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex flex-col gap-6 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <SelectField
+                      label="担当者"
+                      value={selectedStaffName}
+                      onChange={setSelectedStaffName}
+                      options={staffList.map(s => s.staff_name)}
+                      onAdd={handleAddStaff}
+                      addLabel="新規登録"
+                    />
+                    <SelectField
+                      label="お客様名"
+                      value={selectedCustomer}
+                      onChange={setSelectedCustomer}
+                      options={customerNames}
+                      disabled={!selectedStaffName}
+                      onAdd={handleAddCustomer}
+                      addLabel="新規登録"
+                    />
+                  </div>
+                  <div className="w-full md:w-1/2">
+                    <SelectField
+                      label="対象年度"
+                      value={selectedYear}
+                      onChange={(val) => setSelectedYear(val ? Number(val) : '')}
+                      options={displayYears}
+                      formatOption={(y) => availableYears.includes(y) ? `令和${y - 2018}年 (保存済み)` : `令和${y - 2018}年 (新規)`}
+                      disabled={!selectedCustomer}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex justify-center md:justify-end">
                   <button
                     onClick={handleLoadData}
                     disabled={!canLoad || isLoading}
-                    className="flex items-center px-8 py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors shadow-md disabled:shadow-none"
+                    className="w-full md:w-auto flex items-center justify-center px-10 py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-md disabled:shadow-none transform hover:-translate-y-0.5 active:translate-y-0"
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        読み込み中...
+                        準備中...
                       </>
                     ) : (
                       <>
-                        <ChevronRight className="w-5 h-5 mr-1" />
-                        読み込んで編集
+                        <ChevronRight className="w-5 h-5 mr-2" />
+                        作成・編集する
                       </>
                     )}
                   </button>
                 </div>
-              </div>
-            </div>
-
-            {/* 新規作成セクション */}
-            <div className="border-t border-slate-100 pt-10">
-              <div className="flex items-center justify-center mb-8">
-                <span className="bg-white px-4 text-slate-400 text-sm font-medium relative z-10">
-                  または、新しいリストを作成
-                </span>
-                <div className="absolute left-0 right-0 h-px bg-slate-200 transform -translate-y-1/2 z-0"></div>
-              </div>
-
-              <div className="flex justify-center mb-8">
-                <YearSelector year={year} onYearChange={onYearChange} />
-              </div>
-
-              <div className="max-w-md mx-auto">
-                <button
-                  onClick={onStartEditor}
-                  className="group relative flex flex-col items-center p-8 bg-white border-2 border-emerald-50 rounded-2xl shadow-sm hover:border-emerald-500 hover:shadow-xl transition-all duration-300 text-center w-full"
-                >
-                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-emerald-600 transition-colors">
-                    <FileEdit className="w-8 h-8 text-emerald-600 group-hover:text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-2">新規リスト作成</h3>
-                  <p className="text-sm text-slate-500 mb-6">
-                    一から新しいリストを作成します
-                  </p>
-                  <div className="flex items-center px-6 py-2 bg-emerald-50 text-emerald-700 rounded-full font-bold text-sm group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                    作成スタート <ChevronRight className="w-4 h-4 ml-1" />
-                  </div>
-                </button>
               </div>
             </div>
 
@@ -224,27 +230,6 @@ export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCu
           <p>TEL: {taxReturnData.contactInfo.tel}</p>
         </div>
       </div>
-
-      <CustomerManagementModal
-        isOpen={isCustomerModalOpen}
-        onClose={() => setIsCustomerModalOpen(false)}
-        defaultStaffId={staffList.find(s => s.staff_name === selectedStaffName)?.id}
-        onCustomerChange={(newCustomerName) => {
-          if (selectedStaffName) {
-            loadCustomerNames(selectedStaffName).then(() => {
-              if (newCustomerName) {
-                setSelectedCustomer(newCustomerName);
-              }
-            });
-          }
-        }}
-      />
-
-      <StaffManagementModal
-        isOpen={isStaffModalOpen}
-        onClose={() => setIsStaffModalOpen(false)}
-        onStaffChange={loadStaff}
-      />
     </div>
   );
 }
@@ -272,32 +257,37 @@ function SelectField<T extends string | number>({
   addLabel
 }: SelectFieldProps<T>) {
   return (
-    <div>
+    <div className="w-full">
       <div className="flex justify-between items-end mb-2">
         <label className="block text-sm font-bold text-slate-700">{label}</label>
         {onAdd && !disabled && (
           <button
             onClick={onAdd}
-            className="text-xs text-emerald-600 hover:text-emerald-700 flex items-center font-medium bg-emerald-50 px-2 py-0.5 rounded-full hover:bg-emerald-100 transition-colors"
+            className="text-xs text-emerald-600 hover:text-emerald-700 flex items-center font-medium bg-emerald-50 px-2 py-1 rounded hover:bg-emerald-100 transition-colors"
           >
-            <UserPlus className="w-3 h-3 mr-1" />
+            <UserPlus className="w-3.5 h-3.5 mr-1" />
             {addLabel || '追加'}
           </button>
         )}
       </div>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400"
-      >
-        <option value="">選択してください</option>
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {formatOption ? formatOption(opt) : opt}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400 appearance-none shadow-sm transition-shadow hover:border-emerald-300"
+        >
+          <option value="">選択してください</option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {formatOption ? formatOption(opt) : opt}
+            </option>
+          ))}
+        </select>
+        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400">
+          <ChevronRight className="w-4 h-4 rotate-90" />
+        </div>
+      </div>
     </div>
   );
 }

@@ -135,7 +135,7 @@ export function SortableCategory({
         >
             {/* カテゴリヘッダー */}
             <div className="bg-emerald-50 border-b border-slate-200">
-                <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center justify-between px-4 py-3 print:px-2 print:py-1">
                     <div className="flex items-center flex-1">
                         <button
                             {...attributes}
@@ -181,7 +181,7 @@ export function SortableCategory({
                                 </button>
                             </div>
                         ) : (
-                            <h3 className="font-bold text-lg text-slate-800">{group.category}</h3>
+                            <h3 className="font-bold text-lg text-slate-800 print:text-sm">{group.category}</h3>
                         )}
                     </div>
                     <div className="flex items-center space-x-2 no-print">
@@ -208,7 +208,7 @@ export function SortableCategory({
 
             {/* 書類リスト */}
             {isExpanded && (
-                <div className="p-4">
+                <div className="p-4 print:p-1">
                     {group.note && (
                         <p className="mb-3 text-sm text-slate-500 bg-slate-50 p-2 rounded flex items-start">
                             <Info className="w-4 h-4 mr-1 mt-0.5 flex-shrink-0" />

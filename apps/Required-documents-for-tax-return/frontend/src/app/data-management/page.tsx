@@ -250,7 +250,7 @@ export default function DataManagementPage() {
               >
                 <option value="">すべて</option>
                 {availableYears.map((y) => (
-                  <option key={y} value={y}>令和{y}年</option>
+                  <option key={y} value={y}>令和{y - 2018}年</option>
                 ))}
               </select>
             </div>
@@ -339,7 +339,7 @@ export default function DataManagementPage() {
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">
-                            令和{record.year}年
+                            令和{record.year - 2018}年
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-500 tabular-nums">

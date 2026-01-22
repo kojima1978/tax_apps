@@ -79,7 +79,7 @@ export function SortableDocumentItem({
 
     return (
         <li ref={setNodeRef} style={style} className="bg-white">
-            <div className="flex items-center py-2 border-b border-dashed border-slate-100">
+            <div className="flex items-center py-2 border-b border-dashed border-slate-100 print:py-0.5">
                 {isEditing ? (
                     <div className="flex items-center flex-1 ml-6">
                         <span className="w-8 text-center text-sm font-bold text-emerald-600 mr-2">{index}.</span>
@@ -110,15 +110,15 @@ export function SortableDocumentItem({
                         >
                             <GripVertical className="w-4 h-4" />
                         </button>
-                        <span className="w-8 text-center text-sm font-bold text-emerald-600 mr-1">{index}.</span>
+                        <span className="w-8 text-center text-sm font-bold text-emerald-600 mr-1 print:w-6 print:mr-0.5 print:text-xs">{index}.</span>
                         <label className="flex items-center flex-1 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={doc.checked}
                                 onChange={onToggleCheck}
-                                className="w-4 h-4 mr-3 accent-emerald-600"
+                                className="w-4 h-4 mr-3 accent-emerald-600 print:w-3 print:h-3 print:mr-1"
                             />
-                            <span className={`whitespace-pre-line ${doc.checked ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+                            <span className={`whitespace-pre-line ${doc.checked ? 'line-through text-slate-400' : 'text-slate-700'} print:text-xs`}>
                                 {doc.text}
                             </span>
                         </label>
