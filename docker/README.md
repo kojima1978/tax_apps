@@ -26,11 +26,22 @@ Docker Composeを使用して、すべてのアプリケーションを一元的
 
 ## クイックスタート
 
-### 1. 起動
+### 1. 環境変数の設定
+
+`.env`ファイルを作成し、必要な環境変数を設定します。
 
 ```bash
-# gatewayディレクトリに移動
-cd gateway
+# docker/.env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_password
+POSTGRES_DB=inheritance_tax_db
+```
+
+### 2. 起動
+
+```bash
+# dockerディレクトリに移動
+cd docker
 
 # Windowsの場合
 start.bat
@@ -39,13 +50,13 @@ start.bat
 docker compose up -d --build
 ```
 
-### 2. アクセス
+### 3. アクセス
 
 ブラウザで以下のURLにアクセスしてください。
 
 **メインポータル:** [http://localhost](http://localhost)
 
-### 3. 停止
+### 4. 停止
 
 ```bash
 # Windowsの場合
@@ -166,3 +177,21 @@ Next.js 16 (Turbopack) は Node.js 24 との互換性問題があります。
 ```dockerfile
 FROM node:22-slim
 ```
+
+### Portal App (Prisma 7対応)
+
+Portal AppはPrisma 7を使用しており、Docker環境では`libsql`の代わりに`better-sqlite3`を使用します。
+Dockerfileでビルド時に以下の処理を行います:
+
+1. `@prisma/adapter-libsql`と`@libsql/client`をpackage.jsonから除外
+2. `@prisma/adapter-better-sqlite3`をインストール
+3. Docker用の`prisma.config.ts`と`lib/prisma.ts`を生成
+
+```dockerfile
+# Docker用のprisma.tsを作成（better-sqlite3ドライバを使用）
+RUN npm install @prisma/adapter-better-sqlite3 better-sqlite3 @types/better-sqlite3
+```
+
+### Shares Valuation
+
+非上場株式評価システムは`public`フォルダを使用しないため、Dockerfileから該当のCOPY命令を削除しています。

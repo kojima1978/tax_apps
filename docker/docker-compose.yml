@@ -20,6 +20,7 @@ services:
   # ===========================================
   # ポータルサイト (メインダッシュボード)
   # Port: 3000
+  # Note: Prisma 7ではlibsqlの代わりにbetter-sqlite3を使用
   # ===========================================
   portal-app:
     build:
@@ -34,11 +35,11 @@ services:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "node", "-e", "fetch('http://0.0.0.0:3000').then(() => process.exit(0)).catch(() => process.exit(1))" ]
+      test: [ "CMD-SHELL", "node -e \"fetch('http://localhost:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\"" ]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 30s
 
   # ===========================================
   # 医療法人株式評価システム
