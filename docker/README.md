@@ -178,6 +178,30 @@ Next.js 16 (Turbopack) は Node.js 24 との互換性問題があります。
 FROM node:22-slim
 ```
 
+### localhost vs 127.0.0.1
+
+環境によっては`localhost`への接続がタイムアウトする場合があります。
+その場合は`127.0.0.1`を使用してください:
+
+```
+http://127.0.0.1/          # ポータル
+http://127.0.0.1/medical/  # 医療法人株式評価
+```
+
+### Geistフォント（Docker + Turbopack）
+
+Docker環境でTurbopackを使用する場合、`next/font/google`のGeistフォントがエラーになることがあります。
+この場合はシステムフォントに変更してください:
+
+```tsx
+// 変更前（エラーになる場合あり）
+import { Geist, Geist_Mono } from "next/font/google";
+
+// 変更後
+// フォントのimportを削除し、bodyのclassNameからフォント変数を削除
+<body className="antialiased">
+```
+
 ### Portal App (Prisma 7対応)
 
 Portal AppはPrisma 7を使用しており、Docker環境では`libsql`の代わりに`better-sqlite3`を使用します。
