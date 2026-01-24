@@ -4,14 +4,14 @@
 OCR済み通帳CSVを読み込み、相続税調査で注目すべきポイント（名義預金疑い、多額出金、不自然な資金移動）を自動検知し、可視化するローカル完結型アプリケーションです。
 
 ## 特徴
-- **完全ローカル動作**: インターネット接続不要、データ外部送信なし（Ollama使用時も完全ローカル）
+- **完全ローカル動作**: インターネット接続不要、データ外部送信なし
 - **シンプル操作**: CSVインポート → 自動分析 → 結果表示の3ステップ
-- **Docker対応**: Dockerで簡単にセットアップ、LLM機能も自動構築
+- **Docker対応**: Dockerで簡単にセットアップ
 - **自動検知機能**:
   - 口座間資金移動の自動ペアリング（金額・日付近接性で判定）
   - 多額取引フラグ（閾値: カスタマイズ可能）
   - 残高整合性チェック（和暦対応）
-  - AI/ルールベースによる取引自動分類
+  - ルールベースによる取引自動分類
 - **データ管理**:
   - 案件・口座単位での削除機能
   - 複数口座データの一元管理
@@ -50,7 +50,7 @@ python -m streamlit run main.py
 
 ### 3. Dockerで実行する場合（本番環境推奨）
 
-Dockerを使用すると、LLM（Ollama）による取引分類機能も含めて簡単に起動できます。
+Dockerを使用すると、環境構築なしで簡単に起動できます。
 
 #### 起動手順
 
@@ -60,9 +60,6 @@ cd ../../docker
 
 # コンテナをビルド・起動
 docker compose up -d --build bank-analyzer
-
-# Ollamaにモデルをダウンロード（初回のみ、数分かかります）
-docker compose exec ollama ollama pull gemma2:2b
 
 # 起動確認
 docker compose ps
@@ -83,16 +80,10 @@ docker compose down
 docker compose down -v
 ```
 
-#### GPU利用（オプション）
-
-GPUを使用する場合は、docker-compose.ymlの該当箇所のコメントを外してください。
-NVIDIA Container Toolkitのインストールが必要です。
-
 #### トラブルシューティング
 
-- **Ollamaが起動しない**: `docker compose logs ollama` でログを確認
 - **アプリが起動しない**: `docker compose logs app` でログを確認
-- **ポート競合**: 8501または11434ポートが使用中の場合、docker-compose.ymlでポート番号を変更
+- **ポート競合**: 8501ポートが使用中の場合、docker-compose.ymlでポート番号を変更
 
 ## 使い方
 
@@ -116,9 +107,7 @@ NVIDIA Container Toolkitのインストールが必要です。
 
 ### ステップ3: 取引の自動分類（オプション）
 1. サイドバーから「分析・表示」を選択
-2. サイドバーの「自動分類」セクションで分類方法を選択:
-   - **🤖 AI分類**: Ollama（LLM）を使用した高精度分類（Docker環境推奨）
-   - **📝 ルール分類**: キーワードベースの高速分類（常に利用可能）
+2. サイドバーの「自動分類」ボタンをクリックすると、キーワードベースの自動分類が実行されます。
 3. 分類カテゴリ:
    - **生活費**: 日常的な支出（スーパー、コンビニ、光熱費など）
    - **資産形成**: 投資・貯蓄（証券会社、定期預金など）
@@ -185,7 +174,6 @@ inheritance-bank-analyzer/
 LARGE_AMOUNT_THRESHOLD = 50_000       # 多額取引の閾値（円）
 TRANSFER_DAYS_WINDOW = 3                # 資金移動判定の日付誤差（日）
 TRANSFER_AMOUNT_TOLERANCE = 1_000       # 資金移動判定の金額誤差（円）
-OLLAMA_BASE_URL = "http://ollama:11434/api/generate" # Ollama APIのエンドポイント
 ```
 
 ## トラブルシューティング
@@ -204,7 +192,6 @@ OLLAMA_BASE_URL = "http://ollama:11434/api/generate" # Ollama APIのエンドポ
 
 ## 今後の拡張予定
 
-- LLM（Ollama）による摘要文の自動分類
 - 複数年度の比較機能
 - 手動修正機能
 - PDFレポート出力

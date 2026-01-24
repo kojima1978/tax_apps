@@ -58,13 +58,7 @@ export const appLinks: AppLink[] = [
     url: '/itcm/',
     icon: 'Briefcase',
   },
-  {
-    id: '8',
-    title: '通帳OCR',
-    description: '通帳画像からデータを抽出',
-    url: '/ocr/',
-    icon: 'ScanLine',
-  },
+
   {
     id: '9',
     title: '銀行分析',

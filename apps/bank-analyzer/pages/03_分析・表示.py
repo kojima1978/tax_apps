@@ -44,42 +44,19 @@ if missing_cols:
 with st.sidebar:
     st.markdown("### 🤖 自動分類")
 
-    col1, col2 = st.columns(2)
+    if st.button("📝 自動分類実行", type="primary", use_container_width=True):
+        with st.spinner("自動分類実行中..."):
+            try:
+                # ルールベース分類実行
+                df = llm_classifier.classify_transactions(df)
+                # DB保存
+                db_manager.save_transactions(current_case, df)
+                st.success("✅ 分類完了！")
+                st.rerun()
+            except Exception as e:
+                st.error(f"エラー: {e}")
 
-    with col1:
-        if st.button("🤖 AI分類", type="primary", use_container_width=True):
-            # Ollama利用可能かチェック
-            ollama_available = llm_classifier.check_ollama_available()
-
-            if ollama_available:
-                with st.spinner("AI分類実行中..."):
-                    try:
-                        # AI分類実行（Ollama使用）
-                        df = llm_classifier.classify_transactions(df, use_ollama=True)
-                        # DB保存
-                        db_manager.save_transactions(current_case, df)
-                        st.success("✅ AI分類完了！")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"エラー: {e}")
-            else:
-                st.warning("⚠️ Ollamaが起動していません。ルールベース分類を使用してください。")
-
-    with col2:
-        if st.button("📝 ルール分類", use_container_width=True):
-            with st.spinner("ルールベース分類実行中..."):
-                try:
-                    # ルールベース分類実行（Ollama不使用）
-                    df = llm_classifier.classify_transactions(df, use_ollama=False)
-                    # DB保存
-                    db_manager.save_transactions(current_case, df)
-                    st.success("✅ ルールベース分類完了！")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"エラー: {e}")
-
-    st.caption("**🤖 AI分類**: Ollama使用（高精度・要起動）")
-    st.caption("**📝 ルール分類**: 設定パターン使用（高速・安定）")
+    st.caption("**自動分類**: 設定パターンを使用して取引を分類します")
 
 # 口座サマリーを表示
 st.markdown("### 📋 登録口座一覧")

@@ -81,32 +81,6 @@ with col3:
 
 st.markdown("---")
 
-# AI分類の設定
-st.subheader("🤖 AI分類の設定")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    ollama_model = st.selectbox(
-        "使用するモデル",
-        options=["gemma2:2b", "llama3", "mistral", "gemma"],
-        index=["gemma2:2b", "llama3", "mistral", "gemma"].index(
-            current_settings.get("OLLAMA_MODEL", "llama3")
-        ),
-        help="AI分類に使用するOllamaモデルを選択"
-    )
-
-    st.caption("**推奨**: gemma2:2b（軽量・高速・CPU動作可能）")
-
-with col2:
-    ollama_url = st.text_input(
-        "Ollama APIのURL",
-        value=current_settings.get("OLLAMA_BASE_URL", "http://localhost:11434/api/generate"),
-        help="OllamaのAPIエンドポイント（通常は変更不要）"
-    )
-
-st.markdown("---")
-
 # ルールベース分類のパターン設定
 st.subheader("📝 ルールベース分類のパターン設定")
 
@@ -246,8 +220,6 @@ with col2:
             "LARGE_AMOUNT_THRESHOLD": large_amount,
             "TRANSFER_DAYS_WINDOW": transfer_days,
             "TRANSFER_AMOUNT_TOLERANCE": transfer_tolerance,
-            "OLLAMA_MODEL": ollama_model,
-            "OLLAMA_BASE_URL": ollama_url,
             "CLASSIFICATION_PATTERNS": edited_patterns
         }
 
@@ -257,8 +229,6 @@ with col2:
         os.environ["LARGE_AMOUNT_THRESHOLD"] = str(large_amount)
         os.environ["TRANSFER_DAYS_WINDOW"] = str(transfer_days)
         os.environ["TRANSFER_AMOUNT_TOLERANCE"] = str(transfer_tolerance)
-        os.environ["OLLAMA_MODEL"] = ollama_model
-        os.environ["OLLAMA_BASE_URL"] = ollama_url
 
         st.success("✅ 設定を保存しました！変更を反映するにはアプリを再起動してください。")
         st.info("💡 再起動方法: ターミナルで `Ctrl+C` を押してアプリを停止し、再度 `streamlit run main.py` を実行")
@@ -277,20 +247,12 @@ with col1:
     - 小さくしすぎると検出数が多くなりすぎる
     """)
 
+with col2:
     st.markdown("""
     **資金移動の検出**
     - 一般的には 1〜3日以内の移動が多い
     - 許容誤差は振込手数料を考慮
     - 期間を長くしすぎると誤検出が増える
-    """)
-
-with col2:
-    st.markdown("""
-    **Ollamaモデルの選択**
-    - **gemma2:2b**: 軽量、CPU動作、分類精度十分（推奨）
-    - **llama3**: 高精度だが重い（GPU推奨）
-    - **mistral**: バランス型
-    - 初回実行時に自動ダウンロードされる
     """)
 
     st.markdown("""
@@ -299,3 +261,4 @@ with col2:
     - 部分一致で検索されます
     - カンマで区切って複数登録可能
     """)
+

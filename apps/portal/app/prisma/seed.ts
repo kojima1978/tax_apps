@@ -55,12 +55,7 @@ async function main() {
       url: '/itcm/',
       icon: 'Briefcase',
     },
-    {
-      title: '通帳OCR',
-      description: '通帳画像からデータを抽出',
-      url: '/ocr/',
-      icon: 'ScanLine',
-    },
+
     {
       title: '銀行分析',
       description: '預金移動の分析ツール',

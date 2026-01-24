@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import XLSX from 'xlsx-js-style';
 import {
   FileText,
@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   Layout,
 } from 'lucide-react';
+import { COMPANY_INFO, EXTERNAL_LINKS, type OptionId, type OptionSelection } from '@/constants';
 
 // データ定義
 interface DocumentGroup {
@@ -27,7 +28,7 @@ interface DocumentGroup {
 }
 
 interface Option {
-  id: string;
+  id: OptionId;
   label: string;
   documents: string[];
   note?: string;
@@ -133,29 +134,192 @@ const giftData = {
 
 type Step = 'menu' | 'check' | 'result';
 
+// Excelスタイル定義
+const excelStyles = {
+  title: {
+    font: { bold: true, sz: 18, color: { rgb: 'FFFFFF' } },
+    fill: { fgColor: { rgb: '047857' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  },
+  subTitle: {
+    font: { sz: 11, color: { rgb: '374151' } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  },
+  badge: {
+    font: { bold: true, sz: 10, color: { rgb: '1E40AF' } },
+    fill: { fgColor: { rgb: 'DBEAFE' } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  },
+  tableHeader: {
+    font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+    fill: { fgColor: { rgb: '059669' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: '047857' } },
+      bottom: { style: 'thin', color: { rgb: '047857' } },
+      left: { style: 'thin', color: { rgb: '047857' } },
+      right: { style: 'thin', color: { rgb: '047857' } },
+    },
+  },
+  categoryCell: {
+    font: { bold: true, sz: 11, color: { rgb: '065F46' } },
+    fill: { fgColor: { rgb: 'D1FAE5' } },
+    alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+    border: {
+      top: { style: 'thin', color: { rgb: 'A7F3D0' } },
+      bottom: { style: 'thin', color: { rgb: 'A7F3D0' } },
+      left: { style: 'medium', color: { rgb: '059669' } },
+      right: { style: 'thin', color: { rgb: 'A7F3D0' } },
+    },
+  },
+  documentCell: {
+    font: { sz: 11, color: { rgb: '374151' } },
+    alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+    border: {
+      top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+    },
+  },
+  checkCell: {
+    font: { sz: 14, color: { rgb: '059669' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+    },
+  },
+  noteCell: {
+    font: { sz: 10, italic: true, color: { rgb: '6B7280' } },
+    alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+    border: {
+      top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+      right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+    },
+  },
+  cautionHeader: {
+    font: { bold: true, sz: 11, color: { rgb: 'B45309' } },
+    fill: { fgColor: { rgb: 'FEF3C7' } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  },
+  cautionTextRed: {
+    font: { sz: 10, color: { rgb: 'FF0000' } },
+    alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+  },
+  footer: {
+    font: { sz: 9, color: { rgb: '9CA3AF' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  },
+};
+
+// チェックボックスコンポーネント
+function CheckboxOption({
+  id,
+  label,
+  checked,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className={`flex items-start p-3 rounded-lg border-2 cursor-pointer transition-all ${
+        checked
+          ? 'border-emerald-500 bg-emerald-50'
+          : 'border-slate-100 hover:border-slate-300'
+      }`}
+    >
+      <input
+        type="checkbox"
+        id={id}
+        checked={checked}
+        onChange={() => onChange(id)}
+        className="sr-only"
+      />
+      <div
+        className={`mt-1 w-5 h-5 flex items-center justify-center border rounded ${
+          checked
+            ? 'bg-emerald-600 border-emerald-600'
+            : 'bg-white border-gray-300'
+        }`}
+        aria-hidden="true"
+      >
+        {checked && <Check className="w-3 h-3 text-white" />}
+      </div>
+      <span className="ml-3 text-slate-700 font-medium">{label}</span>
+    </label>
+  );
+}
+
+// 外部リンクコンポーネント
+function ExternalLinkButton({
+  href,
+  label,
+  description,
+}: {
+  href: string;
+  label: string;
+  description: string;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center px-5 py-3 rounded-xl bg-emerald-800 bg-opacity-40 text-emerald-50 hover:bg-opacity-100 hover:text-white transition-all text-sm border border-emerald-600 hover:border-emerald-400 hover:shadow-lg"
+    >
+      <FileText className="w-5 h-5 mr-3 text-emerald-200 group-hover:text-white" />
+      <span className="text-left">
+        <span className="block text-xs text-emerald-300 group-hover:text-emerald-100 mb-0.5">
+          {description}
+        </span>
+        <span className="font-bold border-b border-transparent group-hover:border-white transition-colors">
+          {label}
+        </span>
+      </span>
+      <ExternalLink className="w-4 h-4 ml-3 opacity-60 group-hover:opacity-100" />
+    </a>
+  );
+}
+
 export default function GiftTaxDocGuide() {
   const [step, setStep] = useState<Step>('menu');
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, boolean>>({});
+  const [selectedOptions, setSelectedOptions] = useState<OptionSelection>({});
   const [isFullListMode, setIsFullListMode] = useState(false);
   const [isTwoColumnPrint, setIsTwoColumnPrint] = useState(false);
 
-  const toggleOption = (id: string) => {
+  // 状態リセット
+  const resetToMenu = useCallback(() => {
+    setStep('menu');
+    setSelectedOptions({});
+    setIsFullListMode(false);
+  }, []);
+
+  const toggleOption = useCallback((id: string) => {
     setSelectedOptions((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [id]: !prev[id as OptionId],
     }));
-  };
+  }, []);
 
-  const generateResultList = (): DocumentGroup[] => {
-    const results: DocumentGroup[] = [];
+  // 結果リスト生成（メモ化）
+  const results = useMemo((): DocumentGroup[] => {
+    const list: DocumentGroup[] = [];
 
-    // 1. 基本書類
-    results.push(...giftData.baseRequired);
+    list.push(...giftData.baseRequired);
 
-    // 2. 財産の種類別
     giftData.options.forEach((opt) => {
       if (isFullListMode || selectedOptions[opt.id]) {
-        results.push({
+        list.push({
           category: opt.label
             .replace('をもらいましたか？', '')
             .replace('はありますか？', ''),
@@ -164,10 +328,9 @@ export default function GiftTaxDocGuide() {
       }
     });
 
-    // 3. 特例
     giftData.specials.forEach((sp) => {
       if (isFullListMode || selectedOptions[sp.id]) {
-        results.push({
+        list.push({
           category: `【特例】${sp.label
             .replace('を選択しますか？', '')
             .replace('を適用しますか？', '')
@@ -178,145 +341,54 @@ export default function GiftTaxDocGuide() {
       }
     });
 
-    return results;
-  };
+    return list;
+  }, [isFullListMode, selectedOptions]);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleExcelExport = () => {
-    const results = generateResultList();
-    const currentDate = new Date().toLocaleDateString('ja-JP', {
+  const currentDate = useMemo(() => {
+    return new Date().toLocaleDateString('ja-JP', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     });
+  }, []);
 
-    // スタイル定義
-    const styles = {
-      title: {
-        font: { bold: true, sz: 18, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '047857' } }, // emerald-700
-        alignment: { horizontal: 'center', vertical: 'center' },
-      },
-      subTitle: {
-        font: { sz: 11, color: { rgb: '374151' } },
-        alignment: { horizontal: 'left', vertical: 'center' },
-      },
-      badge: {
-        font: { bold: true, sz: 10, color: { rgb: '1E40AF' } },
-        fill: { fgColor: { rgb: 'DBEAFE' } }, // blue-100
-        alignment: { horizontal: 'left', vertical: 'center' },
-      },
-      tableHeader: {
-        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '059669' } }, // emerald-600
-        alignment: { horizontal: 'center', vertical: 'center' },
-        border: {
-          top: { style: 'thin', color: { rgb: '047857' } },
-          bottom: { style: 'thin', color: { rgb: '047857' } },
-          left: { style: 'thin', color: { rgb: '047857' } },
-          right: { style: 'thin', color: { rgb: '047857' } },
-        },
-      },
-      categoryCell: {
-        font: { bold: true, sz: 11, color: { rgb: '065F46' } },
-        fill: { fgColor: { rgb: 'D1FAE5' } }, // emerald-100
-        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-        border: {
-          top: { style: 'thin', color: { rgb: 'A7F3D0' } },
-          bottom: { style: 'thin', color: { rgb: 'A7F3D0' } },
-          left: { style: 'medium', color: { rgb: '059669' } },
-          right: { style: 'thin', color: { rgb: 'A7F3D0' } },
-        },
-      },
-      documentCell: {
-        font: { sz: 11, color: { rgb: '374151' } },
-        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-        border: {
-          top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          right: { style: 'thin', color: { rgb: 'E5E7EB' } },
-        },
-      },
-      checkCell: {
-        font: { sz: 14, color: { rgb: '059669' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-        border: {
-          top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          right: { style: 'thin', color: { rgb: 'E5E7EB' } },
-        },
-      },
-      noteCell: {
-        font: { sz: 10, italic: true, color: { rgb: '6B7280' } },
-        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-        border: {
-          top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          right: { style: 'thin', color: { rgb: 'E5E7EB' } },
-        },
-      },
-      cautionHeader: {
-        font: { bold: true, sz: 11, color: { rgb: 'B45309' } },
-        fill: { fgColor: { rgb: 'FEF3C7' } }, // amber-100
-        alignment: { horizontal: 'left', vertical: 'center' },
-      },
-      cautionText: {
-        font: { sz: 10, color: { rgb: '78716C' } },
-        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-      },
-      cautionTextRed: {
-        font: { sz: 10, color: { rgb: 'FF0000' } },
-        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-      },
-      footer: {
-        font: { sz: 9, color: { rgb: '9CA3AF' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      },
-    };
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
 
-    // ワークブック作成
+  const handleExcelExport = useCallback(() => {
     const wb = XLSX.utils.book_new();
-    const wsData: object[][] = [];
-
-    // 行番号追跡
+    const wsData: Array<Array<{ v: string; s?: typeof excelStyles[keyof typeof excelStyles] }>> = [];
+    const merges: XLSX.Range[] = [];
     let rowNum = 0;
 
-    // セル結合用配列
-    const merges: XLSX.Range[] = [];
-
     // タイトル行
-    // タイトル行
-    wsData.push([{ v: giftData.title, s: styles.title }]);
+    wsData.push([{ v: giftData.title, s: excelStyles.title }]);
     merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
     rowNum++;
 
     // サブタイトル
-    wsData.push([{ v: `発行日: ${currentDate}`, s: styles.subTitle }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
-    rowNum++;
-    wsData.push([{ v: '税理士法人 マスエージェント', s: styles.subTitle }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
-    rowNum++;
-    wsData.push([{ v: isFullListMode ? '【全リスト表示】' : '【お客様専用リスト】', s: styles.badge }]);
+    wsData.push([{ v: `発行日: ${currentDate}`, s: excelStyles.subTitle }]);
     merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
     rowNum++;
 
-    // 空行
-    wsData.push([]);
+    wsData.push([{ v: COMPANY_INFO.name, s: excelStyles.subTitle }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    rowNum++;
+
+    wsData.push([{ v: isFullListMode ? '【全リスト表示】' : '【お客様専用リスト】', s: excelStyles.badge }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    rowNum++;
+
+    wsData.push([{ v: '', s: undefined }]);
     rowNum++;
 
     // テーブルヘッダー
     wsData.push([
-      { v: 'カテゴリ', s: styles.tableHeader },
-      { v: '必要書類', s: styles.tableHeader },
-      { v: '✓', s: styles.tableHeader },
-      { v: '備考', s: styles.tableHeader },
+      { v: 'カテゴリ', s: excelStyles.tableHeader },
+      { v: '必要書類', s: excelStyles.tableHeader },
+      { v: '✓', s: excelStyles.tableHeader },
+      { v: '備考', s: excelStyles.tableHeader },
     ]);
     rowNum++;
 
@@ -324,64 +396,56 @@ export default function GiftTaxDocGuide() {
     results.forEach((group) => {
       group.documents.forEach((doc, idx) => {
         wsData.push([
-          { v: idx === 0 ? group.category : '', s: idx === 0 ? styles.categoryCell : styles.documentCell },
-          { v: doc, s: styles.documentCell },
-          { v: '☐', s: styles.checkCell },
-          { v: idx === 0 && group.note ? group.note : '', s: styles.noteCell },
+          { v: idx === 0 ? group.category : '', s: idx === 0 ? excelStyles.categoryCell : excelStyles.documentCell },
+          { v: doc, s: excelStyles.documentCell },
+          { v: '☐', s: excelStyles.checkCell },
+          { v: idx === 0 && group.note ? group.note : '', s: excelStyles.noteCell },
         ]);
         rowNum++;
       });
     });
 
-    // 空行
-    wsData.push([]);
-    rowNum++;
-
-    // 注意事項ヘッダー
-    wsData.push([{ v: '【ご留意事項】', s: styles.cautionHeader }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    wsData.push([{ v: '', s: undefined }]);
     rowNum++;
 
     // 注意事項
-    wsData.push([{ v: '・電子申告を行う場合、原本資料はご返却いたします。', s: styles.cautionTextRed }]);
+    wsData.push([{ v: '【ご留意事項】', s: excelStyles.cautionHeader }]);
     merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
     rowNum++;
 
-    // 空行
-    wsData.push([]);
+    wsData.push([{ v: '・電子申告を行う場合、原本資料はご返却いたします。', s: excelStyles.cautionTextRed }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    rowNum++;
+
+    wsData.push([{ v: '', s: undefined }]);
     rowNum++;
 
     // フッター
-    wsData.push([{ v: '〒770-0002 徳島県徳島市春日２丁目３番３３号 / TEL 088-632-6228 / FAX 088-631-9870', s: styles.footer }]);
+    wsData.push([{ v: `${COMPANY_INFO.fullAddress} / ${COMPANY_INFO.contactLine}`, s: excelStyles.footer }]);
     merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
 
-    // ワークシート作成
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // 列幅設定
     ws['!cols'] = [
-      { wch: 32 }, // カテゴリ
-      { wch: 55 }, // 必要書類
-      { wch: 6 },  // チェック
-      { wch: 45 }, // 備考
+      { wch: 32 },
+      { wch: 55 },
+      { wch: 6 },
+      { wch: 45 },
     ];
 
-    // 行の高さ設定
-    ws['!rows'] = [
-      { hpt: 35 }, // タイトル行
-    ];
-
-    // セル結合設定
+    ws['!rows'] = [{ hpt: 35 }];
     ws['!merges'] = merges;
 
     XLSX.utils.book_append_sheet(wb, ws, '必要書類リスト');
 
-    // ファイル名生成
     const fileName = `贈与税申告_必要書類_${currentDate.replace(/\//g, '')}.xlsx`;
-
-    // ダウンロード
     XLSX.writeFile(wb, fileName);
-  };
+  }, [results, currentDate, isFullListMode]);
+
+  // 印刷用クラス生成
+  const getPrintClass = useCallback((oneCol: string, twoCol: string) => {
+    return isTwoColumnPrint ? twoCol : oneCol;
+  }, [isTwoColumnPrint]);
 
   // メニュー画面
   if (step === 'menu') {
@@ -396,40 +460,16 @@ export default function GiftTaxDocGuide() {
               お客様の状況に合わせて、申告に必要な書類をご案内します。
             </p>
             <div className="mt-6 flex flex-col items-center space-y-3">
-              <a
-                href="https://www.nta.go.jp/about/organization/tokyo/topics/check/r07/01.htm"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center px-5 py-3 rounded-xl bg-emerald-800 bg-opacity-40 text-emerald-50 hover:bg-opacity-100 hover:text-white transition-all text-sm border border-emerald-600 hover:border-emerald-400 hover:shadow-lg"
-              >
-                <FileText className="w-5 h-5 mr-3 text-emerald-200 group-hover:text-white" />
-                <span className="text-left">
-                  <span className="block text-xs text-emerald-300 group-hover:text-emerald-100 mb-0.5">
-                    参考リンク（国税庁）
-                  </span>
-                  <span className="font-bold border-b border-transparent group-hover:border-white transition-colors">
-                    資産税（相続税、贈与税、財産評価及び譲渡所得）関係チェックシート等
-                  </span>
-                </span>
-                <ExternalLink className="w-4 h-4 ml-3 opacity-60 group-hover:opacity-100" />
-              </a>
-              <a
-                href="https://www.e-tax.nta.go.jp/tetsuzuki/tetsuzuki6.htm"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center px-5 py-3 rounded-xl bg-emerald-800 bg-opacity-40 text-emerald-50 hover:bg-opacity-100 hover:text-white transition-all text-sm border border-emerald-600 hover:border-emerald-400 hover:shadow-lg"
-              >
-                <FileText className="w-5 h-5 mr-3 text-emerald-200 group-hover:text-white" />
-                <span className="text-left">
-                  <span className="block text-xs text-emerald-300 group-hover:text-emerald-100 mb-0.5">
-                    参考リンク（e-Tax）
-                  </span>
-                  <span className="font-bold border-b border-transparent group-hover:border-white transition-colors">
-                    イメージデータにより提出可能な添付書類
-                  </span>
-                </span>
-                <ExternalLink className="w-4 h-4 ml-3 opacity-60 group-hover:opacity-100" />
-              </a>
+              <ExternalLinkButton
+                href={EXTERNAL_LINKS.ntaCheckSheet.url}
+                label={EXTERNAL_LINKS.ntaCheckSheet.label}
+                description={EXTERNAL_LINKS.ntaCheckSheet.description}
+              />
+              <ExternalLinkButton
+                href={EXTERNAL_LINKS.etaxDocuments.url}
+                label={EXTERNAL_LINKS.etaxDocuments.label}
+                description={EXTERNAL_LINKS.etaxDocuments.description}
+              />
             </div>
           </header>
           <div className="p-10">
@@ -437,7 +477,6 @@ export default function GiftTaxDocGuide() {
               ご希望の案内方法を選択してください
             </h2>
             <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-              {/* ボタンA */}
               <button
                 onClick={() => {
                   setStep('check');
@@ -464,7 +503,6 @@ export default function GiftTaxDocGuide() {
                   スタート <ChevronRight className="w-4 h-4 ml-1" />
                 </div>
               </button>
-              {/* ボタンB */}
               <button
                 onClick={() => {
                   setStep('result');
@@ -534,28 +572,13 @@ export default function GiftTaxDocGuide() {
               </h3>
               <div className="grid gap-3">
                 {giftData.options.map((opt) => (
-                  <label
+                  <CheckboxOption
                     key={opt.id}
-                    onClick={() => toggleOption(opt.id)}
-                    className={`flex items-start p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedOptions[opt.id]
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-slate-100 hover:border-slate-300'
-                      }`}
-                  >
-                    <div
-                      className={`mt-1 w-5 h-5 flex items-center justify-center border rounded ${selectedOptions[opt.id]
-                        ? 'bg-emerald-600 border-emerald-600'
-                        : 'bg-white border-gray-300'
-                        }`}
-                    >
-                      {selectedOptions[opt.id] && (
-                        <Check className="w-3 h-3 text-white" />
-                      )}
-                    </div>
-                    <span className="ml-3 text-slate-700 font-medium">
-                      {opt.label}
-                    </span>
-                  </label>
+                    id={opt.id}
+                    label={opt.label}
+                    checked={!!selectedOptions[opt.id]}
+                    onChange={toggleOption}
+                  />
                 ))}
               </div>
             </div>
@@ -567,28 +590,13 @@ export default function GiftTaxDocGuide() {
               </h3>
               <div className="grid gap-3">
                 {giftData.specials.map((sp) => (
-                  <label
+                  <CheckboxOption
                     key={sp.id}
-                    onClick={() => toggleOption(sp.id)}
-                    className={`flex items-start p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedOptions[sp.id]
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-slate-100 hover:border-slate-300'
-                      }`}
-                  >
-                    <div
-                      className={`mt-1 w-5 h-5 flex items-center justify-center border rounded ${selectedOptions[sp.id]
-                        ? 'bg-emerald-600 border-emerald-600'
-                        : 'bg-white border-gray-300'
-                        }`}
-                    >
-                      {selectedOptions[sp.id] && (
-                        <Check className="w-3 h-3 text-white" />
-                      )}
-                    </div>
-                    <span className="ml-3 text-slate-700 font-medium">
-                      {sp.label}
-                    </span>
-                  </label>
+                    id={sp.id}
+                    label={sp.label}
+                    checked={!!selectedOptions[sp.id]}
+                    onChange={toggleOption}
+                  />
                 ))}
               </div>
             </div>
@@ -618,22 +626,13 @@ export default function GiftTaxDocGuide() {
   }
 
   // 結果画面
-  const results = generateResultList();
-  const currentDate = new Date().toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
       <div className="no-print flex items-center justify-between mb-6">
         <button
           onClick={() => {
             if (isFullListMode) {
-              setStep('menu');
-              setSelectedOptions({});
-              setIsFullListMode(false);
+              resetToMenu();
             } else {
               setStep('check');
             }
@@ -646,10 +645,11 @@ export default function GiftTaxDocGuide() {
         <div className="flex space-x-3">
           <button
             onClick={() => setIsTwoColumnPrint(!isTwoColumnPrint)}
-            className={`flex items-center px-4 py-2 rounded-lg shadow hover:opacity-90 font-bold transition-colors ${isTwoColumnPrint
-              ? 'bg-purple-600 text-white'
-              : 'bg-white text-slate-600 hover:bg-slate-50'
-              }`}
+            className={`flex items-center px-4 py-2 rounded-lg shadow hover:opacity-90 font-bold transition-colors ${
+              isTwoColumnPrint
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
           >
             <Layout className="w-4 h-4 mr-2" />
             {isTwoColumnPrint ? '印刷: 2列' : '印刷: 1列'}
@@ -667,11 +667,7 @@ export default function GiftTaxDocGuide() {
             <Printer className="w-4 h-4 mr-2" /> 印刷 / PDF保存
           </button>
           <button
-            onClick={() => {
-              setStep('menu');
-              setSelectedOptions({});
-              setIsFullListMode(false);
-            }}
+            onClick={resetToMenu}
             className="flex items-center bg-slate-700 text-white px-4 py-2 rounded-lg shadow hover:bg-slate-800"
           >
             <RefreshCw className="w-4 h-4 mr-2" /> TOP
@@ -680,15 +676,12 @@ export default function GiftTaxDocGuide() {
       </div>
 
       <div className="bg-white p-8 md:p-12 rounded-xl shadow-xl print:p-0 print:shadow-none">
-        <div className={`border-b-2 border-slate-800 pb-6 mb-8 flex justify-between items-end ${isTwoColumnPrint ? 'print:pb-0 print:mb-2 print:border-b' : 'print:pb-4 print:mb-6'
-          }`}>
+        <div className={`border-b-2 border-slate-800 pb-6 mb-8 flex justify-between items-end ${getPrintClass('print:pb-4 print:mb-6', 'print:pb-0 print:mb-2 print:border-b')}`}>
           <div>
-            <h1 className={`text-3xl font-bold text-slate-900 mb-2 ${isTwoColumnPrint ? 'print:text-lg print:mb-0' : 'print:text-2xl print:mb-2'
-              }`}>
+            <h1 className={`text-3xl font-bold text-slate-900 mb-2 ${getPrintClass('print:text-2xl print:mb-2', 'print:text-lg print:mb-0')}`}>
               {giftData.title}
             </h1>
-            <p className={`text-slate-600 ${isTwoColumnPrint ? 'print:text-[10px]' : 'print:text-sm'
-              }`}>
+            <p className={`text-slate-600 ${getPrintClass('print:text-sm', 'print:text-[10px]')}`}>
               {isFullListMode && (
                 <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded mr-2 align-middle print:border print:border-blue-800">
                   全リスト表示
@@ -700,37 +693,30 @@ export default function GiftTaxDocGuide() {
           </div>
           <div className="text-right text-sm text-slate-500">
             <p>発行日: {currentDate}</p>
-            <p>税理士法人 マスエージェント</p>
+            <p>{COMPANY_INFO.name}</p>
           </div>
         </div>
 
-        <div className={`space-y-8 print:block ${isTwoColumnPrint ? 'print:columns-2 print:gap-4 print:space-y-0' : 'print:space-y-6'
-          }`}>
+        <div className={`space-y-8 print:block ${getPrintClass('print:space-y-6', 'print:columns-2 print:gap-4 print:space-y-0')}`}>
           {results.map((group, idx) => (
-            <div key={idx} className={`break-inside-avoid ${isTwoColumnPrint ? 'print:mb-1' : 'print:mb-6'
-              }`}>
-              <h3 className={`font-bold text-lg mb-3 px-3 py-1 bg-emerald-50 border-l-4 border-emerald-500 text-slate-800 flex items-center ${isTwoColumnPrint ? 'print:mb-0.5 print:text-xs print:py-0 print:h-5' : 'print:mb-2 print:text-base print:py-1'
-                }`}>
+            <div key={idx} className={`break-inside-avoid ${getPrintClass('print:mb-6', 'print:mb-1')}`}>
+              <h3 className={`font-bold text-lg mb-3 px-3 py-1 bg-emerald-50 border-l-4 border-emerald-500 text-slate-800 flex items-center ${getPrintClass('print:mb-2 print:text-base print:py-1', 'print:mb-0.5 print:text-xs print:py-0 print:h-5')}`}>
                 {group.category}
               </h3>
               <ul className="list-none pl-1 space-y-2 print:space-y-0">
                 {group.documents.map((doc, docIdx) => (
                   <li
                     key={docIdx}
-                    className={`flex items-start text-slate-700 py-1 border-b border-dashed border-slate-100 last:border-0 ${isTwoColumnPrint ? 'print:py-0.5' : 'print:py-1'
-                      }`}
+                    className={`flex items-start text-slate-700 py-1 border-b border-dashed border-slate-100 last:border-0 ${getPrintClass('print:py-1', 'print:py-0.5')}`}
                   >
-                    <span className={`inline-block w-4 h-4 mr-3 mt-1 border-2 border-emerald-300 rounded-sm flex-shrink-0 border-slate-400 ${isTwoColumnPrint ? 'print:w-2 print:h-2 print:mt-0.5 print:mr-1' : 'print:w-3 print:h-3 print:mt-1 print:mr-2'
-                      }`} />
-                    <span className={isTwoColumnPrint ? 'print:text-[10px] print:leading-tight' : 'print:text-sm'}>{doc}</span>
+                    <span className={`inline-block w-4 h-4 mr-3 mt-1 border-2 border-emerald-300 rounded-sm flex-shrink-0 border-slate-400 ${getPrintClass('print:w-3 print:h-3 print:mt-1 print:mr-2', 'print:w-2 print:h-2 print:mt-0.5 print:mr-1')}`} />
+                    <span className={getPrintClass('print:text-sm', 'print:text-[10px] print:leading-tight')}>{doc}</span>
                   </li>
                 ))}
               </ul>
               {group.note && (
-                <p className={`mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded flex items-start ${isTwoColumnPrint ? 'print:mt-1 print:p-1 print:text-[10px]' : 'print:mt-2 print:p-2 print:text-xs'
-                  }`}>
-                  <Info className={`w-4 h-4 mr-1 mt-0.5 flex-shrink-0 ${isTwoColumnPrint ? 'print:w-3 print:h-3' : 'print:w-4 print:h-4'
-                    }`} />
+                <p className={`mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded flex items-start ${getPrintClass('print:mt-2 print:p-2 print:text-xs', 'print:mt-1 print:p-1 print:text-[10px]')}`}>
+                  <Info className={`w-4 h-4 mr-1 mt-0.5 flex-shrink-0 ${getPrintClass('print:w-4 print:h-4', 'print:w-3 print:h-3')}`} />
                   {group.note}
                 </p>
               )}
@@ -738,27 +724,22 @@ export default function GiftTaxDocGuide() {
           ))}
         </div>
 
-        <div className={`mt-12 pt-6 border-t border-slate-300 ${isTwoColumnPrint ? 'print:mt-2 print:pt-2 print:border-t' : 'print:mt-8 print:pt-6'
-          }`}>
-          <div className={`flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 ${isTwoColumnPrint ? 'print:p-1' : 'print:p-4'
-            }`}>
-            <AlertCircle className={`w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0 ${isTwoColumnPrint ? 'print:w-3 print:h-3' : 'print:w-5 print:h-5'
-              }`} />
+        <div className={`mt-12 pt-6 border-t border-slate-300 ${getPrintClass('print:mt-8 print:pt-6', 'print:mt-2 print:pt-2 print:border-t')}`}>
+          <div className={`flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 ${getPrintClass('print:p-4', 'print:p-1')}`}>
+            <AlertCircle className={`w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0 ${getPrintClass('print:w-5 print:h-5', 'print:w-3 print:h-3')}`} />
             <div className="text-sm text-slate-600 space-y-1">
               <p>
                 <strong>ご留意事項</strong>
               </p>
-              <p className={`text-red-600 font-bold ${isTwoColumnPrint ? 'print:text-[10px]' : 'print:text-sm'
-                }`}>
+              <p className={`text-red-600 font-bold ${getPrintClass('print:text-sm', 'print:text-[10px]')}`}>
                 ・電子申告を行う場合、原本資料はご返却いたします。
               </p>
             </div>
           </div>
-          <div className={`mt-8 text-center text-sm text-slate-400 ${isTwoColumnPrint ? 'print:mt-2 print:text-[9px] print:leading-tight' : 'print:mt-8 print:text-xs'
-            }`}>
-            〒770-0002 徳島県徳島市春日２丁目３番３３号
+          <div className={`mt-8 text-center text-sm text-slate-400 ${getPrintClass('print:mt-8 print:text-xs', 'print:mt-2 print:text-[9px] print:leading-tight')}`}>
+            {COMPANY_INFO.fullAddress}
             <br />
-            TEL 088-632-6228 / FAX 088-631-9870
+            {COMPANY_INFO.contactLine}
           </div>
         </div>
       </div>

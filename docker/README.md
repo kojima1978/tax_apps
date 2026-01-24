@@ -68,7 +68,7 @@ Nginx Gateway (Port 80) を経由して各アプリケーションにアクセ�
 | **Inheritance Tax Docs** | [`http://localhost/inheritance-tax-docs/`](http://localhost/inheritance-tax-docs/) | 3003 | 相続税申告 資料準備ガイド |
 | **Real Estate Tax** | [`http://localhost/real-estate-tax/`](http://localhost/real-estate-tax/) | 3004 | 不動産取得税計算システム |
 | **Tax Docs** | [`http://localhost/tax-docs/`](http://localhost/tax-docs/) | 3005 | 確定申告 必要書類案内 |
-| **Passbook OCR** | [`http://localhost/ocr/`](http://localhost/ocr/) | 3007 | 通帳OCRシステム |
+
 | **Medical Stock** | [`http://localhost/medical/`](http://localhost/medical/) | 3010 | 医療法人株式評価システム |
 | **Shares Valuation** | [`http://localhost/shares/`](http://localhost/shares/) | 3012 | 非上場株式評価システム |
 | **ITCM** | [`http://localhost/itcm/`](http://localhost/itcm/) | 3020 | 相続税案件管理システム |
@@ -86,7 +86,7 @@ tax_apps/
 │   ├── inheritance-tax-app/
 │   ├── inheritance-tax-docs/
 │   ├── medical-stock-valuation/
-│   ├── passbook-ocr/
+
 │   ├── portal/
 │   ├── real-estate-tax/
 │   ├── Required-documents-for-tax-return/
@@ -127,3 +127,42 @@ docker logs medical-stock-valuation
 - **Backend**: FastAPI, Express, Node.js
 - **Database**: PostgreSQL, SQLite
 - **Infrastructure**: Docker, Docker Compose, Nginx
+- **Node.js**: v22 LTS（v24はTurbopackとの互換性問題あり）
+
+## トラブルシューティング
+
+### 502 Bad Gateway
+
+```bash
+# 全コンテナの状態確認
+docker ps -a
+
+# portal_appが再起動を繰り返す場合
+docker logs portal_app --tail=50
+
+# Nginxをリロード
+docker exec gateway_nginx nginx -s reload
+```
+
+### Windows環境での注意点
+
+Windows + Docker Desktop環境では、ボリュームマウントでファイル監視が正常に動作しないことがあります。
+Next.jsアプリには以下の設定が必要です:
+
+```yaml
+environment:
+  - WATCHPACK_POLLING=true
+volumes:
+  - ../apps/portal/app:/app
+  - /app/node_modules
+  - /app/.next  # ビルドキャッシュを分離
+```
+
+### Node.js バージョン
+
+Next.js 16 (Turbopack) は Node.js 24 との互換性問題があります。
+各アプリのDockerfileでは **Node.js 22** を使用してください:
+
+```dockerfile
+FROM node:22-slim
+```

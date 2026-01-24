@@ -20,11 +20,10 @@
 | 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost:3003/inheritance-tax-docs/ | Next.js | 必要書類ガイド |
 | 不動産取得税 | `/real-estate-tax/` | http://localhost:3004/real-estate-tax/ | Next.js | 不動産取得税計算 |
 | 確定申告必要書類 | `/tax-docs/` | http://localhost:3005/tax-docs/ | Next.js + Express | 確定申告書類管理 |
-| 通帳OCR | `/ocr/` | http://localhost:3007/ocr/ | Next.js + FastAPI | 通帳画像のOCR |
 | 医療法人株式評価 | `/medical/` | http://localhost:3010/medical/ | Next.js | 医療法人の株式評価 |
 | 非上場株式評価 | `/shares/` | http://localhost:3012/shares/ | Next.js | 非上場株式の評価 |
 | 案件管理 | `/itcm/` | http://localhost:3020/itcm/ | Next.js + Express + Postgres | 相続税案件管理 |
-| 銀行分析 | `/bank-analyzer/` | http://localhost:8501/ | Streamlit + Ollama | 預金移動分析 |
+| 銀行分析 | `/bank-analyzer/` | http://localhost:8501/ | Streamlit | 預金移動分析 |
 
 ## ディレクトリ構造
 
@@ -40,7 +39,7 @@ tax_apps/
 │   ├── medical-stock-valuation/   # 医療法人株式評価
 │   ├── shares-valuation/          # 非上場株式評価
 │   ├── inheritance-case-management/ # 案件管理
-│   ├── passbook-ocr/              # 通帳OCR
+
 │   ├── bank-analyzer/             # 銀行分析
 │   └── real-estate-tax/           # 不動産取得税
 ├── docker/                        # Docker設定
@@ -57,7 +56,8 @@ tax_apps/
 
 ### 前提条件
 - Docker / Docker Compose
-- Node.js 18+（ローカル開発時）
+- Node.js 22+（ローカル開発時）
+  - ⚠️ Node.js 24はNext.js 16 Turbopackとの互換性問題があるため非推奨
 
 ### Docker起動
 
@@ -104,7 +104,7 @@ POSTGRES_DB=inheritance_tax_db
 - **データベース**: SQLite (Prisma), PostgreSQL
 - **スタイリング**: Tailwind CSS
 - **アイコン**: lucide-react
-- **AI/ML**: Ollama (銀行分析用), PaddleOCR (通帳OCR用)
+
 
 ## 開発ガイドライン
 
@@ -113,6 +113,43 @@ POSTGRES_DB=inheritance_tax_db
 - 環境変数は各アプリの`.env`ファイルで管理
 - データベースファイル（*.db）はgit管理外
 - `.env`ファイルはgit管理外（`.env.example`を参照）
+
+## トラブルシューティング
+
+### 502 Bad Gateway エラー
+
+Nginxが502エラーを返す場合、バックエンドアプリが起動していない可能性があります。
+
+```bash
+# コンテナの状態を確認
+docker ps
+
+# portal_appのログを確認
+docker logs portal_app
+
+# コンテナを再起動
+docker-compose -f docker/docker-compose.yml restart portal-app gateway
+```
+
+### Windows Docker でのファイル監視問題
+
+Windowsでボリュームマウントを使用する場合、ファイル変更の検出に問題が発生することがあります。
+`docker-compose.yml`で以下の環境変数が設定されていることを確認してください:
+
+```yaml
+environment:
+  - WATCHPACK_POLLING=true
+```
+
+### Next.js Turbopack のクラッシュ
+
+Next.js 16のTurbopackがコンパイル時にクラッシュする場合:
+1. Dockerfileで**Node.js 22**を使用していることを確認（Node.js 24は非推奨）
+2. `.next`ディレクトリをボリュームとして分離:
+   ```yaml
+   volumes:
+     - /app/.next
+   ```
 
 ## ライセンス
 

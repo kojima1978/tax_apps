@@ -11,7 +11,8 @@ services:
       - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - portal-app
+      portal-app:
+        condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped
@@ -27,15 +28,17 @@ services:
     container_name: portal_app
     ports:
       - "3000:3000"
-    volumes:
-      - ../apps/portal/app:/app
-      - /app/node_modules
     environment:
-      - NODE_ENV=development
-    command: npm run dev
+      - NODE_ENV=production
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://0.0.0.0:3000').then(() => process.exit(0)).catch(() => process.exit(1))" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # ===========================================
   # 医療法人株式評価システム
@@ -139,8 +142,8 @@ services:
     restart: unless-stopped
 
   # ===========================================
-  # 相続銀行分析システム (Streamlit + Ollama)
-  # Port: 8501 (app), 11434 (ollama)
+  # 相続銀行分析システム (Streamlit)
+  # Port: 8501
   # ===========================================
   bank-analyzer:
     build:
@@ -155,72 +158,9 @@ services:
       - ../apps/bank-analyzer/pages:/app/pages
       - ../apps/bank-analyzer/main.py:/app/main.py
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434/api/generate
-      - OLLAMA_MODEL=gemma2:2b
       - LARGE_AMOUNT_THRESHOLD=50000
       - TRANSFER_DAYS_WINDOW=3
       - TRANSFER_AMOUNT_TOLERANCE=1000
-    depends_on:
-      ollama:
-        condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama_service
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_HOST=0.0.0.0
-    networks:
-      - app-network
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD-SHELL", "ollama list || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # ===========================================
-  # 通帳OCRシステム
-  # Port: 8000 (backend), 3002 (frontend)
-  # ===========================================
-  passbook-ocr-backend:
-    build:
-      context: ../apps/passbook-ocr/backend
-      dockerfile: Dockerfile.cpu
-    container_name: passbook_ocr_backend
-    ports:
-      - "8000:8000"
-    volumes:
-      - ../apps/passbook-ocr/data:/app/data
-    environment:
-      - OCR_ENGINE=easyocr
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  passbook-ocr-frontend:
-    build:
-      context: ../apps/passbook-ocr/frontend
-      dockerfile: Dockerfile
-    container_name: passbook_ocr_frontend
-    ports:
-      - "3007:3000"
-    volumes:
-      - ../apps/passbook-ocr/frontend:/app
-      - /app/node_modules
-      - /app/.next
-    environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=/ocr-api
-    depends_on:
-      - passbook-ocr-backend
     networks:
       - app-network
     restart: unless-stopped
@@ -390,5 +330,6 @@ networks:
 
 volumes:
   itcm_postgres_data:
-  ollama_data:
   tax_docs_data:
+
+

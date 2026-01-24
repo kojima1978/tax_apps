@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // GET: 特定のアプリケーションを取得
+// GET: 特定のアプリケーションを取得
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const application = await prisma.application.findUnique({
       where: { id: params.id },
@@ -31,8 +33,9 @@ export async function GET(
 // PUT: アプリケーションを更新
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const body = await request.json();
     const { title, description, url, icon } = body;
@@ -62,8 +65,9 @@ export async function PUT(
 // DELETE: アプリケーションを削除
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     await prisma.application.delete({
       where: { id: params.id },

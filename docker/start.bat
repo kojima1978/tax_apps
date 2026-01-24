@@ -21,7 +21,7 @@ echo   Medical Stock:     http://localhost:3010
 echo   Shares Valuation:  http://localhost:3012
 echo   Inheritance Calc:  http://localhost:3013
 echo   ITCM:              http://localhost:3020
-echo   Passbook OCR:      http://localhost:3002
+
 echo   Bank Analyzer:     http://localhost:8501
 echo.
 echo ========================================
