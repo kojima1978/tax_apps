@@ -138,7 +138,7 @@ docker logs medical-stock-valuation
 - **Backend**: FastAPI, Express, Node.js
 - **Database**: PostgreSQL, SQLite
 - **Infrastructure**: Docker, Docker Compose, Nginx
-- **Node.js**: v22 LTS（v24はTurbopackとの互換性問題あり）
+- **Node.js**: v22/v24 LTS
 
 ## トラブルシューティング
 
@@ -171,11 +171,15 @@ volumes:
 
 ### Node.js バージョン
 
-Next.js 16 (Turbopack) は Node.js 24 との互換性問題があります。
-各アプリのDockerfileでは **Node.js 22** を使用してください:
+Next.js 16 (Turbopack) は Node.js 22/24 どちらでも動作します。
+Portal AppのみPrisma 7との互換性のためNode.js 22を使用しています:
 
 ```dockerfile
-FROM node:22-slim
+# Portal App
+FROM node:22
+
+# その他のアプリ
+FROM node:24-slim
 ```
 
 ### localhost vs 127.0.0.1
