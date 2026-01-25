@@ -1,0 +1,58 @@
+{% extends 'analyzer/base.html' %}
+
+{% block content %}
+<div class="row mb-5 fade-in">
+    <div class="col-md-12 text-center">
+        <h1 class="display-4 fw-bold mb-3 text-dark">
+            相続税通帳分析システム
+        </h1>
+        <p class="lead text-muted">AIを活用して通帳データを分析・分類します</p>
+    </div>
+</div>
+
+<div class="glass-card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 mb-0">案件一覧</h2>
+        <a href="{% url 'case-create' %}" class="btn btn-primary d-flex align-items-center gap-2">
+            <span>＋ 新規案件作成</span>
+        </a>
+    </div>
+
+    {% if cases %}
+    <div class="list-group list-group-flush">
+        {% for case in cases %}
+        <div class="list-group-item d-flex justify-content-between align-items-center p-3"
+            style="background: transparent; color: inherit; border-color: var(--glass-border);">
+
+            <a href="{% url 'case-detail' case.pk %}"
+                class="d-flex align-items-center gap-3 text-decoration-none text-reset flex-grow-1">
+                <div class="fs-4">📁</div>
+                <div>
+                    <div class="fw-bold">{{ case.name }}</div>
+                    <small class="text-muted">作成日: {{ case.created_at|date:"Y/m/d H:i" }}</small>
+                </div>
+                <div class="ms-3">
+                    <span class="badge bg-secondary rounded-pill">{{ case.transactions.count }} 取引</span>
+                </div>
+            </a>
+
+            <div class="d-flex gap-2 z-2">
+                <a href="{% url 'case-update' case.pk %}" class="btn btn-sm btn-outline-info" title="編集">
+                    ✏️
+                </a>
+                <a href="{% url 'case-delete' case.pk %}" class="btn btn-sm btn-outline-danger" title="削除">
+                    🗑️
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <div class="fs-1 mb-3">📂</div>
+        <p>まだ案件がありません。</p>
+        <p>「新規案件作成」ボタンから作成してください。</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

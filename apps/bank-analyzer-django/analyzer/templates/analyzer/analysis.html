@@ -1,0 +1,463 @@
+{% extends 'analyzer/base.html' %}
+{% load humanize %}
+
+{% block title %}Analysis - Bank Analyzer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="h2">📊 分析ダッシュボード: {{ case.name }}</h1>
+    </div>
+    <div class="col-md-4 text-end">
+        <form method="post" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" name="action" value="run_classifier" class="btn btn-primary"
+                onclick="return confirm('自動分類を実行しますか？現在の手動設定が上書きされる可能性があります。')">
+                <i class="bi bi-robot"></i> 自動分類実行
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Account Summary -->
+<div class="glass-card p-4 mb-4">
+    <h4 class="mb-3">📋 登録口座一覧</h4>
+    <div class="row g-3">
+        {% for acc in account_summary %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card bg-white border-light shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-truncate" title="{{ acc.account_id }}">{{ acc.account_id }}</h5>
+                    <p class="card-text text-muted mb-2">名義: {{ acc.holder }}</p>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <small>取引件数: {{ acc.count }}件<br>最終取引: {{ acc.last_date|date:"Y/m/d" }}</small>
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="account_id" value="{{ acc.account_id }}">
+                            <button type="submit" name="action" value="delete_account"
+                                class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('口座「{{ acc.account_id }}」のデータを全ての削除しますか？この操作は取り消せません。')">
+                                <i class="bi bi-trash"></i> 削除
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" id="analysisTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="transfers-tab" data-bs-toggle="tab" data-bs-target="#transfers"
+            type="button" role="tab" aria-controls="transfers" aria-selected="true">
+            🔄 資金移動フロー
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="large-tab" data-bs-toggle="tab" data-bs-target="#large" type="button" role="tab"
+            aria-controls="large" aria-selected="false">
+            💰 多額出金・入金
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab"
+            aria-controls="all" aria-selected="false">
+            📄 取引一覧・検索
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-warning" id="cleanup-tab" data-bs-toggle="tab" data-bs-target="#cleanup"
+            type="button" role="tab" aria-controls="cleanup" aria-selected="false">
+            🧹 データクレンジング
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="analysisTabsContent">
+    <!-- Tab 1: Transfers -->
+    <div class="tab-pane fade show active" id="transfers" role="tabpanel" aria-labelledby="transfers-tab">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0">資金移動の可視化</h4>
+                {% if transfer_list %}
+                <a href="{% url 'export-csv' case.pk 'transfers' %}" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-download"></i> CSV出力
+                </a>
+                {% endif %}
+            </div>
+            {% if transfer_list %}
+            <div id="transferChart" style="width:100%; height:500px;"></div>
+
+            <h5 class="mt-4 mb-3">検出された移動リスト</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover text-nowrap">
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>出金元</th>
+                            <th>移動先推定</th>
+                            <th>出金額</th>
+                            <th>摘要</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in transfer_list %}
+                        {% if row.amount_out > 0 %}
+                        <tr>
+                            <td>{{ row.date|date:"Y/m/d" }}</td>
+                            <td>{{ row.account_id }}</td>
+                            <td>{{ row.transfer_to }}</td>
+                            <td class="text-end">{{ row.amount_out|intcomma }}</td>
+                            <td>{{ row.description }}</td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">資金移動は検出されませんでした。</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tab 2: Large Transactions -->
+    <div class="tab-pane fade" id="large" role="tabpanel" aria-labelledby="large-tab">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">多額取引リスト</h4>
+                {% if large_txs %}
+                <a href="{% url 'export-csv' case.pk 'large' %}" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-download"></i> CSV出力
+                </a>
+                {% endif %}
+            </div>
+            {% if large_txs %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>銀行名</th>
+                            <th>支店名</th>
+                            <th>口座番号</th>
+                            <th>摘要</th>
+                            <th>払戻</th>
+                            <th>お預り</th>
+                            <th>分類</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in large_txs %}
+                        <tr>
+                            <td>{{ tx.date|date:"Y/m/d" }}</td>
+                            <td>{{ tx.bank_name|default:"-" }}</td>
+                            <td>{{ tx.branch_name|default:"-" }}</td>
+                            <td>{{ tx.account_id|default:"-" }}</td>
+                            <td>{{ tx.description }}</td>
+                            <td class="text-end text-danger fw-bold">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
+                            <td class="text-end text-success fw-bold">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>
+                            <td><span class="badge bg-secondary">{{ tx.category|default:"未分類" }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">該当する多額取引はありません。設定画面で閾値を確認してください。</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tab 3: All Transactions -->
+    <div class="tab-pane fade" id="all" role="tabpanel" aria-labelledby="all-tab">
+        <div class="glass-card p-4">
+            <!-- Filters -->
+            <form method="get" class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <label class="form-label">口座で絞り込み</label>
+                    <select name="account" class="form-select" multiple size="3">
+                        {% for acc in accounts %}
+                        <option value="{{ acc }}" {% if acc in filter_state.account %}selected{% endif %}>{{ acc }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">分類で絞り込み</label>
+                    <select name="category" class="form-select" multiple size="3">
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if cat in filter_state.category %}selected{% endif %}>{{ cat }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">キーワード検索</label>
+                    <div class="input-group">
+                        <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}"
+                            placeholder="摘要を検索...">
+                        <button class="btn btn-outline-secondary" type="submit">検索</button>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <a href="{% url 'analysis-dashboard' case.pk %}" class="btn btn-outline-secondary w-100">クリア</a>
+                </div>
+            </form>
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">検索結果: {{ all_txs.count }}件</h5>
+                <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-download"></i> 全データCSV出力
+                </a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle table-sm">
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>銀行名</th>
+                            <th>支店名</th>
+                            <th>口座番号</th>
+                            <th>摘要</th>
+                            <th>払戻</th>
+                            <th>お預り</th>
+                            <th>分類</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in all_txs %}
+                        <tr>
+                            <td>{{ tx.date|date:"Y/m/d" }}</td>
+                            <td>{{ tx.bank_name|default:"-" }}</td>
+                            <td>{{ tx.branch_name|default:"-" }}</td>
+                            <td>{{ tx.account_id|default:"-" }}</td>
+                            <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
+                            <td class="text-end">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
+                            <td class="text-end">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>
+                            <td><span class="badge bg-dark border border-secondary">{{ tx.category|default:"未分類" }}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}">編集</button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center">取引が見つかりません。</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 4: Data Cleanup (Duplicates) -->
+    <div class="tab-pane fade" id="cleanup" role="tabpanel" aria-labelledby="cleanup-tab">
+        <div class="glass-card p-4">
+            <h4 class="mb-3 text-warning"><i class="bi bi-exclamation-triangle"></i> 重複データの確認と削除</h4>
+            <p class="text-muted">
+                日付、金額、摘要、口座IDが完全に一致するデータを「重複データ」として表示しています。<br>
+                誤って二重に取り込んでしまった場合などに使用してください。
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_duplicates">
+
+                {% if duplicate_txs %}
+                <div class="d-flex justify-content-end mb-3">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('選択したデータを削除しますか？')">
+                        <i class="bi bi-trash"></i> 選択したデータを削除
+                    </button>
+                </div>
+
+                <div class="table-responsive" style="max-height: 500px;">
+                    <table class="table table-hover align-middle table-sm">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;"><input type="checkbox" class="form-check-input"
+                                        id="selectAllDup"></th>
+                                <th>日付</th>
+                                <th>銀行名</th>
+                                <th>支店名</th>
+                                <th>口座番号</th>
+                                <th>摘要</th>
+                                <th>出金</th>
+                                <th>入金</th>
+                                <th>ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in duplicate_txs %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="delete_ids" value="{{ tx.id }}"
+                                        class="form-check-input dup-check">
+                                </td>
+                                <td>{{ tx.date|date:"Y/m/d" }}</td>
+                                <td>{{ tx.bank_name|default:"-" }}</td>
+                                <td>{{ tx.branch_name|default:"-" }}</td>
+                                <td>{{ tx.account_id|default:"-" }}</td>
+                                <td>{{ tx.description }}</td>
+                                <td class="text-end">{% if tx.amount_out %}{{ tx.amount_out|intcomma }}{% endif %}</td>
+                                <td class="text-end">{% if tx.amount_in %}{{ tx.amount_in|intcomma }}{% endif %}</td>
+                                <td><small class="text-muted">{{ tx.id }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> 重複データは見つかりませんでした。
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title">取引データの修正</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_transaction">
+                <input type="hidden" name="tx_id" id="modalTxId">
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">日付</label>
+                        <input type="date" name="date" id="modalTxDate" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">摘要</label>
+                        <input type="text" name="description" id="modalTxDescInput" class="form-control">
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">払戻（出金）</label>
+                            <input type="number" name="amount_out" id="modalTxAmountOut" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">お預り（入金）</label>
+                            <input type="number" name="amount_in" id="modalTxAmountIn" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">分類</label>
+                        <select name="category" class="form-select" id="modalTxCat">
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="alert alert-warning py-2 small">
+                        <i class="bi bi-info-circle"></i> 日付や金額を変更すると、残高の整合性が取れなくなる可能性があります。
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Plotly Chart
+    const transferData = JSON.parse('{{ transfer_pairs_json|escapejs }}');
+    if (transferData.length > 0) {
+        const trace = {
+            x: transferData.map(d => d.date),
+            y: transferData.map(d => d.amount),
+            mode: 'markers',
+            type: 'scatter',
+            text: transferData.map(d => `${d.label}<br>${d.description}`),
+            marker: { size: 12, color: '#2563eb', opacity: 0.7 }
+        };
+
+        const layout = {
+            title: '資金移動の時系列分布',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: '#334155' },
+            xaxis: { title: '日付', gridcolor: '#e2e8f0' },
+            yaxis: { title: '移動金額', gridcolor: '#e2e8f0' }
+        };
+
+        Plotly.newPlot('transferChart', [trace], layout);
+    }
+
+    // Modal Logic
+    const editModal = document.getElementById('editModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+
+        const txId = button.getAttribute('data-tx-id');
+        const txDate = button.getAttribute('data-tx-date');
+        const txDesc = button.getAttribute('data-tx-desc');
+        const txAmountOut = button.getAttribute('data-tx-amount-out');
+        const txAmountIn = button.getAttribute('data-tx-amount-in');
+        const txCat = button.getAttribute('data-tx-cat');
+
+        document.getElementById('modalTxId').value = txId;
+        document.getElementById('modalTxDate').value = txDate;
+        document.getElementById('modalTxDescInput').value = txDesc;
+        document.getElementById('modalTxAmountOut').value = txAmountOut;
+        document.getElementById('modalTxAmountIn').value = txAmountIn;
+        document.getElementById('modalTxCat').value = txCat || '未分類';
+    });
+
+    // Select All Duplicates
+    const selectAllDup = document.getElementById('selectAllDup');
+    if (selectAllDup) {
+        selectAllDup.addEventListener('change', function () {
+            const checks = document.querySelectorAll('.dup-check');
+            checks.forEach(c => c.checked = this.checked);
+        });
+    }
+
+    // フィルターパラメータがある場合は「取引一覧」タブを表示
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('account') || urlParams.has('category') || urlParams.has('keyword')) {
+        const allTab = document.getElementById('all-tab');
+        if (allTab) {
+            const tab = new bootstrap.Tab(allTab);
+            tab.show();
+        }
+    }
+</script>
+
+<style>
+    .nav-tabs .nav-link {
+        color: #64748b;
+    }
+
+    .nav-tabs .nav-link.active {
+        background-color: #fff;
+        border-color: #e2e8f0;
+        border-bottom-color: transparent;
+        color: #2563eb;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends 'analyzer/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Settings - Bank Analyzer{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <h1 class="h2 mb-4">⚙️ 設定</h1>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Threshold Settings -->
+            <div class="glass-card p-4 mb-4">
+                <h4 class="mb-3">🔍 分析パラメータ設定</h4>
+                <div class="row">
+                    <div class="col-md-4">
+                        {{ form.large_amount_threshold|as_crispy_field }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.transfer_days_window|as_crispy_field }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.transfer_amount_tolerance|as_crispy_field }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Classification Patterns -->
+            <div class="glass-card p-4 mb-4">
+                <h4 class="mb-3">📝 自動分類キーワード設定</h4>
+                <p class="text-muted small mb-3">
+                    各カテゴリに分類するためのキーワードをカンマ区切りで入力してください。<br>
+                    取引の摘要（Description）にキーワードが含まれている場合、そのカテゴリに自動分類されます。
+                </p>
+
+                <ul class="nav nav-tabs mb-3" id="patternTabs" role="tablist"
+                    style="border-bottom-color: var(--glass-border);">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="life-tab" data-bs-toggle="tab" data-bs-target="#life"
+                            type="button" role="tab">生活費</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="gift-tab" data-bs-toggle="tab" data-bs-target="#gift" type="button"
+                            role="tab">贈与</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="related-tab" data-bs-toggle="tab" data-bs-target="#related"
+                            type="button" role="tab">関連会社</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="bank-tab" data-bs-toggle="tab" data-bs-target="#bank" type="button"
+                            role="tab">銀行</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security"
+                            type="button" role="tab">証券会社</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="insurance-tab" data-bs-toggle="tab" data-bs-target="#insurance"
+                            type="button" role="tab">保険会社</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="other-tab" data-bs-toggle="tab" data-bs-target="#other"
+                            type="button" role="tab">その他</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="patternTabsContent">
+                    <div class="tab-pane fade show active" id="life" role="tabpanel">
+                        {{ form.cat_life|as_crispy_field }}
+                    </div>
+                    <div class="tab-pane fade" id="gift" role="tabpanel">
+                        {{ form.cat_gift|as_crispy_field }}
+                    </div>
+                    <div class="tab-pane fade" id="related" role="tabpanel">
+                        {{ form.cat_related|as_crispy_field }}
+                    </div>
+                    <div class="tab-pane fade" id="bank" role="tabpanel">
+                        {{ form.cat_bank|as_crispy_field }}
+                    </div>
+                    <div class="tab-pane fade" id="security" role="tabpanel">
+                        {{ form.cat_security|as_crispy_field }}
+                    </div>
+                    <div class="tab-pane fade" id="insurance" role="tabpanel">
+                        {{ form.cat_insurance|as_crispy_field }}
+                    </div>
+                    <div class="tab-pane fade" id="other" role="tabpanel">
+                        {{ form.cat_other|as_crispy_field }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary px-5">
+                    <i class="bi bi-save"></i> 設定を保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link {
+        color: #64748b;
+    }
+
+    .nav-tabs .nav-link.active {
+        background-color: #fff;
+        border-color: #e2e8f0;
+        border-bottom-color: transparent;
+        color: #2563eb;
+        font-weight: 600;
+    }
+
+    .nav-tabs .nav-link:hover:not(.active) {
+        border-color: transparent;
+        color: #475569;
+        background-color: #f1f5f9;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
