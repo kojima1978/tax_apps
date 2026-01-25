@@ -1,5 +1,9 @@
 from django import forms
+from django.core.validators import FileExtensionValidator
 from .models import Case
+
+# ファイルサイズ上限（10MB）
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 class CaseForm(forms.ModelForm):
@@ -20,12 +24,28 @@ class ImportForm(forms.Form):
     """CSV/Excelインポートフォーム"""
     csv_file = forms.FileField(
         label="CSV/Excelファイル",
-        help_text="銀行からダウンロードした入出金明細（CSVまたはExcel）",
+        help_text="銀行からダウンロードした入出金明細（CSVまたはExcel）※最大10MB",
+        validators=[FileExtensionValidator(allowed_extensions=['csv', 'xlsx', 'xls'])],
         widget=forms.FileInput(attrs={
             "class": "form-control",
             "accept": ".csv,.xlsx,.xls"
         })
     )
+
+    def clean_csv_file(self):
+        """ファイルサイズとタイプのバリデーション"""
+        file = self.cleaned_data.get('csv_file')
+        if file:
+            # 空ファイルチェック
+            if file.size == 0:
+                raise forms.ValidationError("空のファイルはアップロードできません。")
+            # サイズ上限チェック
+            if file.size > MAX_FILE_SIZE:
+                raise forms.ValidationError(
+                    f"ファイルサイズが大きすぎます（{file.size // (1024*1024)}MB）。"
+                    f"最大{MAX_FILE_SIZE // (1024*1024)}MBまでアップロード可能です。"
+                )
+        return file
 
 
 class SettingsForm(forms.Form):
@@ -33,6 +53,7 @@ class SettingsForm(forms.Form):
     large_amount_threshold = forms.IntegerField(
         label="多額取引の閾値（円）",
         min_value=0,
+        max_value=1_000_000_000,  # 10億円まで
         initial=500000,
         help_text="この金額以上の取引を「多額取引」として検出します",
         widget=forms.NumberInput(attrs={"class": "form-control"})

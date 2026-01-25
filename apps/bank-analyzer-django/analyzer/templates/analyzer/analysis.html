@@ -1,5 +1,6 @@
 {% extends 'analyzer/base.html' %}
 {% load humanize %}
+{% load japanese_date %}
 
 {% block title %}Analysis - Bank Analyzer{% endblock %}
 
@@ -30,7 +31,7 @@
                     <h5 class="card-title text-truncate" title="{{ acc.account_id }}">{{ acc.account_id }}</h5>
                     <p class="card-text text-muted mb-2">名義: {{ acc.holder }}</p>
                     <div class="d-flex justify-content-between align-items-end">
-                        <small>取引件数: {{ acc.count }}件<br>最終取引: {{ acc.last_date|date:"Y/m/d" }}</small>
+                        <small>取引件数: {{ acc.count }}件<br>最終取引: {{ acc.last_date|wareki_short }}</small>
                         <form method="post" class="d-inline">
                             {% csrf_token %}
                             <input type="hidden" name="account_id" value="{{ acc.account_id }}">
@@ -74,6 +75,12 @@
             🧹 データクレンジング
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-info" id="flagged-tab" data-bs-toggle="tab" data-bs-target="#flagged"
+            type="button" role="tab" aria-controls="flagged" aria-selected="false">
+            📌 付箋 {% if flagged_txs %}<span class="badge bg-info">{{ flagged_txs.count }}</span>{% endif %}
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content" id="analysisTabsContent">
@@ -107,7 +114,7 @@
                         {% for row in transfer_list %}
                         {% if row.amount_out > 0 %}
                         <tr>
-                            <td>{{ row.date|date:"Y/m/d" }}</td>
+                            <td>{{ row.date|wareki_short }}</td>
                             <td>{{ row.account_id }}</td>
                             <td>{{ row.transfer_to }}</td>
                             <td class="text-end">{{ row.amount_out|intcomma }}</td>
@@ -159,12 +166,13 @@
                                 <th>お預り</th>
                                 <th style="min-width: 130px;">分類</th>
                                 <th>操作</th>
+                                <th>📌</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for tx in large_txs %}
                             <tr>
-                                <td>{{ tx.date|date:"Y/m/d" }}</td>
+                                <td>{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
                                 <td>{{ tx.branch_name|default:"-" }}</td>
                                 <td>{{ tx.account_id|default:"-" }}</td>
@@ -179,7 +187,20 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}">詳細</button>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}">詳細</button>
+                                    </div>
+                                </td>
+                                <td>
+                                    <form method="post" class="d-inline flag-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="toggle_flag">
+                                        <input type="hidden" name="tx_id" value="{{ tx.id }}">
+                                        <input type="hidden" name="source_tab" value="large">
+                                        <button type="submit" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %}" title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
+                                            📌
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -240,51 +261,141 @@
                 </div>
             </form>
 
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">検索結果: {{ all_txs.count }}件</h5>
-                <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm">
-                    <i class="bi bi-download"></i> 全データCSV出力
-                </a>
-            </div>
+            <!-- 一括編集フォーム -->
+            <form method="post" id="allTxForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="bulk_update_categories">
+                <input type="hidden" name="source_tab" value="all">
+                <!-- フィルター状態を保持 -->
+                {% for bank in filter_state.bank %}
+                <input type="hidden" name="filter_bank" value="{{ bank }}">
+                {% endfor %}
+                {% for acc in filter_state.account %}
+                <input type="hidden" name="filter_account" value="{{ acc }}">
+                {% endfor %}
+                {% for cat in filter_state.category %}
+                <input type="hidden" name="filter_category" value="{{ cat }}">
+                {% endfor %}
+                {% if filter_state.keyword %}
+                <input type="hidden" name="filter_keyword" value="{{ filter_state.keyword }}">
+                {% endif %}
+                {% if all_txs.number %}
+                <input type="hidden" name="filter_page" value="{{ all_txs.number }}">
+                {% endif %}
 
-            <div class="table-responsive">
-                <table class="table table-hover align-middle table-sm">
-                    <thead>
-                        <tr>
-                            <th>日付</th>
-                            <th>銀行名</th>
-                            <th>支店名</th>
-                            <th>口座番号</th>
-                            <th>摘要</th>
-                            <th>払戻</th>
-                            <th>お預り</th>
-                            <th>分類</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for tx in all_txs %}
-                        <tr>
-                            <td>{{ tx.date|date:"Y/m/d" }}</td>
-                            <td>{{ tx.bank_name|default:"-" }}</td>
-                            <td>{{ tx.branch_name|default:"-" }}</td>
-                            <td>{{ tx.account_id|default:"-" }}</td>
-                            <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
-                            <td class="text-end">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
-                            <td class="text-end">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>
-                            <td><span class="badge bg-dark border border-secondary">{{ tx.category|default:"未分類" }}</span></td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}">編集</button>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="9" class="text-center">取引が見つかりません。</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">検索結果: {{ all_txs_count }}件
+                        {% if all_txs.paginator.num_pages > 1 %}
+                        <small class="text-muted">({{ all_txs.number }} / {{ all_txs.paginator.num_pages }}ページ)</small>
+                        {% endif %}
+                    </h5>
+                    <div>
+                        {% if all_txs %}
+                        <button type="submit" class="btn btn-primary btn-sm me-2">
+                            <i class="bi bi-check-lg"></i> 分類を一括保存
+                        </button>
+                        {% endif %}
+                        <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-download"></i> 全データCSV出力
+                        </a>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle table-sm">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>銀行名</th>
+                                <th>支店名</th>
+                                <th>口座番号</th>
+                                <th>摘要</th>
+                                <th>払戻</th>
+                                <th>お預り</th>
+                                <th style="min-width: 130px;">分類</th>
+                                <th>操作</th>
+                                <th>📌</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in all_txs %}
+                            <tr>
+                                <td>{{ tx.date|wareki_short }}</td>
+                                <td>{{ tx.bank_name|default:"-" }}</td>
+                                <td>{{ tx.branch_name|default:"-" }}</td>
+                                <td>{{ tx.account_id|default:"-" }}</td>
+                                <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
+                                <td class="text-end">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
+                                <td class="text-end">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>
+                                <td>
+                                    <select name="cat-{{ tx.id }}" class="form-select form-select-sm">
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}" {% if tx.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}">詳細</button>
+                                </td>
+                                <td>
+                                    <form method="post" class="d-inline flag-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="toggle_flag">
+                                        <input type="hidden" name="tx_id" value="{{ tx.id }}">
+                                        <input type="hidden" name="source_tab" value="all">
+                                        <button type="submit" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %}" title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
+                                            📌
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center">取引が見つかりません。</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- ページネーション -->
+                {% if all_txs.paginator.num_pages > 1 %}
+                <nav aria-label="取引一覧ページネーション" class="mt-3">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if all_txs.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?tab=all&page=1{% for b in filter_state.bank %}&bank={{ b }}{% endfor %}{% for a in filter_state.account %}&account={{ a }}{% endfor %}{% for c in filter_state.category %}&category={{ c }}{% endfor %}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">
+                                &laquo; 最初
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?tab=all&page={{ all_txs.previous_page_number }}{% for b in filter_state.bank %}&bank={{ b }}{% endfor %}{% for a in filter_state.account %}&account={{ a }}{% endfor %}{% for c in filter_state.category %}&category={{ c }}{% endfor %}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">
+                                前へ
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        <li class="page-item disabled">
+                            <span class="page-link">{{ all_txs.number }} / {{ all_txs.paginator.num_pages }}</span>
+                        </li>
+
+                        {% if all_txs.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?tab=all&page={{ all_txs.next_page_number }}{% for b in filter_state.bank %}&bank={{ b }}{% endfor %}{% for a in filter_state.account %}&account={{ a }}{% endfor %}{% for c in filter_state.category %}&category={{ c }}{% endfor %}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">
+                                次へ
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?tab=all&page={{ all_txs.paginator.num_pages }}{% for b in filter_state.bank %}&bank={{ b }}{% endfor %}{% for a in filter_state.account %}&account={{ a }}{% endfor %}{% for c in filter_state.category %}&category={{ c }}{% endfor %}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">
+                                最後 &raquo;
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+            </form>
         </div>
     </div>
 
@@ -331,7 +442,7 @@
                                     <input type="checkbox" name="delete_ids" value="{{ tx.id }}"
                                         class="form-check-input dup-check">
                                 </td>
-                                <td>{{ tx.date|date:"Y/m/d" }}</td>
+                                <td>{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
                                 <td>{{ tx.branch_name|default:"-" }}</td>
                                 <td>{{ tx.account_id|default:"-" }}</td>
@@ -350,6 +461,74 @@
                 </div>
                 {% endif %}
             </form>
+        </div>
+    </div>
+
+    <!-- Tab 5: Flagged (付箋) -->
+    <div class="tab-pane fade" id="flagged" role="tabpanel" aria-labelledby="flagged-tab">
+        <div class="glass-card p-4">
+            <h4 class="mb-3 text-info"><i class="bi bi-pin-angle"></i> 付箋付き取引</h4>
+            <p class="text-muted">
+                後で確認したい取引に付箋を付けることができます。各タブの取引一覧で📌ボタンをクリックして付箋を追加できます。
+            </p>
+
+            {% if flagged_txs %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle table-sm">
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>銀行名</th>
+                            <th>口座番号</th>
+                            <th>摘要</th>
+                            <th>出金</th>
+                            <th>入金</th>
+                            <th>分類</th>
+                            <th>メモ</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in flagged_txs %}
+                        <tr>
+                            <td>{{ tx.date|wareki_short }}</td>
+                            <td>{{ tx.bank_name|default:"-" }}</td>
+                            <td>{{ tx.account_id|default:"-" }}</td>
+                            <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
+                            <td class="text-end text-danger">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
+                            <td class="text-end text-success">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>
+                            <td><span class="badge bg-secondary">{{ tx.category|default:"-" }}</span></td>
+                            <td style="max-width: 150px;" class="text-truncate" title="{{ tx.memo|default:'' }}">
+                                <small class="text-muted">{{ tx.memo|default:"-"|truncatechars:30 }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <form method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="toggle_flag">
+                                        <input type="hidden" name="tx_id" value="{{ tx.id }}">
+                                        <input type="hidden" name="source_tab" value="flagged">
+                                        <button type="submit" class="btn btn-sm btn-info" title="付箋を外す">
+                                            <i class="bi bi-pin-fill"></i>
+                                        </button>
+                                    </form>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" title="メモを編集"
+                                        data-bs-toggle="modal" data-bs-target="#memoModal"
+                                        data-tx-id="{{ tx.id }}" data-tx-memo="{{ tx.memo|default:'' }}">
+                                        <i class="bi bi-sticky"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 付箋が付いた取引はありません。取引一覧で📌ボタンをクリックして付箋を追加できます。
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -401,6 +580,36 @@
 
                     <div class="alert alert-warning py-2 small">
                         <i class="bi bi-info-circle"></i> 日付や金額を変更すると、残高の整合性が取れなくなる可能性があります。
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Memo Modal -->
+<div class="modal fade" id="memoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title"><i class="bi bi-sticky"></i> メモの編集</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_memo">
+                <input type="hidden" name="tx_id" id="memoModalTxId">
+                <input type="hidden" name="source_tab" id="memoModalSourceTab" value="flagged">
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">メモ</label>
+                        <textarea name="memo" id="memoModalText" class="form-control" rows="4"
+                            placeholder="後で確認したい内容をメモしておきましょう..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer border-top-0">
@@ -466,6 +675,26 @@
             document.getElementById('modalSourceTab').value = tabId;
         }
     });
+
+    // Memo Modal Logic
+    const memoModal = document.getElementById('memoModal');
+    if (memoModal) {
+        memoModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const txId = button.getAttribute('data-tx-id');
+            const txMemo = button.getAttribute('data-tx-memo');
+
+            document.getElementById('memoModalTxId').value = txId;
+            document.getElementById('memoModalText').value = txMemo || '';
+
+            // 現在のタブを記録
+            const activeTab = document.querySelector('#analysisTabs .nav-link.active');
+            if (activeTab) {
+                const tabId = activeTab.getAttribute('data-bs-target').replace('#', '');
+                document.getElementById('memoModalSourceTab').value = tabId;
+            }
+        });
+    }
 
     // Select All Duplicates
     const selectAllDup = document.getElementById('selectAllDup');

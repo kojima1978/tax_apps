@@ -1,4 +1,5 @@
 {% extends 'analyzer/base.html' %}
+{% load japanese_date %}
 
 {% block content %}
 <div class="row mb-5 fade-in">
@@ -29,7 +30,7 @@
                 <div class="fs-4">📁</div>
                 <div>
                     <div class="fw-bold">{{ case.name }}</div>
-                    <small class="text-muted">作成日: {{ case.created_at|date:"Y/m/d H:i" }}</small>
+                    <small class="text-muted">作成日: {{ case.created_at|wareki_short }} {{ case.created_at|time:"H:i" }}</small>
                 </div>
                 <div class="ms-3">
                     <span class="badge bg-secondary rounded-pill">{{ case.transactions.count }} 取引</span>
