@@ -18,7 +18,7 @@ RUN pip install --upgrade pip && \
 COPY . .
 
 # Create data directory and static directory
-RUN mkdir -p data staticfiles
+RUN mkdir -p data staticfiles db
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -34,9 +34,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 # Entrypoint script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Default command (use gunicorn for production)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "bank_project.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "300", "bank_project.wsgi:application"]

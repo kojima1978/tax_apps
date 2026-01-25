@@ -11,9 +11,10 @@ services:
       - DJANGO_DEBUG=True
       - DJANGO_SECRET_KEY=your-secret-key-change-in-production
       - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+      - DB_PATH=/app/db/db.sqlite3
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/" ]
       interval: 30s
       timeout: 10s
       retries: 3
