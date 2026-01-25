@@ -6,12 +6,15 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy, reverse
 import pandas as pd
 import json
-import csv
-from io import StringIO
 
 from .models import Case, Transaction
 from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, analyzer, llm_classifier, config
+
+# 標準分類カテゴリー
+STANDARD_CATEGORIES = [
+    "生活費", "贈与", "関連会社", "銀行", "証券会社", "保険会社", "その他", "未分類"
+]
 
 
 def _convert_amounts_to_int(df: pd.DataFrame) -> pd.DataFrame:
@@ -25,6 +28,44 @@ def _convert_amounts_to_int(df: pd.DataFrame) -> pd.DataFrame:
 def _parse_keywords(text: str) -> list:
     """カンマまたは改行区切りのテキストをキーワードリストに変換"""
     return [k.strip() for k in text.replace('\n', ',').split(',') if k.strip()]
+
+
+def _build_redirect_url(view_name: str, pk: int, tab: str = None) -> str:
+    """タブパラメータ付きのリダイレクトURLを生成"""
+    url = reverse(view_name, kwargs={'pk': pk})
+    if tab:
+        url += f'?tab={tab}'
+    return url
+
+
+def _get_duplicate_transactions(df: pd.DataFrame) -> list:
+    """重複取引を検出してリストで返す"""
+    dup_cols = ['date', 'amount_out', 'amount_in', 'description', 'account_id']
+    if not all(col in df.columns for col in dup_cols):
+        return []
+
+    duplicates_mask = df.duplicated(subset=dup_cols, keep=False)
+    dup_df = _convert_amounts_to_int(df[duplicates_mask].sort_values(by=dup_cols).copy())
+    return dup_df.to_dict(orient='records')
+
+
+def _get_transfer_chart_data(transfers_df: pd.DataFrame) -> list:
+    """資金移動チャート用のデータを生成"""
+    if transfers_df.empty:
+        return []
+
+    transfer_pairs = []
+    out_txs = transfers_df[transfers_df['amount_out'] > 0]
+    for _, row in out_txs.iterrows():
+        transfer_to = row.get('transfer_to', '')
+        label = f"{row['account_id']} → {transfer_to.split(' ')[0] if transfer_to else '?'}"
+        transfer_pairs.append({
+            'date': row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '',
+            'amount': row['amount_out'],
+            'label': label,
+            'description': row['description']
+        })
+    return transfer_pairs
 
 
 def export_csv(request, pk, export_type):
@@ -220,8 +261,18 @@ def transaction_preview(request, pk):
         elif action == 'commit':
             # Run Commit Logic
             try:
-                # Load current staging data
-                df = pd.DataFrame(import_data)
+                # Filter out deleted rows (check DELETE flags from form)
+                filtered_data = []
+                for i, row in enumerate(import_data):
+                    if not request.POST.get(f'form-{i}-DELETE'):
+                        filtered_data.append(row)
+
+                if not filtered_data:
+                    messages.warning(request, "取り込むデータがありません。")
+                    return redirect('transaction-import', pk=pk)
+
+                # Load filtered staging data
+                df = pd.DataFrame(filtered_data)
                 # Convert dates back to datetime
                 df['date'] = pd.to_datetime(df['date'])
                 
@@ -341,34 +392,59 @@ def analysis_dashboard(request, pk):
                     messages.success(request, "分類を更新しました。")
             return redirect('analysis-dashboard', pk=pk)
 
+        elif action == 'bulk_update_categories':
+            # 多額取引の分類を一括更新
+            source_tab = request.POST.get('source_tab', 'large')
+
+            # POSTデータからカテゴリー変更を収集
+            category_updates = {}
+            for key, value in request.POST.items():
+                if key.startswith('cat-'):
+                    tx_id = key.replace('cat-', '')
+                    category_updates[tx_id] = value
+
+            # 対象の取引を一括取得
+            tx_ids = list(category_updates.keys())
+            transactions_to_update = list(
+                case.transactions.filter(id__in=tx_ids).only('id', 'category')
+            )
+
+            # 変更があるもののみ更新対象に
+            updates = []
+            for tx in transactions_to_update:
+                new_category = category_updates.get(str(tx.id))
+                if new_category and tx.category != new_category:
+                    tx.category = new_category
+                    updates.append(tx)
+
+            if updates:
+                Transaction.objects.bulk_update(updates, ['category'])
+                messages.success(request, f"{len(updates)}件の分類を更新しました。")
+            else:
+                messages.info(request, "変更はありませんでした。")
+
+            return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
+
         elif action == 'update_transaction':
-            # Complete update of a transaction
+            # 取引データの更新
             tx_id = request.POST.get('tx_id')
+            source_tab = request.POST.get('source_tab', '')
             if tx_id:
                 tx = get_object_or_404(Transaction, pk=tx_id, case=case)
                 try:
-                    # Extract fields
                     date_str = request.POST.get('date')
-                    description = request.POST.get('description')
-                    amount_out = int(request.POST.get('amount_out') or 0)
-                    amount_in = int(request.POST.get('amount_in') or 0)
-                    category = request.POST.get('category')
-                    
-                    # Update
                     if date_str:
                         tx.date = pd.to_datetime(date_str).date()
-                    tx.description = description
-                    tx.amount_out = amount_out
-                    tx.amount_in = amount_in
-                    tx.category = category
-                    
-                    # Re-calculate balance is tricky without re-processing whole file. 
-                    # We just save the fields. Balance consistency is user's responsibility here or next import.
+                    tx.description = request.POST.get('description')
+                    tx.amount_out = int(request.POST.get('amount_out') or 0)
+                    tx.amount_in = int(request.POST.get('amount_in') or 0)
+                    tx.category = request.POST.get('category')
                     tx.save()
                     messages.success(request, "取引データを更新しました。")
                 except Exception as e:
                     messages.error(request, f"更新エラー: {e}")
-            return redirect('analysis-dashboard', pk=pk)
+
+            return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
 
         elif action == 'delete_duplicates':
             # Bulk delete selected IDs
@@ -387,82 +463,62 @@ def analysis_dashboard(request, pk):
         return render(request, 'analyzer/analysis.html', {'case': case, 'no_data': True})
 
     df = pd.DataFrame(list(transactions.values()))
-    
-    # Duplicate Detection
-    dup_cols = ['date', 'amount_out', 'amount_in', 'description', 'account_id']
-    if all(col in df.columns for col in dup_cols):
-        duplicates_mask = df.duplicated(subset=dup_cols, keep=False)
-        dup_df = _convert_amounts_to_int(df[duplicates_mask].sort_values(by=dup_cols).copy())
-        duplicate_txs = dup_df.to_dict(orient='records')
-    else:
-        duplicate_txs = []
 
-    # Account Summary
+    # 重複データ検出
+    duplicate_txs = _get_duplicate_transactions(df)
+
+    # 口座サマリー
     account_summary = df.groupby(['account_id', 'holder']).agg({
         'id': 'count',
         'date': 'max'
     }).reset_index().rename(columns={'id': 'count', 'date': 'last_date'})
     account_summary_list = account_summary.to_dict(orient='records')
-    
-    # 1. Transfers Data
+
+    # 資金移動データ
     analyzed_df = analyzer.analyze_transfers(df.copy())
     transfers_df = _convert_amounts_to_int(analyzed_df[analyzed_df['is_transfer']].copy())
-    
-    # Prepare transfer flow data for chart
-    transfer_pairs = []
-    if not transfers_df.empty:
-        out_txs = transfers_df[transfers_df['amount_out'] > 0]
-        for _, row in out_txs.iterrows():
-            # Try to parse target
-            # Stored 'transfer_to' string: "Account (Date)"
-            label = f"{row['account_id']} → {row['transfer_to'].split(' ')[0] if row['transfer_to'] else '?'}"
-            transfer_pairs.append({
-                'date': row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '',
-                'amount': row['amount_out'],
-                'label': label,
-                'description': row['description']
-            })
-    
-    # 2. Large Transactions
-    large_df = _convert_amounts_to_int(df[df['is_large']].sort_values('date', ascending=False).copy())
+    transfer_pairs = _get_transfer_chart_data(transfers_df)
+
+    # 多額取引
+    large_df = _convert_amounts_to_int(df[df['is_large']].sort_values('date', ascending=True).copy())
     large_txs = large_df.to_dict(orient='records')
     
-    # 3. All Transactions (Filtering)
-    # Filter params
-    f_account = request.GET.getlist('account')
-    f_category = request.GET.getlist('category')
-    f_keyword = request.GET.get('keyword')
-    
+    # フィルター処理
+    filter_state = {
+        'bank': request.GET.getlist('bank'),
+        'account': request.GET.getlist('account'),
+        'category': request.GET.getlist('category'),
+        'keyword': request.GET.get('keyword', '')
+    }
+
     filtered_txs = transactions
-    if f_account:
-        filtered_txs = filtered_txs.filter(account_id__in=f_account)
-    if f_category:
-        filtered_txs = filtered_txs.filter(category__in=f_category)
-    if f_keyword:
-        filtered_txs = filtered_txs.filter(description__icontains=f_keyword)
-        
-    # Get unique lists for filter dropdowns
+    if filter_state['bank']:
+        filtered_txs = filtered_txs.filter(bank_name__in=filter_state['bank'])
+    if filter_state['account']:
+        filtered_txs = filtered_txs.filter(account_id__in=filter_state['account'])
+    if filter_state['category']:
+        filtered_txs = filtered_txs.filter(category__in=filter_state['category'])
+    if filter_state['keyword']:
+        filtered_txs = filtered_txs.filter(description__icontains=filter_state['keyword'])
+
+    # フィルタードロップダウン用のユニークリストを取得
+    banks = sorted([b for b in df['bank_name'].dropna().unique() if b])
     accounts = df['account_id'].unique().tolist()
-    categories = df['category'].dropna().unique().tolist()
-    # Add standard categories if missing
-    std_cats = ["生活費", "贈与", "関連会社", "銀行", "証券会社", "保険会社", "その他", "未分類"]
-    categories = sorted(list(set(categories + std_cats)))
+    existing_categories = df['category'].dropna().unique().tolist()
+    categories = sorted(set(existing_categories + STANDARD_CATEGORIES))
 
     context = {
         'case': case,
         'account_summary': account_summary_list,
-        'transfer_pairs_json': json.dumps(transfer_pairs), # For Plotly
+        'transfer_pairs_json': json.dumps(transfer_pairs),
         'transfer_list': transfers_df.to_dict(orient='records'),
         'large_txs': large_txs,
-        'all_txs': filtered_txs, # QuerySet for template
-        'duplicate_txs': duplicate_txs, # New
+        'all_txs': filtered_txs,
+        'duplicate_txs': duplicate_txs,
+        'banks': banks,
         'accounts': accounts,
         'categories': categories,
-        'filter_state': {
-            'account': f_account,
-            'category': f_category,
-            'keyword': f_keyword or ''
-        }
+        'filter_state': filter_state,
     }
     return render(request, 'analyzer/analysis.html', context)
 
