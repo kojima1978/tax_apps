@@ -20,15 +20,23 @@
         <form method="post">
             {% csrf_token %}
 
-            <div class="d-flex justify-content-end mb-3 sticky-top bg-white border-bottom py-2 shadow-sm"
+            <div class="d-flex justify-content-between mb-3 sticky-top bg-white border-bottom py-2 shadow-sm"
                 style="z-index: 10;">
-                <a href="{% url 'transaction-import' case.pk %}" class="btn btn-outline-secondary me-2">キャンセル</a>
-                <button type="submit" name="action" value="recalculate" class="btn btn-warning me-2">
-                    <i class="bi bi-calculator"></i> 再計算
-                </button>
-                <button type="submit" name="action" value="commit" class="btn btn-primary">
-                    <i class="bi bi-check-lg"></i> 取り込み実行
-                </button>
+                <div>
+                    <button type="button" id="deleteSelectedBtn" class="btn btn-outline-danger" disabled>
+                        <i class="bi bi-trash"></i> 選択行を削除
+                    </button>
+                    <span id="selectedCount" class="ms-2 text-muted small"></span>
+                </div>
+                <div>
+                    <a href="{% url 'transaction-import' case.pk %}" class="btn btn-outline-secondary me-2">キャンセル</a>
+                    <button type="submit" name="action" value="recalculate" class="btn btn-warning me-2 btn-submit">
+                        <i class="bi bi-calculator"></i> 再計算
+                    </button>
+                    <button type="submit" name="action" value="commit" class="btn btn-primary btn-submit">
+                        <i class="bi bi-check-lg"></i> 取り込み実行
+                    </button>
+                </div>
             </div>
 
             <div class="glass-card p-0 overflow-hidden">
@@ -36,7 +44,9 @@
                     <table class="table table-hover mb-0 align-middle">
                         <thead class="sticky-top bg-light table-light">
                             <tr>
-                                <th style="width: 50px;">削除</th>
+                                <th style="width: 50px;">
+                                    <input type="checkbox" class="form-check-input" id="selectAllCheck" title="全選択">
+                                </th>
                                 <th style="min-width: 120px;">日付</th>
                                 <th>銀行名</th>
                                 <th>支店名</th>
@@ -111,4 +121,95 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const submitButtons = document.querySelectorAll('.btn-submit');
+    const checkboxes = document.querySelectorAll('.remove-row-check');
+    const deleteBtn = document.getElementById('deleteSelectedBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    let isSubmitting = false;
+
+    // 選択状態の更新
+    function updateSelectedState() {
+        const checkedCount = document.querySelectorAll('.remove-row-check:checked').length;
+        deleteBtn.disabled = checkedCount === 0;
+        if (checkedCount > 0) {
+            selectedCountSpan.textContent = `${checkedCount}件選択中`;
+        } else {
+            selectedCountSpan.textContent = '';
+        }
+    }
+
+    // チェックボックス変更時
+    checkboxes.forEach(function(cb) {
+        cb.addEventListener('change', updateSelectedState);
+    });
+
+    // 全選択チェックボックス
+    const selectAllCheck = document.getElementById('selectAllCheck');
+    selectAllCheck.addEventListener('change', function() {
+        checkboxes.forEach(function(cb) {
+            const row = cb.closest('tr');
+            if (row && row.style.display !== 'none') {
+                cb.checked = selectAllCheck.checked;
+            }
+        });
+        updateSelectedState();
+    });
+
+    // 選択行を削除（JavaScriptで行を非表示にする）
+    deleteBtn.addEventListener('click', function() {
+        const checkedBoxes = document.querySelectorAll('.remove-row-check:checked');
+        if (checkedBoxes.length === 0) return;
+
+        if (!confirm(`${checkedBoxes.length}件の行を削除しますか？\n削除後は「再計算」ボタンで残高を再計算してください。`)) {
+            return;
+        }
+
+        checkedBoxes.forEach(function(cb) {
+            const row = cb.closest('tr');
+            if (row) {
+                row.style.display = 'none';
+                // DELETEフラグを設定
+                cb.checked = true;
+            }
+        });
+
+        updateSelectedState();
+    });
+
+    // 二重送信防止
+    form.addEventListener('submit', function(e) {
+        if (isSubmitting) {
+            e.preventDefault();
+            return false;
+        }
+
+        isSubmitting = true;
+
+        // すべての送信ボタンを無効化
+        submitButtons.forEach(function(btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+        });
+
+        // クリックされたボタンにローディング表示
+        const clickedBtn = document.activeElement;
+        if (clickedBtn && clickedBtn.classList.contains('btn-submit')) {
+            clickedBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 処理中...';
+        }
+
+        // 3秒後にリセット（エラー時の対策）
+        setTimeout(function() {
+            isSubmitting = false;
+            submitButtons.forEach(function(btn) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            });
+        }, 10000);
+    });
+});
+</script>
 {% endblock %}
