@@ -158,7 +158,8 @@ class TransactionService:
         description: Optional[str],
         amount_out: int,
         amount_in: int,
-        category: Optional[str]
+        category: Optional[str],
+        memo: Optional[str] = None
     ) -> bool:
         """
         取引データを更新
@@ -171,6 +172,7 @@ class TransactionService:
             amount_out: 出金額
             amount_in: 入金額
             category: カテゴリー
+            memo: メモ
 
         Returns:
             更新成功の場合True
@@ -185,6 +187,7 @@ class TransactionService:
         tx.amount_out = amount_out
         tx.amount_in = amount_in
         tx.category = category
+        tx.memo = memo.strip() if memo else None
         tx.save()
 
         logger.info(f"取引更新: case_id={case.id}, tx_id={tx_id}")

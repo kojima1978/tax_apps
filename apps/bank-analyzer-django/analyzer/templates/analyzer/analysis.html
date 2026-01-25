@@ -188,7 +188,7 @@
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1">
-                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}">詳細</button>
+                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}">詳細</button>
                                     </div>
                                 </td>
                                 <td>
@@ -335,7 +335,7 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}">詳細</button>
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}">詳細</button>
                                 </td>
                                 <td>
                                     <form method="post" class="d-inline flag-form">
@@ -578,6 +578,12 @@
                         </select>
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label">📝 メモ</label>
+                        <textarea name="memo" id="modalTxMemo" class="form-control" rows="3"
+                            placeholder="確認事項などをメモしておきましょう..."></textarea>
+                    </div>
+
                     <div class="alert alert-warning py-2 small">
                         <i class="bi bi-info-circle"></i> 日付や金額を変更すると、残高の整合性が取れなくなる可能性があります。
                     </div>
@@ -660,6 +666,7 @@
         const txAmountOut = button.getAttribute('data-tx-amount-out');
         const txAmountIn = button.getAttribute('data-tx-amount-in');
         const txCat = button.getAttribute('data-tx-cat');
+        const txMemo = button.getAttribute('data-tx-memo');
 
         document.getElementById('modalTxId').value = txId;
         document.getElementById('modalTxDate').value = txDate;
@@ -667,6 +674,7 @@
         document.getElementById('modalTxAmountOut').value = txAmountOut;
         document.getElementById('modalTxAmountIn').value = txAmountIn;
         document.getElementById('modalTxCat').value = txCat || '未分類';
+        document.getElementById('modalTxMemo').value = txMemo || '';
 
         // 現在のタブを記録
         const activeTab = document.querySelector('#analysisTabs .nav-link.active');
