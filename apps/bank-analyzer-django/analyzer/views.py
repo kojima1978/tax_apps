@@ -1,7 +1,11 @@
+import logging
+from typing import Optional
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy, reverse
 import pandas as pd
@@ -10,66 +14,70 @@ import json
 from .models import Case, Transaction
 from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, analyzer, llm_classifier, config
+from .services import TransactionService, AnalysisService
+from .templatetags.japanese_date import wareki
 
-# 標準分類カテゴリー
-STANDARD_CATEGORIES = [
-    "生活費", "贈与", "関連会社", "銀行", "証券会社", "保険会社", "その他", "未分類"
-]
+logger = logging.getLogger(__name__)
 
-
-def _convert_amounts_to_int(df: pd.DataFrame) -> pd.DataFrame:
-    """DataFrameの金額カラムをPython intに変換（NaN→0）"""
-    for col in ['amount_out', 'amount_in']:
-        if col in df.columns:
-            df[col] = df[col].fillna(0).astype(int)
-    return df
+# 定数
+ITEMS_PER_PAGE = 100  # ページネーションの1ページあたりの件数
+MAX_VALIDATION_ERRORS_DISPLAY = 5  # バリデーションエラーの最大表示件数
+GIFT_TAX_THRESHOLD = 1_100_000  # 贈与税の基礎控除額
 
 
-def _parse_keywords(text: str) -> list:
+def _parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
+    """
+    金額文字列を整数に変換
+
+    Args:
+        value: 金額文字列（カンマ区切り可）
+        default: 変換失敗時のデフォルト値
+
+    Returns:
+        (変換後の金額, 成功フラグ) のタプル
+    """
+    try:
+        cleaned = (value or '0').replace(',', '')
+        return int(cleaned), True
+    except (ValueError, AttributeError):
+        return default, False
+
+
+def _parse_keywords(text: str) -> list[str]:
     """カンマまたは改行区切りのテキストをキーワードリストに変換"""
     return [k.strip() for k in text.replace('\n', ',').split(',') if k.strip()]
 
 
-def _build_redirect_url(view_name: str, pk: int, tab: str = None) -> str:
-    """タブパラメータ付きのリダイレクトURLを生成"""
+def _build_redirect_url(
+    view_name: str,
+    pk: int,
+    tab: Optional[str] = None,
+    filters: Optional[dict] = None
+) -> str:
+    """タブパラメータとフィルター付きのリダイレクトURLを生成"""
     url = reverse(view_name, kwargs={'pk': pk})
+    params = []
+
     if tab:
-        url += f'?tab={tab}'
+        params.append(f'tab={tab}')
+
+    if filters:
+        for key, values in filters.items():
+            if isinstance(values, list):
+                for v in values:
+                    params.append(f'{key}={v}')
+            elif values:
+                params.append(f'{key}={values}')
+
+    if params:
+        url += '?' + '&'.join(params)
+
     return url
 
 
-def _get_duplicate_transactions(df: pd.DataFrame) -> list:
-    """重複取引を検出してリストで返す"""
-    dup_cols = ['date', 'amount_out', 'amount_in', 'description', 'account_id']
-    if not all(col in df.columns for col in dup_cols):
-        return []
-
-    duplicates_mask = df.duplicated(subset=dup_cols, keep=False)
-    dup_df = _convert_amounts_to_int(df[duplicates_mask].sort_values(by=dup_cols).copy())
-    return dup_df.to_dict(orient='records')
-
-
-def _get_transfer_chart_data(transfers_df: pd.DataFrame) -> list:
-    """資金移動チャート用のデータを生成"""
-    if transfers_df.empty:
-        return []
-
-    transfer_pairs = []
-    out_txs = transfers_df[transfers_df['amount_out'] > 0]
-    for _, row in out_txs.iterrows():
-        transfer_to = row.get('transfer_to', '')
-        label = f"{row['account_id']} → {transfer_to.split(' ')[0] if transfer_to else '?'}"
-        transfer_pairs.append({
-            'date': row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '',
-            'amount': row['amount_out'],
-            'label': label,
-            'description': row['description']
-        })
-    return transfer_pairs
-
-
-def export_csv(request, pk, export_type):
+def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
     """取引データをCSVでエクスポート"""
+    logger.info(f"CSVエクスポート開始: case_id={pk}, type={export_type}")
     case = get_object_or_404(Case, pk=pk)
     transactions = case.transactions.all().order_by('date', 'id')
 
@@ -111,6 +119,11 @@ def export_csv(request, pk, export_type):
     # 存在するカラムのみ抽出
     cols_to_export = [c for c in export_columns.keys() if c in df.columns]
     export_df = df[cols_to_export].copy()
+
+    # 日付を和暦に変換
+    if 'date' in export_df.columns:
+        export_df['date'] = export_df['date'].apply(lambda d: wareki(d, 'short'))
+
     export_df.columns = [export_columns[c] for c in cols_to_export]
 
     # CSVレスポンスを作成
@@ -157,23 +170,38 @@ class CaseDeleteView(DeleteView):
         messages.success(self.request, "案件を削除しました。")
         return super().delete(request, *args, **kwargs)
 
-def case_detail(request, pk):
+def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
+    """案件詳細ビュー（ページネーション付き）"""
     case = get_object_or_404(Case, pk=pk)
-    transactions = case.transactions.all().order_by('date', 'id')
-    
+    transactions_list = case.transactions.all().order_by('date', 'id')
+
+    # ページネーション（1ページあたり100件）
+    paginator = Paginator(transactions_list, ITEMS_PER_PAGE)
+    page = request.GET.get('page', 1)
+
+    try:
+        transactions = paginator.page(page)
+    except PageNotAnInteger:
+        transactions = paginator.page(1)
+    except EmptyPage:
+        transactions = paginator.page(paginator.num_pages)
+
     context = {
         'case': case,
         'transactions': transactions,
+        'total_count': transactions_list.count(),
     }
     return render(request, 'analyzer/case_detail.html', context)
 
-def transaction_import(request, pk):
+def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
+    """取引データのインポート"""
     case = get_object_or_404(Case, pk=pk)
-    
+
     if request.method == 'POST':
         form = ImportForm(request.POST, request.FILES)
         if form.is_valid():
             csv_file = request.FILES['csv_file']
+            logger.info(f"ファイルインポート開始: case_id={pk}, filename={csv_file.name}, size={csv_file.size}")
             try:
                 # 1. Load CSV and Validate Balance (Stage 1)
                 df = importer.load_csv(csv_file)
@@ -195,13 +223,15 @@ def transaction_import(request, pk):
                 return redirect('transaction-preview', pk=pk)
 
             except Exception as e:
+                logger.exception(f"ファイルインポートエラー: case_id={pk}, error={e}")
                 messages.error(request, f"エラーが発生しました: {e}")
     else:
         form = ImportForm()
 
     return render(request, 'analyzer/import_form.html', {'case': case, 'form': form})
 
-def transaction_preview(request, pk):
+def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
+    """インポートプレビューと確定"""
     case = get_object_or_404(Case, pk=pk)
     
     # Session check
@@ -217,24 +247,38 @@ def transaction_preview(request, pk):
         if action == 'recalculate':
             # Update data from form inputs
             updated_data = []
+            validation_errors = []
+
             for i, row in enumerate(import_data):
                 # Check for deletion flag
                 if request.POST.get(f'form-{i}-DELETE'):
                     continue
 
-                # Retrieve fields by index (unsafe if order changes) or assume fixed list
-                # Better: Form params like form-0-amount_in
                 new_row = row.copy()
-                new_row['date'] = request.POST.get(f'form-{i}-date')
-                new_row['description'] = request.POST.get(f'form-{i}-description')
-                try:
-                    new_row['amount_out'] = int(request.POST.get(f'form-{i}-amount_out', 0) or 0)
-                    new_row['amount_in'] = int(request.POST.get(f'form-{i}-amount_in', 0) or 0)
-                    new_row['balance'] = int(request.POST.get(f'form-{i}-balance', 0) or 0)
-                except ValueError:
-                    pass # Keep original?
-                
+                new_row['date'] = request.POST.get(f'form-{i}-date', row.get('date'))
+                new_row['description'] = request.POST.get(f'form-{i}-description', row.get('description'))
+
+                # 金額フィールドのバリデーション
+                amount_fields = [
+                    ('amount_out', '出金額'),
+                    ('amount_in', '入金額'),
+                    ('balance', '残高'),
+                ]
+                for field_name, field_label in amount_fields:
+                    value_str = request.POST.get(f'form-{i}-{field_name}', '0')
+                    parsed_value, success = _parse_amount(value_str, row.get(field_name, 0))
+                    new_row[field_name] = parsed_value
+                    if not success:
+                        validation_errors.append(f"行{i+1}: {field_label}が不正な値です")
+
                 updated_data.append(new_row)
+
+            if validation_errors:
+                for error in validation_errors[:MAX_VALIDATION_ERRORS_DISPLAY]:
+                    messages.warning(request, error)
+                remaining = len(validation_errors) - MAX_VALIDATION_ERRORS_DISPLAY
+                if remaining > 0:
+                    messages.warning(request, f"他にも{remaining}件のエラーがあります")
             
             # Re-validate balance
             df = pd.DataFrame(updated_data)
@@ -322,10 +366,12 @@ def transaction_preview(request, pk):
                 del request.session['import_data']
                 del request.session['import_case_id']
                 
+                logger.info(f"取引インポート完了: case_id={pk}, count={len(new_transactions)}")
                 messages.success(request, f"{len(new_transactions)}件の取引を取り込みました。")
                 return redirect('case-detail', pk=pk)
-                
+
             except Exception as e:
+                logger.exception(f"取引インポートエラー: case_id={pk}, error={e}")
                 messages.error(request, f"取り込みエラー: {e}")
     
     return render(request, 'analyzer/import_confirm.html', {
@@ -333,157 +379,15 @@ def transaction_preview(request, pk):
         'transactions': import_data
     })
 
-def analysis_dashboard(request, pk):
+def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     """分析・表示ダッシュボード"""
     case = get_object_or_404(Case, pk=pk)
-    
-    # Action Handling
+
+    # POSTリクエストの処理
     if request.method == 'POST':
-        action = request.POST.get('action')
-        
-        if action == 'run_classifier':
-            # Load all transactions
-            txs = case.transactions.all()
-            if not txs.exists():
-                messages.warning(request, "データがありません。")
-                return redirect('analysis-dashboard', pk=pk)
-            
-            df = pd.DataFrame(list(txs.values()))
-            # Ensure dates
-            df['date'] = pd.to_datetime(df['date'])
-            
-            # Run classifier
-            df = llm_classifier.classify_transactions(df)
-            
-            # Save back (Bulk update category)
-            # This is slow if many, but safe
-            updates = []
-            for _, row in df.iterrows():
-                # Only update category if changed? Or just update all
-                # We need PK map
-                updates.append(Transaction(id=row['id'], category=row['category']))
-                
-            Transaction.objects.bulk_update(updates, ['category'])
-            messages.success(request, "自動分類が完了しました。")
-            return redirect('analysis-dashboard', pk=pk)
-            
-        elif action == 'delete_account':
-            account_id = request.POST.get('account_id')
-            if account_id:
-                count, _ = case.transactions.filter(account_id=account_id).delete()
-                messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
-            return redirect('analysis-dashboard', pk=pk)
-            
-        elif action == 'update_category':
-            tx_id = request.POST.get('tx_id')
-            new_category = request.POST.get('new_category')
-            apply_all = request.POST.get('apply_all') == 'true'
-            
-            if tx_id and new_category:
-                tx = get_object_or_404(Transaction, pk=tx_id, case=case)
-                
-                if apply_all:
-                    # Update all with same description
-                    count = case.transactions.filter(description=tx.description).update(category=new_category)
-                    messages.success(request, f"「{tx.description}」の取引 {count}件を「{new_category}」に変更しました。")
-                else:
-                    tx.category = new_category
-                    tx.save()
-                    messages.success(request, "分類を更新しました。")
-            return redirect('analysis-dashboard', pk=pk)
+        return _handle_analysis_post(request, case, pk)
 
-        elif action == 'bulk_update_categories':
-            # 多額取引の分類を一括更新
-            source_tab = request.POST.get('source_tab', 'large')
-
-            # POSTデータからカテゴリー変更を収集
-            category_updates = {}
-            for key, value in request.POST.items():
-                if key.startswith('cat-'):
-                    tx_id = key.replace('cat-', '')
-                    category_updates[tx_id] = value
-
-            # 対象の取引を一括取得
-            tx_ids = list(category_updates.keys())
-            transactions_to_update = list(
-                case.transactions.filter(id__in=tx_ids).only('id', 'category')
-            )
-
-            # 変更があるもののみ更新対象に
-            updates = []
-            for tx in transactions_to_update:
-                new_category = category_updates.get(str(tx.id))
-                if new_category and tx.category != new_category:
-                    tx.category = new_category
-                    updates.append(tx)
-
-            if updates:
-                Transaction.objects.bulk_update(updates, ['category'])
-                messages.success(request, f"{len(updates)}件の分類を更新しました。")
-            else:
-                messages.info(request, "変更はありませんでした。")
-
-            return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
-
-        elif action == 'update_transaction':
-            # 取引データの更新
-            tx_id = request.POST.get('tx_id')
-            source_tab = request.POST.get('source_tab', '')
-            if tx_id:
-                tx = get_object_or_404(Transaction, pk=tx_id, case=case)
-                try:
-                    date_str = request.POST.get('date')
-                    if date_str:
-                        tx.date = pd.to_datetime(date_str).date()
-                    tx.description = request.POST.get('description')
-                    tx.amount_out = int(request.POST.get('amount_out') or 0)
-                    tx.amount_in = int(request.POST.get('amount_in') or 0)
-                    tx.category = request.POST.get('category')
-                    tx.save()
-                    messages.success(request, "取引データを更新しました。")
-                except Exception as e:
-                    messages.error(request, f"更新エラー: {e}")
-
-            return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
-
-        elif action == 'delete_duplicates':
-            # Bulk delete selected IDs
-            delete_ids = request.POST.getlist('delete_ids')
-            if delete_ids:
-                count, _ = case.transactions.filter(id__in=delete_ids).delete()
-                messages.success(request, f"{count}件の重複データを削除しました。")
-            else:
-                messages.warning(request, "削除対象が選択されていません。")
-            return redirect('analysis-dashboard', pk=pk)
-    
-    # Data Loading for Display
-    transactions = case.transactions.all().order_by('date', 'id')
-    
-    if not transactions.exists():
-        return render(request, 'analyzer/analysis.html', {'case': case, 'no_data': True})
-
-    df = pd.DataFrame(list(transactions.values()))
-
-    # 重複データ検出
-    duplicate_txs = _get_duplicate_transactions(df)
-
-    # 口座サマリー
-    account_summary = df.groupby(['account_id', 'holder']).agg({
-        'id': 'count',
-        'date': 'max'
-    }).reset_index().rename(columns={'id': 'count', 'date': 'last_date'})
-    account_summary_list = account_summary.to_dict(orient='records')
-
-    # 資金移動データ
-    analyzed_df = analyzer.analyze_transfers(df.copy())
-    transfers_df = _convert_amounts_to_int(analyzed_df[analyzed_df['is_transfer']].copy())
-    transfer_pairs = _get_transfer_chart_data(transfers_df)
-
-    # 多額取引
-    large_df = _convert_amounts_to_int(df[df['is_large']].sort_values('date', ascending=True).copy())
-    large_txs = large_df.to_dict(orient='records')
-    
-    # フィルター処理
+    # GETリクエスト: データ表示
     filter_state = {
         'bank': request.GET.getlist('bank'),
         'account': request.GET.getlist('account'),
@@ -491,38 +395,172 @@ def analysis_dashboard(request, pk):
         'keyword': request.GET.get('keyword', '')
     }
 
-    filtered_txs = transactions
-    if filter_state['bank']:
-        filtered_txs = filtered_txs.filter(bank_name__in=filter_state['bank'])
-    if filter_state['account']:
-        filtered_txs = filtered_txs.filter(account_id__in=filter_state['account'])
-    if filter_state['category']:
-        filtered_txs = filtered_txs.filter(category__in=filter_state['category'])
-    if filter_state['keyword']:
-        filtered_txs = filtered_txs.filter(description__icontains=filter_state['keyword'])
+    analysis_data = AnalysisService.get_analysis_data(case, filter_state)
 
-    # フィルタードロップダウン用のユニークリストを取得
-    banks = sorted([b for b in df['bank_name'].dropna().unique() if b])
-    accounts = df['account_id'].unique().tolist()
-    existing_categories = df['category'].dropna().unique().tolist()
-    categories = sorted(set(existing_categories + STANDARD_CATEGORIES))
+    if analysis_data.get('no_data'):
+        return render(request, 'analyzer/analysis.html', {'case': case, 'no_data': True})
+
+    # 取引一覧のページネーション
+    all_txs_queryset = analysis_data['all_txs']
+    all_txs_count = all_txs_queryset.count()
+    paginator = Paginator(all_txs_queryset, ITEMS_PER_PAGE)
+    page = request.GET.get('page', 1)
+
+    try:
+        all_txs_page = paginator.page(page)
+    except PageNotAnInteger:
+        all_txs_page = paginator.page(1)
+    except EmptyPage:
+        all_txs_page = paginator.page(paginator.num_pages)
 
     context = {
         'case': case,
-        'account_summary': account_summary_list,
-        'transfer_pairs_json': json.dumps(transfer_pairs),
-        'transfer_list': transfers_df.to_dict(orient='records'),
-        'large_txs': large_txs,
-        'all_txs': filtered_txs,
-        'duplicate_txs': duplicate_txs,
-        'banks': banks,
-        'accounts': accounts,
-        'categories': categories,
+        'account_summary': analysis_data['account_summary'],
+        'transfer_pairs_json': json.dumps(analysis_data['transfer_pairs']),
+        'transfer_list': analysis_data['transfer_list'],
+        'large_txs': analysis_data['large_txs'],
+        'all_txs': all_txs_page,
+        'all_txs_count': all_txs_count,
+        'duplicate_txs': analysis_data['duplicate_txs'],
+        'flagged_txs': analysis_data['flagged_txs'],
+        'banks': analysis_data['banks'],
+        'accounts': analysis_data['accounts'],
+        'categories': analysis_data['categories'],
         'filter_state': filter_state,
     }
     return render(request, 'analyzer/analysis.html', context)
 
-def settings_view(request):
+
+def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    """分析ダッシュボードのPOSTリクエストを処理"""
+    action = request.POST.get('action')
+
+    if action == 'run_classifier':
+        count = TransactionService.run_classifier(case)
+        if count == 0:
+            messages.warning(request, "データがありません。")
+        else:
+            messages.success(request, "自動分類が完了しました。")
+        return redirect('analysis-dashboard', pk=pk)
+
+    elif action == 'delete_account':
+        account_id = request.POST.get('account_id')
+        if account_id:
+            count = TransactionService.delete_account_transactions(case, account_id)
+            messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
+        return redirect('analysis-dashboard', pk=pk)
+
+    elif action == 'update_category':
+        tx_id = request.POST.get('tx_id')
+        new_category = request.POST.get('new_category')
+        apply_all = request.POST.get('apply_all') == 'true'
+
+        if tx_id and new_category:
+            count = TransactionService.update_transaction_category(
+                case, int(tx_id), new_category, apply_all
+            )
+            if apply_all and count > 0:
+                tx = case.transactions.filter(pk=tx_id).first()
+                if tx:
+                    messages.success(request, f"「{tx.description}」の取引 {count}件を「{new_category}」に変更しました。")
+            else:
+                messages.success(request, "分類を更新しました。")
+        return redirect('analysis-dashboard', pk=pk)
+
+    elif action == 'bulk_update_categories':
+        source_tab = request.POST.get('source_tab', 'large')
+
+        category_updates = {
+            key.replace('cat-', ''): value
+            for key, value in request.POST.items()
+            if key.startswith('cat-')
+        }
+
+        count = TransactionService.bulk_update_categories(case, category_updates)
+        if count > 0:
+            messages.success(request, f"{count}件の分類を更新しました。")
+        else:
+            messages.info(request, "変更はありませんでした。")
+
+        # フィルター状態を復元（allタブの場合）
+        filters = None
+        if source_tab == 'all':
+            filters = {
+                'bank': request.POST.getlist('filter_bank'),
+                'account': request.POST.getlist('filter_account'),
+                'category': request.POST.getlist('filter_category'),
+                'keyword': request.POST.get('filter_keyword', ''),
+                'page': request.POST.get('filter_page', ''),
+            }
+
+        return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab, filters))
+
+    elif action == 'update_transaction':
+        source_tab = request.POST.get('source_tab', '')
+        tx_id = request.POST.get('tx_id')
+
+        if tx_id:
+            try:
+                success = TransactionService.update_transaction(
+                    case,
+                    int(tx_id),
+                    request.POST.get('date'),
+                    request.POST.get('description'),
+                    int(request.POST.get('amount_out') or 0),
+                    int(request.POST.get('amount_in') or 0),
+                    request.POST.get('category')
+                )
+                if success:
+                    messages.success(request, "取引データを更新しました。")
+            except Exception as e:
+                logger.exception(f"取引更新エラー: tx_id={tx_id}, error={e}")
+                messages.error(request, f"更新エラー: {e}")
+
+        return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
+
+    elif action == 'delete_duplicates':
+        delete_ids = request.POST.getlist('delete_ids')
+        count = TransactionService.delete_duplicates(case, delete_ids)
+        if count > 0:
+            messages.success(request, f"{count}件の重複データを削除しました。")
+        else:
+            messages.warning(request, "削除対象が選択されていません。")
+        # データクレンジングタブに留まる
+        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+    elif action == 'toggle_flag':
+        tx_id = request.POST.get('tx_id')
+        source_tab = request.POST.get('source_tab', '')
+        if tx_id:
+            try:
+                new_state = TransactionService.toggle_flag(case, int(tx_id))
+                if new_state:
+                    messages.success(request, "付箋を追加しました。")
+                else:
+                    messages.info(request, "付箋を外しました。")
+            except Exception as e:
+                logger.exception(f"フラグ更新エラー: tx_id={tx_id}, error={e}")
+                messages.error(request, f"エラー: {e}")
+        return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
+
+    elif action == 'update_memo':
+        tx_id = request.POST.get('tx_id')
+        memo = request.POST.get('memo', '')
+        source_tab = request.POST.get('source_tab', '')
+        if tx_id:
+            try:
+                success = TransactionService.update_memo(case, int(tx_id), memo)
+                if success:
+                    messages.success(request, "メモを更新しました。")
+            except Exception as e:
+                logger.exception(f"メモ更新エラー: tx_id={tx_id}, error={e}")
+                messages.error(request, f"エラー: {e}")
+        return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
+
+    return redirect('analysis-dashboard', pk=pk)
+
+def settings_view(request: HttpRequest) -> HttpResponse:
+    """アプリケーション設定ビュー"""
     current_settings = config.load_user_settings()
     current_patterns = current_settings.get("CLASSIFICATION_PATTERNS", config.DEFAULT_PATTERNS)
     
