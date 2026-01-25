@@ -123,93 +123,106 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    const submitButtons = document.querySelectorAll('.btn-submit');
-    const checkboxes = document.querySelectorAll('.remove-row-check');
-    const deleteBtn = document.getElementById('deleteSelectedBtn');
-    const selectedCountSpan = document.getElementById('selectedCount');
-    let isSubmitting = false;
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.querySelector('form');
+        const submitButtons = document.querySelectorAll('.btn-submit');
+        const checkboxes = document.querySelectorAll('.remove-row-check');
+        const deleteBtn = document.getElementById('deleteSelectedBtn');
+        const selectedCountSpan = document.getElementById('selectedCount');
+        let isSubmitting = false;
 
-    // 選択状態の更新
-    function updateSelectedState() {
-        const checkedCount = document.querySelectorAll('.remove-row-check:checked').length;
-        deleteBtn.disabled = checkedCount === 0;
-        if (checkedCount > 0) {
-            selectedCountSpan.textContent = `${checkedCount}件選択中`;
-        } else {
-            selectedCountSpan.textContent = '';
-        }
-    }
-
-    // チェックボックス変更時
-    checkboxes.forEach(function(cb) {
-        cb.addEventListener('change', updateSelectedState);
-    });
-
-    // 全選択チェックボックス
-    const selectAllCheck = document.getElementById('selectAllCheck');
-    selectAllCheck.addEventListener('change', function() {
-        checkboxes.forEach(function(cb) {
-            const row = cb.closest('tr');
-            if (row && row.style.display !== 'none') {
-                cb.checked = selectAllCheck.checked;
+        // 選択状態の更新
+        function updateSelectedState() {
+            const checkedCount = document.querySelectorAll('.remove-row-check:checked').length;
+            if (deleteBtn) {
+                deleteBtn.disabled = checkedCount === 0;
             }
-        });
-        updateSelectedState();
-    });
-
-    // 選択行を削除（JavaScriptで行を非表示にする）
-    deleteBtn.addEventListener('click', function() {
-        const checkedBoxes = document.querySelectorAll('.remove-row-check:checked');
-        if (checkedBoxes.length === 0) return;
-
-        if (!confirm(`${checkedBoxes.length}件の行を削除しますか？\n削除後は「再計算」ボタンで残高を再計算してください。`)) {
-            return;
-        }
-
-        checkedBoxes.forEach(function(cb) {
-            const row = cb.closest('tr');
-            if (row) {
-                row.style.display = 'none';
-                // DELETEフラグを設定
-                cb.checked = true;
+            if (selectedCountSpan) {
+                selectedCountSpan.textContent = checkedCount > 0 ? `${checkedCount}件選択中` : '';
             }
-        });
+        }
 
+        // 初期状態の更新（ブラウザバック等でチェックが残っている場合のため）
         updateSelectedState();
-    });
 
-    // 二重送信防止
-    form.addEventListener('submit', function(e) {
-        if (isSubmitting) {
-            e.preventDefault();
-            return false;
-        }
-
-        isSubmitting = true;
-
-        // すべての送信ボタンを無効化
-        submitButtons.forEach(function(btn) {
-            btn.disabled = true;
-            btn.style.opacity = '0.6';
+        // チェックボックス変更時
+        checkboxes.forEach(function (cb) {
+            cb.addEventListener('change', updateSelectedState);
         });
 
-        // クリックされたボタンにローディング表示
-        const clickedBtn = document.activeElement;
-        if (clickedBtn && clickedBtn.classList.contains('btn-submit')) {
-            clickedBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 処理中...';
-        }
-
-        // 3秒後にリセット（エラー時の対策）
-        setTimeout(function() {
-            isSubmitting = false;
-            submitButtons.forEach(function(btn) {
-                btn.disabled = false;
-                btn.style.opacity = '1';
+        // 全選択チェックボックス
+        const selectAllCheck = document.getElementById('selectAllCheck');
+        if (selectAllCheck) {
+            selectAllCheck.addEventListener('change', function () {
+                const isChecked = selectAllCheck.checked;
+                checkboxes.forEach(function (cb) {
+                    const row = cb.closest('tr');
+                    if (row && row.style.display !== 'none') {
+                        cb.checked = isChecked;
+                    }
+                });
+                updateSelectedState();
             });
-        }, 10000);
+        }
+
+        // 選択行を削除（JavaScriptで行を非表示にする）
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function () {
+                const checkedBoxes = document.querySelectorAll('.remove-row-check:checked');
+                if (checkedBoxes.length === 0) return;
+
+                if (!confirm(`${checkedBoxes.length}件の行を削除しますか？\n削除後は「再計算」ボタンで残高を再計算してください。`)) {
+                    return;
+                }
+
+                checkedBoxes.forEach(function (cb) {
+                    const row = cb.closest('tr');
+                    if (row) {
+                        row.style.display = 'none';
+                        // DELETEフラグを設定
+                        cb.checked = true;
+                    }
+                });
+
+                updateSelectedState();
+            });
+        }
+
+        // 二重送信防止 & ボタン値送信対応
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                if (isSubmitting) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                isSubmitting = true;
+
+                // 10秒後にリセット（安全策）
+                setTimeout(function () {
+                    isSubmitting = false;
+                    submitButtons.forEach(function (btn) {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    });
+                }, 10000);
+
+                // ボタン無効化を遅延させて、送信データにボタンのvalueが含まれるようにする
+                setTimeout(function () {
+                    // すべての送信ボタンを無効化
+                    submitButtons.forEach(function (btn) {
+                        btn.disabled = true;
+                        btn.style.opacity = '0.6';
+                    });
+
+                    // クリックされたボタンにローディング表示
+                    const clickedBtn = document.activeElement;
+                    if (clickedBtn && clickedBtn.classList.contains('btn-submit')) {
+                        clickedBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 処理中...';
+                    }
+                }, 0);
+            });
+        }
     });
-});
 </script>
 {% endblock %}
