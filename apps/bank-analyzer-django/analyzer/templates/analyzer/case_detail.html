@@ -47,6 +47,9 @@
                     <th class="text-end">残高</th>
                     <th>分類</th>
                     <th>推定</th>
+                    <th>付箋</th>
+                    <th>メモ</th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -77,10 +80,36 @@
                     <td>
                         <small class="text-muted">{{ tx.transfer_to|default:"" }}</small>
                     </td>
+                    <td class="text-center">
+                        {% if tx.is_flagged %}
+                        <span class="text-info" title="付箋あり">📌</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ tx.memo|default:""|truncatechars:20 }}</small>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="toggle_flag">
+                                <input type="hidden" name="tx_id" value="{{ tx.id }}">
+                                <input type="hidden" name="page" value="{{ transactions.number }}">
+                                <button type="submit" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %}" title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
+                                    📌
+                                </button>
+                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" title="メモを編集"
+                                data-bs-toggle="modal" data-bs-target="#memoModal"
+                                data-tx-id="{{ tx.id }}" data-tx-memo="{{ tx.memo|default:'' }}">
+                                📝
+                            </button>
+                        </div>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="10" class="text-center py-4 text-muted">
+                    <td colspan="13" class="text-center py-4 text-muted">
                         まだ取引データがありません。<br>
                         CSVインポートを行ってください。
                     </td>
@@ -119,4 +148,51 @@
     </nav>
     {% endif %}
 </div>
+
+<!-- Memo Modal -->
+<div class="modal fade" id="memoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title">📝 メモの編集</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_memo">
+                <input type="hidden" name="tx_id" id="memoModalTxId">
+                <input type="hidden" name="page" value="{{ transactions.number }}">
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">メモ</label>
+                        <textarea name="memo" id="memoModalText" class="form-control" rows="4"
+                            placeholder="確認事項などをメモしておきましょう..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Memo Modal Logic
+document.addEventListener('DOMContentLoaded', function() {
+    const memoModal = document.getElementById('memoModal');
+    if (memoModal) {
+        memoModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const txId = button.getAttribute('data-tx-id');
+            const txMemo = button.getAttribute('data-tx-memo');
+
+            document.getElementById('memoModalTxId').value = txId;
+            document.getElementById('memoModalText').value = txMemo || '';
+        });
+    }
+});
+</script>
 {% endblock %}

@@ -173,6 +173,36 @@ class CaseDeleteView(DeleteView):
 def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
     """案件詳細ビュー（ページネーション付き）"""
     case = get_object_or_404(Case, pk=pk)
+
+    # POST処理（付箋トグル・メモ更新）
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        tx_id = request.POST.get('tx_id')
+        page = request.POST.get('page', 1)
+
+        if action == 'toggle_flag' and tx_id:
+            try:
+                new_state = TransactionService.toggle_flag(case, int(tx_id))
+                if new_state:
+                    messages.success(request, "付箋を追加しました。")
+                else:
+                    messages.info(request, "付箋を外しました。")
+            except Exception as e:
+                logger.exception(f"フラグ更新エラー: tx_id={tx_id}, error={e}")
+                messages.error(request, f"エラー: {e}")
+
+        elif action == 'update_memo' and tx_id:
+            memo = request.POST.get('memo', '')
+            try:
+                success = TransactionService.update_memo(case, int(tx_id), memo)
+                if success:
+                    messages.success(request, "メモを更新しました。")
+            except Exception as e:
+                logger.exception(f"メモ更新エラー: tx_id={tx_id}, error={e}")
+                messages.error(request, f"エラー: {e}")
+
+        return redirect(f"{reverse('case-detail', args=[pk])}?page={page}")
+
     transactions_list = case.transactions.all().order_by('date', 'id')
 
     # ページネーション（1ページあたり100件）
@@ -508,7 +538,8 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
                     request.POST.get('description'),
                     int(request.POST.get('amount_out') or 0),
                     int(request.POST.get('amount_in') or 0),
-                    request.POST.get('category')
+                    request.POST.get('category'),
+                    request.POST.get('memo')
                 )
                 if success:
                     messages.success(request, "取引データを更新しました。")
