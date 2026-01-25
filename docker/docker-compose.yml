@@ -143,28 +143,34 @@ services:
     restart: unless-stopped
 
   # ===========================================
-  # 相続銀行分析システム (Streamlit)
-  # Port: 8501
+  # 相続銀行分析システム (Django)
+  # Port: 8000
   # ===========================================
   bank-analyzer:
     build:
-      context: ../apps/bank-analyzer
+      context: ../apps/bank-analyzer-django
       dockerfile: Dockerfile
     container_name: bank_analyzer
     ports:
-      - "8501:8501"
+      - "8000:8000"
     volumes:
-      - ../apps/bank-analyzer/data:/app/data
-      - ../apps/bank-analyzer/lib:/app/lib
-      - ../apps/bank-analyzer/pages:/app/pages
-      - ../apps/bank-analyzer/main.py:/app/main.py
+      - ../apps/bank-analyzer-django:/app
+      - bank_analyzer_data:/app/data
+      - bank_analyzer_db:/app/db
     environment:
-      - LARGE_AMOUNT_THRESHOLD=50000
-      - TRANSFER_DAYS_WINDOW=3
-      - TRANSFER_AMOUNT_TOLERANCE=1000
+      - DJANGO_DEBUG=True
+      - DJANGO_SECRET_KEY=dev-secret-key-change-in-production
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,bank-analyzer
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ===========================================
   # 相続税計算アプリ (Vite/React)
@@ -332,5 +338,7 @@ networks:
 volumes:
   itcm_postgres_data:
   tax_docs_data:
+  bank_analyzer_data:
+  bank_analyzer_db:
 
 

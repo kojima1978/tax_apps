@@ -1,0 +1,42 @@
+{% extends 'analyzer/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-3">
+                <li class="breadcrumb-item"><a href="{% url 'case-list' %}" class="text-decoration-none">案件一覧</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'case-detail' case.pk %}" class="text-decoration-none">{{
+                        case.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">CSVインポート</li>
+            </ol>
+        </nav>
+
+        <div class="glass-card p-5">
+            <h2 class="h3 mb-4">CSVデータのインポート</h2>
+
+            <div class="alert alert-info border-0 bg-opacity-10 bg-info text-info mb-4">
+                <h5 class="alert-heading h6 fw-bold">ℹ️ サポートされている形式</h5>
+                <ul class="mb-0 small">
+                    <li>インターネットバンキングからダウンロードしたCSV</li>
+                    <li>OCRソフトで変換したCSV (カラム: 年月日, 摘要, 払戻, お預り, 差引残高)</li>
+                    <li>文字コード: Shift-JIS / UTF-8 (自動判別)</li>
+                </ul>
+            </div>
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form|crispy }}
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        インポート実行
+                    </button>
+                    <a href="{% url 'case-detail' case.pk %}" class="btn btn-outline-secondary">キャンセル</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

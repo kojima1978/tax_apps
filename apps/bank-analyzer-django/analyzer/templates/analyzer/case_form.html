@@ -1,0 +1,26 @@
+{% extends 'analyzer/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="glass-card p-5">
+            <h2 class="h3 mb-4 text-center">
+                {% if object %}案件編集{% else %}新規案件作成{% endif %}
+            </h2>
+
+            <form method="post">
+                {% csrf_token %}
+                {{ form|crispy }}
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        {% if object %}更新する{% else %}作成する{% endif %}
+                    </button>
+                    <a href="{% url 'case-list' %}" class="btn btn-outline-secondary">キャンセル</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
