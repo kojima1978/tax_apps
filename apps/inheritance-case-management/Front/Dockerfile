@@ -9,6 +9,7 @@ COPY . .
 # Set env var for build if needed (NEXT_PUBLIC_API_URL handles client side)
 ARG NEXT_PUBLIC_API_URL=http://localhost:3021/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 RUN npm run build
 

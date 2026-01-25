@@ -23,6 +23,7 @@ RUN printf "import { PrismaClient } from '../app/generated/prisma/client';\nimpo
 
 # 本番用にビルド
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npx prisma db push
 RUN npx prisma generate
 RUN npm run build

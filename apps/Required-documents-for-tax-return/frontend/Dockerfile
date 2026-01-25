@@ -24,6 +24,7 @@ COPY . .
 # ビルド時の環境変数（ビルド時にARGで上書き可能）
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 RUN npm run build
 

@@ -30,6 +30,7 @@ COPY . .
 
 # Next.jsのテレメトリーを無効化
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Next.jsアプリケーションをビルド
 RUN npm run build

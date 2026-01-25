@@ -23,7 +23,7 @@
 | 医療法人株式評価 | `/medical/` | http://localhost:3010/medical/ | Next.js | 医療法人の株式評価 |
 | 非上場株式評価 | `/shares/` | http://localhost:3012/shares/ | Next.js | 非上場株式の評価 |
 | 案件管理 | `/itcm/` | http://localhost:3020/itcm/ | Next.js + Express + Postgres | 相続税案件管理 |
-| 銀行分析 | `/bank-analyzer/` | http://localhost:8501/ | Streamlit | 預金移動分析 |
+| 銀行分析 | `/bank-analyzer/` | http://localhost:8000/ | Django | 預金移動分析 |
 
 ## ディレクトリ構造
 
@@ -39,8 +39,7 @@ tax_apps/
 │   ├── medical-stock-valuation/   # 医療法人株式評価
 │   ├── shares-valuation/          # 非上場株式評価
 │   ├── inheritance-case-management/ # 案件管理
-
-│   ├── bank-analyzer/             # 銀行分析
+│   ├── bank-analyzer-django/      # 銀行分析 (Django)
 │   └── real-estate-tax/           # 不動産取得税
 ├── docker/                        # Docker設定
 │   ├── docker-compose.yml
@@ -99,8 +98,8 @@ POSTGRES_DB=inheritance_tax_db
 
 ## 技術スタック
 
-- **フロントエンド**: Next.js 16+, React, Vite, Streamlit
-- **バックエンド**: Express, FastAPI
+- **フロントエンド**: Next.js 16+, React, Vite, Django Templates (Bootstrap 5)
+- **バックエンド**: Express, FastAPI, Django
 - **データベース**: SQLite (Prisma), PostgreSQL
 - **スタイリング**: Tailwind CSS
 - **アイコン**: lucide-react
