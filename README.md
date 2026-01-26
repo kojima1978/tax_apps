@@ -133,12 +133,7 @@ docker-compose -f docker/docker-compose.yml restart portal-app gateway
 ### Windows Docker でのファイル監視問題
 
 Windowsでボリュームマウントを使用する場合、ファイル変更の検出に問題が発生することがあります。
-`docker-compose.yml`で以下の環境変数が設定されていることを確認してください:
-
-```yaml
-environment:
-  - WATCHPACK_POLLING=true
-```
+現在は `docker-compose.yml` にて全てのNode.jsサービスに対し `WATCHPACK_POLLING=true` が設定されているため、追加の手順は不要です。
 
 ### Next.js Turbopack のクラッシュ
 

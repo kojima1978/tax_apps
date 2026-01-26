@@ -90,18 +90,20 @@
                     </td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <form method="post" class="d-inline">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="toggle_flag">
-                                <input type="hidden" name="tx_id" value="{{ tx.id }}">
-                                <input type="hidden" name="page" value="{{ transactions.number }}">
-                                <button type="submit" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %}" title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
-                                    📌
-                                </button>
-                            </form>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" title="メモを編集"
-                                data-bs-toggle="modal" data-bs-target="#memoModal"
-                                data-tx-id="{{ tx.id }}" data-tx-memo="{{ tx.memo|default:'' }}">
+                            <button type="button" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %} flag-btn"
+                                data-tx-id="{{ tx.id }}" data-page="{{ transactions.number }}"
+                                title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
+                                📌
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info" title="詳細・編集"
+                                data-bs-toggle="modal" data-bs-target="#editModal"
+                                data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}"
+                                data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}"
+                                data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}"
+                                data-tx-memo="{{ tx.memo|default:'' }}"
+                                data-tx-bank="{{ tx.bank_name|default:'' }}"
+                                data-tx-branch="{{ tx.branch_name|default:'' }}"
+                                data-tx-account="{{ tx.account_id|default:'' }}">
                                 📝
                             </button>
                         </div>
@@ -149,25 +151,89 @@
     {% endif %}
 </div>
 
-<!-- Memo Modal -->
-<div class="modal fade" id="memoModal" tabindex="-1">
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content glass-card">
             <div class="modal-header border-bottom-0">
-                <h5 class="modal-title">📝 メモの編集</h5>
+                <h5 class="modal-title">取引データの修正</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="post">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="update_memo">
-                <input type="hidden" name="tx_id" id="memoModalTxId">
+                <input type="hidden" name="action" value="update_transaction">
+                <input type="hidden" name="tx_id" id="modalTxId">
                 <input type="hidden" name="page" value="{{ transactions.number }}">
 
                 <div class="modal-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label">銀行名</label>
+                            <select name="bank_name" class="form-select form-select-sm" id="modalTxBankName">
+                                <option value="">-- 選択 --</option>
+                                {% for bank in banks %}
+                                <option value="{{ bank }}">{{ bank }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">支店名</label>
+                            <select name="branch_name" class="form-select form-select-sm" id="modalTxBranchName">
+                                <option value="">-- 選択 --</option>
+                                {% for branch in branches %}
+                                <option value="{{ branch }}">{{ branch }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">口座番号</label>
+                            <select name="account_id" class="form-select form-select-sm" id="modalTxAccountId">
+                                <option value="">-- 選択 --</option>
+                                {% for acc in accounts %}
+                                <option value="{{ acc }}">{{ acc }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
-                        <label class="form-label">メモ</label>
-                        <textarea name="memo" id="memoModalText" class="form-control" rows="4"
+                        <label class="form-label">日付</label>
+                        <input type="date" name="date" id="modalTxDate" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">摘要</label>
+                        <input type="text" name="description" id="modalTxDescInput" class="form-control">
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">払戻（出金）</label>
+                            <input type="number" name="amount_out" id="modalTxAmountOut" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">お預り（入金）</label>
+                            <input type="number" name="amount_in" id="modalTxAmountIn" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">分類</label>
+                        <select name="category" class="form-select" id="modalTxCat">
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">📝 メモ</label>
+                        <textarea name="memo" id="modalTxMemo" class="form-control" rows="3"
                             placeholder="確認事項などをメモしておきましょう..."></textarea>
+                    </div>
+
+                    <div class="alert alert-warning py-2 small">
+                        <i class="bi bi-info-circle"></i> 日付や金額を変更すると、残高の整合性が取れなくなる可能性があります。
                     </div>
                 </div>
                 <div class="modal-footer border-top-0">
@@ -180,19 +246,59 @@
 </div>
 
 <script>
-// Memo Modal Logic
 document.addEventListener('DOMContentLoaded', function() {
-    const memoModal = document.getElementById('memoModal');
-    if (memoModal) {
-        memoModal.addEventListener('show.bs.modal', function (event) {
+    // Edit Modal Logic
+    const editModal = document.getElementById('editModal');
+    if (editModal) {
+        editModal.addEventListener('show.bs.modal', function (event) {
             const button = event.relatedTarget;
             const txId = button.getAttribute('data-tx-id');
+            const txDate = button.getAttribute('data-tx-date');
+            const txDesc = button.getAttribute('data-tx-desc');
+            const txAmountOut = button.getAttribute('data-tx-amount-out');
+            const txAmountIn = button.getAttribute('data-tx-amount-in');
+            const txCat = button.getAttribute('data-tx-cat');
             const txMemo = button.getAttribute('data-tx-memo');
+            const txBank = button.getAttribute('data-tx-bank');
+            const txBranch = button.getAttribute('data-tx-branch');
+            const txAccount = button.getAttribute('data-tx-account');
 
-            document.getElementById('memoModalTxId').value = txId;
-            document.getElementById('memoModalText').value = txMemo || '';
+            document.getElementById('modalTxId').value = txId;
+            document.getElementById('modalTxDate').value = txDate;
+            document.getElementById('modalTxDescInput').value = txDesc;
+            document.getElementById('modalTxAmountOut').value = txAmountOut;
+            document.getElementById('modalTxAmountIn').value = txAmountIn;
+            document.getElementById('modalTxCat').value = txCat || '未分類';
+            document.getElementById('modalTxMemo').value = txMemo || '';
+            document.getElementById('modalTxBankName').value = txBank || '';
+            document.getElementById('modalTxBranchName').value = txBranch || '';
+            document.getElementById('modalTxAccountId').value = txAccount || '';
         });
     }
+
+    // Flag toggle via JavaScript fetch (to avoid form nesting issues)
+    document.querySelectorAll('.flag-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const txId = this.getAttribute('data-tx-id');
+            const page = this.getAttribute('data-page');
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            const formData = new FormData();
+            formData.append('action', 'toggle_flag');
+            formData.append('tx_id', txId);
+            formData.append('page', page);
+            formData.append('csrfmiddlewaretoken', csrfToken);
+
+            fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    window.location.href = window.location.pathname + '?page=' + page;
+                }
+            });
+        });
+    });
 });
 </script>
 {% endblock %}

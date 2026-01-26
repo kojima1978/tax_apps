@@ -61,6 +61,12 @@ ENV/
 env/
 .pytest_cache/
 
+# Django
+*.sqlite3
+staticfiles/
+media/
+user_settings.json
+
 # Temporary files
 *.tmp
 *.temp

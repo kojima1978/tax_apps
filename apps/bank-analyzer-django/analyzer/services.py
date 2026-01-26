@@ -159,7 +159,10 @@ class TransactionService:
         amount_out: int,
         amount_in: int,
         category: Optional[str],
-        memo: Optional[str] = None
+        memo: Optional[str] = None,
+        bank_name: Optional[str] = None,
+        branch_name: Optional[str] = None,
+        account_id: Optional[str] = None
     ) -> bool:
         """
         取引データを更新
@@ -173,6 +176,9 @@ class TransactionService:
             amount_in: 入金額
             category: カテゴリー
             memo: メモ
+            bank_name: 銀行名
+            branch_name: 支店名
+            account_id: 口座番号
 
         Returns:
             更新成功の場合True
@@ -188,6 +194,12 @@ class TransactionService:
         tx.amount_in = amount_in
         tx.category = category
         tx.memo = memo.strip() if memo else None
+        if bank_name is not None:
+            tx.bank_name = bank_name.strip() if bank_name else None
+        if branch_name is not None:
+            tx.branch_name = branch_name.strip() if branch_name else None
+        if account_id is not None:
+            tx.account_id = account_id.strip() if account_id else None
         tx.save()
 
         logger.info(f"取引更新: case_id={case.id}, tx_id={tx_id}")
@@ -279,7 +291,7 @@ class AnalysisService:
     """分析機能に関するビジネスロジック"""
 
     STANDARD_CATEGORIES = [
-        "生活費", "贈与", "事業", "関連会社", "銀行", "証券会社", "保険会社", "その他", "未分類"
+        "生活費", "給与", "贈与", "事業・不動産", "関連会社", "銀行", "証券・株式", "保険会社", "その他", "未分類"
     ]
 
     @staticmethod
@@ -337,7 +349,8 @@ class AnalysisService:
 
         # フィルタードロップダウン用のユニークリストを取得
         banks = sorted([b for b in df['bank_name'].dropna().unique() if b])
-        accounts = df['account_id'].unique().tolist()
+        branches = sorted([b for b in df['branch_name'].dropna().unique() if b])
+        accounts = sorted([a for a in df['account_id'].dropna().unique() if a])
         existing_categories = df['category'].dropna().unique().tolist()
         categories = sorted(set(existing_categories + AnalysisService.STANDARD_CATEGORIES))
 
@@ -353,6 +366,7 @@ class AnalysisService:
             'duplicate_txs': duplicate_txs,
             'flagged_txs': flagged_txs,
             'banks': banks,
+            'branches': branches,
             'accounts': accounts,
             'categories': categories,
         }

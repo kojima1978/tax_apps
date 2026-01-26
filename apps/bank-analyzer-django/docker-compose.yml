@@ -28,8 +28,10 @@ services:
     volumes:
       - .:/app
       - ./data:/app/data
+      - sqlite-data:/app/db
     environment:
       - DJANGO_DEBUG=True
+      - DB_PATH=/app/db/db.sqlite3
     command: python manage.py runserver 0.0.0.0:8000
     profiles:
       - dev

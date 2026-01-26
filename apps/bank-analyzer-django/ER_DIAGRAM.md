@@ -5,7 +5,7 @@
 ```mermaid
 erDiagram
     Case ||--o{ Transaction : "has_many (transactions)"
-    
+
     Case {
         integer id PK "自動増分ID"
         varchar(255) name UK "案件名 (Unique)"
@@ -28,7 +28,9 @@ erDiagram
         boolean is_large "多額取引フラグ (Default: False)"
         boolean is_transfer "資金移動フラグ (Default: False)"
         varchar(255) transfer_to "資金移動先推定 (Nullable)"
-        varchar(100) category "分類 (生活費/贈与など) (Nullable)"
+        varchar(100) category "分類 (Default: 未分類)"
+        boolean is_flagged "要確認フラグ (Default: False)"
+        text memo "メモ (Nullable)"
     }
 ```
 
@@ -58,15 +60,18 @@ erDiagram
 | `balance` | Integer | Nullable | 差引残高。 |
 | `account_id` | Varchar(255) | Nullable | 口座識別ID（口座番号や銀行名などから生成）。 |
 | `holder` | Varchar(255) | Nullable | 口座名義人。 |
-| `bank_name` | Varchar(255) | Nullable | **銀行名**。 |
-| `branch_name` | Varchar(255) | Nullable | **支店名**。 |
+| `bank_name` | Varchar(255) | Nullable | 銀行名。 |
+| `branch_name` | Varchar(255) | Nullable | 支店名。 |
 | `is_large` | Boolean | Default False | 多額取引判定フラグ（設定閾値を超えた場合にTrue）。 |
 | `is_transfer` | Boolean | Default False | 資金移動判定フラグ（別口座への移動と推定される場合にTrue）。 |
 | `transfer_to` | Varchar(255) | Nullable | 移動先と推定される口座名などのメモ。 |
-| `category` | Varchar(100) | Nullable | AIまたはルールベースで判定された費目分類（生活費、贈与など）。 |
+| `category` | Varchar(100) | Default '未分類' | AIまたはルールベースで判定された費目分類（生活費、贈与など）。 |
+| `is_flagged` | Boolean | Default False | 要確認フラグ（付箋機能）。後で確認したい取引にマーク。 |
+| `memo` | Text | Nullable | メモ。取引に対する備考や確認事項を記録。 |
 
 ## インデックス設計
 パフォーマンス最適化のため、以下のインデックスが設定されています。
 - `(case_id, date)`: 時系列表示、範囲検索用
 - `(case_id, account_id)`: 口座ごとの絞り込み用
 - `(category)`: 分類ごとの集計用
+- `(case_id, is_flagged)`: 付箋付き取引の検索用
