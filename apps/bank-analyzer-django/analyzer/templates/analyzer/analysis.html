@@ -188,19 +188,15 @@
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1">
-                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}">詳細</button>
+                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}" data-tx-bank="{{ tx.bank_name|default:'' }}" data-tx-branch="{{ tx.branch_name|default:'' }}" data-tx-account="{{ tx.account_id|default:'' }}">詳細</button>
                                     </div>
                                 </td>
                                 <td>
-                                    <form method="post" class="d-inline flag-form">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="toggle_flag">
-                                        <input type="hidden" name="tx_id" value="{{ tx.id }}">
-                                        <input type="hidden" name="source_tab" value="large">
-                                        <button type="submit" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %}" title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
-                                            📌
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %} flag-btn"
+                                        data-tx-id="{{ tx.id }}" data-source-tab="large"
+                                        title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
+                                        📌
+                                    </button>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -335,18 +331,14 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}">詳細</button>
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}" data-tx-bank="{{ tx.bank_name|default:'' }}" data-tx-branch="{{ tx.branch_name|default:'' }}" data-tx-account="{{ tx.account_id|default:'' }}">詳細</button>
                                 </td>
                                 <td>
-                                    <form method="post" class="d-inline flag-form">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="toggle_flag">
-                                        <input type="hidden" name="tx_id" value="{{ tx.id }}">
-                                        <input type="hidden" name="source_tab" value="all">
-                                        <button type="submit" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %}" title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
-                                            📌
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %} flag-btn"
+                                        data-tx-id="{{ tx.id }}" data-source-tab="all"
+                                        title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
+                                        📌
+                                    </button>
                                 </td>
                             </tr>
                             {% empty %}
@@ -503,19 +495,21 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <form method="post" class="d-inline">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="toggle_flag">
-                                        <input type="hidden" name="tx_id" value="{{ tx.id }}">
-                                        <input type="hidden" name="source_tab" value="flagged">
-                                        <button type="submit" class="btn btn-sm btn-info" title="付箋を外す">
-                                            <i class="bi bi-pin-fill"></i>
-                                        </button>
-                                    </form>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" title="メモを編集"
-                                        data-bs-toggle="modal" data-bs-target="#memoModal"
-                                        data-tx-id="{{ tx.id }}" data-tx-memo="{{ tx.memo|default:'' }}">
-                                        <i class="bi bi-sticky"></i>
+                                    <button type="button" class="btn btn-sm btn-info flag-btn"
+                                        data-tx-id="{{ tx.id }}" data-source-tab="flagged"
+                                        title="付箋を外す">
+                                        <i class="bi bi-pin-fill"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-info" title="詳細・編集"
+                                        data-bs-toggle="modal" data-bs-target="#editModal"
+                                        data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}"
+                                        data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}"
+                                        data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}"
+                                        data-tx-memo="{{ tx.memo|default:'' }}"
+                                        data-tx-bank="{{ tx.bank_name|default:'' }}"
+                                        data-tx-branch="{{ tx.branch_name|default:'' }}"
+                                        data-tx-account="{{ tx.account_id|default:'' }}">
+                                        <i class="bi bi-pencil"></i>
                                     </button>
                                 </div>
                             </td>
@@ -548,6 +542,36 @@
                 <input type="hidden" name="source_tab" id="modalSourceTab">
 
                 <div class="modal-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label">銀行名</label>
+                            <select name="bank_name" class="form-select form-select-sm" id="modalTxBankName">
+                                <option value="">-- 選択 --</option>
+                                {% for bank in banks %}
+                                <option value="{{ bank }}">{{ bank }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">支店名</label>
+                            <select name="branch_name" class="form-select form-select-sm" id="modalTxBranchName">
+                                <option value="">-- 選択 --</option>
+                                {% for branch in branches %}
+                                <option value="{{ branch }}">{{ branch }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">口座番号</label>
+                            <select name="account_id" class="form-select form-select-sm" id="modalTxAccountId">
+                                <option value="">-- 選択 --</option>
+                                {% for acc in accounts %}
+                                <option value="{{ acc }}">{{ acc }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label">日付</label>
                         <input type="date" name="date" id="modalTxDate" class="form-control" required>
@@ -586,36 +610,6 @@
 
                     <div class="alert alert-warning py-2 small">
                         <i class="bi bi-info-circle"></i> 日付や金額を変更すると、残高の整合性が取れなくなる可能性があります。
-                    </div>
-                </div>
-                <div class="modal-footer border-top-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Memo Modal -->
-<div class="modal fade" id="memoModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content glass-card">
-            <div class="modal-header border-bottom-0">
-                <h5 class="modal-title"><i class="bi bi-sticky"></i> メモの編集</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="update_memo">
-                <input type="hidden" name="tx_id" id="memoModalTxId">
-                <input type="hidden" name="source_tab" id="memoModalSourceTab" value="flagged">
-
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">メモ</label>
-                        <textarea name="memo" id="memoModalText" class="form-control" rows="4"
-                            placeholder="後で確認したい内容をメモしておきましょう..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer border-top-0">
@@ -667,6 +661,9 @@
         const txAmountIn = button.getAttribute('data-tx-amount-in');
         const txCat = button.getAttribute('data-tx-cat');
         const txMemo = button.getAttribute('data-tx-memo');
+        const txBank = button.getAttribute('data-tx-bank');
+        const txBranch = button.getAttribute('data-tx-branch');
+        const txAccount = button.getAttribute('data-tx-account');
 
         document.getElementById('modalTxId').value = txId;
         document.getElementById('modalTxDate').value = txDate;
@@ -675,6 +672,9 @@
         document.getElementById('modalTxAmountIn').value = txAmountIn;
         document.getElementById('modalTxCat').value = txCat || '未分類';
         document.getElementById('modalTxMemo').value = txMemo || '';
+        document.getElementById('modalTxBankName').value = txBank || '';
+        document.getElementById('modalTxBranchName').value = txBranch || '';
+        document.getElementById('modalTxAccountId').value = txAccount || '';
 
         // 現在のタブを記録
         const activeTab = document.querySelector('#analysisTabs .nav-link.active');
@@ -683,26 +683,6 @@
             document.getElementById('modalSourceTab').value = tabId;
         }
     });
-
-    // Memo Modal Logic
-    const memoModal = document.getElementById('memoModal');
-    if (memoModal) {
-        memoModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const txId = button.getAttribute('data-tx-id');
-            const txMemo = button.getAttribute('data-tx-memo');
-
-            document.getElementById('memoModalTxId').value = txId;
-            document.getElementById('memoModalText').value = txMemo || '';
-
-            // 現在のタブを記録
-            const activeTab = document.querySelector('#analysisTabs .nav-link.active');
-            if (activeTab) {
-                const tabId = activeTab.getAttribute('data-bs-target').replace('#', '');
-                document.getElementById('memoModalSourceTab').value = tabId;
-            }
-        });
-    }
 
     // Select All Duplicates
     const selectAllDup = document.getElementById('selectAllDup');
@@ -733,6 +713,31 @@
             tab.show();
         }
     }
+
+    // 付箋ボタンのクリック処理（フォームネストを回避するため fetch で送信）
+    document.querySelectorAll('.flag-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const txId = this.getAttribute('data-tx-id');
+            const sourceTab = this.getAttribute('data-source-tab');
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            const formData = new FormData();
+            formData.append('action', 'toggle_flag');
+            formData.append('tx_id', txId);
+            formData.append('source_tab', sourceTab);
+            formData.append('csrfmiddlewaretoken', csrfToken);
+
+            fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    // ページをリロードしてタブ位置を保持
+                    window.location.href = window.location.pathname + '?tab=' + sourceTab;
+                }
+            });
+        });
+    });
 </script>
 
 <style>

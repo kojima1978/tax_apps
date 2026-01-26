@@ -81,6 +81,12 @@ class SettingsForm(forms.Form):
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         help_text="カンマ区切りでキーワードを入力"
     )
+    cat_salary = forms.CharField(
+        label="給与 キーワード",
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+        help_text="カンマ区切りでキーワードを入力"
+    )
     cat_gift = forms.CharField(
         label="贈与 キーワード",
         required=False,
@@ -100,7 +106,7 @@ class SettingsForm(forms.Form):
         help_text="カンマ区切りでキーワードを入力"
     )
     cat_security = forms.CharField(
-        label="証券会社 キーワード",
+        label="証券・株式 キーワード",
         required=False,
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         help_text="カンマ区切りでキーワードを入力"

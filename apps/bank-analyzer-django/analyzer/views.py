@@ -174,7 +174,7 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
     """案件詳細ビュー（ページネーション付き）"""
     case = get_object_or_404(Case, pk=pk)
 
-    # POST処理（付箋トグル・メモ更新）
+    # POST処理（付箋トグル・取引更新）
     if request.method == 'POST':
         action = request.POST.get('action')
         tx_id = request.POST.get('tx_id')
@@ -191,15 +191,26 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
                 logger.exception(f"フラグ更新エラー: tx_id={tx_id}, error={e}")
                 messages.error(request, f"エラー: {e}")
 
-        elif action == 'update_memo' and tx_id:
-            memo = request.POST.get('memo', '')
+        elif action == 'update_transaction' and tx_id:
             try:
-                success = TransactionService.update_memo(case, int(tx_id), memo)
+                success = TransactionService.update_transaction(
+                    case,
+                    int(tx_id),
+                    request.POST.get('date'),
+                    request.POST.get('description'),
+                    int(request.POST.get('amount_out') or 0),
+                    int(request.POST.get('amount_in') or 0),
+                    request.POST.get('category'),
+                    request.POST.get('memo'),
+                    request.POST.get('bank_name'),
+                    request.POST.get('branch_name'),
+                    request.POST.get('account_id')
+                )
                 if success:
-                    messages.success(request, "メモを更新しました。")
+                    messages.success(request, "取引データを更新しました。")
             except Exception as e:
-                logger.exception(f"メモ更新エラー: tx_id={tx_id}, error={e}")
-                messages.error(request, f"エラー: {e}")
+                logger.exception(f"取引更新エラー: tx_id={tx_id}, error={e}")
+                messages.error(request, f"更新エラー: {e}")
 
         return redirect(f"{reverse('case-detail', args=[pk])}?page={page}")
 
@@ -216,10 +227,21 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
     except EmptyPage:
         transactions = paginator.page(paginator.num_pages)
 
+    # セレクト用のユニークリストを取得
+    all_txs = case.transactions.all()
+    banks = sorted(set(all_txs.exclude(bank_name__isnull=True).exclude(bank_name='').values_list('bank_name', flat=True)))
+    branches = sorted(set(all_txs.exclude(branch_name__isnull=True).exclude(branch_name='').values_list('branch_name', flat=True)))
+    accounts = sorted(set(all_txs.exclude(account_id__isnull=True).exclude(account_id='').values_list('account_id', flat=True)))
+    categories = AnalysisService.STANDARD_CATEGORIES
+
     context = {
         'case': case,
         'transactions': transactions,
         'total_count': transactions_list.count(),
+        'banks': banks,
+        'branches': branches,
+        'accounts': accounts,
+        'categories': categories,
     }
     return render(request, 'analyzer/case_detail.html', context)
 
@@ -454,6 +476,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'duplicate_txs': analysis_data['duplicate_txs'],
         'flagged_txs': analysis_data['flagged_txs'],
         'banks': analysis_data['banks'],
+        'branches': analysis_data['branches'],
         'accounts': analysis_data['accounts'],
         'categories': analysis_data['categories'],
         'filter_state': filter_state,
@@ -539,7 +562,10 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
                     int(request.POST.get('amount_out') or 0),
                     int(request.POST.get('amount_in') or 0),
                     request.POST.get('category'),
-                    request.POST.get('memo')
+                    request.POST.get('memo'),
+                    request.POST.get('bank_name'),
+                    request.POST.get('branch_name'),
+                    request.POST.get('account_id')
                 )
                 if success:
                     messages.success(request, "取引データを更新しました。")
@@ -604,10 +630,11 @@ def settings_view(request: HttpRequest) -> HttpResponse:
                 "TRANSFER_AMOUNT_TOLERANCE": form.cleaned_data['transfer_amount_tolerance'],
                 "CLASSIFICATION_PATTERNS": {
                     "生活費": _parse_keywords(form.cleaned_data['cat_life']),
+                    "給与": _parse_keywords(form.cleaned_data['cat_salary']),
                     "贈与": _parse_keywords(form.cleaned_data['cat_gift']),
                     "関連会社": _parse_keywords(form.cleaned_data['cat_related']),
                     "銀行": _parse_keywords(form.cleaned_data['cat_bank']),
-                    "証券会社": _parse_keywords(form.cleaned_data['cat_security']),
+                    "証券・株式": _parse_keywords(form.cleaned_data['cat_security']),
                     "保険会社": _parse_keywords(form.cleaned_data['cat_insurance']),
                     "その他": _parse_keywords(form.cleaned_data['cat_other']),
                 }
@@ -622,10 +649,11 @@ def settings_view(request: HttpRequest) -> HttpResponse:
             'transfer_days_window': current_settings.get("TRANSFER_DAYS_WINDOW", 3),
             'transfer_amount_tolerance': current_settings.get("TRANSFER_AMOUNT_TOLERANCE", 1000),
             'cat_life': ", ".join(current_patterns.get("生活費", [])),
+            'cat_salary': ", ".join(current_patterns.get("給与", [])),
             'cat_gift': ", ".join(current_patterns.get("贈与", [])),
             'cat_related': ", ".join(current_patterns.get("関連会社", [])),
             'cat_bank': ", ".join(current_patterns.get("銀行", [])),
-            'cat_security': ", ".join(current_patterns.get("証券会社", [])),
+            'cat_security': ", ".join(current_patterns.get("証券・株式", [])),
             'cat_insurance': ", ".join(current_patterns.get("保険会社", [])),
             'cat_other': ", ".join(current_patterns.get("その他", [])),
         }

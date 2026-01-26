@@ -14,6 +14,15 @@ COPY package.json package-lock.json* ./
 # 依存関係をインストール
 RUN npm ci --omit=dev || npm ci
 
+# 開発用ステージ
+FROM base AS dev
+RUN apk add --no-cache libc6-compat python3 make g++ pkgconfig
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+COPY . .
+CMD ["npm", "run", "dev"]
+
 # ビルド用ステージ
 FROM base AS builder
 # python3とmake、g++をインストール（better-sqlite3のビルドに必要）

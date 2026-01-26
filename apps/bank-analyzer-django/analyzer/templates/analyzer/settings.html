@@ -42,6 +42,10 @@
                             type="button" role="tab">生活費</button>
                     </li>
                     <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="salary-tab" data-bs-toggle="tab" data-bs-target="#salary" type="button"
+                            role="tab">給与</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link" id="gift-tab" data-bs-toggle="tab" data-bs-target="#gift" type="button"
                             role="tab">贈与</button>
                     </li>
@@ -55,7 +59,7 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security"
-                            type="button" role="tab">証券会社</button>
+                            type="button" role="tab">証券・株式</button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="insurance-tab" data-bs-toggle="tab" data-bs-target="#insurance"
@@ -70,6 +74,9 @@
                 <div class="tab-content" id="patternTabsContent">
                     <div class="tab-pane fade show active" id="life" role="tabpanel">
                         {{ form.cat_life|as_crispy_field }}
+                    </div>
+                    <div class="tab-pane fade" id="salary" role="tabpanel">
+                        {{ form.cat_salary|as_crispy_field }}
                     </div>
                     <div class="tab-pane fade" id="gift" role="tabpanel">
                         {{ form.cat_gift|as_crispy_field }}

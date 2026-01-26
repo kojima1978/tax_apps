@@ -37,7 +37,9 @@ POSTGRES_PASSWORD=your_secure_password
 POSTGRES_DB=inheritance_tax_db
 ```
 
-### 2. 起動
+### 1. 起動
+
+開発モードで起動します（高速化のため開発用ビルドを使用）:
 
 ```bash
 # dockerディレクトリに移動
@@ -158,16 +160,7 @@ docker exec gateway_nginx nginx -s reload
 ### Windows環境での注意点
 
 Windows + Docker Desktop環境では、ボリュームマウントでファイル監視が正常に動作しないことがあります。
-Next.jsアプリには以下の設定が必要です:
-
-```yaml
-environment:
-  - WATCHPACK_POLLING=true
-volumes:
-  - ../apps/portal/app:/app
-  - /app/node_modules
-  - /app/.next  # ビルドキャッシュを分離
-```
+現在の設定では `docker-compose.yml` に `WATCHPACK_POLLING=true` がデフォルトで設定されているため、追加の設定は不要です。
 
 ### Node.js バージョン
 
