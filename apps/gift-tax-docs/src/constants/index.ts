@@ -9,6 +9,8 @@ export const COMPANY_INFO = {
   contactLine: 'TEL 088-632-6228 / FAX 088-631-9870',
 } as const;
 
+export * from './giftData';
+
 // 外部リンク
 export const EXTERNAL_LINKS = {
   ntaCheckSheet: {
@@ -36,3 +38,5 @@ export type OptionId =
   | 'sp_housing';
 
 export type OptionSelection = Partial<Record<OptionId, boolean>>;
+
+export type Step = 'menu' | 'check' | 'result';

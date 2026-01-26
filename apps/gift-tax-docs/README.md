@@ -1,30 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 贈与税申告 必要書類案内システム (Gift Tax Docs)
 
-## Getting Started
+贈与税の申告に必要な書類を案内するための Web アプリケーションです。
+ユーザーの状況に応じた必要書類のリストアップや、Excel 形式でのダウンロード機能などを提供します。
 
-First, run the development server with Docker:
+## 主な機能
+
+- **必要書類の案内**: 贈与の種類や特例の適用有無に応じて、必要な書類を動的に表示します。
+- **Excel 出力**: 案内された必要書類リストを Excel ファイルとしてダウンロードできます (`xlsx-js-style` を使用)。
+- **レスポンシブデザイン**: Tailwind CSS v4 を使用したモダンでレスポンシブな UI。
+
+## 技術スタック
+
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+- **UI Library**: [React 19](https://react.dev/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Excel Generation**: [xlsx-js-style](https://www.npmjs.com/package/xlsx-js-style)
+- **Runtime**: Node.js
+
+## 開発環境のセットアップ
+
+### Docker を使用する場合 (推奨)
+
+プロジェクトルート (`tax_apps`) の `docker-compose` を使用して起動します。
+本アプリケーションはポート `3002` で動作します。
 
 ```bash
-docker compose up -d --build
+# プロジェクトルートで実行
+docker compose up -d
 ```
 
-Open [http://localhost:3002/gift-tax-docs](http://localhost:3002/gift-tax-docs) with your browser to see the result.
+アクセス: [http://localhost:3002/gift-tax-docs/](http://localhost:3002/gift-tax-docs/)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Note**: Nginx 経由でアクセスする場合のアドレスです。直接アクセスの場合は構成によりますが `http://localhost:3002` です。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### ローカルで直接実行する場合
 
-## Learn More
+依存関係をインストールして開発サーバーを起動します。
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# 依存関係のインストール
+npm install
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 開発サーバーの起動 (ポート3002を指定)
+npm run dev -- -p 3002
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## ディレクトリ構成
 
-## Deploy on Vercel
+- `src/app`: Next.js App Router のページコンポーネント
+- `src/components`: UI コンポーネント
+  - `GiftTaxDocGuide.tsx`: メインコンポーネント（コンテナ）
+  - `MenuStep.tsx`, `CheckStep.tsx`, `ResultStep.tsx`: 各ステップの画面コンポーネント
+  - `ui/`: 汎用 UI コンポーネント
+- `src/hooks`: カスタムフック
+  - `useGiftTaxGuide.ts`: アプリケーションのロジックと状態管理
+- `src/constants`: 定数・型定義
+- `src/utils`: ユーティリティ関数
+- `public`: 静的アセット
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev`: 開発サーバーを起動
+- `npm run build`: 本番用にビルド
+- `npm run start`: ビルドされたアプリケーションを実行
+- `npm run lint`: ESLint によるコードチェック
