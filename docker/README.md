@@ -1,4 +1,4 @@
-# Portal Launcher Gateway
+# Tax Apps - Docker Environment
 
 税理士業務支援アプリケーション統合プラットフォーム
 
@@ -10,53 +10,54 @@ Docker Composeを使用して、すべてのアプリケーションを一元的
 ## アーキテクチャ
 
 ```
-                    ┌─────────────────┐
-                    │   Nginx Gateway │
-                    │    (Port 80)    │
-                    └───┬────┬────┬───┘
-                        │    │    │
-      ┌─────────────────┘    │    └─────────────────┐
-      │                      │                      │
-      ▼                      ▼                      ▼
-┌───────────────┐  ┌──────────────────┐   ┌───────────────┐
-│  Portal Site  │  │   Applications   │   │   Backends    │
-│  (Port 3000)  │  │ (Medical/Shares) │   │   (API/DB)    │
-└───────────────┘  └──────────────────┘   └───────────────┘
+                         ┌─────────────────────┐
+                         │    Nginx Gateway    │
+                         │      (Port 80)      │
+                         │  - Reverse Proxy    │
+                         │  - Rate Limiting    │
+                         │  - Gzip Compression │
+                         └──────────┬──────────┘
+                                    │
+        ┌───────────────────────────┼───────────────────────────┐
+        │                           │                           │
+        ▼                           ▼                           ▼
+┌───────────────┐         ┌─────────────────┐         ┌─────────────────┐
+│  Portal App   │         │   Frontend Apps │         │  Backend APIs   │
+│  (Port 3000)  │         │  (Next.js/Vite) │         │ (Express/Django)│
+└───────────────┘         └─────────────────┘         └────────┬────────┘
+                                                               │
+                                                      ┌────────┴────────┐
+                                                      │   Databases     │
+                                                      │ (PostgreSQL/    │
+                                                      │  SQLite)        │
+                                                      └─────────────────┘
 ```
 
 ## クイックスタート
 
 ### 1. 環境変数の設定
 
-`.env`ファイルを作成し、必要な環境変数を設定します。
-
 ```bash
-# docker/.env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_secure_password
-POSTGRES_DB=inheritance_tax_db
+# .env.example をコピー
+cp .env.example .env
+
+# .env を編集してパスワードを設定
+# POSTGRES_PASSWORD=your_secure_password
 ```
 
-### 1. 起動
-
-開発モードで起動します（高速化のため開発用ビルドを使用）:
+### 2. 起動
 
 ```bash
-# dockerディレクトリに移動
-cd docker
-
 # Windowsの場合
 start.bat
 
 # または直接実行
-docker compose up -d --build
+docker compose up -d
 ```
 
 ### 3. アクセス
 
-ブラウザで以下のURLにアクセスしてください。
-
-**メインポータル:** [http://localhost](http://localhost)
+ブラウザで http://localhost にアクセス
 
 ### 4. 停止
 
@@ -68,151 +69,178 @@ stop.bat
 docker compose down
 ```
 
-## サービス・アクセス一覧
+## バッチスクリプト
 
-Nginx Gateway (Port 80) を経由して各アプリケーションにアクセスします。
+| スクリプト | 説明 | オプション |
+|-----------|------|-----------|
+| `start.bat` | サービス起動 | `--build`, `--prod` |
+| `stop.bat` | サービス停止 | `--volumes` |
+| `restart.bat` | サービス再起動 | `--build`, `--prod`, `[service]` |
+| `status.bat` | 状態確認 | - |
+| `logs.bat` | ログ表示 | `--no-follow`, `--tail N`, `[service]` |
 
-| アプリケーション | ゲートウェイURL | 直接ポート(Debug用) | 説明 |
-|------------------|----------------|-------------------|------|
-| **Portal Site** | [`http://localhost/`](http://localhost/) | 3000 | メインポータル・ダッシュボード |
-| **Inheritance Tax** | [`http://localhost/inheritance-tax-app/`](http://localhost/inheritance-tax-app/) | 5173 | 相続税計算アプリ |
-| **Gift Tax Simulator** | [`http://localhost/gift-tax-simulator/`](http://localhost/gift-tax-simulator/) | 3001 | 贈与税計算シミュレーター |
-| **Gift Tax Docs** | [`http://localhost/gift-tax-docs/`](http://localhost/gift-tax-docs/) | 3002 | 贈与税申告 必要書類案内 |
-| **Inheritance Tax Docs** | [`http://localhost/inheritance-tax-docs/`](http://localhost/inheritance-tax-docs/) | 3003 | 相続税申告 資料準備ガイド |
-| **Real Estate Tax** | [`http://localhost/real-estate-tax/`](http://localhost/real-estate-tax/) | 3004 | 不動産取得税計算システム |
-| **Tax Docs** | [`http://localhost/tax-docs/`](http://localhost/tax-docs/) | 3005 | 確定申告 必要書類案内 |
+### 使用例
 
-| **Medical Stock** | [`http://localhost/medical/`](http://localhost/medical/) | 3010 | 医療法人株式評価システム |
-| **Shares Valuation** | [`http://localhost/shares/`](http://localhost/shares/) | 3012 | 非上場株式評価システム |
-| **ITCM** | [`http://localhost/itcm/`](http://localhost/itcm/) | 3020 | 相続税案件管理システム |
-| **Bank Analyzer** | [`http://localhost/bank-analyzer/`](http://localhost/bank-analyzer/) | 8501 | 相続銀行分析システム |
+```bash
+# 開発モードで起動（ビルド付き）
+start.bat --build
+
+# 本番モードで起動
+start.bat --prod
+
+# 特定サービスのみ再起動
+restart.bat tax-docs-backend
+
+# ログを確認（最新100行）
+logs.bat --tail 100 gateway
+
+# ボリュームも含めて停止（データ削除）
+stop.bat --volumes
+```
+
+## サービス一覧
+
+### フロントエンド
+
+| アプリケーション | Gateway URL | 直接Port | 説明 |
+|:----------------|:------------|:---------|:-----|
+| Portal | http://localhost/ | 3000 | メインポータル |
+| Tax Docs | http://localhost/tax-docs/ | 3005 | 確定申告 必要書類 |
+| Gift Tax Simulator | http://localhost/gift-tax-simulator/ | 3001 | 贈与税計算 |
+| Gift Tax Docs | http://localhost/gift-tax-docs/ | 3002 | 贈与税 必要書類 |
+| Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | 相続税 資料ガイド |
+| Real Estate Tax | http://localhost/real-estate-tax/ | 3004 | 不動産取得税 |
+| Inheritance Tax App | http://localhost/inheritance-tax-app/ | 5173 | 相続税計算 (Vite) |
+| Medical Stock | http://localhost/medical/ | 3010 | 医療法人株式評価 |
+| Shares Valuation | http://localhost/shares/ | 3012 | 非上場株式評価 |
+| ITCM | http://localhost/itcm/ | 3020 | 案件管理システム |
+| Bank Analyzer | http://localhost/bank-analyzer/ | 8000 | 銀行分析 (Django) |
+
+### バックエンド
+
+| サービス | Port | 説明 |
+|:--------|:-----|:-----|
+| tax-docs-backend | 3006 | 確定申告書類 API |
+| itcm-backend | 3021 | 案件管理 API |
+| itcm-postgres | 3022 | PostgreSQL |
 
 ## ディレクトリ構造
 
 ```
 tax_apps/
 ├── apps/                       # アプリケーションコード
-│   ├── bank-analyzer/
-│   ├── gift-tax-docs/
-│   ├── gift-tax-simulator/
-│   ├── inheritance-case-management/
-│   ├── inheritance-tax-app/
-│   ├── inheritance-tax-docs/
-│   ├── medical-stock-valuation/
-
-│   ├── portal/
-│   ├── real-estate-tax/
-│   ├── Required-documents-for-tax-return/
-│   └── shares-valuation/
+│   ├── portal/                 # ポータルサイト
+│   ├── Required-documents-for-tax-return/  # 確定申告書類
+│   ├── gift-tax-simulator/     # 贈与税計算
+│   ├── gift-tax-docs/          # 贈与税書類
+│   ├── inheritance-tax-docs/   # 相続税資料ガイド
+│   ├── inheritance-tax-app/    # 相続税計算
+│   ├── inheritance-case-management/  # 案件管理
+│   ├── medical-stock-valuation/# 医療法人株式
+│   ├── shares-valuation/       # 非上場株式
+│   ├── real-estate-tax/        # 不動産取得税
+│   └── bank-analyzer-django/   # 銀行分析
 ├── docker/                     # Docker設定
-│   ├── docker-compose.yml
-│   └── .env
+│   ├── docker-compose.yml      # メイン設定
+│   ├── docker-compose.prod.yml # 本番用オーバーライド
+│   ├── .env                    # 環境変数
+│   ├── .env.example            # 環境変数テンプレート
+│   ├── start.bat               # 起動スクリプト
+│   ├── stop.bat                # 停止スクリプト
+│   ├── restart.bat             # 再起動スクリプト
+│   ├── status.bat              # 状態確認スクリプト
+│   ├── logs.bat                # ログ表示スクリプト
+│   └── README.md               # このファイル
 └── nginx/                      # Nginx設定
-    ├── default.conf
-    └── nginx.conf
+    ├── Dockerfile              # Nginxイメージ
+    ├── nginx.conf              # グローバル設定
+    ├── default.conf            # ルーティング設定
+    └── readme.md               # Nginx説明
 ```
 
-## 開発・トラブルシューティング
+## 主な機能
 
-### コンテナの状態確認
-```bash
-docker ps
-```
+### Gateway (Nginx)
 
-### 全サービスの再構築
-コードの変更を反映させる場合などに実施します。
-```bash
-docker compose up -d --build --force-recreate
-```
+- **Gzip圧縮**: CSS, JS, JSON等を自動圧縮
+- **レート制限**: API 30req/s, 一般 50req/s
+- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options等
+- **Keep-Alive**: コネクション再利用
+- **ヘルスチェック**: `/health` エンドポイント
 
-### ログ確認
-```bash
-# Gateway (Nginx) のログ
-docker logs gateway_nginx
+### Docker Compose
 
-# 特定のアプリのログ
-docker logs portal_app
-docker logs medical-stock-valuation
-```
-
-## 技術スタック
-- **Frontend**: Next.js 16, React 19, Vite
-- **Backend**: FastAPI, Express, Node.js
-- **Database**: PostgreSQL, SQLite
-- **Infrastructure**: Docker, Docker Compose, Nginx
-- **Node.js**: v22/v24 LTS
+- **ログローテーション**: 10MB × 3ファイル
+- **リソース制限**: メモリ上限設定
+- **ヘルスチェック**: 全サービスに設定
+- **依存関係管理**: service_healthy条件
+- **名前付きボリューム**: データ永続化
 
 ## トラブルシューティング
+
+### コンテナが起動しない
+
+```bash
+# ログを確認
+docker compose logs [service-name]
+
+# 全コンテナの状態を確認
+docker compose ps -a
+```
 
 ### 502 Bad Gateway
 
 ```bash
-# 全コンテナの状態確認
-docker ps -a
+# Gatewayのログを確認
+docker compose logs gateway
 
-# portal_appが再起動を繰り返す場合
-docker logs portal_app --tail=50
+# バックエンドサービスの状態を確認
+status.bat
 
 # Nginxをリロード
-docker exec gateway_nginx nginx -s reload
+docker exec tax-apps-gateway nginx -s reload
 ```
 
-### Windows環境での注意点
+### データベース接続エラー
+
+```bash
+# PostgreSQLの状態を確認
+docker compose logs itcm-postgres
+
+# 直接接続テスト
+docker exec -it itcm-postgres psql -U postgres -d inheritance_tax_db
+```
+
+### ホットリロードが効かない
 
 Windows + Docker Desktop環境では、ボリュームマウントでファイル監視が正常に動作しないことがあります。
-現在の設定では `docker-compose.yml` に `WATCHPACK_POLLING=true` がデフォルトで設定されているため、追加の設定は不要です。
+`WATCHPACK_POLLING=true` が設定済みですが、変更が反映されない場合はコンテナを再起動してください。
 
-### Node.js バージョン
-
-Next.js 16 (Turbopack) は Node.js 22/24 どちらでも動作します。
-Portal AppのみPrisma 7との互換性のためNode.js 22を使用しています:
-
-```dockerfile
-# Portal App
-FROM node:22
-
-# その他のアプリ
-FROM node:24-slim
+```bash
+restart.bat [service-name]
 ```
 
-### localhost vs 127.0.0.1
+## 本番環境
 
-環境によっては`localhost`への接続がタイムアウトする場合があります。
-その場合は`127.0.0.1`を使用してください:
+```bash
+# 本番用設定で起動
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-```
-http://127.0.0.1/          # ポータル
-http://127.0.0.1/medical/  # 医療法人株式評価
-```
-
-### Geistフォント（Docker + Turbopack）
-
-Docker環境でTurbopackを使用する場合、`next/font/google`のGeistフォントがエラーになることがあります。
-この場合はシステムフォントに変更してください:
-
-```tsx
-// 変更前（エラーになる場合あり）
-import { Geist, Geist_Mono } from "next/font/google";
-
-// 変更後
-// フォントのimportを削除し、bodyのclassNameからフォント変数を削除
-<body className="antialiased">
+# または
+start.bat --prod
 ```
 
-### Portal App (Prisma 7対応)
+本番環境では以下が変更されます:
 
-Portal AppはPrisma 7を使用しており、Docker環境では`libsql`の代わりに`better-sqlite3`を使用します。
-Dockerfileでビルド時に以下の処理を行います:
+- `NODE_ENV=production`
+- ボリュームマウント無効化
+- リソース制限の最適化
+- Djangoの `DJANGO_DEBUG=False`
 
-1. `@prisma/adapter-libsql`と`@libsql/client`をpackage.jsonから除外
-2. `@prisma/adapter-better-sqlite3`をインストール
-3. Docker用の`prisma.config.ts`と`lib/prisma.ts`を生成
+## 技術スタック
 
-```dockerfile
-# Docker用のprisma.tsを作成（better-sqlite3ドライバを使用）
-RUN npm install @prisma/adapter-better-sqlite3 better-sqlite3 @types/better-sqlite3
-```
-
-### Shares Valuation
-
-非上場株式評価システムは`public`フォルダを使用しないため、Dockerfileから該当のCOPY命令を削除しています。
+- **Frontend**: Next.js 16, React 19, Vite
+- **Backend**: Express, Django, FastAPI
+- **Database**: PostgreSQL 16, SQLite
+- **Infrastructure**: Docker, Nginx 1.27
+- **Node.js**: v22 LTS

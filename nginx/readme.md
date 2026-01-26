@@ -1,6 +1,6 @@
 # Nginx Gateway Configuration
 
-このディレクトリには、Tax Apps プロジェクトのゲートウェイ（リバースプロキシ）として機能する Nginx の設定ファイルが含まれています。
+Tax Apps プロジェクトのゲートウェイ（リバースプロキシ）として機能する Nginx の設定ファイルです。
 
 ## 概要
 
@@ -8,40 +8,164 @@
 
 ## ファイル構成
 
-- `nginx.conf`: Nginx のグローバル設定（ワーカープロセス、ログ設定など）。
-- `default.conf`: サーバーブロック設定（ルーティングルール、プロキシ設定）。
+```
+nginx/
+├── Dockerfile      # カスタムNginxイメージ
+├── nginx.conf      # グローバル設定（ワーカー、Gzip、セキュリティ等）
+├── default.conf    # サーバーブロック設定（ルーティングルール）
+└── readme.md       # このファイル
+```
+
+## 主な機能
+
+### パフォーマンス最適化
+
+- **Gzip圧縮**: テキスト、CSS、JS、JSONなどを自動圧縮
+- **Keep-Alive**: コネクション再利用で高速化
+- **静的ファイルキャッシュ**: 画像、CSS、JSを1ヶ月キャッシュ
+- **プロキシキャッシュ**: バックエンド負荷軽減
+
+### セキュリティ
+
+- **レート制限**: API 30req/s、一般 50req/s
+- **接続数制限**: 1IPあたり50接続
+- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options等
+- **サーバー情報非表示**: server_tokens off
+
+### 監視
+
+- **ヘルスチェック**: `/health` エンドポイント
+- **Nginx Status**: `/nginx-status` (内部ネットワークのみ)
+- **詳細ログ**: レスポンスタイム、アップストリーム時間
 
 ## ルーティング一覧
 
-`default.conf` に定義されているルーティングルールは以下の通りです。
-
-| URL Path | 宛先サービス (Container:Port) | 説明 |
-| :--- | :--- | :--- |
+| URL Path | 宛先サービス | 説明 |
+|:---------|:-------------|:-----|
 | `/` | `portal-app:3000` | ポータルサイト (Next.js) |
-| `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価システム |
-| `/shares/` | `shares-valuation:3012` | 非上場株式評価システム |
-| `/inheritance-tax-app/` | `inheritance-tax-app:5173` | 相続税計算アプリ (Vite/React) |
-| `/itcm/` | `itcm-frontend:3020` | 相続税案件管理システム (Front) |
-| `/itcm-api/` | `itcm-backend:3021` | 相続税案件管理システム (API) |
-| `/bank-analyzer/` | `bank-analyzer:8000` | 相続銀行分析システム (Django) |
-| `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税計算シミュレーター |
-| `/gift-tax-docs/` | `gift-tax-docs:3002` | 贈与税申告 必要書類案内 |
-| `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税申告 資料準備ガイド |
-| `/real-estate-tax/` | `real-estate-tax:3004` | 不動産取得税計算システム |
 | `/tax-docs/` | `tax-docs-frontend:3000` | 確定申告 必要書類 (Front) |
 | `/tax-docs-api/` | `tax-docs-backend:3001` | 確定申告 必要書類 (API) |
+| `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Front) |
+| `/itcm-api/` | `itcm-backend:3021` | 相続税案件管理 (API) |
+| `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価 |
+| `/shares/` | `shares-valuation:3012` | 非上場株式評価 |
+| `/inheritance-tax-app/` | `inheritance-tax-app:5173` | 相続税計算 (Vite) |
+| `/bank-analyzer/` | `bank-analyzer:8000` | 銀行分析 (Django) |
+| `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税シミュレーター |
+| `/gift-tax-docs/` | `gift-tax-docs:3002` | 贈与税 必要書類 |
+| `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド |
+| `/real-estate-tax/` | `real-estate-tax:3004` | 不動産取得税計算 |
 
-## Docker Compose 設定
-
-この設定は `docker-compose.yml` 内で以下のようにマウントされています。
+## Docker Compose 設定例
 
 ```yaml
 services:
   gateway:
-    image: nginx:alpine
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: tax-apps-gateway
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - portal-app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
+
+または、ボリュームマウントで設定ファイルを使用する場合:
+
+```yaml
+services:
+  gateway:
+    image: nginx:1.27-alpine
+    container_name: tax-apps-gateway
     ports:
       - "80:80"
     volumes:
-      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+```
+
+## 設定のカスタマイズ
+
+### レート制限の調整
+
+`nginx.conf` の以下の部分を変更:
+
+```nginx
+# APIエンドポイント: 30リクエスト/秒
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/s;
+
+# 一般ページ: 50リクエスト/秒
+limit_req_zone $binary_remote_addr zone=general_limit:10m rate=50r/s;
+```
+
+### タイムアウトの調整
+
+`default.conf` の以下の部分を変更:
+
+```nginx
+proxy_connect_timeout 60s;
+proxy_send_timeout 60s;
+proxy_read_timeout 60s;
+```
+
+### 新しいアプリの追加
+
+1. `nginx.conf` にアップストリーム追加:
+
+```nginx
+upstream new-app {
+    server new-app:3000;
+    keepalive 8;
+}
+```
+
+2. `default.conf` にロケーション追加:
+
+```nginx
+location /new-app/ {
+    limit_req zone=general_limit burst=20 nodelay;
+    proxy_pass http://new-app;
+}
+```
+
+## トラブルシューティング
+
+### 設定の検証
+
+```bash
+docker exec tax-apps-gateway nginx -t
+```
+
+### 設定のリロード
+
+```bash
+docker exec tax-apps-gateway nginx -s reload
+```
+
+### ログの確認
+
+```bash
+# アクセスログ
+docker exec tax-apps-gateway tail -f /var/log/nginx/access.log
+
+# エラーログ
+docker exec tax-apps-gateway tail -f /var/log/nginx/error.log
+```
+
+### 接続状況の確認
+
+```bash
+curl http://localhost/nginx-status
 ```
