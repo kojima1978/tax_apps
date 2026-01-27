@@ -17,12 +17,13 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { ArrowLeft, Printer, Save, Copy, Loader2, FileSpreadsheet, Check, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Printer, Save, Copy, Loader2, FileSpreadsheet, Check, RotateCcw, PlusCircle, RefreshCcw } from 'lucide-react';
 import { exportToExcel } from '@/utils/exportExcel';
 import { CategoryGroup } from '@/types';
 import { SortableCategory } from './document-list/SortableCategory';
 import { formatDate } from '@/utils/date';
 import { fetchStaff, fetchCustomerNames } from '@/utils/api';
+import { taxReturnData, replaceYearPlaceholder } from '@/data/taxReturnData';
 
 interface DocumentListScreenProps {
   year: number;
@@ -547,9 +548,17 @@ export default function DocumentListScreen({
       </div>
 
       {/* 印刷用ヘッダー */}
-      <div className="hidden print:block text-center border-b-2 border-slate-800 pb-4 mb-6 pt-4">
-        <h1 className="text-2xl font-bold mb-2">確定申告 必要書類確認リスト</h1>
-        <div className="flex justify-between items-end px-4">
+      <div className="hidden print:block border-b-2 border-slate-800 pb-4 mb-6 pt-8">
+        <div className="flex justify-between items-start mb-4">
+          <h1 className="text-2xl font-bold mt-4">確定申告 必要書類確認リスト</h1>
+          <div className="text-right text-xs text-slate-600">
+            <p className="font-bold text-sm text-slate-800">{taxReturnData.contactInfo.office}</p>
+            <p>{taxReturnData.contactInfo.address}</p>
+            <p>TEL: {taxReturnData.contactInfo.tel}</p>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-end px-2">
           <div className="text-left">
             <p className="text-sm">対象年度: <span className="font-bold text-lg">令和{year - 2018}年分</span></p>
             <p className="text-sm">担当者: <span className="font-bold">{staffName}</span></p>
@@ -662,6 +671,71 @@ export default function DocumentListScreen({
                   キャンセル
                 </button>
               </div>
+
+              {/* 復元可能なカテゴリのリスト */}
+              {(() => {
+                // 現在のグループIDのセットを作成
+                const currentGroupIds = new Set(documentGroups.map(g => g.id));
+
+                // 不足しているデフォルトカテゴリを検出
+                const missingDefaults = [
+                  ...taxReturnData.baseRequired.map((g, i) => ({ id: `base_${i}`, category: g.category, original: g, type: 'base' })),
+                  ...taxReturnData.options.map(o => ({ id: `option_${o.id}`, category: `【所得】${o.label}`, original: o, type: 'option' })),
+                  ...taxReturnData.deductions.map(d => ({ id: `deduction_${d.id}`, category: `【控除】${d.label}`, original: d, type: 'deduction' }))
+                ].filter(item => !currentGroupIds.has(item.id));
+
+                if (missingDefaults.length === 0) return null;
+
+                return (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <p className="text-sm text-slate-500 mb-2 font-bold mb-2 flex items-center">
+                      <RefreshCcw className="w-3 h-3 mr-1" />
+                      削除されたデフォルトカテゴリを復元:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {missingDefaults.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            let documents: string[] = [];
+                            let note: string | undefined = undefined;
+
+                            if (item.type === 'base') {
+                              const original = item.original as { documents: string[], note?: string };
+                              documents = original.documents;
+                              note = original.note;
+                            } else {
+                              const original = item.original as { documents: string[] };
+                              documents = original.documents;
+                            }
+
+                            const newGroup: CategoryGroup = {
+                              id: item.id,
+                              category: item.category,
+                              documents: documents.map((doc, idx) => ({
+                                id: `doc_${Date.now()}_${idx}`,
+                                text: replaceYearPlaceholder(doc, year),
+                                checked: false,
+                                subItems: []
+                              })),
+                              note: note
+                            };
+
+                            onDocumentGroupsChange([...documentGroups, newGroup]);
+                            setExpandedGroups(prev => ({ ...prev, [newGroup.id]: true }));
+                            setAddingNewCategory(false);
+                            setNewCategoryName('');
+                          }}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 text-xs rounded-full border border-slate-200 hover:border-emerald-200 transition-colors flex items-center"
+                        >
+                          <PlusCircle className="w-3 h-3 mr-1" />
+                          {item.category}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <button
