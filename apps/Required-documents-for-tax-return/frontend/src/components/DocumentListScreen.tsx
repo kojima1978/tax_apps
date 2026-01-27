@@ -558,14 +558,16 @@ export default function DocumentListScreen({
           </div>
         </div>
 
-        <div className="flex justify-between items-end px-2">
-          <div className="text-left">
+        <div className="flex flex-col items-start px-2 gap-4">
+          <div>
             <p className="text-sm">対象年度: <span className="font-bold text-lg">令和{year - 2018}年分</span></p>
-            <p className="text-sm">担当者: <span className="font-bold">{staffName}</span></p>
           </div>
-          <div className="text-right">
+          <div>
             <p className="text-sm">お客様名:</p>
             <p className="text-2xl font-bold underline decoration-slate-400 underline-offset-4">{customerName} 様</p>
+          </div>
+          <div>
+            <p className="text-sm">担当者: <span className="font-bold">{staffName}</span></p>
           </div>
         </div>
       </div>
