@@ -580,7 +580,7 @@ export default function DocumentListScreen({
                     isExpanded={expandedGroups[group.id] || false}
                     onToggleExpand={() => toggleGroup(group.id)}
                     onToggleDocumentCheck={(groupId, docId) => toggleDocumentCheck(groupId, docId)}
-                    onDeleteDocument={(docId) => deleteDocument(group.id, docId)}
+                    onDeleteDocument={deleteDocument}
                     onStartEditDocument={startEditDocument}
                     editingDocId={editingDocId}
                     editText={editText}
@@ -609,14 +609,14 @@ export default function DocumentListScreen({
                     editingSubItemId={editingSubItemId}
                     editSubItemText={editSubItemText}
                     onEditSubItemTextChange={setEditSubItemText}
-                    onSaveEditSubItem={(docId) => saveEditSubItem(group.id, docId)}
+                    onSaveEditSubItem={saveEditSubItem}
                     onCancelEditSubItem={cancelEditSubItem}
-                    onDeleteSubItem={(docId, subId) => deleteSubItem(group.id, docId, subId)}
+                    onDeleteSubItem={deleteSubItem}
                     onStartAddSubItem={startAddSubItem}
                     addingSubItemToDocId={addingSubItemToDocId}
                     newSubItemText={newSubItemText}
                     onNewSubItemTextChange={setNewSubItemText}
-                    onAddSubItem={(docId) => addSubItem(group.id, docId)}
+                    onAddSubItem={addSubItem}
                     onCancelAddSubItem={cancelAddSubItem}
                   />
                 </div>
