@@ -9,6 +9,7 @@ import Link from 'next/link';
 export default function CreateStaffPage() {
     const router = useRouter();
     const [name, setName] = useState('');
+    const [mobileNumber, setMobileNumber] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +20,7 @@ export default function CreateStaffPage() {
         setIsSubmitting(true);
         setError(null);
         try {
-            await addStaff(name);
+            await addStaff(name, mobileNumber);
             router.push('/staff');
         } catch (e: any) {
             setError(e.message || '登録に失敗しました');
@@ -45,7 +46,7 @@ export default function CreateStaffPage() {
                     )}
 
                     <form onSubmit={handleSubmit}>
-                        <div className="mb-8">
+                        <div className="mb-4">
                             <label className="block text-sm font-bold text-slate-700 mb-2">
                                 担当者名
                             </label>
@@ -56,6 +57,19 @@ export default function CreateStaffPage() {
                                 placeholder="例：山田 太郎"
                                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                                 autoFocus
+                            />
+                        </div>
+
+                        <div className="mb-8">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">
+                                携帯電話番号 <span className="text-xs font-normal text-slate-500">（任意）</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={mobileNumber}
+                                onChange={(e) => setMobileNumber(e.target.value)}
+                                placeholder="例：090-1234-5678"
+                                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                             />
                         </div>
 

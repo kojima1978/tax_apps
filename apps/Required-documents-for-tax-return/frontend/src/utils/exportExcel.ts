@@ -71,7 +71,7 @@ const styles = {
   },
 };
 
-export function exportToExcel(documentGroups: CategoryGroup[], year: number, customerName: string = '', staffName: string = ''): void {
+export function exportToExcel(documentGroups: CategoryGroup[], year: number, customerName: string = '', staffName: string = '', mobileNumber?: string): void {
   const data: { v: string | number; s?: object }[][] = [];
   const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
 
@@ -85,14 +85,20 @@ export function exportToExcel(documentGroups: CategoryGroup[], year: number, cus
   merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }); // タイトル全列結合
 
   // お客様名・担当者名行
-  const infoLabelStyle = { font: { sz: 10, color: { rgb: '6B7280' } }, alignment: { horizontal: 'left', vertical: 'center' } };
-  const infoValueStyle = { font: { sz: 10, color: { rgb: '374151' } }, alignment: { horizontal: 'left', vertical: 'center' } };
+  // A2:B2を結合して「お客様名：」（左詰め、文字小さく）
+  // C2に「〇〇〇〇様」
+  // D2に「担当：〇〇〇」（右詰め、文字小さく）
+  const infoLabelStyle = { font: { sz: 9, color: { rgb: '6B7280' } }, alignment: { horizontal: 'left', vertical: 'center' } }; // ラベルは左寄せ、文字小さく
+  const customerNameStyle = { font: { bold: true, sz: 12, color: { rgb: '374151' } }, alignment: { horizontal: 'left', vertical: 'center' } };
+  const staffStyle = { font: { sz: 9, color: { rgb: '6B7280' } }, alignment: { horizontal: 'right', vertical: 'bottom' } };
+
   data.push([
-    { v: 'お客様名:', s: infoLabelStyle },
-    { v: customerName || '', s: infoValueStyle },
-    { v: '担当者:', s: infoLabelStyle },
-    { v: staffName || '', s: infoValueStyle },
+    { v: 'お客様名：', s: infoLabelStyle },
+    { v: '', s: infoLabelStyle },
+    { v: `${customerName || ''} 様`, s: customerNameStyle },
+    { v: `担当：${staffName || ''}`, s: staffStyle },
   ]);
+  merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }); // お客様名ラベル A2:B2結合
 
   // ヘッダー行（背景色なし）
   data.push([
@@ -204,6 +210,18 @@ export function exportToExcel(documentGroups: CategoryGroup[], year: number, cus
   ]);
   merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
   currentRow++;
+
+  // 携帯電話番号（ある場合のみ、C列とD列を結合）
+  if (mobileNumber) {
+    data.push([
+      { v: '', s: {} },
+      { v: '', s: {} },
+      { v: `携帯: ${mobileNumber}`, s: footerStyle },
+      { v: '', s: footerStyle },
+    ]);
+    merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
+    currentRow++;
+  }
 
   // 発行日（C列とD列を結合）
   const dateStyle = { font: { sz: 9, color: { rgb: '9CA3AF' } }, alignment: { horizontal: 'right' } };

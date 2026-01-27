@@ -14,6 +14,7 @@ export interface DocumentItem {
 export interface Staff {
     id: number;
     staff_name: string;
+    mobile_number?: string | null;
     created_at?: string;
     updated_at?: string;
 }

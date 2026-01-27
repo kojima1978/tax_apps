@@ -24,6 +24,7 @@ import { SortableCategory } from './document-list/SortableCategory';
 import { formatDate } from '@/utils/date';
 import { fetchStaff, fetchCustomerNames } from '@/utils/api';
 import { taxReturnData, replaceYearPlaceholder } from '@/data/taxReturnData';
+import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 
 interface DocumentListScreenProps {
   year: number;
@@ -424,7 +425,8 @@ export default function DocumentListScreen({
   };
 
   const handleExportExcel = () => {
-    exportToExcel(documentGroups, year, customerName, staffName);
+    const currentStaff = staffList.find(s => s.staff_name === staffName);
+    exportToExcel(documentGroups, year, customerName, staffName, currentStaff?.mobile_number || undefined);
   };
 
   return (
@@ -454,6 +456,18 @@ export default function DocumentListScreen({
                 変更を破棄
               </button>
               <button
+                onClick={() => {
+                  if (confirm('標準の状態に戻しますか？現在の変更はすべて失われます。')) {
+                    onDocumentGroupsChange(generateInitialDocumentGroups(year));
+                  }
+                }}
+                className="flex items-center px-3 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium disabled:opacity-50"
+                title="初期状態（標準リスト）に戻します"
+              >
+                <RefreshCcw className="w-4 h-4 mr-2" />
+                標準に戻す
+              </button>
+              <button
                 onClick={onSave}
                 disabled={isSaving || !customerName || !staffName}
                 className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold shadow-sm disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
@@ -480,12 +494,12 @@ export default function DocumentListScreen({
                 <span className="text-sm font-bold text-slate-800">令和{year - 2018}年分</span>
               </div>
               <div className="flex items-center">
-                <span className="text-xs font-bold text-slate-500 mr-2">担当者:</span>
-                <span className="text-sm font-bold text-slate-800">{staffName}</span>
-              </div>
-              <div className="flex items-center">
                 <span className="text-xs font-bold text-slate-500 mr-2">お客様:</span>
                 <span className="text-lg font-bold text-slate-800">{customerName}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="text-xs font-bold text-slate-500 mr-2">担当者:</span>
+                <span className="text-sm font-bold text-slate-800">{staffName}</span>
               </div>
             </div>
           </div>
@@ -548,26 +562,27 @@ export default function DocumentListScreen({
       </div>
 
       {/* 印刷用ヘッダー */}
-      <div className="hidden print:block border-b-2 border-slate-800 pb-4 mb-6 pt-8">
-        <div className="flex justify-between items-start mb-4">
-          <h1 className="text-2xl font-bold mt-4">確定申告 必要書類確認リスト</h1>
-          <div className="text-right text-xs text-slate-600">
+      <div className="hidden print:block border-b-2 border-slate-800 pb-2 mb-6 pt-8">
+        <div className="flex justify-between items-end">
+          <div className="flex flex-col">
+            <div className="text-left mb-0.5">
+              <p className="text-xs">対象年度: <span className="font-bold text-sm">令和{year - 2018}年分</span></p>
+            </div>
+            <h1 className="text-2xl font-bold mb-1">確定申告 必要書類確認リスト</h1>
+            <div className="flex items-end gap-2 mb-1">
+              <p className="text-sm pb-1">お客様名:</p>
+              <p className="text-xl font-bold underline decoration-slate-400 underline-offset-4">{customerName} 様</p>
+            </div>
+          </div>
+
+          <div className="text-right text-xs text-slate-600 mb-1">
             <p className="font-bold text-sm text-slate-800">{taxReturnData.contactInfo.office}</p>
             <p>{taxReturnData.contactInfo.address}</p>
             <p>TEL: {taxReturnData.contactInfo.tel}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-start px-2 gap-4">
-          <div>
-            <p className="text-sm">対象年度: <span className="font-bold text-lg">令和{year - 2018}年分</span></p>
-          </div>
-          <div>
-            <p className="text-sm">お客様名:</p>
-            <p className="text-2xl font-bold underline decoration-slate-400 underline-offset-4">{customerName} 様</p>
-          </div>
-          <div>
-            <p className="text-sm">担当者: <span className="font-bold">{staffName}</span></p>
+            {staffList.find(s => s.staff_name === staffName)?.mobile_number && (
+              <p>携帯: {staffList.find(s => s.staff_name === staffName)?.mobile_number}</p>
+            )}
+            <p className="mt-1 text-sm text-slate-800">担当者: <span className="font-bold">{staffName}</span></p>
           </div>
         </div>
       </div>
@@ -583,9 +598,9 @@ export default function DocumentListScreen({
             items={documentGroups.map((g) => g.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className={`space-y-6 print:space-y-0 ${printLayout === 'double' ? 'print:grid print:grid-cols-2 print:gap-2 print:items-start' : 'print:space-y-2'}`}>
+            <div className={`space-y-6 print:space-y-0 ${printLayout === 'double' ? 'print:grid print:grid-cols-2 print:gap-2 print:items-start' : 'print:space-y-0'}`}>
               {documentGroups.map((group) => (
-                <div key={group.id} style={{ breakInside: 'avoid' }} className="print:mb-2">
+                <div key={group.id} className="print:mb-1">
                   <SortableCategory
                     group={group}
                     isExpanded={expandedGroups[group.id] || false}
