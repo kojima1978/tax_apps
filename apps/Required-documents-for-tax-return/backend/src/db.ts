@@ -31,10 +31,23 @@ export function initializeDb(): void {
       CREATE TABLE IF NOT EXISTS staff (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         staff_name TEXT NOT NULL UNIQUE,
+        mobile_number TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Migration: Add mobile_number if not exists
+    try {
+      const columns = db.pragma('table_info(staff)') as { name: string }[];
+      const hasMobileNumber = columns.some(col => col.name === 'mobile_number');
+      if (!hasMobileNumber) {
+        console.log('Migrating: Adding mobile_number to staff table...');
+        db.exec('ALTER TABLE staff ADD COLUMN mobile_number TEXT');
+      }
+    } catch (e) {
+      console.error('Migration for mobile_number failed:', e);
+    }
 
     // Customers table (ensure generic structure)
     db.exec(`
@@ -107,21 +120,22 @@ export function getAllStaff(): Staff[] {
   });
 }
 
-export function createStaff(staffName: string): Staff {
+export function createStaff(staffName: string, mobileNumber?: string): Staff {
   return withDb((db) => {
-    const info = db.prepare('INSERT INTO staff (staff_name) VALUES (?)').run(staffName);
+    const info = db.prepare('INSERT INTO staff (staff_name, mobile_number) VALUES (?, ?)').run(staffName, mobileNumber || null);
     return {
       id: info.lastInsertRowid as number,
       staff_name: staffName,
+      mobile_number: mobileNumber || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
   });
 }
 
-export function updateStaff(id: number, staffName: string): boolean {
+export function updateStaff(id: number, staffName: string, mobileNumber?: string): boolean {
   return withDb((db) => {
-    const info = db.prepare('UPDATE staff SET staff_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(staffName, id);
+    const info = db.prepare('UPDATE staff SET staff_name = ?, mobile_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(staffName, mobileNumber || null, id);
     // Also update denormalized staff_name in customers for backward compatibility
     if (info.changes > 0) {
       db.prepare('UPDATE customers SET staff_name = ? WHERE staff_id = ?').run(staffName, id);

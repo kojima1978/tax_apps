@@ -196,11 +196,11 @@ export async function fetchStaff(): Promise<Staff[]> {
   return data.staff || [];
 }
 
-export async function addStaff(staffName: string): Promise<Staff> {
+export async function addStaff(staffName: string, mobileNumber?: string): Promise<Staff> {
   const response = await fetch(`${API_BASE_URL}/api/staff`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ staffName }),
+    body: JSON.stringify({ staffName, mobileNumber }),
   });
   if (!response.ok) {
     const error = await response.json();
@@ -210,11 +210,11 @@ export async function addStaff(staffName: string): Promise<Staff> {
   return data.staff;
 }
 
-export async function updateStaffName(id: number, staffName: string): Promise<boolean> {
+export async function updateStaffName(id: number, staffName: string, mobileNumber?: string): Promise<boolean> {
   const response = await fetch(`${API_BASE_URL}/api/staff/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ staffName }),
+    body: JSON.stringify({ staffName, mobileNumber }),
   });
   return response.ok;
 }

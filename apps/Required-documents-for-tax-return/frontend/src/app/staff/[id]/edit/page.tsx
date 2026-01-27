@@ -12,6 +12,7 @@ export default function EditStaffPage() {
     const id = Number(params.id);
 
     const [name, setName] = useState('');
+    const [mobileNumber, setMobileNumber] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -27,6 +28,7 @@ export default function EditStaffPage() {
             const target = staffList.find(s => s.id === id);
             if (target) {
                 setName(target.staff_name);
+                setMobileNumber(target.mobile_number || '');
             } else {
                 setError('担当者が見つかりませんでした');
             }
@@ -44,7 +46,7 @@ export default function EditStaffPage() {
         setIsSubmitting(true);
         setError(null);
         try {
-            await updateStaffName(id, name);
+            await updateStaffName(id, name, mobileNumber);
             router.push('/staff');
         } catch (e: any) {
             setError(e.message || '更新に失敗しました');
@@ -78,7 +80,7 @@ export default function EditStaffPage() {
                     )}
 
                     <form onSubmit={handleSubmit}>
-                        <div className="mb-8">
+                        <div className="mb-4">
                             <label className="block text-sm font-bold text-slate-700 mb-2">
                                 担当者名
                             </label>
@@ -86,6 +88,19 @@ export default function EditStaffPage() {
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                            />
+                        </div>
+
+                        <div className="mb-8">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">
+                                携帯電話番号 <span className="text-xs font-normal text-slate-500">（任意）</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={mobileNumber}
+                                onChange={(e) => setMobileNumber(e.target.value)}
+                                placeholder="例：090-1234-5678"
                                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                             />
                         </div>

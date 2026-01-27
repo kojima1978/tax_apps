@@ -130,12 +130,12 @@ app.get('/api/staff', (_req, res) => {
 
 // Create staff
 app.post('/api/staff', (req, res) => {
-  const { staffName } = req.body;
+  const { staffName, mobileNumber } = req.body;
   if (!staffName || typeof staffName !== 'string' || !staffName.trim()) {
     return res.status(400).json({ error: 'Valid staffName is required' });
   }
   try {
-    const staff = createStaff(staffName.trim());
+    const staff = createStaff(staffName.trim(), mobileNumber);
     res.json({ staff });
   } catch (e: any) {
     if (e.message.includes('UNIQUE constraint failed')) {
@@ -148,13 +148,13 @@ app.post('/api/staff', (req, res) => {
 // Update staff
 app.put('/api/staff/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { staffName } = req.body;
+  const { staffName, mobileNumber } = req.body;
 
   if (isNaN(id) || !staffName || typeof staffName !== 'string' || !staffName.trim()) {
     return res.status(400).json({ error: 'Valid ID and staffName are required' });
   }
 
-  const success = updateStaff(id, staffName.trim());
+  const success = updateStaff(id, staffName.trim(), mobileNumber);
   if (!success) {
     return res.status(404).json({ error: 'Staff not found' });
   }

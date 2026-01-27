@@ -104,6 +104,7 @@ export const taxReturnData: TaxReturnData = {
       documents: [
         "給与所得の源泉徴収票（令和{{year}}年分）",
         "公的年金等の源泉徴収票（令和{{year}}年分）",
+        "個人年金の支払調書（令和{{year}}年分）",
         "退職所得の源泉徴収票"
       ]
     },
