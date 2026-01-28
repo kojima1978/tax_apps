@@ -16,7 +16,7 @@ RUN npm ci --omit=dev || npm ci
 
 # 開発用ステージ
 FROM base AS dev
-RUN apk add --no-cache libc6-compat python3 make g++ pkgconfig
+RUN apk add --no-cache libc6-compat python3 make g++ pkgconfig curl tini tzdata
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
@@ -47,7 +47,8 @@ RUN npm run build
 # 本番環境用ステージ
 FROM base AS runner
 # better-sqlite3の実行に必要なライブラリをインストール
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat curl tini tzdata
+
 
 WORKDIR /app
 

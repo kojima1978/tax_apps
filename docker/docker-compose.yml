@@ -70,7 +70,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3000');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3000');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
       start_period: 60s
     deploy:
@@ -105,7 +105,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3010/medical/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3010/medical/" ]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -138,7 +138,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3012/shares/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3012/shares/" ]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -168,7 +168,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-inheritance_tax_db}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-inheritance_tax_db}" ]
       <<: *healthcheck-defaults
       start_period: 10s
     deploy:
@@ -204,7 +204,8 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3021/api/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3021/health" ]
+
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -239,7 +240,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3020/itcm/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3020/itcm/" ]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -270,13 +271,14 @@ services:
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,bank-analyzer
       DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
       DJANGO_STATIC_URL: /bank-analyzer/static/
-    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    command: [ "python", "manage.py", "runserver", "0.0.0.0:8000" ]
     networks:
       - app-network
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/bank-analyzer/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/" ]
+
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -308,7 +310,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173/inheritance-tax-app/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:5173/inheritance-tax-app/" ]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -341,7 +343,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/gift-tax-simulator/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3001/gift-tax-simulator/" ]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -374,7 +376,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/gift-tax-docs/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3002/gift-tax-docs/" ]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -407,7 +409,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3003/inheritance-tax-docs/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3003/inheritance-tax-docs/" ]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -440,7 +442,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3004/real-estate-tax/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3004/real-estate-tax/" ]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -473,7 +475,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3001/api/health" ]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -511,7 +513,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/tax-docs/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/tax-docs/" ]
       <<: *healthcheck-defaults
     deploy:
       resources:

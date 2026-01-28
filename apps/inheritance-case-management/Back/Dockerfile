@@ -1,13 +1,16 @@
 # Backend Dockerfile
 
 # Stage 1: Build
-FROM node:24-alpine AS base
+FROM node:24-slim AS base
 WORKDIR /app
+RUN apt-get update -y && apt-get install -y openssl curl
+
 COPY package*.json ./
 
 FROM base AS dev
 RUN npm ci
 COPY . .
+RUN npx prisma generate
 CMD ["npm", "run", "dev"]
 
 FROM base AS builder
@@ -21,9 +24,9 @@ RUN npm run build
 RUN npx prisma generate
 
 # Stage 2: Run
-FROM node:24-alpine AS runner
+FROM node:24-slim AS runner
 WORKDIR /app
-RUN apk add --no-cache openssl
+RUN apt-get update -y && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 
 COPY package*.json ./
