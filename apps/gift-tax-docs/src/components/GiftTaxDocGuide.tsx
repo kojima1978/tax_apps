@@ -22,6 +22,10 @@ export default function GiftTaxDocGuide() {
     togglePrintColumn,
     getPrintClass,
     setSelectedOptions,
+    staffName,
+    setStaffName,
+    customerName,
+    setCustomerName,
   } = useGiftTaxGuide();
 
   // メニュー画面
@@ -31,6 +35,10 @@ export default function GiftTaxDocGuide() {
         setStep={setStep}
         setIsFullListMode={setIsFullListMode}
         setSelectedOptions={setSelectedOptions}
+        staffName={staffName}
+        setStaffName={setStaffName}
+        customerName={customerName}
+        setCustomerName={setCustomerName}
       />
     );
   }
@@ -61,6 +69,8 @@ export default function GiftTaxDocGuide() {
       getPrintClass={getPrintClass}
       results={results}
       currentDate={currentDate}
+      staffName={staffName}
+      customerName={customerName}
     />
   );
 }
