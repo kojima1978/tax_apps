@@ -17,51 +17,39 @@ const excelStyles = {
         fill: { fgColor: { rgb: 'DBEAFE' } },
         alignment: { horizontal: 'left', vertical: 'center' },
     },
-    tableHeader: {
-        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '059669' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
+    // カテゴリヘッダー（画面の緑色背景のヘッダーに対応）
+    categoryHeader: {
+        font: { bold: true, sz: 12, color: { rgb: '1F2937' } }, // text-slate-800
+        fill: { fgColor: { rgb: 'ECFDF5' } }, // bg-emerald-50
+        alignment: { horizontal: 'left', vertical: 'center' },
         border: {
-            top: { style: 'thin', color: { rgb: '047857' } },
-            bottom: { style: 'thin', color: { rgb: '047857' } },
-            left: { style: 'thin', color: { rgb: '047857' } },
-            right: { style: 'thin', color: { rgb: '047857' } },
-        },
-    },
-    categoryCell: {
-        font: { bold: true, sz: 11, color: { rgb: '065F46' } },
-        fill: { fgColor: { rgb: 'D1FAE5' } },
-        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-        border: {
-            top: { style: 'thin', color: { rgb: 'A7F3D0' } },
-            bottom: { style: 'thin', color: { rgb: 'A7F3D0' } },
-            left: { style: 'medium', color: { rgb: '059669' } },
-            right: { style: 'thin', color: { rgb: 'A7F3D0' } },
-        },
-    },
-    documentCell: {
-        font: { sz: 11, color: { rgb: '374151' } },
-        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-        border: {
+            left: { style: 'thick', color: { rgb: '10B981' } }, // border-l-4 border-emerald-500
             top: { style: 'thin', color: { rgb: 'E5E7EB' } },
             bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            left: { style: 'thin', color: { rgb: 'E5E7EB' } },
             right: { style: 'thin', color: { rgb: 'E5E7EB' } },
         },
     },
+    // 項目セル
+    documentCell: {
+        font: { sz: 11, color: { rgb: '374151' } }, // text-slate-700
+        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+        border: {
+            bottom: { style: 'dashed', color: { rgb: 'F1F5F9' } }, // border-dashed border-slate-100
+        },
+    },
+    // チェックボックスセル
     checkCell: {
         font: { sz: 14, color: { rgb: '059669' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
+        alignment: { horizontal: 'center', vertical: 'top' }, // 上揃えにして、複数行テキストでも位置が合うように
         border: {
-            top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            bottom: { style: 'dashed', color: { rgb: 'F1F5F9' } },
         },
     },
+    // 備考セル
     noteCell: {
-        font: { sz: 10, italic: true, color: { rgb: '6B7280' } },
+        font: { sz: 10, italic: true, color: { rgb: '6B7280' } }, // text-slate-500
         alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+        fill: { fgColor: { rgb: 'F8FAFC' } }, // bg-slate-50
         border: {
             top: { style: 'thin', color: { rgb: 'E5E7EB' } },
             bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
@@ -97,18 +85,21 @@ export function generateGiftTaxExcel(
     const merges: XLSX.Range[] = [];
     let rowNum = 0;
 
+    // 2列構成 (A: Check, B: Content)
+    // A列とB列を結合して使うことが多い
+
     // タイトル行
-    wsData.push([{ v: title, s: excelStyles.title }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    wsData.push([{ v: title, s: excelStyles.title }, { v: '', s: excelStyles.title }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
     rowNum++;
 
     // サブタイトル
-    wsData.push([{ v: `発行日: ${currentDate}`, s: excelStyles.subTitle }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    wsData.push([{ v: `発行日: ${currentDate}`, s: excelStyles.subTitle }, { v: '', s: excelStyles.subTitle }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
     rowNum++;
 
-    wsData.push([{ v: COMPANY_INFO.name, s: excelStyles.subTitle }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    wsData.push([{ v: COMPANY_INFO.name, s: excelStyles.subTitle }, { v: '', s: excelStyles.subTitle }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
     rowNum++;
 
     wsData.push([
@@ -116,47 +107,51 @@ export function generateGiftTaxExcel(
             v: isFullListMode ? '【全リスト表示】' : '【お客様専用リスト】',
             s: excelStyles.badge,
         },
+        { v: '', s: excelStyles.badge }
     ]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
     rowNum++;
 
-    wsData.push([{ v: '', s: undefined }]);
+    wsData.push([{ v: '', s: undefined }, { v: '', s: undefined }]);
     rowNum++;
 
-    // テーブルヘッダー
-    wsData.push([
-        { v: 'カテゴリ', s: excelStyles.tableHeader },
-        { v: '必要書類', s: excelStyles.tableHeader },
-        { v: '✓', s: excelStyles.tableHeader },
-        { v: '備考', s: excelStyles.tableHeader },
-    ]);
-    rowNum++;
-
-    // 各カテゴリのデータ
+    // 各カテゴリとデータ
     results.forEach((group) => {
-        group.documents.forEach((doc, idx) => {
+        // カテゴリヘッダー
+        wsData.push([
+            { v: group.category, s: excelStyles.categoryHeader },
+            { v: '', s: excelStyles.categoryHeader } // Merge destination formatting
+        ]);
+        merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
+        rowNum++;
+
+        // 書類リスト
+        group.documents.forEach((doc) => {
             wsData.push([
-                {
-                    v: idx === 0 ? group.category : '',
-                    s: idx === 0 ? excelStyles.categoryCell : excelStyles.documentCell,
-                },
-                { v: doc, s: excelStyles.documentCell },
                 { v: '☐', s: excelStyles.checkCell },
-                {
-                    v: idx === 0 && group.note ? group.note : '',
-                    s: excelStyles.noteCell,
-                },
+                { v: doc, s: excelStyles.documentCell },
             ]);
             rowNum++;
         });
+
+        // 備考（ある場合）
+        if (group.note) {
+            wsData.push([
+                { v: `ℹ ${group.note}`, s: excelStyles.noteCell }, // Info icon approximate
+                { v: '', s: excelStyles.noteCell }
+            ]);
+            merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
+            rowNum++;
+        }
+
+        // グループ間の間隔
+        wsData.push([{ v: '', s: undefined }, { v: '', s: undefined }]);
+        rowNum++;
     });
 
-    wsData.push([{ v: '', s: undefined }]);
-    rowNum++;
-
     // 注意事項
-    wsData.push([{ v: '【ご留意事項】', s: excelStyles.cautionHeader }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    wsData.push([{ v: '【ご留意事項】', s: excelStyles.cautionHeader }, { v: '', s: excelStyles.cautionHeader }]);
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
     rowNum++;
 
     wsData.push([
@@ -164,11 +159,12 @@ export function generateGiftTaxExcel(
             v: '・電子申告を行う場合、原本資料はご返却いたします。',
             s: excelStyles.cautionTextRed,
         },
+        { v: '', s: excelStyles.cautionTextRed }
     ]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
     rowNum++;
 
-    wsData.push([{ v: '', s: undefined }]);
+    wsData.push([{ v: '', s: undefined }, { v: '', s: undefined }]);
     rowNum++;
 
     // フッター
@@ -177,14 +173,16 @@ export function generateGiftTaxExcel(
             v: `${COMPANY_INFO.fullAddress} / ${COMPANY_INFO.contactLine}`,
             s: excelStyles.footer,
         },
+        { v: '', s: excelStyles.footer }
     ]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 3 } });
+    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    ws['!cols'] = [{ wch: 32 }, { wch: 55 }, { wch: 6 }, { wch: 45 }];
+    // 列幅設定: A列(チェックボックス用)は狭く、B列(内容用)は広く
+    ws['!cols'] = [{ wch: 6 }, { wch: 90 }];
 
-    ws['!rows'] = [{ hpt: 35 }];
+    ws['!rows'] = [{ hpt: 35 }]; // Title height
     ws['!merges'] = merges;
 
     XLSX.utils.book_append_sheet(wb, ws, '必要書類リスト');

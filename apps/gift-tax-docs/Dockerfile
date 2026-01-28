@@ -9,6 +9,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 # Rebuild the source code only when needed
+# This stage is for verifying the build during Docker image creation
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
