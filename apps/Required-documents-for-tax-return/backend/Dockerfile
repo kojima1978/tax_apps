@@ -22,7 +22,7 @@ RUN npm ci && npm cache clean --force
 FROM base AS dev
 
 # 開発用ツール
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl tzdata
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -63,7 +63,7 @@ LABEL org.opencontainers.image.title="Tax Documents Backend"
 LABEL org.opencontainers.image.description="Express + SQLite API for tax document management"
 
 # 実行時に必要な最小限のパッケージ
-RUN apk add --no-cache curl tini
+RUN apk add --no-cache curl tini tzdata
 
 ENV NODE_ENV=production
 ENV PORT=3001

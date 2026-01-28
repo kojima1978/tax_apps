@@ -18,6 +18,7 @@
 - 保存データ管理画面（検索・編集・削除）
 - 自動保存機能
 - 「標準に戻す」機能（顧客・担当者情報を保持したまま初期化）
+- 担当者の検索・選択機能（コンボボックス）
 
 ## 技術スタック
 
@@ -120,7 +121,7 @@ cd apps/Required-documents-for-tax-return
 docker compose up -d --build
 ```
 
-- フロントエンド: http://localhost:3000/tax-docs
+- フロントエンド: http://localhost:3005/tax-docs
 - バックエンドAPI: http://localhost:3001
 
 ※ `docker-compose.yml` は開発用の設定になっており、`dev` ステージのイメージを使用してホットリロードが有効になっています。
