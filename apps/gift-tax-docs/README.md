@@ -6,7 +6,7 @@
 ## 主な機能
 
 - **必要書類の案内**: 贈与の種類や特例の適用有無に応じて、必要な書類を動的に表示します。
-- **Excel 出力**: 案内された必要書類リストを Excel ファイルとしてダウンロードできます (`xlsx-js-style` を使用)。
+- **Excel 出力**: 案内された必要書類リストを、画面表示と同様のリスト形式で Excel ファイルとしてダウンロードできます (`xlsx-js-style` を使用)。
 - **レスポンシブデザイン**: Tailwind CSS v4 を使用したモダンでレスポンシブな UI。
 
 ## 技術スタック
@@ -32,7 +32,7 @@ docker compose up -d
 
 アクセス: [http://localhost:3002/gift-tax-docs/](http://localhost:3002/gift-tax-docs/)
 
-> **Note**: Nginx 経由でアクセスする場合のアドレスです。直接アクセスの場合は構成によりますが `http://localhost:3002` です。
+> **Note**: `next.config.ts` で `basePath: '/gift-tax-docs'` が設定されているため、URLにはサブディレクトリが必要です。
 
 ### ローカルで直接実行する場合
 
