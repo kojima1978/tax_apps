@@ -243,4 +243,26 @@ start.bat --prod
 - **Backend**: Express, Django, FastAPI
 - **Database**: PostgreSQL 16, SQLite
 - **Infrastructure**: Docker, Nginx 1.27
-- **Node.js**: v22 LTS
+- **Node.js**: v22 LTS (Frontend) / v24 (Backend)
+
+### Prisma & OpenSSL (Alpine vs Debian)
+
+Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初期化に失敗する場合（特に `node:24-alpine`）、以下の対応を行ってください：
+
+1. ベースイメージを `node:24-slim` (Debian bookworm) に変更
+2. `openssl` を明示的にインストール
+3. `schema.prisma` の `binaryTargets` に `debian-openssl-3.0.x` を追加
+
+### ヘルスチェックエラー (curl missing)
+
+コンテナが "Unhealthy" になる場合、ヘルスチェックで使用している `curl` がインストールされていない可能性があります。
+特に `node:*-alpine` や `node:*-slim` などの軽量イメージではデフォルトで含まれていません。
+
+Dockerfile に以下を追加してください：
+
+```dockerfile
+RUN apt-get update && apt-get install -y curl  # Debian/Slim
+# または
+RUN apk add --no-cache curl                    # Alpine
+```
+

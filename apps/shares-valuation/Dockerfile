@@ -1,28 +1,52 @@
 # Base stage
-FROM node:24-slim AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 COPY package*.json ./
 
+# Dependencies stage
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+RUN npm ci
+
 # Development stage
 FROM base AS dev
-RUN npm install
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 CMD ["npm", "run", "dev"]
 
+
 # Build stage
 FROM base AS builder
-RUN npm install
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 # Production stage
-FROM node:24-slim AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-EXPOSE 3012
 ENV PORT=3012
-CMD ["npm", "start"]
+ENV HOSTNAME="0.0.0.0"
+
+# Install minimal runtime dependencies
+RUN apk add --no-cache curl tini tzdata
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+USER nextjs
+
+EXPOSE 3012
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3012/ || exit 1
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "server.js"]
+

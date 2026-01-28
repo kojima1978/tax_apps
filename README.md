@@ -56,7 +56,9 @@ tax_apps/
 ### 前提条件
 - Docker / Docker Compose
 - Node.js 22+（ローカル開発時）
-  - ⚠️ Node.js 24はNext.js 16 Turbopackとの互換性問題があるため非推奨
+- Node.js 22+（ローカル開発時）
+  - ⚠️ Node.js 24はNext.js 16 Turbopackと一部互換性問題が報告されていますが、バックエンド（Express/Prisma）では積極的に利用可能です。
+
 
 ### Docker起動
 
