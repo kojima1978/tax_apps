@@ -12,6 +12,8 @@ type ResultStepProps = {
     getPrintClass: (oneCol: string, twoCol: string) => string;
     results: DocumentGroup[];
     currentDate: string;
+    staffName: string;
+    customerName: string;
 };
 
 export const ResultStep = ({
@@ -25,23 +27,23 @@ export const ResultStep = ({
     getPrintClass,
     results,
     currentDate,
+    staffName,
+    customerName,
 }: ResultStepProps) => {
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
             <div className="no-print flex items-center justify-between mb-6">
-                <button
-                    onClick={() => {
-                        if (isFullListMode) {
-                            resetToMenu();
-                        } else {
-                            setStep('check');
-                        }
-                    }}
-                    className="flex items-center bg-white px-4 py-2 rounded-lg shadow text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    {isFullListMode ? 'TOPへ戻る' : '選択画面へ戻る'}
-                </button>
+                {!isFullListMode ? (
+                    <button
+                        onClick={() => setStep('check')}
+                        className="flex items-center bg-white px-4 py-2 rounded-lg shadow text-slate-600 hover:text-slate-900 transition-colors"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        選択画面へ戻る
+                    </button>
+                ) : (
+                    <div></div>
+                )}
                 <div className="flex space-x-3">
                     <button
                         onClick={togglePrintColumn}
@@ -80,6 +82,10 @@ export const ResultStep = ({
                         <h1 className={`text-3xl font-bold text-slate-900 mb-2 ${getPrintClass('print:text-2xl print:mb-2', 'print:text-lg print:mb-0')}`}>
                             {giftData.title}
                         </h1>
+                        <div className={`text-slate-700 font-medium mb-2 ${getPrintClass('print:text-base', 'print:text-xs')}`}>
+                            {customerName && <span className="mr-4">お客様名: {customerName}</span>}
+                            {staffName && <span>担当者: {staffName}</span>}
+                        </div>
                         <p className={`text-slate-600 ${getPrintClass('print:text-sm', 'print:text-[10px]')}`}>
                             {isFullListMode && (
                                 <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded mr-2 align-middle print:border print:border-blue-800">

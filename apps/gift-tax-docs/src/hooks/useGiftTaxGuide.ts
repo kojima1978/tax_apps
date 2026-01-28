@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { giftData, type OptionId, type OptionSelection, type DocumentGroup, type Step } from '@/constants';
 import { generateGiftTaxExcel } from '@/utils/excelGenerator';
 
@@ -8,15 +8,38 @@ export const useGiftTaxGuide = () => {
     const [isFullListMode, setIsFullListMode] = useState(false);
     const [isTwoColumnPrint, setIsTwoColumnPrint] = useState(false);
 
+    // 担当者・お客様名
+    const [staffName, setStaffName] = useState('');
+    const [customerName, setCustomerName] = useState('');
+
+    // 初期化：ストレージから読み込み
+    useEffect(() => {
+        const savedStaff = localStorage.getItem('gift_tax_staff_name');
+        if (savedStaff) setStaffName(savedStaff);
+
+        const savedCustomer = sessionStorage.getItem('gift_tax_customer_name');
+        if (savedCustomer) setCustomerName(savedCustomer);
+    }, []);
+
+    // 変更検知：ストレージへ保存
+    useEffect(() => {
+        localStorage.setItem('gift_tax_staff_name', staffName);
+    }, [staffName]);
+
+    useEffect(() => {
+        sessionStorage.setItem('gift_tax_customer_name', customerName);
+    }, [customerName]);
+
     // 状態リセット
     const resetToMenu = useCallback(() => {
         setStep('menu');
         setSelectedOptions({});
         setIsFullListMode(false);
+        // 名前は保持する（ストレージ保存のため、リセットしない）
     }, []);
 
     const toggleOption = useCallback((id: string) => {
-        setSelectedOptions((prev) => ({
+        setSelectedOptions((prev: OptionSelection) => ({
             ...prev,
             [id]: !prev[id as OptionId],
         }));
@@ -72,12 +95,14 @@ export const useGiftTaxGuide = () => {
             giftData.title,
             results,
             currentDate,
-            isFullListMode
+            isFullListMode,
+            staffName,
+            customerName
         );
-    }, [results, currentDate, isFullListMode]);
+    }, [results, currentDate, isFullListMode, staffName, customerName]);
 
     const togglePrintColumn = useCallback(() => {
-        setIsTwoColumnPrint((prev) => !prev);
+        setIsTwoColumnPrint((prev: boolean) => !prev);
     }, []);
 
     // 印刷用クラス生成
@@ -95,6 +120,8 @@ export const useGiftTaxGuide = () => {
         isTwoColumnPrint,
         results,
         currentDate,
+        staffName,
+        customerName,
 
         // Handlers
         resetToMenu,
@@ -104,5 +131,7 @@ export const useGiftTaxGuide = () => {
         togglePrintColumn,
         getPrintClass,
         setSelectedOptions,
+        setStaffName,
+        setCustomerName,
     }
 };

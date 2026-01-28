@@ -76,7 +76,9 @@ export function generateGiftTaxExcel(
     title: string,
     results: DocumentGroup[],
     currentDate: string,
-    isFullListMode: boolean
+    isFullListMode: boolean,
+    staffName: string,
+    customerName: string
 ) {
     const wb = XLSX.utils.book_new();
     const wsData: Array<
@@ -101,6 +103,17 @@ export function generateGiftTaxExcel(
     wsData.push([{ v: COMPANY_INFO.name, s: excelStyles.subTitle }, { v: '', s: excelStyles.subTitle }]);
     merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
     rowNum++;
+
+    // 担当者・お客様名
+    if (staffName || customerName) {
+        const parts = [];
+        if (customerName) parts.push(`お客様名: ${customerName}`);
+        if (staffName) parts.push(`担当者: ${staffName}`);
+
+        wsData.push([{ v: parts.join(' / '), s: excelStyles.subTitle }, { v: '', s: excelStyles.subTitle }]);
+        merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
+        rowNum++;
+    }
 
     wsData.push([
         {
