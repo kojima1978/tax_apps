@@ -87,6 +87,16 @@ npm install
 npm run dev
 ```
 
+### アプリ個別のDocker起動
+
+一部のアプリ（例: `inheritance-tax-docs`）は、独立した`docker-compose.yml`を持っています。全体を起動せず、単体でDocker環境にて動作確認したい場合に使用します。
+
+```bash
+cd apps/inheritance-tax-docs
+docker-compose up -d
+# http://localhost:3003/inheritance-tax-docs/ にアクセス
+```
+
 ## 環境変数
 
 ### PostgreSQL（案件管理システム用）
@@ -137,6 +147,18 @@ docker-compose -f docker/docker-compose.yml restart portal-app gateway
 
 Windowsでボリュームマウントを使用する場合、ファイル変更の検出に問題が発生することがあります。
 現在は `docker-compose.yml` にて全てのNode.jsサービスに対し `WATCHPACK_POLLING=true` が設定されているため、追加の手順は不要です。
+
+### CSSや画像が 404エラーになる場合 (スタイル崩れ)
+
+特定のアプリ（`inheritance-tax-docs`など）でスタイルシートが読み込まれない場合、Nginxの静的ファイルキャッシュ設定が干渉している可能性があります。
+`docker-compose.yml` でNginx設定ファイルが正しくボリュームマウントされているか確認してください。
+
+```yaml
+gateway:
+  volumes:
+    - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+```
 
 ### Next.js Turbopack のクラッシュ
 
