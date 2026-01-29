@@ -1,0 +1,49 @@
+version: '3.8'
+
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 60s
+  retries: 5
+  start_period: 120s
+
+services:
+  # ===========================================
+  # 相続税申告 資料準備ガイド
+  # Port: 3003
+  # ===========================================
+  inheritance-tax-docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: inheritance-tax-docs-standalone
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./src:/app/src:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+    command: npm run dev -- -p 3003
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      <<: *healthcheck-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
