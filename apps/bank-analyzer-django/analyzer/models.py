@@ -38,6 +38,7 @@ class Transaction(models.Model):
     holder = models.CharField(max_length=255, null=True, blank=True, verbose_name="名義人")
     bank_name = models.CharField(max_length=255, null=True, blank=True, verbose_name="銀行名")
     branch_name = models.CharField(max_length=255, null=True, blank=True, verbose_name="支店名")
+    account_type = models.CharField(max_length=50, null=True, blank=True, verbose_name="種別")
 
     # 分析結果フラグ
     is_large = models.BooleanField(default=False, verbose_name="多額取引")

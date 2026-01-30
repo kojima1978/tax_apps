@@ -232,7 +232,7 @@ def load_csv(file) -> pd.DataFrame:
     # 必要なカラムのみ保持
     columns_to_keep = [
         "date", "description", "amount_out", "amount_in", "balance",
-        "bank_name", "branch_name", "account_number"
+        "bank_name", "branch_name", "account_number", "account_type"
     ]
     cols_to_drop = [col for col in df.columns if col not in columns_to_keep]
     df = df.drop(columns=cols_to_drop)

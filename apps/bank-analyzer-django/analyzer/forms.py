@@ -48,6 +48,39 @@ class ImportForm(forms.Form):
         return file
 
 
+class JsonImportForm(forms.Form):
+    """JSONバックアップインポートフォーム"""
+    json_file = forms.FileField(
+        label="JSONバックアップファイル",
+        help_text="エクスポートしたJSONファイルを選択してください ※最大10MB",
+        validators=[FileExtensionValidator(allowed_extensions=['json'])],
+        widget=forms.FileInput(attrs={
+            "class": "form-control",
+            "accept": ".json"
+        })
+    )
+    restore_settings = forms.BooleanField(
+        label="設定データも復元する",
+        required=False,
+        initial=False,
+        help_text="チェックすると、バックアップに含まれる閾値・分類キーワード設定も復元します",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+    )
+
+    def clean_json_file(self):
+        """ファイルサイズとタイプのバリデーション"""
+        file = self.cleaned_data.get('json_file')
+        if file:
+            if file.size == 0:
+                raise forms.ValidationError("空のファイルはアップロードできません。")
+            if file.size > MAX_FILE_SIZE:
+                raise forms.ValidationError(
+                    f"ファイルサイズが大きすぎます（{file.size // (1024*1024)}MB）。"
+                    f"最大{MAX_FILE_SIZE // (1024*1024)}MBまでアップロード可能です。"
+                )
+        return file
+
+
 class SettingsForm(forms.Form):
     """設定フォーム"""
     large_amount_threshold = forms.IntegerField(

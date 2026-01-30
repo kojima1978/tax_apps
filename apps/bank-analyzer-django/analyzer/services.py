@@ -162,7 +162,9 @@ class TransactionService:
         memo: Optional[str] = None,
         bank_name: Optional[str] = None,
         branch_name: Optional[str] = None,
-        account_id: Optional[str] = None
+        account_id: Optional[str] = None,
+        account_type: Optional[str] = None,
+        balance: Optional[int] = None
     ) -> bool:
         """
         取引データを更新
@@ -179,6 +181,8 @@ class TransactionService:
             bank_name: 銀行名
             branch_name: 支店名
             account_id: 口座番号
+            account_type: 種別
+            balance: 残高
 
         Returns:
             更新成功の場合True
@@ -200,6 +204,10 @@ class TransactionService:
             tx.branch_name = branch_name.strip() if branch_name else None
         if account_id is not None:
             tx.account_id = account_id.strip() if account_id else None
+        if account_type is not None:
+            tx.account_type = account_type.strip() if account_type else None
+        if balance is not None:
+            tx.balance = balance
         tx.save()
 
         logger.info(f"取引更新: case_id={case.id}, tx_id={tx_id}")
@@ -228,6 +236,26 @@ class TransactionService:
 
         count, _ = case.transactions.filter(id__in=int_ids).delete()
         logger.info(f"重複データ削除: case_id={case.id}, count={count}")
+        return count
+
+    @staticmethod
+    def delete_by_range(case: Case, start_id: int, end_id: int) -> int:
+        """
+        ID範囲で取引を削除
+
+        Args:
+            case: 対象の案件
+            start_id: 開始ID（含む）
+            end_id: 終了ID（含む）
+
+        Returns:
+            削除された取引数
+        """
+        if start_id > end_id:
+            start_id, end_id = end_id, start_id
+
+        count, _ = case.transactions.filter(id__gte=start_id, id__lte=end_id).delete()
+        logger.info(f"ID範囲削除: case_id={case.id}, start_id={start_id}, end_id={end_id}, count={count}")
         return count
 
     @staticmethod
@@ -331,8 +359,12 @@ class AnalysisService:
         transfer_pairs = AnalysisService._get_transfer_chart_data(transfers_df)
 
         # 多額取引
+        large_df = df[df['is_large']].copy()
+        # 多額取引の分類フィルター
+        if filter_state.get('large_category'):
+            large_df = large_df[large_df['category'].isin(filter_state['large_category'])]
         large_df = AnalysisService._convert_amounts_to_int(
-            df[df['is_large']].sort_values('date', ascending=True).copy()
+            large_df.sort_values('date', ascending=True).copy()
         )
         large_txs = large_df.to_dict(orient='records')
 
