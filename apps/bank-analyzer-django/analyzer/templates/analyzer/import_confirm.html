@@ -1,5 +1,6 @@
 {% extends 'analyzer/base.html' %}
 {% load humanize %}
+{% load japanese_date %}
 
 {% block title %}Import Preview - Bank Analyzer{% endblock %}
 
@@ -47,10 +48,11 @@
                                 <th style="width: 50px;">
                                     <input type="checkbox" class="form-check-input" id="selectAllCheck" title="全選択">
                                 </th>
-                                <th style="min-width: 120px;">日付</th>
                                 <th>銀行名</th>
                                 <th>支店名</th>
+                                <th>種別</th>
                                 <th>口座番号</th>
+                                <th style="min-width: 160px;">日付</th>
                                 <th style="min-width: 180px;">摘要</th>
                                 <th style="min-width: 100px;">払戻額</th>
                                 <th style="min-width: 100px;">お預り額</th>
@@ -69,18 +71,24 @@
                                         style="cursor: pointer;">
                                 </td>
                                 <td>
-                                    <input type="date" name="form-{{ forloop.counter0 }}-date"
-                                        value="{{ row.date|default:'' }}"
-                                        class="form-control form-control-sm border-0 bg-transparent">
-                                </td>
-                                <td>
                                     <small class="text-muted">{{ row.bank_name|default:"-" }}</small>
                                 </td>
                                 <td>
                                     <small class="text-muted">{{ row.branch_name|default:"-" }}</small>
                                 </td>
                                 <td>
+                                    <small class="text-muted">{{ row.account_type|default:"-" }}</small>
+                                </td>
+                                <td>
                                     <small class="text-muted">{{ row.account_number|default:"-" }}</small>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <input type="date" name="form-{{ forloop.counter0 }}-date"
+                                            value="{{ row.date|default:'' }}"
+                                            class="form-control form-control-sm border-0 bg-transparent" style="width: 110px;">
+                                        <small class="text-muted text-nowrap">({{ row.date|wareki_short }})</small>
+                                    </div>
                                 </td>
                                 <td>
                                     <input type="text" name="form-{{ forloop.counter0 }}-description"

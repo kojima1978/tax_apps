@@ -1,0 +1,68 @@
+{% extends 'analyzer/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-3">
+                <li class="breadcrumb-item"><a href="{% url 'case-list' %}" class="text-decoration-none">案件一覧</a></li>
+                <li class="breadcrumb-item active" aria-current="page">JSONから復元</li>
+            </ol>
+        </nav>
+
+        <div class="glass-card p-5">
+            <h2 class="h3 mb-4">JSONバックアップから復元</h2>
+
+            <div class="alert alert-info border-0 bg-opacity-10 bg-info text-info mb-4">
+                <h5 class="alert-heading h6 fw-bold">ℹ️ JSONバックアップとは</h5>
+                <ul class="mb-0 small">
+                    <li>加工済みの取引データ（分類・フラグ・メモ含む）を復元できます</li>
+                    <li>エクスポート時点の状態を完全に再現します</li>
+                    <li>新しい案件として作成されます（既存データは影響を受けません）</li>
+                </ul>
+            </div>
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    {{ form.json_file.label_tag }}
+                    {{ form.json_file }}
+                    {% if form.json_file.help_text %}
+                    <div class="form-text">{{ form.json_file.help_text }}</div>
+                    {% endif %}
+                    {% if form.json_file.errors %}
+                    <div class="invalid-feedback d-block">{{ form.json_file.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <div class="form-check">
+                        {{ form.restore_settings }}
+                        <label class="form-check-label" for="{{ form.restore_settings.id_for_label }}">
+                            {{ form.restore_settings.label }}
+                        </label>
+                    </div>
+                    {% if form.restore_settings.help_text %}
+                    <div class="form-text small text-muted">{{ form.restore_settings.help_text }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="alert alert-warning border-0 bg-opacity-10 bg-warning text-warning mb-4">
+                    <small>
+                        <strong>注意:</strong> 「設定データも復元する」をチェックすると、現在の設定（閾値・分類キーワード）が上書きされます。
+                    </small>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        復元を実行
+                    </button>
+                    <a href="{% url 'case-list' %}" class="btn btn-outline-secondary">キャンセル</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

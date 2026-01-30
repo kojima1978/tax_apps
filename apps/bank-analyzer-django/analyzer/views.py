@@ -75,6 +75,173 @@ def _build_redirect_url(
     return url
 
 
+def export_json(request: HttpRequest, pk: int) -> HttpResponse:
+    """案件データをJSONでバックアップエクスポート"""
+    from datetime import datetime
+
+    logger.info(f"JSONエクスポート開始: case_id={pk}")
+    case = get_object_or_404(Case, pk=pk)
+    transactions = case.transactions.all().order_by('date', 'id')
+
+    if not transactions.exists():
+        messages.warning(request, "エクスポートするデータがありません。")
+        return redirect('case-detail', pk=pk)
+
+    # 取引データをシリアライズ（表示順: 日付,銀行名,支店名,種別,口座番号,摘要,出金,入金,残高）
+    transactions_data = []
+    for tx in transactions:
+        transactions_data.append({
+            # 基本情報（表示順）
+            'date': tx.date.isoformat() if tx.date else None,
+            'bank_name': tx.bank_name,
+            'branch_name': tx.branch_name,
+            'account_type': tx.account_type,
+            'account_id': tx.account_id,
+            'description': tx.description,
+            'amount_out': tx.amount_out,
+            'amount_in': tx.amount_in,
+            'balance': tx.balance,
+            # 復元用メタデータ
+            'category': tx.category,
+            'holder': tx.holder,
+            'is_large': tx.is_large,
+            'is_transfer': tx.is_transfer,
+            'transfer_to': tx.transfer_to,
+            'is_flagged': tx.is_flagged,
+            'memo': tx.memo,
+        })
+
+    # 統計情報を計算
+    total_in = sum(tx.amount_in for tx in transactions)
+    total_out = sum(tx.amount_out for tx in transactions)
+
+    # エクスポートデータを構築
+    export_data = {
+        'version': '1.0',
+        'exported_at': datetime.now().isoformat(),
+        'case': {
+            'name': case.name,
+            'created_at': case.created_at.isoformat() if case.created_at else None,
+        },
+        'transactions': transactions_data,
+        'statistics': {
+            'total_transactions': len(transactions_data),
+            'total_in': total_in,
+            'total_out': total_out,
+        },
+        'settings': config.load_user_settings(),
+    }
+
+    # JSONレスポンスを作成
+    response = HttpResponse(
+        json.dumps(export_data, ensure_ascii=False, indent=2),
+        content_type='application/json; charset=utf-8'
+    )
+    filename = f"{case.name}_backup.json"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    logger.info(f"JSONエクスポート完了: case_id={pk}, transactions={len(transactions_data)}")
+    return response
+
+
+def import_json(request: HttpRequest) -> HttpResponse:
+    """JSONバックアップから新規案件を復元"""
+    from datetime import datetime
+    from .forms import JsonImportForm
+
+    if request.method == 'POST':
+        form = JsonImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            json_file = request.FILES['json_file']
+            logger.info(f"JSONインポート開始: filename={json_file.name}, size={json_file.size}")
+
+            try:
+                # JSONを読み込み
+                content = json_file.read().decode('utf-8')
+                data = json.loads(content)
+
+                # バージョンチェック
+                version = data.get('version', '1.0')
+                if version not in ['1.0']:
+                    raise ValueError(f"未対応のバージョン: {version}")
+
+                # 案件データを取得
+                case_data = data.get('case', {})
+                original_name = case_data.get('name', 'インポート案件')
+
+                # 案件名の重複チェック・自動リネーム
+                case_name = original_name
+                counter = 1
+                while Case.objects.filter(name=case_name).exists():
+                    case_name = f"{original_name}_復元{counter}"
+                    counter += 1
+
+                # トランザクション内で案件と取引を作成
+                with transaction.atomic():
+                    # 案件を作成
+                    new_case = Case.objects.create(name=case_name)
+
+                    # 取引データをインポート
+                    transactions_data = data.get('transactions', [])
+                    new_transactions = []
+
+                    for tx_data in transactions_data:
+                        # 日付をパース
+                        date_val = None
+                        if tx_data.get('date'):
+                            try:
+                                date_val = datetime.fromisoformat(tx_data['date']).date()
+                            except (ValueError, TypeError):
+                                pass
+
+                        new_transactions.append(Transaction(
+                            case=new_case,
+                            date=date_val,
+                            description=tx_data.get('description'),
+                            amount_out=tx_data.get('amount_out', 0),
+                            amount_in=tx_data.get('amount_in', 0),
+                            balance=tx_data.get('balance'),
+                            account_id=tx_data.get('account_id'),
+                            holder=tx_data.get('holder'),
+                            bank_name=tx_data.get('bank_name'),
+                            branch_name=tx_data.get('branch_name'),
+                            account_type=tx_data.get('account_type'),
+                            is_large=tx_data.get('is_large', False),
+                            is_transfer=tx_data.get('is_transfer', False),
+                            transfer_to=tx_data.get('transfer_to'),
+                            category=tx_data.get('category', '未分類'),
+                            is_flagged=tx_data.get('is_flagged', False),
+                            memo=tx_data.get('memo'),
+                        ))
+
+                    if new_transactions:
+                        Transaction.objects.bulk_create(new_transactions)
+
+                    # 設定データを復元（オプション）
+                    restore_settings = form.cleaned_data.get('restore_settings', False)
+                    if restore_settings and 'settings' in data:
+                        config.save_user_settings(data['settings'])
+                        logger.info("設定データを復元しました")
+
+                logger.info(f"JSONインポート完了: case_id={new_case.pk}, name={case_name}, transactions={len(new_transactions)}")
+                messages.success(
+                    request,
+                    f"「{case_name}」として{len(new_transactions)}件の取引を復元しました。"
+                )
+                return redirect('case-detail', pk=new_case.pk)
+
+            except json.JSONDecodeError as e:
+                logger.exception(f"JSONパースエラー: {e}")
+                messages.error(request, f"JSONファイルの形式が不正です: {e}")
+            except Exception as e:
+                logger.exception(f"JSONインポートエラー: {e}")
+                messages.error(request, f"インポートエラー: {e}")
+    else:
+        form = JsonImportForm()
+
+    return render(request, 'analyzer/json_import.html', {'form': form})
+
+
 def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
     """取引データをCSVでエクスポート"""
     logger.info(f"CSVエクスポート開始: case_id={pk}, type={export_type}")
@@ -193,6 +360,8 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
 
         elif action == 'update_transaction' and tx_id:
             try:
+                balance_str = request.POST.get('balance')
+                balance_val = int(balance_str) if balance_str else None
                 success = TransactionService.update_transaction(
                     case,
                     int(tx_id),
@@ -204,7 +373,9 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
                     request.POST.get('memo'),
                     request.POST.get('bank_name'),
                     request.POST.get('branch_name'),
-                    request.POST.get('account_id')
+                    request.POST.get('account_id'),
+                    request.POST.get('account_type'),
+                    balance_val
                 )
                 if success:
                     messages.success(request, "取引データを更新しました。")
@@ -395,6 +566,7 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
                             category=row.get('category'),
                             branch_name=row.get('branch_name'),
                             bank_name=row.get('bank_name'),
+                            account_type=row.get('account_type'),
                         ))
                     
                     Transaction.objects.bulk_create(new_transactions)
@@ -444,7 +616,8 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'bank': request.GET.getlist('bank'),
         'account': request.GET.getlist('account'),
         'category': request.GET.getlist('category'),
-        'keyword': request.GET.get('keyword', '')
+        'keyword': request.GET.get('keyword', ''),
+        'large_category': request.GET.getlist('large_category'),
     }
 
     analysis_data = AnalysisService.get_analysis_data(case, filter_state)
@@ -554,6 +727,8 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
 
         if tx_id:
             try:
+                balance_str = request.POST.get('balance')
+                balance_val = int(balance_str) if balance_str else None
                 success = TransactionService.update_transaction(
                     case,
                     int(tx_id),
@@ -565,7 +740,9 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
                     request.POST.get('memo'),
                     request.POST.get('bank_name'),
                     request.POST.get('branch_name'),
-                    request.POST.get('account_id')
+                    request.POST.get('account_id'),
+                    request.POST.get('account_type'),
+                    balance_val
                 )
                 if success:
                     messages.success(request, "取引データを更新しました。")
@@ -582,6 +759,22 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
             messages.success(request, f"{count}件の重複データを削除しました。")
         else:
             messages.warning(request, "削除対象が選択されていません。")
+        # データクレンジングタブに留まる
+        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+    elif action == 'delete_by_range':
+        start_id = request.POST.get('start_id')
+        end_id = request.POST.get('end_id')
+        try:
+            start_id_int = int(start_id)
+            end_id_int = int(end_id)
+            count = TransactionService.delete_by_range(case, start_id_int, end_id_int)
+            if count > 0:
+                messages.success(request, f"ID {start_id_int}〜{end_id_int} の範囲で {count}件の取引を削除しました。")
+            else:
+                messages.warning(request, "指定した範囲に削除対象の取引がありませんでした。")
+        except (ValueError, TypeError):
+            messages.error(request, "IDは整数で入力してください。")
         # データクレンジングタブに留まる
         return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 

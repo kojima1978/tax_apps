@@ -134,13 +134,34 @@
     <!-- Tab 2: Large Transactions -->
     <div class="tab-pane fade" id="large" role="tabpanel" aria-labelledby="large-tab">
         <div class="glass-card p-4">
+            <!-- 分類フィルター -->
+            <form method="get" class="row g-3 mb-4">
+                <input type="hidden" name="tab" value="large">
+                <div class="col-md-4">
+                    <label class="form-label">分類で絞り込み</label>
+                    <select name="large_category" class="form-select" multiple size="3">
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if cat in filter_state.large_category %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-search"></i> 絞り込み
+                    </button>
+                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=large" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg"></i> クリア
+                    </a>
+                </div>
+            </form>
+
             <form method="post" id="largeTxForm">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="bulk_update_categories">
                 <input type="hidden" name="source_tab" value="large">
 
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="mb-0">多額取引リスト</h4>
+                    <h4 class="mb-0">多額取引リスト {% if filter_state.large_category %}<small class="text-muted">(フィルター適用中)</small>{% endif %}</h4>
                     <div>
                         {% if large_txs %}
                         <button type="submit" class="btn btn-primary btn-sm me-2">
@@ -188,7 +209,7 @@
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1">
-                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}" data-tx-bank="{{ tx.bank_name|default:'' }}" data-tx-branch="{{ tx.branch_name|default:'' }}" data-tx-account="{{ tx.account_id|default:'' }}">詳細</button>
+                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-balance="{{ tx.balance|default:'' }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}" data-tx-bank="{{ tx.bank_name|default:'' }}" data-tx-branch="{{ tx.branch_name|default:'' }}" data-tx-account-type="{{ tx.account_type|default:'' }}" data-tx-account="{{ tx.account_id|default:'' }}">詳細</button>
                                     </div>
                                 </td>
                                 <td>
@@ -294,6 +315,9 @@
                         <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm">
                             <i class="bi bi-download"></i> 全データCSV出力
                         </a>
+                        <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-primary btn-sm" title="JSONバックアップをダウンロード">
+                            <i class="bi bi-box-arrow-down"></i> JSONバックアップ
+                        </a>
                     </div>
                 </div>
 
@@ -331,7 +355,7 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}" data-tx-bank="{{ tx.bank_name|default:'' }}" data-tx-branch="{{ tx.branch_name|default:'' }}" data-tx-account="{{ tx.account_id|default:'' }}">詳細</button>
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-balance="{{ tx.balance|default:'' }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}" data-tx-bank="{{ tx.bank_name|default:'' }}" data-tx-branch="{{ tx.branch_name|default:'' }}" data-tx-account-type="{{ tx.account_type|default:'' }}" data-tx-account="{{ tx.account_id|default:'' }}">詳細</button>
                                 </td>
                                 <td>
                                     <button type="button" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %} flag-btn"
@@ -399,6 +423,36 @@
                 日付、金額、摘要、口座IDが完全に一致するデータを「重複データ」として表示しています。<br>
                 誤って二重に取り込んでしまった場合などに使用してください。
             </p>
+
+            <!-- ID範囲削除フォーム -->
+            <div class="card bg-light border-warning mb-4">
+                <div class="card-body">
+                    <h6 class="card-title text-warning"><i class="bi bi-lightning"></i> ID範囲指定で一括削除</h6>
+                    <p class="small text-muted mb-3">
+                        開始IDから終了IDまでの取引を一括削除します。下の重複データ一覧でIDを確認してください。
+                    </p>
+                    <form method="post" class="row g-2 align-items-end">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_by_range">
+                        <div class="col-auto">
+                            <label for="start_id" class="form-label small">開始ID</label>
+                            <input type="number" class="form-control form-control-sm" id="start_id" name="start_id" placeholder="例: 100" required style="width: 120px;">
+                        </div>
+                        <div class="col-auto d-flex align-items-center pt-4">
+                            <span class="text-muted">〜</span>
+                        </div>
+                        <div class="col-auto">
+                            <label for="end_id" class="form-label small">終了ID</label>
+                            <input type="number" class="form-control form-control-sm" id="end_id" name="end_id" placeholder="例: 200" required style="width: 120px;">
+                        </div>
+                        <div class="col-auto pt-4">
+                            <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('指定したID範囲の取引を削除しますか？この操作は取り消せません。')">
+                                <i class="bi bi-trash"></i> 範囲削除実行
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
             <form method="post">
                 {% csrf_token %}
@@ -504,10 +558,12 @@
                                         data-bs-toggle="modal" data-bs-target="#editModal"
                                         data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}"
                                         data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}"
-                                        data-tx-amount-in="{{ tx.amount_in }}" data-tx-cat="{{ tx.category|default:'' }}"
+                                        data-tx-amount-in="{{ tx.amount_in }}" data-tx-balance="{{ tx.balance|default:'' }}"
+                                        data-tx-cat="{{ tx.category|default:'' }}"
                                         data-tx-memo="{{ tx.memo|default:'' }}"
                                         data-tx-bank="{{ tx.bank_name|default:'' }}"
                                         data-tx-branch="{{ tx.branch_name|default:'' }}"
+                                        data-tx-account-type="{{ tx.account_type|default:'' }}"
                                         data-tx-account="{{ tx.account_id|default:'' }}">
                                         <i class="bi bi-pencil"></i>
                                     </button>
@@ -543,7 +599,7 @@
 
                 <div class="modal-body">
                     <div class="row g-2 mb-3">
-                        <div class="col-4">
+                        <div class="col-3">
                             <label class="form-label">銀行名</label>
                             <select name="bank_name" class="form-select form-select-sm" id="modalTxBankName">
                                 <option value="">-- 選択 --</option>
@@ -552,7 +608,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-4">
+                        <div class="col-3">
                             <label class="form-label">支店名</label>
                             <select name="branch_name" class="form-select form-select-sm" id="modalTxBranchName">
                                 <option value="">-- 選択 --</option>
@@ -561,7 +617,11 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-4">
+                        <div class="col-3">
+                            <label class="form-label">種別</label>
+                            <input type="text" name="account_type" id="modalTxAccountType" class="form-control form-control-sm" placeholder="普通預金等">
+                        </div>
+                        <div class="col-3">
                             <label class="form-label">口座番号</label>
                             <select name="account_id" class="form-select form-select-sm" id="modalTxAccountId">
                                 <option value="">-- 選択 --</option>
@@ -583,13 +643,17 @@
                     </div>
 
                     <div class="row g-2 mb-3">
-                        <div class="col-6">
+                        <div class="col-4">
                             <label class="form-label">払戻（出金）</label>
                             <input type="number" name="amount_out" id="modalTxAmountOut" class="form-control">
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <label class="form-label">お預り（入金）</label>
                             <input type="number" name="amount_in" id="modalTxAmountIn" class="form-control">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">残高</label>
+                            <input type="number" name="balance" id="modalTxBalance" class="form-control">
                         </div>
                     </div>
 
@@ -659,10 +723,12 @@
         const txDesc = button.getAttribute('data-tx-desc');
         const txAmountOut = button.getAttribute('data-tx-amount-out');
         const txAmountIn = button.getAttribute('data-tx-amount-in');
+        const txBalance = button.getAttribute('data-tx-balance');
         const txCat = button.getAttribute('data-tx-cat');
         const txMemo = button.getAttribute('data-tx-memo');
         const txBank = button.getAttribute('data-tx-bank');
         const txBranch = button.getAttribute('data-tx-branch');
+        const txAccountType = button.getAttribute('data-tx-account-type');
         const txAccount = button.getAttribute('data-tx-account');
 
         document.getElementById('modalTxId').value = txId;
@@ -670,10 +736,12 @@
         document.getElementById('modalTxDescInput').value = txDesc;
         document.getElementById('modalTxAmountOut').value = txAmountOut;
         document.getElementById('modalTxAmountIn').value = txAmountIn;
+        document.getElementById('modalTxBalance').value = txBalance || '';
         document.getElementById('modalTxCat').value = txCat || '未分類';
         document.getElementById('modalTxMemo').value = txMemo || '';
         document.getElementById('modalTxBankName').value = txBank || '';
         document.getElementById('modalTxBranchName').value = txBranch || '';
+        document.getElementById('modalTxAccountType').value = txAccountType || '';
         document.getElementById('modalTxAccountId').value = txAccount || '';
 
         // 現在のタブを記録
