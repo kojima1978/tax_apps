@@ -10,7 +10,7 @@ import pandas as pd
 from django.db import transaction
 
 from .models import Case, Transaction
-from .lib import analyzer, llm_classifier
+from .lib import analyzer, llm_classifier, config
 
 logger = logging.getLogger(__name__)
 
@@ -313,6 +313,69 @@ class TransactionService:
             フラグ付き取引のQuerySet
         """
         return case.transactions.filter(is_flagged=True).order_by('date', 'id')
+
+    @staticmethod
+    def apply_classification_rules(case: Case) -> int:
+        """
+        設定画面で定義したキーワードルールを既存取引に適用
+
+        Args:
+            case: 対象の案件
+
+        Returns:
+            更新された取引数
+        """
+        patterns = config.get_classification_patterns()
+        txs = case.transactions.filter(category='未分類')
+
+        if not txs.exists():
+            return 0
+
+        updates = []
+        for tx in txs:
+            if not tx.description:
+                continue
+
+            desc_lower = tx.description.lower()
+            for category, keywords in patterns.items():
+                for keyword in keywords:
+                    if keyword.lower() in desc_lower:
+                        tx.category = category
+                        updates.append(tx)
+                        break
+                if tx in updates:
+                    break
+
+        if updates:
+            Transaction.objects.bulk_update(updates, ['category'])
+            logger.info(f"ルール適用完了: case_id={case.id}, count={len(updates)}")
+
+        return len(updates)
+
+    @staticmethod
+    def bulk_update_selected_category(case: Case, tx_ids: list[str], new_category: str) -> int:
+        """
+        選択された取引のカテゴリーを一括更新
+
+        Args:
+            case: 対象の案件
+            tx_ids: 更新対象の取引IDリスト
+            new_category: 新しいカテゴリー
+
+        Returns:
+            更新された取引数
+        """
+        if not tx_ids or not new_category:
+            return 0
+
+        int_ids = _parse_int_ids(tx_ids)
+        if int_ids is None:
+            logger.warning(f"不正な取引ID: {tx_ids}")
+            return 0
+
+        count = case.transactions.filter(id__in=int_ids).update(category=new_category)
+        logger.info(f"選択一括更新: case_id={case.id}, category={new_category}, count={count}")
+        return count
 
 
 class AnalysisService:

@@ -670,6 +670,32 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
             messages.success(request, "自動分類が完了しました。")
         return redirect('analysis-dashboard', pk=pk)
 
+    elif action == 'apply_rules':
+        count = TransactionService.apply_classification_rules(case)
+        if count == 0:
+            messages.info(request, "未分類の取引がないか、マッチするルールがありませんでした。")
+        else:
+            messages.success(request, f"キーワードルールを適用し、{count}件を分類しました。")
+        return redirect('analysis-dashboard', pk=pk)
+
+    elif action == 'bulk_update_selected':
+        source_tab = request.POST.get('source_tab', 'all')
+        selected_ids = request.POST.getlist('selected_ids')
+        new_category = request.POST.get('bulk_category')
+
+        if not selected_ids:
+            messages.warning(request, "取引が選択されていません。")
+        elif not new_category:
+            messages.warning(request, "カテゴリーを選択してください。")
+        else:
+            count = TransactionService.bulk_update_selected_category(case, selected_ids, new_category)
+            if count > 0:
+                messages.success(request, f"選択した{count}件の取引を「{new_category}」に変更しました。")
+            else:
+                messages.warning(request, "更新対象がありませんでした。")
+
+        return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
+
     elif action == 'delete_account':
         account_id = request.POST.get('account_id')
         if account_id:

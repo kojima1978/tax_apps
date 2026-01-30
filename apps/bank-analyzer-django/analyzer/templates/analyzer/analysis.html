@@ -12,6 +12,10 @@
     <div class="col-md-4 text-end">
         <form method="post" class="d-inline">
             {% csrf_token %}
+            <button type="submit" name="action" value="apply_rules" class="btn btn-outline-primary me-2"
+                onclick="return confirm('設定画面のキーワードルールを未分類の取引に適用しますか？')">
+                <i class="bi bi-list-check"></i> ルール適用
+            </button>
             <button type="submit" name="action" value="run_classifier" class="btn btn-primary"
                 onclick="return confirm('自動分類を実行しますか？現在の手動設定が上書きされる可能性があります。')">
                 <i class="bi bi-robot"></i> 自動分類実行
@@ -280,10 +284,10 @@
                 </div>
             </form>
 
-            <!-- 一括編集フォーム -->
+            <!-- 分類編集フォーム -->
             <form method="post" id="allTxForm">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="bulk_update_categories">
+                <input type="hidden" name="action" value="bulk_update_categories" id="formAction">
                 <input type="hidden" name="source_tab" value="all">
                 <!-- フィルター状態を保持 -->
                 {% for bank in filter_state.bank %}
@@ -310,7 +314,7 @@
                     </h5>
                     <div>
                         {% if all_txs %}
-                        <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <button type="submit" class="btn btn-primary btn-sm me-2" id="saveAllCategoriesBtn">
                             <i class="bi bi-check-lg"></i> 分類を一括保存
                         </button>
                         {% endif %}
@@ -323,10 +327,34 @@
                     </div>
                 </div>
 
+                <!-- 選択一括操作バー -->
+                <div class="card bg-light mb-3" id="bulkActionBar" style="display: none;">
+                    <div class="card-body py-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <span id="selectedCountText" class="text-muted">0件選択中</span>
+                            <select name="bulk_category" id="bulkCategorySelect" class="form-select form-select-sm" style="width: 150px;">
+                                <option value="">-- 分類を選択 --</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-success btn-sm" id="applyBulkCategoryBtn">
+                                <i class="bi bi-check-lg"></i> 選択を一括変更
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn">
+                                <i class="bi bi-x-lg"></i> 選択解除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle table-sm">
                         <thead>
                             <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" class="form-check-input" id="selectAllTx" title="全選択">
+                                </th>
                                 <th>日付</th>
                                 <th>銀行名</th>
                                 <th>支店名</th>
@@ -343,6 +371,9 @@
                         <tbody>
                             {% for tx in all_txs %}
                             <tr>
+                                <td>
+                                    <input type="checkbox" name="selected_ids" value="{{ tx.id }}" class="form-check-input tx-select-check">
+                                </td>
                                 <td>{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
                                 <td>{{ tx.branch_name|default:"-" }}</td>
@@ -371,12 +402,13 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="11" class="text-center">取引が見つかりません。</td>
+                                <td colspan="12" class="text-center">取引が見つかりません。</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+            </form>
 
                 <!-- ページネーション -->
                 {% if all_txs.paginator.num_pages > 1 %}
@@ -910,6 +942,84 @@
             toastElement.remove();
         });
     }
+
+    // ===== 一括選択機能 =====
+    const selectAllTx = document.getElementById('selectAllTx');
+    const txCheckboxes = document.querySelectorAll('.tx-select-check');
+    const bulkActionBar = document.getElementById('bulkActionBar');
+    const selectedCountText = document.getElementById('selectedCountText');
+    const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+    const applyBulkCategoryBtn = document.getElementById('applyBulkCategoryBtn');
+    const bulkCategorySelect = document.getElementById('bulkCategorySelect');
+
+    // 選択状態の更新
+    function updateSelectionUI() {
+        const checkedCount = document.querySelectorAll('.tx-select-check:checked').length;
+        if (selectedCountText) {
+            selectedCountText.textContent = `${checkedCount}件選択中`;
+        }
+        if (bulkActionBar) {
+            bulkActionBar.style.display = checkedCount > 0 ? 'block' : 'none';
+        }
+        // 全選択チェックボックスの状態を更新
+        if (selectAllTx) {
+            selectAllTx.checked = checkedCount === txCheckboxes.length && txCheckboxes.length > 0;
+            selectAllTx.indeterminate = checkedCount > 0 && checkedCount < txCheckboxes.length;
+        }
+    }
+
+    // 全選択チェックボックス
+    if (selectAllTx) {
+        selectAllTx.addEventListener('change', function() {
+            txCheckboxes.forEach(cb => cb.checked = this.checked);
+            updateSelectionUI();
+        });
+    }
+
+    // 個別チェックボックス
+    txCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectionUI);
+    });
+
+    // 選択解除ボタン
+    if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', function() {
+            txCheckboxes.forEach(cb => cb.checked = false);
+            if (selectAllTx) selectAllTx.checked = false;
+            updateSelectionUI();
+        });
+    }
+
+    // 選択を一括変更ボタン（選択された行のセレクトボックスを変更）
+    if (applyBulkCategoryBtn) {
+        applyBulkCategoryBtn.addEventListener('click', function() {
+            const selectedCategory = bulkCategorySelect.value;
+            if (!selectedCategory) {
+                showToast('分類を選択してください', 'danger');
+                return;
+            }
+
+            const checkedBoxes = document.querySelectorAll('.tx-select-check:checked');
+            if (checkedBoxes.length === 0) {
+                showToast('取引が選択されていません', 'danger');
+                return;
+            }
+
+            // 選択された行のセレクトボックスを変更
+            checkedBoxes.forEach(cb => {
+                const txId = cb.value;
+                const categorySelect = document.querySelector(`select[name="cat-${txId}"]`);
+                if (categorySelect) {
+                    categorySelect.value = selectedCategory;
+                }
+            });
+
+            showToast(`${checkedBoxes.length}件の分類を「${selectedCategory}」に変更しました（保存ボタンを押してください）`, 'info');
+        });
+    }
+
+    // ページ読み込み時に初期状態を確認
+    updateSelectionUI();
 </script>
 
 <!-- Toast Container -->
