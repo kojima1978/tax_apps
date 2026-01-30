@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 相続税申告 資料準備ガイド (Inheritance Tax Docs)
 
-## Getting Started
+相続税申告に必要な資料の準備、確認、および管理をサポートするWebアプリケーションです。
 
-First, run the development server:
+## プロジェクト概要
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+このアプリケーションは、複雑になりがちな相続税申告の必要書類を整理し、ユーザーが効率的に準備を進められるよう支援します。
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 主な機能
+- **資料リスト管理**: 申告に必要な書類のリスト表示と状態管理
+- **Excel連携**: `xlsx-js-style` を使用したExcelファイルの出力・操作機能（想定）
+- **レスポンシブデザイン**: Tailwind CSS v4 を採用したモダンなUI
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 技術スタック
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **UI library**: [React 19](https://react.dev/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Utilities**: xlsx-js-style
 
-## Learn More
+## 開発環境のセットアップ
 
-To learn more about Next.js, take a look at the following resources:
+### 必要要件
+- Node.js (v20以上推奨)
+- Docker (コンテナで実行する場合)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### ローカル開発環境での実行
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. 依存関係のインストール
+   ```bash
+   npm install
+   ```
 
-## Deploy on Vercel
+2. 開発サーバーの起動
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. ブラウザで確認
+   [http://localhost:3000/inheritance-tax-docs](http://localhost:3000/inheritance-tax-docs) にアクセスしてください。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Docker環境での実行
+
+本プロジェクトは Docker Compose での実行環境が設定されています。
+
+1. コンテナのビルドと起動
+   ```bash
+   docker-compose up
+   ```
+
+2. ブラウザで確認
+   Docker環境で起動した場合、ポート **3003** で公開されます。
+   [http://localhost:3003/inheritance-tax-docs](http://localhost:3003/inheritance-tax-docs) にアクセスしてください。
+
+   > **Note**: `docker-compose.yml` 内でポート `3003` にマッピングされています。
+
+## コマンド一覧
+
+- `npm run dev`: 開発サーバーを起動
+- `npm run build`: 本番用ビルドを作成
+- `npm run start`: ビルドされたアプリケーションを起動
+- `npm run lint`: ESLintを実行
+
+## ディレクトリ構成
+
+- `src/app`: Next.js App Router ページコンポーネント
+- `src/components`: UIコンポーネント (メインロジック: `InheritanceTaxDocGuide.tsx`)
+- `public`: 静的アセット
