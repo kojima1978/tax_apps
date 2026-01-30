@@ -14,4 +14,6 @@ urlpatterns = [
     path('case/<int:pk>/analysis/', views.analysis_dashboard, name='analysis-dashboard'),
     path('case/<int:pk>/export/<str:export_type>/', views.export_csv, name='export-csv'),
     path('case/<int:pk>/export-json/', views.export_json, name='export-json'),
+    # API Endpoints (AJAX)
+    path('case/<int:pk>/api/toggle-flag/', views.api_toggle_flag, name='api-toggle-flag'),
 ]

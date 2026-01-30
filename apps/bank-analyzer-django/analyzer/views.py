@@ -5,7 +5,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy, reverse
 import pandas as pd
@@ -853,3 +854,39 @@ def settings_view(request: HttpRequest) -> HttpResponse:
         form = SettingsForm(initial=initial_data)
 
     return render(request, 'analyzer/settings.html', {'form': form})
+
+
+# =============================================================================
+# API Endpoints (AJAX)
+# =============================================================================
+
+@require_POST
+def api_toggle_flag(request: HttpRequest, pk: int) -> JsonResponse:
+    """
+    付箋トグルAPIエンドポイント（AJAX用）
+
+    Returns:
+        JSON: {success: bool, is_flagged: bool, message: str}
+    """
+    case = get_object_or_404(Case, pk=pk)
+    tx_id = request.POST.get('tx_id')
+
+    if not tx_id:
+        return JsonResponse({
+            'success': False,
+            'message': '取引IDが指定されていません'
+        }, status=400)
+
+    try:
+        new_state = TransactionService.toggle_flag(case, int(tx_id))
+        return JsonResponse({
+            'success': True,
+            'is_flagged': new_state,
+            'message': '付箋を追加しました' if new_state else '付箋を外しました'
+        })
+    except Exception as e:
+        logger.exception(f"フラグ更新APIエラー: tx_id={tx_id}, error={e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'エラー: {e}'
+        }, status=500)

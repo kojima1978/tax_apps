@@ -181,6 +181,7 @@
                                 <th>日付</th>
                                 <th>銀行名</th>
                                 <th>支店名</th>
+                                <th>種別</th>
                                 <th>口座番号</th>
                                 <th>摘要</th>
                                 <th>払戻</th>
@@ -196,6 +197,7 @@
                                 <td>{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
                                 <td>{{ tx.branch_name|default:"-" }}</td>
+                                <td>{{ tx.account_type|default:"-" }}</td>
                                 <td>{{ tx.account_id|default:"-" }}</td>
                                 <td>{{ tx.description }}</td>
                                 <td class="text-end text-danger fw-bold">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
@@ -328,6 +330,7 @@
                                 <th>日付</th>
                                 <th>銀行名</th>
                                 <th>支店名</th>
+                                <th>種別</th>
                                 <th>口座番号</th>
                                 <th>摘要</th>
                                 <th>払戻</th>
@@ -343,6 +346,7 @@
                                 <td>{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
                                 <td>{{ tx.branch_name|default:"-" }}</td>
+                                <td>{{ tx.account_type|default:"-" }}</td>
                                 <td>{{ tx.account_id|default:"-" }}</td>
                                 <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
                                 <td class="text-end">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
@@ -367,7 +371,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="10" class="text-center">取引が見つかりません。</td>
+                                <td colspan="11" class="text-center">取引が見つかりません。</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -474,6 +478,7 @@
                                 <th>日付</th>
                                 <th>銀行名</th>
                                 <th>支店名</th>
+                                <th>種別</th>
                                 <th>口座番号</th>
                                 <th>摘要</th>
                                 <th>出金</th>
@@ -491,6 +496,7 @@
                                 <td>{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
                                 <td>{{ tx.branch_name|default:"-" }}</td>
+                                <td>{{ tx.account_type|default:"-" }}</td>
                                 <td>{{ tx.account_id|default:"-" }}</td>
                                 <td>{{ tx.description }}</td>
                                 <td class="text-end">{% if tx.amount_out %}{{ tx.amount_out|intcomma }}{% endif %}</td>
@@ -525,6 +531,8 @@
                         <tr>
                             <th>日付</th>
                             <th>銀行名</th>
+                            <th>支店名</th>
+                            <th>種別</th>
                             <th>口座番号</th>
                             <th>摘要</th>
                             <th>出金</th>
@@ -539,6 +547,8 @@
                         <tr>
                             <td>{{ tx.date|wareki_short }}</td>
                             <td>{{ tx.bank_name|default:"-" }}</td>
+                            <td>{{ tx.branch_name|default:"-" }}</td>
+                            <td>{{ tx.account_type|default:"-" }}</td>
                             <td>{{ tx.account_id|default:"-" }}</td>
                             <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
                             <td class="text-end text-danger">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
@@ -782,31 +792,128 @@
         }
     }
 
-    // 付箋ボタンのクリック処理（フォームネストを回避するため fetch で送信）
+    // 付箋ボタンのクリック処理（AJAX - ページ遷移なし）
     document.querySelectorAll('.flag-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            const txId = this.getAttribute('data-tx-id');
-            const sourceTab = this.getAttribute('data-source-tab');
+            const button = this;
+            const txId = button.getAttribute('data-tx-id');
+            const sourceTab = button.getAttribute('data-source-tab');
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const row = button.closest('tr');
+
+            // ボタンを一時的に無効化（二重クリック防止）
+            button.disabled = true;
+            button.style.opacity = '0.5';
 
             const formData = new FormData();
-            formData.append('action', 'toggle_flag');
             formData.append('tx_id', txId);
-            formData.append('source_tab', sourceTab);
             formData.append('csrfmiddlewaretoken', csrfToken);
 
-            fetch(window.location.pathname, {
+            // APIエンドポイントにリクエスト
+            const apiUrl = window.location.pathname.replace('/analysis/', '/api/toggle-flag/');
+
+            fetch(apiUrl, {
                 method: 'POST',
                 body: formData
-            }).then(response => {
-                if (response.ok) {
-                    // ページをリロードしてタブ位置を保持
-                    window.location.href = window.location.pathname + '?tab=' + sourceTab;
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 付箋タブで付箋を外した場合は行をフェードアウト
+                    if (sourceTab === 'flagged' && !data.is_flagged) {
+                        row.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(-20px)';
+                        setTimeout(() => {
+                            row.remove();
+                            // 残り件数を確認し、0件ならメッセージ表示
+                            const tbody = document.querySelector('#flagged tbody');
+                            if (tbody && tbody.querySelectorAll('tr').length === 0) {
+                                tbody.innerHTML = `
+                                    <tr>
+                                        <td colspan="9" class="text-center py-4 text-muted">
+                                            付箋が付いた取引はありません。
+                                        </td>
+                                    </tr>
+                                `;
+                            }
+                        }, 300);
+                        showToast('付箋を外しました', 'info');
+                    } else {
+                        // ボタンの見た目を更新
+                        if (data.is_flagged) {
+                            button.classList.remove('btn-outline-secondary');
+                            button.classList.add('btn-info');
+                            button.title = '付箋を外す';
+                            showToast('付箋を追加しました', 'success');
+                        } else {
+                            button.classList.remove('btn-info');
+                            button.classList.add('btn-outline-secondary');
+                            button.title = '付箋を付ける';
+                            showToast('付箋を外しました', 'info');
+                        }
+                        // ボタンを再有効化
+                        button.disabled = false;
+                        button.style.opacity = '1';
+                    }
+                } else {
+                    showToast('エラー: ' + data.message, 'danger');
+                    button.disabled = false;
+                    button.style.opacity = '1';
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('通信エラーが発生しました', 'danger');
+                button.disabled = false;
+                button.style.opacity = '1';
             });
         });
     });
+
+    // 付箋タブクリック時にページリロード（最新データ取得）
+    const flaggedTab = document.getElementById('flagged-tab');
+    if (flaggedTab) {
+        flaggedTab.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = window.location.pathname + '?tab=flagged';
+        });
+    }
+
+    // トースト通知を表示
+    function showToast(message, type = 'success') {
+        const toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) return;
+
+        const toastId = 'toast-' + Date.now();
+        const bgClass = type === 'success' ? 'bg-success' : type === 'danger' ? 'bg-danger' : 'bg-info';
+        const icon = type === 'success' ? 'bi-check-circle' : type === 'danger' ? 'bi-exclamation-circle' : 'bi-info-circle';
+
+        const toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi ${icon} me-2"></i>${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+        toast.show();
+
+        // 非表示後に要素を削除
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+    }
 </script>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
 
 <style>
     .nav-tabs .nav-link {
