@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 # 定数
 ITEMS_PER_PAGE = 100  # ページネーションの1ページあたりの件数
 MAX_VALIDATION_ERRORS_DISPLAY = 5  # バリデーションエラーの最大表示件数
-GIFT_TAX_THRESHOLD = 1_100_000  # 贈与税の基礎控除額
 
 
 def _parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
