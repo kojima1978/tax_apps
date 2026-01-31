@@ -357,7 +357,7 @@ class AnalysisService:
     """分析機能に関するビジネスロジック"""
 
     STANDARD_CATEGORIES = [
-        "生活費", "給与", "贈与", "事業・不動産", "関連会社", "銀行", "証券・株式", "保険会社", "その他", "未分類"
+        "生活費", "給与", "贈与", "事業・不動産", "関連会社", "銀行", "証券・株式", "保険会社", "通帳間移動", "その他", "未分類"
     ]
 
     @staticmethod
@@ -389,18 +389,37 @@ class AnalysisService:
         }).reset_index().rename(columns={'id': 'count', 'date': 'last_date'})
         account_summary_list = account_summary.to_dict(orient='records')
 
-        # 資金移動データ
+        # 資金移動データ（ペアで取得）
         analyzed_df = analyzer.analyze_transfers(df.copy())
         transfers_df = AnalysisService._convert_amounts_to_int(
             analyzed_df[analyzed_df['is_transfer']].copy()
         )
-        transfer_pairs = AnalysisService._get_transfer_chart_data(transfers_df)
+        transfer_pairs = AnalysisService._get_transfer_pairs(transfers_df)
+
+        # 資金移動の分類フィルター（出金元または移動先のいずれかがマッチすれば表示）
+        if filter_state.get('transfer_category'):
+            filter_cats = filter_state['transfer_category']
+            if filter_state.get('transfer_category_mode') == 'exclude':
+                transfer_pairs = [
+                    pair for pair in transfer_pairs
+                    if (pair['source'].get('category') not in filter_cats and
+                        (not pair['destination'] or pair['destination'].get('category') not in filter_cats))
+                ]
+            else:
+                transfer_pairs = [
+                    pair for pair in transfer_pairs
+                    if (pair['source'].get('category') in filter_cats or
+                        (pair['destination'] and pair['destination'].get('category') in filter_cats))
+                ]
 
         # 多額取引
         large_df = df[df['is_large']].copy()
         # 多額取引の分類フィルター
         if filter_state.get('large_category'):
-            large_df = large_df[large_df['category'].isin(filter_state['large_category'])]
+            if filter_state.get('large_category_mode') == 'exclude':
+                large_df = large_df[~large_df['category'].isin(filter_state['large_category'])]
+            else:
+                large_df = large_df[large_df['category'].isin(filter_state['large_category'])]
         large_df = AnalysisService._convert_amounts_to_int(
             large_df.sort_values('date', ascending=True).copy()
         )
@@ -413,7 +432,10 @@ class AnalysisService:
         if filter_state.get('account'):
             filtered_txs = filtered_txs.filter(account_id__in=filter_state['account'])
         if filter_state.get('category'):
-            filtered_txs = filtered_txs.filter(category__in=filter_state['category'])
+            if filter_state.get('category_mode') == 'exclude':
+                filtered_txs = filtered_txs.exclude(category__in=filter_state['category'])
+            else:
+                filtered_txs = filtered_txs.filter(category__in=filter_state['category'])
         if filter_state.get('keyword'):
             filtered_txs = filtered_txs.filter(description__icontains=filter_state['keyword'])
 
@@ -430,7 +452,6 @@ class AnalysisService:
         return {
             'account_summary': account_summary_list,
             'transfer_pairs': transfer_pairs,
-            'transfer_list': transfers_df.to_dict(orient='records'),
             'large_txs': large_txs,
             'all_txs': filtered_txs,
             'duplicate_txs': duplicate_txs,
@@ -463,20 +484,57 @@ class AnalysisService:
         return dup_df.to_dict(orient='records')
 
     @staticmethod
-    def _get_transfer_chart_data(transfers_df: pd.DataFrame) -> list:
-        """資金移動チャート用のデータを生成"""
+    def _get_transfer_pairs(transfers_df: pd.DataFrame) -> list:
+        """資金移動のペアデータを生成（出金元・移動先をセットで返す）"""
         if transfers_df.empty:
             return []
 
         transfer_pairs = []
         out_txs = transfers_df[transfers_df['amount_out'] > 0]
-        for _, row in out_txs.iterrows():
-            transfer_to = row.get('transfer_to', '')
-            label = f"{row['account_id']} → {transfer_to.split(' ')[0] if transfer_to else '?'}"
-            transfer_pairs.append({
-                'date': row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '',
-                'amount': row['amount_out'],
-                'label': label,
-                'description': row['description']
-            })
+        in_txs = transfers_df[transfers_df['amount_in'] > 0]
+
+        for _, out_row in out_txs.iterrows():
+            transfer_to = out_row.get('transfer_to', '')
+            # transfer_toから口座IDと日付を抽出: "1234567 (2024-01-15)"
+            dest_account_id = transfer_to.split(' ')[0] if transfer_to else None
+
+            # 対応する入金側を探す
+            dest_row = None
+            if dest_account_id:
+                matching = in_txs[in_txs['account_id'] == dest_account_id]
+                if not matching.empty:
+                    # 金額が近いものを探す
+                    for _, candidate in matching.iterrows():
+                        if abs(candidate['amount_in'] - out_row['amount_out']) <= 1000:
+                            dest_row = candidate
+                            break
+
+            pair = {
+                'source': {
+                    'id': out_row.get('id'),
+                    'date': out_row['date'],
+                    'bank_name': out_row.get('bank_name', ''),
+                    'branch_name': out_row.get('branch_name', ''),
+                    'account_id': out_row.get('account_id', ''),
+                    'amount': out_row['amount_out'],
+                    'description': out_row.get('description', ''),
+                    'category': out_row.get('category', '未分類')
+                },
+                'destination': None
+            }
+
+            if dest_row is not None:
+                pair['destination'] = {
+                    'id': dest_row.get('id'),
+                    'date': dest_row['date'],
+                    'bank_name': dest_row.get('bank_name', ''),
+                    'branch_name': dest_row.get('branch_name', ''),
+                    'account_id': dest_row.get('account_id', ''),
+                    'amount': dest_row['amount_in'],
+                    'description': dest_row.get('description', ''),
+                    'category': dest_row.get('category', '未分類')
+                }
+
+            transfer_pairs.append(pair)
+
         return transfer_pairs

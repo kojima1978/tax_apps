@@ -91,47 +91,130 @@
     <!-- Tab 1: Transfers -->
     <div class="tab-pane fade show active" id="transfers" role="tabpanel" aria-labelledby="transfers-tab">
         <div class="glass-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="mb-0">資金移動の可視化</h4>
-                {% if transfer_list %}
-                <a href="{% url 'export-csv' case.pk 'transfers' %}" class="btn btn-outline-success btn-sm">
-                    <i class="bi bi-download"></i> CSV出力
-                </a>
-                {% endif %}
-            </div>
-            {% if transfer_list %}
-            <div id="transferChart" style="width:100%; height:500px;"></div>
-
-            <h5 class="mt-4 mb-3">検出された移動リスト</h5>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover text-nowrap">
-                    <thead>
-                        <tr>
-                            <th>日付</th>
-                            <th>出金元</th>
-                            <th>移動先推定</th>
-                            <th>出金額</th>
-                            <th>摘要</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in transfer_list %}
-                        {% if row.amount_out > 0 %}
-                        <tr>
-                            <td>{{ row.date|wareki_short }}</td>
-                            <td>{{ row.account_id }}</td>
-                            <td>{{ row.transfer_to }}</td>
-                            <td class="text-end">{{ row.amount_out|intcomma }}</td>
-                            <td>{{ row.description }}</td>
-                        </tr>
-                        {% endif %}
+            <!-- 分類フィルター -->
+            <form method="get" class="row g-3 mb-4">
+                <input type="hidden" name="tab" value="transfers">
+                <div class="col-md-4">
+                    <label class="form-label">分類で絞り込み <small class="text-muted">(出金元/移動先いずれか)</small></label>
+                    <select name="transfer_category" class="form-select" multiple size="3">
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if cat in filter_state.transfer_category %}selected{% endif %}>{{ cat }}</option>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="alert alert-info">資金移動は検出されませんでした。</div>
-            {% endif %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">絞り込み方法</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transfer_category_mode" id="transfer_mode_include" value="include" {% if filter_state.transfer_category_mode != 'exclude' %}checked{% endif %}>
+                            <label class="form-check-label" for="transfer_mode_include">選択を含む</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transfer_category_mode" id="transfer_mode_exclude" value="exclude" {% if filter_state.transfer_category_mode == 'exclude' %}checked{% endif %}>
+                            <label class="form-check-label" for="transfer_mode_exclude">選択以外</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-search"></i> 絞り込み
+                    </button>
+                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=transfers" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg"></i> クリア
+                    </a>
+                </div>
+            </form>
+
+            <form method="post" id="transferForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="bulk_update_transfer_categories">
+                <input type="hidden" name="source_tab" value="transfers">
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0">🔄 検出された資金移動リスト {% if filter_state.transfer_category %}<small class="text-muted">(フィルター適用中)</small>{% endif %}</h4>
+                    <div>
+                        {% if transfer_pairs %}
+                        <button type="submit" class="btn btn-primary btn-sm me-2">
+                            <i class="bi bi-check-lg"></i> 分類を一括保存
+                        </button>
+                        <a href="{% url 'export-csv' case.pk 'transfers' %}" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-download"></i> CSV出力
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if transfer_pairs %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr class="table-secondary">
+                                <th colspan="7" class="text-center bg-danger bg-opacity-10">【出金元】</th>
+                                <th colspan="7" class="text-center bg-success bg-opacity-10">【移動先】</th>
+                            </tr>
+                            <tr>
+                                <th>日付</th>
+                                <th>銀行</th>
+                                <th>支店</th>
+                                <th>口座番号</th>
+                                <th class="text-end">金額</th>
+                                <th>摘要</th>
+                                <th style="min-width: 110px;">分類</th>
+                                <th>日付</th>
+                                <th>銀行</th>
+                                <th>支店</th>
+                                <th>口座番号</th>
+                                <th class="text-end">金額</th>
+                                <th>摘要</th>
+                                <th style="min-width: 110px;">分類</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pair in transfer_pairs %}
+                            <tr>
+                                <!-- 出金元 -->
+                                <td>{{ pair.source.date|wareki_short }}</td>
+                                <td>{{ pair.source.bank_name|default:"-" }}</td>
+                                <td>{{ pair.source.branch_name|default:"-" }}</td>
+                                <td>{{ pair.source.account_id|default:"-" }}</td>
+                                <td class="text-end text-danger fw-bold">{{ pair.source.amount|intcomma }}</td>
+                                <td class="text-truncate" style="max-width: 120px;" title="{{ pair.source.description }}">{{ pair.source.description|default:"-" }}</td>
+                                <td>
+                                    <select name="transfer-src-{{ pair.source.id }}" class="form-select form-select-sm">
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}" {% if pair.source.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <!-- 移動先 -->
+                                {% if pair.destination %}
+                                <td>{{ pair.destination.date|wareki_short }}</td>
+                                <td>{{ pair.destination.bank_name|default:"-" }}</td>
+                                <td>{{ pair.destination.branch_name|default:"-" }}</td>
+                                <td>{{ pair.destination.account_id|default:"-" }}</td>
+                                <td class="text-end text-success fw-bold">{{ pair.destination.amount|intcomma }}</td>
+                                <td class="text-truncate" style="max-width: 120px;" title="{{ pair.destination.description }}">{{ pair.destination.description|default:"-" }}</td>
+                                <td>
+                                    <select name="transfer-dest-{{ pair.destination.id }}" class="form-select form-select-sm">
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}" {% if pair.destination.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                {% else %}
+                                <td colspan="7" class="text-center text-muted">（対応する入金データなし）</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted small mt-2">
+                    <i class="bi bi-info-circle"></i> 同一金額（±1,000円）で3日以内に異なる口座間で発生した出金・入金をペアとして検出しています。出金元と移動先は別々の分類を設定できます。
+                </p>
+                {% else %}
+                <div class="alert alert-info">資金移動は検出されませんでした。</div>
+                {% endif %}
+            </form>
         </div>
     </div>
 
@@ -149,7 +232,20 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end gap-2">
+                <div class="col-md-3">
+                    <label class="form-label">絞り込み方法</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="large_category_mode" id="large_mode_include" value="include" {% if filter_state.large_category_mode != 'exclude' %}checked{% endif %}>
+                            <label class="form-check-label" for="large_mode_include">選択を含む</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="large_category_mode" id="large_mode_exclude" value="exclude" {% if filter_state.large_category_mode == 'exclude' %}checked{% endif %}>
+                            <label class="form-check-label" for="large_mode_exclude">選択以外</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
                     <button class="btn btn-primary" type="submit">
                         <i class="bi bi-search"></i> 絞り込み
                     </button>
@@ -268,6 +364,16 @@
                         </option>
                         {% endfor %}
                     </select>
+                    <div class="d-flex gap-2 mt-1">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="category_mode" id="cat_mode_include" value="include" {% if filter_state.category_mode != 'exclude' %}checked{% endif %}>
+                            <label class="form-check-label small" for="cat_mode_include">含む</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="category_mode" id="cat_mode_exclude" value="exclude" {% if filter_state.category_mode == 'exclude' %}checked{% endif %}>
+                            <label class="form-check-label small" for="cat_mode_exclude">以外</label>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">キーワード検索</label>
@@ -571,7 +677,8 @@
                             <th>入金</th>
                             <th>分類</th>
                             <th>メモ</th>
-                            <th>操作</th>
+                            <th>詳細</th>
+                            <th>付箋</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -590,26 +697,16 @@
                                 <small class="text-muted">{{ tx.memo|default:"-"|truncatechars:30 }}</small>
                             </td>
                             <td>
-                                <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-sm btn-info flag-btn"
-                                        data-tx-id="{{ tx.id }}" data-source-tab="flagged"
-                                        title="付箋を外す">
-                                        <i class="bi bi-pin-fill"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-info" title="詳細・編集"
-                                        data-bs-toggle="modal" data-bs-target="#editModal"
-                                        data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}"
-                                        data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}"
-                                        data-tx-amount-in="{{ tx.amount_in }}" data-tx-balance="{{ tx.balance|default:'' }}"
-                                        data-tx-cat="{{ tx.category|default:'' }}"
-                                        data-tx-memo="{{ tx.memo|default:'' }}"
-                                        data-tx-bank="{{ tx.bank_name|default:'' }}"
-                                        data-tx-branch="{{ tx.branch_name|default:'' }}"
-                                        data-tx-account-type="{{ tx.account_type|default:'' }}"
-                                        data-tx-account="{{ tx.account_id|default:'' }}">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-balance="{{ tx.balance|default:'' }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}" data-tx-bank="{{ tx.bank_name|default:'' }}" data-tx-branch="{{ tx.branch_name|default:'' }}" data-tx-account-type="{{ tx.account_type|default:'' }}" data-tx-account="{{ tx.account_id|default:'' }}">詳細</button>
                                 </div>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-info flag-btn"
+                                    data-tx-id="{{ tx.id }}" data-source-tab="flagged"
+                                    title="付箋を外す">
+                                    📌
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -731,30 +828,6 @@
 
 {% block extra_js %}
 <script>
-    // Plotly Chart
-    const transferData = JSON.parse('{{ transfer_pairs_json|escapejs }}');
-    if (transferData.length > 0) {
-        const trace = {
-            x: transferData.map(d => d.date),
-            y: transferData.map(d => d.amount),
-            mode: 'markers',
-            type: 'scatter',
-            text: transferData.map(d => `${d.label}<br>${d.description}`),
-            marker: { size: 12, color: '#2563eb', opacity: 0.7 }
-        };
-
-        const layout = {
-            title: '資金移動の時系列分布',
-            paper_bgcolor: 'rgba(0,0,0,0)',
-            plot_bgcolor: 'rgba(0,0,0,0)',
-            font: { color: '#334155' },
-            xaxis: { title: '日付', gridcolor: '#e2e8f0' },
-            yaxis: { title: '移動金額', gridcolor: '#e2e8f0' }
-        };
-
-        Plotly.newPlot('transferChart', [trace], layout);
-    }
-
     // Modal Logic
     const editModal = document.getElementById('editModal');
     editModal.addEventListener('show.bs.modal', function (event) {

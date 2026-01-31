@@ -617,8 +617,12 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'bank': request.GET.getlist('bank'),
         'account': request.GET.getlist('account'),
         'category': request.GET.getlist('category'),
+        'category_mode': request.GET.get('category_mode', 'include'),
         'keyword': request.GET.get('keyword', ''),
         'large_category': request.GET.getlist('large_category'),
+        'large_category_mode': request.GET.get('large_category_mode', 'include'),
+        'transfer_category': request.GET.getlist('transfer_category'),
+        'transfer_category_mode': request.GET.get('transfer_category_mode', 'include'),
     }
 
     analysis_data = AnalysisService.get_analysis_data(case, filter_state)
@@ -642,8 +646,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     context = {
         'case': case,
         'account_summary': analysis_data['account_summary'],
-        'transfer_pairs_json': json.dumps(analysis_data['transfer_pairs']),
-        'transfer_list': analysis_data['transfer_list'],
+        'transfer_pairs': analysis_data['transfer_pairs'],
         'large_txs': analysis_data['large_txs'],
         'all_txs': all_txs_page,
         'all_txs_count': all_txs_count,
@@ -729,6 +732,27 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
             }
 
         return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab, filters))
+
+    elif action == 'bulk_update_transfer_categories':
+        # transfer-src-{id} と transfer-dest-{id} 形式のパラメータを処理
+        category_updates = {}
+        for key, value in request.POST.items():
+            if key.startswith('transfer-src-'):
+                tx_id = key.replace('transfer-src-', '')
+                if tx_id:
+                    category_updates[tx_id] = value
+            elif key.startswith('transfer-dest-'):
+                tx_id = key.replace('transfer-dest-', '')
+                if tx_id:
+                    category_updates[tx_id] = value
+
+        count = TransactionService.bulk_update_categories(case, category_updates)
+        if count > 0:
+            messages.success(request, f"{count}件の分類を更新しました。")
+        else:
+            messages.info(request, "変更はありませんでした。")
+
+        return redirect(_build_redirect_url('analysis-dashboard', pk, 'transfers', None))
 
     elif action == 'update_transaction':
         source_tab = request.POST.get('source_tab', '')

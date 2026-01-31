@@ -13,8 +13,8 @@ def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
     if not text:
         return "その他"
 
-    # 優先順位: 給与 -> 生活費 -> 証券/保険/銀行/関連会社 -> 贈与 -> その他
-    priority_categories = ["給与", "生活費", "証券・株式", "保険会社", "銀行", "関連会社"]
+    # 優先順位: 給与 -> 生活費 -> 証券/保険/銀行/関連会社/通帳間移動 -> 贈与 -> その他
+    priority_categories = ["給与", "生活費", "証券・株式", "保険会社", "銀行", "関連会社", "通帳間移動"]
 
     for category in priority_categories:
         keywords = patterns.get(category, [])
