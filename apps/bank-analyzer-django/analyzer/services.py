@@ -352,31 +352,6 @@ class TransactionService:
 
         return len(updates)
 
-    @staticmethod
-    def bulk_update_selected_category(case: Case, tx_ids: list[str], new_category: str) -> int:
-        """
-        選択された取引のカテゴリーを一括更新
-
-        Args:
-            case: 対象の案件
-            tx_ids: 更新対象の取引IDリスト
-            new_category: 新しいカテゴリー
-
-        Returns:
-            更新された取引数
-        """
-        if not tx_ids or not new_category:
-            return 0
-
-        int_ids = _parse_int_ids(tx_ids)
-        if int_ids is None:
-            logger.warning(f"不正な取引ID: {tx_ids}")
-            return 0
-
-        count = case.transactions.filter(id__in=int_ids).update(category=new_category)
-        logger.info(f"選択一括更新: case_id={case.id}, category={new_category}, count={count}")
-        return count
-
 
 class AnalysisService:
     """分析機能に関するビジネスロジック"""

@@ -154,6 +154,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ファイルアップロード設定
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 50000  # 大量の取引データインポート対応（デフォルト: 1000）
 
 # セッション設定
 SESSION_COOKIE_AGE = 60 * 60 * 24  # 24時間

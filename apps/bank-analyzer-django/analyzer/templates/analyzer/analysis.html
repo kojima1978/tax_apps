@@ -287,7 +287,7 @@
             <!-- 分類編集フォーム -->
             <form method="post" id="allTxForm">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="bulk_update_categories" id="formAction">
+                <input type="hidden" name="action" value="bulk_update_categories">
                 <input type="hidden" name="source_tab" value="all">
                 <!-- フィルター状態を保持 -->
                 {% for bank in filter_state.bank %}
@@ -314,7 +314,7 @@
                     </h5>
                     <div>
                         {% if all_txs %}
-                        <button type="submit" class="btn btn-primary btn-sm me-2" id="saveAllCategoriesBtn">
+                        <button type="submit" class="btn btn-primary btn-sm me-2">
                             <i class="bi bi-check-lg"></i> 分類を一括保存
                         </button>
                         {% endif %}
@@ -332,7 +332,7 @@
                     <div class="card-body py-2">
                         <div class="d-flex align-items-center gap-3">
                             <span id="selectedCountText" class="text-muted">0件選択中</span>
-                            <select name="bulk_category" id="bulkCategorySelect" class="form-select form-select-sm" style="width: 150px;">
+                            <select id="bulkCategorySelect" class="form-select form-select-sm" style="width: 150px;">
                                 <option value="">-- 分類を選択 --</option>
                                 {% for cat in categories %}
                                 <option value="{{ cat }}">{{ cat }}</option>
@@ -372,7 +372,7 @@
                             {% for tx in all_txs %}
                             <tr>
                                 <td>
-                                    <input type="checkbox" name="selected_ids" value="{{ tx.id }}" class="form-check-input tx-select-check">
+                                    <input type="checkbox" value="{{ tx.id }}" class="form-check-input tx-select-check">
                                 </td>
                                 <td>{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
