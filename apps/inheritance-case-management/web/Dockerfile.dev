@@ -1,0 +1,41 @@
+# Development Dockerfile for Web
+FROM node:22-alpine
+
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+WORKDIR /app
+
+# Copy workspace config and all package.json files
+COPY pnpm-workspace.yaml package.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/validation/package.json ./packages/validation/
+COPY packages/ui/package.json ./packages/ui/
+COPY apps/inheritance-case-management/web/package.json ./apps/inheritance-case-management/web/
+
+# Install dependencies (generates lock file if not present)
+RUN pnpm install
+
+# Copy source files selectively to preserve pnpm symlinks
+COPY packages/shared/src ./packages/shared/src
+COPY packages/shared/tsconfig.json ./packages/shared/
+COPY packages/validation/src ./packages/validation/src
+COPY packages/validation/tsconfig.json ./packages/validation/
+COPY packages/ui/src ./packages/ui/src
+COPY packages/ui/tsconfig.json ./packages/ui/
+COPY apps/inheritance-case-management/web/src ./apps/inheritance-case-management/web/src
+COPY apps/inheritance-case-management/web/public ./apps/inheritance-case-management/web/public
+COPY apps/inheritance-case-management/web/tsconfig.json ./apps/inheritance-case-management/web/
+COPY apps/inheritance-case-management/web/next.config.ts ./apps/inheritance-case-management/web/
+COPY apps/inheritance-case-management/web/postcss.config.mjs ./apps/inheritance-case-management/web/
+COPY apps/inheritance-case-management/web/eslint.config.mjs ./apps/inheritance-case-management/web/
+
+# Build shared packages
+RUN cd packages/shared && ../../node_modules/.bin/tsc
+RUN cd packages/validation && ../../node_modules/.bin/tsc
+RUN cd packages/ui && ../../node_modules/.bin/tsc
+
+WORKDIR /app/apps/inheritance-case-management/web
+
+EXPOSE 3020
+
+# Run with hot reload
+CMD ["pnpm", "dev"]

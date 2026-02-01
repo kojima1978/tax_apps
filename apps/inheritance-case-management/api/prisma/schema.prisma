@@ -1,0 +1,72 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model InheritanceCase {
+  id                String   @id @default(uuid())
+  deceasedName      String
+  dateOfDeath       String
+  status            String   @default("未着手") // "未着手" | "進行中" | "完了" | "請求済"
+  acceptanceStatus  String?  @default("未判定") // "受託可" | "受託不可" | "未判定" | "保留"
+  taxAmount         Int?     @default(0)
+  feeAmount         Int?     @default(0)
+  fiscalYear        Int
+  estimateAmount    Int?     @default(0)
+  propertyValue     Int?     @default(0)
+  referralFeeRate   Float?
+  referralFeeAmount Int?
+  contacts          Json?    // Contact[]
+  progress          Json?    // ProgressStep[]
+
+  // Legacy string fields (kept for backward compatibility)
+  assignee          String?
+  referrer          String?
+
+  // Audit fields
+  createdBy         String?
+  updatedBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Indexes for common queries
+  @@index([status])
+  @@index([fiscalYear])
+  @@index([acceptanceStatus])
+  @@index([createdAt])
+}
+
+model Assignee {
+  id         String   @id @default(uuid())
+  name       String
+  employeeId String?
+  department String?
+  active     Boolean  @default(true)
+
+  // Audit fields
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([active])
+  @@index([name])
+}
+
+model Referrer {
+  id         String   @id @default(uuid())
+  company    String
+  name       String
+  department String?
+  active     Boolean  @default(true)
+
+  // Audit fields
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([active])
+  @@index([company])
+}

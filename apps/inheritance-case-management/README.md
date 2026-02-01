@@ -1,99 +1,158 @@
-# Inheritance Tax Case Management System
+# 相続税案件管理システム
 
-## Overview
-This is a case management system for inheritance tax calculations. It consists of a Next.js frontend and a Node.js/Express backend, using PostgreSQL as the database.
+## 概要
 
-## Features
-- **Case Management**: Create, Read, Update, Delete for inheritance tax cases.
-- **Assignee Management**: Manage staff assignees with **Batch Save** functionality (modifications are drafted locally and saved in bulk).
-- **Referrer Management**: Manage referrers case sources with **Batch Save** functionality.
-- **Dockerized Environment**: Fully containerized setup for production-like deployment.
+相続税申告案件を管理するシステムです。案件の進捗管理、担当者・紹介者のマスタ管理機能を提供します。
 
-## Architecture
-- **Frontend**: Next.js (React), TypeScript, Tailwind CSS
-- **Backend**: Node.js, Express, TypeScript, Prisma ORM
-- **Database**: PostgreSQL
+## 技術スタック
 
-## Prerequisites
+| レイヤー | 技術 |
+|---------|------|
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, TanStack Query |
+| Backend | Hono, TypeScript, Prisma ORM, Zod |
+| Database | PostgreSQL 15 |
+| Infrastructure | Docker, Docker Compose |
+
+## 機能
+
+- **案件管理**: 相続税案件の CRUD、進捗管理、報酬計算
+- **担当者管理**: 担当者のマスタ管理（一括保存機能）
+- **紹介者管理**: 紹介者のマスタ管理（一括保存機能）
+- **リアルタイムバリデーション**: Zod による入力検証
+
+## ディレクトリ構成
+
+```
+inheritance-case-management/
+├── api/                    # Hono API サーバー
+│   ├── src/
+│   │   ├── routes/         # API ルート
+│   │   ├── lib/            # Prisma, Logger
+│   │   └── middleware/     # エラーハンドリング
+│   └── prisma/             # データベーススキーマ
+├── web/                    # Next.js フロントエンド
+│   └── src/
+│       ├── app/            # ページコンポーネント
+│       ├── components/     # UI コンポーネント
+│       └── lib/            # API クライアント
+├── docker-compose.yml      # 本番用
+└── docker-compose.dev.yml  # 開発用
+```
+
+## クイックスタート
+
+### 前提条件
+
 - Docker & Docker Compose
-- Node.js (v20+) (for local dev)
 
-## Setup & Running (Production Docker)
+### 開発環境の起動
 
-1.  **Clone the repository**
-2.  **Start the application**
-    ```bash
-    docker-compose -f docker-compose.prod.yml up -d --build
-    ```
-    *Note: The database migrations will run automatically on container startup.*
+```bash
+# 1. 環境変数を設定
+cp .env.example .env
 
-## Ports Configuration
-The application uses the following ports in the production setup:
+# 2. 開発環境を起動
+docker compose -f docker-compose.dev.yml up --build
 
-| Service | Container Port | Host Port | URL |
-|---------|----------------|-----------|-----|
-| Frontend| 3000           | 3020      | http://localhost:3020 |
-| Backend | 3001           | 3021      | http://localhost:3021 |
-| Database| 5432           | 3022      | postgres://localhost:3022 |
+# 3. ブラウザでアクセス
+# Web: http://localhost:3020
+# API: http://localhost:3021
+```
 
-## ER Diagram
+### 本番環境の起動
+
+```bash
+docker compose up --build -d
+```
+
+## ポート設定
+
+| サービス | ポート | URL |
+|---------|--------|-----|
+| Web | 3020 | http://localhost:3020 |
+| API | 3021 | http://localhost:3021 |
+| PostgreSQL | 3022 | localhost:3022 |
+
+## API エンドポイント
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | /api/cases | 案件一覧取得 |
+| GET | /api/cases/:id | 案件詳細取得 |
+| POST | /api/cases | 案件作成 |
+| PUT | /api/cases/:id | 案件更新 |
+| DELETE | /api/cases/:id | 案件削除 |
+| GET | /api/assignees | 担当者一覧 |
+| GET | /api/referrers | 紹介者一覧 |
+| GET | /health | ヘルスチェック |
+
+## データベーススキーマ
 
 ```mermaid
 erDiagram
     InheritanceCase {
-        String id PK
-        String deceasedName
-        String dateOfDeath
-        String status
-        Int taxAmount
-        String assignee
-        Int feeAmount
-        Int fiscalYear
-        String referrer
-        Int estimateAmount
-        Int propertyValue
-        Float referralFeeRate
-        Int referralFeeAmount
-        Json contacts
-        Json progress
-        String acceptanceStatus
-        DateTime createdAt
-        DateTime updatedAt
+        uuid id PK
+        string deceasedName "被相続人氏名"
+        string dateOfDeath "死亡日"
+        string status "ステータス"
+        string acceptanceStatus "受託状況"
+        int taxAmount "相続税額"
+        int feeAmount "報酬額"
+        int fiscalYear "年度"
+        int estimateAmount "見積額"
+        int propertyValue "財産評価額"
+        float referralFeeRate "紹介料率"
+        int referralFeeAmount "紹介料"
+        json contacts "連絡先"
+        json progress "進捗"
+        datetime createdAt
+        datetime updatedAt
     }
 
     Assignee {
-        String id PK
-        String name
-        String employeeId
-        String department
-        Boolean active
+        uuid id PK
+        string name "氏名"
+        string employeeId "社員番号"
+        string department "部署"
+        boolean active "有効"
     }
 
     Referrer {
-        String id PK
-        String company
-        String name
-        String department
-        Boolean active
+        uuid id PK
+        string company "会社名"
+        string name "担当者名"
+        string department "部署"
+        boolean active "有効"
     }
 ```
 
-## Development
+## 開発コマンド
 
-### Frontend
 ```bash
-cd Front
-npm install
-npm run dev
-```
-Access at: http://localhost:3000
+# コンテナに入ってコマンド実行
+docker exec -it itcm-dev-api sh
+docker exec -it itcm-dev-web sh
 
-### Backend
-```bash
-cd Back
-npm install
-# Set up .env with DATABASE_URL
-npm run dev
-```
-Access at: http://localhost:3001
+# Prisma Studio（DB GUI）
+docker exec -it itcm-dev-api npx prisma studio
 
+# ログ確認
+docker compose -f docker-compose.dev.yml logs -f api
+docker compose -f docker-compose.dev.yml logs -f web
+
+# コンテナ停止
+docker compose -f docker-compose.dev.yml down
+
+# データも含めて削除
+docker compose -f docker-compose.dev.yml down -v
+```
+
+## 共有パッケージ
+
+このプロジェクトは `tax_apps` モノレポの一部です。
+
+| パッケージ | 説明 |
+|-----------|------|
+| @tax-apps/shared | 型定義 (InheritanceCase, Assignee, Referrer) |
+| @tax-apps/validation | Zod バリデーションスキーマ |
+| @tax-apps/ui | 共通 UI コンポーネント |

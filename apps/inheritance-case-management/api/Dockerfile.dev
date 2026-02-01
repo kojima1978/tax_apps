@@ -1,0 +1,36 @@
+# Development Dockerfile for API
+FROM node:22-alpine
+
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+WORKDIR /app
+
+# Copy workspace config and all package.json files
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/validation/package.json ./packages/validation/
+COPY apps/inheritance-case-management/api/package.json ./apps/inheritance-case-management/api/
+
+# Install dependencies (allow lockfile updates for workspace subset)
+RUN pnpm install
+
+# Copy source files (only src and tsconfig, not node_modules)
+COPY packages/shared/src ./packages/shared/src
+COPY packages/shared/tsconfig.json ./packages/shared/
+COPY packages/validation/src ./packages/validation/src
+COPY packages/validation/tsconfig.json ./packages/validation/
+COPY apps/inheritance-case-management/api/src ./apps/inheritance-case-management/api/src
+COPY apps/inheritance-case-management/api/tsconfig.json ./apps/inheritance-case-management/api/
+COPY apps/inheritance-case-management/api/vitest.config.ts ./apps/inheritance-case-management/api/
+COPY apps/inheritance-case-management/api/prisma ./apps/inheritance-case-management/api/prisma
+
+# Build shared packages
+RUN cd packages/shared && ../../node_modules/.bin/tsc && cd ../validation && ../../node_modules/.bin/tsc
+
+# Generate Prisma client
+WORKDIR /app/apps/inheritance-case-management/api
+RUN pnpm db:generate
+
+EXPOSE 3021
+
+# Run with hot reload (db push for dev, creates tables if not exist)
+CMD ["sh", "-c", "npx prisma db push && pnpm dev"]

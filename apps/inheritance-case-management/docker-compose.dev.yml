@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: itcm-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-inheritance_tax_db}
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "3022:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/inheritance-case-management/api/Dockerfile.dev
+    container_name: itcm-dev-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3021
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
+      FRONTEND_URL: http://localhost:3020
+      LOG_LEVEL: debug
+    volumes:
+      # Mount source for hot reload
+      - ../../packages/shared/src:/app/packages/shared/src:ro
+      - ../../packages/validation/src:/app/packages/validation/src:ro
+      - ./api/src:/app/apps/inheritance-case-management/api/src:ro
+      - ./api/prisma:/app/apps/inheritance-case-management/api/prisma:ro
+    ports:
+      - "3021:3021"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/inheritance-case-management/web/Dockerfile.dev
+    container_name: itcm-dev-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3021/api
+      WATCHPACK_POLLING: "true"
+    volumes:
+      # Mount source for hot reload
+      - ../../packages/shared/src:/app/packages/shared/src:ro
+      - ../../packages/validation/src:/app/packages/validation/src:ro
+      - ../../packages/ui/src:/app/packages/ui/src:ro
+      - ./web/src:/app/apps/inheritance-case-management/web/src:ro
+      - ./web/public:/app/apps/inheritance-case-management/web/public:ro
+    ports:
+      - "3020:3020"
+    depends_on:
+      - api
+
+volumes:
+  postgres_dev_data:

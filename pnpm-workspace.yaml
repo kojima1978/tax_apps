@@ -1,0 +1,4 @@
+packages:
+  - "packages/*"
+  - "apps/inheritance-case-management/api"
+  - "apps/inheritance-case-management/web"
