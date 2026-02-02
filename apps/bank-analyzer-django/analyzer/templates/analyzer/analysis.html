@@ -339,6 +339,17 @@
             <!-- Filters -->
             <form method="get" class="row g-3 mb-4">
                 <div class="col-md-2">
+                    <label class="form-label">日付範囲</label>
+                    <div class="d-flex align-items-center gap-1 mb-1">
+                        <span class="small text-muted" style="width: 45px;">開始日</span>
+                        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filter_state.date_from|default:'' }}">
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="small text-muted" style="width: 45px;">終了日</span>
+                        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filter_state.date_to|default:'' }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
                     <label class="form-label">銀行名</label>
                     <select name="bank" class="form-select" multiple size="3">
                         {% for bank in banks %}
@@ -375,20 +386,76 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">キーワード検索</label>
                     <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}"
-                        placeholder="摘要を検索...">
+                        placeholder="摘要を検索..." style="height: 72px;">
                 </div>
-                <div class="col-md-3 d-flex align-items-end gap-2">
-                    <button class="btn btn-primary flex-grow-1" type="submit">
-                        <i class="bi bi-search"></i> 検索
+                <div class="col-md-2 d-flex align-items-start gap-1 pt-4">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">
+                        <i class="bi bi-search"></i> 絞り込み
                     </button>
-                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-outline-secondary flex-grow-1">
+                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-sm btn-outline-secondary">
                         <i class="bi bi-x-lg"></i> クリア
                     </a>
                 </div>
             </form>
+
+            <!-- 金額フィルター（折りたたみ式） -->
+            <div class="mb-4">
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#amountFilterCollapse" aria-expanded="{% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' or filter_state.large_only %}true{% else %}false{% endif %}">
+                    <i class="bi bi-funnel"></i> 金額で絞り込み
+                    {% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' or filter_state.large_only %}
+                    <span class="badge bg-primary ms-1">適用中</span>
+                    {% endif %}
+                </button>
+                <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-sm btn-outline-secondary ms-2">
+                    <i class="bi bi-x-lg"></i> フィルタークリア
+                </a>
+                <div class="collapse {% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' or filter_state.large_only %}show{% endif %}" id="amountFilterCollapse">
+                    <form method="get" class="row g-3 mt-2 p-3 bg-light rounded">
+                        <!-- 既存フィルターを隠しフィールドで保持 -->
+                        {% for b in filter_state.bank %}<input type="hidden" name="bank" value="{{ b }}">{% endfor %}
+                        {% for a in filter_state.account %}<input type="hidden" name="account" value="{{ a }}">{% endfor %}
+                        {% for c in filter_state.category %}<input type="hidden" name="category" value="{{ c }}">{% endfor %}
+                        {% if filter_state.category_mode %}<input type="hidden" name="category_mode" value="{{ filter_state.category_mode }}">{% endif %}
+                        {% if filter_state.keyword %}<input type="hidden" name="keyword" value="{{ filter_state.keyword }}">{% endif %}
+                        {% if filter_state.date_from %}<input type="hidden" name="date_from" value="{{ filter_state.date_from }}">{% endif %}
+                        {% if filter_state.date_to %}<input type="hidden" name="date_to" value="{{ filter_state.date_to }}">{% endif %}
+
+                        <div class="col-md-2">
+                            <label class="form-label small">取引種別</label>
+                            <select name="amount_type" class="form-select form-select-sm">
+                                <option value="both" {% if filter_state.amount_type == 'both' %}selected{% endif %}>出金・入金両方</option>
+                                <option value="out" {% if filter_state.amount_type == 'out' %}selected{% endif %}>出金のみ</option>
+                                <option value="in" {% if filter_state.amount_type == 'in' %}selected{% endif %}>入金のみ</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">最小金額</label>
+                            <input type="text" name="amount_min" class="form-control form-control-sm"
+                                value="{{ filter_state.amount_min }}" placeholder="例: 100000">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">最大金額</label>
+                            <input type="text" name="amount_max" class="form-control form-control-sm"
+                                value="{{ filter_state.amount_max }}" placeholder="例: 500000">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="large_only" value="1" id="largeOnlyCheck"
+                                    {% if filter_state.large_only %}checked{% endif %}>
+                                <label class="form-check-label small" for="largeOnlyCheck">多額取引のみ</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-primary btn-sm w-100" type="submit">
+                                <i class="bi bi-filter"></i> 金額フィルター適用
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
             <!-- 分類編集フォーム -->
             <form method="post" id="allTxForm">
@@ -424,11 +491,16 @@
                             <i class="bi bi-check-lg"></i> 分類を一括保存
                         </button>
                         {% endif %}
-                        <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm">
-                            <i class="bi bi-download"></i> 全データCSV出力
+                        <!-- 絞り込み結果をCSV出力 -->
+                        <a href="{% url 'export-csv-filtered' case.pk %}?{% for b in filter_state.bank %}bank={{ b }}&{% endfor %}{% for a in filter_state.account %}account={{ a }}&{% endfor %}{% for c in filter_state.category %}category={{ c }}&{% endfor %}{% if filter_state.category_mode %}category_mode={{ filter_state.category_mode }}&{% endif %}{% if filter_state.keyword %}keyword={{ filter_state.keyword }}&{% endif %}{% if filter_state.amount_min %}amount_min={{ filter_state.amount_min }}&{% endif %}{% if filter_state.amount_max %}amount_max={{ filter_state.amount_max }}&{% endif %}{% if filter_state.amount_type %}amount_type={{ filter_state.amount_type }}&{% endif %}{% if filter_state.large_only %}large_only={{ filter_state.large_only }}{% endif %}"
+                           class="btn btn-success btn-sm me-1" title="現在の絞り込み結果をCSV出力（{{ all_txs_count }}件）">
+                            <i class="bi bi-download"></i> 絞込結果CSV
+                        </a>
+                        <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm me-1" title="全データをCSV出力">
+                            <i class="bi bi-download"></i> 全データCSV
                         </a>
                         <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-primary btn-sm" title="JSONバックアップをダウンロード">
-                            <i class="bi bi-box-arrow-down"></i> JSONバックアップ
+                            <i class="bi bi-box-arrow-down"></i> JSON
                         </a>
                     </div>
                 </div>
@@ -461,6 +533,7 @@
                                 <th style="width: 40px;">
                                     <input type="checkbox" class="form-check-input" id="selectAllTx" title="全選択">
                                 </th>
+                                <th style="width: 60px;">+/-</th>
                                 <th>日付</th>
                                 <th>銀行名</th>
                                 <th>支店名</th>
@@ -476,9 +549,25 @@
                         </thead>
                         <tbody>
                             {% for tx in all_txs %}
-                            <tr>
+                            <tr data-tx-id="{{ tx.id }}">
                                 <td>
                                     <input type="checkbox" value="{{ tx.id }}" class="form-check-input tx-select-check">
+                                </td>
+                                <td class="text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-success p-0 px-1 insert-tx-btn"
+                                        data-tx-id="{{ tx.id }}"
+                                        data-tx-date="{{ tx.date|date:'Y-m-d' }}"
+                                        data-tx-bank="{{ tx.bank_name|default:'' }}"
+                                        data-tx-branch="{{ tx.branch_name|default:'' }}"
+                                        data-tx-account-type="{{ tx.account_type|default:'' }}"
+                                        data-tx-account="{{ tx.account_id|default:'' }}"
+                                        title="この下に追加">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger p-0 px-1 delete-tx-btn"
+                                        data-tx-id="{{ tx.id }}" title="削除">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                 </td>
                                 <td>{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
@@ -508,7 +597,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="12" class="text-center">取引が見つかりません。</td>
+                                <td colspan="13" class="text-center">取引が見つかりません。</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -824,6 +913,98 @@
     </div>
 </div>
 
+<!-- Add Transaction Modal -->
+<div class="modal fade" id="addTxModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> 取引を追加</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-3">
+                        <label class="form-label">銀行名</label>
+                        <select class="form-select form-select-sm" id="addTxBankName">
+                            <option value="">-- 選択 --</option>
+                            {% for bank in banks %}
+                            <option value="{{ bank }}">{{ bank }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label">支店名</label>
+                        <select class="form-select form-select-sm" id="addTxBranchName">
+                            <option value="">-- 選択 --</option>
+                            {% for branch in branches %}
+                            <option value="{{ branch }}">{{ branch }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label">種別</label>
+                        <input type="text" id="addTxAccountType" class="form-control form-control-sm" placeholder="普通預金等">
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label">口座番号</label>
+                        <select class="form-select form-select-sm" id="addTxAccountId">
+                            <option value="">-- 選択 --</option>
+                            {% for acc in accounts %}
+                            <option value="{{ acc }}">{{ acc }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">日付</label>
+                    <input type="date" id="addTxDate" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">摘要</label>
+                    <input type="text" id="addTxDescription" class="form-control" placeholder="取引内容を入力">
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <label class="form-label">払戻（出金）</label>
+                        <input type="number" id="addTxAmountOut" class="form-control" value="0">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">お預り（入金）</label>
+                        <input type="number" id="addTxAmountIn" class="form-control" value="0">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">残高</label>
+                        <input type="number" id="addTxBalance" class="form-control">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">分類</label>
+                    <select class="form-select" id="addTxCategory">
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if cat == '未分類' %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">📝 メモ</label>
+                    <textarea id="addTxMemo" class="form-control" rows="2" placeholder="メモ（任意）"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-success" id="addTxSubmitBtn">
+                    <i class="bi bi-plus-lg"></i> 追加
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -1093,6 +1274,144 @@
 
     // ページ読み込み時に初期状態を確認
     updateSelectionUI();
+
+    // ===== 取引追加・削除機能 =====
+    const addTxModal = document.getElementById('addTxModal');
+    const addTxSubmitBtn = document.getElementById('addTxSubmitBtn');
+    let insertAfterTxId = null; // 挿入先のtx_id
+
+    // 追加ボタンクリック時 - モーダルを開く
+    document.querySelectorAll('.insert-tx-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            insertAfterTxId = this.getAttribute('data-tx-id');
+            const txDate = this.getAttribute('data-tx-date');
+            const txBank = this.getAttribute('data-tx-bank');
+            const txBranch = this.getAttribute('data-tx-branch');
+            const txAccountType = this.getAttribute('data-tx-account-type');
+            const txAccount = this.getAttribute('data-tx-account');
+
+            // フォームをリセット
+            document.getElementById('addTxDate').value = txDate || '';
+            document.getElementById('addTxDescription').value = '';
+            document.getElementById('addTxAmountOut').value = '0';
+            document.getElementById('addTxAmountIn').value = '0';
+            document.getElementById('addTxBalance').value = '';
+            document.getElementById('addTxBankName').value = txBank || '';
+            document.getElementById('addTxBranchName').value = txBranch || '';
+            document.getElementById('addTxAccountType').value = txAccountType || '';
+            document.getElementById('addTxAccountId').value = txAccount || '';
+            document.getElementById('addTxCategory').value = '未分類';
+            document.getElementById('addTxMemo').value = '';
+
+            // モーダルを表示
+            const modal = new bootstrap.Modal(addTxModal);
+            modal.show();
+        });
+    });
+
+    // 追加ボタン（モーダル内）クリック時 - APIに送信
+    if (addTxSubmitBtn) {
+        addTxSubmitBtn.addEventListener('click', function() {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const formData = new FormData();
+
+            formData.append('date', document.getElementById('addTxDate').value);
+            formData.append('description', document.getElementById('addTxDescription').value);
+            formData.append('amount_out', document.getElementById('addTxAmountOut').value || '0');
+            formData.append('amount_in', document.getElementById('addTxAmountIn').value || '0');
+            formData.append('balance', document.getElementById('addTxBalance').value || '');
+            formData.append('bank_name', document.getElementById('addTxBankName').value);
+            formData.append('branch_name', document.getElementById('addTxBranchName').value);
+            formData.append('account_type', document.getElementById('addTxAccountType').value);
+            formData.append('account_id', document.getElementById('addTxAccountId').value);
+            formData.append('category', document.getElementById('addTxCategory').value);
+            formData.append('memo', document.getElementById('addTxMemo').value);
+            formData.append('csrfmiddlewaretoken', csrfToken);
+
+            // ボタンを無効化
+            addTxSubmitBtn.disabled = true;
+            addTxSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 追加中...';
+
+            const apiUrl = window.location.pathname.replace('/analysis/', '/api/create-transaction/');
+
+            fetch(apiUrl, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('取引を追加しました', 'success');
+                    // モーダルを閉じる
+                    const modal = bootstrap.Modal.getInstance(addTxModal);
+                    modal.hide();
+                    // ページをリロードして最新データを表示
+                    window.location.reload();
+                } else {
+                    showToast('エラー: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('通信エラーが発生しました', 'danger');
+            })
+            .finally(() => {
+                addTxSubmitBtn.disabled = false;
+                addTxSubmitBtn.innerHTML = '<i class="bi bi-plus-lg"></i> 追加';
+            });
+        });
+    }
+
+    // 削除ボタンクリック時
+    document.querySelectorAll('.delete-tx-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const txId = this.getAttribute('data-tx-id');
+            const row = this.closest('tr');
+
+            if (!confirm('この取引を削除しますか？')) {
+                return;
+            }
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const formData = new FormData();
+            formData.append('tx_id', txId);
+            formData.append('csrfmiddlewaretoken', csrfToken);
+
+            // ボタンを無効化
+            this.disabled = true;
+            this.style.opacity = '0.5';
+
+            const apiUrl = window.location.pathname.replace('/analysis/', '/api/delete-transaction/');
+
+            fetch(apiUrl, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 行をフェードアウトして削除
+                    row.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateX(-20px)';
+                    setTimeout(() => {
+                        row.remove();
+                    }, 300);
+                    showToast('取引を削除しました', 'success');
+                } else {
+                    showToast('エラー: ' + data.message, 'danger');
+                    this.disabled = false;
+                    this.style.opacity = '1';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('通信エラーが発生しました', 'danger');
+                this.disabled = false;
+                this.style.opacity = '1';
+            });
+        });
+    });
 </script>
 
 <!-- Toast Container -->

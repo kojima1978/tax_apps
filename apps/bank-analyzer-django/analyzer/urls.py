@@ -13,7 +13,10 @@ urlpatterns = [
     path('case/<int:pk>/import/preview/', views.transaction_preview, name='transaction-preview'),
     path('case/<int:pk>/analysis/', views.analysis_dashboard, name='analysis-dashboard'),
     path('case/<int:pk>/export/<str:export_type>/', views.export_csv, name='export-csv'),
+    path('case/<int:pk>/export-filtered/', views.export_csv_filtered, name='export-csv-filtered'),
     path('case/<int:pk>/export-json/', views.export_json, name='export-json'),
     # API Endpoints (AJAX)
     path('case/<int:pk>/api/toggle-flag/', views.api_toggle_flag, name='api-toggle-flag'),
+    path('case/<int:pk>/api/create-transaction/', views.api_create_transaction, name='api-create-transaction'),
+    path('case/<int:pk>/api/delete-transaction/', views.api_delete_transaction, name='api-delete-transaction'),
 ]

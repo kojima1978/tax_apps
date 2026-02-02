@@ -439,6 +439,70 @@ class AnalysisService:
         if filter_state.get('keyword'):
             filtered_txs = filtered_txs.filter(description__icontains=filter_state['keyword'])
 
+        # 日付フィルター
+        if filter_state.get('date_from'):
+            filtered_txs = filtered_txs.filter(date__gte=filter_state['date_from'])
+        if filter_state.get('date_to'):
+            filtered_txs = filtered_txs.filter(date__lte=filter_state['date_to'])
+
+        # 金額フィルター
+        amount_type = filter_state.get('amount_type', 'both')
+        amount_min_str = filter_state.get('amount_min', '')
+        amount_max_str = filter_state.get('amount_max', '')
+
+        # 金額の最小値・最大値をパース
+        try:
+            amount_min = int(amount_min_str.replace(',', '')) if amount_min_str else None
+        except (ValueError, AttributeError):
+            amount_min = None
+        try:
+            amount_max = int(amount_max_str.replace(',', '')) if amount_max_str else None
+        except (ValueError, AttributeError):
+            amount_max = None
+
+        # 取引種別でフィルター（出金のみ、入金のみ、両方）
+        if amount_type == 'out':
+            filtered_txs = filtered_txs.filter(amount_out__gt=0)
+        elif amount_type == 'in':
+            filtered_txs = filtered_txs.filter(amount_in__gt=0)
+
+        # 金額範囲でフィルター
+        if amount_min is not None or amount_max is not None:
+            from django.db.models import Q, F, Case, When, Value, IntegerField
+            from django.db.models.functions import Greatest
+
+            # 取引種別に応じて対象金額を決定
+            if amount_type == 'out':
+                if amount_min is not None:
+                    filtered_txs = filtered_txs.filter(amount_out__gte=amount_min)
+                if amount_max is not None:
+                    filtered_txs = filtered_txs.filter(amount_out__lte=amount_max)
+            elif amount_type == 'in':
+                if amount_min is not None:
+                    filtered_txs = filtered_txs.filter(amount_in__gte=amount_min)
+                if amount_max is not None:
+                    filtered_txs = filtered_txs.filter(amount_in__lte=amount_max)
+            else:
+                # 両方の場合：出金または入金のいずれかが範囲内
+                if amount_min is not None and amount_max is not None:
+                    filtered_txs = filtered_txs.filter(
+                        Q(amount_out__gte=amount_min, amount_out__lte=amount_max) |
+                        Q(amount_in__gte=amount_min, amount_in__lte=amount_max)
+                    )
+                elif amount_min is not None:
+                    filtered_txs = filtered_txs.filter(
+                        Q(amount_out__gte=amount_min) | Q(amount_in__gte=amount_min)
+                    )
+                elif amount_max is not None:
+                    filtered_txs = filtered_txs.filter(
+                        Q(amount_out__gt=0, amount_out__lte=amount_max) |
+                        Q(amount_in__gt=0, amount_in__lte=amount_max)
+                    )
+
+        # 多額取引のみフィルター
+        if filter_state.get('large_only'):
+            filtered_txs = filtered_txs.filter(is_large=True)
+
         # フィルタードロップダウン用のユニークリストを取得
         banks = sorted([b for b in df['bank_name'].dropna().unique() if b])
         branches = sorted([b for b in df['branch_name'].dropna().unique() if b])

@@ -14,12 +14,38 @@
             <p class="mb-0">
                 取り込みデータのプレビューです。不整合がある行は<span class="text-danger fw-bold">赤く</span>表示されます。<br>
                 内容を修正して「再計算」を押すと、残高チェックを再実行します。<br>
-                問題がなければ「取り込み実行」を押してください。
+                行をドラッグして順序を変更できます。問題がなければ「取り込み実行」を押してください。
             </p>
         </div>
 
-        <form method="post">
+        <style>
+            .drag-handle {
+                cursor: grab;
+                color: #6c757d;
+                padding: 4px 8px;
+            }
+            .drag-handle:hover {
+                color: #495057;
+            }
+            .drag-handle:active {
+                cursor: grabbing;
+            }
+            .sortable-ghost {
+                opacity: 0.4;
+                background-color: #e3f2fd !important;
+            }
+            .sortable-chosen {
+                background-color: #bbdefb !important;
+            }
+            .sortable-drag {
+                background-color: #fff !important;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+        </style>
+
+        <form method="post" id="importForm">
             {% csrf_token %}
+            <input type="hidden" name="total_rows" id="totalRows" value="{{ transactions|length }}">
 
             <div class="d-flex justify-content-between mb-3 sticky-top bg-white border-bottom py-2 shadow-sm"
                 style="z-index: 10;">
@@ -42,17 +68,19 @@
 
             <div class="glass-card p-0 overflow-hidden">
                 <div class="table-responsive" style="max-height: 70vh;">
-                    <table class="table table-hover mb-0 align-middle">
+                    <table class="table table-hover mb-0 align-middle" id="importTable">
                         <thead class="sticky-top bg-light table-light">
                             <tr>
+                                <th style="width: 30px;" title="ドラッグで並び替え"></th>
                                 <th style="width: 50px;">
                                     <input type="checkbox" class="form-check-input" id="selectAllCheck" title="全選択">
                                 </th>
+                                <th style="width: 40px;"></th>
                                 <th>銀行名</th>
                                 <th>支店名</th>
                                 <th>種別</th>
                                 <th>口座番号</th>
-                                <th style="min-width: 160px;">日付</th>
+                                <th style="min-width: 140px;">日付</th>
                                 <th style="min-width: 180px;">摘要</th>
                                 <th style="min-width: 100px;">払戻額</th>
                                 <th style="min-width: 100px;">お預り額</th>
@@ -61,33 +89,55 @@
                                 <th>状態</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tableBody">
                             {% for row in transactions %}
-                            <tr class="{% if row.is_balance_error %}table-danger{% endif %}"
+                            <tr class="data-row {% if row.is_balance_error %}table-danger{% endif %}"
+                                data-row-index="{{ forloop.counter0 }}"
                                 style="transition: all 0.2s;">
+                                <td class="text-center drag-handle" title="ドラッグで移動">
+                                    <i class="bi bi-grip-vertical"></i>
+                                </td>
                                 <td class="text-center">
                                     <input class="form-check-input remove-row-check" type="checkbox"
                                         name="form-{{ forloop.counter0 }}-DELETE" id="del-{{ forloop.counter0 }}"
                                         style="cursor: pointer;">
                                 </td>
-                                <td>
-                                    <small class="text-muted">{{ row.bank_name|default:"-" }}</small>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary insert-row-btn p-0 px-1"
+                                        title="この下に行を挿入" data-index="{{ forloop.counter0 }}">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
                                 </td>
                                 <td>
-                                    <small class="text-muted">{{ row.branch_name|default:"-" }}</small>
+                                    <input type="text" name="form-{{ forloop.counter0 }}-bank_name"
+                                        value="{{ row.bank_name|default:'' }}"
+                                        class="form-control form-control-sm border-0 bg-transparent"
+                                        placeholder="-" style="min-width: 80px;">
                                 </td>
                                 <td>
-                                    <small class="text-muted">{{ row.account_type|default:"-" }}</small>
+                                    <input type="text" name="form-{{ forloop.counter0 }}-branch_name"
+                                        value="{{ row.branch_name|default:'' }}"
+                                        class="form-control form-control-sm border-0 bg-transparent"
+                                        placeholder="-" style="min-width: 80px;">
                                 </td>
                                 <td>
-                                    <small class="text-muted">{{ row.account_number|default:"-" }}</small>
+                                    <input type="text" name="form-{{ forloop.counter0 }}-account_type"
+                                        value="{{ row.account_type|default:'' }}"
+                                        class="form-control form-control-sm border-0 bg-transparent"
+                                        placeholder="-" style="min-width: 60px;">
                                 </td>
                                 <td>
-                                    <div class="d-flex align-items-center gap-1">
+                                    <input type="text" name="form-{{ forloop.counter0 }}-account_number"
+                                        value="{{ row.account_number|default:'' }}"
+                                        class="form-control form-control-sm border-0 bg-transparent"
+                                        placeholder="-" style="min-width: 80px;">
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
                                         <input type="date" name="form-{{ forloop.counter0 }}-date"
                                             value="{{ row.date|default:'' }}"
-                                            class="form-control form-control-sm border-0 bg-transparent" style="width: 110px;">
-                                        <small class="text-muted text-nowrap">({{ row.date|wareki_short }})</small>
+                                            class="form-control form-control-sm border-0 bg-transparent date-input" style="width: 130px;">
+                                        <span class="wareki-display text-muted small ms-1" style="white-space: nowrap;"></span>
                                     </div>
                                 </td>
                                 <td>
@@ -110,10 +160,10 @@
                                         value="{{ row.balance }}"
                                         class="form-control form-control-sm border-0 bg-transparent text-end {% if row.is_balance_error %}text-danger fw-bold{% endif %}">
                                 </td>
-                                <td class="text-end font-monospace">
+                                <td class="text-end font-monospace calc-balance">
                                     {{ row.calc_balance|intcomma }}
                                 </td>
-                                <td class="text-center">
+                                <td class="text-center status-cell">
                                     {% if row.is_balance_error %}
                                     <span class="badge bg-danger">誤差</span>
                                     {% else %}
@@ -132,15 +182,67 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const form = document.querySelector('form');
+        const form = document.getElementById('importForm');
+        const tableBody = document.getElementById('tableBody');
         const submitButtons = document.querySelectorAll('.btn-submit');
-        const checkboxes = document.querySelectorAll('.remove-row-check');
         const deleteBtn = document.getElementById('deleteSelectedBtn');
         const selectedCountSpan = document.getElementById('selectedCount');
+        const totalRowsInput = document.getElementById('totalRows');
         let isSubmitting = false;
+        let newRowCounter = parseInt(totalRowsInput.value);
+
+        // 和暦変換関数
+        function toWareki(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return '';
+
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+
+            let era, eraYear;
+            if (year >= 2019 || (year === 2019 && month >= 5)) {
+                era = 'R';
+                eraYear = year - 2018;
+            } else if (year >= 1989 || (year === 1989 && month >= 1 && day >= 8)) {
+                era = 'H';
+                eraYear = year - 1988;
+            } else if (year >= 1926 || (year === 1926 && month >= 12 && day >= 25)) {
+                era = 'S';
+                eraYear = year - 1925;
+            } else if (year >= 1912 || (year === 1912 && month >= 7 && day >= 30)) {
+                era = 'T';
+                eraYear = year - 1911;
+            } else {
+                era = 'M';
+                eraYear = year - 1867;
+            }
+
+            return `${era}${eraYear}.${month}.${day}`;
+        }
+
+        // 和暦表示を更新
+        function updateWarekiDisplay(dateInput) {
+            const warekiSpan = dateInput.closest('td').querySelector('.wareki-display');
+            if (warekiSpan) {
+                warekiSpan.textContent = toWareki(dateInput.value);
+            }
+        }
+
+        // 全ての日付入力の和暦表示を初期化
+        function initWarekiDisplays() {
+            document.querySelectorAll('.date-input').forEach(function(input) {
+                updateWarekiDisplay(input);
+                input.addEventListener('change', function() {
+                    updateWarekiDisplay(this);
+                });
+            });
+        }
 
         // 選択状態の更新
         function updateSelectedState() {
+            const checkboxes = document.querySelectorAll('.remove-row-check');
             const checkedCount = document.querySelectorAll('.remove-row-check:checked').length;
             if (deleteBtn) {
                 deleteBtn.disabled = checkedCount === 0;
@@ -150,12 +252,175 @@
             }
         }
 
-        // 初期状態の更新（ブラウザバック等でチェックが残っている場合のため）
+        // 新しい行のHTMLを生成
+        function createNewRow(index, prevRow) {
+            // 前の行から銀行名、支店名等をコピー
+            let bankName = '';
+            let branchName = '';
+            let accountType = '';
+            let accountNumber = '';
+            let prevDate = '';
+
+            if (prevRow) {
+                const bankInput = prevRow.querySelector('input[name$="-bank_name"]');
+                const branchInput = prevRow.querySelector('input[name$="-branch_name"]');
+                const typeInput = prevRow.querySelector('input[name$="-account_type"]');
+                const numInput = prevRow.querySelector('input[name$="-account_number"]');
+                const dateInput = prevRow.querySelector('input[name$="-date"]');
+
+                if (bankInput) bankName = bankInput.value;
+                if (branchInput) branchName = branchInput.value;
+                if (typeInput) accountType = typeInput.value;
+                if (numInput) accountNumber = numInput.value;
+                if (dateInput) prevDate = dateInput.value;
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = 'data-row table-warning';
+            tr.dataset.rowIndex = index;
+            tr.style.transition = 'all 0.2s';
+
+            tr.innerHTML = `
+                <td class="text-center drag-handle" title="ドラッグで移動">
+                    <i class="bi bi-grip-vertical"></i>
+                </td>
+                <td class="text-center">
+                    <input class="form-check-input remove-row-check" type="checkbox"
+                        name="form-${index}-DELETE" id="del-${index}"
+                        style="cursor: pointer;">
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-secondary insert-row-btn p-0 px-1"
+                        title="この下に行を挿入" data-index="${index}">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </td>
+                <td>
+                    <input type="text" name="form-${index}-bank_name"
+                        value="${bankName}"
+                        class="form-control form-control-sm border-0 bg-transparent"
+                        placeholder="-" style="min-width: 80px;">
+                </td>
+                <td>
+                    <input type="text" name="form-${index}-branch_name"
+                        value="${branchName}"
+                        class="form-control form-control-sm border-0 bg-transparent"
+                        placeholder="-" style="min-width: 80px;">
+                </td>
+                <td>
+                    <input type="text" name="form-${index}-account_type"
+                        value="${accountType}"
+                        class="form-control form-control-sm border-0 bg-transparent"
+                        placeholder="-" style="min-width: 60px;">
+                </td>
+                <td>
+                    <input type="text" name="form-${index}-account_number"
+                        value="${accountNumber}"
+                        class="form-control form-control-sm border-0 bg-transparent"
+                        placeholder="-" style="min-width: 80px;">
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <input type="date" name="form-${index}-date"
+                            value="${prevDate}"
+                            class="form-control form-control-sm border-0 bg-transparent date-input" style="width: 130px;">
+                        <span class="wareki-display text-muted small ms-1" style="white-space: nowrap;">${toWareki(prevDate)}</span>
+                    </div>
+                </td>
+                <td>
+                    <input type="text" name="form-${index}-description"
+                        value=""
+                        class="form-control form-control-sm border-0 bg-transparent"
+                        placeholder="摘要を入力">
+                </td>
+                <td>
+                    <input type="number" name="form-${index}-amount_out"
+                        value="0"
+                        class="form-control form-control-sm border-0 bg-transparent text-end">
+                </td>
+                <td>
+                    <input type="number" name="form-${index}-amount_in"
+                        value="0"
+                        class="form-control form-control-sm border-0 bg-transparent text-end">
+                </td>
+                <td>
+                    <input type="number" name="form-${index}-balance"
+                        value=""
+                        class="form-control form-control-sm border-0 bg-transparent text-end"
+                        placeholder="再計算">
+                </td>
+                <td class="text-end font-monospace calc-balance">
+                    -
+                </td>
+                <td class="text-center status-cell">
+                    <span class="badge bg-warning text-dark">新規</span>
+                </td>
+            `;
+
+            return tr;
+        }
+
+        // 行を挿入
+        function insertRowAfter(targetRow) {
+            const newIndex = newRowCounter++;
+            totalRowsInput.value = newRowCounter;
+
+            const newRow = createNewRow(newIndex, targetRow);
+            targetRow.parentNode.insertBefore(newRow, targetRow.nextSibling);
+
+            // 新しい行のイベントリスナーを設定
+            setupRowEventListeners(newRow);
+
+            // フォーカスを新しい行の日付フィールドに移動
+            const dateInput = newRow.querySelector('input[type="date"]');
+            if (dateInput) {
+                dateInput.focus();
+            }
+
+            updateSelectedState();
+        }
+
+        // 行のイベントリスナーを設定
+        function setupRowEventListeners(row) {
+            const checkbox = row.querySelector('.remove-row-check');
+            if (checkbox) {
+                checkbox.addEventListener('change', updateSelectedState);
+            }
+
+            const insertBtn = row.querySelector('.insert-row-btn');
+            if (insertBtn) {
+                insertBtn.addEventListener('click', function () {
+                    insertRowAfter(row);
+                });
+            }
+
+            // 日付入力の和暦表示
+            const dateInput = row.querySelector('.date-input');
+            if (dateInput) {
+                dateInput.addEventListener('change', function() {
+                    updateWarekiDisplay(this);
+                });
+            }
+        }
+
+        // 初期状態の更新
         updateSelectedState();
 
-        // チェックボックス変更時
-        checkboxes.forEach(function (cb) {
+        // 和暦表示を初期化
+        initWarekiDisplays();
+
+        // 既存の行にイベントリスナーを設定
+        document.querySelectorAll('.remove-row-check').forEach(function (cb) {
             cb.addEventListener('change', updateSelectedState);
+        });
+
+        document.querySelectorAll('.insert-row-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const row = btn.closest('tr');
+                if (row) {
+                    insertRowAfter(row);
+                }
+            });
         });
 
         // 全選択チェックボックス
@@ -163,7 +428,7 @@
         if (selectAllCheck) {
             selectAllCheck.addEventListener('change', function () {
                 const isChecked = selectAllCheck.checked;
-                checkboxes.forEach(function (cb) {
+                document.querySelectorAll('.remove-row-check').forEach(function (cb) {
                     const row = cb.closest('tr');
                     if (row && row.style.display !== 'none') {
                         cb.checked = isChecked;
@@ -173,7 +438,7 @@
             });
         }
 
-        // 選択行を削除（JavaScriptで行を非表示にする）
+        // 選択行を削除
         if (deleteBtn) {
             deleteBtn.addEventListener('click', function () {
                 const checkedBoxes = document.querySelectorAll('.remove-row-check:checked');
@@ -187,7 +452,6 @@
                     const row = cb.closest('tr');
                     if (row) {
                         row.style.display = 'none';
-                        // DELETEフラグを設定
                         cb.checked = true;
                     }
                 });
@@ -196,7 +460,45 @@
             });
         }
 
-        // 二重送信防止 & ボタン値送信対応
+        // フォーム送信前に行のインデックスを再割り当て（視覚的順序に合わせる）
+        function reindexRows() {
+            const visibleRows = Array.from(tableBody.querySelectorAll('tr.data-row')).filter(
+                row => row.style.display !== 'none'
+            );
+
+            visibleRows.forEach(function (row, newIndex) {
+                // 全ての入力フィールドの name 属性を更新
+                const inputs = row.querySelectorAll('input, select, textarea');
+                inputs.forEach(function (input) {
+                    const name = input.getAttribute('name');
+                    if (name) {
+                        // form-{oldIndex}-{field} → form-{newIndex}-{field}
+                        const newName = name.replace(/^form-\d+-/, `form-${newIndex}-`);
+                        input.setAttribute('name', newName);
+                    }
+                    const id = input.getAttribute('id');
+                    if (id && id.startsWith('del-')) {
+                        input.setAttribute('id', `del-${newIndex}`);
+                    }
+                });
+
+                // data-row-index も更新
+                row.dataset.rowIndex = newIndex;
+
+                // 挿入ボタンの data-index も更新
+                const insertBtn = row.querySelector('.insert-row-btn');
+                if (insertBtn) {
+                    insertBtn.dataset.index = newIndex;
+                }
+            });
+
+            // total_rows を更新
+            totalRowsInput.value = visibleRows.length;
+
+            return visibleRows.length;
+        }
+
+        // 二重送信防止
         if (form) {
             form.addEventListener('submit', function (e) {
                 if (isSubmitting) {
@@ -204,9 +506,17 @@
                     return false;
                 }
 
+                // 送信前に行を再インデックス
+                const rowCount = reindexRows();
+
+                if (rowCount === 0) {
+                    e.preventDefault();
+                    alert('取り込むデータがありません。');
+                    return false;
+                }
+
                 isSubmitting = true;
 
-                // 10秒後にリセット（安全策）
                 setTimeout(function () {
                     isSubmitting = false;
                     submitButtons.forEach(function (btn) {
@@ -215,20 +525,43 @@
                     });
                 }, 10000);
 
-                // ボタン無効化を遅延させて、送信データにボタンのvalueが含まれるようにする
                 setTimeout(function () {
-                    // すべての送信ボタンを無効化
                     submitButtons.forEach(function (btn) {
                         btn.disabled = true;
                         btn.style.opacity = '0.6';
                     });
 
-                    // クリックされたボタンにローディング表示
                     const clickedBtn = document.activeElement;
                     if (clickedBtn && clickedBtn.classList.contains('btn-submit')) {
                         clickedBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 処理中...';
                     }
                 }, 0);
+            });
+        }
+    });
+</script>
+
+<!-- SortableJS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+    // SortableJS読み込み後に初期化（ドラッグ＆ドロップ並び替え）
+    document.addEventListener('DOMContentLoaded', function() {
+        const tableBody = document.getElementById('tableBody');
+        if (tableBody && typeof Sortable !== 'undefined') {
+            new Sortable(tableBody, {
+                handle: '.drag-handle',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                onEnd: function (evt) {
+                    // ドラッグ完了時にハイライト表示
+                    const movedRow = evt.item;
+                    movedRow.classList.add('table-info');
+                    setTimeout(function() {
+                        movedRow.classList.remove('table-info');
+                    }, 500);
+                }
             });
         }
     });

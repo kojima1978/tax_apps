@@ -3,6 +3,10 @@ import re
 import logging
 import pandas as pd
 
+from .exceptions import (
+    EncodingError, FormatError, DateParseError, AmountParseError
+)
+
 logger = logging.getLogger(__name__)
 
 # 和暦マッピング
@@ -146,12 +150,11 @@ def load_csv(file) -> pd.DataFrame:
                 errors["cp932_replace"] = str(e)
 
     if df is None:
-        error_details = "\n".join([f"{enc}: {err}" for enc, err in errors.items()])
-        raise ValueError(
-            f"ファイルの読み込みに失敗しました。\n"
-            f"試行した形式: CSV(cp932/shift_jis/utf-8), Excel\n"
-            f"詳細エラー:\n{error_details}\n"
-            f"ファイルヘッダ(Hex): {file_head_hex}"
+        tried_encodings_list = list(errors.keys())
+        raise EncodingError(
+            message="ファイルの読み込みに失敗しました。",
+            tried_encodings=tried_encodings_list,
+            file_header_hex=file_head_hex
         )
 
     original_columns = list(df.columns)
@@ -180,11 +183,14 @@ def load_csv(file) -> pd.DataFrame:
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:
-        raise ValueError(
-            f"CSVに必要なカラムがありません。\n"
-            f"不足: {missing_columns}\n"
-            f"CSVのカラム（元データ）: {original_columns}\n"
-            f"想定フォーマット: 銀行名,年月日,摘要,払戻,お預り,差引残高"
+        # 日本語カラム名に逆変換
+        reverse_map = {v: k for k, v in rename_map.items()}
+        missing_japanese = [reverse_map.get(col, col) for col in missing_columns]
+
+        raise FormatError(
+            message="CSVに必要なカラムがありません。",
+            missing_columns=missing_japanese,
+            found_columns=original_columns
         )
 
     # メタデータ抽出（リネーム後のカラム名を使用）
@@ -203,21 +209,56 @@ def load_csv(file) -> pd.DataFrame:
 
     if df["date"].isna().any():
         invalid_mask = df["date"].isna()
-        invalid_dates_original = date_before_conversion[invalid_mask].head(5).tolist()
-        raise ValueError(
-            f"日付の変換に失敗しました。\n"
-            f"変換できない日付の例（元データ）: {invalid_dates_original}\n"
-            f"日付形式を確認してください（例: 2024-01-01, 2024/01/01, H28.6.3）"
+        # 行番号を計算（ヘッダー行 + 1始まりインデックス = +2）
+        invalid_line_numbers = (df.index[invalid_mask] + 2).tolist()
+        invalid_dates_original = date_before_conversion[invalid_mask].head(10).tolist()
+
+        raise DateParseError(
+            line_numbers=invalid_line_numbers[:10],
+            invalid_values=[str(v) for v in invalid_dates_original]
         )
 
-    # 金額カラムの変換
+    # 金額カラムの変換（行番号追跡付き）
     for col in ["amount_out", "amount_in", "balance"]:
         if col in df.columns:
-            if df[col].dtype == object:
+            # pandas 2.0+ではStringDtypeの場合もあるため、数値型以外は全て変換処理を行う
+            is_numeric = pd.api.types.is_numeric_dtype(df[col])
+            if not is_numeric:
+                original_values = df[col].copy()
                 try:
-                    df[col] = df[col].astype(str).str.replace(",", "").astype(float).fillna(0).astype(int)
-                except ValueError:
-                     df[col] = 0 # Fallback
+                    cleaned = df[col].astype(str).str.replace(",", "").str.strip()
+                    # 空文字列を0に
+                    cleaned = cleaned.replace('', '0').replace('nan', '0')
+
+                    # 数値変換を試行
+                    numeric_result = pd.to_numeric(cleaned, errors='coerce')
+
+                    # 変換に失敗した行を特定
+                    invalid_mask = numeric_result.isna() & original_values.notna()
+                    # 元の値が空文字やNaNでないものだけ
+                    original_str = original_values.astype(str)
+                    invalid_mask = invalid_mask & (original_str.str.strip() != '') & (original_str != 'nan')
+
+                    if invalid_mask.any():
+                        invalid_line_numbers = (df.index[invalid_mask] + 2).tolist()
+                        invalid_values = original_values[invalid_mask].head(10).tolist()
+                        raise AmountParseError(
+                            column_name=col,
+                            line_numbers=invalid_line_numbers[:10],
+                            invalid_values=[str(v) for v in invalid_values]
+                        )
+
+                    df[col] = numeric_result.fillna(0).astype(int)
+                except AmountParseError:
+                    raise  # Re-raise our custom exception
+                except Exception as e:
+                    # 予期しないエラーの場合もAmountParseErrorとして再送出
+                    logger.warning(f"金額変換で予期しないエラー: col={col}, error={e}")
+                    raise AmountParseError(
+                        column_name=col,
+                        line_numbers=[],
+                        invalid_values=[str(e)]
+                    )
             else:
                 df[col] = df[col].fillna(0).astype(int)
 
