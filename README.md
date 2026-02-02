@@ -56,8 +56,7 @@ tax_apps/
 ### 前提条件
 - Docker / Docker Compose
 - Node.js 22+（ローカル開発時）
-- Node.js 22+（ローカル開発時）
-  - ⚠️ Node.js 24はNext.js 16 Turbopackと一部互換性問題が報告されていますが、バックエンド（Express/Prisma）では積極的に利用可能です。
+  - ⚠️ Node.js 24はNext.js Turbopackと一部互換性問題が報告されていますが、バックエンド（Express/Prisma）では積極的に利用可能です。
 
 
 ### Docker起動
@@ -114,6 +113,15 @@ POSTGRES_DB=inheritance_tax_db
 `docker/.env` または `docker-compose.yml` で設定可能:
 
 - `DJANGO_CSRF_TRUSTED_ORIGINS`: CSRF信頼オリジン (デフォルト: `http://localhost,http://127.0.0.1`)
+- `DJANGO_SECRET_KEY`: 本番環境で必須（開発環境ではデフォルト値使用）
+
+#### 主な機能
+
+- **CSV/Excelインポート**: 銀行取引データの一括取り込み（文字コード自動判定）
+- **取引分析**: 月別集計、カテゴリ別分析、グラフ表示
+- **フィルター機能**: 日付範囲、銀行名、カテゴリ、キーワード、金額での絞り込み
+- **取引追加/削除**: インポート後の手動編集（AJAX対応）
+- **エクスポート**: CSV/JSON形式での出力（フィルター適用可）
 
 ## 技術スタック
 
