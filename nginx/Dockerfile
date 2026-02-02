@@ -67,9 +67,7 @@ COPY includes /etc/nginx/includes
 COPY default.conf /etc/nginx/conf.d/default.conf
 
 # 設定ファイルの検証
-# 設定ファイルの検証
-# RUN nginx -t
-
+RUN nginx -t
 
 # ヘルスチェック
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

@@ -3,14 +3,11 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install system dependencies
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     tini \
     && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
 
 # Create non-root user
 RUN addgroup --system --gid 1001 appgroup && \

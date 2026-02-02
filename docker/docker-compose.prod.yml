@@ -125,7 +125,7 @@ services:
       TZ: Asia/Tokyo
       DJANGO_DEBUG: "False"
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required for production}
-    command: ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "config.wsgi:application"]
+    command: ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "300", "bank_project.wsgi:application"]
     deploy:
       resources:
         limits:

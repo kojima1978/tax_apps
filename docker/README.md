@@ -240,10 +240,11 @@ start.bat --prod
 ## 技術スタック
 
 - **Frontend**: Next.js 16, React 19, Vite
-- **Backend**: Express, Django, FastAPI
+- **Backend**: Express, Django 5.x, FastAPI
 - **Database**: PostgreSQL 16, SQLite
 - **Infrastructure**: Docker, Nginx 1.27
 - **Node.js**: v22 LTS (Frontend) / v24 (Backend)
+- **Python**: 3.12 (Django)
 
 ### Prisma & OpenSSL (Alpine vs Debian)
 
@@ -265,4 +266,12 @@ RUN apt-get update && apt-get install -y curl  # Debian/Slim
 # または
 RUN apk add --no-cache curl                    # Alpine
 ```
+
+## 更新履歴
+
+### 2026-02
+
+- **Bank Analyzer**: 取引追加/削除機能、日付範囲フィルター追加
+- **Dockerfile改善**: 重複コード削除、nginx設定検証の有効化
+- **docker-compose.prod.yml**: gunicornのwsgiパス修正、タイムアウト設定追加
 
