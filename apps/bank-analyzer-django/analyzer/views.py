@@ -15,6 +15,9 @@ import json
 from .models import Case, Transaction
 from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, analyzer, llm_classifier, config
+from .lib.exceptions import (
+    CsvImportError, EncodingError, FormatError, DateParseError, AmountParseError
+)
 from .services import TransactionService, AnalysisService
 from .templatetags.japanese_date import wareki
 
@@ -303,6 +306,172 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
     return response
 
 
+def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
+    """絞り込み条件付きでCSVエクスポート"""
+    from django.db.models import Q
+
+    logger.info(f"絞り込みCSVエクスポート開始: case_id={pk}")
+    case = get_object_or_404(Case, pk=pk)
+
+    # フィルター条件を取得
+    filter_state = {
+        'bank': request.GET.getlist('bank'),
+        'account': request.GET.getlist('account'),
+        'category': request.GET.getlist('category'),
+        'category_mode': request.GET.get('category_mode', 'include'),
+        'keyword': request.GET.get('keyword', ''),
+        'amount_min': request.GET.get('amount_min', ''),
+        'amount_max': request.GET.get('amount_max', ''),
+        'amount_type': request.GET.get('amount_type', 'both'),
+        'large_only': request.GET.get('large_only', ''),
+        'date_from': request.GET.get('date_from', ''),
+        'date_to': request.GET.get('date_to', ''),
+    }
+
+    # 基本クエリ
+    transactions = case.transactions.all().order_by('date', 'id')
+
+    # フィルター適用
+    if filter_state['bank']:
+        transactions = transactions.filter(bank_name__in=filter_state['bank'])
+    if filter_state['account']:
+        transactions = transactions.filter(account_id__in=filter_state['account'])
+    if filter_state['category']:
+        if filter_state['category_mode'] == 'exclude':
+            transactions = transactions.exclude(category__in=filter_state['category'])
+        else:
+            transactions = transactions.filter(category__in=filter_state['category'])
+    if filter_state['keyword']:
+        transactions = transactions.filter(description__icontains=filter_state['keyword'])
+
+    # 日付フィルター
+    if filter_state['date_from']:
+        transactions = transactions.filter(date__gte=filter_state['date_from'])
+    if filter_state['date_to']:
+        transactions = transactions.filter(date__lte=filter_state['date_to'])
+
+    # 金額フィルター
+    amount_type = filter_state['amount_type']
+    try:
+        amount_min = int(filter_state['amount_min'].replace(',', '')) if filter_state['amount_min'] else None
+    except (ValueError, AttributeError):
+        amount_min = None
+    try:
+        amount_max = int(filter_state['amount_max'].replace(',', '')) if filter_state['amount_max'] else None
+    except (ValueError, AttributeError):
+        amount_max = None
+
+    if amount_type == 'out':
+        transactions = transactions.filter(amount_out__gt=0)
+    elif amount_type == 'in':
+        transactions = transactions.filter(amount_in__gt=0)
+
+    if amount_min is not None or amount_max is not None:
+        if amount_type == 'out':
+            if amount_min is not None:
+                transactions = transactions.filter(amount_out__gte=amount_min)
+            if amount_max is not None:
+                transactions = transactions.filter(amount_out__lte=amount_max)
+        elif amount_type == 'in':
+            if amount_min is not None:
+                transactions = transactions.filter(amount_in__gte=amount_min)
+            if amount_max is not None:
+                transactions = transactions.filter(amount_in__lte=amount_max)
+        else:
+            if amount_min is not None and amount_max is not None:
+                transactions = transactions.filter(
+                    Q(amount_out__gte=amount_min, amount_out__lte=amount_max) |
+                    Q(amount_in__gte=amount_min, amount_in__lte=amount_max)
+                )
+            elif amount_min is not None:
+                transactions = transactions.filter(
+                    Q(amount_out__gte=amount_min) | Q(amount_in__gte=amount_min)
+                )
+            elif amount_max is not None:
+                transactions = transactions.filter(
+                    Q(amount_out__gt=0, amount_out__lte=amount_max) |
+                    Q(amount_in__gt=0, amount_in__lte=amount_max)
+                )
+
+    if filter_state['large_only']:
+        transactions = transactions.filter(is_large=True)
+
+    if not transactions.exists():
+        messages.warning(request, "エクスポートするデータがありません。")
+        return redirect('analysis-dashboard', pk=pk)
+
+    df = pd.DataFrame(list(transactions.values()))
+
+    # ファイル名を生成（フィルター条件を反映）
+    filter_desc = []
+    if filter_state['bank']:
+        filter_desc.append(f"銀行_{'-'.join(filter_state['bank'][:2])}")
+    if filter_state['account']:
+        filter_desc.append(f"口座_{'-'.join(filter_state['account'][:2])}")
+    if filter_state['category']:
+        mode = "除外" if filter_state['category_mode'] == 'exclude' else ""
+        filter_desc.append(f"分類{mode}_{'-'.join(filter_state['category'][:2])}")
+    if filter_state['keyword']:
+        filter_desc.append(f"検索_{filter_state['keyword'][:10]}")
+    # 日付フィルターの説明を追加
+    if filter_state['date_from'] or filter_state['date_to']:
+        date_range = f"{filter_state['date_from'] or ''}〜{filter_state['date_to'] or ''}"
+        filter_desc.append(f"期間_{date_range}")
+    # 金額フィルターの説明を追加
+    if amount_type != 'both':
+        type_name = "出金" if amount_type == 'out' else "入金"
+        filter_desc.append(type_name)
+    if amount_min is not None or amount_max is not None:
+        if amount_min and amount_max:
+            filter_desc.append(f"{amount_min}〜{amount_max}円")
+        elif amount_min:
+            filter_desc.append(f"{amount_min}円以上")
+        elif amount_max:
+            filter_desc.append(f"{amount_max}円以下")
+    if filter_state['large_only']:
+        filter_desc.append("多額取引")
+
+    if filter_desc:
+        filename = f"{case.name}_絞込_{'-'.join(filter_desc)}.csv"
+    else:
+        filename = f"{case.name}_全取引.csv"
+
+    # 出力カラムを選択・整形
+    export_columns = {
+        'date': '日付',
+        'bank_name': '銀行名',
+        'branch_name': '支店名',
+        'account_type': '種別',
+        'account_id': '口座番号',
+        'description': '摘要',
+        'amount_out': '払戻',
+        'amount_in': 'お預り',
+        'balance': '残高',
+        'category': '分類',
+        'memo': 'メモ',
+    }
+
+    # 存在するカラムのみ抽出
+    cols_to_export = [c for c in export_columns.keys() if c in df.columns]
+    export_df = df[cols_to_export].copy()
+
+    # 日付を和暦に変換
+    if 'date' in export_df.columns:
+        export_df['date'] = export_df['date'].apply(lambda d: wareki(d, 'short'))
+
+    export_df.columns = [export_columns[c] for c in cols_to_export]
+
+    # CSVレスポンスを作成
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    # BOM付きUTF-8で出力（Excelで文字化けしないように）
+    export_df.to_csv(response, index=False, encoding='utf-8-sig')
+
+    logger.info(f"絞り込みCSVエクスポート完了: case_id={pk}, count={len(df)}")
+    return response
+
+
 class CaseListView(ListView):
     model = Case
     template_name = 'analyzer/case_list.html'
@@ -445,7 +614,54 @@ def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
                 
                 return redirect('transaction-preview', pk=pk)
 
+            except EncodingError as e:
+                logger.warning(f"エンコーディングエラー: case_id={pk}, error={e}")
+                return render(request, 'analyzer/import_form.html', {
+                    'case': case,
+                    'form': form,
+                    'import_error': e.to_dict(),
+                    'error_type': 'encoding'
+                })
+
+            except FormatError as e:
+                logger.warning(f"フォーマットエラー: case_id={pk}, error={e}")
+                return render(request, 'analyzer/import_form.html', {
+                    'case': case,
+                    'form': form,
+                    'import_error': e.to_dict(),
+                    'error_type': 'format'
+                })
+
+            except DateParseError as e:
+                logger.warning(f"日付パースエラー: case_id={pk}, error={e}")
+                return render(request, 'analyzer/import_form.html', {
+                    'case': case,
+                    'form': form,
+                    'import_error': e.to_dict(),
+                    'error_type': 'data'
+                })
+
+            except AmountParseError as e:
+                logger.warning(f"金額パースエラー: case_id={pk}, error={e}")
+                return render(request, 'analyzer/import_form.html', {
+                    'case': case,
+                    'form': form,
+                    'import_error': e.to_dict(),
+                    'error_type': 'data'
+                })
+
+            except CsvImportError as e:
+                # その他のインポートエラー
+                logger.warning(f"インポートエラー: case_id={pk}, error={e}")
+                return render(request, 'analyzer/import_form.html', {
+                    'case': case,
+                    'form': form,
+                    'import_error': e.to_dict(),
+                    'error_type': e.error_type.value
+                })
+
             except Exception as e:
+                # 予期しないエラー（既存の動作を維持）
                 logger.exception(f"ファイルインポートエラー: case_id={pk}, error={e}")
                 messages.error(request, f"エラーが発生しました: {e}")
     else:
@@ -466,20 +682,31 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
     
     if request.method == 'POST':
         action = request.POST.get('action')
-        
+
         if action == 'recalculate':
             # Update data from form inputs
+            # フォーム送信前にJavaScriptで再インデックスされるため、
+            # 全ての行を連番のインデックス（0, 1, 2, ...）で取得
             updated_data = []
             validation_errors = []
 
-            for i, row in enumerate(import_data):
-                # Check for deletion flag
+            total_rows = int(request.POST.get('total_rows', 0))
+
+            for i in range(total_rows):
+                # Check for deletion flag (再インデックス後は基本的にない)
                 if request.POST.get(f'form-{i}-DELETE'):
                     continue
 
-                new_row = row.copy()
-                new_row['date'] = request.POST.get(f'form-{i}-date', row.get('date'))
-                new_row['description'] = request.POST.get(f'form-{i}-description', row.get('description'))
+                # 全ての行をフォームから直接取得（再インデックス後は視覚順）
+                new_row = {}
+
+                # 全フィールドをフォームから取得
+                new_row['date'] = request.POST.get(f'form-{i}-date', '')
+                new_row['description'] = request.POST.get(f'form-{i}-description', '')
+                new_row['bank_name'] = request.POST.get(f'form-{i}-bank_name', '')
+                new_row['branch_name'] = request.POST.get(f'form-{i}-branch_name', '')
+                new_row['account_type'] = request.POST.get(f'form-{i}-account_type', '')
+                new_row['account_number'] = request.POST.get(f'form-{i}-account_number', '')
 
                 # 金額フィールドのバリデーション
                 amount_fields = [
@@ -489,12 +716,14 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
                 ]
                 for field_name, field_label in amount_fields:
                     value_str = request.POST.get(f'form-{i}-{field_name}', '0')
-                    parsed_value, success = _parse_amount(value_str, row.get(field_name, 0))
+                    parsed_value, success = _parse_amount(value_str, 0)
                     new_row[field_name] = parsed_value
                     if not success:
                         validation_errors.append(f"行{i+1}: {field_label}が不正な値です")
 
-                updated_data.append(new_row)
+                # 日付が空でない行のみ追加
+                if new_row.get('date'):
+                    updated_data.append(new_row)
 
             if validation_errors:
                 for error in validation_errors[:MAX_VALIDATION_ERRORS_DISPLAY]:
@@ -527,12 +756,38 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
 
         elif action == 'commit':
             # Run Commit Logic
+            # フォーム送信前にJavaScriptで再インデックスされるため、
+            # 全ての行を連番のインデックス（0, 1, 2, ...）で取得
             try:
-                # Filter out deleted rows (check DELETE flags from form)
+                total_rows = int(request.POST.get('total_rows', 0))
+
+                # フォームから全データを収集（視覚順で再インデックス済み）
                 filtered_data = []
-                for i, row in enumerate(import_data):
-                    if not request.POST.get(f'form-{i}-DELETE'):
-                        filtered_data.append(row)
+                for i in range(total_rows):
+                    # Check for deletion flag (再インデックス後は基本的にない)
+                    if request.POST.get(f'form-{i}-DELETE'):
+                        continue
+
+                    # 全ての行をフォームから直接取得
+                    new_row = {}
+
+                    # 全フィールドをフォームから取得
+                    new_row['date'] = request.POST.get(f'form-{i}-date', '')
+                    new_row['description'] = request.POST.get(f'form-{i}-description', '')
+                    new_row['bank_name'] = request.POST.get(f'form-{i}-bank_name', '')
+                    new_row['branch_name'] = request.POST.get(f'form-{i}-branch_name', '')
+                    new_row['account_type'] = request.POST.get(f'form-{i}-account_type', '')
+                    new_row['account_number'] = request.POST.get(f'form-{i}-account_number', '')
+
+                    # 金額フィールド
+                    for field_name in ['amount_out', 'amount_in', 'balance']:
+                        value_str = request.POST.get(f'form-{i}-{field_name}', '0')
+                        parsed_value, _ = _parse_amount(value_str, 0)
+                        new_row[field_name] = parsed_value
+
+                    # 日付が空でない行のみ追加
+                    if new_row.get('date'):
+                        filtered_data.append(new_row)
 
                 if not filtered_data:
                     messages.warning(request, "取り込むデータがありません。")
@@ -622,6 +877,14 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'large_category_mode': request.GET.get('large_category_mode', 'include'),
         'transfer_category': request.GET.getlist('transfer_category'),
         'transfer_category_mode': request.GET.get('transfer_category_mode', 'include'),
+        # 金額フィルター
+        'amount_min': request.GET.get('amount_min', ''),
+        'amount_max': request.GET.get('amount_max', ''),
+        'amount_type': request.GET.get('amount_type', 'both'),  # 'out', 'in', 'both'
+        'large_only': request.GET.get('large_only', ''),  # 多額取引のみ
+        # 日付フィルター
+        'date_from': request.GET.get('date_from', ''),
+        'date_to': request.GET.get('date_to', ''),
     }
 
     analysis_data = AnalysisService.get_analysis_data(case, filter_state)
@@ -946,6 +1209,118 @@ def api_toggle_flag(request: HttpRequest, pk: int) -> JsonResponse:
         })
     except Exception as e:
         logger.exception(f"フラグ更新APIエラー: tx_id={tx_id}, error={e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'エラー: {e}'
+        }, status=500)
+
+
+@require_POST
+def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
+    """
+    取引追加APIエンドポイント（AJAX用）
+
+    Returns:
+        JSON: {success: bool, transaction: dict, message: str}
+    """
+    from datetime import datetime
+
+    case = get_object_or_404(Case, pk=pk)
+
+    try:
+        # フォームデータを取得
+        date_str = request.POST.get('date')
+        date_val = None
+        if date_str:
+            try:
+                date_val = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+        # 金額をパース
+        amount_out, _ = _parse_amount(request.POST.get('amount_out', '0'))
+        amount_in, _ = _parse_amount(request.POST.get('amount_in', '0'))
+        balance_str = request.POST.get('balance', '')
+        balance_val = None
+        if balance_str:
+            balance_val, _ = _parse_amount(balance_str)
+
+        # 取引を作成
+        tx = Transaction.objects.create(
+            case=case,
+            date=date_val,
+            description=request.POST.get('description', ''),
+            amount_out=amount_out,
+            amount_in=amount_in,
+            balance=balance_val,
+            bank_name=request.POST.get('bank_name', ''),
+            branch_name=request.POST.get('branch_name', ''),
+            account_id=request.POST.get('account_id', ''),
+            account_type=request.POST.get('account_type', ''),
+            category=request.POST.get('category', '未分類'),
+            memo=request.POST.get('memo', ''),
+        )
+
+        logger.info(f"取引作成: case_id={pk}, tx_id={tx.id}")
+        return JsonResponse({
+            'success': True,
+            'transaction': {
+                'id': tx.id,
+                'date': tx.date.isoformat() if tx.date else None,
+                'description': tx.description,
+                'amount_out': tx.amount_out,
+                'amount_in': tx.amount_in,
+                'balance': tx.balance,
+                'bank_name': tx.bank_name,
+                'branch_name': tx.branch_name,
+                'account_id': tx.account_id,
+                'account_type': tx.account_type,
+                'category': tx.category,
+                'memo': tx.memo,
+            },
+            'message': '取引を追加しました'
+        })
+    except Exception as e:
+        logger.exception(f"取引作成APIエラー: case_id={pk}, error={e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'エラー: {e}'
+        }, status=500)
+
+
+@require_POST
+def api_delete_transaction(request: HttpRequest, pk: int) -> JsonResponse:
+    """
+    取引削除APIエンドポイント（AJAX用）
+
+    Returns:
+        JSON: {success: bool, message: str}
+    """
+    case = get_object_or_404(Case, pk=pk)
+    tx_id = request.POST.get('tx_id')
+
+    if not tx_id:
+        return JsonResponse({
+            'success': False,
+            'message': '取引IDが指定されていません'
+        }, status=400)
+
+    try:
+        tx = case.transactions.get(pk=int(tx_id))
+        tx.delete()
+
+        logger.info(f"取引削除: case_id={pk}, tx_id={tx_id}")
+        return JsonResponse({
+            'success': True,
+            'message': '取引を削除しました'
+        })
+    except Transaction.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': '取引が見つかりません'
+        }, status=404)
+    except Exception as e:
+        logger.exception(f"取引削除APIエラー: tx_id={tx_id}, error={e}")
         return JsonResponse({
             'success': False,
             'message': f'エラー: {e}'
