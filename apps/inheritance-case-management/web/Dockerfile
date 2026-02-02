@@ -13,6 +13,18 @@ COPY packages/ui/package.json ./packages/ui/
 COPY apps/inheritance-case-management/web/package.json ./apps/inheritance-case-management/web/
 RUN pnpm install --frozen-lockfile
 
+# Development image
+FROM deps AS dev
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY . .
+# Build shared packages for dev
+RUN pnpm --filter @tax-apps/shared build
+RUN pnpm --filter @tax-apps/validation build
+RUN pnpm --filter @tax-apps/ui build
+
+CMD ["pnpm", "--filter", "@inheritance-case-management/web", "dev"]
+
 # Build
 FROM deps AS builder
 ARG NEXT_PUBLIC_API_URL=http://localhost:3021/api

@@ -664,182 +664,211 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
     """分析ダッシュボードのPOSTリクエストを処理"""
     action = request.POST.get('action')
 
-    if action == 'run_classifier':
-        count = TransactionService.run_classifier(case)
-        if count == 0:
-            messages.warning(request, "データがありません。")
-        else:
-            messages.success(request, "自動分類が完了しました。")
-        return redirect('analysis-dashboard', pk=pk)
+    handlers = {
+        'run_classifier': _handle_run_classifier,
+        'apply_rules': _handle_apply_rules,
+        'delete_account': _handle_delete_account,
+        'update_category': _handle_update_category,
+        'bulk_update_categories': _handle_bulk_update_categories,
+        'bulk_update_transfer_categories': _handle_bulk_update_categories_transfer,
+        'update_transaction': _handle_update_transaction,
+        'delete_duplicates': _handle_delete_duplicates,
+        'delete_by_range': _handle_delete_by_range,
+        'toggle_flag': _handle_toggle_flag,
+        'update_memo': _handle_update_memo,
+    }
 
-    elif action == 'apply_rules':
-        count = TransactionService.apply_classification_rules(case)
-        if count == 0:
-            messages.info(request, "未分類の取引がないか、マッチするルールがありませんでした。")
-        else:
-            messages.success(request, f"キーワードルールを適用し、{count}件を分類しました。")
-        return redirect('analysis-dashboard', pk=pk)
-
-    elif action == 'delete_account':
-        account_id = request.POST.get('account_id')
-        if account_id:
-            count = TransactionService.delete_account_transactions(case, account_id)
-            messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
-        return redirect('analysis-dashboard', pk=pk)
-
-    elif action == 'update_category':
-        tx_id = request.POST.get('tx_id')
-        new_category = request.POST.get('new_category')
-        apply_all = request.POST.get('apply_all') == 'true'
-
-        if tx_id and new_category:
-            count = TransactionService.update_transaction_category(
-                case, int(tx_id), new_category, apply_all
-            )
-            if apply_all and count > 0:
-                tx = case.transactions.filter(pk=tx_id).first()
-                if tx:
-                    messages.success(request, f"「{tx.description}」の取引 {count}件を「{new_category}」に変更しました。")
-            else:
-                messages.success(request, "分類を更新しました。")
-        return redirect('analysis-dashboard', pk=pk)
-
-    elif action == 'bulk_update_categories':
-        source_tab = request.POST.get('source_tab', 'large')
-
-        category_updates = {
-            key.replace('cat-', ''): value
-            for key, value in request.POST.items()
-            if key.startswith('cat-')
-        }
-
-        count = TransactionService.bulk_update_categories(case, category_updates)
-        if count > 0:
-            messages.success(request, f"{count}件の分類を更新しました。")
-        else:
-            messages.info(request, "変更はありませんでした。")
-
-        # フィルター状態を復元（allタブの場合）
-        filters = None
-        if source_tab == 'all':
-            filters = {
-                'bank': request.POST.getlist('filter_bank'),
-                'account': request.POST.getlist('filter_account'),
-                'category': request.POST.getlist('filter_category'),
-                'keyword': request.POST.get('filter_keyword', ''),
-                'page': request.POST.get('filter_page', ''),
-            }
-
-        return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab, filters))
-
-    elif action == 'bulk_update_transfer_categories':
-        # transfer-src-{id} と transfer-dest-{id} 形式のパラメータを処理
-        category_updates = {}
-        for key, value in request.POST.items():
-            if key.startswith('transfer-src-'):
-                tx_id = key.replace('transfer-src-', '')
-                if tx_id:
-                    category_updates[tx_id] = value
-            elif key.startswith('transfer-dest-'):
-                tx_id = key.replace('transfer-dest-', '')
-                if tx_id:
-                    category_updates[tx_id] = value
-
-        count = TransactionService.bulk_update_categories(case, category_updates)
-        if count > 0:
-            messages.success(request, f"{count}件の分類を更新しました。")
-        else:
-            messages.info(request, "変更はありませんでした。")
-
-        return redirect(_build_redirect_url('analysis-dashboard', pk, 'transfers', None))
-
-    elif action == 'update_transaction':
-        source_tab = request.POST.get('source_tab', '')
-        tx_id = request.POST.get('tx_id')
-
-        if tx_id:
-            try:
-                balance_str = request.POST.get('balance')
-                balance_val = int(balance_str) if balance_str else None
-                success = TransactionService.update_transaction(
-                    case,
-                    int(tx_id),
-                    request.POST.get('date'),
-                    request.POST.get('description'),
-                    int(request.POST.get('amount_out') or 0),
-                    int(request.POST.get('amount_in') or 0),
-                    request.POST.get('category'),
-                    request.POST.get('memo'),
-                    request.POST.get('bank_name'),
-                    request.POST.get('branch_name'),
-                    request.POST.get('account_id'),
-                    request.POST.get('account_type'),
-                    balance_val
-                )
-                if success:
-                    messages.success(request, "取引データを更新しました。")
-            except Exception as e:
-                logger.exception(f"取引更新エラー: tx_id={tx_id}, error={e}")
-                messages.error(request, f"更新エラー: {e}")
-
-        return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
-
-    elif action == 'delete_duplicates':
-        delete_ids = request.POST.getlist('delete_ids')
-        count = TransactionService.delete_duplicates(case, delete_ids)
-        if count > 0:
-            messages.success(request, f"{count}件の重複データを削除しました。")
-        else:
-            messages.warning(request, "削除対象が選択されていません。")
-        # データクレンジングタブに留まる
-        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-    elif action == 'delete_by_range':
-        start_id = request.POST.get('start_id')
-        end_id = request.POST.get('end_id')
-        try:
-            start_id_int = int(start_id)
-            end_id_int = int(end_id)
-            count = TransactionService.delete_by_range(case, start_id_int, end_id_int)
-            if count > 0:
-                messages.success(request, f"ID {start_id_int}〜{end_id_int} の範囲で {count}件の取引を削除しました。")
-            else:
-                messages.warning(request, "指定した範囲に削除対象の取引がありませんでした。")
-        except (ValueError, TypeError):
-            messages.error(request, "IDは整数で入力してください。")
-        # データクレンジングタブに留まる
-        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-    elif action == 'toggle_flag':
-        tx_id = request.POST.get('tx_id')
-        source_tab = request.POST.get('source_tab', '')
-        if tx_id:
-            try:
-                new_state = TransactionService.toggle_flag(case, int(tx_id))
-                if new_state:
-                    messages.success(request, "付箋を追加しました。")
-                else:
-                    messages.info(request, "付箋を外しました。")
-            except Exception as e:
-                logger.exception(f"フラグ更新エラー: tx_id={tx_id}, error={e}")
-                messages.error(request, f"エラー: {e}")
-        return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
-
-    elif action == 'update_memo':
-        tx_id = request.POST.get('tx_id')
-        memo = request.POST.get('memo', '')
-        source_tab = request.POST.get('source_tab', '')
-        if tx_id:
-            try:
-                success = TransactionService.update_memo(case, int(tx_id), memo)
-                if success:
-                    messages.success(request, "メモを更新しました。")
-            except Exception as e:
-                logger.exception(f"メモ更新エラー: tx_id={tx_id}, error={e}")
-                messages.error(request, f"エラー: {e}")
-        return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
+    handler = handlers.get(action)
+    if handler:
+        return handler(request, case, pk)
 
     return redirect('analysis-dashboard', pk=pk)
+
+
+def _handle_run_classifier(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    count = TransactionService.run_classifier(case)
+    if count == 0:
+        messages.warning(request, "データがありません。")
+    else:
+        messages.success(request, "自動分類が完了しました。")
+    return redirect('analysis-dashboard', pk=pk)
+
+
+def _handle_apply_rules(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    count = TransactionService.apply_classification_rules(case)
+    if count == 0:
+        messages.info(request, "未分類の取引がないか、マッチするルールがありませんでした。")
+    else:
+        messages.success(request, f"キーワードルールを適用し、{count}件を分類しました。")
+    return redirect('analysis-dashboard', pk=pk)
+
+
+def _handle_delete_account(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    account_id = request.POST.get('account_id')
+    if account_id:
+        count = TransactionService.delete_account_transactions(case, account_id)
+        messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
+    return redirect('analysis-dashboard', pk=pk)
+
+
+def _handle_update_category(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    tx_id = request.POST.get('tx_id')
+    new_category = request.POST.get('new_category')
+    apply_all = request.POST.get('apply_all') == 'true'
+
+    if tx_id and new_category:
+        count = TransactionService.update_transaction_category(
+            case, int(tx_id), new_category, apply_all
+        )
+        if apply_all and count > 0:
+            tx = case.transactions.filter(pk=tx_id).first()
+            if tx:
+                messages.success(request, f"「{tx.description}」の取引 {count}件を「{new_category}」に変更しました。")
+        else:
+            messages.success(request, "分類を更新しました。")
+    return redirect('analysis-dashboard', pk=pk)
+
+
+def _handle_bulk_update_categories(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    source_tab = request.POST.get('source_tab', 'large')
+
+    category_updates = {
+        key.replace('cat-', ''): value
+        for key, value in request.POST.items()
+        if key.startswith('cat-')
+    }
+
+    count = TransactionService.bulk_update_categories(case, category_updates)
+    if count > 0:
+        messages.success(request, f"{count}件の分類を更新しました。")
+    else:
+        messages.info(request, "変更はありませんでした。")
+
+    # フィルター状態を復元（allタブの場合）
+    filters = None
+    if source_tab == 'all':
+        filters = {
+            'bank': request.POST.getlist('filter_bank'),
+            'account': request.POST.getlist('filter_account'),
+            'category': request.POST.getlist('filter_category'),
+            'keyword': request.POST.get('filter_keyword', ''),
+            'page': request.POST.get('filter_page', ''),
+        }
+
+    return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab, filters))
+
+
+def _handle_bulk_update_categories_transfer(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    # transfer-src-{id} と transfer-dest-{id} 形式のパラメータを処理
+    category_updates = {}
+    for key, value in request.POST.items():
+        if key.startswith('transfer-src-'):
+            tx_id = key.replace('transfer-src-', '')
+            if tx_id:
+                category_updates[tx_id] = value
+        elif key.startswith('transfer-dest-'):
+            tx_id = key.replace('transfer-dest-', '')
+            if tx_id:
+                category_updates[tx_id] = value
+
+    count = TransactionService.bulk_update_categories(case, category_updates)
+    if count > 0:
+        messages.success(request, f"{count}件の分類を更新しました。")
+    else:
+        messages.info(request, "変更はありませんでした。")
+
+    return redirect(_build_redirect_url('analysis-dashboard', pk, 'transfers', None))
+
+
+def _handle_update_transaction(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    source_tab = request.POST.get('source_tab', '')
+    tx_id = request.POST.get('tx_id')
+
+    if tx_id:
+        try:
+            balance_str = request.POST.get('balance')
+            balance_val = int(balance_str) if balance_str else None
+            success = TransactionService.update_transaction(
+                case,
+                int(tx_id),
+                request.POST.get('date'),
+                request.POST.get('description'),
+                int(request.POST.get('amount_out') or 0),
+                int(request.POST.get('amount_in') or 0),
+                request.POST.get('category'),
+                request.POST.get('memo'),
+                request.POST.get('bank_name'),
+                request.POST.get('branch_name'),
+                request.POST.get('account_id'),
+                request.POST.get('account_type'),
+                balance_val
+            )
+            if success:
+                messages.success(request, "取引データを更新しました。")
+        except Exception as e:
+            logger.exception(f"取引更新エラー: tx_id={tx_id}, error={e}")
+            messages.error(request, f"更新エラー: {e}")
+
+    return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
+
+
+def _handle_delete_duplicates(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    delete_ids = request.POST.getlist('delete_ids')
+    count = TransactionService.delete_duplicates(case, delete_ids)
+    if count > 0:
+        messages.success(request, f"{count}件の重複データを削除しました。")
+    else:
+        messages.warning(request, "削除対象が選択されていません。")
+    # データクレンジングタブに留まる
+    return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+
+def _handle_delete_by_range(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    start_id = request.POST.get('start_id')
+    end_id = request.POST.get('end_id')
+    try:
+        start_id_int = int(start_id)
+        end_id_int = int(end_id)
+        count = TransactionService.delete_by_range(case, start_id_int, end_id_int)
+        if count > 0:
+            messages.success(request, f"ID {start_id_int}〜{end_id_int} の範囲で {count}件の取引を削除しました。")
+        else:
+            messages.warning(request, "指定した範囲に削除対象の取引がありませんでした。")
+    except (ValueError, TypeError):
+        messages.error(request, "IDは整数で入力してください。")
+    # データクレンジングタブに留まる
+    return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+
+def _handle_toggle_flag(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    tx_id = request.POST.get('tx_id')
+    source_tab = request.POST.get('source_tab', '')
+    if tx_id:
+        try:
+            new_state = TransactionService.toggle_flag(case, int(tx_id))
+            if new_state:
+                messages.success(request, "付箋を追加しました。")
+            else:
+                messages.info(request, "付箋を外しました。")
+        except Exception as e:
+            logger.exception(f"フラグ更新エラー: tx_id={tx_id}, error={e}")
+            messages.error(request, f"エラー: {e}")
+    return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
+
+
+def _handle_update_memo(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    tx_id = request.POST.get('tx_id')
+    memo = request.POST.get('memo', '')
+    source_tab = request.POST.get('source_tab', '')
+    if tx_id:
+        try:
+            success = TransactionService.update_memo(case, int(tx_id), memo)
+            if success:
+                messages.success(request, "メモを更新しました。")
+        except Exception as e:
+            logger.exception(f"メモ更新エラー: tx_id={tx_id}, error={e}")
+            messages.error(request, f"エラー: {e}")
+    return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
 
 def settings_view(request: HttpRequest) -> HttpResponse:
     """アプリケーション設定ビュー"""

@@ -187,8 +187,8 @@ services:
   # ===========================================
   itcm-backend:
     build:
-      context: ../apps/inheritance-case-management/Back
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: apps/inheritance-case-management/api/Dockerfile
       target: dev
     container_name: itcm-backend
     environment:
@@ -199,6 +199,8 @@ services:
       FRONTEND_URL: http://localhost:3020
     ports:
       - "3021:3021"
+    volumes:
+      - ../apps/inheritance-case-management/api/src:/app/apps/inheritance-case-management/api/src
     depends_on:
       itcm-postgres:
         condition: service_healthy
@@ -223,8 +225,8 @@ services:
   # ===========================================
   itcm-frontend:
     build:
-      context: ../apps/inheritance-case-management/Front
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: apps/inheritance-case-management/web/Dockerfile
       target: dev
       args:
         NEXT_PUBLIC_API_URL: /itcm-api/api
@@ -235,6 +237,8 @@ services:
       WATCHPACK_POLLING: "true"
     ports:
       - "3020:3020"
+    volumes:
+      - ../apps/inheritance-case-management/web/src:/app/apps/inheritance-case-management/web/src
     depends_on:
       itcm-backend:
         condition: service_healthy
@@ -264,7 +268,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ../apps/bank-analyzer-django/app:/app/app:ro
+      - ../apps/bank-analyzer-django/analyzer:/app/analyzer
+      - ../apps/bank-analyzer-django/bank_project:/app/bank_project
       - bank_analyzer_data:/app/data
       - bank_analyzer_db:/app/db
     environment:

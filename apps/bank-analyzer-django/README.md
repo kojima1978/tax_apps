@@ -98,6 +98,7 @@ docker build -t bank-analyzer .
 # 実行
 docker run -p 8000:8000 -v $(pwd)/data:/app/data bank-analyzer
 ```
+※ `.dockerignore` により不要なファイル（`__pycache__`等）はビルドコンテキストから除外されます。
 
 ## ディレクトリ構造
 
@@ -133,6 +134,8 @@ bank-analyzer-django/
 | `DJANGO_DEBUG` | デバッグモード | `True` |
 | `DJANGO_SECRET_KEY` | シークレットキー | 開発用キー |
 | `DJANGO_ALLOWED_HOSTS` | 許可ホスト（カンマ区切り） | `localhost,127.0.0.1` |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | CSRF信頼オリジン（カンマ区切り） | `http://localhost,http://127.0.0.1` |
+| `DJANGO_FORCE_SCRIPT_NAME` | サブパス配下用スクリプト名 | なし (ルート使用時) |
 
 ## 技術スタック
 

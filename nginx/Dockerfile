@@ -63,6 +63,7 @@ RUN echo '<!DOCTYPE html>\n\
 
 # 設定ファイルをコピー
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY includes /etc/nginx/includes
 COPY default.conf /etc/nginx/conf.d/default.conf
 
 # 設定ファイルの検証
