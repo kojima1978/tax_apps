@@ -109,6 +109,12 @@ POSTGRES_PASSWORD=your_secure_password
 POSTGRES_DB=inheritance_tax_db
 ```
 
+### Bank Analyzer (Django)
+
+`docker/.env` または `docker-compose.yml` で設定可能:
+
+- `DJANGO_CSRF_TRUSTED_ORIGINS`: CSRF信頼オリジン (デフォルト: `http://localhost,http://127.0.0.1`)
+
 ## 技術スタック
 
 - **フロントエンド**: Next.js 16+, React, Vite, Django Templates (Bootstrap 5)
@@ -139,8 +145,11 @@ docker ps
 # portal_appのログを確認
 docker logs portal_app
 
+# bank-analyzerのログを確認 (502エラー時)
+docker logs bank-analyzer
+
 # コンテナを再起動
-docker-compose -f docker/docker-compose.yml restart portal-app gateway
+docker-compose -f docker/docker-compose.yml restart portal-app bank-analyzer gateway
 ```
 
 ### Windows Docker でのファイル監視問題

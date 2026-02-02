@@ -12,6 +12,17 @@ COPY packages/validation/package.json ./packages/validation/
 COPY apps/inheritance-case-management/api/package.json ./apps/inheritance-case-management/api/
 RUN pnpm install --frozen-lockfile
 
+# Development image
+FROM deps AS dev
+ENV NODE_ENV=development
+COPY . .
+# Build shared packages for dev
+RUN pnpm --filter @tax-apps/shared build
+RUN pnpm --filter @tax-apps/validation build
+# Generate Prisma client for dev
+RUN pnpm --filter @inheritance-case-management/api exec prisma generate
+CMD ["pnpm", "--filter", "@inheritance-case-management/api", "dev"]
+
 # Build shared packages
 FROM deps AS builder
 

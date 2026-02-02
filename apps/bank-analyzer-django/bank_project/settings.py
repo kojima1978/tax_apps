@@ -43,6 +43,11 @@ if not DEBUG:
         raise ValueError("本番環境では DJANGO_ALLOWED_HOSTS 環境変数を設定してください")
 
 
+# CSRF設定
+# Nginx経由でのアクセスを許可
+CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1').split(',')
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -143,7 +148,7 @@ STATIC_URL = os.environ.get('DJANGO_STATIC_URL', 'static/')
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Subpath configuration
-FORCE_SCRIPT_NAME = os.environ.get('django_force_script_name', None)
+FORCE_SCRIPT_NAME = os.environ.get('DJANGO_FORCE_SCRIPT_NAME', None)
 if FORCE_SCRIPT_NAME:
     USE_X_FORWARDED_HOST = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -187,11 +192,6 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django.log',
-            'formatter': 'verbose',
-        },
     },
     'root': {
         'handlers': ['console'],
@@ -211,5 +211,3 @@ LOGGING = {
     },
 }
 
-# ログディレクトリの作成
-(BASE_DIR / 'logs').mkdir(exist_ok=True)

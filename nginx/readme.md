@@ -13,6 +13,8 @@ nginx/
 ├── Dockerfile      # カスタムNginxイメージ
 ├── nginx.conf      # グローバル設定（ワーカー、Gzip、セキュリティ等）
 ├── default.conf    # サーバーブロック設定（ルーティングルール）
+├── includes/       # 共通設定ディレクトリ
+│   └── proxy_params # 共通プロキシヘッダー設定
 └── readme.md       # このファイル
 ```
 
@@ -37,6 +39,10 @@ nginx/
 - **ヘルスチェック**: `/health` エンドポイント
 - **Nginx Status**: `/nginx-status` (内部ネットワークのみ)
 - **詳細ログ**: レスポンスタイム、アップストリーム時間
+
+### 構成のモジュール化
+
+- **共通プロキシ設定**: `includes/proxy_params` に共通のヘッダー設定（Host, X-Real-IP等）を分離し、`default.conf` から include しています。これにより設定の重複を排除し、メンテナンス性を向上させています。
 
 ## ルーティング一覧
 
