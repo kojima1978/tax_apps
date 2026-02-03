@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import type { HeirComposition } from '../../types';
 
 interface SpouseSettingsProps {
@@ -6,20 +6,21 @@ interface SpouseSettingsProps {
     onChange: (composition: HeirComposition) => void;
 }
 
-export const SpouseSettings: React.FC<SpouseSettingsProps> = ({ composition, onChange }) => {
+export const SpouseSettings: React.FC<SpouseSettingsProps> = memo(({ composition, onChange }) => {
     return (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-700 mb-3">配偶者の有無</h3>
-            <div className="space-y-2">
+        <fieldset className="mb-6 p-4 bg-gray-50 rounded-lg border-0">
+            <legend className="font-semibold text-gray-700 mb-3">配偶者の有無</legend>
+            <div className="space-y-2" role="radiogroup" aria-label="配偶者の有無">
                 <label className="flex items-center gap-2 cursor-pointer">
                     <input
                         type="radio"
                         name="spouse"
                         checked={composition.hasSpouse}
                         onChange={() => onChange({ ...composition, hasSpouse: true })}
-                        className="w-4 h-4 text-green-600"
+                        className="w-4 h-4 accent-green-600"
+                        aria-describedby="spouse-yes-desc"
                     />
-                    <span className="text-sm">配偶者あり</span>
+                    <span className="text-sm" id="spouse-yes-desc">配偶者あり</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -27,11 +28,14 @@ export const SpouseSettings: React.FC<SpouseSettingsProps> = ({ composition, onC
                         name="spouse"
                         checked={!composition.hasSpouse}
                         onChange={() => onChange({ ...composition, hasSpouse: false })}
-                        className="w-4 h-4 text-green-600"
+                        className="w-4 h-4 accent-green-600"
+                        aria-describedby="spouse-no-desc"
                     />
-                    <span className="text-sm">配偶者なし</span>
+                    <span className="text-sm" id="spouse-no-desc">配偶者なし</span>
                 </label>
             </div>
-        </div>
+        </fieldset>
     );
-};
+});
+
+SpouseSettings.displayName = 'SpouseSettings';

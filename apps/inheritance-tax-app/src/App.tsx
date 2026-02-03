@@ -7,6 +7,8 @@ import { ExcelExport } from './components/ExcelExport';
 import { PrintButton } from './components/PrintButton';
 import type { HeirComposition, TaxCalculationResult } from './types';
 import { calculateInheritanceTax } from './hooks/useTaxCalculator';
+import { TABLE_CONFIG } from './constants';
+import { generateId } from './utils';
 
 function App() {
   // 相続人の構成
@@ -15,7 +17,7 @@ function App() {
     selectedRank: 'rank1',
     rank1Children: [
       {
-        id: '1',
+        id: generateId(),
         type: 'child',
         isDeceased: false,
         representatives: [],
@@ -26,15 +28,14 @@ function App() {
   });
 
   // 範囲設定
-  const [minValue] = useState<number>(5000); // 5,000万円（固定）
-  const [maxValue, setMaxValue] = useState<number>(100000); // 10億円
+  const [minValue] = useState<number>(TABLE_CONFIG.MIN_VALUE);
+  const [maxValue, setMaxValue] = useState<number>(TABLE_CONFIG.DEFAULT_MAX_VALUE);
 
   // テーブルデータの生成
   const tableData = useMemo<TaxCalculationResult[]>(() => {
     const data: TaxCalculationResult[] = [];
-    const step = 500; // 500万円刻み
 
-    for (let value = minValue; value <= maxValue; value += step) {
+    for (let value = minValue; value <= maxValue; value += TABLE_CONFIG.STEP) {
       const result = calculateInheritanceTax(value, composition);
       data.push(result);
     }
