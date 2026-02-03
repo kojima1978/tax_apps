@@ -21,7 +21,12 @@ RUN pnpm --filter @tax-apps/shared build
 RUN pnpm --filter @tax-apps/validation build
 # Generate Prisma client for dev
 RUN pnpm --filter @inheritance-case-management/api exec prisma generate
-CMD ["pnpm", "--filter", "@inheritance-case-management/api", "dev"]
+# Copy and setup entrypoint script (convert CRLF to LF for Windows compatibility)
+COPY apps/inheritance-case-management/api/docker-entrypoint.sh /usr/local/bin/
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
+WORKDIR /app/apps/inheritance-case-management/api
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["pnpm", "dev"]
 
 # Build shared packages
 FROM deps AS builder
@@ -75,6 +80,11 @@ RUN pnpm prune --prod
 WORKDIR /app/apps/inheritance-case-management/api
 ENV PORT=3021
 
+# Copy entrypoint script (convert CRLF to LF for Windows compatibility)
+COPY apps/inheritance-case-management/api/docker-entrypoint.sh /usr/local/bin/
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 3021
 
-CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/index.js"]
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["node", "dist/index.js"]

@@ -355,7 +355,7 @@ function ResultScreenComponent({
         </div>
 
         {/* 書類リスト */}
-        <div className="space-y-8 print:space-y-3">
+        <div className="space-y-8 print:space-y-1">
           {results.map(({ category, documents }) => (
             <CategoryTable key={category.id} category={category} documents={documents} />
           ))}
