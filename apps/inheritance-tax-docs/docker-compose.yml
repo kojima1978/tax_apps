@@ -1,4 +1,6 @@
-version: '3.8'
+# ============================================
+# 相続税申告 資料準備ガイド - Docker Compose
+# ============================================
 
 # 共通設定
 x-common-env: &common-env
@@ -20,6 +22,13 @@ services:
   # ===========================================
   # 相続税申告 資料準備ガイド
   # Port: 3003
+  #
+  # 機能:
+  #   - 相続税申告に必要な書類のリスト管理
+  #   - ドラッグ&ドロップで並べ替え
+  #   - 書類の編集・追加・削除
+  #   - Excel/PDF出力
+  #   - JSON形式での設定保存・読込
   # ===========================================
   inheritance-tax-docs:
     build:
@@ -30,7 +39,9 @@ services:
     ports:
       - "3003:3003"
     volumes:
+      # ソースコードをマウント（ホットリロード用）
       - ./src:/app/src:ro
+      - ./public:/app/public:ro
     environment:
       <<: *common-env
       NODE_ENV: development
@@ -39,7 +50,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: ["CMD-SHELL", "curl -f http://localhost:3003/ || exit 1"]
       <<: *healthcheck-defaults
     deploy:
       resources:
