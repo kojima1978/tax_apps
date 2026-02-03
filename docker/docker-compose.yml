@@ -196,7 +196,7 @@ services:
       NODE_ENV: development
       PORT: "3021"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@itcm-postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
-      FRONTEND_URL: http://localhost:3020
+      FRONTEND_URL: http://localhost
     ports:
       - "3021:3021"
     volumes:
@@ -235,6 +235,7 @@ services:
       <<: *common-env
       NODE_ENV: development
       WATCHPACK_POLLING: "true"
+      NEXT_PUBLIC_API_URL: /itcm-api/api
     ports:
       - "3020:3020"
     volumes:
