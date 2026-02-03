@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Settings } from 'lucide-react';
+import { TABLE_CONFIG } from '../constants';
+import { formatCurrency } from '../utils';
 
 interface RangeSettingsProps {
   minValue: number;
@@ -7,7 +9,7 @@ interface RangeSettingsProps {
   onMaxValueChange: (value: number) => void;
 }
 
-export const RangeSettings: React.FC<RangeSettingsProps> = ({
+export const RangeSettings: React.FC<RangeSettingsProps> = memo(({
   minValue,
   maxValue,
   onMaxValueChange,
@@ -40,23 +42,29 @@ export const RangeSettings: React.FC<RangeSettingsProps> = ({
       <div className="space-y-4">
         {/* 最小値（固定） */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label id="min-value-label" className="block text-sm font-medium text-gray-700 mb-2">
             相続財産額（開始）
           </label>
-          <div className="px-4 py-2 bg-gray-100 rounded border border-gray-300 text-gray-600">
-            {(minValue / 10000).toFixed(1)}億円（固定）
+          <div
+            className="px-4 py-2 bg-gray-100 rounded border border-gray-300 text-gray-600"
+            aria-labelledby="min-value-label"
+            role="status"
+          >
+            {formatCurrency(minValue)}（固定）
           </div>
         </div>
 
         {/* 最大値（選択可能） */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="max-value-select" className="block text-sm font-medium text-gray-700 mb-2">
             相続財産額（終了）
           </label>
           <select
+            id="max-value-select"
             value={maxValue}
             onChange={(e) => onMaxValueChange(Number(e.target.value))}
             className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            aria-describedby="step-description"
           >
             {maxValueOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -67,10 +75,12 @@ export const RangeSettings: React.FC<RangeSettingsProps> = ({
         </div>
 
         {/* ステップ説明 */}
-        <div className="text-xs text-gray-500 mt-2">
-          ※ 500万円刻みでテーブルを生成します
+        <div id="step-description" className="text-xs text-gray-500 mt-2">
+          ※ {formatCurrency(TABLE_CONFIG.STEP)}刻みでテーブルを生成します
         </div>
       </div>
     </div>
   );
-};
+});
+
+RangeSettings.displayName = 'RangeSettings';

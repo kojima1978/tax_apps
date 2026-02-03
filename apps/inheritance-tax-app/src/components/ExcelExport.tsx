@@ -1,8 +1,9 @@
-import React from 'react';
-import { Download } from 'lucide-react';
+import React, { memo, useState } from 'react';
+import { Download, Loader2 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import type { TaxCalculationResult, HeirComposition } from '../types';
+import { formatCurrency } from '../utils';
 
 interface ExcelExportProps {
   data: TaxCalculationResult[];
@@ -10,23 +11,13 @@ interface ExcelExportProps {
   hasSpouse: boolean;
 }
 
-export const ExcelExport: React.FC<ExcelExportProps> = ({
+export const ExcelExport: React.FC<ExcelExportProps> = memo(({
   data,
   composition,
   hasSpouse,
 }) => {
-  const formatCurrency = (value: number): string => {
-    const oku = Math.floor(value / 10000);
-    const man = value % 10000;
-
-    if (oku > 0 && man > 0) {
-      return `${oku}億${man.toLocaleString()}万円`;
-    } else if (oku > 0) {
-      return `${oku}億円`;
-    } else {
-      return `${man.toLocaleString()}万円`;
-    }
-  };
+  const [isExporting, setIsExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const getScenarioName = (): string => {
     const parts: string[] = [];
@@ -71,11 +62,15 @@ export const ExcelExport: React.FC<ExcelExportProps> = ({
 
   const handleExport = async () => {
     if (data.length === 0) {
-      alert('データがありません');
+      setError('データがありません');
       return;
     }
 
-    const workbook = new ExcelJS.Workbook();
+    setIsExporting(true);
+    setError(null);
+
+    try {
+      const workbook = new ExcelJS.Workbook();
     workbook.creator = '税理士法人マスエージェント';
     workbook.created = new Date();
 
@@ -259,24 +254,43 @@ export const ExcelExport: React.FC<ExcelExportProps> = ({
     // ファイル名の生成
     const fileName = `相続税早見表_${getScenarioName()}.xlsx`;
 
-    // ファイルを生成してダウンロード
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    saveAs(blob, fileName);
+      // ファイルを生成してダウンロード
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      saveAs(blob, fileName);
+    } catch (err) {
+      console.error('Excel export error:', err);
+      setError('Excelファイルの生成に失敗しました。もう一度お試しください。');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
     <div className="no-print">
       <button
         onClick={handleExport}
-        disabled={data.length === 0}
+        disabled={data.length === 0 || isExporting}
+        aria-busy={isExporting}
+        aria-label="Excelファイルをダウンロード"
         className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md transition-colors"
       >
-        <Download className="w-5 h-5" />
-        Excelダウンロード
+        {isExporting ? (
+          <Loader2 className="w-5 h-5 animate-spin" />
+        ) : (
+          <Download className="w-5 h-5" />
+        )}
+        {isExporting ? 'エクスポート中...' : 'Excelダウンロード'}
       </button>
+      {error && (
+        <p className="mt-2 text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
-};
+});
+
+ExcelExport.displayName = 'ExcelExport';

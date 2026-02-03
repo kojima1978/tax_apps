@@ -1,23 +1,15 @@
-import { useMemo } from 'react';
-import type { HeirComposition, TaxBracket, TaxCalculationResult } from '../types';
-
-// 相続税の税率区分（法定相続分に応じた取得金額ベース）
-export const TAX_BRACKETS: TaxBracket[] = [
-  { threshold: 1000, rate: 10, deduction: 0 },      // 1,000万円以下
-  { threshold: 3000, rate: 15, deduction: 50 },     // 3,000万円以下
-  { threshold: 5000, rate: 20, deduction: 200 },    // 5,000万円以下
-  { threshold: 10000, rate: 30, deduction: 700 },   // 1億円以下
-  { threshold: 20000, rate: 40, deduction: 1700 },  // 2億円以下
-  { threshold: 30000, rate: 45, deduction: 2700 },  // 3億円以下
-  { threshold: 60000, rate: 50, deduction: 4200 },  // 6億円以下
-  { threshold: Infinity, rate: 55, deduction: 7200 }, // 6億円超
-];
+import type { HeirComposition, TaxCalculationResult } from '../types';
+import {
+  TAX_BRACKETS,
+  BASIC_DEDUCTION,
+  SPOUSE_DEDUCTION_LIMIT,
+  THIRD_RANK_SURCHARGE_RATE,
+} from '../constants';
 
 /**
  * 法定相続分に対する税額を計算
- */
-/**
- * 法定相続分に対する税額を計算
+ * @param shareAmount 法定相続分の金額（万円）
+ * @returns 算出税額（万円）
  */
 function calculateTaxForShare(shareAmount: number): number {
   if (shareAmount <= 0) return 0;
@@ -99,12 +91,9 @@ export function calculateInheritanceTax(
   const { rank, totalHeirsCount, rankHeirsCount } = getHeirInfo(composition);
 
   // 2. 基礎控除額の計算: 3,000万円 + (600万円 × 法定相続人の数)
-  // 法定相続人が0人（配偶者もいない）場合は0円ではなく3000万円？
-  // 通常は相続人がいない場合は国庫帰属だが、ここではシミュレーションなので最低限の控除を適用するか、
-  // あるいは法定相続人が0なら控除も0とするか。
-  // 一般的には法定相続人がいない場合でも受遺者がいれば控除のみ適用されるケースもあるが、
-  // ここではシンプルに計算式通りとする。
-  const basicDeduction = totalHeirsCount > 0 ? 3000 + (600 * totalHeirsCount) : 3000;
+  const basicDeduction = totalHeirsCount > 0
+    ? BASIC_DEDUCTION.BASE + (BASIC_DEDUCTION.PER_HEIR * totalHeirsCount)
+    : BASIC_DEDUCTION.BASE;
 
   // 3. 課税遺産総額
   const taxableAmount = Math.max(0, estateValue - basicDeduction);
@@ -172,7 +161,7 @@ export function calculateInheritanceTax(
     // ※代襲相続人（甥姪）も2割加算だが、子が代襲する場合は対象外。
     // ここでは簡易的にrank3なら一律2割加算とする。
     if (rank === 3) {
-      othersTax = Math.floor(othersTax * 1.2);
+      othersTax = Math.floor(othersTax * THIRD_RANK_SURCHARGE_RATE);
     }
 
     totalTax += othersTax;
@@ -200,7 +189,7 @@ export function calculateInheritanceTax(
 
     // 配偶者の軽減対象額
     // 法定相続分(spouseAcquisition) と 1億6000万円 の大きい方
-    const maxDeductionAmount = Math.max(16000, spouseAcquisition);
+    const maxDeductionAmount = Math.max(SPOUSE_DEDUCTION_LIMIT, spouseAcquisition);
 
     // 実際に配偶者が取得する額（ここでは法定相続分と仮定）
     const actualAcquisition = spouseAcquisition;
@@ -240,15 +229,4 @@ export function calculateInheritanceTax(
     effectiveTaxRate,
     effectiveTaxRateAfterSpouse,
   };
-}
-
-/**
- * 相続税計算フック
- */
-export function useTaxCalculator(composition: HeirComposition) {
-  const calculator = useMemo(() => {
-    return (estateValue: number) => calculateInheritanceTax(estateValue, composition);
-  }, [composition]);
-
-  return calculator;
 }

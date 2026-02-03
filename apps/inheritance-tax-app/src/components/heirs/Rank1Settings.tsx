@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { UserPlus, Trash2 } from 'lucide-react';
 import type { HeirComposition, Heir } from '../../types';
 
@@ -8,7 +8,7 @@ interface Rank1SettingsProps {
     generateId: () => string;
 }
 
-export const Rank1Settings: React.FC<Rank1SettingsProps> = ({ composition, onChange, generateId }) => {
+export const Rank1Settings: React.FC<Rank1SettingsProps> = memo(({ composition, onChange, generateId }) => {
     // 第1順位：子供を追加
     const addChild = () => {
         const newChild: Heir = {
@@ -81,28 +81,30 @@ export const Rank1Settings: React.FC<Rank1SettingsProps> = ({ composition, onCha
     if (composition.selectedRank !== 'rank1') return null;
 
     return (
-        <div className="mb-6">
+        <section className="mb-6" aria-label="第1順位：子供の設定">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-gray-700">第1順位：子供</h3>
                 <button
                     onClick={addChild}
                     className="flex items-center gap-1 px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+                    aria-label="子供を追加"
                 >
-                    <UserPlus className="w-4 h-4" />
+                    <UserPlus className="w-4 h-4" aria-hidden="true" />
                     追加
                 </button>
             </div>
             {composition.rank1Children.map((child, index) => (
-                <div key={child.id} className="ml-4 mb-3 p-3 bg-gray-50 rounded">
+                <div key={child.id} className="ml-4 mb-3 p-3 bg-gray-50 rounded" role="group" aria-label={`子 ${index + 1}`}>
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
                             <span className="text-sm font-medium">子 {index + 1}</span>
-                            <label className="flex items-center gap-1 text-sm">
+                            <label className="flex items-center gap-1 text-sm cursor-pointer">
                                 <input
                                     type="checkbox"
                                     checked={child.isDeceased}
                                     onChange={() => toggleChildDeceased(child.id)}
-                                    className="w-3 h-3"
+                                    className="w-3 h-3 accent-green-600"
+                                    aria-label={`子 ${index + 1} の死亡状態`}
                                 />
                                 死亡
                             </label>
@@ -110,8 +112,9 @@ export const Rank1Settings: React.FC<Rank1SettingsProps> = ({ composition, onCha
                         <button
                             onClick={() => removeChild(child.id)}
                             className="text-red-500 hover:text-red-700"
+                            aria-label={`子 ${index + 1} を削除`}
                         >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                     </div>
                     {child.isDeceased && (
@@ -119,6 +122,7 @@ export const Rank1Settings: React.FC<Rank1SettingsProps> = ({ composition, onCha
                             <button
                                 onClick={() => addGrandchild(child.id)}
                                 className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 mb-2"
+                                aria-label={`子 ${index + 1} の孫を追加`}
                             >
                                 孫を追加
                             </button>
@@ -128,8 +132,9 @@ export const Rank1Settings: React.FC<Rank1SettingsProps> = ({ composition, onCha
                                     <button
                                         onClick={() => removeGrandchild(child.id, grandchild.id)}
                                         className="text-red-500 hover:text-red-700"
+                                        aria-label={`孫 ${gIndex + 1} を削除`}
                                     >
-                                        <Trash2 className="w-3 h-3" />
+                                        <Trash2 className="w-3 h-3" aria-hidden="true" />
                                     </button>
                                 </div>
                             ))}
@@ -137,6 +142,8 @@ export const Rank1Settings: React.FC<Rank1SettingsProps> = ({ composition, onCha
                     )}
                 </div>
             ))}
-        </div>
+        </section>
     );
-};
+});
+
+Rank1Settings.displayName = 'Rank1Settings';

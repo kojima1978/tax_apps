@@ -1,44 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import type { TaxCalculationResult } from '../types';
+import { formatCurrency, formatPercent } from '../utils';
+import { isHighlightRow } from '../constants';
 
 interface TaxTableProps {
   data: TaxCalculationResult[];
   hasSpouse: boolean;
 }
 
-export const TaxTable: React.FC<TaxTableProps> = ({ data, hasSpouse }) => {
+export const TaxTable: React.FC<TaxTableProps> = memo(({ data, hasSpouse }) => {
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
 
-  // 金額を「X億Y万円」形式にフォーマット
-  const formatCurrency = (value: number): string => {
-    const oku = Math.floor(value / 10000);
-    const man = value % 10000;
-
-    if (oku > 0 && man > 0) {
-      return `${oku}億${man.toLocaleString()}万円`;
-    } else if (oku > 0) {
-      return `${oku}億円`;
-    } else {
-      return `${man.toLocaleString()}万円`;
-    }
-  };
-
-  // パーセント表示
-  const formatPercent = (value: number): string => {
-    return `${value.toFixed(2)}%`;
-  };
-
-  // 1億円単位の行をハイライト
-  const isHighlightRow = (estateValue: number): boolean => {
-    return estateValue % 10000 === 0;
-  };
-
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 overflow-x-auto">
-      <h2 className="text-xl font-bold text-gray-800 mb-4">相続税額一覧表</h2>
+    <div className="bg-white rounded-lg shadow-md p-6 overflow-x-auto" role="region" aria-label="相続税額一覧表">
+      <h2 className="text-xl font-bold text-gray-800 mb-4" id="tax-table-heading">相続税額一覧表</h2>
 
-      <table className="w-full border-collapse text-sm">
+      <table className="w-full border-collapse text-sm" aria-labelledby="tax-table-heading">
         <thead>
           {/* メインヘッダー */}
           <tr className="bg-green-600 text-white">
@@ -231,4 +209,6 @@ export const TaxTable: React.FC<TaxTableProps> = ({ data, hasSpouse }) => {
       )}
     </div>
   );
-};
+});
+
+TaxTable.displayName = 'TaxTable';
