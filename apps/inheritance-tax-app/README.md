@@ -1,73 +1,108 @@
-# React + TypeScript + Vite
+# 相続税早見表アプリケーション
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+相続財産額に応じた相続税額を一覧表示するシミュレーションツールです。
 
-Currently, two official plugins are available:
+## 機能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 相続人構成の設定（配偶者、子、直系尊属、兄弟姉妹）
+- 代襲相続（孫、甥姪）のサポート
+- 1次相続（配偶者あり）・2次相続（配偶者なし）の税額比較
+- 配偶者控除の自動計算
+- 第3順位（兄弟姉妹）の2割加算
+- Excel出力機能
+- 印刷機能
 
-## React Compiler
+## 技術スタック
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **フレームワーク**: React 19 + TypeScript
+- **ビルドツール**: Vite 7
+- **スタイリング**: Tailwind CSS
+- **アイコン**: Lucide React
+- **Excel出力**: ExcelJS + FileSaver
 
-## Expanding the ESLint configuration
+## プロジェクト構成
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── components/
+│   ├── heirs/
+│   │   ├── Rank1Settings.tsx    # 第1順位：子供
+│   │   ├── Rank2Settings.tsx    # 第2順位：直系尊属
+│   │   ├── Rank3Settings.tsx    # 第3順位：兄弟姉妹
+│   │   └── SpouseSettings.tsx   # 配偶者設定
+│   ├── ExcelExport.tsx          # Excel出力
+│   ├── Header.tsx               # ヘッダー
+│   ├── HeirSettings.tsx         # 相続人設定メイン
+│   ├── PrintButton.tsx          # 印刷ボタン
+│   ├── RangeSettings.tsx        # シミュレーション範囲設定
+│   └── TaxTable.tsx             # 税額一覧テーブル
+├── constants/
+│   └── index.ts                 # 定数（税率テーブル等）
+├── hooks/
+│   └── useTaxCalculator.ts      # 税額計算ロジック
+├── types/
+│   └── index.ts                 # 型定義
+├── utils/
+│   ├── formatters.ts            # フォーマット関数
+│   ├── idGenerator.ts           # ID生成
+│   └── index.ts
+├── App.tsx
+└── main.tsx
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 開発環境
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Docker（推奨）
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# tax_apps/docker ディレクトリで実行
+docker compose up -d inheritance-tax-app
+
+# アクセス
+http://localhost:5173/inheritance-tax-app/
 ```
+
+### ローカル
+
+```bash
+npm install
+npm run dev
+```
+
+## ビルド
+
+```bash
+npm run build
+```
+
+## 税額計算ロジック
+
+### 基礎控除
+```
+3,000万円 + 600万円 × 法定相続人数
+```
+
+### 税率テーブル
+
+| 課税遺産総額 | 税率 | 控除額 |
+|-------------|------|--------|
+| 1,000万円以下 | 10% | - |
+| 3,000万円以下 | 15% | 50万円 |
+| 5,000万円以下 | 20% | 200万円 |
+| 1億円以下 | 30% | 700万円 |
+| 2億円以下 | 40% | 1,700万円 |
+| 3億円以下 | 45% | 2,700万円 |
+| 6億円以下 | 50% | 4,200万円 |
+| 6億円超 | 55% | 7,200万円 |
+
+### 法定相続分
+
+| 相続人構成 | 配偶者 | その他 |
+|-----------|--------|--------|
+| 配偶者＋子 | 1/2 | 1/2 |
+| 配偶者＋直系尊属 | 2/3 | 1/3 |
+| 配偶者＋兄弟姉妹 | 3/4 | 1/4 |
+
+## ライセンス
+
+© 2026 税理士法人マスエージェント
