@@ -8,8 +8,23 @@
 
 ### 主な機能
 - **資料リスト管理**: 申告に必要な書類のリスト表示と状態管理
-- **Excel連携**: `xlsx-js-style` を使用したExcelファイルの出力・操作機能（想定）
+- **ドラッグ&ドロップ**: 書類の並び順をドラッグ&ドロップで変更可能
+- **書類の編集**: 書類名、説明、取得方法をカスタマイズ可能
+- **カスタム書類追加**: 独自の書類をリストに追加可能
+- **代行可否設定**: 各書類の取得代行可否を切り替え可能
+- **Excel出力**: `xlsx-js-style` を使用したExcelファイルの出力機能
+- **PDF保存/印刷**: ブラウザの印刷機能を使用したPDF保存
+- **JSON保存/読込**: 設定をJSONファイルとして保存・復元可能
 - **レスポンシブデザイン**: Tailwind CSS v4 を採用したモダンなUI
+
+### 画面構成
+1. **編集画面**: 書類の選択・編集・並べ替えを行う画面
+   - 保存ボタン: 現在の設定をJSONファイルとしてダウンロード
+   - 読込ボタン: JSONファイルから設定を復元
+2. **結果画面（プレビュー）**: 最終的な書類リストを確認・出力する画面
+   - Excel出力ボタン: Excelファイルとしてダウンロード
+   - PDF保存/印刷ボタン: ブラウザの印刷ダイアログを表示
+   - 保存/読込ボタン: JSON形式での設定保存・復元
 
 ## 技術スタック
 
@@ -66,5 +81,37 @@
 ## ディレクトリ構成
 
 - `src/app`: Next.js App Router ページコンポーネント
-- `src/components`: UIコンポーネント (メインロジック: `InheritanceTaxDocGuide.tsx`)
+- `src/components`: UIコンポーネント
+  - `InheritanceTaxDocGuide.tsx`: メインロジック（状態管理）
+  - `SelectionScreen.tsx`: 編集画面
+  - `ResultScreen.tsx`: 結果画面（プレビュー/印刷用）
+  - `StepIndicator.tsx`: ステップインジケーター
+- `src/constants`: 定数・マスターデータ
+  - `documents.ts`: 書類データの定義
+- `src/utils`: ユーティリティ関数
+  - `excelExporter.ts`: Excel出力機能
+  - `jsonDataManager.ts`: JSON保存/読込機能
+  - `iconMap.ts`: アイコンマッピング
 - `public`: 静的アセット
+
+## JSONデータ形式
+
+保存されるJSONファイルには以下の情報が含まれます：
+
+```json
+{
+  "version": "1.0.0",
+  "exportedAt": "2026-02-04T00:00:00.000Z",
+  "appName": "inheritance-tax-docs",
+  "data": {
+    "clientName": "お客様名",
+    "deceasedName": "被相続人名",
+    "deadline": "2026-03-31",
+    "deletedDocuments": {},
+    "customDocuments": [],
+    "documentOrder": {},
+    "editedDocuments": {},
+    "canDelegateOverrides": {}
+  }
+}
+```
