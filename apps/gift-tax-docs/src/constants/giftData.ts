@@ -1,8 +1,14 @@
 import type { OptionId } from './index';
 
+// 印刷用の書類アイテム
+export interface PrintDocument {
+  text: string;
+  subItems: string[];
+}
+
 export interface DocumentGroup {
   category: string;
-  documents: string[];
+  documents: PrintDocument[];
   note?: string;
 }
 
@@ -29,18 +35,11 @@ export const giftData = {
   options: [
     {
       id: 'gift_land',
-      label: '土地をもらいましたか？',
+      label: '土地・建物をもらいましたか？',
       documents: [
-        '固定資産税評価証明書',
-        '賃貸借契約書（貸している土地の場合）',
-      ],
-    },
-    {
-      id: 'gift_house',
-      label: '家屋（建物）をもらいましたか？',
-      documents: [
-        '固定資産税評価証明書',
-        '賃貸借契約書（貸している家屋の場合）',
+        '固定資産税納税通知書（固定資産税課税明細書）',
+        '賃貸借契約書（貸している場合）',
+        '登記簿謄本',
       ],
     },
     {

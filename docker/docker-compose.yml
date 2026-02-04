@@ -364,6 +364,7 @@ services:
   # ===========================================
   # 贈与税申告 必要書類案内
   # Port: 3002
+  # Features: ドラッグ&ドロップ対応、JSON入出力、Excel出力
   # ===========================================
   gift-tax-docs:
     build:
@@ -375,18 +376,20 @@ services:
       - "3002:3002"
     volumes:
       - ../apps/gift-tax-docs/src:/app/src:ro
+      - ../apps/gift-tax-docs/public:/app/public:ro
     environment:
       <<: *common-env
       NODE_ENV: development
       WATCHPACK_POLLING: "true"
-    command: npm run dev -- -p 3002
+      NEXT_TELEMETRY_DISABLED: "1"
     networks:
       - app-network
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3002/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "curl -f http://localhost:3002/gift-tax-docs/ || exit 1" ]
       <<: *healthcheck-defaults
+      start_period: 60s
     deploy:
       resources:
         limits:

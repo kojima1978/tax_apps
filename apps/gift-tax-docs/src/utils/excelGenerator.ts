@@ -37,6 +37,14 @@ const excelStyles = {
             bottom: { style: 'dashed', color: { rgb: 'F1F5F9' } }, // border-dashed border-slate-100
         },
     },
+    // 中項目セル
+    subItemCell: {
+        font: { sz: 10, color: { rgb: '6B7280' } }, // text-slate-500
+        alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+        border: {
+            bottom: { style: 'dashed', color: { rgb: 'F1F5F9' } },
+        },
+    },
     // チェックボックスセル
     checkCell: {
         font: { sz: 14, color: { rgb: '059669' } },
@@ -140,11 +148,23 @@ export function generateGiftTaxExcel(
 
         // 書類リスト
         group.documents.forEach((doc) => {
+            // 大項目
             wsData.push([
                 { v: '☐', s: excelStyles.checkCell },
-                { v: doc, s: excelStyles.documentCell },
+                { v: doc.text, s: excelStyles.documentCell },
             ]);
             rowNum++;
+
+            // 中項目
+            if (doc.subItems && doc.subItems.length > 0) {
+                doc.subItems.forEach((subItem) => {
+                    wsData.push([
+                        { v: '', s: excelStyles.subItemCell },
+                        { v: `　└ ${subItem}`, s: excelStyles.subItemCell },
+                    ]);
+                    rowNum++;
+                });
+            }
         });
 
         // 備考（ある場合）
