@@ -4,7 +4,8 @@ import logging
 import pandas as pd
 
 from .exceptions import (
-    EncodingError, FormatError, DateParseError, AmountParseError
+    EncodingError, FormatError, DateParseError, AmountParseError,
+    MultipleAccountError, MultipleBankError
 )
 
 logger = logging.getLogger(__name__)
@@ -201,6 +202,36 @@ def load_csv(file) -> pd.DataFrame:
             first_val = df[col].iloc[0]
             if pd.notna(first_val) and str(first_val).strip():
                 csv_metadata[col] = str(first_val).strip()
+
+    # 銀行名の一意性チェック
+    if "bank_name" in df.columns:
+        # 銀行名カラムの値を取得（空文字・NaNを除く）
+        bank_names = df["bank_name"].dropna().astype(str).str.strip()
+        bank_names = bank_names[bank_names != ""]
+        unique_banks = bank_names.unique().tolist()
+
+        if len(unique_banks) > 1:
+            # 銀行名ごとの件数を計算
+            row_counts = bank_names.value_counts().to_dict()
+            raise MultipleBankError(
+                bank_names=unique_banks,
+                row_counts=row_counts
+            )
+
+    # 口座番号の一意性チェック
+    if "account_number" in df.columns:
+        # 口座番号カラムの値を取得（空文字・NaNを除く）
+        account_numbers = df["account_number"].dropna().astype(str).str.strip()
+        account_numbers = account_numbers[account_numbers != ""]
+        unique_accounts = account_numbers.unique().tolist()
+
+        if len(unique_accounts) > 1:
+            # 口座番号ごとの件数を計算
+            row_counts = account_numbers.value_counts().to_dict()
+            raise MultipleAccountError(
+                account_numbers=unique_accounts,
+                row_counts=row_counts
+            )
 
     # 日付変換
     date_before_conversion = df["date"].copy()

@@ -1,40 +1,122 @@
+# ==============================================================================
+# Bank Analyzer Django - Docker Compose Configuration
+# ==============================================================================
+# Usage:
+#   Production: docker compose up -d
+#   Development: docker compose --profile dev up web-dev
+#   Stop: docker compose down
+#   Rebuild: docker compose build --no-cache
+# ==============================================================================
+
 services:
+  # ============================================================================
+  # Production Service
+  # ============================================================================
   web:
-    build: .
+    build:
+      context: .
+      target: production
+    container_name: bank-analyzer-web
     ports:
       - "8000:8000"
     volumes:
-      # データ永続化
+      # データ永続化（読み書き可能）
       - ./data:/app/data
       - sqlite-data:/app/db
+      # 静的ファイル（オプション：Nginx連携時に使用）
+      - static-files:/app/staticfiles
     environment:
-      - DJANGO_DEBUG=True
-      - DJANGO_SECRET_KEY=your-secret-key-change-in-production
-      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+      - DJANGO_DEBUG=False
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-in-production}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       - DB_PATH=/app/db/db.sqlite3
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-2}
+    env_file:
+      - path: .env
+        required: false
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/" ]
+      test: ["CMD", "curl", "-f", "--silent", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 40s
+    # リソース制限
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    # ログ設定
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # セキュリティ設定
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    networks:
+      - app-network
 
-  # 開発用: ホットリロード有効
+  # ============================================================================
+  # Development Service (with hot reload)
+  # ============================================================================
   web-dev:
-    build: .
+    build:
+      context: .
+      target: production
+    container_name: bank-analyzer-dev
     ports:
       - "8000:8000"
     volumes:
+      # ソースコードをマウント（ホットリロード用）
       - .:/app
       - ./data:/app/data
       - sqlite-data:/app/db
+      # pip パッケージを永続化（再インストール防止）
+      - pip-cache:/home/appuser/.cache/pip
     environment:
       - DJANGO_DEBUG=True
+      - DJANGO_SECRET_KEY=dev-secret-key-not-for-production
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
       - DB_PATH=/app/db/db.sqlite3
     command: python manage.py runserver 0.0.0.0:8000
     profiles:
       - dev
+    restart: unless-stopped
+    # 開発環境では緩やかなリソース制限
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    networks:
+      - app-network
 
+# ==============================================================================
+# Networks
+# ==============================================================================
+networks:
+  app-network:
+    driver: bridge
+
+# ==============================================================================
+# Volumes
+# ==============================================================================
 volumes:
   sqlite-data:
+    name: bank-analyzer-sqlite
+  static-files:
+    name: bank-analyzer-static
+  pip-cache:
+    name: bank-analyzer-pip-cache

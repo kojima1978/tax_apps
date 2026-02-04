@@ -1,22 +1,25 @@
+import json
 import logging
+from datetime import datetime
 from typing import Optional
 
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import transaction
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse_lazy, reverse
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
-from django.urls import reverse_lazy, reverse
 import pandas as pd
-import json
 
 from .models import Case, Transaction
 from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, analyzer, llm_classifier, config
 from .lib.exceptions import (
-    CsvImportError, EncodingError, FormatError, DateParseError, AmountParseError
+    CsvImportError, EncodingError, FormatError, DateParseError, AmountParseError,
+    MultipleAccountError, MultipleBankError
 )
 from .services import TransactionService, AnalysisService
 from .templatetags.japanese_date import wareki
@@ -80,8 +83,6 @@ def _build_redirect_url(
 
 def export_json(request: HttpRequest, pk: int) -> HttpResponse:
     """案件データをJSONでバックアップエクスポート"""
-    from datetime import datetime
-
     logger.info(f"JSONエクスポート開始: case_id={pk}")
     case = get_object_or_404(Case, pk=pk)
     transactions = case.transactions.all().order_by('date', 'id')
@@ -149,7 +150,6 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
 
 def import_json(request: HttpRequest) -> HttpResponse:
     """JSONバックアップから新規案件を復元"""
-    from datetime import datetime
     from .forms import JsonImportForm
 
     if request.method == 'POST':
@@ -264,6 +264,9 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
     elif export_type == 'transfers':
         df = df[df['is_transfer'] == True].copy()
         filename = f"{case.name}_資金移動.csv"
+    elif export_type == 'flagged':
+        df = df[df['is_flagged'] == True].copy()
+        filename = f"{case.name}_付箋付き取引.csv"
     elif export_type == 'all':
         filename = f"{case.name}_全取引.csv"
     else:
@@ -285,6 +288,10 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
         'balance': '残高',
         'category': '分類',
     }
+
+    # 付箋付き取引の場合はメモカラムも含める
+    if export_type == 'flagged':
+        export_columns['memo'] = 'メモ'
 
     # 存在するカラムのみ抽出
     cols_to_export = [c for c in export_columns.keys() if c in df.columns]
@@ -308,8 +315,6 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
 
 def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
     """絞り込み条件付きでCSVエクスポート"""
-    from django.db.models import Q
-
     logger.info(f"絞り込みCSVエクスポート開始: case_id={pk}")
     case = get_object_or_404(Case, pk=pk)
 
@@ -650,6 +655,24 @@ def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
                     'error_type': 'data'
                 })
 
+            except MultipleAccountError as e:
+                logger.warning(f"複数口座番号エラー: case_id={pk}, accounts={e.account_numbers}")
+                return render(request, 'analyzer/import_form.html', {
+                    'case': case,
+                    'form': form,
+                    'import_error': e.to_dict(),
+                    'error_type': 'validation'
+                })
+
+            except MultipleBankError as e:
+                logger.warning(f"複数銀行名エラー: case_id={pk}, banks={e.bank_names}")
+                return render(request, 'analyzer/import_form.html', {
+                    'case': case,
+                    'form': form,
+                    'import_error': e.to_dict(),
+                    'error_type': 'validation'
+                })
+
             except CsvImportError as e:
                 # その他のインポートエラー
                 logger.warning(f"インポートエラー: case_id={pk}, error={e}")
@@ -939,6 +962,7 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
         'delete_by_range': _handle_delete_by_range,
         'toggle_flag': _handle_toggle_flag,
         'update_memo': _handle_update_memo,
+        'bulk_replace_field': _handle_bulk_replace_field,
     }
 
     handler = handlers.get(action)
@@ -1133,6 +1157,49 @@ def _handle_update_memo(request: HttpRequest, case: Case, pk: int) -> HttpRespon
             messages.error(request, f"エラー: {e}")
     return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
 
+
+def _handle_bulk_replace_field(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
+    """フィールド値の一括置換を処理"""
+    field_name = request.POST.get('field_name')
+    old_value = request.POST.get('old_value', '').strip()
+    new_value = request.POST.get('new_value', '').strip()
+
+    field_labels = {
+        'bank_name': '銀行名',
+        'branch_name': '支店名',
+        'account_id': '口座番号',
+    }
+
+    if not field_name or field_name not in field_labels:
+        messages.error(request, "不正なフィールドが指定されました。")
+        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+    if not old_value:
+        messages.warning(request, "置換前の値を選択してください。")
+        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+    if not new_value:
+        messages.warning(request, "置換後の値を入力してください。")
+        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+    if old_value == new_value:
+        messages.warning(request, "置換前と置換後の値が同じです。")
+        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+    try:
+        count = TransactionService.bulk_replace_field_value(case, field_name, old_value, new_value)
+        if count > 0:
+            field_label = field_labels.get(field_name, field_name)
+            messages.success(request, f"{field_label}「{old_value}」を「{new_value}」に置換しました（{count}件）。")
+        else:
+            messages.warning(request, "該当するデータがありませんでした。")
+    except Exception as e:
+        logger.exception(f"一括置換エラー: field={field_name}, old={old_value}, new={new_value}, error={e}")
+        messages.error(request, f"置換エラー: {e}")
+
+    return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+
 def settings_view(request: HttpRequest) -> HttpResponse:
     """アプリケーション設定ビュー"""
     current_settings = config.load_user_settings()
@@ -1223,8 +1290,6 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
     Returns:
         JSON: {success: bool, transaction: dict, message: str}
     """
-    from datetime import datetime
-
     case = get_object_or_404(Case, pk=pk)
 
     try:
@@ -1324,4 +1389,40 @@ def api_delete_transaction(request: HttpRequest, pk: int) -> JsonResponse:
         return JsonResponse({
             'success': False,
             'message': f'エラー: {e}'
+        }, status=500)
+
+
+def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
+    """
+    フィールドのユニーク値を取得するAPIエンドポイント
+
+    Args:
+        pk: 案件ID
+        field_name (GET param): 対象フィールド名
+
+    Returns:
+        JSON: {success: bool, values: [{value: str, count: int}, ...]}
+    """
+    case = get_object_or_404(Case, pk=pk)
+    field_name = request.GET.get('field_name', '')
+
+    if not field_name:
+        return JsonResponse({
+            'success': False,
+            'message': 'フィールド名が指定されていません',
+            'values': []
+        }, status=400)
+
+    try:
+        values = TransactionService.get_unique_field_values(case, field_name)
+        return JsonResponse({
+            'success': True,
+            'values': values
+        })
+    except Exception as e:
+        logger.exception(f"フィールド値取得APIエラー: field_name={field_name}, error={e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'エラー: {e}',
+            'values': []
         }, status=500)

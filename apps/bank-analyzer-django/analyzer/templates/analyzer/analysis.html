@@ -338,6 +338,7 @@
         <div class="glass-card p-4">
             <!-- Filters -->
             <form method="get" class="row g-3 mb-4">
+                <input type="hidden" name="tab" value="all">
                 <div class="col-md-2">
                     <label class="form-label">日付範囲</label>
                     <div class="d-flex align-items-center gap-1 mb-1">
@@ -414,6 +415,8 @@
                 </a>
                 <div class="collapse {% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' or filter_state.large_only %}show{% endif %}" id="amountFilterCollapse">
                     <form method="get" class="row g-3 mt-2 p-3 bg-light rounded">
+                        <!-- タブ状態を保持 -->
+                        <input type="hidden" name="tab" value="all">
                         <!-- 既存フィルターを隠しフィールドで保持 -->
                         {% for b in filter_state.bank %}<input type="hidden" name="bank" value="{{ b }}">{% endfor %}
                         {% for a in filter_state.account %}<input type="hidden" name="account" value="{{ a }}">{% endfor %}
@@ -685,6 +688,63 @@
                 </div>
             </div>
 
+            <!-- フィールド一括置換フォーム -->
+            <div class="card bg-light border-info mb-4">
+                <div class="card-body">
+                    <h6 class="card-title text-info"><i class="bi bi-pencil-square"></i> フィールド値の一括置換</h6>
+                    <p class="small text-muted mb-3">
+                        銀行名・支店名・口座番号の誤字を一括で修正できます。例: 「百十四銀＿行」→「百十四銀行」
+                    </p>
+                    <form method="post" id="bulkReplaceForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="bulk_replace_field">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-auto">
+                                <label for="replace_field_name" class="form-label small">対象フィールド</label>
+                                <select class="form-select form-select-sm" id="replace_field_name" name="field_name" required style="width: 140px;">
+                                    <option value="">-- 選択 --</option>
+                                    <option value="bank_name">銀行名</option>
+                                    <option value="branch_name">支店名</option>
+                                    <option value="account_id">口座番号</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <label for="replace_old_value" class="form-label small">
+                                    置換前の値
+                                    <span id="replace_loading_spinner" class="spinner-border spinner-border-sm text-info ms-1" style="display: none;"></span>
+                                </label>
+                                <select class="form-select form-select-sm" id="replace_old_value" name="old_value" required style="width: 220px;" disabled>
+                                    <option value="">-- フィールドを選択してください --</option>
+                                </select>
+                            </div>
+                            <div class="col-auto d-flex align-items-center pt-4">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="copyOldValueBtn" title="置換前の値をコピー" disabled>
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                                <span class="text-muted mx-2">→</span>
+                            </div>
+                            <div class="col-auto">
+                                <label for="replace_new_value" class="form-label small">置換後の値</label>
+                                <input type="text" class="form-control form-control-sm" id="replace_new_value" name="new_value" placeholder="正しい値を入力" required style="width: 220px;">
+                            </div>
+                            <div class="col-auto pt-4">
+                                <span id="replace_preview_count" class="badge bg-info me-2" style="display: none;">0件</span>
+                                <button type="submit" class="btn btn-info btn-sm" id="bulkReplaceSubmitBtn" disabled>
+                                    <i class="bi bi-arrow-repeat"></i> 一括置換実行
+                                </button>
+                            </div>
+                        </div>
+                        <!-- プレビュー表示エリア -->
+                        <div id="replacePreviewArea" class="mt-3" style="display: none;">
+                            <div class="alert alert-info py-2 mb-0">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <span id="replacePreviewText"></span>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_duplicates">
@@ -746,7 +806,14 @@
     <!-- Tab 5: Flagged (付箋) -->
     <div class="tab-pane fade" id="flagged" role="tabpanel" aria-labelledby="flagged-tab">
         <div class="glass-card p-4">
-            <h4 class="mb-3 text-info"><i class="bi bi-pin-angle"></i> 付箋付き取引</h4>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0 text-info"><i class="bi bi-pin-angle"></i> 付箋付き取引</h4>
+                {% if flagged_txs %}
+                <a href="{% url 'export-csv' case.pk 'flagged' %}" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-download"></i> CSV出力
+                </a>
+                {% endif %}
+            </div>
             <p class="text-muted">
                 後で確認したい取引に付箋を付けることができます。各タブの取引一覧で📌ボタンをクリックして付箋を追加できます。
             </p>
@@ -1278,12 +1345,10 @@
     // ===== 取引追加・削除機能 =====
     const addTxModal = document.getElementById('addTxModal');
     const addTxSubmitBtn = document.getElementById('addTxSubmitBtn');
-    let insertAfterTxId = null; // 挿入先のtx_id
 
     // 追加ボタンクリック時 - モーダルを開く
     document.querySelectorAll('.insert-tx-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            insertAfterTxId = this.getAttribute('data-tx-id');
             const txDate = this.getAttribute('data-tx-date');
             const txBank = this.getAttribute('data-tx-bank');
             const txBranch = this.getAttribute('data-tx-branch');
@@ -1412,6 +1477,178 @@
             });
         });
     });
+
+    // ===== フィールド一括置換機能 =====
+    const replaceFieldSelect = document.getElementById('replace_field_name');
+    const replaceOldValueSelect = document.getElementById('replace_old_value');
+    const replaceNewValueInput = document.getElementById('replace_new_value');
+    const replacePreviewCount = document.getElementById('replace_preview_count');
+    const replaceLoadingSpinner = document.getElementById('replace_loading_spinner');
+    const copyOldValueBtn = document.getElementById('copyOldValueBtn');
+    const bulkReplaceSubmitBtn = document.getElementById('bulkReplaceSubmitBtn');
+    const replacePreviewArea = document.getElementById('replacePreviewArea');
+    const replacePreviewText = document.getElementById('replacePreviewText');
+    const bulkReplaceForm = document.getElementById('bulkReplaceForm');
+
+    // フィールド名の日本語ラベル
+    const fieldLabels = {
+        'bank_name': '銀行名',
+        'branch_name': '支店名',
+        'account_id': '口座番号'
+    };
+
+    // 置換フォームの状態を更新
+    function updateReplaceFormState() {
+        const hasOldValue = replaceOldValueSelect.value !== '';
+        const hasNewValue = replaceNewValueInput.value.trim() !== '';
+        const oldValue = replaceOldValueSelect.value;
+        const newValue = replaceNewValueInput.value.trim();
+        const isDifferent = oldValue !== newValue;
+
+        // 送信ボタンの有効/無効
+        bulkReplaceSubmitBtn.disabled = !(hasOldValue && hasNewValue && isDifferent);
+
+        // プレビュー表示
+        if (hasOldValue && hasNewValue) {
+            const selectedOption = replaceOldValueSelect.options[replaceOldValueSelect.selectedIndex];
+            const count = selectedOption.dataset.count || '?';
+            const fieldLabel = fieldLabels[replaceFieldSelect.value] || replaceFieldSelect.value;
+
+            if (!isDifferent) {
+                replacePreviewText.innerHTML = `<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> 置換前と置換後の値が同じです</span>`;
+            } else {
+                replacePreviewText.innerHTML = `${fieldLabel}を「<strong>${oldValue}</strong>」から「<strong>${newValue}</strong>」に置換します（<strong>${count}件</strong>が対象）`;
+            }
+            replacePreviewArea.style.display = 'block';
+        } else {
+            replacePreviewArea.style.display = 'none';
+        }
+    }
+
+    if (replaceFieldSelect) {
+        // フィールド選択時
+        replaceFieldSelect.addEventListener('change', function() {
+            const fieldName = this.value;
+
+            // UIをリセット
+            replaceOldValueSelect.innerHTML = '<option value="">-- 読み込み中... --</option>';
+            replaceOldValueSelect.disabled = true;
+            replacePreviewCount.style.display = 'none';
+            copyOldValueBtn.disabled = true;
+            bulkReplaceSubmitBtn.disabled = true;
+            replacePreviewArea.style.display = 'none';
+            replaceNewValueInput.value = '';
+            replaceNewValueInput.placeholder = '正しい値を入力';
+
+            if (!fieldName) {
+                replaceOldValueSelect.innerHTML = '<option value="">-- フィールドを選択してください --</option>';
+                replaceLoadingSpinner.style.display = 'none';
+                return;
+            }
+
+            // ローディング表示
+            replaceLoadingSpinner.style.display = 'inline-block';
+
+            // APIからユニーク値を取得
+            const apiUrl = window.location.pathname.replace('/analysis/', '/api/field-values/') + '?field_name=' + encodeURIComponent(fieldName);
+
+            fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                replaceLoadingSpinner.style.display = 'none';
+
+                if (data.success && data.values.length > 0) {
+                    replaceOldValueSelect.innerHTML = '<option value="">-- 選択してください --</option>';
+                    data.values.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.value;
+                        option.textContent = `${item.value} (${item.count}件)`;
+                        option.dataset.count = item.count;
+                        replaceOldValueSelect.appendChild(option);
+                    });
+                    replaceOldValueSelect.disabled = false;
+                } else if (data.success && data.values.length === 0) {
+                    replaceOldValueSelect.innerHTML = '<option value="">-- データがありません --</option>';
+                    showToast('このフィールドにはデータがありません', 'info');
+                } else {
+                    replaceOldValueSelect.innerHTML = '<option value="">-- エラー --</option>';
+                    showToast('データの取得に失敗しました: ' + (data.message || '不明なエラー'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                replaceLoadingSpinner.style.display = 'none';
+                replaceOldValueSelect.innerHTML = '<option value="">-- 取得エラー --</option>';
+                showToast('通信エラーが発生しました。ページを再読み込みしてください。', 'danger');
+            });
+        });
+
+        // 置換前の値が選択されたとき
+        replaceOldValueSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                replacePreviewCount.textContent = selectedOption.dataset.count + '件';
+                replacePreviewCount.style.display = 'inline-block';
+                replaceNewValueInput.placeholder = selectedOption.value;
+                copyOldValueBtn.disabled = false;
+            } else {
+                replacePreviewCount.style.display = 'none';
+                copyOldValueBtn.disabled = true;
+            }
+            updateReplaceFormState();
+        });
+
+        // 置換後の値が入力されたとき
+        replaceNewValueInput.addEventListener('input', updateReplaceFormState);
+
+        // コピーボタン
+        copyOldValueBtn.addEventListener('click', function() {
+            const oldValue = replaceOldValueSelect.value;
+            if (oldValue) {
+                replaceNewValueInput.value = oldValue;
+                replaceNewValueInput.focus();
+                replaceNewValueInput.setSelectionRange(0, oldValue.length);
+                showToast('値をコピーしました。修正してください。', 'info');
+                updateReplaceFormState();
+            }
+        });
+
+        // フォーム送信時の確認
+        bulkReplaceForm.addEventListener('submit', function(e) {
+            const oldValue = replaceOldValueSelect.value;
+            const newValue = replaceNewValueInput.value.trim();
+            const selectedOption = replaceOldValueSelect.options[replaceOldValueSelect.selectedIndex];
+            const count = selectedOption.dataset.count || '?';
+            const fieldLabel = fieldLabels[replaceFieldSelect.value] || replaceFieldSelect.value;
+
+            if (!oldValue || !newValue) {
+                e.preventDefault();
+                showToast('置換前と置換後の値を入力してください', 'danger');
+                return;
+            }
+
+            if (oldValue === newValue) {
+                e.preventDefault();
+                showToast('置換前と置換後の値が同じです', 'warning');
+                return;
+            }
+
+            const confirmMsg = `${fieldLabel}「${oldValue}」を「${newValue}」に置換します。\n\n対象: ${count}件\n\nこの操作は取り消せません。実行しますか？`;
+            if (!confirm(confirmMsg)) {
+                e.preventDefault();
+                return;
+            }
+
+            // 送信中の表示
+            bulkReplaceSubmitBtn.disabled = true;
+            bulkReplaceSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 処理中...';
+        });
+    }
 </script>
 
 <!-- Toast Container -->
