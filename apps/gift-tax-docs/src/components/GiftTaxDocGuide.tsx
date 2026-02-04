@@ -2,30 +2,31 @@
 
 import { useGiftTaxGuide } from '@/hooks/useGiftTaxGuide';
 import { MenuStep } from './MenuStep';
-import { CheckStep } from './CheckStep';
+import { EditableListStep } from './EditableListStep';
 import { ResultStep } from './ResultStep';
 
 export default function GiftTaxDocGuide() {
   const {
     step,
     setStep,
-    selectedOptions,
-    isFullListMode,
-    setIsFullListMode,
     isTwoColumnPrint,
     results,
     currentDate,
     resetToMenu,
-    toggleOption,
     handlePrint,
     handleExcelExport,
     togglePrintColumn,
+    toggleShowUnchecked,
+    showUncheckedInPrint,
     getPrintClass,
-    setSelectedOptions,
     staffName,
     setStaffName,
+    staffPhone,
+    setStaffPhone,
     customerName,
     setCustomerName,
+    documentList,
+    setDocumentList,
   } = useGiftTaxGuide();
 
   // メニュー画面
@@ -33,43 +34,51 @@ export default function GiftTaxDocGuide() {
     return (
       <MenuStep
         setStep={setStep}
-        setIsFullListMode={setIsFullListMode}
-        setSelectedOptions={setSelectedOptions}
         staffName={staffName}
         setStaffName={setStaffName}
+        staffPhone={staffPhone}
+        setStaffPhone={setStaffPhone}
         customerName={customerName}
         setCustomerName={setCustomerName}
       />
     );
   }
 
-  // チェックリスト画面
-  if (step === 'check') {
+  // 編集画面（全リスト）
+  if (step === 'edit') {
     return (
-      <CheckStep
+      <EditableListStep
+        documentList={documentList}
+        setDocumentList={setDocumentList}
         setStep={setStep}
-        setSelectedOptions={setSelectedOptions}
-        selectedOptions={selectedOptions}
-        toggleOption={toggleOption}
-        setIsFullListMode={setIsFullListMode}
+        resetToMenu={resetToMenu}
+        handleExcelExport={handleExcelExport}
+        staffName={staffName}
+        setStaffName={setStaffName}
+        staffPhone={staffPhone}
+        setStaffPhone={setStaffPhone}
+        customerName={customerName}
+        setCustomerName={setCustomerName}
       />
     );
   }
 
-  // 結果画面
+  // 結果画面（印刷プレビュー）
   return (
     <ResultStep
-      isFullListMode={isFullListMode}
       setStep={setStep}
       resetToMenu={resetToMenu}
       isTwoColumnPrint={isTwoColumnPrint}
       togglePrintColumn={togglePrintColumn}
+      showUncheckedInPrint={showUncheckedInPrint}
+      toggleShowUnchecked={toggleShowUnchecked}
       handleExcelExport={handleExcelExport}
       handlePrint={handlePrint}
       getPrintClass={getPrintClass}
       results={results}
       currentDate={currentDate}
       staffName={staffName}
+      staffPhone={staffPhone}
       customerName={customerName}
     />
   );

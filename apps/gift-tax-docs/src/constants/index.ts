@@ -28,7 +28,6 @@ export const EXTERNAL_LINKS = {
 // オプションID型定義
 export type OptionId =
   | 'gift_land'
-  | 'gift_house'
   | 'gift_cash'
   | 'gift_stock_listed'
   | 'gift_stock_unlisted'
@@ -39,4 +38,31 @@ export type OptionId =
 
 export type OptionSelection = Partial<Record<OptionId, boolean>>;
 
-export type Step = 'menu' | 'check' | 'result';
+export type Step = 'menu' | 'edit' | 'result';
+
+// 中項目（サブアイテム）
+export interface SubItem {
+  id: string;
+  text: string;
+}
+
+// 編集可能な書類アイテム
+export interface EditableDocument {
+  id: string;
+  text: string;
+  checked: boolean;
+  subItems: SubItem[];
+}
+
+// 編集可能なカテゴリ
+export interface EditableCategory {
+  id: string;
+  name: string;
+  documents: EditableDocument[];
+  note?: string;
+  isExpanded: boolean;
+  isSpecial: boolean;  // 特例かどうか
+}
+
+// 書類リスト全体の状態
+export type EditableDocumentList = EditableCategory[];
