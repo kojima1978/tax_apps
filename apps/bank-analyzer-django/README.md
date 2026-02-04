@@ -23,9 +23,12 @@ Streamlit版からDjango版へ移行し、UI/UXおよびデータ管理機能を
   - 同じ摘要の取引への一括適用
   - 分類フィルターによる絞り込み（含む/以外モード切替）
   - 資金移動の出金元・移動先で別々の分類を設定可能
+- **データクレンジング機能**:
+  - 重複データ検出・削除
+  - ID範囲指定削除
+  - フィールド値の一括置換（銀行名・支店名・口座番号の誤字修正）
 - **CSVエクスポート**: 分析結果をCSVで出力（Excel対応BOM付きUTF-8）
 - **JSONバックアップ**: 案件データの完全バックアップ・リストア
-- **重複データ検出**: 誤って二重取り込みしたデータを検出・削除
 - **付箋機能**: 確認が必要な取引にマークを付けて管理
 
 ## 分類カテゴリー
@@ -61,17 +64,29 @@ Streamlit版からDjango版へ移行し、UI/UXおよびデータ管理機能を
 | 資金移動フロー | 口座間の資金移動をペア（出金元・移動先）で表示、出金元・移動先それぞれの分類編集、フィルター（含む/以外） |
 | 多額出金・入金 | 閾値以上の取引一覧、分類編集、フィルター（含む/以外） |
 | 取引一覧・検索 | 全取引の検索、分類編集、複数選択での一括変更、フィルター（含む/以外） |
-| データクレンジング | 重複データの検出・削除、ID範囲指定削除 |
+| データクレンジング | 重複データの検出・削除、ID範囲指定削除、フィールド値の一括置換 |
 | 付箋 | 確認が必要な取引の管理、詳細モーダルでの編集 |
 
 ## 実行方法
 
-### Dockerを使用する場合 (推奨)
-
-プロジェクトルート (`tax_apps/docker`) から:
+### Docker Compose (推奨)
 
 ```bash
-docker-compose up -d bank-analyzer
+# 環境変数ファイルを作成
+cp .env.example .env
+# 必要に応じて .env を編集
+
+# 本番モード
+docker compose up -d
+
+# 開発モード（ホットリロード有効）
+docker compose --profile dev up web-dev
+
+# 停止
+docker compose down
+
+# 再ビルド（Dockerfileを変更した場合）
+docker compose build --no-cache
 ```
 
 ブラウザで http://localhost:8000 にアクセスします。
@@ -79,26 +94,36 @@ docker-compose up -d bank-analyzer
 ### ローカル開発
 
 ```bash
+# 仮想環境の作成（推奨）
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
 # 依存ライブラリのインストール
 pip install -r requirements.txt
 
 # データベースのセットアップ
 python manage.py migrate
 
-# サーバーの起動
+# 静的ファイルの収集（本番環境用）
+python manage.py collectstatic --noinput
+
+# 開発サーバーの起動
 python manage.py runserver
 ```
 
 ### Docker単体での実行
 
 ```bash
-# ビルド
+# ビルド（マルチステージビルド）
 docker build -t bank-analyzer .
 
 # 実行
-docker run -p 8000:8000 -v $(pwd)/data:/app/data bank-analyzer
+docker run -p 8000:8000 \
+  -v $(pwd)/data:/app/data \
+  -v bank-analyzer-db:/app/db \
+  -e DJANGO_SECRET_KEY=your-secret-key \
+  bank-analyzer
 ```
-※ `.dockerignore` により不要なファイル（`__pycache__`等）はビルドコンテキストから除外されます。
 
 ## ディレクトリ構造
 
@@ -118,12 +143,18 @@ bank-analyzer-django/
 │   │   ├── importer.py    # CSV/Excel読み込み
 │   │   ├── analyzer.py    # 多額取引・資金移動分析
 │   │   ├── llm_classifier.py  # ルールベース分類
-│   │   └── config.py      # 設定管理
+│   │   ├── config.py      # 設定管理
+│   │   └── exceptions.py  # カスタム例外
 │   ├── templates/         # HTMLテンプレート
 │   └── templatetags/      # カスタムテンプレートタグ（和暦変換等）
 ├── data/                  # ユーザー設定保存先
-├── Dockerfile             # Docker設定
+├── staticfiles/           # 収集済み静的ファイル
+├── Dockerfile             # マルチステージDockerビルド設定
 ├── docker-compose.yml     # Docker Compose設定
+├── docker-entrypoint.sh   # コンテナ起動スクリプト
+├── .dockerignore          # Dockerビルド除外設定
+├── .env.example           # 環境変数テンプレート
+├── .env                   # 環境変数（gitignore対象）
 └── requirements.txt       # Python依存ライブラリ
 ```
 
@@ -136,6 +167,24 @@ bank-analyzer-django/
 | `DJANGO_ALLOWED_HOSTS` | 許可ホスト（カンマ区切り） | `localhost,127.0.0.1` |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | CSRF信頼オリジン（カンマ区切り） | `http://localhost,http://127.0.0.1` |
 | `DJANGO_FORCE_SCRIPT_NAME` | サブパス配下用スクリプト名 | なし (ルート使用時) |
+| `DB_PATH` | SQLiteデータベースパス | `/app/db/db.sqlite3` |
+| `GUNICORN_WORKERS` | Gunicornワーカー数 | `2` |
+| `GUNICORN_TIMEOUT` | Gunicornタイムアウト（秒） | `300` |
+
+## Docker設定詳細
+
+### 本番環境 (web)
+
+- **リソース制限**: CPU 1.0コア、メモリ 512MB
+- **ログローテーション**: 10MB × 3ファイル
+- **セキュリティ**: `no-new-privileges`、非rootユーザー実行
+- **ヘルスチェック**: 30秒間隔、40秒の起動猶予
+
+### 開発環境 (web-dev)
+
+- **ホットリロード**: ソースコードをマウントして即座に反映
+- **リソース制限**: CPU 2.0コア、メモリ 1GB（緩和）
+- **pipキャッシュ**: パッケージを永続化して再インストール防止
 
 ## 技術スタック
 
@@ -143,6 +192,8 @@ bank-analyzer-django/
 - **データベース**: SQLite
 - **フロントエンド**: Bootstrap 5, Bootstrap Icons
 - **データ処理**: pandas
+- **WSGIサーバー**: Gunicorn
+- **初期化システム**: tini
 - **Python**: 3.12+
 
 ## CSVフォーマット
@@ -175,6 +226,15 @@ bank-analyzer-django/
 7. 通帳間移動
 8. 贈与（100万円以上の振込）
 9. その他
+
+## API エンドポイント
+
+| エンドポイント | メソッド | 説明 |
+|---------------|---------|------|
+| `/case/<pk>/api/toggle-flag/` | POST | 付箋のON/OFF切替 |
+| `/case/<pk>/api/create-transaction/` | POST | 取引の追加 |
+| `/case/<pk>/api/delete-transaction/` | POST | 取引の削除 |
+| `/case/<pk>/api/field-values/` | GET | フィールドのユニーク値取得 |
 
 ## ライセンス
 

@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 
 import pandas as pd
-from django.db import transaction
+from django.db.models import Count, Q
 
 from .models import Case, Transaction
 from .lib import analyzer, llm_classifier, config
@@ -352,6 +352,78 @@ class TransactionService:
 
         return len(updates)
 
+    @staticmethod
+    def bulk_replace_field_value(
+        case: Case,
+        field_name: str,
+        old_value: str,
+        new_value: str
+    ) -> int:
+        """
+        指定フィールドの値を一括置換
+
+        Args:
+            case: 対象の案件
+            field_name: 対象フィールド名（bank_name, branch_name, account_id）
+            old_value: 置換前の値
+            new_value: 置換後の値
+
+        Returns:
+            更新された取引数
+        """
+        # 許可されたフィールドのみ
+        allowed_fields = ['bank_name', 'branch_name', 'account_id']
+        if field_name not in allowed_fields:
+            logger.warning(f"不正なフィールド名: {field_name}")
+            return 0
+
+        if not old_value or old_value == new_value:
+            return 0
+
+        # 対象取引を検索
+        filter_kwargs = {field_name: old_value}
+        count = case.transactions.filter(**filter_kwargs).update(**{field_name: new_value})
+
+        logger.info(
+            f"一括置換完了: case_id={case.id}, field={field_name}, "
+            f"old='{old_value}' -> new='{new_value}', count={count}"
+        )
+        return count
+
+    @staticmethod
+    def get_unique_field_values(case: Case, field_name: str) -> list[dict]:
+        """
+        指定フィールドのユニーク値と件数を取得
+
+        Args:
+            case: 対象の案件
+            field_name: 対象フィールド名
+
+        Returns:
+            [{'value': 値, 'count': 件数}, ...] のリスト
+        """
+        allowed_fields = ['bank_name', 'branch_name', 'account_id']
+        if field_name not in allowed_fields:
+            return []
+
+        qs = (
+            case.transactions
+            .values(field_name)
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+
+        result = []
+        for item in qs:
+            value = item[field_name]
+            if value:  # 空値は除外
+                result.append({
+                    'value': value,
+                    'count': item['count']
+                })
+
+        return result
+
 
 class AnalysisService:
     """分析機能に関するビジネスロジック"""
@@ -468,9 +540,6 @@ class AnalysisService:
 
         # 金額範囲でフィルター
         if amount_min is not None or amount_max is not None:
-            from django.db.models import Q, F, Case, When, Value, IntegerField
-            from django.db.models.functions import Greatest
-
             # 取引種別に応じて対象金額を決定
             if amount_type == 'out':
                 if amount_min is not None:

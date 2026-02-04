@@ -11,7 +11,7 @@ def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
     patterns = get_classification_patterns()
 
     if not text:
-        return "その他"
+        return "未分類"
 
     # 優先順位: 給与 -> 生活費 -> 証券/保険/銀行/関連会社/通帳間移動 -> 贈与 -> その他
     priority_categories = ["給与", "生活費", "証券・株式", "保険会社", "銀行", "関連会社", "通帳間移動"]
@@ -28,7 +28,7 @@ def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
         if amount_out >= 1_000_000:
             return "贈与"
         else:
-            return "その他"
+            return "未分類"
 
     # その他キーワード
     other_keywords = patterns.get("その他", [])
@@ -36,7 +36,7 @@ def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
         if kw in text:
             return "その他"
 
-    return "その他"
+    return "未分類"
 
 
 def classify_transactions(df: pd.DataFrame) -> pd.DataFrame:

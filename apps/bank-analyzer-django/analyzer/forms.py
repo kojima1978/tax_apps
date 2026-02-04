@@ -21,14 +21,14 @@ class CaseForm(forms.ModelForm):
 
 
 class ImportForm(forms.Form):
-    """CSV/Excelインポートフォーム"""
+    """CSVインポートフォーム"""
     csv_file = forms.FileField(
-        label="CSV/Excelファイル",
-        help_text="銀行からダウンロードした入出金明細（CSVまたはExcel）※最大10MB",
-        validators=[FileExtensionValidator(allowed_extensions=['csv', 'xlsx', 'xls'])],
+        label="CSVファイル",
+        help_text="銀行からダウンロードした入出金明細（CSV）※最大10MB",
+        validators=[FileExtensionValidator(allowed_extensions=['csv'])],
         widget=forms.FileInput(attrs={
             "class": "form-control",
-            "accept": ".csv,.xlsx,.xls"
+            "accept": ".csv"
         })
     )
 
