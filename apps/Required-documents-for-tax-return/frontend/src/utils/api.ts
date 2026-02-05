@@ -1,4 +1,4 @@
-import { CategoryGroup } from '@/types';
+import { CategoryGroup, Customer, Staff } from '@/types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -26,10 +26,6 @@ export interface DataRecord {
   updated_at: string;
   customer_id: number;
   staff_id: number | null;
-}
-
-export interface StaffNamesResponse {
-  staffNames: string[];
 }
 
 export interface CustomerNamesResponse {
@@ -110,15 +106,6 @@ export async function deleteDocument(id: number): Promise<boolean> {
   return response.ok;
 }
 
-
-
-export async function fetchStaffNames(): Promise<string[]> {
-  const response = await fetch(`${API_BASE_URL}/api/staff-names`);
-  if (!response.ok) return [];
-  const data: StaffNamesResponse = await response.json();
-  return data.staffNames || [];
-}
-
 export async function fetchCustomerNames(staffName?: string): Promise<string[]> {
   const url = staffName
     ? `${API_BASE_URL}/api/customer-names?staffName=${encodeURIComponent(staffName)}`
@@ -143,7 +130,6 @@ export async function fetchAvailableYears(customerName?: string, staffName?: str
 }
 
 // Customer Management APIs
-import { Customer } from '@/types';
 
 export async function fetchCustomers(): Promise<Customer[]> {
   const response = await fetch(`${API_BASE_URL}/api/customers`);
@@ -186,8 +172,6 @@ export async function deleteCustomer(id: number): Promise<void> {
 }
 
 // Staff Management APIs
-import { Staff } from '@/types';
-// ... rest of staff apis
 
 export async function fetchStaff(): Promise<Staff[]> {
   const response = await fetch(`${API_BASE_URL}/api/staff`);

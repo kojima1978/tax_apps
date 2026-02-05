@@ -23,6 +23,8 @@ import {
   createStaff,
   updateStaff,
   deleteStaff,
+  getFullBackupData,
+  restoreFullBackup,
 } from './db';
 
 const app = express();
@@ -35,7 +37,7 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // データベース初期化
 initializeDb();
@@ -299,7 +301,46 @@ app.delete('/api/documents/:id', (req, res) => {
   res.json({ success: true, message: 'データを削除しました' });
 });
 
+// --- バックアップ/復元 API ---
 
+// 全データエクスポート
+app.get('/api/backup/export', (_req, res) => {
+  try {
+    const data = getFullBackupData();
+    res.json({
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      appName: 'required-documents-for-tax-return',
+      type: 'full-backup',
+      data,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// バックアップから復元
+app.post('/api/backup/import', (req, res) => {
+  const body = req.body;
+
+  if (!body || body.appName !== 'required-documents-for-tax-return' || body.type !== 'full-backup') {
+    return res.status(400).json({ error: '無効なバックアップファイル形式です' });
+  }
+  if (!body.data || !Array.isArray(body.data.staff) || !Array.isArray(body.data.customers)) {
+    return res.status(400).json({ error: 'バックアップデータの構造が不正です' });
+  }
+
+  try {
+    const result = restoreFullBackup(body.data);
+    res.json({
+      success: true,
+      message: `復元完了: 担当者${result.staffCount}件、お客様${result.customerCount}件、書類データ${result.recordCount}件`,
+      ...result,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // エラーハンドリングミドルウェア
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {

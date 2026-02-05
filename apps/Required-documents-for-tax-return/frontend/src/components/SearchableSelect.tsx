@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Search } from 'lucide-react';
 
 type Option = {
     value: string | number;
@@ -11,7 +11,6 @@ type SearchableSelectProps = {
     value: string | number | '';
     onChange: (value: string | number) => void;
     placeholder?: string;
-    label?: string;
     disabled?: boolean;
     error?: boolean;
 };

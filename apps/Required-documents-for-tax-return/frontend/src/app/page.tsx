@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import MenuScreen from '@/components/MenuScreen';
 import DocumentListScreen from '@/components/DocumentListScreen';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { CategoryGroup } from '@/types';
 import { fetchDocuments, saveDocuments, copyToNextYear as apiCopyToNextYear } from '@/utils/api';
-import { getDefaultReiwaYear } from '@/utils/date';
+import { getDefaultYear } from '@/utils/date';
 
 type Step = 'menu' | 'editor';
 
@@ -23,7 +23,7 @@ interface AppState {
 }
 
 export default function Home() {
-  const defaultYear = getDefaultReiwaYear();
+  const defaultYear = getDefaultYear();
 
   const [state, setState] = useState<AppState>({
     step: 'menu',
@@ -92,7 +92,7 @@ export default function Home() {
       const data = await apiCopyToNextYear(state.customerName, state.staffName, state.year);
 
       if (data.success) {
-        alert(`令和${state.year - 2018}年のデータを令和${state.year + 1 - 2018}年にコピーしました。\n年度を切り替えて確認してください。`);
+        alert(`令和${state.year - 2018}年のデータを令和${state.year - 2018 + 1}年にコピーしました。\n年度を切り替えて確認してください。`);
       } else {
         alert('翌年度更新に失敗しました');
       }
@@ -101,28 +101,6 @@ export default function Home() {
       alert('翌年度更新に失敗しました');
     }
   }, [state.customerName, state.staffName, state.year, saveData]);
-
-  // 自動保存（5秒後）
-  useEffect(() => {
-    if (state.step !== 'editor') return;
-    if (!state.customerName.trim() || !state.staffName.trim()) return;
-
-    const timeoutId = setTimeout(saveData, 5000);
-    return () => clearTimeout(timeoutId);
-  }, [state.documentGroups, state.step, state.customerName, state.staffName, saveData]);
-
-  const handleYearChange = async (year: number) => {
-    setState((prev) => ({ ...prev, year }));
-
-    if (state.customerName.trim() && state.staffName.trim()) {
-      const loaded = await loadData(state.customerName, state.staffName, year);
-      if (!loaded) {
-        setState((prev) => ({ ...prev, documentGroups: generateInitialDocumentGroups(year) }));
-      }
-    } else {
-      setState((prev) => ({ ...prev, documentGroups: generateInitialDocumentGroups(year) }));
-    }
-  };
 
   const handleLoadData = async () => {
     if (!state.customerName.trim() || !state.staffName.trim()) {
@@ -182,9 +160,6 @@ export default function Home() {
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         {state.step === 'menu' && (
           <MenuScreen
-            year={state.year}
-            onYearChange={handleYearChange}
-            onStartEditor={() => setState((prev) => ({ ...prev, step: 'editor' }))}
             onLoadCustomerData={handleLoadCustomerData}
           />
         )}
@@ -194,17 +169,15 @@ export default function Home() {
             documentGroups={state.documentGroups}
             onDocumentGroupsChange={(documentGroups) => setState((prev) => ({ ...prev, documentGroups }))}
             onBack={() => setState((prev) => ({ ...prev, step: 'menu' }))}
-            onYearChange={handleYearChange}
             customerName={state.customerName}
             staffName={state.staffName}
-            onCustomerNameChange={(customerName) => setState((prev) => ({ ...prev, customerName }))}
-            onStaffNameChange={(staffName) => setState((prev) => ({ ...prev, staffName }))}
             onSave={handleSaveData}
             onLoad={handleLoadData}
             onCopyToNextYear={handleCopyToNextYear}
             isSaving={state.isSaving}
             isLoading={state.isLoading}
             lastSaved={state.lastSaved}
+            saveError={state.saveError}
           />
         )}
       </div>

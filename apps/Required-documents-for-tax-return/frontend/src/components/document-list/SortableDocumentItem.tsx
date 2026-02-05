@@ -143,7 +143,7 @@ export function SortableDocumentItem({
 
             {/* サブアイテムリスト */}
             {hasSubItems && (
-                <ul className="ml-4">
+                <ul className="ml-4 print:ml-0">
                     {doc.subItems!.map((subItem, subIndex) => (
                         <SubItemComponent
                             key={subItem.id}

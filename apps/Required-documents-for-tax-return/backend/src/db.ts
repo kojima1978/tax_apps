@@ -5,22 +5,25 @@ import { Customer, DocumentRecordWithCustomer, CustomerWithYears, Staff } from '
 // データベースファイルのパス
 const dbPath = path.join(__dirname, '..', 'data', 'tax_documents.db');
 
-// データベース接続を取得
+// シングルトンDB接続
+let _db: Database.Database | null = null;
+
 function getDb(): Database.Database {
-  const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  return db;
+  if (!_db) {
+    _db = new Database(dbPath);
+    _db.pragma('journal_mode = WAL');
+    _db.pragma('foreign_keys = ON');
+
+    process.on('exit', () => {
+      _db?.close();
+    });
+  }
+  return _db;
 }
 
-// データベース操作のラッパー
+// データベース操作のラッパー（シングルトン接続を使用）
 function withDb<T>(operation: (db: Database.Database) => T): T {
-  const db = getDb();
-  try {
-    return operation(db);
-  } finally {
-    db.close();
-  }
+  return operation(getDb());
 }
 
 // データベース初期化
@@ -107,6 +110,14 @@ export function initializeDb(): void {
         FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
         UNIQUE(customer_id, year)
       )
+    `);
+
+    // インデックス作成
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_customers_staff_id ON customers(staff_id);
+      CREATE INDEX IF NOT EXISTS idx_customers_staff_name ON customers(staff_name);
+      CREATE INDEX IF NOT EXISTS idx_document_records_customer_id ON document_records(customer_id);
+      CREATE INDEX IF NOT EXISTS idx_document_records_year ON document_records(year);
     `);
   });
   console.log('Database initialized at:', dbPath);
@@ -326,32 +337,36 @@ export function getDocumentRecordByCustomerInfo(
 // 翌年度更新
 export function copyToNextYear(customerId: number, currentYear: number): boolean {
   return withDb((db) => {
-    const currentRecord = db
-      .prepare('SELECT document_groups FROM document_records WHERE customer_id = ? AND year = ?')
-      .get(customerId, currentYear) as { document_groups: string } | undefined;
+    const copyTransaction = db.transaction(() => {
+      const currentRecord = db
+        .prepare('SELECT document_groups FROM document_records WHERE customer_id = ? AND year = ?')
+        .get(customerId, currentYear) as { document_groups: string } | undefined;
 
-    if (!currentRecord) {
-      return false;
-    }
+      if (!currentRecord) {
+        return false;
+      }
 
-    const nextYear = currentYear + 1;
-    const existingNext = db
-      .prepare('SELECT id FROM document_records WHERE customer_id = ? AND year = ?')
-      .get(customerId, nextYear);
+      const nextYear = currentYear + 1;
+      const existingNext = db
+        .prepare('SELECT id FROM document_records WHERE customer_id = ? AND year = ?')
+        .get(customerId, nextYear);
 
-    if (existingNext) {
-      db.prepare(
-        'UPDATE document_records SET document_groups = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? AND year = ?'
-      ).run(currentRecord.document_groups, customerId, nextYear);
-    } else {
-      db.prepare('INSERT INTO document_records (customer_id, year, document_groups) VALUES (?, ?, ?)').run(
-        customerId,
-        nextYear,
-        currentRecord.document_groups
-      );
-    }
+      if (existingNext) {
+        db.prepare(
+          'UPDATE document_records SET document_groups = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? AND year = ?'
+        ).run(currentRecord.document_groups, customerId, nextYear);
+      } else {
+        db.prepare('INSERT INTO document_records (customer_id, year, document_groups) VALUES (?, ?, ?)').run(
+          customerId,
+          nextYear,
+          currentRecord.document_groups
+        );
+      }
 
-    return true;
+      return true;
+    });
+
+    return copyTransaction();
   });
 }
 
@@ -523,5 +538,113 @@ export function deleteDocumentRecord(id: number): boolean {
   });
 }
 
+// --- バックアップ/復元 ---
 
+// 全データをエクスポート用に取得
+export function getFullBackupData(): {
+  staff: Array<{ staff_name: string; mobile_number: string | null }>;
+  customers: Array<{
+    customer_name: string;
+    staff_name: string;
+    records: Array<{ year: number; document_groups: unknown }>;
+  }>;
+} {
+  return withDb((db) => {
+    const staff = db
+      .prepare('SELECT staff_name, mobile_number FROM staff ORDER BY staff_name')
+      .all() as Array<{ staff_name: string; mobile_number: string | null }>;
 
+    const customers = db
+      .prepare(
+        `SELECT c.id, c.customer_name, IFNULL(s.staff_name, c.staff_name) as staff_name
+         FROM customers c
+         LEFT JOIN staff s ON c.staff_id = s.id
+         ORDER BY c.customer_name`
+      )
+      .all() as Array<{ id: number; customer_name: string; staff_name: string }>;
+
+    const customersWithRecords = customers.map((customer) => {
+      const records = db
+        .prepare('SELECT year, document_groups FROM document_records WHERE customer_id = ? ORDER BY year')
+        .all(customer.id) as Array<{ year: number; document_groups: string }>;
+
+      return {
+        customer_name: customer.customer_name,
+        staff_name: customer.staff_name,
+        records: records.map((r) => ({
+          year: r.year,
+          document_groups: JSON.parse(r.document_groups),
+        })),
+      };
+    });
+
+    return { staff, customers: customersWithRecords };
+  });
+}
+
+// バックアップデータから復元
+export function restoreFullBackup(data: {
+  staff: Array<{ staff_name: string; mobile_number: string | null }>;
+  customers: Array<{
+    customer_name: string;
+    staff_name: string;
+    records: Array<{ year: number; document_groups: unknown }>;
+  }>;
+}): { staffCount: number; customerCount: number; recordCount: number } {
+  return withDb((db) => {
+    return db.transaction(() => {
+      let staffCount = 0;
+      let customerCount = 0;
+      let recordCount = 0;
+
+      const insertStaff = db.prepare(
+        'INSERT OR IGNORE INTO staff (staff_name, mobile_number) VALUES (?, ?)'
+      );
+      const getStaffId = db.prepare('SELECT id FROM staff WHERE staff_name = ?');
+
+      // 1. 担当者の upsert
+      for (const s of data.staff) {
+        insertStaff.run(s.staff_name, s.mobile_number);
+        staffCount++;
+      }
+
+      // 2. 顧客と書類データの upsert
+      for (const c of data.customers) {
+        const staff = getStaffId.get(c.staff_name) as { id: number } | undefined;
+        const staffId = staff?.id ?? null;
+
+        let customer = db
+          .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_name = ?')
+          .get(c.customer_name, c.staff_name) as { id: number } | undefined;
+
+        if (!customer) {
+          const info = db
+            .prepare('INSERT INTO customers (customer_name, staff_name, staff_id) VALUES (?, ?, ?)')
+            .run(c.customer_name, c.staff_name, staffId);
+          customer = { id: info.lastInsertRowid as number };
+        }
+        customerCount++;
+
+        for (const r of c.records) {
+          const jsonData = JSON.stringify(r.document_groups);
+          const existing = db
+            .prepare('SELECT id FROM document_records WHERE customer_id = ? AND year = ?')
+            .get(customer.id, r.year);
+
+          if (existing) {
+            db.prepare(
+              'UPDATE document_records SET document_groups = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? AND year = ?'
+            ).run(jsonData, customer.id, r.year);
+          } else {
+            db.prepare(
+              'INSERT INTO document_records (customer_id, year, document_groups) VALUES (?, ?, ?)'
+            ).run(customer.id, r.year, jsonData);
+          }
+          recordCount++;
+        }
+      }
+
+      return { staffCount, customerCount, recordCount };
+    })();
+  });
+}

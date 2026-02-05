@@ -1,12 +1,12 @@
 # ============================================
-# Tax Documents App - Docker Compose
+# Tax Documents App - Docker Compose (開発用)
 # ============================================
 # Usage:
-#   Development: docker-compose up -d
-#   Production:  docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-#   Rebuild:     docker-compose up -d --build
-#   Logs:        docker-compose logs -f
-#   Stop:        docker-compose down
+#   起動:       docker compose up -d
+#   再ビルド:   docker compose up -d --build
+#   ログ:       docker compose logs -f
+#   停止:       docker compose down
+#   本番:       docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # ============================================
 
 services:
@@ -24,20 +24,21 @@ services:
     volumes:
       - ./backend/src:/app/src:ro
       - ./backend/package.json:/app/package.json:ro
+      - ./backend/tsconfig.json:/app/tsconfig.json:ro
       - backend-data:/app/data
     environment:
       - NODE_ENV=development
       - PORT=3001
       - TZ=Asia/Tokyo
+    init: true
     restart: unless-stopped
-    networks:
-      - app-network
+    stop_grace_period: 10s
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3001/api/health" ]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 15s
+      timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 8s
     logging:
       driver: "json-file"
       options:
@@ -52,37 +53,39 @@ services:
 
   # ==========================================
   # フロントエンド（Next.js）
+  # http://localhost:3005/tax-docs/
   # ==========================================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: dev
-      args:
-        - NEXT_PUBLIC_API_URL=http://localhost:3006
     container_name: tax-docs-frontend
     ports:
-      - "3005:3000" # Access at http://localhost:3005/tax-docs
+      - "3005:3000"
     volumes:
       - ./frontend/src:/app/src:ro
       - ./frontend/public:/app/public:ro
       - ./frontend/package.json:/app/package.json:ro
+      - ./frontend/next.config.ts:/app/next.config.ts:ro
+      - ./frontend/tsconfig.json:/app/tsconfig.json:ro
+      - ./frontend/postcss.config.mjs:/app/postcss.config.mjs:ro
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:3006 # Must match backend external port
+      - NEXT_PUBLIC_API_URL=http://localhost:3006
       - NEXT_TELEMETRY_DISABLED=1
       - WATCHPACK_POLLING=true
       - TZ=Asia/Tokyo
     depends_on:
       backend:
         condition: service_healthy
-    networks:
-      - app-network
+    init: true
     restart: unless-stopped
+    stop_grace_period: 10s
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3000/tax-docs/" ]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/tax-docs/"]
+      interval: 15s
+      timeout: 5s
       retries: 3
       start_period: 30s
     logging:
@@ -104,11 +107,3 @@ volumes:
   backend-data:
     name: tax-docs-data
     driver: local
-
-# ==========================================
-# ネットワーク定義
-# ==========================================
-networks:
-  app-network:
-    name: tax-docs-network
-    driver: bridge

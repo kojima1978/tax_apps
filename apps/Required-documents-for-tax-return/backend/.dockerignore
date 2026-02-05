@@ -37,6 +37,9 @@ README.md
 coverage
 .nyc_output
 
+# Logs
+*.log
+
 # Environment
 .env
 .env.*
