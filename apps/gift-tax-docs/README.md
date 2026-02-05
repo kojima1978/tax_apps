@@ -24,8 +24,8 @@
 - **印刷プレビュー**: 1段組/2段組の切り替えに対応
 
 ### 顧客・担当者情報
-- **担当者名・携帯番号**: 印刷時にヘッダーに表示
-- **顧客名**: ファイル名やヘッダーに使用
+- **担当者名・携帯番号**: localStorage に保存、印刷時にフッターに表示
+- **顧客名**: sessionStorage に保存、ファイル名やヘッダーに使用
 
 ## 技術スタック
 
@@ -44,61 +44,53 @@
 
 ### Docker を使用する場合（推奨）
 
-プロジェクトルート (`tax_apps/docker`) の `docker-compose` を使用して起動します。
-本アプリケーションはポート `3002` で動作します。
-
 ```bash
-# docker ディレクトリで実行
-cd docker
-docker compose up gift-tax-docs -d
+# アプリディレクトリで実行
+cd apps/gift-tax-docs
+
+# 起動
+docker compose up -d
+
+# 再ビルド（Dockerfile変更時）
+docker compose up -d --build
 
 # ログの確認
-docker compose logs -f gift-tax-docs
+docker logs -f gift-tax-docs
 
-# 再ビルド
-docker compose up gift-tax-docs -d --build
+# 停止
+docker compose down
 ```
 
 アクセス: [http://localhost:3002/gift-tax-docs/](http://localhost:3002/gift-tax-docs/)
 
-> **Note**: `next.config.ts` で `basePath: '/gift-tax-docs'` が設定されているため、URLにはサブディレクトリが必要です。
-
-### ローカルで直接実行する場合
-
-```bash
-# 依存関係のインストール
-npm install
-
-# 開発サーバーの起動（ポート3002）
-npm run dev -- -p 3002
-
-# または pnpm を使用
-pnpm install
-pnpm dev -- -p 3002
-```
+> **Note**: `next.config.ts` で `basePath: '/gift-tax-docs'` が設定されているため、URLにはサブパスが必要です。
 
 ## ディレクトリ構成
 
 ```
 src/
-├── app/                    # Next.js App Router
-│   ├── layout.tsx          # ルートレイアウト
-│   ├── page.tsx            # メインページ
-│   └── globals.css         # グローバルスタイル
-├── components/             # UIコンポーネント
-│   ├── GiftTaxDocGuide.tsx # メインコンテナ（状態管理・画面切替）
-│   ├── MenuStep.tsx        # メニュー画面（担当者・顧客情報入力）
-│   ├── EditableListStep.tsx# 編集画面（ドラッグ&ドロップ対応）
-│   └── ResultStep.tsx      # 印刷プレビュー画面
-├── hooks/                  # カスタムフック
-│   └── useGiftTaxGuide.ts  # アプリケーションロジック・状態管理
-├── constants/              # 定数・型定義
-│   ├── index.ts            # 型定義（EditableDocument, EditableCategory等）
-│   └── giftData.ts         # 初期データ（書類一覧・特例情報）
-└── utils/                  # ユーティリティ関数
-    ├── editableListUtils.ts # リスト操作関数（追加・削除・並替え等）
-    ├── excelGenerator.ts    # Excel生成ロジック
-    └── jsonExportImport.ts  # JSON入出力ロジック
+├── app/                          # Next.js App Router
+│   ├── layout.tsx                # ルートレイアウト
+│   ├── page.tsx                  # メインページ
+│   └── globals.css               # グローバルスタイル・印刷用CSS
+├── components/                   # UIコンポーネント
+│   ├── GiftTaxDocGuide.tsx       # メインコンテナ（状態管理・画面切替）
+│   ├── MenuStep.tsx              # メニュー画面（担当者・顧客情報入力）
+│   ├── EditableListStep.tsx      # 編集画面（ドラッグ&ドロップ対応）
+│   ├── ResultStep.tsx            # 印刷プレビュー画面
+│   └── ui/                       # 再利用可能なUIパーツ
+│       ├── CheckboxOption.tsx    # チェックボックスオプション
+│       └── ExternalLinkButton.tsx# 外部リンクボタン
+├── hooks/                        # カスタムフック
+│   ├── useGiftTaxGuide.ts        # アプリケーション全体の状態管理
+│   └── useEditableListEditing.ts # 編集画面の状態管理（useCallback最適化）
+├── constants/                    # 定数・型定義
+│   ├── index.ts                  # 型定義・会社情報・外部リンク・ストレージキー
+│   └── giftData.ts               # 初期データ（書類一覧・特例情報）
+└── utils/                        # ユーティリティ関数
+    ├── editableListUtils.ts      # リスト操作の純粋関数群
+    ├── excelGenerator.ts         # Excel生成ロジック
+    └── jsonExportImport.ts       # JSON入出力・バリデーション
 ```
 
 ## 画面遷移
@@ -119,11 +111,19 @@ src/
 ## 主要コンポーネント
 
 ### EditableListStep.tsx
-編集画面のメインコンポーネント。以下の機能を提供：
+編集画面のメインコンポーネント。以下のサブコンポーネントで構成：
 
 - **SortableCategoryCard**: ドラッグ可能なカテゴリカード
-- **SortableDocumentItem**: ドラッグ可能な書類アイテム
-- **DragOverlay**: ドラッグ中のプレビュー表示
+- **SortableDocumentItem**: ドラッグ可能な書類アイテム（ARIA対応）
+- **DragOverlayItem / CategoryDragOverlay**: ドラッグ中のプレビュー表示
+
+### useEditableListEditing.ts
+編集画面の状態管理フック。`useCallback` + 関数アップデートパターンで安定した参照を提供：
+
+- 書類・カテゴリ・中項目の編集状態管理
+- ダイアログ（リセット・インポート確認）の状態管理
+- JSON エクスポート/インポート処理
+- `categoryEditState` / `categoryHandlers` のメモ化オブジェクト
 
 ### editableListUtils.ts
 リスト操作の純粋関数群：
@@ -176,24 +176,32 @@ interface EditableDocument {
 ## Docker設定
 
 ### Dockerfile（マルチステージビルド）
-- **base**: Node.js 22 Alpine ベースイメージ
-- **deps**: 依存関係インストール
-- **dev**: 開発用イメージ（ホットリロード対応）
-- **builder**: 本番ビルド
-- **runner**: 本番実行用（非rootユーザー、tini使用）
+
+| ステージ | 用途 |
+|---------|------|
+| **base** | Node.js 22 Alpine + libc6-compat |
+| **deps** | `npm ci` で依存関係インストール |
+| **dev** | 開発用（ホットリロード、ポート3002） |
+| **builder** | 本番ビルド（standalone出力） |
+| **runner** | 本番実行用（非rootユーザー、tini、ヘルスチェック） |
 
 ### docker-compose.yml
 ```yaml
-gift-tax-docs:
-  build:
-    context: ../apps/gift-tax-docs
-    dockerfile: Dockerfile
-    target: dev
-  ports:
-    - "3002:3002"
-  volumes:
-    - ../apps/gift-tax-docs/src:/app/src:ro
-    - ../apps/gift-tax-docs/public:/app/public:ro
+services:
+  gift-tax-docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    ports:
+      - "3002:3002"
+    volumes:
+      - .:/app
+      - /app/node_modules  # ホストのnode_modulesで上書きしない
+      - /app/.next          # ビルドキャッシュを保護
+    init: true              # シグナルハンドリング
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/gift-tax-docs/"]
 ```
 
 ## Scripts
@@ -204,13 +212,6 @@ gift-tax-docs:
 | `npm run build` | 本番用にビルド |
 | `npm run start` | ビルドされたアプリケーションを実行 |
 | `npm run lint` | ESLint によるコードチェック |
-
-## 対応ブラウザ
-
-- Chrome (最新)
-- Firefox (最新)
-- Safari (最新)
-- Edge (最新)
 
 ## ライセンス
 

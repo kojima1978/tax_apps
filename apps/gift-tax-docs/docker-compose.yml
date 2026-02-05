@@ -6,8 +6,7 @@ services:
       target: dev
     container_name: gift-tax-docs
     ports:
-      # Host:Container
-      - "3002:3000"
+      - "3002:3002"
     volumes:
       - .:/app
       - /app/node_modules
@@ -15,4 +14,12 @@ services:
     environment:
       - NODE_ENV=development
       - WATCHPACK_POLLING=true
+    init: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/gift-tax-docs/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
     restart: unless-stopped
