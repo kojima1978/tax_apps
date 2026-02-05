@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import Header from '@/components/Header';
 import InputSection from '@/components/InputSection';
 import ResultSection from '@/components/ResultSection';
+import PrintFooter from '@/components/PrintFooter';
 import { calculateAllPatterns, type GiftType, type CalculationResult } from '@/lib/tax-calculation';
 import { normalizeNumberString } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ export default function Home() {
         errorMsg={errorMsg}
       />
       <ResultSection results={results} />
+      <PrintFooter />
     </div>
   );
 }

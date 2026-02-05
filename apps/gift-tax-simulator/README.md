@@ -4,20 +4,34 @@
 
 ## 機能
 
+### シミュレーター（メインページ）
 - 贈与金額に対する税額計算
 - 一般贈与・特例贈与の切り替え
 - 一括贈与 / 2年分割 / 4年分割の比較
 - 実効税率の表示
 - グラフによる視覚的な比較
-- 印刷機能
+- A4印刷対応
+
+### 早見表ページ
+- 100万円単位の税額早見表
+- 特例贈与・一般贈与を縦並びで表示
+- 表示上限の切り替え（1,000万円〜3,000万円）
+- A3印刷対応
+
+### 共通機能
+- 印刷用フッター（会社情報・担当者・作成日）
+- レスポンシブデザイン
 
 ## 技術スタック
 
-- **Framework**: Next.js 16
-- **Language**: TypeScript
-- **UI**: React 19
-- **Chart**: Chart.js + react-chartjs-2
-- **Styling**: Tailwind CSS 4
+| カテゴリ | 技術 |
+|---------|------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| UI | React 19 |
+| Chart | Chart.js + react-chartjs-2 |
+| Styling | Tailwind CSS 4 |
+| Container | Docker + Docker Compose |
 
 ## 開発環境のセットアップ
 
@@ -30,8 +44,11 @@ docker compose --profile dev up
 # バックグラウンドで起動
 docker compose --profile dev up -d
 
+# 再ビルドして起動
+docker compose --profile dev up -d --build
+
 # ログ確認
-docker compose logs -f
+docker compose logs -f dev
 
 # 停止
 docker compose --profile dev down
@@ -48,7 +65,10 @@ npm run dev
 
 ```bash
 # ビルドと起動
-docker compose --profile prod up -d
+docker compose --profile prod up -d --build
+
+# 状態確認
+docker compose ps
 
 # 停止
 docker compose --profile prod down
@@ -56,38 +76,86 @@ docker compose --profile prod down
 
 ## アクセス
 
-開発・本番ともに以下のURLでアクセスできます：
-
-http://localhost:3001/gift-tax-simulator/
+| 環境 | URL |
+|------|-----|
+| シミュレーター | http://localhost:3001/gift-tax-simulator/ |
+| 早見表 | http://localhost:3001/gift-tax-simulator/table |
 
 ## プロジェクト構成
 
 ```
 ├── app/
-│   ├── layout.tsx          # ルートレイアウト
-│   ├── page.tsx            # メインページ
-│   └── globals.css         # グローバルスタイル
+│   ├── layout.tsx           # ルートレイアウト
+│   ├── page.tsx             # シミュレーターページ
+│   ├── globals.css          # グローバルスタイル
+│   └── table/
+│       └── page.tsx         # 早見表ページ
 ├── components/
-│   ├── Header.tsx          # ヘッダー（印刷ボタン）
-│   ├── InputSection.tsx    # 入力フォーム
-│   ├── ResultSection.tsx   # 結果表示
-│   ├── TaxTable.tsx        # 税額テーブル
-│   └── TaxChart.tsx        # 棒グラフ
+│   ├── Header.tsx           # ヘッダー
+│   ├── InputSection.tsx     # 入力フォーム
+│   ├── ResultSection.tsx    # 結果表示
+│   ├── TaxTable.tsx         # シミュレーター用テーブル
+│   ├── TaxChart.tsx         # 棒グラフ
+│   ├── QuickRefTable.tsx    # 早見表用テーブル
+│   └── PrintFooter.tsx      # 印刷用フッター
 ├── lib/
-│   ├── tax-calculation.ts  # 税額計算ロジック
-│   └── utils.ts            # ユーティリティ関数
-├── Dockerfile
-├── docker-compose.yml
+│   ├── tax-calculation.ts   # 税額計算ロジック
+│   └── utils.ts             # ユーティリティ関数
+├── Dockerfile               # マルチステージビルド
+├── docker-compose.yml       # 開発/本番環境設定
 └── package.json
 ```
 
 ## 税額計算について
 
-- 基礎控除: 110万円
-- 税率表: 国税庁の速算表に基づく
-- 特例贈与: 直系尊属から18歳以上への贈与
-- 一般贈与: その他の贈与
+### 基礎控除
+- **110万円**（暦年課税）
+
+### 税率表
+国税庁の速算表に基づいて計算しています。
+
+#### 特例贈与
+直系尊属（父母・祖父母など）から、贈与を受けた年の1月1日時点で18歳以上の者への贈与。
+
+| 基礎控除後の課税価格 | 税率 | 控除額 |
+|---------------------|------|--------|
+| 200万円以下 | 10% | - |
+| 400万円以下 | 15% | 10万円 |
+| 600万円以下 | 20% | 30万円 |
+| 1,000万円以下 | 30% | 90万円 |
+| 1,500万円以下 | 40% | 190万円 |
+| 3,000万円以下 | 45% | 265万円 |
+| 4,500万円以下 | 50% | 415万円 |
+| 4,500万円超 | 55% | 640万円 |
+
+#### 一般贈与
+特例贈与以外の贈与（兄弟間、夫婦間、親から未成年の子への贈与など）。
+
+| 基礎控除後の課税価格 | 税率 | 控除額 |
+|---------------------|------|--------|
+| 200万円以下 | 10% | - |
+| 300万円以下 | 15% | 10万円 |
+| 400万円以下 | 20% | 25万円 |
+| 600万円以下 | 30% | 65万円 |
+| 1,000万円以下 | 40% | 125万円 |
+| 1,500万円以下 | 45% | 175万円 |
+| 3,000万円以下 | 50% | 250万円 |
+| 3,000万円超 | 55% | 400万円 |
+
+## Docker設定
+
+### 開発環境の特徴
+- ホットリロード対応
+- ソースコードのバインドマウント
+- node_modulesのボリューム永続化
+
+### 本番環境の特徴
+- マルチステージビルドによる軽量イメージ
+- 非rootユーザーで実行
+- ヘルスチェック設定
+- リソース制限（CPU/メモリ）
+- セキュリティオプション有効
 
 ## ライセンス
 
-Private
+Private - 税理士法人マスエージェント

@@ -4,13 +4,16 @@
 
 :root {
   --primary-color: #1b5e20;
-  /* 緑系基調 */
   --primary-light: #4c8c4a;
   --primary-dark: #003300;
   --bg-color: #f4f6f4;
   --text-color: #333;
   --error-color: #d32f2f;
   --white: #ffffff;
+  --special-color: #1565c0;
+  --special-bg: #e3f2fd;
+  --general-color: #e65100;
+  --general-bg: #fff3e0;
 }
 
 body {
@@ -24,6 +27,7 @@ body {
   min-height: 100vh;
 }
 
+/* コンテナ */
 .container-custom {
   width: 100%;
   max-width: 900px;
@@ -51,7 +55,8 @@ body {
   font-weight: 700;
 }
 
-.btn-print {
+.btn-print,
+.btn-nav {
   background-color: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.4);
   color: var(--white);
@@ -60,9 +65,11 @@ body {
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.2s;
+  text-decoration: none;
 }
 
-.btn-print:hover {
+.btn-print:hover,
+.btn-nav:hover {
   background-color: rgba(255, 255, 255, 0.3);
 }
 
@@ -139,7 +146,7 @@ body {
   padding: 1.5rem;
 }
 
-/* テーブル */
+/* テーブル共通 */
 .table-container {
   overflow-x: auto;
   margin-bottom: 2rem;
@@ -185,6 +192,101 @@ tr:hover {
   color: var(--primary-dark);
 }
 
+.row-zero-tax {
+  background-color: #f5f5f5;
+}
+
+.row-zero-tax td {
+  color: #999;
+}
+
+/* 早見表テーブル */
+.tax-table-section {
+  margin-bottom: 2rem;
+}
+
+.table-section-title {
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin: 0 0 0.75rem 0;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+}
+
+.table-section-title.special {
+  background-color: var(--special-bg);
+  color: var(--special-color);
+  border-left: 4px solid var(--special-color);
+}
+
+.table-section-title.general {
+  background-color: var(--general-bg);
+  color: var(--general-color);
+  border-left: 4px solid var(--general-color);
+}
+
+.tax-table-single {
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+.tax-table-single th,
+.tax-table-single td {
+  border: 1px solid #ddd;
+  text-align: center;
+  padding: 10px 15px;
+}
+
+.tax-table-single .col-amount {
+  text-align: left;
+  font-weight: bold;
+  color: var(--primary-color);
+  background-color: #f9f9f9;
+}
+
+.header-special {
+  background-color: var(--special-bg) !important;
+  color: var(--special-color) !important;
+}
+
+.header-general {
+  background-color: var(--general-bg) !important;
+  color: var(--general-color) !important;
+}
+
+.table-common-note {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.table-note {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0.5rem 0 0 0;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.table-note.note-special {
+  color: var(--special-color);
+  background-color: #f5f9ff;
+}
+
+.table-note.note-general {
+  color: var(--general-color);
+  background-color: #fffaf5;
+}
+
+/* 早見表ページ */
+.table-page {
+  max-width: 1000px;
+  page: table-page;
+}
+
 /* グラフエリア */
 .chart-container-custom {
   position: relative;
@@ -192,12 +294,78 @@ tr:hover {
   width: 100%;
 }
 
+/* 印刷用フッター */
+.print-footer {
+  margin-top: 2rem;
+  padding: 1rem;
+  border-top: 1px solid #ddd;
+  background-color: #fafafa;
+}
+
+.print-footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.print-footer-company {
+  flex: 1;
+}
+
+.print-footer-company p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.print-footer-company .company-name {
+  font-weight: bold;
+  font-size: 1rem;
+  color: var(--primary-color);
+}
+
+.print-footer-meta {
+  text-align: right;
+}
+
+.staff-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.staff-input-wrapper label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.staff-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 150px;
+}
+
+.print-date {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* A3印刷用ページ設定 */
+@page table-page {
+  size: A3 portrait;
+  margin: 10mm;
+}
+
 /* 印刷用スタイル */
 @media print {
   @page {
     size: A4 portrait;
     margin: 5mm;
-    /* マージンを最小限に */
   }
 
   html,
@@ -221,14 +389,12 @@ tr:hover {
     border: none !important;
   }
 
-  /* 非表示要素 */
   .btn-print,
-  .btn-calc,
-  .input-section noscript {
+  .btn-nav,
+  .btn-calc {
     display: none !important;
   }
 
-  /* 入力セクションの簡素化 */
   .input-section {
     padding: 5px 0 !important;
     border-bottom: 1px solid #ccc;
@@ -262,7 +428,6 @@ tr:hover {
     width: auto;
   }
 
-  /* ヘッダー */
   .header-custom {
     padding: 10px 0 !important;
     color: #000 !important;
@@ -275,18 +440,15 @@ tr:hover {
     color: var(--primary-color);
   }
 
-  /* 結果セクション */
   .result-section {
     padding: 10px 0 !important;
   }
 
-  /* グラフ調整 - はみ出し防止のためサイズ固定 */
   .chart-container-custom {
     page-break-inside: avoid;
     height: 300px !important;
     width: 100% !important;
     max-width: 170mm !important;
-    /* A4の印刷可能範囲に強制的に収める */
     margin: 10px auto !important;
     position: relative !important;
   }
@@ -298,7 +460,6 @@ tr:hover {
     max-height: 100% !important;
   }
 
-  /* テーブル調整 */
   .table-container {
     margin-bottom: 10px;
     width: 100% !important;
@@ -306,29 +467,99 @@ tr:hover {
 
   table {
     font-size: 9pt !important;
-    /* フォントサイズ縮小 */
     width: 100% !important;
   }
 
   th,
   td {
     padding: 4px 6px !important;
-    /* パディング縮小 */
     white-space: nowrap;
-    /* 不自然な改行防止 */
   }
 
-  /* 注釈 */
   p {
     font-size: 8pt !important;
   }
 
-  /* 全体の縮小 (安全策) */
-  body {
+  /* シミュレーターページ用縮小 */
+  body:not(:has(.table-page)) {
     transform: scale(0.95);
-    /* 全体を95%に縮小して余裕を持たせる */
     transform-origin: top left;
     width: 105%;
-    /* 縮小分横幅を広げる */
+  }
+
+  /* 早見表ページ */
+  .table-page {
+    max-width: 100% !important;
+  }
+
+  .table-page .tax-table-section {
+    margin-bottom: 1.5rem;
+    page-break-inside: avoid;
+  }
+
+  .table-page .table-section-title {
+    font-size: 12pt !important;
+    margin-bottom: 0.5rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .table-page .table-common-note {
+    font-size: 9pt !important;
+    margin-bottom: 1rem;
+    padding: 0.3rem;
+  }
+
+  .table-page .table-note {
+    font-size: 8pt !important;
+    margin-top: 0.3rem;
+    padding: 0.3rem;
+  }
+
+  .table-page .tax-table-single th,
+  .table-page .tax-table-single td {
+    padding: 4px 8px !important;
+    font-size: 9pt !important;
+  }
+
+  /* 印刷用フッター */
+  .print-footer {
+    margin-top: 1rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid #999;
+    background-color: transparent;
+  }
+
+  .print-footer-content {
+    gap: 1rem;
+  }
+
+  .print-footer-company p {
+    font-size: 9pt !important;
+    margin: 0.15rem 0;
+  }
+
+  .print-footer-company .company-name {
+    font-size: 10pt !important;
+  }
+
+  .staff-input-wrapper {
+    margin-bottom: 0.3rem;
+  }
+
+  .staff-input-wrapper label,
+  .staff-input {
+    font-size: 9pt !important;
+  }
+
+  .staff-input {
+    border: none;
+    border-bottom: 1px solid #333;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .print-date {
+    font-size: 9pt !important;
   }
 }
