@@ -47,7 +47,7 @@ export const PATTERNS = [
     { name: "一括贈与", div: 1 },
     { name: "2年分割", div: 2 },
     { name: "4年分割", div: 4 }
-];
+] as const;
 
 /**
  * 税額計算ロジック (1回あたり)
@@ -56,14 +56,10 @@ export function calcTaxOneTime(amount: number, type: GiftType): number {
     const taxable = amount - BASIC_DEDUCTION;
     if (taxable <= 0) return 0;
 
-    const rates = (type === 'special') ? SPECIAL_RATES : GENERAL_RATES;
+    const rates = type === 'special' ? SPECIAL_RATES : GENERAL_RATES;
+    const rate = rates.find(r => taxable <= r.limit);
 
-    for (const r of rates) {
-        if (taxable <= r.limit) {
-            return Math.floor(taxable * r.rate) - r.deduction;
-        }
-    }
-    return 0;
+    return rate ? Math.floor(taxable * rate.rate) - rate.deduction : 0;
 }
 
 /**

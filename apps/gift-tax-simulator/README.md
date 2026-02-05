@@ -1,30 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 贈与税 比較Webアプリ
 
-## Getting Started
+贈与税の税額をシミュレーションし、一括贈与と分割贈与を比較するWebアプリケーションです。
 
-First, run the development server with Docker:
+## 機能
+
+- 贈与金額に対する税額計算
+- 一般贈与・特例贈与の切り替え
+- 一括贈与 / 2年分割 / 4年分割の比較
+- 実効税率の表示
+- グラフによる視覚的な比較
+- 印刷機能
+
+## 技術スタック
+
+- **Framework**: Next.js 16
+- **Language**: TypeScript
+- **UI**: React 19
+- **Chart**: Chart.js + react-chartjs-2
+- **Styling**: Tailwind CSS 4
+
+## 開発環境のセットアップ
+
+### Docker（推奨）
 
 ```bash
-docker compose up -d --build
+# 開発サーバー起動
+docker compose --profile dev up
+
+# バックグラウンドで起動
+docker compose --profile dev up -d
+
+# ログ確認
+docker compose logs -f
+
+# 停止
+docker compose --profile dev down
 ```
 
-Open [http://localhost:3001/gift-tax-simulator](http://localhost:3001/gift-tax-simulator) with your browser to see the result.
+### ローカル
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 本番環境
 
-## Learn More
+```bash
+# ビルドと起動
+docker compose --profile prod up -d
 
-To learn more about Next.js, take a look at the following resources:
+# 停止
+docker compose --profile prod down
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## アクセス
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+開発・本番ともに以下のURLでアクセスできます：
 
-## Deploy on Vercel
+http://localhost:3001/gift-tax-simulator/
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## プロジェクト構成
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+├── app/
+│   ├── layout.tsx          # ルートレイアウト
+│   ├── page.tsx            # メインページ
+│   └── globals.css         # グローバルスタイル
+├── components/
+│   ├── Header.tsx          # ヘッダー（印刷ボタン）
+│   ├── InputSection.tsx    # 入力フォーム
+│   ├── ResultSection.tsx   # 結果表示
+│   ├── TaxTable.tsx        # 税額テーブル
+│   └── TaxChart.tsx        # 棒グラフ
+├── lib/
+│   ├── tax-calculation.ts  # 税額計算ロジック
+│   └── utils.ts            # ユーティリティ関数
+├── Dockerfile
+├── docker-compose.yml
+└── package.json
+```
+
+## 税額計算について
+
+- 基礎控除: 110万円
+- 税率表: 国税庁の速算表に基づく
+- 特例贈与: 直系尊属から18歳以上への贈与
+- 一般贈与: その他の贈与
+
+## ライセンス
+
+Private

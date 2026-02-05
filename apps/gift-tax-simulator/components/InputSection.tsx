@@ -1,7 +1,7 @@
 "use client";
 
-import React from 'react';
-import { GiftType } from '@/lib/tax-calculation';
+import { useCallback, type ChangeEvent, type KeyboardEvent } from 'react';
+import { type GiftType } from '@/lib/tax-calculation';
 import { normalizeNumberString } from '@/lib/utils';
 
 type Props = {
@@ -13,33 +13,24 @@ type Props = {
     errorMsg: string;
 };
 
-const InputSection: React.FC<Props> = ({
+const InputSection = ({
     amount,
     setAmount,
     giftType,
     setGiftType,
     onCalculate,
     errorMsg
-}) => {
+}: Props) => {
+    const handleAmountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        const normalized = normalizeNumberString(e.target.value);
+        setAmount(normalized ? Number(normalized).toLocaleString() : '');
+    }, [setAmount]);
 
-    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        const normalized = normalizeNumberString(val);
-
-        if (!normalized) {
-            setAmount('');
-            return;
-        }
-
-        // カンマ区切りで表示
-        setAmount(Number(normalized).toLocaleString());
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             onCalculate();
         }
-    };
+    }, [onCalculate]);
 
     return (
         <div className="input-section">

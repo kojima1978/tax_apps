@@ -1,6 +1,5 @@
 "use client";
 
-import React from 'react';
 import { CalculationResult } from '@/lib/tax-calculation';
 import { formatCurrency, formatPercent } from '@/lib/utils';
 
@@ -8,7 +7,7 @@ type Props = {
     results: CalculationResult[];
 };
 
-const TaxTable: React.FC<Props> = ({ results }) => {
+const TaxTable = ({ results }: Props) => {
     return (
         <div className="table-container">
             <table>

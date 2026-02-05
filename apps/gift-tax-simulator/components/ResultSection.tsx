@@ -1,6 +1,5 @@
 "use client";
 
-import React from 'react';
 import TaxTable from './TaxTable';
 import TaxChart from './TaxChart';
 import { CalculationResult } from '@/lib/tax-calculation';
@@ -9,7 +8,7 @@ type Props = {
     results: CalculationResult[] | null;
 };
 
-const ResultSection: React.FC<Props> = ({ results }) => {
+const ResultSection = ({ results }: Props) => {
     if (!results) {
         return null;
     }

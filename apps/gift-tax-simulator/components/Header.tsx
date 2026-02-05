@@ -1,12 +1,8 @@
 "use client";
 
-import React from 'react';
-
-const Header: React.FC = () => {
+const Header = () => {
     const handlePrint = () => {
-        if (typeof window !== 'undefined') {
-            window.print();
-        }
+        window.print();
     };
 
     return (
