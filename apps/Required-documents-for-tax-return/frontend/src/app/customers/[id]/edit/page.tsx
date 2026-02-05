@@ -35,15 +35,11 @@ export default function EditCustomerPage() {
             const target = customers.find(c => c.id === id);
             if (target) {
                 setName(target.customer_name);
-                // The current API might not return staff_id in the customer object directly if it's joined?
-                // Looking at types.ts or previous usages might help.
-                // Assuming customer object has staff_id or we can infer it.
-                // Re-checking types from context or just assuming standard structure.
-                // If type definition is missing staff_id, we might need to find it by staff_name or fix backend.
-                // Let's assume consistent backend response for now or find by name.
-                const staff = staffData.find(s => s.staff_name === target.staff_name);
-                if (staff) {
-                    setStaffId(staff.id);
+                if (target.staff_id) {
+                    setStaffId(target.staff_id);
+                } else {
+                    const staff = staffData.find(s => s.staff_name === target.staff_name);
+                    if (staff) setStaffId(staff.id);
                 }
             } else {
                 setError('お客様が見つかりませんでした');

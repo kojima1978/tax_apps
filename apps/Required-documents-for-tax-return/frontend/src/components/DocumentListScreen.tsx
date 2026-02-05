@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -17,31 +17,31 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { ArrowLeft, Printer, Save, Copy, Loader2, FileSpreadsheet, Check, RotateCcw, PlusCircle, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, PlusCircle, RefreshCcw } from 'lucide-react';
 import { exportToExcel } from '@/utils/exportExcel';
 import { CategoryGroup } from '@/types';
 import { SortableCategory } from './document-list/SortableCategory';
 import { formatDate } from '@/utils/date';
-import { fetchStaff, fetchCustomerNames } from '@/utils/api';
+import { fetchStaff } from '@/utils/api';
 import { taxReturnData, replaceYearPlaceholder } from '@/data/taxReturnData';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
+import { useDocumentListEditing } from '@/hooks/useDocumentListEditing';
+import { exportCustomerJson, readJsonFile, validateCustomerImport, CustomerExport } from '@/utils/jsonExportImport';
 
 interface DocumentListScreenProps {
   year: number;
   documentGroups: CategoryGroup[];
   onDocumentGroupsChange: (groups: CategoryGroup[]) => void;
   onBack: () => void;
-  onYearChange: (year: number) => void;
   customerName: string;
   staffName: string;
-  onCustomerNameChange: (name: string) => void;
-  onStaffNameChange: (name: string) => void;
   onSave: () => Promise<void>;
   onLoad: () => Promise<void>;
   onCopyToNextYear: () => Promise<void>;
   isSaving: boolean;
   isLoading: boolean;
   lastSaved: Date | null;
+  saveError?: string | null;
 }
 
 export default function DocumentListScreen({
@@ -49,57 +49,27 @@ export default function DocumentListScreen({
   documentGroups,
   onDocumentGroupsChange,
   onBack,
-  onYearChange,
   customerName,
   staffName,
-  onCustomerNameChange,
-  onStaffNameChange,
   onSave,
   onLoad,
   onCopyToNextYear,
   isSaving,
   isLoading,
   lastSaved,
+  saveError,
 }: DocumentListScreenProps) {
   const [printLayout, setPrintLayout] = useState<'single' | 'double'>('single');
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
-    const expanded: Record<string, boolean> = {};
-    documentGroups.forEach((group) => {
-      expanded[group.id] = true;
-    });
-    return expanded;
-  });
-  const [editingDocId, setEditingDocId] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
-  const [addingToGroupId, setAddingToGroupId] = useState<string | null>(null);
-  const [newDocText, setNewDocText] = useState('');
-  const [addingNewCategory, setAddingNewCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [editCategoryName, setEditCategoryName] = useState('');
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  // サブアイテム用の状態
-  const [editingSubItemId, setEditingSubItemId] = useState<string | null>(null);
-  const [editSubItemText, setEditSubItemText] = useState('');
-  const [addingSubItemToDocId, setAddingSubItemToDocId] = useState<string | null>(null);
-  const [newSubItemText, setNewSubItemText] = useState('');
 
   // Staff list for dropdown
-  const [staffList, setStaffList] = useState<{ id: number, staff_name: string }[]>([]);
-  const [customerNames, setCustomerNames] = useState<string[]>([]);
+  const [staffList, setStaffList] = useState<{ id: number; staff_name: string; mobile_number?: string | null }[]>([]);
 
   useEffect(() => {
-    fetchStaff().then(data => setStaffList(data));
+    fetchStaff().then((data) => setStaffList(data));
   }, []);
 
-  useEffect(() => {
-    if (staffName) {
-      fetchCustomerNames(staffName).then(names => setCustomerNames(names));
-    } else {
-      setCustomerNames([]);
-    }
-  }, [staffName]);
+  // 編集状態をhookに委譲
+  const editing = useDocumentListEditing({ documentGroups, onDocumentGroupsChange });
 
   const currentDate = formatDate();
 
@@ -110,14 +80,16 @@ export default function DocumentListScreen({
     })
   );
 
+  const reiwaYear = useMemo(() => year - 2018, [year]);
+
   // カテゴリの並び替え
   const handleCategoryDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    editing.setActiveId(event.active.id as string);
   };
 
   const handleCategoryDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveId(null);
+    editing.setActiveId(null);
 
     if (over && active.id !== over.id) {
       const oldIndex = documentGroups.findIndex((g) => g.id === active.id);
@@ -142,292 +114,58 @@ export default function DocumentListScreen({
     onDocumentGroupsChange(newGroups);
   };
 
-  // カテゴリの展開/折りたたみ
-  const toggleGroup = (groupId: string) => {
-    setExpandedGroups((prev) => ({
-      ...prev,
-      [groupId]: !prev[groupId],
-    }));
-  };
-
-  // 書類のチェック状態を切り替え
-  const toggleDocumentCheck = (groupId: string, docId: string) => {
-    const newGroups = documentGroups.map((group) => {
-      if (group.id === groupId) {
-        return {
-          ...group,
-          documents: group.documents.map((doc) =>
-            doc.id === docId ? { ...doc, checked: !doc.checked } : doc
-          ),
-        };
-      }
-      return group;
-    });
-    onDocumentGroupsChange(newGroups);
-  };
-
-  // 書類の編集開始
-  const startEditDocument = (docId: string, currentText: string) => {
-    setEditingDocId(docId);
-    setEditText(currentText);
-  };
-
-  // 書類の編集保存
-  const saveEditDocument = (groupId: string) => {
-    if (!editText.trim()) return;
-    const newGroups = documentGroups.map((group) => {
-      if (group.id === groupId) {
-        return {
-          ...group,
-          documents: group.documents.map((doc) =>
-            doc.id === editingDocId ? { ...doc, text: editText } : doc
-          ),
-        };
-      }
-      return group;
-    });
-    onDocumentGroupsChange(newGroups);
-    setEditingDocId(null);
-    setEditText('');
-  };
-
-  // 書類の編集キャンセル
-  const cancelEditDocument = () => {
-    setEditingDocId(null);
-    setEditText('');
-  };
-
-  // 書類の削除
-  const deleteDocument = (groupId: string, docId: string) => {
-    if (!confirm('この書類を削除してもよろしいですか？')) return;
-    const newGroups = documentGroups.map((group) => {
-      if (group.id === groupId) {
-        return {
-          ...group,
-          documents: group.documents.filter((doc) => doc.id !== docId),
-        };
-      }
-      return group;
-    });
-    onDocumentGroupsChange(newGroups);
-  };
-
-  // 書類の追加開始
-  const startAddDocument = (groupId: string) => {
-    setAddingToGroupId(groupId);
-    setNewDocText('');
-  };
-
-  // 書類の追加
-  const addDocument = (groupId: string) => {
-    if (!newDocText.trim()) return;
-    const newDocId = `doc_${Date.now()}`;
-    const newGroups = documentGroups.map((group) => {
-      if (group.id === groupId) {
-        return {
-          ...group,
-          documents: [
-            ...group.documents,
-            { id: newDocId, text: newDocText, checked: false, subItems: [] },
-          ],
-        };
-      }
-      return group;
-    });
-    onDocumentGroupsChange(newGroups);
-    setAddingToGroupId(null);
-    setNewDocText('');
-  };
-
-  // 書類の追加キャンセル
-  const cancelAddDocument = () => {
-    setAddingToGroupId(null);
-    setNewDocText('');
-  };
-
-  // カテゴリの追加
-  const addCategory = () => {
-    if (!newCategoryName.trim()) return;
-    const newGroupId = `custom_${Date.now()}`;
-    const newGroup: CategoryGroup = {
-      id: newGroupId,
-      category: newCategoryName,
-      documents: [],
-    };
-    onDocumentGroupsChange([...documentGroups, newGroup]);
-    setExpandedGroups((prev) => ({ ...prev, [newGroupId]: true }));
-    setAddingNewCategory(false);
-    setNewCategoryName('');
-  };
-
-  // カテゴリ名の編集開始
-  const startEditCategory = (groupId: string, currentName: string) => {
-    setEditingCategoryId(groupId);
-    setEditCategoryName(currentName);
-  };
-
-  // カテゴリ名の編集保存
-  const saveEditCategory = () => {
-    if (!editCategoryName.trim()) return;
-    const newGroups = documentGroups.map((group) => {
-      if (group.id === editingCategoryId) {
-        return { ...group, category: editCategoryName };
-      }
-      return group;
-    });
-    onDocumentGroupsChange(newGroups);
-    setEditingCategoryId(null);
-    setEditCategoryName('');
-  };
-
-  // カテゴリ名の編集キャンセル
-  const cancelEditCategory = () => {
-    setEditingCategoryId(null);
-    setEditCategoryName('');
-  };
-
-  // カテゴリの削除
-  const deleteCategory = (groupId: string) => {
-    if (!confirm('このカテゴリとその中の全ての書類を削除してもよろしいですか？')) return;
-    onDocumentGroupsChange(documentGroups.filter((g) => g.id !== groupId));
-  };
-
-  // 小項目のチェック切り替え
-  const toggleSubItemCheck = (groupId: string, docId: string, subItemId: string) => {
-    const newGroups = documentGroups.map((group) => {
-      if (group.id === groupId) {
-        return {
-          ...group,
-          documents: group.documents.map((doc) => {
-            if (doc.id === docId && doc.subItems) {
-              return {
-                ...doc,
-                subItems: doc.subItems.map((sub) =>
-                  sub.id === subItemId ? { ...sub, checked: !sub.checked } : sub
-                ),
-              };
-            }
-            return doc;
-          }),
-        };
-      }
-      return group;
-    });
-    onDocumentGroupsChange(newGroups);
-  };
-
-  // 小項目の編集開始
-  const startEditSubItem = (subItemId: string, currentText: string) => {
-    setEditingSubItemId(subItemId);
-    setEditSubItemText(currentText);
-  };
-
-  // 小項目の編集保存
-  const saveEditSubItem = (groupId: string, docId: string) => {
-    if (!editSubItemText.trim()) return;
-    const newGroups = documentGroups.map((group) => {
-      if (group.id === groupId) {
-        return {
-          ...group,
-          documents: group.documents.map((doc) => {
-            if (doc.id === docId && doc.subItems) {
-              return {
-                ...doc,
-                subItems: doc.subItems.map((sub) =>
-                  sub.id === editingSubItemId ? { ...sub, text: editSubItemText } : sub
-                ),
-              };
-            }
-            return doc;
-          }),
-        };
-      }
-      return group;
-    });
-    onDocumentGroupsChange(newGroups);
-    setEditingSubItemId(null);
-    setEditSubItemText('');
-  };
-
-  // 小項目の編集キャンセル
-  const cancelEditSubItem = () => {
-    setEditingSubItemId(null);
-    setEditSubItemText('');
-  };
-
-  // 小項目の削除
-  const deleteSubItem = (groupId: string, docId: string, subItemId: string) => {
-    if (!confirm('この小項目を削除してもよろしいですか？')) return;
-    const newGroups = documentGroups.map((group) => {
-      if (group.id === groupId) {
-        return {
-          ...group,
-          documents: group.documents.map((doc) => {
-            if (doc.id === docId && doc.subItems) {
-              return {
-                ...doc,
-                subItems: doc.subItems.filter((sub) => sub.id !== subItemId),
-              };
-            }
-            return doc;
-          }),
-        };
-      }
-      return group;
-    });
-    onDocumentGroupsChange(newGroups);
-  };
-
-  // 小項目の追加開始
-  const startAddSubItem = (docId: string) => {
-    setAddingSubItemToDocId(docId);
-    setNewSubItemText('');
-  };
-
-  // 小項目の追加
-  const addSubItem = (groupId: string, docId: string) => {
-    if (!newSubItemText.trim()) return;
-    const newSubItemId = `sub_${Date.now()}`;
-    const newGroups = documentGroups.map((group) => {
-      if (group.id === groupId) {
-        return {
-          ...group,
-          documents: group.documents.map((doc) => {
-            if (doc.id === docId) {
-              const currentSubItems = doc.subItems || [];
-              return {
-                ...doc,
-                subItems: [
-                  ...currentSubItems,
-                  { id: newSubItemId, text: newSubItemText, checked: false },
-                ],
-              };
-            }
-            return doc;
-          }),
-        };
-      }
-      return group;
-    });
-    onDocumentGroupsChange(newGroups);
-    setAddingSubItemToDocId(null);
-    setNewSubItemText('');
-  };
-
-  // 小項目の追加キャンセル
-  const cancelAddSubItem = () => {
-    setAddingSubItemToDocId(null);
-    setNewSubItemText('');
-  };
-
   const handlePrint = () => {
     window.print();
   };
 
   const handleExportExcel = () => {
-    const currentStaff = staffList.find(s => s.staff_name === staffName);
+    const currentStaff = staffList.find((s) => s.staff_name === staffName);
     exportToExcel(documentGroups, year, customerName, staffName, currentStaff?.mobile_number || undefined);
   };
+
+  // JSON入出力
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
+  const [isJsonImporting, setIsJsonImporting] = useState(false);
+
+  const handleExportJson = () => {
+    exportCustomerJson(customerName, staffName, year, documentGroups);
+  };
+
+  const handleImportJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsJsonImporting(true);
+    try {
+      const rawData = await readJsonFile(file);
+      const validation = validateCustomerImport(rawData);
+      if (!validation.isValid) {
+        alert(validation.error);
+        return;
+      }
+
+      const parsed = rawData as CustomerExport;
+      const importedData = parsed.data;
+
+      if (!confirm(
+        `「${importedData.customer_name}」の令和${importedData.year - 2018}年のデータをインポートします。\n` +
+        `現在の編集内容は上書きされます。よろしいですか？`
+      )) return;
+
+      onDocumentGroupsChange(importedData.document_groups);
+      alert('JSONデータをインポートしました。保存ボタンを押すとデータベースに反映されます。');
+    } catch (error) {
+      alert('JSONインポートに失敗しました: ' + (error instanceof Error ? error.message : ''));
+    } finally {
+      setIsJsonImporting(false);
+      if (jsonFileInputRef.current) jsonFileInputRef.current.value = '';
+    }
+  };
+
+  const currentStaffMobile = useMemo(
+    () => staffList.find((s) => s.staff_name === staffName)?.mobile_number,
+    [staffList, staffName]
+  );
 
   return (
     <div className="bg-slate-50 min-h-screen">
@@ -439,13 +177,14 @@ export default function DocumentListScreen({
               <button
                 onClick={onBack}
                 className="mr-3 p-2 rounded-full hover:bg-slate-100 text-slate-500"
+                aria-label="メニューに戻る"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <h1 className="text-xl font-bold text-slate-800">必要書類リスト作成</h1>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2" role="toolbar" aria-label="操作ツールバー">
               <button
                 onClick={onLoad}
                 disabled={isLoading || !customerName || !staffName}
@@ -491,7 +230,7 @@ export default function DocumentListScreen({
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
               <div className="flex items-center">
                 <span className="text-xs font-bold text-slate-500 mr-2">対象年度:</span>
-                <span className="text-sm font-bold text-slate-800">令和{year - 2018}年分</span>
+                <span className="text-sm font-bold text-slate-800">令和{reiwaYear}年分</span>
               </div>
               <div className="flex items-center">
                 <span className="text-xs font-bold text-slate-500 mr-2">お客様:</span>
@@ -505,8 +244,13 @@ export default function DocumentListScreen({
           </div>
 
           <div className="mt-3 flex items-center justify-between">
-            <div className="text-xs text-slate-500">
-              {lastSaved ? (
+            <div className="text-xs text-slate-500" aria-live="polite">
+              {saveError ? (
+                <span className="flex items-center text-red-600">
+                  <span className="w-3 h-3 mr-1 font-bold">!</span>
+                  保存エラー: {saveError}
+                </span>
+              ) : lastSaved ? (
                 <span className="flex items-center text-emerald-600">
                   <Check className="w-3 h-3 mr-1" />
                   保存済み: {lastSaved.toLocaleTimeString()}
@@ -516,18 +260,22 @@ export default function DocumentListScreen({
               )}
             </div>
             <div className="flex space-x-2">
-              <div className="flex bg-white border border-slate-300 rounded overflow-hidden mr-2">
+              <div className="flex bg-white border border-slate-300 rounded overflow-hidden mr-2" role="radiogroup" aria-label="印刷レイアウト">
                 <button
                   onClick={() => setPrintLayout('single')}
                   className={`px-3 py-1.5 text-xs font-medium ${printLayout === 'single' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                  role="radio"
+                  aria-checked={printLayout === 'single'}
                   title="1列で印刷"
                 >
                   1列
                 </button>
-                <div className="w-px bg-slate-300"></div>
+                <div className="w-px bg-slate-300" aria-hidden="true"></div>
                 <button
                   onClick={() => setPrintLayout('double')}
                   className={`px-3 py-1.5 text-xs font-medium ${printLayout === 'double' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                  role="radio"
+                  aria-checked={printLayout === 'double'}
                   title="2列で印刷"
                 >
                   2列
@@ -556,6 +304,30 @@ export default function DocumentListScreen({
                 <FileSpreadsheet className="w-3 h-3 mr-1" />
                 Excel出力
               </button>
+              <button
+                onClick={handleExportJson}
+                className="flex items-center px-3 py-1.5 text-xs bg-amber-600 text-white rounded hover:bg-amber-700"
+                title="JSONファイルとしてエクスポート"
+              >
+                <FileJson className="w-3 h-3 mr-1" />
+                JSON出力
+              </button>
+              <button
+                onClick={() => jsonFileInputRef.current?.click()}
+                disabled={isJsonImporting}
+                className="flex items-center px-3 py-1.5 text-xs bg-white border border-slate-300 text-slate-600 rounded hover:bg-slate-50 disabled:opacity-50"
+                title="JSONファイルからインポート"
+              >
+                <Upload className="w-3 h-3 mr-1" />
+                {isJsonImporting ? '読込中...' : 'JSON読込'}
+              </button>
+              <input
+                ref={jsonFileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImportJson}
+                className="hidden"
+              />
             </div>
           </div>
         </div>
@@ -566,7 +338,7 @@ export default function DocumentListScreen({
         <div className="flex justify-between items-end">
           <div className="flex flex-col">
             <div className="text-left mb-0.5">
-              <p className="text-xs">対象年度: <span className="font-bold text-sm">令和{year - 2018}年分</span></p>
+              <p className="text-xs">対象年度: <span className="font-bold text-sm">令和{reiwaYear}年分</span></p>
             </div>
             <h1 className="text-2xl font-bold mb-1">確定申告 必要書類確認リスト</h1>
             <div className="flex items-end gap-2 mb-1">
@@ -579,8 +351,8 @@ export default function DocumentListScreen({
             <p className="font-bold text-sm text-slate-800">{taxReturnData.contactInfo.office}</p>
             <p>{taxReturnData.contactInfo.address}</p>
             <p>TEL: {taxReturnData.contactInfo.tel}</p>
-            {staffList.find(s => s.staff_name === staffName)?.mobile_number && (
-              <p>携帯: {staffList.find(s => s.staff_name === staffName)?.mobile_number}</p>
+            {currentStaffMobile && (
+              <p>携帯: {currentStaffMobile}</p>
             )}
             <p className="mt-1 text-sm text-slate-800">担当者: <span className="font-bold">{staffName}</span></p>
           </div>
@@ -603,47 +375,46 @@ export default function DocumentListScreen({
                 <div key={group.id} className="print:mb-1">
                   <SortableCategory
                     group={group}
-                    isExpanded={expandedGroups[group.id] || false}
-                    onToggleExpand={() => toggleGroup(group.id)}
-                    onToggleDocumentCheck={(groupId, docId) => toggleDocumentCheck(groupId, docId)}
-                    onDeleteDocument={deleteDocument}
-                    onStartEditDocument={startEditDocument}
-                    editingDocId={editingDocId}
-                    editText={editText}
-                    onEditTextChange={setEditText}
-                    onSaveEditDocument={() => saveEditDocument(group.id)}
-                    onCancelEditDocument={cancelEditDocument}
+                    isExpanded={editing.expandedGroups[group.id] || false}
+                    onToggleExpand={() => editing.toggleGroup(group.id)}
+                    onToggleDocumentCheck={(groupId, docId) => editing.toggleDocumentCheck(groupId, docId)}
+                    onDeleteDocument={editing.deleteDocument}
+                    onStartEditDocument={editing.startEditDocument}
+                    editingDocId={editing.editingDocId}
+                    editText={editing.editText}
+                    onEditTextChange={editing.setEditText}
+                    onSaveEditDocument={() => editing.saveEditDocument(group.id)}
+                    onCancelEditDocument={editing.cancelEditDocument}
                     onDocumentsReorder={(activeId, overId) =>
                       handleDocumentsReorder(group.id, activeId, overId)
                     }
-                    addingToGroupId={addingToGroupId}
-                    newDocText={newDocText}
-                    onNewDocTextChange={setNewDocText}
-                    onStartAddDocument={() => startAddDocument(group.id)}
-                    onAddDocument={() => addDocument(group.id)}
-                    onCancelAddDocument={cancelAddDocument}
-                    onDeleteCategory={() => deleteCategory(group.id)}
-                    onStartEditCategory={() => startEditCategory(group.id, group.category)}
-                    editingCategoryId={editingCategoryId}
-                    editCategoryName={editCategoryName}
-                    onEditCategoryNameChange={setEditCategoryName}
-                    onSaveEditCategory={saveEditCategory}
-                    onCancelEditCategory={cancelEditCategory}
-                    // サブアイテム用props
-                    onToggleSubItemCheck={(docId, subId) => toggleSubItemCheck(group.id, docId, subId)}
-                    onStartEditSubItem={startEditSubItem}
-                    editingSubItemId={editingSubItemId}
-                    editSubItemText={editSubItemText}
-                    onEditSubItemTextChange={setEditSubItemText}
-                    onSaveEditSubItem={saveEditSubItem}
-                    onCancelEditSubItem={cancelEditSubItem}
-                    onDeleteSubItem={deleteSubItem}
-                    onStartAddSubItem={startAddSubItem}
-                    addingSubItemToDocId={addingSubItemToDocId}
-                    newSubItemText={newSubItemText}
-                    onNewSubItemTextChange={setNewSubItemText}
-                    onAddSubItem={addSubItem}
-                    onCancelAddSubItem={cancelAddSubItem}
+                    addingToGroupId={editing.addingToGroupId}
+                    newDocText={editing.newDocText}
+                    onNewDocTextChange={editing.setNewDocText}
+                    onStartAddDocument={() => editing.startAddDocument(group.id)}
+                    onAddDocument={() => editing.addDocument(group.id)}
+                    onCancelAddDocument={editing.cancelAddDocument}
+                    onDeleteCategory={() => editing.deleteCategory(group.id)}
+                    onStartEditCategory={() => editing.startEditCategory(group.id, group.category)}
+                    editingCategoryId={editing.editingCategoryId}
+                    editCategoryName={editing.editCategoryName}
+                    onEditCategoryNameChange={editing.setEditCategoryName}
+                    onSaveEditCategory={editing.saveEditCategory}
+                    onCancelEditCategory={editing.cancelEditCategory}
+                    onToggleSubItemCheck={(docId, subId) => editing.toggleSubItemCheck(group.id, docId, subId)}
+                    onStartEditSubItem={editing.startEditSubItem}
+                    editingSubItemId={editing.editingSubItemId}
+                    editSubItemText={editing.editSubItemText}
+                    onEditSubItemTextChange={editing.setEditSubItemText}
+                    onSaveEditSubItem={editing.saveEditSubItem}
+                    onCancelEditSubItem={editing.cancelEditSubItem}
+                    onDeleteSubItem={editing.deleteSubItem}
+                    onStartAddSubItem={editing.startAddSubItem}
+                    addingSubItemToDocId={editing.addingSubItemToDocId}
+                    newSubItemText={editing.newSubItemText}
+                    onNewSubItemTextChange={editing.setNewSubItemText}
+                    onAddSubItem={editing.addSubItem}
+                    onCancelAddSubItem={editing.cancelAddSubItem}
                   />
                 </div>
               ))}
@@ -652,36 +423,36 @@ export default function DocumentListScreen({
         </DndContext>
 
         <div className="mt-8 pt-8 border-t border-slate-200 no-print">
-          {addingNewCategory ? (
+          {editing.addingNewCategory ? (
             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm animate-fade-in">
               <h3 className="font-bold text-slate-700 mb-3">新しいカテゴリを追加</h3>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  value={editing.newCategoryName}
+                  onChange={(e) => editing.setNewCategoryName(e.target.value)}
                   placeholder="カテゴリ名（例: 給与所得）"
                   className="flex-1 px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   autoFocus
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') addCategory();
+                    if (e.key === 'Enter') editing.addCategory();
                     if (e.key === 'Escape') {
-                      setAddingNewCategory(false);
-                      setNewCategoryName('');
+                      editing.setAddingNewCategory(false);
+                      editing.setNewCategoryName('');
                     }
                   }}
                 />
                 <button
-                  onClick={addCategory}
-                  disabled={!newCategoryName.trim()}
+                  onClick={editing.addCategory}
+                  disabled={!editing.newCategoryName.trim()}
                   className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 font-bold"
                 >
                   追加
                 </button>
                 <button
                   onClick={() => {
-                    setAddingNewCategory(false);
-                    setNewCategoryName('');
+                    editing.setAddingNewCategory(false);
+                    editing.setNewCategoryName('');
                   }}
                   className="px-4 py-2 bg-slate-200 text-slate-700 rounded hover:bg-slate-300"
                 >
@@ -690,73 +461,15 @@ export default function DocumentListScreen({
               </div>
 
               {/* 復元可能なカテゴリのリスト */}
-              {(() => {
-                // 現在のグループIDのセットを作成
-                const currentGroupIds = new Set(documentGroups.map(g => g.id));
-
-                // 不足しているデフォルトカテゴリを検出
-                const missingDefaults = [
-                  ...taxReturnData.baseRequired.map((g, i) => ({ id: `base_${i}`, category: g.category, original: g, type: 'base' })),
-                  ...taxReturnData.options.map(o => ({ id: `option_${o.id}`, category: `【所得】${o.label}`, original: o, type: 'option' })),
-                  ...taxReturnData.deductions.map(d => ({ id: `deduction_${d.id}`, category: `【控除】${d.label}`, original: d, type: 'deduction' }))
-                ].filter(item => !currentGroupIds.has(item.id));
-
-                if (missingDefaults.length === 0) return null;
-
-                return (
-                  <div className="mt-4 pt-4 border-t border-slate-200">
-                    <p className="text-sm text-slate-500 mb-2 font-bold mb-2 flex items-center">
-                      <RefreshCcw className="w-3 h-3 mr-1" />
-                      削除されたデフォルトカテゴリを復元:
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {missingDefaults.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            let documents: string[] = [];
-                            let note: string | undefined = undefined;
-
-                            if (item.type === 'base') {
-                              const original = item.original as { documents: string[], note?: string };
-                              documents = original.documents;
-                              note = original.note;
-                            } else {
-                              const original = item.original as { documents: string[] };
-                              documents = original.documents;
-                            }
-
-                            const newGroup: CategoryGroup = {
-                              id: item.id,
-                              category: item.category,
-                              documents: documents.map((doc, idx) => ({
-                                id: `doc_${Date.now()}_${idx}`,
-                                text: replaceYearPlaceholder(doc, year),
-                                checked: false,
-                                subItems: []
-                              })),
-                              note: note
-                            };
-
-                            onDocumentGroupsChange([...documentGroups, newGroup]);
-                            setExpandedGroups(prev => ({ ...prev, [newGroup.id]: true }));
-                            setAddingNewCategory(false);
-                            setNewCategoryName('');
-                          }}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 text-xs rounded-full border border-slate-200 hover:border-emerald-200 transition-colors flex items-center"
-                        >
-                          <PlusCircle className="w-3 h-3 mr-1" />
-                          {item.category}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
+              <MissingCategoriesRestore
+                documentGroups={documentGroups}
+                year={year}
+                onRestore={editing.restoreCategory}
+              />
             </div>
           ) : (
             <button
-              onClick={() => setAddingNewCategory(true)}
+              onClick={() => editing.setAddingNewCategory(true)}
               className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
             >
               + 新しいカテゴリを追加
@@ -769,13 +482,98 @@ export default function DocumentListScreen({
       <div className="hidden print:block mt-8 pt-8 border-t border-slate-800 text-center text-xs">
         <div className="flex justify-between items-end">
           <div className="text-left">
-            <p>※ このリストは令和{year - 2018}年分の確定申告に必要な書類の目安です。</p>
+            <p>※ このリストは令和{reiwaYear}年分の確定申告に必要な書類の目安です。</p>
             <p>※ 個別の事情により、追加の書類が必要になる場合があります。</p>
           </div>
           <div className="text-right">
             <p>作成日: {currentDate}</p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 削除されたデフォルトカテゴリの復元コンポーネント
+function MissingCategoriesRestore({
+  documentGroups,
+  year,
+  onRestore,
+}: {
+  documentGroups: CategoryGroup[];
+  year: number;
+  onRestore: (group: CategoryGroup) => void;
+}) {
+  const currentGroupIds = useMemo(() => new Set(documentGroups.map((g) => g.id)), [documentGroups]);
+
+  const missingDefaults = useMemo(() => {
+    return [
+      ...taxReturnData.baseRequired.map((g, i) => ({
+        id: `base_${i}`,
+        category: g.category,
+        original: g,
+        type: 'base' as const,
+      })),
+      ...taxReturnData.options.map((o) => ({
+        id: `option_${o.id}`,
+        category: `【所得】${o.label}`,
+        original: o,
+        type: 'option' as const,
+      })),
+      ...taxReturnData.deductions.map((d) => ({
+        id: `deduction_${d.id}`,
+        category: `【控除】${d.label}`,
+        original: d,
+        type: 'deduction' as const,
+      })),
+    ].filter((item) => !currentGroupIds.has(item.id));
+  }, [currentGroupIds]);
+
+  if (missingDefaults.length === 0) return null;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-slate-200">
+      <p className="text-sm text-slate-500 font-bold mb-2 flex items-center">
+        <RefreshCcw className="w-3 h-3 mr-1" />
+        削除されたデフォルトカテゴリを復元:
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {missingDefaults.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => {
+              let documents: string[] = [];
+              let note: string | undefined = undefined;
+
+              if (item.type === 'base') {
+                const original = item.original as { documents: string[]; note?: string };
+                documents = original.documents;
+                note = original.note;
+              } else {
+                const original = item.original as { documents: string[] };
+                documents = original.documents;
+              }
+
+              const newGroup: CategoryGroup = {
+                id: item.id,
+                category: item.category,
+                documents: documents.map((doc, idx) => ({
+                  id: `doc_${Date.now()}_${idx}`,
+                  text: replaceYearPlaceholder(doc, year),
+                  checked: false,
+                  subItems: [],
+                })),
+                note,
+              };
+
+              onRestore(newGroup);
+            }}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 text-xs rounded-full border border-slate-200 hover:border-emerald-200 transition-colors flex items-center"
+          >
+            <PlusCircle className="w-3 h-3 mr-1" />
+            {item.category}
+          </button>
+        ))}
       </div>
     </div>
   );

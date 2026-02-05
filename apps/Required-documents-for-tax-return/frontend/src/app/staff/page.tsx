@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Staff } from '@/types';
 import { fetchStaff, deleteStaff } from '@/utils/api';
-import { Plus, Trash2, Edit2, Loader2, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, Edit2, Loader2, ChevronLeft, Phone } from 'lucide-react';
 import Link from 'next/link';
 
 export default function StaffListPage() {
@@ -83,7 +83,15 @@ export default function StaffListPage() {
                                             <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold mr-4">
                                                 {staff.staff_name.charAt(0)}
                                             </div>
-                                            <span className="font-bold text-slate-700">{staff.staff_name}</span>
+                                            <div>
+                                                <span className="font-bold text-slate-700">{staff.staff_name}</span>
+                                                {staff.mobile_number && (
+                                                    <span className="ml-3 text-xs text-slate-400 inline-flex items-center">
+                                                        <Phone className="w-3 h-3 mr-1" />
+                                                        {staff.mobile_number}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Link

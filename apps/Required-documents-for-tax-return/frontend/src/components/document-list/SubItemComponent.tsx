@@ -27,7 +27,7 @@ export function SubItemComponent({
     onDelete,
 }: SubItemComponentProps) {
     return (
-        <li className="flex items-center py-1.5 pl-12 border-b border-dotted border-slate-100 last:border-0 bg-slate-50">
+        <li className="flex items-center py-1.5 pl-12 print:pl-2 print:py-0.5 border-b border-dotted border-slate-100 last:border-0 bg-slate-50">
             {isEditing ? (
                 <div className="flex items-center flex-1">
                     <span className="w-6 text-center text-xs text-slate-500 mr-2">{subIndex})</span>

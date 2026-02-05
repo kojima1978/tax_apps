@@ -1,21 +1,18 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { ChevronRight, Database, Loader2, Settings, Users, UserPlus } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ChevronRight, Database, Download, Loader2, Settings, Upload, Users, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { taxReturnData } from '@/data/taxReturnData';
 import { fetchStaff, fetchCustomerNames, fetchAvailableYears } from '@/utils/api';
-// import YearSelector from './YearSelector';
+import { exportFullBackup, importFullBackup, readJsonFile, validateFullBackupImport, FullBackupExport } from '@/utils/jsonExportImport';
 
 interface MenuScreenProps {
-  year: number;
-  onYearChange: (year: number) => void;
-  onStartEditor: () => void;
   onLoadCustomerData: (customerName: string, staffName: string, year: number) => void;
 }
 
-export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCustomerData }: MenuScreenProps) {
+export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
   const router = useRouter();
   const [staffList, setStaffList] = useState<{ id: number, staff_name: string }[]>([]);
   const [customerNames, setCustomerNames] = useState<string[]>([]);
@@ -25,7 +22,6 @@ export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCu
   const [selectedYear, setSelectedYear] = useState<number | ''>('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Default years to show if no history exists (Current year and Previous year)
   // Default years to show if no history exists (Current year and Previous year)
   const currentYear = new Date().getFullYear();
   const defaultYears = [];
@@ -90,6 +86,48 @@ export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCu
 
   const handleAddCustomer = () => {
     router.push('/customers/create');
+  };
+
+  // バックアップ/復元
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleFullExport = async () => {
+    setIsExporting(true);
+    try {
+      await exportFullBackup();
+    } catch (error) {
+      alert('バックアップのエクスポートに失敗しました: ' + (error instanceof Error ? error.message : ''));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleFullImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const rawData = await readJsonFile(file);
+      const validation = validateFullBackupImport(rawData);
+      if (!validation.isValid) {
+        alert(validation.error);
+        return;
+      }
+
+      if (!confirm('既存のデータと重複する場合は上書きされます。復元を実行しますか？')) return;
+
+      const result = await importFullBackup(rawData as FullBackupExport);
+      alert(`復元が完了しました。\n担当者: ${result.staffCount}件\nお客様: ${result.customerCount}件\n書類データ: ${result.recordCount}件`);
+      loadStaff();
+    } catch (error) {
+      alert('バックアップの復元に失敗しました: ' + (error instanceof Error ? error.message : ''));
+    } finally {
+      setIsImporting(false);
+      if (backupFileInputRef.current) backupFileInputRef.current.value = '';
+    }
   };
 
   const canLoad = selectedStaffName && selectedCustomer && selectedYear;
@@ -221,6 +259,35 @@ export default function MenuScreen({ year, onYearChange, onStartEditor, onLoadCu
                 <Settings className="w-4 h-4 mr-2" />
                 保存データ管理画面へ
               </Link>
+            </div>
+
+            {/* データバックアップ・復元 */}
+            <div className="mt-8 pt-8 border-t border-slate-200">
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  onClick={handleFullExport}
+                  disabled={isExporting}
+                  className="inline-flex items-center px-4 py-2 text-sm text-slate-600 hover:text-emerald-700 bg-white border border-slate-200 rounded-lg hover:border-emerald-300 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {isExporting ? 'エクスポート中...' : '全データバックアップ'}
+                </button>
+                <button
+                  onClick={() => backupFileInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="inline-flex items-center px-4 py-2 text-sm text-slate-600 hover:text-amber-700 bg-white border border-slate-200 rounded-lg hover:border-amber-300 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  {isImporting ? '復元中...' : 'バックアップから復元'}
+                </button>
+                <input
+                  ref={backupFileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleFullImport}
+                  className="hidden"
+                />
+              </div>
             </div>
           </>
         )}

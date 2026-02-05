@@ -162,19 +162,19 @@ export default function DataManagementPage() {
   const sortedRecords = useMemo(() => {
     const sorted = [...filteredRecords];
     sorted.sort((a, b) => {
-      let aValue: any = a[sortConfig.key];
-      let bValue: any = b[sortConfig.key];
+      const aRaw = a[sortConfig.key];
+      const bRaw = b[sortConfig.key];
 
       if (sortConfig.key === 'year') {
-        // numeric comparison
-      } else {
-        // string comparison
-        aValue = String(aValue).toLowerCase();
-        bValue = String(bValue).toLowerCase();
+        const aNum = Number(aRaw);
+        const bNum = Number(bRaw);
+        return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
       }
 
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      const aStr = String(aRaw).toLowerCase();
+      const bStr = String(bRaw).toLowerCase();
+      if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
     return sorted;
