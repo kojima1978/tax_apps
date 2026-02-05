@@ -1,0 +1,57 @@
+services:
+  dev:
+    container_name: gift-tax-simulator-dev
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3001:3000"
+    volumes:
+      - .:/app:cached
+      - node_modules:/app/node_modules
+    environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    stdin_open: true
+    tty: true
+    profiles:
+      - dev
+
+  prod:
+    container_name: gift-tax-simulator-prod
+    build:
+      context: .
+      target: runner
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3001/gift-tax-simulator/',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - prod
+
+volumes:
+  node_modules:

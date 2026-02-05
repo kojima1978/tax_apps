@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Header from '@/components/Header';
 import InputSection from '@/components/InputSection';
 import ResultSection from '@/components/ResultSection';
-import { calculateAllPatterns, GiftType, CalculationResult } from '@/lib/tax-calculation';
+import { calculateAllPatterns, type GiftType, type CalculationResult } from '@/lib/tax-calculation';
 import { normalizeNumberString } from '@/lib/utils';
 
 export default function Home() {
@@ -13,7 +13,7 @@ export default function Home() {
   const [results, setResults] = useState<CalculationResult[] | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleCalculate = () => {
+  const handleCalculate = useCallback(() => {
     setErrorMsg('');
     const rawAmount = normalizeNumberString(amount);
     const amountVal = parseInt(rawAmount, 10);
@@ -24,9 +24,8 @@ export default function Home() {
       return;
     }
 
-    const res = calculateAllPatterns(amountVal, giftType);
-    setResults(res);
-  };
+    setResults(calculateAllPatterns(amountVal, giftType));
+  }, [amount, giftType]);
 
   return (
     <div className="container-custom">
