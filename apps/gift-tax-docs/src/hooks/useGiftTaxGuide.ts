@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { giftData, type DocumentGroup, type Step, type EditableDocumentList } from '@/constants';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { giftData, STORAGE_KEYS, type DocumentGroup, type Step, type EditableDocumentList } from '@/constants';
 import { generateGiftTaxExcel } from '@/utils/excelGenerator';
 import { initializeEditableList, toDocumentGroups } from '@/utils/editableListUtils';
 
@@ -18,36 +18,46 @@ export const useGiftTaxGuide = () => {
     const [staffPhone, setStaffPhone] = useState('');
     const [customerName, setCustomerName] = useState('');
 
+    // 初期化完了フラグ（保存effectが初期値''で上書きしないようにガード）
+    const isInitialized = useRef(false);
+
     // 初期化：ストレージから読み込み
     useEffect(() => {
-        const savedStaff = localStorage.getItem('gift_tax_staff_name');
+        const savedStaff = localStorage.getItem(STORAGE_KEYS.staffName);
         if (savedStaff) setStaffName(savedStaff);
 
-        const savedPhone = localStorage.getItem('gift_tax_staff_phone');
+        const savedPhone = localStorage.getItem(STORAGE_KEYS.staffPhone);
         if (savedPhone) setStaffPhone(savedPhone);
 
-        const savedCustomer = sessionStorage.getItem('gift_tax_customer_name');
+        const savedCustomer = sessionStorage.getItem(STORAGE_KEYS.customerName);
         if (savedCustomer) setCustomerName(savedCustomer);
+
+        isInitialized.current = true;
     }, []);
 
-    // 変更検知：ストレージへ保存
+    // 変更検知：ストレージへ保存（初期化完了後のみ）
     useEffect(() => {
-        localStorage.setItem('gift_tax_staff_name', staffName);
+        if (isInitialized.current) {
+            localStorage.setItem(STORAGE_KEYS.staffName, staffName);
+        }
     }, [staffName]);
 
     useEffect(() => {
-        localStorage.setItem('gift_tax_staff_phone', staffPhone);
+        if (isInitialized.current) {
+            localStorage.setItem(STORAGE_KEYS.staffPhone, staffPhone);
+        }
     }, [staffPhone]);
 
     useEffect(() => {
-        sessionStorage.setItem('gift_tax_customer_name', customerName);
+        if (isInitialized.current) {
+            sessionStorage.setItem(STORAGE_KEYS.customerName, customerName);
+        }
     }, [customerName]);
 
     // 状態リセット
     const resetToMenu = useCallback(() => {
         setStep('menu');
         setDocumentList(initializeEditableList());
-        // 名前は保持する（ストレージ保存のため、リセットしない）
     }, []);
 
     // 結果リスト生成（メモ化）- 編集可能リストから変換
@@ -91,11 +101,6 @@ export const useGiftTaxGuide = () => {
         return isTwoColumnPrint ? twoCol : oneCol;
     }, [isTwoColumnPrint]);
 
-    // チェック済み書類があるかどうか
-    const hasCheckedDocuments = useMemo(() => {
-        return documentList.some((cat) => cat.documents.some((doc) => doc.checked));
-    }, [documentList]);
-
     return {
         // State
         step,
@@ -108,7 +113,6 @@ export const useGiftTaxGuide = () => {
         customerName,
         documentList,
         showUncheckedInPrint,
-        hasCheckedDocuments,
 
         // Handlers
         resetToMenu,

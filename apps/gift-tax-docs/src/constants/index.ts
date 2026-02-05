@@ -1,3 +1,10 @@
+// ストレージキー
+export const STORAGE_KEYS = {
+  staffName: 'gift_tax_staff_name',
+  staffPhone: 'gift_tax_staff_phone',
+  customerName: 'gift_tax_customer_name',
+} as const;
+
 // 会社情報
 export const COMPANY_INFO = {
   name: '税理士法人 マスエージェント',

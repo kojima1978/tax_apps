@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -43,30 +43,12 @@ import {
   Upload,
 } from 'lucide-react';
 import { giftData, type EditableDocumentList, type EditableDocument, type EditableCategory, type Step } from '@/constants';
-import {
-  toggleDocumentCheck,
-  toggleCategoryExpand,
-  toggleAllInCategory,
-  expandAllCategories,
-  addDocumentToCategory,
-  removeDocument,
-  updateDocumentText,
-  addSubItem,
-  removeSubItem,
-  updateSubItemText,
-  reorderDocuments,
-  reorderCategories,
-  initializeEditableList,
-  addCategory,
-  removeCategory,
-  updateCategoryName,
-  toggleCategorySpecial,
-} from '@/utils/editableListUtils';
-import { exportToJson, readJsonFile, type ExportData } from '@/utils/jsonExportImport';
+import { reorderDocuments, reorderCategories } from '@/utils/editableListUtils';
+import { useEditableListEditing, type EditingSubItem, type AddingSubItemTo } from '@/hooks/useEditableListEditing';
 
 type EditableListStepProps = {
   documentList: EditableDocumentList;
-  setDocumentList: (list: EditableDocumentList) => void;
+  setDocumentList: React.Dispatch<React.SetStateAction<EditableDocumentList>>;
   setStep: (step: Step) => void;
   resetToMenu: () => void;
   handleExcelExport: () => void;
@@ -78,7 +60,8 @@ type EditableListStepProps = {
   setCustomerName: (name: string) => void;
 };
 
-// ドラッグ可能な書類アイテムコンポーネント
+// ─── ドラッグ可能な書類アイテムコンポーネント ───
+
 type SortableDocumentItemProps = {
   doc: EditableDocument;
   categoryId: string;
@@ -91,14 +74,14 @@ type SortableDocumentItemProps = {
   onStartEdit: () => void;
   onRemove: () => void;
   onAddSubItem: () => void;
-  editingSubItem: { categoryId: string; docId: string; subItemId: string } | null;
+  editingSubItem: EditingSubItem;
   editSubItemText: string;
   setEditSubItemText: (text: string) => void;
   onStartSubItemEdit: (subItemId: string, text: string) => void;
   onConfirmSubItemEdit: () => void;
   onCancelSubItemEdit: () => void;
   onRemoveSubItem: (subItemId: string) => void;
-  addingSubItemTo: { categoryId: string; docId: string } | null;
+  addingSubItemTo: AddingSubItemTo;
   newSubItemText: string;
   setNewSubItemText: (text: string) => void;
   onConfirmAddSubItem: () => void;
@@ -168,6 +151,8 @@ const SortableDocumentItem = ({
           {...listeners}
           className="flex-shrink-0 p-1 mr-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing touch-none"
           title="ドラッグして並び替え"
+          aria-label={`${doc.text}を並び替え`}
+          aria-roledescription="ドラッグ可能な書類"
         >
           <GripVertical className="w-4 h-4" />
         </button>
@@ -180,6 +165,9 @@ const SortableDocumentItem = ({
               ? 'bg-emerald-500 border-emerald-500 text-white'
               : 'border-slate-300 hover:border-emerald-400'
           }`}
+          role="checkbox"
+          aria-checked={doc.checked}
+          aria-label={`${doc.text}を${doc.checked ? '選択解除' : '選択'}`}
         >
           {doc.checked && <Check className="w-4 h-4" />}
         </button>
@@ -194,6 +182,7 @@ const SortableDocumentItem = ({
                 onChange={(e) => setEditText(e.target.value)}
                 className="flex-grow px-3 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 autoFocus
+                aria-label="書類名を編集"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') onConfirmEdit();
                   if (e.key === 'Escape') onCancelEdit();
@@ -202,12 +191,14 @@ const SortableDocumentItem = ({
               <button
                 onClick={onConfirmEdit}
                 className="p-1 text-emerald-600 hover:bg-emerald-100 rounded"
+                aria-label="編集を確定"
               >
                 <Check className="w-5 h-5" />
               </button>
               <button
                 onClick={onCancelEdit}
                 className="p-1 text-slate-400 hover:bg-slate-100 rounded"
+                aria-label="編集をキャンセル"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -226,6 +217,7 @@ const SortableDocumentItem = ({
               onClick={onAddSubItem}
               className="p-1.5 text-blue-500 hover:bg-blue-100 rounded transition-colors"
               title="中項目を追加"
+              aria-label={`${doc.text}に中項目を追加`}
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -233,6 +225,7 @@ const SortableDocumentItem = ({
               onClick={onStartEdit}
               className="p-1.5 text-slate-500 hover:bg-slate-200 rounded transition-colors"
               title="編集"
+              aria-label={`${doc.text}を編集`}
             >
               <Edit3 className="w-4 h-4" />
             </button>
@@ -240,6 +233,7 @@ const SortableDocumentItem = ({
               onClick={onRemove}
               className="p-1.5 text-red-500 hover:bg-red-100 rounded transition-colors"
               title="削除"
+              aria-label={`${doc.text}を削除`}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -255,7 +249,7 @@ const SortableDocumentItem = ({
               key={subItem.id}
               className="flex items-center p-2 pl-3 bg-slate-100 rounded-lg border-l-2 border-slate-300"
             >
-              <CornerDownRight className="w-3 h-3 text-slate-400 mr-2 flex-shrink-0" />
+              <CornerDownRight className="w-3 h-3 text-slate-400 mr-2 flex-shrink-0" aria-hidden="true" />
               {editingSubItem?.subItemId === subItem.id ? (
                 <div className="flex items-center gap-2 flex-grow">
                   <input
@@ -264,6 +258,7 @@ const SortableDocumentItem = ({
                     onChange={(e) => setEditSubItemText(e.target.value)}
                     className="flex-grow px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     autoFocus
+                    aria-label="中項目を編集"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') onConfirmSubItemEdit();
                       if (e.key === 'Escape') onCancelSubItemEdit();
@@ -272,12 +267,14 @@ const SortableDocumentItem = ({
                   <button
                     onClick={onConfirmSubItemEdit}
                     className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                    aria-label="編集を確定"
                   >
                     <Check className="w-4 h-4" />
                   </button>
                   <button
                     onClick={onCancelSubItemEdit}
                     className="p-1 text-slate-400 hover:bg-slate-200 rounded"
+                    aria-label="編集をキャンセル"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -290,6 +287,7 @@ const SortableDocumentItem = ({
                       onClick={() => onStartSubItemEdit(subItem.id, subItem.text)}
                       className="p-1 text-slate-400 hover:bg-slate-200 rounded transition-colors"
                       title="編集"
+                      aria-label={`${subItem.text}を編集`}
                     >
                       <Edit3 className="w-3 h-3" />
                     </button>
@@ -297,6 +295,7 @@ const SortableDocumentItem = ({
                       onClick={() => onRemoveSubItem(subItem.id)}
                       className="p-1 text-red-400 hover:bg-red-100 rounded transition-colors"
                       title="削除"
+                      aria-label={`${subItem.text}を削除`}
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -311,7 +310,7 @@ const SortableDocumentItem = ({
       {/* 中項目追加フォーム */}
       {addingSubItemTo?.categoryId === categoryId && addingSubItemTo?.docId === doc.id && (
         <div className="ml-9 mt-1 flex items-center gap-2">
-          <CornerDownRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
+          <CornerDownRight className="w-3 h-3 text-slate-400 flex-shrink-0" aria-hidden="true" />
           <input
             type="text"
             value={newSubItemText}
@@ -319,6 +318,7 @@ const SortableDocumentItem = ({
             placeholder="中項目を入力..."
             className="flex-grow px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
+            aria-label="新しい中項目を入力"
             onKeyDown={(e) => {
               if (e.key === 'Enter') onConfirmAddSubItem();
               if (e.key === 'Escape') onCancelAddSubItem();
@@ -342,26 +342,24 @@ const SortableDocumentItem = ({
   );
 };
 
-// ドラッグオーバーレイ用のアイテム表示
-const DragOverlayItem = ({ doc }: { doc: EditableDocument }) => {
-  return (
-    <div
-      className={`flex items-start p-3 rounded-lg border shadow-2xl ${
-        doc.checked
-          ? 'bg-emerald-50 border-emerald-200'
-          : 'bg-slate-50 border-slate-200'
-      }`}
-    >
-      <GripVertical className="w-4 h-4 text-slate-400 mr-2" />
-      <div className="w-6 h-6 mr-3 rounded border-2 flex items-center justify-center bg-emerald-500 border-emerald-500 text-white">
-        {doc.checked && <Check className="w-4 h-4" />}
-      </div>
-      <span className="text-slate-800">{doc.text}</span>
-    </div>
-  );
-};
+// ─── ドラッグオーバーレイ用コンポーネント ───
 
-// カテゴリドラッグオーバーレイ用の表示
+const DragOverlayItem = ({ doc }: { doc: EditableDocument }) => (
+  <div
+    className={`flex items-start p-3 rounded-lg border shadow-2xl ${
+      doc.checked
+        ? 'bg-emerald-50 border-emerald-200'
+        : 'bg-slate-50 border-slate-200'
+    }`}
+  >
+    <GripVertical className="w-4 h-4 text-slate-400 mr-2" aria-hidden="true" />
+    <div className="w-6 h-6 mr-3 rounded border-2 flex items-center justify-center bg-emerald-500 border-emerald-500 text-white">
+      {doc.checked && <Check className="w-4 h-4" />}
+    </div>
+    <span className="text-slate-800">{doc.text}</span>
+  </div>
+);
+
 const CategoryDragOverlay = ({ category }: { category: EditableCategory }) => {
   const checkedCount = category.documents.filter((d) => d.checked).length;
   return (
@@ -373,7 +371,7 @@ const CategoryDragOverlay = ({ category }: { category: EditableCategory }) => {
       }`}
     >
       <div className="flex items-center gap-3 p-4">
-        <GripVertical className="w-5 h-5 text-slate-400" />
+        <GripVertical className="w-5 h-5 text-slate-400" aria-hidden="true" />
         <h3 className="font-bold text-slate-800">
           {category.isSpecial && <span className="text-purple-600">【特例】</span>}
           {category.name}
@@ -386,7 +384,8 @@ const CategoryDragOverlay = ({ category }: { category: EditableCategory }) => {
   );
 };
 
-// カテゴリ用ソート可能フック
+// ─── カテゴリ用ソート可能フック ───
+
 const useSortableCategory = (categoryId: string) => {
   const {
     attributes,
@@ -408,7 +407,8 @@ const useSortableCategory = (categoryId: string) => {
   };
 };
 
-// カテゴリ編集状態の型
+// ─── カテゴリ編集状態の型 ───
+
 type CategoryEditState = {
   editingId: string | null;
   editName: string;
@@ -417,7 +417,6 @@ type CategoryEditState = {
   cancel: () => void;
 };
 
-// カテゴリハンドラーの型
 type CategoryHandlers = {
   toggleExpand: (id: string) => void;
   toggleSpecial: (id: string) => void;
@@ -426,7 +425,8 @@ type CategoryHandlers = {
   toggleAll: (id: string, checked: boolean) => void;
 };
 
-// カテゴリカードコンポーネント（ドラッグ対応）
+// ─── カテゴリカードコンポーネント（ドラッグ対応） ───
+
 type SortableCategoryCardProps = {
   category: EditableCategory;
   checkedCount: number;
@@ -453,6 +453,8 @@ const SortableCategoryCard = ({
       ref={setNodeRef}
       style={style}
       className={`bg-white rounded-xl shadow-lg overflow-hidden ${isDragging ? 'opacity-50 ring-2 ring-emerald-400' : ''}`}
+      role="region"
+      aria-label={`カテゴリ: ${category.name}`}
     >
       {/* カテゴリヘッダー */}
       <div
@@ -468,6 +470,8 @@ const SortableCategoryCard = ({
           {...dragHandleProps.listeners}
           className="flex-shrink-0 p-1 mr-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing touch-none"
           title="ドラッグして並び替え"
+          aria-label={`${category.name}カテゴリを並び替え`}
+          aria-roledescription="ドラッグ可能なカテゴリ"
           onClick={(e) => e.stopPropagation()}
         >
           <GripVertical className="w-5 h-5" />
@@ -476,11 +480,14 @@ const SortableCategoryCard = ({
         <div
           className="flex items-center gap-3 flex-grow cursor-pointer"
           onClick={() => handlers.toggleExpand(category.id)}
+          role="button"
+          aria-expanded={category.isExpanded}
+          aria-label={`${category.name}を${category.isExpanded ? '折りたたむ' : '展開する'}`}
         >
           {category.isExpanded ? (
-            <ChevronDown className="w-5 h-5 text-slate-500" />
+            <ChevronDown className="w-5 h-5 text-slate-500" aria-hidden="true" />
           ) : (
-            <ChevronRight className="w-5 h-5 text-slate-500" />
+            <ChevronRight className="w-5 h-5 text-slate-500" aria-hidden="true" />
           )}
           {editState.editingId === category.id ? (
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -490,6 +497,7 @@ const SortableCategoryCard = ({
                 onChange={(e) => editState.setEditName(e.target.value)}
                 className="px-3 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
                 autoFocus
+                aria-label="カテゴリ名を編集"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') editState.confirm();
                   if (e.key === 'Escape') editState.cancel();
@@ -498,12 +506,14 @@ const SortableCategoryCard = ({
               <button
                 onClick={editState.confirm}
                 className="p-1 text-emerald-600 hover:bg-emerald-100 rounded"
+                aria-label="編集を確定"
               >
                 <Check className="w-5 h-5" />
               </button>
               <button
                 onClick={editState.cancel}
                 className="p-1 text-slate-400 hover:bg-slate-200 rounded"
+                aria-label="編集をキャンセル"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -534,6 +544,8 @@ const SortableCategoryCard = ({
                     : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                 }`}
                 title="特例切り替え"
+                aria-label={`${category.name}の特例を${category.isSpecial ? '解除' : '設定'}`}
+                aria-pressed={category.isSpecial}
               >
                 特例
               </button>
@@ -544,6 +556,7 @@ const SortableCategoryCard = ({
                 }}
                 className="p-1.5 text-slate-500 hover:bg-white/50 rounded transition-colors"
                 title="カテゴリ名を編集"
+                aria-label={`${category.name}の名前を編集`}
               >
                 <Edit3 className="w-4 h-4" />
               </button>
@@ -554,10 +567,11 @@ const SortableCategoryCard = ({
                 }}
                 className="p-1.5 text-red-500 hover:bg-red-100/50 rounded transition-colors"
                 title="カテゴリを削除"
+                aria-label={`${category.name}を削除`}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
-              <div className="w-px h-6 bg-slate-300 mx-1" />
+              <div className="w-px h-6 bg-slate-300 mx-1" aria-hidden="true" />
             </>
           )}
           <button
@@ -572,14 +586,15 @@ const SortableCategoryCard = ({
                 ? 'bg-emerald-200 text-emerald-800'
                 : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
             }`}
+            aria-label={allChecked ? `${category.name}の全選択を解除` : `${category.name}を全選択`}
           >
             {allChecked ? (
               <>
-                <CheckSquare className="w-4 h-4 mr-1" /> 全選択
+                <CheckSquare className="w-4 h-4 mr-1" aria-hidden="true" /> 全選択
               </>
             ) : (
               <>
-                <Square className="w-4 h-4 mr-1" /> 全選択
+                <Square className="w-4 h-4 mr-1" aria-hidden="true" /> 全選択
               </>
             )}
           </button>
@@ -591,6 +606,8 @@ const SortableCategoryCard = ({
     </div>
   );
 };
+
+// ─── メインコンポーネント ───
 
 export const EditableListStep = ({
   documentList,
@@ -605,26 +622,17 @@ export const EditableListStep = ({
   customerName,
   setCustomerName,
 }: EditableListStepProps) => {
-  const [editingDoc, setEditingDoc] = useState<{ categoryId: string; docId: string } | null>(null);
-  const [editText, setEditText] = useState('');
-  const [addingToCategory, setAddingToCategory] = useState<string | null>(null);
-  const [newDocText, setNewDocText] = useState('');
-  const [showResetDialog, setShowResetDialog] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
-  const [importPreview, setImportPreview] = useState<ExportData | null>(null);
-
-  // カテゴリ管理の状態
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [newCategoryIsSpecial, setNewCategoryIsSpecial] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<string | null>(null);
-  const [editCategoryName, setEditCategoryName] = useState('');
-
-  // 中項目関連の状態
-  const [addingSubItemTo, setAddingSubItemTo] = useState<{ categoryId: string; docId: string } | null>(null);
-  const [newSubItemText, setNewSubItemText] = useState('');
-  const [editingSubItem, setEditingSubItem] = useState<{ categoryId: string; docId: string; subItemId: string } | null>(null);
-  const [editSubItemText, setEditSubItemText] = useState('');
+  // 編集状態管理フックを使用
+  const editing = useEditableListEditing({
+    documentList,
+    setDocumentList,
+    staffName,
+    setStaffName,
+    staffPhone,
+    setStaffPhone,
+    customerName,
+    setCustomerName,
+  });
 
   // ドラッグ中のアイテム
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -649,13 +657,11 @@ export const EditableListStep = ({
     const activeIdStr = active.id as string;
     setActiveId(activeIdStr);
 
-    // カテゴリのドラッグかどうかを判定
     if (activeIdStr.startsWith('category-')) {
       setIsDraggingCategory(true);
       setActiveCategoryId(null);
     } else {
       setIsDraggingCategory(false);
-      // ドラッグ中のアイテムがどのカテゴリに属しているか特定
       for (const category of documentList) {
         const docIndex = category.documents.findIndex((d) => d.id === activeIdStr);
         if (docIndex !== -1) {
@@ -674,7 +680,6 @@ export const EditableListStep = ({
       const activeIdStr = active.id as string;
       const overIdStr = over.id as string;
 
-      // カテゴリのドラッグ
       if (isDraggingCategory && activeIdStr.startsWith('category-') && overIdStr.startsWith('category-')) {
         const activeCatId = activeIdStr.replace('category-', '');
         const overCatId = overIdStr.replace('category-', '');
@@ -683,18 +688,16 @@ export const EditableListStep = ({
         const newIndex = documentList.findIndex((c) => c.id === overCatId);
 
         if (oldIndex !== -1 && newIndex !== -1) {
-          setDocumentList(reorderCategories(documentList, oldIndex, newIndex));
+          setDocumentList(prev => reorderCategories(prev, oldIndex, newIndex));
         }
-      }
-      // 書類のドラッグ
-      else if (!isDraggingCategory && activeCategoryId) {
+      } else if (!isDraggingCategory && activeCategoryId) {
         const category = documentList.find((c) => c.id === activeCategoryId);
         if (category) {
           const oldIndex = category.documents.findIndex((d) => d.id === activeIdStr);
           const newIndex = category.documents.findIndex((d) => d.id === overIdStr);
 
           if (oldIndex !== -1 && newIndex !== -1) {
-            setDocumentList(reorderDocuments(documentList, activeCategoryId, oldIndex, newIndex));
+            setDocumentList(prev => reorderDocuments(prev, activeCategoryId, oldIndex, newIndex));
           }
         }
       }
@@ -705,271 +708,105 @@ export const EditableListStep = ({
     setIsDraggingCategory(false);
   };
 
-  // デフォルトにリセット
-  const handleResetToDefault = () => {
-    setDocumentList(initializeEditableList());
-    setShowResetDialog(false);
-  };
-
-  // チェック状態の切り替え
-  const handleToggleCheck = (categoryId: string, docId: string) => {
-    setDocumentList(toggleDocumentCheck(documentList, categoryId, docId));
-  };
-
-  // カテゴリ展開の切り替え
-  const handleToggleExpand = (categoryId: string) => {
-    setDocumentList(toggleCategoryExpand(documentList, categoryId));
-  };
-
-  // カテゴリ内全チェック
-  const handleToggleAllInCategory = (categoryId: string, checked: boolean) => {
-    setDocumentList(toggleAllInCategory(documentList, categoryId, checked));
-  };
-
-  // 全カテゴリ展開/折りたたみ
-  const handleExpandAll = (expand: boolean) => {
-    setDocumentList(expandAllCategories(documentList, expand));
-  };
-
-  // 書類追加
-  const handleAddDocument = (categoryId: string) => {
-    if (newDocText.trim()) {
-      setDocumentList(addDocumentToCategory(documentList, categoryId, newDocText.trim()));
-      setNewDocText('');
-      setAddingToCategory(null);
-    }
-  };
-
-  // 書類削除
-  const handleRemoveDocument = (categoryId: string, docId: string) => {
-    if (confirm('この書類を削除しますか？')) {
-      setDocumentList(removeDocument(documentList, categoryId, docId));
-    }
-  };
-
-  // 書類編集開始
-  const startEdit = (categoryId: string, docId: string, currentText: string) => {
-    setEditingDoc({ categoryId, docId });
-    setEditText(currentText);
-  };
-
-  // 書類編集確定
-  const confirmEdit = () => {
-    if (editingDoc && editText.trim()) {
-      setDocumentList(updateDocumentText(documentList, editingDoc.categoryId, editingDoc.docId, editText.trim()));
-    }
-    setEditingDoc(null);
-    setEditText('');
-  };
-
-  // 中項目追加
-  const handleAddSubItem = (categoryId: string, docId: string) => {
-    if (newSubItemText.trim()) {
-      setDocumentList(addSubItem(documentList, categoryId, docId, newSubItemText.trim()));
-      setNewSubItemText('');
-      setAddingSubItemTo(null);
-    }
-  };
-
-  // 中項目削除
-  const handleRemoveSubItem = (categoryId: string, docId: string, subItemId: string) => {
-    setDocumentList(removeSubItem(documentList, categoryId, docId, subItemId));
-  };
-
-  // 中項目編集開始
-  const startSubItemEdit = (categoryId: string, docId: string, subItemId: string, currentText: string) => {
-    setEditingSubItem({ categoryId, docId, subItemId });
-    setEditSubItemText(currentText);
-  };
-
-  // 中項目編集確定
-  const confirmSubItemEdit = () => {
-    if (editingSubItem && editSubItemText.trim()) {
-      setDocumentList(
-        updateSubItemText(
-          documentList,
-          editingSubItem.categoryId,
-          editingSubItem.docId,
-          editingSubItem.subItemId,
-          editSubItemText.trim()
-        )
-      );
-    }
-    setEditingSubItem(null);
-    setEditSubItemText('');
-  };
-
-  // カテゴリ追加
-  const handleAddCategory = () => {
-    if (newCategoryName.trim()) {
-      setDocumentList(addCategory(documentList, newCategoryName.trim(), newCategoryIsSpecial));
-      setNewCategoryName('');
-      setNewCategoryIsSpecial(false);
-      setIsAddingCategory(false);
-    }
-  };
-
-  // カテゴリ削除
-  const handleRemoveCategory = (categoryId: string) => {
-    const category = documentList.find((c) => c.id === categoryId);
-    if (category && confirm(`「${category.name}」を削除しますか？\n※含まれる書類もすべて削除されます。`)) {
-      setDocumentList(removeCategory(documentList, categoryId));
-    }
-  };
-
-  // カテゴリ名編集開始
-  const startCategoryEdit = (categoryId: string, currentName: string) => {
-    setEditingCategory(categoryId);
-    setEditCategoryName(currentName);
-  };
-
-  // カテゴリ名編集確定
-  const confirmCategoryEdit = () => {
-    if (editingCategory && editCategoryName.trim()) {
-      setDocumentList(updateCategoryName(documentList, editingCategory, editCategoryName.trim()));
-    }
-    setEditingCategory(null);
-    setEditCategoryName('');
-  };
-
-  // カテゴリの特例フラグ切り替え
-  const handleToggleCategorySpecial = (categoryId: string) => {
-    setDocumentList(toggleCategorySpecial(documentList, categoryId));
-  };
-
-  // JSONエクスポート
-  const handleJsonExport = () => {
-    exportToJson(documentList, staffName, staffPhone, customerName);
-  };
-
-  // JSONインポート（ファイル選択）
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const data = await readJsonFile(file);
-    if (data) {
-      setImportPreview(data);
-      setShowImportDialog(true);
-    } else {
-      alert('JSONファイルの読み込みに失敗しました。\nファイル形式を確認してください。');
-    }
-
-    // ファイル入力をリセット
-    e.target.value = '';
-  };
-
-  // インポート確定
-  const confirmImport = () => {
-    if (importPreview) {
-      setDocumentList(importPreview.documentList);
-      if (importPreview.staffName) setStaffName(importPreview.staffName);
-      if (importPreview.staffPhone) setStaffPhone(importPreview.staffPhone);
-      if (importPreview.customerName) setCustomerName(importPreview.customerName);
-      setShowImportDialog(false);
-      setImportPreview(null);
-    }
-  };
-
-  // チェック済み数を計算
-  const checkedCount = documentList.reduce(
-    (acc, cat) => acc + cat.documents.filter((d) => d.checked).length,
-    0
-  );
-  const totalCount = documentList.reduce((acc, cat) => acc + cat.documents.length, 0);
-
-  // ドラッグ中のドキュメントを取得
-  const getActiveDocument = () => {
+  // ドラッグ中のアイテムを取得（メモ化）
+  const activeDocument = useMemo(() => {
     if (!activeId || !activeCategoryId) return null;
     const category = documentList.find((c) => c.id === activeCategoryId);
-    return category?.documents.find((d) => d.id === activeId);
-  };
+    return category?.documents.find((d) => d.id === activeId) ?? null;
+  }, [activeId, activeCategoryId, documentList]);
 
-  // ドラッグ中のカテゴリを取得
-  const getActiveCategory = () => {
+  const activeCategory = useMemo(() => {
     if (!activeId || !isDraggingCategory) return null;
     const categoryId = activeId.replace('category-', '');
-    return documentList.find((c) => c.id === categoryId);
-  };
+    return documentList.find((c) => c.id === categoryId) ?? null;
+  }, [activeId, isDraggingCategory, documentList]);
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
       {/* ヘッダーツールバー */}
-      <div className="no-print bg-white rounded-xl shadow-lg p-4 mb-6 sticky top-4 z-10">
+      <div className="no-print bg-white rounded-xl shadow-lg p-4 mb-6 sticky top-4 z-10" role="toolbar" aria-label="編集ツールバー">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold text-slate-800">{giftData.title}</h1>
-            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
-              {checkedCount} / {totalCount} 選択中
+            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium" aria-live="polite">
+              {editing.checkedCount} / {editing.totalCount} 選択中
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handleExpandAll(true)}
+              onClick={() => editing.handleExpandAll(true)}
               className="flex items-center px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               title="全て展開"
+              aria-label="全カテゴリを展開"
             >
-              <ChevronsUpDown className="w-4 h-4 mr-1" />
+              <ChevronsUpDown className="w-4 h-4 mr-1" aria-hidden="true" />
               展開
             </button>
             <button
-              onClick={() => handleExpandAll(false)}
+              onClick={() => editing.handleExpandAll(false)}
               className="flex items-center px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               title="全て折りたたむ"
+              aria-label="全カテゴリを折りたたむ"
             >
-              <ChevronUp className="w-4 h-4 mr-1" />
+              <ChevronUp className="w-4 h-4 mr-1" aria-hidden="true" />
               折畳
             </button>
             <button
-              onClick={() => setShowResetDialog(true)}
+              onClick={() => editing.setShowResetDialog(true)}
               className="flex items-center px-3 py-2 text-sm bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors"
               title="デフォルトに戻す"
+              aria-label="編集内容をリセット"
             >
-              <RotateCcw className="w-4 h-4 mr-1" />
+              <RotateCcw className="w-4 h-4 mr-1" aria-hidden="true" />
               リセット
             </button>
-            <div className="w-px h-6 bg-slate-300 mx-2" />
+            <div className="w-px h-6 bg-slate-300 mx-2" aria-hidden="true" />
             <button
-              onClick={handleJsonExport}
+              onClick={editing.handleJsonExport}
               className="flex items-center px-3 py-2 text-sm bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-lg transition-colors"
               title="JSONで出力"
+              aria-label="JSONファイルとして出力"
             >
-              <Download className="w-4 h-4 mr-1" />
+              <Download className="w-4 h-4 mr-1" aria-hidden="true" />
               出力
             </button>
             <label
               className="flex items-center px-3 py-2 text-sm bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-lg transition-colors cursor-pointer"
               title="JSONを取り込み"
             >
-              <Upload className="w-4 h-4 mr-1" />
+              <Upload className="w-4 h-4 mr-1" aria-hidden="true" />
               取込
               <input
                 type="file"
                 accept=".json"
-                onChange={handleFileSelect}
+                onChange={editing.handleFileSelect}
                 className="hidden"
+                aria-label="JSONファイルを選択"
               />
             </label>
-            <div className="w-px h-6 bg-slate-300 mx-2" />
+            <div className="w-px h-6 bg-slate-300 mx-2" aria-hidden="true" />
             <button
               onClick={() => setStep('result')}
               className="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
+              aria-label="印刷プレビューを表示"
             >
-              <Printer className="w-4 h-4 mr-2" />
+              <Printer className="w-4 h-4 mr-2" aria-hidden="true" />
               印刷プレビュー
             </button>
             <button
               onClick={handleExcelExport}
               className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              aria-label="Excelファイルとして出力"
             >
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              <FileSpreadsheet className="w-4 h-4 mr-2" aria-hidden="true" />
               Excel
             </button>
             <button
               onClick={resetToMenu}
               className="flex items-center px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg transition-colors"
+              aria-label="トップメニューに戻る"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -999,26 +836,14 @@ export const EditableListStep = ({
                   checkedCount={categoryCheckedCount}
                   allChecked={allChecked}
                   someChecked={someChecked}
-                  editState={{
-                    editingId: editingCategory,
-                    editName: editCategoryName,
-                    setEditName: setEditCategoryName,
-                    confirm: confirmCategoryEdit,
-                    cancel: () => setEditingCategory(null),
-                  }}
-                  handlers={{
-                    toggleExpand: handleToggleExpand,
-                    toggleSpecial: handleToggleCategorySpecial,
-                    startEdit: startCategoryEdit,
-                    remove: handleRemoveCategory,
-                    toggleAll: handleToggleAllInCategory,
-                  }}
+                  editState={editing.categoryEditState}
+                  handlers={editing.categoryHandlers}
                 >
                   <div className="p-4">
                     {/* 注記 */}
                     {category.note && (
-                      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start text-sm text-amber-800">
-                        <Info className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start text-sm text-amber-800" role="note">
+                        <Info className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
                         {category.note}
                       </div>
                     )}
@@ -1034,67 +859,65 @@ export const EditableListStep = ({
                             key={doc.id}
                             doc={doc}
                             categoryId={category.id}
-                            isEditing={editingDoc?.categoryId === category.id && editingDoc?.docId === doc.id}
-                            editText={editText}
-                            setEditText={setEditText}
-                            onConfirmEdit={confirmEdit}
-                            onCancelEdit={() => setEditingDoc(null)}
-                            onToggleCheck={() => handleToggleCheck(category.id, doc.id)}
-                            onStartEdit={() => startEdit(category.id, doc.id, doc.text)}
-                            onRemove={() => handleRemoveDocument(category.id, doc.id)}
-                            onAddSubItem={() => setAddingSubItemTo({ categoryId: category.id, docId: doc.id })}
-                            editingSubItem={editingSubItem}
-                            editSubItemText={editSubItemText}
-                            setEditSubItemText={setEditSubItemText}
+                            isEditing={editing.editingDoc?.categoryId === category.id && editing.editingDoc?.docId === doc.id}
+                            editText={editing.editText}
+                            setEditText={editing.setEditText}
+                            onConfirmEdit={editing.confirmEdit}
+                            onCancelEdit={editing.cancelEdit}
+                            onToggleCheck={() => editing.handleToggleCheck(category.id, doc.id)}
+                            onStartEdit={() => editing.startEdit(category.id, doc.id, doc.text)}
+                            onRemove={() => editing.handleRemoveDocument(category.id, doc.id)}
+                            onAddSubItem={() => editing.startAddSubItem(category.id, doc.id)}
+                            editingSubItem={editing.editingSubItem}
+                            editSubItemText={editing.editSubItemText}
+                            setEditSubItemText={editing.setEditSubItemText}
                             onStartSubItemEdit={(subItemId, text) =>
-                              startSubItemEdit(category.id, doc.id, subItemId, text)
+                              editing.startSubItemEdit(category.id, doc.id, subItemId, text)
                             }
-                            onConfirmSubItemEdit={confirmSubItemEdit}
-                            onCancelSubItemEdit={() => setEditingSubItem(null)}
+                            onConfirmSubItemEdit={editing.confirmSubItemEdit}
+                            onCancelSubItemEdit={editing.cancelSubItemEdit}
                             onRemoveSubItem={(subItemId) =>
-                              handleRemoveSubItem(category.id, doc.id, subItemId)
+                              editing.handleRemoveSubItem(category.id, doc.id, subItemId)
                             }
-                            addingSubItemTo={addingSubItemTo}
-                            newSubItemText={newSubItemText}
-                            setNewSubItemText={setNewSubItemText}
-                            onConfirmAddSubItem={() => handleAddSubItem(category.id, doc.id)}
-                            onCancelAddSubItem={() => {
-                              setAddingSubItemTo(null);
-                              setNewSubItemText('');
-                            }}
+                            addingSubItemTo={editing.addingSubItemTo}
+                            newSubItemText={editing.newSubItemText}
+                            setNewSubItemText={editing.setNewSubItemText}
+                            onConfirmAddSubItem={() => editing.handleAddSubItem(category.id, doc.id)}
+                            onCancelAddSubItem={editing.cancelAddSubItem}
                           />
                         ))}
                       </ul>
                     </SortableContext>
 
                     {/* 書類追加 */}
-                    {addingToCategory === category.id ? (
+                    {editing.addingToCategory === category.id ? (
                       <div className="mt-3 flex items-center gap-2">
                         <input
                           type="text"
-                          value={newDocText}
-                          onChange={(e) => setNewDocText(e.target.value)}
+                          value={editing.newDocText}
+                          onChange={(e) => editing.setNewDocText(e.target.value)}
                           placeholder="書類名を入力..."
                           className="flex-grow px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                           autoFocus
+                          aria-label="新しい書類名を入力"
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleAddDocument(category.id);
+                            if (e.key === 'Enter') editing.handleAddDocument(category.id);
                             if (e.key === 'Escape') {
-                              setAddingToCategory(null);
-                              setNewDocText('');
+                              editing.setAddingToCategory(null);
+                              editing.setNewDocText('');
                             }
                           }}
                         />
                         <button
-                          onClick={() => handleAddDocument(category.id)}
+                          onClick={() => editing.handleAddDocument(category.id)}
                           className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                         >
                           追加
                         </button>
                         <button
                           onClick={() => {
-                            setAddingToCategory(null);
-                            setNewDocText('');
+                            editing.setAddingToCategory(null);
+                            editing.setNewDocText('');
                           }}
                           className="px-4 py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"
                         >
@@ -1103,10 +926,11 @@ export const EditableListStep = ({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setAddingToCategory(category.id)}
+                        onClick={() => editing.setAddingToCategory(category.id)}
                         className="mt-3 flex items-center px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50 rounded-lg border border-dashed border-emerald-300 transition-colors w-full justify-center"
+                        aria-label={`${category.name}に書類を追加`}
                       >
-                        <Plus className="w-4 h-4 mr-1" />
+                        <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
                         書類を追加
                       </button>
                     )}
@@ -1116,49 +940,50 @@ export const EditableListStep = ({
             })}
 
           {/* カテゴリ追加 */}
-          {isAddingCategory ? (
+          {editing.isAddingCategory ? (
             <div className="bg-white rounded-xl shadow-lg overflow-hidden p-4">
               <h3 className="font-bold text-slate-800 mb-3">新しいカテゴリを追加</h3>
               <div className="space-y-3">
                 <input
                   type="text"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  value={editing.newCategoryName}
+                  onChange={(e) => editing.setNewCategoryName(e.target.value)}
                   placeholder="カテゴリ名を入力..."
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   autoFocus
+                  aria-label="新しいカテゴリ名を入力"
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddCategory();
+                    if (e.key === 'Enter') editing.handleAddCategory();
                     if (e.key === 'Escape') {
-                      setIsAddingCategory(false);
-                      setNewCategoryName('');
-                      setNewCategoryIsSpecial(false);
+                      editing.setIsAddingCategory(false);
+                      editing.setNewCategoryName('');
+                      editing.setNewCategoryIsSpecial(false);
                     }
                   }}
                 />
                 <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={newCategoryIsSpecial}
-                    onChange={(e) => setNewCategoryIsSpecial(e.target.checked)}
+                    checked={editing.newCategoryIsSpecial}
+                    onChange={(e) => editing.setNewCategoryIsSpecial(e.target.checked)}
                     className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
                   />
-                  <span className={newCategoryIsSpecial ? 'text-purple-600 font-medium' : ''}>
+                  <span className={editing.newCategoryIsSpecial ? 'text-purple-600 font-medium' : ''}>
                     特例カテゴリとして追加
                   </span>
                 </label>
                 <div className="flex gap-2">
                   <button
-                    onClick={handleAddCategory}
+                    onClick={editing.handleAddCategory}
                     className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                   >
                     追加
                   </button>
                   <button
                     onClick={() => {
-                      setIsAddingCategory(false);
-                      setNewCategoryName('');
-                      setNewCategoryIsSpecial(false);
+                      editing.setIsAddingCategory(false);
+                      editing.setNewCategoryName('');
+                      editing.setNewCategoryIsSpecial(false);
                     }}
                     className="px-4 py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"
                   >
@@ -1169,10 +994,11 @@ export const EditableListStep = ({
             </div>
           ) : (
             <button
-              onClick={() => setIsAddingCategory(true)}
+              onClick={() => editing.setIsAddingCategory(true)}
               className="w-full flex items-center justify-center px-6 py-4 text-emerald-600 hover:bg-emerald-50 rounded-xl border-2 border-dashed border-emerald-300 transition-colors font-medium"
+              aria-label="新しいカテゴリを追加"
             >
-              <Plus className="w-5 h-5 mr-2" />
+              <Plus className="w-5 h-5 mr-2" aria-hidden="true" />
               新しいカテゴリを追加
             </button>
           )}
@@ -1181,10 +1007,10 @@ export const EditableListStep = ({
 
         {/* ドラッグオーバーレイ */}
         <DragOverlay>
-          {isDraggingCategory && activeId && getActiveCategory() ? (
-            <CategoryDragOverlay category={getActiveCategory()!} />
-          ) : activeId && getActiveDocument() ? (
-            <DragOverlayItem doc={getActiveDocument()!} />
+          {isDraggingCategory && activeId && activeCategory ? (
+            <CategoryDragOverlay category={activeCategory} />
+          ) : activeId && activeDocument ? (
+            <DragOverlayItem doc={activeDocument} />
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -1195,45 +1021,45 @@ export const EditableListStep = ({
       </div>
 
       {/* リセット確認ダイアログ */}
-      {showResetDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+      {editing.showResetDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="reset-dialog-title">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md mx-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-amber-600" />
+                <AlertTriangle className="w-6 h-6 text-amber-600" aria-hidden="true" />
               </div>
-              <h3 className="text-xl font-bold text-slate-800">編集内容をリセットしますか？</h3>
+              <h3 id="reset-dialog-title" className="text-xl font-bold text-slate-800">編集内容をリセットしますか？</h3>
             </div>
             <div className="mb-6 pl-15">
               <p className="text-slate-600 mb-3">以下の内容が初期状態に戻ります：</p>
               <ul className="text-sm text-slate-500 space-y-1">
                 <li className="flex items-center">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" />
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" aria-hidden="true" />
                   チェック状態
                 </li>
                 <li className="flex items-center">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" />
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" aria-hidden="true" />
                   追加したカテゴリ・書類
                 </li>
                 <li className="flex items-center">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" />
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" aria-hidden="true" />
                   中項目
                 </li>
                 <li className="flex items-center">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" />
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" aria-hidden="true" />
                   並び順
                 </li>
               </ul>
             </div>
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setShowResetDialog(false)}
+                onClick={() => editing.setShowResetDialog(false)}
                 className="px-5 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium"
               >
                 キャンセル
               </button>
               <button
-                onClick={handleResetToDefault}
+                onClick={editing.handleResetToDefault}
                 className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium"
               >
                 リセット
@@ -1244,42 +1070,42 @@ export const EditableListStep = ({
       )}
 
       {/* インポート確認ダイアログ */}
-      {showImportDialog && importPreview && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+      {editing.showImportDialog && editing.importPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="import-dialog-title">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-lg mx-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-violet-100 rounded-full flex items-center justify-center">
-                <Upload className="w-6 h-6 text-violet-600" />
+                <Upload className="w-6 h-6 text-violet-600" aria-hidden="true" />
               </div>
-              <h3 className="text-xl font-bold text-slate-800">データを取り込みますか？</h3>
+              <h3 id="import-dialog-title" className="text-xl font-bold text-slate-800">データを取り込みますか？</h3>
             </div>
             <div className="mb-6">
               <p className="text-slate-600 mb-3">以下のデータが読み込まれます：</p>
               <div className="bg-slate-50 p-4 rounded-lg space-y-2 text-sm">
-                {importPreview.customerName && (
-                  <p><span className="text-slate-500">お客様名:</span> <span className="font-medium">{importPreview.customerName}</span></p>
+                {editing.importPreview.customerName && (
+                  <p><span className="text-slate-500">お客様名:</span> <span className="font-medium">{editing.importPreview.customerName}</span></p>
                 )}
-                {importPreview.staffName && (
-                  <p><span className="text-slate-500">担当者:</span> <span className="font-medium">{importPreview.staffName}</span></p>
+                {editing.importPreview.staffName && (
+                  <p><span className="text-slate-500">担当者:</span> <span className="font-medium">{editing.importPreview.staffName}</span></p>
                 )}
-                {importPreview.staffPhone && (
-                  <p><span className="text-slate-500">担当者携帯:</span> <span className="font-medium">{importPreview.staffPhone}</span></p>
+                {editing.importPreview.staffPhone && (
+                  <p><span className="text-slate-500">担当者携帯:</span> <span className="font-medium">{editing.importPreview.staffPhone}</span></p>
                 )}
                 <p>
                   <span className="text-slate-500">カテゴリ数:</span>{' '}
-                  <span className="font-medium">{importPreview.documentList.length}</span>
+                  <span className="font-medium">{editing.importPreview.documentList.length}</span>
                 </p>
                 <p>
                   <span className="text-slate-500">書類数:</span>{' '}
                   <span className="font-medium">
-                    {importPreview.documentList.reduce((acc, cat) => acc + cat.documents.length, 0)}
+                    {editing.importPreview.documentList.reduce((acc, cat) => acc + cat.documents.length, 0)}
                   </span>
                 </p>
-                {importPreview.exportedAt && (
+                {editing.importPreview.exportedAt && (
                   <p>
                     <span className="text-slate-500">エクスポート日時:</span>{' '}
                     <span className="font-medium">
-                      {new Date(importPreview.exportedAt).toLocaleString('ja-JP')}
+                      {new Date(editing.importPreview.exportedAt).toLocaleString('ja-JP')}
                     </span>
                   </p>
                 )}
@@ -1290,16 +1116,13 @@ export const EditableListStep = ({
             </div>
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => {
-                  setShowImportDialog(false);
-                  setImportPreview(null);
-                }}
+                onClick={editing.cancelImport}
                 className="px-5 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium"
               >
                 キャンセル
               </button>
               <button
-                onClick={confirmImport}
+                onClick={editing.confirmImport}
                 className="px-5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors font-medium"
               >
                 取り込む
