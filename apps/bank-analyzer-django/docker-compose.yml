@@ -1,17 +1,18 @@
-# ==============================================================================
-# Bank Analyzer Django - Docker Compose Configuration
-# ==============================================================================
+# ============================================
+# Bank Analyzer Django - Docker Compose
+# ============================================
 # Usage:
-#   Production: docker compose up -d
-#   Development: docker compose --profile dev up web-dev
-#   Stop: docker compose down
-#   Rebuild: docker compose build --no-cache
-# ==============================================================================
+#   本番:     docker compose up -d
+#   開発:     docker compose --profile dev up web-dev
+#   停止:     docker compose down
+#   再ビルド: docker compose build --no-cache
+# ============================================
 
 services:
-  # ============================================================================
-  # Production Service
-  # ============================================================================
+  # ==========================================
+  # 本番サービス（Gunicorn）
+  # http://localhost:8000/
+  # ==========================================
   web:
     build:
       context: .
@@ -23,7 +24,7 @@ services:
       # データ永続化（読み書き可能）
       - ./data:/app/data
       - sqlite-data:/app/db
-      # 静的ファイル（オプション：Nginx連携時に使用）
+      # 静的ファイル（Nginx連携時に使用）
       - static-files:/app/staticfiles
     environment:
       - DJANGO_DEBUG=False
@@ -31,17 +32,18 @@ services:
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       - DB_PATH=/app/db/db.sqlite3
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-2}
+      - TZ=Asia/Tokyo
     env_file:
       - path: .env
         required: false
     restart: unless-stopped
+    stop_grace_period: 10s
     healthcheck:
       test: ["CMD", "curl", "-f", "--silent", "http://localhost:8000/"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 3
-      start_period: 40s
-    # リソース制限
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -50,26 +52,22 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-    # ログ設定
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    # セキュリティ設定
     security_opt:
       - no-new-privileges:true
-    read_only: false
-    networks:
-      - app-network
 
-  # ============================================================================
-  # Development Service (with hot reload)
-  # ============================================================================
+  # ==========================================
+  # 開発サービス（Django runserver）
+  # http://localhost:8000/
+  # ==========================================
   web-dev:
     build:
       context: .
-      target: production
+      target: dev
     container_name: bank-analyzer-dev
     ports:
       - "8000:8000"
@@ -78,18 +76,16 @@ services:
       - .:/app
       - ./data:/app/data
       - sqlite-data:/app/db
-      # pip パッケージを永続化（再インストール防止）
-      - pip-cache:/home/appuser/.cache/pip
     environment:
       - DJANGO_DEBUG=True
       - DJANGO_SECRET_KEY=dev-secret-key-not-for-production
       - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
       - DB_PATH=/app/db/db.sqlite3
-    command: python manage.py runserver 0.0.0.0:8000
+      - TZ=Asia/Tokyo
     profiles:
       - dev
     restart: unless-stopped
-    # 開発環境では緩やかなリソース制限
+    stop_grace_period: 10s
     deploy:
       resources:
         limits:
@@ -100,23 +96,12 @@ services:
       options:
         max-size: "5m"
         max-file: "2"
-    networks:
-      - app-network
 
-# ==============================================================================
-# Networks
-# ==============================================================================
-networks:
-  app-network:
-    driver: bridge
-
-# ==============================================================================
-# Volumes
-# ==============================================================================
+# ==========================================
+# ボリューム定義
+# ==========================================
 volumes:
   sqlite-data:
     name: bank-analyzer-sqlite
   static-files:
     name: bank-analyzer-static
-  pip-cache:
-    name: bank-analyzer-pip-cache
