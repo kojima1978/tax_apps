@@ -1,82 +1,92 @@
-# ==============================================================================
-# Build Stage: Install dependencies with build tools
-# ==============================================================================
+# ============================================
+# Bank Analyzer Django - Dockerfile
+# ============================================
+
+# ------------------------------------------
+# ビルドステージ: 依存関係のwheel作成
+# ------------------------------------------
 FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip wheel --no-cache-dir --wheel-dir=/build/wheels -r requirements.txt
 
-# ==============================================================================
-# Production Stage: Minimal runtime image
-# ==============================================================================
+# ------------------------------------------
+# 本番ステージ: 最小ランタイムイメージ
+# ------------------------------------------
 FROM python:3.12-slim AS production
 
-# Labels
-LABEL maintainer="developer" \
-      version="1.0" \
-      description="Bank Analyzer Django Application"
+LABEL org.opencontainers.image.title="Bank Analyzer Django" \
+      org.opencontainers.image.description="Bank transaction analyzer for inheritance tax"
 
 WORKDIR /app
 
-# Install runtime dependencies only
+# ランタイム依存（curl: ヘルスチェック用、tini: initシステム）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     tini \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user with explicit home directory
+# 非rootユーザー作成
 RUN addgroup --system --gid 1001 appgroup && \
     adduser --system --uid 1001 --ingroup appgroup --home /home/appuser appuser
 
-# Copy wheels from builder and install
+# ビルド済みwheelからPythonパッケージをインストール
 COPY --from=builder /build/wheels /wheels
 COPY requirements.txt .
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt && \
-    rm -rf /wheels
+    rm -rf /wheels requirements.txt
 
-# Copy entrypoint script first (changes less frequently)
+# エントリポイント（変更頻度が低いため先にコピー）
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN sed -i 's/\r$//' /docker-entrypoint.sh && \
     chmod +x /docker-entrypoint.sh
 
-# Copy application code
+# アプリケーションコード
 COPY --chown=appuser:appgroup . .
 
-# Create directories with proper permissions
+# ディレクトリ作成・権限設定
 RUN mkdir -p data staticfiles db && \
     chown -R appuser:appgroup /app
 
-# Environment variables
+# Python設定
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
-    DJANGO_SETTINGS_MODULE=bank_project.settings \
-    # Gunicorn settings
-    GUNICORN_WORKERS=2 \
+    DJANGO_SETTINGS_MODULE=bank_project.settings
+
+# Gunicorn設定
+ENV GUNICORN_WORKERS=2 \
     GUNICORN_TIMEOUT=300
 
-# Expose port
 EXPOSE 8000
 
-# Healthcheck with grace period
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl --fail --silent http://localhost:8000/health/ || curl --fail --silent http://localhost:8000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f --silent http://localhost:8000/ || exit 1
 
-# Switch to non-root user
 USER appuser
 
-# Use tini as init system
 ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/docker-entrypoint.sh", \
+     "gunicorn", "bank_project.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "2", \
+     "--timeout", "300", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]
 
-# Default command
-CMD ["/docker-entrypoint.sh", "gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "300", "--access-logfile", "-", "--error-logfile", "-", "bank_project.wsgi:application"]
+# ------------------------------------------
+# 開発ステージ: Django runserver
+# ------------------------------------------
+FROM production AS dev
+
+ENV DJANGO_DEBUG=True
+
+CMD ["/docker-entrypoint.sh", \
+     "python", "manage.py", "runserver", "0.0.0.0:8000"]
