@@ -54,6 +54,43 @@ def _parse_keywords(text: str) -> list[str]:
     return [k.strip() for k in text.replace('\n', ',').split(',') if k.strip()]
 
 
+def _extract_form_rows(request: HttpRequest, validate: bool = False) -> tuple[list[dict], list[str]]:
+    """フォームから取引行データを抽出する共通処理"""
+    total_rows = int(request.POST.get('total_rows', 0))
+    rows = []
+    errors = []
+
+    for i in range(total_rows):
+        if request.POST.get(f'form-{i}-DELETE'):
+            continue
+
+        new_row = {
+            'date': request.POST.get(f'form-{i}-date', ''),
+            'description': request.POST.get(f'form-{i}-description', ''),
+            'bank_name': request.POST.get(f'form-{i}-bank_name', ''),
+            'branch_name': request.POST.get(f'form-{i}-branch_name', ''),
+            'account_type': request.POST.get(f'form-{i}-account_type', ''),
+            'account_number': request.POST.get(f'form-{i}-account_number', ''),
+        }
+
+        amount_fields = [
+            ('amount_out', '出金額'),
+            ('amount_in', '入金額'),
+            ('balance', '残高'),
+        ]
+        for field_name, field_label in amount_fields:
+            value_str = request.POST.get(f'form-{i}-{field_name}', '0')
+            parsed_value, success = _parse_amount(value_str, 0)
+            new_row[field_name] = parsed_value
+            if validate and not success:
+                errors.append(f"行{i+1}: {field_label}が不正な値です")
+
+        if new_row.get('date'):
+            rows.append(new_row)
+
+    return rows, errors
+
+
 def _build_redirect_url(
     view_name: str,
     pk: int,
@@ -259,13 +296,13 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
 
     # エクスポートタイプに応じてフィルタリング
     if export_type == 'large':
-        df = df[df['is_large'] == True].copy()
+        df = df[df['is_large']].copy()
         filename = f"{case.name}_多額取引.csv"
     elif export_type == 'transfers':
-        df = df[df['is_transfer'] == True].copy()
+        df = df[df['is_transfer']].copy()
         filename = f"{case.name}_資金移動.csv"
     elif export_type == 'flagged':
-        df = df[df['is_flagged'] == True].copy()
+        df = df[df['is_flagged']].copy()
         filename = f"{case.name}_付箋付き取引.csv"
     elif export_type == 'all':
         filename = f"{case.name}_全取引.csv"
@@ -707,46 +744,7 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
         action = request.POST.get('action')
 
         if action == 'recalculate':
-            # Update data from form inputs
-            # フォーム送信前にJavaScriptで再インデックスされるため、
-            # 全ての行を連番のインデックス（0, 1, 2, ...）で取得
-            updated_data = []
-            validation_errors = []
-
-            total_rows = int(request.POST.get('total_rows', 0))
-
-            for i in range(total_rows):
-                # Check for deletion flag (再インデックス後は基本的にない)
-                if request.POST.get(f'form-{i}-DELETE'):
-                    continue
-
-                # 全ての行をフォームから直接取得（再インデックス後は視覚順）
-                new_row = {}
-
-                # 全フィールドをフォームから取得
-                new_row['date'] = request.POST.get(f'form-{i}-date', '')
-                new_row['description'] = request.POST.get(f'form-{i}-description', '')
-                new_row['bank_name'] = request.POST.get(f'form-{i}-bank_name', '')
-                new_row['branch_name'] = request.POST.get(f'form-{i}-branch_name', '')
-                new_row['account_type'] = request.POST.get(f'form-{i}-account_type', '')
-                new_row['account_number'] = request.POST.get(f'form-{i}-account_number', '')
-
-                # 金額フィールドのバリデーション
-                amount_fields = [
-                    ('amount_out', '出金額'),
-                    ('amount_in', '入金額'),
-                    ('balance', '残高'),
-                ]
-                for field_name, field_label in amount_fields:
-                    value_str = request.POST.get(f'form-{i}-{field_name}', '0')
-                    parsed_value, success = _parse_amount(value_str, 0)
-                    new_row[field_name] = parsed_value
-                    if not success:
-                        validation_errors.append(f"行{i+1}: {field_label}が不正な値です")
-
-                # 日付が空でない行のみ追加
-                if new_row.get('date'):
-                    updated_data.append(new_row)
+            updated_data, validation_errors = _extract_form_rows(request, validate=True)
 
             if validation_errors:
                 for error in validation_errors[:MAX_VALIDATION_ERRORS_DISPLAY]:
@@ -778,39 +776,8 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
                 messages.info(request, "再計算しました（削除反映済み）。")
 
         elif action == 'commit':
-            # Run Commit Logic
-            # フォーム送信前にJavaScriptで再インデックスされるため、
-            # 全ての行を連番のインデックス（0, 1, 2, ...）で取得
             try:
-                total_rows = int(request.POST.get('total_rows', 0))
-
-                # フォームから全データを収集（視覚順で再インデックス済み）
-                filtered_data = []
-                for i in range(total_rows):
-                    # Check for deletion flag (再インデックス後は基本的にない)
-                    if request.POST.get(f'form-{i}-DELETE'):
-                        continue
-
-                    # 全ての行をフォームから直接取得
-                    new_row = {}
-
-                    # 全フィールドをフォームから取得
-                    new_row['date'] = request.POST.get(f'form-{i}-date', '')
-                    new_row['description'] = request.POST.get(f'form-{i}-description', '')
-                    new_row['bank_name'] = request.POST.get(f'form-{i}-bank_name', '')
-                    new_row['branch_name'] = request.POST.get(f'form-{i}-branch_name', '')
-                    new_row['account_type'] = request.POST.get(f'form-{i}-account_type', '')
-                    new_row['account_number'] = request.POST.get(f'form-{i}-account_number', '')
-
-                    # 金額フィールド
-                    for field_name in ['amount_out', 'amount_in', 'balance']:
-                        value_str = request.POST.get(f'form-{i}-{field_name}', '0')
-                        parsed_value, _ = _parse_amount(value_str, 0)
-                        new_row[field_name] = parsed_value
-
-                    # 日付が空でない行のみ追加
-                    if new_row.get('date'):
-                        filtered_data.append(new_row)
+                filtered_data, _ = _extract_form_rows(request)
 
                 if not filtered_data:
                     messages.warning(request, "取り込むデータがありません。")

@@ -4,8 +4,6 @@
 モデル、フォーム、サービス、テンプレートタグのテストを含む。
 """
 from datetime import date, datetime
-from decimal import Decimal
-from io import BytesIO
 
 from django.test import TestCase, Client
 from django.urls import reverse
