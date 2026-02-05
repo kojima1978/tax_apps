@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import pandas as pd
 from . import config
