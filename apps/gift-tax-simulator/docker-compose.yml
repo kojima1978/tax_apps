@@ -1,57 +1,102 @@
+# Gift Tax Simulator - Docker Compose Configuration
+# Usage:
+#   Development: docker compose --profile dev up
+#   Production:  docker compose --profile prod up -d
+
 services:
+  # ===========================================================================
+  # Development Service
+  # ===========================================================================
   dev:
     container_name: gift-tax-simulator-dev
     build:
       context: .
       target: dev
+      args:
+        NODE_VERSION: 24
     ports:
       - "3001:3000"
     volumes:
       - .:/app:cached
       - node_modules:/app/node_modules
+      - /app/.next # Exclude .next from bind mount
     environment:
       NODE_ENV: development
       WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
       NEXT_TELEMETRY_DISABLED: "1"
+      TZ: Asia/Tokyo
     stdin_open: true
     tty: true
     profiles:
       - dev
+    labels:
+      - "app.name=gift-tax-simulator"
+      - "app.env=development"
 
+  # ===========================================================================
+  # Production Service
+  # ===========================================================================
   prod:
     container_name: gift-tax-simulator-prod
     build:
       context: .
       target: runner
+      args:
+        NODE_VERSION: 24
     ports:
       - "3001:3001"
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
+      TZ: Asia/Tokyo
     restart: unless-stopped
     init: true
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
+          cpus: "1.0"
           memory: 512M
         reservations:
-          memory: 256M
+          cpus: "0.25"
+          memory: 128M
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3001/gift-tax-simulator/',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
+      test:
+        - CMD
+        - node
+        - -e
+        - |
+          const http = require('http');
+          const req = http.get('http://127.0.0.1:3001/gift-tax-simulator/', r => {
+            process.exit(r.statusCode === 200 ? 0 : 1);
+          });
+          req.on('error', () => process.exit(1));
+          req.setTimeout(4000, () => { req.destroy(); process.exit(1); });
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 30s
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+        compress: "true"
     profiles:
       - prod
+    labels:
+      - "app.name=gift-tax-simulator"
+      - "app.env=production"
 
 volumes:
   node_modules:
+    name: gift-tax-simulator-node-modules
+
+networks:
+  default:
+    name: gift-tax-simulator-network
