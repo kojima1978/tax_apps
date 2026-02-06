@@ -1,5 +1,7 @@
 import XLSX from 'xlsx-js-style';
 import { CategoryGroup } from '@/types';
+import { toReiwa } from '@/utils/date';
+import { taxReturnData } from '@/data/taxReturnData';
 
 // スタイル定義
 const styles = {
@@ -185,7 +187,7 @@ export function exportToExcel(documentGroups: CategoryGroup[], year: number, cus
   data.push([
     { v: '', s: {} },
     { v: '', s: {} },
-    { v: '税理士法人 マスエージェント', s: footerStyle },
+    { v: taxReturnData.contactInfo.office, s: footerStyle },
     { v: '', s: footerStyle },
   ]);
   merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
@@ -195,7 +197,7 @@ export function exportToExcel(documentGroups: CategoryGroup[], year: number, cus
   data.push([
     { v: '', s: {} },
     { v: '', s: {} },
-    { v: '〒770-0002 徳島県徳島市春日２丁目３−３３', s: footerStyle },
+    { v: taxReturnData.contactInfo.address, s: footerStyle },
     { v: '', s: footerStyle },
   ]);
   merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
@@ -205,7 +207,7 @@ export function exportToExcel(documentGroups: CategoryGroup[], year: number, cus
   data.push([
     { v: '', s: {} },
     { v: '', s: {} },
-    { v: 'TEL: 088-632-6228', s: footerStyle },
+    { v: `TEL: ${taxReturnData.contactInfo.tel}`, s: footerStyle },
     { v: '', s: footerStyle },
   ]);
   merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
@@ -282,7 +284,7 @@ export function exportToExcel(documentGroups: CategoryGroup[], year: number, cus
   ws['!printHeader'] = { s: { r: 0 }, e: { r: 1 } };
 
   // ファイル名を生成
-  const fileName = `確定申告_必要書類リスト_令和${year}年分.xlsx`;
+  const fileName = `確定申告_必要書類リスト_令和${toReiwa(year)}年分.xlsx`;
 
   // ダウンロード
   XLSX.writeFile(wb, fileName);

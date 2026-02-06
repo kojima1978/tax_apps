@@ -28,7 +28,7 @@ export default function Toast({
     if (!isVisible) return null;
 
     return (
-        <div className={`fixed bottom-8 right-8 z-50 flex items-center p-4 rounded-xl shadow-lg border animate-in slide-in-from-bottom-5 fade-in duration-300 ${
+        <div role="status" className={`fixed bottom-8 right-8 z-50 flex items-center p-4 rounded-xl shadow-lg border animate-in slide-in-from-bottom-5 fade-in duration-300 ${
             type === 'success' 
                 ? 'bg-white border-emerald-100 text-emerald-800' 
                 : 'bg-white border-red-100 text-red-800'

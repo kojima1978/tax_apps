@@ -75,11 +75,12 @@ export default function CreateCustomerPage() {
                 const nameInput = document.getElementById('name-input');
                 if (nameInput) nameInput.focus();
             }
-        } catch (e: any) {
-            if (e.message && e.message.includes('already exists')) {
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : '登録に失敗しました';
+            if (message.includes('already exists')) {
                 setError('この担当者に同名のお客様が既に登録されています');
             } else {
-                setError(e.message || '登録に失敗しました');
+                setError(message);
             }
         } finally {
             setIsSubmitting(false);

@@ -30,14 +30,24 @@ import {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** 西暦年を令和年に変換（令和元年 = 2019年） */
+const REIWA_OFFSET = 2018;
+function toReiwa(year: number): number {
+  return year - REIWA_OFFSET;
+}
+
 // ミドルウェア
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost', 'http://localhost:3005'],
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3005'],
     credentials: true,
   })
 );
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '5mb' }));
 
 // データベース初期化
 initializeDb();
@@ -59,11 +69,12 @@ app.post('/api/customers', (req, res) => {
   try {
     const customer = createCustomer(customerName.trim(), Number(staffId));
     res.json({ customer });
-  } catch (e: any) {
-    if (e.message.includes('already exists')) {
-      return res.status(409).json({ error: e.message });
+  } catch (e: unknown) {
+    const message = getErrorMessage(e);
+    if (message.includes('already exists')) {
+      return res.status(409).json({ error: message });
     }
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: message });
   }
 });
 
@@ -139,11 +150,12 @@ app.post('/api/staff', (req, res) => {
   try {
     const staff = createStaff(staffName.trim(), mobileNumber);
     res.json({ staff });
-  } catch (e: any) {
-    if (e.message.includes('UNIQUE constraint failed')) {
+  } catch (e: unknown) {
+    const message = getErrorMessage(e);
+    if (message.includes('UNIQUE constraint failed')) {
       return res.status(409).json({ error: 'Staff name already exists' });
     }
-    throw e;
+    return res.status(500).json({ error: message });
   }
 });
 
@@ -177,8 +189,8 @@ app.delete('/api/staff/:id', (req, res) => {
       return res.status(404).json({ error: 'Staff not found' });
     }
     res.json({ success: true });
-  } catch (e: any) {
-    return res.status(400).json({ error: e.message });
+  } catch (e: unknown) {
+    return res.status(400).json({ error: getErrorMessage(e) });
   }
 });
 
@@ -262,7 +274,7 @@ app.post('/api/documents', (req, res) => {
 
     return res.json({
       success: true,
-      message: `令和${year}年のデータを令和${year + 1}年にコピーしました`,
+      message: `令和${toReiwa(year)}年のデータを令和${toReiwa(year) + 1}年にコピーしました`,
       nextYear: year + 1,
     });
   }
@@ -275,7 +287,7 @@ app.post('/api/documents', (req, res) => {
   saveDocumentRecord(customerId, year, documentGroups);
   res.json({
     success: true,
-    message: `令和${year}年のデータを保存しました`,
+    message: `令和${toReiwa(year)}年のデータを保存しました`,
   });
 });
 
@@ -314,8 +326,8 @@ app.get('/api/backup/export', (_req, res) => {
       type: 'full-backup',
       data,
     });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
+  } catch (e: unknown) {
+    res.status(500).json({ error: getErrorMessage(e) });
   }
 });
 
@@ -337,8 +349,8 @@ app.post('/api/backup/import', (req, res) => {
       message: `復元完了: 担当者${result.staffCount}件、お客様${result.customerCount}件、書類データ${result.recordCount}件`,
       ...result,
     });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
+  } catch (e: unknown) {
+    res.status(500).json({ error: getErrorMessage(e) });
   }
 });
 

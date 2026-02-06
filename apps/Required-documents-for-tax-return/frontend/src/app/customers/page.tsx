@@ -35,8 +35,8 @@ export default function CustomerListPage() {
         try {
             await deleteCustomer(id);
             await loadCustomers();
-        } catch (e: any) {
-            setError(e.message || '削除に失敗しました');
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : '削除に失敗しました');
         }
     };
 

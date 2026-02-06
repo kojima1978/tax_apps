@@ -1,5 +1,6 @@
 import { CategoryGroup } from '@/types';
 import { API_BASE_URL } from './api';
+import { toReiwa } from './date';
 
 // ==================== 型定義 ====================
 
@@ -56,7 +57,7 @@ export function exportCustomerJson(
       document_groups: documentGroups,
     },
   };
-  const reiwaYear = year - 2018;
+  const reiwaYear = toReiwa(year);
   downloadJson(payload, `${customerName}_令和${reiwaYear}年_書類データ.json`);
 }
 

@@ -4,16 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ApplicationForm from './ApplicationForm';
 import ApplicationList from './ApplicationList';
-
-interface Application {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  icon: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { Application, ApplicationInput } from '@/types/application';
 
 interface AdminPanelProps {
   applications: Application[];
@@ -23,7 +14,7 @@ export default function AdminPanel({ applications }: AdminPanelProps) {
   const router = useRouter();
   const [editingApp, setEditingApp] = useState<Application | null>(null);
 
-  const handleAddApplication = async (data: Omit<Application, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleAddApplication = async (data: ApplicationInput) => {
     const response = await fetch('/api/applications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,7 +29,7 @@ export default function AdminPanel({ applications }: AdminPanelProps) {
     router.refresh();
   };
 
-  const handleUpdateApplication = async (data: Omit<Application, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleUpdateApplication = async (data: ApplicationInput) => {
     if (!editingApp) return;
 
     const response = await fetch(`/api/applications/${editingApp.id}`, {
@@ -89,7 +80,7 @@ export default function AdminPanel({ applications }: AdminPanelProps) {
 
       {/* List Section */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">登録済みアプリケーション</h2>
+        <h3 className="text-2xl font-bold text-gray-900 mb-4">登録済みアプリケーション</h3>
         <ApplicationList
           applications={applications}
           onEdit={handleEdit}

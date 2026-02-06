@@ -1,6 +1,5 @@
 @echo off
 chcp 65001 >nul
-setlocal EnableDelayedExpansion
 
 echo.
 echo ╔════════════════════════════════════════════════════════════╗
@@ -33,10 +32,26 @@ set "PROD_FLAG="
 
 :parse_args
 if "%~1"=="" goto :start_services
-if /i "%~1"=="--build" set "BUILD_FLAG=--build"
-if /i "%~1"=="-b" set "BUILD_FLAG=--build"
-if /i "%~1"=="--prod" set "PROD_FLAG=-f docker-compose.yml -f docker-compose.prod.yml"
-if /i "%~1"=="-p" set "PROD_FLAG=-f docker-compose.yml -f docker-compose.prod.yml"
+if /i "%~1"=="--build" (
+    set "BUILD_FLAG=--build"
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="-b" (
+    set "BUILD_FLAG=--build"
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="--prod" (
+    set "PROD_FLAG=-f docker-compose.yml -f docker-compose.prod.yml"
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="-p" (
+    set "PROD_FLAG=-f docker-compose.yml -f docker-compose.prod.yml"
+    shift
+    goto :parse_args
+)
 shift
 goto :parse_args
 

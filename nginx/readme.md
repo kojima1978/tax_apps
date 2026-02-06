@@ -13,8 +13,13 @@ nginx/
 ├── Dockerfile      # カスタムNginxイメージ
 ├── nginx.conf      # グローバル設定（ワーカー、Gzip、セキュリティ等）
 ├── default.conf    # サーバーブロック設定（ルーティングルール）
+├── html/           # カスタムエラーページ
+│   ├── 429.html    # レート制限超過ページ
+│   ├── 50x.html    # サーバーエラーページ
+│   └── 503.html    # メンテナンスページ
 ├── includes/       # 共通設定ディレクトリ
 │   └── proxy_params # 共通プロキシヘッダー設定
+├── .dockerignore   # Dockerビルド除外設定
 └── readme.md       # このファイル
 ```
 
@@ -22,17 +27,16 @@ nginx/
 
 ### パフォーマンス最適化
 
-- **Gzip圧縮**: テキスト、CSS、JS、JSONなどを自動圧縮
+- **Gzip圧縮**: テキスト、CSS、JS、JSON、WASMなどを自動圧縮
 - **Keep-Alive**: コネクション再利用で高速化
-- **静的ファイルキャッシュ**: 画像、CSS、JSを1ヶ月キャッシュ
-- **プロキシキャッシュ**: バックエンド負荷軽減
+- **アップストリーム障害リトライ**: `proxy_next_upstream` による自動リカバリ
 
 ### セキュリティ
 
-- **レート制限**: API 30req/s、一般 50req/s
-- **接続数制限**: 1IPあたり50接続
-- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options等
-- **サーバー情報非表示**: server_tokens off
+- **レート制限**: API 300req/s、一般 1000req/s（超過時は 429 を返却）
+- **接続数制限**: 1IPあたり50接続（全ロケーション共通）
+- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- **サーバー情報非表示**: server_tokens off, proxy_hide_header (X-Powered-By, Server)
 
 ### 監視・トレーシング
 
@@ -104,6 +108,8 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/includes:/etc/nginx/includes:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
     networks:
       - app-network
     restart: unless-stopped
@@ -116,11 +122,11 @@ services:
 `nginx.conf` の以下の部分を変更:
 
 ```nginx
-# APIエンドポイント: 30リクエスト/秒
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/s;
+# APIエンドポイント: 300リクエスト/秒
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=300r/s;
 
-# 一般ページ: 50リクエスト/秒
-limit_req_zone $binary_remote_addr zone=general_limit:10m rate=50r/s;
+# 一般ページ: 1000リクエスト/秒
+limit_req_zone $binary_remote_addr zone=general_limit:10m rate=1000r/s;
 ```
 
 ### タイムアウトの調整

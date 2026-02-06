@@ -4,6 +4,7 @@ npm-debug.log*
 
 # Build output
 dist
+*.tsbuildinfo
 
 # Database (use volume instead)
 data/*.db

@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { validateApplicationInput } from '@/lib/validation';
 
 // GET: すべてのアプリケーションを取得
 export async function GET() {
@@ -26,17 +27,17 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, description, url, icon } = body;
+    const result = validateApplicationInput(body);
 
-    if (!title || !description || !url || !icon) {
+    if (!result.valid) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: result.error },
         { status: 400 }
       );
     }
 
     const application = await prisma.application.create({
-      data: { title, description, url, icon },
+      data: result.data,
     });
 
     return NextResponse.json(application, { status: 201 });

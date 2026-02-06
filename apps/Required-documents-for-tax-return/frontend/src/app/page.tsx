@@ -6,7 +6,7 @@ import DocumentListScreen from '@/components/DocumentListScreen';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { CategoryGroup } from '@/types';
 import { fetchDocuments, saveDocuments, copyToNextYear as apiCopyToNextYear } from '@/utils/api';
-import { getDefaultYear } from '@/utils/date';
+import { getDefaultYear, toReiwa } from '@/utils/date';
 
 type Step = 'menu' | 'editor';
 
@@ -37,20 +37,22 @@ export default function Home() {
     saveError: null,
   });
 
-  const saveData = useCallback(async () => {
-    if (!state.customerName.trim() || !state.staffName.trim()) return;
+  const saveData = useCallback(async (): Promise<boolean> => {
+    if (!state.customerName.trim() || !state.staffName.trim()) return false;
 
     setState((prev) => ({ ...prev, isSaving: true, saveError: null }));
 
     try {
       await saveDocuments(state.customerName, state.staffName, state.year, state.documentGroups);
       setState((prev) => ({ ...prev, isSaving: false, lastSaved: new Date() }));
+      return true;
     } catch (error) {
       setState((prev) => ({
         ...prev,
         isSaving: false,
         saveError: error instanceof Error ? error.message : '保存に失敗しました',
       }));
+      return false;
     }
   }, [state.customerName, state.staffName, state.year, state.documentGroups]);
 
@@ -86,13 +88,17 @@ export default function Home() {
       return;
     }
 
-    await saveData();
+    const saved = await saveData();
+    if (!saved) {
+      alert('保存に失敗したため、翌年度更新を中止しました');
+      return;
+    }
 
     try {
       const data = await apiCopyToNextYear(state.customerName, state.staffName, state.year);
 
       if (data.success) {
-        alert(`令和${state.year - 2018}年のデータを令和${state.year - 2018 + 1}年にコピーしました。\n年度を切り替えて確認してください。`);
+        alert(`令和${toReiwa(state.year)}年のデータを令和${toReiwa(state.year) + 1}年にコピーしました。\n年度を切り替えて確認してください。`);
       } else {
         alert('翌年度更新に失敗しました');
       }
@@ -118,8 +124,8 @@ export default function Home() {
       return;
     }
 
-    await saveData();
-    if (!state.saveError) {
+    const saved = await saveData();
+    if (saved) {
       alert('データを保存しました');
     }
   };
