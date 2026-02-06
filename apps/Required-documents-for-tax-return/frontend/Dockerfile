@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ============================================
 # Frontend Dockerfile - Next.js Application
 # ============================================
@@ -12,7 +13,7 @@ WORKDIR /app
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # ============================================
 # 開発用ステージ
@@ -24,11 +25,12 @@ RUN apk add --no-cache libc6-compat tzdata
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV NODE_ENV=development
-ENV NEXT_PUBLIC_API_URL=http://localhost:3001
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV WATCHPACK_POLLING=true
-ENV HOSTNAME=0.0.0.0
+ENV NODE_ENV=development \
+    NEXT_PUBLIC_API_URL=http://localhost:3001 \
+    NEXT_TELEMETRY_DISABLED=1 \
+    WATCHPACK_POLLING=true \
+    HOSTNAME=0.0.0.0 \
+    TZ=Asia/Tokyo
 
 EXPOSE 3000
 
@@ -45,31 +47,38 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_TELEMETRY_DISABLED=1
 
-RUN npm run build
+# ビルド時のみ使用（イメージに残さない）
+ARG NODE_OPTIONS="--max-old-space-size=4096"
+
+# .next/cache をキャッシュマウントし、増分ビルドを高速化
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 # ============================================
 # 本番ステージ
 # ============================================
 FROM base AS runner
 
-LABEL org.opencontainers.image.title="Tax Documents Frontend"
-LABEL org.opencontainers.image.description="Next.js frontend for tax document management"
+LABEL org.opencontainers.image.title="Tax Documents Frontend" \
+      org.opencontainers.image.description="Next.js frontend for tax document management"
 
-RUN apk add --no-cache libc6-compat tini tzdata
-
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-
-RUN addgroup --system --gid 1001 nodejs && \
+# ランタイム依存パッケージ + タイムゾーン設定 + 非rootユーザー
+RUN apk add --no-cache libc6-compat tini tzdata && \
+    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
+    echo "Asia/Tokyo" > /etc/timezone && \
+    apk del --no-cache tzdata && \
+    addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME="0.0.0.0" \
+    TZ=Asia/Tokyo
+
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
@@ -79,6 +88,9 @@ EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD wget -qO- http://localhost:3000/tax-docs/ || exit 1
+
+# シグナル処理
+STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "server.js"]

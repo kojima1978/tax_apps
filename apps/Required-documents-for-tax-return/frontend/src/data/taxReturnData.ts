@@ -1,3 +1,5 @@
+import { toReiwa } from '@/utils/date';
+
 export interface DocumentGroup {
   category: string;
   documents: string[];
@@ -181,8 +183,7 @@ export const taxReturnData: TaxReturnData = {
 
 // 年度プレースホルダーを置換するユーティリティ関数
 export function replaceYearPlaceholder(text: string, year: number): string {
-  // 令和年に変換 (2019年 = 令和元年, 2018年以前は考慮しない簡易実装)
-  const reiwaYear = year - 2018;
+  const reiwaYear = toReiwa(year);
   const yearStr = reiwaYear === 1 ? '元' : String(reiwaYear);
   return text.replace(/\{\{year\}\}/g, yearStr);
 }

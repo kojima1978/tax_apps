@@ -1,50 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
+import type { ApplicationInput } from '@/types/application';
+import { AVAILABLE_ICONS } from '@/lib/icons';
+import { MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_URL_LENGTH } from '@/lib/validation';
 
-interface Application {
-  id?: string;
-  title: string;
-  description: string;
-  url: string;
-  icon: string;
-}
+const EMPTY_FORM: ApplicationInput = {
+  title: '',
+  description: '',
+  url: '',
+  icon: 'Package',
+};
 
 interface ApplicationFormProps {
-  application?: Application;
-  onSubmit: (data: Application) => Promise<void>;
+  application?: ApplicationInput;
+  onSubmit: (data: ApplicationInput) => Promise<void>;
   onCancel?: () => void;
 }
 
-// 利用可能なアイコン一覧（lucide-react）
-const AVAILABLE_ICONS = [
-  // 税務アプリで使用中
-  'Activity', 'Briefcase', 'Building', 'Calculator', 'ClipboardList',
-  'FileCheck', 'FileText', 'Gift', 'Home', 'TrendingUp',
-  // その他のアイコン
-  'Archive', 'Award', 'BarChart3', 'Bell', 'BookOpen',
-  'Calendar', 'Camera', 'CheckSquare', 'Code', 'Coffee',
-  'Compass', 'CreditCard', 'Database', 'Film', 'FolderOpen',
-  'Globe', 'Heart', 'Image', 'Inbox', 'Key',
-  'Laptop', 'Layout', 'Mail', 'Map', 'Megaphone',
-  'MessageCircle', 'Monitor', 'Package', 'Palette', 'PenTool',
-  'Phone', 'PieChart', 'Printer', 'Radio', 'Search',
-  'Server', 'Settings', 'Share2', 'Shield', 'ShoppingCart',
-  'Smartphone', 'Star', 'Tag', 'Target', 'Terminal',
-  'Truck', 'Tv', 'Umbrella', 'Users', 'Video',
-  'Wifi', 'Wrench', 'Zap',
-];
-
 export default function ApplicationForm({ application, onSubmit, onCancel }: ApplicationFormProps) {
-  const [formData, setFormData] = useState<Application>({
-    title: application?.title || '',
-    description: application?.description || '',
-    url: application?.url || '',
-    icon: application?.icon || 'Package',
-  });
+  const [formData, setFormData] = useState<ApplicationInput>(application ?? EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // 編集対象が切り替わった時にフォームデータを同期
+  useEffect(() => {
+    setFormData(application ?? EMPTY_FORM);
+    setError('');
+  }, [application]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,12 +44,7 @@ export default function ApplicationForm({ application, onSubmit, onCancel }: App
       await onSubmit(formData);
       // Reset form if it's a new application
       if (!application) {
-        setFormData({
-          title: '',
-          description: '',
-          url: '',
-          icon: 'Package',
-        });
+        setFormData(EMPTY_FORM);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'アプリケーションの保存に失敗しました');
@@ -109,6 +88,7 @@ export default function ApplicationForm({ application, onSubmit, onCancel }: App
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
             placeholder="アプリケーション名"
+            maxLength={MAX_TITLE_LENGTH}
             required
           />
         </div>
@@ -123,6 +103,7 @@ export default function ApplicationForm({ application, onSubmit, onCancel }: App
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 resize-none"
             placeholder="アプリケーションの簡単な説明"
+            maxLength={MAX_DESCRIPTION_LENGTH}
             rows={3}
             required
           />
@@ -139,6 +120,7 @@ export default function ApplicationForm({ application, onSubmit, onCancel }: App
             onChange={(e) => setFormData({ ...formData, url: e.target.value })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
             placeholder="/app-path または https://example.com"
+            maxLength={MAX_URL_LENGTH}
             required
           />
         </div>

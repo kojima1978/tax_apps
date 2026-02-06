@@ -48,8 +48,8 @@ export default function EditStaffPage() {
         try {
             await updateStaffName(id, name, mobileNumber);
             router.push('/staff');
-        } catch (e: any) {
-            setError(e.message || '更新に失敗しました');
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : '更新に失敗しました');
             setIsSubmitting(false);
         }
     };

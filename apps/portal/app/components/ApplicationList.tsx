@@ -2,16 +2,8 @@
 
 import { useState } from 'react';
 import { Edit2, Trash2, ExternalLink } from 'lucide-react';
-
-interface Application {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  icon: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { Application } from '@/types/application';
+import { isExternalUrl } from '@/lib/url';
 
 interface ApplicationListProps {
   applications: Application[];
@@ -21,15 +13,19 @@ interface ApplicationListProps {
 
 export default function ApplicationList({ applications, onEdit, onDelete }: ApplicationListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`「${title}」を削除してもよろしいですか？`)) {
       return;
     }
 
+    setDeleteError(null);
     setDeletingId(id);
     try {
       await onDelete(id);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : '削除に失敗しました');
     } finally {
       setDeletingId(null);
     }
@@ -45,6 +41,11 @@ export default function ApplicationList({ applications, onEdit, onDelete }: Appl
 
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+      {deleteError && (
+        <div className="m-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {deleteError}
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -75,12 +76,11 @@ export default function ApplicationList({ applications, onEdit, onDelete }: Appl
                 <td className="px-6 py-4">
                   <a
                     href={app.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    {...(isExternalUrl(app.url) ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                     className="text-sm text-green-600 hover:text-green-700 flex items-center gap-1"
                   >
                     {app.url}
-                    <ExternalLink className="w-3 h-3" />
+                    {isExternalUrl(app.url) && <ExternalLink className="w-3 h-3" />}
                   </a>
                 </td>
                 <td className="px-6 py-4">

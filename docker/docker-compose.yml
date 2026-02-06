@@ -13,6 +13,13 @@
 # 共通設定
 x-common-env: &common-env
   TZ: Asia/Tokyo
+  NEXT_TELEMETRY_DISABLED: "1"
+
+# Next.js 開発サービス共通
+x-nextjs-dev-env: &nextjs-dev-env
+  <<: *common-env
+  NODE_ENV: development
+  WATCHPACK_POLLING: "true"
 
 x-logging: &default-logging
   driver: "json-file"
@@ -22,15 +29,32 @@ x-logging: &default-logging
 
 x-healthcheck-defaults: &healthcheck-defaults
   interval: 30s
-  timeout: 60s
+  timeout: 10s
   retries: 5
   start_period: 120s
+
+# サービス共通設定（ネットワーク・再起動・ログ・シグナル処理）
+x-service-defaults: &service-defaults
+  networks:
+    - app-network
+  restart: unless-stopped
+  logging: *default-logging
+  init: true
+
+# デフォルトリソース制限 (512M/128M)
+x-default-deploy: &default-deploy
+  resources:
+    limits:
+      memory: 512M
+    reservations:
+      memory: 128M
 
 services:
   # ===========================================
   # Nginx Gateway (リバースプロキシ)
   # ===========================================
   gateway:
+    <<: *service-defaults
     build:
       context: ../nginx
       dockerfile: Dockerfile
@@ -43,10 +67,14 @@ services:
     volumes:
       - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
+      - ../nginx/includes:/etc/nginx/includes:ro
+      - ../nginx/html:/usr/share/nginx/html:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO /dev/null http://localhost/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -59,35 +87,30 @@ services:
   # Port: 3000
   # ===========================================
   portal-app:
+    <<: *service-defaults
     build:
       context: ../apps/portal/app
       dockerfile: Dockerfile
     container_name: portal-app
     ports:
       - "3000:3000"
+    volumes:
+      - portal_data:/data
     environment:
       <<: *common-env
       NODE_ENV: production
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3000');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
       start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 医療法人株式評価システム
   # Port: 3010
   # ===========================================
   medical-stock-valuation:
+    <<: *service-defaults
     build:
       context: ../apps/medical-stock-valuation
       dockerfile: Dockerfile
@@ -99,29 +122,19 @@ services:
       - ../apps/medical-stock-valuation/src:/app/src:ro
       - ../apps/medical-stock-valuation/data:/app/data
     environment:
-      <<: *common-env
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
+      <<: *nextjs-dev-env
       PORT: "3010"
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3010/medical/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 非上場株式評価システム
   # Port: 3012
   # ===========================================
   shares-valuation:
+    <<: *service-defaults
     build:
       context: ../apps/shares-valuation
       dockerfile: Dockerfile
@@ -132,29 +145,19 @@ services:
     volumes:
       - ../apps/shares-valuation/src:/app/src:ro
     environment:
-      <<: *common-env
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
+      <<: *nextjs-dev-env
       PORT: "3012"
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3012/shares/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 相続税案件管理システム - PostgreSQL
   # Port: 3022
   # ===========================================
   itcm-postgres:
+    <<: *service-defaults
     image: postgres:16-alpine
     container_name: itcm-postgres
     environment:
@@ -166,10 +169,6 @@ services:
       - itcm_postgres_data:/var/lib/postgresql/data
     ports:
       - "3022:5432"
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-inheritance_tax_db}" ]
       <<: *healthcheck-defaults
@@ -186,6 +185,7 @@ services:
   # Port: 3021
   # ===========================================
   itcm-backend:
+    <<: *service-defaults
     build:
       context: ../
       dockerfile: apps/inheritance-case-management/api/Dockerfile
@@ -200,30 +200,21 @@ services:
     ports:
       - "3021:3021"
     volumes:
-      - ../apps/inheritance-case-management/api/src:/app/apps/inheritance-case-management/api/src
+      - ../apps/inheritance-case-management/api/src:/app/apps/inheritance-case-management/api/src:ro
     depends_on:
       itcm-postgres:
         condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3021/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
-
       <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 相続税案件管理システム - Frontend
   # Port: 3020
   # ===========================================
   itcm-frontend:
+    <<: *service-defaults
     build:
       context: ../
       dockerfile: apps/inheritance-case-management/web/Dockerfile
@@ -232,36 +223,26 @@ services:
         NEXT_PUBLIC_API_URL: /itcm-api/api
     container_name: itcm-frontend
     environment:
-      <<: *common-env
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
+      <<: *nextjs-dev-env
       NEXT_PUBLIC_API_URL: /itcm-api/api
     ports:
       - "3020:3020"
     volumes:
-      - ../apps/inheritance-case-management/web/src:/app/apps/inheritance-case-management/web/src
+      - ../apps/inheritance-case-management/web/src:/app/apps/inheritance-case-management/web/src:ro
     depends_on:
       itcm-backend:
         condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3020/itcm/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 相続銀行分析システム (Django)
   # Port: 8000
   # ===========================================
   bank-analyzer:
+    <<: *service-defaults
     build:
       context: ../apps/bank-analyzer-django
       dockerfile: Dockerfile
@@ -275,32 +256,23 @@ services:
       - bank_analyzer_db:/app/db
     environment:
       <<: *common-env
-      DJANGO_DEBUG: "True"
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,bank-analyzer
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,bank-analyzer}
       DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
       DJANGO_STATIC_URL: /bank-analyzer/static/
     command: [ "python", "manage.py", "runserver", "0.0.0.0:8000" ]
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/" ]
-
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/')\"" ]
       <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 相続税計算アプリ (Vite/React)
   # Port: 5173
   # ===========================================
   inheritance-tax-app:
+    <<: *service-defaults
     build:
       context: ../apps/inheritance-tax-app
       dockerfile: Dockerfile
@@ -314,19 +286,10 @@ services:
       <<: *common-env
       NODE_ENV: development
     command: npm run dev -- --host
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:5173/inheritance-tax-app/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 贈与税計算シミュレーター（間接税シミュレーター統合）
@@ -334,6 +297,7 @@ services:
   # Features: 贈与税計算、早見表、間接税（土地・建物）シミュレーター
   # ===========================================
   gift-tax-simulator:
+    <<: *service-defaults
     build:
       context: ../apps/gift-tax-simulator
       dockerfile: Dockerfile
@@ -346,23 +310,12 @@ services:
       - ../apps/gift-tax-simulator/components:/app/components:ro
       - ../apps/gift-tax-simulator/lib:/app/lib:ro
     environment:
-      <<: *common-env
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
+      <<: *nextjs-dev-env
     command: npm run dev -- -p 3001
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3001/gift-tax-simulator/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 贈与税申告 必要書類案内
@@ -370,6 +323,7 @@ services:
   # Features: ドラッグ&ドロップ対応、JSON入出力、Excel出力
   # ===========================================
   gift-tax-docs:
+    <<: *service-defaults
     build:
       context: ../apps/gift-tax-docs
       dockerfile: Dockerfile
@@ -381,30 +335,19 @@ services:
       - ../apps/gift-tax-docs/src:/app/src:ro
       - ../apps/gift-tax-docs/public:/app/public:ro
     environment:
-      <<: *common-env
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
-      NEXT_TELEMETRY_DISABLED: "1"
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
+      <<: *nextjs-dev-env
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3002/gift-tax-docs/ || exit 1" ]
+      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3002/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
       start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 相続税申告 資料準備ガイド
   # Port: 3003
   # ===========================================
   inheritance-tax-docs:
+    <<: *service-defaults
     build:
       context: ../apps/inheritance-tax-docs
       dockerfile: Dockerfile
@@ -415,29 +358,19 @@ services:
     volumes:
       - ../apps/inheritance-tax-docs/src:/app/src:ro
     environment:
-      <<: *common-env
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
+      <<: *nextjs-dev-env
     command: npm run dev -- -p 3003
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
   # ===========================================
   # 確定申告 必要書類 - Backend
   # Port: 3006 -> 3001
   # ===========================================
   tax-docs-backend:
+    <<: *service-defaults
     build:
       context: ../apps/Required-documents-for-tax-return/backend
       dockerfile: Dockerfile
@@ -452,10 +385,6 @@ services:
       <<: *common-env
       NODE_ENV: development
       PORT: "3001"
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3001/api/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
@@ -471,6 +400,7 @@ services:
   # Port: 3005 -> 3000
   # ===========================================
   tax-docs-frontend:
+    <<: *service-defaults
     build:
       context: ../apps/Required-documents-for-tax-return/frontend
       dockerfile: Dockerfile
@@ -483,26 +413,15 @@ services:
     volumes:
       - ../apps/Required-documents-for-tax-return/frontend/src:/app/src:ro
     environment:
-      <<: *common-env
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
+      <<: *nextjs-dev-env
       NEXT_PUBLIC_API_URL: /tax-docs-api
     depends_on:
       tax-docs-backend:
         condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3000/tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *default-deploy
 
 # ===========================================
 # ネットワーク
@@ -516,6 +435,8 @@ networks:
 # ボリューム
 # ===========================================
 volumes:
+  portal_data:
+    name: tax-apps-portal-data
   itcm_postgres_data:
     name: tax-apps-itcm-postgres
   tax_docs_data:

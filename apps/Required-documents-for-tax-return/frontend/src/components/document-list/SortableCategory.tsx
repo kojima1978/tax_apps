@@ -30,7 +30,7 @@ interface SortableCategoryProps {
     onAddDocument: (groupId: string) => void;
     onStartAddDocument: (groupId: string) => void;
     onCancelAddDocument: () => void;
-    onDocumentsReorder: (groupId: string, activeId: string, overId: string) => void;
+    onDocumentsReorder: (activeId: string, overId: string) => void;
     // サブアイテム関連
     editingSubItemId: string | null;
     editSubItemText: string;
@@ -114,7 +114,7 @@ export function SortableCategory({
     const handleDocumentDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (over && active.id !== over.id) {
-            onDocumentsReorder(group.id, active.id as string, over.id as string);
+            onDocumentsReorder(active.id as string, over.id as string);
         }
     };
 

@@ -8,3 +8,21 @@ build
 .env.*
 *.md
 *.log
+
+# Local dev database
+dev.db
+dev.db-journal
+
+# Prisma generated client (regenerated during build)
+app/generated
+
+# IDE
+.vscode
+.idea
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Docker
+Dockerfile
+.dockerignore

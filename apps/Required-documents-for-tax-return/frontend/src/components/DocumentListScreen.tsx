@@ -21,7 +21,7 @@ import { ArrowLeft, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upl
 import { exportToExcel } from '@/utils/exportExcel';
 import { CategoryGroup } from '@/types';
 import { SortableCategory } from './document-list/SortableCategory';
-import { formatDate } from '@/utils/date';
+import { formatDate, toReiwa } from '@/utils/date';
 import { fetchStaff } from '@/utils/api';
 import { taxReturnData, replaceYearPlaceholder } from '@/data/taxReturnData';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
@@ -65,7 +65,9 @@ export default function DocumentListScreen({
   const [staffList, setStaffList] = useState<{ id: number; staff_name: string; mobile_number?: string | null }[]>([]);
 
   useEffect(() => {
-    fetchStaff().then((data) => setStaffList(data));
+    fetchStaff()
+      .then((data) => setStaffList(data))
+      .catch((e) => console.error('担当者リストの取得に失敗:', e));
   }, []);
 
   // 編集状態をhookに委譲
@@ -80,7 +82,7 @@ export default function DocumentListScreen({
     })
   );
 
-  const reiwaYear = useMemo(() => year - 2018, [year]);
+  const reiwaYear = useMemo(() => toReiwa(year), [year]);
 
   // カテゴリの並び替え
   const handleCategoryDragStart = (event: DragStartEvent) => {
@@ -148,7 +150,7 @@ export default function DocumentListScreen({
       const importedData = parsed.data;
 
       if (!confirm(
-        `「${importedData.customer_name}」の令和${importedData.year - 2018}年のデータをインポートします。\n` +
+        `「${importedData.customer_name}」の令和${toReiwa(importedData.year)}年のデータをインポートします。\n` +
         `現在の編集内容は上書きされます。よろしいですか？`
       )) return;
 
@@ -386,8 +388,7 @@ export default function DocumentListScreen({
                     onSaveEditDocument={() => editing.saveEditDocument(group.id)}
                     onCancelEditDocument={editing.cancelEditDocument}
                     onDocumentsReorder={(activeId, overId) =>
-                      handleDocumentsReorder(group.id, activeId, overId)
-                    }
+                      handleDocumentsReorder(group.id, activeId, overId)}
                     addingToGroupId={editing.addingToGroupId}
                     newDocText={editing.newDocText}
                     onNewDocTextChange={editing.setNewDocText}

@@ -24,7 +24,7 @@
 ## 技術スタック
 
 ### フロントエンド
-- Next.js 16
+- Next.js 16（App Router / standalone出力）
 - React 19
 - TypeScript
 - Tailwind CSS v4
@@ -33,9 +33,109 @@
 - lucide-react（アイコン）
 
 ### バックエンド
+- Node.js 22 LTS
 - Express.js
-- better-sqlite3（SQLiteデータベース）
+- better-sqlite3（SQLiteデータベース / WALモード）
 - TypeScript
+
+### インフラ
+- Docker（マルチステージビルド / BuildKit）
+- Docker Compose（開発 / 本番オーバーライド）
+
+## セットアップ
+
+### 方法1: Docker（推奨）
+
+#### 前提条件
+- Docker / Docker Compose
+
+#### 開発環境
+
+```bash
+docker compose up -d --build
+```
+
+- フロントエンド: http://localhost:3005/tax-docs/
+- バックエンドAPI: http://localhost:3006
+
+ソースコードはボリュームマウントされており、変更時にホットリロードされます。
+
+```bash
+# ログ確認
+docker compose logs -f
+
+# 停止
+docker compose down
+
+# データも含めて完全削除
+docker compose down -v
+```
+
+#### 本番環境
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+本番ビルドでは `runner` ステージの軽量イメージが使用されます。
+
+`NEXT_PUBLIC_API_URL` を環境変数で上書きできます:
+
+```bash
+NEXT_PUBLIC_API_URL=https://api.example.com docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+### 方法2: ローカル開発（Docker不使用）
+
+#### 前提条件
+- Node.js 22 以上
+- npm
+
+#### バックエンド
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+バックエンドAPIが http://localhost:3001 で起動します。
+
+#### フロントエンド
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+フロントエンドが http://localhost:3000/tax-docs/ で起動します。
+
+## 環境変数
+
+### フロントエンド
+
+| 変数名 | デフォルト値 | 説明 |
+|--------|-------------|------|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:3001` | バックエンドAPIのURL |
+| `NEXT_TELEMETRY_DISABLED` | `1` | Next.jsテレメトリの無効化 |
+| `WATCHPACK_POLLING` | `true` | Docker内でのファイル変更検知（開発時） |
+
+### バックエンド
+
+| 変数名 | デフォルト値 | 説明 |
+|--------|-------------|------|
+| `PORT` | `3001` | APIサーバーのポート番号 |
+| `NODE_ENV` | - | `development` or `production` |
+| `TZ` | `Asia/Tokyo` | タイムゾーン |
+
+### CORS許可オリジン（バックエンド）
+
+バックエンドは以下のオリジンからのリクエストを許可します:
+
+- `http://localhost:3000` — フロントエンド開発サーバー（ローカル）
+- `http://127.0.0.1:3000` — 同上（loopback）
+- `http://localhost:3005` — フロントエンド開発サーバー（Docker）
 
 ## ディレクトリ構成
 
@@ -105,37 +205,31 @@ Required-documents-for-tax-return/
 - **customers**: 顧客情報（お客様名、担当者ID）
 - **document_records**: 年度別書類データ（JSON形式で保存）
 
-## Docker での起動
+### リレーション
+- staff 1 → N customers（担当者 → 顧客）
+- customers 1 → N document_records（顧客 → 年度別書類データ）
+- customers 削除時、document_records は CASCADE 削除
 
-### 前提条件
-- Docker / Docker Compose
+## Docker 構成
 
-### 開発環境
+### マルチステージビルド
 
-```bash
-docker compose up -d --build
-```
+両Dockerfileは用途別のステージを持ちます:
 
-- フロントエンド: http://localhost:3005/tax-docs/
-- バックエンドAPI: http://localhost:3006
+| ステージ | 用途 | 備考 |
+|---------|------|------|
+| `base` | 共通ベース | Node.js 22 Alpine |
+| `deps` | 依存関係インストール | BuildKit cache mount で高速化 |
+| `dev` | 開発サーバー | ホットリロード対応 |
+| `builder` | ビルド | Next.js standalone / TypeScript コンパイル |
+| `prod-deps` | 本番依存関係 | devDependencies 除外（バックエンドのみ） |
+| `runner` | 本番実行 | tini + 非rootユーザー + ヘルスチェック |
 
-ソースコードはボリュームマウントされており、変更時にホットリロードされます。
+### ボリューム
 
-```bash
-# ログ確認
-docker compose logs -f
-
-# 停止
-docker compose down
-```
-
-### 本番環境
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-```
-
-本番ビルドでは `runner` ステージの軽量イメージが使用されます。
+| ボリューム名 | マウント先 | 用途 |
+|-------------|-----------|------|
+| `tax-docs-data` | `/app/data` | SQLiteデータベースの永続化 |
 
 ## API エンドポイント
 

@@ -19,16 +19,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
-
-interface Application {
-    id: string;
-    title: string;
-    description: string;
-    url: string;
-    icon: string;
-    createdAt: Date;
-    updatedAt: Date;
-}
+import type { Application } from '@/types/application';
+import { applySavedOrder, saveOrder } from '@/lib/order';
 
 interface AdminAppSortProps {
     applications: Application[];
@@ -86,33 +78,7 @@ export default function AdminAppSort({ applications }: AdminAppSortProps) {
 
     useEffect(() => {
         setMounted(true);
-        // Load order from localStorage
-        const savedOrder = localStorage.getItem('portal_app_order');
-        if (savedOrder) {
-            try {
-                const orderIds = JSON.parse(savedOrder) as string[];
-                const newOrder = [...applications].sort((a, b) => {
-                    const indexA = orderIds.indexOf(a.id);
-                    const indexB = orderIds.indexOf(b.id);
-                    // If both IDs are in the saved list, sort by index
-                    if (indexA !== -1 && indexB !== -1) {
-                        return indexA - indexB;
-                    }
-                    // If only A is in list, it comes first
-                    if (indexA !== -1) return -1;
-                    // If only B is in list, it comes first
-                    if (indexB !== -1) return 1;
-                    // If neither, keep original order (or put at end)
-                    return 0;
-                });
-                setOrderedApps(newOrder);
-            } catch (e) {
-                console.error('Failed to parse saved order', e);
-                setOrderedApps(applications);
-            }
-        } else {
-            setOrderedApps(applications);
-        }
+        setOrderedApps(applySavedOrder(applications));
     }, [applications]);
 
     const handleDragEnd = (event: DragEndEvent) => {
@@ -124,11 +90,7 @@ export default function AdminAppSort({ applications }: AdminAppSortProps) {
                 const newIndex = items.findIndex((item) => item.id === over.id);
 
                 const newOrder = arrayMove(items, oldIndex, newIndex);
-
-                // Save to localStorage
-                const orderIds = newOrder.map(app => app.id);
-                localStorage.setItem('portal_app_order', JSON.stringify(orderIds));
-
+                saveOrder(newOrder);
                 return newOrder;
             });
         }

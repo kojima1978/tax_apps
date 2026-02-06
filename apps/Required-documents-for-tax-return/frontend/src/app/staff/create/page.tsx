@@ -27,8 +27,8 @@ export default function CreateStaffPage() {
         try {
             await addStaff(name, mobileNumber);
             router.push('/staff');
-        } catch (e: any) {
-            setError(e.message || '登録に失敗しました');
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : '登録に失敗しました');
             setIsSubmitting(false);
         }
     };

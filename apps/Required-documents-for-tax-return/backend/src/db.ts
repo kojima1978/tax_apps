@@ -48,7 +48,7 @@ export function initializeDb(): void {
         console.log('Migrating: Adding mobile_number to staff table...');
         db.exec('ALTER TABLE staff ADD COLUMN mobile_number TEXT');
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('Migration for mobile_number failed:', e);
     }
 
@@ -95,7 +95,7 @@ export function initializeDb(): void {
         })();
         console.log('Migration completed.');
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('Migration failed:', e);
     }
 
@@ -291,17 +291,6 @@ export function saveDocumentRecord(customerId: number, year: number, documentGro
   });
 }
 
-// 書類データを取得
-export function getDocumentRecord(customerId: number, year: number): unknown | null {
-  return withDb((db) => {
-    const record = db
-      .prepare('SELECT document_groups FROM document_records WHERE customer_id = ? AND year = ?')
-      .get(customerId, year) as { document_groups: string } | undefined;
-
-    return record ? JSON.parse(record.document_groups) : null;
-  });
-}
-
 // 顧客情報で書類データを取得
 export function getDocumentRecordByCustomerInfo(
   customerName: string,
@@ -313,7 +302,7 @@ export function getDocumentRecordByCustomerInfo(
     const staff = db.prepare('SELECT id FROM staff WHERE staff_name = ?').get(staffName) as { id: number } | undefined;
 
     let query = 'SELECT id FROM customers WHERE customer_name = ? AND staff_name = ?';
-    let params: any[] = [customerName, staffName];
+    let params: (string | number)[] = [customerName, staffName];
 
     if (staff) {
       query = 'SELECT id FROM customers WHERE customer_name = ? AND (staff_id = ? OR staff_name = ?)';
@@ -440,26 +429,11 @@ export function getDistinctCustomerNames(): string[] {
   });
 }
 
-// 担当者名一覧を取得 (Updated to query 'staff' table preferably, or distinct names)
+// 担当者名一覧を取得
 export function getDistinctStaffNames(): string[] {
   return withDb((db) => {
-    // Prefer staff table
     const staffs = db.prepare('SELECT staff_name FROM staff ORDER BY staff_name').all() as { staff_name: string }[];
-    if (staffs.length > 0) return staffs.map(s => s.staff_name);
-
-    // Winter fallback for legacy data if needed, but simple select is safer
-    const legacyStaffs = db
-      .prepare(
-        `
-        SELECT DISTINCT staff_name
-        FROM customers
-        WHERE staff_name IS NOT NULL
-        ORDER BY staff_name
-      `
-      )
-      .all() as { staff_name: string }[];
-
-    return legacyStaffs.map((s) => s.staff_name);
+    return staffs.map(s => s.staff_name);
   });
 }
 

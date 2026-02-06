@@ -3,37 +3,36 @@
 # ============================================
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # ============================================
+# Note: restart: unless-stopped is inherited from the base file.
+# deploy.restart_policy is Swarm-only and has no effect with docker compose up.
+# ============================================
 
 services:
   # ===========================================
   # Gateway - 本番設定
   # ===========================================
   gateway:
+    volumes: []
+    ports:
+      - "80:80"
     deploy:
       resources:
         limits:
           memory: 64M
         reservations:
           memory: 16M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
 
   # ===========================================
   # Portal - 本番設定
   # ===========================================
   portal-app:
+    ports: []
     deploy:
       resources:
         limits:
           memory: 256M
         reservations:
           memory: 64M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
 
   # ===========================================
   # 医療法人株式評価 - 本番設定
@@ -41,11 +40,10 @@ services:
   medical-stock-valuation:
     build:
       target: runner
+    ports: []
     volumes: []
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
-    command: []
     deploy:
       resources:
         limits:
@@ -59,11 +57,10 @@ services:
   shares-valuation:
     build:
       target: runner
+    ports: []
     volumes: []
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
-    command: []
     deploy:
       resources:
         limits:
@@ -75,6 +72,7 @@ services:
   # ITCM PostgreSQL - 本番設定
   # ===========================================
   itcm-postgres:
+    ports: []
     deploy:
       resources:
         limits:
@@ -88,8 +86,9 @@ services:
   itcm-backend:
     build:
       target: runner
+    ports: []
+    volumes: []
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
     deploy:
       resources:
@@ -104,8 +103,9 @@ services:
   itcm-frontend:
     build:
       target: runner
+    ports: []
+    volumes: []
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
     deploy:
       resources:
@@ -118,11 +118,11 @@ services:
   # Bank Analyzer - 本番設定
   # ===========================================
   bank-analyzer:
+    ports: []
     volumes:
       - bank_analyzer_data:/app/data
       - bank_analyzer_db:/app/db
     environment:
-      TZ: Asia/Tokyo
       DJANGO_DEBUG: "False"
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required for production}
     command: ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "300", "bank_project.wsgi:application"]
@@ -139,9 +139,9 @@ services:
   inheritance-tax-app:
     build:
       target: runner
+    ports: []
     volumes: []
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
     command: []
     deploy:
@@ -157,9 +157,9 @@ services:
   gift-tax-simulator:
     build:
       target: runner
+    ports: []
     volumes: []
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
     command: []
     deploy:
@@ -175,11 +175,10 @@ services:
   gift-tax-docs:
     build:
       target: runner
+    ports: []
     volumes: []
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
-    command: []
     deploy:
       resources:
         limits:
@@ -193,9 +192,9 @@ services:
   inheritance-tax-docs:
     build:
       target: runner
+    ports: []
     volumes: []
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
     command: []
     deploy:
@@ -211,10 +210,10 @@ services:
   tax-docs-backend:
     build:
       target: runner
+    ports: []
     volumes:
       - tax_docs_data:/app/data
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
     deploy:
       resources:
@@ -229,9 +228,9 @@ services:
   tax-docs-frontend:
     build:
       target: runner
+    ports: []
     volumes: []
     environment:
-      TZ: Asia/Tokyo
       NODE_ENV: production
     deploy:
       resources:

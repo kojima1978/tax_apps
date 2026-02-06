@@ -1,3 +1,11 @@
+/** 令和元年の西暦 - 1（令和年 = 西暦年 - REIWA_OFFSET） */
+export const REIWA_OFFSET = 2018;
+
+/** 西暦年を令和年に変換 */
+export function toReiwa(year: number): number {
+  return year - REIWA_OFFSET;
+}
+
 /**
  * デフォルトの対象年度（西暦）を計算
  * 1-3月の場合は前年の確定申告なので前年を返す

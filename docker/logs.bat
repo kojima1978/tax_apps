@@ -21,11 +21,6 @@ if /i "%~1"=="--no-follow" (
     shift
     goto :parse_args
 )
-if /i "%~1"=="-n" (
-    set "FOLLOW="
-    shift
-    goto :parse_args
-)
 if /i "%~1"=="--tail" (
     set "LINES=%~2"
     shift

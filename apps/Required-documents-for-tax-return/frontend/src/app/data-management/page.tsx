@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, Trash2, Edit2, Check, X, Search, Loader2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { fetchRecords, deleteDocument, updateCustomerName, DataRecord, fetchStaff } from '@/utils/api';
-import { formatDateTime } from '@/utils/date';
+import { formatDateTime, toReiwa } from '@/utils/date';
 import { Staff } from '@/types';
 
 interface EditState {
@@ -73,20 +73,16 @@ export default function DataManagementPage() {
   }, [searchStaff, searchCustomer, searchYear]);
 
   const handleDelete = async (id: number, customerName: string, year: number) => {
-    if (!confirm(`「${customerName}」の令和${year}年のデータを削除しますか？\nこの操作は取り消せません。`)) {
+    if (!confirm(`「${customerName}」の令和${toReiwa(year)}年のデータを削除しますか？\nこの操作は取り消せません。`)) {
       return;
     }
 
     try {
-      const success = await deleteDocument(id);
-      if (success) {
-        setRecords((prev) => prev.filter((r) => r.id !== id));
-      } else {
-        alert('削除に失敗しました');
-      }
+      await deleteDocument(id);
+      setRecords((prev) => prev.filter((r) => r.id !== id));
     } catch (error) {
       console.error('削除エラー:', error);
-      alert('削除に失敗しました');
+      alert(error instanceof Error ? error.message : '削除に失敗しました');
     }
   };
 
@@ -111,30 +107,26 @@ export default function DataManagementPage() {
     }
 
     try {
-      const success = await updateCustomerName(
+      await updateCustomerName(
         editState.customerId,
         editState.customerName.trim(),
         Number(editState.staffId)
       );
 
-      if (success) {
-        const staff = staffList.find(s => s.id === Number(editState.staffId));
-        const newStaffName = staff ? staff.staff_name : '';
+      const staff = staffList.find(s => s.id === Number(editState.staffId));
+      const newStaffName = staff ? staff.staff_name : '';
 
-        setRecords((prev) =>
-          prev.map((r) =>
-            r.customer_id === editState.customerId
-              ? { ...r, customer_name: editState.customerName.trim(), staff_name: newStaffName, staff_id: Number(editState.staffId) }
-              : r
-          )
-        );
-        cancelEdit();
-      } else {
-        alert('更新に失敗しました（重複など）');
-      }
+      setRecords((prev) =>
+        prev.map((r) =>
+          r.customer_id === editState.customerId
+            ? { ...r, customer_name: editState.customerName.trim(), staff_name: newStaffName, staff_id: Number(editState.staffId) }
+            : r
+        )
+      );
+      cancelEdit();
     } catch (error) {
       console.error('更新エラー:', error);
-      alert('更新に失敗しました');
+      alert(error instanceof Error ? error.message : '更新に失敗しました');
     }
   };
 
@@ -250,7 +242,7 @@ export default function DataManagementPage() {
               >
                 <option value="">すべて</option>
                 {availableYears.map((y) => (
-                  <option key={y} value={y}>令和{y - 2018}年</option>
+                  <option key={y} value={y}>令和{toReiwa(y)}年</option>
                 ))}
               </select>
             </div>
@@ -339,7 +331,7 @@ export default function DataManagementPage() {
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">
-                            令和{record.year - 2018}年
+                            令和{toReiwa(record.year)}年
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-500 tabular-nums">

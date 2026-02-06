@@ -7,14 +7,12 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex items-center justify-between">
           <Link href="/" aria-label="ホームへ戻る">
-            <div className="cursor-pointer">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                ポータルランチャー
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                すべてのアプリケーションへのゲートウェイ
-              </p>
-            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              ポータルランチャー
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              すべてのアプリケーションへのゲートウェイ
+            </p>
           </Link>
           <nav aria-label="メインナビゲーション" className="flex items-center gap-4">
             <Link

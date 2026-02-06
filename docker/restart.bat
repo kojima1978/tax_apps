@@ -1,6 +1,5 @@
 @echo off
 chcp 65001 >nul
-setlocal EnableDelayedExpansion
 
 echo.
 echo ╔════════════════════════════════════════════════════════════╗
@@ -46,10 +45,19 @@ goto :parse_args
 if defined SERVICE (
     echo Restarting service: %SERVICE%
     echo.
-    if defined PROD_FLAG (
-        docker compose %PROD_FLAG% restart %SERVICE%
+    if defined BUILD_FLAG (
+        :: docker compose restart does not support --build, use up instead
+        if defined PROD_FLAG (
+            docker compose %PROD_FLAG% up -d --build %SERVICE%
+        ) else (
+            docker compose up -d --build %SERVICE%
+        )
     ) else (
-        docker compose restart %SERVICE%
+        if defined PROD_FLAG (
+            docker compose %PROD_FLAG% restart %SERVICE%
+        ) else (
+            docker compose restart %SERVICE%
+        )
     )
 ) else (
     echo Stopping all services...
@@ -92,8 +100,9 @@ echo   --prod, -p     Use production configuration
 echo   [service]      Restart specific service only
 echo.
 echo Example:
-echo   restart.bat                    Restart all services
-echo   restart.bat --build            Restart all with rebuild
-echo   restart.bat tax-docs-backend   Restart single service
+echo   restart.bat                            Restart all services
+echo   restart.bat --build                    Restart all with rebuild
+echo   restart.bat tax-docs-backend           Restart single service
+echo   restart.bat --build tax-docs-backend   Rebuild and restart single service
 echo.
 pause

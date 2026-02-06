@@ -60,11 +60,12 @@ export default function EditCustomerPage() {
         try {
             await updateCustomerName(id, name, Number(staffId));
             router.push('/customers');
-        } catch (e: any) {
-            if (e.message && e.message.includes('already exists')) {
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : '更新に失敗しました';
+            if (message.includes('already exists')) {
                 setError('この担当者に同名のお客様が既に登録されています');
             } else {
-                setError(e.message || '更新に失敗しました');
+                setError(message);
             }
             setIsSubmitting(false);
         }

@@ -23,15 +23,4 @@ echo.
 docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 
 echo.
-echo ┌────────────────────────────────────────────────────────────┐
-echo │ Health Status                                              │
-echo └────────────────────────────────────────────────────────────┘
-echo.
-for /f "tokens=*" %%i in ('docker compose ps -q') do (
-    for /f "tokens=1,2" %%a in ('docker inspect --format "{{.Name}} {{.State.Health.Status}}" %%i 2^>nul') do (
-        echo %%a: %%b
-    )
-)
-
-echo.
 pause

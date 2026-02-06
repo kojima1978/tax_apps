@@ -49,6 +49,9 @@ export async function fetchDocuments(
   });
 
   const response = await fetch(`${API_BASE_URL}/api/documents?${params}`);
+  if (!response.ok) {
+    throw new Error('書類データの取得に失敗しました');
+  }
   return response.json();
 }
 
@@ -87,6 +90,10 @@ export async function copyToNextYear(
     }),
   });
 
+  if (!response.ok) {
+    throw new Error('翌年度更新に失敗しました');
+  }
+
   return response.json();
 }
 
@@ -99,11 +106,14 @@ export async function fetchRecords(): Promise<DataRecord[]> {
   return data.records || [];
 }
 
-export async function deleteDocument(id: number): Promise<boolean> {
+export async function deleteDocument(id: number): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/documents/${id}`, {
     method: 'DELETE',
   });
-  return response.ok;
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || '書類データの削除に失敗しました');
+  }
 }
 
 export async function fetchCustomerNames(staffName?: string): Promise<string[]> {
@@ -146,19 +156,22 @@ export async function addCustomer(customerName: string, staffId: number): Promis
   });
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to add customer');
+    throw new Error(error.error || 'お客様の登録に失敗しました');
   }
   const data: { customer: Customer } = await response.json();
   return data.customer;
 }
 
-export async function updateCustomerName(id: number, customerName: string, staffId: number): Promise<boolean> {
+export async function updateCustomerName(id: number, customerName: string, staffId: number): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/customers/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ customerName, staffId }),
   });
-  return response.ok;
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'お客様情報の更新に失敗しました');
+  }
 }
 
 export async function deleteCustomer(id: number): Promise<void> {
@@ -167,7 +180,7 @@ export async function deleteCustomer(id: number): Promise<void> {
   });
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to delete customer');
+    throw new Error(error.error || 'お客様の削除に失敗しました');
   }
 }
 
@@ -188,19 +201,22 @@ export async function addStaff(staffName: string, mobileNumber?: string): Promis
   });
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to add staff');
+    throw new Error(error.error || '担当者の登録に失敗しました');
   }
   const data: { staff: Staff } = await response.json();
   return data.staff;
 }
 
-export async function updateStaffName(id: number, staffName: string, mobileNumber?: string): Promise<boolean> {
+export async function updateStaffName(id: number, staffName: string, mobileNumber?: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/staff/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ staffName, mobileNumber }),
   });
-  return response.ok;
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || '担当者情報の更新に失敗しました');
+  }
 }
 
 export async function deleteStaff(id: number): Promise<void> {
@@ -209,6 +225,6 @@ export async function deleteStaff(id: number): Promise<void> {
   });
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to delete staff');
+    throw new Error(error.error || '担当者の削除に失敗しました');
   }
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ChevronRight, Database, Download, Loader2, Settings, Upload, Users, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { taxReturnData } from '@/data/taxReturnData';
+import { toReiwa } from '@/utils/date';
 import { fetchStaff, fetchCustomerNames, fetchAvailableYears } from '@/utils/api';
 import { exportFullBackup, importFullBackup, readJsonFile, validateFullBackupImport, FullBackupExport } from '@/utils/jsonExportImport';
 
@@ -23,15 +24,20 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   // Default years to show if no history exists (Current year and Previous year)
-  const currentYear = new Date().getFullYear();
-  const defaultYears = [];
-  for (let y = currentYear; y >= 2019; y--) {
-    defaultYears.push(y);
-  }
+  const defaultYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years: number[] = [];
+    for (let y = currentYear; y >= 2019; y--) {
+      years.push(y);
+    }
+    return years;
+  }, []);
 
   // Merge available years with default years for display
-  const displayYears = Array.from(new Set([...availableYears, ...defaultYears]))
-    .sort((a, b) => b - a);
+  const displayYears = useMemo(
+    () => Array.from(new Set([...availableYears, ...defaultYears])).sort((a, b) => b - a),
+    [availableYears, defaultYears]
+  );
 
   const loadStaff = useCallback(async () => {
     const staff = await fetchStaff();
@@ -222,7 +228,7 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
                       value={selectedYear}
                       onChange={(val) => setSelectedYear(val ? Number(val) : '')}
                       options={displayYears}
-                      formatOption={(y) => availableYears.includes(y) ? `令和${y - 2018}年 (保存済み)` : `令和${y - 2018}年 (新規)`}
+                      formatOption={(y) => availableYears.includes(y) ? `令和${toReiwa(y)}年 (保存済み)` : `令和${toReiwa(y)}年 (新規)`}
                       disabled={!selectedCustomer}
                     />
                   </div>

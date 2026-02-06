@@ -36,8 +36,17 @@ export default function SearchableSelect({
                 setIsOpen(false);
             }
         }
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === 'Escape') {
+                setIsOpen(false);
+            }
+        }
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
     }, []);
 
     useEffect(() => {
@@ -66,6 +75,8 @@ export default function SearchableSelect({
                 type="button"
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
+                aria-expanded={isOpen}
+                aria-haspopup="listbox"
                 className={`w-full px-4 py-3.5 text-left bg-white border rounded-xl flex items-center justify-between transition-all outline-none
                     ${error
                         ? 'border-red-300 bg-red-50'
@@ -108,10 +119,12 @@ export default function SearchableSelect({
                                 見つかりませんでした
                             </div>
                         ) : (
-                            <ul className="py-1">
+                            <ul className="py-1" role="listbox">
                                 {filteredOptions.map((option) => (
                                     <li
                                         key={option.value}
+                                        role="option"
+                                        aria-selected={option.value === value}
                                         onClick={() => handleSelect(option.value)}
                                         className={`px-4 py-2.5 text-sm cursor-pointer flex items-center justify-between transition-colors
                                             ${option.value === value
