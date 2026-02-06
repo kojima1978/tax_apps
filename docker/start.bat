@@ -67,9 +67,9 @@ echo.
 echo   Applications:
 echo     Tax Docs:           http://localhost/tax-docs/
 echo     Gift Tax Simulator: http://localhost/gift-tax-simulator/
+echo       - Real Estate:    http://localhost/gift-tax-simulator/real-estate
 echo     Gift Tax Docs:      http://localhost/gift-tax-docs/
 echo     Inheritance Docs:   http://localhost/inheritance-tax-docs/
-echo     Real Estate Tax:    http://localhost/real-estate-tax/
 echo     Inheritance Calc:   http://localhost/inheritance-tax-app/
 echo     Medical Stock:      http://localhost/medical/
 echo     Shares Valuation:   http://localhost/shares/

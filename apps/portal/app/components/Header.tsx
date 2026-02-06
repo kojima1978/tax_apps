@@ -3,10 +3,10 @@ import { Settings } from 'lucide-react';
 
 export default function Header() {
   return (
-    <header className="w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+    <header className="w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 shadow-sm no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex items-center justify-between">
-          <Link href="/">
+          <Link href="/" aria-label="ホームへ戻る">
             <div className="cursor-pointer">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                 ポータルランチャー
@@ -16,12 +16,13 @@ export default function Header() {
               </p>
             </div>
           </Link>
-          <nav className="flex items-center gap-4">
+          <nav aria-label="メインナビゲーション" className="flex items-center gap-4">
             <Link
               href="/admin"
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg"
+              aria-label="管理画面を開く"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-4 h-4" aria-hidden="true" />
               管理
             </Link>
           </nav>

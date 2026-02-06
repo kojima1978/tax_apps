@@ -106,10 +106,10 @@ stop.bat --volumes
 |:----------------|:------------|:---------|:-----|
 | Portal | http://localhost/ | 3000 | メインポータル |
 | Tax Docs | http://localhost/tax-docs/ | 3005 | 確定申告 必要書類 |
-| Gift Tax Simulator | http://localhost/gift-tax-simulator/ | 3001 | 贈与税計算 |
+| Gift Tax Simulator | http://localhost/gift-tax-simulator/ | 3001 | 贈与税計算・間接税シミュレーター |
+| - 間接税 | http://localhost/gift-tax-simulator/real-estate | - | 土地・建物取得税計算 |
 | Gift Tax Docs | http://localhost/gift-tax-docs/ | 3002 | 贈与税 必要書類 |
 | Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | 相続税 資料ガイド |
-| Real Estate Tax | http://localhost/real-estate-tax/ | 3004 | 不動産取得税 |
 | Inheritance Tax App | http://localhost/inheritance-tax-app/ | 5173 | 相続税計算 (Vite) |
 | Medical Stock | http://localhost/medical/ | 3010 | 医療法人株式評価 |
 | Shares Valuation | http://localhost/shares/ | 3012 | 非上場株式評価 |
@@ -138,7 +138,6 @@ tax_apps/
 │   ├── inheritance-case-management/  # 案件管理
 │   ├── medical-stock-valuation/# 医療法人株式
 │   ├── shares-valuation/       # 非上場株式
-│   ├── real-estate-tax/        # 不動産取得税
 │   └── bank-analyzer-django/   # 銀行分析
 ├── docker/                     # Docker設定
 │   ├── docker-compose.yml      # メイン設定
@@ -271,6 +270,8 @@ RUN apk add --no-cache curl                    # Alpine
 
 ### 2026-02
 
+- **Gift Tax Simulator**: 間接税シミュレーター（不動産取得税）を統合、早見表機能追加
+- **real-estate-tax**: 独立アプリを廃止、gift-tax-simulatorに統合
 - **Bank Analyzer**: 取引追加/削除機能、日付範囲フィルター追加
 - **Dockerfile改善**: 重複コード削除、nginx設定検証の有効化
 - **docker-compose.prod.yml**: gunicornのwsgiパス修正、タイムアウト設定追加

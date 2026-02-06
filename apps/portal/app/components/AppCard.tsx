@@ -2,7 +2,6 @@
 
 import { AppLink } from '@/data/links';
 import * as Icons from 'lucide-react';
-import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 
 interface AppCardProps {

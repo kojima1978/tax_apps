@@ -152,7 +152,7 @@ services:
           memory: 32M
 
   # ===========================================
-  # 贈与税シミュレーター - 本番設定
+  # 贈与税シミュレーター（間接税統合）- 本番設定
   # ===========================================
   gift-tax-simulator:
     build:
@@ -191,24 +191,6 @@ services:
   # 相続税書類 - 本番設定
   # ===========================================
   inheritance-tax-docs:
-    build:
-      target: runner
-    volumes: []
-    environment:
-      TZ: Asia/Tokyo
-      NODE_ENV: production
-    command: []
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 64M
-
-  # ===========================================
-  # 不動産取得税 - 本番設定
-  # ===========================================
-  real-estate-tax:
     build:
       target: runner
     volumes: []

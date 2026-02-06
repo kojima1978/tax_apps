@@ -1,7 +1,13 @@
+import { Metadata } from 'next';
 import Header from '@/components/Header';
 import AdminPanel from '@/components/AdminPanel';
 import AdminAppSort from '@/components/AdminAppSort';
 import { prisma } from '@/lib/prisma';
+
+export const metadata: Metadata = {
+  title: '管理',
+  description: 'ポータルのアプリケーションを管理',
+};
 
 export default async function AdminPage() {
   const applications = await prisma.application.findMany({
