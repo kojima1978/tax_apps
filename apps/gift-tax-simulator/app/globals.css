@@ -73,6 +73,13 @@ body {
   background-color: rgba(255, 255, 255, 0.3);
 }
 
+.btn-nav.active {
+  background-color: var(--white);
+  color: var(--primary-color);
+  font-weight: 700;
+  cursor: default;
+}
+
 /* 入力セクション */
 .input-section {
   padding: 1.5rem;
@@ -283,7 +290,6 @@ tr:hover {
 
 /* 早見表ページ */
 .table-page {
-  max-width: 1000px;
   page: table-page;
 }
 
@@ -353,6 +359,205 @@ tr:hover {
   margin: 0;
   font-size: 0.85rem;
   color: #666;
+}
+
+/* =============================================================================
+   間接税シミュレーターページ (統一スタイル)
+   ============================================================================= */
+
+/* トグルボタン */
+.toggle-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: var(--white);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.toggle-btn.active {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--white);
+}
+
+.toggle-btn:hover:not(.active):not(:disabled) {
+  background-color: #f5f5f5;
+}
+
+.toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 2カラムレイアウト */
+.re-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .re-two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
+.re-column {
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+}
+
+.re-column.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.re-column-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.input-item small {
+  display: block;
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+/* 結果ボックス */
+.re-result-box {
+  background-color: var(--primary-dark);
+  color: var(--white);
+  padding: 1.5rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.re-result-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 600px) {
+  .re-result-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.re-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.re-result-label {
+  font-size: 0.85rem;
+  color: #a5d6a7;
+  font-weight: 600;
+}
+
+.re-result-sub {
+  font-size: 0.75rem;
+  color: #bbb;
+}
+
+.re-result-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.re-result-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.re-result-total .total-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+/* 計算過程の詳細 */
+.details-toggle {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 1rem;
+}
+
+.details-toggle:hover {
+  background-color: #eee;
+}
+
+.details-content {
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.detail-section {
+  margin-bottom: 1rem;
+}
+
+.detail-section h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0 0 0.5rem 0;
+}
+
+.detail-box {
+  background-color: var(--white);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.detail-box strong {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.detail-box ul {
+  list-style: disc;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.detail-box li {
+  font-size: 0.8rem;
+  color: #555;
+  margin-bottom: 0.25rem;
+}
+
+/* 免責事項 */
+.disclaimer {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 1rem;
 }
 
 /* A3印刷用ページ設定 */
@@ -490,35 +695,52 @@ tr:hover {
   /* 早見表ページ */
   .table-page {
     max-width: 100% !important;
+    page: table-page;
+  }
+
+  .table-page .input-section {
+    display: none !important;
+  }
+
+  .table-page .result-section {
+    padding: 5px 0 !important;
   }
 
   .table-page .tax-table-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
     page-break-inside: avoid;
   }
 
   .table-page .table-section-title {
-    font-size: 12pt !important;
-    margin-bottom: 0.5rem;
-    padding: 0.3rem 0.5rem;
+    font-size: 10pt !important;
+    margin-bottom: 0.3rem;
+    padding: 0.2rem 0.4rem;
   }
 
   .table-page .table-common-note {
-    font-size: 9pt !important;
-    margin-bottom: 1rem;
-    padding: 0.3rem;
+    font-size: 8pt !important;
+    margin-bottom: 0.5rem;
+    padding: 0.2rem;
   }
 
   .table-page .table-note {
-    font-size: 8pt !important;
-    margin-top: 0.3rem;
-    padding: 0.3rem;
+    font-size: 7pt !important;
+    margin-top: 0.2rem;
+    padding: 0.2rem;
+  }
+
+  .table-page .tax-table-single {
+    width: 100% !important;
   }
 
   .table-page .tax-table-single th,
   .table-page .tax-table-single td {
-    padding: 4px 8px !important;
-    font-size: 9pt !important;
+    padding: 2px 4px !important;
+    font-size: 8pt !important;
+  }
+
+  .table-page .table-container {
+    margin-bottom: 0.5rem !important;
   }
 
   /* 印刷用フッター */
@@ -561,5 +783,94 @@ tr:hover {
 
   .print-date {
     font-size: 9pt !important;
+  }
+
+  /* 間接税ページ印刷用 */
+  .real-estate-page {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .real-estate-page .input-section {
+    padding: 10px 0 !important;
+  }
+
+  .real-estate-page .re-two-column {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 2rem !important;
+    width: 100% !important;
+  }
+
+  .real-estate-page .re-column {
+    background: transparent !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  .real-estate-page .re-column .input-item {
+    margin-bottom: 8px !important;
+  }
+
+  .real-estate-page .re-column-title {
+    font-size: 10pt !important;
+    border-bottom-color: var(--primary-color);
+  }
+
+  .real-estate-page .toggle-btn {
+    padding: 3px 8px !important;
+    font-size: 9pt !important;
+  }
+
+  .real-estate-page .re-result-box {
+    background-color: var(--primary-dark) !important;
+    color: var(--white) !important;
+    padding: 10px !important;
+    border: none !important;
+  }
+
+  .real-estate-page .re-result-label {
+    color: #a5d6a7 !important;
+    font-size: 9pt !important;
+  }
+
+  .real-estate-page .re-result-sub {
+    color: #bbb !important;
+    font-size: 8pt !important;
+  }
+
+  .real-estate-page .re-result-value {
+    font-size: 11pt !important;
+    color: var(--white) !important;
+  }
+
+  .real-estate-page .re-result-total .total-value {
+    font-size: 14pt !important;
+    color: var(--white) !important;
+  }
+
+  .real-estate-page .details-toggle {
+    display: none !important;
+  }
+
+  .real-estate-page .details-content {
+    display: block !important;
+    background: transparent !important;
+    padding: 5px 0 !important;
+  }
+
+  .real-estate-page .detail-box {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    padding: 5px !important;
+  }
+
+  .real-estate-page .detail-box li {
+    font-size: 8pt !important;
+  }
+
+  .no-print {
+    display: none !important;
   }
 }

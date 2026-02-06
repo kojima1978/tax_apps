@@ -33,7 +33,7 @@ const generateTableData = (maxAmount: number, type: GiftType): QuickRefRow[] => 
 };
 
 export default function TablePage() {
-    const [maxAmount, setMaxAmount] = useState(LIMIT_OPTIONS[0].value);
+    const [maxAmount, setMaxAmount] = useState<number>(10_000_000);
 
     const specialData = useMemo(() => generateTableData(maxAmount, 'special'), [maxAmount]);
     const generalData = useMemo(() => generateTableData(maxAmount, 'general'), [maxAmount]);
@@ -43,11 +43,11 @@ export default function TablePage() {
             <header className="header-custom">
                 <h1>贈与税 早見表</h1>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <Link href="/" className="btn-nav">
-                        シミュレーター
-                    </Link>
-                    <button className="btn-print" onClick={() => window.print()}>
-                        🖨 印刷
+                    <Link href="/" className="btn-nav">贈与税</Link>
+                    <span className="btn-nav active">早見表</span>
+                    <Link href="/real-estate" className="btn-nav">間接税</Link>
+                    <button className="btn-print" style={{ marginLeft: '1rem' }} onClick={() => window.print()}>
+                        印刷
                     </button>
                 </div>
             </header>

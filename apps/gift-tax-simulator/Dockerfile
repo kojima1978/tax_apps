@@ -3,7 +3,7 @@
 # =============================================================================
 # Build Arguments
 # =============================================================================
-ARG NODE_VERSION=24
+ARG NODE_VERSION=22
 
 # =============================================================================
 # Base stage - Common configuration
@@ -47,6 +47,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy source code
 COPY . .
 
+# Clear any cached build files
+RUN rm -rf .next
+
 EXPOSE 3000
 
 # Use exec form for proper signal handling
@@ -68,8 +71,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy source files
 COPY . .
 
-# Build and cleanup
-RUN npm run build && \
+# Clear cache and build
+RUN rm -rf .next node_modules/.cache && \
+    npm run build && \
     rm -rf node_modules/.cache .next/cache
 
 # =============================================================================
