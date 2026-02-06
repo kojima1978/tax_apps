@@ -13,13 +13,13 @@ services:
       context: .
       target: dev
       args:
-        NODE_VERSION: 24
+        NODE_VERSION: 22
     ports:
       - "3001:3000"
     volumes:
       - .:/app:cached
       - node_modules:/app/node_modules
-      - /app/.next # Exclude .next from bind mount
+      - next_cache:/app/.next
     environment:
       NODE_ENV: development
       WATCHPACK_POLLING: "true"
@@ -30,6 +30,8 @@ services:
     tty: true
     profiles:
       - dev
+    networks:
+      - app-network
     labels:
       - "app.name=gift-tax-simulator"
       - "app.env=development"
@@ -43,7 +45,7 @@ services:
       context: .
       target: runner
       args:
-        NODE_VERSION: 24
+        NODE_VERSION: 22
     ports:
       - "3001:3001"
     environment:
@@ -89,6 +91,8 @@ services:
         compress: "true"
     profiles:
       - prod
+    networks:
+      - app-network
     labels:
       - "app.name=gift-tax-simulator"
       - "app.env=production"
@@ -96,7 +100,10 @@ services:
 volumes:
   node_modules:
     name: gift-tax-simulator-node-modules
+  next_cache:
+    name: gift-tax-simulator-next-cache
 
 networks:
-  default:
+  app-network:
     name: gift-tax-simulator-network
+    driver: bridge
