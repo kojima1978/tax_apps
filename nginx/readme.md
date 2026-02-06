@@ -34,11 +34,18 @@ nginx/
 - **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options等
 - **サーバー情報非表示**: server_tokens off
 
-### 監視
+### 監視・トレーシング
 
 - **ヘルスチェック**: `/health` エンドポイント
 - **Nginx Status**: `/nginx-status` (内部ネットワークのみ)
 - **詳細ログ**: レスポンスタイム、アップストリーム時間
+- **リクエストトレーシング**: X-Request-ID, X-Request-Start ヘッダー
+
+### エラーページ
+
+- **429**: レート制限超過（日本語メッセージ）
+- **50x**: サーバーエラー（日本語メッセージ）
+- **503**: メンテナンス中（日本語メッセージ）
 
 ### 構成のモジュール化
 
@@ -57,10 +64,10 @@ nginx/
 | `/shares/` | `shares-valuation:3012` | 非上場株式評価 |
 | `/inheritance-tax-app/` | `inheritance-tax-app:5173` | 相続税計算 (Vite) |
 | `/bank-analyzer/` | `bank-analyzer:8000` | 銀行分析 (Django) |
-| `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税シミュレーター |
+| `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター |
 | `/gift-tax-docs/` | `gift-tax-docs:3002` | 贈与税 必要書類 |
 | `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド |
-| `/real-estate-tax/` | `real-estate-tax:3004` | 不動産取得税計算 |
+| `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
 
 ## Docker Compose 設定例
 

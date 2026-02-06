@@ -1,3 +1,11 @@
+/**
+ * Prisma Client Configuration
+ * SQLiteデータベース接続管理
+ *
+ * 開発環境: libsql (Turso互換)
+ * Docker環境: better-sqlite3 (Dockerfile内で置換)
+ */
+
 import { PrismaClient } from '../app/generated/prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 
@@ -13,4 +21,7 @@ export const prisma =
     adapter,
   });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// 開発環境でのホットリロード時にインスタンスを再利用
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}

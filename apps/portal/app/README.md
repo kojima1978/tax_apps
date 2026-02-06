@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tax Apps Portal
 
-## Getting Started
+税理士業務支援アプリケーションのポータルサイト
 
-First, run the development server:
+## 概要
+
+複数の税務関連アプリケーションへのゲートウェイとして機能するダッシュボードです。
+
+## 機能
+
+- **アプリケーション一覧**: 登録されたアプリへのクイックアクセス
+- **検索**: アプリケーション名・説明で絞り込み
+- **管理画面**: アプリの追加・編集・削除
+- **並び替え**: ドラッグ＆ドロップで表示順をカスタマイズ
+
+## 技術スタック
+
+- **Framework**: Next.js 16 (App Router)
+- **Database**: SQLite (libsql / better-sqlite3)
+- **ORM**: Prisma
+- **Styling**: Tailwind CSS 4
+- **UI**: lucide-react (アイコン)
+- **DnD**: @dnd-kit
+
+## 開発
 
 ```bash
+# 依存関係インストール
+npm install
+
+# データベース初期化
+npx prisma db push
+npm run db:seed
+
+# 開発サーバー起動
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Docker
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# ビルド
+docker build -t tax-apps-portal .
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 起動
+docker run -p 3000:3000 tax-apps-portal
+```
 
-## Learn More
+## ディレクトリ構成
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/
+├── app/
+│   ├── admin/          # 管理画面
+│   ├── api/            # API Routes
+│   ├── layout.tsx      # ルートレイアウト
+│   ├── page.tsx        # ホームページ
+│   └── globals.css     # グローバルスタイル
+├── components/         # UIコンポーネント
+├── data/               # 静的データ
+├── lib/                # ユーティリティ
+└── prisma/             # スキーマ・シード
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 登録アプリケーション
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| アプリ | URL | 説明 |
+|:-------|:----|:-----|
+| 相続税計算 | /inheritance-tax-app/ | 相続税シミュレーション |
+| 贈与税シミュレーター | /gift-tax-simulator/ | 贈与税・間接税計算 |
+| 案件管理 | /itcm/ | 相続税案件の進捗管理 |
+| 銀行分析 | /bank-analyzer/ | 預金移動の分析 |
+| 確定申告 必要書類 | /tax-docs/ | 書類確認・管理 |

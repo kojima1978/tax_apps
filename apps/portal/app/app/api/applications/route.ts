@@ -1,3 +1,8 @@
+/**
+ * Application API - Collection Operations
+ * アプリケーション一覧の取得・作成
+ */
+
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 

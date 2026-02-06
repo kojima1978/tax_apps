@@ -1,7 +1,11 @@
+/**
+ * Application API - Individual Operations
+ * 個別アプリケーションのCRUD操作
+ */
+
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET: 特定のアプリケーションを取得
 // GET: 特定のアプリケーションを取得
 export async function GET(
   _request: Request,

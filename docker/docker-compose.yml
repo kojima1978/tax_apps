@@ -329,8 +329,9 @@ services:
           memory: 128M
 
   # ===========================================
-  # 贈与税計算シミュレーター
+  # 贈与税計算シミュレーター（間接税シミュレーター統合）
   # Port: 3001
+  # Features: 贈与税計算、早見表、間接税（土地・建物）シミュレーター
   # ===========================================
   gift-tax-simulator:
     build:
@@ -341,7 +342,9 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ../apps/gift-tax-simulator/src:/app/src:ro
+      - ../apps/gift-tax-simulator/app:/app/app:ro
+      - ../apps/gift-tax-simulator/components:/app/components:ro
+      - ../apps/gift-tax-simulator/lib:/app/lib:ro
     environment:
       <<: *common-env
       NODE_ENV: development
@@ -422,39 +425,6 @@ services:
     logging: *default-logging
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
-      <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
-
-  # ===========================================
-  # 不動産取得税計算システム
-  # Port: 3004
-  # ===========================================
-  real-estate-tax:
-    build:
-      context: ../apps/real-estate-tax
-      dockerfile: Dockerfile
-      target: dev
-    container_name: real-estate-tax
-    ports:
-      - "3004:3004"
-    volumes:
-      - ../apps/real-estate-tax/src:/app/src:ro
-    environment:
-      <<: *common-env
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
-    command: npm run dev -- -p 3004
-    networks:
-      - app-network
-    restart: unless-stopped
-    logging: *default-logging
-    healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3004/real-estate-tax/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
     deploy:
       resources:

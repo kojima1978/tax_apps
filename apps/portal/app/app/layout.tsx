@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,8 +13,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ポータルランチャー",
-  description: "すべてのアプリケーションへのゲートウェイ",
+  title: {
+    default: "ポータルランチャー",
+    template: "%s | ポータルランチャー",
+  },
+  description: "税理士業務支援アプリケーション - すべてのアプリへのゲートウェイ",
+  keywords: ["税理士", "相続税", "贈与税", "確定申告", "税務"],
+  authors: [{ name: "Tax Apps" }],
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#10b981",
 };
 
 export default function RootLayout({

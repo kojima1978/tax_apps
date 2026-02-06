@@ -17,17 +17,23 @@ interface ApplicationFormProps {
   onCancel?: () => void;
 }
 
+// 利用可能なアイコン一覧（lucide-react）
 const AVAILABLE_ICONS = [
-  'PieChart', 'CheckSquare', 'BarChart3', 'BookOpen', 'Settings',
-  'Users', 'Calendar', 'Bell', 'FolderOpen', 'Mail', 'Database',
-  'Shield', 'Zap', 'Globe', 'Package', 'Activity', 'Archive',
-  'Award', 'Briefcase', 'Camera', 'Code', 'Coffee', 'Compass',
-  'CreditCard', 'FileText', 'Film', 'Gift', 'Heart', 'Home',
-  'Image', 'Inbox', 'Key', 'Laptop', 'Layout', 'Map', 'Megaphone',
-  'MessageCircle', 'Monitor', 'Palette', 'PenTool', 'Phone',
-  'Printer', 'Radio', 'Search', 'Server', 'Share2', 'ShoppingCart',
-  'Smartphone', 'Star', 'Tag', 'Target', 'Terminal', 'Truck',
-  'Tv', 'Umbrella', 'Video', 'Wifi', 'Wrench'
+  // 税務アプリで使用中
+  'Activity', 'Briefcase', 'Building', 'Calculator', 'ClipboardList',
+  'FileCheck', 'FileText', 'Gift', 'Home', 'TrendingUp',
+  // その他のアイコン
+  'Archive', 'Award', 'BarChart3', 'Bell', 'BookOpen',
+  'Calendar', 'Camera', 'CheckSquare', 'Code', 'Coffee',
+  'Compass', 'CreditCard', 'Database', 'Film', 'FolderOpen',
+  'Globe', 'Heart', 'Image', 'Inbox', 'Key',
+  'Laptop', 'Layout', 'Mail', 'Map', 'Megaphone',
+  'MessageCircle', 'Monitor', 'Package', 'Palette', 'PenTool',
+  'Phone', 'PieChart', 'Printer', 'Radio', 'Search',
+  'Server', 'Settings', 'Share2', 'Shield', 'ShoppingCart',
+  'Smartphone', 'Star', 'Tag', 'Target', 'Terminal',
+  'Truck', 'Tv', 'Umbrella', 'Users', 'Video',
+  'Wifi', 'Wrench', 'Zap',
 ];
 
 export default function ApplicationForm({ application, onSubmit, onCancel }: ApplicationFormProps) {
