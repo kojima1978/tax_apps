@@ -1,114 +1,80 @@
-import { giftData, type EditableCategory, type EditableDocumentList } from '@/constants';
+import { giftData, type DocumentGroup, type EditableCategory, type EditableDocument, type EditableDocumentList } from '@/constants';
 
 // 一意のIDを生成
-export const generateId = () => Math.random().toString(36).substring(2, 9);
+export const generateId = () => crypto.randomUUID();
+
+// カテゴリを更新するヘルパー（list.map + id比較パターンの共通化）
+const updateCategory = (
+  list: EditableDocumentList,
+  categoryId: string,
+  updater: (cat: EditableCategory) => EditableCategory
+): EditableDocumentList => list.map(cat => cat.id === categoryId ? updater(cat) : cat);
+
+// カテゴリ内の書類を更新するヘルパー
+const updateDocument = (
+  list: EditableDocumentList,
+  categoryId: string,
+  documentId: string,
+  updater: (doc: EditableDocument) => EditableDocument
+): EditableDocumentList => updateCategory(list, categoryId, cat => ({
+  ...cat,
+  documents: cat.documents.map(doc => doc.id === documentId ? updater(doc) : doc),
+}));
+
+// 書類文字列配列を EditableDocument[] に変換
+const toEditableDocuments = (docs: string[], checked: boolean): EditableDocument[] =>
+  docs.map(doc => ({ id: generateId(), text: doc, checked, subItems: [] }));
 
 // giftDataから編集可能なリストを初期化
-export const initializeEditableList = (): EditableDocumentList => {
-  const list: EditableCategory[] = [];
-
+export const initializeEditableList = (): EditableDocumentList => [
   // 基本必須書類
-  giftData.baseRequired.forEach((base) => {
-    list.push({
-      id: generateId(),
-      name: base.category,
-      documents: base.documents.map((doc) => ({
-        id: generateId(),
-        text: doc,
-        checked: true, // 基本書類はデフォルトでチェック済み
-        subItems: [],
-      })),
-      isExpanded: true,
-      isSpecial: false,
-    });
-  });
-
+  ...giftData.baseRequired.map((base): EditableCategory => ({
+    id: generateId(),
+    name: base.category,
+    documents: toEditableDocuments(base.documents, true),
+    isExpanded: true,
+    isSpecial: false,
+  })),
   // オプション（財産の種類）
-  giftData.options.forEach((opt) => {
-    const categoryName = opt.label
-      .replace('をもらいましたか？', '')
-      .replace('はありますか？', '');
-
-    list.push({
-      id: opt.id,
-      name: categoryName,
-      documents: opt.documents.map((doc) => ({
-        id: generateId(),
-        text: doc,
-        checked: false,
-        subItems: [],
-      })),
-      isExpanded: true,
-      isSpecial: false,
-    });
-  });
-
+  ...giftData.options.map((opt): EditableCategory => ({
+    id: opt.id,
+    name: opt.label.replace('をもらいましたか？', '').replace('はありますか？', ''),
+    documents: toEditableDocuments(opt.documents, false),
+    isExpanded: true,
+    isSpecial: false,
+  })),
   // 特例
-  giftData.specials.forEach((sp) => {
-    const categoryName = sp.label
-      .replace('を選択しますか？', '')
-      .replace('を適用しますか？', '')
-      .replace('（婚姻期間20年以上）', '');
-
-    list.push({
-      id: sp.id,
-      name: categoryName,
-      documents: sp.documents.map((doc) => ({
-        id: generateId(),
-        text: doc,
-        checked: false,
-        subItems: [],
-      })),
-      note: sp.note,
-      isExpanded: true,
-      isSpecial: true,
-    });
-  });
-
-  return list;
-};
+  ...giftData.specials.map((sp): EditableCategory => ({
+    id: sp.id,
+    name: sp.label.replace('を選択しますか？', '').replace('を適用しますか？', '').replace('（婚姻期間20年以上）', ''),
+    documents: toEditableDocuments(sp.documents, false),
+    note: sp.note,
+    isExpanded: true,
+    isSpecial: true,
+  })),
+];
 
 // カテゴリ内の書類を追加
 export const addDocumentToCategory = (
   list: EditableDocumentList,
   categoryId: string,
   documentText: string
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      return {
-        ...cat,
-        documents: [
-          ...cat.documents,
-          {
-            id: generateId(),
-            text: documentText,
-            checked: false,
-            subItems: [],
-          },
-        ],
-      };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList =>
+  updateCategory(list, categoryId, cat => ({
+    ...cat,
+    documents: [...cat.documents, { id: generateId(), text: documentText, checked: false, subItems: [] }],
+  }));
 
 // 書類を削除
 export const removeDocument = (
   list: EditableDocumentList,
   categoryId: string,
   documentId: string
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      return {
-        ...cat,
-        documents: cat.documents.filter((doc) => doc.id !== documentId),
-      };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList =>
+  updateCategory(list, categoryId, cat => ({
+    ...cat,
+    documents: cat.documents.filter(doc => doc.id !== documentId),
+  }));
 
 // 書類のテキストを更新
 export const updateDocumentText = (
@@ -116,38 +82,16 @@ export const updateDocumentText = (
   categoryId: string,
   documentId: string,
   newText: string
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      return {
-        ...cat,
-        documents: cat.documents.map((doc) =>
-          doc.id === documentId ? { ...doc, text: newText } : doc
-        ),
-      };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList =>
+  updateDocument(list, categoryId, documentId, doc => ({ ...doc, text: newText }));
 
 // 書類のチェック状態を切り替え
 export const toggleDocumentCheck = (
   list: EditableDocumentList,
   categoryId: string,
   documentId: string
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      return {
-        ...cat,
-        documents: cat.documents.map((doc) =>
-          doc.id === documentId ? { ...doc, checked: !doc.checked } : doc
-        ),
-      };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList =>
+  updateDocument(list, categoryId, documentId, doc => ({ ...doc, checked: !doc.checked }));
 
 // 中項目を追加
 export const addSubItem = (
@@ -155,27 +99,11 @@ export const addSubItem = (
   categoryId: string,
   documentId: string,
   subItemText: string
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      return {
-        ...cat,
-        documents: cat.documents.map((doc) =>
-          doc.id === documentId
-            ? {
-                ...doc,
-                subItems: [
-                  ...doc.subItems,
-                  { id: generateId(), text: subItemText },
-                ],
-              }
-            : doc
-        ),
-      };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList =>
+  updateDocument(list, categoryId, documentId, doc => ({
+    ...doc,
+    subItems: [...doc.subItems, { id: generateId(), text: subItemText }],
+  }));
 
 // 中項目を削除
 export const removeSubItem = (
@@ -183,24 +111,11 @@ export const removeSubItem = (
   categoryId: string,
   documentId: string,
   subItemId: string
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      return {
-        ...cat,
-        documents: cat.documents.map((doc) =>
-          doc.id === documentId
-            ? {
-                ...doc,
-                subItems: doc.subItems.filter((sub) => sub.id !== subItemId),
-              }
-            : doc
-        ),
-      };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList =>
+  updateDocument(list, categoryId, documentId, doc => ({
+    ...doc,
+    subItems: doc.subItems.filter(sub => sub.id !== subItemId),
+  }));
 
 // 中項目のテキストを更新
 export const updateSubItemText = (
@@ -209,107 +124,73 @@ export const updateSubItemText = (
   documentId: string,
   subItemId: string,
   newText: string
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      return {
-        ...cat,
-        documents: cat.documents.map((doc) =>
-          doc.id === documentId
-            ? {
-                ...doc,
-                subItems: doc.subItems.map((sub) =>
-                  sub.id === subItemId ? { ...sub, text: newText } : sub
-                ),
-              }
-            : doc
-        ),
-      };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList =>
+  updateDocument(list, categoryId, documentId, doc => ({
+    ...doc,
+    subItems: doc.subItems.map(sub => sub.id === subItemId ? { ...sub, text: newText } : sub),
+  }));
 
 // カテゴリの展開/折りたたみを切り替え
 export const toggleCategoryExpand = (
   list: EditableDocumentList,
   categoryId: string
-): EditableDocumentList => {
-  return list.map((cat) =>
-    cat.id === categoryId ? { ...cat, isExpanded: !cat.isExpanded } : cat
-  );
-};
+): EditableDocumentList =>
+  updateCategory(list, categoryId, cat => ({ ...cat, isExpanded: !cat.isExpanded }));
 
 // カテゴリ内の全書類をチェック/アンチェック
 export const toggleAllInCategory = (
   list: EditableDocumentList,
   categoryId: string,
   checked: boolean
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      return {
-        ...cat,
-        documents: cat.documents.map((doc) => ({ ...doc, checked })),
-      };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList =>
+  updateCategory(list, categoryId, cat => ({
+    ...cat,
+    documents: cat.documents.map(doc => ({ ...doc, checked })),
+  }));
 
 // 全カテゴリを展開/折りたたみ
 export const expandAllCategories = (
   list: EditableDocumentList,
   isExpanded: boolean
-): EditableDocumentList => {
-  return list.map((cat) => ({ ...cat, isExpanded }));
-};
+): EditableDocumentList => list.map(cat => ({ ...cat, isExpanded }));
 
 // カテゴリを追加
 export const addCategory = (
   list: EditableDocumentList,
   name: string,
   isSpecial: boolean = false
-): EditableDocumentList => {
-  return [
-    ...list,
-    {
-      id: generateId(),
-      name,
-      documents: [],
-      isExpanded: true,
-      isSpecial,
-    },
-  ];
-};
+): EditableDocumentList => [
+  ...list,
+  { id: generateId(), name, documents: [], isExpanded: true, isSpecial },
+];
 
 // カテゴリを削除
 export const removeCategory = (
   list: EditableDocumentList,
   categoryId: string
-): EditableDocumentList => {
-  return list.filter((cat) => cat.id !== categoryId);
-};
+): EditableDocumentList => list.filter(cat => cat.id !== categoryId);
 
 // カテゴリ名を更新
 export const updateCategoryName = (
   list: EditableDocumentList,
   categoryId: string,
   newName: string
-): EditableDocumentList => {
-  return list.map((cat) =>
-    cat.id === categoryId ? { ...cat, name: newName } : cat
-  );
-};
+): EditableDocumentList =>
+  updateCategory(list, categoryId, cat => ({ ...cat, name: newName }));
 
 // カテゴリの特例フラグを切り替え
 export const toggleCategorySpecial = (
   list: EditableDocumentList,
   categoryId: string
-): EditableDocumentList => {
-  return list.map((cat) =>
-    cat.id === categoryId ? { ...cat, isSpecial: !cat.isSpecial } : cat
-  );
+): EditableDocumentList =>
+  updateCategory(list, categoryId, cat => ({ ...cat, isSpecial: !cat.isSpecial }));
+
+// 配列内の要素を並び替える共通ヘルパー
+const reorderArray = <T>(arr: T[], oldIndex: number, newIndex: number): T[] => {
+  const result = [...arr];
+  const [moved] = result.splice(oldIndex, 1);
+  result.splice(newIndex, 0, moved);
+  return result;
 };
 
 // カテゴリ内の書類を並び替え
@@ -318,75 +199,33 @@ export const reorderDocuments = (
   categoryId: string,
   oldIndex: number,
   newIndex: number
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      const newDocuments = [...cat.documents];
-      const [movedItem] = newDocuments.splice(oldIndex, 1);
-      newDocuments.splice(newIndex, 0, movedItem);
-      return { ...cat, documents: newDocuments };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList =>
+  updateCategory(list, categoryId, cat => ({
+    ...cat,
+    documents: reorderArray(cat.documents, oldIndex, newIndex),
+  }));
 
 // カテゴリを並び替え
 export const reorderCategories = (
   list: EditableDocumentList,
   oldIndex: number,
   newIndex: number
-): EditableDocumentList => {
-  const newList = [...list];
-  const [movedItem] = newList.splice(oldIndex, 1);
-  newList.splice(newIndex, 0, movedItem);
-  return newList;
-};
-
-// 中項目を並び替え
-export const reorderSubItems = (
-  list: EditableDocumentList,
-  categoryId: string,
-  documentId: string,
-  oldIndex: number,
-  newIndex: number
-): EditableDocumentList => {
-  return list.map((cat) => {
-    if (cat.id === categoryId) {
-      return {
-        ...cat,
-        documents: cat.documents.map((doc) => {
-          if (doc.id === documentId) {
-            const newSubItems = [...doc.subItems];
-            const [movedItem] = newSubItems.splice(oldIndex, 1);
-            newSubItems.splice(newIndex, 0, movedItem);
-            return { ...doc, subItems: newSubItems };
-          }
-          return doc;
-        }),
-      };
-    }
-    return cat;
-  });
-};
+): EditableDocumentList => reorderArray(list, oldIndex, newIndex);
 
 // チェック済み書類のみでDocumentGroup形式に変換（印刷/出力用）
 export const toDocumentGroups = (
   list: EditableDocumentList,
   includeUnchecked: boolean = false
-) => {
-  return list
-    .filter((cat) => {
-      const hasCheckedDocs = cat.documents.some((doc) => doc.checked);
-      return includeUnchecked || hasCheckedDocs;
-    })
-    .map((cat) => ({
+): DocumentGroup[] =>
+  list
+    .filter(cat => includeUnchecked || cat.documents.some(doc => doc.checked))
+    .map(cat => ({
       category: cat.isSpecial ? `【特例】${cat.name}` : cat.name,
       documents: cat.documents
-        .filter((doc) => includeUnchecked || doc.checked)
-        .map((doc) => ({
+        .filter(doc => includeUnchecked || doc.checked)
+        .map(doc => ({
           text: doc.text,
-          subItems: doc.subItems.map((sub) => sub.text),
+          subItems: doc.subItems.map(sub => sub.text),
         })),
       note: cat.note,
     }));
-};

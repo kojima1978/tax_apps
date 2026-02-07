@@ -43,8 +43,6 @@ export type OptionId =
   | 'sp_spouse'
   | 'sp_housing';
 
-export type OptionSelection = Partial<Record<OptionId, boolean>>;
-
 export type Step = 'menu' | 'edit' | 'result';
 
 // 中項目（サブアイテム）

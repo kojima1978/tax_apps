@@ -98,7 +98,7 @@ export const MenuStep = ({
                             className="group relative flex flex-col items-center p-8 bg-white border-2 border-emerald-200 rounded-2xl shadow-sm hover:border-emerald-500 hover:shadow-xl transition-all duration-300 text-center w-full"
                         >
                             <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-emerald-600 transition-colors">
-                                <List className="w-10 h-10 text-emerald-600 group-hover:text-white" />
+                                <List className="w-10 h-10 text-emerald-600 group-hover:text-white" aria-hidden="true" />
                             </div>
                             <h3 className="text-2xl font-bold text-slate-800 mb-3">
                                 必要書類リストを作成
@@ -112,7 +112,7 @@ export const MenuStep = ({
                                 を入れて案内を作成します。
                             </p>
                             <div className="mt-8 flex items-center px-8 py-3 bg-emerald-600 text-white rounded-full font-bold group-hover:bg-emerald-700 transition-colors">
-                                スタート <ChevronRight className="w-5 h-5 ml-2" />
+                                スタート <ChevronRight className="w-5 h-5 ml-2" aria-hidden="true" />
                             </div>
                         </button>
                     </div>

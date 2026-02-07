@@ -86,129 +86,94 @@ export function generateGiftTaxExcel(
     currentDate: string,
     isFullListMode: boolean,
     staffName: string,
+    staffPhone: string,
     customerName: string
 ) {
     const wb = XLSX.utils.book_new();
-    const wsData: Array<
-        Array<{ v: string; s?: typeof excelStyles[keyof typeof excelStyles] }>
-    > = [];
+    type CellStyle = typeof excelStyles[keyof typeof excelStyles];
+    type Row = Array<{ v: string; s?: CellStyle }>;
+    const wsData: Row[] = [];
     const merges: XLSX.Range[] = [];
-    let rowNum = 0;
 
-    // 2列構成 (A: Check, B: Content)
-    // A列とB列を結合して使うことが多い
+    // ヘルパー: 行を追加（A・B列結合付き）
+    const pushMergedRow = (text: string, style: CellStyle) => {
+        merges.push({ s: { r: wsData.length, c: 0 }, e: { r: wsData.length, c: 1 } });
+        wsData.push([{ v: text, s: style }, { v: '', s: style }]);
+    };
+
+    // ヘルパー: 行を追加（結合なし）
+    const pushRow = (...cells: Row) => { wsData.push(cells); };
+
+    // ヘルパー: 空行
+    const pushEmptyRow = () => { wsData.push([{ v: '', s: undefined }, { v: '', s: undefined }]); };
 
     // タイトル行
-    wsData.push([{ v: title, s: excelStyles.title }, { v: '', s: excelStyles.title }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
-    rowNum++;
+    pushMergedRow(title, excelStyles.title);
 
     // サブタイトル
-    wsData.push([{ v: `発行日: ${currentDate}`, s: excelStyles.subTitle }, { v: '', s: excelStyles.subTitle }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
-    rowNum++;
-
-    wsData.push([{ v: COMPANY_INFO.name, s: excelStyles.subTitle }, { v: '', s: excelStyles.subTitle }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
-    rowNum++;
+    pushMergedRow(`発行日: ${currentDate}`, excelStyles.subTitle);
+    pushMergedRow(COMPANY_INFO.name, excelStyles.subTitle);
 
     // 担当者・お客様名
     if (staffName || customerName) {
         const parts = [];
         if (customerName) parts.push(`お客様名: ${customerName}`);
         if (staffName) parts.push(`担当者: ${staffName}`);
-
-        wsData.push([{ v: parts.join(' / '), s: excelStyles.subTitle }, { v: '', s: excelStyles.subTitle }]);
-        merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
-        rowNum++;
+        pushMergedRow(parts.join(' / '), excelStyles.subTitle);
     }
 
-    wsData.push([
-        {
-            v: isFullListMode ? '【全リスト表示】' : '【お客様専用リスト】',
-            s: excelStyles.badge,
-        },
-        { v: '', s: excelStyles.badge }
-    ]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
-    rowNum++;
-
-    wsData.push([{ v: '', s: undefined }, { v: '', s: undefined }]);
-    rowNum++;
+    pushMergedRow(
+        isFullListMode ? '【全リスト表示】' : '【お客様専用リスト】',
+        excelStyles.badge,
+    );
+    pushEmptyRow();
 
     // 各カテゴリとデータ
     results.forEach((group) => {
-        // カテゴリヘッダー
-        wsData.push([
-            { v: group.category, s: excelStyles.categoryHeader },
-            { v: '', s: excelStyles.categoryHeader } // Merge destination formatting
-        ]);
-        merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
-        rowNum++;
+        pushMergedRow(group.category, excelStyles.categoryHeader);
 
         // 書類リスト
         group.documents.forEach((doc) => {
-            // 大項目
-            wsData.push([
+            pushRow(
                 { v: '☐', s: excelStyles.checkCell },
                 { v: doc.text, s: excelStyles.documentCell },
-            ]);
-            rowNum++;
+            );
 
             // 中項目
-            if (doc.subItems && doc.subItems.length > 0) {
-                doc.subItems.forEach((subItem) => {
-                    wsData.push([
-                        { v: '', s: excelStyles.subItemCell },
-                        { v: `　└ ${subItem}`, s: excelStyles.subItemCell },
-                    ]);
-                    rowNum++;
-                });
-            }
+            doc.subItems.forEach((subItem) => {
+                pushRow(
+                    { v: '', s: excelStyles.subItemCell },
+                    { v: `　└ ${subItem}`, s: excelStyles.subItemCell },
+                );
+            });
         });
 
         // 備考（ある場合）
         if (group.note) {
-            wsData.push([
-                { v: `ℹ ${group.note}`, s: excelStyles.noteCell }, // Info icon approximate
-                { v: '', s: excelStyles.noteCell }
-            ]);
-            merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
-            rowNum++;
+            pushMergedRow(`ℹ ${group.note}`, excelStyles.noteCell);
         }
 
-        // グループ間の間隔
-        wsData.push([{ v: '', s: undefined }, { v: '', s: undefined }]);
-        rowNum++;
+        pushEmptyRow();
     });
 
     // 注意事項
-    wsData.push([{ v: '【ご留意事項】', s: excelStyles.cautionHeader }, { v: '', s: excelStyles.cautionHeader }]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
-    rowNum++;
-
-    wsData.push([
-        {
-            v: '・電子申告を行う場合、原本資料はご返却いたします。',
-            s: excelStyles.cautionTextRed,
-        },
-        { v: '', s: excelStyles.cautionTextRed }
-    ]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
-    rowNum++;
-
-    wsData.push([{ v: '', s: undefined }, { v: '', s: undefined }]);
-    rowNum++;
+    pushMergedRow('【ご留意事項】', excelStyles.cautionHeader);
+    pushMergedRow('・電子申告を行う場合、原本資料はご返却いたします。', excelStyles.cautionTextRed);
+    pushEmptyRow();
 
     // フッター
-    wsData.push([
-        {
-            v: `${COMPANY_INFO.fullAddress} / ${COMPANY_INFO.contactLine}`,
-            s: excelStyles.footer,
-        },
-        { v: '', s: excelStyles.footer }
-    ]);
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 1 } });
+    pushMergedRow(
+        `${COMPANY_INFO.fullAddress} / ${COMPANY_INFO.contactLine}`,
+        excelStyles.footer,
+    );
+
+    // 担当者連絡先
+    if (staffPhone) {
+        pushMergedRow(
+            `担当: ${staffName || '−'} / 携帯: ${staffPhone}`,
+            excelStyles.footer,
+        );
+    }
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 

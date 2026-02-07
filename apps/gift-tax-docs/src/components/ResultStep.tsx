@@ -42,8 +42,9 @@ export const ResultStep = ({
                 <button
                     onClick={() => setStep('edit')}
                     className="flex items-center bg-white px-4 py-2 rounded-lg shadow text-slate-600 hover:text-slate-900 transition-colors"
+                    aria-label="編集画面へ戻る"
                 >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
                     編集画面へ戻る
                 </button>
                 <div className="flex space-x-3">
@@ -55,14 +56,16 @@ export const ResultStep = ({
                                 : 'bg-white text-slate-600 hover:bg-slate-50'
                         }`}
                         title={showUncheckedInPrint ? '選択済みのみ表示' : '全て表示'}
+                        aria-label={showUncheckedInPrint ? '選択済みのみ表示に切り替え' : '全書類を表示'}
+                        aria-pressed={showUncheckedInPrint}
                     >
                         {showUncheckedInPrint ? (
                             <>
-                                <Eye className="w-4 h-4 mr-2" /> 全表示
+                                <Eye className="w-4 h-4 mr-2" aria-hidden="true" /> 全表示
                             </>
                         ) : (
                             <>
-                                <EyeOff className="w-4 h-4 mr-2" /> 選択のみ
+                                <EyeOff className="w-4 h-4 mr-2" aria-hidden="true" /> 選択のみ
                             </>
                         )}
                     </button>
@@ -72,27 +75,32 @@ export const ResultStep = ({
                             ? 'bg-purple-600 text-white'
                             : 'bg-white text-slate-600 hover:bg-slate-50'
                             }`}
+                        aria-label={isTwoColumnPrint ? '1列レイアウトに切り替え' : '2列レイアウトに切り替え'}
+                        aria-pressed={isTwoColumnPrint}
                     >
-                        <Layout className="w-4 h-4 mr-2" />
+                        <Layout className="w-4 h-4 mr-2" aria-hidden="true" />
                         {isTwoColumnPrint ? '印刷: 2列' : '印刷: 1列'}
                     </button>
                     <button
                         onClick={handleExcelExport}
                         className="flex items-center px-6 py-2 rounded-lg text-white shadow hover:opacity-90 bg-blue-600 font-bold"
+                        aria-label="Excelファイルとして出力"
                     >
-                        <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel出力
+                        <FileSpreadsheet className="w-4 h-4 mr-2" aria-hidden="true" /> Excel出力
                     </button>
                     <button
                         onClick={handlePrint}
                         className="flex items-center px-6 py-2 rounded-lg text-white shadow hover:opacity-90 bg-emerald-600 font-bold"
+                        aria-label="印刷またはPDF保存"
                     >
-                        <Printer className="w-4 h-4 mr-2" /> 印刷 / PDF保存
+                        <Printer className="w-4 h-4 mr-2" aria-hidden="true" /> 印刷 / PDF保存
                     </button>
                     <button
                         onClick={resetToMenu}
                         className="flex items-center bg-slate-700 text-white px-4 py-2 rounded-lg shadow hover:bg-slate-800"
+                        aria-label="トップメニューに戻る"
                     >
-                        <RefreshCw className="w-4 h-4 mr-2" /> TOP
+                        <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" /> TOP
                     </button>
                 </div>
             </div>
@@ -146,7 +154,7 @@ export const ResultStep = ({
                                                 <div
                                                     className={`flex items-start text-slate-700 py-1 border-b border-dashed border-slate-100 ${doc.subItems.length > 0 ? 'border-b-0' : ''} ${getPrintClass('print:py-1', 'print:py-0.5')}`}
                                                 >
-                                                    <span className={`inline-block w-4 h-4 mr-3 mt-1 border-2 border-emerald-300 rounded-sm flex-shrink-0 border-slate-400 ${getPrintClass('print:w-3 print:h-3 print:mt-1 print:mr-2', 'print:w-2 print:h-2 print:mt-0.5 print:mr-1')}`} />
+                                                    <span className={`inline-block w-4 h-4 mr-3 mt-1 border-2 border-slate-400 rounded-sm flex-shrink-0 ${getPrintClass('print:w-3 print:h-3 print:mt-1 print:mr-2', 'print:w-2 print:h-2 print:mt-0.5 print:mr-1')}`} />
                                                     <span className={getPrintClass('print:text-sm', 'print:text-[10px] print:leading-tight')}>{doc.text}</span>
                                                 </div>
                                                 {/* 中項目 */}
@@ -168,7 +176,7 @@ export const ResultStep = ({
                                     </ul>
                                     {group.note && (
                                         <p className={`mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded flex items-start ${getPrintClass('print:mt-2 print:p-2 print:text-xs', 'print:mt-1 print:p-1 print:text-[10px]')}`}>
-                                            <Info className={`w-4 h-4 mr-1 mt-0.5 flex-shrink-0 ${getPrintClass('print:w-4 print:h-4', 'print:w-3 print:h-3')}`} />
+                                            <Info className={`w-4 h-4 mr-1 mt-0.5 flex-shrink-0 ${getPrintClass('print:w-4 print:h-4', 'print:w-3 print:h-3')}`} aria-hidden="true" />
                                             {group.note}
                                         </p>
                                     )}
@@ -178,7 +186,7 @@ export const ResultStep = ({
 
                         <div className={`mt-12 pt-6 border-t border-slate-300 ${getPrintClass('print:mt-8 print:pt-6', 'print:mt-2 print:pt-2 print:border-t')}`}>
                             <div className={`flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 ${getPrintClass('print:p-4', 'print:p-1')}`}>
-                                <AlertCircle className={`w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0 ${getPrintClass('print:w-5 print:h-5', 'print:w-3 print:h-3')}`} />
+                                <AlertCircle className={`w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0 ${getPrintClass('print:w-5 print:h-5', 'print:w-3 print:h-3')}`} aria-hidden="true" />
                                 <div className="text-sm text-slate-600 space-y-1">
                                     <p>
                                         <strong>ご留意事項</strong>
