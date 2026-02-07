@@ -328,16 +328,18 @@ services:
       context: ../apps/gift-tax-docs
       dockerfile: Dockerfile
       target: dev
+      args:
+        NODE_VERSION: 22
     container_name: gift-tax-docs
     ports:
-      - "3002:3002"
+      - "3002:3000"
     volumes:
       - ../apps/gift-tax-docs/src:/app/src:ro
       - ../apps/gift-tax-docs/public:/app/public:ro
     environment:
       <<: *nextjs-dev-env
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3002/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://localhost:3000/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
       start_period: 60s
     deploy: *default-deploy
