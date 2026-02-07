@@ -26,16 +26,20 @@ export const BASIC_DEDUCTION = {
 } as const;
 
 /**
- * 配偶者控除の上限額（万円単位）
- * 1億6,000万円 または 法定相続分 の大きい方
- */
-export const SPOUSE_DEDUCTION_LIMIT = 16000;
-
-/**
  * 第3順位（兄弟姉妹）の加算率
  * 20%加算
  */
 export const THIRD_RANK_SURCHARGE_RATE = 1.2;
+
+/**
+ * 配偶者と他の相続人の法定相続分の割合
+ * 順位ごとに配偶者の取り分が異なる
+ */
+export const SHARE_RATIOS: Record<number, { spouse: number; others: number }> = {
+  1: { spouse: 1 / 2, others: 1 / 2 },
+  2: { spouse: 2 / 3, others: 1 / 3 },
+  3: { spouse: 3 / 4, others: 1 / 4 },
+};
 
 /**
  * テーブル表示設定
@@ -47,8 +51,6 @@ export const TABLE_CONFIG = {
   MIN_VALUE: 5000,
   /** デフォルト最大値（万円）: 10億円 */
   DEFAULT_MAX_VALUE: 100000,
-  /** 選択可能な最大値（万円）: 100億円 */
-  MAX_SELECTABLE_VALUE: 1000000,
 } as const;
 
 /**

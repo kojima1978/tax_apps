@@ -1,14 +1,14 @@
 import React, { memo } from 'react';
 import { UserPlus, Trash2 } from 'lucide-react';
 import type { HeirComposition, Heir } from '../../types';
+import { generateId } from '../../utils';
 
 interface Rank3SettingsProps {
     composition: HeirComposition;
     onChange: (composition: HeirComposition) => void;
-    generateId: () => string;
 }
 
-export const Rank3Settings: React.FC<Rank3SettingsProps> = memo(({ composition, onChange, generateId }) => {
+export const Rank3Settings: React.FC<Rank3SettingsProps> = memo(({ composition, onChange }) => {
     // 第3順位：兄弟姉妹を追加
     const addSibling = () => {
         const newSibling: Heir = {

@@ -1,14 +1,14 @@
 import React, { memo } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { HeirComposition, Heir } from '../../types';
+import { generateId } from '../../utils';
 
 interface Rank2SettingsProps {
     composition: HeirComposition;
     onChange: (composition: HeirComposition) => void;
-    generateId: () => string;
 }
 
-export const Rank2Settings: React.FC<Rank2SettingsProps> = memo(({ composition, onChange, generateId }) => {
+export const Rank2Settings: React.FC<Rank2SettingsProps> = memo(({ composition, onChange }) => {
     // 第2順位：直系尊属を追加
     const addAscendant = (type: 'parent' | 'grandparent') => {
         const newAscendant: Heir = {

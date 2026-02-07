@@ -1,14 +1,14 @@
 import React, { memo } from 'react';
 import { UserPlus, Trash2 } from 'lucide-react';
 import type { HeirComposition, Heir } from '../../types';
+import { generateId } from '../../utils';
 
 interface Rank1SettingsProps {
     composition: HeirComposition;
     onChange: (composition: HeirComposition) => void;
-    generateId: () => string;
 }
 
-export const Rank1Settings: React.FC<Rank1SettingsProps> = memo(({ composition, onChange, generateId }) => {
+export const Rank1Settings: React.FC<Rank1SettingsProps> = memo(({ composition, onChange }) => {
     // 第1順位：子供を追加
     const addChild = () => {
         const newChild: Heir = {
