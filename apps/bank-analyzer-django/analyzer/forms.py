@@ -6,6 +6,17 @@ from .models import Case
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
+def _validate_file_size(file) -> None:
+    """ファイルサイズのバリデーション共通処理"""
+    if file.size == 0:
+        raise forms.ValidationError("空のファイルはアップロードできません。")
+    if file.size > MAX_FILE_SIZE:
+        raise forms.ValidationError(
+            f"ファイルサイズが大きすぎます（{file.size // (1024*1024)}MB）。"
+            f"最大{MAX_FILE_SIZE // (1024*1024)}MBまでアップロード可能です。"
+        )
+
+
 class CaseForm(forms.ModelForm):
     """案件作成・編集フォーム"""
 
@@ -36,15 +47,7 @@ class ImportForm(forms.Form):
         """ファイルサイズとタイプのバリデーション"""
         file = self.cleaned_data.get('csv_file')
         if file:
-            # 空ファイルチェック
-            if file.size == 0:
-                raise forms.ValidationError("空のファイルはアップロードできません。")
-            # サイズ上限チェック
-            if file.size > MAX_FILE_SIZE:
-                raise forms.ValidationError(
-                    f"ファイルサイズが大きすぎます（{file.size // (1024*1024)}MB）。"
-                    f"最大{MAX_FILE_SIZE // (1024*1024)}MBまでアップロード可能です。"
-                )
+            _validate_file_size(file)
         return file
 
 
@@ -71,13 +74,7 @@ class JsonImportForm(forms.Form):
         """ファイルサイズとタイプのバリデーション"""
         file = self.cleaned_data.get('json_file')
         if file:
-            if file.size == 0:
-                raise forms.ValidationError("空のファイルはアップロードできません。")
-            if file.size > MAX_FILE_SIZE:
-                raise forms.ValidationError(
-                    f"ファイルサイズが大きすぎます（{file.size // (1024*1024)}MB）。"
-                    f"最大{MAX_FILE_SIZE // (1024*1024)}MBまでアップロード可能です。"
-                )
+            _validate_file_size(file)
         return file
 
 

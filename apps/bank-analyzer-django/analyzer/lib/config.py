@@ -77,7 +77,17 @@ DEFAULT_PATTERNS = {
 }
 
 
+# 贈与判定のデフォルト閾値（円）
+DEFAULT_GIFT_THRESHOLD = 1_000_000
+
+
 def get_classification_patterns() -> dict:
     """分類パターンを取得（ユーザー設定優先、なければデフォルト）"""
     user_settings = load_user_settings()
     return user_settings.get("CLASSIFICATION_PATTERNS", DEFAULT_PATTERNS)
+
+
+def get_gift_threshold() -> int:
+    """贈与判定の閾値を取得"""
+    user_settings = load_user_settings()
+    return int(user_settings.get("GIFT_THRESHOLD", DEFAULT_GIFT_THRESHOLD))

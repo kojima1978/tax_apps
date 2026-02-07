@@ -22,7 +22,7 @@ def analyze_large_amounts(df: pd.DataFrame) -> pd.DataFrame:
     threshold = int(settings.get("LARGE_AMOUNT_THRESHOLD", 500000))
 
     df["is_large"] = (df["amount_out"] >= threshold) | (df["amount_in"] >= threshold)
-    logger.debug(f"多額取引検出: 閾値={threshold}, 検出数={df['is_large'].sum()}")
+    logger.debug("多額取引検出: 閾値=%d, 検出数=%d", threshold, df['is_large'].sum())
     return df
 
 
@@ -99,5 +99,5 @@ def analyze_transfers(df: pd.DataFrame) -> pd.DataFrame:
             matched_in_indices.add(idx_in)
 
     transfer_count = df["is_transfer"].sum()
-    logger.debug(f"資金移動検出: 許容誤差={tolerance}, 期間={days_window}日, 検出数={transfer_count}")
+    logger.debug("資金移動検出: 許容誤差=%d, 期間=%d日, 検出数=%d", tolerance, days_window, transfer_count)
     return df

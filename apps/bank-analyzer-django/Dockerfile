@@ -1,11 +1,14 @@
 # ============================================
 # Bank Analyzer Django - Dockerfile
 # ============================================
+# syntax=docker/dockerfile:1
+
+ARG PYTHON_VERSION=3.12
 
 # ------------------------------------------
 # ビルドステージ: 依存関係のwheel作成
 # ------------------------------------------
-FROM python:3.12-slim AS builder
+FROM python:${PYTHON_VERSION}-slim AS builder
 
 WORKDIR /build
 
@@ -14,13 +17,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip wheel --no-cache-dir --wheel-dir=/build/wheels -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip wheel --wheel-dir=/build/wheels -r requirements.txt
 
 # ------------------------------------------
 # 本番ステージ: 最小ランタイムイメージ
 # ------------------------------------------
-FROM python:3.12-slim AS production
+FROM python:${PYTHON_VERSION}-slim AS production
 
 LABEL org.opencontainers.image.title="Bank Analyzer Django" \
       org.opencontainers.image.description="Bank transaction analyzer for inheritance tax"
@@ -61,25 +65,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONFAULTHANDLER=1 \
     DJANGO_SETTINGS_MODULE=bank_project.settings
 
-# Gunicorn設定
+# Gunicorn設定（docker-entrypoint.sh で参照）
 ENV GUNICORN_WORKERS=2 \
     GUNICORN_TIMEOUT=300
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -f --silent http://localhost:8000/ || exit 1
+    CMD curl -f --silent http://localhost:8000/health/ || exit 1
 
 USER appuser
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["/docker-entrypoint.sh", \
-     "gunicorn", "bank_project.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "2", \
-     "--timeout", "300", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-"]
+CMD ["/docker-entrypoint.sh", "gunicorn"]
 
 # ------------------------------------------
 # 開発ステージ: Django runserver

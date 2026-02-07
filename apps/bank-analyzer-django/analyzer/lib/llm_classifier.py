@@ -1,7 +1,7 @@
 import logging
 import pandas as pd
 
-from .config import get_classification_patterns
+from .config import get_classification_patterns, get_gift_threshold
 
 logger = logging.getLogger(__name__)
 
@@ -13,19 +13,22 @@ def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
     if not text:
         return "未分類"
 
+    text_lower = text.lower()
+
     # 優先順位: 給与 -> 生活費 -> 証券/保険/銀行/関連会社/通帳間移動 -> 贈与 -> その他
     priority_categories = ["給与", "生活費", "証券・株式", "保険会社", "銀行", "関連会社", "通帳間移動"]
 
     for category in priority_categories:
         keywords = patterns.get(category, [])
         for keyword in keywords:
-            if keyword in text:
+            if keyword.lower() in text_lower:
                 return category
 
-    # 贈与判定（振込など）- 100万円以上の場合のみ
+    # 贈与判定（振込など）- 閾値以上の場合のみ
+    gift_threshold = get_gift_threshold()
     gift_keywords = patterns.get("贈与", [])
-    if any(kw in text for kw in gift_keywords):
-        if amount_out >= 1_000_000:
+    if any(kw.lower() in text_lower for kw in gift_keywords):
+        if amount_out >= gift_threshold:
             return "贈与"
         else:
             return "未分類"
@@ -33,7 +36,7 @@ def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
     # その他キーワード
     other_keywords = patterns.get("その他", [])
     for kw in other_keywords:
-        if kw in text:
+        if kw.lower() in text_lower:
             return "その他"
 
     return "未分類"

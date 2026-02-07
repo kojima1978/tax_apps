@@ -1,12 +1,15 @@
 import json
 import logging
+import re
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlencode
 
+from django.conf import settings as django_settings
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db import transaction
-from django.db.models import Q
+from django.db import transaction, IntegrityError
+from django.db.models import Q, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
@@ -17,10 +20,7 @@ import pandas as pd
 from .models import Case, Transaction
 from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, analyzer, llm_classifier, config
-from .lib.exceptions import (
-    CsvImportError, EncodingError, FormatError, DateParseError, AmountParseError,
-    MultipleAccountError, MultipleBankError
-)
+from .lib.exceptions import CsvImportError
 from .services import TransactionService, AnalysisService
 from .templatetags.japanese_date import wareki
 
@@ -47,6 +47,19 @@ def _parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
         return int(cleaned), True
     except (ValueError, AttributeError):
         return default, False
+
+
+def _sanitize_filename(name: str) -> str:
+    """ファイル名に使用できない文字を除去する"""
+    sanitized = re.sub(r'[\\/:*?"<>|]', '_', name)
+    return sanitized.strip('_. ') or 'export'
+
+
+def _safe_error_message(e: Exception) -> str:
+    """DEBUGモード以外ではエラー詳細を隠蔽する"""
+    if django_settings.DEBUG:
+        return f'エラー: {e}'
+    return 'サーバーエラーが発生しました'
 
 
 def _parse_keywords(text: str) -> list[str]:
@@ -102,20 +115,49 @@ def _build_redirect_url(
     params = []
 
     if tab:
-        params.append(f'tab={tab}')
+        params.append(('tab', tab))
 
     if filters:
         for key, values in filters.items():
             if isinstance(values, list):
                 for v in values:
-                    params.append(f'{key}={v}')
+                    params.append((key, v))
             elif values:
-                params.append(f'{key}={values}')
+                params.append((key, values))
 
     if params:
-        url += '?' + '&'.join(params)
+        url += '?' + urlencode(params)
 
     return url
+
+
+def _update_transaction_from_post(request: HttpRequest, case: Case, tx_id: str) -> None:
+    """POSTデータから取引を更新する共通処理"""
+    try:
+        amount_out, _ = _parse_amount(request.POST.get('amount_out', '0'))
+        amount_in, _ = _parse_amount(request.POST.get('amount_in', '0'))
+        balance_str = request.POST.get('balance')
+        balance_val, _ = _parse_amount(balance_str) if balance_str else (None, True)
+        success = TransactionService.update_transaction(
+            case,
+            int(tx_id),
+            request.POST.get('date'),
+            request.POST.get('description'),
+            amount_out,
+            amount_in,
+            request.POST.get('category'),
+            request.POST.get('memo'),
+            request.POST.get('bank_name'),
+            request.POST.get('branch_name'),
+            request.POST.get('account_id'),
+            request.POST.get('account_type'),
+            balance_val
+        )
+        if success:
+            messages.success(request, "取引データを更新しました。")
+    except Exception as e:
+        logger.exception(f"取引更新エラー: tx_id={tx_id}, error={e}")
+        messages.error(request, f"更新エラー: {e}")
 
 
 def export_json(request: HttpRequest, pk: int) -> HttpResponse:
@@ -128,33 +170,22 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
         messages.warning(request, "エクスポートするデータがありません。")
         return redirect('case-detail', pk=pk)
 
-    # 取引データをシリアライズ（表示順: 日付,銀行名,支店名,種別,口座番号,摘要,出金,入金,残高）
-    transactions_data = []
-    for tx in transactions:
-        transactions_data.append({
-            # 基本情報（表示順）
-            'date': tx.date.isoformat() if tx.date else None,
-            'bank_name': tx.bank_name,
-            'branch_name': tx.branch_name,
-            'account_type': tx.account_type,
-            'account_id': tx.account_id,
-            'description': tx.description,
-            'amount_out': tx.amount_out,
-            'amount_in': tx.amount_in,
-            'balance': tx.balance,
-            # 復元用メタデータ
-            'category': tx.category,
-            'holder': tx.holder,
-            'is_large': tx.is_large,
-            'is_transfer': tx.is_transfer,
-            'transfer_to': tx.transfer_to,
-            'is_flagged': tx.is_flagged,
-            'memo': tx.memo,
-        })
+    # 統計情報をDB集計で取得（クエリセット再評価を避ける）
+    totals = transactions.aggregate(total_in=Sum('amount_in'), total_out=Sum('amount_out'))
 
-    # 統計情報を計算
-    total_in = sum(tx.amount_in for tx in transactions)
-    total_out = sum(tx.amount_out for tx in transactions)
+    # 取引データをシリアライズ（values()で一括取得しORMオブジェクト化を回避）
+    export_fields = [
+        'date', 'bank_name', 'branch_name', 'account_type', 'account_id',
+        'description', 'amount_out', 'amount_in', 'balance',
+        'category', 'holder', 'is_large', 'is_transfer', 'transfer_to',
+        'is_flagged', 'memo',
+    ]
+    transactions_data = []
+    for tx_dict in transactions.values(*export_fields):
+        # 日付をISO形式文字列に変換
+        if tx_dict['date']:
+            tx_dict['date'] = tx_dict['date'].isoformat()
+        transactions_data.append(tx_dict)
 
     # エクスポートデータを構築
     export_data = {
@@ -167,8 +198,8 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
         'transactions': transactions_data,
         'statistics': {
             'total_transactions': len(transactions_data),
-            'total_in': total_in,
-            'total_out': total_out,
+            'total_in': totals['total_in'] or 0,
+            'total_out': totals['total_out'] or 0,
         },
         'settings': config.load_user_settings(),
     }
@@ -178,7 +209,7 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
         json.dumps(export_data, ensure_ascii=False, indent=2),
         content_type='application/json; charset=utf-8'
     )
-    filename = f"{case.name}_backup.json"
+    filename = f"{_sanitize_filename(case.name)}_backup.json"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     logger.info(f"JSONエクスポート完了: case_id={pk}, transactions={len(transactions_data)}")
@@ -209,17 +240,23 @@ def import_json(request: HttpRequest) -> HttpResponse:
                 case_data = data.get('case', {})
                 original_name = case_data.get('name', 'インポート案件')
 
-                # 案件名の重複チェック・自動リネーム
+                # トランザクション内で案件と取引を作成（重複名はリトライ）
                 case_name = original_name
-                counter = 1
-                while Case.objects.filter(name=case_name).exists():
-                    case_name = f"{original_name}_復元{counter}"
-                    counter += 1
+                counter = 0
+                max_retries = 100
+                new_case = None
+                while new_case is None and counter < max_retries:
+                    try:
+                        with transaction.atomic():
+                            new_case = Case.objects.create(name=case_name)
+                    except IntegrityError:
+                        counter += 1
+                        case_name = f"{original_name}_復元{counter}"
 
-                # トランザクション内で案件と取引を作成
+                if new_case is None:
+                    raise ValueError("案件名の生成に失敗しました。別の名前でインポートしてください。")
+
                 with transaction.atomic():
-                    # 案件を作成
-                    new_case = Case.objects.create(name=case_name)
 
                     # 取引データをインポート
                     transactions_data = data.get('transactions', [])
@@ -282,6 +319,42 @@ def import_json(request: HttpRequest) -> HttpResponse:
     return render(request, 'analyzer/json_import.html', {'form': form})
 
 
+def _build_csv_response(df: pd.DataFrame, filename: str, include_memo: bool = False) -> HttpResponse:
+    """DataFrameからCSVレスポンスを生成する共通処理"""
+    export_columns = {
+        'date': '日付',
+        'bank_name': '銀行名',
+        'branch_name': '支店名',
+        'account_type': '種別',
+        'account_id': '口座番号',
+        'description': '摘要',
+        'amount_out': '払戻',
+        'amount_in': 'お預り',
+        'balance': '残高',
+        'category': '分類',
+    }
+
+    if include_memo:
+        export_columns['memo'] = 'メモ'
+
+    # 存在するカラムのみ抽出
+    cols_to_export = [c for c in export_columns.keys() if c in df.columns]
+    export_df = df[cols_to_export].copy()
+
+    # 日付を和暦に変換
+    if 'date' in export_df.columns:
+        export_df['date'] = export_df['date'].apply(lambda d: wareki(d, 'short'))
+
+    export_df.columns = [export_columns[c] for c in cols_to_export]
+
+    # BOM付きUTF-8でCSVレスポンスを作成（Excelで文字化けしないように）
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    export_df.to_csv(response, index=False, encoding='utf-8-sig')
+
+    return response
+
+
 def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
     """取引データをCSVでエクスポート"""
     logger.info(f"CSVエクスポート開始: case_id={pk}, type={export_type}")
@@ -297,57 +370,23 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
     # エクスポートタイプに応じてフィルタリング
     if export_type == 'large':
         df = df[df['is_large']].copy()
-        filename = f"{case.name}_多額取引.csv"
+        filename = f"{_sanitize_filename(case.name)}_多額取引.csv"
     elif export_type == 'transfers':
         df = df[df['is_transfer']].copy()
-        filename = f"{case.name}_資金移動.csv"
+        filename = f"{_sanitize_filename(case.name)}_資金移動.csv"
     elif export_type == 'flagged':
         df = df[df['is_flagged']].copy()
-        filename = f"{case.name}_付箋付き取引.csv"
+        filename = f"{_sanitize_filename(case.name)}_付箋付き取引.csv"
     elif export_type == 'all':
-        filename = f"{case.name}_全取引.csv"
+        filename = f"{_sanitize_filename(case.name)}_全取引.csv"
     else:
-        filename = f"{case.name}_取引データ.csv"
+        filename = f"{_sanitize_filename(case.name)}_取引データ.csv"
 
     if df.empty:
         messages.warning(request, "該当するデータがありません。")
         return redirect('analysis-dashboard', pk=pk)
 
-    # 出力カラムを選択・整形
-    export_columns = {
-        'date': '日付',
-        'bank_name': '銀行名',
-        'branch_name': '支店名',
-        'account_id': '口座番号',
-        'description': '摘要',
-        'amount_out': '払戻',
-        'amount_in': 'お預り',
-        'balance': '残高',
-        'category': '分類',
-    }
-
-    # 付箋付き取引の場合はメモカラムも含める
-    if export_type == 'flagged':
-        export_columns['memo'] = 'メモ'
-
-    # 存在するカラムのみ抽出
-    cols_to_export = [c for c in export_columns.keys() if c in df.columns]
-    export_df = df[cols_to_export].copy()
-
-    # 日付を和暦に変換
-    if 'date' in export_df.columns:
-        export_df['date'] = export_df['date'].apply(lambda d: wareki(d, 'short'))
-
-    export_df.columns = [export_columns[c] for c in cols_to_export]
-
-    # CSVレスポンスを作成
-    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-
-    # BOM付きUTF-8で出力（Excelで文字化けしないように）
-    export_df.to_csv(response, index=False, encoding='utf-8-sig')
-
-    return response
+    return _build_csv_response(df, filename, include_memo=(export_type == 'flagged'))
 
 
 def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
@@ -370,29 +409,11 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
         'date_to': request.GET.get('date_to', ''),
     }
 
-    # 基本クエリ
+    # 基本クエリにフィルター適用
     transactions = case.transactions.all().order_by('date', 'id')
+    transactions = AnalysisService.apply_filters(transactions, filter_state)
 
-    # フィルター適用
-    if filter_state['bank']:
-        transactions = transactions.filter(bank_name__in=filter_state['bank'])
-    if filter_state['account']:
-        transactions = transactions.filter(account_id__in=filter_state['account'])
-    if filter_state['category']:
-        if filter_state['category_mode'] == 'exclude':
-            transactions = transactions.exclude(category__in=filter_state['category'])
-        else:
-            transactions = transactions.filter(category__in=filter_state['category'])
-    if filter_state['keyword']:
-        transactions = transactions.filter(description__icontains=filter_state['keyword'])
-
-    # 日付フィルター
-    if filter_state['date_from']:
-        transactions = transactions.filter(date__gte=filter_state['date_from'])
-    if filter_state['date_to']:
-        transactions = transactions.filter(date__lte=filter_state['date_to'])
-
-    # 金額フィルター
+    # 金額パース（ファイル名生成用）
     amount_type = filter_state['amount_type']
     try:
         amount_min = int(filter_state['amount_min'].replace(',', '')) if filter_state['amount_min'] else None
@@ -402,41 +423,6 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
         amount_max = int(filter_state['amount_max'].replace(',', '')) if filter_state['amount_max'] else None
     except (ValueError, AttributeError):
         amount_max = None
-
-    if amount_type == 'out':
-        transactions = transactions.filter(amount_out__gt=0)
-    elif amount_type == 'in':
-        transactions = transactions.filter(amount_in__gt=0)
-
-    if amount_min is not None or amount_max is not None:
-        if amount_type == 'out':
-            if amount_min is not None:
-                transactions = transactions.filter(amount_out__gte=amount_min)
-            if amount_max is not None:
-                transactions = transactions.filter(amount_out__lte=amount_max)
-        elif amount_type == 'in':
-            if amount_min is not None:
-                transactions = transactions.filter(amount_in__gte=amount_min)
-            if amount_max is not None:
-                transactions = transactions.filter(amount_in__lte=amount_max)
-        else:
-            if amount_min is not None and amount_max is not None:
-                transactions = transactions.filter(
-                    Q(amount_out__gte=amount_min, amount_out__lte=amount_max) |
-                    Q(amount_in__gte=amount_min, amount_in__lte=amount_max)
-                )
-            elif amount_min is not None:
-                transactions = transactions.filter(
-                    Q(amount_out__gte=amount_min) | Q(amount_in__gte=amount_min)
-                )
-            elif amount_max is not None:
-                transactions = transactions.filter(
-                    Q(amount_out__gt=0, amount_out__lte=amount_max) |
-                    Q(amount_in__gt=0, amount_in__lte=amount_max)
-                )
-
-    if filter_state['large_only']:
-        transactions = transactions.filter(is_large=True)
 
     if not transactions.exists():
         messages.warning(request, "エクスポートするデータがありません。")
@@ -474,44 +460,12 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
         filter_desc.append("多額取引")
 
     if filter_desc:
-        filename = f"{case.name}_絞込_{'-'.join(filter_desc)}.csv"
+        filename = f"{_sanitize_filename(case.name)}_絞込_{'-'.join(filter_desc)}.csv"
     else:
-        filename = f"{case.name}_全取引.csv"
-
-    # 出力カラムを選択・整形
-    export_columns = {
-        'date': '日付',
-        'bank_name': '銀行名',
-        'branch_name': '支店名',
-        'account_type': '種別',
-        'account_id': '口座番号',
-        'description': '摘要',
-        'amount_out': '払戻',
-        'amount_in': 'お預り',
-        'balance': '残高',
-        'category': '分類',
-        'memo': 'メモ',
-    }
-
-    # 存在するカラムのみ抽出
-    cols_to_export = [c for c in export_columns.keys() if c in df.columns]
-    export_df = df[cols_to_export].copy()
-
-    # 日付を和暦に変換
-    if 'date' in export_df.columns:
-        export_df['date'] = export_df['date'].apply(lambda d: wareki(d, 'short'))
-
-    export_df.columns = [export_columns[c] for c in cols_to_export]
-
-    # CSVレスポンスを作成
-    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-
-    # BOM付きUTF-8で出力（Excelで文字化けしないように）
-    export_df.to_csv(response, index=False, encoding='utf-8-sig')
+        filename = f"{_sanitize_filename(case.name)}_全取引.csv"
 
     logger.info(f"絞り込みCSVエクスポート完了: case_id={pk}, count={len(df)}")
-    return response
+    return _build_csv_response(df, filename, include_memo=True)
 
 
 class CaseListView(ListView):
@@ -570,29 +524,7 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
                 messages.error(request, f"エラー: {e}")
 
         elif action == 'update_transaction' and tx_id:
-            try:
-                balance_str = request.POST.get('balance')
-                balance_val = int(balance_str) if balance_str else None
-                success = TransactionService.update_transaction(
-                    case,
-                    int(tx_id),
-                    request.POST.get('date'),
-                    request.POST.get('description'),
-                    int(request.POST.get('amount_out') or 0),
-                    int(request.POST.get('amount_in') or 0),
-                    request.POST.get('category'),
-                    request.POST.get('memo'),
-                    request.POST.get('bank_name'),
-                    request.POST.get('branch_name'),
-                    request.POST.get('account_id'),
-                    request.POST.get('account_type'),
-                    balance_val
-                )
-                if success:
-                    messages.success(request, "取引データを更新しました。")
-            except Exception as e:
-                logger.exception(f"取引更新エラー: tx_id={tx_id}, error={e}")
-                messages.error(request, f"更新エラー: {e}")
+            _update_transaction_from_post(request, case, tx_id)
 
         return redirect(f"{reverse('case-detail', args=[pk])}?page={page}")
 
@@ -609,11 +541,19 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
     except EmptyPage:
         transactions = paginator.page(paginator.num_pages)
 
-    # セレクト用のユニークリストを取得
-    all_txs = case.transactions.all()
-    banks = sorted(set(all_txs.exclude(bank_name__isnull=True).exclude(bank_name='').values_list('bank_name', flat=True)))
-    branches = sorted(set(all_txs.exclude(branch_name__isnull=True).exclude(branch_name='').values_list('branch_name', flat=True)))
-    accounts = sorted(set(all_txs.exclude(account_id__isnull=True).exclude(account_id='').values_list('account_id', flat=True)))
+    # セレクト用のユニークリストを取得（単一クエリで3フィールド分取得）
+    field_values = case.transactions.values_list('bank_name', 'branch_name', 'account_id')
+    banks_set, branches_set, accounts_set = set(), set(), set()
+    for bank, branch, account in field_values:
+        if bank:
+            banks_set.add(bank)
+        if branch:
+            branches_set.add(branch)
+        if account:
+            accounts_set.add(account)
+    banks = sorted(banks_set)
+    branches = sorted(branches_set)
+    accounts = sorted(accounts_set)
     categories = AnalysisService.STANDARD_CATEGORIES
 
     context = {
@@ -656,63 +596,8 @@ def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
                 
                 return redirect('transaction-preview', pk=pk)
 
-            except EncodingError as e:
-                logger.warning(f"エンコーディングエラー: case_id={pk}, error={e}")
-                return render(request, 'analyzer/import_form.html', {
-                    'case': case,
-                    'form': form,
-                    'import_error': e.to_dict(),
-                    'error_type': 'encoding'
-                })
-
-            except FormatError as e:
-                logger.warning(f"フォーマットエラー: case_id={pk}, error={e}")
-                return render(request, 'analyzer/import_form.html', {
-                    'case': case,
-                    'form': form,
-                    'import_error': e.to_dict(),
-                    'error_type': 'format'
-                })
-
-            except DateParseError as e:
-                logger.warning(f"日付パースエラー: case_id={pk}, error={e}")
-                return render(request, 'analyzer/import_form.html', {
-                    'case': case,
-                    'form': form,
-                    'import_error': e.to_dict(),
-                    'error_type': 'data'
-                })
-
-            except AmountParseError as e:
-                logger.warning(f"金額パースエラー: case_id={pk}, error={e}")
-                return render(request, 'analyzer/import_form.html', {
-                    'case': case,
-                    'form': form,
-                    'import_error': e.to_dict(),
-                    'error_type': 'data'
-                })
-
-            except MultipleAccountError as e:
-                logger.warning(f"複数口座番号エラー: case_id={pk}, accounts={e.account_numbers}")
-                return render(request, 'analyzer/import_form.html', {
-                    'case': case,
-                    'form': form,
-                    'import_error': e.to_dict(),
-                    'error_type': 'validation'
-                })
-
-            except MultipleBankError as e:
-                logger.warning(f"複数銀行名エラー: case_id={pk}, banks={e.bank_names}")
-                return render(request, 'analyzer/import_form.html', {
-                    'case': case,
-                    'form': form,
-                    'import_error': e.to_dict(),
-                    'error_type': 'validation'
-                })
-
             except CsvImportError as e:
-                # その他のインポートエラー
-                logger.warning(f"インポートエラー: case_id={pk}, error={e}")
+                logger.warning(f"インポートエラー: case_id={pk}, type={e.error_type.value}, error={e}")
                 return render(request, 'analyzer/import_form.html', {
                     'case': case,
                     'form': form,
@@ -971,11 +856,17 @@ def _handle_update_category(request: HttpRequest, case: Case, pk: int) -> HttpRe
     apply_all = request.POST.get('apply_all') == 'true'
 
     if tx_id and new_category:
+        try:
+            tx_id_int = int(tx_id)
+        except (ValueError, TypeError):
+            messages.error(request, "不正な取引IDです。")
+            return redirect('analysis-dashboard', pk=pk)
+
         count = TransactionService.update_transaction_category(
-            case, int(tx_id), new_category, apply_all
+            case, tx_id_int, new_category, apply_all
         )
         if apply_all and count > 0:
-            tx = case.transactions.filter(pk=tx_id).first()
+            tx = case.transactions.filter(pk=tx_id_int).first()
             if tx:
                 messages.success(request, f"「{tx.description}」の取引 {count}件を「{new_category}」に変更しました。")
         else:
@@ -1039,29 +930,7 @@ def _handle_update_transaction(request: HttpRequest, case: Case, pk: int) -> Htt
     tx_id = request.POST.get('tx_id')
 
     if tx_id:
-        try:
-            balance_str = request.POST.get('balance')
-            balance_val = int(balance_str) if balance_str else None
-            success = TransactionService.update_transaction(
-                case,
-                int(tx_id),
-                request.POST.get('date'),
-                request.POST.get('description'),
-                int(request.POST.get('amount_out') or 0),
-                int(request.POST.get('amount_in') or 0),
-                request.POST.get('category'),
-                request.POST.get('memo'),
-                request.POST.get('bank_name'),
-                request.POST.get('branch_name'),
-                request.POST.get('account_id'),
-                request.POST.get('account_type'),
-                balance_val
-            )
-            if success:
-                messages.success(request, "取引データを更新しました。")
-        except Exception as e:
-            logger.exception(f"取引更新エラー: tx_id={tx_id}, error={e}")
-            messages.error(request, f"更新エラー: {e}")
+        _update_transaction_from_post(request, case, tx_id)
 
     return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
 
@@ -1245,7 +1114,7 @@ def api_toggle_flag(request: HttpRequest, pk: int) -> JsonResponse:
         logger.exception(f"フラグ更新APIエラー: tx_id={tx_id}, error={e}")
         return JsonResponse({
             'success': False,
-            'message': f'エラー: {e}'
+            'message': _safe_error_message(e)
         }, status=500)
 
 
@@ -1316,7 +1185,7 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
         logger.exception(f"取引作成APIエラー: case_id={pk}, error={e}")
         return JsonResponse({
             'success': False,
-            'message': f'エラー: {e}'
+            'message': _safe_error_message(e)
         }, status=500)
 
 
@@ -1355,7 +1224,7 @@ def api_delete_transaction(request: HttpRequest, pk: int) -> JsonResponse:
         logger.exception(f"取引削除APIエラー: tx_id={tx_id}, error={e}")
         return JsonResponse({
             'success': False,
-            'message': f'エラー: {e}'
+            'message': _safe_error_message(e)
         }, status=500)
 
 
@@ -1390,6 +1259,6 @@ def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
         logger.exception(f"フィールド値取得APIエラー: field_name={field_name}, error={e}")
         return JsonResponse({
             'success': False,
-            'message': f'エラー: {e}',
+            'message': _safe_error_message(e),
             'values': []
         }, status=500)
