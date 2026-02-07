@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BasicInfo } from "@/types/valuation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { NumberInputWithUnit } from "@/components/ui/NumberInputWithUnit";
 import { Label } from "@/components/ui/Label";
 import { Card } from "@/components/ui/Card";
 import { DUMMY_DATA_PATTERNS, DummyDataPatternKey } from "@/lib/dummy-data";
@@ -69,6 +69,20 @@ export function BasicInfoForm({
     });
     setSelectedDummyPattern(patternKey);
   };
+
+  // プレビュー用の計算結果メモ化
+  const preview = useMemo(() => {
+    const capital = Number(formData.capital);
+    const shares = Number(formData.issuedShares);
+    const capitalPerShare = capital > 0 && shares > 0
+      ? Math.floor((capital * 1000) / shares)
+      : 0;
+    const shares50 = capital > 0 ? Math.floor((capital * 1000) / 50) : 0;
+    const conversionRatio = capital > 0 && shares > 0
+      ? shares / shares50
+      : 0;
+    return { capital, shares, capitalPerShare, shares50, conversionRatio };
+  }, [formData.capital, formData.issuedShares]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,37 +213,27 @@ export function BasicInfoForm({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="capital">資本金等の額</Label>
-                  <div className="relative">
-                    <NumberInput
-                      id="capital"
-                      name="capital"
-                      placeholder="0"
-                      value={formData.capital}
-                      onChange={handleChange}
-                      required
-                      className="pr-12 text-right bg-white"
-                    />
-                    <span className="absolute right-3 top-2.5 text-muted-foreground text-sm">
-                      千円
-                    </span>
-                  </div>
+                  <NumberInputWithUnit
+                    id="capital"
+                    name="capital"
+                    value={formData.capital}
+                    onChange={handleChange}
+                    unit="千円"
+                    required
+                    className="bg-white"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="issuedShares">発行済株式数</Label>
-                  <div className="relative">
-                    <NumberInput
-                      id="issuedShares"
-                      name="issuedShares"
-                      placeholder="0"
-                      value={formData.issuedShares}
-                      onChange={handleChange}
-                      required
-                      className="pr-12 text-right bg-white"
-                    />
-                    <span className="absolute right-3 top-2.5 text-muted-foreground text-sm">
-                      株
-                    </span>
-                  </div>
+                  <NumberInputWithUnit
+                    id="issuedShares"
+                    name="issuedShares"
+                    value={formData.issuedShares}
+                    onChange={handleChange}
+                    unit="株"
+                    required
+                    className="bg-white"
+                  />
                 </div>
               </div>
 
@@ -245,76 +249,37 @@ export function BasicInfoForm({
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">
-                    1株当たりの資本金額
-                  </span>
+                  <span className="text-muted-foreground">1株当たりの資本金額</span>
                   <div className="text-right">
-                    <span className="font-bold">
-                      {Number(formData.capital) > 0 &&
-                      Number(formData.issuedShares) > 0
-                        ? Math.floor(
-                            (Number(formData.capital) * 1000) /
-                              Number(formData.issuedShares),
-                          ).toLocaleString()
-                        : "0"}
-                    </span>
-                    <span className="text-xs ml-1 text-muted-foreground">
-                      円
-                    </span>
+                    <span className="font-bold">{preview.capitalPerShare.toLocaleString()}</span>
+                    <span className="text-xs ml-1 text-muted-foreground">円</span>
                   </div>
                 </div>
                 <div className="text-xs text-right text-muted-foreground mb-2">
-                  計算式: {Number(formData.capital).toLocaleString()}千円 ÷{" "}
-                  {Number(formData.issuedShares).toLocaleString()}株
+                  計算式: {preview.capital.toLocaleString()}千円 ÷ {preview.shares.toLocaleString()}株
                 </div>
 
                 <div className="flex justify-between items-center pt-2 border-t border-dashed border-primary/20">
-                  <span className="text-muted-foreground">
-                    1株50円とした場合の発行済株式数
-                  </span>
+                  <span className="text-muted-foreground">1株50円とした場合の発行済株式数</span>
+                  <div className="text-right">
+                    <span className="font-bold">{preview.shares50.toLocaleString()}</span>
+                    <span className="text-xs ml-1 text-muted-foreground">株</span>
+                  </div>
+                </div>
+                <div className="text-xs text-right text-muted-foreground">
+                  計算式: {preview.capital.toLocaleString()}千円 ÷ 50円
+                </div>
+
+                <div className="flex justify-between items-center pt-2 border-t border-dashed border-primary/20">
+                  <span className="text-muted-foreground">50円株での換算係数</span>
                   <div className="text-right">
                     <span className="font-bold">
-                      {Number(formData.capital) > 0
-                        ? Math.floor(
-                            (Number(formData.capital) * 1000) / 50,
-                          ).toLocaleString()
-                        : "0"}
-                    </span>
-                    <span className="text-xs ml-1 text-muted-foreground">
-                      株
+                      {preview.conversionRatio.toLocaleString(undefined, { maximumFractionDigits: 3 })}
                     </span>
                   </div>
                 </div>
                 <div className="text-xs text-right text-muted-foreground">
-                  計算式: {Number(formData.capital).toLocaleString()}千円 ÷ 50円
-                </div>
-
-                <div className="flex justify-between items-center pt-2 border-t border-dashed border-primary/20">
-                  <span className="text-muted-foreground">
-                    50円株での換算係数
-                  </span>
-                  <div className="text-right">
-                    <span className="font-bold">
-                      {Number(formData.capital) > 0 &&
-                      Number(formData.issuedShares) > 0
-                        ? (
-                            Number(formData.issuedShares) /
-                            Math.floor((Number(formData.capital) * 1000) / 50)
-                          ).toLocaleString(undefined, {
-                            maximumFractionDigits: 3,
-                          })
-                        : "0"}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-xs text-right text-muted-foreground">
-                  計算式: {Number(formData.issuedShares).toLocaleString()}株 ÷{" "}
-                  {Number(formData.capital) > 0
-                    ? Math.floor(
-                        (Number(formData.capital) * 1000) / 50,
-                      ).toLocaleString()
-                    : "0"}
-                  株
+                  計算式: {preview.shares.toLocaleString()}株 ÷ {preview.shares50.toLocaleString()}株
                 </div>
               </div>
             </div>

@@ -525,6 +525,38 @@ export function calculateFinalValuation(
 }
 
 /**
+ * 直前期利益=0のシミュレーション用Financialsを構築する。
+ * ValuationSimulation, ValuationSummary, PrintAllSteps で共通使用。
+ */
+export function buildSimulationFinancials(
+  financials: Financials,
+  issuedShares: number,
+): Financials {
+  const simData = {
+    divPrev: financials.ownDividendPrev || 0,
+    div2Prev: financials.ownDividend2Prev || 0,
+    div3Prev: financials.ownDividend3Prev || 0,
+    p1: 0,
+    l1: financials.ownCarryForwardLossPrev || 0,
+    p2: financials.ownTaxableIncome2Prev || 0,
+    l2: financials.ownCarryForwardLoss2Prev || 0,
+    p3: financials.ownTaxableIncome3Prev || 0,
+    l3: financials.ownCarryForwardLoss3Prev || 0,
+    cap1: financials.ownCapitalPrev || 0,
+    re1: financials.ownRetainedEarningsPrev || 0,
+    cap2: financials.ownCapital2Prev || 0,
+    re2: financials.ownRetainedEarnings2Prev || 0,
+  };
+
+  const simOwnFinancials = calculateOwnFinancials(simData, issuedShares);
+
+  return {
+    ...financials,
+    ownProfit: simOwnFinancials.ownProfit,
+  };
+}
+
+/**
  * Calculates Corporate Tax Fair Value (法人税法上の時価)
  * Used in Step 7 only.
  *

@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { calculateCompanySizeAndL, IndustryType } from "@/lib/valuation-logic";
 import { BasicInfo } from "@/types/valuation";
-import { Button } from "@/components/ui/Button";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { NumberInputWithUnit } from "@/components/ui/NumberInputWithUnit";
+import { IndustryTypeSelector } from "@/components/ui/IndustryTypeSelector";
+import { FormNavigationButtons } from "@/components/ui/FormNavigationButtons";
 import { Label } from "@/components/ui/Label";
 import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
@@ -131,6 +132,21 @@ export function CompanySizeForm({
     notifyChange(formData);
   }, [formData, notifyChange]);
 
+  // プレビュー用の計算結果メモ化
+  const sizePreview = useMemo(() => {
+    const emp = Number(formData.employees.replace(/,/g, ""));
+    const assets = Number(formData.totalAssets.replace(/,/g, "")) * 1000;
+    const sal = Number(formData.sales.replace(/,/g, "")) * 1000;
+    const { size, lRatio, sizeMultiplier } = calculateCompanySizeAndL({
+      employees: emp,
+      totalAssets: assets,
+      sales: sal,
+      industryType: formData.industryType,
+    });
+    const sizeLabel = size === "Big" ? "大会社" : size === "Medium" ? "中会社" : "小会社";
+    return { size, lRatio, sizeMultiplier, sizeLabel };
+  }, [formData]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -235,109 +251,49 @@ export function CompanySizeForm({
 
               <div className="space-y-2">
                 <Label>業種区分</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleIndustryChange("Wholesale")}
-                    className={`p-3 rounded-lg border-2 transition-all font-bold ${
-                      formData.industryType === "Wholesale"
-                        ? "border-primary bg-white text-primary shadow-sm"
-                        : "border-transparent bg-white/50 text-muted-foreground hover:bg-white hover:text-primary"
-                    }`}
-                  >
-                    卸売業
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleIndustryChange("RetailService")}
-                    className={`p-3 rounded-lg border-2 transition-all font-bold ${
-                      formData.industryType === "RetailService"
-                        ? "border-primary bg-white text-primary shadow-sm"
-                        : "border-transparent bg-white/50 text-muted-foreground hover:bg-white hover:text-primary"
-                    }`}
-                  >
-                    小売・サービス業
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleIndustryChange("MedicalCorporation")}
-                    className={`p-3 rounded-lg border-2 transition-all font-bold ${
-                      formData.industryType === "MedicalCorporation"
-                        ? "border-primary bg-white text-primary shadow-sm"
-                        : "border-transparent bg-white/50 text-muted-foreground hover:bg-white hover:text-primary"
-                    }`}
-                  >
-                    医療法人
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleIndustryChange("Other")}
-                    className={`p-3 rounded-lg border-2 transition-all font-bold ${
-                      formData.industryType === "Other"
-                        ? "border-primary bg-white text-primary shadow-sm"
-                        : "border-transparent bg-white/50 text-muted-foreground hover:bg-white hover:text-primary"
-                    }`}
-                  >
-                    それ以外
-                  </button>
-                </div>
+                <IndustryTypeSelector value={formData.industryType} onChange={handleIndustryChange} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="employees">従業員数</Label>
-                  <div className="relative">
-                    <NumberInput
-                      id="employees"
-                      name="employees"
-                      placeholder="0"
-                      value={formData.employees}
-                      onChange={handleChange}
-                      required
-                      className="pr-12 text-right bg-white"
-                    />
-                    <span className="absolute right-3 top-2.5 text-muted-foreground text-sm">
-                      人
-                    </span>
-                  </div>
+                  <NumberInputWithUnit
+                    id="employees"
+                    name="employees"
+                    value={formData.employees}
+                    onChange={handleChange}
+                    unit="人"
+                    required
+                    className="bg-white"
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="totalAssets">総資産価額 (帳簿価額)</Label>
-                  <div className="relative">
-                    <NumberInput
-                      id="totalAssets"
-                      name="totalAssets"
-                      placeholder="0"
-                      value={formData.totalAssets}
-                      onChange={handleChange}
-                      required
-                      className="pr-12 text-right bg-white"
-                    />
-                    <span className="absolute right-3 top-2.5 text-muted-foreground text-sm">
-                      千円
-                    </span>
-                  </div>
+                  <NumberInputWithUnit
+                    id="totalAssets"
+                    name="totalAssets"
+                    value={formData.totalAssets}
+                    onChange={handleChange}
+                    unit="千円"
+                    required
+                    className="bg-white"
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="sales">直前期の売上高</Label>
-                  <div className="relative">
-                    <NumberInput
-                      id="sales"
-                      name="sales"
-                      placeholder="0"
-                      value={formData.sales}
-                      onChange={handleChange}
-                      required
-                      className="pr-12 text-right bg-white"
-                    />
-                    <span className="absolute right-3 top-2.5 text-muted-foreground text-sm">
-                      千円
-                    </span>
-                  </div>
+                  <NumberInputWithUnit
+                    id="sales"
+                    name="sales"
+                    value={formData.sales}
+                    onChange={handleChange}
+                    unit="千円"
+                    required
+                    className="bg-white"
+                  />
                 </div>
               </div>
             </div>
@@ -356,22 +312,7 @@ export function CompanySizeForm({
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">会社規模区分</p>
                   <p className="text-2xl font-black text-primary">
-                    {(() => {
-                      const emp = Number(formData.employees.replace(/,/g, ""));
-                      const assets =
-                        Number(formData.totalAssets.replace(/,/g, "")) * 1000;
-                      const sales =
-                        Number(formData.sales.replace(/,/g, "")) * 1000;
-                      const { size } = calculateCompanySizeAndL({
-                        employees: emp,
-                        totalAssets: assets,
-                        sales: sales,
-                        industryType: formData.industryType,
-                      });
-                      if (size === "Big") return "大会社";
-                      if (size === "Medium") return "中会社";
-                      return "小会社";
-                    })()}
+                    {sizePreview.sizeLabel}
                   </p>
                 </div>
                 <div className="text-right space-y-1">
@@ -379,55 +320,19 @@ export function CompanySizeForm({
                     Lの割合 / 斟酌率
                   </p>
                   <div className="text-right">
-                    {(() => {
-                      const emp = Number(formData.employees.replace(/,/g, ""));
-                      const assets =
-                        Number(formData.totalAssets.replace(/,/g, "")) * 1000;
-                      const sales =
-                        Number(formData.sales.replace(/,/g, "")) * 1000;
-                      const { lRatio, sizeMultiplier } =
-                        calculateCompanySizeAndL({
-                          employees: emp,
-                          totalAssets: assets,
-                          sales: sales,
-                          industryType: formData.industryType,
-                        });
-
-                      return (
-                        <>
-                          <p className="text-2xl font-black text-primary">
-                            L = {lRatio.toFixed(2)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            (斟酌率: {sizeMultiplier})
-                          </p>
-                        </>
-                      );
-                    })()}
+                    <p className="text-2xl font-black text-primary">
+                      L = {sizePreview.lRatio.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      (斟酌率: {sizePreview.sizeMultiplier})
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onBack}
-              size="lg"
-              className="flex-1"
-            >
-              戻る
-            </Button>
-            <Button
-              type="submit"
-              size="lg"
-              className="flex-1 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all"
-            >
-              次へ進む
-            </Button>
-          </div>
+          <FormNavigationButtons onBack={onBack} />
         </form>
       </Card>
     </div>

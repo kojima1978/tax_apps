@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import {
   calculateFinalValuation,
   calculateCorporateTaxFairValue,
-  calculateOwnFinancials,
+  buildSimulationFinancials,
 } from "@/lib/valuation-logic";
 import { exportValuationData } from "@/lib/data-export-import";
 
@@ -34,32 +34,7 @@ export function ValuationSummary({
     const step7Result = calculateCorporateTaxFairValue(basicInfo, financials);
 
     // Step 8: シミュレーション（直前期利益=0の場合）
-    const simData = {
-      divPrev: financials.ownDividendPrev || 0,
-      div2Prev: financials.ownDividend2Prev || 0,
-      div3Prev: financials.ownDividend3Prev || 0,
-      p1: 0,
-      l1: financials.ownCarryForwardLossPrev || 0,
-      p2: financials.ownTaxableIncome2Prev || 0,
-      l2: financials.ownCarryForwardLoss2Prev || 0,
-      p3: financials.ownTaxableIncome3Prev || 0,
-      l3: financials.ownCarryForwardLoss3Prev || 0,
-      cap1: financials.ownCapitalPrev || 0,
-      re1: financials.ownRetainedEarningsPrev || 0,
-      cap2: financials.ownCapital2Prev || 0,
-      re2: financials.ownRetainedEarnings2Prev || 0,
-    };
-
-    const simOwnFinancials = calculateOwnFinancials(
-      simData,
-      basicInfo.issuedShares,
-    );
-
-    const simFinancials: Financials = {
-      ...financials,
-      ownProfit: simOwnFinancials.ownProfit,
-    };
-
+    const simFinancials = buildSimulationFinancials(financials, basicInfo.issuedShares);
     const step8Result = calculateFinalValuation(basicInfo, simFinancials);
 
     return {
