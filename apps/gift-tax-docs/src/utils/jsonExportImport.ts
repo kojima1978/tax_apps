@@ -1,4 +1,7 @@
-import type { EditableDocumentList } from '@/constants';
+import type { EditableDocumentList, SubItem } from '@/constants';
+
+// インポートファイルの最大サイズ（5MB）
+const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 
 // エクスポートするデータの型
 export interface ExportData {
@@ -51,34 +54,41 @@ export const parseImportedJson = (jsonString: string): ExportData | null => {
       throw new Error('documentListが見つからないか、配列ではありません');
     }
 
-    // カテゴリの構造をチェック
-    for (const category of data.documentList) {
+    // カテゴリの構造をチェック・正規化
+    const documentList: EditableDocumentList = data.documentList.map((category: Record<string, unknown>) => {
       if (!category.id || !category.name || !Array.isArray(category.documents)) {
         throw new Error('カテゴリの構造が不正です');
       }
 
-      // 書類の構造をチェック
-      for (const doc of category.documents) {
+      // 書類の構造をチェック・正規化
+      const documents = (category.documents as Record<string, unknown>[]).map((doc) => {
         if (!doc.id || typeof doc.text !== 'string' || typeof doc.checked !== 'boolean') {
           throw new Error('書類の構造が不正です');
         }
+        // 中項目の構造を正規化（id/textが揃っていない要素を除外）
+        const subItems: SubItem[] = Array.isArray(doc.subItems)
+          ? (doc.subItems as Record<string, unknown>[])
+              .filter(sub => typeof sub.id === 'string' && typeof sub.text === 'string')
+              .map(sub => ({ id: sub.id as string, text: sub.text as string }))
+          : [];
 
-        // subItemsがなければ空配列を追加
-        if (!doc.subItems) {
-          doc.subItems = [];
-        }
-      }
+        return {
+          id: doc.id as string,
+          text: doc.text,
+          checked: doc.checked,
+          subItems,
+        };
+      });
 
-      // isExpandedがなければtrueを設定
-      if (typeof category.isExpanded !== 'boolean') {
-        category.isExpanded = true;
-      }
-
-      // isSpecialがなければfalseを設定
-      if (typeof category.isSpecial !== 'boolean') {
-        category.isSpecial = false;
-      }
-    }
+      return {
+        id: category.id as string,
+        name: category.name as string,
+        documents,
+        note: typeof category.note === 'string' ? category.note : undefined,
+        isExpanded: typeof category.isExpanded === 'boolean' ? category.isExpanded : true,
+        isSpecial: typeof category.isSpecial === 'boolean' ? category.isSpecial : false,
+      };
+    });
 
     return {
       version: data.version || '1.0',
@@ -86,7 +96,7 @@ export const parseImportedJson = (jsonString: string): ExportData | null => {
       staffName: data.staffName || '',
       staffPhone: data.staffPhone || '',
       customerName: data.customerName || '',
-      documentList: data.documentList,
+      documentList,
     };
   } catch (error) {
     console.error('JSONパースエラー:', error);
@@ -94,18 +104,27 @@ export const parseImportedJson = (jsonString: string): ExportData | null => {
   }
 };
 
-// ファイルを読み込んでJSONをパース
-export const readJsonFile = (file: File): Promise<ExportData | null> => {
-  return new Promise((resolve) => {
+// FileReaderをPromise化するヘルパー
+const readAsText = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const data = parseImportedJson(content);
-      resolve(data);
-    };
-    reader.onerror = () => {
-      resolve(null);
-    };
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = () => reject(reader.error);
     reader.readAsText(file);
   });
+
+// ファイルを読み込んでJSONをパース
+export const readJsonFile = async (file: File): Promise<ExportData | null> => {
+  if (file.size > MAX_IMPORT_FILE_SIZE) {
+    console.error(`ファイルサイズが上限（${MAX_IMPORT_FILE_SIZE / 1024 / 1024}MB）を超えています`);
+    return null;
+  }
+
+  try {
+    const content = await readAsText(file);
+    return parseImportedJson(content);
+  } catch {
+    console.error('ファイルの読み込みに失敗しました');
+    return null;
+  }
 };

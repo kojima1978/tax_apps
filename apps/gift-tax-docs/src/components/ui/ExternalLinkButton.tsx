@@ -18,7 +18,7 @@ export function ExternalLinkButton({
             rel="noopener noreferrer"
             className="group flex items-center px-5 py-3 rounded-xl bg-emerald-800 bg-opacity-40 text-emerald-50 hover:bg-opacity-100 hover:text-white transition-all text-sm border border-emerald-600 hover:border-emerald-400 hover:shadow-lg"
         >
-            <FileText className="w-5 h-5 mr-3 text-emerald-200 group-hover:text-white" />
+            <FileText className="w-5 h-5 mr-3 text-emerald-200 group-hover:text-white" aria-hidden="true" />
             <span className="text-left">
                 <span className="block text-xs text-emerald-300 group-hover:text-emerald-100 mb-0.5">
                     {description}
@@ -27,7 +27,7 @@ export function ExternalLinkButton({
                     {label}
                 </span>
             </span>
-            <ExternalLink className="w-4 h-4 ml-3 opacity-60 group-hover:opacity-100" />
+            <ExternalLink className="w-4 h-4 ml-3 opacity-60 group-hover:opacity-100" aria-hidden="true" />
         </a>
     );
 }

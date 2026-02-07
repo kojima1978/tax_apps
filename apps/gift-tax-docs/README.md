@@ -20,7 +20,7 @@
 ### データ入出力
 - **Excel出力**: スタイル付きのExcelファイルとしてダウンロード（xlsx-js-style使用）
 - **JSON出力**: 編集内容をJSONファイルとして保存
-- **JSON取込**: 保存したJSONファイルを読み込んで編集を再開
+- **JSON取込**: 保存したJSONファイルを読み込んで編集を再開（バリデーション付き）
 - **印刷プレビュー**: 1段組/2段組の切り替えに対応
 
 ### 顧客・担当者情報
@@ -31,14 +31,14 @@
 
 | カテゴリ | 技術 |
 |---------|------|
-| Framework | [Next.js 16](https://nextjs.org/) (App Router) |
+| Framework | [Next.js 16](https://nextjs.org/) (App Router, standalone output) |
 | UI Library | [React 19](https://react.dev/) |
-| Styling | [Tailwind CSS v4](https://tailwindcss.com/) |
+| Styling | [Tailwind CSS v4](https://tailwindcss.com/) (@tailwindcss/postcss) |
 | Drag & Drop | [@dnd-kit](https://dndkit.com/) (core, sortable, utilities) |
 | Icons | [Lucide React](https://lucide.dev/) |
 | Excel Generation | [xlsx-js-style](https://www.npmjs.com/package/xlsx-js-style) |
 | Language | TypeScript 5 |
-| Runtime | Node.js 22 |
+| Runtime | Node.js 22 (Alpine) |
 
 ## 開発環境のセットアップ
 
@@ -48,22 +48,35 @@
 # アプリディレクトリで実行
 cd apps/gift-tax-docs
 
-# 起動
-docker compose up -d
+# 開発サーバー起動
+docker compose --profile dev up
+
+# バックグラウンドで起動
+docker compose --profile dev up -d
 
 # 再ビルド（Dockerfile変更時）
-docker compose up -d --build
+docker compose --profile dev up -d --build
 
 # ログの確認
-docker logs -f gift-tax-docs
+docker compose --profile dev logs -f
 
 # 停止
-docker compose down
+docker compose --profile dev down
 ```
 
 アクセス: [http://localhost:3002/gift-tax-docs/](http://localhost:3002/gift-tax-docs/)
 
 > **Note**: `next.config.ts` で `basePath: '/gift-tax-docs'` が設定されているため、URLにはサブパスが必要です。
+
+### 本番ビルド
+
+```bash
+# 本番コンテナ起動
+docker compose --profile prod up -d
+
+# 本番コンテナ停止
+docker compose --profile prod down
+```
 
 ## ディレクトリ構成
 
@@ -76,14 +89,17 @@ src/
 ├── components/                   # UIコンポーネント
 │   ├── GiftTaxDocGuide.tsx       # メインコンテナ（状態管理・画面切替）
 │   ├── MenuStep.tsx              # メニュー画面（担当者・顧客情報入力）
-│   ├── EditableListStep.tsx      # 編集画面（ドラッグ&ドロップ対応）
+│   ├── EditableListStep.tsx      # 編集画面（DnDコンテキスト・ダイアログ描画）
 │   ├── ResultStep.tsx            # 印刷プレビュー画面
 │   └── ui/                       # 再利用可能なUIパーツ
-│       ├── CheckboxOption.tsx    # チェックボックスオプション
-│       └── ExternalLinkButton.tsx# 外部リンクボタン
+│       ├── ConfirmDialog.tsx     # ダイアログ群（DialogOverlay + 削除/リセット/インポート確認/エラー）
+│       ├── SortableCategoryCard.tsx  # ドラッグ可能なカテゴリカード
+│       ├── SortableDocumentItem.tsx  # ドラッグ可能な書類アイテム（ARIA対応）
+│       └── ExternalLinkButton.tsx    # 外部リンクボタン
 ├── hooks/                        # カスタムフック
 │   ├── useGiftTaxGuide.ts        # アプリケーション全体の状態管理
-│   └── useEditableListEditing.ts # 編集画面の状態管理（useCallback最適化）
+│   ├── useEditableListEditing.ts # 編集画面の状態管理（useCallback最適化）
+│   └── useDragAndDrop.ts         # ドラッグ&ドロップのstate/refs/handlers
 ├── constants/                    # 定数・型定義
 │   ├── index.ts                  # 型定義・会社情報・外部リンク・ストレージキー
 │   └── giftData.ts               # 初期データ（書類一覧・特例情報）
@@ -111,42 +127,67 @@ src/
 ## 主要コンポーネント
 
 ### EditableListStep.tsx
-編集画面のメインコンポーネント。以下のサブコンポーネントで構成：
+編集画面のメインコンポーネント。DnDコンテキストとダイアログの描画を担当：
 
-- **SortableCategoryCard**: ドラッグ可能なカテゴリカード
-- **SortableDocumentItem**: ドラッグ可能な書類アイテム（ARIA対応）
-- **DragOverlayItem / CategoryDragOverlay**: ドラッグ中のプレビュー表示
+- **SortableCategoryCard**: ドラッグ可能なカテゴリカード（`ui/` に分離）
+- **SortableDocumentItem**: ドラッグ可能な書類アイテム（ARIA対応、`ui/` に分離）
+- **DragOverlay**: ドラッグ中のプレビュー表示（カテゴリ/書類の両方に対応）
+
+### useDragAndDrop.ts
+ドラッグ&ドロップの状態管理フック：
+
+- `activeId` / `isDraggingCategory` でドラッグ中の要素を管理
+- `useRef` パターンで `handleDragEnd` のstale closure問題を回避
+- sensors / handlers / computed values をまとめて提供
 
 ### useEditableListEditing.ts
 編集画面の状態管理フック。`useCallback` + 関数アップデートパターンで安定した参照を提供：
 
 - 書類・カテゴリ・中項目の編集状態管理
-- ダイアログ（リセット・インポート確認）の状態管理
+- ダイアログ状態管理（削除確認・リセット確認・インポート確認・インポートエラー）
 - JSON エクスポート/インポート処理
 - `categoryEditState` / `categoryHandlers` のメモ化オブジェクト
+
+### ConfirmDialog.tsx
+DialogOverlay ラッパー + 個別ダイアログパターン：
+
+- **DialogOverlay**: 共通オーバーレイ（背景クリック・Escapeキーで閉じる）
+- **DeleteConfirmDialog**: 書類/カテゴリの削除確認
+- **ResetConfirmDialog**: 編集内容のリセット確認
+- **ImportConfirmDialog**: JSONインポートのプレビュー・確認
+- **ImportErrorDialog**: インポートエラー通知
 
 ### editableListUtils.ts
 リスト操作の純粋関数群：
 
 ```typescript
+// 初期化
+initializeEditableList()     // giftDataから編集可能リストを生成
+
 // カテゴリ操作
-addCategory()           // カテゴリ追加
-removeCategory()        // カテゴリ削除
-updateCategoryName()    // カテゴリ名変更
-reorderCategories()     // カテゴリ並替え
-toggleCategorySpecial() // 特例フラグ切替
+addCategory()                // カテゴリ追加
+removeCategory()             // カテゴリ削除
+updateCategoryName()         // カテゴリ名変更
+reorderCategories()          // カテゴリ並替え
+toggleCategoryExpand()       // カテゴリ展開/折りたたみ
+toggleCategorySpecial()      // 特例フラグ切替
+expandAllCategories()        // 全カテゴリ一括展開/折りたたみ
 
 // 書類操作
-addDocumentToCategory() // 書類追加
-removeDocument()        // 書類削除
-updateDocumentText()    // 書類名変更
-reorderDocuments()      // 書類並替え
-toggleDocumentCheck()   // チェック状態切替
+addDocumentToCategory()      // 書類追加
+removeDocument()             // 書類削除
+updateDocumentText()         // 書類名変更
+reorderDocuments()           // 書類並替え
+toggleDocumentCheck()        // チェック状態切替
+toggleAllInCategory()        // カテゴリ内一括チェック切替
 
 // 中項目操作
-addSubItem()            // 中項目追加
-removeSubItem()         // 中項目削除
-updateSubItemText()     // 中項目変更
+addSubItem()                 // 中項目追加
+removeSubItem()              // 中項目削除
+updateSubItemText()          // 中項目変更
+
+// 変換
+toDocumentGroups()           // 印刷/Excel用のDocumentGroup[]に変換
 ```
 
 ## データ構造
@@ -177,31 +218,29 @@ interface EditableDocument {
 
 ### Dockerfile（マルチステージビルド）
 
-| ステージ | 用途 |
-|---------|------|
-| **base** | Node.js 22 Alpine + libc6-compat |
-| **deps** | `npm ci` で依存関係インストール |
-| **dev** | 開発用（ホットリロード、ポート3002） |
-| **builder** | 本番ビルド（standalone出力） |
-| **runner** | 本番実行用（非rootユーザー、tini、ヘルスチェック） |
+| ステージ | 親ステージ | 用途 |
+|---------|-----------|------|
+| **base** | `node:22-alpine` | セキュリティ更新・WORKDIR・テレメトリ無効化 |
+| **deps** | base | `npm ci` で依存関係インストール（BuildKit cache mount） |
+| **dev** | base | 開発用（ホットリロード、ポート3000） |
+| **builder** | base | 本番ビルド（standalone出力、`.next/cache` mount） |
+| **runner** | base | 本番実行用（非rootユーザー、tini、ヘルスチェック、ポート3002） |
 
-### docker-compose.yml
-```yaml
-services:
-  gift-tax-docs:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: dev
-    ports:
-      - "3002:3002"
-    volumes:
-      - .:/app
-      - /app/node_modules  # ホストのnode_modulesで上書きしない
-      - /app/.next          # ビルドキャッシュを保護
-    init: true              # シグナルハンドリング
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3002/gift-tax-docs/"]
+全ステージで `COPY --link` を使用し、BuildKit のレイヤーキャッシュを最大化しています。
+
+### docker-compose.yml（プロファイル構成）
+
+| プロファイル | サービス | ターゲット | ポート | 特徴 |
+|-------------|---------|-----------|--------|------|
+| `dev` | gift-tax-docs-dev | dev | 3002→3000 | ソースバインドマウント、名前付きボリューム（node_modules, .next）、watchpack polling |
+| `prod` | gift-tax-docs-prod | runner | 3002→3002 | read_only、cap_drop ALL、リソース制限、tini init |
+
+```bash
+# 開発
+docker compose --profile dev up
+
+# 本番
+docker compose --profile prod up -d
 ```
 
 ## Scripts

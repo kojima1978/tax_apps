@@ -23,36 +23,31 @@ export const useGiftTaxGuide = () => {
 
     // 初期化：ストレージから読み込み
     useEffect(() => {
-        const savedStaff = localStorage.getItem(STORAGE_KEYS.staffName);
-        if (savedStaff) setStaffName(savedStaff);
+        try {
+            const savedStaff = localStorage.getItem(STORAGE_KEYS.staffName);
+            if (savedStaff) setStaffName(savedStaff);
 
-        const savedPhone = localStorage.getItem(STORAGE_KEYS.staffPhone);
-        if (savedPhone) setStaffPhone(savedPhone);
+            const savedPhone = localStorage.getItem(STORAGE_KEYS.staffPhone);
+            if (savedPhone) setStaffPhone(savedPhone);
 
-        const savedCustomer = sessionStorage.getItem(STORAGE_KEYS.customerName);
-        if (savedCustomer) setCustomerName(savedCustomer);
+            const savedCustomer = sessionStorage.getItem(STORAGE_KEYS.customerName);
+            if (savedCustomer) setCustomerName(savedCustomer);
+        } catch {
+            // プライベートブラウジング等でストレージが使用不可の場合は無視
+        }
 
         isInitialized.current = true;
     }, []);
 
     // 変更検知：ストレージへ保存（初期化完了後のみ）
     useEffect(() => {
-        if (isInitialized.current) {
+        if (!isInitialized.current) return;
+        try {
             localStorage.setItem(STORAGE_KEYS.staffName, staffName);
-        }
-    }, [staffName]);
-
-    useEffect(() => {
-        if (isInitialized.current) {
             localStorage.setItem(STORAGE_KEYS.staffPhone, staffPhone);
-        }
-    }, [staffPhone]);
-
-    useEffect(() => {
-        if (isInitialized.current) {
             sessionStorage.setItem(STORAGE_KEYS.customerName, customerName);
-        }
-    }, [customerName]);
+        } catch { /* プライベートブラウジング等でストレージが使用不可の場合は無視 */ }
+    }, [staffName, staffPhone, customerName]);
 
     // 状態リセット
     const resetToMenu = useCallback(() => {
@@ -65,13 +60,15 @@ export const useGiftTaxGuide = () => {
         return toDocumentGroups(documentList, showUncheckedInPrint);
     }, [documentList, showUncheckedInPrint]);
 
+    // 画面遷移時に日付を再計算（タブを長時間開いている場合の対策）
     const currentDate = useMemo(() => {
         return new Date().toLocaleDateString('ja-JP', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
         });
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [step]);
 
     const handlePrint = useCallback(() => {
         window.print();
@@ -84,16 +81,17 @@ export const useGiftTaxGuide = () => {
             currentDate,
             showUncheckedInPrint,
             staffName,
+            staffPhone,
             customerName
         );
-    }, [results, currentDate, showUncheckedInPrint, staffName, customerName]);
+    }, [results, currentDate, showUncheckedInPrint, staffName, staffPhone, customerName]);
 
     const togglePrintColumn = useCallback(() => {
-        setIsTwoColumnPrint((prev: boolean) => !prev);
+        setIsTwoColumnPrint(prev => !prev);
     }, []);
 
     const toggleShowUnchecked = useCallback(() => {
-        setShowUncheckedInPrint((prev: boolean) => !prev);
+        setShowUncheckedInPrint(prev => !prev);
     }, []);
 
     // 印刷用クラス生成

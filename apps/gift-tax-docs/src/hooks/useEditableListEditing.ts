@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import type { EditableDocumentList } from '@/constants';
 import type { ExportData } from '@/utils/jsonExportImport';
 import {
@@ -24,6 +24,10 @@ export type EditingDoc = { categoryId: string; docId: string } | null;
 export type EditingSubItem = { categoryId: string; docId: string; subItemId: string } | null;
 export type AddingSubItemTo = { categoryId: string; docId: string } | null;
 
+export type DeleteTarget =
+  | { type: 'document'; categoryId: string; docId: string }
+  | { type: 'category'; categoryId: string; name: string };
+
 type SetDocumentList = React.Dispatch<React.SetStateAction<EditableDocumentList>>;
 
 type UseEditableListEditingArgs = {
@@ -47,6 +51,10 @@ export const useEditableListEditing = ({
   customerName,
   setCustomerName,
 }: UseEditableListEditingArgs) => {
+  // documentListの最新値をrefで保持（handleRemoveCategoryの依存配列から除外するため）
+  const documentListRef = useRef(documentList);
+  documentListRef.current = documentList;
+
   // === 書類編集状態 ===
   const [editingDoc, setEditingDoc] = useState<EditingDoc>(null);
   const [editText, setEditText] = useState('');
@@ -70,6 +78,10 @@ export const useEditableListEditing = ({
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importPreview, setImportPreview] = useState<ExportData | null>(null);
+  const [importError, setImportError] = useState(false);
+
+  // === 削除確認ダイアログ状態 ===
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   // === 集計値（メモ化） ===
   const { checkedCount, totalCount } = useMemo(() => ({
@@ -105,11 +117,14 @@ export const useEditableListEditing = ({
     }
   }, [setDocumentList, newDocText]);
 
+  const cancelAddDocument = useCallback(() => {
+    setAddingToCategory(null);
+    setNewDocText('');
+  }, []);
+
   const handleRemoveDocument = useCallback((categoryId: string, docId: string) => {
-    if (confirm('この書類を削除しますか？')) {
-      setDocumentList(prev => removeDocument(prev, categoryId, docId));
-    }
-  }, [setDocumentList]);
+    setDeleteTarget({ type: 'document', categoryId, docId });
+  }, []);
 
   const startEdit = useCallback((categoryId: string, docId: string, currentText: string) => {
     setEditingDoc({ categoryId, docId });
@@ -189,12 +204,18 @@ export const useEditableListEditing = ({
     }
   }, [setDocumentList, newCategoryName, newCategoryIsSpecial]);
 
+  const cancelAddCategory = useCallback(() => {
+    setIsAddingCategory(false);
+    setNewCategoryName('');
+    setNewCategoryIsSpecial(false);
+  }, []);
+
   const handleRemoveCategory = useCallback((categoryId: string) => {
-    const category = documentList.find((c) => c.id === categoryId);
-    if (category && confirm(`「${category.name}」を削除しますか？\n※含まれる書類もすべて削除されます。`)) {
-      setDocumentList(prev => removeCategory(prev, categoryId));
+    const category = documentListRef.current.find((c) => c.id === categoryId);
+    if (category) {
+      setDeleteTarget({ type: 'category', categoryId, name: category.name });
     }
-  }, [documentList, setDocumentList]);
+  }, []);
 
   const startCategoryEdit = useCallback((categoryId: string, currentName: string) => {
     setEditingCategory(categoryId);
@@ -218,6 +239,31 @@ export const useEditableListEditing = ({
     setDocumentList(prev => toggleCategorySpecial(prev, categoryId));
   }, [setDocumentList]);
 
+  // === 削除確認 ===
+  const confirmDelete = useCallback(() => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === 'document') {
+      setDocumentList(prev => removeDocument(prev, deleteTarget.categoryId, deleteTarget.docId));
+    } else {
+      setDocumentList(prev => removeCategory(prev, deleteTarget.categoryId));
+    }
+    setDeleteTarget(null);
+  }, [deleteTarget, setDocumentList]);
+
+  const cancelDelete = useCallback(() => {
+    setDeleteTarget(null);
+  }, []);
+
+  const deleteDialogMessage = deleteTarget
+    ? deleteTarget.type === 'document'
+      ? 'この書類を削除しますか？'
+      : `「${deleteTarget.name}」を削除しますか？`
+    : '';
+
+  const deleteDialogSubMessage = deleteTarget?.type === 'category'
+    ? '含まれる書類もすべて削除されます。'
+    : undefined;
+
   // === リセット ===
   const handleResetToDefault = useCallback(() => {
     setDocumentList(initializeEditableList());
@@ -238,7 +284,7 @@ export const useEditableListEditing = ({
       setImportPreview(data);
       setShowImportDialog(true);
     } else {
-      alert('JSONファイルの読み込みに失敗しました。\nファイル形式を確認してください。');
+      setImportError(true);
     }
 
     e.target.value = '';
@@ -258,6 +304,10 @@ export const useEditableListEditing = ({
   const cancelImport = useCallback(() => {
     setShowImportDialog(false);
     setImportPreview(null);
+  }, []);
+
+  const dismissImportError = useCallback(() => {
+    setImportError(false);
   }, []);
 
   // === カテゴリ編集状態オブジェクト（メモ化） ===
@@ -309,6 +359,13 @@ export const useEditableListEditing = ({
     setShowResetDialog,
     showImportDialog,
     importPreview,
+    importError,
+    dismissImportError,
+    deleteTarget,
+    deleteDialogMessage,
+    deleteDialogSubMessage,
+    confirmDelete,
+    cancelDelete,
 
     // 集計値
     checkedCount,
@@ -322,6 +379,7 @@ export const useEditableListEditing = ({
     handleToggleCheck,
     handleExpandAll,
     handleAddDocument,
+    cancelAddDocument,
     handleRemoveDocument,
     startEdit,
     confirmEdit,
@@ -338,6 +396,7 @@ export const useEditableListEditing = ({
 
     // カテゴリハンドラー
     handleAddCategory,
+    cancelAddCategory,
 
     // リセット
     handleResetToDefault,
