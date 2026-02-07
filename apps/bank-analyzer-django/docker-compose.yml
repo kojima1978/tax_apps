@@ -26,21 +26,25 @@ services:
       - sqlite-data:/app/db
       # 静的ファイル（Nginx連携時に使用）
       - static-files:/app/staticfiles
+    tmpfs:
+      - /tmp
     environment:
       - DJANGO_DEBUG=False
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-in-production}
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       - DB_PATH=/app/db/db.sqlite3
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-2}
+      - GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-300}
       - TZ=Asia/Tokyo
     env_file:
       - path: .env
         required: false
     restart: unless-stopped
     stop_grace_period: 10s
+    read_only: true
     healthcheck:
-      test: ["CMD", "curl", "-f", "--silent", "http://localhost:8000/"]
-      interval: 15s
+      test: ["CMD", "curl", "-f", "--silent", "http://localhost:8000/health/"]
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -73,6 +77,8 @@ services:
       - "8000:8000"
     volumes:
       # ソースコードをマウント（ホットリロード用）
+      # 注意: requirements.txt を変更した場合は再ビルドが必要
+      #   docker compose --profile dev build web-dev
       - .:/app
       - ./data:/app/data
       - sqlite-data:/app/db
@@ -86,6 +92,12 @@ services:
       - dev
     restart: unless-stopped
     stop_grace_period: 10s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "--silent", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:

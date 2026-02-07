@@ -49,6 +49,7 @@ class TransactionService:
         if not txs.exists():
             return 0
 
+        # 全件メモリに載せる（DATA_UPLOAD_MAX_NUMBER_FIELDS=50000の制約下では実用上問題なし）
         df = pd.DataFrame(list(txs.values()))
         df['date'] = pd.to_datetime(df['date'])
 
@@ -192,7 +193,11 @@ class TransactionService:
             return False
 
         if date_str:
-            tx.date = pd.to_datetime(date_str).date()
+            try:
+                tx.date = pd.to_datetime(date_str).date()
+            except (ValueError, TypeError) as e:
+                logger.warning(f"日付パースエラー: date_str={date_str}, error={e}")
+                return False
         tx.description = description
         tx.amount_out = amount_out
         tx.amount_in = amount_in
@@ -332,6 +337,7 @@ class TransactionService:
             return 0
 
         updates = []
+        updated_ids = set()
         for tx in txs:
             if not tx.description:
                 continue
@@ -342,8 +348,9 @@ class TransactionService:
                     if keyword.lower() in desc_lower:
                         tx.category = category
                         updates.append(tx)
+                        updated_ids.add(tx.id)
                         break
-                if tx in updates:
+                if tx.id in updated_ids:
                     break
 
         if updates:
@@ -433,6 +440,90 @@ class AnalysisService:
     ]
 
     @staticmethod
+    def apply_filters(queryset, filter_state: dict):
+        """
+        フィルター条件をQuerySetに適用する共通処理
+
+        Args:
+            queryset: 取引のQuerySet
+            filter_state: フィルター条件の辞書
+
+        Returns:
+            フィルター適用後のQuerySet
+        """
+        if filter_state.get('bank'):
+            queryset = queryset.filter(bank_name__in=filter_state['bank'])
+        if filter_state.get('account'):
+            queryset = queryset.filter(account_id__in=filter_state['account'])
+        if filter_state.get('category'):
+            if filter_state.get('category_mode') == 'exclude':
+                queryset = queryset.exclude(category__in=filter_state['category'])
+            else:
+                queryset = queryset.filter(category__in=filter_state['category'])
+        if filter_state.get('keyword'):
+            queryset = queryset.filter(description__icontains=filter_state['keyword'])
+
+        # 日付フィルター
+        if filter_state.get('date_from'):
+            queryset = queryset.filter(date__gte=filter_state['date_from'])
+        if filter_state.get('date_to'):
+            queryset = queryset.filter(date__lte=filter_state['date_to'])
+
+        # 金額フィルター
+        amount_type = filter_state.get('amount_type', 'both')
+        amount_min_str = filter_state.get('amount_min', '')
+        amount_max_str = filter_state.get('amount_max', '')
+
+        try:
+            amount_min = int(amount_min_str.replace(',', '')) if amount_min_str else None
+        except (ValueError, AttributeError):
+            amount_min = None
+        try:
+            amount_max = int(amount_max_str.replace(',', '')) if amount_max_str else None
+        except (ValueError, AttributeError):
+            amount_max = None
+
+        # 取引種別でフィルター（出金のみ、入金のみ、両方）
+        if amount_type == 'out':
+            queryset = queryset.filter(amount_out__gt=0)
+        elif amount_type == 'in':
+            queryset = queryset.filter(amount_in__gt=0)
+
+        # 金額範囲でフィルター
+        if amount_min is not None or amount_max is not None:
+            if amount_type == 'out':
+                if amount_min is not None:
+                    queryset = queryset.filter(amount_out__gte=amount_min)
+                if amount_max is not None:
+                    queryset = queryset.filter(amount_out__lte=amount_max)
+            elif amount_type == 'in':
+                if amount_min is not None:
+                    queryset = queryset.filter(amount_in__gte=amount_min)
+                if amount_max is not None:
+                    queryset = queryset.filter(amount_in__lte=amount_max)
+            else:
+                if amount_min is not None and amount_max is not None:
+                    queryset = queryset.filter(
+                        Q(amount_out__gte=amount_min, amount_out__lte=amount_max) |
+                        Q(amount_in__gte=amount_min, amount_in__lte=amount_max)
+                    )
+                elif amount_min is not None:
+                    queryset = queryset.filter(
+                        Q(amount_out__gte=amount_min) | Q(amount_in__gte=amount_min)
+                    )
+                elif amount_max is not None:
+                    queryset = queryset.filter(
+                        Q(amount_out__gt=0, amount_out__lte=amount_max) |
+                        Q(amount_in__gt=0, amount_in__lte=amount_max)
+                    )
+
+        # 多額取引のみフィルター
+        if filter_state.get('large_only'):
+            queryset = queryset.filter(is_large=True)
+
+        return queryset
+
+    @staticmethod
     def get_analysis_data(case: Case, filter_state: dict) -> dict:
         """
         分析ダッシュボード用のデータを取得
@@ -451,24 +542,35 @@ class AnalysisService:
 
         df = pd.DataFrame(list(transactions.values()))
 
-        # 重複データ検出
-        duplicate_txs = AnalysisService._get_duplicate_transactions(df)
+        return {
+            'account_summary': AnalysisService._build_account_summary(df),
+            'transfer_pairs': AnalysisService._build_transfer_data(df, filter_state),
+            'large_txs': AnalysisService._build_large_txs(df, filter_state),
+            'all_txs': AnalysisService.apply_filters(transactions, filter_state),
+            'duplicate_txs': AnalysisService._get_duplicate_transactions(df),
+            'flagged_txs': transactions.filter(is_flagged=True),
+            **AnalysisService._build_filter_options(df),
+        }
 
-        # 口座サマリー
+    @staticmethod
+    def _build_account_summary(df: pd.DataFrame) -> list:
+        """口座サマリーデータを生成"""
         account_summary = df.groupby(['account_id', 'holder']).agg({
             'id': 'count',
             'date': 'max'
         }).reset_index().rename(columns={'id': 'count', 'date': 'last_date'})
-        account_summary_list = account_summary.to_dict(orient='records')
+        return account_summary.to_dict(orient='records')
 
-        # 資金移動データ（ペアで取得）
+    @staticmethod
+    def _build_transfer_data(df: pd.DataFrame, filter_state: dict) -> list:
+        """資金移動ペアデータを生成（フィルター適用含む）"""
         analyzed_df = analyzer.analyze_transfers(df.copy())
         transfers_df = AnalysisService._convert_amounts_to_int(
             analyzed_df[analyzed_df['is_transfer']].copy()
         )
         transfer_pairs = AnalysisService._get_transfer_pairs(transfers_df)
 
-        # 資金移動の分類フィルター（出金元または移動先のいずれかがマッチすれば表示）
+        # 資金移動の分類フィルター
         if filter_state.get('transfer_category'):
             filter_cats = filter_state['transfer_category']
             if filter_state.get('transfer_category_mode') == 'exclude':
@@ -484,9 +586,12 @@ class AnalysisService:
                         (pair['destination'] and pair['destination'].get('category') in filter_cats))
                 ]
 
-        # 多額取引
+        return transfer_pairs
+
+    @staticmethod
+    def _build_large_txs(df: pd.DataFrame, filter_state: dict) -> list:
+        """多額取引データを生成（フィルター適用含む）"""
         large_df = df[df['is_large']].copy()
-        # 多額取引の分類フィルター
         if filter_state.get('large_category'):
             if filter_state.get('large_category_mode') == 'exclude':
                 large_df = large_df[~large_df['category'].isin(filter_state['large_category'])]
@@ -495,100 +600,17 @@ class AnalysisService:
         large_df = AnalysisService._convert_amounts_to_int(
             large_df.sort_values('date', ascending=True).copy()
         )
-        large_txs = large_df.to_dict(orient='records')
+        return large_df.to_dict(orient='records')
 
-        # フィルター処理
-        filtered_txs = transactions
-        if filter_state.get('bank'):
-            filtered_txs = filtered_txs.filter(bank_name__in=filter_state['bank'])
-        if filter_state.get('account'):
-            filtered_txs = filtered_txs.filter(account_id__in=filter_state['account'])
-        if filter_state.get('category'):
-            if filter_state.get('category_mode') == 'exclude':
-                filtered_txs = filtered_txs.exclude(category__in=filter_state['category'])
-            else:
-                filtered_txs = filtered_txs.filter(category__in=filter_state['category'])
-        if filter_state.get('keyword'):
-            filtered_txs = filtered_txs.filter(description__icontains=filter_state['keyword'])
-
-        # 日付フィルター
-        if filter_state.get('date_from'):
-            filtered_txs = filtered_txs.filter(date__gte=filter_state['date_from'])
-        if filter_state.get('date_to'):
-            filtered_txs = filtered_txs.filter(date__lte=filter_state['date_to'])
-
-        # 金額フィルター
-        amount_type = filter_state.get('amount_type', 'both')
-        amount_min_str = filter_state.get('amount_min', '')
-        amount_max_str = filter_state.get('amount_max', '')
-
-        # 金額の最小値・最大値をパース
-        try:
-            amount_min = int(amount_min_str.replace(',', '')) if amount_min_str else None
-        except (ValueError, AttributeError):
-            amount_min = None
-        try:
-            amount_max = int(amount_max_str.replace(',', '')) if amount_max_str else None
-        except (ValueError, AttributeError):
-            amount_max = None
-
-        # 取引種別でフィルター（出金のみ、入金のみ、両方）
-        if amount_type == 'out':
-            filtered_txs = filtered_txs.filter(amount_out__gt=0)
-        elif amount_type == 'in':
-            filtered_txs = filtered_txs.filter(amount_in__gt=0)
-
-        # 金額範囲でフィルター
-        if amount_min is not None or amount_max is not None:
-            # 取引種別に応じて対象金額を決定
-            if amount_type == 'out':
-                if amount_min is not None:
-                    filtered_txs = filtered_txs.filter(amount_out__gte=amount_min)
-                if amount_max is not None:
-                    filtered_txs = filtered_txs.filter(amount_out__lte=amount_max)
-            elif amount_type == 'in':
-                if amount_min is not None:
-                    filtered_txs = filtered_txs.filter(amount_in__gte=amount_min)
-                if amount_max is not None:
-                    filtered_txs = filtered_txs.filter(amount_in__lte=amount_max)
-            else:
-                # 両方の場合：出金または入金のいずれかが範囲内
-                if amount_min is not None and amount_max is not None:
-                    filtered_txs = filtered_txs.filter(
-                        Q(amount_out__gte=amount_min, amount_out__lte=amount_max) |
-                        Q(amount_in__gte=amount_min, amount_in__lte=amount_max)
-                    )
-                elif amount_min is not None:
-                    filtered_txs = filtered_txs.filter(
-                        Q(amount_out__gte=amount_min) | Q(amount_in__gte=amount_min)
-                    )
-                elif amount_max is not None:
-                    filtered_txs = filtered_txs.filter(
-                        Q(amount_out__gt=0, amount_out__lte=amount_max) |
-                        Q(amount_in__gt=0, amount_in__lte=amount_max)
-                    )
-
-        # 多額取引のみフィルター
-        if filter_state.get('large_only'):
-            filtered_txs = filtered_txs.filter(is_large=True)
-
-        # フィルタードロップダウン用のユニークリストを取得
+    @staticmethod
+    def _build_filter_options(df: pd.DataFrame) -> dict:
+        """フィルタードロップダウン用のユニークリストを取得"""
         banks = sorted([b for b in df['bank_name'].dropna().unique() if b])
         branches = sorted([b for b in df['branch_name'].dropna().unique() if b])
         accounts = sorted([a for a in df['account_id'].dropna().unique() if a])
         existing_categories = df['category'].dropna().unique().tolist()
         categories = sorted(set(existing_categories + AnalysisService.STANDARD_CATEGORIES))
-
-        # 付箋付き取引
-        flagged_txs = transactions.filter(is_flagged=True)
-
         return {
-            'account_summary': account_summary_list,
-            'transfer_pairs': transfer_pairs,
-            'large_txs': large_txs,
-            'all_txs': filtered_txs,
-            'duplicate_txs': duplicate_txs,
-            'flagged_txs': flagged_txs,
             'banks': banks,
             'branches': branches,
             'accounts': accounts,
@@ -597,7 +619,7 @@ class AnalysisService:
 
     @staticmethod
     def _convert_amounts_to_int(df: pd.DataFrame) -> pd.DataFrame:
-        """DataFrameの金額カラムをPython intに変換（NaN→0）"""
+        """DataFrameの金額カラムをPython intに変換（NaN→0）。dfをin-placeで変更する。"""
         for col in ['amount_out', 'amount_in']:
             if col in df.columns:
                 df[col] = df[col].fillna(0).astype(int)
@@ -622,6 +644,9 @@ class AnalysisService:
         if transfers_df.empty:
             return []
 
+        settings = config.load_user_settings()
+        tolerance = int(settings.get("TRANSFER_AMOUNT_TOLERANCE", 1000))
+
         transfer_pairs = []
         out_txs = transfers_df[transfers_df['amount_out'] > 0]
         in_txs = transfers_df[transfers_df['amount_in'] > 0]
@@ -638,7 +663,7 @@ class AnalysisService:
                 if not matching.empty:
                     # 金額が近いものを探す
                     for _, candidate in matching.iterrows():
-                        if abs(candidate['amount_in'] - out_row['amount_out']) <= 1000:
+                        if abs(candidate['amount_in'] - out_row['amount_out']) <= tolerance:
                             dest_row = candidate
                             break
 

@@ -13,6 +13,9 @@ from .models import Case, Transaction
 from .forms import CaseForm, ImportForm, SettingsForm
 from .services import TransactionService, AnalysisService, _parse_int_ids
 from .templatetags.japanese_date import wareki, wareki_short, wareki_year, get_japanese_era
+from .views import _parse_amount, _sanitize_filename
+from .lib.importer import _convert_japanese_date
+from .lib.llm_classifier import classify_by_rules
 
 
 class CaseModelTest(TestCase):
@@ -364,3 +367,326 @@ class ViewsTest(TestCase):
         """インポートビュー GET"""
         response = self.client.get(reverse('transaction-import', args=[self.case.pk]))
         self.assertEqual(response.status_code, 200)
+
+    def test_export_csv_all(self):
+        """全取引CSVエクスポート"""
+        Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="テスト", amount_out=1000, balance=9000,
+        )
+        response = self.client.get(reverse('export-csv', args=[self.case.pk, 'all']))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/csv; charset=utf-8-sig')
+
+    def test_export_csv_no_data(self):
+        """データなしCSVエクスポート（リダイレクト）"""
+        response = self.client.get(reverse('export-csv', args=[self.case.pk, 'all']))
+        self.assertEqual(response.status_code, 302)
+
+    def test_api_toggle_flag(self):
+        """付箋トグルAPI"""
+        tx = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="テスト", balance=100000,
+        )
+        response = self.client.post(
+            reverse('api-toggle-flag', args=[self.case.pk]),
+            {'tx_id': str(tx.id)}
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertTrue(data['is_flagged'])
+
+    def test_api_toggle_flag_no_id(self):
+        """付箋トグルAPI（ID未指定）"""
+        response = self.client.post(
+            reverse('api-toggle-flag', args=[self.case.pk]),
+            {}
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_api_create_transaction(self):
+        """取引追加API"""
+        response = self.client.post(
+            reverse('api-create-transaction', args=[self.case.pk]),
+            {'date': '2024-01-15', 'description': 'API追加', 'amount_out': '5000'}
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['transaction']['description'], 'API追加')
+
+    def test_api_delete_transaction(self):
+        """取引削除API"""
+        tx = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="削除テスト", balance=100000,
+        )
+        response = self.client.post(
+            reverse('api-delete-transaction', args=[self.case.pk]),
+            {'tx_id': str(tx.id)}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Transaction.objects.filter(id=tx.id).exists())
+
+    def test_api_delete_transaction_not_found(self):
+        """取引削除API（存在しないID）"""
+        response = self.client.post(
+            reverse('api-delete-transaction', args=[self.case.pk]),
+            {'tx_id': '99999'}
+        )
+        self.assertEqual(response.status_code, 404)
+
+
+class ParseAmountTest(TestCase):
+    """_parse_amount関数のテスト"""
+
+    def test_normal_integer(self):
+        """通常の整数"""
+        value, ok = _parse_amount('12345')
+        self.assertEqual(value, 12345)
+        self.assertTrue(ok)
+
+    def test_comma_separated(self):
+        """カンマ区切り"""
+        value, ok = _parse_amount('1,234,567')
+        self.assertEqual(value, 1234567)
+        self.assertTrue(ok)
+
+    def test_empty_string(self):
+        """空文字列"""
+        value, ok = _parse_amount('')
+        self.assertEqual(value, 0)
+        self.assertTrue(ok)
+
+    def test_none_value(self):
+        """None"""
+        value, ok = _parse_amount(None)
+        self.assertEqual(value, 0)
+        self.assertTrue(ok)
+
+    def test_invalid_string(self):
+        """不正な文字列"""
+        value, ok = _parse_amount('abc')
+        self.assertEqual(value, 0)
+        self.assertFalse(ok)
+
+    def test_custom_default(self):
+        """カスタムデフォルト値"""
+        value, ok = _parse_amount('abc', default=-1)
+        self.assertEqual(value, -1)
+        self.assertFalse(ok)
+
+
+class SanitizeFilenameTest(TestCase):
+    """_sanitize_filename関数のテスト"""
+
+    def test_normal_name(self):
+        """通常の名前"""
+        self.assertEqual(_sanitize_filename('テスト案件'), 'テスト案件')
+
+    def test_with_slashes(self):
+        """スラッシュを含む名前"""
+        self.assertEqual(_sanitize_filename('山田/太郎'), '山田_太郎')
+
+    def test_with_special_chars(self):
+        """特殊文字を含む名前"""
+        result = _sanitize_filename('案件: "テスト" <1>')
+        self.assertNotIn(':', result)
+        self.assertNotIn('"', result)
+        self.assertNotIn('<', result)
+        self.assertNotIn('>', result)
+
+    def test_empty_name(self):
+        """空の名前"""
+        self.assertEqual(_sanitize_filename(''), 'export')
+
+
+class ConvertJapaneseDateTest(TestCase):
+    """_convert_japanese_date関数のテスト"""
+
+    def test_heisei_date(self):
+        """平成日付の変換"""
+        self.assertEqual(_convert_japanese_date('H28.6.3'), '2016-06-03')
+
+    def test_reiwa_date(self):
+        """令和日付の変換"""
+        self.assertEqual(_convert_japanese_date('R5.4.1'), '2023-04-01')
+
+    def test_showa_date(self):
+        """昭和日付の変換"""
+        self.assertEqual(_convert_japanese_date('S50.1.15'), '1975-01-15')
+
+    def test_slash_separator(self):
+        """スラッシュ区切り"""
+        self.assertEqual(_convert_japanese_date('H28/6/3'), '2016-06-03')
+
+    def test_invalid_month(self):
+        """不正な月（13月）"""
+        result = _convert_japanese_date('H28.13.1')
+        # 不正な日付はそのまま返される
+        self.assertEqual(result, 'H28.13.1')
+
+    def test_invalid_day(self):
+        """不正な日（32日）"""
+        result = _convert_japanese_date('H28.1.32')
+        self.assertEqual(result, 'H28.1.32')
+
+    def test_western_date(self):
+        """西暦はそのまま"""
+        self.assertEqual(_convert_japanese_date('2024-01-15'), '2024-01-15')
+
+    def test_none_value(self):
+        """None"""
+        self.assertIsNone(_convert_japanese_date(None))
+
+
+class ClassifyByRulesTest(TestCase):
+    """classify_by_rules関数のテスト"""
+
+    def test_salary_keyword(self):
+        """給与キーワードの検出"""
+        self.assertEqual(classify_by_rules('給与振込', 0, 300000), '給与')
+
+    def test_life_expense(self):
+        """生活費キーワードの検出"""
+        self.assertEqual(classify_by_rules('イオンモール', 5000, 0), '生活費')
+
+    def test_case_insensitive(self):
+        """大文字小文字の区別なし"""
+        self.assertEqual(classify_by_rules('NTT通信料', 3000, 0), '生活費')
+        self.assertEqual(classify_by_rules('ntt通信料', 3000, 0), '生活費')
+
+    def test_unclassified(self):
+        """未分類"""
+        self.assertEqual(classify_by_rules('不明な取引', 100, 0), '未分類')
+
+    def test_empty_description(self):
+        """空の摘要"""
+        self.assertEqual(classify_by_rules('', 100, 0), '未分類')
+
+    def test_gift_over_threshold(self):
+        """贈与（閾値以上）"""
+        result = classify_by_rules('振込', 1500000, 0)
+        self.assertEqual(result, '贈与')
+
+    def test_gift_under_threshold(self):
+        """贈与（閾値未満は未分類）"""
+        result = classify_by_rules('振込', 500000, 0)
+        self.assertEqual(result, '未分類')
+
+
+class ApplyFiltersTest(TestCase):
+    """AnalysisService.apply_filters のテスト"""
+
+    def setUp(self):
+        self.case = Case.objects.create(name="フィルターテスト")
+        Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="イオン 買い物", amount_out=5000,
+            bank_name="みずほ銀行", account_id="1234567",
+            category="生活費", balance=95000,
+        )
+        Transaction.objects.create(
+            case=self.case, date=date(2024, 2, 1),
+            description="給与振込", amount_in=300000,
+            bank_name="三井住友銀行", account_id="7654321",
+            category="給与", balance=395000,
+        )
+        Transaction.objects.create(
+            case=self.case, date=date(2024, 3, 1),
+            description="家賃", amount_out=100000,
+            bank_name="みずほ銀行", account_id="1234567",
+            category="生活費", balance=295000,
+        )
+
+    def test_filter_by_bank(self):
+        """銀行名フィルター"""
+        qs = self.case.transactions.all()
+        result = AnalysisService.apply_filters(qs, {'bank': ['みずほ銀行']})
+        self.assertEqual(result.count(), 2)
+
+    def test_filter_by_category(self):
+        """分類フィルター"""
+        qs = self.case.transactions.all()
+        result = AnalysisService.apply_filters(qs, {'category': ['給与']})
+        self.assertEqual(result.count(), 1)
+
+    def test_filter_by_category_exclude(self):
+        """分類除外フィルター"""
+        qs = self.case.transactions.all()
+        result = AnalysisService.apply_filters(qs, {
+            'category': ['生活費'],
+            'category_mode': 'exclude'
+        })
+        self.assertEqual(result.count(), 1)
+
+    def test_filter_by_keyword(self):
+        """キーワードフィルター"""
+        qs = self.case.transactions.all()
+        result = AnalysisService.apply_filters(qs, {'keyword': 'イオン'})
+        self.assertEqual(result.count(), 1)
+
+    def test_filter_by_date_range(self):
+        """日付範囲フィルター"""
+        qs = self.case.transactions.all()
+        result = AnalysisService.apply_filters(qs, {
+            'date_from': '2024-02-01',
+            'date_to': '2024-02-28'
+        })
+        self.assertEqual(result.count(), 1)
+
+    def test_filter_by_amount_out(self):
+        """出金フィルター"""
+        qs = self.case.transactions.all()
+        result = AnalysisService.apply_filters(qs, {
+            'amount_type': 'out',
+            'amount_min': '10000'
+        })
+        self.assertEqual(result.count(), 1)
+
+    def test_empty_filter(self):
+        """空フィルター（全件）"""
+        qs = self.case.transactions.all()
+        result = AnalysisService.apply_filters(qs, {})
+        self.assertEqual(result.count(), 3)
+
+
+class UpdateTransactionTest(TestCase):
+    """TransactionService.update_transaction のテスト"""
+
+    def setUp(self):
+        self.case = Case.objects.create(name="更新テスト")
+        self.tx = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="テスト取引", amount_out=10000,
+            amount_in=0, balance=90000, category="未分類",
+        )
+
+    def test_update_success(self):
+        """正常な更新"""
+        result = TransactionService.update_transaction(
+            self.case, self.tx.id, '2024-02-01', '更新取引',
+            5000, 0, '生活費'
+        )
+        self.assertTrue(result)
+        self.tx.refresh_from_db()
+        self.assertEqual(self.tx.description, '更新取引')
+        self.assertEqual(self.tx.category, '生活費')
+
+    def test_update_invalid_date(self):
+        """不正な日付"""
+        result = TransactionService.update_transaction(
+            self.case, self.tx.id, 'not-a-date', 'テスト',
+            0, 0, '未分類'
+        )
+        self.assertFalse(result)
+
+    def test_update_nonexistent(self):
+        """存在しない取引"""
+        result = TransactionService.update_transaction(
+            self.case, 99999, '2024-01-01', 'テスト',
+            0, 0, '未分類'
+        )
+        self.assertFalse(result)

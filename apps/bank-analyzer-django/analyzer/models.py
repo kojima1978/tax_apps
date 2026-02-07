@@ -67,4 +67,5 @@ class Transaction(models.Model):
             models.Index(fields=["case", "account_id"]),
             models.Index(fields=["category"]),
             models.Index(fields=["case", "is_flagged"]),
+            models.Index(fields=["case", "category"]),
         ]

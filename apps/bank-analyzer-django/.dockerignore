@@ -2,7 +2,7 @@
 # Docker Ignore - Bank Analyzer Django
 # ==============================================================================
 
-# Python
+# Python build artifacts (setuptools/distutils)
 __pycache__/
 *.py[cod]
 *$py.class
@@ -14,8 +14,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# 注意: ルート直下の lib/ のみ除外（analyzer/lib/ はアプリコードなので含める）
+/lib/
+/lib64/
 parts/
 sdist/
 var/
