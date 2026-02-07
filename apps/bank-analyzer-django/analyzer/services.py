@@ -11,6 +11,7 @@ from django.db.models import Count, Q
 
 from .models import Case, Transaction
 from .lib import analyzer, llm_classifier, config
+from .lib.constants import UNCATEGORIZED, STANDARD_CATEGORIES
 
 logger = logging.getLogger(__name__)
 
@@ -331,7 +332,7 @@ class TransactionService:
             更新された取引数
         """
         patterns = config.get_classification_patterns()
-        txs = case.transactions.filter(category='未分類')
+        txs = case.transactions.filter(category=UNCATEGORIZED)
 
         if not txs.exists():
             return 0
@@ -435,9 +436,7 @@ class TransactionService:
 class AnalysisService:
     """分析機能に関するビジネスロジック"""
 
-    STANDARD_CATEGORIES = [
-        "生活費", "給与", "贈与", "事業・不動産", "関連会社", "銀行", "証券・株式", "保険会社", "通帳間移動", "その他", "未分類"
-    ]
+    STANDARD_CATEGORIES = STANDARD_CATEGORIES
 
     @staticmethod
     def apply_filters(queryset, filter_state: dict):
@@ -676,7 +675,7 @@ class AnalysisService:
                     'account_id': out_row.get('account_id', ''),
                     'amount': out_row['amount_out'],
                     'description': out_row.get('description', ''),
-                    'category': out_row.get('category', '未分類')
+                    'category': out_row.get('category', UNCATEGORIZED)
                 },
                 'destination': None
             }
@@ -690,7 +689,7 @@ class AnalysisService:
                     'account_id': dest_row.get('account_id', ''),
                     'amount': dest_row['amount_in'],
                     'description': dest_row.get('description', ''),
-                    'category': dest_row.get('category', '未分類')
+                    'category': dest_row.get('category', UNCATEGORIZED)
                 }
 
             transfer_pairs.append(pair)

@@ -2,16 +2,35 @@ import logging
 import pandas as pd
 
 from .config import get_classification_patterns, get_gift_threshold
+from .constants import UNCATEGORIZED
 
 logger = logging.getLogger(__name__)
 
 
-def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
-    """ルールベースで取引を分類"""
-    patterns = get_classification_patterns()
+def classify_by_rules(
+    text: str,
+    amount_out: int,
+    amount_in: int,
+    *,
+    patterns: dict | None = None,
+    gift_threshold: int | None = None,
+) -> str:
+    """ルールベースで取引を分類
+
+    Args:
+        text: 摘要テキスト
+        amount_out: 出金額
+        amount_in: 入金額
+        patterns: 分類パターン（省略時はload_user_settingsから取得）
+        gift_threshold: 贈与判定閾値（省略時はload_user_settingsから取得）
+    """
+    if patterns is None:
+        patterns = get_classification_patterns()
+    if gift_threshold is None:
+        gift_threshold = get_gift_threshold()
 
     if not text:
-        return "未分類"
+        return UNCATEGORIZED
 
     text_lower = text.lower()
 
@@ -25,13 +44,12 @@ def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
                 return category
 
     # 贈与判定（振込など）- 閾値以上の場合のみ
-    gift_threshold = get_gift_threshold()
     gift_keywords = patterns.get("贈与", [])
     if any(kw.lower() in text_lower for kw in gift_keywords):
         if amount_out >= gift_threshold:
             return "贈与"
         else:
-            return "未分類"
+            return UNCATEGORIZED
 
     # その他キーワード
     other_keywords = patterns.get("その他", [])
@@ -39,7 +57,7 @@ def classify_by_rules(text: str, amount_out: int, amount_in: int) -> str:
         if kw.lower() in text_lower:
             return "その他"
 
-    return "未分類"
+    return UNCATEGORIZED
 
 
 def classify_transactions(df: pd.DataFrame) -> pd.DataFrame:
@@ -63,6 +81,10 @@ def classify_transactions(df: pd.DataFrame) -> pd.DataFrame:
 
     logger.info(f"ルールベース分類を実行中... (対象: {len(target_df)}件)")
 
+    # 設定を1回だけ読み込み、ループ内で使い回す
+    patterns = get_classification_patterns()
+    gift_threshold = get_gift_threshold()
+
     # 同じ摘要は同じ分類結果になるのでキャッシュ
     classification_cache = {}
 
@@ -74,7 +96,9 @@ def classify_transactions(df: pd.DataFrame) -> pd.DataFrame:
             classification_cache[description] = classify_by_rules(
                 description,
                 row.get("amount_out", 0) or 0,
-                row.get("amount_in", 0) or 0
+                row.get("amount_in", 0) or 0,
+                patterns=patterns,
+                gift_threshold=gift_threshold,
             )
 
     df.loc[target_mask, "category"] = df.loc[target_mask, "description"].map(classification_cache)

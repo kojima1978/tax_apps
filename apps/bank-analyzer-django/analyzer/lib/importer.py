@@ -5,21 +5,13 @@ from datetime import datetime as dt
 
 import pandas as pd
 
+from .constants import ERA_MAP
 from .exceptions import (
     EncodingError, FormatError, DateParseError, AmountParseError,
     MultipleAccountError, MultipleBankError
 )
 
 logger = logging.getLogger(__name__)
-
-# 和暦マッピング
-ERA_MAP = {
-    'M': 1868,  # 明治
-    'T': 1912,  # 大正
-    'S': 1926,  # 昭和
-    'H': 1989,  # 平成
-    'R': 2019   # 令和
-}
 
 # カラム名マッピング（表記揺れ吸収）
 COLUMN_RENAME_MAP = {
