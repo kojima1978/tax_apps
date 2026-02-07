@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder
+      target: dev
     container_name: doctor-nextjs-dev
     ports:
       - "3000:3000"
@@ -13,13 +13,16 @@ services:
       - .:/app
       - /app/node_modules
       - /app/.next
-      # データベースを永続化
-      - ./data:/app/data
     environment:
       - NODE_ENV=development
       - WATCHPACK_POLLING=true
       - PORT=3000
-    command: sh -c "npm install && npm run dev"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/medical/').then(r=>{if(!r.ok)throw r;process.exit(0)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
     stdin_open: true
     tty: true
 
@@ -31,10 +34,16 @@ services:
       target: runner
     container_name: doctor-nextjs-prod
     ports:
-      - "3000:3000"
+      - "3010:3010"
     volumes:
       # データベースのみ永続化
       - ./data:/app/data
     environment:
       - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3010/medical/').then(r=>{if(!r.ok)throw r;process.exit(0)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
     restart: unless-stopped
