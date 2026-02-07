@@ -2,16 +2,9 @@
 from datetime import date, datetime
 from django import template
 
-register = template.Library()
+from analyzer.lib.constants import ERAS
 
-# 元号データ（開始日, 元号名, 略称）
-ERAS = [
-    (date(2019, 5, 1), "令和", "R"),
-    (date(1989, 1, 8), "平成", "H"),
-    (date(1926, 12, 25), "昭和", "S"),
-    (date(1912, 7, 30), "大正", "T"),
-    (date(1868, 1, 25), "明治", "M"),
-]
+register = template.Library()
 
 
 def get_japanese_era(d: date) -> tuple[str, int]:

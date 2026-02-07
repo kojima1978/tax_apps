@@ -22,6 +22,7 @@ from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, analyzer, llm_classifier, config
 from .lib.exceptions import CsvImportError
 from .services import TransactionService, AnalysisService
+from .lib.constants import UNCATEGORIZED
 from .templatetags.japanese_date import wareki
 
 logger = logging.getLogger(__name__)
@@ -55,10 +56,11 @@ def _sanitize_filename(name: str) -> str:
     return sanitized.strip('_. ') or 'export'
 
 
-def _safe_error_message(e: Exception) -> str:
+def _safe_error_message(e: Exception, context: str = "") -> str:
     """DEBUGモード以外ではエラー詳細を隠蔽する"""
     if django_settings.DEBUG:
-        return f'エラー: {e}'
+        prefix = f'{context}: ' if context else ''
+        return f'{prefix}エラー: {e}'
     return 'サーバーエラーが発生しました'
 
 
@@ -157,7 +159,7 @@ def _update_transaction_from_post(request: HttpRequest, case: Case, tx_id: str) 
             messages.success(request, "取引データを更新しました。")
     except Exception as e:
         logger.exception(f"取引更新エラー: tx_id={tx_id}, error={e}")
-        messages.error(request, f"更新エラー: {e}")
+        messages.error(request, _safe_error_message(e, "取引更新"))
 
 
 def export_json(request: HttpRequest, pk: int) -> HttpResponse:
@@ -286,7 +288,7 @@ def import_json(request: HttpRequest) -> HttpResponse:
                             is_large=tx_data.get('is_large', False),
                             is_transfer=tx_data.get('is_transfer', False),
                             transfer_to=tx_data.get('transfer_to'),
-                            category=tx_data.get('category', '未分類'),
+                            category=tx_data.get('category', UNCATEGORIZED),
                             is_flagged=tx_data.get('is_flagged', False),
                             memo=tx_data.get('memo'),
                         ))
@@ -309,10 +311,10 @@ def import_json(request: HttpRequest) -> HttpResponse:
 
             except json.JSONDecodeError as e:
                 logger.exception(f"JSONパースエラー: {e}")
-                messages.error(request, f"JSONファイルの形式が不正です: {e}")
+                messages.error(request, _safe_error_message(e, "JSONパース"))
             except Exception as e:
                 logger.exception(f"JSONインポートエラー: {e}")
-                messages.error(request, f"インポートエラー: {e}")
+                messages.error(request, _safe_error_message(e, "JSONインポート"))
     else:
         form = JsonImportForm()
 
@@ -521,7 +523,7 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
                     messages.info(request, "付箋を外しました。")
             except Exception as e:
                 logger.exception(f"フラグ更新エラー: tx_id={tx_id}, error={e}")
-                messages.error(request, f"エラー: {e}")
+                messages.error(request, _safe_error_message(e, "フラグ更新"))
 
         elif action == 'update_transaction' and tx_id:
             _update_transaction_from_post(request, case, tx_id)
@@ -608,7 +610,7 @@ def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
             except Exception as e:
                 # 予期しないエラー（既存の動作を維持）
                 logger.exception(f"ファイルインポートエラー: case_id={pk}, error={e}")
-                messages.error(request, f"エラーが発生しました: {e}")
+                messages.error(request, _safe_error_message(e, "ファイルインポート"))
     else:
         form = ImportForm()
 
@@ -726,7 +728,7 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
 
             except Exception as e:
                 logger.exception(f"取引インポートエラー: case_id={pk}, error={e}")
-                messages.error(request, f"取り込みエラー: {e}")
+                messages.error(request, _safe_error_message(e, "取り込み"))
     
     return render(request, 'analyzer/import_confirm.html', {
         'case': case,
@@ -975,7 +977,7 @@ def _handle_toggle_flag(request: HttpRequest, case: Case, pk: int) -> HttpRespon
                 messages.info(request, "付箋を外しました。")
         except Exception as e:
             logger.exception(f"フラグ更新エラー: tx_id={tx_id}, error={e}")
-            messages.error(request, f"エラー: {e}")
+            messages.error(request, _safe_error_message(e, "フラグ更新"))
     return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
 
 
@@ -990,7 +992,7 @@ def _handle_update_memo(request: HttpRequest, case: Case, pk: int) -> HttpRespon
                 messages.success(request, "メモを更新しました。")
         except Exception as e:
             logger.exception(f"メモ更新エラー: tx_id={tx_id}, error={e}")
-            messages.error(request, f"エラー: {e}")
+            messages.error(request, _safe_error_message(e, "メモ更新"))
     return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
 
 
@@ -1031,7 +1033,7 @@ def _handle_bulk_replace_field(request: HttpRequest, case: Case, pk: int) -> Htt
             messages.warning(request, "該当するデータがありませんでした。")
     except Exception as e:
         logger.exception(f"一括置換エラー: field={field_name}, old={old_value}, new={new_value}, error={e}")
-        messages.error(request, f"置換エラー: {e}")
+        messages.error(request, _safe_error_message(e, "一括置換"))
 
     return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
@@ -1158,7 +1160,7 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
             branch_name=request.POST.get('branch_name', ''),
             account_id=request.POST.get('account_id', ''),
             account_type=request.POST.get('account_type', ''),
-            category=request.POST.get('category', '未分類'),
+            category=request.POST.get('category', UNCATEGORIZED),
             memo=request.POST.get('memo', ''),
         )
 

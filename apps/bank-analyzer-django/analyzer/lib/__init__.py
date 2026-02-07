@@ -14,6 +14,7 @@ from .config import (
     get_classification_patterns,
     DEFAULT_PATTERNS,
 )
+from .constants import ERAS, ERA_MAP, UNCATEGORIZED, STANDARD_CATEGORIES
 
 __all__ = [
     # importer
@@ -31,4 +32,9 @@ __all__ = [
     "get_setting",
     "get_classification_patterns",
     "DEFAULT_PATTERNS",
+    # constants
+    "ERAS",
+    "ERA_MAP",
+    "UNCATEGORIZED",
+    "STANDARD_CATEGORIES",
 ]

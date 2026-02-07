@@ -1,5 +1,7 @@
 from django.db import models
 
+from .lib.constants import UNCATEGORIZED
+
 
 class Case(models.Model):
     """案件モデル - 相続案件を管理"""
@@ -44,7 +46,7 @@ class Transaction(models.Model):
     is_large = models.BooleanField(default=False, verbose_name="多額取引")
     is_transfer = models.BooleanField(default=False, verbose_name="資金移動")
     transfer_to = models.CharField(max_length=255, null=True, blank=True, verbose_name="移動先推定")
-    category = models.CharField(max_length=100, default="未分類", verbose_name="分類")
+    category = models.CharField(max_length=100, default=UNCATEGORIZED, verbose_name="分類")
 
     # 付箋・メモ機能
     is_flagged = models.BooleanField(default=False, verbose_name="要確認フラグ")
@@ -68,4 +70,6 @@ class Transaction(models.Model):
             models.Index(fields=["category"]),
             models.Index(fields=["case", "is_flagged"]),
             models.Index(fields=["case", "category"]),
+            models.Index(fields=["case", "is_large"]),
+            models.Index(fields=["case", "is_transfer"]),
         ]
