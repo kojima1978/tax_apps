@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { useMemo } from "react";
 import {
   calculateFinalValuation,
-  calculateOwnFinancials,
+  buildSimulationFinancials,
 } from "@/lib/valuation-logic";
 import { exportValuationData } from "@/lib/data-export-import";
 
@@ -31,45 +31,7 @@ export function ValuationSimulation({
     const currentResult = calculateFinalValuation(basicInfo, financials);
 
     // 2. Simulated Valuation (ProfitPrev = 0)
-    // We need to re-calculate 'ownProfit' (c) assuming last year's profit (p1) is 0.
-    // We use the raw stored inputs.
-
-    // Prepare Simulation Data inputs
-    const simData = {
-      divPrev: financials.ownDividendPrev || 0,
-      div2Prev: financials.ownDividend2Prev || 0,
-      div3Prev: financials.ownDividend3Prev || 0,
-
-      // Force P1 to 0
-      p1: 0,
-      l1: financials.ownCarryForwardLossPrev || 0,
-
-      p2: financials.ownTaxableIncome2Prev || 0,
-      l2: financials.ownCarryForwardLoss2Prev || 0,
-      p3: financials.ownTaxableIncome3Prev || 0,
-      l3: financials.ownCarryForwardLoss3Prev || 0,
-
-      cap1: financials.ownCapitalPrev || 0,
-      re1: financials.ownRetainedEarningsPrev || 0,
-      cap2: financials.ownCapital2Prev || 0,
-      re2: financials.ownRetainedEarnings2Prev || 0,
-    };
-
-    const simOwnFinancials = calculateOwnFinancials(
-      simData,
-      basicInfo.issuedShares,
-    );
-
-    // Create simulated financials object
-    const simFinancials: Financials = {
-      ...financials,
-      ownProfit: simOwnFinancials.ownProfit, // Update 'c'
-      // We should theoretically update 'ownDividends' and 'ownBookValue' too if they depend on same inputs,
-      // but here we only changed P1, so only Profit affects 'c'.
-      // However, calculateOwnFinancials returns consistent set, so safe to use all?
-      // Actually only profit (c) changes if p1 changes. Dividends and BookValue inputs are untouched.
-    };
-
+    const simFinancials = buildSimulationFinancials(financials, basicInfo.issuedShares);
     const simResult = calculateFinalValuation(basicInfo, simFinancials);
 
     return {

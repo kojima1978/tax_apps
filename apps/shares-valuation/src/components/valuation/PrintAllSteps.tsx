@@ -4,7 +4,7 @@ import { BasicInfo, Financials } from "@/types/valuation";
 import {
   calculateFinalValuation,
   calculateCorporateTaxFairValue,
-  calculateOwnFinancials,
+  buildSimulationFinancials,
   calculateDetailedSimilarIndustryMethod,
 } from "@/lib/valuation-logic";
 import {
@@ -12,6 +12,7 @@ import {
   getPreviousYear,
   getMonthOffset,
 } from "@/lib/date-utils";
+import { PrintValuationStep } from "./PrintValuationStep";
 
 interface PrintAllStepsProps {
   basicInfo: BasicInfo;
@@ -24,32 +25,7 @@ export function PrintAllSteps({ basicInfo, financials }: PrintAllStepsProps) {
   const step7Result = calculateCorporateTaxFairValue(basicInfo, financials);
 
   // Step 8 simulation
-  const simData = {
-    divPrev: financials.ownDividendPrev || 0,
-    div2Prev: financials.ownDividend2Prev || 0,
-    div3Prev: financials.ownDividend3Prev || 0,
-    p1: 0,
-    l1: financials.ownCarryForwardLossPrev || 0,
-    p2: financials.ownTaxableIncome2Prev || 0,
-    l2: financials.ownCarryForwardLoss2Prev || 0,
-    p3: financials.ownTaxableIncome3Prev || 0,
-    l3: financials.ownCarryForwardLoss3Prev || 0,
-    cap1: financials.ownCapitalPrev || 0,
-    re1: financials.ownRetainedEarningsPrev || 0,
-    cap2: financials.ownCapital2Prev || 0,
-    re2: financials.ownRetainedEarnings2Prev || 0,
-  };
-
-  const simOwnFinancials = calculateOwnFinancials(
-    simData,
-    basicInfo.issuedShares,
-  );
-
-  const simFinancials: Financials = {
-    ...financials,
-    ownProfit: simOwnFinancials.ownProfit,
-  };
-
+  const simFinancials = buildSimulationFinancials(financials, basicInfo.issuedShares);
   const step8Result = calculateFinalValuation(basicInfo, simFinancials);
 
   // Date helpers
@@ -994,164 +970,16 @@ export function PrintAllSteps({ basicInfo, financials }: PrintAllStepsProps) {
       </div>
 
       {/* Step 6: 相続税評価額 */}
-      <div className="border border-gray-300 p-2 page-break-inside-avoid">
-        <h2 className="text-sm font-bold border-b border-gray-300 pb-1 mb-2">
-          Step 6: 相続税評価額
-        </h2>
-
-        <div className="space-y-4">
-          <div className="border border-gray-300 p-2">
-            <div className="mb-1">採用した評価方式</div>
-            <div className="font-bold">
-              {step6Result.comparisonDetails.length > 0
-                ? step6Result.comparisonDetails[0].name
-                : ""}
-            </div>
-          </div>
-
-          <div className="border border-gray-300 p-2 space-y-3">
-            <h3 className="font-bold border-b pb-2">評価方式の比較</h3>
-            {step6Result.comparisonDetails.map((detail, index) => (
-              <div
-                key={index}
-                className={`p-2 ${index === 0 ? "border-2 border-gray-300" : "border border-gray-300"}`}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-semibold">{detail.name}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">{detail.value.toLocaleString()}円</div>
-                    {index === 0 && (
-                      <div className="font-semibold mt-1">
-                        ← 最有利（採用）
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="border border-gray-300 p-2">
-              <div className="mb-1">類似業種比準価額 (S)</div>
-              <div className="font-bold">
-                {step6Result.comparableValue.toLocaleString()}円
-              </div>
-            </div>
-            <div className="border border-gray-300 p-2">
-              <div className="mb-1">純資産価額 (N)</div>
-              <div className="font-bold">
-                {step6Result.netAssetPerShare.toLocaleString()}円
-              </div>
-            </div>
-          </div>
-
-          <div className="border border-gray-300 p-2 space-y-2">
-            <h3 className="font-bold border-b pb-2">Lの割合</h3>
-            <div className="flex justify-between items-center">
-              <span>適用されるLの割合:</span>
-              <span className="font-bold">{step6Result.lRatio}</span>
-            </div>
-          </div>
-
-          <div className="border-2 border-gray-300 p-4">
-            <div className="text-center space-y-3">
-              <div>
-                相続税評価額（1株あたり）
-              </div>
-              <div className="font-black">
-                {step6Result.finalValue.toLocaleString()}円
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PrintValuationStep title="Step 6: 相続税評価額" result={step6Result} />
 
       {/* Step 7: 法人税法上の時価 */}
-      <div className="border border-gray-300 p-2 page-break-inside-avoid">
-        <h2 className="text-sm font-bold border-b border-gray-300 pb-1 mb-2">
-          Step 7: 法人税法上の時価
-        </h2>
-
-        <div className="space-y-4">
-          <div className="border border-gray-300 p-2">
-            <div className="mb-1">採用した評価方式</div>
-            <div className="font-bold">
-              {step7Result.comparisonDetails.length > 0
-                ? step7Result.comparisonDetails[0].name
-                : ""}
-            </div>
-          </div>
-
-          <div className="border border-gray-300 p-2 space-y-3">
-            <h3 className="font-bold border-b pb-2">評価方式の比較</h3>
-            {step7Result.comparisonDetails.map((detail, index) => (
-              <div
-                key={index}
-                className={`p-2 ${index === 0 ? "border-2 border-gray-300" : "border border-gray-300"}`}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-semibold">{detail.name}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">{detail.value.toLocaleString()}円</div>
-                    {index === 0 && (
-                      <div className="font-semibold mt-1">
-                        ← 最有利（採用）
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="border border-gray-300 p-2">
-              <div className="mb-1">類似業種比準価額 (S)</div>
-              <div className="font-bold">
-                {step7Result.comparableValue.toLocaleString()}円
-              </div>
-            </div>
-            <div className="border border-gray-300 p-2">
-              <div className="mb-1">純資産価額 (N)</div>
-              <div className="font-bold">
-                {step7Result.netAssetPerShare.toLocaleString()}円
-              </div>
-            </div>
-          </div>
-
-          <div className="border border-gray-300 p-2 space-y-2">
-            <h3 className="font-bold border-b pb-2">Lの割合</h3>
-            <div className="flex justify-between items-center">
-              <span>適用されるLの割合:</span>
-              <span className="font-bold">{step7Result.lRatio}</span>
-            </div>
-          </div>
-
-          <div className="border-2 border-gray-300 p-4">
-            <div className="text-center space-y-3">
-              <div>
-                法人税法上の時価（1株あたり）
-              </div>
-              <div className="font-black">
-                {step7Result.finalValue.toLocaleString()}円
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PrintValuationStep title="Step 7: 法人税法上の時価" result={step7Result} />
 
       {/* Step 8: シミュレーション */}
-      <div className="border border-gray-300 p-2 page-break-inside-avoid">
-        <h2 className="text-sm font-bold border-b border-gray-300 pb-1 mb-2">
-          Step 8: シミュレーション（直前期利益=0）
-        </h2>
-
-        <div className="space-y-4">
+      <PrintValuationStep
+        title="Step 8: シミュレーション（直前期利益=0）"
+        result={step8Result}
+        extraHeader={
           <div className="border border-gray-300 p-2">
             <div className="mb-1">シミュレーション条件</div>
             <div className="font-bold">直前期の課税所得を「0」と仮定</div>
@@ -1159,75 +987,8 @@ export function PrintAllSteps({ basicInfo, financials }: PrintAllStepsProps) {
               ※ 繰越欠損金がある場合、利益計算に影響します
             </div>
           </div>
-
-          <div className="border border-gray-300 p-2">
-            <div className="mb-1">採用した評価方式</div>
-            <div className="font-bold">
-              {step8Result.comparisonDetails.length > 0
-                ? step8Result.comparisonDetails[0].name
-                : ""}
-            </div>
-          </div>
-
-          <div className="border border-gray-300 p-2 space-y-3">
-            <h3 className="font-bold border-b pb-2">評価方式の比較</h3>
-            {step8Result.comparisonDetails.map((detail, index) => (
-              <div
-                key={index}
-                className={`p-2 ${index === 0 ? "border-2 border-gray-300" : "border border-gray-300"}`}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-semibold">{detail.name}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">{detail.value.toLocaleString()}円</div>
-                    {index === 0 && (
-                      <div className="font-semibold mt-1">
-                        ← 最有利（採用）
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="border border-gray-300 p-2">
-              <div className="mb-1">類似業種比準価額 (S)</div>
-              <div className="font-bold">
-                {step8Result.comparableValue.toLocaleString()}円
-              </div>
-            </div>
-            <div className="border border-gray-300 p-2">
-              <div className="mb-1">純資産価額 (N)</div>
-              <div className="font-bold">
-                {step8Result.netAssetPerShare.toLocaleString()}円
-              </div>
-            </div>
-          </div>
-
-          <div className="border border-gray-300 p-2 space-y-2">
-            <h3 className="font-bold border-b pb-2">Lの割合</h3>
-            <div className="flex justify-between items-center">
-              <span>適用されるLの割合:</span>
-              <span className="font-bold">{step8Result.lRatio}</span>
-            </div>
-          </div>
-
-          <div className="border-2 border-gray-300 p-4">
-            <div className="text-center space-y-3">
-              <div>
-                シミュレーション評価額（1株あたり）
-              </div>
-              <div className="font-black">
-                {step8Result.finalValue.toLocaleString()}円
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 比較表 */}
       <div className="border border-gray-300 p-2 page-break-inside-avoid">

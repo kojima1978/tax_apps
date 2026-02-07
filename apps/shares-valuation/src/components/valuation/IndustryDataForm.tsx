@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { BasicInfo, Financials } from "@/types/valuation";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { FormNavigationButtons } from "@/components/ui/FormNavigationButtons";
 import { Label } from "@/components/ui/Label";
-import { NumberInput } from "@/components/ui/NumberInput";
+import { NumberInputWithUnit } from "@/components/ui/NumberInputWithUnit";
+import { TrendArrow } from "@/components/ui/TrendArrow";
 import {
   getTaxationMonth,
   getPreviousYear,
@@ -119,67 +120,46 @@ export function IndustryDataForm({
     onBack();
   };
 
-  // Helper to calculate Min Stock Price for display (A)
-  const calculateMinStockPrice = () => {
-    const v1 = Number(formData.industryStockPriceCurrent);
-    const v2 = Number(formData.industryStockPrice1MonthBefore);
-    const v3 = Number(formData.industryStockPrice2MonthsBefore);
-    const v4 = Number(formData.industryStockPricePrevYearAverage);
+  // 採用株価（最小値）のメモ化
+  const minStockPrice = useMemo(() => {
+    const values = [
+      Number(formData.industryStockPriceCurrent),
+      Number(formData.industryStockPrice1MonthBefore),
+      Number(formData.industryStockPrice2MonthsBefore),
+      Number(formData.industryStockPricePrevYearAverage),
+    ].filter((v) => v > 0);
+    return values.length === 0 ? 0 : Math.min(...values);
+  }, [formData.industryStockPriceCurrent, formData.industryStockPrice1MonthBefore, formData.industryStockPrice2MonthsBefore, formData.industryStockPricePrevYearAverage]);
 
-    const values = [v1, v2, v3, v4].filter((v) => v > 0);
-    if (values.length === 0) return 0;
-    return Math.min(...values);
-  };
+  // 類似業種比準価額のメモ化
+  const details = useMemo(() => {
+    if (minStockPrice === 0) return null;
 
-  // Real-time Valuation Logic with Details
-  const calculateValuationDetails = () => {
-    const A = calculateMinStockPrice();
-    if (A === 0) return null;
-
-    // Industry Data (B, C, D)
     const divYen = Number(formData.industryDividendsYen);
     const divSen = Number(formData.industryDividendsSen);
     const B_ind = divYen + divSen * 0.1;
     const C_ind = Number(formData.industryProfit);
     const D_ind = Number(formData.industryBookValue);
 
-    // 医療法人の場合はB_ind=0でも計算可能、それ以外の場合はB_ind=0なら計算不可
     if (C_ind === 0 || D_ind === 0) return null;
     if (!isMedicalCorporation && B_ind === 0) return null;
 
-    // Own Data (b, c, d) - from defaultValues
     const b_own = defaultValues?.ownDividends || 0;
     const c_own = defaultValues?.ownProfit || 0;
     const d_own = defaultValues?.ownBookValue || 0;
 
-    // Multiplier based on Size (Step 2)
-    // Use basicInfo.sizeMultiplier explicitly if available, otherwise fallback
     let multiplier = 0.7;
     if (basicInfo.sizeMultiplier) {
       multiplier = basicInfo.sizeMultiplier;
     } else {
-      // Fallback logic if basicInfo not fully updated (should not happen with new flow)
       if (basicInfo.size === "Medium") multiplier = 0.6;
       if (basicInfo.size === "Small") multiplier = 0.5;
     }
 
-    // Use centralized logic from valuation-logic.ts
-    const result = calculateDetailedSimilarIndustryMethod(
-      A,
-      B_ind,
-      C_ind,
-      D_ind,
-      b_own,
-      c_own,
-      d_own,
-      multiplier,
-      basicInfo,
+    return calculateDetailedSimilarIndustryMethod(
+      minStockPrice, B_ind, C_ind, D_ind, b_own, c_own, d_own, multiplier, basicInfo,
     );
-
-    return result;
-  };
-
-  const details = calculateValuationDetails();
+  }, [minStockPrice, formData.industryDividendsYen, formData.industryDividendsSen, formData.industryProfit, formData.industryBookValue, isMedicalCorporation, defaultValues, basicInfo]);
 
   const taxationMonth = getTaxationMonth(basicInfo.taxationPeriod);
   const oneMonthBefore = getMonthOffset(basicInfo.taxationPeriod, 1);
@@ -239,9 +219,9 @@ export function IndustryDataForm({
               <div className="space-y-2 bg-primary/5 p-4 rounded-lg">
                 <div className="flex justify-between items-center">
                   <Label>A: 株価</Label>
-                  {calculateMinStockPrice() > 0 && (
+                  {minStockPrice > 0 && (
                     <span className="text-sm font-bold text-primary bg-primary/10 px-2 py-1 rounded">
-                      採用株価: {calculateMinStockPrice().toLocaleString()}円
+                      採用株価: {minStockPrice.toLocaleString()}円
                     </span>
                   )}
                 </div>
@@ -253,19 +233,14 @@ export function IndustryDataForm({
                     >
                       {prevYear ? `前年平均（${prevYear}）` : "前年平均"}
                     </Label>
-                    <div className="relative">
-                      <NumberInput
-                        id="industryStockPricePrevYearAverage"
-                        name="industryStockPricePrevYearAverage"
-                        placeholder="0"
-                        value={formData.industryStockPricePrevYearAverage}
-                        onChange={handleChange}
-                        className="pr-8 text-right bg-white"
-                      />
-                      <span className="absolute right-2 top-2.5 text-xs text-muted-foreground">
-                        円
-                      </span>
-                    </div>
+                    <NumberInputWithUnit
+                      id="industryStockPricePrevYearAverage"
+                      name="industryStockPricePrevYearAverage"
+                      value={formData.industryStockPricePrevYearAverage}
+                      onChange={handleChange}
+                      unit="円"
+                      className="bg-white"
+                    />
                   </div>
                   <div>
                     <Label
@@ -276,19 +251,14 @@ export function IndustryDataForm({
                         ? `前々月（${twoMonthsBefore}月）`
                         : "前々月"}
                     </Label>
-                    <div className="relative">
-                      <NumberInput
-                        id="industryStockPrice2MonthsBefore"
-                        name="industryStockPrice2MonthsBefore"
-                        placeholder="0"
-                        value={formData.industryStockPrice2MonthsBefore}
-                        onChange={handleChange}
-                        className="pr-8 text-right bg-white"
-                      />
-                      <span className="absolute right-2 top-2.5 text-xs text-muted-foreground">
-                        円
-                      </span>
-                    </div>
+                    <NumberInputWithUnit
+                      id="industryStockPrice2MonthsBefore"
+                      name="industryStockPrice2MonthsBefore"
+                      value={formData.industryStockPrice2MonthsBefore}
+                      onChange={handleChange}
+                      unit="円"
+                      className="bg-white"
+                    />
                   </div>
                   <div>
                     <Label
@@ -297,19 +267,14 @@ export function IndustryDataForm({
                     >
                       {oneMonthBefore ? `前月（${oneMonthBefore}月）` : "前月"}
                     </Label>
-                    <div className="relative">
-                      <NumberInput
-                        id="industryStockPrice1MonthBefore"
-                        name="industryStockPrice1MonthBefore"
-                        placeholder="0"
-                        value={formData.industryStockPrice1MonthBefore}
-                        onChange={handleChange}
-                        className="pr-8 text-right bg-white"
-                      />
-                      <span className="absolute right-2 top-2.5 text-xs text-muted-foreground">
-                        円
-                      </span>
-                    </div>
+                    <NumberInputWithUnit
+                      id="industryStockPrice1MonthBefore"
+                      name="industryStockPrice1MonthBefore"
+                      value={formData.industryStockPrice1MonthBefore}
+                      onChange={handleChange}
+                      unit="円"
+                      className="bg-white"
+                    />
                   </div>
                   <div>
                     <Label
@@ -320,19 +285,14 @@ export function IndustryDataForm({
                         ? `課税時期の月（${taxationMonth}月）`
                         : "課税時期の月"}
                     </Label>
-                    <div className="relative">
-                      <NumberInput
-                        id="industryStockPriceCurrent"
-                        name="industryStockPriceCurrent"
-                        placeholder="0"
-                        value={formData.industryStockPriceCurrent}
-                        onChange={handleChange}
-                        className="pr-8 text-right bg-white"
-                      />
-                      <span className="absolute right-2 top-2.5 text-xs text-muted-foreground">
-                        円
-                      </span>
-                    </div>
+                    <NumberInputWithUnit
+                      id="industryStockPriceCurrent"
+                      name="industryStockPriceCurrent"
+                      value={formData.industryStockPriceCurrent}
+                      onChange={handleChange}
+                      unit="円"
+                      className="bg-white"
+                    />
                   </div>
                 </div>
               </div>
@@ -348,65 +308,49 @@ export function IndustryDataForm({
                     )}
                   </div>
                   <div className="flex gap-2 items-center">
-                    <div className="relative flex-1">
-                      <NumberInput
+                    <div className="flex-1">
+                      <NumberInputWithUnit
                         name="industryDividendsYen"
-                        placeholder="0"
                         value={formData.industryDividendsYen}
                         onChange={handleChange}
+                        unit="円"
                         disabled={isMedicalCorporation}
-                        className={`pr-8 text-right ${isMedicalCorporation ? "bg-gray-100 cursor-not-allowed" : "bg-white"}`}
+                        className={isMedicalCorporation ? "" : "bg-white"}
                       />
-                      <span className="absolute right-2 top-2.5 text-xs text-muted-foreground">
-                        円
-                      </span>
                     </div>
-                    <div className="relative w-24">
-                      <NumberInput
+                    <div className="w-24">
+                      <NumberInputWithUnit
                         name="industryDividendsSen"
-                        placeholder="0"
                         value={formData.industryDividendsSen}
                         onChange={handleChange}
+                        unit="銭"
                         disabled={isMedicalCorporation}
-                        className={`pr-8 text-right ${isMedicalCorporation ? "bg-gray-100 cursor-not-allowed" : "bg-white"}`}
+                        className={isMedicalCorporation ? "" : "bg-white"}
                       />
-                      <span className="absolute right-2 top-2.5 text-xs text-muted-foreground">
-                        銭
-                      </span>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-2 bg-primary/5 p-4 rounded-lg">
                   <Label htmlFor="industryProfit">C: 利益</Label>
-                  <div className="relative">
-                    <NumberInput
-                      id="industryProfit"
-                      name="industryProfit"
-                      placeholder="0"
-                      value={formData.industryProfit}
-                      onChange={handleChange}
-                      className="pr-8 text-right bg-white"
-                    />
-                    <span className="absolute right-2 top-2.5 text-xs text-muted-foreground">
-                      円
-                    </span>
-                  </div>
+                  <NumberInputWithUnit
+                    id="industryProfit"
+                    name="industryProfit"
+                    value={formData.industryProfit}
+                    onChange={handleChange}
+                    unit="円"
+                    className="bg-white"
+                  />
                 </div>
                 <div className="space-y-2 bg-primary/5 p-4 rounded-lg">
                   <Label htmlFor="industryBookValue">D: 純資産</Label>
-                  <div className="relative">
-                    <NumberInput
-                      id="industryBookValue"
-                      name="industryBookValue"
-                      placeholder="0"
-                      value={formData.industryBookValue}
-                      onChange={handleChange}
-                      className="pr-8 text-right bg-white"
-                    />
-                    <span className="absolute right-2 top-2.5 text-xs text-muted-foreground">
-                      円
-                    </span>
-                  </div>
+                  <NumberInputWithUnit
+                    id="industryBookValue"
+                    name="industryBookValue"
+                    value={formData.industryBookValue}
+                    onChange={handleChange}
+                    unit="円"
+                    className="bg-white"
+                  />
                 </div>
               </div>
             </div>
@@ -441,42 +385,9 @@ export function IndustryDataForm({
                       {details.ratios.b.toFixed(1)} /{" "}
                       {details.ratios.B.toFixed(1)} ={" "}
                       {details.ratios.ratioB.toFixed(2)}
-                      {!isMedicalCorporation && details.ratios.ratioB > 1 && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-red-500 animate-pulse"
-                        >
-                          <path d="m5 12 7-7 7 7" />
-                          <path d="M12 19V5" />
-                        </svg>
+                      {!isMedicalCorporation && (
+                        <TrendArrow ratio={details.ratios.ratioB} />
                       )}
-                      {!isMedicalCorporation &&
-                        details.ratios.ratioB < 1 &&
-                        details.ratios.ratioB > 0 && (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="12"
-                            height="12"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-blue-500 animate-pulse"
-                          >
-                            <path d="M12 5v14" />
-                            <path d="m19 12-7 7-7-7" />
-                          </svg>
-                        )}
                     </div>
                   </div>
                   <div className="bg-white/50 p-2 rounded relative overflow-hidden">
@@ -485,40 +396,7 @@ export function IndustryDataForm({
                       {details.ratios.c.toFixed(0)} /{" "}
                       {details.ratios.C.toFixed(0)} ={" "}
                       {details.ratios.ratioC.toFixed(2)}
-                      {details.ratios.ratioC > 1 && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-red-500 animate-pulse"
-                        >
-                          <path d="m5 12 7-7 7 7" />
-                          <path d="M12 19V5" />
-                        </svg>
-                      )}
-                      {details.ratios.ratioC < 1 && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-blue-500 animate-pulse"
-                        >
-                          <path d="M12 5v14" />
-                          <path d="m19 12-7 7-7-7" />
-                        </svg>
-                      )}
+                      <TrendArrow ratio={details.ratios.ratioC} />
                     </div>
                   </div>
                   <div className="bg-white/50 p-2 rounded relative overflow-hidden">
@@ -529,40 +407,7 @@ export function IndustryDataForm({
                       {details.ratios.d.toFixed(0)} /{" "}
                       {details.ratios.D.toFixed(0)} ={" "}
                       {details.ratios.ratioD.toFixed(2)}
-                      {details.ratios.ratioD > 1 && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-red-500 animate-pulse"
-                        >
-                          <path d="m5 12 7-7 7 7" />
-                          <path d="M12 19V5" />
-                        </svg>
-                      )}
-                      {details.ratios.ratioD < 1 && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-blue-500 animate-pulse"
-                        >
-                          <path d="M12 5v14" />
-                          <path d="m19 12-7 7-7-7" />
-                        </svg>
-                      )}
+                      <TrendArrow ratio={details.ratios.ratioD} />
                     </div>
                   </div>
                 </div>
@@ -589,24 +434,15 @@ export function IndustryDataForm({
                     会社規模に応じた斟酌率
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div
-                      className={`p-2 rounded text-center transition-all ${basicInfo.size === "Big" ? "bg-primary/20 text-primary font-semibold border border-primary/30" : "bg-white/30 text-gray-400 border border-gray-200"}`}
-                    >
-                      <div className="font-normal text-xs">大会社</div>
-                      <div className="mt-1">0.7</div>
-                    </div>
-                    <div
-                      className={`p-2 rounded text-center transition-all ${basicInfo.size === "Medium" ? "bg-primary/20 text-primary font-semibold border border-primary/30" : "bg-white/30 text-gray-400 border border-gray-200"}`}
-                    >
-                      <div className="font-normal text-xs">中会社</div>
-                      <div className="mt-1">0.6</div>
-                    </div>
-                    <div
-                      className={`p-2 rounded text-center transition-all ${basicInfo.size === "Small" ? "bg-primary/20 text-primary font-semibold border border-primary/30" : "bg-white/30 text-gray-400 border border-gray-200"}`}
-                    >
-                      <div className="font-normal text-xs">小会社</div>
-                      <div className="mt-1">0.5</div>
-                    </div>
+                    {([["Big", "大会社", "0.7"], ["Medium", "中会社", "0.6"], ["Small", "小会社", "0.5"]] as const).map(([sizeKey, label, rate]) => (
+                      <div
+                        key={sizeKey}
+                        className={`p-2 rounded text-center transition-all ${basicInfo.size === sizeKey ? "bg-primary/20 text-primary font-semibold border border-primary/30" : "bg-white/30 text-gray-400 border border-gray-200"}`}
+                      >
+                        <div className="font-normal text-xs">{label}</div>
+                        <div className="mt-1">{rate}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -666,24 +502,7 @@ export function IndustryDataForm({
           </div>
           {/* ... */}
 
-          <div className="flex gap-4 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="flex-1"
-              onClick={handleBack}
-            >
-              戻る
-            </Button>
-            <Button
-              type="submit"
-              size="lg"
-              className="flex-[2] shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
-            >
-              次へ進む
-            </Button>
-          </div>
+          <FormNavigationButtons onBack={handleBack} />
         </form>
       </Card>
     </div>
