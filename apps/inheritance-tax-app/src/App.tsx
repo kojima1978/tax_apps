@@ -6,9 +6,8 @@ import { TaxTable } from './components/TaxTable';
 import { ExcelExport } from './components/ExcelExport';
 import { PrintButton } from './components/PrintButton';
 import type { HeirComposition, TaxCalculationResult } from './types';
-import { calculateInheritanceTax } from './hooks/useTaxCalculator';
 import { TABLE_CONFIG } from './constants';
-import { generateId } from './utils';
+import { generateId, calculateInheritanceTax } from './utils';
 
 function App() {
   // 相続人の構成
@@ -28,20 +27,19 @@ function App() {
   });
 
   // 範囲設定
-  const [minValue] = useState<number>(TABLE_CONFIG.MIN_VALUE);
   const [maxValue, setMaxValue] = useState<number>(TABLE_CONFIG.DEFAULT_MAX_VALUE);
 
   // テーブルデータの生成
   const tableData = useMemo<TaxCalculationResult[]>(() => {
     const data: TaxCalculationResult[] = [];
 
-    for (let value = minValue; value <= maxValue; value += TABLE_CONFIG.STEP) {
+    for (let value = TABLE_CONFIG.MIN_VALUE; value <= maxValue; value += TABLE_CONFIG.STEP) {
       const result = calculateInheritanceTax(value, composition);
       data.push(result);
     }
 
     return data;
-  }, [minValue, maxValue, composition]);
+  }, [maxValue, composition]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -53,14 +51,12 @@ function App() {
           <div className="lg:col-span-1 space-y-6">
             <HeirSettings composition={composition} onChange={setComposition} />
             <RangeSettings
-              minValue={minValue}
               maxValue={maxValue}
               onMaxValueChange={setMaxValue}
             />
             <ExcelExport
               data={tableData}
               composition={composition}
-              hasSpouse={composition.hasSpouse}
             />
             <PrintButton />
           </div>

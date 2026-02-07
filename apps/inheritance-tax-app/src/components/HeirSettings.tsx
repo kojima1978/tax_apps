@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import { Users } from 'lucide-react';
 import type { HeirComposition } from '../types';
-import { generateId } from '../utils';
 import { SpouseSettings } from './heirs/SpouseSettings';
 import { Rank1Settings } from './heirs/Rank1Settings';
 import { Rank2Settings } from './heirs/Rank2Settings';
@@ -13,8 +12,6 @@ interface HeirSettingsProps {
 }
 
 export const HeirSettings: React.FC<HeirSettingsProps> = memo(({ composition, onChange }) => {
-
-  // 順位を選択
   const selectRank = (rank: 'none' | 'rank1' | 'rank2' | 'rank3') => {
     onChange({ ...composition, selectedRank: rank });
   };
@@ -22,7 +19,7 @@ export const HeirSettings: React.FC<HeirSettingsProps> = memo(({ composition, on
   return (
     <div className="bg-white rounded-lg shadow-md p-6 no-print">
       <div className="flex items-center gap-2 mb-4">
-        <Users className="w-5 h-5 text-green-600" />
+        <Users className="w-5 h-5 text-green-600" aria-hidden="true" />
         <h2 className="text-xl font-bold text-gray-800">相続人の構成</h2>
       </div>
 
@@ -81,9 +78,9 @@ export const HeirSettings: React.FC<HeirSettingsProps> = memo(({ composition, on
       </fieldset>
 
       {/* 各順位の設定コンポーネント */}
-      <Rank1Settings composition={composition} onChange={onChange} generateId={generateId} />
-      <Rank2Settings composition={composition} onChange={onChange} generateId={generateId} />
-      <Rank3Settings composition={composition} onChange={onChange} generateId={generateId} />
+      <Rank1Settings composition={composition} onChange={onChange} />
+      <Rank2Settings composition={composition} onChange={onChange} />
+      <Rank3Settings composition={composition} onChange={onChange} />
     </div>
   );
 });

@@ -1,9 +1,6 @@
 // 相続人の種類
 export type HeirType = 'spouse' | 'child' | 'grandchild' | 'parent' | 'grandparent' | 'sibling' | 'nephew_niece';
 
-// 相続人の順位
-export type HeirRank = 1 | 2 | 3;
-
 // 個別の相続人
 export interface Heir {
   id: string;
@@ -37,14 +34,4 @@ export interface TaxCalculationResult {
   taxAfterSpouseDeduction: number; // 配偶者控除後の税額
   effectiveTaxRate: number; // 実効税率（%）
   effectiveTaxRateAfterSpouse: number; // 配偶者控除後の実効税率（%）
-}
-
-// テーブル表示用データ
-export interface TableRow {
-  estateValue: number;
-  taxWithSpouse: number;
-  effectiveRateWithSpouse: number;
-  taxAfterSpouseDeduction: number;
-  taxWithoutSpouse: number;
-  effectiveRateWithoutSpouse: number;
 }
