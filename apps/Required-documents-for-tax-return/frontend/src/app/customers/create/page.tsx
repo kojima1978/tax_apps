@@ -35,8 +35,7 @@ export default function CreateCustomerPage() {
         try {
             const data = await fetchStaff();
             setStaffList(data);
-        } catch (e) {
-            console.error(e);
+        } catch {
             setError('担当者リストの取得に失敗しました');
         } finally {
             setIsLoadingStaff(false);

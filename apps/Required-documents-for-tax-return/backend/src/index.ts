@@ -90,7 +90,7 @@ app.post('/api/customers', (req, res) => {
     const customer = createCustomer(customerName.trim(), Number(staffId));
     res.json({ customer });
   } catch (e: unknown) {
-    handleCreateError(res, e, getErrorMessage(e));
+    handleCreateError(res, e, 'Customer already exists for this staff member');
   }
 });
 
