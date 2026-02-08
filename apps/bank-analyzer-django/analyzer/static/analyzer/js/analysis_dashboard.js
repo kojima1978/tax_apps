@@ -1,3 +1,19 @@
+// ===== ユーティリティ =====
+
+function createFormData(data) {
+    const formData = new FormData();
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    for (const [key, value] of Object.entries(data)) {
+        formData.append(key, value);
+    }
+    return formData;
+}
+
+function getApiUrl(endpoint) {
+    return window.location.pathname.replace('/analysis/', `/api/${endpoint}/`);
+}
+
 // Modal Logic
 const editModal = document.getElementById('editModal');
 editModal.addEventListener('show.bs.modal', function (event) {
@@ -73,19 +89,14 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
         const button = this;
         const txId = button.getAttribute('data-tx-id');
         const sourceTab = button.getAttribute('data-source-tab');
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
         const row = button.closest('tr');
 
         // ボタンを一時的に無効化（二重クリック防止）
         button.disabled = true;
         button.style.opacity = '0.5';
 
-        const formData = new FormData();
-        formData.append('tx_id', txId);
-        formData.append('csrfmiddlewaretoken', csrfToken);
-
-        // APIエンドポイントにリクエスト
-        const apiUrl = window.location.pathname.replace('/analysis/', '/api/toggle-flag/');
+        const formData = createFormData({ tx_id: txId });
+        const apiUrl = getApiUrl('toggle-flag');
 
         fetch(apiUrl, {
             method: 'POST',
@@ -299,27 +310,25 @@ document.querySelectorAll('.insert-tx-btn').forEach(btn => {
 // 追加ボタン（モーダル内）クリック時 - APIに送信
 if (addTxSubmitBtn) {
     addTxSubmitBtn.addEventListener('click', function() {
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        const formData = new FormData();
-
-        formData.append('date', document.getElementById('addTxDate').value);
-        formData.append('description', document.getElementById('addTxDescription').value);
-        formData.append('amount_out', document.getElementById('addTxAmountOut').value || '0');
-        formData.append('amount_in', document.getElementById('addTxAmountIn').value || '0');
-        formData.append('balance', document.getElementById('addTxBalance').value || '');
-        formData.append('bank_name', document.getElementById('addTxBankName').value);
-        formData.append('branch_name', document.getElementById('addTxBranchName').value);
-        formData.append('account_type', document.getElementById('addTxAccountType').value);
-        formData.append('account_id', document.getElementById('addTxAccountId').value);
-        formData.append('category', document.getElementById('addTxCategory').value);
-        formData.append('memo', document.getElementById('addTxMemo').value);
-        formData.append('csrfmiddlewaretoken', csrfToken);
+        const formData = createFormData({
+            date: document.getElementById('addTxDate').value,
+            description: document.getElementById('addTxDescription').value,
+            amount_out: document.getElementById('addTxAmountOut').value || '0',
+            amount_in: document.getElementById('addTxAmountIn').value || '0',
+            balance: document.getElementById('addTxBalance').value || '',
+            bank_name: document.getElementById('addTxBankName').value,
+            branch_name: document.getElementById('addTxBranchName').value,
+            account_type: document.getElementById('addTxAccountType').value,
+            account_id: document.getElementById('addTxAccountId').value,
+            category: document.getElementById('addTxCategory').value,
+            memo: document.getElementById('addTxMemo').value,
+        });
 
         // ボタンを無効化
         addTxSubmitBtn.disabled = true;
         addTxSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 追加中...';
 
-        const apiUrl = window.location.pathname.replace('/analysis/', '/api/create-transaction/');
+        const apiUrl = getApiUrl('create-transaction');
 
         fetch(apiUrl, {
             method: 'POST',
@@ -359,16 +368,13 @@ document.querySelectorAll('.delete-tx-btn').forEach(btn => {
             return;
         }
 
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        const formData = new FormData();
-        formData.append('tx_id', txId);
-        formData.append('csrfmiddlewaretoken', csrfToken);
+        const formData = createFormData({ tx_id: txId });
 
         // ボタンを無効化
         this.disabled = true;
         this.style.opacity = '0.5';
 
-        const apiUrl = window.location.pathname.replace('/analysis/', '/api/delete-transaction/');
+        const apiUrl = getApiUrl('delete-transaction');
 
         fetch(apiUrl, {
             method: 'POST',
@@ -472,7 +478,7 @@ if (replaceFieldSelect) {
         replaceLoadingSpinner.style.display = 'inline-block';
 
         // APIからユニーク値を取得
-        const apiUrl = window.location.pathname.replace('/analysis/', '/api/field-values/') + '?field_name=' + encodeURIComponent(fieldName);
+        const apiUrl = getApiUrl('field-values') + '?field_name=' + encodeURIComponent(fieldName);
 
         fetch(apiUrl)
         .then(response => {

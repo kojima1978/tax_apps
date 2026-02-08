@@ -248,21 +248,17 @@
                             <td class="text-end">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
                             <td class="text-end">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>
                             <td>
-                                <select name="cat-{{ tx.id }}" class="form-select form-select-sm">
-                                    {% for cat in categories %}
-                                    <option value="{{ cat }}" {% if tx.category == cat %}selected{% endif %}>{{ cat }}</option>
-                                    {% endfor %}
-                                </select>
+                                {% with name_prefix="cat-" %}
+                                {% include "analyzer/partials/_category_select.html" %}
+                                {% endwith %}
                             </td>
                             <td>
-                                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-balance="{{ tx.balance|default:'' }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}" data-tx-bank="{{ tx.bank_name|default:'' }}" data-tx-branch="{{ tx.branch_name|default:'' }}" data-tx-account-type="{{ tx.account_type|default:'' }}" data-tx-account="{{ tx.account_id|default:'' }}">詳細</button>
+                                {% include "analyzer/partials/_edit_button.html" %}
                             </td>
                             <td>
-                                <button type="button" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %} flag-btn"
-                                    data-tx-id="{{ tx.id }}" data-source-tab="all"
-                                    title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
-                                    📌
-                                </button>
+                                {% with source_tab="all" %}
+                                {% include "analyzer/partials/_flag_button.html" %}
+                                {% endwith %}
                             </td>
                         </tr>
                         {% empty %}
