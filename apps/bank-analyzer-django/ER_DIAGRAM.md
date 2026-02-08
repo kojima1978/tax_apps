@@ -25,6 +25,7 @@ erDiagram
         varchar(255) holder "名義人 (Nullable)"
         varchar(255) bank_name "銀行名 (Nullable)"
         varchar(255) branch_name "支店名 (Nullable)"
+        varchar(50) account_type "種別 (Nullable)"
         boolean is_large "多額取引フラグ (Default: False)"
         boolean is_transfer "資金移動フラグ (Default: False)"
         varchar(255) transfer_to "資金移動先推定 (Nullable)"
@@ -62,6 +63,7 @@ erDiagram
 | `holder` | Varchar(255) | Nullable | 口座名義人。 |
 | `bank_name` | Varchar(255) | Nullable | 銀行名。 |
 | `branch_name` | Varchar(255) | Nullable | 支店名。 |
+| `account_type` | Varchar(50) | Nullable | 口座種別（普通預金等）。 |
 | `is_large` | Boolean | Default False | 多額取引判定フラグ（設定閾値を超えた場合にTrue）。 |
 | `is_transfer` | Boolean | Default False | 資金移動判定フラグ（別口座への移動と推定される場合にTrue）。 |
 | `transfer_to` | Varchar(255) | Nullable | 移動先と推定される口座名などのメモ。 |
@@ -75,3 +77,6 @@ erDiagram
 - `(case_id, account_id)`: 口座ごとの絞り込み用
 - `(category)`: 分類ごとの集計用
 - `(case_id, is_flagged)`: 付箋付き取引の検索用
+- `(case_id, category)`: 案件×分類の集計・フィルタ用
+- `(case_id, is_large)`: 案件×多額取引の絞り込み用
+- `(case_id, is_transfer)`: 案件×資金移動の絞り込み用
