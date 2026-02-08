@@ -27,43 +27,16 @@ if not exist ".env" (
 )
 
 :: Parse command line arguments
-set "BUILD_FLAG="
-set "PROD_FLAG="
+call _parse_args.bat %*
 
-:parse_args
-if "%~1"=="" goto :start_services
-if /i "%~1"=="--build" (
-    set "BUILD_FLAG=--build"
-    shift
-    goto :parse_args
-)
-if /i "%~1"=="-b" (
-    set "BUILD_FLAG=--build"
-    shift
-    goto :parse_args
-)
-if /i "%~1"=="--prod" (
-    set "PROD_FLAG=-f docker-compose.yml -f docker-compose.prod.yml"
-    shift
-    goto :parse_args
-)
-if /i "%~1"=="-p" (
-    set "PROD_FLAG=-f docker-compose.yml -f docker-compose.prod.yml"
-    shift
-    goto :parse_args
-)
-shift
-goto :parse_args
-
-:start_services
-echo Starting services...
+:: Start services
 if defined PROD_FLAG (
     echo [MODE] Production
-    docker compose %PROD_FLAG% up -d %BUILD_FLAG%
 ) else (
     echo [MODE] Development
-    docker compose up -d %BUILD_FLAG%
 )
+echo Starting services...
+docker compose %PROD_FLAG% up -d %BUILD_FLAG%
 
 if %ERRORLEVEL% neq 0 (
     echo.
