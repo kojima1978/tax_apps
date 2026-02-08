@@ -159,6 +159,8 @@ Required-documents-for-tax-return/
 │   │   ├── components/        # UIコンポーネント
 │   │   │   ├── MenuScreen.tsx           # トップ画面
 │   │   │   ├── DocumentListScreen.tsx   # 書類編集画面
+│   │   │   ├── ListPage.tsx             # 汎用一覧ページ（担当者・顧客共通）
+│   │   │   ├── FormErrorDisplay.tsx     # フォームエラー表示
 │   │   │   ├── SearchableSelect.tsx     # 検索可能セレクト
 │   │   │   ├── ErrorBoundary.tsx        # エラーハンドリング
 │   │   │   ├── Toast.tsx                # 通知表示
