@@ -18,7 +18,11 @@ nginx/
 │   ├── 50x.html    # サーバーエラーページ
 │   └── 503.html    # メンテナンスページ
 ├── includes/       # 共通設定ディレクトリ
-│   └── proxy_params # 共通プロキシヘッダー設定
+│   ├── proxy_params.conf       # 共通プロキシヘッダー設定
+│   ├── upstreams.conf          # アップストリーム定義（11サービス）
+│   ├── maps.conf               # map定義（WebSocket Upgrade, Font Routing）
+│   ├── rate_limit_general.conf # 一般レート制限（burst=20）
+│   └── rate_limit_api.conf     # APIレート制限（burst=10）
 ├── .dockerignore   # Dockerビルド除外設定
 └── readme.md       # このファイル
 ```
@@ -53,7 +57,10 @@ nginx/
 
 ### 構成のモジュール化
 
-- **共通プロキシ設定**: `includes/proxy_params` に共通のヘッダー設定（Host, X-Real-IP等）を分離し、`default.conf` から include しています。これにより設定の重複を排除し、メンテナンス性を向上させています。
+- **共通プロキシ設定**: `includes/proxy_params.conf` に共通のヘッダー設定（Host, X-Real-IP, WebSocket Upgrade等）を集約
+- **アップストリーム定義**: `includes/upstreams.conf` に全11サービスの upstream を分離し、新アプリ追加時はこのファイルのみ編集
+- **Map定義**: `includes/maps.conf` に WebSocket Upgrade と Next.js Font Routing の map を分離
+- **レート制限**: `includes/rate_limit_general.conf` / `rate_limit_api.conf` で burst 値を一元管理（12箇所で共有）
 
 ## ルーティング一覧
 
@@ -141,7 +148,7 @@ proxy_read_timeout 60s;
 
 ### 新しいアプリの追加
 
-1. `nginx.conf` にアップストリーム追加:
+1. `includes/upstreams.conf` にアップストリーム追加:
 
 ```nginx
 upstream new-app {
@@ -154,9 +161,15 @@ upstream new-app {
 
 ```nginx
 location /new-app/ {
-    limit_req zone=general_limit burst=20 nodelay;
+    include /etc/nginx/includes/rate_limit_general.conf;
     proxy_pass http://new-app;
 }
+```
+
+3. （フォント対応が必要な場合）`includes/maps.conf` の `$nextjs_font_backend` に追加:
+
+```nginx
+~*/new-app/ new-app;
 ```
 
 ## トラブルシューティング
