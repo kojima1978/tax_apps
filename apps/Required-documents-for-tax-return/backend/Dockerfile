@@ -48,8 +48,8 @@ CMD ["npm", "run", "dev"]
 # ビルドステージ
 # ============================================
 FROM native-build AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps --link /app/node_modules ./node_modules
+COPY --link . .
 # ビルド後、本番に不要な型定義・ソースマップを除去
 RUN npm run build && \
     find dist \( -name '*.d.ts' -o -name '*.d.ts.map' -o -name '*.js.map' \) -delete
