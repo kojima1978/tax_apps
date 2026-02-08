@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { Edit2, Trash2, ExternalLink } from 'lucide-react';
 import type { Application } from '@/types/application';
 import { isExternalUrl } from '@/lib/url';
+import { useDeleteConfirmation } from '@/hooks/useDeleteConfirmation';
 import DeleteConfirmDialog from './ui/DeleteConfirmDialog';
 import ErrorAlert from './ui/ErrorAlert';
 import { glassPanelCard } from '@/lib/styles';
@@ -16,27 +16,14 @@ interface ApplicationListProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-type DeleteTarget = { id: string; title: string } | null;
-
 export default function ApplicationList({ applications, onEdit, onDelete }: ApplicationListProps) {
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-    const { id } = deleteTarget;
-    setDeleteTarget(null);
-    setDeleteError(null);
-    setDeletingId(id);
-    try {
-      await onDelete(id);
-    } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : '削除に失敗しました');
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  const {
+    deleteTarget,
+    setDeleteTarget,
+    deletingId,
+    deleteError,
+    handleDeleteConfirm,
+  } = useDeleteConfirmation(onDelete);
 
   if (applications.length === 0) {
     return (
@@ -68,7 +55,9 @@ export default function ApplicationList({ applications, onEdit, onDelete }: Appl
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {applications.map((app) => (
+            {applications.map((app) => {
+              const external = isExternalUrl(app.url);
+              return (
               <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4">
                   <div>
@@ -79,11 +68,11 @@ export default function ApplicationList({ applications, onEdit, onDelete }: Appl
                 <td className="px-6 py-4">
                   <a
                     href={app.url}
-                    {...(isExternalUrl(app.url) ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                    {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                     className="text-sm text-green-600 hover:text-green-700 flex items-center gap-1"
                   >
                     {app.url}
-                    {isExternalUrl(app.url) && <ExternalLink className="w-3 h-3" />}
+                    {external && <ExternalLink className="w-3 h-3" />}
                   </a>
                 </td>
                 <td className="px-6 py-4">
@@ -109,7 +98,8 @@ export default function ApplicationList({ applications, onEdit, onDelete }: Appl
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import AppCard from './AppCard';
 import { Search } from 'lucide-react';
 import type { Application } from '@/types/application';
-import { applySavedOrder } from '@/lib/order';
+import { useOrderedApplications } from '@/hooks/useOrderedApplications';
 import PageContainer from './ui/PageContainer';
 import { glassPanel } from '@/lib/styles';
 
@@ -14,11 +14,7 @@ interface LauncherGridProps {
 
 export default function LauncherGrid({ applications }: LauncherGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [orderedApps, setOrderedApps] = useState<Application[]>(applications);
-
-  useEffect(() => {
-    setOrderedApps(applySavedOrder(applications));
-  }, [applications]);
+  const [orderedApps] = useOrderedApplications(applications);
 
   const filteredApps = orderedApps.filter((app) =>
     app.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
