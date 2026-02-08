@@ -1,16 +1,12 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
 import {
   createAssigneeSchema,
   updateAssigneeSchema,
 } from '@tax-apps/validation';
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
-
-const idParamSchema = z.object({
-  id: z.string().uuid('無効なID形式です'),
-});
+import { idParamSchema } from '../lib/schemas.js';
 
 export const assigneesRouter = new Hono();
 
@@ -33,7 +29,7 @@ assigneesRouter.get(
     });
 
     if (!assignee) {
-      return c.json({ error: 'Assignee not found', code: 'NOT_FOUND' }, 404);
+      return c.json({ error: '担当者が見つかりません', code: 'NOT_FOUND' }, 404);
     }
 
     return c.json(assignee);

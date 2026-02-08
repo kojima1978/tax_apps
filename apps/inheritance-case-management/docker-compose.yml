@@ -10,12 +10,18 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "3022:5432"
+      - "${DB_PORT:-3022}:5432"
+    shm_size: 128m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api:
     build:
@@ -25,28 +31,41 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      PORT: 3021
+      PORT: "3021"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
-      FRONTEND_URL: http://localhost:3020
-      LOG_LEVEL: info
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3020}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "3021:3021"
     depends_on:
       postgres:
         condition: service_healthy
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   web:
     build:
       context: ../..
       dockerfile: apps/inheritance-case-management/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:3021/api
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3021/api}
     container_name: itcm-web
     restart: unless-stopped
     ports:
       - "3020:3020"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data:

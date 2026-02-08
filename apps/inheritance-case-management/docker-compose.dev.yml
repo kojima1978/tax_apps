@@ -10,7 +10,8 @@ services:
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     ports:
-      - "3022:5432"
+      - "${DB_PORT:-3022}:5432"
+    shm_size: 128m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
@@ -23,14 +24,16 @@ services:
       dockerfile: apps/inheritance-case-management/api/Dockerfile.dev
     container_name: itcm-dev-api
     restart: unless-stopped
+    init: true
+    stdin_open: true
+    tty: true
     environment:
       NODE_ENV: development
-      PORT: 3021
+      PORT: "3021"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
       FRONTEND_URL: http://localhost:3020
       LOG_LEVEL: debug
     volumes:
-      # Mount source for hot reload
       - ../../packages/shared/src:/app/packages/shared/src:ro
       - ../../packages/validation/src:/app/packages/validation/src:ro
       - ./api/src:/app/apps/inheritance-case-management/api/src:ro
@@ -40,6 +43,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3021/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
 
   web:
     build:
@@ -47,11 +56,13 @@ services:
       dockerfile: apps/inheritance-case-management/web/Dockerfile.dev
     container_name: itcm-dev-web
     restart: unless-stopped
+    init: true
+    stdin_open: true
+    tty: true
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3021/api
       WATCHPACK_POLLING: "true"
     volumes:
-      # Mount source for hot reload
       - ../../packages/shared/src:/app/packages/shared/src:ro
       - ../../packages/validation/src:/app/packages/validation/src:ro
       - ../../packages/ui/src:/app/packages/ui/src:ro
@@ -60,7 +71,8 @@ services:
     ports:
       - "3020:3020"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_dev_data:

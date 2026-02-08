@@ -1,40 +1,36 @@
 # syntax=docker/dockerfile:1
 
 FROM node:22-alpine AS base
-
 RUN apk upgrade --no-cache && \
     corepack enable && corepack prepare pnpm@9.15.4 --activate
-
 WORKDIR /app
 
-# Install dependencies
+# ── deps ────────────────────────────────────────────────
 FROM base AS deps
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/validation/package.json ./packages/validation/
 COPY apps/inheritance-case-management/api/package.json ./apps/inheritance-case-management/api/
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store-icm-api,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
-# Development image
+# ── development ─────────────────────────────────────────
 FROM deps AS dev
 ENV NODE_ENV=development
 COPY . .
-# Build shared packages for dev
-RUN pnpm --filter @tax-apps/shared build
-RUN pnpm --filter @tax-apps/validation build
-# Generate Prisma client for dev
-RUN pnpm --filter @inheritance-case-management/api exec prisma generate
-# Copy and setup entrypoint script (convert CRLF to LF for Windows compatibility)
+RUN pnpm --filter @tax-apps/shared build && \
+    pnpm --filter @tax-apps/validation build && \
+    pnpm --filter @inheritance-case-management/api exec prisma generate
 COPY apps/inheritance-case-management/api/docker-entrypoint.sh /usr/local/bin/
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
 WORKDIR /app/apps/inheritance-case-management/api
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["pnpm", "dev"]
 
-# Build shared packages
+# ── builder ─────────────────────────────────────────────
 FROM deps AS builder
 
-# Copy source files selectively to preserve pnpm symlinks
+# ソースを選択的にコピー（pnpmシンボリックリンク保持）
 COPY packages/shared/src ./packages/shared/src
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/validation/src ./packages/validation/src
@@ -43,64 +39,69 @@ COPY apps/inheritance-case-management/api/src ./apps/inheritance-case-management
 COPY apps/inheritance-case-management/api/tsconfig.json ./apps/inheritance-case-management/api/
 COPY apps/inheritance-case-management/api/prisma ./apps/inheritance-case-management/api/prisma
 
-# Generate Prisma client first (needed for TypeScript types)
-RUN pnpm --filter @inheritance-case-management/api exec prisma generate
+# Prisma generate → 共有パッケージ → API ビルド（1つのRUNにまとめてレイヤー削減）
+RUN pnpm --filter @inheritance-case-management/api exec prisma generate && \
+    cd packages/shared && ../../node_modules/.bin/tsc && \
+    cd ../validation && ../../node_modules/.bin/tsc && \
+    cd ../../apps/inheritance-case-management/api && \
+    ../../../node_modules/.bin/tsc -p tsconfig.json
 
-# Build packages
-RUN cd packages/shared && ../../node_modules/.bin/tsc
-RUN cd packages/validation && ../../node_modules/.bin/tsc
-RUN pnpm --filter @inheritance-case-management/api build
+# ── production deps ─────────────────────────────────────
+FROM base AS prod-deps
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/validation/package.json ./packages/validation/
+COPY apps/inheritance-case-management/api/package.json ./apps/inheritance-case-management/api/
+COPY apps/inheritance-case-management/api/prisma ./apps/inheritance-case-management/api/prisma
+RUN --mount=type=cache,id=pnpm-store-icm-api,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod && \
+    npx -y prisma@6 generate --schema=apps/inheritance-case-management/api/prisma/schema.prisma
 
-# Production image
+# ── production ──────────────────────────────────────────
 FROM node:22-alpine AS runner
 
 LABEL org.opencontainers.image.title="ITCM Backend" \
       org.opencontainers.image.description="相続税案件管理システム API" \
       org.opencontainers.image.vendor="税理士法人マスエージェント"
 
-RUN apk upgrade --no-cache && \
-    apk add --no-cache tini && \
-    corepack enable && corepack prepare pnpm@9.15.4 --activate
+RUN apk upgrade --no-cache && apk add --no-cache tini
 
 WORKDIR /app
 
-# Copy built files
-COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
-COPY --from=builder /app/packages/shared/package.json ./packages/shared/
-COPY --from=builder /app/packages/validation/dist ./packages/validation/dist
-COPY --from=builder /app/packages/validation/package.json ./packages/validation/
-COPY --from=builder /app/apps/inheritance-case-management/api/dist ./apps/inheritance-case-management/api/dist
-COPY --from=builder /app/apps/inheritance-case-management/api/package.json ./apps/inheritance-case-management/api/
-COPY --from=builder /app/apps/inheritance-case-management/api/prisma ./apps/inheritance-case-management/api/prisma
+ENV NODE_ENV=production \
+    PORT=3021 \
+    TZ=Asia/Tokyo
 
-# Copy workspace files
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+# 本番依存のみコピー（prod-depsから）
+COPY --from=prod-deps --link /app/node_modules ./node_modules
+COPY --from=prod-deps --link /app/packages/validation/node_modules ./packages/validation/node_modules
+COPY --from=prod-deps --link /app/apps/inheritance-case-management/api/node_modules ./apps/inheritance-case-management/api/node_modules
 
-# Install all dependencies first (devDeps needed for prisma generate)
-RUN pnpm install --frozen-lockfile
+# ビルド成果物コピー
+COPY --from=builder --link /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder --link /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --link /app/packages/validation/dist ./packages/validation/dist
+COPY --from=builder --link /app/packages/validation/package.json ./packages/validation/
 
-# Generate Prisma client
-WORKDIR /app/apps/inheritance-case-management/api
-RUN pnpm exec prisma generate
+COPY --from=builder --link /app/apps/inheritance-case-management/api/dist ./apps/inheritance-case-management/api/dist
+COPY --from=builder --link /app/apps/inheritance-case-management/api/package.json ./apps/inheritance-case-management/api/
 
-# Now set production mode and prune devDependencies
-WORKDIR /app
-ENV NODE_ENV=production
-RUN pnpm prune --prod
+# Prisma マイグレーション用ファイル
+COPY --from=builder --link /app/apps/inheritance-case-management/api/prisma ./apps/inheritance-case-management/api/prisma
 
-WORKDIR /app/apps/inheritance-case-management/api
-ENV PORT=3021
+# ワークスペース設定
+COPY pnpm-workspace.yaml package.json ./
 
-# Copy entrypoint script (convert CRLF to LF for Windows compatibility)
+# エントリーポイント
 COPY apps/inheritance-case-management/api/docker-entrypoint.sh /usr/local/bin/
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
 
+WORKDIR /app/apps/inheritance-case-management/api
 EXPOSE 3021
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3021/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
 STOPSIGNAL SIGTERM
-
 ENTRYPOINT ["/sbin/tini", "--", "docker-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
