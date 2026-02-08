@@ -64,7 +64,9 @@ LABEL org.opencontainers.image.title="ITCM Backend" \
       org.opencontainers.image.description="相続税案件管理システム API" \
       org.opencontainers.image.vendor="税理士法人マスエージェント"
 
-RUN apk upgrade --no-cache && apk add --no-cache tini
+RUN apk upgrade --no-cache && apk add --no-cache tini && \
+    addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --ingroup nodejs hono
 
 WORKDIR /app
 
@@ -97,6 +99,8 @@ COPY apps/inheritance-case-management/api/docker-entrypoint.sh /usr/local/bin/
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 WORKDIR /app/apps/inheritance-case-management/api
+
+USER hono
 EXPOSE 3021
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

@@ -16,7 +16,7 @@ WORKDIR /app
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 COPY package*.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
 # ============================================
 # 開発用ステージ
@@ -73,7 +73,7 @@ RUN apk add --no-cache libc6-compat tini tzdata && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del --no-cache tzdata && \
     addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+    adduser --system --uid 1001 --ingroup nodejs nextjs
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \

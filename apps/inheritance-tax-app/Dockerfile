@@ -16,7 +16,7 @@ COPY package*.json ./
 FROM base AS dev
 
 RUN --mount=type=cache,target=/root/.npm \
-    npm install
+    npm ci --no-audit --no-fund
 
 # 設定ファイルをコピー（src/はボリュームマウント）
 COPY vite.config.ts tsconfig*.json tailwind.config.cjs postcss.config.cjs eslint.config.js index.html ./

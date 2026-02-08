@@ -11,9 +11,9 @@ FROM nginx:1.27-alpine
 RUN apk upgrade --no-cache
 
 # ラベル
-LABEL org.opencontainers.image.title="Tax Apps Gateway"
-LABEL org.opencontainers.image.description="Nginx reverse proxy for Tax Apps"
-LABEL org.opencontainers.image.version="1.2.0"
+LABEL org.opencontainers.image.title="Tax Apps Gateway" \
+      org.opencontainers.image.description="Nginx reverse proxy for Tax Apps" \
+      org.opencontainers.image.version="1.2.0"
 
 # タイムゾーン設定 & ログディレクトリ作成
 RUN apk add --no-cache tzdata \
