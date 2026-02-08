@@ -28,3 +28,24 @@ export const normalizeNumberString = (val: string): string => {
         .replace(/,/g, '')
         .replace(/[^0-9]/g, '');
 };
+
+/**
+ * 入力値をカンマ区切りにフォーマットする（フォーム入力用）
+ */
+export const formatInputValue = (val: string | number | null | undefined): string => {
+    if (val === '' || val === null || val === undefined) return '';
+    const str = normalizeNumberString(String(val));
+    const parts = str.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.length > 1 ? `${parts[0]}.${parts[1]}` : parts[0];
+};
+
+/**
+ * カンマ区切りフォーマット済み文字列を数値にパースする
+ */
+export const parseFormattedNumber = (val: string): number => {
+    if (!val) return 0;
+    const normalized = normalizeNumberString(val);
+    const num = parseFloat(normalized);
+    return isNaN(num) ? 0 : num;
+};

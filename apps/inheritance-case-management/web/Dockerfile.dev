@@ -1,7 +1,12 @@
+# syntax=docker/dockerfile:1
+
 # Development Dockerfile for Web
 FROM node:22-alpine
 
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+RUN apk upgrade --no-cache && apk add --no-cache tini \
+    && corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+ENV NODE_ENV=development
 WORKDIR /app
 
 # Copy workspace config and all package.json files
@@ -11,8 +16,9 @@ COPY packages/validation/package.json ./packages/validation/
 COPY packages/ui/package.json ./packages/ui/
 COPY apps/inheritance-case-management/web/package.json ./apps/inheritance-case-management/web/
 
-# Install dependencies (generates lock file if not present)
-RUN pnpm install
+# Install dependencies with pnpm store cache
+RUN --mount=type=cache,id=pnpm-store-icm-web-dev,target=/root/.local/share/pnpm/store \
+    pnpm install
 
 # Copy source files selectively to preserve pnpm symlinks
 COPY packages/shared/src ./packages/shared/src
@@ -29,13 +35,15 @@ COPY apps/inheritance-case-management/web/postcss.config.mjs ./apps/inheritance-
 COPY apps/inheritance-case-management/web/eslint.config.mjs ./apps/inheritance-case-management/web/
 
 # Build shared packages
-RUN cd packages/shared && ../../node_modules/.bin/tsc
-RUN cd packages/validation && ../../node_modules/.bin/tsc
-RUN cd packages/ui && ../../node_modules/.bin/tsc
+RUN cd packages/shared && ../../node_modules/.bin/tsc \
+    && cd ../validation && ../../node_modules/.bin/tsc \
+    && cd ../ui && ../../node_modules/.bin/tsc
 
 WORKDIR /app/apps/inheritance-case-management/web
 
 EXPOSE 3020
+
+ENTRYPOINT ["/sbin/tini", "--"]
 
 # Run with hot reload
 CMD ["pnpm", "dev"]

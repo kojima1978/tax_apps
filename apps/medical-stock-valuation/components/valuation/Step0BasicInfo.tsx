@@ -2,17 +2,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { File, Building2, CalendarDays, UserPen } from 'lucide-react';
 import { toWareki } from '@/lib/date-utils';
-import { buttonStyle, btnHoverClass } from '@/lib/button-styles';
-
-type User = {
-    id: string;
-    name: string;
-};
-
-type Company = {
-    id: string;
-    company_name: string;
-};
+import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { UserOption, CompanyOption } from '@/lib/types';
 
 type Props = {
     fiscalYear: string;
@@ -34,8 +25,8 @@ export default function Step0BasicInfo({
     onBeforeNavigate,
 }: Props) {
     const router = useRouter();
-    const [users, setUsers] = useState<User[]>([]);
-    const [companies, setCompanies] = useState<Company[]>([]);
+    const [users, setUsers] = useState<UserOption[]>([]);
+    const [companies, setCompanies] = useState<CompanyOption[]>([]);
     const [registeredYears, setRegisteredYears] = useState<string[]>([]);
     const [selectedYearData, setSelectedYearData] = useState<{
         profit_per_share: number;
@@ -141,8 +132,7 @@ export default function Step0BasicInfo({
                 <h2 className="mt-0 mb-0">STEP０．基本情報を入力する</h2>
                 <button
                     onClick={() => router.push('/saved-data')}
-                    className={btnHoverClass}
-                    style={buttonStyle}
+                    className={`${BTN_CLASS} ${HOVER_CLASS}`}
                 >
                     <File size={20} />
                     読み込み
@@ -157,11 +147,11 @@ export default function Step0BasicInfo({
                     <tr>
                         <td>会社名</td>
                         <td>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div className="flex gap-2 items-center justify-between">
                                 <select
                                     value={companyName}
                                     onChange={(e) => setCompanyName(e.target.value)}
-                                    style={{ width: '200px' }}
+                                    className="w-[200px]"
                                 >
                                     <option value="">選択してください</option>
                                     {companies.map((company) => (
@@ -172,8 +162,7 @@ export default function Step0BasicInfo({
                                 </select>
                                 <button
                                     onClick={() => handleNavigation('/company-settings')}
-                                    className={btnHoverClass}
-                                    style={buttonStyle}
+                                    className={`${BTN_CLASS} ${HOVER_CLASS}`}
                                 >
                                     <Building2 size={20} />
                                     会社マスタ設定
@@ -184,12 +173,12 @@ export default function Step0BasicInfo({
                     <tr>
                         <td>年度</td>
                         <td>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div className="flex gap-2 items-center justify-between">
+                                <div className="flex flex-col gap-1">
                                     <select
                                         value={fiscalYear}
                                         onChange={(e) => setFiscalYear(e.target.value)}
-                                        style={{ width: '200px' }}
+                                        className="w-[200px]"
                                     >
                                         <option value="">選択してください</option>
                                         {yearOptions.map((year) => {
@@ -202,20 +191,19 @@ export default function Step0BasicInfo({
                                         })}
                                     </select>
                                     {fiscalYear && selectedYearData && (
-                                        <div style={{ fontSize: '12px', color: '#000000', fontWeight: 'bold' }}>
+                                        <div className="text-xs text-black font-bold">
                                             ✓ データ登録済み
                                         </div>
                                     )}
                                     {fiscalYear && !selectedYearData && (
-                                        <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: 'bold' }}>
+                                        <div className="text-xs text-gray-500 font-bold">
                                             ⚠ データ未登録
                                         </div>
                                     )}
                                 </div>
                                 <button
                                     onClick={() => handleNavigation(`/similar-industry-settings?year=${fiscalYear}`)}
-                                    className={btnHoverClass}
-                                    style={buttonStyle}
+                                    className={`${BTN_CLASS} ${HOVER_CLASS}`}
                                 >
                                     <CalendarDays size={20} />
                                     類似業種データ設定
@@ -226,11 +214,11 @@ export default function Step0BasicInfo({
                     <tr>
                         <td>担当者</td>
                         <td>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div className="flex gap-2 items-center justify-between">
                                 <select
                                     value={personInCharge}
                                     onChange={(e) => setPersonInCharge(e.target.value)}
-                                    style={{ width: '200px' }}
+                                    className="w-[200px]"
                                 >
                                     <option value="">選択してください</option>
                                     {users.map((user) => (
@@ -241,8 +229,7 @@ export default function Step0BasicInfo({
                                 </select>
                                 <button
                                     onClick={() => handleNavigation('/user-settings')}
-                                    className={btnHoverClass}
-                                    style={buttonStyle}
+                                    className={`${BTN_CLASS} ${HOVER_CLASS}`}
                                 >
                                     <UserPen size={20} />
                                     担当者マスタ設定

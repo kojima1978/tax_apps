@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Trash2, X, ArrowLeft } from 'lucide-react';
+import { Upload, Trash2, X, ArrowLeft, Download } from 'lucide-react';
 import Header from '@/components/Header';
 import { toWareki } from '@/lib/date-utils';
-import { buttonStyle, smallButtonStyle, btnHoverClass } from '@/lib/button-styles';
+import { BTN_CLASS, SMALL_BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 import { useToast } from '@/components/Toast';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 type SavedValuation = {
   id: string;
@@ -41,6 +42,12 @@ export default function SavedDataPage() {
   const [filterYear, setFilterYear] = useState('');
   const [filterCompanyName, setFilterCompanyName] = useState('');
   const [filterPersonInCharge, setFilterPersonInCharge] = useState('');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadData();
@@ -86,18 +93,11 @@ export default function SavedDataPage() {
       investors: typeof record.investors === 'string' ? JSON.parse(record.investors) : record.investors,
     };
 
-    // localStorageに保存
     localStorage.setItem('formData', JSON.stringify(formData));
-
-    // トップページへ遷移
     router.push('/');
   };
 
   const deleteRecord = async (id: string) => {
-    if (!confirm('このデータを削除しますか？')) {
-      return;
-    }
-
     try {
       const response = await fetch(`/medical/api/valuations/?id=${id}`, {
         method: 'DELETE',
@@ -108,7 +108,7 @@ export default function SavedDataPage() {
       }
 
       toast.success('データを削除しました');
-      loadData(); // リロード
+      loadData();
     } catch (err) {
       console.error('削除エラー:', err);
       toast.error('データの削除に失敗しました');
@@ -121,6 +121,71 @@ export default function SavedDataPage() {
     } else {
       setSortField(field);
       setSortOrder('asc');
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const response = await fetch('/medical/api/backup');
+      if (!response.ok) {
+        throw new Error('エクスポートに失敗しました');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `medical-backup_${today}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('バックアップをエクスポートしました');
+    } catch (err) {
+      console.error('エクスポートエラー:', err);
+      toast.error('バックアップのエクスポートに失敗しました');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFile(file);
+    setShowImportConfirm(true);
+    // inputをリセットして同じファイルを再選択可能にする
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleImportConfirm = async () => {
+    if (!importFile) return;
+    setShowImportConfirm(false);
+    try {
+      setImporting(true);
+      const text = await importFile.text();
+      const json = JSON.parse(text);
+      const response = await fetch('/medical/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(json),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'インポートに失敗しました');
+      }
+      toast.success('バックアップを復元しました');
+      loadData();
+    } catch (err) {
+      console.error('インポートエラー:', err);
+      const message = err instanceof Error ? err.message : 'インポートに失敗しました';
+      toast.error(message);
+    } finally {
+      setImporting(false);
+      setImportFile(null);
     }
   };
 
@@ -181,8 +246,7 @@ export default function SavedDataPage() {
         <div className="card">
           <p className="text-gray-600">{error}</p>
           <button
-            className={`${btnHoverClass} mt-4`}
-            style={buttonStyle}
+            className={`${BTN_CLASS} ${HOVER_CLASS} mt-4`}
             onClick={() => router.push('/')}
           >
             戻る
@@ -195,14 +259,40 @@ export default function SavedDataPage() {
   return (
     <div>
       <Header />
-      <h1>保存データ一覧</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+        <h1 className="mb-0">保存データ一覧</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+          >
+            <Download size={16} />
+            {exporting ? 'エクスポート中...' : 'バックアップ'}
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+          >
+            <Upload size={16} />
+            {importing ? '復元中...' : '復元'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+        </div>
+      </div>
 
       {data.length === 0 ? (
         <div className="card">
           <p className="mb-4">保存されたデータはありません。</p>
           <button
-            className={btnHoverClass}
-            style={buttonStyle}
+            className={`${BTN_CLASS} ${HOVER_CLASS}`}
             onClick={() => router.push('/')}
           >
             入力画面へ
@@ -257,8 +347,7 @@ export default function SavedDataPage() {
                     setFilterCompanyName('');
                     setFilterPersonInCharge('');
                   }}
-                  className={btnHoverClass}
-                  style={smallButtonStyle}
+                  className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
                 >
                   <X size={16} />
                   クリア
@@ -306,16 +395,14 @@ export default function SavedDataPage() {
                       <div className="flex gap-2 justify-center">
                         <button
                           onClick={() => loadRecord(record)}
-                          className={btnHoverClass}
-                          style={smallButtonStyle}
+                          className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
                         >
                           <Upload size={16} />
                           読込
                         </button>
                         <button
-                          onClick={() => deleteRecord(record.id)}
-                          className={btnHoverClass}
-                          style={smallButtonStyle}
+                          onClick={() => setDeleteTargetId(record.id)}
+                          className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
                         >
                           <Trash2 size={16} />
                           削除
@@ -331,8 +418,7 @@ export default function SavedDataPage() {
           <div className="mt-6">
             <button
               onClick={() => router.push('/')}
-              className={btnHoverClass}
-              style={buttonStyle}
+              className={`${BTN_CLASS} ${HOVER_CLASS}`}
             >
               <ArrowLeft size={20} />
               入力画面へ戻る
@@ -340,6 +426,30 @@ export default function SavedDataPage() {
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={!!deleteTargetId}
+        onConfirm={() => {
+          if (deleteTargetId) {
+            deleteRecord(deleteTargetId);
+          }
+          setDeleteTargetId(null);
+        }}
+        onCancel={() => setDeleteTargetId(null)}
+        title="削除の確認"
+        message="このデータを削除しますか？"
+      />
+
+      <ConfirmDialog
+        isOpen={showImportConfirm}
+        onConfirm={handleImportConfirm}
+        onCancel={() => {
+          setShowImportConfirm(false);
+          setImportFile(null);
+        }}
+        title="復元の確認"
+        message={"既存データを全て置換しますがよろしいですか？\nこの操作は取り消せません。"}
+      />
     </div>
   );
 }

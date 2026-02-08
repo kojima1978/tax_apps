@@ -12,14 +12,11 @@ import {
 } from 'lucide-react';
 import type { CategoryData, DocumentItem, CustomDocumentItem } from '../constants/documents';
 import { exportToExcel } from '../utils/excelExporter';
-import { readJsonFile, validateImportData, type ExportData } from '../utils/jsonDataManager';
+import { type ExportData } from '../utils/jsonDataManager';
+import { isCustomDocument, formatDate, formatDeadline } from '../utils/helpers';
 import { getIcon } from '../utils/iconMap';
 import { StepIndicator } from './StepIndicator';
-
-// カスタム書類かどうかを判定
-function isCustomDocument(doc: DocumentItem | CustomDocumentItem): doc is CustomDocumentItem {
-  return 'isCustom' in doc && doc.isCustom === true;
-}
+import { useJsonImport } from '../hooks/useJsonImport';
 
 interface ResultScreenProps {
   results: { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[];
@@ -32,23 +29,6 @@ interface ResultScreenProps {
   onImportJson: (data: ExportData) => void;
 }
 
-// 日付フォーマット
-function formatCurrentDate(): string {
-  return new Date().toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-}
-
-function formatDeadline(deadline: string): string {
-  return new Date(deadline).toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
-
 // カテゴリテーブルコンポーネント
 interface CategoryTableProps {
   category: CategoryData;
@@ -56,7 +36,6 @@ interface CategoryTableProps {
 }
 
 const CategoryTable = memo(function CategoryTable({ category, documents }: CategoryTableProps) {
-  // canDelegateを持つドキュメント型
   type DocWithCanDelegate = (DocumentItem | CustomDocumentItem) & { canDelegate?: boolean };
 
   return (
@@ -147,9 +126,8 @@ function ResultScreenComponent({
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
-  const currentDate = formatCurrentDate();
+  const { isImporting, importError, handleJsonImport, clearImportError } = useJsonImport(onImportJson);
+  const currentDate = formatDate(new Date());
 
   const handlePrint = () => {
     window.print();
@@ -172,32 +150,6 @@ function ResultScreenComponent({
       setExportError('Excelファイルの出力に失敗しました。もう一度お試しください。');
     } finally {
       setIsExporting(false);
-    }
-  };
-
-  const handleJsonImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsImporting(true);
-    setImportError(null);
-
-    try {
-      const data = await readJsonFile(file);
-      const validation = validateImportData(data);
-
-      if (!validation.isValid) {
-        setImportError(validation.error || 'データの検証に失敗しました。');
-        return;
-      }
-
-      onImportJson(data as ExportData);
-      alert('データを読み込みました。');
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'ファイルの読み込みに失敗しました。');
-    } finally {
-      setIsImporting(false);
-      e.target.value = '';
     }
   };
 
@@ -270,7 +222,7 @@ function ResultScreenComponent({
           <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           {importError}
           <button
-            onClick={() => setImportError(null)}
+            onClick={clearImportError}
             className="ml-auto text-red-500 hover:text-red-700"
           >
             <X className="w-4 h-4" />

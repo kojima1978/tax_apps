@@ -1,10 +1,6 @@
 import XLSX from 'xlsx-js-style';
 import type { CategoryData, DocumentItem, CustomDocumentItem } from '../constants/documents';
-
-// カスタム書類かどうかを判定
-function isCustomDocument(doc: DocumentItem | CustomDocumentItem): doc is CustomDocumentItem {
-  return 'isCustom' in doc && doc.isCustom === true;
-}
+import { isCustomDocument, formatDate, formatDeadline } from './helpers';
 
 export interface ExcelExportParams {
   results: { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[];
@@ -18,7 +14,7 @@ export interface ExcelExportParams {
 const styles = {
   title: {
     font: { bold: true, sz: 18, color: { rgb: 'FFFFFF' } },
-    fill: { fgColor: { rgb: '1E3A8A' } }, // blue-800
+    fill: { fgColor: { rgb: '1E3A8A' } },
     alignment: { horizontal: 'center', vertical: 'center' },
   },
   subTitle: {
@@ -27,12 +23,12 @@ const styles = {
   },
   badge: {
     font: { bold: true, sz: 10, color: { rgb: '065F46' } },
-    fill: { fgColor: { rgb: 'D1FAE5' } }, // emerald-100
+    fill: { fgColor: { rgb: 'D1FAE5' } },
     alignment: { horizontal: 'left', vertical: 'center' },
   },
   clientInfo: {
     font: { sz: 11, color: { rgb: '1F2937' } },
-    fill: { fgColor: { rgb: 'DBEAFE' } }, // blue-100
+    fill: { fgColor: { rgb: 'DBEAFE' } },
     alignment: { horizontal: 'left', vertical: 'center' },
     border: {
       top: { style: 'thin', color: { rgb: '93C5FD' } },
@@ -43,17 +39,17 @@ const styles = {
   },
   noticeHeader: {
     font: { bold: true, sz: 11, color: { rgb: 'B45309' } },
-    fill: { fgColor: { rgb: 'FEF3C7' } }, // amber-100
+    fill: { fgColor: { rgb: 'FEF3C7' } },
     alignment: { horizontal: 'left', vertical: 'center' },
   },
   noticeText: {
     font: { sz: 10, color: { rgb: '92400E' } },
-    fill: { fgColor: { rgb: 'FFFBEB' } }, // amber-50
+    fill: { fgColor: { rgb: 'FFFBEB' } },
     alignment: { horizontal: 'left', vertical: 'center', wrapText: false },
   },
   categoryHeader: {
     font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
-    fill: { fgColor: { rgb: '1E40AF' } }, // blue-700
+    fill: { fgColor: { rgb: '1E40AF' } },
     alignment: { horizontal: 'left', vertical: 'center' },
     border: {
       top: { style: 'thin', color: { rgb: '1E3A8A' } },
@@ -64,7 +60,7 @@ const styles = {
   },
   tableHeader: {
     font: { bold: true, sz: 11, color: { rgb: '374151' } },
-    fill: { fgColor: { rgb: 'F3F4F6' } }, // slate-100
+    fill: { fgColor: { rgb: 'F3F4F6' } },
     alignment: { horizontal: 'center', vertical: 'center' },
     border: {
       top: { style: 'thin', color: { rgb: 'D1D5DB' } },
@@ -85,7 +81,7 @@ const styles = {
   },
   documentCellAlt: {
     font: { sz: 11, color: { rgb: '1F2937' } },
-    fill: { fgColor: { rgb: 'F9FAFB' } }, // slate-50
+    fill: { fgColor: { rgb: 'F9FAFB' } },
     alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
     border: {
       top: { style: 'thin', color: { rgb: 'E5E7EB' } },
@@ -121,26 +117,21 @@ const styles = {
   },
 } as const;
 
-/**
- * 日付を日本語形式でフォーマット
- */
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
+/** A〜E列を結合する行を追加（注意事項、カテゴリヘッダー用） */
+function pushMergedRow(wsData: object[][], mergeRows: number[], text: string, style: object): void {
+  mergeRows.push(wsData.length);
+  wsData.push([
+    { v: text, s: style },
+    { v: '', s: style },
+    { v: '', s: style },
+    { v: '', s: style },
+    { v: '', s: style },
+  ]);
 }
 
-/**
- * 期限日を日本語形式でフォーマット
- */
-function formatDeadline(deadline: string): string {
-  return new Date(deadline).toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+/** 空行を追加 */
+function pushEmptyRow(wsData: object[][]): void {
+  wsData.push([]);
 }
 
 /**
@@ -150,20 +141,15 @@ export function exportToExcel(params: ExcelExportParams): void {
   const { results, isFullListMode, clientName, deceasedName, deadline } = params;
   const exportDate = formatDate(new Date());
 
-  // ワークブック作成
   const wb = XLSX.utils.book_new();
   const wsData: object[][] = [];
 
   // タイトル行
   wsData.push([{ v: '相続税申告 資料準備ガイド', s: styles.title }]);
-
-  // サブタイトル
   wsData.push([{ v: `発行日: ${exportDate}`, s: styles.subTitle }]);
   wsData.push([{ v: '税理士法人 マスエージェント', s: styles.subTitle }]);
   wsData.push([{ v: isFullListMode ? '【全リスト表示】' : '【お客様専用リスト】', s: styles.badge }]);
-
-  // 空行
-  wsData.push([]);
+  pushEmptyRow(wsData);
 
   // 基本情報（入力されている場合）
   if (clientName || deceasedName || deadline) {
@@ -174,68 +160,23 @@ export function exportToExcel(params: ExcelExportParams): void {
       infoRow.push({ v: `資料収集期限: ${formatDeadline(deadline)}`, s: styles.clientInfo });
     }
     wsData.push(infoRow);
-    wsData.push([]);
+    pushEmptyRow(wsData);
   }
 
-  // セル結合用の配列（注意事項・留意事項行を追跡）
+  // セル結合用の配列
   const noticeRows: number[] = [];
+  const categoryHeaderRows: number[] = [];
 
   // 注意事項
-  wsData.push([
-    { v: '【ご確認ください】', s: styles.noticeHeader },
-    { v: '', s: styles.noticeHeader },
-    { v: '', s: styles.noticeHeader },
-    { v: '', s: styles.noticeHeader },
-    { v: '', s: styles.noticeHeader },
-  ]);
-  noticeRows.push(wsData.length - 1);
-
-  wsData.push([
-    { v: '・資料は原本、コピー、データなどどのような形でお送りいただいても結構です。原本はスキャンやコピーを行った後、すべてお返しいたします。', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-  ]);
-  noticeRows.push(wsData.length - 1);
-
-  wsData.push([
-    { v: '・「取得代行可」の書類は弊社で取得代行を行うことが可能です。詳しくは担当者にお尋ねください。', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-  ]);
-  noticeRows.push(wsData.length - 1);
-
-  wsData.push([
-    { v: '・身分関係書類は原則として相続開始日から10日を経過した日以後に取得したものが必要となります。', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-  ]);
-  noticeRows.push(wsData.length - 1);
-
-  // 空行
-  wsData.push([]);
-
-  // セル結合用の配列（カテゴリヘッダー行を追跡）
-  const categoryHeaderRows: number[] = [];
+  pushMergedRow(wsData, noticeRows, '【ご確認ください】', styles.noticeHeader);
+  pushMergedRow(wsData, noticeRows, '・資料は原本、コピー、データなどどのような形でお送りいただいても結構です。原本はスキャンやコピーを行った後、すべてお返しいたします。', styles.noticeText);
+  pushMergedRow(wsData, noticeRows, '・「取得代行可」の書類は弊社で取得代行を行うことが可能です。詳しくは担当者にお尋ねください。', styles.noticeText);
+  pushMergedRow(wsData, noticeRows, '・身分関係書類は原則として相続開始日から10日を経過した日以後に取得したものが必要となります。', styles.noticeText);
+  pushEmptyRow(wsData);
 
   // 各カテゴリのデータ
   results.forEach(({ category, documents }) => {
-    // カテゴリヘッダー行番号を記録
-    categoryHeaderRows.push(wsData.length);
-
-    // カテゴリヘッダー
-    wsData.push([
-      { v: `■ ${category.name}（${documents.length}件）`, s: styles.categoryHeader },
-      { v: '', s: styles.categoryHeader },
-      { v: '', s: styles.categoryHeader },
-      { v: '', s: styles.categoryHeader },
-      { v: '', s: styles.categoryHeader },
-    ]);
+    pushMergedRow(wsData, categoryHeaderRows, `■ ${category.name}（${documents.length}件）`, styles.categoryHeader);
 
     // テーブルヘッダー
     wsData.push([
@@ -263,51 +204,19 @@ export function exportToExcel(params: ExcelExportParams): void {
       ]);
     });
 
-    // カテゴリ間の空行
-    wsData.push([]);
+    pushEmptyRow(wsData);
   });
 
   // 留意事項
-  wsData.push([
-    { v: '【ご留意事項】', s: styles.noticeHeader },
-    { v: '', s: styles.noticeHeader },
-    { v: '', s: styles.noticeHeader },
-    { v: '', s: styles.noticeHeader },
-    { v: '', s: styles.noticeHeader },
-  ]);
-  noticeRows.push(wsData.length - 1);
-
-  wsData.push([
-    { v: '・原本が必要な書類と、コピーで対応可能な書類がございます。ご不明な点は担当者にご確認ください。', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-  ]);
-  noticeRows.push(wsData.length - 1);
-
-  wsData.push([
-    { v: '・公的機関（市役所等）で取得する証明書は、原則として発行後3ヶ月以内のものをご用意ください。', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-    { v: '', s: styles.noticeText },
-  ]);
-  noticeRows.push(wsData.length - 1);
+  pushMergedRow(wsData, noticeRows, '【ご留意事項】', styles.noticeHeader);
+  pushMergedRow(wsData, noticeRows, '・原本が必要な書類と、コピーで対応可能な書類がございます。ご不明な点は担当者にご確認ください。', styles.noticeText);
+  pushMergedRow(wsData, noticeRows, '・公的機関（市役所等）で取得する証明書は、原則として発行後3ヶ月以内のものをご用意ください。', styles.noticeText);
 
   if (isFullListMode) {
-    wsData.push([
-      { v: '・本リストは「全項目表示」モードで出力されています。お客様の状況により不要な書類も含まれていますのでご注意ください。', s: styles.noticeText },
-      { v: '', s: styles.noticeText },
-      { v: '', s: styles.noticeText },
-      { v: '', s: styles.noticeText },
-      { v: '', s: styles.noticeText },
-    ]);
-    noticeRows.push(wsData.length - 1);
+    pushMergedRow(wsData, noticeRows, '・本リストは「全項目表示」モードで出力されています。お客様の状況により不要な書類も含まれていますのでご注意ください。', styles.noticeText);
   }
 
-  // 空行
-  wsData.push([]);
+  pushEmptyRow(wsData);
 
   // フッター
   wsData.push([{ v: '〒770-0002 徳島県徳島市春日２丁目３番３３号 / TEL 088-632-6228 / FAX 088-631-9870', s: styles.footer }]);
@@ -329,7 +238,7 @@ export function exportToExcel(params: ExcelExportParams): void {
     { hpt: 35 }, // タイトル行
   ];
 
-  // 印刷設定（すべての列を1ページに印刷）
+  // 印刷設定
   ws['!pageSetup'] = {
     fitToWidth: 1,
     fitToHeight: 0,
@@ -345,12 +254,10 @@ export function exportToExcel(params: ExcelExportParams): void {
     { s: { r: 3, c: 0 }, e: { r: 3, c: 4 } }, // モード表示
   ];
 
-  // カテゴリヘッダー行のセル結合（A列〜E列を結合）
   categoryHeaderRows.forEach((rowNum) => {
     merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 4 } });
   });
 
-  // 注意事項・留意事項行のセル結合（A列〜E列を結合）
   noticeRows.forEach((rowNum) => {
     merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 4 } });
   });
@@ -364,6 +271,5 @@ export function exportToExcel(params: ExcelExportParams): void {
   if (clientName) fileName += `_${clientName}`;
   fileName += `_${exportDate.replace(/\//g, '')}.xlsx`;
 
-  // ダウンロード
   XLSX.writeFile(wb, fileName);
 }

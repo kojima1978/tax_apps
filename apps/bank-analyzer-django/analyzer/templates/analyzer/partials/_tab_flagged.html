@@ -1,0 +1,75 @@
+{% load humanize %}
+{% load japanese_date %}
+
+<div class="tab-pane fade" id="flagged" role="tabpanel" aria-labelledby="flagged-tab">
+    <div class="glass-card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0 text-info"><i class="bi bi-pin-angle"></i> 付箋付き取引</h4>
+            {% if flagged_txs %}
+            <a href="{% url 'export-csv' case.pk 'flagged' %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-download"></i> CSV出力
+            </a>
+            {% endif %}
+        </div>
+        <p class="text-muted">
+            後で確認したい取引に付箋を付けることができます。各タブの取引一覧で📌ボタンをクリックして付箋を追加できます。
+        </p>
+
+        {% if flagged_txs %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle table-sm">
+                <thead>
+                    <tr>
+                        <th>日付</th>
+                        <th>銀行名</th>
+                        <th>支店名</th>
+                        <th>種別</th>
+                        <th>口座番号</th>
+                        <th>摘要</th>
+                        <th>出金</th>
+                        <th>入金</th>
+                        <th>分類</th>
+                        <th>メモ</th>
+                        <th>詳細</th>
+                        <th>付箋</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in flagged_txs %}
+                    <tr>
+                        <td>{{ tx.date|wareki_short }}</td>
+                        <td>{{ tx.bank_name|default:"-" }}</td>
+                        <td>{{ tx.branch_name|default:"-" }}</td>
+                        <td>{{ tx.account_type|default:"-" }}</td>
+                        <td>{{ tx.account_id|default:"-" }}</td>
+                        <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
+                        <td class="text-end text-danger">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
+                        <td class="text-end text-success">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>
+                        <td><span class="badge bg-secondary">{{ tx.category|default:"-" }}</span></td>
+                        <td style="max-width: 150px;" class="text-truncate" title="{{ tx.memo|default:'' }}">
+                            <small class="text-muted">{{ tx.memo|default:"-"|truncatechars:30 }}</small>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editModal" data-tx-id="{{ tx.id }}" data-tx-date="{{ tx.date|date:'Y-m-d' }}" data-tx-desc="{{ tx.description }}" data-tx-amount-out="{{ tx.amount_out }}" data-tx-amount-in="{{ tx.amount_in }}" data-tx-balance="{{ tx.balance|default:'' }}" data-tx-cat="{{ tx.category|default:'' }}" data-tx-memo="{{ tx.memo|default:'' }}" data-tx-bank="{{ tx.bank_name|default:'' }}" data-tx-branch="{{ tx.branch_name|default:'' }}" data-tx-account-type="{{ tx.account_type|default:'' }}" data-tx-account="{{ tx.account_id|default:'' }}">詳細</button>
+                            </div>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-info flag-btn"
+                                data-tx-id="{{ tx.id }}" data-source-tab="flagged"
+                                title="付箋を外す">
+                                📌
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> 付箋が付いた取引はありません。取引一覧で📌ボタンをクリックして付箋を追加できます。
+        </div>
+        {% endif %}
+    </div>
+</div>

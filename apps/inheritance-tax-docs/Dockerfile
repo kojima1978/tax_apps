@@ -1,60 +1,122 @@
-# ============================================
-# 相続税申告 資料準備ガイド - Dockerfile
-# ============================================
+# syntax=docker/dockerfile:1
 
-# ベースイメージ
-FROM node:24-alpine AS base
+# =============================================================================
+# 相続税申告 資料準備ガイド - Dockerfile
+# Multi-stage build for development and production
+# =============================================================================
+
+# =============================================================================
+# Build Arguments
+# =============================================================================
+ARG NODE_VERSION=22
+
+# =============================================================================
+# Base stage - Common configuration
+# =============================================================================
+FROM node:${NODE_VERSION}-alpine AS base
+
+# Install security updates
+RUN apk upgrade --no-cache
+
 WORKDIR /app
 
-# 依存関係のインストール用ステージ
-FROM base AS deps
-COPY package.json package-lock.json ./
-RUN npm ci
+# Disable telemetry
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# 開発用ステージ
-FROM base AS dev
+# =============================================================================
+# Dependencies stage - Install npm packages
+# =============================================================================
+FROM base AS deps
+
+# Copy only package files first (better layer caching)
 COPY package.json package-lock.json ./
-RUN npm install
-COPY . .
+
+# Install dependencies with caching
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
+
+# =============================================================================
+# Development stage - For local development with hot reload
+# =============================================================================
+FROM base AS dev
+
+ENV NODE_ENV=development
+
+# Copy dependencies from deps stage
+COPY --from=deps --link /app/node_modules ./node_modules
+
+# Copy source code
+COPY --link . .
+
 EXPOSE 3003
+
+# Use exec form for proper signal handling
 CMD ["npm", "run", "dev", "--", "-p", "3003"]
 
-# ビルド用ステージ
+# =============================================================================
+# Builder stage - Build the production application
+# =============================================================================
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
 
-# 本番用ステージ
+# Build configuration
+ARG NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_ENV=production \
+    NODE_OPTIONS=${NODE_OPTIONS}
+
+# Copy dependencies
+COPY --from=deps --link /app/node_modules ./node_modules
+
+# Copy source files
+COPY --link . .
+
+# Build with persistent cache for faster rebuilds
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build && \
+    rm -rf node_modules/.cache
+
+# =============================================================================
+# Production runner stage - Minimal, secure production image
+# =============================================================================
 FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=3003
-ENV HOSTNAME="0.0.0.0"
-ENV NEXT_TELEMETRY_DISABLED=1
 
-# 最小限のランタイム依存関係をインストール
-RUN apk add --no-cache curl tini tzdata
+# OCI Image Labels
+LABEL org.opencontainers.image.title="Inheritance Tax Docs" \
+      org.opencontainers.image.description="相続税申告 資料準備ガイド" \
+      org.opencontainers.image.vendor="税理士法人マスエージェント" \
+      org.opencontainers.image.licenses="Private" \
+      org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# ビルド成果物をコピー
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Environment configuration
+ENV NODE_ENV=production \
+    PORT=3003 \
+    HOSTNAME=0.0.0.0 \
+    TZ=Asia/Tokyo
 
-# 非rootユーザーを作成
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs && \
-    chown -R nextjs:nodejs /app
+# Install runtime dependencies, configure timezone, create non-root user
+RUN apk add --no-cache tini tzdata && \
+    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
+    echo "Asia/Tokyo" > /etc/timezone && \
+    apk del tzdata && \
+    addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --ingroup nodejs nextjs
 
+# Copy built assets with correct ownership
+COPY --from=builder --chown=nextjs:nodejs --link /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/static
+
+# Switch to non-root user
 USER nextjs
 
 EXPOSE 3003
 
-# ヘルスチェック
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:3003/ || exit 1
+# Health check for container orchestration
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
+# Graceful shutdown signal
+STOPSIGNAL SIGTERM
+
+# Use tini as init process for proper signal handling
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "server.js"]

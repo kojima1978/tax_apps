@@ -1,57 +1,137 @@
-# ベースイメージとしてNode.js 24を使用
-FROM node:24-alpine AS base
-WORKDIR /app
-COPY package.json package-lock.json* ./
+# syntax=docker/dockerfile:1
 
-# 依存関係のインストール用ステージ
+# =============================================================================
+# 医療法人株式評価システム - Dockerfile
+# Multi-stage build for development and production
+# =============================================================================
+
+# =============================================================================
+# Build Arguments
+# =============================================================================
+ARG NODE_VERSION=22
+
+# =============================================================================
+# Base stage - Common configuration
+# =============================================================================
+FROM node:${NODE_VERSION}-alpine AS base
+
+# Install security updates
+RUN apk upgrade --no-cache
+
+WORKDIR /app
+
+# Disable telemetry
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# =============================================================================
+# Dependencies stage - Install npm packages
+# =============================================================================
 FROM base AS deps
-# python3とmake、g++をインストール（better-sqlite3のビルドに必要）
+
+# better-sqlite3 のネイティブビルドに必要
 RUN apk add --no-cache libc6-compat python3 make g++ pkgconfig
-RUN npm ci
 
-# 開発用ステージ
+# Copy only package files first (better layer caching)
+COPY package.json package-lock.json ./
+
+# Install dependencies with caching
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
+
+# =============================================================================
+# Development stage - For local development with hot reload
+# =============================================================================
 FROM base AS dev
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-CMD ["npm", "run", "dev"]
 
-# ビルド用ステージ
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-RUN npm run build
+# better-sqlite3 ランタイムに必要
+RUN apk add --no-cache libc6-compat
 
-# 本番環境用ステージ
-FROM node:24-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3010
-ENV HOSTNAME="0.0.0.0"
+ENV NODE_ENV=development
 
-# 最小限のランタイム依存のみインストール
-RUN apk add --no-cache libc6-compat tini tzdata
+# Copy dependencies from deps stage
+COPY --from=deps --link /app/node_modules ./node_modules
 
-# 必要なファイルのみをコピー
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# セキュリティのため非rootユーザーを作成
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+# Copy source code
+COPY --link . .
 
 # データベースディレクトリを作成
+RUN mkdir -p /app/data
+
+EXPOSE 3010
+
+# Use exec form for proper signal handling
+CMD ["npm", "run", "dev"]
+
+# =============================================================================
+# Builder stage - Build the production application
+# =============================================================================
+FROM base AS builder
+
+# better-sqlite3 ランタイムに必要
+RUN apk add --no-cache libc6-compat
+
+# Build configuration
+ARG NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_ENV=production \
+    NODE_OPTIONS=${NODE_OPTIONS}
+
+# Copy dependencies
+COPY --from=deps --link /app/node_modules ./node_modules
+
+# Copy source files
+COPY --link . .
+
+# Build with persistent cache for faster rebuilds
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build && \
+    rm -rf node_modules/.cache
+
+# =============================================================================
+# Production runner stage - Minimal, secure production image
+# =============================================================================
+FROM base AS runner
+
+# OCI Image Labels
+LABEL org.opencontainers.image.title="Medical Stock Valuation" \
+      org.opencontainers.image.description="医療法人株式評価システム" \
+      org.opencontainers.image.vendor="税理士法人マスエージェント" \
+      org.opencontainers.image.licenses="Private" \
+      org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
+
+# Environment configuration
+ENV NODE_ENV=production \
+    PORT=3010 \
+    HOSTNAME=0.0.0.0 \
+    TZ=Asia/Tokyo
+
+# Install runtime dependencies, configure timezone, create non-root user
+RUN apk add --no-cache libc6-compat tini tzdata && \
+    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
+    echo "Asia/Tokyo" > /etc/timezone && \
+    apk del tzdata && \
+    addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --ingroup nodejs nextjs
+
+# Copy built assets with correct ownership
+COPY --from=builder --chown=nextjs:nodejs --link /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/static
+
+# データベースディレクトリを作成（書き込み権限）
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
 
+# Switch to non-root user
 USER nextjs
 
 EXPOSE 3010
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD node -e "fetch('http://localhost:3010/medical/').then(r=>{if(!r.ok)throw r;process.exit(0)}).catch(()=>process.exit(1))"
+# Health check for container orchestration
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3010/medical/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
+# Graceful shutdown signal
+STOPSIGNAL SIGTERM
+
+# Use tini as init process for proper signal handling
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "server.js"]

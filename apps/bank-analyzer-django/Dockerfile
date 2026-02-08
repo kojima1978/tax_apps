@@ -1,7 +1,8 @@
+# syntax=docker/dockerfile:1
+
 # ============================================
 # Bank Analyzer Django - Dockerfile
 # ============================================
-# syntax=docker/dockerfile:1
 
 ARG PYTHON_VERSION=3.12
 
@@ -31,9 +32,8 @@ LABEL org.opencontainers.image.title="Bank Analyzer Django" \
 
 WORKDIR /app
 
-# ランタイム依存（curl: ヘルスチェック用、tini: initシステム）
+# ランタイム依存（tini: initシステム）
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
     tini \
     && rm -rf /var/lib/apt/lists/*
 
@@ -55,8 +55,10 @@ RUN sed -i 's/\r$//' /docker-entrypoint.sh && \
 # アプリケーションコード
 COPY --chown=appuser:appgroup . .
 
-# ディレクトリ作成・権限設定
+# ディレクトリ作成・権限設定 + 静的ファイルのビルド時収集
 RUN mkdir -p data staticfiles db && \
+    DJANGO_SECRET_KEY=build-only-dummy-key \
+    python manage.py collectstatic --noinput && \
     chown -R appuser:appgroup /app
 
 # Python設定
@@ -72,7 +74,7 @@ ENV GUNICORN_WORKERS=2 \
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -f --silent http://localhost:8000/health/ || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')"
 
 USER appuser
 

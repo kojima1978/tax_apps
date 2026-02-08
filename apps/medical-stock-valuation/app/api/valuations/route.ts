@@ -3,6 +3,37 @@ import { getDatabase } from '@/lib/db';
 import { withErrorHandler } from '@/lib/api-utils';
 import type { Company, User, FinancialData, Investor as DBInvestor, ValuationWithRelations } from '@/lib/db-types';
 
+type FinancialDataRow = Omit<FinancialData, 'id' | 'created_at' | 'updated_at'>;
+type InvestorRow = Pick<DBInvestor, 'investor_name' | 'shares_held' | 'shareholding_ratio'> & { valuation_id: string };
+
+function mapValuationToResponse(
+  valuation: ValuationWithRelations,
+  financialData: FinancialDataRow | undefined,
+  investors: Pick<DBInvestor, 'investor_name' | 'shares_held' | 'shareholding_ratio'>[]
+) {
+  return {
+    id: valuation.id,
+    fiscalYear: valuation.fiscal_year,
+    companyName: valuation.company_name,
+    personInCharge: valuation.person_in_charge,
+    employees: financialData?.employees || '',
+    totalAssets: financialData?.total_assets || '',
+    sales: financialData?.sales || '',
+    currentPeriodNetAsset: financialData?.current_period_net_asset || 0,
+    previousPeriodNetAsset: financialData?.previous_period_net_asset || 0,
+    netAssetTaxValue: financialData?.net_asset_tax_value || 0,
+    currentPeriodProfit: financialData?.current_period_profit || 0,
+    previousPeriodProfit: financialData?.previous_period_profit || 0,
+    previousPreviousPeriodProfit: financialData?.previous_previous_period_profit || 0,
+    investors: investors.map((inv) => ({
+      name: inv.investor_name,
+      amount: inv.shares_held,
+    })),
+    created_at: valuation.created_at,
+    updated_at: valuation.updated_at,
+  };
+}
+
 export async function POST(request: NextRequest) {
   return withErrorHandler(async () => {
     const data = await request.json();
@@ -160,7 +191,7 @@ export async function POST(request: NextRequest) {
         `);
 
         // 総出資金額を計算
-        const totalAmount = investors.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+        const totalAmount = investors.reduce((sum: number, inv: { amount?: number }) => sum + (inv.amount || 0), 0);
 
         for (const investor of investors) {
           const amount = investor.amount || 0;
@@ -212,57 +243,21 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // 財務データを取得
       const financialData = db.prepare(`
-        SELECT
-          employees,
-          total_assets,
-          sales,
-          current_period_net_asset,
-          previous_period_net_asset,
-          net_asset_tax_value,
-          current_period_profit,
-          previous_period_profit,
-          previous_previous_period_profit
+        SELECT *
         FROM financial_data
         WHERE valuation_id = ?
-      `).get(id) as Omit<FinancialData, 'id' | 'valuation_id' | 'created_at' | 'updated_at'> | undefined;
+      `).get(id) as FinancialDataRow | undefined;
 
-      // 投資家データを取得
       const investors = db.prepare(`
-        SELECT
-          investor_name,
-          shares_held,
-          shareholding_ratio
+        SELECT investor_name, shares_held, shareholding_ratio
         FROM investors
         WHERE valuation_id = ?
       `).all(id) as Pick<DBInvestor, 'investor_name' | 'shares_held' | 'shareholding_ratio'>[];
 
-      const result = {
-        id: valuation.id,
-        fiscalYear: valuation.fiscal_year,
-        companyName: valuation.company_name,
-        personInCharge: valuation.person_in_charge,
-        employees: financialData?.employees || '',
-        totalAssets: financialData?.total_assets || '',
-        sales: financialData?.sales || '',
-        currentPeriodNetAsset: financialData?.current_period_net_asset || 0,
-        previousPeriodNetAsset: financialData?.previous_period_net_asset || 0,
-        netAssetTaxValue: financialData?.net_asset_tax_value || 0,
-        currentPeriodProfit: financialData?.current_period_profit || 0,
-        previousPeriodProfit: financialData?.previous_period_profit || 0,
-        previousPreviousPeriodProfit: financialData?.previous_previous_period_profit || 0,
-        investors: investors.map((inv) => ({
-          name: inv.investor_name,
-          amount: inv.shares_held,
-        })),
-        created_at: valuation.created_at,
-        updated_at: valuation.updated_at,
-      };
-
-      return NextResponse.json(result);
+      return NextResponse.json(mapValuationToResponse(valuation, financialData, investors));
     } else {
-      // 全データを取得
+      // 全データを一括取得（N+1解消）
       const valuations = db.prepare(`
         SELECT
           v.id,
@@ -277,55 +272,43 @@ export async function GET(request: NextRequest) {
         ORDER BY v.updated_at DESC
       `).all() as ValuationWithRelations[];
 
-      const results = valuations.map((valuation) => {
-        // 各評価の財務データを取得
-        const financialData = db.prepare(`
-          SELECT
-            employees,
-            total_assets,
-            sales,
-            current_period_net_asset,
-            previous_period_net_asset,
-            net_asset_tax_value,
-            current_period_profit,
-            previous_period_profit,
-            previous_previous_period_profit
-          FROM financial_data
-          WHERE valuation_id = ?
-        `).get(valuation.id) as Omit<FinancialData, 'id' | 'valuation_id' | 'created_at' | 'updated_at'> | undefined;
+      if (valuations.length === 0) {
+        return NextResponse.json([]);
+      }
 
-        // 各評価の投資家データを取得
-        const investors = db.prepare(`
-          SELECT
-            investor_name,
-            shares_held,
-            shareholding_ratio
-          FROM investors
-          WHERE valuation_id = ?
-        `).all(valuation.id) as Pick<DBInvestor, 'investor_name' | 'shares_held' | 'shareholding_ratio'>[];
+      // 全財務データを一括取得
+      const allFinancialData = db.prepare(`
+        SELECT *
+        FROM financial_data
+        WHERE valuation_id IN (${valuations.map(() => '?').join(',')})
+      `).all(...valuations.map(v => v.id)) as FinancialDataRow[];
 
-        return {
-          id: valuation.id,
-          fiscalYear: valuation.fiscal_year,
-          companyName: valuation.company_name,
-          personInCharge: valuation.person_in_charge,
-          employees: financialData?.employees || '',
-          totalAssets: financialData?.total_assets || '',
-          sales: financialData?.sales || '',
-          currentPeriodNetAsset: financialData?.current_period_net_asset || 0,
-          previousPeriodNetAsset: financialData?.previous_period_net_asset || 0,
-          netAssetTaxValue: financialData?.net_asset_tax_value || 0,
-          currentPeriodProfit: financialData?.current_period_profit || 0,
-          previousPeriodProfit: financialData?.previous_period_profit || 0,
-          previousPreviousPeriodProfit: financialData?.previous_previous_period_profit || 0,
-          investors: investors.map((inv) => ({
-            name: inv.investor_name,
-            amount: inv.shares_held,
-          })),
-          created_at: valuation.created_at,
-          updated_at: valuation.updated_at,
-        };
-      });
+      const financialDataMap = new Map<string, FinancialDataRow>();
+      for (const fd of allFinancialData) {
+        financialDataMap.set(fd.valuation_id, fd);
+      }
+
+      // 全投資家データを一括取得
+      const allInvestors = db.prepare(`
+        SELECT valuation_id, investor_name, shares_held, shareholding_ratio
+        FROM investors
+        WHERE valuation_id IN (${valuations.map(() => '?').join(',')})
+      `).all(...valuations.map(v => v.id)) as InvestorRow[];
+
+      const investorsMap = new Map<string, Pick<DBInvestor, 'investor_name' | 'shares_held' | 'shareholding_ratio'>[]>();
+      for (const inv of allInvestors) {
+        const list = investorsMap.get(inv.valuation_id) || [];
+        list.push(inv);
+        investorsMap.set(inv.valuation_id, list);
+      }
+
+      const results = valuations.map((valuation) =>
+        mapValuationToResponse(
+          valuation,
+          financialDataMap.get(valuation.id),
+          investorsMap.get(valuation.id) || []
+        )
+      );
 
       return NextResponse.json(results);
     }

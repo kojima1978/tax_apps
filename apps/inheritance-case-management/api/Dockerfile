@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1
 
 FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+RUN apk upgrade --no-cache && \
+    corepack enable && corepack prepare pnpm@9.15.4 --activate
+
 WORKDIR /app
 
 # Install dependencies
@@ -50,7 +53,15 @@ RUN pnpm --filter @inheritance-case-management/api build
 
 # Production image
 FROM node:22-alpine AS runner
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+LABEL org.opencontainers.image.title="ITCM Backend" \
+      org.opencontainers.image.description="相続税案件管理システム API" \
+      org.opencontainers.image.vendor="税理士法人マスエージェント"
+
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tini && \
+    corepack enable && corepack prepare pnpm@9.15.4 --activate
+
 WORKDIR /app
 
 # Copy built files
@@ -86,5 +97,10 @@ RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/
 
 EXPOSE 3021
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3021/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
+
+STOPSIGNAL SIGTERM
+
+ENTRYPOINT ["/sbin/tini", "--", "docker-entrypoint.sh"]
 CMD ["node", "dist/index.js"]

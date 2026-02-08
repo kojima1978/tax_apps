@@ -1,10 +1,12 @@
+# syntax=docker/dockerfile:1
+
 # ============================================
 # 相続税早見表アプリケーション
 # Multi-stage Dockerfile
 # ============================================
 
 # Base stage - 共通設定
-FROM node:24-slim AS base
+FROM node:22-slim AS base
 WORKDIR /app
 COPY package*.json ./
 
@@ -40,6 +42,8 @@ RUN npm run build
 # Production stage
 # ============================================
 FROM nginx:1.27-alpine AS runner
+
+RUN apk upgrade --no-cache
 
 LABEL org.opencontainers.image.title="相続税早見表アプリ" \
       org.opencontainers.image.description="相続税額シミュレーションツール" \

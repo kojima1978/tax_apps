@@ -78,6 +78,19 @@ class JsonImportForm(forms.Form):
         return file
 
 
+# カテゴリフィールド名 → 日本語カテゴリ名のマッピング
+CATEGORY_FIELD_MAP = {
+    'cat_life': '生活費',
+    'cat_salary': '給与',
+    'cat_gift': '贈与',
+    'cat_related': '関連会社',
+    'cat_bank': '銀行',
+    'cat_security': '証券・株式',
+    'cat_insurance': '保険会社',
+    'cat_other': 'その他',
+}
+
+
 class SettingsForm(forms.Form):
     """設定フォーム"""
     large_amount_threshold = forms.IntegerField(
@@ -104,52 +117,13 @@ class SettingsForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": "form-control"})
     )
 
-    # 分類パターン設定
-    cat_life = forms.CharField(
-        label="生活費 キーワード",
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-        help_text="カンマ区切りでキーワードを入力"
-    )
-    cat_salary = forms.CharField(
-        label="給与 キーワード",
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-        help_text="カンマ区切りでキーワードを入力"
-    )
-    cat_gift = forms.CharField(
-        label="贈与 キーワード",
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-        help_text="カンマ区切りでキーワードを入力"
-    )
-    cat_related = forms.CharField(
-        label="関連会社 キーワード",
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-        help_text="カンマ区切りでキーワードを入力"
-    )
-    cat_bank = forms.CharField(
-        label="銀行 キーワード",
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-        help_text="カンマ区切りでキーワードを入力"
-    )
-    cat_security = forms.CharField(
-        label="証券・株式 キーワード",
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-        help_text="カンマ区切りでキーワードを入力"
-    )
-    cat_insurance = forms.CharField(
-        label="保険会社 キーワード",
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-        help_text="カンマ区切りでキーワードを入力"
-    )
-    cat_other = forms.CharField(
-        label="その他 キーワード",
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-        help_text="カンマ区切りでキーワードを入力"
-    )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 分類パターンフィールドを動的生成
+        for field_name, category_label in CATEGORY_FIELD_MAP.items():
+            self.fields[field_name] = forms.CharField(
+                label=f"{category_label} キーワード",
+                required=False,
+                widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+                help_text="カンマ区切りでキーワードを入力"
+            )

@@ -1,7 +1,12 @@
+# syntax=docker/dockerfile:1
+
 # Development Dockerfile for API
 FROM node:22-alpine
 
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+RUN apk upgrade --no-cache && apk add --no-cache tini \
+    && corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+ENV NODE_ENV=development
 WORKDIR /app
 
 # Copy workspace config and all package.json files
@@ -10,8 +15,9 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/validation/package.json ./packages/validation/
 COPY apps/inheritance-case-management/api/package.json ./apps/inheritance-case-management/api/
 
-# Install dependencies (allow lockfile updates for workspace subset)
-RUN pnpm install
+# Install dependencies with pnpm store cache
+RUN --mount=type=cache,id=pnpm-store-icm-api-dev,target=/root/.local/share/pnpm/store \
+    pnpm install
 
 # Copy source files (only src and tsconfig, not node_modules)
 COPY packages/shared/src ./packages/shared/src
@@ -24,13 +30,16 @@ COPY apps/inheritance-case-management/api/vitest.config.ts ./apps/inheritance-ca
 COPY apps/inheritance-case-management/api/prisma ./apps/inheritance-case-management/api/prisma
 
 # Build shared packages
-RUN cd packages/shared && ../../node_modules/.bin/tsc && cd ../validation && ../../node_modules/.bin/tsc
+RUN cd packages/shared && ../../node_modules/.bin/tsc \
+    && cd ../validation && ../../node_modules/.bin/tsc
 
 # Generate Prisma client
 WORKDIR /app/apps/inheritance-case-management/api
 RUN pnpm db:generate
 
 EXPOSE 3021
+
+ENTRYPOINT ["/sbin/tini", "--"]
 
 # Run with hot reload (db push for dev, creates tables if not exist)
 CMD ["sh", "-c", "npx prisma db push && pnpm dev"]

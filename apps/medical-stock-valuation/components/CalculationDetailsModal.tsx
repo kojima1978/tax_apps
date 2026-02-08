@@ -2,8 +2,9 @@
 
 import { FormData, CalculationResult } from '@/lib/types';
 import { toWareki } from '@/lib/date-utils';
-import { buttonStyle, buttonHoverClass } from '@/lib/button-styles';
+import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 import { calculatePerShareValue, calculateComparisonRatio, calculateAverageRatio } from '@/lib/calculations';
+import { CORPORATE_TAX_RATE } from '@/lib/constants';
 
 interface CalculationDetailsModalProps {
   isOpen: boolean;
@@ -253,7 +254,7 @@ export default function CalculationDetailsModal({
     const netAssetInheritance = formData.netAssetTaxValue;
     const netAssetBook = formData.currentPeriodNetAsset;
     const evalDiff = netAssetInheritance - netAssetBook;
-    const tax = evalDiff > 0 ? evalDiff * 0.37 : 0;
+    const tax = evalDiff > 0 ? evalDiff * CORPORATE_TAX_RATE : 0;
     const netAssetAdjusted = netAssetInheritance - tax;
     const N = calculatePerShareValue(netAssetAdjusted, totalShares);
 
@@ -300,7 +301,7 @@ export default function CalculationDetailsModal({
               </tr>
               <tr className="border-b">
                 <td className="py-2">法人税等の実効税率</td>
-                <td className="text-right font-mono">37%</td>
+                <td className="text-right font-mono">{Math.round(CORPORATE_TAX_RATE * 100)}%</td>
               </tr>
               <tr className="border-b bg-gray-100">
                 <td className="py-2 font-bold">法人税等相当額</td>
@@ -385,8 +386,7 @@ export default function CalculationDetailsModal({
           <button
             type="button"
             onClick={onClose}
-            className={buttonHoverClass}
-            style={buttonStyle}
+            className={`${BTN_CLASS} ${HOVER_CLASS}`}
           >
             閉じる
           </button>
