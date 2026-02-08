@@ -8,7 +8,7 @@ import {
   X,
   Home,
 } from 'lucide-react';
-import { CATEGORIES, type CustomDocumentItem } from '../constants/documents';
+import { CATEGORIES, type CustomDocumentItem, type CustomSubcategory } from '../constants/documents';
 import { type ExportData } from '../utils/jsonDataManager';
 import { StepIndicator } from './StepIndicator';
 import { CategoryItem } from './ui/CategoryItem';
@@ -28,6 +28,7 @@ interface SelectionScreenProps {
   expandedCategories: Record<string, boolean>;
   deletedDocuments: Record<string, boolean>;
   customDocuments: CustomDocumentItem[];
+  customSubcategories: CustomSubcategory[];
   documentOrder: Record<string, string[]>;
   editedDocuments: Record<string, { name?: string; description?: string; howToGet?: string }>;
   canDelegateOverrides: Record<string, boolean>;
@@ -38,11 +39,16 @@ interface SelectionScreenProps {
   onToggleExpanded: (categoryId: string) => void;
   onDeleteDocument: (docId: string) => void;
   onRestoreDocument: (docId: string) => void;
-  onAddCustomDocument: (categoryId: string, name: string, description: string, howToGet: string) => void;
+  onDeleteAllInCategory: (categoryId: string) => void;
+  onRestoreAllInCategory: (categoryId: string) => void;
+  onAddCustomDocument: (categoryId: string, name: string, description: string, howToGet: string, subcategoryId?: string) => void;
   onRemoveCustomDocument: (docId: string, categoryId: string) => void;
   onReorderDocuments: (categoryId: string, newOrder: string[]) => void;
   onEditDocument: (docId: string, changes: { name?: string; description?: string; howToGet?: string }) => void;
   onToggleCanDelegate: (docId: string, originalCanDelegate: boolean) => void;
+  onAddSubcategory: (categoryId: string, name: string) => void;
+  onEditSubcategory: (subcatId: string, name: string) => void;
+  onRemoveSubcategory: (subcatId: string) => void;
   onRestoreAll: () => void;
   onPreview: () => void;
   onExportJson: () => void;
@@ -56,6 +62,7 @@ function SelectionScreenComponent({
   expandedCategories,
   deletedDocuments,
   customDocuments,
+  customSubcategories,
   documentOrder,
   editedDocuments,
   canDelegateOverrides,
@@ -66,11 +73,16 @@ function SelectionScreenComponent({
   onToggleExpanded,
   onDeleteDocument,
   onRestoreDocument,
+  onDeleteAllInCategory,
+  onRestoreAllInCategory,
   onAddCustomDocument,
   onRemoveCustomDocument,
   onReorderDocuments,
   onEditDocument,
   onToggleCanDelegate,
+  onAddSubcategory,
+  onEditSubcategory,
+  onRemoveSubcategory,
   onRestoreAll,
   onPreview,
   onExportJson,
@@ -212,17 +224,23 @@ function SelectionScreenComponent({
               isExpanded={expandedCategories[category.id] ?? false}
               deletedDocuments={deletedDocuments}
               customDocuments={customDocuments}
+              customSubcategories={customSubcategories}
               documentOrder={documentOrder[category.id] || []}
               editedDocuments={editedDocuments}
               canDelegateOverrides={canDelegateOverrides}
               onToggleExpanded={onToggleExpanded}
               onDeleteDocument={onDeleteDocument}
               onRestoreDocument={onRestoreDocument}
+              onDeleteAllInCategory={onDeleteAllInCategory}
+              onRestoreAllInCategory={onRestoreAllInCategory}
               onAddCustomDocument={onAddCustomDocument}
               onRemoveCustomDocument={onRemoveCustomDocument}
               onReorderDocuments={onReorderDocuments}
               onEditDocument={onEditDocument}
               onToggleCanDelegate={onToggleCanDelegate}
+              onAddSubcategory={onAddSubcategory}
+              onEditSubcategory={onEditSubcategory}
+              onRemoveSubcategory={onRemoveSubcategory}
             />
           ))}
         </div>

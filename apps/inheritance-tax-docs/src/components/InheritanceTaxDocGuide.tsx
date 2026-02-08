@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { CATEGORIES, type CategoryData, type DocumentItem, type CustomDocumentItem } from '../constants/documents';
+import { CATEGORIES, type CategoryData, type DocumentItem, type CustomDocumentItem, type CustomSubcategory } from '../constants/documents';
 import { SelectionScreen } from './SelectionScreen';
 import { ResultScreen } from './ResultScreen';
 import { createExportData, downloadAsJson, type ExportData } from '../utils/jsonDataManager';
@@ -36,6 +36,7 @@ export default function InheritanceTaxDocGuide() {
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => initializeExpanded());
   const [deletedDocuments, setDeletedDocuments] = useState<Record<string, boolean>>({});
   const [customDocuments, setCustomDocuments] = useState<CustomDocumentItem[]>([]);
+  const [customSubcategories, setCustomSubcategories] = useState<CustomSubcategory[]>([]);
   const [documentOrder, setDocumentOrder] = useState<Record<string, string[]>>(() => initializeDocumentOrder());
   const [editedDocuments, setEditedDocuments] = useState<Record<string, { name?: string; description?: string; howToGet?: string }>>({});
   const [canDelegateOverrides, setCanDelegateOverrides] = useState<Record<string, boolean>>({});
@@ -66,10 +67,11 @@ export default function InheritanceTaxDocGuide() {
   }, []);
 
   // カスタム書類を追加
-  const addCustomDocument = useCallback((categoryId: string, name: string, description: string, howToGet: string) => {
+  const addCustomDocument = useCallback((categoryId: string, name: string, description: string, howToGet: string, subcategoryId?: string) => {
     const newDoc: CustomDocumentItem = {
       id: generateId(),
       categoryId,
+      ...(subcategoryId && { subcategoryId }),
       name,
       description,
       howToGet,
@@ -143,6 +145,22 @@ export default function InheritanceTaxDocGuide() {
     });
   }, []);
 
+  // 小分類を追加
+  const addSubcategory = useCallback((categoryId: string, name: string) => {
+    setCustomSubcategories(prev => [...prev, { id: generateId(), categoryId, name }]);
+  }, []);
+
+  // 小分類名を編集
+  const editSubcategory = useCallback((subcatId: string, name: string) => {
+    setCustomSubcategories(prev => prev.map(sc => sc.id === subcatId ? { ...sc, name } : sc));
+  }, []);
+
+  // 小分類を削除（配下の書類も削除）
+  const removeSubcategory = useCallback((subcatId: string) => {
+    setCustomSubcategories(prev => prev.filter(sc => sc.id !== subcatId));
+    setCustomDocuments(prev => prev.filter(doc => doc.subcategoryId !== subcatId));
+  }, []);
+
   // データをJSONでエクスポート
   const exportToJson = useCallback(() => {
     const exportData = createExportData({
@@ -151,12 +169,13 @@ export default function InheritanceTaxDocGuide() {
       deadline,
       deletedDocuments,
       customDocuments,
+      customSubcategories,
       documentOrder,
       editedDocuments,
       canDelegateOverrides,
     });
     downloadAsJson(exportData);
-  }, [clientName, deceasedName, deadline, deletedDocuments, customDocuments, documentOrder, editedDocuments, canDelegateOverrides]);
+  }, [clientName, deceasedName, deadline, deletedDocuments, customDocuments, customSubcategories, documentOrder, editedDocuments, canDelegateOverrides]);
 
   // JSONからデータをインポート
   const importFromJson = useCallback((data: ExportData) => {
@@ -165,19 +184,30 @@ export default function InheritanceTaxDocGuide() {
     setDeadline(data.data.deadline);
     setDeletedDocuments(data.data.deletedDocuments);
     setCustomDocuments(data.data.customDocuments);
+    setCustomSubcategories(data.data.customSubcategories ?? []);
     setDocumentOrder(data.data.documentOrder);
     setEditedDocuments(data.data.editedDocuments);
     setCanDelegateOverrides(data.data.canDelegateOverrides);
   }, []);
 
+  /** canDelegateオーバーライドを適用したカスタム書類を返す */
+  const applyCustomDocOverrides = useCallback((doc: CustomDocumentItem) => {
+    const canDelegateOverride = canDelegateOverrides[doc.id];
+    const finalCanDelegate = canDelegateOverride !== undefined ? canDelegateOverride : false;
+    return { ...doc, canDelegate: finalCanDelegate } as CustomDocumentItem & { canDelegate: boolean };
+  }, [canDelegateOverrides]);
+
   // 選択された（削除されていない）書類を取得（順序付き、編集内容・canDelegate反映）
-  const getSelectedDocuments = useCallback((): { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[] => {
-    const result: { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[] = [];
+  type SubcategoryResult = { name: string; documents: (DocumentItem | CustomDocumentItem)[] };
+  type CategoryResult = { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[]; subcategories: SubcategoryResult[] };
+
+  const getSelectedDocuments = useCallback((): CategoryResult[] => {
+    const result: CategoryResult[] = [];
 
     CATEGORIES.forEach((category) => {
       const order = documentOrder[category.id] || [];
 
-      // 全書類をマップに格納（編集内容とcanDelegateを反映）
+      // デフォルト書類をマップに格納（編集内容とcanDelegateを反映）
       const docMap = new Map<string, DocumentItem | CustomDocumentItem>();
       category.documents.forEach((doc) => {
         if (!deletedDocuments[doc.id]) {
@@ -194,17 +224,11 @@ export default function InheritanceTaxDocGuide() {
           });
         }
       });
+
+      // カテゴリ直下のカスタム書類（subcategoryIdなし）
       customDocuments
-        .filter((doc) => doc.categoryId === category.id)
-        .forEach((doc) => {
-          const canDelegateOverride = canDelegateOverrides[doc.id];
-          // カスタム書類はデフォルトfalse
-          const finalCanDelegate = canDelegateOverride !== undefined ? canDelegateOverride : false;
-          docMap.set(doc.id, {
-            ...doc,
-            canDelegate: finalCanDelegate,
-          } as CustomDocumentItem & { canDelegate: boolean });
-        });
+        .filter((doc) => doc.categoryId === category.id && !doc.subcategoryId)
+        .forEach((doc) => { docMap.set(doc.id, applyCustomDocOverrides(doc)); });
 
       // 順序に従ってソート
       const orderedDocs: (DocumentItem | CustomDocumentItem)[] = [];
@@ -215,16 +239,49 @@ export default function InheritanceTaxDocGuide() {
           docMap.delete(docId);
         }
       });
-      // 順序に含まれない書類を末尾に追加
       docMap.forEach((doc) => orderedDocs.push(doc));
 
-      if (orderedDocs.length > 0) {
-        result.push({ category, documents: orderedDocs });
+      // 小分類とその書類
+      const subcats: SubcategoryResult[] = customSubcategories
+        .filter(sc => sc.categoryId === category.id)
+        .map(sc => ({
+          name: sc.name,
+          documents: customDocuments
+            .filter(doc => doc.subcategoryId === sc.id)
+            .map(applyCustomDocOverrides),
+        }))
+        .filter(sc => sc.documents.length > 0);
+
+      const hasContent = orderedDocs.length > 0 || subcats.length > 0;
+      if (hasContent) {
+        result.push({ category, documents: orderedDocs, subcategories: subcats });
       }
     });
 
     return result;
-  }, [deletedDocuments, customDocuments, documentOrder, editedDocuments, canDelegateOverrides]);
+  }, [deletedDocuments, customDocuments, customSubcategories, documentOrder, editedDocuments, canDelegateOverrides, applyCustomDocOverrides]);
+
+  // カテゴリ内の全書類を一括不要（デフォルト書類のみ）
+  const deleteAllInCategory = useCallback((categoryId: string) => {
+    const category = CATEGORIES.find(c => c.id === categoryId);
+    if (!category) return;
+    setDeletedDocuments(prev => {
+      const newState = { ...prev };
+      category.documents.forEach(doc => { newState[doc.id] = true; });
+      return newState;
+    });
+  }, []);
+
+  // カテゴリ内の全書類を一括復元
+  const restoreAllInCategory = useCallback((categoryId: string) => {
+    const category = CATEGORIES.find(c => c.id === categoryId);
+    if (!category) return;
+    setDeletedDocuments(prev => {
+      const newState = { ...prev };
+      category.documents.forEach(doc => { delete newState[doc.id]; });
+      return newState;
+    });
+  }, []);
 
   // 全復元
   const restoreAll = useCallback(() => {
@@ -250,6 +307,7 @@ export default function InheritanceTaxDocGuide() {
         expandedCategories={expandedCategories}
         deletedDocuments={deletedDocuments}
         customDocuments={customDocuments}
+        customSubcategories={customSubcategories}
         documentOrder={documentOrder}
         editedDocuments={editedDocuments}
         canDelegateOverrides={canDelegateOverrides}
@@ -260,11 +318,16 @@ export default function InheritanceTaxDocGuide() {
         onToggleExpanded={toggleExpanded}
         onDeleteDocument={deleteDocument}
         onRestoreDocument={restoreDocument}
+        onDeleteAllInCategory={deleteAllInCategory}
+        onRestoreAllInCategory={restoreAllInCategory}
         onAddCustomDocument={addCustomDocument}
         onRemoveCustomDocument={removeCustomDocument}
         onReorderDocuments={reorderDocuments}
         onEditDocument={editDocument}
         onToggleCanDelegate={toggleCanDelegate}
+        onAddSubcategory={addSubcategory}
+        onEditSubcategory={editSubcategory}
+        onRemoveSubcategory={removeSubcategory}
         onRestoreAll={restoreAll}
         onPreview={() => setStep('result')}
         onExportJson={exportToJson}

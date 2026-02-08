@@ -13,10 +13,18 @@ export interface DocumentItem {
 export interface CustomDocumentItem {
   id: string;
   categoryId: string;
+  subcategoryId?: string; // 所属する小分類のID（省略時はカテゴリ直下）
   name: string;
   description: string;
   howToGet: string;
   isCustom: true; // カスタム書類であることを示すフラグ
+}
+
+// ユーザーが追加した小分類
+export interface CustomSubcategory {
+  id: string;
+  categoryId: string;
+  name: string;
 }
 
 export interface CategoryData {
@@ -119,89 +127,52 @@ export const CATEGORIES: CategoryData[] = [
     ],
   },
   {
-    id: 'land',
-    name: '土地',
+    id: 'real_estate',
+    name: '不動産（土地・建物）',
     iconName: 'Building',
     color: 'text-amber-700',
     bgColor: 'bg-amber-50',
     borderColor: 'border-amber-200',
     documents: [
       {
-        id: 'land_nayose',
+        id: 'real_estate_nayose',
         name: '固定資産税の納税通知書',
-        description: '被相続人（亡くなった方）がその市区町村内に所有している不動産の一覧表。',
+        description: '被相続人（亡くなった方）が所有している土地・建物の一覧が記載された書類。',
         howToGet: '都税事務所もしくは市町村役場で取得。複数の市区町村に不動産がある場合は各市区町村で取得。',
         canDelegate: true,
       },
       {
-        id: 'land_hyouka',
+        id: 'real_estate_hyouka',
         name: '固定資産評価証明書',
-        description: '固定資産税評価額が記載された書類。',
+        description: '土地・建物の固定資産税評価額が記載された書類。',
         howToGet: '都税事務所もしくは市町村役場の固定資産税担当窓口で取得できます。',
         canDelegate: true,
       },
       {
-        id: 'land_touki',
+        id: 'real_estate_touki',
         name: '登記簿謄本（全部事項証明書）',
-        description: '土地の地番、地積、地目、所有者、所有割合などの情報が記載された書類。',
+        description: '土地・建物の所在、面積、所有者、所有割合などの情報が記載された書類。',
         howToGet: '不動産の所在地を管轄する法務局で取得できます。',
         canDelegate: true,
       },
       {
-        id: 'land_kouzu',
+        id: 'real_estate_kouzu',
         name: '公図 及び 地積測量図',
         description: '土地の位置や形状を示した図面。地積測量図がない場合は不要。',
         howToGet: '登記簿謄本と同様の方法で取得できます。',
         canDelegate: true,
       },
       {
-        id: 'land_chintai',
-        name: '賃貸借契約書',
-        description: '土地の賃貸借契約の内容を示す書類。',
-        howToGet: 'お手元にあるものをご用意ください。貸地・借地・定期借地権等がある場合に必要。',
-      },
-    ],
-  },
-  {
-    id: 'building',
-    name: '建物',
-    iconName: 'Home',
-    color: 'text-orange-700',
-    bgColor: 'bg-orange-50',
-    borderColor: 'border-orange-200',
-    documents: [
-      {
-        id: 'building_nayose',
-        name: '固定資産税の納税通知書',
-        description: '被相続人（亡くなった方）が所有している建物の一覧。',
-        howToGet: '土地の場合と同じです。',
-        canDelegate: true,
-      },
-      {
-        id: 'building_hyouka',
-        name: '固定資産税評価証明書',
-        description: '固定資産税評価額が記載された書類。',
-        howToGet: '土地の場合と同じです。',
-        canDelegate: true,
-      },
-      {
-        id: 'building_touki',
-        name: '登記簿謄本（全部事項証明書）',
-        description: '建物の情報が記載された書類。',
-        howToGet: '土地の場合と同じです。',
-        canDelegate: true,
-      },
-      {
-        id: 'building_baibai',
+        id: 'real_estate_baibai',
         name: '売買契約書、建築図面、間取り図等',
         description: '建物のうち、各部屋の床面積を確認するための書類。',
         howToGet: 'お手元にあるものをご用意ください。2世帯住宅や一部賃貸の場合に必要。',
       },
       {
-        id: 'building_chintai',
+        id: 'real_estate_chintai',
         name: '賃貸借契約書',
-        description: '建物の賃貸借契約の内容を示す書類。',
-        howToGet: 'お手元にあるものをご用意ください。貸家・アパート等がある場合、入居者全員分必要。',
+        description: '土地・建物の賃貸借契約の内容を示す書類。',
+        howToGet: 'お手元にあるものをご用意ください。貸地・借地・定期借地権・貸家・アパート等がある場合に必要。',
       },
     ],
   },
@@ -539,7 +510,6 @@ export type IconName =
   | 'Users'
   | 'FileCheck'
   | 'Building'
-  | 'Home'
   | 'Landmark'
   | 'FileText'
   | 'CreditCard'

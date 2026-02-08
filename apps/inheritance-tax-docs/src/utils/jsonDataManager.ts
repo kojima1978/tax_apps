@@ -1,4 +1,4 @@
-import { CustomDocumentItem } from '../constants/documents';
+import type { CustomDocumentItem, CustomSubcategory } from '../constants/documents';
 
 // JSONデータのバージョン
 const DATA_VERSION = '1.0.0';
@@ -14,6 +14,7 @@ export interface ExportData {
     deadline: string;
     deletedDocuments: Record<string, boolean>;
     customDocuments: CustomDocumentItem[];
+    customSubcategories: CustomSubcategory[];
     documentOrder: Record<string, string[]>;
     editedDocuments: Record<string, { name?: string; description?: string; howToGet?: string }>;
     canDelegateOverrides: Record<string, boolean>;
@@ -33,6 +34,7 @@ export function createExportData(params: {
   deadline: string;
   deletedDocuments: Record<string, boolean>;
   customDocuments: CustomDocumentItem[];
+  customSubcategories: CustomSubcategory[];
   documentOrder: Record<string, string[]>;
   editedDocuments: Record<string, { name?: string; description?: string; howToGet?: string }>;
   canDelegateOverrides: Record<string, boolean>;
@@ -47,6 +49,7 @@ export function createExportData(params: {
       deadline: params.deadline,
       deletedDocuments: params.deletedDocuments,
       customDocuments: params.customDocuments,
+      customSubcategories: params.customSubcategories,
       documentOrder: params.documentOrder,
       editedDocuments: params.editedDocuments,
       canDelegateOverrides: params.canDelegateOverrides,
@@ -96,6 +99,10 @@ export function validateImportData(data: unknown): ValidationResult {
   }
   if (!Array.isArray(dataObj.customDocuments)) {
     return { isValid: false, error: 'カスタム書類データが不正です。' };
+  }
+  // customSubcategories は後方互換のため任意（存在する場合は配列であること）
+  if (dataObj.customSubcategories !== undefined && !Array.isArray(dataObj.customSubcategories)) {
+    return { isValid: false, error: '小分類データが不正です。' };
   }
   if (typeof dataObj.documentOrder !== 'object' || dataObj.documentOrder === null) {
     return { isValid: false, error: '書類順序データが不正です。' };

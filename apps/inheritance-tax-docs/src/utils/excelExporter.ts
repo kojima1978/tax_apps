@@ -2,8 +2,10 @@ import XLSX from 'xlsx-js-style';
 import type { CategoryData, DocumentItem, CustomDocumentItem } from '../constants/documents';
 import { isCustomDocument, formatDate, formatDeadline } from './helpers';
 
+type SubcategoryResult = { name: string; documents: (DocumentItem | CustomDocumentItem)[] };
+
 export interface ExcelExportParams {
-  results: { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[];
+  results: { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[]; subcategories: SubcategoryResult[] }[];
   isFullListMode: boolean;
   clientName: string;
   deceasedName: string;
@@ -174,9 +176,29 @@ export function exportToExcel(params: ExcelExportParams): void {
   pushMergedRow(wsData, noticeRows, '・身分関係書類は原則として相続開始日から10日を経過した日以後に取得したものが必要となります。', styles.noticeText);
   pushEmptyRow(wsData);
 
+  // 書類行を追加するヘルパー
+  type DocWithCanDelegate = (DocumentItem | CustomDocumentItem) & { canDelegate?: boolean };
+  let rowIdx = 0;
+  function pushDocRow(doc: DocumentItem | CustomDocumentItem): void {
+    const cellStyle = rowIdx % 2 === 0 ? styles.documentCell : styles.documentCellAlt;
+    const isCustom = isCustomDocument(doc);
+    const docWithDelegate = doc as DocWithCanDelegate;
+    const canDelegate = docWithDelegate.canDelegate ?? false;
+    const docName = isCustom ? `${doc.name} [追加]` : doc.name;
+    wsData.push([
+      { v: '☐', s: styles.checkCell },
+      { v: docName, s: cellStyle },
+      { v: doc.description, s: cellStyle },
+      { v: doc.howToGet || '-', s: cellStyle },
+      { v: canDelegate ? '可' : '', s: canDelegate ? styles.delegateBadge : cellStyle },
+    ]);
+    rowIdx++;
+  }
+
   // 各カテゴリのデータ
-  results.forEach(({ category, documents }) => {
-    pushMergedRow(wsData, categoryHeaderRows, `■ ${category.name}（${documents.length}件）`, styles.categoryHeader);
+  results.forEach(({ category, documents, subcategories }) => {
+    const totalCount = documents.length + subcategories.reduce((acc, sc) => acc + sc.documents.length, 0);
+    pushMergedRow(wsData, categoryHeaderRows, `■ ${category.name}（${totalCount}件）`, styles.categoryHeader);
 
     // テーブルヘッダー
     wsData.push([
@@ -187,21 +209,14 @@ export function exportToExcel(params: ExcelExportParams): void {
       { v: '代行', s: styles.tableHeader },
     ]);
 
-    // 書類リスト
-    type DocWithCanDelegate = (DocumentItem | CustomDocumentItem) & { canDelegate?: boolean };
-    documents.forEach((doc, idx) => {
-      const cellStyle = idx % 2 === 0 ? styles.documentCell : styles.documentCellAlt;
-      const isCustom = isCustomDocument(doc);
-      const docWithDelegate = doc as DocWithCanDelegate;
-      const canDelegate = docWithDelegate.canDelegate ?? false;
-      const docName = isCustom ? `${doc.name} [追加]` : doc.name;
-      wsData.push([
-        { v: '☐', s: styles.checkCell },
-        { v: docName, s: cellStyle },
-        { v: doc.description, s: cellStyle },
-        { v: doc.howToGet || '-', s: cellStyle },
-        { v: canDelegate ? '可' : '', s: canDelegate ? styles.delegateBadge : cellStyle },
-      ]);
+    // カテゴリ直下の書類
+    rowIdx = 0;
+    documents.forEach(pushDocRow);
+
+    // 小分類とその書類
+    subcategories.forEach((sc) => {
+      pushMergedRow(wsData, categoryHeaderRows, `  ▸ ${sc.name}`, styles.noticeHeader);
+      sc.documents.forEach(pushDocRow);
     });
 
     pushEmptyRow(wsData);
