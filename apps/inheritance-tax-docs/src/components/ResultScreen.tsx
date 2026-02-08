@@ -9,6 +9,7 @@ import {
   Download,
   Upload,
   X,
+  Home,
 } from 'lucide-react';
 import type { CategoryData, DocumentItem, CustomDocumentItem } from '../constants/documents';
 import { exportToExcel } from '../utils/excelExporter';
@@ -161,7 +162,12 @@ function ResultScreenComponent({
         onStepChange={(step) => step === 1 && onBack()}
       />
 
-      <div className="no-print flex items-center justify-end mb-6 mt-4 space-x-3">
+      <div className="no-print flex items-center justify-between mb-6 mt-4">
+          <a href="/" title="ポータルに戻る" className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors">
+            <Home className="w-5 h-5" />
+            <span className="text-sm">ポータル</span>
+          </a>
+          <div className="flex items-center space-x-3">
           <button
             onClick={handleExcelExport}
             disabled={isExporting}
@@ -202,6 +208,7 @@ function ResultScreenComponent({
               className="hidden"
             />
           </label>
+          </div>
       </div>
 
       {/* エラーメッセージ */}

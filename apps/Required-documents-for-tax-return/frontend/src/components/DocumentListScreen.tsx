@@ -17,7 +17,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { ArrowLeft, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, PlusCircle, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Home, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, PlusCircle, RefreshCcw } from 'lucide-react';
 import { exportToExcel } from '@/utils/exportExcel';
 import { CategoryGroup } from '@/types';
 import { SortableCategory } from './document-list/SortableCategory';
@@ -176,6 +176,13 @@ export default function DocumentListScreen({
         <div className="max-w-4xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center">
+              <a
+                href="/"
+                title="ポータルに戻る"
+                className="mr-1 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-emerald-600 transition-colors"
+              >
+                <Home className="w-5 h-5" />
+              </a>
               <button
                 onClick={onBack}
                 className="mr-3 p-2 rounded-full hover:bg-slate-100 text-slate-500"

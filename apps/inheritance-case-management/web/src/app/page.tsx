@@ -9,7 +9,7 @@ import type { CasesQueryParams } from "@/lib/api/cases"
 import Link from "next/link"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
-import { Plus, RefreshCw, Search, Download } from "lucide-react"
+import { Home, Plus, RefreshCw, Search, Download } from "lucide-react"
 import type { CaseStatus, AcceptanceStatus } from "@tax-apps/shared"
 import { ArrowUpDown } from "lucide-react"
 import { TableSkeleton } from "@/components/ui/Skeleton"
@@ -53,7 +53,12 @@ export default function InheritanceMockupPage() {
     return (
         <div className="container mx-auto py-10">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">相続税申告案件一覧</h1>
+                <div className="flex items-center gap-3">
+                    <a href="/" title="ポータルに戻る" className="text-gray-400 hover:text-primary transition-colors">
+                        <Home className="h-5 w-5" />
+                    </a>
+                    <h1 className="text-2xl font-bold">相続税申告案件一覧</h1>
+                </div>
                 <div className="flex gap-2 items-center">
                     <Button
                         variant="ghost"

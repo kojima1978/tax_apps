@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Download,
   Upload,
+  Home,
 } from 'lucide-react';
 import { giftData, type Step } from '@/constants';
 
@@ -76,6 +77,9 @@ export const EditToolbar = ({
   <div className="no-print bg-white rounded-xl shadow-lg p-4 mb-6 sticky top-4 z-10" role="toolbar" aria-label="編集ツールバー">
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-4">
+        <a href="/" title="ポータルに戻る" className="text-slate-400 hover:text-emerald-600 transition-colors">
+          <Home className="w-5 h-5" />
+        </a>
         <h1 className="text-xl font-bold text-slate-800">{giftData.title}</h1>
         <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium" aria-live="polite">
           {checkedCount} / {totalCount} 選択中

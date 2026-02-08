@@ -1,4 +1,4 @@
-import { FileSpreadsheet, Layout, Printer, RefreshCw, ArrowLeft, Info, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { FileSpreadsheet, Layout, Printer, RefreshCw, ArrowLeft, Info, AlertCircle, Eye, EyeOff, Home } from 'lucide-react';
 import { COMPANY_INFO, giftData, type DocumentGroup, type Step } from '@/constants';
 
 type ResultStepProps = {
@@ -39,14 +39,19 @@ export const ResultStep = ({
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
             <div className="no-print flex items-center justify-between mb-6">
-                <button
-                    onClick={() => setStep('edit')}
-                    className="flex items-center bg-white px-4 py-2 rounded-lg shadow text-slate-600 hover:text-slate-900 transition-colors"
-                    aria-label="編集画面へ戻る"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
-                    編集画面へ戻る
-                </button>
+                <div className="flex items-center gap-3">
+                    <a href="/" title="ポータルに戻る" className="flex items-center bg-white px-3 py-2 rounded-lg shadow text-slate-400 hover:text-emerald-600 transition-colors">
+                        <Home className="w-4 h-4" />
+                    </a>
+                    <button
+                        onClick={() => setStep('edit')}
+                        className="flex items-center bg-white px-4 py-2 rounded-lg shadow text-slate-600 hover:text-slate-900 transition-colors"
+                        aria-label="編集画面へ戻る"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
+                        編集画面へ戻る
+                    </button>
+                </div>
                 <div className="flex space-x-3">
                     <button
                         onClick={toggleShowUnchecked}

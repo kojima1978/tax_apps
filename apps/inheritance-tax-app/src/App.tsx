@@ -45,6 +45,18 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
+      {/* 印刷専用ヘッダー */}
+      <div className="print-only justify-between items-start px-4 py-3 border-b-2 border-green-700">
+        <div>
+          <h1 className="text-2xl font-bold text-green-800">相続税早見表</h1>
+        </div>
+        <address className="text-right text-sm not-italic text-gray-700">
+          <p className="font-bold text-base">税理士法人マスエージェント</p>
+          <p>〒770-0002 徳島県徳島市春日２丁目３−３３</p>
+          <p>TEL: 088-632-6228</p>
+        </address>
+      </div>
+
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* 左カラム：設定パネル */}

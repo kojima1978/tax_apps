@@ -36,6 +36,9 @@ export default function Header({ showClearButton = false }: HeaderProps) {
       <header className="bg-white shadow-sm rounded-lg p-6 mb-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <a href="/" title="ポータルに戻る" className="text-gray-400 hover:text-emerald-600 transition-colors">
+              <Home size={24} />
+            </a>
             <img
               src="/medical/calculator.svg"
               alt="計算機"

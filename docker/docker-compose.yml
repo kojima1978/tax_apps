@@ -271,7 +271,7 @@ services:
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,bank-analyzer}
       DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
       DJANGO_STATIC_URL: /bank-analyzer/static/
-    command: [ "python", "manage.py", "runserver", "0.0.0.0:8000" ]
+    command: [ "/docker-entrypoint.sh", "python", "manage.py", "runserver", "0.0.0.0:8000" ]
     healthcheck:
       test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')\"" ]
       <<: *healthcheck-defaults
