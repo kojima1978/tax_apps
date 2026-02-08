@@ -32,9 +32,10 @@
 
 ## 技術スタック
 
-- **フレームワーク**: Django 6.x
+- **フレームワーク**: Django 5.x〜6.0
 - **データベース**: SQLite
 - **フロントエンド**: Bootstrap 5, Bootstrap Icons
+- **フォーム**: django-crispy-forms + crispy-bootstrap5
 - **データ処理**: pandas
 - **可視化**: Plotly
 - **Excel処理**: openpyxl
@@ -59,14 +60,43 @@ bank-analyzer-django/
 │   ├── urls.py                # URLルーティング
 │   ├── admin.py               # Django Admin設定
 │   ├── apps.py                # アプリ設定
+│   ├── tests.py               # テスト
 │   ├── lib/                   # 分析・インポート用ライブラリ
 │   │   ├── importer.py        # CSV/Excel読み込み
 │   │   ├── analyzer.py        # 多額取引・資金移動分析
 │   │   ├── llm_classifier.py  # ルールベース分類
-│   │   ├── config.py          # 設定管理
+│   │   ├── config.py          # 設定管理（JSON永続化）
+│   │   ├── constants.py       # 定数定義（和暦・カテゴリ等）
 │   │   └── exceptions.py      # カスタム例外
-│   ├── templates/             # HTMLテンプレート
-│   ├── templatetags/          # カスタムテンプレートタグ（和暦変換等）
+│   ├── templates/analyzer/    # HTMLテンプレート
+│   │   ├── base.html          # ベーステンプレート
+│   │   ├── case_list.html     # 案件一覧
+│   │   ├── case_form.html     # 案件作成・編集
+│   │   ├── case_detail.html   # 案件詳細
+│   │   ├── analysis.html      # 分析ダッシュボード
+│   │   ├── settings.html      # 設定画面
+│   │   ├── import_form.html   # CSVインポート
+│   │   ├── import_confirm.html # インポートプレビュー
+│   │   ├── json_import.html   # JSONインポート
+│   │   └── partials/          # 再利用可能テンプレート部品
+│   │       ├── _tab_all.html          # 取引一覧タブ
+│   │       ├── _tab_large.html        # 多額取引タブ
+│   │       ├── _tab_transfers.html    # 資金移動タブ
+│   │       ├── _tab_cleanup.html      # データクレンジングタブ
+│   │       ├── _tab_flagged.html      # 付箋タブ
+│   │       ├── _tx_form_fields.html   # 取引フォームフィールド共通
+│   │       ├── _category_filter.html  # 分類フィルター
+│   │       ├── _category_select.html  # 分類セレクト
+│   │       ├── _edit_button.html      # 編集ボタン
+│   │       └── _flag_button.html      # 付箋ボタン
+│   ├── templatetags/          # カスタムテンプレートタグ
+│   │   ├── japanese_date.py   # 和暦変換フィルター
+│   │   └── pagination_tags.py # ページネーションURL生成
+│   ├── static/analyzer/       # 静的ファイル
+│   │   ├── css/style.css      # カスタムCSS（グラスモーフィズム）
+│   │   └── js/
+│   │       ├── analysis_dashboard.js  # ダッシュボード操作
+│   │       └── import_preview.js      # インポートプレビュー操作
 │   └── migrations/            # データベースマイグレーション
 ├── data/                      # ユーザー設定保存先
 ├── staticfiles/               # 収集済み静的ファイル
@@ -76,6 +106,7 @@ bank-analyzer-django/
 ├── .dockerignore              # Dockerビルド除外設定
 ├── .env.example               # 環境変数テンプレート
 ├── requirements.txt           # Python依存ライブラリ
+├── ER_DIAGRAM.md              # ER図・データモデル仕様書
 ├── manage.py                  # Django CLI
 └── README.md
 ```
