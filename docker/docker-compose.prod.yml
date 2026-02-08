@@ -15,6 +15,30 @@ x-prod-deploy: &prod-deploy
     reservations:
       memory: 64M
 
+# 本番 gateway リソース制限 (64M/16M)
+x-prod-gateway-deploy: &prod-gateway-deploy
+  resources:
+    limits:
+      memory: 64M
+    reservations:
+      memory: 16M
+
+# 本番 PostgreSQL リソース制限 (512M/128M)
+x-prod-postgres-deploy: &prod-postgres-deploy
+  resources:
+    limits:
+      memory: 512M
+    reservations:
+      memory: 128M
+
+# 本番軽量リソース制限 (128M/32M)
+x-prod-small-deploy: &prod-small-deploy
+  resources:
+    limits:
+      memory: 128M
+    reservations:
+      memory: 32M
+
 # 本番 Node.js サービス共通設定
 # runner ステージは ENTRYPOINT に tini を持つため、compose の init は無効化
 x-prod-node-defaults: &prod-node-defaults
@@ -35,12 +59,7 @@ services:
     volumes: []
     ports:
       - "80:80"
-    deploy:
-      resources:
-        limits:
-          memory: 64M
-        reservations:
-          memory: 16M
+    deploy: *prod-gateway-deploy
 
   # ===========================================
   # Portal - 本番設定
@@ -69,12 +88,7 @@ services:
   # ===========================================
   itcm-postgres:
     ports: []
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
+    deploy: *prod-postgres-deploy
 
   # ===========================================
   # ITCM Backend - 本番設定
@@ -108,12 +122,7 @@ services:
   inheritance-tax-app:
     <<: *prod-node-defaults
     command: []
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 32M
+    deploy: *prod-small-deploy
 
   # ===========================================
   # 贈与税シミュレーター（間接税統合）- 本番設定
@@ -142,12 +151,7 @@ services:
     <<: *prod-node-defaults
     volumes:
       - tax_docs_data:/app/data
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 32M
+    deploy: *prod-small-deploy
 
   # ===========================================
   # 確定申告書類 Frontend - 本番設定
