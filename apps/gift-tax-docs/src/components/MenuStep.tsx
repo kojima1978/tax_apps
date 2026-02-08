@@ -2,6 +2,31 @@ import { ChevronRight, List } from 'lucide-react';
 import { EXTERNAL_LINKS, giftData, type Step } from '@/constants';
 import { ExternalLinkButton } from '@/components/ui/ExternalLinkButton';
 
+const menuInputClass = 'w-full px-4 py-2 rounded border border-emerald-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-white/90 text-slate-800 placeholder-slate-400';
+
+const MenuInputField = ({ id, label, type = 'text', placeholder, value, onChange }: {
+    id: string;
+    label: string;
+    type?: string;
+    placeholder: string;
+    value: string;
+    onChange: (value: string) => void;
+}) => (
+    <div>
+        <label htmlFor={id} className="block text-sm font-medium text-emerald-100 mb-1">
+            {label}
+        </label>
+        <input
+            type={type}
+            id={id}
+            className={menuInputClass}
+            placeholder={placeholder}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+        />
+    </div>
+);
+
 type MenuStepProps = {
     setStep: (step: Step) => void;
     staffName: string;
@@ -48,45 +73,9 @@ export const MenuStep = ({
                     {/* 入力フォームエリア */}
                     <div className="mt-8 bg-emerald-800/50 p-6 rounded-lg max-w-3xl mx-auto backdrop-blur-sm">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-                            <div>
-                                <label htmlFor="customerName" className="block text-sm font-medium text-emerald-100 mb-1">
-                                    お客様名
-                                </label>
-                                <input
-                                    type="text"
-                                    id="customerName"
-                                    className="w-full px-4 py-2 rounded border border-emerald-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-white/90 text-slate-800 placeholder-slate-400"
-                                    placeholder="例：山田 太郎 様"
-                                    value={customerName}
-                                    onChange={(e) => setCustomerName(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="staffName" className="block text-sm font-medium text-emerald-100 mb-1">
-                                    担当者名
-                                </label>
-                                <input
-                                    type="text"
-                                    id="staffName"
-                                    className="w-full px-4 py-2 rounded border border-emerald-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-white/90 text-slate-800 placeholder-slate-400"
-                                    placeholder="例：鈴木 一郎"
-                                    value={staffName}
-                                    onChange={(e) => setStaffName(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="staffPhone" className="block text-sm font-medium text-emerald-100 mb-1">
-                                    担当者携帯
-                                </label>
-                                <input
-                                    type="tel"
-                                    id="staffPhone"
-                                    className="w-full px-4 py-2 rounded border border-emerald-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-white/90 text-slate-800 placeholder-slate-400"
-                                    placeholder="例：090-1234-5678"
-                                    value={staffPhone}
-                                    onChange={(e) => setStaffPhone(e.target.value)}
-                                />
-                            </div>
+                            <MenuInputField id="customerName" label="お客様名" placeholder="例：山田 太郎 様" value={customerName} onChange={setCustomerName} />
+                            <MenuInputField id="staffName" label="担当者名" placeholder="例：鈴木 一郎" value={staffName} onChange={setStaffName} />
+                            <MenuInputField id="staffPhone" label="担当者携帯" type="tel" placeholder="例：090-1234-5678" value={staffPhone} onChange={setStaffPhone} />
                         </div>
                     </div>
 

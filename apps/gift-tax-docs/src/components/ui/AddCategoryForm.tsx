@@ -1,6 +1,7 @@
 'use client';
 
 import { Plus } from 'lucide-react';
+import { InlineAddInput } from './EditableInput';
 
 type AddCategoryFormProps = {
   isAdding: boolean;
@@ -40,18 +41,14 @@ export const AddCategoryForm = ({
     <div className="bg-white rounded-xl shadow-lg overflow-hidden p-4">
       <h3 className="font-bold text-slate-800 mb-3">新しいカテゴリを追加</h3>
       <div className="space-y-3">
-        <input
-          type="text"
+        <InlineAddInput
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={setName}
+          onConfirm={onAdd}
+          onCancel={onCancel}
           placeholder="カテゴリ名を入力..."
-          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          autoFocus
-          aria-label="新しいカテゴリ名を入力"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') onAdd();
-            if (e.key === 'Escape') onCancel();
-          }}
+          ariaLabel="新しいカテゴリ名を入力"
+          inputClass="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2"
         />
         <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
           <input
@@ -64,20 +61,6 @@ export const AddCategoryForm = ({
             特例カテゴリとして追加
           </span>
         </label>
-        <div className="flex gap-2">
-          <button
-            onClick={onAdd}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            追加
-          </button>
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"
-          >
-            キャンセル
-          </button>
-        </div>
       </div>
     </div>
   );

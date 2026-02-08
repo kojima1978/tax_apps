@@ -10,6 +10,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Plus, Info } from 'lucide-react';
+import { InlineAddInput } from '@/components/ui/EditableInput';
 import type { EditableDocumentList, Step } from '@/constants';
 import { useEditableListEditing } from '@/hooks/useEditableListEditing';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
@@ -142,31 +143,14 @@ export const EditableListStep = ({
                     {/* 書類追加 */}
                     {editing.addingToCategory === category.id ? (
                       <div className="mt-3 flex items-center gap-2">
-                        <input
-                          type="text"
+                        <InlineAddInput
                           value={editing.newDocText}
-                          onChange={(e) => editing.setNewDocText(e.target.value)}
+                          onChange={editing.setNewDocText}
+                          onConfirm={() => editing.handleAddDocument(category.id)}
+                          onCancel={editing.cancelAddDocument}
                           placeholder="書類名を入力..."
-                          className="flex-grow px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          autoFocus
-                          aria-label="新しい書類名を入力"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') editing.handleAddDocument(category.id);
-                            if (e.key === 'Escape') editing.cancelAddDocument();
-                          }}
+                          ariaLabel="新しい書類名を入力"
                         />
-                        <button
-                          onClick={() => editing.handleAddDocument(category.id)}
-                          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-                        >
-                          追加
-                        </button>
-                        <button
-                          onClick={editing.cancelAddDocument}
-                          className="px-4 py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"
-                        >
-                          キャンセル
-                        </button>
                       </div>
                     ) : (
                       <button
