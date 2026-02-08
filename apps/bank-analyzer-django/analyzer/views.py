@@ -88,6 +88,17 @@ def _safe_error_message(e: Exception, context: str = "") -> str:
     return 'サーバーエラーが発生しました'
 
 
+def _json_error(message: str, status: int = 400) -> JsonResponse:
+    """JSON APIのエラーレスポンスを生成"""
+    return JsonResponse({'success': False, 'message': message}, status=status)
+
+
+def _json_api_error(e: Exception, error_context: str) -> JsonResponse:
+    """JSON APIの例外エラーレスポンスを生成（ログ出力付き）"""
+    logger.exception(f"{error_context}: error={e}")
+    return _json_error(_safe_error_message(e), status=500)
+
+
 def _parse_keywords(text: str) -> list[str]:
     """カンマまたは改行区切りのテキストをキーワードリストに変換"""
     return [k.strip() for k in text.replace('\n', ',').split(',') if k.strip()]
@@ -978,29 +989,19 @@ def api_toggle_flag(request: HttpRequest, pk: int) -> JsonResponse:
     tx_id = request.POST.get('tx_id')
 
     if not tx_id:
-        return JsonResponse({
-            'success': False,
-            'message': '取引IDが指定されていません'
-        }, status=400)
+        return _json_error('取引IDが指定されていません')
 
     try:
         new_state = TransactionService.toggle_flag(case, int(tx_id))
         if new_state is None:
-            return JsonResponse({
-                'success': False,
-                'message': '取引が見つかりません'
-            }, status=404)
+            return _json_error('取引が見つかりません', status=404)
         return JsonResponse({
             'success': True,
             'is_flagged': new_state,
             'message': '付箋を追加しました' if new_state else '付箋を外しました'
         })
     except Exception as e:
-        logger.exception(f"フラグ更新APIエラー: tx_id={tx_id}, error={e}")
-        return JsonResponse({
-            'success': False,
-            'message': _safe_error_message(e)
-        }, status=500)
+        return _json_api_error(e, f"フラグ更新APIエラー: tx_id={tx_id}")
 
 
 @require_POST
@@ -1067,11 +1068,7 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
             'message': '取引を追加しました'
         })
     except Exception as e:
-        logger.exception(f"取引作成APIエラー: case_id={pk}, error={e}")
-        return JsonResponse({
-            'success': False,
-            'message': _safe_error_message(e)
-        }, status=500)
+        return _json_api_error(e, f"取引作成APIエラー: case_id={pk}")
 
 
 @require_POST
@@ -1086,10 +1083,7 @@ def api_delete_transaction(request: HttpRequest, pk: int) -> JsonResponse:
     tx_id = request.POST.get('tx_id')
 
     if not tx_id:
-        return JsonResponse({
-            'success': False,
-            'message': '取引IDが指定されていません'
-        }, status=400)
+        return _json_error('取引IDが指定されていません')
 
     try:
         tx = case.transactions.get(pk=int(tx_id))
@@ -1101,16 +1095,9 @@ def api_delete_transaction(request: HttpRequest, pk: int) -> JsonResponse:
             'message': '取引を削除しました'
         })
     except Transaction.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'message': '取引が見つかりません'
-        }, status=404)
+        return _json_error('取引が見つかりません', status=404)
     except Exception as e:
-        logger.exception(f"取引削除APIエラー: tx_id={tx_id}, error={e}")
-        return JsonResponse({
-            'success': False,
-            'message': _safe_error_message(e)
-        }, status=500)
+        return _json_api_error(e, f"取引削除APIエラー: tx_id={tx_id}")
 
 
 def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
@@ -1128,11 +1115,7 @@ def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
     field_name = request.GET.get('field_name', '')
 
     if not field_name:
-        return JsonResponse({
-            'success': False,
-            'message': 'フィールド名が指定されていません',
-            'values': []
-        }, status=400)
+        return _json_error('フィールド名が指定されていません')
 
     try:
         values = TransactionService.get_unique_field_values(case, field_name)
@@ -1141,9 +1124,4 @@ def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
             'values': values
         })
     except Exception as e:
-        logger.exception(f"フィールド値取得APIエラー: field_name={field_name}, error={e}")
-        return JsonResponse({
-            'success': False,
-            'message': _safe_error_message(e),
-            'values': []
-        }, status=500)
+        return _json_api_error(e, f"フィールド値取得APIエラー: field_name={field_name}")
