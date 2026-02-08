@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronRight, Database, Download, Loader2, Settings, Upload, Users, UserPlus } from 'lucide-react';
+import { ChevronRight, Database, Download, Home, Loader2, Settings, Upload, Users, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { taxReturnData } from '@/data/taxReturnData';
@@ -142,6 +142,9 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
   return (
     <div className="bg-white shadow-xl rounded-2xl overflow-hidden animate-fade-in relative min-h-[600px] flex flex-col">
       <header className="bg-emerald-600 p-8 text-center text-white relative flex-shrink-0">
+        <a href="/" title="ポータルに戻る" className="absolute top-4 left-4 opacity-70 hover:opacity-100 transition-opacity">
+          <Home className="w-6 h-6" />
+        </a>
         <h1 className="text-3xl font-bold mb-3">{taxReturnData.title}</h1>
         <p className="text-emerald-100 text-lg">必要書類を確認・編集して、準備リストを作成できます。</p>
 

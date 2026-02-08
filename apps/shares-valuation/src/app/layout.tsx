@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { M_PLUS_Rounded_1c, Kosugi_Maru } from "next/font/google";
+import { Home } from "lucide-react";
 
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -35,7 +36,13 @@ export default function RootLayout({
       >
         <ToastProvider>
           <main className="min-h-screen p-4 sm:p-8">
-            <div className="max-w-4xl mx-auto">{children}</div>
+            <div className="max-w-4xl mx-auto">
+              <a href="/" title="ポータルに戻る" className="no-print inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4">
+                <Home className="w-4 h-4" />
+                <span>ポータル</span>
+              </a>
+              {children}
+            </div>
           </main>
         </ToastProvider>
       </body>

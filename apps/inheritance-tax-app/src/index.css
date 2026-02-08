@@ -8,9 +8,17 @@
   }
 }
 
+.print-only {
+  display: none !important;
+}
+
 @media print {
   .no-print {
     display: none !important;
+  }
+
+  .print-only {
+    display: flex !important;
   }
 
   body {

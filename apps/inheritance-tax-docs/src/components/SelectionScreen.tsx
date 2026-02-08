@@ -6,6 +6,7 @@ import {
   Download,
   Upload,
   X,
+  Home,
 } from 'lucide-react';
 import { CATEGORIES, type CustomDocumentItem } from '../constants/documents';
 import { type ExportData } from '../utils/jsonDataManager';
@@ -90,11 +91,16 @@ function SelectionScreenComponent({
         {/* ヘッダー */}
         <div className="bg-blue-800 p-6 text-white">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-1">相続税申告 資料準備ガイド</h1>
-              <p className="text-blue-200 text-sm">
-                ドラッグで並べ替え、鉛筆で編集、ゴミ箱で削除、＋で追加
-              </p>
+            <div className="flex items-center gap-3">
+              <a href="/" title="ポータルに戻る" className="opacity-70 hover:opacity-100 transition-opacity">
+                <Home className="w-6 h-6" />
+              </a>
+              <div>
+                <h1 className="text-2xl font-bold mb-1">相続税申告 資料準備ガイド</h1>
+                <p className="text-blue-200 text-sm">
+                  ドラッグで並べ替え、鉛筆で編集、ゴミ箱で削除、＋で追加
+                </p>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
