@@ -151,6 +151,7 @@ tax_apps/
 │   ├── docker-compose.prod.yml # 本番用オーバーライド
 │   ├── .env                    # 環境変数
 │   ├── .env.example            # 環境変数テンプレート
+│   ├── _parse_args.bat          # 共通引数パーサー
 │   ├── start.bat               # 起動スクリプト
 │   ├── stop.bat                # 停止スクリプト
 │   ├── restart.bat             # 再起動スクリプト
