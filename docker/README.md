@@ -162,7 +162,11 @@ tax_apps/
     ├── nginx.conf              # グローバル設定
     ├── default.conf            # ルーティング設定
     ├── includes/               # 共通設定ファイル
-    │   └── proxy_params        # プロキシ共通パラメータ
+    │   ├── proxy_params.conf       # プロキシ共通パラメータ
+    │   ├── upstreams.conf          # アップストリーム定義
+    │   ├── maps.conf               # Map定義
+    │   ├── rate_limit_general.conf # 一般レート制限
+    │   └── rate_limit_api.conf     # APIレート制限
     ├── html/                   # カスタムエラーページ
     │   ├── 429.html            # Rate Limit超過
     │   ├── 50x.html            # サーバーエラー
