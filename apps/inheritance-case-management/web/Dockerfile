@@ -1,40 +1,37 @@
 # syntax=docker/dockerfile:1
 
 FROM node:22-alpine AS base
-
 RUN apk upgrade --no-cache && \
     corepack enable && corepack prepare pnpm@9.15.4 --activate
-
 WORKDIR /app
 
-# Install dependencies
+# ── deps ────────────────────────────────────────────────
 FROM base AS deps
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/validation/package.json ./packages/validation/
 COPY packages/ui/package.json ./packages/ui/
 COPY apps/inheritance-case-management/web/package.json ./apps/inheritance-case-management/web/
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store-icm-web,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
-# Development image
+# ── development ─────────────────────────────────────────
 FROM deps AS dev
-ENV NODE_ENV=development
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=development \
+    NEXT_TELEMETRY_DISABLED=1
 COPY . .
-# Build shared packages for dev
-RUN pnpm --filter @tax-apps/shared build
-RUN pnpm --filter @tax-apps/validation build
-RUN pnpm --filter @tax-apps/ui build
-
+RUN pnpm --filter @tax-apps/shared build && \
+    pnpm --filter @tax-apps/validation build && \
+    pnpm --filter @tax-apps/ui build
 CMD ["pnpm", "--filter", "@inheritance-case-management/web", "dev"]
 
-# Build
+# ── builder ─────────────────────────────────────────────
 FROM deps AS builder
 ARG NEXT_PUBLIC_API_URL=http://localhost:3021/api
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+    NEXT_TELEMETRY_DISABLED=1
 
-# Copy source files selectively to preserve pnpm symlinks
+# ソースを選択的にコピー（pnpmシンボリックリンク保持）
 COPY packages/shared/src ./packages/shared/src
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/validation/src ./packages/validation/src
@@ -46,17 +43,15 @@ COPY apps/inheritance-case-management/web/public ./apps/inheritance-case-managem
 COPY apps/inheritance-case-management/web/tsconfig.json ./apps/inheritance-case-management/web/
 COPY apps/inheritance-case-management/web/next.config.ts ./apps/inheritance-case-management/web/
 COPY apps/inheritance-case-management/web/postcss.config.mjs ./apps/inheritance-case-management/web/
-COPY apps/inheritance-case-management/web/eslint.config.mjs ./apps/inheritance-case-management/web/
 
-# Build shared packages first
-RUN cd packages/shared && ../../node_modules/.bin/tsc
-RUN cd packages/validation && ../../node_modules/.bin/tsc
-RUN cd packages/ui && ../../node_modules/.bin/tsc
+# 共有パッケージ → Next.js ビルド（1つのRUNにまとめてレイヤー削減）
+RUN cd packages/shared && ../../node_modules/.bin/tsc && \
+    cd ../validation && ../../node_modules/.bin/tsc && \
+    cd ../ui && ../../node_modules/.bin/tsc && \
+    cd ../../apps/inheritance-case-management/web && \
+    ./node_modules/.bin/next build
 
-# Build Next.js app
-RUN pnpm --filter @inheritance-case-management/web build
-
-# Production image
+# ── production ──────────────────────────────────────────
 FROM node:22-alpine AS runner
 
 LABEL org.opencontainers.image.title="ITCM Frontend" \
@@ -85,13 +80,11 @@ COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-case-mana
 COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-case-management/web/public ./apps/inheritance-case-management/web/public
 
 USER nextjs
-
 EXPOSE 3020
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
 STOPSIGNAL SIGTERM
-
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "apps/inheritance-case-management/web/server.js"]

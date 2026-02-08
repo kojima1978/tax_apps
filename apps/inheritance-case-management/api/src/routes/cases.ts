@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
 import {
   createCaseSchema,
   updateCaseSchema,
@@ -10,6 +9,10 @@ import {
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
+
+function isPrismaNotFound(e: unknown): boolean {
+  return e instanceof Error && e.name === 'PrismaClientKnownRequestError' && (e as { code?: string }).code === 'P2025';
+}
 
 export const casesRouter = new Hono();
 
@@ -70,7 +73,7 @@ casesRouter.get(
     });
 
     if (!caseItem) {
-      return c.json({ error: 'Case not found', code: 'NOT_FOUND' }, 404);
+      return c.json({ error: '案件が見つかりません', code: 'NOT_FOUND' }, 404);
     }
 
     return c.json(caseItem);
@@ -118,22 +121,20 @@ casesRouter.put(
     const { id } = c.req.valid('param');
     const data = c.req.valid('json');
 
-    // Check if case exists
-    const existing = await prisma.inheritanceCase.findUnique({
-      where: { id },
-    });
+    try {
+      const updated = await prisma.inheritanceCase.update({
+        where: { id },
+        data,
+      });
 
-    if (!existing) {
-      return c.json({ error: '案件が見つかりません', code: 'NOT_FOUND' }, 404);
+      logger.info({ caseId: id }, 'Case updated');
+      return c.json(updated);
+    } catch (e) {
+      if (isPrismaNotFound(e)) {
+        return c.json({ error: '案件が見つかりません', code: 'NOT_FOUND' }, 404);
+      }
+      throw e;
     }
-
-    const updated = await prisma.inheritanceCase.update({
-      where: { id },
-      data,
-    });
-
-    logger.info({ caseId: id }, 'Case updated');
-    return c.json(updated);
   }
 );
 
@@ -144,20 +145,18 @@ casesRouter.delete(
   async (c) => {
     const { id } = c.req.valid('param');
 
-    // Check if case exists
-    const existing = await prisma.inheritanceCase.findUnique({
-      where: { id },
-    });
+    try {
+      await prisma.inheritanceCase.delete({
+        where: { id },
+      });
 
-    if (!existing) {
-      return c.json({ error: '案件が見つかりません', code: 'NOT_FOUND' }, 404);
+      logger.info({ caseId: id }, 'Case deleted');
+      return c.body(null, 204);
+    } catch (e) {
+      if (isPrismaNotFound(e)) {
+        return c.json({ error: '案件が見つかりません', code: 'NOT_FOUND' }, 404);
+      }
+      throw e;
     }
-
-    await prisma.inheritanceCase.delete({
-      where: { id },
-    });
-
-    logger.info({ caseId: id }, 'Case deleted');
-    return c.body(null, 204);
   }
 );

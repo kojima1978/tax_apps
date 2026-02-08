@@ -8,7 +8,7 @@ echo "Running Prisma migrations..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 
-until pnpm exec prisma migrate deploy; do
+until npx -y prisma@6 migrate deploy; do
   RETRY_COUNT=$((RETRY_COUNT + 1))
   if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
     echo "ERROR: Migration failed after $MAX_RETRIES attempts"
