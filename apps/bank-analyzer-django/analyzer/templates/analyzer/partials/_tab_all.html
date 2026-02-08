@@ -1,5 +1,6 @@
 {% load humanize %}
 {% load japanese_date %}
+{% load pagination_tags %}
 
 <div class="tab-pane fade" id="all" role="tabpanel" aria-labelledby="all-tab">
     <div class="glass-card p-4">
@@ -277,12 +278,12 @@
                 <ul class="pagination justify-content-center mb-0">
                     {% if all_txs.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?tab=all&page=1{% for b in filter_state.bank %}&bank={{ b }}{% endfor %}{% for a in filter_state.account %}&account={{ a }}{% endfor %}{% for c in filter_state.category %}&category={{ c }}{% endfor %}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">
+                        <a class="page-link" href="{% pagination_url 'all' 1 filter_state %}">
                             &laquo; 最初
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?tab=all&page={{ all_txs.previous_page_number }}{% for b in filter_state.bank %}&bank={{ b }}{% endfor %}{% for a in filter_state.account %}&account={{ a }}{% endfor %}{% for c in filter_state.category %}&category={{ c }}{% endfor %}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">
+                        <a class="page-link" href="{% pagination_url 'all' all_txs.previous_page_number filter_state %}">
                             前へ
                         </a>
                     </li>
@@ -294,12 +295,12 @@
 
                     {% if all_txs.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?tab=all&page={{ all_txs.next_page_number }}{% for b in filter_state.bank %}&bank={{ b }}{% endfor %}{% for a in filter_state.account %}&account={{ a }}{% endfor %}{% for c in filter_state.category %}&category={{ c }}{% endfor %}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">
+                        <a class="page-link" href="{% pagination_url 'all' all_txs.next_page_number filter_state %}">
                             次へ
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?tab=all&page={{ all_txs.paginator.num_pages }}{% for b in filter_state.bank %}&bank={{ b }}{% endfor %}{% for a in filter_state.account %}&account={{ a }}{% endfor %}{% for c in filter_state.category %}&category={{ c }}{% endfor %}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">
+                        <a class="page-link" href="{% pagination_url 'all' all_txs.paginator.num_pages filter_state %}">
                             最後 &raquo;
                         </a>
                     </li>
@@ -307,7 +308,5 @@
                 </ul>
             </nav>
             {% endif %}
-
-        </form>
     </div>
 </div>

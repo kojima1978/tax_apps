@@ -34,11 +34,11 @@ editModal.addEventListener('show.bs.modal', function (event) {
 
     document.getElementById('modalTxId').value = txId;
     document.getElementById('modalTxDate').value = txDate;
-    document.getElementById('modalTxDescInput').value = txDesc;
+    document.getElementById('modalTxDescription').value = txDesc;
     document.getElementById('modalTxAmountOut').value = txAmountOut;
     document.getElementById('modalTxAmountIn').value = txAmountIn;
     document.getElementById('modalTxBalance').value = txBalance || '';
-    document.getElementById('modalTxCat').value = txCat || '未分類';
+    document.getElementById('modalTxCategory').value = txCat || '未分類';
     document.getElementById('modalTxMemo').value = txMemo || '';
     document.getElementById('modalTxBankName').value = txBank || '';
     document.getElementById('modalTxBranchName').value = txBranch || '';

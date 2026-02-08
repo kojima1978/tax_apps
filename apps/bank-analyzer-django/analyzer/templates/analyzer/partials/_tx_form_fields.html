@@ -1,0 +1,75 @@
+{# 取引フォームフィールド共通partial #}
+{# Parameters: id_prefix ("modal" or "add"), show_name (True/False) #}
+
+<div class="row g-2 mb-3">
+    <div class="col-3">
+        <label class="form-label">銀行名</label>
+        <select {% if show_name %}name="bank_name"{% endif %} class="form-select form-select-sm" id="{{ id_prefix }}TxBankName">
+            <option value="">-- 選択 --</option>
+            {% for bank in banks %}
+            <option value="{{ bank }}">{{ bank }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-3">
+        <label class="form-label">支店名</label>
+        <select {% if show_name %}name="branch_name"{% endif %} class="form-select form-select-sm" id="{{ id_prefix }}TxBranchName">
+            <option value="">-- 選択 --</option>
+            {% for branch in branches %}
+            <option value="{{ branch }}">{{ branch }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-3">
+        <label class="form-label">種別</label>
+        <input type="text" {% if show_name %}name="account_type"{% endif %} id="{{ id_prefix }}TxAccountType" class="form-control form-control-sm" placeholder="普通預金等">
+    </div>
+    <div class="col-3">
+        <label class="form-label">口座番号</label>
+        <select {% if show_name %}name="account_id"{% endif %} class="form-select form-select-sm" id="{{ id_prefix }}TxAccountId">
+            <option value="">-- 選択 --</option>
+            {% for acc in accounts %}
+            <option value="{{ acc }}">{{ acc }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<div class="mb-3">
+    <label class="form-label">日付</label>
+    <input type="date" {% if show_name %}name="date"{% endif %} id="{{ id_prefix }}TxDate" class="form-control" required>
+</div>
+
+<div class="mb-3">
+    <label class="form-label">摘要</label>
+    <input type="text" {% if show_name %}name="description"{% endif %} id="{{ id_prefix }}TxDescription" class="form-control" placeholder="{{ desc_placeholder|default:'' }}">
+</div>
+
+<div class="row g-2 mb-3">
+    <div class="col-4">
+        <label class="form-label">払戻（出金）</label>
+        <input type="number" {% if show_name %}name="amount_out"{% endif %} id="{{ id_prefix }}TxAmountOut" class="form-control" {% if not show_name %}value="0"{% endif %}>
+    </div>
+    <div class="col-4">
+        <label class="form-label">お預り（入金）</label>
+        <input type="number" {% if show_name %}name="amount_in"{% endif %} id="{{ id_prefix }}TxAmountIn" class="form-control" {% if not show_name %}value="0"{% endif %}>
+    </div>
+    <div class="col-4">
+        <label class="form-label">残高</label>
+        <input type="number" {% if show_name %}name="balance"{% endif %} id="{{ id_prefix }}TxBalance" class="form-control">
+    </div>
+</div>
+
+<div class="mb-3">
+    <label class="form-label">分類</label>
+    <select {% if show_name %}name="category"{% endif %} class="form-select" id="{{ id_prefix }}TxCategory">
+        {% for cat in categories %}
+        <option value="{{ cat }}" {% if not show_name and cat == '未分類' %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="mb-3">
+    <label class="form-label">📝 メモ</label>
+    <textarea {% if show_name %}name="memo"{% endif %} id="{{ id_prefix }}TxMemo" class="form-control" rows="{{ memo_rows|default:3 }}" placeholder="{{ memo_placeholder|default:'メモ（任意）' }}"></textarea>
+</div>
