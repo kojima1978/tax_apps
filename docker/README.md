@@ -254,6 +254,7 @@ start.bat --prod
 - ボリュームマウント無効化（ビルド済みイメージを使用）
 - 内部サービスのポート非公開（Gateway経由のみアクセス可）
 - リソース制限の最適化（メモリ使用量を削減）
+- `init: false`（runner ステージの tini ENTRYPOINT と Docker init の二重起動を防止）
 - Djangoの `DJANGO_DEBUG=False` + `gunicorn` 起動
 - `DJANGO_SECRET_KEY` の必須化
 
@@ -293,4 +294,7 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 - **Bank Analyzer**: 取引追加/削除機能、日付範囲フィルター追加
 - **Dockerfile改善**: 重複コード削除、nginx設定検証の有効化
 - **docker-compose.prod.yml**: gunicornのwsgiパス修正、タイムアウト設定追加
+- **batファイル**: `_parse_args.bat`共通パーサー抽出、if/else分岐を削除して簡素化
+- **docker-compose.prod.yml**: Node.jsサービスに`init: false`追加（tini二重起動防止）
+- **Required-docs**: R1リファクタリング（ListPage/FormErrorDisplay共通化、handler grouping、Excel helper）
 
