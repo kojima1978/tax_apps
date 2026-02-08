@@ -22,33 +22,15 @@ export default function Modal({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 1000,
-      }}
+      className="fixed inset-0 bg-black/50 flex justify-center items-center z-[1000]"
       onClick={onClose}
     >
       <div
-        style={{
-          backgroundColor: 'white',
-          padding: '24px',
-          borderRadius: '8px',
-          minWidth,
-          maxWidth: '90%',
-          maxHeight: '80vh',
-          overflow: 'auto',
-        }}
+        className="bg-white p-6 rounded-lg max-w-[90%] max-h-[80vh] overflow-auto"
+        style={{ minWidth }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ marginTop: 0 }}>{title}</h3>
+        <h3 className="mt-0">{title}</h3>
         {children}
       </div>
     </div>

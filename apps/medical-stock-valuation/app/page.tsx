@@ -10,8 +10,8 @@ import Step1CompanySize from '@/components/valuation/Step1CompanySize';
 import Step2FinancialData from '@/components/valuation/Step2FinancialData';
 import Step3Investors from '@/components/valuation/Step3Investors';
 import { useSaveValuation } from '@/hooks/useSaveValuation';
-import { validateBasicInfo, validateStep1, validateStep2, validateStep3 } from '@/lib/utils';
-import { buttonStyle, buttonHoverClass } from '@/lib/button-styles';
+import { validateFormData } from '@/lib/utils';
+import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 import { toWareki } from '@/lib/date-utils';
 import { useToast } from '@/components/Toast';
 
@@ -115,31 +115,25 @@ export default function Home() {
   };
 
   const validateAllSteps = () => {
-    const basicValidation = validateBasicInfo({ fiscalYear, companyName, personInCharge });
-    if (!basicValidation.isValid) {
-      toast.warning(basicValidation.message!);
+    const result = validateFormData({
+      fiscalYear,
+      companyName,
+      personInCharge,
+      employees,
+      totalAssets,
+      sales,
+      currentPeriodNetAsset,
+      netAssetTaxValue,
+      currentPeriodProfit,
+      investors,
+    });
+
+    if (!result.isValid) {
+      toast.warning(result.message!);
       return null;
     }
 
-    const step1Validation = validateStep1({ employees, totalAssets, sales });
-    if (!step1Validation.isValid) {
-      toast.warning(step1Validation.message!);
-      return null;
-    }
-
-    const step2Validation = validateStep2({ currentPeriodNetAsset, netAssetTaxValue, currentPeriodProfit });
-    if (!step2Validation.isValid) {
-      toast.warning(step2Validation.message!);
-      return null;
-    }
-
-    const step3Validation = validateStep3(investors);
-    if (!step3Validation.isValid) {
-      toast.warning(step3Validation.message!);
-      return null;
-    }
-
-    return step3Validation.validInvestors!;
+    return result.validInvestors!;
   };
 
   const buildFormData = (validInvestors: Array<{ name: string; amount: number }>, includeId = false) => {
@@ -284,8 +278,7 @@ export default function Home() {
         <div className="flex gap-4">
           <button
             onClick={handleSaveAsNew}
-            className={buttonHoverClass}
-            style={buttonStyle}
+            className={`${BTN_CLASS} ${HOVER_CLASS}`}
             disabled={isSaving}
           >
             <FilePlus size={20} />
@@ -293,14 +286,13 @@ export default function Home() {
           </button>
           <button
             onClick={handleSaveOverwrite}
-            className={buttonHoverClass}
-            style={buttonStyle}
+            className={`${BTN_CLASS} ${HOVER_CLASS}`}
             disabled={isSaving}
           >
             <Save size={20} />
             {currentDataId ? '上書保存' : '保存'}
           </button>
-          <button onClick={goToResults} className={buttonHoverClass} style={buttonStyle}>
+          <button onClick={goToResults} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
             <Calculator size={20} />
             計算結果を確認する
           </button>

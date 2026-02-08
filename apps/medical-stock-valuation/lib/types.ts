@@ -1,3 +1,13 @@
+export type UserOption = {
+  id: string;
+  name: string;
+};
+
+export type CompanyOption = {
+  id: string;
+  company_name: string;
+};
+
 export interface Investor {
   name: string;
   amount: number;

@@ -5,6 +5,9 @@
 
 # ベースイメージ（Node.js 22 LTS - Alpine for smaller size）
 FROM node:22-alpine AS base
+
+RUN apk upgrade --no-cache
+
 WORKDIR /app
 
 # ============================================
@@ -28,8 +31,8 @@ FROM native-build AS dev
 
 RUN apk add --no-cache tzdata
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps --link /app/node_modules ./node_modules
+COPY --link . .
 
 ENV NODE_ENV=development \
     PORT=3001 \
@@ -77,11 +80,11 @@ ENV NODE_ENV=production \
     TZ=Asia/Tokyo
 
 # 本番用依存関係をコピー（ビルド済みネイティブモジュール含む）
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY package*.json ./
+COPY --from=prod-deps --link /app/node_modules ./node_modules
+COPY --link package*.json ./
 
 # ビルド成果物をコピー
-COPY --from=builder /app/dist ./dist
+COPY --from=builder --link /app/dist ./dist
 
 # データベースディレクトリを作成（データ領域のみ書き込み権限付与）
 RUN mkdir -p /app/data && chown node:node /app/data
@@ -94,8 +97,8 @@ USER node
 
 EXPOSE 3001
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget -qO- http://localhost:3001/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3001/api/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
 # シグナル処理
 STOPSIGNAL SIGTERM

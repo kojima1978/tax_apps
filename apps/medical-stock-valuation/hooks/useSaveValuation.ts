@@ -10,63 +10,22 @@ export function useSaveValuation() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * 新規保存 - 常に新しいIDを生成して保存
+   * 共通の保存処理
+   * @param formData 保存するフォームデータ
+   * @param forceNewId trueの場合は常に新しいIDを生成
    */
-  const saveAsNew = async (formData: FormData): Promise<{ success: boolean; id?: string }> => {
-    setIsSaving(true);
-    setError(null);
-
-    try {
-      // 新しいIDを生成
-      const newId = generateId('val');
-      const dataToSave = {
-        ...formData,
-        id: newId,
-      };
-
-      const response = await fetch('/medical/api/valuations/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dataToSave),
-      });
-
-      await checkApiResponse(response);
-
-      // localStorageも更新
-      localStorage.setItem('formData', JSON.stringify(dataToSave));
-
-      return { success: true, id: newId };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'データの保存に失敗しました';
-      setError(errorMessage);
-      return { success: false };
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  /**
-   * 上書保存 - 既存のIDがあればそれを使用、なければ新規保存
-   */
-  const saveOverwrite = async (formData: FormData): Promise<{ success: boolean; id?: string }> => {
+  const saveInternal = async (formData: FormData, forceNewId: boolean): Promise<{ success: boolean; id?: string }> => {
     setIsSaving(true);
     setError(null);
 
     try {
       let dataToSave: FormData;
 
-      if (formData.id) {
-        // 既存IDがある場合は上書き
-        dataToSave = { ...formData };
-      } else {
-        // IDがない場合は新規として扱う
+      if (forceNewId || !formData.id) {
         const newId = generateId('val');
-        dataToSave = {
-          ...formData,
-          id: newId,
-        };
+        dataToSave = { ...formData, id: newId };
+      } else {
+        dataToSave = { ...formData };
       }
 
       const response = await fetch('/medical/api/valuations/', {
@@ -79,7 +38,6 @@ export function useSaveValuation() {
 
       await checkApiResponse(response);
 
-      // localStorageも更新
       localStorage.setItem('formData', JSON.stringify(dataToSave));
 
       return { success: true, id: dataToSave.id };
@@ -91,6 +49,9 @@ export function useSaveValuation() {
       setIsSaving(false);
     }
   };
+
+  const saveAsNew = (formData: FormData) => saveInternal(formData, true);
+  const saveOverwrite = (formData: FormData) => saveInternal(formData, false);
 
   return { saveAsNew, saveOverwrite, isSaving, error };
 }

@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # ============================================
 # Tax Apps Portal - Dockerfile
 # Next.js + Prisma + SQLite
@@ -7,6 +9,9 @@
 # Base stage - 共通設定
 # ===========================================
 FROM node:22-alpine AS base
+
+RUN apk upgrade --no-cache
+
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -22,7 +27,8 @@ COPY package*.json ./
 
 # Docker用: libsql → better-sqlite3 に置き換え
 # libsql関連パッケージを除外してインストール後、better-sqlite3を追加
-RUN sed -i '/@prisma\/adapter-libsql/d' package.json && \
+RUN --mount=type=cache,target=/root/.npm \
+    sed -i '/@prisma\/adapter-libsql/d' package.json && \
     sed -i '/@libsql\/client/d' package.json && \
     npm ci && \
     npm install @prisma/adapter-better-sqlite3 better-sqlite3 @types/better-sqlite3
@@ -33,8 +39,8 @@ RUN sed -i '/@prisma\/adapter-libsql/d' package.json && \
 FROM base AS builder
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps --link /app/node_modules ./node_modules
+COPY --link . .
 
 # Prisma設定をDocker用に上書き（libsql → better-sqlite3）
 # DB パスは環境変数 DATABASE_PATH で変更可能（デフォルト: /data/portal.db）
@@ -106,13 +112,13 @@ RUN apk add --no-cache tini tzdata && \
     mkdir -p /data && chown nextjs:nodejs /data
 
 # ビルド成果物をコピー
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs --link /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/static
 
 # ビルド時に作成したDBをデフォルトデータとしてコピー
 # ボリュームマウントで上書き可能
-COPY --from=builder --chown=nextjs:nodejs /app/build.db /data/portal.db
+COPY --from=builder --chown=nextjs:nodejs --link /app/build.db /data/portal.db
 
 # データ永続化用ボリューム
 VOLUME ["/data"]

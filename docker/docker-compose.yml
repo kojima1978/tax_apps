@@ -119,8 +119,12 @@ services:
     ports:
       - "3010:3010"
     volumes:
-      - ../apps/medical-stock-valuation/src:/app/src:ro
-      - ../apps/medical-stock-valuation/data:/app/data
+      - ../apps/medical-stock-valuation/app:/app/app:ro
+      - ../apps/medical-stock-valuation/components:/app/components:ro
+      - ../apps/medical-stock-valuation/lib:/app/lib:ro
+      - ../apps/medical-stock-valuation/hooks:/app/hooks:ro
+      - ../apps/medical-stock-valuation/public:/app/public:ro
+      - medical_stock_data:/app/data
     environment:
       <<: *nextjs-dev-env
       PORT: "3010"
@@ -443,6 +447,8 @@ volumes:
     name: tax-apps-itcm-postgres
   tax_docs_data:
     name: tax-apps-tax-docs-data
+  medical_stock_data:
+    name: tax-apps-medical-stock-data
   bank_analyzer_data:
     name: tax-apps-bank-analyzer-data
   bank_analyzer_db:

@@ -1,9 +1,14 @@
+# syntax=docker/dockerfile:1
+
 # ============================================
 # Nginx Gateway Dockerfile
 # Tax Apps Reverse Proxy
 # ============================================
 
 FROM nginx:1.27-alpine
+
+# セキュリティ更新
+RUN apk upgrade --no-cache
 
 # ラベル
 LABEL org.opencontainers.image.title="Tax Apps Gateway"

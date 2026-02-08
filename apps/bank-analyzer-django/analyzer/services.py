@@ -4,9 +4,12 @@
 ビューからビジネスロジックを分離し、再利用性とテスト容易性を向上させる。
 """
 import logging
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 import pandas as pd
+from django.db import transaction as db_transaction, IntegrityError
 from django.db.models import Count, Q
 
 from .models import Case, Transaction
@@ -30,6 +33,11 @@ def _parse_int_ids(ids: list[str]) -> list[int] | None:
         return [int(id_str) for id_str in ids]
     except (ValueError, TypeError):
         return None
+
+
+def _get_transaction(case: Case, tx_id: int) -> Optional[Transaction]:
+    """案件内の取引をIDで取得（見つからない場合はNone）"""
+    return case.transactions.filter(pk=tx_id).first()
 
 
 class TransactionService:
@@ -100,7 +108,7 @@ class TransactionService:
         Returns:
             更新された取引数
         """
-        tx = case.transactions.filter(pk=tx_id).first()
+        tx = _get_transaction(case, tx_id)
         if not tx:
             return 0
 
@@ -152,70 +160,51 @@ class TransactionService:
 
         return len(updates)
 
+    # update_transactionで直接代入するフィールド
+    _DIRECT_FIELDS = ('description', 'amount_out', 'amount_in', 'category')
+    # update_transactionでstrip()してから代入するフィールド（Noneの場合はスキップ）
+    _STRIP_FIELDS = ('memo', 'bank_name', 'branch_name', 'account_id', 'account_type')
+
     @staticmethod
-    def update_transaction(
-        case: Case,
-        tx_id: int,
-        date_str: Optional[str],
-        description: Optional[str],
-        amount_out: int,
-        amount_in: int,
-        category: Optional[str],
-        memo: Optional[str] = None,
-        bank_name: Optional[str] = None,
-        branch_name: Optional[str] = None,
-        account_id: Optional[str] = None,
-        account_type: Optional[str] = None,
-        balance: Optional[int] = None
-    ) -> bool:
+    def update_transaction(case: Case, tx_id: int, data: dict) -> bool:
         """
         取引データを更新
 
         Args:
             case: 対象の案件
             tx_id: 取引ID
-            date_str: 日付文字列
-            description: 摘要
-            amount_out: 出金額
-            amount_in: 入金額
-            category: カテゴリー
-            memo: メモ
-            bank_name: 銀行名
-            branch_name: 支店名
-            account_id: 口座番号
-            account_type: 種別
-            balance: 残高
+            data: 更新データ辞書（date, description, amount_out, amount_in,
+                  category, memo, bank_name, branch_name, account_id,
+                  account_type, balance）
 
         Returns:
             更新成功の場合True
         """
-        tx = case.transactions.filter(pk=tx_id).first()
+        tx = _get_transaction(case, tx_id)
         if not tx:
             return False
 
+        date_str = data.get('date')
         if date_str:
             try:
                 tx.date = pd.to_datetime(date_str).date()
             except (ValueError, TypeError) as e:
                 logger.warning(f"日付パースエラー: date_str={date_str}, error={e}")
                 return False
-        tx.description = description
-        tx.amount_out = amount_out
-        tx.amount_in = amount_in
-        tx.category = category
-        tx.memo = memo.strip() if memo else None
-        if bank_name is not None:
-            tx.bank_name = bank_name.strip() if bank_name else None
-        if branch_name is not None:
-            tx.branch_name = branch_name.strip() if branch_name else None
-        if account_id is not None:
-            tx.account_id = account_id.strip() if account_id else None
-        if account_type is not None:
-            tx.account_type = account_type.strip() if account_type else None
-        if balance is not None:
-            tx.balance = balance
-        tx.save()
 
+        for field in TransactionService._DIRECT_FIELDS:
+            if field in data:
+                setattr(tx, field, data[field])
+
+        for field in TransactionService._STRIP_FIELDS:
+            value = data.get(field)
+            if value is not None:
+                setattr(tx, field, value.strip() if value else None)
+
+        if 'balance' in data and data['balance'] is not None:
+            tx.balance = data['balance']
+
+        tx.save()
         logger.info(f"取引更新: case_id={case.id}, tx_id={tx_id}")
         return True
 
@@ -265,7 +254,7 @@ class TransactionService:
         return count
 
     @staticmethod
-    def toggle_flag(case: Case, tx_id: int) -> bool:
+    def toggle_flag(case: Case, tx_id: int) -> Optional[bool]:
         """
         取引の要確認フラグをトグル
 
@@ -274,11 +263,11 @@ class TransactionService:
             tx_id: 取引ID
 
         Returns:
-            新しいフラグの状態
+            新しいフラグの状態。取引が見つからない場合はNone
         """
-        tx = case.transactions.filter(pk=tx_id).first()
+        tx = _get_transaction(case, tx_id)
         if not tx:
-            return False
+            return None
 
         tx.is_flagged = not tx.is_flagged
         tx.save(update_fields=['is_flagged'])
@@ -298,7 +287,7 @@ class TransactionService:
         Returns:
             更新成功の場合True
         """
-        tx = case.transactions.filter(pk=tx_id).first()
+        tx = _get_transaction(case, tx_id)
         if not tx:
             return False
 
@@ -431,6 +420,145 @@ class TransactionService:
                 })
 
         return result
+
+    @staticmethod
+    def import_from_json(data: dict, restore_settings: bool = False) -> tuple[Case, int]:
+        """
+        JSONバックアップデータから案件と取引を復元
+
+        Args:
+            data: パース済みJSONデータ
+            restore_settings: 設定も復元するか
+
+        Returns:
+            (作成された案件, インポートされた取引数) のタプル
+
+        Raises:
+            ValueError: バージョン不正・案件名生成失敗時
+        """
+        version = data.get('version', '1.0')
+        if version not in ['1.0']:
+            raise ValueError(f"未対応のバージョン: {version}")
+
+        case_data = data.get('case', {})
+        original_name = case_data.get('name', 'インポート案件')
+
+        # 案件作成（重複名はリトライ）
+        case_name = original_name
+        counter = 0
+        max_retries = 100
+        new_case = None
+        while new_case is None and counter < max_retries:
+            try:
+                with db_transaction.atomic():
+                    new_case = Case.objects.create(name=case_name)
+            except IntegrityError:
+                counter += 1
+                case_name = f"{original_name}_復元{counter}"
+
+        if new_case is None:
+            raise ValueError("案件名の生成に失敗しました。別の名前でインポートしてください。")
+
+        with db_transaction.atomic():
+            transactions_data = data.get('transactions', [])
+            new_transactions = []
+
+            for tx_data in transactions_data:
+                date_val = None
+                if tx_data.get('date'):
+                    try:
+                        date_val = datetime.fromisoformat(tx_data['date']).date()
+                    except (ValueError, TypeError):
+                        pass
+
+                new_transactions.append(Transaction(
+                    case=new_case,
+                    date=date_val,
+                    description=tx_data.get('description'),
+                    amount_out=tx_data.get('amount_out', 0),
+                    amount_in=tx_data.get('amount_in', 0),
+                    balance=tx_data.get('balance'),
+                    account_id=tx_data.get('account_id'),
+                    holder=tx_data.get('holder'),
+                    bank_name=tx_data.get('bank_name'),
+                    branch_name=tx_data.get('branch_name'),
+                    account_type=tx_data.get('account_type'),
+                    is_large=tx_data.get('is_large', False),
+                    is_transfer=tx_data.get('is_transfer', False),
+                    transfer_to=tx_data.get('transfer_to'),
+                    category=tx_data.get('category', UNCATEGORIZED),
+                    is_flagged=tx_data.get('is_flagged', False),
+                    memo=tx_data.get('memo'),
+                ))
+
+            if new_transactions:
+                Transaction.objects.bulk_create(new_transactions)
+
+            if restore_settings and 'settings' in data:
+                config.save_user_settings(data['settings'])
+                logger.info("設定データを復元しました")
+
+        logger.info(f"JSONインポート完了: case_id={new_case.pk}, name={case_name}, transactions={len(new_transactions)}")
+        return new_case, len(new_transactions)
+
+    @staticmethod
+    def commit_import(case: Case, rows: list[dict]) -> int:
+        """
+        プレビュー確認済みの取引データをインポート確定
+
+        Args:
+            case: 対象の案件
+            rows: 取引データのリスト（date, description, amount_out, amount_in, balance等）
+
+        Returns:
+            インポートされた取引数
+        """
+        df = pd.DataFrame(rows)
+        df['date'] = pd.to_datetime(df['date'])
+
+        # 分類・大口検出
+        df = llm_classifier.classify_transactions(df)
+        df = analyzer.analyze_large_amounts(df)
+
+        with db_transaction.atomic():
+            new_transactions = []
+            for _, row in df.iterrows():
+                dt = row['date'] if pd.notna(row['date']) else None
+
+                new_transactions.append(Transaction(
+                    case=case,
+                    date=dt,
+                    description=row['description'],
+                    amount_out=row.get('amount_out', 0),
+                    amount_in=row.get('amount_in', 0),
+                    balance=row.get('balance', 0) if pd.notna(row['balance']) else None,
+                    account_id=str(row.get('account_number', 'unknown')),
+                    is_large=row.get('is_large', False),
+                    category=row.get('category'),
+                    branch_name=row.get('branch_name'),
+                    bank_name=row.get('bank_name'),
+                    account_type=row.get('account_type'),
+                ))
+
+            Transaction.objects.bulk_create(new_transactions)
+
+            # 資金移動の再分析
+            all_tx = pd.DataFrame(list(case.transactions.all().values()))
+            if not all_tx.empty:
+                analyzed_df = analyzer.analyze_transfers(all_tx)
+                updates = []
+                for _, row in analyzed_df.iterrows():
+                    if row.get('is_transfer'):
+                        updates.append(Transaction(
+                            id=row['id'],
+                            is_transfer=True,
+                            transfer_to=row['transfer_to']
+                        ))
+                if updates:
+                    Transaction.objects.bulk_update(updates, ['is_transfer', 'transfer_to'])
+
+        logger.info(f"取引インポート確定: case_id={case.id}, count={len(new_transactions)}")
+        return len(new_transactions)
 
 
 class AnalysisService:

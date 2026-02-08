@@ -43,7 +43,7 @@ services:
     stop_grace_period: 10s
     read_only: true
     healthcheck:
-      test: ["CMD", "curl", "-f", "--silent", "http://localhost:8000/health/"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')\""]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -80,7 +80,6 @@ services:
       # 注意: requirements.txt を変更した場合は再ビルドが必要
       #   docker compose --profile dev build web-dev
       - .:/app
-      - ./data:/app/data
       - sqlite-data:/app/db
     environment:
       - DJANGO_DEBUG=True
@@ -93,7 +92,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 10s
     healthcheck:
-      test: ["CMD", "curl", "-f", "--silent", "http://localhost:8000/health/"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')\""]
       interval: 30s
       timeout: 5s
       retries: 3

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { buttonStyle, buttonHoverClass } from '@/lib/button-styles';
+import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 
 export default function GiftTaxTable() {
   const router = useRouter();
@@ -249,8 +249,7 @@ export default function GiftTaxTable() {
       {/* 戻るボタン */}
       <div className="text-center mt-8">
         <button
-          className={buttonHoverClass}
-          style={buttonStyle}
+          className={`${BTN_CLASS} ${HOVER_CLASS}`}
           onClick={goBack}
         >
           <ArrowLeft size={20} />

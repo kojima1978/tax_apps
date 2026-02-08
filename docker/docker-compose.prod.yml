@@ -41,7 +41,8 @@ services:
     build:
       target: runner
     ports: []
-    volumes: []
+    volumes:
+      - medical_stock_data:/app/data
     environment:
       NODE_ENV: production
     deploy:

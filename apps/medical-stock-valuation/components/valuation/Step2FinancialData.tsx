@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NumericFormat } from 'react-number-format';
 import { ListChecks, Copy } from 'lucide-react';
-import { inlineButtonStyle } from '@/lib/button-styles';
+import { INLINE_BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 
 type Props = {
     currentPeriodNetAsset: string;
@@ -34,8 +34,7 @@ export default function Step2FinancialData({
     setPreviousPreviousPeriodProfit,
     copyToTaxValue,
 }: Props) {
-    const [showPopup1, setShowPopup1] = useState(false);
-    const [showPopup2, setShowPopup2] = useState(false);
+    const [activePopup, setActivePopup] = useState<1 | 2 | null>(null);
 
     return (
         <div className="card">
@@ -54,19 +53,18 @@ export default function Step2FinancialData({
                         <td>
                             「貸借対照表」の「純資産の部（又は資本の部）合計」の金額（注１）
                             <button
-                                className="hover:bg-gray-200 hover:border-gray-400"
-                                style={inlineButtonStyle}
-                                onClick={() => setShowPopup1(!showPopup1)}
+                                className={`${INLINE_BTN_CLASS} ${HOVER_CLASS}`}
+                                onClick={() => setActivePopup(activePopup === 1 ? null : 1)}
                             >
                                 <ListChecks size={14} />
                                 正確な評価
                             </button>
-                            {showPopup1 && (
+                            {activePopup === 1 && (
                                 <div className="absolute bg-white border border-gray-300 p-4 rounded-lg mt-2 text-sm max-w-md shadow-lg z-10">
                                     <button
                                         type="button"
                                         className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 font-bold text-xl"
-                                        onClick={() => setShowPopup1(false)}
+                                        onClick={() => setActivePopup(null)}
                                     >
                                         ×
                                     </button>
@@ -106,8 +104,7 @@ export default function Step2FinancialData({
                         <td>
                             貸借対照表の各勘定科目の金額について、相続税評価額とした金額を基に計算した「純資産」の金額を上書き入力してください。
                             <button
-                                className="hover:bg-gray-200 hover:border-gray-400"
-                                style={inlineButtonStyle}
+                                className={`${INLINE_BTN_CLASS} ${HOVER_CLASS}`}
                                 onClick={copyToTaxValue}
                             >
                                 <Copy size={14} />
@@ -142,19 +139,18 @@ export default function Step2FinancialData({
                         <td>
                             「損益計算書」の「税引前当期純利益」の金額
                             <button
-                                className="hover:bg-gray-200 hover:border-gray-400"
-                                style={inlineButtonStyle}
-                                onClick={() => setShowPopup2(!showPopup2)}
+                                className={`${INLINE_BTN_CLASS} ${HOVER_CLASS}`}
+                                onClick={() => setActivePopup(activePopup === 2 ? null : 2)}
                             >
                                 <ListChecks size={14} />
                                 正確な評価
                             </button>
-                            {showPopup2 && (
+                            {activePopup === 2 && (
                                 <div className="absolute bg-white border border-gray-300 p-4 rounded-lg mt-2 text-sm max-w-md shadow-lg z-10">
                                     <button
                                         type="button"
                                         className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 font-bold text-xl"
-                                        onClick={() => setShowPopup2(false)}
+                                        onClick={() => setActivePopup(null)}
                                     >
                                         ×
                                     </button>

@@ -237,3 +237,29 @@ export const SortableCategoryCard = ({
     </div>
   );
 };
+
+// ─── カテゴリドラッグオーバーレイ ───
+
+export const CategoryDragOverlay = ({ category }: { category: EditableCategory }) => {
+  const checkedCount = category.documents.filter((d) => d.checked).length;
+  return (
+    <div
+      className={`rounded-xl shadow-2xl overflow-hidden ${
+        category.isSpecial
+          ? 'bg-purple-50 border-l-4 border-purple-500'
+          : 'bg-emerald-50 border-l-4 border-emerald-500'
+      }`}
+    >
+      <div className="flex items-center gap-3 p-4">
+        <GripVertical className="w-5 h-5 text-slate-400" aria-hidden="true" />
+        <h3 className="font-bold text-slate-800">
+          {category.isSpecial && <span className="text-purple-600">【特例】</span>}
+          {category.name}
+        </h3>
+        <span className="px-2 py-0.5 bg-white rounded text-sm text-slate-600">
+          {checkedCount}/{category.documents.length}
+        </span>
+      </div>
+    </div>
+  );
+};

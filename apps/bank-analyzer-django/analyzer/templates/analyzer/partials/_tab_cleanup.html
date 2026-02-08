@@ -1,0 +1,155 @@
+{% load humanize %}
+{% load japanese_date %}
+
+<div class="tab-pane fade" id="cleanup" role="tabpanel" aria-labelledby="cleanup-tab">
+    <div class="glass-card p-4">
+        <h4 class="mb-3 text-warning"><i class="bi bi-exclamation-triangle"></i> 重複データの確認と削除</h4>
+        <p class="text-muted">
+            日付、金額、摘要、口座IDが完全に一致するデータを「重複データ」として表示しています。<br>
+            誤って二重に取り込んでしまった場合などに使用してください。
+        </p>
+
+        <!-- ID範囲削除フォーム -->
+        <div class="card bg-light border-warning mb-4">
+            <div class="card-body">
+                <h6 class="card-title text-warning"><i class="bi bi-lightning"></i> ID範囲指定で一括削除</h6>
+                <p class="small text-muted mb-3">
+                    開始IDから終了IDまでの取引を一括削除します。下の重複データ一覧でIDを確認してください。
+                </p>
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_by_range">
+                    <div class="col-auto">
+                        <label for="start_id" class="form-label small">開始ID</label>
+                        <input type="number" class="form-control form-control-sm" id="start_id" name="start_id" placeholder="例: 100" required style="width: 120px;">
+                    </div>
+                    <div class="col-auto d-flex align-items-center pt-4">
+                        <span class="text-muted">〜</span>
+                    </div>
+                    <div class="col-auto">
+                        <label for="end_id" class="form-label small">終了ID</label>
+                        <input type="number" class="form-control form-control-sm" id="end_id" name="end_id" placeholder="例: 200" required style="width: 120px;">
+                    </div>
+                    <div class="col-auto pt-4">
+                        <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('指定したID範囲の取引を削除しますか？この操作は取り消せません。')">
+                            <i class="bi bi-trash"></i> 範囲削除実行
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- フィールド一括置換フォーム -->
+        <div class="card bg-light border-info mb-4">
+            <div class="card-body">
+                <h6 class="card-title text-info"><i class="bi bi-pencil-square"></i> フィールド値の一括置換</h6>
+                <p class="small text-muted mb-3">
+                    銀行名・支店名・口座番号の誤字を一括で修正できます。例: 「百十四銀＿行」→「百十四銀行」
+                </p>
+                <form method="post" id="bulkReplaceForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="bulk_replace_field">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-auto">
+                            <label for="replace_field_name" class="form-label small">対象フィールド</label>
+                            <select class="form-select form-select-sm" id="replace_field_name" name="field_name" required style="width: 140px;">
+                                <option value="">-- 選択 --</option>
+                                <option value="bank_name">銀行名</option>
+                                <option value="branch_name">支店名</option>
+                                <option value="account_id">口座番号</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <label for="replace_old_value" class="form-label small">
+                                置換前の値
+                                <span id="replace_loading_spinner" class="spinner-border spinner-border-sm text-info ms-1" style="display: none;"></span>
+                            </label>
+                            <select class="form-select form-select-sm" id="replace_old_value" name="old_value" required style="width: 220px;" disabled>
+                                <option value="">-- フィールドを選択してください --</option>
+                            </select>
+                        </div>
+                        <div class="col-auto d-flex align-items-center pt-4">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="copyOldValueBtn" title="置換前の値をコピー" disabled>
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                            <span class="text-muted mx-2">→</span>
+                        </div>
+                        <div class="col-auto">
+                            <label for="replace_new_value" class="form-label small">置換後の値</label>
+                            <input type="text" class="form-control form-control-sm" id="replace_new_value" name="new_value" placeholder="正しい値を入力" required style="width: 220px;">
+                        </div>
+                        <div class="col-auto pt-4">
+                            <span id="replace_preview_count" class="badge bg-info me-2" style="display: none;">0件</span>
+                            <button type="submit" class="btn btn-info btn-sm" id="bulkReplaceSubmitBtn" disabled>
+                                <i class="bi bi-arrow-repeat"></i> 一括置換実行
+                            </button>
+                        </div>
+                    </div>
+                    <!-- プレビュー表示エリア -->
+                    <div id="replacePreviewArea" class="mt-3" style="display: none;">
+                        <div class="alert alert-info py-2 mb-0">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <span id="replacePreviewText"></span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_duplicates">
+
+            {% if duplicate_txs %}
+            <div class="d-flex justify-content-end mb-3">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('選択したデータを削除しますか？')">
+                    <i class="bi bi-trash"></i> 選択したデータを削除
+                </button>
+            </div>
+
+            <div class="table-responsive" style="max-height: 500px;">
+                <table class="table table-hover align-middle table-sm">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"><input type="checkbox" class="form-check-input"
+                                    id="selectAllDup"></th>
+                            <th>日付</th>
+                            <th>銀行名</th>
+                            <th>支店名</th>
+                            <th>種別</th>
+                            <th>口座番号</th>
+                            <th>摘要</th>
+                            <th>出金</th>
+                            <th>入金</th>
+                            <th>ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in duplicate_txs %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="delete_ids" value="{{ tx.id }}"
+                                    class="form-check-input dup-check">
+                            </td>
+                            <td>{{ tx.date|wareki_short }}</td>
+                            <td>{{ tx.bank_name|default:"-" }}</td>
+                            <td>{{ tx.branch_name|default:"-" }}</td>
+                            <td>{{ tx.account_type|default:"-" }}</td>
+                            <td>{{ tx.account_id|default:"-" }}</td>
+                            <td>{{ tx.description }}</td>
+                            <td class="text-end">{% if tx.amount_out %}{{ tx.amount_out|intcomma }}{% endif %}</td>
+                            <td class="text-end">{% if tx.amount_in %}{{ tx.amount_in|intcomma }}{% endif %}</td>
+                            <td><small class="text-muted">{{ tx.id }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle"></i> 重複データは見つかりませんでした。
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>

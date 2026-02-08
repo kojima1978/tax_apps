@@ -9,24 +9,15 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import {
-  ChevronUp,
-  Plus,
-  Printer,
-  FileSpreadsheet,
-  RefreshCw,
-  ChevronsUpDown,
-  Info,
-  RotateCcw,
-  Download,
-  Upload,
-} from 'lucide-react';
-import { giftData, type EditableDocumentList, type Step } from '@/constants';
+import { Plus, Info } from 'lucide-react';
+import type { EditableDocumentList, Step } from '@/constants';
 import { useEditableListEditing } from '@/hooks/useEditableListEditing';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { ResetConfirmDialog, ImportConfirmDialog, DeleteConfirmDialog, ImportErrorDialog } from '@/components/ui/ConfirmDialog';
-import { SortableDocumentItem, DragOverlayItem, CategoryDragOverlay } from '@/components/ui/SortableDocumentItem';
-import { SortableCategoryCard } from '@/components/ui/SortableCategoryCard';
+import { SortableDocumentItem, DragOverlayItem } from '@/components/ui/SortableDocumentItem';
+import { SortableCategoryCard, CategoryDragOverlay } from '@/components/ui/SortableCategoryCard';
+import { EditToolbar } from '@/components/ui/EditToolbar';
+import { AddCategoryForm } from '@/components/ui/AddCategoryForm';
 
 type EditableListStepProps = {
   documentList: EditableDocumentList;
@@ -55,7 +46,6 @@ export const EditableListStep = ({
   customerName,
   setCustomerName,
 }: EditableListStepProps) => {
-  // 編集状態管理フックを使用
   const editing = useEditableListEditing({
     documentList,
     setDocumentList,
@@ -67,99 +57,22 @@ export const EditableListStep = ({
     setCustomerName,
   });
 
-  // DnD管理フックを使用
   const dnd = useDragAndDrop(documentList, setDocumentList);
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
       {/* ヘッダーツールバー */}
-      <div className="no-print bg-white rounded-xl shadow-lg p-4 mb-6 sticky top-4 z-10" role="toolbar" aria-label="編集ツールバー">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-slate-800">{giftData.title}</h1>
-            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium" aria-live="polite">
-              {editing.checkedCount} / {editing.totalCount} 選択中
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => editing.handleExpandAll(true)}
-              className="flex items-center px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-              title="全て展開"
-              aria-label="全カテゴリを展開"
-            >
-              <ChevronsUpDown className="w-4 h-4 mr-1" aria-hidden="true" />
-              展開
-            </button>
-            <button
-              onClick={() => editing.handleExpandAll(false)}
-              className="flex items-center px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-              title="全て折りたたむ"
-              aria-label="全カテゴリを折りたたむ"
-            >
-              <ChevronUp className="w-4 h-4 mr-1" aria-hidden="true" />
-              折畳
-            </button>
-            <button
-              onClick={() => editing.setShowResetDialog(true)}
-              className="flex items-center px-3 py-2 text-sm bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors"
-              title="デフォルトに戻す"
-              aria-label="編集内容をリセット"
-            >
-              <RotateCcw className="w-4 h-4 mr-1" aria-hidden="true" />
-              リセット
-            </button>
-            <div className="w-px h-6 bg-slate-300 mx-2" aria-hidden="true" />
-            <button
-              onClick={editing.handleJsonExport}
-              className="flex items-center px-3 py-2 text-sm bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-lg transition-colors"
-              title="JSONで出力"
-              aria-label="JSONファイルとして出力"
-            >
-              <Download className="w-4 h-4 mr-1" aria-hidden="true" />
-              出力
-            </button>
-            <label
-              className="flex items-center px-3 py-2 text-sm bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-lg transition-colors cursor-pointer"
-              title="JSONを取り込み"
-            >
-              <Upload className="w-4 h-4 mr-1" aria-hidden="true" />
-              取込
-              <input
-                type="file"
-                accept=".json"
-                onChange={editing.handleFileSelect}
-                className="hidden"
-                aria-label="JSONファイルを選択"
-              />
-            </label>
-            <div className="w-px h-6 bg-slate-300 mx-2" aria-hidden="true" />
-            <button
-              onClick={() => setStep('result')}
-              className="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
-              aria-label="印刷プレビューを表示"
-            >
-              <Printer className="w-4 h-4 mr-2" aria-hidden="true" />
-              印刷プレビュー
-            </button>
-            <button
-              onClick={handleExcelExport}
-              className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-              aria-label="Excelファイルとして出力"
-            >
-              <FileSpreadsheet className="w-4 h-4 mr-2" aria-hidden="true" />
-              Excel
-            </button>
-            <button
-              onClick={resetToMenu}
-              className="flex items-center px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg transition-colors"
-              aria-label="トップメニューに戻る"
-            >
-              <RefreshCw className="w-4 h-4" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-      </div>
+      <EditToolbar
+        checkedCount={editing.checkedCount}
+        totalCount={editing.totalCount}
+        onExpandAll={editing.handleExpandAll}
+        onShowResetDialog={() => editing.setShowResetDialog(true)}
+        onJsonExport={editing.handleJsonExport}
+        onFileSelect={editing.handleFileSelect}
+        onPreview={() => setStep('result')}
+        onExcelExport={handleExcelExport}
+        onResetToMenu={resetToMenu}
+      />
 
       {/* カテゴリリスト */}
       <DndContext
@@ -213,22 +126,14 @@ export const EditableListStep = ({
                             setEditText={editing.setEditText}
                             onConfirmEdit={editing.confirmEdit}
                             onCancelEdit={editing.cancelEdit}
-                            onToggleCheck={editing.handleToggleCheck}
-                            onStartEdit={editing.startEdit}
-                            onRemove={editing.handleRemoveDocument}
-                            onAddSubItem={editing.startAddSubItem}
+                            docHandlers={editing.docHandlers}
                             editingSubItem={editing.editingSubItem}
                             editSubItemText={editing.editSubItemText}
                             setEditSubItemText={editing.setEditSubItemText}
-                            onStartSubItemEdit={editing.startSubItemEdit}
-                            onConfirmSubItemEdit={editing.confirmSubItemEdit}
-                            onCancelSubItemEdit={editing.cancelSubItemEdit}
-                            onRemoveSubItem={editing.handleRemoveSubItem}
                             addingSubItemTo={editing.addingSubItemTo}
                             newSubItemText={editing.newSubItemText}
                             setNewSubItemText={editing.setNewSubItemText}
-                            onConfirmAddSubItem={editing.handleAddSubItem}
-                            onCancelAddSubItem={editing.cancelAddSubItem}
+                            subItemHandlers={editing.subItemHandlers}
                           />
                         ))}
                       </ul>
@@ -278,61 +183,17 @@ export const EditableListStep = ({
               );
             })}
 
-          {/* カテゴリ追加 */}
-          {editing.isAddingCategory ? (
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden p-4">
-              <h3 className="font-bold text-slate-800 mb-3">新しいカテゴリを追加</h3>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={editing.newCategoryName}
-                  onChange={(e) => editing.setNewCategoryName(e.target.value)}
-                  placeholder="カテゴリ名を入力..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  autoFocus
-                  aria-label="新しいカテゴリ名を入力"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') editing.handleAddCategory();
-                    if (e.key === 'Escape') editing.cancelAddCategory();
-                  }}
-                />
-                <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editing.newCategoryIsSpecial}
-                    onChange={(e) => editing.setNewCategoryIsSpecial(e.target.checked)}
-                    className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
-                  />
-                  <span className={editing.newCategoryIsSpecial ? 'text-purple-600 font-medium' : ''}>
-                    特例カテゴリとして追加
-                  </span>
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={editing.handleAddCategory}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-                  >
-                    追加
-                  </button>
-                  <button
-                    onClick={editing.cancelAddCategory}
-                    className="px-4 py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"
-                  >
-                    キャンセル
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => editing.setIsAddingCategory(true)}
-              className="w-full flex items-center justify-center px-6 py-4 text-emerald-600 hover:bg-emerald-50 rounded-xl border-2 border-dashed border-emerald-300 transition-colors font-medium"
-              aria-label="新しいカテゴリを追加"
-            >
-              <Plus className="w-5 h-5 mr-2" aria-hidden="true" />
-              新しいカテゴリを追加
-            </button>
-          )}
+            {/* カテゴリ追加 */}
+            <AddCategoryForm
+              isAdding={editing.isAddingCategory}
+              setIsAdding={editing.setIsAddingCategory}
+              name={editing.newCategoryName}
+              setName={editing.setNewCategoryName}
+              isSpecial={editing.newCategoryIsSpecial}
+              setIsSpecial={editing.setNewCategoryIsSpecial}
+              onAdd={editing.handleAddCategory}
+              onCancel={editing.cancelAddCategory}
+            />
           </div>
         </SortableContext>
 

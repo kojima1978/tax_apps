@@ -6,9 +6,11 @@ import { ArrowLeft, Plus, Edit2, Save, X, Ban, Eye, RefreshCw, Trash2 } from 'lu
 import Header from '@/components/Header';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/Toast';
-import { buttonStyle, smallButtonStyle, btnHoverClass } from '@/lib/button-styles';
+import { BTN_CLASS, SMALL_BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 import { handleDoubleClickToStep0, handleFormSubmit } from '@/lib/form-utils';
 import { executeRecordAction } from '@/lib/record-actions';
+import { ACTION_MESSAGES } from '@/lib/record-actions';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 type User = {
   id: string;
@@ -29,6 +31,7 @@ export default function UserSettingsPage() {
   const [selectedId, setSelectedId] = useState('');
   const [userName, setUserName] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{id: string; name: string; action: 'activate' | 'deactivate' | 'delete'} | null>(null);
 
   const loadUsers = async () => {
     try {
@@ -93,36 +96,27 @@ export default function UserSettingsPage() {
   };
 
   const handleDeactivate = (id: string, userName: string) => {
-    executeRecordAction({
-      id,
-      name: userName,
-      action: 'deactivate',
-      apiEndpoint: '/medical/api/users',
-      onSuccess: loadUsers,
-      toast,
-    });
+    setPendingAction({ id, name: userName, action: 'deactivate' });
   };
 
   const handleActivate = (id: string, userName: string) => {
-    executeRecordAction({
-      id,
-      name: userName,
-      action: 'activate',
-      apiEndpoint: '/medical/api/users',
-      onSuccess: loadUsers,
-      toast,
-    });
+    setPendingAction({ id, name: userName, action: 'activate' });
   };
 
   const handleDelete = (id: string, userName: string) => {
+    setPendingAction({ id, name: userName, action: 'delete' });
+  };
+
+  const confirmPendingAction = () => {
+    if (!pendingAction) return;
     executeRecordAction({
-      id,
-      name: userName,
-      action: 'delete',
+      id: pendingAction.id,
+      action: pendingAction.action,
       apiEndpoint: '/medical/api/users',
       onSuccess: loadUsers,
       toast,
     });
+    setPendingAction(null);
   };
 
   // 検索フィルター
@@ -142,14 +136,13 @@ export default function UserSettingsPage() {
           評価額計算時に選択できます。
         </p>
         <div className="flex gap-2">
-          <button onClick={handleOpenCreateModal} className={btnHoverClass} style={buttonStyle}>
+          <button onClick={handleOpenCreateModal} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
             <Plus size={20} />
             新規登録
           </button>
           <button
             onClick={() => setShowInactive(!showInactive)}
-            className={btnHoverClass}
-            style={buttonStyle}
+            className={`${BTN_CLASS} ${HOVER_CLASS}`}
           >
             <Eye size={20} />
             {showInactive ? '有効データのみ表示' : '無効化データを表示'}
@@ -232,16 +225,14 @@ export default function UserSettingsPage() {
                           <>
                             <button
                               onClick={() => handleOpenEditModal(record)}
-                              className={btnHoverClass}
-                              style={smallButtonStyle}
+                              className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
                             >
                               <Edit2 size={16} />
                               修正
                             </button>
                             <button
                               onClick={() => handleDeactivate(record.id, record.name)}
-                              className={btnHoverClass}
-                              style={smallButtonStyle}
+                              className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
                             >
                               <Ban size={16} />
                               無効化
@@ -251,16 +242,14 @@ export default function UserSettingsPage() {
                           <>
                             <button
                               onClick={() => handleActivate(record.id, record.name)}
-                              className={btnHoverClass}
-                              style={smallButtonStyle}
+                              className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
                             >
                               <RefreshCw size={16} />
                               有効化
                             </button>
                             <button
                               onClick={() => handleDelete(record.id, record.name)}
-                              className={btnHoverClass}
-                              style={smallButtonStyle}
+                              className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
                             >
                               <Trash2 size={16} />
                               削除
@@ -278,7 +267,7 @@ export default function UserSettingsPage() {
       )}
 
       <div className="mt-6">
-        <button onClick={() => router.push('/')} className={btnHoverClass} style={buttonStyle}>
+        <button onClick={() => router.push('/')} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
           <ArrowLeft size={20} />
           入力画面へ戻る
         </button>
@@ -307,19 +296,26 @@ export default function UserSettingsPage() {
             <button
               type="button"
               onClick={() => setIsFormModalOpen(false)}
-              className={btnHoverClass}
-              style={buttonStyle}
+              className={`${BTN_CLASS} ${HOVER_CLASS}`}
             >
               <X size={20} />
               キャンセル
             </button>
-            <button type="submit" className={btnHoverClass} style={buttonStyle}>
+            <button type="submit" className={`${BTN_CLASS} ${HOVER_CLASS}`}>
               <Save size={20} />
               {formMode === 'create' ? '登録' : '更新'}
             </button>
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!pendingAction}
+        onConfirm={confirmPendingAction}
+        onCancel={() => setPendingAction(null)}
+        title={pendingAction ? ACTION_MESSAGES[pendingAction.action].title : ''}
+        message={pendingAction ? ACTION_MESSAGES[pendingAction.action].confirm(pendingAction.name) : ''}
+      />
     </div>
   );
 }

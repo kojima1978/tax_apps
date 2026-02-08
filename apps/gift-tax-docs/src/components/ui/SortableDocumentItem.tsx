@@ -12,8 +12,8 @@ import {
   CornerDownRight,
   GripVertical,
 } from 'lucide-react';
-import type { EditableDocument, EditableCategory } from '@/constants';
-import type { EditingSubItem, AddingSubItemTo } from '@/hooks/useEditableListEditing';
+import type { EditableDocument } from '@/constants';
+import type { EditingSubItem, AddingSubItemTo, DocHandlers, SubItemHandlers } from '@/hooks/useEditableListEditing';
 
 // ─── Props ───
 
@@ -25,22 +25,14 @@ export type SortableDocumentItemProps = {
   setEditText: (text: string) => void;
   onConfirmEdit: () => void;
   onCancelEdit: () => void;
-  onToggleCheck: (categoryId: string, docId: string) => void;
-  onStartEdit: (categoryId: string, docId: string, currentText: string) => void;
-  onRemove: (categoryId: string, docId: string) => void;
-  onAddSubItem: (categoryId: string, docId: string) => void;
+  docHandlers: DocHandlers;
   editingSubItem: EditingSubItem;
   editSubItemText: string;
   setEditSubItemText: (text: string) => void;
-  onStartSubItemEdit: (categoryId: string, docId: string, subItemId: string, text: string) => void;
-  onConfirmSubItemEdit: () => void;
-  onCancelSubItemEdit: () => void;
-  onRemoveSubItem: (categoryId: string, docId: string, subItemId: string) => void;
   addingSubItemTo: AddingSubItemTo;
   newSubItemText: string;
   setNewSubItemText: (text: string) => void;
-  onConfirmAddSubItem: (categoryId: string, docId: string) => void;
-  onCancelAddSubItem: () => void;
+  subItemHandlers: SubItemHandlers;
   isDragging?: boolean;
 };
 
@@ -54,22 +46,14 @@ export const SortableDocumentItem = memo(({
   setEditText,
   onConfirmEdit,
   onCancelEdit,
-  onToggleCheck,
-  onStartEdit,
-  onRemove,
-  onAddSubItem,
+  docHandlers,
   editingSubItem,
   editSubItemText,
   setEditSubItemText,
-  onStartSubItemEdit,
-  onConfirmSubItemEdit,
-  onCancelSubItemEdit,
-  onRemoveSubItem,
   addingSubItemTo,
   newSubItemText,
   setNewSubItemText,
-  onConfirmAddSubItem,
-  onCancelAddSubItem,
+  subItemHandlers,
   isDragging = false,
 }: SortableDocumentItemProps) => {
   const {
@@ -116,7 +100,7 @@ export const SortableDocumentItem = memo(({
 
         {/* チェックボックス */}
         <button
-          onClick={() => onToggleCheck(categoryId, doc.id)}
+          onClick={() => docHandlers.toggleCheck(categoryId, doc.id)}
           className={`flex-shrink-0 w-6 h-6 mr-3 mt-0.5 rounded border-2 flex items-center justify-center transition-colors ${
             doc.checked
               ? 'bg-emerald-500 border-emerald-500 text-white'
@@ -171,7 +155,7 @@ export const SortableDocumentItem = memo(({
         {!isEditing && (
           <div className="flex items-center gap-1 ml-2">
             <button
-              onClick={() => onAddSubItem(categoryId, doc.id)}
+              onClick={() => subItemHandlers.startAdd(categoryId, doc.id)}
               className="p-1.5 text-blue-500 hover:bg-blue-100 rounded transition-colors"
               title="中項目を追加"
               aria-label={`${doc.text}に中項目を追加`}
@@ -179,7 +163,7 @@ export const SortableDocumentItem = memo(({
               <Plus className="w-4 h-4" />
             </button>
             <button
-              onClick={() => onStartEdit(categoryId, doc.id, doc.text)}
+              onClick={() => docHandlers.startEdit(categoryId, doc.id, doc.text)}
               className="p-1.5 text-slate-500 hover:bg-slate-200 rounded transition-colors"
               title="編集"
               aria-label={`${doc.text}を編集`}
@@ -187,7 +171,7 @@ export const SortableDocumentItem = memo(({
               <Edit3 className="w-4 h-4" />
             </button>
             <button
-              onClick={() => onRemove(categoryId, doc.id)}
+              onClick={() => docHandlers.remove(categoryId, doc.id)}
               className="p-1.5 text-red-500 hover:bg-red-100 rounded transition-colors"
               title="削除"
               aria-label={`${doc.text}を削除`}
@@ -217,19 +201,19 @@ export const SortableDocumentItem = memo(({
                     autoFocus
                     aria-label="中項目を編集"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') onConfirmSubItemEdit();
-                      if (e.key === 'Escape') onCancelSubItemEdit();
+                      if (e.key === 'Enter') subItemHandlers.confirmEdit();
+                      if (e.key === 'Escape') subItemHandlers.cancelEdit();
                     }}
                   />
                   <button
-                    onClick={onConfirmSubItemEdit}
+                    onClick={subItemHandlers.confirmEdit}
                     className="p-1 text-blue-600 hover:bg-blue-100 rounded"
                     aria-label="編集を確定"
                   >
                     <Check className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={onCancelSubItemEdit}
+                    onClick={subItemHandlers.cancelEdit}
                     className="p-1 text-slate-400 hover:bg-slate-200 rounded"
                     aria-label="編集をキャンセル"
                   >
@@ -241,7 +225,7 @@ export const SortableDocumentItem = memo(({
                   <span className="text-sm text-slate-600 flex-grow">{subItem.text}</span>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => onStartSubItemEdit(categoryId, doc.id, subItem.id, subItem.text)}
+                      onClick={() => subItemHandlers.startEdit(categoryId, doc.id, subItem.id, subItem.text)}
                       className="p-1 text-slate-400 hover:bg-slate-200 rounded transition-colors"
                       title="編集"
                       aria-label={`${subItem.text}を編集`}
@@ -249,7 +233,7 @@ export const SortableDocumentItem = memo(({
                       <Edit3 className="w-3 h-3" />
                     </button>
                     <button
-                      onClick={() => onRemoveSubItem(categoryId, doc.id, subItem.id)}
+                      onClick={() => subItemHandlers.remove(categoryId, doc.id, subItem.id)}
                       className="p-1 text-red-400 hover:bg-red-100 rounded transition-colors"
                       title="削除"
                       aria-label={`${subItem.text}を削除`}
@@ -277,18 +261,18 @@ export const SortableDocumentItem = memo(({
             autoFocus
             aria-label="新しい中項目を入力"
             onKeyDown={(e) => {
-              if (e.key === 'Enter') onConfirmAddSubItem(categoryId, doc.id);
-              if (e.key === 'Escape') onCancelAddSubItem();
+              if (e.key === 'Enter') subItemHandlers.confirmAdd(categoryId, doc.id);
+              if (e.key === 'Escape') subItemHandlers.cancelAdd();
             }}
           />
           <button
-            onClick={() => onConfirmAddSubItem(categoryId, doc.id)}
+            onClick={() => subItemHandlers.confirmAdd(categoryId, doc.id)}
             className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
           >
             追加
           </button>
           <button
-            onClick={onCancelAddSubItem}
+            onClick={subItemHandlers.cancelAdd}
             className="px-3 py-1 text-sm bg-slate-200 text-slate-600 rounded hover:bg-slate-300 transition-colors"
           >
             キャンセル
@@ -321,27 +305,3 @@ export const DragOverlayItem = ({ doc }: { doc: EditableDocument }) => (
     <span className="text-slate-800">{doc.text}</span>
   </div>
 );
-
-export const CategoryDragOverlay = ({ category }: { category: EditableCategory }) => {
-  const checkedCount = category.documents.filter((d) => d.checked).length;
-  return (
-    <div
-      className={`rounded-xl shadow-2xl overflow-hidden ${
-        category.isSpecial
-          ? 'bg-purple-50 border-l-4 border-purple-500'
-          : 'bg-emerald-50 border-l-4 border-emerald-500'
-      }`}
-    >
-      <div className="flex items-center gap-3 p-4">
-        <GripVertical className="w-5 h-5 text-slate-400" aria-hidden="true" />
-        <h3 className="font-bold text-slate-800">
-          {category.isSpecial && <span className="text-purple-600">【特例】</span>}
-          {category.name}
-        </h3>
-        <span className="px-2 py-0.5 bg-white rounded text-sm text-slate-600">
-          {checkedCount}/{category.documents.length}
-        </span>
-      </div>
-    </div>
-  );
-};

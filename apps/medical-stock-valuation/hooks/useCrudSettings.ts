@@ -34,11 +34,7 @@ export function useCrudSettings<T extends { id: string }>(config: CrudConfig<T>)
     }
   };
 
-  const handleDelete = async (id: string, displayName: string) => {
-    if (!confirm(`${displayName}を削除しますか？`)) {
-      return;
-    }
-
+  const handleDelete = async (id: string) => {
     try {
       const response = await fetch(`${config.apiEndpoint}?id=${id}`, {
         method: 'DELETE',

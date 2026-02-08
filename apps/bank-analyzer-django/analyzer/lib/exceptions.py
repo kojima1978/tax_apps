@@ -248,93 +248,75 @@ class ValidationError(CsvImportError):
     error_type = ImportErrorType.VALIDATION
 
 
-class MultipleAccountError(CsvImportError):
-    """複数口座番号エラー"""
+class MultipleValueError(CsvImportError):
+    """複数値検出エラーの基底クラス"""
     error_type = ImportErrorType.VALIDATION
 
     def __init__(
         self,
-        account_numbers: list[str],
-        row_counts: dict[str, int] | None = None
+        values: list[str],
+        row_counts: dict[str, int] | None = None,
+        *,
+        value_label: str,       # 例: "口座番号", "銀行名"
+        unit_label: str,        # 例: "1つの口座番号", "1つの銀行名"
+        split_instruction: str, # 例: "口座番号ごとにCSVファイルを分割して..."
+        detected_label: str,    # 例: "検出された口座番号:", "検出された銀行名:"
     ):
-        count = len(account_numbers)
-        # 口座番号リストを整形（最大5件表示）
-        account_list = account_numbers[:5]
+        count = len(values)
+        display_list = values[:5]
         if count > 5:
-            account_list.append(f"...他{count - 5}件")
+            display_list.append(f"...他{count - 5}件")
 
-        message = f"このファイルには{count}種類の口座番号が含まれています"
+        message = f"このファイルには{count}種類の{value_label}が含まれています"
 
-        # 口座番号ごとの件数情報を作成
         details_lines = []
         if row_counts:
-            for acc in account_numbers[:5]:
-                cnt = row_counts.get(acc, 0)
-                details_lines.append(f"  - {acc}: {cnt}件")
+            for val in values[:5]:
+                cnt = row_counts.get(val, 0)
+                details_lines.append(f"  - {val}: {cnt}件")
 
         suggestion = (
-            "1回のインポートでは1つの口座番号のみ取り込み可能です。\n"
-            "口座番号ごとにCSVファイルを分割してアップロードしてください。\n"
-            "\n検出された口座番号:\n" +
-            "\n".join(details_lines if details_lines else [f"  - {acc}" for acc in account_list])
+            f"{split_instruction}\n"
+            f"\n{detected_label}\n" +
+            "\n".join(details_lines if details_lines else [f"  - {v}" for v in display_list])
         )
 
         details = ErrorDetail(
-            expected_value="1つの口座番号",
-            actual_value=f"{count}種類の口座番号",
-            sample_values=account_numbers[:5]
+            expected_value=unit_label,
+            actual_value=f"{count}種類の{value_label}",
+            sample_values=values[:5]
         )
 
+        super().__init__(message=message, suggestion=suggestion, details=details)
+        self.values = values
+        self.row_counts = row_counts or {}
+
+
+class MultipleAccountError(MultipleValueError):
+    """複数口座番号エラー"""
+
+    def __init__(self, account_numbers: list[str], row_counts: dict[str, int] | None = None):
         super().__init__(
-            message=message,
-            suggestion=suggestion,
-            details=details
+            values=account_numbers,
+            row_counts=row_counts,
+            value_label="口座番号",
+            unit_label="1つの口座番号",
+            split_instruction="1回のインポートでは1つの口座番号のみ取り込み可能です。\n口座番号ごとにCSVファイルを分割してアップロードしてください。",
+            detected_label="検出された口座番号:",
         )
         self.account_numbers = account_numbers
-        self.row_counts = row_counts or {}
 
 
-class MultipleBankError(CsvImportError):
+class MultipleBankError(MultipleValueError):
     """複数銀行名エラー"""
-    error_type = ImportErrorType.VALIDATION
 
-    def __init__(
-        self,
-        bank_names: list[str],
-        row_counts: dict[str, int] | None = None
-    ):
-        count = len(bank_names)
-        # 銀行名リストを整形（最大5件表示）
-        bank_list = bank_names[:5]
-        if count > 5:
-            bank_list.append(f"...他{count - 5}件")
-
-        message = f"このファイルには{count}種類の銀行名が含まれています"
-
-        # 銀行名ごとの件数情報を作成
-        details_lines = []
-        if row_counts:
-            for bank in bank_names[:5]:
-                cnt = row_counts.get(bank, 0)
-                details_lines.append(f"  - {bank}: {cnt}件")
-
-        suggestion = (
-            "1回のインポートでは1つの銀行のデータのみ取り込み可能です。\n"
-            "銀行ごとにCSVファイルを分割してアップロードしてください。\n"
-            "\n検出された銀行名:\n" +
-            "\n".join(details_lines if details_lines else [f"  - {bank}" for bank in bank_list])
-        )
-
-        details = ErrorDetail(
-            expected_value="1つの銀行名",
-            actual_value=f"{count}種類の銀行名",
-            sample_values=bank_names[:5]
-        )
-
+    def __init__(self, bank_names: list[str], row_counts: dict[str, int] | None = None):
         super().__init__(
-            message=message,
-            suggestion=suggestion,
-            details=details
+            values=bank_names,
+            row_counts=row_counts,
+            value_label="銀行名",
+            unit_label="1つの銀行名",
+            split_instruction="1回のインポートでは1つの銀行のデータのみ取り込み可能です。\n銀行ごとにCSVファイルを分割してアップロードしてください。",
+            detected_label="検出された銀行名:",
         )
         self.bank_names = bank_names
-        self.row_counts = row_counts or {}

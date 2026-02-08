@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
 import { calcTaxOneTime, type GiftType } from '@/lib/tax-calculation';
 import QuickRefTable, { type QuickRefRow } from '@/components/QuickRefTable';
 import PrintFooter from '@/components/PrintFooter';
+import Navigation from '@/components/Navigation';
 
 const UNIT = 1_000_000; // 100万円
 
@@ -40,17 +40,7 @@ export default function TablePage() {
 
     return (
         <div className="container-custom table-page">
-            <header className="header-custom">
-                <h1>贈与税 早見表</h1>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <Link href="/" className="btn-nav">贈与税</Link>
-                    <span className="btn-nav active">早見表</span>
-                    <Link href="/real-estate" className="btn-nav">間接税</Link>
-                    <button className="btn-print" style={{ marginLeft: '1rem' }} onClick={() => window.print()}>
-                        印刷
-                    </button>
-                </div>
-            </header>
+            <Navigation title="贈与税 早見表" activePage="table" />
 
             <div className="input-section">
                 <div className="input-group-row">

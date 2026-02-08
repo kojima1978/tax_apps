@@ -8,7 +8,6 @@ from urllib.parse import urlencode
 from django.conf import settings as django_settings
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db import transaction, IntegrityError
 from django.db.models import Q, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -18,8 +17,8 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 import pandas as pd
 
 from .models import Case, Transaction
-from .forms import CaseForm, ImportForm, SettingsForm
-from .lib import importer, analyzer, llm_classifier, config
+from .forms import CaseForm, ImportForm, SettingsForm, CATEGORY_FIELD_MAP
+from .lib import importer, config
 from .lib.exceptions import CsvImportError
 from .services import TransactionService, AnalysisService
 from .lib.constants import UNCATEGORIZED
@@ -30,6 +29,31 @@ logger = logging.getLogger(__name__)
 # 定数
 ITEMS_PER_PAGE = 100  # ページネーションの1ページあたりの件数
 MAX_VALIDATION_ERRORS_DISPLAY = 5  # バリデーションエラーの最大表示件数
+
+# フィールドラベル定義（CSV出力・一括置換で共用）
+FIELD_LABELS = {
+    'date': '日付',
+    'bank_name': '銀行名',
+    'branch_name': '支店名',
+    'account_type': '種別',
+    'account_id': '口座番号',
+    'description': '摘要',
+    'amount_out': '払戻',
+    'amount_in': 'お預り',
+    'balance': '残高',
+    'category': '分類',
+}
+
+
+def _paginate(queryset, page, per_page=ITEMS_PER_PAGE):
+    """ページネーション共通処理"""
+    paginator = Paginator(queryset, per_page)
+    try:
+        return paginator.page(page)
+    except PageNotAnInteger:
+        return paginator.page(1)
+    except EmptyPage:
+        return paginator.page(paginator.num_pages)
 
 
 def _parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
@@ -67,6 +91,71 @@ def _safe_error_message(e: Exception, context: str = "") -> str:
 def _parse_keywords(text: str) -> list[str]:
     """カンマまたは改行区切りのテキストをキーワードリストに変換"""
     return [k.strip() for k in text.replace('\n', ',').split(',') if k.strip()]
+
+
+def _build_filter_state(request: HttpRequest, include_tab_filters: bool = False) -> dict:
+    """GETパラメータからフィルター条件辞書を構築する共通処理"""
+    state = {
+        'bank': request.GET.getlist('bank'),
+        'account': request.GET.getlist('account'),
+        'category': request.GET.getlist('category'),
+        'category_mode': request.GET.get('category_mode', 'include'),
+        'keyword': request.GET.get('keyword', ''),
+        'amount_min': request.GET.get('amount_min', ''),
+        'amount_max': request.GET.get('amount_max', ''),
+        'amount_type': request.GET.get('amount_type', 'both'),
+        'large_only': request.GET.get('large_only', ''),
+        'date_from': request.GET.get('date_from', ''),
+        'date_to': request.GET.get('date_to', ''),
+    }
+    if include_tab_filters:
+        state.update({
+            'large_category': request.GET.getlist('large_category'),
+            'large_category_mode': request.GET.get('large_category_mode', 'include'),
+            'transfer_category': request.GET.getlist('transfer_category'),
+            'transfer_category_mode': request.GET.get('transfer_category_mode', 'include'),
+        })
+    return state
+
+
+def _build_filtered_filename(
+    case_name: str,
+    filter_state: dict,
+    amount_min: Optional[int],
+    amount_max: Optional[int],
+) -> str:
+    """フィルター条件を反映したCSVファイル名を生成"""
+    filter_desc = []
+    if filter_state['bank']:
+        filter_desc.append(f"銀行_{'-'.join(filter_state['bank'][:2])}")
+    if filter_state['account']:
+        filter_desc.append(f"口座_{'-'.join(filter_state['account'][:2])}")
+    if filter_state['category']:
+        mode = "除外" if filter_state['category_mode'] == 'exclude' else ""
+        filter_desc.append(f"分類{mode}_{'-'.join(filter_state['category'][:2])}")
+    if filter_state['keyword']:
+        filter_desc.append(f"検索_{filter_state['keyword'][:10]}")
+    if filter_state.get('date_from') or filter_state.get('date_to'):
+        date_range = f"{filter_state.get('date_from') or ''}〜{filter_state.get('date_to') or ''}"
+        filter_desc.append(f"期間_{date_range}")
+    amount_type = filter_state.get('amount_type', 'both')
+    if amount_type != 'both':
+        type_name = "出金" if amount_type == 'out' else "入金"
+        filter_desc.append(type_name)
+    if amount_min is not None or amount_max is not None:
+        if amount_min and amount_max:
+            filter_desc.append(f"{amount_min}〜{amount_max}円")
+        elif amount_min:
+            filter_desc.append(f"{amount_min}円以上")
+        elif amount_max:
+            filter_desc.append(f"{amount_max}円以下")
+    if filter_state.get('large_only'):
+        filter_desc.append("多額取引")
+
+    sanitized = _sanitize_filename(case_name)
+    if filter_desc:
+        return f"{sanitized}_絞込_{'-'.join(filter_desc)}.csv"
+    return f"{sanitized}_全取引.csv"
 
 
 def _extract_form_rows(request: HttpRequest, validate: bool = False) -> tuple[list[dict], list[str]]:
@@ -140,21 +229,20 @@ def _update_transaction_from_post(request: HttpRequest, case: Case, tx_id: str) 
         amount_in, _ = _parse_amount(request.POST.get('amount_in', '0'))
         balance_str = request.POST.get('balance')
         balance_val, _ = _parse_amount(balance_str) if balance_str else (None, True)
-        success = TransactionService.update_transaction(
-            case,
-            int(tx_id),
-            request.POST.get('date'),
-            request.POST.get('description'),
-            amount_out,
-            amount_in,
-            request.POST.get('category'),
-            request.POST.get('memo'),
-            request.POST.get('bank_name'),
-            request.POST.get('branch_name'),
-            request.POST.get('account_id'),
-            request.POST.get('account_type'),
-            balance_val
-        )
+        data = {
+            'date': request.POST.get('date'),
+            'description': request.POST.get('description'),
+            'amount_out': amount_out,
+            'amount_in': amount_in,
+            'category': request.POST.get('category'),
+            'memo': request.POST.get('memo'),
+            'bank_name': request.POST.get('bank_name'),
+            'branch_name': request.POST.get('branch_name'),
+            'account_id': request.POST.get('account_id'),
+            'account_type': request.POST.get('account_type'),
+            'balance': balance_val,
+        }
+        success = TransactionService.update_transaction(case, int(tx_id), data)
         if success:
             messages.success(request, "取引データを更新しました。")
     except Exception as e:
@@ -229,83 +317,13 @@ def import_json(request: HttpRequest) -> HttpResponse:
             logger.info(f"JSONインポート開始: filename={json_file.name}, size={json_file.size}")
 
             try:
-                # JSONを読み込み
                 content = json_file.read().decode('utf-8')
                 data = json.loads(content)
-
-                # バージョンチェック
-                version = data.get('version', '1.0')
-                if version not in ['1.0']:
-                    raise ValueError(f"未対応のバージョン: {version}")
-
-                # 案件データを取得
-                case_data = data.get('case', {})
-                original_name = case_data.get('name', 'インポート案件')
-
-                # トランザクション内で案件と取引を作成（重複名はリトライ）
-                case_name = original_name
-                counter = 0
-                max_retries = 100
-                new_case = None
-                while new_case is None and counter < max_retries:
-                    try:
-                        with transaction.atomic():
-                            new_case = Case.objects.create(name=case_name)
-                    except IntegrityError:
-                        counter += 1
-                        case_name = f"{original_name}_復元{counter}"
-
-                if new_case is None:
-                    raise ValueError("案件名の生成に失敗しました。別の名前でインポートしてください。")
-
-                with transaction.atomic():
-
-                    # 取引データをインポート
-                    transactions_data = data.get('transactions', [])
-                    new_transactions = []
-
-                    for tx_data in transactions_data:
-                        # 日付をパース
-                        date_val = None
-                        if tx_data.get('date'):
-                            try:
-                                date_val = datetime.fromisoformat(tx_data['date']).date()
-                            except (ValueError, TypeError):
-                                pass
-
-                        new_transactions.append(Transaction(
-                            case=new_case,
-                            date=date_val,
-                            description=tx_data.get('description'),
-                            amount_out=tx_data.get('amount_out', 0),
-                            amount_in=tx_data.get('amount_in', 0),
-                            balance=tx_data.get('balance'),
-                            account_id=tx_data.get('account_id'),
-                            holder=tx_data.get('holder'),
-                            bank_name=tx_data.get('bank_name'),
-                            branch_name=tx_data.get('branch_name'),
-                            account_type=tx_data.get('account_type'),
-                            is_large=tx_data.get('is_large', False),
-                            is_transfer=tx_data.get('is_transfer', False),
-                            transfer_to=tx_data.get('transfer_to'),
-                            category=tx_data.get('category', UNCATEGORIZED),
-                            is_flagged=tx_data.get('is_flagged', False),
-                            memo=tx_data.get('memo'),
-                        ))
-
-                    if new_transactions:
-                        Transaction.objects.bulk_create(new_transactions)
-
-                    # 設定データを復元（オプション）
-                    restore_settings = form.cleaned_data.get('restore_settings', False)
-                    if restore_settings and 'settings' in data:
-                        config.save_user_settings(data['settings'])
-                        logger.info("設定データを復元しました")
-
-                logger.info(f"JSONインポート完了: case_id={new_case.pk}, name={case_name}, transactions={len(new_transactions)}")
+                restore_settings = form.cleaned_data.get('restore_settings', False)
+                new_case, tx_count = TransactionService.import_from_json(data, restore_settings)
                 messages.success(
                     request,
-                    f"「{case_name}」として{len(new_transactions)}件の取引を復元しました。"
+                    f"「{new_case.name}」として{tx_count}件の取引を復元しました。"
                 )
                 return redirect('case-detail', pk=new_case.pk)
 
@@ -323,19 +341,7 @@ def import_json(request: HttpRequest) -> HttpResponse:
 
 def _build_csv_response(df: pd.DataFrame, filename: str, include_memo: bool = False) -> HttpResponse:
     """DataFrameからCSVレスポンスを生成する共通処理"""
-    export_columns = {
-        'date': '日付',
-        'bank_name': '銀行名',
-        'branch_name': '支店名',
-        'account_type': '種別',
-        'account_id': '口座番号',
-        'description': '摘要',
-        'amount_out': '払戻',
-        'amount_in': 'お預り',
-        'balance': '残高',
-        'category': '分類',
-    }
-
+    export_columns = dict(FIELD_LABELS)
     if include_memo:
         export_columns['memo'] = 'メモ'
 
@@ -397,19 +403,7 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
     case = get_object_or_404(Case, pk=pk)
 
     # フィルター条件を取得
-    filter_state = {
-        'bank': request.GET.getlist('bank'),
-        'account': request.GET.getlist('account'),
-        'category': request.GET.getlist('category'),
-        'category_mode': request.GET.get('category_mode', 'include'),
-        'keyword': request.GET.get('keyword', ''),
-        'amount_min': request.GET.get('amount_min', ''),
-        'amount_max': request.GET.get('amount_max', ''),
-        'amount_type': request.GET.get('amount_type', 'both'),
-        'large_only': request.GET.get('large_only', ''),
-        'date_from': request.GET.get('date_from', ''),
-        'date_to': request.GET.get('date_to', ''),
-    }
+    filter_state = _build_filter_state(request)
 
     # 基本クエリにフィルター適用
     transactions = case.transactions.all().order_by('date', 'id')
@@ -417,14 +411,10 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
 
     # 金額パース（ファイル名生成用）
     amount_type = filter_state['amount_type']
-    try:
-        amount_min = int(filter_state['amount_min'].replace(',', '')) if filter_state['amount_min'] else None
-    except (ValueError, AttributeError):
-        amount_min = None
-    try:
-        amount_max = int(filter_state['amount_max'].replace(',', '')) if filter_state['amount_max'] else None
-    except (ValueError, AttributeError):
-        amount_max = None
+    amount_min_val, amount_min_ok = _parse_amount(filter_state['amount_min']) if filter_state['amount_min'] else (None, True)
+    amount_max_val, amount_max_ok = _parse_amount(filter_state['amount_max']) if filter_state['amount_max'] else (None, True)
+    amount_min = amount_min_val if amount_min_ok and amount_min_val else None
+    amount_max = amount_max_val if amount_max_ok and amount_max_val else None
 
     if not transactions.exists():
         messages.warning(request, "エクスポートするデータがありません。")
@@ -432,39 +422,7 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
 
     df = pd.DataFrame(list(transactions.values()))
 
-    # ファイル名を生成（フィルター条件を反映）
-    filter_desc = []
-    if filter_state['bank']:
-        filter_desc.append(f"銀行_{'-'.join(filter_state['bank'][:2])}")
-    if filter_state['account']:
-        filter_desc.append(f"口座_{'-'.join(filter_state['account'][:2])}")
-    if filter_state['category']:
-        mode = "除外" if filter_state['category_mode'] == 'exclude' else ""
-        filter_desc.append(f"分類{mode}_{'-'.join(filter_state['category'][:2])}")
-    if filter_state['keyword']:
-        filter_desc.append(f"検索_{filter_state['keyword'][:10]}")
-    # 日付フィルターの説明を追加
-    if filter_state['date_from'] or filter_state['date_to']:
-        date_range = f"{filter_state['date_from'] or ''}〜{filter_state['date_to'] or ''}"
-        filter_desc.append(f"期間_{date_range}")
-    # 金額フィルターの説明を追加
-    if amount_type != 'both':
-        type_name = "出金" if amount_type == 'out' else "入金"
-        filter_desc.append(type_name)
-    if amount_min is not None or amount_max is not None:
-        if amount_min and amount_max:
-            filter_desc.append(f"{amount_min}〜{amount_max}円")
-        elif amount_min:
-            filter_desc.append(f"{amount_min}円以上")
-        elif amount_max:
-            filter_desc.append(f"{amount_max}円以下")
-    if filter_state['large_only']:
-        filter_desc.append("多額取引")
-
-    if filter_desc:
-        filename = f"{_sanitize_filename(case.name)}_絞込_{'-'.join(filter_desc)}.csv"
-    else:
-        filename = f"{_sanitize_filename(case.name)}_全取引.csv"
+    filename = _build_filtered_filename(case.name, filter_state, amount_min, amount_max)
 
     logger.info(f"絞り込みCSVエクスポート完了: case_id={pk}, count={len(df)}")
     return _build_csv_response(df, filename, include_memo=True)
@@ -517,7 +475,9 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
         if action == 'toggle_flag' and tx_id:
             try:
                 new_state = TransactionService.toggle_flag(case, int(tx_id))
-                if new_state:
+                if new_state is None:
+                    messages.warning(request, "取引が見つかりません。")
+                elif new_state:
                     messages.success(request, "付箋を追加しました。")
                 else:
                     messages.info(request, "付箋を外しました。")
@@ -532,16 +492,8 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
 
     transactions_list = case.transactions.all().order_by('date', 'id')
 
-    # ページネーション（1ページあたり100件）
-    paginator = Paginator(transactions_list, ITEMS_PER_PAGE)
-    page = request.GET.get('page', 1)
-
-    try:
-        transactions = paginator.page(page)
-    except PageNotAnInteger:
-        transactions = paginator.page(1)
-    except EmptyPage:
-        transactions = paginator.page(paginator.num_pages)
+    # ページネーション
+    transactions = _paginate(transactions_list, request.GET.get('page', 1))
 
     # セレクト用のユニークリストを取得（単一クエリで3フィールド分取得）
     field_values = case.transactions.values_list('bank_name', 'branch_name', 'account_id')
@@ -670,60 +622,12 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
                     messages.warning(request, "取り込むデータがありません。")
                     return redirect('transaction-import', pk=pk)
 
-                # Load filtered staging data
-                df = pd.DataFrame(filtered_data)
-                # Convert dates back to datetime
-                df['date'] = pd.to_datetime(df['date'])
-                
-                # 3. Classify
-                df = llm_classifier.classify_transactions(df)
-                
-                # 4. Analyze (Large amounts)
-                df = analyzer.analyze_large_amounts(df)
-                
-                with transaction.atomic():
-                    new_transactions = []
-                    for _, row in df.iterrows():
-                        dt = row['date'] if pd.notna(row['date']) else None
-                        
-                        new_transactions.append(Transaction(
-                            case=case,
-                            date=dt,
-                            description=row['description'],
-                            amount_out=row.get('amount_out', 0),
-                            amount_in=row.get('amount_in', 0),
-                            balance=row.get('balance', 0) if pd.notna(row['balance']) else None,
-                            account_id=str(row.get('account_number', 'unknown')),
-                            is_large=row.get('is_large', False),
-                            category=row.get('category'),
-                            branch_name=row.get('branch_name'),
-                            bank_name=row.get('bank_name'),
-                            account_type=row.get('account_type'),
-                        ))
-                    
-                    Transaction.objects.bulk_create(new_transactions)
-                    
-                    # 5. Re-analyze transfers
-                    all_tx = pd.DataFrame(list(case.transactions.all().values()))
-                    if not all_tx.empty:
-                        analyzed_df = analyzer.analyze_transfers(all_tx)
-                        updates = []
-                        for _, row in analyzed_df.iterrows():
-                             if row.get('is_transfer'):
-                                 updates.append(Transaction(
-                                     id=row['id'],
-                                     is_transfer=True,
-                                     transfer_to=row['transfer_to']
-                                 ))
-                        if updates:
-                            Transaction.objects.bulk_update(updates, ['is_transfer', 'transfer_to'])
-                
-                # Cleanup
+                count = TransactionService.commit_import(case, filtered_data)
+
                 del request.session['import_data']
                 del request.session['import_case_id']
-                
-                logger.info(f"取引インポート完了: case_id={pk}, count={len(new_transactions)}")
-                messages.success(request, f"{len(new_transactions)}件の取引を取り込みました。")
+
+                messages.success(request, f"{count}件の取引を取り込みました。")
                 return redirect('case-detail', pk=pk)
 
             except Exception as e:
@@ -744,25 +648,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         return _handle_analysis_post(request, case, pk)
 
     # GETリクエスト: データ表示
-    filter_state = {
-        'bank': request.GET.getlist('bank'),
-        'account': request.GET.getlist('account'),
-        'category': request.GET.getlist('category'),
-        'category_mode': request.GET.get('category_mode', 'include'),
-        'keyword': request.GET.get('keyword', ''),
-        'large_category': request.GET.getlist('large_category'),
-        'large_category_mode': request.GET.get('large_category_mode', 'include'),
-        'transfer_category': request.GET.getlist('transfer_category'),
-        'transfer_category_mode': request.GET.get('transfer_category_mode', 'include'),
-        # 金額フィルター
-        'amount_min': request.GET.get('amount_min', ''),
-        'amount_max': request.GET.get('amount_max', ''),
-        'amount_type': request.GET.get('amount_type', 'both'),  # 'out', 'in', 'both'
-        'large_only': request.GET.get('large_only', ''),  # 多額取引のみ
-        # 日付フィルター
-        'date_from': request.GET.get('date_from', ''),
-        'date_to': request.GET.get('date_to', ''),
-    }
+    filter_state = _build_filter_state(request, include_tab_filters=True)
 
     analysis_data = AnalysisService.get_analysis_data(case, filter_state)
 
@@ -772,15 +658,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     # 取引一覧のページネーション
     all_txs_queryset = analysis_data['all_txs']
     all_txs_count = all_txs_queryset.count()
-    paginator = Paginator(all_txs_queryset, ITEMS_PER_PAGE)
-    page = request.GET.get('page', 1)
-
-    try:
-        all_txs_page = paginator.page(page)
-    except PageNotAnInteger:
-        all_txs_page = paginator.page(1)
-    except EmptyPage:
-        all_txs_page = paginator.page(paginator.num_pages)
+    all_txs_page = _paginate(all_txs_queryset, request.GET.get('page', 1))
 
     context = {
         'case': case,
@@ -827,28 +705,40 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
 
 
 def _handle_run_classifier(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    count = TransactionService.run_classifier(case)
-    if count == 0:
-        messages.warning(request, "データがありません。")
-    else:
-        messages.success(request, "自動分類が完了しました。")
+    try:
+        count = TransactionService.run_classifier(case)
+        if count == 0:
+            messages.warning(request, "データがありません。")
+        else:
+            messages.success(request, "自動分類が完了しました。")
+    except Exception as e:
+        logger.exception(f"自動分類エラー: case_id={pk}, error={e}")
+        messages.error(request, _safe_error_message(e, "自動分類"))
     return redirect('analysis-dashboard', pk=pk)
 
 
 def _handle_apply_rules(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    count = TransactionService.apply_classification_rules(case)
-    if count == 0:
-        messages.info(request, "未分類の取引がないか、マッチするルールがありませんでした。")
-    else:
-        messages.success(request, f"キーワードルールを適用し、{count}件を分類しました。")
+    try:
+        count = TransactionService.apply_classification_rules(case)
+        if count == 0:
+            messages.info(request, "未分類の取引がないか、マッチするルールがありませんでした。")
+        else:
+            messages.success(request, f"キーワードルールを適用し、{count}件を分類しました。")
+    except Exception as e:
+        logger.exception(f"ルール適用エラー: case_id={pk}, error={e}")
+        messages.error(request, _safe_error_message(e, "ルール適用"))
     return redirect('analysis-dashboard', pk=pk)
 
 
 def _handle_delete_account(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
     account_id = request.POST.get('account_id')
     if account_id:
-        count = TransactionService.delete_account_transactions(case, account_id)
-        messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
+        try:
+            count = TransactionService.delete_account_transactions(case, account_id)
+            messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
+        except Exception as e:
+            logger.exception(f"口座削除エラー: case_id={pk}, account_id={account_id}, error={e}")
+            messages.error(request, _safe_error_message(e, "口座削除"))
     return redirect('analysis-dashboard', pk=pk)
 
 
@@ -971,7 +861,9 @@ def _handle_toggle_flag(request: HttpRequest, case: Case, pk: int) -> HttpRespon
     if tx_id:
         try:
             new_state = TransactionService.toggle_flag(case, int(tx_id))
-            if new_state:
+            if new_state is None:
+                messages.warning(request, "取引が見つかりません。")
+            elif new_state:
                 messages.success(request, "付箋を追加しました。")
             else:
                 messages.info(request, "付箋を外しました。")
@@ -1002,13 +894,9 @@ def _handle_bulk_replace_field(request: HttpRequest, case: Case, pk: int) -> Htt
     old_value = request.POST.get('old_value', '').strip()
     new_value = request.POST.get('new_value', '').strip()
 
-    field_labels = {
-        'bank_name': '銀行名',
-        'branch_name': '支店名',
-        'account_id': '口座番号',
-    }
+    allowed_replace_fields = {'bank_name', 'branch_name', 'account_id'}
 
-    if not field_name or field_name not in field_labels:
+    if not field_name or field_name not in allowed_replace_fields:
         messages.error(request, "不正なフィールドが指定されました。")
         return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
@@ -1027,7 +915,7 @@ def _handle_bulk_replace_field(request: HttpRequest, case: Case, pk: int) -> Htt
     try:
         count = TransactionService.bulk_replace_field_value(case, field_name, old_value, new_value)
         if count > 0:
-            field_label = field_labels.get(field_name, field_name)
+            field_label = FIELD_LABELS.get(field_name, field_name)
             messages.success(request, f"{field_label}「{old_value}」を「{new_value}」に置換しました（{count}件）。")
         else:
             messages.warning(request, "該当するデータがありませんでした。")
@@ -1051,14 +939,8 @@ def settings_view(request: HttpRequest) -> HttpResponse:
                 "TRANSFER_DAYS_WINDOW": form.cleaned_data['transfer_days_window'],
                 "TRANSFER_AMOUNT_TOLERANCE": form.cleaned_data['transfer_amount_tolerance'],
                 "CLASSIFICATION_PATTERNS": {
-                    "生活費": _parse_keywords(form.cleaned_data['cat_life']),
-                    "給与": _parse_keywords(form.cleaned_data['cat_salary']),
-                    "贈与": _parse_keywords(form.cleaned_data['cat_gift']),
-                    "関連会社": _parse_keywords(form.cleaned_data['cat_related']),
-                    "銀行": _parse_keywords(form.cleaned_data['cat_bank']),
-                    "証券・株式": _parse_keywords(form.cleaned_data['cat_security']),
-                    "保険会社": _parse_keywords(form.cleaned_data['cat_insurance']),
-                    "その他": _parse_keywords(form.cleaned_data['cat_other']),
+                    cat_label: _parse_keywords(form.cleaned_data[field_name])
+                    for field_name, cat_label in CATEGORY_FIELD_MAP.items()
                 }
             }
 
@@ -1070,14 +952,10 @@ def settings_view(request: HttpRequest) -> HttpResponse:
             'large_amount_threshold': current_settings.get("LARGE_AMOUNT_THRESHOLD", 500000),
             'transfer_days_window': current_settings.get("TRANSFER_DAYS_WINDOW", 3),
             'transfer_amount_tolerance': current_settings.get("TRANSFER_AMOUNT_TOLERANCE", 1000),
-            'cat_life': ", ".join(current_patterns.get("生活費", [])),
-            'cat_salary': ", ".join(current_patterns.get("給与", [])),
-            'cat_gift': ", ".join(current_patterns.get("贈与", [])),
-            'cat_related': ", ".join(current_patterns.get("関連会社", [])),
-            'cat_bank': ", ".join(current_patterns.get("銀行", [])),
-            'cat_security': ", ".join(current_patterns.get("証券・株式", [])),
-            'cat_insurance': ", ".join(current_patterns.get("保険会社", [])),
-            'cat_other': ", ".join(current_patterns.get("その他", [])),
+            **{
+                field_name: ", ".join(current_patterns.get(cat_label, []))
+                for field_name, cat_label in CATEGORY_FIELD_MAP.items()
+            },
         }
         form = SettingsForm(initial=initial_data)
 
@@ -1107,6 +985,11 @@ def api_toggle_flag(request: HttpRequest, pk: int) -> JsonResponse:
 
     try:
         new_state = TransactionService.toggle_flag(case, int(tx_id))
+        if new_state is None:
+            return JsonResponse({
+                'success': False,
+                'message': '取引が見つかりません'
+            }, status=404)
         return JsonResponse({
             'success': True,
             'is_flagged': new_state,

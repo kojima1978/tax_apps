@@ -28,6 +28,24 @@ export type DeleteTarget =
   | { type: 'document'; categoryId: string; docId: string }
   | { type: 'category'; categoryId: string; name: string };
 
+/** 書類操作ハンドラー（メモ化用） */
+export type DocHandlers = {
+  toggleCheck: (categoryId: string, docId: string) => void;
+  startEdit: (categoryId: string, docId: string, currentText: string) => void;
+  remove: (categoryId: string, docId: string) => void;
+};
+
+/** 中項目操作ハンドラー（メモ化用） */
+export type SubItemHandlers = {
+  startAdd: (categoryId: string, docId: string) => void;
+  confirmAdd: (categoryId: string, docId: string) => void;
+  cancelAdd: () => void;
+  startEdit: (categoryId: string, docId: string, subItemId: string, text: string) => void;
+  confirmEdit: () => void;
+  cancelEdit: () => void;
+  remove: (categoryId: string, docId: string, subItemId: string) => void;
+};
+
 type SetDocumentList = React.Dispatch<React.SetStateAction<EditableDocumentList>>;
 
 type UseEditableListEditingArgs = {
@@ -328,6 +346,24 @@ export const useEditableListEditing = ({
     toggleAll: handleToggleAllInCategory,
   }), [handleToggleExpand, handleToggleCategorySpecial, startCategoryEdit, handleRemoveCategory, handleToggleAllInCategory]);
 
+  // === 書類ハンドラーオブジェクト（メモ化） ===
+  const docHandlers = useMemo(() => ({
+    toggleCheck: handleToggleCheck,
+    startEdit,
+    remove: handleRemoveDocument,
+  }), [handleToggleCheck, startEdit, handleRemoveDocument]);
+
+  // === 中項目ハンドラーオブジェクト（メモ化） ===
+  const subItemHandlers = useMemo(() => ({
+    startAdd: startAddSubItem,
+    confirmAdd: handleAddSubItem,
+    cancelAdd: cancelAddSubItem,
+    startEdit: startSubItemEdit,
+    confirmEdit: confirmSubItemEdit,
+    cancelEdit: cancelSubItemEdit,
+    remove: handleRemoveSubItem,
+  }), [startAddSubItem, handleAddSubItem, cancelAddSubItem, startSubItemEdit, confirmSubItemEdit, cancelSubItemEdit, handleRemoveSubItem]);
+
   return {
     // 書類編集状態
     editingDoc,
@@ -374,25 +410,15 @@ export const useEditableListEditing = ({
     // メモ化されたオブジェクト
     categoryEditState,
     categoryHandlers,
+    docHandlers,
+    subItemHandlers,
 
-    // 書類ハンドラー
-    handleToggleCheck,
+    // 書類ハンドラー（個別参照も維持）
     handleExpandAll,
     handleAddDocument,
     cancelAddDocument,
-    handleRemoveDocument,
-    startEdit,
     confirmEdit,
     cancelEdit,
-
-    // 中項目ハンドラー
-    startAddSubItem,
-    handleAddSubItem,
-    cancelAddSubItem,
-    handleRemoveSubItem,
-    startSubItemEdit,
-    confirmSubItemEdit,
-    cancelSubItemEdit,
 
     // カテゴリハンドラー
     handleAddCategory,
