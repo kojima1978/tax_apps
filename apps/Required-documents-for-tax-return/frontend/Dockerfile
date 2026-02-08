@@ -6,7 +6,7 @@
 # ベースイメージ（Node.js 22 LTS - Alpine for smaller size）
 FROM node:22-alpine AS base
 
-RUN apk upgrade --no-cache
+RUN apk upgrade --no-cache && apk add --no-cache libc6-compat
 
 WORKDIR /app
 
@@ -14,7 +14,6 @@ WORKDIR /app
 # 依存関係インストール用ステージ
 # ============================================
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
@@ -23,7 +22,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 # ============================================
 FROM base AS dev
 
-RUN apk add --no-cache libc6-compat tzdata
+RUN apk add --no-cache tzdata
 
 COPY --from=deps --link /app/node_modules ./node_modules
 COPY --link . .
@@ -43,8 +42,6 @@ CMD ["npm", "run", "dev"]
 # ビルドステージ
 # ============================================
 FROM base AS builder
-
-RUN apk add --no-cache libc6-compat
 
 COPY --from=deps --link /app/node_modules ./node_modules
 COPY --link . .
@@ -68,7 +65,7 @@ LABEL org.opencontainers.image.title="Tax Documents Frontend" \
       org.opencontainers.image.description="Next.js frontend for tax document management"
 
 # ランタイム依存パッケージ + タイムゾーン設定 + 非rootユーザー
-RUN apk add --no-cache libc6-compat tini tzdata && \
+RUN apk add --no-cache tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del --no-cache tzdata && \
