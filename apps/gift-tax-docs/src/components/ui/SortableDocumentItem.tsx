@@ -8,10 +8,20 @@ import {
   Trash2,
   Edit3,
   Check,
-  X,
   CornerDownRight,
   GripVertical,
 } from 'lucide-react';
+import { InlineEditInput, InlineAddInput } from './EditableInput';
+
+const CheckboxIcon = ({ checked }: { checked: boolean }) => (
+  <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+    checked
+      ? 'bg-emerald-500 border-emerald-500 text-white'
+      : 'border-slate-300'
+  }`}>
+    {checked && <Check className="w-4 h-4" />}
+  </div>
+);
 import type { EditableDocument } from '@/constants';
 import type { EditingSubItem, AddingSubItemTo, DocHandlers, SubItemHandlers } from '@/hooks/useEditableListEditing';
 
@@ -101,49 +111,26 @@ export const SortableDocumentItem = memo(({
         {/* チェックボックス */}
         <button
           onClick={() => docHandlers.toggleCheck(categoryId, doc.id)}
-          className={`flex-shrink-0 w-6 h-6 mr-3 mt-0.5 rounded border-2 flex items-center justify-center transition-colors ${
-            doc.checked
-              ? 'bg-emerald-500 border-emerald-500 text-white'
-              : 'border-slate-300 hover:border-emerald-400'
+          className={`flex-shrink-0 mr-3 mt-0.5 transition-colors ${
+            !doc.checked ? 'hover:border-emerald-400' : ''
           }`}
           role="checkbox"
           aria-checked={doc.checked}
           aria-label={`${doc.text}を${doc.checked ? '選択解除' : '選択'}`}
         >
-          {doc.checked && <Check className="w-4 h-4" />}
+          <CheckboxIcon checked={doc.checked} />
         </button>
 
         {/* 書類内容 */}
         <div className="flex-grow min-w-0">
           {isEditing ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                className="flex-grow px-3 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                autoFocus
-                aria-label="書類名を編集"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') onConfirmEdit();
-                  if (e.key === 'Escape') onCancelEdit();
-                }}
-              />
-              <button
-                onClick={onConfirmEdit}
-                className="p-1 text-emerald-600 hover:bg-emerald-100 rounded"
-                aria-label="編集を確定"
-              >
-                <Check className="w-5 h-5" />
-              </button>
-              <button
-                onClick={onCancelEdit}
-                className="p-1 text-slate-400 hover:bg-slate-100 rounded"
-                aria-label="編集をキャンセル"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            <InlineEditInput
+              value={editText}
+              onChange={setEditText}
+              onConfirm={onConfirmEdit}
+              onCancel={onCancelEdit}
+              ariaLabel="書類名を編集"
+            />
           ) : (
             <span className={doc.checked ? 'text-slate-800' : 'text-slate-600'}>
               {doc.text}
@@ -192,33 +179,17 @@ export const SortableDocumentItem = memo(({
             >
               <CornerDownRight className="w-3 h-3 text-slate-400 mr-2 flex-shrink-0" aria-hidden="true" />
               {editingSubItem?.subItemId === subItem.id ? (
-                <div className="flex items-center gap-2 flex-grow">
-                  <input
-                    type="text"
+                <div className="flex-grow">
+                  <InlineEditInput
                     value={editSubItemText}
-                    onChange={(e) => setEditSubItemText(e.target.value)}
-                    className="flex-grow px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    autoFocus
-                    aria-label="中項目を編集"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') subItemHandlers.confirmEdit();
-                      if (e.key === 'Escape') subItemHandlers.cancelEdit();
-                    }}
+                    onChange={setEditSubItemText}
+                    onConfirm={subItemHandlers.confirmEdit}
+                    onCancel={subItemHandlers.cancelEdit}
+                    ariaLabel="中項目を編集"
+                    inputClass="flex-grow px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2"
+                    color="blue"
+                    iconSize="w-4 h-4"
                   />
-                  <button
-                    onClick={subItemHandlers.confirmEdit}
-                    className="p-1 text-blue-600 hover:bg-blue-100 rounded"
-                    aria-label="編集を確定"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={subItemHandlers.cancelEdit}
-                    className="p-1 text-slate-400 hover:bg-slate-200 rounded"
-                    aria-label="編集をキャンセル"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
                 </div>
               ) : (
                 <>
@@ -252,31 +223,17 @@ export const SortableDocumentItem = memo(({
       {addingSubItemTo?.categoryId === categoryId && addingSubItemTo?.docId === doc.id && (
         <div className="ml-9 mt-1 flex items-center gap-2">
           <CornerDownRight className="w-3 h-3 text-slate-400 flex-shrink-0" aria-hidden="true" />
-          <input
-            type="text"
+          <InlineAddInput
             value={newSubItemText}
-            onChange={(e) => setNewSubItemText(e.target.value)}
+            onChange={setNewSubItemText}
+            onConfirm={() => subItemHandlers.confirmAdd(categoryId, doc.id)}
+            onCancel={subItemHandlers.cancelAdd}
             placeholder="中項目を入力..."
-            className="flex-grow px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
-            aria-label="新しい中項目を入力"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') subItemHandlers.confirmAdd(categoryId, doc.id);
-              if (e.key === 'Escape') subItemHandlers.cancelAdd();
-            }}
+            ariaLabel="新しい中項目を入力"
+            inputClass="flex-grow px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2"
+            color="blue"
+            buttonSize="sm"
           />
-          <button
-            onClick={() => subItemHandlers.confirmAdd(categoryId, doc.id)}
-            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            追加
-          </button>
-          <button
-            onClick={subItemHandlers.cancelAdd}
-            className="px-3 py-1 text-sm bg-slate-200 text-slate-600 rounded hover:bg-slate-300 transition-colors"
-          >
-            キャンセル
-          </button>
         </div>
       )}
     </li>
@@ -295,12 +252,8 @@ export const DragOverlayItem = ({ doc }: { doc: EditableDocument }) => (
     }`}
   >
     <GripVertical className="w-4 h-4 text-slate-400 mr-2" aria-hidden="true" />
-    <div className={`w-6 h-6 mr-3 rounded border-2 flex items-center justify-center ${
-      doc.checked
-        ? 'bg-emerald-500 border-emerald-500 text-white'
-        : 'border-slate-300'
-    }`}>
-      {doc.checked && <Check className="w-4 h-4" />}
+    <div className="mr-3">
+      <CheckboxIcon checked={doc.checked} />
     </div>
     <span className="text-slate-800">{doc.text}</span>
   </div>
