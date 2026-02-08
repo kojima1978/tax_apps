@@ -1,4 +1,4 @@
-import type { CustomDocumentItem, CustomSubcategory } from '../constants/documents';
+import type { CustomDocumentItem, DocChanges } from '../constants/documents';
 
 // JSONデータのバージョン
 const DATA_VERSION = '1.0.0';
@@ -14,10 +14,10 @@ export interface ExportData {
     deadline: string;
     deletedDocuments: Record<string, boolean>;
     customDocuments: CustomDocumentItem[];
-    customSubcategories: CustomSubcategory[];
     documentOrder: Record<string, string[]>;
-    editedDocuments: Record<string, { name?: string; description?: string; howToGet?: string }>;
+    editedDocuments: Record<string, DocChanges>;
     canDelegateOverrides: Record<string, boolean>;
+    specificDocNames?: Record<string, string[]>;
   };
 }
 
@@ -34,10 +34,10 @@ export function createExportData(params: {
   deadline: string;
   deletedDocuments: Record<string, boolean>;
   customDocuments: CustomDocumentItem[];
-  customSubcategories: CustomSubcategory[];
   documentOrder: Record<string, string[]>;
-  editedDocuments: Record<string, { name?: string; description?: string; howToGet?: string }>;
+  editedDocuments: Record<string, DocChanges>;
   canDelegateOverrides: Record<string, boolean>;
+  specificDocNames: Record<string, string[]>;
 }): ExportData {
   return {
     version: DATA_VERSION,
@@ -49,10 +49,10 @@ export function createExportData(params: {
       deadline: params.deadline,
       deletedDocuments: params.deletedDocuments,
       customDocuments: params.customDocuments,
-      customSubcategories: params.customSubcategories,
       documentOrder: params.documentOrder,
       editedDocuments: params.editedDocuments,
       canDelegateOverrides: params.canDelegateOverrides,
+      specificDocNames: params.specificDocNames,
     },
   };
 }
@@ -100,10 +100,6 @@ export function validateImportData(data: unknown): ValidationResult {
   if (!Array.isArray(dataObj.customDocuments)) {
     return { isValid: false, error: 'カスタム書類データが不正です。' };
   }
-  // customSubcategories は後方互換のため任意（存在する場合は配列であること）
-  if (dataObj.customSubcategories !== undefined && !Array.isArray(dataObj.customSubcategories)) {
-    return { isValid: false, error: '小分類データが不正です。' };
-  }
   if (typeof dataObj.documentOrder !== 'object' || dataObj.documentOrder === null) {
     return { isValid: false, error: '書類順序データが不正です。' };
   }
@@ -112,6 +108,13 @@ export function validateImportData(data: unknown): ValidationResult {
   }
   if (typeof dataObj.canDelegateOverrides !== 'object' || dataObj.canDelegateOverrides === null) {
     return { isValid: false, error: '代行設定データが不正です。' };
+  }
+
+  // specificDocNames は optional（後方互換）
+  if (dataObj.specificDocNames !== undefined) {
+    if (typeof dataObj.specificDocNames !== 'object' || dataObj.specificDocNames === null) {
+      return { isValid: false, error: '具体的書類名データが不正です。' };
+    }
   }
 
   return { isValid: true };

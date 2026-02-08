@@ -32,8 +32,8 @@ FROM base AS deps
 # Copy only package files first (better layer caching)
 COPY package.json package-lock.json ./
 
-# Install dependencies with caching
-RUN --mount=type=cache,target=/root/.npm \
+# Install dependencies with caching (id= prevents collision with other apps)
+RUN --mount=type=cache,id=npm-inheritance-tax-docs,target=/root/.npm \
     npm ci --no-audit --no-fund
 
 # =============================================================================
@@ -51,8 +51,8 @@ COPY --link . .
 
 EXPOSE 3003
 
-# Use exec form for proper signal handling
-CMD ["npm", "run", "dev", "--", "-p", "3003"]
+# Port is controlled by docker-compose command override
+CMD ["npm", "run", "dev"]
 
 # =============================================================================
 # Builder stage - Build the production application
@@ -71,7 +71,8 @@ COPY --from=deps --link /app/node_modules ./node_modules
 COPY --link . .
 
 # Build with persistent cache for faster rebuilds
-RUN --mount=type=cache,target=/app/.next/cache \
+RUN --mount=type=cache,id=nextjs-inheritance-tax-docs,target=/app/.next/cache \
+    mkdir -p public && \
     npm run build && \
     rm -rf node_modules/.cache
 

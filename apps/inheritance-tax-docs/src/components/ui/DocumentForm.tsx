@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useState } from 'react';
+import type { DocChanges } from '../../constants/documents';
 
 const VARIANT_CONFIG = {
   add: {
@@ -20,16 +21,16 @@ const VARIANT_CONFIG = {
     submitBtn: 'bg-blue-600 hover:bg-blue-700',
     submitText: '保存',
     placeholders: {
-      name: undefined as string | undefined,
-      description: undefined as string | undefined,
-      howToGet: undefined as string | undefined,
+      name: undefined,
+      description: undefined,
+      howToGet: undefined,
     },
   },
 } as const;
 
 interface DocumentFormProps {
   variant: 'add' | 'edit';
-  initialValues?: { name?: string; description?: string; howToGet?: string };
+  initialValues?: DocChanges;
   onSubmit: (values: { name: string; description: string; howToGet: string }) => void;
   onCancel: () => void;
 }
