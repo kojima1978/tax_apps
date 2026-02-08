@@ -1,44 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { NetAssetForm } from "@/components/valuation/NetAssetForm";
-import { BasicInfo, Financials } from "@/types/valuation";
+import { Financials } from "@/types/valuation";
+import { useValuationFormData } from "@/hooks/useValuationData";
 
 export default function Step5Page() {
   const router = useRouter();
-  const [basicInfo, setBasicInfo] = useState<BasicInfo | null>(null);
-  const [financials, setFinancials] = useState<Partial<Financials> | null>(
-    null,
-  );
-
-  useEffect(() => {
-    // Load saved data from sessionStorage
-    const savedBasic = sessionStorage.getItem("valuationBasicInfo");
-    const savedFinancials = sessionStorage.getItem("valuationFinancials");
-
-    if (savedBasic) {
-      try {
-        setBasicInfo(JSON.parse(savedBasic));
-      } catch (e) {
-        console.error("Failed to parse saved data:", e);
-        router.push("/valuation/step1");
-        return;
-      }
-    } else {
-      // No data, redirect to step 1
-      router.push("/valuation/step1");
-      return;
-    }
-
-    if (savedFinancials) {
-      try {
-        setFinancials(JSON.parse(savedFinancials));
-      } catch (e) {
-        console.error("Failed to parse financials:", e);
-      }
-    }
-  }, [router]);
+  const { basicInfo, financials } = useValuationFormData();
 
   const handleNext = (data: Partial<Financials>) => {
     // Merge with existing financials data
@@ -59,7 +28,7 @@ export default function Step5Page() {
     <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         <NetAssetForm
-          basicInfo={basicInfo}
+          basicInfo={basicInfo as import("@/types/valuation").BasicInfo}
           onNext={handleNext}
           onBack={handleBack}
           defaultValues={financials || undefined}

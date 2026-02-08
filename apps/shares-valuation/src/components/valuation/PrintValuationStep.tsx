@@ -1,11 +1,11 @@
-"use client";
+import { PrintSection } from "./print/PrintSection";
 
-interface ComparisonDetail {
+export interface ComparisonDetail {
   name: string;
   value: number;
 }
 
-interface StepResult {
+export interface StepResult {
   finalValue: number;
   comparableValue: number;
   netAssetPerShare: number;
@@ -23,11 +23,7 @@ interface PrintValuationStepProps {
 /** PrintAllSteps の Step 6/7/8 で共通の評価結果表示パターン */
 export function PrintValuationStep({ title, result, extraHeader }: PrintValuationStepProps) {
   return (
-    <div className="border border-gray-300 p-2 page-break-inside-avoid">
-      <h2 className="text-sm font-bold border-b border-gray-300 pb-1 mb-2">
-        {title}
-      </h2>
-
+    <PrintSection title={title}>
       <div className="space-y-4">
         {extraHeader}
 
@@ -102,6 +98,6 @@ export function PrintValuationStep({ title, result, extraHeader }: PrintValuatio
           </div>
         </div>
       </div>
-    </div>
+    </PrintSection>
   );
 }

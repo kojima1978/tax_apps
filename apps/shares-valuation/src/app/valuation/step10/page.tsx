@@ -1,34 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { PrintAllSteps } from "@/components/valuation/PrintAllSteps";
-import { BasicInfo, Financials } from "@/types/valuation";
 import { Button } from "@/components/ui/Button";
+import { useValuationData } from "@/hooks/useValuationData";
 
 export default function DetailsPage() {
   const router = useRouter();
-  const [basicInfo, setBasicInfo] = useState<BasicInfo | null>(null);
-  const [financials, setFinancials] = useState<Financials | null>(null);
-
-  useEffect(() => {
-    // Load saved data from sessionStorage
-    const savedBasic = sessionStorage.getItem("valuationBasicInfo");
-    const savedFinancials = sessionStorage.getItem("valuationFinancials");
-
-    if (savedBasic && savedFinancials) {
-      try {
-        setBasicInfo(JSON.parse(savedBasic));
-        setFinancials(JSON.parse(savedFinancials));
-      } catch (e) {
-        console.error("Failed to parse saved data:", e);
-        router.push("/valuation/step1");
-      }
-    } else {
-      // No data, redirect to step 1
-      router.push("/valuation/step1");
-    }
-  }, [router]);
+  const { basicInfo, financials } = useValuationData();
 
   const handleBack = () => {
     router.push("/valuation/step9");

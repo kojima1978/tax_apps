@@ -1,5 +1,3 @@
-"use client";
-
 import { Card } from "@/components/ui/Card";
 
 interface ValuationResultCardsProps {

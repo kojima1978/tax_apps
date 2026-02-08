@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { calculateCompanySizeAndL, IndustryType } from "@/lib/valuation-logic";
+import { calculateCompanySizeAndL, getCompanySizeLabel, IndustryType } from "@/lib/valuation-logic";
 import { BasicInfo } from "@/types/valuation";
 import { NumberInputWithUnit } from "@/components/ui/NumberInputWithUnit";
 import { IndustryTypeSelector } from "@/components/ui/IndustryTypeSelector";
 import { FormNavigationButtons } from "@/components/ui/FormNavigationButtons";
 import { Label } from "@/components/ui/Label";
 import { Card } from "@/components/ui/Card";
+import { FormSectionHeader } from "@/components/ui/FormSectionHeader";
+import { ResultPreviewHeader } from "@/components/ui/ResultPreviewHeader";
+import { parseNumericInput } from "@/lib/format-utils";
 import { useToast } from "@/components/ui/Toast";
 
 interface CompanySizeFormProps {
@@ -71,13 +74,13 @@ export function CompanySizeForm({
         // Only notify if there's actual data to save
         // Don't overwrite with empty/zero values
         const employees = data.employees
-          ? Number(data.employees.replace(/,/g, ""))
+          ? parseNumericInput(data.employees)
           : undefined;
         const totalAssets = data.totalAssets
-          ? Number(data.totalAssets.replace(/,/g, "")) * 1000
+          ? parseNumericInput(data.totalAssets) * 1000
           : undefined;
         const sales = data.sales
-          ? Number(data.sales.replace(/,/g, "")) * 1000
+          ? parseNumericInput(data.sales) * 1000
           : undefined;
 
         // Only calculate and save if we have valid data
@@ -134,16 +137,16 @@ export function CompanySizeForm({
 
   // プレビュー用の計算結果メモ化
   const sizePreview = useMemo(() => {
-    const emp = Number(formData.employees.replace(/,/g, ""));
-    const assets = Number(formData.totalAssets.replace(/,/g, "")) * 1000;
-    const sal = Number(formData.sales.replace(/,/g, "")) * 1000;
+    const emp = parseNumericInput(formData.employees);
+    const assets = parseNumericInput(formData.totalAssets) * 1000;
+    const sal = parseNumericInput(formData.sales) * 1000;
     const { size, lRatio, sizeMultiplier } = calculateCompanySizeAndL({
       employees: emp,
       totalAssets: assets,
       sales: sal,
       industryType: formData.industryType,
     });
-    const sizeLabel = size === "Big" ? "大会社" : size === "Medium" ? "中会社" : "小会社";
+    const sizeLabel = getCompanySizeLabel(size);
     return { size, lRatio, sizeMultiplier, sizeLabel };
   }, [formData]);
 
@@ -151,9 +154,9 @@ export function CompanySizeForm({
     e.preventDefault();
 
     // Parse numbers (remove commas) and convert units (Thousands -> Yen)
-    const employees = Number(formData.employees.replace(/,/g, ""));
-    const totalAssets = Number(formData.totalAssets.replace(/,/g, "")) * 1000;
-    const sales = Number(formData.sales.replace(/,/g, "")) * 1000;
+    const employees = parseNumericInput(formData.employees);
+    const totalAssets = parseNumericInput(formData.totalAssets) * 1000;
+    const sales = parseNumericInput(formData.sales) * 1000;
 
     if (employees < 0) {
       toast.warning("従業員数は0人以上の数値を入力してください。");
@@ -240,14 +243,7 @@ export function CompanySizeForm({
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200 space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-blue-300">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                  ✎
-                </div>
-                <h3 className="text-lg font-bold text-blue-900">
-                  入力：会社規模判定データ
-                </h3>
-              </div>
+              <FormSectionHeader title="入力：会社規模判定データ" />
 
               <div className="space-y-2">
                 <Label>業種区分</Label>
@@ -300,14 +296,7 @@ export function CompanySizeForm({
 
             {/* Real-time Result Preview */}
             <div className="bg-green-50 p-4 rounded-xl border-2 border-green-300">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">
-                  ✓
-                </div>
-                <h3 className="text-sm font-bold text-green-900">
-                  計算結果：判定結果 (リアルタイムプレビュー)
-                </h3>
-              </div>
+              <ResultPreviewHeader title="計算結果：判定結果 (リアルタイムプレビュー)" className="mb-3" />
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">会社規模区分</p>

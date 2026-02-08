@@ -8,6 +8,9 @@ import { NumberInputWithUnit } from "@/components/ui/NumberInputWithUnit";
 import { Label } from "@/components/ui/Label";
 import { Card } from "@/components/ui/Card";
 import { DUMMY_DATA_PATTERNS, DummyDataPatternKey } from "@/lib/dummy-data";
+import { parseNumericInput } from "@/lib/format-utils";
+import { FormSectionHeader } from "@/components/ui/FormSectionHeader";
+import { ResultPreviewHeader } from "@/components/ui/ResultPreviewHeader";
 import { useToast } from "@/components/ui/Toast";
 
 interface BasicInfoFormProps {
@@ -88,8 +91,8 @@ export function BasicInfoForm({
     e.preventDefault();
 
     // Parse numbers
-    const capital = Number(formData.capital.replace(/,/g, ""));
-    const issuedShares = Number(formData.issuedShares.replace(/,/g, ""));
+    const capital = parseNumericInput(formData.capital);
+    const issuedShares = parseNumericInput(formData.issuedShares);
 
     if (issuedShares < 1) {
       toast.warning("発行済株式数は1株以上を入力してください。");
@@ -162,14 +165,7 @@ export function BasicInfoForm({
           <div className="space-y-4">
             {/* Company Basic Data Section */}
             <div className="space-y-4 bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-              <div className="flex items-center gap-2 pb-2 border-b border-blue-300">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                  ✎
-                </div>
-                <h3 className="text-lg font-bold text-blue-900">
-                  入力：会社基本データ
-                </h3>
-              </div>
+              <FormSectionHeader title="入力：会社基本データ" />
 
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -239,14 +235,7 @@ export function BasicInfoForm({
 
               {/* Calculation Preview */}
               <div className="space-y-3 bg-green-50 p-4 rounded-lg border-2 border-green-300 text-sm">
-                <div className="flex items-center gap-2 pb-2 border-b border-green-400">
-                  <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">
-                    ✓
-                  </div>
-                  <h4 className="font-bold text-green-900">
-                    計算結果：リアルタイムプレビュー
-                  </h4>
-                </div>
+                <ResultPreviewHeader title="計算結果：リアルタイムプレビュー" className="pb-2 border-b border-green-400" />
 
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">1株当たりの資本金額</span>

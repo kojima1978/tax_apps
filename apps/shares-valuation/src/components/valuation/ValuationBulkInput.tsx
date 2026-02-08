@@ -10,7 +10,9 @@ import { PeriodInputPair } from "@/components/ui/PeriodInputPair";
 import { ProfitMethodSelector } from "@/components/ui/ProfitMethodSelector";
 import { IndustryTypeSelector } from "@/components/ui/IndustryTypeSelector";
 import { BasicInfo, Financials } from "@/types/valuation";
-import { calculateCompanySizeAndL, IndustryType } from "@/lib/valuation-logic";
+import { calculateCompanySizeAndL, calculateOwnDataComplete, IndustryType, splitDividend, combineDividend } from "@/lib/valuation-logic";
+import { MedicalCorporationBadge } from "@/components/ui/MedicalCorporationBadge";
+import { parseNumericInput } from "@/lib/format-utils";
 import { getTaxationMonth } from "@/lib/date-utils";
 import { DUMMY_DATA_PATTERNS, DummyDataPatternKey } from "@/lib/dummy-data";
 
@@ -151,10 +153,10 @@ export function ValuationBulkInput({
           defaultFinancials?.industryStockPricePrevYearAverage?.toString() ||
           "",
         industryDividendsYen: defaultFinancials?.industryDividends
-          ? Math.floor(defaultFinancials.industryDividends).toString()
+          ? splitDividend(defaultFinancials.industryDividends).yen.toString()
           : "",
         industryDividendsSen: defaultFinancials?.industryDividends
-          ? ((defaultFinancials.industryDividends % 1) * 10).toString()
+          ? splitDividend(defaultFinancials.industryDividends).sen.toString()
           : "",
         industryProfit: defaultFinancials?.industryProfit?.toString() || "",
         industryBookValue:
@@ -256,13 +258,13 @@ export function ValuationBulkInput({
     e.preventDefault();
 
     // Step 1: 基礎情報
-    const capital = Number(formData.capital.replace(/,/g, ""));
-    const issuedShares = Number(formData.issuedShares.replace(/,/g, ""));
+    const capital = parseNumericInput(formData.capital);
+    const issuedShares = parseNumericInput(formData.issuedShares);
 
     // Step 2: 会社規模（千円を円に変換）
-    const employees = Number(formData.employees.replace(/,/g, ""));
-    const totalAssets = Number(formData.totalAssets.replace(/,/g, "")) * 1000;
-    const sales = Number(formData.sales.replace(/,/g, "")) * 1000;
+    const employees = parseNumericInput(formData.employees);
+    const totalAssets = parseNumericInput(formData.totalAssets) * 1000;
+    const sales = parseNumericInput(formData.sales) * 1000;
 
     const { size, lRatio, sizeMultiplier } = calculateCompanySizeAndL({
       employees,
@@ -294,98 +296,26 @@ export function ValuationBulkInput({
     const shareCount50 =
       capPrev * 1000 > 0 ? Math.floor((capPrev * 1000) / 50) : issuedShares;
 
-    // 配当（b）
     const divPrev = Number(formData.ownDividendPrev);
     const div2Prev = Number(formData.ownDividend2Prev);
     const div3Prev = Number(formData.ownDividend3Prev);
-    const avgDivTotal = ((divPrev + div2Prev) * 1000) / 2;
-    const rawOwnDividends = avgDivTotal / shareCount50;
-    const ownDividends = Math.floor(rawOwnDividends * 10) / 10;
-
-    // 利益（c）
     const p1 = Number(formData.ownTaxableIncomePrev);
     const l1 = Number(formData.ownCarryForwardLossPrev);
     const p2 = Number(formData.ownTaxableIncome2Prev);
     const l2 = Number(formData.ownCarryForwardLoss2Prev);
     const p3 = Number(formData.ownTaxableIncome3Prev);
     const l3 = Number(formData.ownCarryForwardLoss3Prev);
-
-    const profitPrevAmount = (p1 + l1) * 1000;
-    const profit2PrevAmount = (p2 + l2) * 1000;
-
-    const profitPerSharePrev = profitPrevAmount / shareCount50;
-    const profitPerShareAvg =
-      (profitPrevAmount + profit2PrevAmount) / 2 / shareCount50;
-
-    // Calculate individual profit values
-    const profitC1Value = Math.floor(Math.max(0, profitPerSharePrev)); // 単年
-    const profitC2Value = Math.floor(Math.max(0, profitPerShareAvg)); // 2年平均
-
-    // c: Main profit value based on selection
-    let ownProfit: number;
-    if (profitMethodC === "c1") {
-      ownProfit = profitC1Value;
-    } else if (profitMethodC === "c2") {
-      ownProfit = profitC2Value;
-    } else {
-      // auto: 最も低い値を自動選択
-      ownProfit = Math.floor(
-        Math.max(0, Math.min(profitPerSharePrev, profitPerShareAvg)),
-      );
-    }
-
-    // 純資産価額（d）
     const cap1 = Number(formData.ownCapitalPrev);
     const re1 = Number(formData.ownRetainedEarningsPrev);
     const cap2 = Number(formData.ownCapital2Prev);
     const re2 = Number(formData.ownRetainedEarnings2Prev);
 
-    const netAssetPrev = (cap1 + re1) * 1000;
-    const rawOwnBookValue = netAssetPrev / shareCount50;
-    const ownBookValue = Math.floor(rawOwnBookValue);
-
-    // Additional calculations for b1, b2, c1, c2, d1, d2
-    // b1: (直前期 + 2期前) ÷ 2 (same as ownDividends)
-    const ownDividendsB1 = ownDividends;
-
-    // b2: (2期前 + 3期前) ÷ 2
-    const avgDivTotalB2 = ((div2Prev + div3Prev) * 1000) / 2;
-    const rawOwnDividendsB2 = avgDivTotalB2 / shareCount50;
-    const ownDividendsB2 = Math.floor(rawOwnDividendsB2 * 10) / 10;
-
-    // c1: Based on user selection
-    let ownProfitC1: number;
-    if (profitMethodC1 === "c1") {
-      ownProfitC1 = profitC1Value;
-    } else if (profitMethodC1 === "c2") {
-      ownProfitC1 = profitC2Value;
-    } else {
-      // auto: デフォルトでc1（直前期）
-      ownProfitC1 = profitC1Value;
-    }
-
-    // c2: Based on user selection
-    let ownProfitC2: number;
-    if (profitMethodC2 === "c1") {
-      ownProfitC2 = profitC1Value;
-    } else if (profitMethodC2 === "c2") {
-      ownProfitC2 = profitC2Value;
-    } else {
-      // auto: デフォルトでc2（2年平均）
-      ownProfitC2 = profitC2Value;
-    }
-
-    // d1: 直前期の純資産価額 (same as ownBookValue)
-    const ownBookValueD1 = ownBookValue;
-
-    // d2: 2期前の純資産価額
-    const netAsset2Prev = (cap2 + re2) * 1000;
-    const rawOwnBookValueD2 = netAsset2Prev / shareCount50;
-    const ownBookValueD2 = Math.floor(rawOwnBookValueD2);
-
-    // 比準要素数0の会社の判定: b1, c1, c2 がすべて0の場合
-    const isZeroElementCompany =
-      ownDividendsB1 === 0 && ownProfitC1 === 0 && ownProfitC2 === 0;
+    const ownData = calculateOwnDataComplete({
+      divPrev, div2Prev, div3Prev,
+      p1, l1, p2, l2, p3, l3,
+      cap1, re1, cap2, re2,
+      shareCount50, profitMethodC, profitMethodC1, profitMethodC2,
+    });
 
     // Step 4: 類似業種データ
     const industryStockPriceCurrent = Number(
@@ -401,9 +331,7 @@ export function ValuationBulkInput({
       formData.industryStockPricePrevYearAverage,
     );
 
-    const divYen = Number(formData.industryDividendsYen);
-    const divSen = Number(formData.industryDividendsSen);
-    const industryDividends = divYen + divSen * 0.1;
+    const industryDividends = combineDividend(Number(formData.industryDividendsYen), Number(formData.industryDividendsSen));
 
     const industryProfit = Number(formData.industryProfit);
     const industryBookValue = Number(formData.industryBookValue);
@@ -423,18 +351,17 @@ export function ValuationBulkInput({
 
     const financials: Financials = {
       // 自社データの結果
-      ownDividends,
-      ownProfit,
-      ownBookValue,
-      // Additional Results (b1, b2, c1, c2, d1, d2)
-      ownDividendsB1,
-      ownDividendsB2,
-      ownProfitC1,
-      ownProfitC2,
-      ownBookValueD1,
-      ownBookValueD2,
-      // Special classification
-      isZeroElementCompany,
+      ownDividends: ownData.ownDividends,
+      ownProfit: ownData.ownProfit,
+      ownBookValue: ownData.ownBookValue,
+      ownDividendsB1: ownData.ownDividendsB1,
+      ownDividendsB2: ownData.ownDividendsB2,
+      ownProfitC1: ownData.ownProfitC1,
+      ownProfitC2: ownData.ownProfitC2,
+      ownBookValueD1: ownData.ownBookValueD1,
+      ownBookValueD2: ownData.ownBookValueD2,
+      isZeroElementCompany: ownData.isZeroElementCompany,
+      isOneElementCompany: ownData.isOneElementCompany,
       // Profit calculation method selections
       profitMethodC,
       profitMethodC1,
@@ -652,9 +579,7 @@ export function ValuationBulkInput({
             <div className="flex items-center justify-between">
               <Label>配当金額 (b)</Label>
               {formData.industryType === "MedicalCorporation" && (
-                <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                  医療法人は配当不可
-                </span>
+                <MedicalCorporationBadge />
               )}
             </div>
             <div className="space-y-3">
@@ -804,9 +729,7 @@ export function ValuationBulkInput({
               <div className="flex items-center justify-between">
                 <Label>B: 配当金額</Label>
                 {formData.industryType === "MedicalCorporation" && (
-                  <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                    医療法人は配当不可
-                  </span>
+                  <MedicalCorporationBadge />
                 )}
               </div>
               <div className="flex gap-2">

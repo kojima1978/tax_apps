@@ -13,7 +13,10 @@ import {
   getMonthOffset,
 } from "@/lib/date-utils";
 
-import { calculateDetailedSimilarIndustryMethod } from "@/lib/valuation-logic";
+import { calculateDetailedSimilarIndustryMethod, getMultiplier, splitDividend, combineDividend } from "@/lib/valuation-logic";
+import { FormSectionHeader } from "@/components/ui/FormSectionHeader";
+import { MedicalCorporationBadge } from "@/components/ui/MedicalCorporationBadge";
+import { ResultPreviewHeader } from "@/components/ui/ResultPreviewHeader";
 
 interface IndustryDataFormProps {
   basicInfo: BasicInfo;
@@ -32,8 +35,7 @@ export function IndustryDataForm({
 
   // Initializer to split dividend into yen and sen if it exists
   const initDiv = defaultValues?.industryDividends || 0;
-  const initDivYen = Math.floor(initDiv);
-  const initDivSen = Math.round((initDiv - initDivYen) * 10); // 1 decimal place
+  const { yen: initDivYen, sen: initDivSen } = splitDividend(initDiv);
 
   const [formData, setFormData] = useState({
     // Industry (A) - 4 Indicators
@@ -88,11 +90,7 @@ export function IndustryDataForm({
       formData.industryStockPricePrevYearAverage,
     );
 
-    // Combine Dividend Yen and Sen
-    const divYen = Number(formData.industryDividendsYen);
-    const divSen = Number(formData.industryDividendsSen);
-    // Treat Sen as 1st decimal place (0-9)
-    const industryDividends = divYen + divSen * 0.1;
+    const industryDividends = combineDividend(Number(formData.industryDividendsYen), Number(formData.industryDividendsSen));
 
     const industryProfit = Number(formData.industryProfit);
     const industryBookValue = Number(formData.industryBookValue);
@@ -135,9 +133,7 @@ export function IndustryDataForm({
   const details = useMemo(() => {
     if (minStockPrice === 0) return null;
 
-    const divYen = Number(formData.industryDividendsYen);
-    const divSen = Number(formData.industryDividendsSen);
-    const B_ind = divYen + divSen * 0.1;
+    const B_ind = combineDividend(Number(formData.industryDividendsYen), Number(formData.industryDividendsSen));
     const C_ind = Number(formData.industryProfit);
     const D_ind = Number(formData.industryBookValue);
 
@@ -148,16 +144,8 @@ export function IndustryDataForm({
     const c_own = defaultValues?.ownProfit || 0;
     const d_own = defaultValues?.ownBookValue || 0;
 
-    let multiplier = 0.7;
-    if (basicInfo.sizeMultiplier) {
-      multiplier = basicInfo.sizeMultiplier;
-    } else {
-      if (basicInfo.size === "Medium") multiplier = 0.6;
-      if (basicInfo.size === "Small") multiplier = 0.5;
-    }
-
     return calculateDetailedSimilarIndustryMethod(
-      minStockPrice, B_ind, C_ind, D_ind, b_own, c_own, d_own, multiplier, basicInfo,
+      minStockPrice, B_ind, C_ind, D_ind, b_own, c_own, d_own, getMultiplier(basicInfo), basicInfo,
     );
   }, [minStockPrice, formData.industryDividendsYen, formData.industryDividendsSen, formData.industryProfit, formData.industryBookValue, isMedicalCorporation, defaultValues, basicInfo]);
 
@@ -206,14 +194,7 @@ export function IndustryDataForm({
           {/* Comparable Company Data */}
           <div className="space-y-4">
             <div className="bg-blue-50 p-4 rounded-xl border-2 border-blue-200 space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-blue-300">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                  ✎
-                </div>
-                <h3 className="text-lg font-bold text-blue-900">
-                  入力：同業者のデータ (国税庁公表値)
-                </h3>
-              </div>
+              <FormSectionHeader title="入力：同業者のデータ (国税庁公表値)" />
 
               {/* A: Stock Price */}
               <div className="space-y-2 bg-primary/5 p-4 rounded-lg">
@@ -301,11 +282,7 @@ export function IndustryDataForm({
                 <div className="space-y-2 bg-primary/5 p-4 rounded-lg">
                   <div className="flex items-center justify-between">
                     <Label>B: 配当</Label>
-                    {isMedicalCorporation && (
-                      <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                        医療法人は配当不可
-                      </span>
-                    )}
+                    {isMedicalCorporation && <MedicalCorporationBadge />}
                   </div>
                   <div className="flex gap-2 items-center">
                     <div className="flex-1">
@@ -358,14 +335,7 @@ export function IndustryDataForm({
 
           {/* Real-time Result Preview */}
           <div className="bg-green-50 p-4 rounded-xl border-2 border-green-300">
-            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-green-400">
-              <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">
-                ✓
-              </div>
-              <h3 className="text-sm font-bold text-green-900">
-                計算結果：比準価額の計算結果 (リアルタイムプレビュー)
-              </h3>
-            </div>
+            <ResultPreviewHeader title="計算結果：比準価額の計算結果 (リアルタイムプレビュー)" className="mb-4 pb-2 border-b border-green-400" />
 
             {details ? (
               <div className="space-y-4">
