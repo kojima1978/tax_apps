@@ -287,7 +287,17 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 
 ## 更新履歴
 
-### 2026-02
+### 2026-02 (後半)
+
+- **全Dockerfile改善**: OCIラベル統一(vendor/licenses/source)、libc6-compat追加、コメント整備
+- **docker-compose.yml**: ヘルスチェックURLを`localhost`→`127.0.0.1`に統一（DNS解決回避）
+- **icm/api Dockerfile**: runner stageにタイムゾーン設定(tzdata)追加
+- **portal Dockerfile**: libc6-compat追加、HEALTHCHECKのr.ok判定統一
+- **nginx Dockerfile**: RUNレイヤー集約、COPY --link追加
+- **shares-valuation**: R7-R8リファクタリング（parseNumericInput/calculateOwnDataComplete/useValuationData/MedicalCorporationBadge）
+- **inheritance-case-management**: R2リファクタリング（formatCurrency統一/SortableHeader/UI re-export/RankingTable/P2025 catch）
+
+### 2026-02 (前半)
 
 - **Gift Tax Simulator**: 間接税シミュレーター（不動産取得税）を統合、早見表機能追加
 - **real-estate-tax**: 独立アプリを廃止、gift-tax-simulatorに統合
