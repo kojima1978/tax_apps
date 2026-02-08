@@ -20,7 +20,8 @@ import {
 import { ArrowLeft, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, PlusCircle, RefreshCcw } from 'lucide-react';
 import { exportToExcel } from '@/utils/exportExcel';
 import { CategoryGroup } from '@/types';
-import { SortableCategory } from './document-list/SortableCategory';
+import { SortableCategory, CategoryEditHandlers, DocHandlers } from './document-list/SortableCategory';
+import type { SubItemHandlers } from './document-list/SortableDocumentItem';
 import { formatDate, toReiwa } from '@/utils/date';
 import { fetchStaff } from '@/utils/api';
 import { taxReturnData, replaceYearPlaceholder } from '@/data/taxReturnData';
@@ -379,43 +380,49 @@ export default function DocumentListScreen({
                     group={group}
                     isExpanded={editing.expandedGroups[group.id] || false}
                     onToggleExpand={() => editing.toggleGroup(group.id)}
-                    onToggleDocumentCheck={(groupId, docId) => editing.toggleDocumentCheck(groupId, docId)}
-                    onDeleteDocument={editing.deleteDocument}
-                    onStartEditDocument={editing.startEditDocument}
-                    editingDocId={editing.editingDocId}
-                    editText={editing.editText}
-                    onEditTextChange={editing.setEditText}
-                    onSaveEditDocument={() => editing.saveEditDocument(group.id)}
-                    onCancelEditDocument={editing.cancelEditDocument}
-                    onDocumentsReorder={(activeId, overId) =>
-                      handleDocumentsReorder(group.id, activeId, overId)}
-                    addingToGroupId={editing.addingToGroupId}
-                    newDocText={editing.newDocText}
-                    onNewDocTextChange={editing.setNewDocText}
-                    onStartAddDocument={() => editing.startAddDocument(group.id)}
-                    onAddDocument={() => editing.addDocument(group.id)}
-                    onCancelAddDocument={editing.cancelAddDocument}
-                    onDeleteCategory={() => editing.deleteCategory(group.id)}
-                    onStartEditCategory={() => editing.startEditCategory(group.id, group.category)}
-                    editingCategoryId={editing.editingCategoryId}
-                    editCategoryName={editing.editCategoryName}
-                    onEditCategoryNameChange={editing.setEditCategoryName}
-                    onSaveEditCategory={editing.saveEditCategory}
-                    onCancelEditCategory={editing.cancelEditCategory}
-                    onToggleSubItemCheck={(docId, subId) => editing.toggleSubItemCheck(group.id, docId, subId)}
-                    onStartEditSubItem={editing.startEditSubItem}
-                    editingSubItemId={editing.editingSubItemId}
-                    editSubItemText={editing.editSubItemText}
-                    onEditSubItemTextChange={editing.setEditSubItemText}
-                    onSaveEditSubItem={editing.saveEditSubItem}
-                    onCancelEditSubItem={editing.cancelEditSubItem}
-                    onDeleteSubItem={editing.deleteSubItem}
-                    onStartAddSubItem={editing.startAddSubItem}
-                    addingSubItemToDocId={editing.addingSubItemToDocId}
-                    newSubItemText={editing.newSubItemText}
-                    onNewSubItemTextChange={editing.setNewSubItemText}
-                    onAddSubItem={editing.addSubItem}
-                    onCancelAddSubItem={editing.cancelAddSubItem}
+                    categoryHandlers={{
+                      editingCategoryId: editing.editingCategoryId,
+                      editCategoryName: editing.editCategoryName,
+                      onEditCategoryNameChange: editing.setEditCategoryName,
+                      onSaveEditCategory: editing.saveEditCategory,
+                      onCancelEditCategory: editing.cancelEditCategory,
+                      onStartEditCategory: () => editing.startEditCategory(group.id, group.category),
+                      onDeleteCategory: () => editing.deleteCategory(group.id),
+                    }}
+                    docHandlers={{
+                      editingDocId: editing.editingDocId,
+                      editText: editing.editText,
+                      onEditTextChange: editing.setEditText,
+                      onSaveEditDocument: () => editing.saveEditDocument(group.id),
+                      onCancelEditDocument: editing.cancelEditDocument,
+                      onStartEditDocument: editing.startEditDocument,
+                      onToggleDocumentCheck: editing.toggleDocumentCheck,
+                      onDeleteDocument: editing.deleteDocument,
+                      addingToGroupId: editing.addingToGroupId,
+                      newDocText: editing.newDocText,
+                      onNewDocTextChange: editing.setNewDocText,
+                      onStartAddDocument: () => editing.startAddDocument(group.id),
+                      onAddDocument: () => editing.addDocument(group.id),
+                      onCancelAddDocument: editing.cancelAddDocument,
+                      onDocumentsReorder: (activeId, overId) =>
+                        handleDocumentsReorder(group.id, activeId, overId),
+                    }}
+                    subItemHandlers={{
+                      editingSubItemId: editing.editingSubItemId,
+                      editSubItemText: editing.editSubItemText,
+                      onEditSubItemTextChange: editing.setEditSubItemText,
+                      onStartEditSubItem: editing.startEditSubItem,
+                      onSaveEditSubItem: editing.saveEditSubItem,
+                      onCancelEditSubItem: editing.cancelEditSubItem,
+                      onToggleSubItemCheck: editing.toggleSubItemCheck,
+                      onDeleteSubItem: editing.deleteSubItem,
+                      addingSubItemToDocId: editing.addingSubItemToDocId,
+                      newSubItemText: editing.newSubItemText,
+                      onNewSubItemTextChange: editing.setNewSubItemText,
+                      onAddSubItem: editing.addSubItem,
+                      onStartAddSubItem: editing.startAddSubItem,
+                      onCancelAddSubItem: editing.cancelAddSubItem,
+                    }}
                   />
                 </div>
               ))}

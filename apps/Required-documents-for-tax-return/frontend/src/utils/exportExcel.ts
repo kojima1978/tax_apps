@@ -73,9 +73,25 @@ const styles = {
   },
 };
 
+type Cell = { v: string | number; s?: object };
+type Row = Cell[];
+type Merge = { s: { r: number; c: number }; e: { r: number; c: number } };
+
+/** フッター行を追加（C:D結合、A:Bは空） */
+function pushFooterRow(data: Row[], merges: Merge[], row: number, text: string, style: object): number {
+  data.push([
+    { v: '', s: {} },
+    { v: '', s: {} },
+    { v: text, s: style },
+    { v: '', s: style },
+  ]);
+  merges.push({ s: { r: row, c: 2 }, e: { r: row, c: 3 } });
+  return row + 1;
+}
+
 export function exportToExcel(documentGroups: CategoryGroup[], year: number, customerName: string = '', staffName: string = '', mobileNumber?: string): void {
-  const data: { v: string | number; s?: object }[][] = [];
-  const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
+  const data: Row[] = [];
+  const merges: Merge[] = [];
 
   // タイトル行（年度なし、全列結合、背景色なし）
   data.push([
@@ -183,57 +199,15 @@ export function exportToExcel(documentGroups: CategoryGroup[], year: number, cus
   ]);
   currentRow++;
 
-  // 会社名（C列とD列を結合）
-  data.push([
-    { v: '', s: {} },
-    { v: '', s: {} },
-    { v: taxReturnData.contactInfo.office, s: footerStyle },
-    { v: '', s: footerStyle },
-  ]);
-  merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
-  currentRow++;
-
-  // 住所（C列とD列を結合）
-  data.push([
-    { v: '', s: {} },
-    { v: '', s: {} },
-    { v: taxReturnData.contactInfo.address, s: footerStyle },
-    { v: '', s: footerStyle },
-  ]);
-  merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
-  currentRow++;
-
-  // 電話番号（C列とD列を結合）
-  data.push([
-    { v: '', s: {} },
-    { v: '', s: {} },
-    { v: `TEL: ${taxReturnData.contactInfo.tel}`, s: footerStyle },
-    { v: '', s: footerStyle },
-  ]);
-  merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
-  currentRow++;
-
-  // 携帯電話番号（ある場合のみ、C列とD列を結合）
+  // フッター行（会社名、住所、電話番号、携帯、発行日）
+  currentRow = pushFooterRow(data, merges, currentRow, taxReturnData.contactInfo.office, footerStyle);
+  currentRow = pushFooterRow(data, merges, currentRow, taxReturnData.contactInfo.address, footerStyle);
+  currentRow = pushFooterRow(data, merges, currentRow, `TEL: ${taxReturnData.contactInfo.tel}`, footerStyle);
   if (mobileNumber) {
-    data.push([
-      { v: '', s: {} },
-      { v: '', s: {} },
-      { v: `携帯: ${mobileNumber}`, s: footerStyle },
-      { v: '', s: footerStyle },
-    ]);
-    merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
-    currentRow++;
+    currentRow = pushFooterRow(data, merges, currentRow, `携帯: ${mobileNumber}`, footerStyle);
   }
-
-  // 発行日（C列とD列を結合）
   const dateStyle = { font: { sz: 9, color: { rgb: '9CA3AF' } }, alignment: { horizontal: 'right' } };
-  data.push([
-    { v: '', s: {} },
-    { v: '', s: {} },
-    { v: `発行日: ${dateStr}`, s: dateStyle },
-    { v: '', s: dateStyle },
-  ]);
-  merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow, c: 3 } });
+  pushFooterRow(data, merges, currentRow, `発行日: ${dateStr}`, dateStyle);
 
   // ワークシートを作成
   const ws = XLSX.utils.aoa_to_sheet(data);
