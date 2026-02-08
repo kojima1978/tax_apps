@@ -13,13 +13,15 @@ FROM python:${PYTHON_VERSION}-slim AS builder
 
 WORKDIR /build
 
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_COMPILE=1
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip && \
     pip wheel --wheel-dir=/build/wheels -r requirements.txt
 
 # ------------------------------------------
@@ -32,23 +34,21 @@ LABEL org.opencontainers.image.title="Bank Analyzer Django" \
 
 WORKDIR /app
 
-# ランタイム依存（tini: initシステム）
+# ランタイム依存（tini: initシステム）+ 非rootユーザー作成
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tini \
-    && rm -rf /var/lib/apt/lists/*
-
-# 非rootユーザー作成
-RUN addgroup --system --gid 1001 appgroup && \
-    adduser --system --uid 1001 --ingroup appgroup --home /home/appuser appuser
+    && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system --gid 1001 appgroup \
+    && adduser --system --uid 1001 --ingroup appgroup --home /home/appuser appuser
 
 # ビルド済みwheelからPythonパッケージをインストール
-COPY --from=builder /build/wheels /wheels
+COPY --link --from=builder /build/wheels /wheels
 COPY requirements.txt .
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt && \
     rm -rf /wheels requirements.txt
 
 # エントリポイント（変更頻度が低いため先にコピー）
-COPY docker-entrypoint.sh /docker-entrypoint.sh
+COPY --link docker-entrypoint.sh /docker-entrypoint.sh
 RUN sed -i 's/\r$//' /docker-entrypoint.sh && \
     chmod +x /docker-entrypoint.sh
 
@@ -85,6 +85,9 @@ CMD ["/docker-entrypoint.sh", "gunicorn"]
 # 開発ステージ: Django runserver
 # ------------------------------------------
 FROM production AS dev
+
+# マウントボリュームへの書き込み権限のためrootで実行
+USER root
 
 ENV DJANGO_DEBUG=True
 
