@@ -19,8 +19,11 @@ import { getIcon } from '../utils/iconMap';
 import { StepIndicator } from './StepIndicator';
 import { useJsonImport } from '../hooks/useJsonImport';
 
+type SubcategoryResult = { name: string; documents: (DocumentItem | CustomDocumentItem)[] };
+type CategoryResult = { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[]; subcategories: SubcategoryResult[] };
+
 interface ResultScreenProps {
-  results: { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[];
+  results: CategoryResult[];
   isFullListMode: boolean;
   clientName: string;
   deceasedName: string;
@@ -30,14 +33,59 @@ interface ResultScreenProps {
   onImportJson: (data: ExportData) => void;
 }
 
+// 書類行レンダリング
+function DocumentRow({ doc, idx }: { doc: DocumentItem | CustomDocumentItem; idx: number }) {
+  type DocWithCanDelegate = (DocumentItem | CustomDocumentItem) & { canDelegate?: boolean };
+  const isCustom = isCustomDocument(doc);
+  const docWithDelegate = doc as DocWithCanDelegate;
+  const canDelegate = docWithDelegate.canDelegate ?? false;
+
+  return (
+    <tr className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+      <td className="px-2 py-3 text-center">
+        <span className="inline-block w-4 h-4 border-2 border-slate-300 rounded-sm print:border-slate-400 print:w-3 print:h-3 print:border" />
+      </td>
+      <td className="px-3 py-3">
+        <div className="flex items-center flex-wrap">
+          <span className="font-medium text-slate-800 doc-name">{doc.name}</span>
+          {isCustom && (
+            <span className="ml-2 px-1.5 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded print:border print:border-emerald-700 print:ml-1 print:px-1 print:py-0 print:text-[8px]">
+              追加
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-slate-500 mt-1 md:hidden doc-desc">{doc.description}</p>
+        {doc.howToGet && (
+          <p className="text-xs text-slate-400 mt-1 lg:hidden doc-how">{doc.howToGet}</p>
+        )}
+      </td>
+      <td className="px-3 py-3 text-slate-600 hidden md:table-cell print:table-cell doc-desc">
+        {doc.description}
+      </td>
+      <td className="px-3 py-3 text-slate-500 hidden lg:table-cell print:table-cell doc-how text-xs">
+        {doc.howToGet || '-'}
+      </td>
+      <td className="px-2 py-3 text-center">
+        {canDelegate && (
+          <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded print:border print:border-amber-700 print:px-1 print:py-0 print:text-[8px]">
+            可
+          </span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 // カテゴリテーブルコンポーネント
 interface CategoryTableProps {
   category: CategoryData;
   documents: (DocumentItem | CustomDocumentItem)[];
+  subcategories: SubcategoryResult[];
 }
 
-const CategoryTable = memo(function CategoryTable({ category, documents }: CategoryTableProps) {
-  type DocWithCanDelegate = (DocumentItem | CustomDocumentItem) & { canDelegate?: boolean };
+const CategoryTable = memo(function CategoryTable({ category, documents, subcategories }: CategoryTableProps) {
+  const totalCount = documents.length + subcategories.reduce((acc, sc) => acc + sc.documents.length, 0);
+  let rowIdx = 0;
 
   return (
     <div className="break-inside-avoid print-compact-section">
@@ -47,7 +95,7 @@ const CategoryTable = memo(function CategoryTable({ category, documents }: Categ
         <span className="mr-2 print:mr-1">{getIcon(category.iconName)}</span>
         {category.name}
         <span className="ml-2 text-sm font-normal print:text-xs print:ml-1">
-          ({documents.length}件)
+          ({totalCount}件)
         </span>
       </h3>
       <div className="border border-slate-200 rounded-lg overflow-hidden print:rounded-sm">
@@ -68,45 +116,23 @@ const CategoryTable = memo(function CategoryTable({ category, documents }: Categ
             </tr>
           </thead>
           <tbody>
-            {documents.map((doc, idx) => {
-              const isCustom = isCustomDocument(doc);
-              const docWithDelegate = doc as DocWithCanDelegate;
-              const canDelegate = docWithDelegate.canDelegate ?? false;
-              return (
-                <tr key={doc.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                  <td className="px-2 py-3 text-center">
-                    <span className="inline-block w-4 h-4 border-2 border-slate-300 rounded-sm print:border-slate-400 print:w-3 print:h-3 print:border" />
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center flex-wrap">
-                      <span className="font-medium text-slate-800 doc-name">{doc.name}</span>
-                      {isCustom && (
-                        <span className="ml-2 px-1.5 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded print:border print:border-emerald-700 print:ml-1 print:px-1 print:py-0 print:text-[8px]">
-                          追加
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1 md:hidden doc-desc">{doc.description}</p>
-                    {doc.howToGet && (
-                      <p className="text-xs text-slate-400 mt-1 lg:hidden doc-how">{doc.howToGet}</p>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-slate-600 hidden md:table-cell print:table-cell doc-desc">
-                    {doc.description}
-                  </td>
-                  <td className="px-3 py-3 text-slate-500 hidden lg:table-cell print:table-cell doc-how text-xs">
-                    {doc.howToGet || '-'}
-                  </td>
-                  <td className="px-2 py-3 text-center">
-                    {canDelegate && (
-                      <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded print:border print:border-amber-700 print:px-1 print:py-0 print:text-[8px]">
-                        可
-                      </span>
-                    )}
+            {documents.map((doc) => {
+              const idx = rowIdx++;
+              return <DocumentRow key={doc.id} doc={doc} idx={idx} />;
+            })}
+            {subcategories.map((sc) => (
+              <React.Fragment key={sc.name}>
+                <tr className="bg-slate-100">
+                  <td colSpan={5} className="px-3 py-2 font-bold text-sm text-slate-600 print:py-1 print:text-xs">
+                    ▸ {sc.name}
                   </td>
                 </tr>
-              );
-            })}
+                {sc.documents.map((doc) => {
+                  const idx = rowIdx++;
+                  return <DocumentRow key={doc.id} doc={doc} idx={idx} />;
+                })}
+              </React.Fragment>
+            ))}
           </tbody>
         </table>
       </div>
@@ -315,8 +341,8 @@ function ResultScreenComponent({
 
         {/* 書類リスト */}
         <div className="space-y-8 print:space-y-1">
-          {results.map(({ category, documents }) => (
-            <CategoryTable key={category.id} category={category} documents={documents} />
+          {results.map(({ category, documents, subcategories }) => (
+            <CategoryTable key={category.id} category={category} documents={documents} subcategories={subcategories} />
           ))}
         </div>
 
