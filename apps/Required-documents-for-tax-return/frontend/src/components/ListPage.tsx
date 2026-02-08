@@ -43,8 +43,7 @@ export default function ListPage<T extends { id: number }>({
         try {
             const data = await onLoad();
             setItems(data);
-        } catch (e) {
-            console.error(e);
+        } catch {
             setError(loadErrorMessage);
         } finally {
             setIsLoading(false);

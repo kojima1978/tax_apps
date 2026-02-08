@@ -75,8 +75,7 @@ export default function Home() {
 
       setState((prev) => ({ ...prev, isLoading: false }));
       return false;
-    } catch (error) {
-      console.error('データの読み込みに失敗しました:', error);
+    } catch {
       setState((prev) => ({ ...prev, isLoading: false }));
       return false;
     }
@@ -102,8 +101,7 @@ export default function Home() {
       } else {
         alert('翌年度更新に失敗しました');
       }
-    } catch (error) {
-      console.error('翌年度更新に失敗しました:', error);
+    } catch {
       alert('翌年度更新に失敗しました');
     }
   }, [state.customerName, state.staffName, state.year, saveData]);
@@ -150,8 +148,7 @@ export default function Home() {
         isLoading: false,
         step: 'editor',
       }));
-    } catch (error) {
-      console.error('データの読み込みに失敗しました:', error);
+    } catch {
       setState((prev) => ({
         ...prev,
         documentGroups: generateInitialDocumentGroups(year),

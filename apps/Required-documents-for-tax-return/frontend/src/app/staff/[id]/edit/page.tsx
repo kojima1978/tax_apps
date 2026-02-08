@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { fetchStaff, updateStaffName } from '@/utils/api';
 import { ChevronLeft, Loader2, Save } from 'lucide-react';
 import Link from 'next/link';
+import FormErrorDisplay from '@/components/FormErrorDisplay';
 
 export default function EditStaffPage() {
     const router = useRouter();
@@ -73,11 +74,7 @@ export default function EditStaffPage() {
                 </header>
 
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-                    {error && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl">
-                            {error}
-                        </div>
-                    )}
+                    <FormErrorDisplay error={error} />
 
                     <form onSubmit={handleSubmit}>
                         <div className="mb-4">

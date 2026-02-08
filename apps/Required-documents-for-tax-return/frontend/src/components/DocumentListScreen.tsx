@@ -20,8 +20,7 @@ import {
 import { ArrowLeft, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, PlusCircle, RefreshCcw } from 'lucide-react';
 import { exportToExcel } from '@/utils/exportExcel';
 import { CategoryGroup } from '@/types';
-import { SortableCategory, CategoryEditHandlers, DocHandlers } from './document-list/SortableCategory';
-import type { SubItemHandlers } from './document-list/SortableDocumentItem';
+import { SortableCategory } from './document-list/SortableCategory';
 import { formatDate, toReiwa } from '@/utils/date';
 import { fetchStaff } from '@/utils/api';
 import { taxReturnData, replaceYearPlaceholder } from '@/data/taxReturnData';
@@ -68,7 +67,7 @@ export default function DocumentListScreen({
   useEffect(() => {
     fetchStaff()
       .then((data) => setStaffList(data))
-      .catch((e) => console.error('担当者リストの取得に失敗:', e));
+      .catch(() => {});
   }, []);
 
   // 編集状態をhookに委譲

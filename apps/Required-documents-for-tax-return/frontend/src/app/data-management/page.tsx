@@ -56,8 +56,7 @@ export default function DataManagementPage() {
       ]);
       setRecords(recordsData);
       setStaffList(staffData);
-    } catch (error) {
-      console.error('データの取得に失敗:', error);
+    } catch {
     } finally {
       setIsLoading(false);
     }
@@ -81,7 +80,6 @@ export default function DataManagementPage() {
       await deleteDocument(id);
       setRecords((prev) => prev.filter((r) => r.id !== id));
     } catch (error) {
-      console.error('削除エラー:', error);
       alert(error instanceof Error ? error.message : '削除に失敗しました');
     }
   };
@@ -125,7 +123,6 @@ export default function DataManagementPage() {
       );
       cancelEdit();
     } catch (error) {
-      console.error('更新エラー:', error);
       alert(error instanceof Error ? error.message : '更新に失敗しました');
     }
   };
