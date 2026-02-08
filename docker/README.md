@@ -189,10 +189,20 @@ tax_apps/
 ### Docker Compose
 
 - **ログローテーション**: 10MB × 3ファイル
-- **リソース制限**: メモリ上限設定
+- **リソース制限**: YAMLアンカーによるティア管理（下表参照）
 - **ヘルスチェック**: 全サービスに設定
 - **依存関係管理**: service_healthy条件
 - **名前付きボリューム**: データ永続化
+
+#### リソースティア
+
+| ティア | 開発 (limit/reservation) | 本番 (limit/reservation) | 対象サービス |
+|:------|:------------------------|:------------------------|:------------|
+| Gateway | 128M / 32M | 64M / 16M | gateway |
+| Small | — | 128M / 32M | inheritance-tax-app, tax-docs-backend |
+| Medium | 256M / 64M | — | itcm-postgres, tax-docs-backend |
+| Default | 512M / 128M | 256M / 64M | その他全サービス |
+| Postgres | — | 512M / 128M | itcm-postgres |
 
 ## トラブルシューティング
 
@@ -280,15 +290,17 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 コンテナが "Unhealthy" になる場合、ヘルスチェックコマンドを確認してください。
 本プロジェクトでは `curl` に依存せず、各言語の組み込み機能を使用しています：
 
-- **Nginx (Gateway)**: `wget -qO /dev/null http://localhost/health`
-- **Node.js**: `node -e "(async()=>{...fetch(...)...})()"`
-- **Python (Django)**: `python -c "import urllib.request; urllib.request.urlopen(...)"`
+- **Nginx (Gateway)**: `wget --spider http://127.0.0.1/health`
+- **Node.js**: `node -e "(async()=>{...fetch('http://127.0.0.1:PORT/...')...})()"`
+- **Python (Django)**: `python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')"`
 - **PostgreSQL**: `pg_isready -U <user> -d <db>`
 
 ## 更新履歴
 
 ### 2026-02 (後半)
 
+- **docker-compose**: デプロイリソース定義をYAMLアンカー化してDRY化（7箇所のインライン定義→アンカー参照）
+- **docker-compose.yml**: gift-tax-docsの冗長な`build.args.NODE_VERSION`を削除
 - **全Dockerfile改善**: OCIラベル統一(vendor/licenses/source)、libc6-compat追加、コメント整備
 - **docker-compose.yml**: ヘルスチェックURLを`localhost`→`127.0.0.1`に統一（DNS解決回避）
 - **icm/api Dockerfile**: runner stageにタイムゾーン設定(tzdata)追加
