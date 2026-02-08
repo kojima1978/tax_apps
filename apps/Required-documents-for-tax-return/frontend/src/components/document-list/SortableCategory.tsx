@@ -3,12 +3,9 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from '@dnd-kit/utilities';
 import { Check, ChevronDown, ChevronRight, Edit2, GripVertical, Info, Plus, Trash2, X } from 'lucide-react';
 import { CategoryGroup } from '@/types';
-import { SortableDocumentItem } from './SortableDocumentItem';
+import { SortableDocumentItem, SubItemHandlers } from './SortableDocumentItem';
 
-interface SortableCategoryProps {
-    group: CategoryGroup;
-    isExpanded: boolean;
-    onToggleExpand: () => void;
+export interface CategoryEditHandlers {
     editingCategoryId: string | null;
     editCategoryName: string;
     onEditCategoryNameChange: (name: string) => void;
@@ -16,6 +13,9 @@ interface SortableCategoryProps {
     onCancelEditCategory: () => void;
     onStartEditCategory: () => void;
     onDeleteCategory: () => void;
+}
+
+export interface DocHandlers {
     editingDocId: string | null;
     editText: string;
     onEditTextChange: (text: string) => void;
@@ -31,64 +31,37 @@ interface SortableCategoryProps {
     onStartAddDocument: (groupId: string) => void;
     onCancelAddDocument: () => void;
     onDocumentsReorder: (activeId: string, overId: string) => void;
-    // サブアイテム関連
-    editingSubItemId: string | null;
-    editSubItemText: string;
-    onEditSubItemTextChange: (text: string) => void;
-    onStartEditSubItem: (subItemId: string, text: string) => void;
-    onSaveEditSubItem: (groupId: string, docId: string) => void;
-    onCancelEditSubItem: () => void;
-    onToggleSubItemCheck: (groupId: string, docId: string, subItemId: string) => void;
-    onDeleteSubItem: (groupId: string, docId: string, subItemId: string) => void;
-    addingSubItemToDocId: string | null;
-    newSubItemText: string;
-    onNewSubItemTextChange: (text: string) => void;
-    onAddSubItem: (groupId: string, docId: string) => void;
-    onStartAddSubItem: (docId: string) => void;
-    onCancelAddSubItem: () => void;
+}
+
+interface SortableCategoryProps {
+    group: CategoryGroup;
+    isExpanded: boolean;
+    onToggleExpand: () => void;
+    categoryHandlers: CategoryEditHandlers;
+    docHandlers: DocHandlers;
+    subItemHandlers: SubItemHandlers;
 }
 
 export function SortableCategory({
     group,
     isExpanded,
     onToggleExpand,
-    editingCategoryId,
-    editCategoryName,
-    onEditCategoryNameChange,
-    onSaveEditCategory,
-    onCancelEditCategory,
-    onStartEditCategory,
-    onDeleteCategory,
-    editingDocId,
-    editText,
-    onEditTextChange,
-    onSaveEditDocument,
-    onCancelEditDocument,
-    onStartEditDocument,
-    onToggleDocumentCheck,
-    onDeleteDocument,
-    addingToGroupId,
-    newDocText,
-    onNewDocTextChange,
-    onAddDocument,
-    onStartAddDocument,
-    onCancelAddDocument,
-    onDocumentsReorder,
-    editingSubItemId,
-    editSubItemText,
-    onEditSubItemTextChange,
-    onStartEditSubItem,
-    onSaveEditSubItem,
-    onCancelEditSubItem,
-    onToggleSubItemCheck,
-    onDeleteSubItem,
-    addingSubItemToDocId,
-    newSubItemText,
-    onNewSubItemTextChange,
-    onAddSubItem,
-    onStartAddSubItem,
-    onCancelAddSubItem,
+    categoryHandlers,
+    docHandlers,
+    subItemHandlers,
 }: SortableCategoryProps) {
+    const {
+        editingCategoryId, editCategoryName, onEditCategoryNameChange,
+        onSaveEditCategory, onCancelEditCategory, onStartEditCategory, onDeleteCategory,
+    } = categoryHandlers;
+    const {
+        editingDocId, editText, onEditTextChange,
+        onSaveEditDocument, onCancelEditDocument, onStartEditDocument,
+        onToggleDocumentCheck, onDeleteDocument,
+        addingToGroupId, newDocText, onNewDocTextChange,
+        onAddDocument, onStartAddDocument, onCancelAddDocument,
+        onDocumentsReorder,
+    } = docHandlers;
     const {
         attributes,
         listeners,
@@ -239,20 +212,7 @@ export function SortableCategory({
                                         onStartEdit={() => onStartEditDocument(doc.id, doc.text)}
                                         onToggleCheck={() => onToggleDocumentCheck(group.id, doc.id)}
                                         onDelete={() => onDeleteDocument(group.id, doc.id)}
-                                        editingSubItemId={editingSubItemId}
-                                        editSubItemText={editSubItemText}
-                                        onEditSubItemTextChange={onEditSubItemTextChange}
-                                        onStartEditSubItem={onStartEditSubItem}
-                                        onSaveEditSubItem={onSaveEditSubItem}
-                                        onCancelEditSubItem={onCancelEditSubItem}
-                                        onToggleSubItemCheck={onToggleSubItemCheck}
-                                        onDeleteSubItem={onDeleteSubItem}
-                                        addingSubItemToDocId={addingSubItemToDocId}
-                                        newSubItemText={newSubItemText}
-                                        onNewSubItemTextChange={onNewSubItemTextChange}
-                                        onAddSubItem={onAddSubItem}
-                                        onStartAddSubItem={onStartAddSubItem}
-                                        onCancelAddSubItem={onCancelAddSubItem}
+                                        subItemHandlers={subItemHandlers}
                                     />
                                 ))}
                             </ul>

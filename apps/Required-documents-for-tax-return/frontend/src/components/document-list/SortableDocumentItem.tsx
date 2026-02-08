@@ -4,19 +4,7 @@ import { Check, Edit2, GripVertical, Plus, Trash2, X } from 'lucide-react';
 import { DocumentItem } from '@/types';
 import { SubItemComponent } from './SubItemComponent';
 
-interface SortableDocumentItemProps {
-    doc: DocumentItem;
-    groupId: string;
-    index: number;
-    isEditing: boolean;
-    editText: string;
-    onEditTextChange: (text: string) => void;
-    onSaveEdit: () => void;
-    onCancelEdit: () => void;
-    onStartEdit: () => void;
-    onToggleCheck: () => void;
-    onDelete: () => void;
-    // サブアイテム関連
+export interface SubItemHandlers {
     editingSubItemId: string | null;
     editSubItemText: string;
     onEditSubItemTextChange: (text: string) => void;
@@ -33,6 +21,21 @@ interface SortableDocumentItemProps {
     onCancelAddSubItem: () => void;
 }
 
+interface SortableDocumentItemProps {
+    doc: DocumentItem;
+    groupId: string;
+    index: number;
+    isEditing: boolean;
+    editText: string;
+    onEditTextChange: (text: string) => void;
+    onSaveEdit: () => void;
+    onCancelEdit: () => void;
+    onStartEdit: () => void;
+    onToggleCheck: () => void;
+    onDelete: () => void;
+    subItemHandlers: SubItemHandlers;
+}
+
 export function SortableDocumentItem({
     doc,
     groupId,
@@ -45,21 +48,15 @@ export function SortableDocumentItem({
     onStartEdit,
     onToggleCheck,
     onDelete,
-    editingSubItemId,
-    editSubItemText,
-    onEditSubItemTextChange,
-    onStartEditSubItem,
-    onSaveEditSubItem,
-    onCancelEditSubItem,
-    onToggleSubItemCheck,
-    onDeleteSubItem,
-    addingSubItemToDocId,
-    newSubItemText,
-    onNewSubItemTextChange,
-    onAddSubItem,
-    onStartAddSubItem,
-    onCancelAddSubItem,
+    subItemHandlers,
 }: SortableDocumentItemProps) {
+    const {
+        editingSubItemId, editSubItemText, onEditSubItemTextChange,
+        onStartEditSubItem, onSaveEditSubItem, onCancelEditSubItem,
+        onToggleSubItemCheck, onDeleteSubItem,
+        addingSubItemToDocId, newSubItemText, onNewSubItemTextChange,
+        onAddSubItem, onStartAddSubItem, onCancelAddSubItem,
+    } = subItemHandlers;
     const {
         attributes,
         listeners,

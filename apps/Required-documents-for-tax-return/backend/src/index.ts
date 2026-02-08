@@ -34,6 +34,26 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** req.params.id をパースし、無効な場合は400レスポンスを返す */
+function parseId(req: express.Request, res: express.Response): number | null {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: 'Invalid ID' });
+    return null;
+  }
+  return id;
+}
+
+/** エンティティ作成の共通エラーハンドリング（409重複 / 500サーバーエラー） */
+function handleCreateError(res: express.Response, e: unknown, duplicateMessage: string): void {
+  const message = getErrorMessage(e);
+  if (message.includes('already exists') || message.includes('UNIQUE constraint failed')) {
+    res.status(409).json({ error: duplicateMessage });
+  } else {
+    res.status(500).json({ error: message });
+  }
+}
+
 /** 西暦年を令和年に変換（令和元年 = 2019年） */
 const REIWA_OFFSET = 2018;
 function toReiwa(year: number): number {
@@ -70,21 +90,18 @@ app.post('/api/customers', (req, res) => {
     const customer = createCustomer(customerName.trim(), Number(staffId));
     res.json({ customer });
   } catch (e: unknown) {
-    const message = getErrorMessage(e);
-    if (message.includes('already exists')) {
-      return res.status(409).json({ error: message });
-    }
-    return res.status(500).json({ error: message });
+    handleCreateError(res, e, getErrorMessage(e));
   }
 });
 
 // Update customer
 app.put('/api/customers/:id', (req, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseId(req, res);
+  if (id === null) return;
   const { customerName, staffId } = req.body;
 
-  if (isNaN(id) || !customerName || typeof customerName !== 'string' || !customerName.trim() || !staffId) {
-    return res.status(400).json({ error: 'Valid ID, customerName, and staffId are required' });
+  if (!customerName || typeof customerName !== 'string' || !customerName.trim() || !staffId) {
+    return res.status(400).json({ error: 'Valid customerName and staffId are required' });
   }
 
   const success = updateCustomer(id, customerName.trim(), Number(staffId));
@@ -97,10 +114,8 @@ app.put('/api/customers/:id', (req, res) => {
 
 // Delete customer
 app.delete('/api/customers/:id', (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid ID' });
-  }
+  const id = parseId(req, res);
+  if (id === null) return;
 
   const success = deleteCustomer(id);
   if (!success) {
@@ -151,21 +166,18 @@ app.post('/api/staff', (req, res) => {
     const staff = createStaff(staffName.trim(), mobileNumber);
     res.json({ staff });
   } catch (e: unknown) {
-    const message = getErrorMessage(e);
-    if (message.includes('UNIQUE constraint failed')) {
-      return res.status(409).json({ error: 'Staff name already exists' });
-    }
-    return res.status(500).json({ error: message });
+    handleCreateError(res, e, 'Staff name already exists');
   }
 });
 
 // Update staff
 app.put('/api/staff/:id', (req, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseId(req, res);
+  if (id === null) return;
   const { staffName, mobileNumber } = req.body;
 
-  if (isNaN(id) || !staffName || typeof staffName !== 'string' || !staffName.trim()) {
-    return res.status(400).json({ error: 'Valid ID and staffName are required' });
+  if (!staffName || typeof staffName !== 'string' || !staffName.trim()) {
+    return res.status(400).json({ error: 'Valid staffName is required' });
   }
 
   const success = updateStaff(id, staffName.trim(), mobileNumber);
@@ -178,10 +190,8 @@ app.put('/api/staff/:id', (req, res) => {
 
 // Delete staff
 app.delete('/api/staff/:id', (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid ID' });
-  }
+  const id = parseId(req, res);
+  if (id === null) return;
 
   try {
     const success = deleteStaff(id);
@@ -299,11 +309,8 @@ app.get('/api/records', (_req, res) => {
 
 // 書類データを削除
 app.delete('/api/documents/:id', (req, res) => {
-  const id = parseInt(req.params.id, 10);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid ID' });
-  }
+  const id = parseId(req, res);
+  if (id === null) return;
 
   const success = deleteDocumentRecord(id);
   if (!success) {

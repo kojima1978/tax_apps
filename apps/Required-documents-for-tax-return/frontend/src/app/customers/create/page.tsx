@@ -8,6 +8,7 @@ import { ChevronLeft, Loader2, Save, UserPlus, Users } from 'lucide-react';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
 import SearchableSelect from '@/components/SearchableSelect';
+import FormErrorDisplay from '@/components/FormErrorDisplay';
 
 export default function CreateCustomerPage() {
     const router = useRouter();
@@ -116,15 +117,7 @@ export default function CreateCustomerPage() {
                     <div className="p-1 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80" />
 
                     <div className="p-8">
-                        {error && (
-                            <div className="mb-8 p-4 bg-red-50 border border-red-100 text-red-700 rounded-xl flex items-start animate-in fade-in slide-in-from-top-2">
-                                <div className="mr-3 mt-0.5 text-xl">⚠️</div>
-                                <div>
-                                    <h3 className="font-bold text-sm mb-1">エラーが発生しました</h3>
-                                    <p className="text-sm">{error}</p>
-                                </div>
-                            </div>
-                        )}
+                        <FormErrorDisplay error={error} />
 
                         <form onSubmit={handleSubmit} className="space-y-8">
                             <div>
