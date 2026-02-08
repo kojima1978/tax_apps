@@ -16,9 +16,11 @@ x-prod-deploy: &prod-deploy
       memory: 64M
 
 # 本番 Node.js サービス共通設定
+# runner ステージは ENTRYPOINT に tini を持つため、compose の init は無効化
 x-prod-node-defaults: &prod-node-defaults
   build:
     target: runner
+  init: false
   ports: []
   volumes: []
   environment:
@@ -44,6 +46,7 @@ services:
   # Portal - 本番設定
   # ===========================================
   portal-app:
+    init: false
     ports: []
     deploy: *prod-deploy
 
