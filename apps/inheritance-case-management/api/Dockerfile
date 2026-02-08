@@ -62,9 +62,16 @@ FROM node:22-alpine AS runner
 
 LABEL org.opencontainers.image.title="ITCM Backend" \
       org.opencontainers.image.description="相続税案件管理システム API" \
-      org.opencontainers.image.vendor="税理士法人マスエージェント"
+      org.opencontainers.image.vendor="税理士法人マスエージェント" \
+      org.opencontainers.image.licenses="Private" \
+      org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-RUN apk upgrade --no-cache && apk add --no-cache tini && \
+# セキュリティ更新 + ランタイム依存 + タイムゾーン設定 + 非rootユーザー
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tini tzdata && \
+    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
+    echo "Asia/Tokyo" > /etc/timezone && \
+    apk del tzdata && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs hono
 
@@ -103,9 +110,11 @@ WORKDIR /app/apps/inheritance-case-management/api
 USER hono
 EXPOSE 3021
 
+# ヘルスチェック（Node 22+ native fetch使用）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3021/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
+# グレースフルシャットダウン
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/sbin/tini", "--", "docker-entrypoint.sh"]
 CMD ["node", "dist/index.js"]

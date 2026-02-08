@@ -67,13 +67,16 @@ RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --no-audit --no-fund
 FROM base AS runner
 
 LABEL org.opencontainers.image.title="Tax Documents Backend" \
-      org.opencontainers.image.description="Express + SQLite API for tax document management"
+      org.opencontainers.image.description="確定申告 必要書類管理システム API" \
+      org.opencontainers.image.vendor="税理士法人マスエージェント" \
+      org.opencontainers.image.licenses="Private" \
+      org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
 # ランタイム依存パッケージ + タイムゾーン設定
 RUN apk add --no-cache tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
-    apk del --no-cache tzdata
+    apk del tzdata
 
 ENV NODE_ENV=production \
     PORT=3001 \
@@ -97,10 +100,11 @@ USER node
 
 EXPOSE 3001
 
+# ヘルスチェック（Node 22+ native fetch使用）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3001/api/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
-# シグナル処理
+# グレースフルシャットダウン
 STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["/sbin/tini", "--"]
