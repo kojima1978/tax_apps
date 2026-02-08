@@ -22,6 +22,24 @@ import { GripVertical } from 'lucide-react';
 import type { Application } from '@/types/application';
 import { applySavedOrder, saveOrder } from '@/lib/order';
 
+function AppSortItem({ app, className, gripProps }: {
+    app: Application
+    className?: string
+    gripProps?: Record<string, unknown>
+}) {
+    return (
+        <div className={`bg-white p-4 rounded-lg border flex items-center gap-4 ${className ?? 'border-gray-200 shadow-sm'}`}>
+            <div {...gripProps} className={gripProps ? 'cursor-grab touch-none text-gray-400 hover:text-gray-600' : 'text-gray-400'}>
+                <GripVertical size={20} />
+            </div>
+            <div>
+                <h3 className="font-medium text-gray-900">{app.title}</h3>
+                <p className="text-sm text-gray-500">{app.description}</p>
+            </div>
+        </div>
+    );
+}
+
 interface AdminAppSortProps {
     applications: Application[];
 }
@@ -44,19 +62,12 @@ function SortableItem({ app }: { app: Application }) {
     };
 
     return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            className={`bg-white p-4 rounded-lg border flex items-center gap-4 ${isDragging ? 'shadow-lg border-green-500 bg-green-50' : 'border-gray-200 shadow-sm'
-                }`}
-        >
-            <div {...attributes} {...listeners} className="cursor-grab touch-none text-gray-400 hover:text-gray-600">
-                <GripVertical size={20} />
-            </div>
-            <div>
-                <h3 className="font-medium text-gray-900">{app.title}</h3>
-                <p className="text-sm text-gray-500">{app.description}</p>
-            </div>
+        <div ref={setNodeRef} style={style}>
+            <AppSortItem
+                app={app}
+                className={isDragging ? 'shadow-lg border-green-500 bg-green-50' : 'border-gray-200 shadow-sm'}
+                gripProps={{ ...attributes, ...listeners }}
+            />
         </div>
     );
 }
@@ -100,15 +111,7 @@ export default function AdminAppSort({ applications }: AdminAppSortProps) {
         return (
             <div className="space-y-4">
                 {orderedApps.map((app) => (
-                    <div key={app.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-                        <div className="text-gray-400">
-                            <GripVertical size={20} />
-                        </div>
-                        <div>
-                            <h3 className="font-medium text-gray-900">{app.title}</h3>
-                            <p className="text-sm text-gray-500">{app.description}</p>
-                        </div>
-                    </div>
+                    <AppSortItem key={app.id} app={app} />
                 ))}
             </div>
         );

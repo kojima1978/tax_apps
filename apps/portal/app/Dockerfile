@@ -63,7 +63,12 @@ import { PrismaClient } from '../app/generated/prisma/client';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
 const dbPath = process.env.DATABASE_PATH || '/data/portal.db';
-const adapter = new PrismaBetterSqlite3({ url: dbPath });
+
+export function createAdapter() {
+  return new PrismaBetterSqlite3({ url: dbPath });
+}
+
+const adapter = createAdapter();
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
@@ -73,15 +78,13 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 EOF
-sed -i "s|import { PrismaLibSql }.*|import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';|" prisma/seed.ts
-sed -i "s|new PrismaLibSql({|new PrismaBetterSqlite3({|" prisma/seed.ts
-sed -i "s|url:.*DATABASE_URL.*|url: './build.db',|" prisma/seed.ts
 SCRIPT
 
 # ビルド設定（ビルド時のみ使用）
 ARG NODE_OPTIONS="--max-old-space-size=2048"
 
 # Prismaセットアップ・シード・ビルド
+ENV DATABASE_PATH=./build.db
 RUN ./node_modules/.bin/prisma db push && \
     ./node_modules/.bin/prisma generate && \
     ./node_modules/.bin/tsx prisma/seed.ts && \

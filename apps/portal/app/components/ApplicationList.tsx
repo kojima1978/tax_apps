@@ -4,6 +4,11 @@ import { useState } from 'react';
 import { Edit2, Trash2, ExternalLink } from 'lucide-react';
 import type { Application } from '@/types/application';
 import { isExternalUrl } from '@/lib/url';
+import DeleteConfirmDialog from './ui/DeleteConfirmDialog';
+import ErrorAlert from './ui/ErrorAlert';
+import { glassPanelCard } from '@/lib/styles';
+
+const thClassName = 'px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider';
 
 interface ApplicationListProps {
   applications: Application[];
@@ -11,15 +16,17 @@ interface ApplicationListProps {
   onDelete: (id: string) => Promise<void>;
 }
 
+type DeleteTarget = { id: string; title: string } | null;
+
 export default function ApplicationList({ applications, onEdit, onDelete }: ApplicationListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`「${title}」を削除してもよろしいですか？`)) {
-      return;
-    }
-
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    setDeleteTarget(null);
     setDeleteError(null);
     setDeletingId(id);
     try {
@@ -33,33 +40,29 @@ export default function ApplicationList({ applications, onEdit, onDelete }: Appl
 
   if (applications.length === 0) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-md border border-gray-200 text-center">
+      <div className={`${glassPanelCard} p-12 text-center`}>
         <p className="text-gray-500 text-lg">アプリケーションがありません。上のフォームから最初のアプリケーションを追加してください。</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md border border-gray-200 overflow-hidden">
-      {deleteError && (
-        <div className="m-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {deleteError}
-        </div>
-      )}
+    <div className={`${glassPanelCard} overflow-hidden`}>
+      {deleteError && <ErrorAlert message={deleteError} className="m-4" />}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className={`${thClassName} text-left`}>
                 アプリケーション
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className={`${thClassName} text-left`}>
                 URL
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className={`${thClassName} text-left`}>
                 アイコン
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className={`${thClassName} text-right`}>
                 操作
               </th>
             </tr>
@@ -96,7 +99,7 @@ export default function ApplicationList({ applications, onEdit, onDelete }: Appl
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(app.id, app.title)}
+                      onClick={() => setDeleteTarget({ id: app.id, title: app.title })}
                       disabled={deletingId === app.id}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                       title="削除"
@@ -110,6 +113,12 @@ export default function ApplicationList({ applications, onEdit, onDelete }: Appl
           </tbody>
         </table>
       </div>
+      <DeleteConfirmDialog
+        isOpen={deleteTarget !== null}
+        title={deleteTarget?.title ?? ''}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

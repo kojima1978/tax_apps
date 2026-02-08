@@ -5,6 +5,8 @@ import AppCard from './AppCard';
 import { Search } from 'lucide-react';
 import type { Application } from '@/types/application';
 import { applySavedOrder } from '@/lib/order';
+import PageContainer from './ui/PageContainer';
+import { glassPanel } from '@/lib/styles';
 
 interface LauncherGridProps {
   applications: Application[];
@@ -24,7 +26,7 @@ export default function LauncherGrid({ applications }: LauncherGridProps) {
   );
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <PageContainer>
       {/* Search Bar */}
       <div className="mb-8">
         <div className="relative">
@@ -34,7 +36,7 @@ export default function LauncherGrid({ applications }: LauncherGridProps) {
             placeholder="アプリケーションを検索..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 placeholder-gray-500 shadow-md transition-shadow duration-300"
+            className={`w-full pl-12 pr-4 py-4 ${glassPanel} rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 placeholder-gray-500 shadow-md transition-shadow duration-300`}
           />
         </div>
       </div>
@@ -54,6 +56,6 @@ export default function LauncherGrid({ applications }: LauncherGridProps) {
           </p>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

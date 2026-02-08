@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ApplicationForm from './ApplicationForm';
 import ApplicationList from './ApplicationList';
 import type { Application, ApplicationInput } from '@/types/application';
+import { fetchApi } from '@/lib/client-api';
 
 interface AdminPanelProps {
   applications: Application[];
@@ -15,48 +16,29 @@ export default function AdminPanel({ applications }: AdminPanelProps) {
   const [editingApp, setEditingApp] = useState<Application | null>(null);
 
   const handleAddApplication = async (data: ApplicationInput) => {
-    const response = await fetch('/api/applications', {
+    await fetchApi('/api/applications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'アプリケーションの作成に失敗しました');
-    }
-
+    }, 'アプリケーションの作成に失敗しました');
     router.refresh();
   };
 
   const handleUpdateApplication = async (data: ApplicationInput) => {
     if (!editingApp) return;
-
-    const response = await fetch(`/api/applications/${editingApp.id}`, {
+    await fetchApi(`/api/applications/${editingApp.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'アプリケーションの更新に失敗しました');
-    }
-
+    }, 'アプリケーションの更新に失敗しました');
     setEditingApp(null);
     router.refresh();
   };
 
   const handleDeleteApplication = async (id: string) => {
-    const response = await fetch(`/api/applications/${id}`, {
+    await fetchApi(`/api/applications/${id}`, {
       method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'アプリケーションの削除に失敗しました');
-    }
-
+    }, 'アプリケーションの削除に失敗しました');
     router.refresh();
   };
 

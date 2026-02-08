@@ -9,9 +9,13 @@
 import { PrismaClient } from '../app/generated/prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 
-const adapter = new PrismaLibSql({
-  url: process.env.DATABASE_URL || 'file:./dev.db',
-});
+export function createAdapter() {
+  return new PrismaLibSql({
+    url: process.env.DATABASE_URL || 'file:./dev.db',
+  });
+}
+
+const adapter = createAdapter();
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
