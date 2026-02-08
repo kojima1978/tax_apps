@@ -1,5 +1,243 @@
 import { BasicInfo, Financials } from "@/types/valuation";
 
+/**
+ * 会社規模に応じた斟酌率を取得する。
+ * basicInfo.sizeMultiplier があればそれを使用し、なければ size から判定。
+ */
+export function getMultiplier(basicInfo: {
+  sizeMultiplier?: number;
+  size?: string;
+}): number {
+  if (basicInfo.sizeMultiplier) return basicInfo.sizeMultiplier;
+  if (basicInfo.size === "Medium") return 0.6;
+  if (basicInfo.size === "Small") return 0.5;
+  return 0.7;
+}
+
+/**
+ * 配当金額を円と銭に分割する。
+ * 例: 3.5 → { yen: 3, sen: 5 }
+ */
+export function splitDividend(value: number): { yen: number; sen: number } {
+  const yen = Math.floor(value);
+  const sen = Math.round((value - yen) * 10);
+  return { yen, sen };
+}
+
+/**
+ * 円と銭を配当金額に合算する。
+ * 例: (3, 5) → 3.5
+ */
+export function combineDividend(yen: number, sen: number): number {
+  return yen + sen * 0.1;
+}
+
+export interface ProfitValuesInput {
+  p1: number; // 直前期 所得金額
+  l1: number; // 直前期 繰越欠損金
+  p2: number; // 直前々期 所得金額
+  l2: number; // 直前々期 繰越欠損金
+  p3: number; // 直前々々期 所得金額
+  l3: number; // 直前々々期 繰越欠損金
+  shareCount50: number;
+  profitMethodC: "auto" | "c1" | "c2";
+  profitMethodC1: "auto" | "c1" | "c2";
+  profitMethodC2: "auto" | "c1" | "c2";
+}
+
+export interface ProfitValuesResult {
+  ownProfit: number;    // c: 比準用利益
+  ownProfitC1: number;  // c1: 判定用
+  ownProfitC2: number;  // c2: 判定用
+  profitC1Val: number;  // 直前期 per share (floor)
+  profitC2Val: number;  // 2年平均 per share (floor)
+  p1Val: number;        // 直前期利益 (円)
+  p2Val: number;        // 直前々期利益 (円)
+  p3Val: number;        // 直前々々期利益 (円)
+}
+
+/**
+ * 利益(c/c1/c2)を計算する共通ユーティリティ。
+ * OwnDataForm と ValuationBulkInput で共通使用。
+ */
+export function calculateProfitValues(input: ProfitValuesInput): ProfitValuesResult {
+  const { p1, l1, p2, l2, p3, l3, shareCount50, profitMethodC, profitMethodC1, profitMethodC2 } = input;
+
+  const profitPrevAmount = (p1 + l1) * 1000;
+  const profit2PrevAmount = (p2 + l2) * 1000;
+  const profit3PrevAmount = (p3 + l3) * 1000;
+
+  const profitPerSharePrev = profitPrevAmount / shareCount50;
+  const profitPerShareAvg = (profitPrevAmount + profit2PrevAmount) / 2 / shareCount50;
+
+  // c2用: 2期前 と (2期前+3期前)/2
+  const profitPerShare2Prev = profit2PrevAmount / shareCount50;
+  const profitPerShareAvg2And3 = (profit2PrevAmount + profit3PrevAmount) / 2 / shareCount50;
+
+  const profitC1Val = Math.floor(Math.max(0, profitPerSharePrev));
+  const profitC2Val = Math.floor(Math.max(0, profitPerShareAvg));
+  const profitC2_2PrevVal = Math.floor(Math.max(0, profitPerShare2Prev));
+  const profitC2_AvgVal = Math.floor(Math.max(0, profitPerShareAvg2And3));
+
+  // c: 比準用利益
+  let ownProfit: number;
+  if (profitMethodC === "c1") {
+    ownProfit = profitC1Val;
+  } else if (profitMethodC === "c2") {
+    ownProfit = profitC2Val;
+  } else {
+    ownProfit = Math.floor(Math.max(0, Math.min(profitPerSharePrev, profitPerShareAvg)));
+  }
+
+  // c1: 自動は直前期と2年平均の高いほう
+  let ownProfitC1: number;
+  if (profitMethodC1 === "c1") {
+    ownProfitC1 = profitC1Val;
+  } else if (profitMethodC1 === "c2") {
+    ownProfitC1 = profitC2Val;
+  } else {
+    ownProfitC1 = Math.max(profitC1Val, profitC2Val);
+  }
+
+  // c2: 自動は2期前と(2期前+3期前)/2の高いほう
+  let ownProfitC2: number;
+  if (profitMethodC2 === "c1") {
+    ownProfitC2 = profitC2_2PrevVal;
+  } else if (profitMethodC2 === "c2") {
+    ownProfitC2 = profitC2_AvgVal;
+  } else {
+    ownProfitC2 = Math.max(profitC2_2PrevVal, profitC2_AvgVal);
+  }
+
+  return {
+    ownProfit,
+    ownProfitC1,
+    ownProfitC2,
+    profitC1Val,
+    profitC2Val,
+    p1Val: profitPrevAmount,
+    p2Val: profit2PrevAmount,
+    p3Val: profit3PrevAmount,
+  };
+}
+
+export interface OwnDataCompleteInput {
+  divPrev: number;
+  div2Prev: number;
+  div3Prev: number;
+  p1: number;
+  l1: number;
+  p2: number;
+  l2: number;
+  p3: number;
+  l3: number;
+  cap1: number;
+  re1: number;
+  cap2: number;
+  re2: number;
+  shareCount50: number;
+  profitMethodC: "auto" | "c1" | "c2";
+  profitMethodC1: "auto" | "c1" | "c2";
+  profitMethodC2: "auto" | "c1" | "c2";
+}
+
+export interface OwnDataCompleteResult {
+  ownDividends: number;
+  ownProfit: number;
+  ownBookValue: number;
+  ownDividendsB1: number;
+  ownDividendsB2: number;
+  ownProfitC1: number;
+  ownProfitC2: number;
+  ownBookValueD1: number;
+  ownBookValueD2: number;
+  isZeroElementCompany: boolean;
+  isOneElementCompany: boolean;
+  profitC1Val: number;
+  profitC2Val: number;
+  p1Val: number;
+  p2Val: number;
+  p3Val: number;
+}
+
+/**
+ * 自社データの完全な計算を行う共通ユーティリティ。
+ * OwnDataForm と ValuationBulkInput で共通使用。
+ * b/b1/b2, c/c1/c2, d/d1/d2 + 比準要素数判定を一括計算。
+ */
+export function calculateOwnDataComplete(input: OwnDataCompleteInput): OwnDataCompleteResult {
+  const { divPrev, div2Prev, div3Prev, cap1, re1, cap2, re2, shareCount50, profitMethodC, profitMethodC1, profitMethodC2 } = input;
+
+  // 配当計算
+  const avgDivTotal = ((divPrev + div2Prev) * 1000) / 2;
+  const ownDividends = Math.floor((avgDivTotal / shareCount50) * 10) / 10;
+  const ownDividendsB1 = ownDividends;
+  const avgDivTotalB2 = ((div2Prev + div3Prev) * 1000) / 2;
+  const ownDividendsB2 = Math.floor((avgDivTotalB2 / shareCount50) * 10) / 10;
+
+  // 利益計算
+  const profitResult = calculateProfitValues({
+    p1: input.p1, l1: input.l1, p2: input.p2, l2: input.l2, p3: input.p3, l3: input.l3,
+    shareCount50, profitMethodC, profitMethodC1, profitMethodC2,
+  });
+  const { ownProfit, ownProfitC1, ownProfitC2, profitC1Val, profitC2Val, p1Val, p2Val, p3Val } = profitResult;
+
+  // 純資産計算
+  const netAssetPrev = (cap1 + re1) * 1000;
+  const ownBookValue = Math.floor(netAssetPrev / shareCount50);
+  const ownBookValueD1 = ownBookValue;
+  const netAsset2Prev = (cap2 + re2) * 1000;
+  const ownBookValueD2 = Math.floor(netAsset2Prev / shareCount50);
+
+  // 比準要素数判定
+  const isZeroElementCompany =
+    ownDividendsB1 === 0 && ownProfitC1 === 0 && ownBookValueD1 === 0;
+  const countZeroInB1C1D1 = [ownDividendsB1, ownProfitC1, ownBookValueD1].filter((v) => v === 0).length;
+  const countZeroInB2C2D2 = [ownDividendsB2, ownProfitC2, ownBookValueD2].filter((v) => v === 0).length;
+  const isOneElementCompany =
+    !isZeroElementCompany && countZeroInB1C1D1 >= 2 && countZeroInB2C2D2 >= 2;
+
+  return {
+    ownDividends,
+    ownProfit,
+    ownBookValue,
+    ownDividendsB1,
+    ownDividendsB2,
+    ownProfitC1,
+    ownProfitC2,
+    ownBookValueD1,
+    ownBookValueD2,
+    isZeroElementCompany,
+    isOneElementCompany,
+    profitC1Val,
+    profitC2Val,
+    p1Val,
+    p2Val,
+    p3Val,
+  };
+}
+
+/**
+ * 会社規模の日本語ラベルを取得する。
+ */
+export function getCompanySizeLabel(size?: string): string {
+  if (size === "Big") return "大会社";
+  if (size === "Medium") return "中会社";
+  return "小会社";
+}
+
+/**
+ * 業種区分の日本語ラベルを取得する。
+ */
+export function getIndustryTypeLabel(type?: string): string {
+  switch (type) {
+    case "Wholesale": return "卸売業";
+    case "RetailService": return "小売・サービス業";
+    case "MedicalCorporation": return "医療法人";
+    default: return "その他";
+  }
+}
+
 export type IndustryType =
   | "Wholesale"
   | "RetailService"
@@ -292,7 +530,7 @@ function calculateComparableValue(
   ].filter((n) => n > 0);
   const A = possibleAs.length > 0 ? Math.min(...possibleAs) : 0;
 
-  const multiplier = basicInfo.sizeMultiplier || 0.7;
+  const multiplier = getMultiplier(basicInfo);
 
   const simResult = calculateDetailedSimilarIndustryMethod(
     A,
@@ -307,85 +545,6 @@ function calculateComparableValue(
   );
 
   return simResult.value;
-}
-
-/**
- * Calculates Own Company Financials (b, c, d) from raw inputs.
- * used in Step 3 and Simulations.
- *
- * NOTE: As per standard "Similar Industry Method", values are normalized to "50 yen par value" shares.
- * Divisor = (Capital at start of period / 50 yen).
- */
-export function calculateOwnFinancials(
-  data: {
-    divPrev: number;
-    div2Prev: number;
-    div3Prev: number;
-    p1: number;
-    l1: number;
-    p2: number;
-    l2: number;
-    p3: number;
-    l3: number;
-    cap1: number;
-    re1: number;
-    cap2: number;
-    re2: number;
-  },
-  issuedShares: number, // Kept for interface compatibility or fallback
-) {
-  // Calculate Share Count equivalent to 50 yen par value
-  // cap1 is in Thousand Yen.
-  const capitalPrevYen = data.cap1 * 1000;
-  // Prevent division by zero if capital is missing (fallback to issuedShares though strictly should use capital)
-  const shareCount50 =
-    capitalPrevYen > 0 ? Math.floor(capitalPrevYen / 50) : issuedShares;
-
-  const divisor = shareCount50;
-
-  // 1. Dividends (b) - 2 Year Avg (Prev and 2Prev)
-  const avgDivTotal = ((data.divPrev + data.div2Prev) * 1000) / 2;
-  const rawOwnDividends = avgDivTotal / divisor;
-  // Round down to 1 decimal place
-  const ownDividends = Math.floor(rawOwnDividends * 10) / 10;
-
-  // 2. Profit (c) - Comparison of Prev and 2-Year Avg
-  const profitPrevAmount = (data.p1 + data.l1) * 1000;
-  const profit2PrevAmount = (data.p2 + data.l2) * 1000;
-
-  // Per Share Values (50 yen basis)
-  const profitPerSharePrev = profitPrevAmount / divisor;
-
-  const profitAvgAmount = (profitPrevAmount + profit2PrevAmount) / 2;
-  const profitPerShareAvg = profitAvgAmount / divisor;
-
-  // Use lower of the two, floored at 0, and round down to integer (yen)
-  const ownProfit = Math.floor(
-    Math.max(0, Math.min(profitPerSharePrev, profitPerShareAvg)),
-  );
-
-  // Keep raw for reference (maybe avg of 3 still useful for logging? removing for now to avoid confusion)
-  const profit3Prev = (data.p3 + data.l3) * 1000; // Still calculate for return obj consistency if needed
-
-  // 3. Book Value (d) - Last Period Only
-  // User correction: (Capital + Retained Earnings of Last Period) / 50y Share Count
-  const netAssetPrev = (data.cap1 + data.re1) * 1000;
-  // const netAsset2Prev = ... (No longer needed for 'd' calculation per user request)
-
-  // Use Last Period Total
-  const rawOwnBookValue = netAssetPrev / divisor;
-  // Round down to integer
-  const ownBookValue = Math.floor(rawOwnBookValue);
-
-  return {
-    ownDividends,
-    ownProfit, // This is 'c' (per 50 yen)
-    ownBookValue, // This is 'd' (per 50 yen)
-    // Detailed profits for reference if needed
-    profitPrev: profitPrevAmount,
-    profit2Prev: profit2PrevAmount,
-    profit3Prev,
-  };
 }
 
 /**
@@ -532,7 +691,12 @@ export function buildSimulationFinancials(
   financials: Financials,
   issuedShares: number,
 ): Financials {
-  const simData = {
+  const cap1 = financials.ownCapitalPrev || 0;
+  const capitalPrevYen = cap1 * 1000;
+  const shareCount50 =
+    capitalPrevYen > 0 ? Math.floor(capitalPrevYen / 50) : issuedShares;
+
+  const simResult = calculateOwnDataComplete({
     divPrev: financials.ownDividendPrev || 0,
     div2Prev: financials.ownDividend2Prev || 0,
     div3Prev: financials.ownDividend3Prev || 0,
@@ -542,17 +706,19 @@ export function buildSimulationFinancials(
     l2: financials.ownCarryForwardLoss2Prev || 0,
     p3: financials.ownTaxableIncome3Prev || 0,
     l3: financials.ownCarryForwardLoss3Prev || 0,
-    cap1: financials.ownCapitalPrev || 0,
+    cap1,
     re1: financials.ownRetainedEarningsPrev || 0,
     cap2: financials.ownCapital2Prev || 0,
     re2: financials.ownRetainedEarnings2Prev || 0,
-  };
-
-  const simOwnFinancials = calculateOwnFinancials(simData, issuedShares);
+    shareCount50,
+    profitMethodC: "auto",
+    profitMethodC1: "auto",
+    profitMethodC2: "auto",
+  });
 
   return {
     ...financials,
-    ownProfit: simOwnFinancials.ownProfit,
+    ownProfit: simResult.ownProfit,
   };
 }
 

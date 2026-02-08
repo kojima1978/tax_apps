@@ -1,46 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { OwnDataForm } from "@/components/valuation/OwnDataForm";
-import { BasicInfo, Financials } from "@/types/valuation";
+import { Financials } from "@/types/valuation";
+import { useValuationFormData } from "@/hooks/useValuationData";
 
 export default function Step3Page() {
   const router = useRouter();
-  const [basicInfo, setBasicInfo] = useState<
-    BasicInfo | Partial<BasicInfo> | null
-  >(null);
-  const [financials, setFinancials] = useState<Partial<Financials> | null>(
-    null,
-  );
-
-  useEffect(() => {
-    // Load saved data from sessionStorage
-    const savedBasic = sessionStorage.getItem("valuationBasicInfo");
-    const savedFinancials = sessionStorage.getItem("valuationFinancials");
-
-    if (savedBasic) {
-      try {
-        setBasicInfo(JSON.parse(savedBasic));
-      } catch (e) {
-        console.error("Failed to parse saved data:", e);
-        router.push("/valuation/step1");
-        return;
-      }
-    } else {
-      // No data, redirect to step 1
-      router.push("/valuation/step1");
-      return;
-    }
-
-    if (savedFinancials) {
-      try {
-        setFinancials(JSON.parse(savedFinancials));
-      } catch (e) {
-        console.error("Failed to parse financials:", e);
-      }
-    }
-  }, [router]);
+  const { basicInfo, financials } = useValuationFormData();
 
   const handleNext = (data: Partial<Financials>) => {
     // Merge with existing financials data

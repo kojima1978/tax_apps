@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { Label } from "@/components/ui/Label";
 import { NumberInputWithUnit } from "@/components/ui/NumberInputWithUnit";
 import { FormNavigationButtons } from "@/components/ui/FormNavigationButtons";
+import { FormSectionHeader } from "@/components/ui/FormSectionHeader";
+import { ResultPreviewHeader } from "@/components/ui/ResultPreviewHeader";
 
 interface NetAssetFormProps {
   basicInfo: BasicInfo;
@@ -128,24 +130,21 @@ export function NetAssetForm({
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Net Assets Data */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-blue-300 bg-blue-50 p-4 rounded-t-lg border-2 border-b-0 border-blue-200">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                  ✎
-                </div>
-                <h3 className="text-lg font-bold text-blue-900">
-                  入力：純資産価額の計算要素
-                </h3>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleCopyInheritanceToBook}
-                className="text-xs"
-              >
-                相続税評価額を帳簿価格に複写
-              </Button>
+            <div className="bg-blue-50 p-4 rounded-t-lg border-2 border-b-0 border-blue-200">
+              <FormSectionHeader
+                title="入力：純資産価額の計算要素"
+                action={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyInheritanceToBook}
+                    className="text-xs"
+                  >
+                    相続税評価額を帳簿価格に複写
+                  </Button>
+                }
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -237,14 +236,7 @@ export function NetAssetForm({
 
           {/* Real-time Result Preview */}
           <div className="bg-green-50 p-4 rounded-xl border-2 border-green-300">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">
-                ✓
-              </div>
-              <h3 className="text-sm font-bold text-green-900">
-                計算結果：純資産価額の計算結果 (リアルタイムプレビュー)
-              </h3>
-            </div>
+            <ResultPreviewHeader title="計算結果：純資産価額の計算結果 (リアルタイムプレビュー)" className="mb-3" />
             <div className="space-y-2">
               <div className="border-b border-primary/10 pb-2">
                 <div className="flex items-center justify-between">

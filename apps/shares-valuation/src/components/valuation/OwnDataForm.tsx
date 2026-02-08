@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/Label";
 import { NumberInputWithUnit } from "@/components/ui/NumberInputWithUnit";
 import { PeriodInputPair } from "@/components/ui/PeriodInputPair";
 import { ProfitMethodSelector } from "@/components/ui/ProfitMethodSelector";
+import { FormSectionHeader } from "@/components/ui/FormSectionHeader";
+import { MedicalCorporationBadge } from "@/components/ui/MedicalCorporationBadge";
+import { ResultPreviewHeader } from "@/components/ui/ResultPreviewHeader";
+import { calculateOwnDataComplete } from "@/lib/valuation-logic";
 
 interface OwnDataFormProps {
   basicInfo: BasicInfo | Partial<BasicInfo>;
@@ -103,120 +107,27 @@ export function OwnDataForm({
     const shareCount50 =
       capPrev * 1000 > 0 ? Math.floor((capPrev * 1000) / 50) : issuedShares;
 
-    const divPrev = Number(formData.ownDividendPrev);
-    const div2Prev = Number(formData.ownDividend2Prev);
-    const div3Prev = Number(formData.ownDividend3Prev);
-    const p1 = Number(formData.ownTaxableIncomePrev);
-    const l1 = Number(formData.ownCarryForwardLossPrev);
-    const p2 = Number(formData.ownTaxableIncome2Prev);
-    const l2 = Number(formData.ownCarryForwardLoss2Prev);
-    const p3 = Number(formData.ownTaxableIncome3Prev);
-    const l3 = Number(formData.ownCarryForwardLoss3Prev);
-    const cap1 = Number(formData.ownCapitalPrev);
-    const re1 = Number(formData.ownRetainedEarningsPrev);
-    const cap2 = Number(formData.ownCapital2Prev);
-    const re2 = Number(formData.ownRetainedEarnings2Prev);
-
-    // 配当計算
-    const avgDivTotal = ((divPrev + div2Prev) * 1000) / 2;
-    const ownDividends = Math.floor((avgDivTotal / shareCount50) * 10) / 10;
-    const ownDividendsB1 = ownDividends;
-    const avgDivTotalB2 = ((div2Prev + div3Prev) * 1000) / 2;
-    const ownDividendsB2 = Math.floor((avgDivTotalB2 / shareCount50) * 10) / 10;
-
-    // 利益計算
-    const profitPrevAmount = (p1 + l1) * 1000;
-    const profit2PrevAmount = (p2 + l2) * 1000;
-    const profit3PrevAmount = (p3 + l3) * 1000;
-    const profitPerSharePrev = profitPrevAmount / shareCount50;
-    const profitPerShareAvg =
-      (profitPrevAmount + profit2PrevAmount) / 2 / shareCount50;
-
-    // c2用の計算: 2期前と(2期前+3期前)/2
-    const profitPerShare2Prev = profit2PrevAmount / shareCount50;
-    const profitPerShareAvg2And3 =
-      (profit2PrevAmount + profit3PrevAmount) / 2 / shareCount50;
-
-    const profitC1Val = Math.floor(Math.max(0, profitPerSharePrev));
-    const profitC2Val = Math.floor(Math.max(0, profitPerShareAvg));
-    const profitC2_2PrevVal = Math.floor(Math.max(0, profitPerShare2Prev));
-    const profitC2_AvgVal = Math.floor(Math.max(0, profitPerShareAvg2And3));
-
-    let ownProfit: number;
-    if (profitMethodC === "c1") {
-      ownProfit = profitC1Val;
-    } else if (profitMethodC === "c2") {
-      ownProfit = profitC2Val;
-    } else {
-      ownProfit = Math.floor(
-        Math.max(0, Math.min(profitPerSharePrev, profitPerShareAvg)),
-      );
-    }
-
-    let ownProfitC1: number;
-    if (profitMethodC1 === "c1") {
-      ownProfitC1 = profitC1Val;
-    } else if (profitMethodC1 === "c2") {
-      ownProfitC1 = profitC2Val;
-    } else {
-      // 自動: 直前期と2年平均の高いほう
-      ownProfitC1 = Math.max(profitC1Val, profitC2Val);
-    }
-
-    let ownProfitC2: number;
-    if (profitMethodC2 === "c1") {
-      // c1を選択: 2期前
-      ownProfitC2 = profitC2_2PrevVal;
-    } else if (profitMethodC2 === "c2") {
-      // c2を選択: 2期前と3期前の平均
-      ownProfitC2 = profitC2_AvgVal;
-    } else {
-      // 自動: 2期前と(2期前+3期前)/2の高いほう
-      ownProfitC2 = Math.max(profitC2_2PrevVal, profitC2_AvgVal);
-    }
-
-    // 純資産計算
-    const netAssetPrev = (cap1 + re1) * 1000;
-    const ownBookValue = Math.floor(netAssetPrev / shareCount50);
-    const ownBookValueD1 = ownBookValue;
-    const netAsset2Prev = (cap2 + re2) * 1000;
-    const ownBookValueD2 = Math.floor(netAsset2Prev / shareCount50);
-
-    // 評価方法判定
-    const isZeroElementCompany =
-      ownDividendsB1 === 0 && ownProfitC1 === 0 && ownBookValueD1 === 0;
-    const countZeroInB1C1D1 = [
-      ownDividendsB1,
-      ownProfitC1,
-      ownBookValueD1,
-    ].filter((v) => v === 0).length;
-    const countZeroInB2C2D2 = [
-      ownDividendsB2,
-      ownProfitC2,
-      ownBookValueD2,
-    ].filter((v) => v === 0).length;
-    const isOneElementCompany =
-      !isZeroElementCompany && countZeroInB1C1D1 >= 2 && countZeroInB2C2D2 >= 2;
-
-    return {
+    const result = calculateOwnDataComplete({
+      divPrev: Number(formData.ownDividendPrev),
+      div2Prev: Number(formData.ownDividend2Prev),
+      div3Prev: Number(formData.ownDividend3Prev),
+      p1: Number(formData.ownTaxableIncomePrev),
+      l1: Number(formData.ownCarryForwardLossPrev),
+      p2: Number(formData.ownTaxableIncome2Prev),
+      l2: Number(formData.ownCarryForwardLoss2Prev),
+      p3: Number(formData.ownTaxableIncome3Prev),
+      l3: Number(formData.ownCarryForwardLoss3Prev),
+      cap1: Number(formData.ownCapitalPrev),
+      re1: Number(formData.ownRetainedEarningsPrev),
+      cap2: Number(formData.ownCapital2Prev),
+      re2: Number(formData.ownRetainedEarnings2Prev),
       shareCount50,
-      ownDividends,
-      ownProfit,
-      ownBookValue,
-      ownDividendsB1,
-      ownDividendsB2,
-      ownProfitC1,
-      ownProfitC2,
-      ownBookValueD1,
-      ownBookValueD2,
-      isZeroElementCompany,
-      isOneElementCompany,
-      profitC1Val,
-      profitC2Val,
-      p1Val: profitPrevAmount,
-      p2Val: profit2PrevAmount,
-      p3Val: profit3PrevAmount,
-    };
+      profitMethodC,
+      profitMethodC1,
+      profitMethodC2,
+    });
+
+    return { shareCount50, ...result };
   }, [formData, basicInfo, profitMethodC, profitMethodC1, profitMethodC2]);
 
   // 共通のデータ準備関数
@@ -313,35 +224,26 @@ export function OwnDataForm({
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="space-y-4">
             <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200 space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-blue-300">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                    ✎
-                  </div>
-                  <h3 className="text-lg font-bold text-blue-900">
-                    入力：自社のデータ
-                  </h3>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCopyFromPrev}
-                  className="text-xs"
-                >
-                  直前期データを複写
-                </Button>
-              </div>
+              <FormSectionHeader
+                title="入力：自社のデータ"
+                action={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyFromPrev}
+                    className="text-xs"
+                  >
+                    直前期データを複写
+                  </Button>
+                }
+              />
 
               {/* Dividends */}
               <div className="space-y-2 bg-blue-50/50 p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center justify-between">
                   <Label>配当金額 (b)</Label>
-                  {isMedicalCorporation && (
-                    <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      医療法人は配当不可
-                    </span>
-                  )}
+                  {isMedicalCorporation && <MedicalCorporationBadge />}
                 </div>
                 <div className="space-y-3">
                   <div className="space-y-2">
@@ -450,14 +352,7 @@ export function OwnDataForm({
 
             {/* Real-time Preview */}
             <div className="bg-green-50 p-4 rounded-lg border-2 border-green-300 space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-green-300">
-                <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold">
-                  📊
-                </div>
-                <h3 className="text-lg font-bold text-green-900">
-                  計算結果：リアルタイムプレビュー (1株50円換算)
-                </h3>
-              </div>
+              <ResultPreviewHeader title="計算結果：リアルタイムプレビュー (1株50円換算)" icon="📊" large className="pb-2 border-b border-green-300" />
               <div className="space-y-3 bg-white p-4 rounded-lg text-sm">
                 <div className="space-y-4">
                   {/* 上段: b, c, d */}
