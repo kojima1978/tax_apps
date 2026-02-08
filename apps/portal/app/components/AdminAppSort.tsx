@@ -20,7 +20,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 import type { Application } from '@/types/application';
-import { applySavedOrder, saveOrder } from '@/lib/order';
+import { useOrderedApplications } from '@/hooks/useOrderedApplications';
+import { saveOrder } from '@/lib/order';
 
 function AppSortItem({ app, className, gripProps }: {
     app: Application
@@ -73,7 +74,7 @@ function SortableItem({ app }: { app: Application }) {
 }
 
 export default function AdminAppSort({ applications }: AdminAppSortProps) {
-    const [orderedApps, setOrderedApps] = useState<Application[]>(applications);
+    const [orderedApps, setOrderedApps] = useOrderedApplications(applications);
     const [mounted, setMounted] = useState(false);
 
     const sensors = useSensors(
@@ -89,8 +90,7 @@ export default function AdminAppSort({ applications }: AdminAppSortProps) {
 
     useEffect(() => {
         setMounted(true);
-        setOrderedApps(applySavedOrder(applications));
-    }, [applications]);
+    }, []);
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;

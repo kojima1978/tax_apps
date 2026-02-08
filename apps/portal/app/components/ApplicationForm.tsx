@@ -108,27 +108,16 @@ export default function ApplicationForm({ application, onSubmit, onCancel }: App
           required
         />
 
-        <div>
-          <label htmlFor="icon" className="block text-sm font-medium text-gray-700 mb-1">
-            アイコン
-          </label>
-          <select
-            id="icon"
-            value={formData.icon}
-            onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
-            required
-          >
-            {AVAILABLE_ICONS.map((icon) => (
-              <option key={icon} value={icon}>
-                {icon}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-gray-500">
-            選択中: {formData.icon}
-          </p>
-        </div>
+        <FormField
+          label="アイコン"
+          id="icon"
+          type="select"
+          value={formData.icon}
+          onChange={(v) => setFormData({ ...formData, icon: v })}
+          options={AVAILABLE_ICONS}
+          hint={`選択中: ${formData.icon}`}
+          required
+        />
 
         <div className="flex gap-3 pt-4">
           <button

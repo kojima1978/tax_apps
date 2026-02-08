@@ -9,12 +9,13 @@ export const MAX_TITLE_LENGTH = 100;
 export const MAX_DESCRIPTION_LENGTH = 500;
 export const MAX_URL_LENGTH = 2000;
 
-type ValidationResult = {
-  valid: true;
-  data: { title: string; description: string; url: string; icon: string };
-} | {
-  valid: false;
-  error: string;
+type ApplicationData = { title: string; description: string; url: string; icon: string };
+type ValidationResult =
+  | { valid: true; data: ApplicationData }
+  | { valid: false; error: string };
+
+function validateLength(value: string, max: number, fieldName: string): string | null {
+  return value.length > max ? `${fieldName}は${max}文字以内で入力してください` : null;
 }
 
 export function validateApplicationInput(body: unknown): ValidationResult {
@@ -40,16 +41,12 @@ export function validateApplicationInput(body: unknown): ValidationResult {
     return { valid: false, error: 'すべての項目を入力してください' };
   }
 
-  if (trimmed.title.length > MAX_TITLE_LENGTH) {
-    return { valid: false, error: `タイトルは${MAX_TITLE_LENGTH}文字以内で入力してください` };
-  }
-
-  if (trimmed.description.length > MAX_DESCRIPTION_LENGTH) {
-    return { valid: false, error: `説明は${MAX_DESCRIPTION_LENGTH}文字以内で入力してください` };
-  }
-
-  if (trimmed.url.length > MAX_URL_LENGTH) {
-    return { valid: false, error: `URLは${MAX_URL_LENGTH}文字以内で入力してください` };
+  const lengthError =
+    validateLength(trimmed.title, MAX_TITLE_LENGTH, 'タイトル') ??
+    validateLength(trimmed.description, MAX_DESCRIPTION_LENGTH, '説明') ??
+    validateLength(trimmed.url, MAX_URL_LENGTH, 'URL');
+  if (lengthError) {
+    return { valid: false, error: lengthError };
   }
 
   if (!AVAILABLE_ICONS.includes(trimmed.icon)) {
