@@ -2,7 +2,8 @@ import { Metadata } from 'next';
 import Header from '@/components/Header';
 import AdminPanel from '@/components/AdminPanel';
 import AdminAppSort from '@/components/AdminAppSort';
-import { prisma } from '@/lib/prisma';
+import PageContainer from '@/components/ui/PageContainer';
+import { fetchAllApplications } from '@/lib/database';
 
 export const metadata: Metadata = {
   title: '管理',
@@ -10,15 +11,13 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPage() {
-  const applications = await prisma.application.findMany({
-    orderBy: { createdAt: 'asc' },
-  });
+  const applications = await fetchAllApplications();
 
   return (
     <>
       <Header />
       <main className="py-12">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <PageContainer>
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900">アプリケーション管理</h2>
             <p className="text-gray-600 mt-2">ポータルのアプリケーションを追加、編集、削除できます</p>
@@ -30,7 +29,7 @@ export default async function AdminPage() {
             <p className="text-gray-600 mb-4">ドラッグ＆ドロップでホーム画面での表示順を変更できます</p>
             <AdminAppSort applications={applications} />
           </div>
-        </div>
+        </PageContainer>
       </main>
     </>
   );

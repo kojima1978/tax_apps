@@ -6,20 +6,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateApplicationInput } from '@/lib/validation';
+import { apiError, handleApiError } from '@/lib/api-helpers';
+import { fetchAllApplications } from '@/lib/database';
 
 // GET: すべてのアプリケーションを取得
 export async function GET() {
   try {
-    const applications = await prisma.application.findMany({
-      orderBy: { createdAt: 'asc' },
-    });
+    const applications = await fetchAllApplications();
     return NextResponse.json(applications);
   } catch (error) {
-    console.error('Error fetching applications:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch applications' },
-      { status: 500 }
-    );
+    return handleApiError('fetch applications', error);
   }
 }
 
@@ -30,10 +26,7 @@ export async function POST(request: Request) {
     const result = validateApplicationInput(body);
 
     if (!result.valid) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
+      return apiError(result.error, 400);
     }
 
     const application = await prisma.application.create({
@@ -42,10 +35,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(application, { status: 201 });
   } catch (error) {
-    console.error('Error creating application:', error);
-    return NextResponse.json(
-      { error: 'Failed to create application' },
-      { status: 500 }
-    );
+    return handleApiError('create application', error);
   }
 }

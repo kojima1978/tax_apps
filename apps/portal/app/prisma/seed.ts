@@ -4,13 +4,9 @@
  */
 
 import { PrismaClient } from '../app/generated/prisma/client';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { createAdapter } from '../lib/prisma';
 
-const adapter = new PrismaLibSql({
-  url: process.env.DATABASE_URL || 'file:./dev.db',
-});
-
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient({ adapter: createAdapter() });
 
 const apps = [
   // 相続税関連

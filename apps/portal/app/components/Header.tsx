@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { Settings } from 'lucide-react';
+import PageContainer from './ui/PageContainer';
+import { gradientBtn } from '@/lib/styles';
 
 export default function Header() {
   return (
     <header className="w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 shadow-sm no-print">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <PageContainer className="py-6">
         <div className="flex items-center justify-between">
           <Link href="/" aria-label="ホームへ戻る">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
@@ -17,7 +19,7 @@ export default function Header() {
           <nav aria-label="メインナビゲーション" className="flex items-center gap-4">
             <Link
               href="/admin"
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg"
+              className={`flex items-center gap-2 px-4 py-2 ${gradientBtn} shadow-md hover:shadow-lg`}
               aria-label="管理画面を開く"
             >
               <Settings className="w-4 h-4" aria-hidden="true" />
@@ -25,7 +27,7 @@ export default function Header() {
             </Link>
           </nav>
         </div>
-      </div>
+      </PageContainer>
     </header>
   );
 }

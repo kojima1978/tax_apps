@@ -9,7 +9,7 @@ export const MAX_TITLE_LENGTH = 100;
 export const MAX_DESCRIPTION_LENGTH = 500;
 export const MAX_URL_LENGTH = 2000;
 
-interface ValidationResult {
+type ValidationResult = {
   valid: true;
   data: { title: string; description: string; url: string; icon: string };
 } | {

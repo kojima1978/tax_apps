@@ -1,11 +1,9 @@
 import Header from '@/components/Header';
 import LauncherGrid from '@/components/LauncherGrid';
-import { prisma } from '@/lib/prisma';
+import { fetchAllApplications } from '@/lib/database';
 
 export default async function Home() {
-  const applications = await prisma.application.findMany({
-    orderBy: { createdAt: 'asc' },
-  });
+  const applications = await fetchAllApplications();
 
   return (
     <>

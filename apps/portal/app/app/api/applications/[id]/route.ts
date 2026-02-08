@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateApplicationInput } from '@/lib/validation';
+import { apiError, handleApiError } from '@/lib/api-helpers';
 
 // GET: 特定のアプリケーションを取得
 export async function GET(
@@ -19,19 +20,12 @@ export async function GET(
     });
 
     if (!application) {
-      return NextResponse.json(
-        { error: 'Application not found' },
-        { status: 404 }
-      );
+      return apiError('Application not found', 404);
     }
 
     return NextResponse.json(application);
   } catch (error) {
-    console.error('Error fetching application:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch application' },
-      { status: 500 }
-    );
+    return handleApiError('fetch application', error);
   }
 }
 
@@ -46,10 +40,7 @@ export async function PUT(
     const result = validateApplicationInput(body);
 
     if (!result.valid) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
+      return apiError(result.error, 400);
     }
 
     const application = await prisma.application.update({
@@ -59,11 +50,7 @@ export async function PUT(
 
     return NextResponse.json(application);
   } catch (error) {
-    console.error('Error updating application:', error);
-    return NextResponse.json(
-      { error: 'Failed to update application' },
-      { status: 500 }
-    );
+    return handleApiError('update application', error);
   }
 }
 
@@ -80,10 +67,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Application deleted successfully' });
   } catch (error) {
-    console.error('Error deleting application:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete application' },
-      { status: 500 }
-    );
+    return handleApiError('delete application', error);
   }
 }
