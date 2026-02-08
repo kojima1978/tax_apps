@@ -6,6 +6,7 @@ import { readJsonFile, validateImportData, type ExportData } from '../utils/json
 export function useJsonImport(onImportJson: (data: ExportData) => void) {
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState(false);
 
   const handleJsonImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -13,6 +14,7 @@ export function useJsonImport(onImportJson: (data: ExportData) => void) {
 
     setIsImporting(true);
     setImportError(null);
+    setImportSuccess(false);
 
     try {
       const data = await readJsonFile(file);
@@ -24,7 +26,7 @@ export function useJsonImport(onImportJson: (data: ExportData) => void) {
       }
 
       onImportJson(data as ExportData);
-      alert('データを読み込みました。');
+      setImportSuccess(true);
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'ファイルの読み込みに失敗しました。');
     } finally {
@@ -34,6 +36,7 @@ export function useJsonImport(onImportJson: (data: ExportData) => void) {
   }, [onImportJson]);
 
   const clearImportError = useCallback(() => setImportError(null), []);
+  const clearImportSuccess = useCallback(() => setImportSuccess(false), []);
 
-  return { isImporting, importError, handleJsonImport, clearImportError };
+  return { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess };
 }

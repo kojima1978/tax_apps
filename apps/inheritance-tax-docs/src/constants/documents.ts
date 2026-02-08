@@ -13,18 +13,18 @@ export interface DocumentItem {
 export interface CustomDocumentItem {
   id: string;
   categoryId: string;
-  subcategoryId?: string; // 所属する小分類のID（省略時はカテゴリ直下）
   name: string;
   description: string;
   howToGet: string;
   isCustom: true; // カスタム書類であることを示すフラグ
+  canDelegate?: boolean; // 取得代行可能か（getSelectedDocumentsで設定）
 }
 
-// ユーザーが追加した小分類
-export interface CustomSubcategory {
-  id: string;
-  categoryId: string;
-  name: string;
+/** 書類の編集内容（名前・説明・取得方法の部分変更） */
+export interface DocChanges {
+  name?: string;
+  description?: string;
+  howToGet?: string;
 }
 
 export interface CategoryData {

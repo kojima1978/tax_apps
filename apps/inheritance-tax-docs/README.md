@@ -7,38 +7,41 @@
 このアプリケーションは、複雑になりがちな相続税申告の必要書類を整理し、ユーザーが効率的に準備を進められるよう支援します。
 
 ### 主な機能
-- **資料リスト管理**: 申告に必要な書類のリスト表示と状態管理
-- **ドラッグ&ドロップ**: 書類の並び順をドラッグ&ドロップで変更可能
-- **書類の編集**: 書類名、説明、取得方法をカスタマイズ可能
-- **カスタム書類追加**: 独自の書類をリストに追加可能
-- **代行可否設定**: 各書類の取得代行可否を切り替え可能
-- **Excel出力**: `xlsx-js-style` を使用したExcelファイルの出力機能
-- **PDF保存/印刷**: ブラウザの印刷機能を使用したPDF保存
-- **JSON保存/読込**: 設定をJSONファイルとして保存・復元可能
+- **統合ビュー**: テーブル上で直接 編集・削除・並べ替え・代行切替ができるWYSIWYG型の1画面構成
+- **ドラッグ&ドロップ**: テーブル行のドラッグ&ドロップで書類の並び順を変更
+- **書類の編集**: モーダルダイアログで書類名、説明、取得方法をカスタマイズ
+- **カスタム書類追加**: モーダルダイアログで独自の書類をリストに追加
+- **具体的書類名**: 各書類に具体的な名称（例：三菱UFJ銀行 普通口座）をインライン追加
+- **代行可否設定**: 各書類の取得代行可否をワンクリックで切り替え
+- **一括操作**: カテゴリ単位の一括不要/一括復元
+- **Excel出力**: `xlsx-js-style` を使用したスタイル付きExcelファイルの出力
+- **印刷/PDF保存**: ブラウザの印刷機能を使用（印刷時は自動でチェックボックス列に変換）
+- **JSON保存/読込**: 設定をJSONファイルとして保存・復元（後方互換あり）
 - **レスポンシブデザイン**: Tailwind CSS v4 を採用したモダンなUI
 
 ### 画面構成
-1. **編集画面**: 書類の選択・編集・並べ替えを行う画面
-   - 保存ボタン: 現在の設定をJSONファイルとしてダウンロード
-   - 読込ボタン: JSONファイルから設定を復元
-2. **結果画面（プレビュー）**: 最終的な書類リストを確認・出力する画面
-   - Excel出力ボタン: Excelファイルとしてダウンロード
-   - PDF保存/印刷ボタン: ブラウザの印刷ダイアログを表示
-   - 保存/読込ボタン: JSON形式での設定保存・復元
+統合ビュー（1画面）で以下の操作をすべて実行できます：
+- **ヘッダーツールバー**: 保存・読込・Excel出力・印刷ボタン
+- **基本情報入力**: お客様名・被相続人名・資料収集期限
+- **カテゴリテーブル群**: カテゴリごとに展開/折りたたみ可能なテーブル
+  - 各行: DnDハンドル | 書類名+具体名 | 内容説明 | 取得方法 | 代行 | 操作
+  - 削除した行は斜線表示（印刷時は非表示）
+- **注意事項・留意事項・フッター**
 
 ## 技術スタック
 
-- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router, standalone output)
+- **Language**: [TypeScript 5](https://www.typescriptlang.org/)
 - **UI library**: [React 19](https://react.dev/)
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
 - **Icons**: [Lucide React](https://lucide.dev/)
-- **Utilities**: xlsx-js-style
+- **DnD**: [@dnd-kit/core](https://dndkit.com/) + @dnd-kit/sortable
+- **Excel**: [xlsx-js-style](https://github.com/gitbrent/xlsx-js-style)
 
 ## 開発環境のセットアップ
 
 ### 必要要件
-- Node.js (v20以上推奨)
+- Node.js (v22以上推奨)
 - Docker (コンテナで実行する場合)
 
 ### ローカル開発環境での実行
@@ -58,41 +61,55 @@
 
 ### Docker環境での実行
 
-本プロジェクトは Docker Compose での実行環境が設定されています。
+#### スタンドアロン（このアプリのみ）
+```bash
+docker compose up -d
+```
+ポート **3003** で公開されます: [http://localhost:3003/inheritance-tax-docs](http://localhost:3003/inheritance-tax-docs)
 
-1. コンテナのビルドと起動
-   ```bash
-   docker-compose up
-   ```
-
-2. ブラウザで確認
-   Docker環境で起動した場合、ポート **3003** で公開されます。
-   [http://localhost:3003/inheritance-tax-docs](http://localhost:3003/inheritance-tax-docs) にアクセスしてください。
-
-   > **Note**: `docker-compose.yml` 内でポート `3003` にマッピングされています。
+#### 統合環境（全アプリ）
+```bash
+cd ../../docker
+docker compose up -d
+```
+Nginx Gateway 経由でポート **80** から全アプリにアクセスできます。
 
 ## コマンド一覧
 
-- `npm run dev`: 開発サーバーを起動
-- `npm run build`: 本番用ビルドを作成
-- `npm run start`: ビルドされたアプリケーションを起動
-- `npm run lint`: ESLintを実行
+| コマンド | 説明 |
+|---------|------|
+| `npm run dev` | 開発サーバーを起動 |
+| `npm run build` | 本番用ビルドを作成 |
+| `npm run start` | ビルドされたアプリケーションを起動 |
+| `npm run lint` | ESLintを実行 |
 
 ## ディレクトリ構成
 
-- `src/app`: Next.js App Router ページコンポーネント
-- `src/components`: UIコンポーネント
-  - `InheritanceTaxDocGuide.tsx`: メインロジック（状態管理）
-  - `SelectionScreen.tsx`: 編集画面
-  - `ResultScreen.tsx`: 結果画面（プレビュー/印刷用）
-  - `StepIndicator.tsx`: ステップインジケーター
-- `src/constants`: 定数・マスターデータ
-  - `documents.ts`: 書類データの定義
-- `src/utils`: ユーティリティ関数
-  - `excelExporter.ts`: Excel出力機能
-  - `jsonDataManager.ts`: JSON保存/読込機能
-  - `iconMap.ts`: アイコンマッピング
-- `public`: 静的アセット
+```
+src/
+├── app/                  # Next.js App Router
+│   ├── layout.tsx        # ルートレイアウト
+│   ├── page.tsx          # メインページ
+│   └── globals.css       # グローバルスタイル（印刷CSS含む）
+├── components/
+│   ├── InheritanceTaxDocGuide.tsx  # エントリポイント（hook + render）
+│   ├── UnifiedDocumentView.tsx     # 統合ビュー（ツールバー/基本情報/テーブル群/注意事項）
+│   └── ui/
+│       ├── DocumentForm.tsx        # 書類入力フォーム（追加/編集共通）
+│       ├── DocumentFormModal.tsx   # フォームモーダル
+│       ├── EditableCategoryTable.tsx # カテゴリテーブル（DnD/展開/一括操作）
+│       └── EditableDocumentRow.tsx  # テーブル行（DnD/具体名/操作ボタン）
+├── constants/
+│   └── documents.ts      # 書類マスターデータ + 型定義（DocChanges, IconName等）
+├── hooks/
+│   ├── useDocumentGuide.ts  # 全状態管理 + ハンドラー
+│   └── useJsonImport.ts     # JSONインポートロジック
+└── utils/
+    ├── excelExporter.ts   # Excel出力（xlsx-js-style）
+    ├── jsonDataManager.ts # JSON保存/読込/バリデーション
+    ├── helpers.ts         # ユーティリティ（isCustomDocument, formatDate等）
+    └── iconMap.tsx        # アイコン名→Lucideコンポーネント変換
+```
 
 ## JSONデータ形式
 
@@ -101,7 +118,7 @@
 ```json
 {
   "version": "1.0.0",
-  "exportedAt": "2026-02-04T00:00:00.000Z",
+  "exportedAt": "2026-02-09T00:00:00.000Z",
   "appName": "inheritance-tax-docs",
   "data": {
     "clientName": "お客様名",
@@ -111,7 +128,10 @@
     "customDocuments": [],
     "documentOrder": {},
     "editedDocuments": {},
-    "canDelegateOverrides": {}
+    "canDelegateOverrides": {},
+    "specificDocNames": {
+      "doc_id": ["三菱UFJ銀行 普通口座", "ゆうちょ銀行 通常貯金"]
+    }
   }
 }
 ```
