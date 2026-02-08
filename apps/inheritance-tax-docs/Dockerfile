@@ -15,8 +15,9 @@ ARG NODE_VERSION=22
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
 
-# Install security updates
-RUN apk upgrade --no-cache
+# Install security updates + Alpine glibc compatibility layer (Next.js recommended)
+RUN apk upgrade --no-cache && \
+    apk add --no-cache libc6-compat
 
 WORKDIR /app
 
@@ -86,7 +87,7 @@ LABEL org.opencontainers.image.title="Inheritance Tax Docs" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# Environment configuration
+# Environment configuration (WORKDIR, NEXT_TELEMETRY_DISABLED inherited from base)
 ENV NODE_ENV=production \
     PORT=3003 \
     HOSTNAME=0.0.0.0 \
@@ -100,7 +101,7 @@ RUN apk add --no-cache tini tzdata && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-# Copy built assets with correct ownership
+# Copy built assets with correct ownership (--link enables independent layer caching)
 COPY --from=builder --chown=nextjs:nodejs --link /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/static
@@ -110,7 +111,7 @@ USER nextjs
 
 EXPOSE 3003
 
-# Health check for container orchestration
+# Health check for container orchestration (uses Node 22+ native fetch)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 

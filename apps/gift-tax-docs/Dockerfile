@@ -15,8 +15,9 @@ ARG NODE_VERSION=22
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
 
-# Install security updates
-RUN apk upgrade --no-cache
+# Install security updates + Alpine glibc compatibility layer (Next.js recommended)
+RUN apk upgrade --no-cache && \
+    apk add --no-cache libc6-compat
 
 WORKDIR /app
 
@@ -86,7 +87,7 @@ LABEL org.opencontainers.image.title="Gift Tax Docs" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# Environment configuration (WORKDIR, NEXT_TELEMETRY_DISABLED are inherited from base)
+# Environment configuration (WORKDIR, NEXT_TELEMETRY_DISABLED inherited from base)
 ENV NODE_ENV=production \
     PORT=3002 \
     HOSTNAME=0.0.0.0 \

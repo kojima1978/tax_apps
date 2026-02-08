@@ -66,15 +66,16 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     TZ=Asia/Tokyo
 
+# Install security updates, runtime dependencies, configure timezone, create non-root user
 RUN apk upgrade --no-cache && \
-    apk add --no-cache tini tzdata && \
+    apk add --no-cache libc6-compat tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del tzdata && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-# standalone ビルド成果物をコピー
+# standalone ビルド成果物をコピー (--link enables independent layer caching)
 COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-case-management/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-case-management/web/.next/static ./apps/inheritance-case-management/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-case-management/web/public ./apps/inheritance-case-management/web/public
@@ -82,9 +83,11 @@ COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-case-mana
 USER nextjs
 EXPOSE 3020
 
+# Health check for container orchestration (uses Node 22+ native fetch)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
+# Graceful shutdown signal
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "apps/inheritance-case-management/web/server.js"]

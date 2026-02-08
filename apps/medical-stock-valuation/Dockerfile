@@ -15,8 +15,9 @@ ARG NODE_VERSION=22
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
 
-# Install security updates
-RUN apk upgrade --no-cache
+# Install security updates + Alpine glibc compatibility layer (Next.js recommended)
+RUN apk upgrade --no-cache && \
+    apk add --no-cache libc6-compat
 
 WORKDIR /app
 
@@ -28,8 +29,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # =============================================================================
 FROM base AS deps
 
-# better-sqlite3 のネイティブビルドに必要
-RUN apk add --no-cache libc6-compat python3 make g++ pkgconfig
+# better-sqlite3 のネイティブビルドに必要 (libc6-compat is inherited from base)
+RUN apk add --no-cache python3 make g++ pkgconfig
 
 # Copy only package files first (better layer caching)
 COPY package.json package-lock.json ./
@@ -42,9 +43,6 @@ RUN --mount=type=cache,target=/root/.npm \
 # Development stage - For local development with hot reload
 # =============================================================================
 FROM base AS dev
-
-# better-sqlite3 ランタイムに必要
-RUN apk add --no-cache libc6-compat
 
 ENV NODE_ENV=development
 
@@ -66,9 +64,6 @@ CMD ["npm", "run", "dev"]
 # Builder stage - Build the production application
 # =============================================================================
 FROM base AS builder
-
-# better-sqlite3 ランタイムに必要
-RUN apk add --no-cache libc6-compat
 
 # Build configuration
 ARG NODE_OPTIONS="--max-old-space-size=4096"
@@ -98,21 +93,21 @@ LABEL org.opencontainers.image.title="Medical Stock Valuation" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# Environment configuration
+# Environment configuration (WORKDIR, NEXT_TELEMETRY_DISABLED inherited from base)
 ENV NODE_ENV=production \
     PORT=3010 \
     HOSTNAME=0.0.0.0 \
     TZ=Asia/Tokyo
 
-# Install runtime dependencies, configure timezone, create non-root user
-RUN apk add --no-cache libc6-compat tini tzdata && \
+# Install runtime dependencies, configure timezone, create non-root user (libc6-compat inherited from base)
+RUN apk add --no-cache tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del tzdata && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-# Copy built assets with correct ownership
+# Copy built assets with correct ownership (--link enables independent layer caching)
 COPY --from=builder --chown=nextjs:nodejs --link /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/static
@@ -125,7 +120,7 @@ USER nextjs
 
 EXPOSE 3010
 
-# Health check for container orchestration
+# Health check for container orchestration (uses Node 22+ native fetch)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3010/medical/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 

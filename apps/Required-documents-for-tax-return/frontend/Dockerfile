@@ -6,9 +6,13 @@
 # ベースイメージ（Node.js 22 LTS - Alpine for smaller size）
 FROM node:22-alpine AS base
 
+# セキュリティ更新 + Alpine glibc互換レイヤー（Next.js推奨）
 RUN apk upgrade --no-cache && apk add --no-cache libc6-compat
 
 WORKDIR /app
+
+# テレメトリ無効化
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # ============================================
 # 依存関係インストール用ステージ
@@ -62,13 +66,16 @@ RUN --mount=type=cache,target=/app/.next/cache npm run build
 FROM base AS runner
 
 LABEL org.opencontainers.image.title="Tax Documents Frontend" \
-      org.opencontainers.image.description="Next.js frontend for tax document management"
+      org.opencontainers.image.description="確定申告 必要書類管理システム フロントエンド" \
+      org.opencontainers.image.vendor="税理士法人マスエージェント" \
+      org.opencontainers.image.licenses="Private" \
+      org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
 # ランタイム依存パッケージ + タイムゾーン設定 + 非rootユーザー
 RUN apk add --no-cache tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
-    apk del --no-cache tzdata && \
+    apk del tzdata && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
@@ -86,10 +93,11 @@ USER nextjs
 
 EXPOSE 3000
 
+# ヘルスチェック（Node 22+ native fetch使用）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3000/tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
-# シグナル処理
+# グレースフルシャットダウン
 STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["/sbin/tini", "--"]
