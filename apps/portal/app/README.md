@@ -74,5 +74,6 @@ app/
 | 間接税シミュレーター | /gift-tax-simulator/real-estate | 土地・建物取得税計算 |
 | 医療法人株式評価 | /medical/ | 医療法人の株式評価 |
 | 非上場株式評価 | /shares/ | 非上場株式の評価 |
+| 退職金税額計算 | /retirement-tax-calc/ | 退職金の所得税・住民税計算 |
 | 銀行分析 | /bank-analyzer/ | 預金移動の分析 |
 | 確定申告 必要書類 | /tax-docs/ | 書類確認・管理 |

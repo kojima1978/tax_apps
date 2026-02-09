@@ -19,6 +19,8 @@ const apps = [
   // 株式評価
   { title: '医療法人株式評価', description: '医療法人の株式評価システム', url: '/medical/', icon: 'Activity' },
   { title: '非上場株式評価', description: '非上場株式の評価システム', url: '/shares/', icon: 'TrendingUp' },
+  // 退職金
+  { title: '退職金税額計算', description: '退職金の所得税・住民税を計算', url: '/retirement-tax-calc/', icon: 'CreditCard' },
   // 分析・確定申告
   { title: '銀行分析', description: '預金移動の分析ツール', url: '/bank-analyzer/', icon: 'Building' },
   { title: '確定申告 必要書類', description: '確定申告に必要な書類を確認・管理', url: '/tax-docs/', icon: 'FileCheck' },

@@ -1,0 +1,1031 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #2e7d32;
+  --primary-light: #4caf50;
+  --primary-dark: #1b5e20;
+  --primary-bg: #e8f5e9;
+  --bg-color: #f0f2f5;
+  --text-color: #333;
+  --warning-color: #f57c00;
+  --warning-bg: #fff3e0;
+  --white: #ffffff;
+  --info-color: #1565c0;
+  --info-bg: #e3f2fd;
+  --success-color: var(--primary-color);
+  --pattern-0: var(--primary-color);
+  --pattern-0-bg: var(--primary-bg);
+  --pattern-1: var(--info-color);
+  --pattern-1-bg: var(--info-bg);
+  --pattern-2: #e65100;
+  --pattern-2-bg: #fff3e0;
+}
+
+body {
+  font-family: var(--font-noto-sans-jp), sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+/* コンテナ */
+.container-custom {
+  width: 100%;
+  max-width: 1200px;
+  background-color: var(--white);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ヘッダー */
+.header-custom {
+  background-color: var(--primary-color);
+  color: var(--white);
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-custom h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.btn-print {
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: var(--white);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.btn-print:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* メインレイアウト（上下配置） */
+.main-layout {
+  display: flex;
+  flex-direction: column;
+}
+
+/* フォームセクション */
+.form-section {
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* フォーム上段（コンパクト横並び） */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.5rem;
+}
+
+@media (max-width: 700px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 入力アイテム共通 */
+.input-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-item label {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--primary-color);
+  font-size: 0.9rem;
+}
+
+.input-item input[type="text"],
+.input-item input[type="number"],
+.input-item input[type="date"],
+.input-item select {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-item input[type="text"],
+.input-item input[type="number"] {
+  text-align: right;
+  font-family: var(--font-roboto-mono), monospace;
+}
+
+.input-item small {
+  display: block;
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+/* 入力＋単位 */
+.input-with-unit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.input-with-unit input {
+  flex: 1;
+}
+
+.input-with-unit .unit {
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+/* パターン入力（3パターン横並び） */
+.pattern-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+@media (max-width: 700px) {
+  .pattern-inputs {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pattern-input-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pattern-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+.pattern-0 { background-color: var(--pattern-0-bg); color: var(--pattern-0); }
+.pattern-1 { background-color: var(--pattern-1-bg); color: var(--pattern-1); }
+.pattern-2 { background-color: var(--pattern-2-bg); color: var(--pattern-2); }
+
+/* ラジオグループ */
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.radio-label:hover {
+  background-color: #f5f5f5;
+}
+
+.radio-label:has(input:checked) {
+  border-color: var(--primary-color);
+  background-color: var(--primary-bg);
+}
+
+.radio-label input[type="radio"] {
+  accent-color: var(--primary-color);
+}
+
+/* チェックボックス */
+.checkbox-item {
+  background-color: #f9f9f9;
+  padding: 0.75rem;
+  border-radius: 4px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.checkbox-label input[type="checkbox"] {
+  accent-color: var(--primary-color);
+  width: 18px;
+  height: 18px;
+}
+
+/* トグルボタン */
+.mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.toggle-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: var(--white);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.85rem;
+}
+
+.toggle-btn.active {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--white);
+}
+
+.toggle-btn:hover:not(.active) {
+  background-color: #f5f5f5;
+}
+
+.toggle-btn.small {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+/* 日付入力 */
+.date-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.date-inputs .input-item {
+  flex: 1;
+  min-width: 150px;
+}
+
+.calc-result-note {
+  width: 100%;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--info-bg);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--info-color);
+}
+
+/* 勤続年数セクション */
+.service-years-section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 役員限度額セクション */
+.officer-limit-section {
+  padding: 1rem;
+  background-color: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+}
+
+.section-subtitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.officer-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.officer-inputs-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.preset-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.limit-result {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: var(--white);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.limit-formula {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-roboto-mono), monospace;
+}
+
+.limit-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.limit-value {
+  font-size: 1rem;
+  color: var(--primary-color);
+}
+
+.btn-apply-limit {
+  padding: 0.4rem 0.75rem;
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.btn-apply-limit:hover {
+  background-color: var(--primary-light);
+}
+
+.limit-warning {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: var(--warning-bg);
+  border: 1px solid var(--warning-color);
+  border-radius: 4px;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.warning-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.warning-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--warning-color);
+  font-size: 0.9rem;
+}
+
+.warning-detail {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.limit-ok {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--primary-bg);
+  border-radius: 4px;
+  color: var(--success-color);
+  font-size: 0.85rem;
+}
+
+/* 計算ボタン */
+.btn-calc {
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  padding: 0.85rem 2rem;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.btn-calc:hover:not(:disabled) {
+  background-color: var(--primary-light);
+}
+
+.btn-calc:disabled {
+  background-color: #bbb;
+  cursor: not-allowed;
+}
+
+/* 変更通知 */
+.dirty-notice {
+  padding: 0.6rem 0.75rem;
+  background-color: var(--warning-bg);
+  border: 1px solid var(--warning-color);
+  border-radius: 4px;
+  color: var(--warning-color);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* 結果セクション */
+.result-section {
+  padding: 1.5rem;
+}
+
+.result-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0 0 1rem 0;
+}
+
+.result-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  text-align: center;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  margin: 0.25rem 0;
+  font-size: 0.95rem;
+}
+
+.empty-sub {
+  font-size: 0.8rem !important;
+  color: #aaa;
+  margin-top: 0.5rem !important;
+}
+
+/* サマリーパターン（パターン別比較カード） */
+.summary-patterns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.summary-pattern {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border-left: 4px solid;
+}
+
+.pattern-bg-0 { background-color: var(--pattern-0-bg); border-color: var(--pattern-0); }
+.pattern-bg-1 { background-color: var(--pattern-1-bg); border-color: var(--pattern-1); }
+.pattern-bg-2 { background-color: var(--pattern-2-bg); border-color: var(--pattern-2); }
+
+.pattern-header {
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.pattern-bg-0 .pattern-header { color: var(--pattern-0); }
+.pattern-bg-1 .pattern-header { color: var(--pattern-1); }
+.pattern-bg-2 .pattern-header { color: var(--pattern-2); }
+
+.pattern-summary-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pattern-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ps-label {
+  font-size: 0.7rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.ps-value {
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: var(--font-roboto-mono), monospace;
+  color: var(--text-color);
+}
+
+/* テーブルヘッダーのパターン色 */
+.pattern-th-0 { background-color: var(--pattern-0-bg) !important; color: var(--pattern-0) !important; }
+.pattern-th-1 { background-color: var(--pattern-1-bg) !important; color: var(--pattern-1) !important; }
+.pattern-th-2 { background-color: var(--pattern-2-bg) !important; color: var(--pattern-2) !important; }
+
+/* 条件タグ */
+.result-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.condition-tag {
+  padding: 0.25rem 0.75rem;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 100px;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.condition-tag.disability {
+  background-color: var(--warning-bg);
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+}
+
+/* テーブル */
+.table-container {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+table {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  border-right: 1px solid #e0e0e0;
+}
+
+th:last-child,
+td:last-child {
+  border-right: none;
+}
+
+th {
+  background-color: var(--primary-bg);
+  color: var(--primary-dark);
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+th.label-col {
+  background-color: #f5f5f5;
+  color: #444;
+}
+
+th.value-col {
+  text-align: right;
+}
+
+td:first-child {
+  font-weight: 600;
+  color: #444;
+  white-space: nowrap;
+}
+
+.value-cell {
+  text-align: right;
+  font-family: var(--font-roboto-mono), monospace;
+  white-space: nowrap;
+}
+
+.row-note {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+  font-family: var(--font-noto-sans-jp), sans-serif;
+  margin-top: 2px;
+}
+
+tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.highlight-row {
+  background-color: var(--primary-bg) !important;
+  font-weight: 700;
+}
+
+.highlight-row td {
+  color: var(--primary-color) !important;
+  font-weight: 700;
+}
+
+/* 参照表セクション */
+.ref-tables {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.ref-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 1.25rem 0 0.5rem 0;
+}
+
+.ref-title:first-child {
+  margin-top: 0;
+}
+
+.ref-table td {
+  font-size: 0.85rem;
+}
+
+.ref-active {
+  background-color: var(--primary-bg) !important;
+}
+
+.ref-active td {
+  color: var(--primary-color) !important;
+  font-weight: 700;
+}
+
+.ref-note {
+  font-size: 0.75rem;
+  color: #666;
+  margin: 0.3rem 0 0 0;
+}
+
+.ref-source {
+  margin-top: 0.75rem;
+}
+
+.ref-source a {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.ref-source a:hover {
+  color: var(--primary-light);
+}
+
+/* 免責事項 */
+.disclaimer {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0.5rem;
+}
+
+/* 印刷用フッター */
+.print-footer {
+  margin-top: 2rem;
+  padding: 1rem;
+  border-top: 1px solid #ddd;
+  background-color: #fafafa;
+}
+
+.print-footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.print-footer-company {
+  flex: 1;
+}
+
+.print-footer-company p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.print-footer-company .company-name {
+  font-weight: bold;
+  font-size: 1rem;
+  color: var(--primary-color);
+}
+
+.print-footer-meta {
+  text-align: right;
+}
+
+.staff-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.staff-input-wrapper label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.staff-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 150px;
+}
+
+.print-date {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* ========================================
+   印刷用スタイル
+   ======================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    overflow: visible !important;
+  }
+
+  .container-custom {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  .btn-print,
+  .btn-calc,
+  .btn-apply-limit,
+  .dirty-notice {
+    display: none !important;
+  }
+
+  .header-custom {
+    padding: 8px 0 !important;
+    color: #000 !important;
+    background: transparent !important;
+    border-bottom: 2px solid var(--primary-color);
+  }
+
+  .header-custom h1 {
+    font-size: 14pt !important;
+    color: var(--primary-color);
+  }
+
+  .main-layout {
+    display: block !important;
+  }
+
+  .form-section {
+    padding: 8px 0 !important;
+    border-bottom: 1px solid #ccc;
+    gap: 6px !important;
+  }
+
+  .form-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 4px 12px !important;
+  }
+
+  .pattern-inputs {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* フォーム要素の印刷用圧縮 */
+  .input-item label {
+    font-size: 9pt;
+    color: #000;
+    margin-bottom: 2px;
+  }
+
+  .input-item input,
+  .input-item select {
+    border: none !important;
+    padding: 2px !important;
+    font-size: 10pt;
+    background: transparent;
+  }
+
+  .radio-label {
+    border: none !important;
+    padding: 2px 4px !important;
+    font-size: 9pt;
+  }
+
+  .radio-label:not(:has(input:checked)) {
+    display: none !important;
+  }
+
+  .mode-toggle {
+    display: none !important;
+  }
+
+  .checkbox-item {
+    background: transparent !important;
+    padding: 2px !important;
+  }
+
+  .checkbox-label {
+    font-size: 9pt;
+  }
+
+  /* 役員限度額セクション */
+  .officer-limit-section {
+    padding: 6px !important;
+    background: transparent !important;
+    border: 1px solid #ccc !important;
+  }
+
+  .section-subtitle {
+    font-size: 10pt !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 2px !important;
+  }
+
+  .preset-buttons {
+    display: none !important;
+  }
+
+  .limit-warning {
+    padding: 4px 6px !important;
+  }
+
+  /* 結果セクション */
+  .result-section {
+    padding: 8px 0 !important;
+  }
+
+  .result-title {
+    font-size: 12pt !important;
+    margin-bottom: 6px !important;
+  }
+
+  .summary-patterns {
+    gap: 4px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .summary-pattern {
+    padding: 4px 6px !important;
+  }
+
+  .pattern-header {
+    font-size: 8pt;
+    margin-bottom: 2px;
+  }
+
+  .ps-label {
+    font-size: 7pt;
+  }
+
+  .ps-value {
+    font-size: 9pt;
+  }
+
+  .result-conditions {
+    margin-bottom: 6px !important;
+    gap: 4px !important;
+  }
+
+  .condition-tag {
+    font-size: 8pt !important;
+    padding: 1px 6px !important;
+  }
+
+  table {
+    font-size: 9pt !important;
+  }
+
+  th,
+  td {
+    padding: 4px 6px !important;
+  }
+
+  .row-note {
+    font-size: 7pt !important;
+  }
+
+  p {
+    font-size: 8pt !important;
+  }
+
+  /* 参照表 */
+  .ref-tables {
+    margin-top: 8px !important;
+    padding-top: 6px !important;
+  }
+
+  .ref-title {
+    font-size: 9pt !important;
+    margin: 8px 0 3px 0 !important;
+  }
+
+  .ref-table td {
+    font-size: 8pt !important;
+  }
+
+  .ref-note {
+    font-size: 7pt !important;
+  }
+
+  .ref-source a {
+    color: #333 !important;
+  }
+
+  /* 印刷用フッター */
+  .print-footer {
+    margin-top: 1rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid #999;
+    background-color: transparent;
+  }
+
+  .print-footer-content {
+    gap: 1rem;
+  }
+
+  .print-footer-company p {
+    font-size: 9pt !important;
+    margin: 0.15rem 0;
+  }
+
+  .print-footer-company .company-name {
+    font-size: 10pt !important;
+  }
+
+  .staff-input-wrapper {
+    margin-bottom: 0.3rem;
+  }
+
+  .staff-input-wrapper label,
+  .staff-input {
+    font-size: 9pt !important;
+  }
+
+  .staff-input {
+    border: none;
+    border-bottom: 1px solid #333;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .print-date {
+    font-size: 9pt !important;
+  }
+}
