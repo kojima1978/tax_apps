@@ -6,6 +6,14 @@ from . import config
 logger = logging.getLogger(__name__)
 
 
+def _validate_positive(value: int, name: str, default: int) -> int:
+    """負値の場合はデフォルト値を返す"""
+    if value < 0:
+        logger.warning("%s が負値(%d)のためデフォルト値を使用", name, value)
+        return default
+    return value
+
+
 def _validate_columns(df: pd.DataFrame, required: list[str], context: str) -> None:
     """必須カラムの存在チェック
 
@@ -34,20 +42,9 @@ def _load_analysis_settings(settings: dict | None = None) -> dict:
     if settings is None:
         settings = config.load_user_settings()
 
-    threshold = int(settings.get("LARGE_AMOUNT_THRESHOLD", 500000))
-    tolerance = int(settings.get("TRANSFER_AMOUNT_TOLERANCE", 1000))
-    days_window = int(settings.get("TRANSFER_DAYS_WINDOW", 3))
-
-    # 負値防止
-    if threshold < 0:
-        logger.warning("LARGE_AMOUNT_THRESHOLD が負値(%d)のためデフォルト値を使用", threshold)
-        threshold = 500000
-    if tolerance < 0:
-        logger.warning("TRANSFER_AMOUNT_TOLERANCE が負値(%d)のためデフォルト値を使用", tolerance)
-        tolerance = 1000
-    if days_window < 0:
-        logger.warning("TRANSFER_DAYS_WINDOW が負値(%d)のためデフォルト値を使用", days_window)
-        days_window = 3
+    threshold = _validate_positive(int(settings.get("LARGE_AMOUNT_THRESHOLD", 500000)), "LARGE_AMOUNT_THRESHOLD", 500000)
+    tolerance = _validate_positive(int(settings.get("TRANSFER_AMOUNT_TOLERANCE", 1000)), "TRANSFER_AMOUNT_TOLERANCE", 1000)
+    days_window = _validate_positive(int(settings.get("TRANSFER_DAYS_WINDOW", 3)), "TRANSFER_DAYS_WINDOW", 3)
 
     return {
         "threshold": threshold,
