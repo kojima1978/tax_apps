@@ -120,6 +120,7 @@ stop.bat --volumes
 | Inheritance Tax App | http://localhost/inheritance-tax-app/ | 5173 | 相続税計算 (Vite) |
 | Medical Stock | http://localhost/medical/ | 3010 | 医療法人株式評価 |
 | Shares Valuation | http://localhost/shares/ | 3012 | 非上場株式評価 |
+| Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | 退職金税額計算 |
 | ITCM | http://localhost/itcm/ | 3020 | 案件管理システム |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 8000 | 銀行分析 (Django) |
 
@@ -143,8 +144,9 @@ tax_apps/
 │   ├── inheritance-tax-docs/   # 相続税資料ガイド
 │   ├── inheritance-tax-app/    # 相続税計算
 │   ├── inheritance-case-management/  # 案件管理
-│   ├── medical-stock-valuation/# 医療法人株式
+│   ├── medical-stock-valuation/ # 医療法人株式
 │   ├── shares-valuation/       # 非上場株式
+│   ├── retirement-tax-calc/   # 退職金税額計算
 │   └── bank-analyzer-django/   # 銀行分析
 ├── docker/                     # Docker設定
 │   ├── docker-compose.yml      # メイン設定
@@ -299,6 +301,7 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 
 ### 2026-02 (後半)
 
+- **retirement-tax-calc**: 退職金税額計算シミュレーター新規追加（3パターン比較・役員限度額・参照表・印刷対応）
 - **docker-compose**: デプロイリソース定義をYAMLアンカー化してDRY化（7箇所のインライン定義→アンカー参照）
 - **docker-compose.yml**: gift-tax-docsの冗長な`build.args.NODE_VERSION`を削除
 - **全Dockerfile改善**: OCIラベル統一(vendor/licenses/source)、libc6-compat追加、コメント整備

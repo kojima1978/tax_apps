@@ -61,6 +61,7 @@ echo     Inheritance Docs:   http://localhost/inheritance-tax-docs/
 echo     Inheritance Calc:   http://localhost/inheritance-tax-app/
 echo     Medical Stock:      http://localhost/medical/
 echo     Shares Valuation:   http://localhost/shares/
+echo     Retirement Tax:     http://localhost/retirement-tax-calc/
 echo     ITCM:               http://localhost/itcm/
 echo     Bank Analyzer:      http://localhost/bank-analyzer/
 echo.

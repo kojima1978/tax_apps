@@ -19,7 +19,7 @@ nginx/
 │   └── 503.html    # メンテナンスページ
 ├── includes/       # 共通設定ディレクトリ
 │   ├── proxy_params.conf       # 共通プロキシヘッダー設定
-│   ├── upstreams.conf          # アップストリーム定義（11サービス）
+│   ├── upstreams.conf          # アップストリーム定義（12サービス）
 │   ├── maps.conf               # map定義（WebSocket Upgrade, Font Routing）
 │   ├── rate_limit_general.conf # 一般レート制限（burst=20）
 │   └── rate_limit_api.conf     # APIレート制限（burst=10）
@@ -58,9 +58,9 @@ nginx/
 ### 構成のモジュール化
 
 - **共通プロキシ設定**: `includes/proxy_params.conf` に共通のヘッダー設定（Host, X-Real-IP, WebSocket Upgrade等）を集約
-- **アップストリーム定義**: `includes/upstreams.conf` に全11サービスの upstream を分離し、新アプリ追加時はこのファイルのみ編集
+- **アップストリーム定義**: `includes/upstreams.conf` に全12サービスの upstream を分離し、新アプリ追加時はこのファイルのみ編集
 - **Map定義**: `includes/maps.conf` に WebSocket Upgrade と Next.js Font Routing の map を分離
-- **レート制限**: `includes/rate_limit_general.conf` / `rate_limit_api.conf` で burst 値を一元管理（12箇所で共有）
+- **レート制限**: `includes/rate_limit_general.conf` / `rate_limit_api.conf` で burst 値を一元管理（13箇所で共有）
 
 ## ルーティング一覧
 
@@ -74,10 +74,11 @@ nginx/
 | `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価 |
 | `/shares/` | `shares-valuation:3012` | 非上場株式評価 |
 | `/inheritance-tax-app/` | `inheritance-tax-app:5173` | 相続税計算 (Vite) |
-| `/bank-analyzer/` | `bank-analyzer:8000` | 銀行分析 (Django) |
-| `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター |
-| `/gift-tax-docs/` | `gift-tax-docs:3002` | 贈与税 必要書類 |
 | `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド |
+| `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター |
+| `/gift-tax-docs/` | `gift-tax-docs:3000` | 贈与税 必要書類 |
+| `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 |
+| `/bank-analyzer/` | `bank-analyzer:8000` | 銀行分析 (Django) |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
 
 ## Docker Compose 設定例
