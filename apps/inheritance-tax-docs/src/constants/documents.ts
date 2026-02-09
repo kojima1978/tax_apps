@@ -30,7 +30,7 @@ export interface DocChanges {
 export interface CategoryData {
   id: string;
   name: string;
-  iconName: string; // lucide-react アイコン名
+  iconName: IconName;
   color: string;
   bgColor: string;
   borderColor: string;

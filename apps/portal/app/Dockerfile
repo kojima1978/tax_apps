@@ -87,7 +87,8 @@ ARG NODE_OPTIONS="--max-old-space-size=2048"
 
 # Prismaセットアップ・シード・ビルド
 ENV DATABASE_PATH=./build.db
-RUN ./node_modules/.bin/prisma db push && \
+RUN mkdir -p public && \
+    ./node_modules/.bin/prisma db push && \
     ./node_modules/.bin/prisma generate && \
     ./node_modules/.bin/tsx prisma/seed.ts && \
     npm run build

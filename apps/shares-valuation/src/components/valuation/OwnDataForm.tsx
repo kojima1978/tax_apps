@@ -417,12 +417,12 @@ export function OwnDataForm({
                         { label: "（1株当たりの配当金額）b2:", calc: `(${Number(formData.ownDividend2Prev).toLocaleString()} + ${Number(formData.ownDividend3Prev).toLocaleString()})千円 ÷ 2 ÷ ${shareCount50.toLocaleString()}株 =`, value: b2, decimal: true },
                       ]},
                       { bgClass: "bg-green-50/50", items: [
-                        { label: "（1株当たりの利益金額）c1:", calc: `${c1Method}: 直前:${(p1Val / 1000).toLocaleString()}, 2年平均:${((p1Val + p2Val) / 2000).toLocaleString()}千円 ÷ ${shareCount50.toLocaleString()}株 =`, value: c1 },
-                        { label: "（1株当たりの利益金額）c2:", calc: `${c2Method}: 2期前:${(p2Val / 1000).toLocaleString()}, 2年平均:${((p2Val + p3Val) / 2000).toLocaleString()}千円 ÷ ${shareCount50.toLocaleString()}株 =`, value: c2 },
+                        { label: "（1株当たりの利益金額）c1:", calc: `${c1Method}: 直前:${(p1Val / 1000).toLocaleString()}, 2年平均:${((p1Val + p2Val) / 2000).toLocaleString()}千円 ÷ ${shareCount50.toLocaleString()}株 =`, value: c1, decimal: false },
+                        { label: "（1株当たりの利益金額）c2:", calc: `${c2Method}: 2期前:${(p2Val / 1000).toLocaleString()}, 2年平均:${((p2Val + p3Val) / 2000).toLocaleString()}千円 ÷ ${shareCount50.toLocaleString()}株 =`, value: c2, decimal: false },
                       ]},
                       { bgClass: "bg-purple-50/50", items: [
-                        { label: "（1株当たりの純資産価額）d1:", calc: `(${Number(formData.ownCapitalPrev).toLocaleString()} + ${Number(formData.ownRetainedEarningsPrev).toLocaleString()})千円 ÷ ${shareCount50.toLocaleString()}株 =`, value: d1 },
-                        { label: "（1株当たりの純資産価額）d2:", calc: `(${Number(formData.ownCapital2Prev).toLocaleString()} + ${Number(formData.ownRetainedEarnings2Prev).toLocaleString()})千円 ÷ ${shareCount50.toLocaleString()}株 =`, value: d2 },
+                        { label: "（1株当たりの純資産価額）d1:", calc: `(${Number(formData.ownCapitalPrev).toLocaleString()} + ${Number(formData.ownRetainedEarningsPrev).toLocaleString()})千円 ÷ ${shareCount50.toLocaleString()}株 =`, value: d1, decimal: false },
+                        { label: "（1株当たりの純資産価額）d2:", calc: `(${Number(formData.ownCapital2Prev).toLocaleString()} + ${Number(formData.ownRetainedEarnings2Prev).toLocaleString()})千円 ÷ ${shareCount50.toLocaleString()}株 =`, value: d2, decimal: false },
                       ]},
                     ]).map((group, gi) => (
                       <div key={gi} className="space-y-2">
