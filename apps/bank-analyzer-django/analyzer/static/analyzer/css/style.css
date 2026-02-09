@@ -81,3 +81,22 @@ h4 {
     color: #ef4444;
     border: 1px solid #fecaca;
 }
+
+.nav-tabs .nav-link {
+    color: #64748b;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: #fff;
+    border-color: #e2e8f0;
+    border-bottom-color: transparent;
+    color: #2563eb;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link:hover:not(.active) {
+    border-color: transparent;
+    color: #475569;
+    background-color: #f1f5f9;
+    cursor: pointer;
+}

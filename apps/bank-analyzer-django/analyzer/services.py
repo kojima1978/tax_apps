@@ -4,8 +4,7 @@
 ビューからビジネスロジックを分離し、再利用性とテスト容易性を向上させる。
 """
 import logging
-from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 import pandas as pd
@@ -17,6 +16,23 @@ from .lib import analyzer, llm_classifier, config
 from .lib.constants import UNCATEGORIZED, STANDARD_CATEGORIES
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_date_value(date_input) -> date | None:
+    """様々な形式の日付入力をdate型に変換する共通処理"""
+    if date_input is None or (isinstance(date_input, float) and pd.isna(date_input)):
+        return None
+    if isinstance(date_input, str):
+        try:
+            return datetime.fromisoformat(date_input).date()
+        except (ValueError, TypeError):
+            try:
+                return pd.to_datetime(date_input).date()
+            except (ValueError, TypeError):
+                return None
+    if hasattr(date_input, 'date'):
+        return date_input.date() if pd.notna(date_input) else None
+    return None
 
 
 def _parse_int_ids(ids: list[str]) -> list[int] | None:
@@ -160,6 +176,9 @@ class TransactionService:
 
         return len(updates)
 
+    # 一括置換が許可されるフィールド
+    REPLACEABLE_FIELDS = {'bank_name', 'branch_name', 'account_id'}
+
     # update_transactionで直接代入するフィールド
     _DIRECT_FIELDS = ('description', 'amount_out', 'amount_in', 'category')
     # update_transactionでstrip()してから代入するフィールド（Noneの場合はスキップ）
@@ -186,11 +205,11 @@ class TransactionService:
 
         date_str = data.get('date')
         if date_str:
-            try:
-                tx.date = pd.to_datetime(date_str).date()
-            except (ValueError, TypeError) as e:
-                logger.warning(f"日付パースエラー: date_str={date_str}, error={e}")
+            parsed_date = _parse_date_value(date_str)
+            if parsed_date is None:
+                logger.warning(f"日付パースエラー: date_str={date_str}")
                 return False
+            tx.date = parsed_date
 
         for field in TransactionService._DIRECT_FIELDS:
             if field in data:
@@ -368,9 +387,7 @@ class TransactionService:
         Returns:
             更新された取引数
         """
-        # 許可されたフィールドのみ
-        allowed_fields = ['bank_name', 'branch_name', 'account_id']
-        if field_name not in allowed_fields:
+        if field_name not in TransactionService.REPLACEABLE_FIELDS:
             logger.warning(f"不正なフィールド名: {field_name}")
             return 0
 
@@ -399,8 +416,7 @@ class TransactionService:
         Returns:
             [{'value': 値, 'count': 件数}, ...] のリスト
         """
-        allowed_fields = ['bank_name', 'branch_name', 'account_id']
-        if field_name not in allowed_fields:
+        if field_name not in TransactionService.REPLACEABLE_FIELDS:
             return []
 
         qs = (
@@ -464,12 +480,7 @@ class TransactionService:
             new_transactions = []
 
             for tx_data in transactions_data:
-                date_val = None
-                if tx_data.get('date'):
-                    try:
-                        date_val = datetime.fromisoformat(tx_data['date']).date()
-                    except (ValueError, TypeError):
-                        pass
+                date_val = _parse_date_value(tx_data.get('date'))
 
                 new_transactions.append(Transaction(
                     case=new_case,
@@ -523,7 +534,7 @@ class TransactionService:
         with db_transaction.atomic():
             new_transactions = []
             for _, row in df.iterrows():
-                dt = row['date'] if pd.notna(row['date']) else None
+                dt = _parse_date_value(row['date'])
 
                 new_transactions.append(Transaction(
                     case=case,
@@ -567,49 +578,16 @@ class AnalysisService:
     STANDARD_CATEGORIES = STANDARD_CATEGORIES
 
     @staticmethod
-    def apply_filters(queryset, filter_state: dict):
-        """
-        フィルター条件をQuerySetに適用する共通処理
-
-        Args:
-            queryset: 取引のQuerySet
-            filter_state: フィルター条件の辞書
-
-        Returns:
-            フィルター適用後のQuerySet
-        """
-        if filter_state.get('bank'):
-            queryset = queryset.filter(bank_name__in=filter_state['bank'])
-        if filter_state.get('account'):
-            queryset = queryset.filter(account_id__in=filter_state['account'])
-        if filter_state.get('category'):
-            if filter_state.get('category_mode') == 'exclude':
-                queryset = queryset.exclude(category__in=filter_state['category'])
-            else:
-                queryset = queryset.filter(category__in=filter_state['category'])
-        if filter_state.get('keyword'):
-            queryset = queryset.filter(description__icontains=filter_state['keyword'])
-
-        # 日付フィルター
-        if filter_state.get('date_from'):
-            queryset = queryset.filter(date__gte=filter_state['date_from'])
-        if filter_state.get('date_to'):
-            queryset = queryset.filter(date__lte=filter_state['date_to'])
-
-        # 金額フィルター
-        amount_type = filter_state.get('amount_type', 'both')
-        amount_min_str = filter_state.get('amount_min', '')
-        amount_max_str = filter_state.get('amount_max', '')
-
+    def _parse_amount_str(value: str) -> int | None:
+        """金額文字列を整数に変換（変換失敗時はNone）"""
         try:
-            amount_min = int(amount_min_str.replace(',', '')) if amount_min_str else None
+            return int(value.replace(',', '')) if value else None
         except (ValueError, AttributeError):
-            amount_min = None
-        try:
-            amount_max = int(amount_max_str.replace(',', '')) if amount_max_str else None
-        except (ValueError, AttributeError):
-            amount_max = None
+            return None
 
+    @staticmethod
+    def _apply_amount_filters(queryset, amount_type: str, amount_min: int | None, amount_max: int | None):
+        """金額関連のフィルターをQuerySetに適用する"""
         # 取引種別でフィルター（出金のみ、入金のみ、両方）
         if amount_type == 'out':
             queryset = queryset.filter(amount_out__gt=0)
@@ -643,6 +621,44 @@ class AnalysisService:
                         Q(amount_out__gt=0, amount_out__lte=amount_max) |
                         Q(amount_in__gt=0, amount_in__lte=amount_max)
                     )
+
+        return queryset
+
+    @staticmethod
+    def apply_filters(queryset, filter_state: dict):
+        """
+        フィルター条件をQuerySetに適用する共通処理
+
+        Args:
+            queryset: 取引のQuerySet
+            filter_state: フィルター条件の辞書
+
+        Returns:
+            フィルター適用後のQuerySet
+        """
+        if filter_state.get('bank'):
+            queryset = queryset.filter(bank_name__in=filter_state['bank'])
+        if filter_state.get('account'):
+            queryset = queryset.filter(account_id__in=filter_state['account'])
+        if filter_state.get('category'):
+            if filter_state.get('category_mode') == 'exclude':
+                queryset = queryset.exclude(category__in=filter_state['category'])
+            else:
+                queryset = queryset.filter(category__in=filter_state['category'])
+        if filter_state.get('keyword'):
+            queryset = queryset.filter(description__icontains=filter_state['keyword'])
+
+        # 日付フィルター
+        if filter_state.get('date_from'):
+            queryset = queryset.filter(date__gte=filter_state['date_from'])
+        if filter_state.get('date_to'):
+            queryset = queryset.filter(date__lte=filter_state['date_to'])
+
+        # 金額フィルター
+        amount_type = filter_state.get('amount_type', 'both')
+        amount_min = AnalysisService._parse_amount_str(filter_state.get('amount_min', ''))
+        amount_max = AnalysisService._parse_amount_str(filter_state.get('amount_max', ''))
+        queryset = AnalysisService._apply_amount_filters(queryset, amount_type, amount_min, amount_max)
 
         # 多額取引のみフィルター
         if filter_state.get('large_only'):
@@ -766,6 +782,20 @@ class AnalysisService:
         return dup_df.to_dict(orient='records')
 
     @staticmethod
+    def _build_tx_endpoint(row, amount_field: str) -> dict:
+        """資金移動ペア用の取引辞書を構築"""
+        return {
+            'id': row.get('id'),
+            'date': row['date'],
+            'bank_name': row.get('bank_name', ''),
+            'branch_name': row.get('branch_name', ''),
+            'account_id': row.get('account_id', ''),
+            'amount': row[amount_field],
+            'description': row.get('description', ''),
+            'category': row.get('category', UNCATEGORIZED),
+        }
+
+    @staticmethod
     def _get_transfer_pairs(transfers_df: pd.DataFrame) -> list:
         """資金移動のペアデータを生成（出金元・移動先をセットで返す）"""
         if transfers_df.empty:
@@ -795,30 +825,12 @@ class AnalysisService:
                             break
 
             pair = {
-                'source': {
-                    'id': out_row.get('id'),
-                    'date': out_row['date'],
-                    'bank_name': out_row.get('bank_name', ''),
-                    'branch_name': out_row.get('branch_name', ''),
-                    'account_id': out_row.get('account_id', ''),
-                    'amount': out_row['amount_out'],
-                    'description': out_row.get('description', ''),
-                    'category': out_row.get('category', UNCATEGORIZED)
-                },
-                'destination': None
+                'source': AnalysisService._build_tx_endpoint(out_row, 'amount_out'),
+                'destination': None,
             }
 
             if dest_row is not None:
-                pair['destination'] = {
-                    'id': dest_row.get('id'),
-                    'date': dest_row['date'],
-                    'bank_name': dest_row.get('bank_name', ''),
-                    'branch_name': dest_row.get('branch_name', ''),
-                    'account_id': dest_row.get('account_id', ''),
-                    'amount': dest_row['amount_in'],
-                    'description': dest_row.get('description', ''),
-                    'category': dest_row.get('category', UNCATEGORIZED)
-                }
+                pair['destination'] = AnalysisService._build_tx_endpoint(dest_row, 'amount_in')
 
             transfer_pairs.append(pair)
 

@@ -1,7 +1,7 @@
 {% extends 'analyzer/base.html' %}
 {% load crispy_forms_tags %}
 
-{% block title %}Settings - Bank Analyzer{% endblock %}
+{% block title %}設定 - Bank Analyzer{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -11,7 +11,7 @@
         <form method="post">
             {% csrf_token %}
 
-            <!-- Threshold Settings -->
+            <!-- 分析パラメータ設定 -->
             <div class="glass-card p-4 mb-4">
                 <h4 class="mb-3">🔍 分析パラメータ設定</h4>
                 <div class="row">
@@ -27,12 +27,12 @@
                 </div>
             </div>
 
-            <!-- Classification Patterns -->
+            <!-- 自動分類キーワード設定 -->
             <div class="glass-card p-4 mb-4">
                 <h4 class="mb-3">📝 自動分類キーワード設定</h4>
                 <p class="text-muted small mb-3">
                     各カテゴリに分類するためのキーワードをカンマ区切りで入力してください。<br>
-                    取引の摘要（Description）にキーワードが含まれている場合、そのカテゴリに自動分類されます。
+                    取引の摘要にキーワードが含まれている場合、そのカテゴリに自動分類されます。
                 </p>
 
                 <ul class="nav nav-tabs mb-3" id="patternTabs" role="tablist"
@@ -107,25 +107,4 @@
         </form>
     </div>
 </div>
-
-<style>
-    .nav-tabs .nav-link {
-        color: #64748b;
-    }
-
-    .nav-tabs .nav-link.active {
-        background-color: #fff;
-        border-color: #e2e8f0;
-        border-bottom-color: transparent;
-        color: #2563eb;
-        font-weight: 600;
-    }
-
-    .nav-tabs .nav-link:hover:not(.active) {
-        border-color: transparent;
-        color: #475569;
-        background-color: #f1f5f9;
-        cursor: pointer;
-    }
-</style>
 {% endblock %}

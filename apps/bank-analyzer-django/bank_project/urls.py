@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
 from django.contrib import admin
 from django.db import connection
 from django.http import JsonResponse
@@ -35,3 +36,12 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('analyzer.urls')),
 ]
+
+# 開発環境: リバースプロキシ(Nginx)がFORCE_SCRIPT_NAMEプレフィックスを除去するため、
+# Django が受け取る /static/... パスに対して明示的に静的ファイルを配信する
+if settings.DEBUG:
+    from django.contrib.staticfiles.views import serve as staticfiles_serve
+    from django.urls import re_path
+    urlpatterns += [
+        re_path(r'^static/(?P<path>.*)$', staticfiles_serve),
+    ]

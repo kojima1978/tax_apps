@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 from django.conf import settings as django_settings
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db.models import Q, Sum
+from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
@@ -97,6 +97,59 @@ def _json_api_error(e: Exception, error_context: str) -> JsonResponse:
     """JSON APIの例外エラーレスポンスを生成（ログ出力付き）"""
     logger.exception(f"{error_context}: error={e}")
     return _json_error(_safe_error_message(e), status=500)
+
+
+def _count_message(request, count: int, success_msg: str, zero_msg: str, zero_level: str = "warning"):
+    """件数に応じたメッセージを表示"""
+    if count > 0:
+        messages.success(request, success_msg)
+    else:
+        getattr(messages, zero_level)(request, zero_msg)
+
+
+def _handle_post_action(request, action_fn, error_context: str, **log_params) -> bool:
+    """POST処理の共通例外ハンドリング。成功時True、失敗時Falseを返す。"""
+    try:
+        action_fn()
+        return True
+    except Exception as e:
+        params_str = ", ".join(f"{k}={v}" for k, v in log_params.items())
+        logger.exception(f"{error_context}エラー: {params_str}, error={e}")
+        messages.error(request, _safe_error_message(e, error_context))
+        return False
+
+
+def _do_toggle_flag(request, case: Case, tx_id: str):
+    """付箋トグル処理の共通ロジック"""
+    new_state = TransactionService.toggle_flag(case, int(tx_id))
+    if new_state is None:
+        messages.warning(request, "取引が見つかりません。")
+    elif new_state:
+        messages.success(request, "付箋を追加しました。")
+    else:
+        messages.info(request, "付箋を外しました。")
+
+
+def _extract_category_updates(request, prefixes: list[str]) -> dict[str, str]:
+    """POSTデータからカテゴリ更新辞書を構築する"""
+    category_updates = {}
+    for key, value in request.POST.items():
+        for prefix in prefixes:
+            if key.startswith(prefix):
+                tx_id = key[len(prefix):]
+                if tx_id:
+                    category_updates[tx_id] = value
+                break
+    return category_updates
+
+
+# エクスポートタイプ設定: (フィルタフィールド, ファイル名サフィックス)
+_EXPORT_TYPE_CONFIG = {
+    'large':     ('is_large',    '多額取引'),
+    'transfers': ('is_transfer', '資金移動'),
+    'flagged':   ('is_flagged',  '付箋付き取引'),
+    'all':       (None,          '全取引'),
+}
 
 
 def _parse_keywords(text: str) -> list[str]:
@@ -235,7 +288,7 @@ def _build_redirect_url(
 
 def _update_transaction_from_post(request: HttpRequest, case: Case, tx_id: str) -> None:
     """POSTデータから取引を更新する共通処理"""
-    try:
+    def _do_update():
         amount_out, _ = _parse_amount(request.POST.get('amount_out', '0'))
         amount_in, _ = _parse_amount(request.POST.get('amount_in', '0'))
         balance_str = request.POST.get('balance')
@@ -256,9 +309,8 @@ def _update_transaction_from_post(request: HttpRequest, case: Case, tx_id: str) 
         success = TransactionService.update_transaction(case, int(tx_id), data)
         if success:
             messages.success(request, "取引データを更新しました。")
-    except Exception as e:
-        logger.exception(f"取引更新エラー: tx_id={tx_id}, error={e}")
-        messages.error(request, _safe_error_message(e, "取引更新"))
+
+    _handle_post_action(request, _do_update, "取引更新", tx_id=tx_id)
 
 
 def export_json(request: HttpRequest, pk: int) -> HttpResponse:
@@ -387,17 +439,12 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
     df = pd.DataFrame(list(transactions.values()))
 
     # エクスポートタイプに応じてフィルタリング
-    if export_type == 'large':
-        df = df[df['is_large']].copy()
-        filename = f"{_sanitize_filename(case.name)}_多額取引.csv"
-    elif export_type == 'transfers':
-        df = df[df['is_transfer']].copy()
-        filename = f"{_sanitize_filename(case.name)}_資金移動.csv"
-    elif export_type == 'flagged':
-        df = df[df['is_flagged']].copy()
-        filename = f"{_sanitize_filename(case.name)}_付箋付き取引.csv"
-    elif export_type == 'all':
-        filename = f"{_sanitize_filename(case.name)}_全取引.csv"
+    config_entry = _EXPORT_TYPE_CONFIG.get(export_type)
+    if config_entry:
+        filter_field, suffix = config_entry
+        if filter_field:
+            df = df[df[filter_field]].copy()
+        filename = f"{_sanitize_filename(case.name)}_{suffix}.csv"
     else:
         filename = f"{_sanitize_filename(case.name)}_取引データ.csv"
 
@@ -421,7 +468,6 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
     transactions = AnalysisService.apply_filters(transactions, filter_state)
 
     # 金額パース（ファイル名生成用）
-    amount_type = filter_state['amount_type']
     amount_min_val, amount_min_ok = _parse_amount(filter_state['amount_min']) if filter_state['amount_min'] else (None, True)
     amount_max_val, amount_max_ok = _parse_amount(filter_state['amount_max']) if filter_state['amount_max'] else (None, True)
     amount_min = amount_min_val if amount_min_ok and amount_min_val else None
@@ -459,7 +505,7 @@ class CaseUpdateView(UpdateView):
     model = Case
     form_class = CaseForm
     template_name = 'analyzer/case_form.html'
-    
+
     def get_success_url(self):
         messages.success(self.request, "案件を更新しました。")
         return reverse('case-detail', kwargs={'pk': self.object.pk})
@@ -484,17 +530,10 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
         page = request.POST.get('page', 1)
 
         if action == 'toggle_flag' and tx_id:
-            try:
-                new_state = TransactionService.toggle_flag(case, int(tx_id))
-                if new_state is None:
-                    messages.warning(request, "取引が見つかりません。")
-                elif new_state:
-                    messages.success(request, "付箋を追加しました。")
-                else:
-                    messages.info(request, "付箋を外しました。")
-            except Exception as e:
-                logger.exception(f"フラグ更新エラー: tx_id={tx_id}, error={e}")
-                messages.error(request, _safe_error_message(e, "フラグ更新"))
+            _handle_post_action(
+                request, lambda: _do_toggle_flag(request, case, tx_id),
+                "フラグ更新", tx_id=tx_id
+            )
 
         elif action == 'update_transaction' and tx_id:
             _update_transaction_from_post(request, case, tx_id)
@@ -542,23 +581,17 @@ def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
             csv_file = request.FILES['csv_file']
             logger.info(f"ファイルインポート開始: case_id={pk}, filename={csv_file.name}, size={csv_file.size}")
             try:
-                # 1. Load CSV and Validate Balance (Stage 1)
+                # CSV読込・残高検証
                 df = importer.load_csv(csv_file)
                 df = importer.validate_balance(df)
-                
-                # Prepare for session storage (JSON serializable)
-                # Convert dates to strings
+
+                # セッション保存用にJSON変換可能な形式へ
                 df['date'] = df['date'].dt.strftime('%Y-%m-%d').replace('NaT', None)
-                
-                # Replace NumPy types with Python native types for JSON serialization
-                # float('nan') is not valid JSON usually, replace with None or 0
                 df = df.where(pd.notnull(df), None)
-                
-                import_data = df.to_dict(orient='records')
-                
-                request.session['import_data'] = import_data
+
+                request.session['import_data'] = df.to_dict(orient='records')
                 request.session['import_case_id'] = case.id
-                
+
                 return redirect('transaction-preview', pk=pk)
 
             except CsvImportError as e:
@@ -582,14 +615,14 @@ def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
 def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
     """インポートプレビューと確定"""
     case = get_object_or_404(Case, pk=pk)
-    
-    # Session check
+
+    # セッション確認
     if request.session.get('import_case_id') != case.id or 'import_data' not in request.session:
         messages.error(request, "セッションが切れました。再度アップロードしてください。")
         return redirect('transaction-import', pk=pk)
-    
+
     import_data = request.session['import_data']
-    
+
     if request.method == 'POST':
         action = request.POST.get('action')
 
@@ -602,25 +635,25 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
                 remaining = len(validation_errors) - MAX_VALIDATION_ERRORS_DISPLAY
                 if remaining > 0:
                     messages.warning(request, f"他にも{remaining}件のエラーがあります")
-            
-            # Re-validate balance
+
+            # 残高再検証
             df = pd.DataFrame(updated_data)
-            
-            # Handle empty dataframe case (if all rows deleted)
+
+            # 全行削除された場合
             if df.empty:
-                 request.session['import_data'] = []
-                 import_data = []
-                 messages.info(request, "全ての行が削除されました。")
+                request.session['import_data'] = []
+                import_data = []
+                messages.info(request, "全ての行が削除されました。")
             else:
-                # Ensure types
+                # 型変換
                 df['amount_out'] = df['amount_out'].astype(int)
                 df['amount_in'] = df['amount_in'].astype(int)
                 df['balance'] = df['balance'].astype(int)
-                
-                # Re-run logic
+
+                # 残高再計算
                 df = importer.validate_balance(df)
-                
-                # Save back to session
+
+                # セッションに保存
                 request.session['import_data'] = df.to_dict(orient='records')
                 import_data = request.session['import_data']
                 messages.info(request, "再計算しました（削除反映済み）。")
@@ -644,7 +677,7 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
             except Exception as e:
                 logger.exception(f"取引インポートエラー: case_id={pk}, error={e}")
                 messages.error(request, _safe_error_message(e, "取り込み"))
-    
+
     return render(request, 'analyzer/import_confirm.html', {
         'case': case,
         'transactions': import_data
@@ -716,40 +749,36 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
 
 
 def _handle_run_classifier(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    try:
+    def _action():
         count = TransactionService.run_classifier(case)
-        if count == 0:
-            messages.warning(request, "データがありません。")
-        else:
-            messages.success(request, "自動分類が完了しました。")
-    except Exception as e:
-        logger.exception(f"自動分類エラー: case_id={pk}, error={e}")
-        messages.error(request, _safe_error_message(e, "自動分類"))
+        _count_message(request, count, "自動分類が完了しました。", "データがありません。")
+
+    _handle_post_action(request, _action, "自動分類", case_id=pk)
     return redirect('analysis-dashboard', pk=pk)
 
 
 def _handle_apply_rules(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    try:
+    def _action():
         count = TransactionService.apply_classification_rules(case)
-        if count == 0:
-            messages.info(request, "未分類の取引がないか、マッチするルールがありませんでした。")
-        else:
-            messages.success(request, f"キーワードルールを適用し、{count}件を分類しました。")
-    except Exception as e:
-        logger.exception(f"ルール適用エラー: case_id={pk}, error={e}")
-        messages.error(request, _safe_error_message(e, "ルール適用"))
+        _count_message(
+            request, count,
+            f"キーワードルールを適用し、{count}件を分類しました。",
+            "未分類の取引がないか、マッチするルールがありませんでした。",
+            zero_level="info",
+        )
+
+    _handle_post_action(request, _action, "ルール適用", case_id=pk)
     return redirect('analysis-dashboard', pk=pk)
 
 
 def _handle_delete_account(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
     account_id = request.POST.get('account_id')
     if account_id:
-        try:
+        def _action():
             count = TransactionService.delete_account_transactions(case, account_id)
             messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
-        except Exception as e:
-            logger.exception(f"口座削除エラー: case_id={pk}, account_id={account_id}, error={e}")
-            messages.error(request, _safe_error_message(e, "口座削除"))
+
+        _handle_post_action(request, _action, "口座削除", case_id=pk, account_id=account_id)
     return redirect('analysis-dashboard', pk=pk)
 
 
@@ -780,17 +809,10 @@ def _handle_update_category(request: HttpRequest, case: Case, pk: int) -> HttpRe
 def _handle_bulk_update_categories(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
     source_tab = request.POST.get('source_tab', 'large')
 
-    category_updates = {
-        key.replace('cat-', ''): value
-        for key, value in request.POST.items()
-        if key.startswith('cat-')
-    }
+    category_updates = _extract_category_updates(request, ['cat-'])
 
     count = TransactionService.bulk_update_categories(case, category_updates)
-    if count > 0:
-        messages.success(request, f"{count}件の分類を更新しました。")
-    else:
-        messages.info(request, "変更はありませんでした。")
+    _count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
 
     # フィルター状態を復元（allタブの場合）
     filters = None
@@ -808,22 +830,10 @@ def _handle_bulk_update_categories(request: HttpRequest, case: Case, pk: int) ->
 
 def _handle_bulk_update_categories_transfer(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
     # transfer-src-{id} と transfer-dest-{id} 形式のパラメータを処理
-    category_updates = {}
-    for key, value in request.POST.items():
-        if key.startswith('transfer-src-'):
-            tx_id = key.replace('transfer-src-', '')
-            if tx_id:
-                category_updates[tx_id] = value
-        elif key.startswith('transfer-dest-'):
-            tx_id = key.replace('transfer-dest-', '')
-            if tx_id:
-                category_updates[tx_id] = value
+    category_updates = _extract_category_updates(request, ['transfer-src-', 'transfer-dest-'])
 
     count = TransactionService.bulk_update_categories(case, category_updates)
-    if count > 0:
-        messages.success(request, f"{count}件の分類を更新しました。")
-    else:
-        messages.info(request, "変更はありませんでした。")
+    _count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
 
     return redirect(_build_redirect_url('analysis-dashboard', pk, 'transfers', None))
 
@@ -841,10 +851,7 @@ def _handle_update_transaction(request: HttpRequest, case: Case, pk: int) -> Htt
 def _handle_delete_duplicates(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
     delete_ids = request.POST.getlist('delete_ids')
     count = TransactionService.delete_duplicates(case, delete_ids)
-    if count > 0:
-        messages.success(request, f"{count}件の重複データを削除しました。")
-    else:
-        messages.warning(request, "削除対象が選択されていません。")
+    _count_message(request, count, f"{count}件の重複データを削除しました。", "削除対象が選択されていません。")
     # データクレンジングタブに留まる
     return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
@@ -856,10 +863,11 @@ def _handle_delete_by_range(request: HttpRequest, case: Case, pk: int) -> HttpRe
         start_id_int = int(start_id)
         end_id_int = int(end_id)
         count = TransactionService.delete_by_range(case, start_id_int, end_id_int)
-        if count > 0:
-            messages.success(request, f"ID {start_id_int}〜{end_id_int} の範囲で {count}件の取引を削除しました。")
-        else:
-            messages.warning(request, "指定した範囲に削除対象の取引がありませんでした。")
+        _count_message(
+            request, count,
+            f"ID {start_id_int}〜{end_id_int} の範囲で {count}件の取引を削除しました。",
+            "指定した範囲に削除対象の取引がありませんでした。",
+        )
     except (ValueError, TypeError):
         messages.error(request, "IDは整数で入力してください。")
     # データクレンジングタブに留まる
@@ -870,17 +878,10 @@ def _handle_toggle_flag(request: HttpRequest, case: Case, pk: int) -> HttpRespon
     tx_id = request.POST.get('tx_id')
     source_tab = request.POST.get('source_tab', '')
     if tx_id:
-        try:
-            new_state = TransactionService.toggle_flag(case, int(tx_id))
-            if new_state is None:
-                messages.warning(request, "取引が見つかりません。")
-            elif new_state:
-                messages.success(request, "付箋を追加しました。")
-            else:
-                messages.info(request, "付箋を外しました。")
-        except Exception as e:
-            logger.exception(f"フラグ更新エラー: tx_id={tx_id}, error={e}")
-            messages.error(request, _safe_error_message(e, "フラグ更新"))
+        _handle_post_action(
+            request, lambda: _do_toggle_flag(request, case, tx_id),
+            "フラグ更新", tx_id=tx_id
+        )
     return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
 
 
@@ -889,13 +890,12 @@ def _handle_update_memo(request: HttpRequest, case: Case, pk: int) -> HttpRespon
     memo = request.POST.get('memo', '')
     source_tab = request.POST.get('source_tab', '')
     if tx_id:
-        try:
+        def _action():
             success = TransactionService.update_memo(case, int(tx_id), memo)
             if success:
                 messages.success(request, "メモを更新しました。")
-        except Exception as e:
-            logger.exception(f"メモ更新エラー: tx_id={tx_id}, error={e}")
-            messages.error(request, _safe_error_message(e, "メモ更新"))
+
+        _handle_post_action(request, _action, "メモ更新", tx_id=tx_id)
     return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
 
 
@@ -905,9 +905,7 @@ def _handle_bulk_replace_field(request: HttpRequest, case: Case, pk: int) -> Htt
     old_value = request.POST.get('old_value', '').strip()
     new_value = request.POST.get('new_value', '').strip()
 
-    allowed_replace_fields = {'bank_name', 'branch_name', 'account_id'}
-
-    if not field_name or field_name not in allowed_replace_fields:
+    if not field_name or field_name not in TransactionService.REPLACEABLE_FIELDS:
         messages.error(request, "不正なフィールドが指定されました。")
         return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
@@ -923,16 +921,16 @@ def _handle_bulk_replace_field(request: HttpRequest, case: Case, pk: int) -> Htt
         messages.warning(request, "置換前と置換後の値が同じです。")
         return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
-    try:
+    def _action():
         count = TransactionService.bulk_replace_field_value(case, field_name, old_value, new_value)
-        if count > 0:
-            field_label = FIELD_LABELS.get(field_name, field_name)
-            messages.success(request, f"{field_label}「{old_value}」を「{new_value}」に置換しました（{count}件）。")
-        else:
-            messages.warning(request, "該当するデータがありませんでした。")
-    except Exception as e:
-        logger.exception(f"一括置換エラー: field={field_name}, old={old_value}, new={new_value}, error={e}")
-        messages.error(request, _safe_error_message(e, "一括置換"))
+        field_label = FIELD_LABELS.get(field_name, field_name)
+        _count_message(
+            request, count,
+            f"{field_label}「{old_value}」を「{new_value}」に置換しました（{count}件）。",
+            "該当するデータがありませんでした。",
+        )
+
+    _handle_post_action(request, _action, "一括置換", field=field_name, old=old_value, new=new_value)
 
     return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
@@ -941,9 +939,9 @@ def settings_view(request: HttpRequest) -> HttpResponse:
     """アプリケーション設定ビュー"""
     current_settings = config.load_user_settings()
     current_patterns = current_settings.get("CLASSIFICATION_PATTERNS", config.DEFAULT_PATTERNS)
-    
+
     if request.method == 'POST':
-        form = SettingsForm(request.POST) 
+        form = SettingsForm(request.POST)
         if form.is_valid():
             new_settings = {
                 "LARGE_AMOUNT_THRESHOLD": form.cleaned_data['large_amount_threshold'],
@@ -974,7 +972,7 @@ def settings_view(request: HttpRequest) -> HttpResponse:
 
 
 # =============================================================================
-# API Endpoints (AJAX)
+# APIエンドポイント (AJAX)
 # =============================================================================
 
 @require_POST

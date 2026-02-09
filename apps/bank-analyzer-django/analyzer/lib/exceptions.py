@@ -132,6 +132,11 @@ class FormatError(CsvImportError):
         )
 
 
+def _format_error_examples(line_numbers: list[int], values: list[str], limit: int = 5) -> list[str]:
+    """エラー行と値のペアをフォーマットする"""
+    return [f"  行{ln}: {val}" for ln, val in zip(line_numbers[:limit], values[:limit])]
+
+
 class DataError(CsvImportError):
     """データエラー（行単位）"""
     error_type = ImportErrorType.DATA
@@ -172,17 +177,12 @@ class DateParseError(DataError):
         error_count = len(line_numbers)
         message = f"日付の変換に失敗しました（{error_count}件）"
 
-        # エラー行と値のペアを作成
-        error_examples = []
-        for ln, val in zip(line_numbers[:5], invalid_values[:5]):
-            error_examples.append(f"  行{ln}: {val}")
-
         suggestion = (
             "日付は以下の形式で入力してください:\n"
             "- 西暦: 2024-01-01, 2024/01/01\n"
             "- 和暦: H28.6.3, R5/4/1\n"
             "\n変換できない値の例:\n" +
-            "\n".join(error_examples)
+            "\n".join(_format_error_examples(line_numbers, invalid_values))
         )
 
         super().__init__(
@@ -216,18 +216,13 @@ class AmountParseError(DataError):
         error_count = len(line_numbers)
         message = f"{column_label}の変換に失敗しました（{error_count}件）"
 
-        # エラー行と値のペアを作成
-        error_examples = []
-        for ln, val in zip(line_numbers[:5], invalid_values[:5]):
-            error_examples.append(f"  行{ln}: {val}")
-
         suggestion = (
             f"{column_label}は数値で入力してください:\n"
             "- カンマ区切りは自動的に除去されます（例: 1,234,567）\n"
             "- 空欄は0として扱われます\n"
             "- 文字列や記号が含まれていないか確認してください\n"
             "\n変換できない値の例:\n" +
-            "\n".join(error_examples)
+            "\n".join(_format_error_examples(line_numbers, invalid_values))
         )
 
         super().__init__(

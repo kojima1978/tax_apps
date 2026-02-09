@@ -3,7 +3,7 @@
 {% load japanese_date %}
 {% load static %}
 
-{% block title %}Analysis - Bank Analyzer{% endblock %}
+{% block title %}分析 - Bank Analyzer{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -25,7 +25,7 @@
     </div>
 </div>
 
-<!-- Account Summary -->
+<!-- 登録口座一覧 -->
 <div class="glass-card p-4 mb-4">
     <h4 class="mb-3">📋 登録口座一覧</h4>
     <div class="row g-3">
@@ -54,7 +54,7 @@
     </div>
 </div>
 
-<!-- Tabs -->
+<!-- タブ -->
 <ul class="nav nav-tabs mb-4" id="analysisTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link active" id="transfers-tab" data-bs-toggle="tab" data-bs-target="#transfers"
@@ -96,7 +96,7 @@
     {% include 'analyzer/partials/_tab_flagged.html' %}
 </div>
 
-<!-- Edit Modal -->
+<!-- 取引編集モーダル -->
 <div class="modal fade" id="editModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content glass-card">
@@ -126,7 +126,7 @@
     </div>
 </div>
 
-<!-- Add Transaction Modal -->
+<!-- 取引追加モーダル -->
 <div class="modal fade" id="addTxModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content glass-card">
@@ -152,20 +152,7 @@
 {% block extra_js %}
 <script src="{% static 'analyzer/js/analysis_dashboard.js' %}"></script>
 
-<!-- Toast Container -->
+<!-- トースト通知 -->
 <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
 
-<style>
-    .nav-tabs .nav-link {
-        color: #64748b;
-    }
-
-    .nav-tabs .nav-link.active {
-        background-color: #fff;
-        border-color: #e2e8f0;
-        border-bottom-color: transparent;
-        color: #2563eb;
-        font-weight: 600;
-    }
-</style>
 {% endblock %}

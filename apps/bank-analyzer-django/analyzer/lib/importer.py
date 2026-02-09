@@ -70,18 +70,24 @@ def _has_expected_columns(df: pd.DataFrame) -> bool:
     return any(kw in cols_str for kw in EXPECTED_COLUMN_KEYWORDS)
 
 
-def _try_read_csv_with_encoding(file_content: bytes, encoding: str) -> pd.DataFrame | None:
+def _try_read_csv_with_encoding(file_content: bytes, encoding: str, encoding_errors: str | None = None) -> pd.DataFrame | None:
     """指定エンコーディングでCSVを読み込み、期待カラムがあればDataFrameを返す"""
+    read_kwargs = {'encoding': encoding}
+    if encoding_errors:
+        read_kwargs['encoding_errors'] = encoding_errors
+
+    suffix = f" ({encoding_errors})" if encoding_errors else ""
+
     # header=0 で試行
-    df = pd.read_csv(io.BytesIO(file_content), encoding=encoding)
+    df = pd.read_csv(io.BytesIO(file_content), **read_kwargs)
     if _has_expected_columns(df):
-        logger.info(f"Pandas で {encoding} エンコーディングで読み込み成功 (header=0)")
+        logger.info(f"Pandas で {encoding}{suffix} エンコーディングで読み込み成功 (header=0)")
         return df
 
     # header=1 で試行
-    df_h1 = pd.read_csv(io.BytesIO(file_content), encoding=encoding, header=1)
+    df_h1 = pd.read_csv(io.BytesIO(file_content), header=1, **read_kwargs)
     if _has_expected_columns(df_h1):
-        logger.info(f"Pandas で {encoding} エンコーディングで読み込み成功 (header=1)")
+        logger.info(f"Pandas で {encoding}{suffix} エンコーディングで読み込み成功 (header=1)")
         return df_h1
 
     return None
@@ -145,9 +151,10 @@ def _detect_and_read_file(file_content: bytes) -> tuple[pd.DataFrame, str]:
 
         # cp932 置換読み込みフォールバック
         try:
-            df = _try_read_csv_with_encoding_replace(file_content)
+            df = _try_read_csv_with_encoding(file_content, "cp932", encoding_errors='replace')
             if df is not None:
                 return df, file_head_hex
+            raise ValueError("Decoded columns do not match expected format (garbage)")
         except Exception as e:
             errors["cp932_replace"] = str(e)
 
@@ -156,21 +163,6 @@ def _detect_and_read_file(file_content: bytes) -> tuple[pd.DataFrame, str]:
         tried_encodings=list(errors.keys()),
         file_header_hex=file_head_hex
     )
-
-
-def _try_read_csv_with_encoding_replace(file_content: bytes) -> pd.DataFrame | None:
-    """cp932の置換モードでCSVを読み込むフォールバック"""
-    df = pd.read_csv(io.BytesIO(file_content), encoding="cp932", encoding_errors='replace')
-    if _has_expected_columns(df):
-        logger.info("Pandas で cp932 (replace) エンコーディングで読み込み成功")
-        return df
-
-    df_h1 = pd.read_csv(io.BytesIO(file_content), encoding="cp932", encoding_errors='replace', header=1)
-    if _has_expected_columns(df_h1):
-        logger.info("Pandas で cp932 (replace) エンコーディングで読み込み成功 (header=1)")
-        return df_h1
-
-    raise ValueError("Decoded columns do not match expected format (garbage)")
 
 
 def _normalize_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
@@ -211,6 +203,17 @@ def _extract_metadata(df: pd.DataFrame) -> dict:
     return csv_metadata
 
 
+def _check_single_value(df: pd.DataFrame, col_name: str, error_class):
+    """カラムの値が一意であることを確認し、複数あればerror_classを送出"""
+    if col_name not in df.columns:
+        return
+    values = df[col_name].dropna().astype(str).str.strip()
+    values = values[values != ""]
+    unique_values = values.unique().tolist()
+    if len(unique_values) > 1:
+        raise error_class(unique_values, values.value_counts().to_dict())
+
+
 def _validate_uniqueness(df: pd.DataFrame) -> None:
     """
     銀行名と口座番号がファイル内で一意であることを確認する。
@@ -219,25 +222,8 @@ def _validate_uniqueness(df: pd.DataFrame) -> None:
         MultipleBankError: 複数の銀行名が含まれる場合
         MultipleAccountError: 複数の口座番号が含まれる場合
     """
-    if "bank_name" in df.columns:
-        bank_names = df["bank_name"].dropna().astype(str).str.strip()
-        bank_names = bank_names[bank_names != ""]
-        unique_banks = bank_names.unique().tolist()
-        if len(unique_banks) > 1:
-            raise MultipleBankError(
-                bank_names=unique_banks,
-                row_counts=bank_names.value_counts().to_dict()
-            )
-
-    if "account_number" in df.columns:
-        account_numbers = df["account_number"].dropna().astype(str).str.strip()
-        account_numbers = account_numbers[account_numbers != ""]
-        unique_accounts = account_numbers.unique().tolist()
-        if len(unique_accounts) > 1:
-            raise MultipleAccountError(
-                account_numbers=unique_accounts,
-                row_counts=account_numbers.value_counts().to_dict()
-            )
+    _check_single_value(df, "bank_name", MultipleBankError)
+    _check_single_value(df, "account_number", MultipleAccountError)
 
 
 def _convert_dates(df: pd.DataFrame) -> pd.DataFrame:
