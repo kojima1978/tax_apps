@@ -36,7 +36,8 @@ function getErrorMessage(error: unknown): string {
 
 /** req.params.id をパースし、無効な場合は400レスポンスを返す */
 function parseId(req: express.Request, res: express.Response): number | null {
-  const id = parseInt(req.params.id, 10);
+  const raw = req.params.id;
+  const id = parseInt(Array.isArray(raw) ? raw[0] : raw, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: 'Invalid ID' });
     return null;

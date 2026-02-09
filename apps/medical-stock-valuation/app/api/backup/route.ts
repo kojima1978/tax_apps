@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
       for (const row of importData.similar_industry_data) {
         insertSimilar.run(
           row.id, row.fiscal_year, row.profit_per_share, row.net_asset_per_share,
-          row.average_stock_price, (row as Record<string, unknown>).is_active ?? 1,
+          row.average_stock_price, (row as unknown as Record<string, unknown>).is_active ?? 1,
           row.created_at ?? null, row.updated_at ?? null
         );
       }

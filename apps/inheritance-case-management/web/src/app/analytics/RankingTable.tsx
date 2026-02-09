@@ -18,7 +18,7 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
         const align = col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : ""
         const sortable = onSort && col.sortKey
         const indicator = sortable && sortState?.col === col.sortKey
-            ? (sortState.desc ? " ▼" : " ▲")
+            ? (sortState?.desc ? " ▼" : " ▲")
             : ""
 
         return (

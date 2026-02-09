@@ -58,7 +58,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
 ARG NODE_OPTIONS="--max-old-space-size=4096"
 
 # .next/cache をキャッシュマウントし、増分ビルドを高速化
-RUN --mount=type=cache,target=/app/.next/cache npm run build
+RUN --mount=type=cache,target=/app/.next/cache mkdir -p public && npm run build
 
 # ============================================
 # 本番ステージ

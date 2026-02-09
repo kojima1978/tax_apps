@@ -10,6 +10,7 @@ import {
   Check,
   CornerDownRight,
   GripVertical,
+  X,
 } from 'lucide-react';
 import { InlineEditInput, InlineAddInput } from './EditableInput';
 

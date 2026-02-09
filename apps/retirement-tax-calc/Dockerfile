@@ -77,6 +77,7 @@ COPY --link . .
 
 # Build with persistent cache for faster rebuilds
 RUN --mount=type=cache,target=/app/.next/cache \
+    mkdir -p public && \
     npm run build && \
     rm -rf node_modules/.cache
 
