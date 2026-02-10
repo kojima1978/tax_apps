@@ -1,8 +1,16 @@
 "use client";
 
 import { useState, useId, useEffect } from "react";
+import InputWithUnit from "./InputWithUnit";
 import { calcServiceYears } from "@/lib/retirement-tax";
 import { parseIntInput } from "@/lib/utils";
+
+const MODES = [
+    { value: "direct", label: "直接入力" },
+    { value: "date", label: "日付から計算" },
+] as const;
+
+type Mode = (typeof MODES)[number]["value"];
 
 type ServiceYearsInputProps = {
     value: number;
@@ -10,14 +18,14 @@ type ServiceYearsInputProps = {
 };
 
 const ServiceYearsInput = ({ value, onChange }: ServiceYearsInputProps) => {
-    const [mode, setMode] = useState<"direct" | "date">("direct");
+    const [mode, setMode] = useState<Mode>("direct");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const yearsId = useId();
     const startId = useId();
     const endId = useId();
 
-    const handleModeChange = (newMode: "direct" | "date") => {
+    const handleModeChange = (newMode: Mode) => {
         setMode(newMode);
         if (newMode === "direct") {
             setStartDate("");
@@ -38,37 +46,31 @@ const ServiceYearsInput = ({ value, onChange }: ServiceYearsInputProps) => {
     return (
         <div className="service-years-section">
             <div className="mode-toggle">
-                <button
-                    type="button"
-                    className={`toggle-btn ${mode === "direct" ? "active" : ""}`}
-                    onClick={() => handleModeChange("direct")}
-                >
-                    直接入力
-                </button>
-                <button
-                    type="button"
-                    className={`toggle-btn ${mode === "date" ? "active" : ""}`}
-                    onClick={() => handleModeChange("date")}
-                >
-                    日付から計算
-                </button>
+                {MODES.map((m) => (
+                    <button
+                        key={m.value}
+                        type="button"
+                        className={`toggle-btn ${mode === m.value ? "active" : ""}`}
+                        onClick={() => handleModeChange(m.value)}
+                    >
+                        {m.label}
+                    </button>
+                ))}
             </div>
 
             {mode === "direct" ? (
                 <div className="input-item">
                     <label htmlFor={yearsId}>勤続年数</label>
-                    <div className="input-with-unit">
-                        <input
-                            type="number"
-                            id={yearsId}
-                            min={1}
-                            max={99}
-                            value={value || ""}
-                            onChange={(e) => onChange(parseIntInput(e.target.value))}
-                            placeholder="例: 30"
-                        />
-                        <span className="unit">年</span>
-                    </div>
+                    <InputWithUnit
+                        unit="年"
+                        type="number"
+                        id={yearsId}
+                        min={1}
+                        max={99}
+                        value={value || ""}
+                        onChange={(e) => onChange(parseIntInput(e.target.value))}
+                        placeholder="例: 30"
+                    />
                 </div>
             ) : (
                 <div className="date-inputs">

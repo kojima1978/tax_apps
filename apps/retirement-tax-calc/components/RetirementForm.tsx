@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useId } from "react";
+import InputWithUnit from "./InputWithUnit";
 import ServiceYearsInput from "./ServiceYearsInput";
 import OfficerLimitSection from "./OfficerLimitSection";
 import CheckboxField from "./CheckboxField";
@@ -54,16 +55,14 @@ const RetirementForm = ({
                     {PATTERN_LABELS.map((label, i) => (
                         <div key={label} className="pattern-input-item">
                             <span className={`pattern-label pattern-${i}`}>{label}</span>
-                            <div className="input-with-unit">
-                                <input
-                                    type="text"
-                                    value={amounts[i]}
-                                    onChange={(e) => onAmountChange(i, e.target.value)}
-                                    placeholder={i === 0 ? "例: 20,000,000" : ""}
-                                    inputMode="numeric"
-                                />
-                                <span className="unit">円</span>
-                            </div>
+                            <InputWithUnit
+                                unit="円"
+                                type="text"
+                                value={amounts[i]}
+                                onChange={(e) => onAmountChange(i, e.target.value)}
+                                placeholder={i === 0 ? "例: 20,000,000" : ""}
+                                inputMode="numeric"
+                            />
                         </div>
                     ))}
                 </div>
