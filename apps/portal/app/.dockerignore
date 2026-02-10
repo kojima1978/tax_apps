@@ -9,13 +9,6 @@ build
 dist
 *.tsbuildinfo
 
-# Prisma generated client (regenerated during build)
-app/generated
-
-# Local dev database
-dev.db
-dev.db-journal
-
 # Testing
 coverage
 *.lcov

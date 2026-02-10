@@ -2,102 +2,22 @@
 
 # ============================================
 # Tax Apps Portal - Dockerfile
-# Next.js + Prisma + SQLite
+# Next.js 静的エクスポート → nginx で配信
 # ============================================
 
-# ===========================================
-# Base stage - 共通設定
-# ===========================================
-FROM node:22-alpine AS base
-
-# セキュリティ更新 + Alpine glibc互換レイヤー（Next.js推奨）
-RUN apk upgrade --no-cache && \
-    apk add --no-cache libc6-compat
-
+# --- Build ---
+FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# ===========================================
-# Dependencies stage - 依存関係インストール
-# ===========================================
-FROM base AS deps
-
-# ネイティブモジュールのビルドに必要なパッケージ
-RUN apk add --no-cache libc6-compat python3 make g++
-
 COPY package*.json ./
-
-# Docker用: libsql → better-sqlite3 に置き換え
-# libsql関連パッケージを除外してインストール後、better-sqlite3を追加
-RUN --mount=type=cache,id=npm-portal,target=/root/.npm \
-    sed -i '/@prisma\/adapter-libsql/d' package.json && \
-    sed -i '/@libsql\/client/d' package.json && \
-    npm ci && \
-    npm install @prisma/adapter-better-sqlite3 better-sqlite3 @types/better-sqlite3
-
-# ===========================================
-# Builder stage - アプリケーションビルド
-# ===========================================
-FROM base AS builder
-WORKDIR /app
-
-COPY --from=deps --link /app/node_modules ./node_modules
+RUN --mount=type=cache,id=npm-portal,target=/root/.npm npm ci
 COPY --link . .
-
-# Prisma設定をDocker用に上書き（libsql → better-sqlite3）
-# DB パスは環境変数 DATABASE_PATH で変更可能（デフォルト: /data/portal.db）
-RUN <<'SCRIPT'
-cat > prisma.config.ts <<'EOF'
-import { defineConfig } from "prisma/config";
-
-export default defineConfig({
-  schema: "prisma/schema.prisma",
-  migrations: {
-    path: "prisma/migrations",
-  },
-  datasource: {
-    url: "file:./build.db",
-  },
-});
-EOF
-cat > lib/prisma.ts <<'EOF'
-import { PrismaClient } from '../app/generated/prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-
-const dbPath = process.env.DATABASE_PATH || '/data/portal.db';
-
-export function createAdapter() {
-  return new PrismaBetterSqlite3({ url: dbPath });
-}
-
-const adapter = createAdapter();
-
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({ adapter });
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
-EOF
-SCRIPT
-
-# ビルド設定（ビルド時のみ使用）
-ARG NODE_OPTIONS="--max-old-space-size=2048"
-
-# Prismaセットアップ・シード・ビルド
-ENV DATABASE_PATH=./build.db
-RUN mkdir -p public && \
-    ./node_modules/.bin/prisma db push && \
-    ./node_modules/.bin/prisma generate && \
-    ./node_modules/.bin/tsx prisma/seed.ts && \
+RUN --mount=type=cache,id=next-portal,target=/app/.next/cache \
     npm run build
 
-# ===========================================
-# Runner stage - 本番実行環境
-# ===========================================
-FROM base AS runner
-WORKDIR /app
+# --- Production ---
+FROM nginx:alpine AS runner
 
 LABEL org.opencontainers.image.title="Tax Apps Portal" \
       org.opencontainers.image.description="税理士業務支援アプリ ポータルサイト" \
@@ -105,43 +25,44 @@ LABEL org.opencontainers.image.title="Tax Apps Portal" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-ENV NODE_ENV=production \
-    PORT=3000 \
-    HOSTNAME="0.0.0.0" \
-    DATABASE_PATH="/data/portal.db" \
-    TZ="Asia/Tokyo"
-
-# ランタイム依存パッケージ + 非rootユーザー + データディレクトリ
-RUN apk add --no-cache tini tzdata && \
+# タイムゾーン + デフォルトconf削除 + 非rootユーザー準備
+RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del tzdata && \
-    addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs && \
-    mkdir -p /data && chown nextjs:nodejs /data
+    rm /etc/nginx/conf.d/default.conf && \
+    sed -i '/^user/d' /etc/nginx/nginx.conf && \
+    chown -R nginx:nginx /var/cache/nginx /var/log/nginx && \
+    touch /run/nginx.pid && chown nginx:nginx /run/nginx.pid
 
-# ビルド成果物をコピー
-COPY --from=builder --chown=nextjs:nodejs --link /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/static
+COPY <<'EOF' /etc/nginx/conf.d/portal.conf
+server {
+    listen 3000;
+    server_name _;
+    root /usr/share/nginx/html;
 
-# ビルド時に作成したDBをデフォルトデータとしてコピー
-# ボリュームマウントで上書き可能
-COPY --from=builder --chown=nextjs:nodejs --link /app/build.db /data/portal.db
+    server_tokens off;
+    access_log off;
 
-# データ永続化用ボリューム
-VOLUME ["/data"]
+    location / {
+        try_files $uri $uri.html $uri/ /index.html;
+    }
 
-USER nextjs
+    location /_next/static/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
 
+    error_page 404 /404.html;
+}
+EOF
+
+COPY --from=builder --link /app/out /usr/share/nginx/html
+
+USER nginx
 EXPOSE 3000
 
-# ヘルスチェック（Node 22+ native fetch使用）
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3000/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://127.0.0.1:3000/ || exit 1
 
-# グレースフルシャットダウン
-STOPSIGNAL SIGTERM
-
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "server.js"]
+CMD ["nginx", "-g", "daemon off;"]

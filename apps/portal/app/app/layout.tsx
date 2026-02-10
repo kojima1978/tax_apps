@@ -8,17 +8,9 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "ポータルランチャー",
-    template: "%s | ポータルランチャー",
-  },
+  title: "ポータルランチャー",
   description: "税理士業務支援アプリケーション - すべてのアプリへのゲートウェイ",
-  keywords: ["税理士", "相続税", "贈与税", "確定申告", "税務"],
-  authors: [{ name: "Tax Apps" }],
-  robots: {
-    index: false,
-    follow: false,
-  },
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
