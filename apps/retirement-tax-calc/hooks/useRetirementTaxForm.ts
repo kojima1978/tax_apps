@@ -48,8 +48,8 @@ export const useRetirementTaxForm = () => {
         markDirty();
     }, [markDirty]);
 
-    const handleApplyLimit = useCallback((limitAmount: number) => {
-        handleAmountChange(0, String(limitAmount));
+    const handleApplyLimit = useCallback((limitAmount: number, index: number) => {
+        handleAmountChange(index, String(limitAmount));
     }, [handleAmountChange]);
 
     const withDirty = useCallback(

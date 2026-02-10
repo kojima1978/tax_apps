@@ -24,40 +24,30 @@ export type TaxRateYear = {
     prefecturalTaxRate: number;
 };
 
+/** 現行の所得税速算表ブラケット（令和6年・7年共通） */
+const CURRENT_BRACKETS: TaxBracket[] = [
+    { limit: 1_950_000, rate: 0.05, deduction: 0 },
+    { limit: 3_300_000, rate: 0.10, deduction: 97_500 },
+    { limit: 6_950_000, rate: 0.20, deduction: 427_500 },
+    { limit: 9_000_000, rate: 0.23, deduction: 636_000 },
+    { limit: 18_000_000, rate: 0.33, deduction: 1_536_000 },
+    { limit: 40_000_000, rate: 0.40, deduction: 2_796_000 },
+    { limit: Infinity, rate: 0.45, deduction: 4_796_000 },
+];
+
+/** 現行の住民税・復興税率（令和6年・7年共通） */
+const CURRENT_RATES = {
+    reconstructionTaxRate: 0.021,
+    municipalTaxRate: 0.06,
+    prefecturalTaxRate: 0.04,
+} as const;
+
 /**
- * 令和6年・令和7年の税率（現行法ベース）
+ * 年度別税率データ（税率変更時は該当年度のみ個別定義）
  */
 export const TAX_RATES: Record<string, TaxRateYear> = {
-    "2024": {
-        label: "令和6年（2024年）",
-        brackets: [
-            { limit: 1_950_000, rate: 0.05, deduction: 0 },
-            { limit: 3_300_000, rate: 0.10, deduction: 97_500 },
-            { limit: 6_950_000, rate: 0.20, deduction: 427_500 },
-            { limit: 9_000_000, rate: 0.23, deduction: 636_000 },
-            { limit: 18_000_000, rate: 0.33, deduction: 1_536_000 },
-            { limit: 40_000_000, rate: 0.40, deduction: 2_796_000 },
-            { limit: Infinity, rate: 0.45, deduction: 4_796_000 },
-        ],
-        reconstructionTaxRate: 0.021,
-        municipalTaxRate: 0.06,
-        prefecturalTaxRate: 0.04,
-    },
-    "2025": {
-        label: "令和7年（2025年）",
-        brackets: [
-            { limit: 1_950_000, rate: 0.05, deduction: 0 },
-            { limit: 3_300_000, rate: 0.10, deduction: 97_500 },
-            { limit: 6_950_000, rate: 0.20, deduction: 427_500 },
-            { limit: 9_000_000, rate: 0.23, deduction: 636_000 },
-            { limit: 18_000_000, rate: 0.33, deduction: 1_536_000 },
-            { limit: 40_000_000, rate: 0.40, deduction: 2_796_000 },
-            { limit: Infinity, rate: 0.45, deduction: 4_796_000 },
-        ],
-        reconstructionTaxRate: 0.021,
-        municipalTaxRate: 0.06,
-        prefecturalTaxRate: 0.04,
-    },
+    "2024": { label: "令和6年（2024年）", brackets: CURRENT_BRACKETS, ...CURRENT_RATES },
+    "2025": { label: "令和7年（2025年）", brackets: CURRENT_BRACKETS, ...CURRENT_RATES },
 };
 
 /** デフォルト年度キー */

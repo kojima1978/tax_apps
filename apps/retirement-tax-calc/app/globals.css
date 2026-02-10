@@ -364,6 +364,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .limit-value {
@@ -371,9 +372,13 @@ body {
   color: var(--primary-color);
 }
 
+.limit-apply-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
 .btn-apply-limit {
   padding: 0.4rem 0.75rem;
-  background-color: var(--primary-color);
   color: var(--white);
   border: none;
   border-radius: 4px;
@@ -384,9 +389,13 @@ body {
   transition: background-color 0.2s;
 }
 
-.btn-apply-limit:hover {
-  background-color: var(--primary-light);
-}
+.pattern-apply-0 { background-color: var(--pattern-0); }
+.pattern-apply-1 { background-color: var(--pattern-1); }
+.pattern-apply-2 { background-color: var(--pattern-2); }
+
+.pattern-apply-0:hover { background-color: var(--primary-light); }
+.pattern-apply-1:hover { background-color: #1976d2; }
+.pattern-apply-2:hover { background-color: #ef6c00; }
 
 .limit-warning {
   margin-top: 0.75rem;
