@@ -2,58 +2,53 @@
 
 ## 概要
 各種業務アプリケーションへのゲートウェイとなるポータルサイトです。
+アプリケーション一覧はTypeScript静的定数で管理（DB不要）。
 
 ## 技術スタック
-- **Next.js 16+** (App Router)
+- **Next.js 16** (App Router, Static Export)
 - **TypeScript**
-- **Tailwind CSS**
-- **Prisma** (SQLite)
-- **lucide-react** (アイコン)
+- **Tailwind CSS 4**
+- **lucide-react**（アイコン）
+- **nginx:alpine**（本番配信）
 
 ## ディレクトリ構成
 ```
 portal/
-├── app/                    # Next.jsアプリケーション
+├── app/                        # Next.js アプリケーション
 │   ├── app/
-│   │   ├── admin/         # 管理画面
-│   │   ├── api/           # APIルート
-│   │   ├── generated/     # Prisma生成ファイル
-│   │   ├── layout.tsx
-│   │   └── page.tsx       # メインページ
+│   │   ├── globals.css         # グローバルスタイル
+│   │   ├── layout.tsx          # ルートレイアウト
+│   │   └── page.tsx            # ホームページ（ヘッダー+グリッド）
 │   ├── components/
-│   │   ├── AdminPanel.tsx
-│   │   ├── AppCard.tsx
-│   │   ├── ApplicationForm.tsx
-│   │   ├── ApplicationList.tsx
-│   │   ├── Header.tsx
-│   │   ├── LauncherGrid.tsx
-│   │   └── ThemeProvider.tsx
-│   ├── data/
-│   │   └── links.ts       # 型定義
+│   │   ├── AppCard.tsx         # アプリカード（Link/a 自動切替）
+│   │   └── PageContainer.tsx   # 最大幅コンテナ
 │   ├── lib/
-│   │   └── prisma.ts
-│   ├── prisma/
-│   │   └── schema.prisma
-│   └── dev.db             # SQLiteデータベース
-└── design_spec.md
+│   │   └── applications.ts    # アプリ定義（Application型+静的データ）
+│   ├── Dockerfile              # node→nginx マルチステージ（nginx設定inline）
+│   ├── next.config.ts          # output: "export", images: unoptimized
+│   └── package.json
+└── design_spec.md              # 設計仕様書
 ```
 
 ## 機能
 
 ### メイン画面 (/)
-- アプリケーション一覧をカードグリッドで表示
-- リアルタイム検索フィルター
-- 内部リンク・外部リンク対応
+- アプリケーション一覧をカードグリッドで表示（1〜4列レスポンシブ）
+- LucideIcon直接参照によるアイコン表示
+- 内部リンク（next/link）・外部リンク（a target=_blank）自動切替
 
-### 管理画面 (/admin)
-- アプリケーションの追加・編集・削除
-- アイコン選択（lucide-react）
-- URL設定（内部パス or 外部URL）
+## アプリ追加・変更方法
+`lib/applications.ts` の `applications` 配列を編集してリビルド。
+```typescript
+{ title: 'アプリ名', description: '説明', url: '/path/', icon: IconName }
+```
 
 ## Docker設定
-- メインの `docker/docker-compose.yml` から起動
+- `docker/docker-compose.yml` → `portal-app` サービス
 - ポート: 3000
-- nginx経由で `/` にルーティング
+- nginx gateway 経由で `/` にルーティング
+- イメージ: nginx:alpine（静的HTML配信、Node.js不要、~45MB）
+- リソース: small-deploy（128M/32M）
 
 ## ローカル開発
 ```bash
