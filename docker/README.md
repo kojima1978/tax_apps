@@ -23,8 +23,8 @@ Docker Composeを使用して、すべてのアプリケーションを一元的
         ▼                           ▼                           ▼
 ┌───────────────┐         ┌─────────────────┐         ┌───────────────────┐
 │  Portal App   │         │   Frontend Apps │         │   Backend APIs    │
-│  (Port 3000)  │         │  (Next.js/Vite) │         │(Hono/Express/     │
-│               │         │                 │         │ Django)           │
+│  (nginx:alpine│         │  (Next.js/Vite) │         │(Hono/Express/     │
+│   Port 3000)  │         │                 │         │ Django)           │
 └───────────────┘         └─────────────────┘         └─────────┬─────────┘
                                                                 │
                                                        ┌────────┴────────┐
@@ -200,7 +200,7 @@ tax_apps/
 
 | ティア | 開発 (limit/reservation) | 本番 (limit/reservation) | 対象サービス |
 |:------|:------------------------|:------------------------|:------------|
-| Gateway | 128M / 32M | 64M / 16M | gateway |
+| Gateway | 128M / 32M | 64M / 16M | gateway, portal |
 | Small | — | 128M / 32M | inheritance-tax-app, tax-docs-backend |
 | Medium | 256M / 64M | — | itcm-postgres, tax-docs-backend |
 | Default | 512M / 128M | 256M / 64M | その他全サービス |
@@ -290,14 +290,19 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 ### ヘルスチェックエラー
 
 コンテナが "Unhealthy" になる場合、ヘルスチェックコマンドを確認してください。
-本プロジェクトでは `curl` に依存せず、各言語の組み込み機能を使用しています：
+全サービスで `wget`（Alpine BusyBox 内蔵）に統一しています：
 
-- **Nginx (Gateway)**: `wget --spider http://127.0.0.1/health`
-- **Node.js**: `node -e "(async()=>{...fetch('http://127.0.0.1:PORT/...')...})()"`
-- **Python (Django)**: `python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/')"`
+- **全サービス共通**: `wget --quiet --tries=1 --spider http://127.0.0.1:PORT/path || exit 1`
 - **PostgreSQL**: `pg_isready -U <user> -d <db>`
 
 ## 更新履歴
+
+### 2026-02 (ポータル全面刷新)
+
+- **portal全面簡素化**: 管理画面(/admin)・API・Prisma/SQLite全廃、TypeScript静的定数化（30+ファイル削除、-1,572行）
+- **portal Dockerfile**: standalone→export、node:22-alpine→nginx:alpine（~235MB→~45MB）、非rootユーザー、nginx設定heredocインライン化
+- **docker-compose.yml**: 全12サービスのヘルスチェックをwget統一、NEXT_TELEMETRY_DISABLEDをnextjs-dev-envに移動、start_period 120s→60s、portal deploy small-deploy化、冗長dockerfile指定12件削除
+- **docker-compose.prod.yml**: portal init:false削除（tini不使用）、deploy→prod-gateway-deploy（64M/16M）
 
 ### 2026-02 (後半)
 

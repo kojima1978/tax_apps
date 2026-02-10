@@ -65,9 +65,8 @@ services:
   # Portal - 本番設定
   # ===========================================
   portal-app:
-    init: false
     ports: []
-    deploy: *prod-deploy
+    deploy: *prod-gateway-deploy
 
   # ===========================================
   # 医療法人株式評価 - 本番設定
