@@ -30,11 +30,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 FROM base AS deps
 
 # Copy only package files first (better layer caching)
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 # Install dependencies with caching (id= prevents collision with other apps)
 RUN --mount=type=cache,id=npm-retirement-tax-calc,target=/root/.npm \
-    npm ci
+    npm install --no-audit --no-fund
 
 # =============================================================================
 # Development stage - For local development with hot reload
