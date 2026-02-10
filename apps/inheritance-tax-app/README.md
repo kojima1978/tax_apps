@@ -55,12 +55,16 @@ src/
 ### Docker（推奨）
 
 ```bash
-# tax_apps/docker ディレクトリで実行
-docker compose up -d inheritance-tax-app
+# スタンドアロン（アプリディレクトリで実行）
+docker compose up -d
 
-# アクセス
-http://localhost:5173/inheritance-tax-app/
+# または中央統合環境（docker/ ディレクトリで実行）
+docker compose up -d inheritance-tax-app
 ```
+
+アクセス: http://localhost:5173/inheritance-tax-app/
+
+> **Note**: 中央統合環境で起動する場合は、Nginx Gateway 経由で http://localhost/inheritance-tax-app/ からアクセスできます。
 
 ### ローカル
 

@@ -15,7 +15,7 @@ COPY package*.json ./
 # ============================================
 FROM base AS dev
 
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=npm-inheritance-tax-app,target=/root/.npm \
     npm ci --no-audit --no-fund
 
 # 設定ファイルをコピー（src/はボリュームマウント）
@@ -32,7 +32,7 @@ FROM base AS builder
 ENV NODE_ENV=production
 
 # devDependenciesもビルドに必要なため --include=dev を指定
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=npm-inheritance-tax-app,target=/root/.npm \
     npm ci --include=dev
 
 COPY . .

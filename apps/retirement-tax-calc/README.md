@@ -62,13 +62,22 @@ retirement-tax-calc/
 
 ## Docker
 
-```bash
-# docker-compose経由（推奨）
-docker compose up -d --build retirement-tax-calc
+### スタンドアロン（推奨）
 
-# 単体起動
-docker build -t retirement-tax-calc .
-docker run -p 3013:3013 retirement-tax-calc
+```bash
+# 起動
+docker compose up -d
+
+# 再ビルド
+docker compose up -d --build
+
+# ログ確認
+docker compose logs -f
+
+# 停止
+docker compose down
 ```
 
-アクセス: http://localhost/retirement-tax-calc/
+アクセス: http://localhost:3013/retirement-tax-calc/
+
+> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/retirement-tax-calc/ からアクセスできます。

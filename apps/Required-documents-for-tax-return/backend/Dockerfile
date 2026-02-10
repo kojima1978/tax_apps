@@ -22,7 +22,7 @@ RUN apk add --no-cache python3 make g++
 # ============================================
 FROM native-build AS deps
 COPY package*.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+RUN --mount=type=cache,id=npm-tax-docs-backend,target=/root/.npm npm ci --no-audit --no-fund
 
 # ============================================
 # 開発用ステージ
@@ -59,7 +59,7 @@ RUN npm run build && \
 # ============================================
 FROM native-build AS prod-deps
 COPY package*.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --no-audit --no-fund
+RUN --mount=type=cache,id=npm-tax-docs-backend,target=/root/.npm npm ci --omit=dev --no-audit --no-fund
 
 # ============================================
 # 本番ステージ（ビルドツール不要 → クリーンなalpineイメージ）

@@ -1,108 +1,68 @@
-# Gift Tax Docs - Docker Compose Configuration
+# ============================================
+# 贈与税申告 必要書類案内 - Docker Compose
+# ============================================
 # Usage:
-#   Development: docker compose --profile dev up
-#   Production:  docker compose --profile prod up -d
+#   開発:   docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:   docker compose logs -f
+#   停止:   docker compose down
+# ============================================
+
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+  NEXT_TELEMETRY_DISABLED: "1"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s
 
 services:
-  # ===========================================================================
-  # Development Service
-  # ===========================================================================
-  dev:
-    container_name: gift-tax-docs-dev
+  # ===========================================
+  # 贈与税申告 必要書類案内
+  # Port: 3002
+  #
+  # 機能:
+  #   - 贈与税申告に必要な書類のリスト管理
+  #   - ドラッグ&ドロップで並べ替え
+  #   - Excel出力 / 印刷
+  #   - JSON形式での設定保存・読込
+  # ===========================================
+  gift-tax-docs:
     build:
       context: .
+      dockerfile: Dockerfile
       target: dev
-      args:
-        NODE_VERSION: 22
-    ports:
-      - "3002:3000"
-    volumes:
-      - .:/app:cached
-      - node_modules:/app/node_modules
-      - next_cache:/app/.next
-    environment:
-      # NODE_ENV, NEXT_TELEMETRY_DISABLED are set in Dockerfile (base/dev stages)
-      WATCHPACK_POLLING: "true"
-      TZ: Asia/Tokyo
-    stdin_open: true
-    tty: true
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3000/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    profiles:
-      - dev
-    networks:
-      - app-network
-    labels:
-      - "app.name=gift-tax-docs"
-      - "app.env=development"
-
-  # ===========================================================================
-  # Production Service
-  # ===========================================================================
-  prod:
-    container_name: gift-tax-docs-prod
-    build:
-      context: .
-      target: runner
-      args:
-        NODE_VERSION: 22
+    container_name: gift-tax-docs-standalone
     ports:
       - "3002:3002"
-    # NODE_ENV, NEXT_TELEMETRY_DISABLED, TZ are set in Dockerfile (runner stage)
+    volumes:
+      # ソースコードをマウント（ホットリロード用）
+      - ./src:/app/src:ro
+      - ./public:/app/public:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+    command: npm run dev -- -p 3002
+    init: true
     restart: unless-stopped
-    stop_grace_period: 30s
-    read_only: true
-    tmpfs:
-      - /tmp:noexec,nosuid,size=64m
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3002/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      <<: *healthcheck-defaults
+      start_period: 60s
     deploy:
       resources:
         limits:
-          cpus: "1.0"
           memory: 512M
         reservations:
-          cpus: "0.25"
           memory: 128M
-    healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3002/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
-    profiles:
-      - prod
-    networks:
-      - app-network
-    labels:
-      - "app.name=gift-tax-docs"
-      - "app.env=production"
-
-volumes:
-  node_modules:
-    name: gift-tax-docs-node-modules
-  next_cache:
-    name: gift-tax-docs-next-cache
-
-networks:
-  app-network:
-    name: gift-tax-docs-network
-    driver: bridge

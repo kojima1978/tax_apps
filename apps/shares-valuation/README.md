@@ -95,3 +95,25 @@ npm run dev     # 開発サーバー起動 (http://localhost:3000)
 npm run build   # プロダクションビルド
 npm run lint    # ESLint実行
 ```
+
+## Docker での起動
+
+### スタンドアロン
+
+```bash
+# 起動
+docker compose up -d
+
+# 再ビルド
+docker compose up -d --build
+
+# ログ確認
+docker compose logs -f
+
+# 停止
+docker compose down
+```
+
+ブラウザで http://localhost:3012 にアクセスします。
+
+> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/shares/ からアクセスできます。

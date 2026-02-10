@@ -1,9 +1,41 @@
+# ============================================
+# 相続税案件管理 - Docker Compose (本番)
+# ============================================
+# Usage:
+#   起動:   docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:   docker compose logs -f
+#   停止:   docker compose down
+#   開発:   docker compose -f docker-compose.dev.yml up -d
+# ============================================
+
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 30s
+
 services:
+  # ===========================================
+  # PostgreSQL
+  # Port: 3022 → 5432
+  # ===========================================
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: itcm-db
     restart: unless-stopped
     environment:
+      <<: *common-env
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-inheritance_tax_db}
@@ -12,17 +44,21 @@ services:
     ports:
       - "${DB_PORT:-3022}:5432"
     shm_size: 128m
+    logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-inheritance_tax_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
 
+  # ===========================================
+  # バックエンドAPI（Hono + Prisma）
+  # Port: 3021
+  #
+  # 機能:
+  #   - 相続税案件のCRUD API
+  #   - PostgreSQLによるデータ永続化
+  # ===========================================
   api:
     build:
       context: ../..
@@ -30,6 +66,7 @@ services:
     container_name: itcm-api
     restart: unless-stopped
     environment:
+      <<: *common-env
       NODE_ENV: production
       PORT: "3021"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
@@ -41,12 +78,26 @@ services:
       postgres:
         condition: service_healthy
     stop_grace_period: 30s
-    logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "5"
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3021/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      <<: *healthcheck-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
 
+  # ===========================================
+  # フロントエンド（Next.js）
+  # Port: 3020
+  #
+  # 機能:
+  #   - 案件一覧・詳細・編集
+  #   - 分析ダッシュボード
+  #   - 担当者・紹介元マスタ管理
+  # ===========================================
   web:
     build:
       context: ../..
@@ -55,17 +106,25 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3021/api}
     container_name: itcm-web
     restart: unless-stopped
+    environment:
+      <<: *common-env
     ports:
       - "3020:3020"
     depends_on:
       api:
         condition: service_healthy
     stop_grace_period: 15s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      <<: *healthcheck-defaults
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
 
 volumes:
   postgres_data:

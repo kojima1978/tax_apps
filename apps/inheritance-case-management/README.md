@@ -10,7 +10,7 @@
 |---------|------|
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, TanStack Query |
 | Backend | Hono, TypeScript, Prisma ORM, Zod |
-| Database | PostgreSQL 15 |
+| Database | PostgreSQL 16 |
 | Infrastructure | Docker, Docker Compose |
 
 ## 機能
@@ -64,6 +64,8 @@ docker compose -f docker-compose.dev.yml up --build
 ```bash
 docker compose up --build -d
 ```
+
+> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/itcm/ からアクセスできます。
 
 ## ポート設定
 

@@ -1,28 +1,35 @@
 # Dependencies
 node_modules
-npm-debug.log*
+.pnpm-store
 
-# Build output
+# Build outputs
 dist
+out
+build
+*.tsbuildinfo
 
 # Testing
 coverage
 *.lcov
+.nyc_output
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
 
-# Local env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Development
+.env*.local
+.turbo
 
-# IDEs
+# IDEs and editors
 .vscode
 .idea
 *.swp
 *.swo
 *~
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
@@ -31,12 +38,23 @@ Thumbs.db
 .gitignore
 .gitattributes
 
-# Docker
-Dockerfile
-docker-compose.yml
+# Docker (prevent recursion)
+Dockerfile*
+docker-compose*.yml
 .dockerignore
 
 # Documentation
 README.md
 CHANGELOG.md
 LICENSE
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Misc
+*.log
+*.pem
+.vercel
+.netlify

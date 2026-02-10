@@ -45,38 +45,24 @@
 ### Docker を使用する場合（推奨）
 
 ```bash
-# アプリディレクトリで実行
-cd apps/gift-tax-docs
-
-# 開発サーバー起動
-docker compose --profile dev up
-
-# バックグラウンドで起動
-docker compose --profile dev up -d
+# 起動
+docker compose up -d
 
 # 再ビルド（Dockerfile変更時）
-docker compose --profile dev up -d --build
+docker compose up -d --build
 
 # ログの確認
-docker compose --profile dev logs -f
+docker compose logs -f
 
 # 停止
-docker compose --profile dev down
+docker compose down
 ```
 
 アクセス: [http://localhost:3002/gift-tax-docs/](http://localhost:3002/gift-tax-docs/)
 
 > **Note**: `next.config.ts` で `basePath: '/gift-tax-docs'` が設定されているため、URLにはサブパスが必要です。
 
-### 本番ビルド
-
-```bash
-# 本番コンテナ起動
-docker compose --profile prod up -d
-
-# 本番コンテナ停止
-docker compose --profile prod down
-```
+> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/gift-tax-docs/ からアクセスできます。
 
 ## ディレクトリ構成
 
@@ -228,20 +214,17 @@ interface EditableDocument {
 
 全ステージで `COPY --link` を使用し、BuildKit のレイヤーキャッシュを最大化しています。
 
-### docker-compose.yml（プロファイル構成）
+### docker-compose.yml（スタンドアロン開発用）
 
-| プロファイル | サービス | ターゲット | ポート | 特徴 |
-|-------------|---------|-----------|--------|------|
-| `dev` | gift-tax-docs-dev | dev | 3002→3000 | ソースバインドマウント、名前付きボリューム（node_modules, .next）、watchpack polling |
-| `prod` | gift-tax-docs-prod | runner | 3002→3002 | read_only、cap_drop ALL、リソース制限、tini init |
+| サービス | ターゲット | ポート | 特徴 |
+|---------|-----------|--------|------|
+| gift-tax-docs | dev | 3002 | ソースバインドマウント(:ro)、watchpack polling、ヘルスチェック |
 
 ```bash
-# 開発
-docker compose --profile dev up
-
-# 本番
-docker compose --profile prod up -d
+docker compose up -d
 ```
+
+> 本番環境は中央の `docker/docker-compose.yml` + `docker-compose.prod.yml` で管理されます。
 
 ## Scripts
 

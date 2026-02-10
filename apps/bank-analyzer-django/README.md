@@ -116,38 +116,30 @@ bank-analyzer-django/
 ### 前提条件
 - Docker / Docker Compose
 
-### 本番環境
+### 開発環境（スタンドアロン）
 
 ```bash
 # 環境変数ファイルを作成（初回のみ）
 cp .env.example .env
 # 必要に応じて .env を編集
 
+# 起動
 docker compose up -d
-```
 
-### 開発環境
+# 再ビルド
+docker compose up -d --build
 
-```bash
-docker compose --profile dev up web-dev
-```
-
-ソースコードがマウントされ、変更時にホットリロードされます。
-
-### 共通コマンド
-
-```bash
 # ログ確認
 docker compose logs -f
 
 # 停止
 docker compose down
-
-# 再ビルド
-docker compose build --no-cache
 ```
 
 ブラウザで http://localhost:8000/ にアクセスします。
+ソースコードがマウントされ、変更時にホットリロードされます。
+
+> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/bank-analyzer/ からアクセスできます。本番環境は `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` で起動します。
 
 ## 画面構成
 
@@ -260,21 +252,22 @@ docker compose build --no-cache
 
 ## Docker設定詳細
 
-### 本番環境 (web)
-
-- **WSGIサーバー**: Gunicorn（2ワーカー）
-- **リソース制限**: CPU 1.0コア、メモリ 512MB
-- **ログローテーション**: 10MB × 3ファイル
-- **セキュリティ**: `no-new-privileges`、非rootユーザー実行
-- **ヘルスチェック**: 15秒間隔、30秒の起動猶予
-- **初期化**: tini（PID 1としてシグナル処理）
-
-### 開発環境 (web-dev)
+### スタンドアロン（docker-compose.yml）
 
 - **サーバー**: Django runserver（ホットリロード対応）
-- **ソースマウント**: `.:/app` でコード変更を即座に反映
-- **リソース制限**: CPU 2.0コア、メモリ 1GB（緩和）
+- **ソースマウント**: `analyzer/` `bank_project/` を読み取り専用でマウント
+- **データ永続化**: SQLite を名前付きボリュームに保存
+- **リソース制限**: メモリ 512MB
+- **ヘルスチェック**: `/health/` エンドポイント
+- **初期化**: tini（PID 1としてシグナル処理）
 - **マイグレーション**: エントリポイントで自動実行
+
+### 本番環境（中央 docker-compose.prod.yml）
+
+- **WSGIサーバー**: Gunicorn（2ワーカー）
+- **ビルドターゲット**: `production`（非rootユーザー実行）
+- **ログローテーション**: 10MB × 3ファイル
+- **セキュリティ**: `no-new-privileges`
 
 ## ライセンス
 

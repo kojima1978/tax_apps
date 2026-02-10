@@ -19,7 +19,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # ============================================
 FROM base AS deps
 COPY package*.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+RUN --mount=type=cache,id=npm-tax-docs-frontend,target=/root/.npm npm ci --no-audit --no-fund
 
 # ============================================
 # 開発用ステージ
@@ -58,7 +58,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
 ARG NODE_OPTIONS="--max-old-space-size=4096"
 
 # .next/cache をキャッシュマウントし、増分ビルドを高速化
-RUN --mount=type=cache,target=/app/.next/cache mkdir -p public && npm run build
+RUN --mount=type=cache,id=nextjs-tax-docs-frontend,target=/app/.next/cache mkdir -p public && npm run build
 
 # ============================================
 # 本番ステージ

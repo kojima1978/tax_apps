@@ -29,17 +29,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # =============================================================================
 FROM base AS deps
 
-# Copy package files (lock file may not exist on initial setup)
-COPY package.json ./
-COPY package-lock.json* ./
+# Copy only package files first (better layer caching)
+COPY package.json package-lock.json ./
 
-# Install dependencies with caching
-RUN --mount=type=cache,target=/root/.npm \
-    if [ -f package-lock.json ]; then \
-      npm ci --no-audit --no-fund; \
-    else \
-      npm install --no-audit --no-fund; \
-    fi
+# Install dependencies with caching (id= prevents collision with other apps)
+RUN --mount=type=cache,id=npm-retirement-tax-calc,target=/root/.npm \
+    npm ci --no-audit --no-fund
 
 # =============================================================================
 # Development stage - For local development with hot reload
@@ -56,8 +51,8 @@ COPY --link . .
 
 EXPOSE 3013
 
-# Use exec form for proper signal handling
-CMD ["npm", "run", "dev", "--", "-p", "3013"]
+# Port is controlled by docker-compose command override
+CMD ["npm", "run", "dev"]
 
 # =============================================================================
 # Builder stage - Build the production application
@@ -75,8 +70,8 @@ COPY --from=deps --link /app/node_modules ./node_modules
 # Copy source files
 COPY --link . .
 
-# Build with persistent cache for faster rebuilds
-RUN --mount=type=cache,target=/app/.next/cache \
+# Build with persistent cache for faster rebuilds (id= prevents collision with other apps)
+RUN --mount=type=cache,id=nextjs-retirement-tax-calc,target=/app/.next/cache \
     mkdir -p public && \
     npm run build && \
     rm -rf node_modules/.cache

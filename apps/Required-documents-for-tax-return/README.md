@@ -60,6 +60,8 @@ docker compose up -d --build
 
 ソースコードはボリュームマウントされており、変更時にホットリロードされます。
 
+> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/tax-docs/ からアクセスできます。
+
 ```bash
 # ログ確認
 docker compose logs -f
