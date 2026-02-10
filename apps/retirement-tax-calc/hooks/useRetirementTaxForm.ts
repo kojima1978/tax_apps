@@ -52,10 +52,15 @@ export const useRetirementTaxForm = () => {
         handleAmountChange(0, String(limitAmount));
     }, [handleAmountChange]);
 
-    const handleServiceYearsChange = useCallback((val: number) => { setServiceYears(val); markDirty(); }, [markDirty]);
-    const handleRetirementTypeChange = useCallback((val: RetirementType) => { setRetirementType(val); markDirty(); }, [markDirty]);
-    const handleDisabilityChange = useCallback((val: boolean) => { setIsDisability(val); markDirty(); }, [markDirty]);
-    const handleTaxYearChange = useCallback((val: string) => { setTaxYear(val); markDirty(); }, [markDirty]);
+    const withDirty = useCallback(
+        <T,>(setter: (val: T) => void) => (val: T) => { setter(val); markDirty(); },
+        [markDirty],
+    );
+
+    const handleServiceYearsChange = withDirty(setServiceYears);
+    const handleRetirementTypeChange = withDirty(setRetirementType);
+    const handleDisabilityChange = withDirty(setIsDisability);
+    const handleTaxYearChange = withDirty(setTaxYear);
 
     return {
         formProps: {

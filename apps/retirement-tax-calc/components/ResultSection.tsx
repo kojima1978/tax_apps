@@ -3,6 +3,12 @@ import { TAX_RATES } from "@/lib/tax-rates";
 import { formatYen } from "@/lib/utils";
 import ReferenceTables from "./ReferenceTables";
 
+const SUMMARY_ITEMS: { label: string; getValue: (r: RetirementTaxResult) => string }[] = [
+    { label: "手取額", getValue: (r) => formatYen(r.netAmount) },
+    { label: "税額合計", getValue: (r) => formatYen(r.totalTax) },
+    { label: "実効税率", getValue: (r) => `${calcEffectiveTaxRate(r.amount, r.totalTax)}%` },
+];
+
 type ResultSectionProps = {
     results: (RetirementTaxResult | null)[];
     isDirty: boolean;
@@ -111,23 +117,16 @@ const ResultSection = ({ results, isDirty }: ResultSectionProps) => {
             <div className="summary-patterns">
                 {activeIndices.map((i) => {
                     const r = results[i]!;
-                    const rate = calcEffectiveTaxRate(r.amount, r.totalTax);
                     return (
                         <div key={i} className={`summary-pattern pattern-bg-${i}`}>
                             <span className="pattern-header">{PATTERN_LABELS[i]}</span>
                             <div className="pattern-summary-row">
-                                <div className="pattern-summary-item">
-                                    <span className="ps-label">手取額</span>
-                                    <span className="ps-value">{formatYen(r.netAmount)}</span>
-                                </div>
-                                <div className="pattern-summary-item">
-                                    <span className="ps-label">税額合計</span>
-                                    <span className="ps-value">{formatYen(r.totalTax)}</span>
-                                </div>
-                                <div className="pattern-summary-item">
-                                    <span className="ps-label">実効税率</span>
-                                    <span className="ps-value">{rate}%</span>
-                                </div>
+                                {SUMMARY_ITEMS.map((item) => (
+                                    <div key={item.label} className="pattern-summary-item">
+                                        <span className="ps-label">{item.label}</span>
+                                        <span className="ps-value">{item.getValue(r)}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     );

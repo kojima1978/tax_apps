@@ -43,3 +43,9 @@ export const parseFormattedNumber = (val: string): number => {
  * input[type="number"] の値を非負整数にパースする
  */
 export const parseIntInput = (val: string): number => Math.max(0, parseInt(val) || 0);
+
+/**
+ * 日付を「YYYY年M月D日」形式にフォーマットする
+ */
+export const formatJapaneseDate = (date: Date): string =>
+    `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;

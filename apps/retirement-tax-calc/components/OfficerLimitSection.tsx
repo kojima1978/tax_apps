@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useId } from "react";
+import InputWithUnit from "./InputWithUnit";
 import { OFFICER_PRESETS, calcOfficerLimit } from "@/lib/retirement-tax";
 import { formatYen, formatInputValue, parseFormattedNumber, parseIntInput } from "@/lib/utils";
 
@@ -43,17 +44,15 @@ const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmo
             <div className="officer-inputs">
                 <div className="input-item">
                     <label htmlFor={compId}>最終月額報酬</label>
-                    <div className="input-with-unit">
-                        <input
-                            type="text"
-                            id={compId}
-                            value={monthlyComp}
-                            onChange={(e) => setMonthlyComp(formatInputValue(e.target.value))}
-                            placeholder="例: 1,000,000"
-                            inputMode="numeric"
-                        />
-                        <span className="unit">円</span>
-                    </div>
+                    <InputWithUnit
+                        unit="円"
+                        type="text"
+                        id={compId}
+                        value={monthlyComp}
+                        onChange={(e) => setMonthlyComp(formatInputValue(e.target.value))}
+                        placeholder="例: 1,000,000"
+                        inputMode="numeric"
+                    />
                 </div>
 
                 <div className="input-item">
@@ -87,17 +86,15 @@ const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmo
                     </div>
                     <div className="input-item">
                         <label htmlFor={yearsId}>勤続年数</label>
-                        <div className="input-with-unit">
-                            <input
-                                type="number"
-                                id={yearsId}
-                                min="1"
-                                max="100"
-                                value={serviceYears || ""}
-                                onChange={(e) => onServiceYearsChange(parseIntInput(e.target.value))}
-                            />
-                            <span className="unit">年</span>
-                        </div>
+                        <InputWithUnit
+                            unit="年"
+                            type="number"
+                            id={yearsId}
+                            min="1"
+                            max="100"
+                            value={serviceYears || ""}
+                            onChange={(e) => onServiceYearsChange(parseIntInput(e.target.value))}
+                        />
                     </div>
                 </div>
             </div>

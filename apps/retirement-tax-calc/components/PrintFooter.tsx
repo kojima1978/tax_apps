@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useEffect, useId } from "react";
-
-const formatDate = (date: Date): string => {
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-};
+import { formatJapaneseDate } from "@/lib/utils";
 
 const PrintFooter = () => {
     const [staff, setStaff] = useState("");
@@ -12,7 +9,7 @@ const PrintFooter = () => {
     const staffId = useId();
 
     useEffect(() => {
-        setToday(formatDate(new Date()));
+        setToday(formatJapaneseDate(new Date()));
     }, []);
 
     return (
