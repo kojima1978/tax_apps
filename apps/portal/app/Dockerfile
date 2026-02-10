@@ -29,7 +29,7 @@ COPY package*.json ./
 
 # Docker用: libsql → better-sqlite3 に置き換え
 # libsql関連パッケージを除外してインストール後、better-sqlite3を追加
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=npm-portal,target=/root/.npm \
     sed -i '/@prisma\/adapter-libsql/d' package.json && \
     sed -i '/@libsql\/client/d' package.json && \
     npm ci && \

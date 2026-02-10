@@ -1,5 +1,5 @@
 # ============================================
-# 銀行取引分析ツール - Docker Compose
+# 相続税早見表アプリ - Docker Compose
 # ============================================
 # Usage:
 #   開発:   docker compose up -d
@@ -22,43 +22,37 @@ x-healthcheck-defaults: &healthcheck-defaults
   interval: 30s
   timeout: 10s
   retries: 5
-  start_period: 30s
+  start_period: 60s
 
 services:
   # ===========================================
-  # 銀行取引分析ツール（Django runserver）
-  # Port: 8000
+  # 相続税早見表アプリ（Vite dev server）
+  # Port: 5173
   #
   # 機能:
-  #   - 銀行取引CSVの読込・分析
-  #   - 相続税申告向け取引分類
-  #   - SQLiteによるデータ永続化
+  #   - 相続税額の簡易シミュレーション
+  #   - 法定相続人パターン別の税額早見表
   # ===========================================
-  bank-analyzer-django:
+  inheritance-tax-app:
     build:
       context: .
       dockerfile: Dockerfile
       target: dev
-    container_name: bank-analyzer-standalone
+    container_name: inheritance-tax-app-standalone
     ports:
-      - "8000:8000"
+      - "5173:5173"
     volumes:
       # ソースコードをマウント（ホットリロード用）
-      - ./analyzer:/app/analyzer:ro
-      - ./bank_project:/app/bank_project:ro
-      # データ永続化
-      - bank_analyzer_data:/app/db
+      - ./src:/app/src:ro
+      - ./public:/app/public:ro
     environment:
       <<: *common-env
-      DJANGO_DEBUG: "True"
-      DJANGO_SECRET_KEY: dev-secret-key-not-for-production
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
-      DB_PATH: /app/db/db.sqlite3
+      NODE_ENV: development
     init: true
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')\""]
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:5173/inheritance-tax-app/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -66,7 +60,3 @@ services:
           memory: 512M
         reservations:
           memory: 128M
-
-volumes:
-  bank_analyzer_data:
-    name: bank-analyzer-sqlite

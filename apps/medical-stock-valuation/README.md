@@ -55,19 +55,25 @@ npm run build
 npm start
 ```
 
-### Dockerでの実行
-
-#### 開発環境
+### Dockerでの実行（スタンドアロン）
 
 ```bash
-docker-compose up dev
+# 開発環境（ホットリロード付き）
+docker compose up -d
+
+# 再ビルド
+docker compose up -d --build
+
+# ログ確認
+docker compose logs -f
+
+# 停止
+docker compose down
 ```
 
-#### 本番環境
+ブラウザで http://localhost:3010 にアクセスします。
 
-```bash
-docker-compose up prod
-```
+> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/medical/ からアクセスできます。
 
 ## データベース
 
@@ -156,7 +162,7 @@ doctor-nextjs/
 │   └── doctor.db                           # SQLiteデータベース
 ├── ER_DIAGRAM.md                           # データベースER図
 ├── Dockerfile                              # Docker設定
-├── docker-compose.yml                      # Docker Compose設定
+├── docker compose.yml                      # Docker Compose設定
 └── package.json
 ```
 
@@ -196,74 +202,64 @@ npx tsx scripts/add-is-active-to-similar-industry.ts
 #### 1. ログの確認
 ```bash
 # コンテナのログを確認
-docker-compose logs dev
-# または本番環境
-docker-compose logs prod
+docker compose logs
 
 # リアルタイムでログを監視
-docker-compose logs -f dev
+docker compose logs -f
 ```
 
 #### 2. アプリケーションへのアクセス
-- **開発環境**: [http://localhost:3010](http://localhost:3010)
-- **本番環境**: [http://localhost:3011](http://localhost:3011)
+- **スタンドアロン**: [http://localhost:3010](http://localhost:3010)
+- **Gateway経由**: [http://localhost/medical/](http://localhost/medical/)
 
 #### 3. コンテナの再起動
 ```bash
 # コンテナを停止して再起動
-docker-compose down
-docker-compose up dev
+docker compose down
+docker compose up -d
 
 # または強制的に再ビルド
-docker-compose down
-docker-compose build --no-cache dev
-docker-compose up dev
+docker compose down
+docker compose build --no-cache
+docker compose up -d
 ```
 
-#### 3. コンテナの状態確認
+#### 4. コンテナの状態確認
 ```bash
 # 実行中のコンテナを確認
 docker ps -a
 
 # 特定のコンテナに入ってデバッグ
-docker exec -it doctor-nextjs-dev sh
+docker exec -it medical-stock-valuation-standalone sh
 
 # コンテナ内でファイルを確認
-docker exec -it doctor-nextjs-dev ls -la /app
+docker exec -it medical-stock-valuation-standalone ls -la /app
 ```
 
-#### 4. データベースの問題確認
+#### 5. データベースの問題確認
 ```bash
 # データベースファイルの存在確認
-docker exec -it doctor-nextjs-dev ls -la /app/data
+docker exec -it medical-stock-valuation-standalone ls -la /app/data
 
 # データベースの権限確認
-docker exec -it doctor-nextjs-dev ls -l /app/data/doctor.db
-
-# 権限エラーの場合は修正
-docker exec -it doctor-nextjs-dev chown nextjs:nodejs /app/data/doctor.db
+docker exec -it medical-stock-valuation-standalone ls -l /app/data/doctor.db
 ```
 
-#### 5. ボリュームのクリーンアップ（注意：データが消えます）
+#### 6. ボリュームのクリーンアップ（注意：データが消えます）
 ```bash
 # すべてのコンテナとボリュームを削除
-docker-compose down -v
+docker compose down -v
 
 # ボリュームを再作成して起動
-docker-compose up dev
+docker compose up -d
 ```
 
-#### 6. よくある問題
+#### 7. よくある問題
 
 **ポートが既に使用されている**
 ```bash
 # Windowsでポートを確認
-netstat -ano | findstr :3000
-
-# docker-compose.ymlでポート番号を変更
-# docker-compose.ymlでポート番号を変更
-ports:
-  - "3012:3010"  # ホスト側のポートを変更（内部は3010）
+netstat -ano | findstr :3010
 ```
 
 **本番環境の自動再起動**

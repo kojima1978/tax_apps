@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=pip-bank-analyzer,target=/root/.cache/pip \
     pip wheel --wheel-dir=/build/wheels -r requirements.txt
 
 # ------------------------------------------

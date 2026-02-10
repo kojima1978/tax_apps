@@ -38,20 +38,17 @@
 ### Docker（推奨）
 
 ```bash
-# 開発サーバー起動
-docker compose --profile dev up
-
-# バックグラウンドで起動
-docker compose --profile dev up -d
+# 起動
+docker compose up -d
 
 # 再ビルドして起動
-docker compose --profile dev up -d --build
+docker compose up -d --build
 
 # ログ確認
-docker compose logs -f dev
+docker compose logs -f
 
 # 停止
-docker compose --profile dev down
+docker compose down
 ```
 
 ### ローカル
@@ -61,25 +58,14 @@ npm install
 npm run dev
 ```
 
-## 本番環境
-
-```bash
-# ビルドと起動
-docker compose --profile prod up -d --build
-
-# 状態確認
-docker compose ps
-
-# 停止
-docker compose --profile prod down
-```
-
 ## アクセス
 
 | 環境 | URL |
 |------|-----|
 | シミュレーター | http://localhost:3001/gift-tax-simulator/ |
 | 早見表 | http://localhost:3001/gift-tax-simulator/table |
+
+> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/gift-tax-simulator/ からアクセスできます。
 
 ## プロジェクト構成
 
@@ -144,16 +130,17 @@ docker compose --profile prod down
 
 ## Docker設定
 
-### 開発環境の特徴
+### スタンドアロン（docker-compose.yml）
 - ホットリロード対応
-- ソースコードのバインドマウント
-- node_modulesのボリューム永続化
+- ソースコードのバインドマウント(:ro)
+- ヘルスチェック設定
+- リソース制限（メモリ）
 
-### 本番環境の特徴
+### 本番環境（中央 docker/docker-compose.prod.yml）
 - マルチステージビルドによる軽量イメージ
 - 非rootユーザーで実行
 - ヘルスチェック設定
-- リソース制限（CPU/メモリ）
+- リソース制限（メモリ）
 - セキュリティオプション有効
 
 ## ライセンス

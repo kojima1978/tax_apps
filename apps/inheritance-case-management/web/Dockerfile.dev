@@ -10,7 +10,7 @@ ENV NODE_ENV=development
 WORKDIR /app
 
 # Copy workspace config and all package.json files
-COPY pnpm-workspace.yaml package.json ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/validation/package.json ./packages/validation/
 COPY packages/ui/package.json ./packages/ui/
@@ -18,7 +18,7 @@ COPY apps/inheritance-case-management/web/package.json ./apps/inheritance-case-m
 
 # Install dependencies with pnpm store cache
 RUN --mount=type=cache,id=pnpm-store-icm-web-dev,target=/root/.local/share/pnpm/store \
-    pnpm install
+    pnpm install --frozen-lockfile
 
 # Copy source files selectively to preserve pnpm symlinks
 COPY packages/shared/src ./packages/shared/src

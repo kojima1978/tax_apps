@@ -76,7 +76,7 @@ nginx/
 | `/inheritance-tax-app/` | `inheritance-tax-app:5173` | 相続税計算 (Vite) |
 | `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド |
 | `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター |
-| `/gift-tax-docs/` | `gift-tax-docs:3000` | 贈与税 必要書類 |
+| `/gift-tax-docs/` | `gift-tax-docs:3002` | 贈与税 必要書類 |
 | `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 |
 | `/bank-analyzer/` | `bank-analyzer:8000` | 銀行分析 (Django) |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |

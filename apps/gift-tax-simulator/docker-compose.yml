@@ -1,109 +1,69 @@
-# Gift Tax Simulator - Docker Compose Configuration
+# ============================================
+# 贈与税計算シミュレーター - Docker Compose
+# ============================================
 # Usage:
-#   Development: docker compose --profile dev up
-#   Production:  docker compose --profile prod up -d
+#   開発:   docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:   docker compose logs -f
+#   停止:   docker compose down
+# ============================================
+
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+  NEXT_TELEMETRY_DISABLED: "1"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s
 
 services:
-  # ===========================================================================
-  # Development Service
-  # ===========================================================================
-  dev:
-    container_name: gift-tax-simulator-dev
+  # ===========================================
+  # 贈与税計算シミュレーター
+  # Port: 3001
+  #
+  # 機能:
+  #   - 贈与税計算（暦年課税・相続時精算課税）
+  #   - 贈与税早見表
+  #   - 間接税シミュレーター（土地・建物）
+  # ===========================================
+  gift-tax-simulator:
     build:
       context: .
+      dockerfile: Dockerfile
       target: dev
-      args:
-        NODE_VERSION: 22
-    ports:
-      - "3001:3000"
-    volumes:
-      - .:/app:cached
-      - node_modules:/app/node_modules
-      - next_cache:/app/.next
-    environment:
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
-      CHOKIDAR_USEPOLLING: "true"
-      NEXT_TELEMETRY_DISABLED: "1"
-      TZ: Asia/Tokyo
-    stdin_open: true
-    tty: true
-    profiles:
-      - dev
-    networks:
-      - app-network
-    labels:
-      - "app.name=gift-tax-simulator"
-      - "app.env=development"
-
-  # ===========================================================================
-  # Production Service
-  # ===========================================================================
-  prod:
-    container_name: gift-tax-simulator-prod
-    build:
-      context: .
-      target: runner
-      args:
-        NODE_VERSION: 22
+    container_name: gift-tax-simulator-standalone
     ports:
       - "3001:3001"
+    volumes:
+      # ソースコードをマウント（ホットリロード用）
+      - ./app:/app/app:ro
+      - ./components:/app/components:ro
+      - ./hooks:/app/hooks:ro
+      - ./lib:/app/lib:ro
+      - ./public:/app/public:ro
     environment:
-      NODE_ENV: production
-      NEXT_TELEMETRY_DISABLED: "1"
-      TZ: Asia/Tokyo
-    restart: unless-stopped
+      <<: *common-env
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+    command: npm run dev -- -p 3001
     init: true
-    read_only: true
-    tmpfs:
-      - /tmp:noexec,nosuid,size=64m
-    security_opt:
-      - no-new-privileges:true
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3001/gift-tax-simulator/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      <<: *healthcheck-defaults
     deploy:
       resources:
         limits:
-          cpus: "1.0"
           memory: 512M
         reservations:
-          cpus: "0.25"
           memory: 128M
-    healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - |
-          const http = require('http');
-          const req = http.get('http://127.0.0.1:3001/gift-tax-simulator/', r => {
-            process.exit(r.statusCode === 200 ? 0 : 1);
-          });
-          req.on('error', () => process.exit(1));
-          req.setTimeout(4000, () => { req.destroy(); process.exit(1); });
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
-    profiles:
-      - prod
-    networks:
-      - app-network
-    labels:
-      - "app.name=gift-tax-simulator"
-      - "app.env=production"
-
-volumes:
-  node_modules:
-    name: gift-tax-simulator-node-modules
-  next_cache:
-    name: gift-tax-simulator-next-cache
-
-networks:
-  app-network:
-    name: gift-tax-simulator-network
-    driver: bridge

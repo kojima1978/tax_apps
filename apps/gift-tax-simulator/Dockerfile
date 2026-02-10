@@ -32,8 +32,8 @@ FROM base AS deps
 # Copy only package files first (better layer caching)
 COPY package.json package-lock.json ./
 
-# Install dependencies with caching
-RUN --mount=type=cache,target=/root/.npm \
+# Install dependencies with caching (id= prevents collision with other apps)
+RUN --mount=type=cache,id=npm-gift-tax-simulator,target=/root/.npm \
     npm ci --no-audit --no-fund
 
 # =============================================================================
@@ -49,9 +49,9 @@ COPY --from=deps --link /app/node_modules ./node_modules
 # Copy source code
 COPY --link . .
 
-EXPOSE 3000
+EXPOSE 3001
 
-# Use exec form for proper signal handling
+# Port is controlled by docker-compose command override
 CMD ["npm", "run", "dev"]
 
 # =============================================================================
@@ -70,8 +70,8 @@ COPY --from=deps --link /app/node_modules ./node_modules
 # Copy source files
 COPY --link . .
 
-# Build with persistent cache for faster rebuilds
-RUN --mount=type=cache,target=/app/.next/cache \
+# Build with persistent cache for faster rebuilds (id= prevents collision with other apps)
+RUN --mount=type=cache,id=nextjs-gift-tax-simulator,target=/app/.next/cache \
     mkdir -p public && \
     npm run build && \
     rm -rf node_modules/.cache

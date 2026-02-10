@@ -17,7 +17,7 @@ COPY apps/inheritance-case-management/api/package.json ./apps/inheritance-case-m
 
 # Install dependencies with pnpm store cache
 RUN --mount=type=cache,id=pnpm-store-icm-api-dev,target=/root/.local/share/pnpm/store \
-    pnpm install
+    pnpm install --frozen-lockfile
 
 # Copy source files (only src and tsconfig, not node_modules)
 COPY packages/shared/src ./packages/shared/src

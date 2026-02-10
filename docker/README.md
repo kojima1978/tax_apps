@@ -294,13 +294,19 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 
 - **Nginx (Gateway)**: `wget --spider http://127.0.0.1/health`
 - **Node.js**: `node -e "(async()=>{...fetch('http://127.0.0.1:PORT/...')...})()"`
-- **Python (Django)**: `python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')"`
+- **Python (Django)**: `python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/')"`
 - **PostgreSQL**: `pg_isready -U <user> -d <db>`
 
 ## 更新履歴
 
 ### 2026-02 (後半)
 
+- **Docker基盤改善**: Dockerfile app-specific cache mount IDs、standalone docker-compose.yml作成（shares-valuation/inheritance-tax-app）、.dockerignore Pattern A標準化
+- **docker-compose.prod.yml**: `command: []` 追加（medical-stock-valuation/shares-valuation/gift-tax-docs）、bank-analyzer `build.target: production`
+- **docker-compose.yml**: 不足volume mount追加（public/:ro, hooks/:ro）、bank-analyzer `target: dev`/`:ro`/healthcheck URL修正、itcm-postgres `shm_size`
+- **Dockerfile修正**: gift-tax-docs/gift-tax-simulator EXPOSE ポート修正、icm Dockerfile.dev `--frozen-lockfile`/`pnpm-lock.yaml`追加
+- **PostgreSQL統一**: 全standalone composeをpostgres:16-alpineに統一、pg_isready `-d`フラグ追加
+- **README/env整備**: medical-stock-valuation `docker-compose`→`docker compose`、bank-analyzer `--profile`削除、.env.example不足変数追加
 - **retirement-tax-calc**: 退職金税額計算シミュレーター新規追加（3パターン比較・役員限度額・参照表・印刷対応）
 - **docker-compose**: デプロイリソース定義をYAMLアンカー化してDRY化（7箇所のインライン定義→アンカー参照）
 - **docker-compose.yml**: gift-tax-docsの冗長な`build.args.NODE_VERSION`を削除

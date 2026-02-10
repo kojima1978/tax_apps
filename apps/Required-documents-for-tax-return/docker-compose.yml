@@ -1,18 +1,40 @@
 # ============================================
-# Tax Documents App - Docker Compose (開発用)
+# 確定申告 必要書類案内 - Docker Compose
 # ============================================
 # Usage:
-#   起動:       docker compose up -d
-#   再ビルド:   docker compose up -d --build
-#   ログ:       docker compose logs -f
-#   停止:       docker compose down
-#   本番:       docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   開発:   docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:   docker compose logs -f
+#   停止:   docker compose down
+#   本番:   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # ============================================
 
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+  NEXT_TELEMETRY_DISABLED: "1"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 30s
+
 services:
-  # ==========================================
+  # ===========================================
   # バックエンドAPI（Express + SQLite）
-  # ==========================================
+  # Port: 3006 → 3001
+  #
+  # 機能:
+  #   - 必要書類データのCRUD API
+  #   - SQLiteによるデータ永続化
+  # ===========================================
   backend:
     build:
       context: ./backend
@@ -22,28 +44,21 @@ services:
     ports:
       - "3006:3001"
     volumes:
+      # ソースコードをマウント（ホットリロード用）
       - ./backend/src:/app/src:ro
-      - ./backend/package.json:/app/package.json:ro
-      - ./backend/tsconfig.json:/app/tsconfig.json:ro
+      # データ永続化
       - backend-data:/app/data
     environment:
-      - NODE_ENV=development
-      - PORT=3001
-      - TZ=Asia/Tokyo
+      <<: *common-env
+      NODE_ENV: development
+      PORT: "3001"
     init: true
     restart: unless-stopped
-    stop_grace_period: 10s
+    logging: *default-logging
     healthcheck:
-      test: ["CMD", "node", "-e", "(async()=>{try{const r=await fetch('http://127.0.0.1:3001/api/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3001/api/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      <<: *healthcheck-defaults
       start_period: 8s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     deploy:
       resources:
         limits:
@@ -51,10 +66,14 @@ services:
         reservations:
           memory: 128M
 
-  # ==========================================
+  # ===========================================
   # フロントエンド（Next.js）
-  # http://localhost:3005/tax-docs/
-  # ==========================================
+  # Port: 3005 → 3000
+  #
+  # 機能:
+  #   - 確定申告に必要な書類のリスト管理
+  #   - 申告区分ごとの書類表示
+  # ===========================================
   frontend:
     build:
       context: ./frontend
@@ -64,35 +83,24 @@ services:
     ports:
       - "3005:3000"
     volumes:
+      # ソースコードをマウント（ホットリロード用）
       - ./frontend/src:/app/src:ro
       - ./frontend/public:/app/public:ro
-      - ./frontend/package.json:/app/package.json:ro
-      - ./frontend/next.config.ts:/app/next.config.ts:ro
-      - ./frontend/tsconfig.json:/app/tsconfig.json:ro
-      - ./frontend/postcss.config.mjs:/app/postcss.config.mjs:ro
     environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:3006
-      - NEXT_TELEMETRY_DISABLED=1
-      - WATCHPACK_POLLING=true
-      - TZ=Asia/Tokyo
+      <<: *common-env
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3006
+      WATCHPACK_POLLING: "true"
     depends_on:
       backend:
         condition: service_healthy
     init: true
     restart: unless-stopped
-    stop_grace_period: 10s
+    logging: *default-logging
     healthcheck:
-      test: ["CMD", "node", "-e", "(async()=>{try{const r=await fetch('http://127.0.0.1:3000/tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3000/tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      <<: *healthcheck-defaults
+      start_period: 120s
     deploy:
       resources:
         limits:
@@ -106,4 +114,3 @@ services:
 volumes:
   backend-data:
     name: tax-docs-data
-    driver: local

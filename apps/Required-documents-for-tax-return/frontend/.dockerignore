@@ -1,39 +1,18 @@
 # Dependencies
 node_modules
-npm-debug.log*
+.pnpm-store
 
-# Build output
+# Build outputs
 .next
 out
 build
+dist
 *.tsbuildinfo
 next-env.d.ts
 
-# IDE
-.idea
-.vscode
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Git
-.git
-.gitignore
-
-# Docker
-Dockerfile*
-docker-compose*
-.dockerignore
-
-# Documentation
-README.md
-*.md
-
-# Tests
+# Testing
 coverage
+*.lcov
 .nyc_output
 __tests__
 *.test.ts
@@ -41,11 +20,43 @@ __tests__
 *.spec.ts
 *.spec.tsx
 
-# Environment
-.env
-.env.*
-!.env.example
+# Development
+.env*.local
+.turbo
+
+# IDEs and editors
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker (prevent recursion)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
 
 # Misc
 *.log
-.turbo
+*.pem
+.vercel
+.netlify

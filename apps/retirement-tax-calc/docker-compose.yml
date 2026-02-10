@@ -1,5 +1,5 @@
 # ============================================
-# 銀行取引分析ツール - Docker Compose
+# 退職金税額計算シミュレーター - Docker Compose
 # ============================================
 # Usage:
 #   開発:   docker compose up -d
@@ -11,6 +11,7 @@
 # 共通設定
 x-common-env: &common-env
   TZ: Asia/Tokyo
+  NEXT_TELEMETRY_DISABLED: "1"
 
 x-logging: &default-logging
   driver: "json-file"
@@ -22,43 +23,44 @@ x-healthcheck-defaults: &healthcheck-defaults
   interval: 30s
   timeout: 10s
   retries: 5
-  start_period: 30s
+  start_period: 120s
 
 services:
   # ===========================================
-  # 銀行取引分析ツール（Django runserver）
-  # Port: 8000
+  # 退職金税額計算シミュレーター
+  # Port: 3013
   #
   # 機能:
-  #   - 銀行取引CSVの読込・分析
-  #   - 相続税申告向け取引分類
-  #   - SQLiteによるデータ永続化
+  #   - 退職金の税額計算（所得税・復興特別所得税・住民税）
+  #   - 最大3パターンの比較シミュレーション
+  #   - 役員退職金限度額の計算
+  #   - 退職所得控除額・速算表の参照
+  #   - 印刷対応
   # ===========================================
-  bank-analyzer-django:
+  retirement-tax-calc:
     build:
       context: .
       dockerfile: Dockerfile
       target: dev
-    container_name: bank-analyzer-standalone
+    container_name: retirement-tax-calc-standalone
     ports:
-      - "8000:8000"
+      - "3013:3013"
     volumes:
       # ソースコードをマウント（ホットリロード用）
-      - ./analyzer:/app/analyzer:ro
-      - ./bank_project:/app/bank_project:ro
-      # データ永続化
-      - bank_analyzer_data:/app/db
+      - ./app:/app/app:ro
+      - ./components:/app/components:ro
+      - ./hooks:/app/hooks:ro
+      - ./lib:/app/lib:ro
     environment:
       <<: *common-env
-      DJANGO_DEBUG: "True"
-      DJANGO_SECRET_KEY: dev-secret-key-not-for-production
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
-      DB_PATH: /app/db/db.sqlite3
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+    command: npm run dev -- -p 3013
     init: true
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')\""]
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3013/retirement-tax-calc/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -66,7 +68,3 @@ services:
           memory: 512M
         reservations:
           memory: 128M
-
-volumes:
-  bank_analyzer_data:
-    name: bank-analyzer-sqlite
