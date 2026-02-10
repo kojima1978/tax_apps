@@ -12,7 +12,7 @@ import { parseFormattedNumber } from "@/lib/utils";
 type RetirementFormProps = {
     amounts: string[];
     onAmountChange: (index: number, val: string) => void;
-    onApplyLimit: (amount: number) => void;
+    onApplyLimit: (amount: number, index: number) => void;
     serviceYears: number;
     onServiceYearsChange: (years: number) => void;
     retirementType: RetirementType;

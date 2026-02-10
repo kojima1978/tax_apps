@@ -23,7 +23,7 @@ x-healthcheck-defaults: &healthcheck-defaults
   interval: 30s
   timeout: 10s
   retries: 5
-  start_period: 120s
+  start_period: 60s
 
 services:
   # ===========================================
@@ -40,7 +40,6 @@ services:
   retirement-tax-calc:
     build:
       context: .
-      dockerfile: Dockerfile
       target: dev
     container_name: retirement-tax-calc-standalone
     ports:
@@ -60,7 +59,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3013/retirement-tax-calc/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3013/retirement-tax-calc/ || exit 1"]
       <<: *healthcheck-defaults
     deploy:
       resources:

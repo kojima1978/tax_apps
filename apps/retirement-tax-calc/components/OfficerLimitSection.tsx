@@ -2,14 +2,14 @@
 
 import { useState, useMemo, useId } from "react";
 import InputWithUnit from "./InputWithUnit";
-import { OFFICER_PRESETS, calcOfficerLimit } from "@/lib/retirement-tax";
+import { OFFICER_PRESETS, PATTERN_LABELS, calcOfficerLimit } from "@/lib/retirement-tax";
 import { formatYen, formatInputValue, parseFormattedNumber, parseIntInput } from "@/lib/utils";
 
 type OfficerLimitSectionProps = {
     serviceYears: number;
     onServiceYearsChange: (years: number) => void;
     retirementAmount: number;
-    onApplyToAmount: (amount: number) => void;
+    onApplyToAmount: (amount: number, index: number) => void;
 };
 
 const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmount, onApplyToAmount }: OfficerLimitSectionProps) => {
@@ -108,13 +108,18 @@ const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmo
                         <div className="limit-value">
                             限度額: <strong>{formatYen(limit)}</strong>
                         </div>
-                        <button
-                            type="button"
-                            className="btn-apply-limit"
-                            onClick={() => onApplyToAmount(limit)}
-                        >
-                            案①に反映
-                        </button>
+                        <div className="limit-apply-buttons">
+                            {PATTERN_LABELS.map((label, i) => (
+                                <button
+                                    key={label}
+                                    type="button"
+                                    className={`btn-apply-limit pattern-apply-${i}`}
+                                    onClick={() => onApplyToAmount(limit, i)}
+                                >
+                                    {label}に反映
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {isOverLimit && (

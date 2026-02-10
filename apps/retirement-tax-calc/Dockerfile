@@ -30,11 +30,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 FROM base AS deps
 
 # Copy only package files first (better layer caching)
-COPY package.json ./
+COPY package.json package-lock.json ./
 
 # Install dependencies with caching (id= prevents collision with other apps)
 RUN --mount=type=cache,id=npm-retirement-tax-calc,target=/root/.npm \
-    npm install --no-audit --no-fund
+    npm ci
 
 # =============================================================================
 # Development stage - For local development with hot reload
@@ -112,9 +112,9 @@ USER nextjs
 
 EXPOSE 3013
 
-# Health check for container orchestration (uses Node 22+ native fetch)
+# Health check for container orchestration
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3013/retirement-tax-calc/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
+    CMD wget --quiet --tries=1 --spider http://127.0.0.1:3013/retirement-tax-calc/ || exit 1
 
 # Graceful shutdown signal
 STOPSIGNAL SIGTERM
