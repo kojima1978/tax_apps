@@ -9,8 +9,6 @@ import {
   RefreshCw,
   Info,
   AlertCircle,
-  CheckCircle,
-  X,
   Home,
 } from 'lucide-react';
 import { CATEGORIES, type CategoryData, type DocumentItem, type CustomDocumentItem, type DocChanges } from '../constants/documents';
@@ -18,6 +16,7 @@ import { exportToExcel } from '../utils/excelExporter';
 import { type ExportData } from '../utils/jsonDataManager';
 import { formatDate, formatDeadline } from '../utils/helpers';
 import { useJsonImport } from '../hooks/useJsonImport';
+import { DismissibleBanner } from './ui/DismissibleBanner';
 import { EditableCategoryTable } from './ui/EditableCategoryTable';
 
 interface Stats {
@@ -59,26 +58,6 @@ interface UnifiedDocumentViewProps {
   onOpenAddModal: (categoryId: string) => void;
   onStartEdit: (docId: string) => void;
   getSelectedDocuments: () => { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[];
-}
-
-function DismissibleBanner({ message, onDismiss, variant }: { message: string | null; onDismiss: () => void; variant: 'error' | 'success' }) {
-  if (!message) return null;
-  const isError = variant === 'error';
-  return (
-    <div className={`mx-6 mt-4 p-3 border rounded-lg text-sm flex items-center justify-between no-print ${
-      isError ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-    }`}>
-      <div className="flex items-center">
-        {isError
-          ? <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-          : <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />}
-        {message}
-      </div>
-      <button onClick={onDismiss} className={isError ? 'text-red-500 hover:text-red-700' : 'text-emerald-500 hover:text-emerald-700'}>
-        <X className="w-4 h-4" />
-      </button>
-    </div>
-  );
 }
 
 function UnifiedDocumentViewComponent({
@@ -126,7 +105,7 @@ function UnifiedDocumentViewComponent({
     setExportError(null);
     try {
       const results = getSelectedDocuments();
-      exportToExcel({ results, isFullListMode: false, clientName, deceasedName, deadline, specificDocNames });
+      exportToExcel({ results, clientName, deceasedName, deadline, specificDocNames });
     } catch (error) {
       console.error('Excel export failed:', error);
       setExportError('Excelファイルの出力に失敗しました。もう一度お試しください。');

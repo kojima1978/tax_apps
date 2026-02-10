@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { CATEGORIES, type CategoryData, type DocumentItem, type CustomDocumentItem, type DocChanges } from '../constants/documents';
 import { createExportData, downloadAsJson, type ExportData } from '../utils/jsonDataManager';
+import { useDocumentModal } from './useDocumentModal';
 
 // 全カテゴリを展開状態で初期化
 function initializeExpanded() {
@@ -33,35 +34,6 @@ export function useDocumentGuide() {
   const [clientName, setClientName] = useState('');
   const [deceasedName, setDeceasedName] = useState('');
   const [deadline, setDeadline] = useState('');
-
-  // モーダル state
-  const [editingDocId, setEditingDocId] = useState<string | null>(null);
-  const [addingToCategoryId, setAddingToCategoryId] = useState<string | null>(null);
-
-  // 編集モーダル用: 編集対象の書類データを取得
-  const editingDocData = useMemo(() => {
-    if (!editingDocId) return undefined;
-    const edited = editedDocuments[editingDocId];
-    for (const cat of CATEGORIES) {
-      const doc = cat.documents.find((d) => d.id === editingDocId);
-      if (doc) {
-        return {
-          name: edited?.name ?? doc.name,
-          description: edited?.description ?? doc.description,
-          howToGet: edited?.howToGet ?? doc.howToGet,
-        };
-      }
-    }
-    const customDoc = customDocuments.find((d) => d.id === editingDocId);
-    if (customDoc) {
-      return {
-        name: edited?.name ?? customDoc.name,
-        description: edited?.description ?? customDoc.description,
-        howToGet: edited?.howToGet ?? customDoc.howToGet,
-      };
-    }
-    return undefined;
-  }, [editingDocId, editedDocuments, customDocuments]);
 
   const toggleExpanded = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => ({ ...prev, [categoryId]: !prev[categoryId] }));
@@ -117,6 +89,9 @@ export function useDocumentGuide() {
       )
     );
   }, []);
+
+  // モーダル
+  const modal = useDocumentModal({ editedDocuments, customDocuments, editDocument, addCustomDocument });
 
   const toggleCanDelegate = useCallback((docId: string, originalCanDelegate: boolean) => {
     setCanDelegateOverrides((prev) => {
@@ -238,30 +213,13 @@ export function useDocumentGuide() {
     return { totalBuiltIn, deletedCount, customCount, activeCount: totalBuiltIn - deletedCount + customCount };
   }, [deletedDocuments, customDocuments]);
 
-  // モーダルハンドラー
-  const openEditModal = useCallback((docId: string) => { setEditingDocId(docId); }, []);
-  const openAddModal = useCallback((categoryId: string) => { setAddingToCategoryId(categoryId); }, []);
-  const closeModal = useCallback(() => { setEditingDocId(null); setAddingToCategoryId(null); }, []);
-
-  const handleEditSubmit = useCallback((values: { name: string; description: string; howToGet: string }) => {
-    if (editingDocId) editDocument(editingDocId, values);
-    closeModal();
-  }, [editingDocId, editDocument, closeModal]);
-
-  const handleAddSubmit = useCallback((values: { name: string; description: string; howToGet: string }) => {
-    if (addingToCategoryId) addCustomDocument(addingToCategoryId, values.name, values.description, values.howToGet);
-    closeModal();
-  }, [addingToCategoryId, addCustomDocument, closeModal]);
-
   return {
     // state
     expandedCategories, deletedDocuments, customDocuments, documentOrder,
     editedDocuments, canDelegateOverrides, specificDocNames,
     clientName, deceasedName, deadline, stats,
     // モーダル
-    editingDocId, editingDocData,
-    isModalOpen: editingDocId !== null || addingToCategoryId !== null,
-    modalVariant: (editingDocId ? 'edit' : 'add') as 'edit' | 'add',
+    ...modal,
     // handlers
     setClientName, setDeceasedName, setDeadline,
     toggleExpanded, deleteDocument, restoreDocument,
@@ -270,7 +228,5 @@ export function useDocumentGuide() {
     addSpecificName, editSpecificName, removeSpecificName,
     deleteAllInCategory, restoreAllInCategory, restoreAll,
     exportToJson, importFromJson, getSelectedDocuments,
-    openEditModal, openAddModal, closeModal,
-    handleEditSubmit, handleAddSubmit,
   };
 }
