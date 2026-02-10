@@ -1,10 +1,11 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, RotateCcw, Pencil, X, Plus } from 'lucide-react';
+import { GripVertical, Trash2, RotateCcw, Pencil, X } from 'lucide-react';
 import type { DocumentItem, CustomDocumentItem, DocChanges } from '../../constants/documents';
+import { SpecificNamesList } from './SpecificNamesList';
 
 export interface EditableDocumentRowProps {
   doc: DocumentItem | CustomDocumentItem;
@@ -54,11 +55,6 @@ const RowContent = memo(function RowContent({
   isDragging = false,
   dragHandleProps,
 }: RowContentProps) {
-  const [addingName, setAddingName] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingValue, setEditingValue] = useState('');
-
   const displayName = editedValues?.name ?? doc.name;
   const displayDescription = editedValues?.description ?? doc.description;
   const displayHowToGet = editedValues?.howToGet ?? doc.howToGet;
@@ -118,88 +114,13 @@ const RowContent = memo(function RowContent({
         )}
         {/* 具体的書類名 */}
         {!isDeleted && (
-          <div className="mt-1 print:mt-0">
-            {specificNames.length > 0 && (
-              <ul className="space-y-0.5">
-                {specificNames.map((name, i) => (
-                  <li key={i} className="flex items-center gap-1 text-xs text-slate-600">
-                    {editingIndex === i ? (
-                      <input
-                        type="text"
-                        value={editingValue}
-                        onChange={(e) => setEditingValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && editingValue.trim()) {
-                            onEditSpecificName(doc.id, i, editingValue.trim());
-                            setEditingIndex(null);
-                            setEditingValue('');
-                          } else if (e.key === 'Escape') {
-                            setEditingIndex(null);
-                            setEditingValue('');
-                          }
-                        }}
-                        autoFocus
-                        className="flex-1 px-2 py-0.5 border border-blue-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                      />
-                    ) : (
-                      <>
-                        <span className="text-slate-400 mr-0.5">・</span>
-                        <span className="flex-1">{name}</span>
-                      </>
-                    )}
-                    {editingIndex !== i && (
-                      <span className="print:hidden flex items-center gap-0.5">
-                        <button
-                          onClick={() => { setEditingIndex(i); setEditingValue(name); }}
-                          className="p-0.5 text-slate-300 hover:text-blue-500 transition-colors"
-                          title="編集"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => onRemoveSpecificName(doc.id, i)}
-                          className="p-0.5 text-slate-300 hover:text-red-500 transition-colors"
-                          title="削除"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {addingName ? (
-              <div className="flex items-center gap-1 mt-0.5 print:hidden">
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newName.trim()) {
-                      onAddSpecificName(doc.id, newName.trim());
-                      setNewName('');
-                      setAddingName(false);
-                    } else if (e.key === 'Escape') {
-                      setNewName('');
-                      setAddingName(false);
-                    }
-                  }}
-                  placeholder="例：三菱UFJ銀行 普通口座"
-                  autoFocus
-                  className="flex-1 px-2 py-0.5 border border-blue-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                />
-              </div>
-            ) : (
-              <button
-                onClick={() => setAddingName(true)}
-                className="flex items-center gap-0.5 mt-0.5 text-xs text-blue-500 hover:text-blue-700 transition-colors print:hidden"
-              >
-                <Plus className="w-3 h-3" />
-                具体名追加
-              </button>
-            )}
-          </div>
+          <SpecificNamesList
+            docId={doc.id}
+            names={specificNames}
+            onAdd={onAddSpecificName}
+            onEdit={onEditSpecificName}
+            onRemove={onRemoveSpecificName}
+          />
         )}
       </td>
 

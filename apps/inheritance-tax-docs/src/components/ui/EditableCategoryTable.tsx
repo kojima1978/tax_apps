@@ -125,6 +125,26 @@ function EditableCategoryTableComponent({
     .filter((doc) => !deletedDocuments[doc.id])
     .map((doc) => doc.id);
 
+  const tableHead = (
+    <thead className="bg-slate-100">
+      <tr>
+        <th className="w-8 px-1 py-2 text-center print:w-6">
+          <span className="print:hidden">≡</span>
+          <span className="hidden print:inline">✓</span>
+        </th>
+        <th className="px-3 py-2 text-left font-bold text-slate-700">必要書類名</th>
+        <th className="px-3 py-2 text-left font-bold text-slate-700 hidden md:table-cell print:table-cell">
+          内容説明
+        </th>
+        <th className="px-3 py-2 text-left font-bold text-slate-700 hidden lg:table-cell print:table-cell">
+          取得方法
+        </th>
+        <th className="w-16 px-2 py-2 text-center font-bold text-slate-700 print:w-12">代行</th>
+        <th className="w-20 px-1 py-2 text-center font-bold text-slate-700 print:hidden">操作</th>
+      </tr>
+    </thead>
+  );
+
   const getRowProps = (doc: DocumentItem | CustomDocumentItem, index: number): EditableDocumentRowProps => {
     const isCustom = isCustomDocument(doc);
     const originalCanDelegate = isCustom ? false : ((doc as DocumentItem).canDelegate ?? false);
@@ -193,45 +213,34 @@ function EditableCategoryTableComponent({
 
       {/* テーブル本体（折りたたみ時は print のみ表示） */}
       <div className={`border border-t-0 border-slate-200 rounded-b-lg overflow-hidden print:border-t print:rounded-sm ${isExpanded ? '' : 'hidden print:block'}`}>
-        <table className="w-full text-sm print-compact-table">
-          <thead className="bg-slate-100">
-            <tr>
-              <th className="w-8 px-1 py-2 text-center print:w-6">
-                <span className="print:hidden">≡</span>
-                <span className="hidden print:inline">✓</span>
-              </th>
-              <th className="px-3 py-2 text-left font-bold text-slate-700">必要書類名</th>
-              <th className="px-3 py-2 text-left font-bold text-slate-700 hidden md:table-cell print:table-cell">
-                内容説明
-              </th>
-              <th className="px-3 py-2 text-left font-bold text-slate-700 hidden lg:table-cell print:table-cell">
-                取得方法
-              </th>
-              <th className="w-16 px-2 py-2 text-center font-bold text-slate-700 print:w-12">代行</th>
-              <th className="w-20 px-1 py-2 text-center font-bold text-slate-700 print:hidden">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isExpanded && isMounted ? (
-              <DndContext
-                id={dndId}
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
+        {isExpanded && isMounted ? (
+          <DndContext
+            id={dndId}
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <table className="w-full text-sm print-compact-table">
+              {tableHead}
+              <tbody>
                 <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
                   {orderedDocs.map((doc, i) => (
                     <SortableDocumentRow key={doc.id} {...getRowProps(doc, i)} />
                   ))}
                 </SortableContext>
-              </DndContext>
-            ) : (
-              orderedDocs.map((doc, i) => (
+              </tbody>
+            </table>
+          </DndContext>
+        ) : (
+          <table className="w-full text-sm print-compact-table">
+            {tableHead}
+            <tbody>
+              {orderedDocs.map((doc, i) => (
                 <StaticDocumentRow key={doc.id} {...getRowProps(doc, i)} />
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        )}
         {/* 書類追加ボタン */}
         <button
           onClick={() => onOpenAddModal(category.id)}

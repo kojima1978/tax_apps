@@ -4,7 +4,6 @@ import { isCustomDocument, formatDate, formatDeadline } from './helpers';
 
 export interface ExcelExportParams {
   results: { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[];
-  isFullListMode: boolean;
   clientName: string;
   deceasedName: string;
   deadline: string;
@@ -139,7 +138,7 @@ function pushEmptyRow(wsData: object[][]): void {
  * Excel ファイルをエクスポート
  */
 export function exportToExcel(params: ExcelExportParams): void {
-  const { results, isFullListMode, clientName, deceasedName, deadline, specificDocNames } = params;
+  const { results, clientName, deceasedName, deadline, specificDocNames } = params;
   const exportDate = formatDate(new Date());
 
   const wb = XLSX.utils.book_new();
@@ -149,7 +148,7 @@ export function exportToExcel(params: ExcelExportParams): void {
   wsData.push([{ v: '相続税申告 資料準備ガイド', s: styles.title }]);
   wsData.push([{ v: `発行日: ${exportDate}`, s: styles.subTitle }]);
   wsData.push([{ v: '税理士法人 マスエージェント', s: styles.subTitle }]);
-  wsData.push([{ v: isFullListMode ? '【全リスト表示】' : '【お客様専用リスト】', s: styles.badge }]);
+  wsData.push([{ v: '【お客様専用リスト】', s: styles.badge }]);
   pushEmptyRow(wsData);
 
   // 基本情報（入力されている場合）
@@ -219,10 +218,6 @@ export function exportToExcel(params: ExcelExportParams): void {
   pushMergedRow(wsData, noticeRows, '【ご留意事項】', styles.noticeHeader);
   pushMergedRow(wsData, noticeRows, '・原本が必要な書類と、コピーで対応可能な書類がございます。ご不明な点は担当者にご確認ください。', styles.noticeText);
   pushMergedRow(wsData, noticeRows, '・公的機関（市役所等）で取得する証明書は、原則として発行後3ヶ月以内のものをご用意ください。', styles.noticeText);
-
-  if (isFullListMode) {
-    pushMergedRow(wsData, noticeRows, '・本リストは「全項目表示」モードで出力されています。お客様の状況により不要な書類も含まれていますのでご注意ください。', styles.noticeText);
-  }
 
   pushEmptyRow(wsData);
 
