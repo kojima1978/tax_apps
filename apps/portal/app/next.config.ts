@@ -1,35 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Docker standalone出力
-  output: "standalone",
+  // 静的HTMLエクスポート（nginx で配信）
+  output: "export",
 
-  // Prisma関連パッケージ
-  serverExternalPackages: [
-    "@prisma/adapter-libsql",
-    "@libsql/client",
-    "@prisma/adapter-better-sqlite3",
-    "better-sqlite3",
-  ],
+  // next/image: export モードでは unoptimized 必須
+  images: { unoptimized: true },
 
-  // セキュリティヘッダー
-  headers: async () => [
-    {
-      source: "/:path*",
-      headers: [
-        { key: "X-Content-Type-Options", value: "nosniff" },
-        { key: "X-Frame-Options", value: "SAMEORIGIN" },
-        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-      ],
-    },
-  ],
-
-  // 開発時のログ抑制
-  logging: {
-    fetches: {
-      fullUrl: false,
-    },
-  },
+  // セキュリティヘッダーは nginx ゲートウェイで設定済み
 };
 
 export default nextConfig;

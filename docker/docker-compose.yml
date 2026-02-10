@@ -13,13 +13,13 @@
 # 共通設定
 x-common-env: &common-env
   TZ: Asia/Tokyo
-  NEXT_TELEMETRY_DISABLED: "1"
 
 # Next.js 開発サービス共通
 x-nextjs-dev-env: &nextjs-dev-env
   <<: *common-env
   NODE_ENV: development
   WATCHPACK_POLLING: "true"
+  NEXT_TELEMETRY_DISABLED: "1"
 
 x-logging: &default-logging
   driver: "json-file"
@@ -31,7 +31,7 @@ x-healthcheck-defaults: &healthcheck-defaults
   interval: 30s
   timeout: 10s
   retries: 5
-  start_period: 120s
+  start_period: 60s
 
 # サービス共通設定（ネットワーク・再起動・ログ・シグナル処理）
 x-service-defaults: &service-defaults
@@ -49,7 +49,7 @@ x-default-deploy: &default-deploy
     reservations:
       memory: 128M
 
-# 軽量リソース制限 (128M/32M) - gateway
+# 軽量リソース制限 (128M/32M) - gateway, portal
 x-small-deploy: &small-deploy
   resources:
     limits:
@@ -73,7 +73,6 @@ services:
     <<: *service-defaults
     build:
       context: ../nginx
-      dockerfile: Dockerfile
     container_name: tax-apps-gateway
     ports:
       - "80:80"
@@ -101,20 +100,14 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/portal/app
-      dockerfile: Dockerfile
     container_name: portal-app
     ports:
       - "3000:3000"
-    volumes:
-      - portal_data:/data
-    environment:
-      <<: *common-env
-      NODE_ENV: production
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3000');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3000/ || exit 1" ]
       <<: *healthcheck-defaults
-      start_period: 60s
-    deploy: *default-deploy
+      start_period: 5s
+    deploy: *small-deploy
 
   # ===========================================
   # 医療法人株式評価システム
@@ -124,7 +117,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/medical-stock-valuation
-      dockerfile: Dockerfile
       target: dev
     container_name: medical-stock-valuation
     ports:
@@ -140,7 +132,7 @@ services:
       <<: *nextjs-dev-env
     command: npm run dev -- -p 3010
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3010/medical/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3010/medical/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -152,7 +144,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/shares-valuation
-      dockerfile: Dockerfile
       target: dev
     container_name: shares-valuation
     ports:
@@ -163,7 +154,7 @@ services:
       <<: *nextjs-dev-env
     command: npm run dev -- -p 3012
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3012/shares/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3012/shares/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -216,7 +207,7 @@ services:
       itcm-postgres:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3021/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3021/health || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -244,7 +235,7 @@ services:
       itcm-backend:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3020/itcm/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -256,7 +247,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/bank-analyzer-django
-      dockerfile: Dockerfile
       target: dev
     container_name: bank-analyzer
     ports:
@@ -275,7 +265,7 @@ services:
       DJANGO_STATIC_URL: /bank-analyzer/static/
     command: [ "/docker-entrypoint.sh", "python", "manage.py", "runserver", "0.0.0.0:8000" ]
     healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/')\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:8000/health/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -287,7 +277,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/inheritance-tax-app
-      dockerfile: Dockerfile
       target: dev
     container_name: inheritance-tax-app
     ports:
@@ -300,7 +289,7 @@ services:
       NODE_ENV: development
     command: npm run dev -- --host
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:5173/inheritance-tax-app/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:5173/inheritance-tax-app/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -313,7 +302,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/gift-tax-simulator
-      dockerfile: Dockerfile
       target: dev
     container_name: gift-tax-simulator
     ports:
@@ -328,7 +316,7 @@ services:
       <<: *nextjs-dev-env
     command: npm run dev -- -p 3001
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3001/gift-tax-simulator/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3001/gift-tax-simulator/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -341,7 +329,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/gift-tax-docs
-      dockerfile: Dockerfile
       target: dev
     container_name: gift-tax-docs
     ports:
@@ -353,9 +340,8 @@ services:
       <<: *nextjs-dev-env
     command: npm run dev -- -p 3002
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3002/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3002/gift-tax-docs/ || exit 1" ]
       <<: *healthcheck-defaults
-      start_period: 60s
     deploy: *default-deploy
 
   # ===========================================
@@ -366,7 +352,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/inheritance-tax-docs
-      dockerfile: Dockerfile
       target: dev
     container_name: inheritance-tax-docs
     ports:
@@ -378,7 +363,7 @@ services:
       <<: *nextjs-dev-env
     command: npm run dev -- -p 3003
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3003/inheritance-tax-docs/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -390,7 +375,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/retirement-tax-calc
-      dockerfile: Dockerfile
       target: dev
     container_name: retirement-tax-calc
     ports:
@@ -404,7 +388,7 @@ services:
       <<: *nextjs-dev-env
     command: npm run dev -- -p 3013
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3013/retirement-tax-calc/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3013/retirement-tax-calc/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -416,7 +400,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/Required-documents-for-tax-return/backend
-      dockerfile: Dockerfile
       target: dev
     container_name: tax-docs-backend
     ports:
@@ -429,7 +412,7 @@ services:
       NODE_ENV: development
       PORT: "3001"
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3001/api/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3001/api/health || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *medium-deploy
 
@@ -441,7 +424,6 @@ services:
     <<: *service-defaults
     build:
       context: ../apps/Required-documents-for-tax-return/frontend
-      dockerfile: Dockerfile
       target: dev
       args:
         NEXT_PUBLIC_API_URL: /tax-docs-api
@@ -457,7 +439,7 @@ services:
       tax-docs-backend:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3000/tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3000/tax-docs/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 
@@ -473,8 +455,6 @@ networks:
 # ボリューム
 # ===========================================
 volumes:
-  portal_data:
-    name: tax-apps-portal-data
   itcm_postgres_data:
     name: tax-apps-itcm-postgres
   tax_docs_data:
