@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { fetchStaff, updateStaffName } from '@/utils/api';
+import { getErrorMessage } from '@/utils/error';
 import { ChevronLeft, Loader2, Save } from 'lucide-react';
 import Link from 'next/link';
 import FormErrorDisplay from '@/components/FormErrorDisplay';
@@ -50,7 +51,7 @@ export default function EditStaffPage() {
             await updateStaffName(id, name, mobileNumber);
             router.push('/staff');
         } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : '更新に失敗しました');
+            setError(getErrorMessage(e, '更新に失敗しました'));
             setIsSubmitting(false);
         }
     };

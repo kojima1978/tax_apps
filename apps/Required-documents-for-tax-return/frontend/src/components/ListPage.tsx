@@ -2,6 +2,7 @@
 
 import { useState, useEffect, ReactNode } from 'react';
 import { Plus, Trash2, Edit2, Loader2, ChevronLeft } from 'lucide-react';
+import { getErrorMessage } from '@/utils/error';
 import Link from 'next/link';
 
 interface ListPageProps<T extends { id: number }> {
@@ -57,7 +58,7 @@ export default function ListPage<T extends { id: number }>({
             await onDelete(item.id);
             await loadItems();
         } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : '削除に失敗しました');
+            setError(getErrorMessage(e, '削除に失敗しました'));
         }
     };
 

@@ -1,5 +1,6 @@
 import { Check, Edit2, Trash2, X } from 'lucide-react';
 import { SubItem } from '@/types';
+import { handleInlineKeyDown } from '@/utils/keyboard';
 
 interface SubItemComponentProps {
     subItem: SubItem;
@@ -37,10 +38,7 @@ export function SubItemComponent({
                         onChange={(e) => onEditTextChange(e.target.value)}
                         className="flex-1 px-2 py-1 border border-slate-300 rounded mr-2 text-sm"
                         autoFocus
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') onSaveEdit();
-                            if (e.key === 'Escape') onCancelEdit();
-                        }}
+                        onKeyDown={handleInlineKeyDown(onSaveEdit, onCancelEdit)}
                     />
                     <button onClick={onSaveEdit} className="p-1 text-green-600 hover:text-green-800">
                         <Check className="w-3 h-3" />

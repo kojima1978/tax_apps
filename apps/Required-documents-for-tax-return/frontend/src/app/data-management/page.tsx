@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, Trash2, Edit2, Check, X, Search, Loader2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { fetchRecords, deleteDocument, updateCustomerName, DataRecord, fetchStaff } from '@/utils/api';
+import { getErrorMessage } from '@/utils/error';
 import { formatDateTime, toReiwa } from '@/utils/date';
 import { Staff } from '@/types';
 
@@ -80,7 +81,7 @@ export default function DataManagementPage() {
       await deleteDocument(id);
       setRecords((prev) => prev.filter((r) => r.id !== id));
     } catch (error) {
-      alert(error instanceof Error ? error.message : '削除に失敗しました');
+      alert(getErrorMessage(error, '削除に失敗しました'));
     }
   };
 
@@ -123,7 +124,7 @@ export default function DataManagementPage() {
       );
       cancelEdit();
     } catch (error) {
-      alert(error instanceof Error ? error.message : '更新に失敗しました');
+      alert(getErrorMessage(error, '更新に失敗しました'));
     }
   };
 

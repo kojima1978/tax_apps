@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addStaff } from '@/utils/api';
+import { getErrorMessage } from '@/utils/error';
 import { ChevronLeft, Loader2, Save, User, Phone, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import FormErrorDisplay from '@/components/FormErrorDisplay';
@@ -31,7 +32,7 @@ export default function CreateStaffPage() {
                 router.push('/staff');
             }
         } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : '登録に失敗しました');
+            setError(getErrorMessage(e, '登録に失敗しました'));
             setIsSubmitting(false);
         }
     };

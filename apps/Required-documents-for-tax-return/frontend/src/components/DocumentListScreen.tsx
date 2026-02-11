@@ -23,6 +23,8 @@ import { CategoryGroup } from '@/types';
 import { SortableCategory } from './document-list/SortableCategory';
 import { formatDate, toReiwa } from '@/utils/date';
 import { fetchStaff } from '@/utils/api';
+import { getErrorMessage } from '@/utils/error';
+import { handleInlineKeyDown } from '@/utils/keyboard';
 import { taxReturnData, replaceYearPlaceholder } from '@/data/taxReturnData';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { useDocumentListEditing } from '@/hooks/useDocumentListEditing';
@@ -157,7 +159,7 @@ export default function DocumentListScreen({
       onDocumentGroupsChange(importedData.document_groups);
       alert('JSONデータをインポートしました。保存ボタンを押すとデータベースに反映されます。');
     } catch (error) {
-      alert('JSONインポートに失敗しました: ' + (error instanceof Error ? error.message : ''));
+      alert('JSONインポートに失敗しました: ' + getErrorMessage(error, ''));
     } finally {
       setIsJsonImporting(false);
       if (jsonFileInputRef.current) jsonFileInputRef.current.value = '';
@@ -448,13 +450,10 @@ export default function DocumentListScreen({
                   placeholder="カテゴリ名（例: 給与所得）"
                   className="flex-1 px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') editing.addCategory();
-                    if (e.key === 'Escape') {
-                      editing.setAddingNewCategory(false);
-                      editing.setNewCategoryName('');
-                    }
-                  }}
+                  onKeyDown={handleInlineKeyDown(editing.addCategory, () => {
+                    editing.setAddingNewCategory(false);
+                    editing.setNewCategoryName('');
+                  })}
                 />
                 <button
                   onClick={editing.addCategory}

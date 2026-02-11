@@ -34,6 +34,13 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** 文字列バリデーション: 空/非文字列/空白のみ → null、有効 → トリム済み文字列 */
+function requireTrimmedString(value: unknown): string | null {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 /** req.params.id をパースし、無効な場合は400レスポンスを返す */
 function parseId(req: express.Request, res: express.Response): number | null {
   const raw = req.params.id;
@@ -82,13 +89,14 @@ app.get('/api/health', (_req, res) => {
 
 // Create customer
 app.post('/api/customers', (req, res) => {
-  const { customerName, staffId } = req.body;
-  if (!customerName || typeof customerName !== 'string' || !customerName.trim() || !staffId) {
+  const { staffId } = req.body;
+  const trimmedName = requireTrimmedString(req.body.customerName);
+  if (!trimmedName || !staffId) {
     return res.status(400).json({ error: 'Valid customerName and staffId are required' });
   }
 
   try {
-    const customer = createCustomer(customerName.trim(), Number(staffId));
+    const customer = createCustomer(trimmedName, Number(staffId));
     res.json({ customer });
   } catch (e: unknown) {
     handleCreateError(res, e, 'この担当者に同名のお客様が既に登録されています');
@@ -99,13 +107,14 @@ app.post('/api/customers', (req, res) => {
 app.put('/api/customers/:id', (req, res) => {
   const id = parseId(req, res);
   if (id === null) return;
-  const { customerName, staffId } = req.body;
+  const { staffId } = req.body;
+  const trimmedName = requireTrimmedString(req.body.customerName);
 
-  if (!customerName || typeof customerName !== 'string' || !customerName.trim() || !staffId) {
+  if (!trimmedName || !staffId) {
     return res.status(400).json({ error: 'Valid customerName and staffId are required' });
   }
 
-  const success = updateCustomer(id, customerName.trim(), Number(staffId));
+  const success = updateCustomer(id, trimmedName, Number(staffId));
   if (!success) {
     return res.status(404).json({ error: 'Customer not found or duplicate name' });
   }
@@ -133,13 +142,13 @@ app.get('/api/customers', (_req, res) => {
 
 // 顧客検索
 app.get('/api/search', (req, res) => {
-  const { q } = req.query;
+  const trimmedQ = requireTrimmedString(req.query.q);
 
-  if (!q || typeof q !== 'string' || q.trim().length === 0) {
+  if (!trimmedQ) {
     return res.json({ results: [] });
   }
 
-  const results = searchCustomers(q.trim());
+  const results = searchCustomers(trimmedQ);
   res.json({ results });
 });
 
@@ -159,12 +168,13 @@ app.get('/api/staff', (_req, res) => {
 
 // Create staff
 app.post('/api/staff', (req, res) => {
-  const { staffName, mobileNumber } = req.body;
-  if (!staffName || typeof staffName !== 'string' || !staffName.trim()) {
+  const { mobileNumber } = req.body;
+  const trimmedName = requireTrimmedString(req.body.staffName);
+  if (!trimmedName) {
     return res.status(400).json({ error: 'Valid staffName is required' });
   }
   try {
-    const staff = createStaff(staffName.trim(), mobileNumber);
+    const staff = createStaff(trimmedName, mobileNumber);
     res.json({ staff });
   } catch (e: unknown) {
     handleCreateError(res, e, 'この担当者名は既に登録されています');
@@ -175,13 +185,14 @@ app.post('/api/staff', (req, res) => {
 app.put('/api/staff/:id', (req, res) => {
   const id = parseId(req, res);
   if (id === null) return;
-  const { staffName, mobileNumber } = req.body;
+  const { mobileNumber } = req.body;
+  const trimmedName = requireTrimmedString(req.body.staffName);
 
-  if (!staffName || typeof staffName !== 'string' || !staffName.trim()) {
+  if (!trimmedName) {
     return res.status(400).json({ error: 'Valid staffName is required' });
   }
 
-  const success = updateStaff(id, staffName.trim(), mobileNumber);
+  const success = updateStaff(id, trimmedName, mobileNumber);
   if (!success) {
     return res.status(404).json({ error: 'Staff not found' });
   }

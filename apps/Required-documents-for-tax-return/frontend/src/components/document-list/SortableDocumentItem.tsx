@@ -2,6 +2,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Check, Edit2, GripVertical, Plus, Trash2, X } from 'lucide-react';
 import { DocumentItem } from '@/types';
+import { handleInlineKeyDown } from '@/utils/keyboard';
 import { SubItemComponent } from './SubItemComponent';
 
 export interface SubItemHandlers {
@@ -86,10 +87,7 @@ export function SortableDocumentItem({
                             onChange={(e) => onEditTextChange(e.target.value)}
                             className="flex-1 px-2 py-1 border border-slate-300 rounded mr-2"
                             autoFocus
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') onSaveEdit();
-                                if (e.key === 'Escape') onCancelEdit();
-                            }}
+                            onKeyDown={handleInlineKeyDown(onSaveEdit, onCancelEdit)}
                         />
                         <button onClick={onSaveEdit} className="p-1 text-green-600 hover:text-green-800">
                             <Check className="w-4 h-4" />
@@ -169,10 +167,7 @@ export function SortableDocumentItem({
                         placeholder="小項目名を入力..."
                         className="flex-1 px-2 py-1 border border-slate-300 rounded-l text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         autoFocus
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') onAddSubItem(groupId, doc.id);
-                            if (e.key === 'Escape') onCancelAddSubItem();
-                        }}
+                        onKeyDown={handleInlineKeyDown(() => onAddSubItem(groupId, doc.id), onCancelAddSubItem)}
                     />
                     <button
                         onClick={() => onAddSubItem(groupId, doc.id)}
