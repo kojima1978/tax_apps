@@ -1,6 +1,10 @@
 import XLSX from 'xlsx-js-style';
 import { COMPANY_INFO, type DocumentGroup } from '@/constants';
 
+// 共通ボーダー定義
+const thinBorder = { style: 'thin', color: { rgb: 'E5E7EB' } } as const;
+const dashedBorder = { style: 'dashed', color: { rgb: 'F1F5F9' } } as const;
+
 // Excelスタイル定義
 const excelStyles = {
     title: {
@@ -24,46 +28,35 @@ const excelStyles = {
         alignment: { horizontal: 'left', vertical: 'center' },
         border: {
             left: { style: 'thick', color: { rgb: '10B981' } }, // border-l-4 border-emerald-500
-            top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            top: thinBorder,
+            bottom: thinBorder,
+            right: thinBorder,
         },
     },
     // 項目セル
     documentCell: {
         font: { sz: 11, color: { rgb: '374151' } }, // text-slate-700
         alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-        border: {
-            bottom: { style: 'dashed', color: { rgb: 'F1F5F9' } }, // border-dashed border-slate-100
-        },
+        border: { bottom: dashedBorder },
     },
     // 中項目セル
     subItemCell: {
         font: { sz: 10, color: { rgb: '6B7280' } }, // text-slate-500
         alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-        border: {
-            bottom: { style: 'dashed', color: { rgb: 'F1F5F9' } },
-        },
+        border: { bottom: dashedBorder },
     },
     // チェックボックスセル
     checkCell: {
         font: { sz: 14, color: { rgb: '059669' } },
-        alignment: { horizontal: 'center', vertical: 'top' }, // 上揃えにして、複数行テキストでも位置が合うように
-        border: {
-            bottom: { style: 'dashed', color: { rgb: 'F1F5F9' } },
-        },
+        alignment: { horizontal: 'center', vertical: 'top' },
+        border: { bottom: dashedBorder },
     },
     // 備考セル
     noteCell: {
         font: { sz: 10, italic: true, color: { rgb: '6B7280' } }, // text-slate-500
         alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
         fill: { fgColor: { rgb: 'F8FAFC' } }, // bg-slate-50
-        border: {
-            top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-            right: { style: 'thin', color: { rgb: 'E5E7EB' } },
-        },
+        border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
     },
     cautionHeader: {
         font: { bold: true, sz: 11, color: { rgb: 'B45309' } },
@@ -84,7 +77,7 @@ export function generateGiftTaxExcel(
     title: string,
     results: DocumentGroup[],
     currentDate: string,
-    isFullListMode: boolean,
+    hideSubmitted: boolean,
     staffName: string,
     staffPhone: string,
     customerName: string
@@ -123,7 +116,7 @@ export function generateGiftTaxExcel(
     }
 
     pushMergedRow(
-        isFullListMode ? '【全リスト表示】' : '【お客様専用リスト】',
+        hideSubmitted ? '【未提出のみ】' : '【全書類（取消線あり）】',
         excelStyles.badge,
     );
     pushEmptyRow();
@@ -134,9 +127,13 @@ export function generateGiftTaxExcel(
 
         // 書類リスト
         group.documents.forEach((doc) => {
+            const docStyle = doc.checked
+                ? { ...excelStyles.documentCell, font: { ...excelStyles.documentCell.font, strike: true, color: { rgb: '9CA3AF' } } }
+                : excelStyles.documentCell;
+            const checkMark = doc.checked ? '☑' : '☐';
             pushRow(
-                { v: '☐', s: excelStyles.checkCell },
-                { v: doc.text, s: excelStyles.documentCell },
+                { v: checkMark, s: excelStyles.checkCell },
+                { v: doc.text, s: docStyle },
             );
 
             // 中項目

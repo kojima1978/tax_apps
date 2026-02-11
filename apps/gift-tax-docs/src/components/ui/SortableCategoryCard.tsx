@@ -14,6 +14,7 @@ import {
   GripVertical,
 } from 'lucide-react';
 import type { EditableCategory } from '@/constants';
+import { handleInlineKeyDown } from './EditableInput';
 
 // ─── カテゴリ編集状態の型 ───
 
@@ -32,6 +33,20 @@ export type CategoryHandlers = {
   remove: (id: string) => void;
   toggleAll: (id: string, checked: boolean) => void;
 };
+
+// ─── カテゴリ名 + カウンター表示（カード・オーバーレイ共通） ───
+
+const CategoryNameDisplay = ({ category, checkedCount }: { category: EditableCategory; checkedCount: number }) => (
+  <>
+    <h3 className="font-bold text-slate-800">
+      {category.isSpecial && <span className="text-purple-600">【特例】</span>}
+      {category.name}
+    </h3>
+    <span className="px-2 py-0.5 bg-white rounded text-sm text-slate-600">
+      {checkedCount}/{category.documents.length}
+    </span>
+  </>
+);
 
 // ─── カテゴリ用ソート可能フック ───
 
@@ -60,9 +75,6 @@ const useSortableCategory = (categoryId: string) => {
 
 type SortableCategoryCardProps = {
   category: EditableCategory;
-  checkedCount: number;
-  allChecked: boolean;
-  someChecked: boolean;
   editState: CategoryEditState;
   handlers: CategoryHandlers;
   children: React.ReactNode;
@@ -70,14 +82,14 @@ type SortableCategoryCardProps = {
 
 export const SortableCategoryCard = ({
   category,
-  checkedCount,
-  allChecked,
-  someChecked,
   editState,
   handlers,
   children,
 }: SortableCategoryCardProps) => {
   const { setNodeRef, style, isDragging, dragHandleProps } = useSortableCategory(category.id);
+  const checkedCount = category.documents.filter((d) => d.checked).length;
+  const allChecked = category.documents.length > 0 && checkedCount === category.documents.length;
+  const someChecked = checkedCount > 0 && !allChecked;
 
   return (
     <div
@@ -129,10 +141,7 @@ export const SortableCategoryCard = ({
                 className="px-3 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
                 autoFocus
                 aria-label="カテゴリ名を編集"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') editState.confirm();
-                  if (e.key === 'Escape') editState.cancel();
-                }}
+                onKeyDown={(e) => handleInlineKeyDown(e, editState.confirm, editState.cancel)}
               />
               <button
                 onClick={editState.confirm}
@@ -150,15 +159,7 @@ export const SortableCategoryCard = ({
               </button>
             </div>
           ) : (
-            <>
-              <h3 className="font-bold text-slate-800">
-                {category.isSpecial && <span className="text-purple-600">【特例】</span>}
-                {category.name}
-              </h3>
-              <span className="px-2 py-0.5 bg-white rounded text-sm text-slate-600">
-                {checkedCount}/{category.documents.length}
-              </span>
-            </>
+            <CategoryNameDisplay category={category} checkedCount={checkedCount} />
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -217,17 +218,13 @@ export const SortableCategoryCard = ({
                 ? 'bg-emerald-200 text-emerald-800'
                 : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
             }`}
-            aria-label={allChecked ? `${category.name}の全選択を解除` : `${category.name}を全選択`}
+            aria-label={allChecked ? `${category.name}の全済みを解除` : `${category.name}を全て提出済みにする`}
           >
-            {allChecked ? (
-              <>
-                <CheckSquare className="w-4 h-4 mr-1" aria-hidden="true" /> 全選択
-              </>
-            ) : (
-              <>
-                <Square className="w-4 h-4 mr-1" aria-hidden="true" /> 全選択
-              </>
-            )}
+            {allChecked
+              ? <CheckSquare className="w-4 h-4 mr-1" aria-hidden="true" />
+              : <Square className="w-4 h-4 mr-1" aria-hidden="true" />
+            }
+            全済み
           </button>
         </div>
       </div>
@@ -252,13 +249,7 @@ export const CategoryDragOverlay = ({ category }: { category: EditableCategory }
     >
       <div className="flex items-center gap-3 p-4">
         <GripVertical className="w-5 h-5 text-slate-400" aria-hidden="true" />
-        <h3 className="font-bold text-slate-800">
-          {category.isSpecial && <span className="text-purple-600">【特例】</span>}
-          {category.name}
-        </h3>
-        <span className="px-2 py-0.5 bg-white rounded text-sm text-slate-600">
-          {checkedCount}/{category.documents.length}
-        </span>
+        <CategoryNameDisplay category={category} checkedCount={checkedCount} />
       </div>
     </div>
   );

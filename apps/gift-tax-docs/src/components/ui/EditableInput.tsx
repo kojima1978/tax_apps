@@ -2,6 +2,16 @@
 
 import { Check, X } from 'lucide-react';
 
+/** Enter/Escape キー共通ハンドラ */
+export const handleInlineKeyDown = (
+  e: React.KeyboardEvent,
+  onConfirm: () => void,
+  onCancel: () => void,
+) => {
+  if (e.key === 'Enter') onConfirm();
+  if (e.key === 'Escape') onCancel();
+};
+
 // ─── 編集モード: input + Check/X アイコンボタン ───
 
 type InlineEditInputProps = {
@@ -33,10 +43,7 @@ export const InlineEditInput = ({
       className={`${inputClass} focus:ring-${color}-500`}
       autoFocus
       aria-label={ariaLabel}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onConfirm();
-        if (e.key === 'Escape') onCancel();
-      }}
+      onKeyDown={(e) => handleInlineKeyDown(e, onConfirm, onCancel)}
     />
     <button
       onClick={onConfirm}
@@ -91,10 +98,7 @@ export const InlineAddInput = ({
         className={`${inputClass} focus:ring-${color}-500`}
         autoFocus
         aria-label={ariaLabel}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onConfirm();
-          if (e.key === 'Escape') onCancel();
-        }}
+        onKeyDown={(e) => handleInlineKeyDown(e, onConfirm, onCancel)}
       />
       <button
         onClick={onConfirm}

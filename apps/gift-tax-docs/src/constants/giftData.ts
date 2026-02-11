@@ -1,8 +1,7 @@
-import type { OptionId } from './index';
-
 // 印刷用の書類アイテム
 export interface PrintDocument {
   text: string;
+  checked: boolean;
   subItems: string[];
 }
 
@@ -12,7 +11,18 @@ export interface DocumentGroup {
   note?: string;
 }
 
-export interface Option {
+// giftData 内部のみで使用する型
+type OptionId =
+  | 'gift_land'
+  | 'gift_cash'
+  | 'gift_stock_listed'
+  | 'gift_stock_unlisted'
+  | 'sp_tax_rate'
+  | 'sp_seisan'
+  | 'sp_spouse'
+  | 'sp_housing';
+
+interface Option {
   id: OptionId;
   label: string;
   documents: string[];
@@ -21,7 +31,6 @@ export interface Option {
 
 export const giftData = {
   title: '贈与税申告 必要書類案内',
-  description: '贈与を受けた財産の種類と特例の適用有無を選択してください。',
   baseRequired: [
     {
       category: '本人確認書類（共通・必須）',

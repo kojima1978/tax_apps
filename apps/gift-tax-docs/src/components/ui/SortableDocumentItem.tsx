@@ -13,6 +13,8 @@ import {
   X,
 } from 'lucide-react';
 import { InlineEditInput, InlineAddInput } from './EditableInput';
+import type { EditableDocument } from '@/constants';
+import type { EditingSubItem, AddingSubItemTo, DocHandlers, SubItemHandlers } from '@/hooks/useEditableListEditing';
 
 const CheckboxIcon = ({ checked }: { checked: boolean }) => (
   <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
@@ -23,8 +25,6 @@ const CheckboxIcon = ({ checked }: { checked: boolean }) => (
     {checked && <Check className="w-4 h-4" />}
   </div>
 );
-import type { EditableDocument } from '@/constants';
-import type { EditingSubItem, AddingSubItemTo, DocHandlers, SubItemHandlers } from '@/hooks/useEditableListEditing';
 
 // ─── Props ───
 
@@ -44,7 +44,6 @@ export type SortableDocumentItemProps = {
   newSubItemText: string;
   setNewSubItemText: (text: string) => void;
   subItemHandlers: SubItemHandlers;
-  isDragging?: boolean;
 };
 
 // ─── ドラッグ可能な書類アイテム ───
@@ -65,7 +64,6 @@ export const SortableDocumentItem = memo(({
   newSubItemText,
   setNewSubItemText,
   subItemHandlers,
-  isDragging = false,
 }: SortableDocumentItemProps) => {
   const {
     attributes,
@@ -73,7 +71,7 @@ export const SortableDocumentItem = memo(({
     setNodeRef,
     transform,
     transition,
-    isDragging: isSortableDragging,
+    isDragging,
   } = useSortable({ id: doc.id });
 
   const style = {
@@ -81,21 +79,19 @@ export const SortableDocumentItem = memo(({
     transition,
   };
 
-  const isCurrentlyDragging = isDragging || isSortableDragging;
-
   return (
     <li
       ref={setNodeRef}
       style={style}
-      className={`${isCurrentlyDragging ? 'opacity-50' : ''}`}
+      className={`${isDragging ? 'opacity-50' : ''}`}
     >
       {/* 大項目 */}
       <div
         className={`flex items-start p-3 rounded-lg border transition-colors ${
           doc.checked
-            ? 'bg-emerald-50 border-emerald-200'
+            ? 'bg-slate-100 border-slate-300'
             : 'bg-slate-50 border-slate-200'
-        } ${isCurrentlyDragging ? 'shadow-lg ring-2 ring-emerald-400' : ''}`}
+        } ${isDragging ? 'shadow-lg ring-2 ring-emerald-400' : ''}`}
       >
         {/* ドラッグハンドル */}
         <button
@@ -109,15 +105,13 @@ export const SortableDocumentItem = memo(({
           <GripVertical className="w-4 h-4" />
         </button>
 
-        {/* チェックボックス */}
+        {/* チェックボックス（提出済みトグル） */}
         <button
           onClick={() => docHandlers.toggleCheck(categoryId, doc.id)}
-          className={`flex-shrink-0 mr-3 mt-0.5 transition-colors ${
-            !doc.checked ? 'hover:border-emerald-400' : ''
-          }`}
+          className="flex-shrink-0 mr-3 mt-0.5 transition-colors"
           role="checkbox"
           aria-checked={doc.checked}
-          aria-label={`${doc.text}を${doc.checked ? '選択解除' : '選択'}`}
+          aria-label={`${doc.text}を${doc.checked ? '未提出に戻す' : '提出済みにする'}`}
         >
           <CheckboxIcon checked={doc.checked} />
         </button>
@@ -133,7 +127,7 @@ export const SortableDocumentItem = memo(({
               ariaLabel="書類名を編集"
             />
           ) : (
-            <span className={doc.checked ? 'text-slate-800' : 'text-slate-600'}>
+            <span className={doc.checked ? 'text-slate-400 line-through' : 'text-slate-600'}>
               {doc.text}
             </span>
           )}
@@ -142,30 +136,15 @@ export const SortableDocumentItem = memo(({
         {/* アクションボタン */}
         {!isEditing && (
           <div className="flex items-center gap-1 ml-2">
-            <button
-              onClick={() => subItemHandlers.startAdd(categoryId, doc.id)}
-              className="p-1.5 text-blue-500 hover:bg-blue-100 rounded transition-colors"
-              title="中項目を追加"
-              aria-label={`${doc.text}に中項目を追加`}
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => docHandlers.startEdit(categoryId, doc.id, doc.text)}
-              className="p-1.5 text-slate-500 hover:bg-slate-200 rounded transition-colors"
-              title="編集"
-              aria-label={`${doc.text}を編集`}
-            >
-              <Edit3 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => docHandlers.remove(categoryId, doc.id)}
-              className="p-1.5 text-red-500 hover:bg-red-100 rounded transition-colors"
-              title="削除"
-              aria-label={`${doc.text}を削除`}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {[
+              { onClick: () => subItemHandlers.startAdd(categoryId, doc.id), Icon: Plus, colorClass: 'text-blue-500 hover:bg-blue-100', title: '中項目を追加', ariaLabel: `${doc.text}に中項目を追加` },
+              { onClick: () => docHandlers.startEdit(categoryId, doc.id, doc.text), Icon: Edit3, colorClass: 'text-slate-500 hover:bg-slate-200', title: '編集', ariaLabel: `${doc.text}を編集` },
+              { onClick: () => docHandlers.remove(categoryId, doc.id), Icon: Trash2, colorClass: 'text-red-500 hover:bg-red-100', title: '削除', ariaLabel: `${doc.text}を削除` },
+            ].map(({ onClick, Icon, colorClass, title, ariaLabel }) => (
+              <button key={title} onClick={onClick} className={`p-1.5 ${colorClass} rounded transition-colors`} title={title} aria-label={ariaLabel}>
+                <Icon className="w-4 h-4" />
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -194,24 +173,16 @@ export const SortableDocumentItem = memo(({
                 </div>
               ) : (
                 <>
-                  <span className="text-sm text-slate-600 flex-grow">{subItem.text}</span>
+                  <span className="text-sm flex-grow text-slate-600">{subItem.text}</span>
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => subItemHandlers.startEdit(categoryId, doc.id, subItem.id, subItem.text)}
-                      className="p-1 text-slate-400 hover:bg-slate-200 rounded transition-colors"
-                      title="編集"
-                      aria-label={`${subItem.text}を編集`}
-                    >
-                      <Edit3 className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => subItemHandlers.remove(categoryId, doc.id, subItem.id)}
-                      className="p-1 text-red-400 hover:bg-red-100 rounded transition-colors"
-                      title="削除"
-                      aria-label={`${subItem.text}を削除`}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                    {[
+                      { onClick: () => subItemHandlers.startEdit(categoryId, doc.id, subItem.id, subItem.text), Icon: Edit3, colorClass: 'text-slate-400 hover:bg-slate-200', title: '編集', ariaLabel: `${subItem.text}を編集` },
+                      { onClick: () => subItemHandlers.remove(categoryId, doc.id, subItem.id), Icon: X, colorClass: 'text-red-400 hover:bg-red-100', title: '削除', ariaLabel: `${subItem.text}を削除` },
+                    ].map(({ onClick, Icon, colorClass, title, ariaLabel }) => (
+                      <button key={title} onClick={onClick} className={`p-1 ${colorClass} rounded transition-colors`} title={title} aria-label={ariaLabel}>
+                        <Icon className="w-3 h-3" />
+                      </button>
+                    ))}
                   </div>
                 </>
               )}
@@ -248,7 +219,7 @@ export const DragOverlayItem = ({ doc }: { doc: EditableDocument }) => (
   <div
     className={`flex items-start p-3 rounded-lg border shadow-2xl ${
       doc.checked
-        ? 'bg-emerald-50 border-emerald-200'
+        ? 'bg-slate-100 border-slate-300'
         : 'bg-slate-50 border-slate-200'
     }`}
   >
@@ -256,6 +227,6 @@ export const DragOverlayItem = ({ doc }: { doc: EditableDocument }) => (
     <div className="mr-3">
       <CheckboxIcon checked={doc.checked} />
     </div>
-    <span className="text-slate-800">{doc.text}</span>
+    <span className={doc.checked ? 'text-slate-400 line-through' : 'text-slate-800'}>{doc.text}</span>
   </div>
 );

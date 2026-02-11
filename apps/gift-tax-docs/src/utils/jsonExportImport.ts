@@ -45,7 +45,7 @@ export const exportToJson = (
 };
 
 // JSONインポート（バリデーション付き）
-export const parseImportedJson = (jsonString: string): ExportData | null => {
+const parseImportedJson = (jsonString: string): ExportData | null => {
   try {
     const data = JSON.parse(jsonString);
 

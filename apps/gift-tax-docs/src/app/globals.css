@@ -39,14 +39,12 @@ body {
     display: none !important;
   }
 
-  .shadow-xl,
   .shadow-lg,
   .shadow {
     box-shadow: none !important;
   }
 
   .rounded-xl,
-  .rounded-2xl,
   .rounded-lg {
     border-radius: 0 !important;
   }
@@ -58,5 +56,10 @@ body {
   .break-inside-avoid {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  /* hidden print:block パターン用 */
+  .print\:block {
+    display: block !important;
   }
 }
