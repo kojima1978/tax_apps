@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { addCustomer, fetchStaff } from '@/utils/api';
 import { Staff } from '@/types';
 import { ChevronLeft, Loader2, Save, UserPlus, Users } from 'lucide-react';
@@ -11,6 +11,7 @@ import FormErrorDisplay from '@/components/FormErrorDisplay';
 
 export default function CreateCustomerPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [name, setName] = useState('');
     const [staffId, setStaffId] = useState<number | ''>('');
     const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -29,6 +30,15 @@ export default function CreateCustomerPage() {
         try {
             const data = await fetchStaff();
             setStaffList(data);
+
+            const paramStaffId = searchParams.get('staffId');
+            if (paramStaffId) {
+                const id = Number(paramStaffId);
+                if (data.some(s => s.id === id)) {
+                    setStaffId(id);
+                    setTouched(prev => ({ ...prev, staffId: true }));
+                }
+            }
         } catch {
             setError('担当者リストの取得に失敗しました');
         } finally {
@@ -83,31 +93,6 @@ export default function CreateCustomerPage() {
 
                         <form onSubmit={handleSubmit} className="space-y-8">
                             <div>
-                                <label htmlFor="name-input" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
-                                    <Users className="w-4 h-4 mr-2 text-emerald-600" />
-                                    お客様名 <span className="ml-2 text-xs font-normal text-red-500">*必須</span>
-                                </label>
-                                <input
-                                    id="name-input"
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
-                                    placeholder="例：日本 太郎"
-                                    className={`w-full px-4 py-3.5 border rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all text-base
-                                        ${touched.name && !isNameValid
-                                            ? 'border-red-300 bg-red-50 focus:border-red-500'
-                                            : 'border-slate-200 focus:border-emerald-500'}`}
-                                    autoFocus
-                                />
-                                {touched.name && !isNameValid && (
-                                    <p className="mt-2 text-sm text-red-500 animate-in slide-in-from-top-1">
-                                        お客様名を入力してください
-                                    </p>
-                                )}
-                            </div>
-
-                            <div>
                                 <label htmlFor="staff-select" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
                                     <UserPlus className="w-4 h-4 mr-2 text-emerald-600" />
                                     担当者 <span className="ml-2 text-xs font-normal text-red-500">*必須</span>
@@ -132,6 +117,31 @@ export default function CreateCustomerPage() {
                                 {touched.staffId && !isStaffValid && (
                                     <p className="mt-2 text-sm text-red-500 animate-in slide-in-from-top-1">
                                         担当者を選択してください
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label htmlFor="name-input" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                    <Users className="w-4 h-4 mr-2 text-emerald-600" />
+                                    お客様名 <span className="ml-2 text-xs font-normal text-red-500">*必須</span>
+                                </label>
+                                <input
+                                    id="name-input"
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
+                                    placeholder="例：日本 太郎"
+                                    className={`w-full px-4 py-3.5 border rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all text-base
+                                        ${touched.name && !isNameValid
+                                            ? 'border-red-300 bg-red-50 focus:border-red-500'
+                                            : 'border-slate-200 focus:border-emerald-500'}`}
+                                    autoFocus
+                                />
+                                {touched.name && !isNameValid && (
+                                    <p className="mt-2 text-sm text-red-500 animate-in slide-in-from-top-1">
+                                        お客様名を入力してください
                                     </p>
                                 )}
                             </div>

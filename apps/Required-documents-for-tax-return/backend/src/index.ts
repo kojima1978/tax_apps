@@ -91,7 +91,7 @@ app.post('/api/customers', (req, res) => {
     const customer = createCustomer(customerName.trim(), Number(staffId));
     res.json({ customer });
   } catch (e: unknown) {
-    handleCreateError(res, e, 'Customer already exists for this staff member');
+    handleCreateError(res, e, 'この担当者に同名のお客様が既に登録されています');
   }
 });
 
@@ -167,7 +167,7 @@ app.post('/api/staff', (req, res) => {
     const staff = createStaff(staffName.trim(), mobileNumber);
     res.json({ staff });
   } catch (e: unknown) {
-    handleCreateError(res, e, 'Staff name already exists');
+    handleCreateError(res, e, 'この担当者名は既に登録されています');
   }
 });
 
