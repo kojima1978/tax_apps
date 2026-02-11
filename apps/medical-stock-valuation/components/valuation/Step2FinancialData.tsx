@@ -1,7 +1,48 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { NumericFormat } from 'react-number-format';
 import { ListChecks, Copy } from 'lucide-react';
 import { INLINE_BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+
+const NUMERIC_INPUT_CLASS = 'w-full px-3 py-2 text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+
+function InfoPopup({ id, activePopup, setActivePopup, children }: {
+    id: 1 | 2;
+    activePopup: 1 | 2 | null;
+    setActivePopup: (v: 1 | 2 | null) => void;
+    children: ReactNode;
+}) {
+    return (
+        <>
+            <button
+                className={`${INLINE_BTN_CLASS} ${HOVER_CLASS}`}
+                onClick={() => setActivePopup(activePopup === id ? null : id)}
+            >
+                <ListChecks size={14} />
+                正確な評価
+            </button>
+            {activePopup === id && (
+                <div className="absolute bg-white border border-gray-300 p-4 rounded-lg mt-2 text-sm max-w-md shadow-lg z-10">
+                    <button
+                        type="button"
+                        className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 font-bold text-xl"
+                        onClick={() => setActivePopup(null)}
+                    >
+                        ×
+                    </button>
+                    {children}
+                </div>
+            )}
+        </>
+    );
+}
+
+function DisabledCell() {
+    return (
+        <td className="text-right bg-gray-100">
+            <input type="number" className="w-full px-3 py-2 bg-gray-100 text-gray-400 cursor-not-allowed rounded-lg" disabled />
+        </td>
+    );
+}
 
 type Props = {
     currentPeriodNetAsset: string;
@@ -52,31 +93,15 @@ export default function Step2FinancialData({
                     <tr>
                         <td>
                             「貸借対照表」の「純資産の部（又は資本の部）合計」の金額（注１）
-                            <button
-                                className={`${INLINE_BTN_CLASS} ${HOVER_CLASS}`}
-                                onClick={() => setActivePopup(activePopup === 1 ? null : 1)}
-                            >
-                                <ListChecks size={14} />
-                                正確な評価
-                            </button>
-                            {activePopup === 1 && (
-                                <div className="absolute bg-white border border-gray-300 p-4 rounded-lg mt-2 text-sm max-w-md shadow-lg z-10">
-                                    <button
-                                        type="button"
-                                        className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 font-bold text-xl"
-                                        onClick={() => setActivePopup(null)}
-                                    >
-                                        ×
-                                    </button>
-                                    <p className="text-gray-700">
-                                        もしくは法人税申告書の別表五(一)上、「Ⅰ利益積立金額」及び「Ⅱ資本金等の額」の各「差引翌期首現在」列「差引合計額」行の合計額
-                                    </p>
-                                </div>
-                            )}
+                            <InfoPopup id={1} activePopup={activePopup} setActivePopup={setActivePopup}>
+                                <p className="text-gray-700">
+                                    もしくは法人税申告書の別表五(一)上、「Ⅰ利益積立金額」及び「Ⅱ資本金等の額」の各「差引翌期首現在」列「差引合計額」行の合計額
+                                </p>
+                            </InfoPopup>
                         </td>
                         <td className="text-right">
                             <NumericFormat
-                                className="w-full px-3 py-2 text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className={NUMERIC_INPUT_CLASS}
                                 value={currentPeriodNetAsset}
                                 onValueChange={(values) => setCurrentPeriodNetAsset(values.value)}
                                 thousandSeparator={true}
@@ -85,20 +110,14 @@ export default function Step2FinancialData({
                         </td>
                         <td className="text-right">
                             <NumericFormat
-                                className="w-full px-3 py-2 text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className={NUMERIC_INPUT_CLASS}
                                 value={previousPeriodNetAsset}
                                 onValueChange={(values) => setPreviousPeriodNetAsset(values.value)}
                                 thousandSeparator={true}
                                 allowNegative={true}
                             />
                         </td>
-                        <td className="text-right bg-gray-100">
-                            <input
-                                type="number"
-                                className="w-full px-3 py-2 bg-gray-100 text-gray-400 cursor-not-allowed rounded-lg"
-                                disabled
-                            />
-                        </td>
+                        <DisabledCell />
                     </tr>
                     <tr>
                         <td>
@@ -113,61 +132,33 @@ export default function Step2FinancialData({
                         </td>
                         <td className="text-right">
                             <NumericFormat
-                                className="w-full px-3 py-2 text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className={NUMERIC_INPUT_CLASS}
                                 value={netAssetTaxValue}
                                 onValueChange={(values) => setNetAssetTaxValue(values.value)}
                                 thousandSeparator={true}
                                 allowNegative={true}
                             />
                         </td>
-                        <td className="text-right bg-gray-100">
-                            <input
-                                type="number"
-                                className="w-full px-3 py-2 bg-gray-100 text-gray-400 cursor-not-allowed rounded-lg"
-                                disabled
-                            />
-                        </td>
-                        <td className="text-right bg-gray-100">
-                            <input
-                                type="number"
-                                className="w-full px-3 py-2 bg-gray-100 text-gray-400 cursor-not-allowed rounded-lg"
-                                disabled
-                            />
-                        </td>
+                        <DisabledCell />
+                        <DisabledCell />
                     </tr>
                     <tr>
                         <td>
                             「損益計算書」の「税引前当期純利益」の金額
-                            <button
-                                className={`${INLINE_BTN_CLASS} ${HOVER_CLASS}`}
-                                onClick={() => setActivePopup(activePopup === 2 ? null : 2)}
-                            >
-                                <ListChecks size={14} />
-                                正確な評価
-                            </button>
-                            {activePopup === 2 && (
-                                <div className="absolute bg-white border border-gray-300 p-4 rounded-lg mt-2 text-sm max-w-md shadow-lg z-10">
-                                    <button
-                                        type="button"
-                                        className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 font-bold text-xl"
-                                        onClick={() => setActivePopup(null)}
-                                    >
-                                        ×
-                                    </button>
-                                    <p className="text-gray-700 mb-2">
-                                        もしくは法人税申告書上の「所得金額」に下記の金額を加減算した金額を入力してください。
-                                    </p>
-                                    <ul className="list-disc ml-5 text-gray-700 space-y-1">
-                                        <li>受取配当等の益金不算入の金額は加算</li>
-                                        <li>繰越欠損金のうち損金算入した金額は加算</li>
-                                        <li>非経常的な利益の金額は減算</li>
-                                    </ul>
-                                </div>
-                            )}
+                            <InfoPopup id={2} activePopup={activePopup} setActivePopup={setActivePopup}>
+                                <p className="text-gray-700 mb-2">
+                                    もしくは法人税申告書上の「所得金額」に下記の金額を加減算した金額を入力してください。
+                                </p>
+                                <ul className="list-disc ml-5 text-gray-700 space-y-1">
+                                    <li>受取配当等の益金不算入の金額は加算</li>
+                                    <li>繰越欠損金のうち損金算入した金額は加算</li>
+                                    <li>非経常的な利益の金額は減算</li>
+                                </ul>
+                            </InfoPopup>
                         </td>
                         <td className="text-right">
                             <NumericFormat
-                                className="w-full px-3 py-2 text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className={NUMERIC_INPUT_CLASS}
                                 value={currentPeriodProfit}
                                 onValueChange={(values) => setCurrentPeriodProfit(values.value)}
                                 thousandSeparator={true}
@@ -176,7 +167,7 @@ export default function Step2FinancialData({
                         </td>
                         <td className="text-right">
                             <NumericFormat
-                                className="w-full px-3 py-2 text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className={NUMERIC_INPUT_CLASS}
                                 value={previousPeriodProfit}
                                 onValueChange={(values) => setPreviousPeriodProfit(values.value)}
                                 thousandSeparator={true}
@@ -185,7 +176,7 @@ export default function Step2FinancialData({
                         </td>
                         <td className="text-right">
                             <NumericFormat
-                                className="w-full px-3 py-2 text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className={NUMERIC_INPUT_CLASS}
                                 value={previousPreviousPeriodProfit}
                                 onValueChange={(values) => setPreviousPreviousPeriodProfit(values.value)}
                                 thousandSeparator={true}

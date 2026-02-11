@@ -17,7 +17,7 @@ RUN --mount=type=cache,id=next-portal,target=/app/.next/cache \
     npm run build
 
 # --- Production ---
-FROM nginx:alpine AS runner
+FROM nginx:1.27-alpine AS runner
 
 LABEL org.opencontainers.image.title="Tax Apps Portal" \
       org.opencontainers.image.description="税理士業務支援アプリ ポータルサイト" \
@@ -25,8 +25,9 @@ LABEL org.opencontainers.image.title="Tax Apps Portal" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# タイムゾーン + デフォルトconf削除 + 非rootユーザー準備
-RUN apk add --no-cache tzdata && \
+# セキュリティ更新 + タイムゾーン + デフォルトconf削除 + 非rootユーザー準備
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del tzdata && \
@@ -60,9 +61,13 @@ EOF
 COPY --from=builder --link /app/out /usr/share/nginx/html
 
 USER nginx
+
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://127.0.0.1:3000/ || exit 1
+
+# グレースフルシャットダウン（NginxはSIGQUITで graceful stop）
+STOPSIGNAL SIGQUIT
 
 CMD ["nginx", "-g", "daemon off;"]

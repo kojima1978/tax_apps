@@ -1,6 +1,8 @@
 // 不動産税計算ロジック
 // 不動産取得税と登録免許税の計算
 
+import { formatYen } from './utils';
+
 export type TransactionType = 'purchase' | 'new_build' | 'inheritance' | 'gift';
 export type LandType = 'residential' | 'other';
 
@@ -34,13 +36,6 @@ export interface RealEstateTaxInput {
     acquisitionDeduction: number;
 }
 
-// 通貨フォーマット
-export const formatCurrency = (num: number): string => {
-    return new Intl.NumberFormat('ja-JP', {
-        style: 'currency',
-        currency: 'JPY',
-    }).format(num);
-};
 
 // 和暦取得
 export const getWareki = (year: number): string => {
@@ -50,6 +45,15 @@ export const getWareki = (year: number): string => {
     if (year >= 1912) return `大正${year - 1911}年`;
     return `明治${year - 1867}年`;
 };
+
+// 建築年月日による控除額閾値（新しい順）
+const BUILDING_DEDUCTION_THRESHOLDS = [
+    { since: new Date('1997-04-01'), deduction: 12_000_000, message: '1997年4月1日以降 (1,200万円控除)' },
+    { since: new Date('1989-04-01'), deduction: 10_000_000, message: '1989年4月1日～ (1,000万円控除)' },
+    { since: new Date('1985-07-01'), deduction: 4_500_000, message: '1985年7月1日～ (450万円控除)' },
+    { since: new Date('1981-07-01'), deduction: 4_200_000, message: '1981年7月1日～ (420万円控除)' },
+    { since: new Date('1976-01-01'), deduction: 3_500_000, message: '1976年1月1日～ (350万円控除)' },
+];
 
 // 建築年月日から控除額を計算
 export const calculateBuildingDeduction = (
@@ -68,24 +72,8 @@ export const calculateBuildingDeduction = (
     }
 
     const date = new Date(buildingDate);
-    const d1997 = new Date('1997-04-01');
-    const d1989 = new Date('1989-04-01');
-    const d1985 = new Date('1985-07-01');
-    const d1981 = new Date('1981-07-01');
-    const d1976 = new Date('1976-01-01');
-
-    if (date >= d1997) {
-        return { deduction: 12_000_000, message: '1997年4月1日以降 (1,200万円控除)' };
-    } else if (date >= d1989) {
-        return { deduction: 10_000_000, message: '1989年4月1日～ (1,000万円控除)' };
-    } else if (date >= d1985) {
-        return { deduction: 4_500_000, message: '1985年7月1日～ (450万円控除)' };
-    } else if (date >= d1981) {
-        return { deduction: 4_200_000, message: '1981年7月1日～ (420万円控除)' };
-    } else if (date >= d1976) {
-        return { deduction: 3_500_000, message: '1976年1月1日～ (350万円控除)' };
-    }
-    return { deduction: 0, message: '1975年以前' };
+    const match = BUILDING_DEDUCTION_THRESHOLDS.find(t => date >= t.since);
+    return match ?? { deduction: 0, message: '1975年以前' };
 };
 
 // 不動産税計算メイン関数
@@ -132,14 +120,14 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
             const landAcqRate = 0.03;
             const originalTax = Math.floor(landAcqBase * landAcqRate);
 
-            result.process.landAcq.push(`評価額: ${formatCurrency(landValuation)}`);
+            result.process.landAcq.push(`評価額: ${formatYen(landValuation)}`);
             if (landType === 'residential') {
                 result.process.landAcq.push(
-                    `課税標準額: ${formatCurrency(landAcqBase)}${landBaseNote}`
+                    `課税標準額: ${formatYen(landAcqBase)}${landBaseNote}`
                 );
             }
             result.process.landAcq.push(
-                `計算上の税額: ${formatCurrency(landAcqBase)} × 3% = ${formatCurrency(originalTax)}`
+                `計算上の税額: ${formatYen(landAcqBase)} × 3% = ${formatYen(originalTax)}`
             );
 
             let reductionAmount = 0;
@@ -160,10 +148,10 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
                     `控除対象面積 (床面積×2, 上限200m²): ${cappedArea}m²`
                 );
                 result.process.landAcq.push(
-                    `控除額計算 B: ${Math.floor(unitPrice).toLocaleString()} × ${cappedArea} × 3% = ${formatCurrency(reductionB)}`
+                    `控除額計算 B: ${Math.floor(unitPrice).toLocaleString()} × ${cappedArea} × 3% = ${formatYen(reductionB)}`
                 );
                 result.process.landAcq.push(
-                    `適用控除額 (45,000円と比較し大きい方): ${formatCurrency(reductionAmount)}`
+                    `適用控除額 (45,000円と比較し大きい方): ${formatYen(reductionAmount)}`
                 );
             } else if (isResidential && (landArea <= 0 || buildingArea <= 0)) {
                 result.process.landAcq.push(
@@ -174,7 +162,7 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
             result.landAcq = Math.max(0, originalTax - reductionAmount);
             if (reductionAmount > 0) {
                 result.process.landAcq.push(
-                    `納付税額: ${formatCurrency(originalTax)} - ${formatCurrency(reductionAmount)} = ${formatCurrency(result.landAcq)}`
+                    `納付税額: ${formatYen(originalTax)} - ${formatYen(reductionAmount)} = ${formatYen(result.landAcq)}`
                 );
             }
         }
@@ -202,9 +190,9 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
         result.landReg = Math.floor(rawLandReg / 100) * 100;
         if (result.landReg < 1000) result.landReg = 1000;
 
-        result.process.landReg.push(`課税標準額: ${formatCurrency(landRegBase)}`);
+        result.process.landReg.push(`課税標準額: ${formatYen(landRegBase)}`);
         result.process.landReg.push(
-            `税額: ${formatCurrency(landRegBase)} × ${(landRegRate * 100).toFixed(2)}% (${landRegRateNote}) = ${formatCurrency(rawLandReg)} → ${formatCurrency(result.landReg)}`
+            `税額: ${formatYen(landRegBase)} × ${(landRegRate * 100).toFixed(2)}% (${landRegRateNote}) = ${formatYen(rawLandReg)} → ${formatYen(result.landReg)}`
         );
     }
 
@@ -221,16 +209,16 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
 
             result.bldgAcq = Math.floor(bldgAcqBase * bldgAcqRate);
 
-            result.process.bldgAcq.push(`評価額: ${formatCurrency(buildingValuation)}`);
+            result.process.bldgAcq.push(`評価額: ${formatYen(buildingValuation)}`);
             if (acquisitionDeduction > 0) {
                 result.process.bldgAcq.push(
-                    `課税標準額: ${formatCurrency(buildingValuation)} - ${formatCurrency(acquisitionDeduction)}(控除) = ${formatCurrency(bldgAcqBase)}`
+                    `課税標準額: ${formatYen(buildingValuation)} - ${formatYen(acquisitionDeduction)}(控除) = ${formatYen(bldgAcqBase)}`
                 );
             } else {
-                result.process.bldgAcq.push(`課税標準額: ${formatCurrency(bldgAcqBase)}`);
+                result.process.bldgAcq.push(`課税標準額: ${formatYen(bldgAcqBase)}`);
             }
             result.process.bldgAcq.push(
-                `税額: ${formatCurrency(bldgAcqBase)} × ${(bldgAcqRate * 100).toFixed(0)}% (${bldgRateNote}) = ${formatCurrency(result.bldgAcq)}`
+                `税額: ${formatYen(bldgAcqBase)} × ${(bldgAcqRate * 100).toFixed(0)}% (${bldgRateNote}) = ${formatYen(result.bldgAcq)}`
             );
         }
 
@@ -266,9 +254,9 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
         result.bldgReg = Math.floor(rawBldgReg / 100) * 100;
         if (result.bldgReg < 1000) result.bldgReg = 1000;
 
-        result.process.bldgReg.push(`課税標準額: ${formatCurrency(bldgRegBase)}`);
+        result.process.bldgReg.push(`課税標準額: ${formatYen(bldgRegBase)}`);
         result.process.bldgReg.push(
-            `税額: ${formatCurrency(bldgRegBase)} × ${(bldgRegRate * 100).toFixed(2)}% (${bldgRegRateNote}) = ${formatCurrency(rawBldgReg)} → ${formatCurrency(result.bldgReg)}`
+            `税額: ${formatYen(bldgRegBase)} × ${(bldgRegRate * 100).toFixed(2)}% (${bldgRegRateNote}) = ${formatYen(rawBldgReg)} → ${formatYen(result.bldgReg)}`
         );
     }
 

@@ -6,11 +6,22 @@ import { ArrowLeft, Save, FileText, Calculator } from 'lucide-react';
 import { FormData, CalculationResult } from '@/lib/types';
 import { calculateEvaluation } from '@/lib/calculations';
 import { useSaveValuation } from '@/hooks/useSaveValuation';
-import { validateBasicInfo } from '@/lib/utils';
+import { validateBasicInfo, formatSen } from '@/lib/utils';
 import { toWareki } from '@/lib/date-utils';
 import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 import CalculationDetailsModal from '@/components/CalculationDetailsModal';
 import { useToast } from '@/components/Toast';
+
+const CALC_BTN_CLASS = "ml-2 px-2 py-1 text-xs bg-white text-black border border-gray-300 rounded hover:bg-gray-200 hover:border-gray-400 cursor-pointer transition-all flex items-center gap-1";
+
+function CalculationProcessButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className={CALC_BTN_CLASS} title="計算過程を表示">
+      <Calculator size={14} />
+      計算過程
+    </button>
+  );
+}
 
 export default function Results() {
   const router = useRouter();
@@ -22,44 +33,33 @@ export default function Results() {
 
   useEffect(() => {
     const loadDataAndCalculate = async () => {
-      // localStorageからデータを取得
       const savedData = localStorage.getItem('formData');
       if (savedData) {
         const data: FormData = JSON.parse(savedData);
 
-        // 年度から類似業種データを取得
         if (data.fiscalYear) {
           try {
             const response = await fetch(`/medical/api/similar-industry?fiscalYear=${data.fiscalYear}`);
             if (response.ok) {
-              const similarData = await response.json();
-              data.similarIndustryData = similarData;
+              data.similarIndustryData = await response.json();
             }
           } catch (error) {
             console.error('類似業種データの取得に失敗:', error);
-            // エラーの場合はデフォルト値を使用
           }
         }
 
         setFormData(data);
 
-        // 評価額を計算
         try {
-          const calculatedResult = calculateEvaluation(data);
-          setResult(calculatedResult);
+          setResult(calculateEvaluation(data));
         } catch (error) {
           console.error('Calculation error:', error);
-          // Note: toast is not available in useEffect, will show error in UI instead
         }
       }
     };
 
     loadDataAndCalculate();
   }, []);
-
-  const goBack = () => {
-    router.back();
-  };
 
   const saveToDatabase = async () => {
     if (!formData) {
@@ -98,6 +98,8 @@ export default function Results() {
     );
   }
 
+  const toSen = (amount: number) => Math.round(amount / 1000);
+
   return (
     <div>
       <h1>評価額の概算（計算結果）</h1>
@@ -113,7 +115,7 @@ export default function Results() {
             </div>
             <div className="font-bold mb-2">当初出資額</div>
             <div className="inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold">
-              {result.totalCapital.toLocaleString('ja-JP')}千円
+              {formatSen(result.totalCapital)}
             </div>
           </div>
 
@@ -126,7 +128,7 @@ export default function Results() {
             </div>
             <div className="font-bold mb-2">出資持分評価額</div>
             <div className="inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold">
-              {result.totalEvaluationValue.toLocaleString('ja-JP')}千円
+              {formatSen(result.totalEvaluationValue)}
             </div>
           </div>
 
@@ -139,7 +141,7 @@ export default function Results() {
             </div>
             <div className="font-bold mb-2">みなし贈与税額</div>
             <div className="inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold">
-              {result.deemedGiftTax.toLocaleString('ja-JP')}千円
+              {formatSen(result.deemedGiftTax)}
             </div>
           </div>
         </div>
@@ -166,9 +168,9 @@ export default function Results() {
               <tr key={index}>
                 <td className="text-center">{index + 1}</td>
                 <td className="text-left">{investor.name || ''}</td>
-                <td className="text-right">{Math.round((investor.amount || 0) / 1000).toLocaleString('ja-JP')}千円</td>
-                <td className="text-right">{(investor.evaluationValue || 0).toLocaleString('ja-JP')}千円</td>
-                <td className="text-right">{(investor.giftTax || 0).toLocaleString('ja-JP')}千円</td>
+                <td className="text-right">{formatSen(toSen(investor.amount || 0))}</td>
+                <td className="text-right">{formatSen(investor.evaluationValue || 0)}</td>
+                <td className="text-right">{formatSen(investor.giftTax || 0)}</td>
               </tr>
             ))}
           </tbody>
@@ -177,13 +179,13 @@ export default function Results() {
               <td className="text-center">合計</td>
               <td></td>
               <td className="text-right">
-                {Math.round(formData.investors.reduce((sum, inv) => sum + (inv.amount || 0), 0) / 1000).toLocaleString('ja-JP')}千円
+                {formatSen(toSen(formData.investors.reduce((sum, inv) => sum + (inv.amount || 0), 0)))}
               </td>
               <td className="text-right">
-                {result.investorResults.reduce((sum, inv) => sum + (inv.evaluationValue || 0), 0).toLocaleString('ja-JP')}千円
+                {formatSen(result.investorResults.reduce((sum, inv) => sum + (inv.evaluationValue || 0), 0))}
               </td>
               <td className="text-right">
-                {result.investorResults.reduce((sum, inv) => sum + (inv.giftTax || 0), 0).toLocaleString('ja-JP')}千円
+                {formatSen(result.investorResults.reduce((sum, inv) => sum + (inv.giftTax || 0), 0))}
               </td>
             </tr>
           </tfoot>
@@ -210,7 +212,7 @@ export default function Results() {
             </tr>
             <tr>
               <td>出資金額総額</td>
-              <td className="text-right">{result.totalCapital.toLocaleString('ja-JP')}千円</td>
+              <td className="text-right">{formatSen(result.totalCapital)}</td>
             </tr>
             <tr>
               <td>総出資口数（1口50円と仮定）</td>
@@ -218,24 +220,16 @@ export default function Results() {
             </tr>
             <tr>
               <td>出資持分の相続税評価額</td>
-              <td className="text-right">{result.inheritanceTaxValue.toLocaleString('ja-JP')}千円</td>
+              <td className="text-right">{formatSen(result.inheritanceTaxValue)}</td>
             </tr>
             <tr>
               <td>持分なし医療法人移行時のみなし贈与税額</td>
-              <td className="text-right">{result.deemedGiftTax.toLocaleString('ja-JP')}千円</td>
+              <td className="text-right">{formatSen(result.deemedGiftTax)}</td>
             </tr>
             <tr>
               <td className="flex items-center justify-between">
                 <span>1口あたりの類似業種比準価額方式による評価額</span>
-                <button
-                  type="button"
-                  onClick={() => setModalOpen('similar')}
-                  className="ml-2 px-2 py-1 text-xs bg-white text-black border border-gray-300 rounded hover:bg-gray-200 hover:border-gray-400 cursor-pointer transition-all flex items-center gap-1"
-                  title="計算過程を表示"
-                >
-                  <Calculator size={14} />
-                  計算過程
-                </button>
+                <CalculationProcessButton onClick={() => setModalOpen('similar')} />
               </td>
               <td className="text-right">{result.perShareSimilarIndustryValue.toLocaleString('ja-JP')}円</td>
             </tr>
@@ -260,15 +254,7 @@ export default function Results() {
             <tr>
               <td className="flex items-center justify-between">
                 <span>1口あたりの純資産価額方式による評価額</span>
-                <button
-                  type="button"
-                  onClick={() => setModalOpen('netAsset')}
-                  className="ml-2 px-2 py-1 text-xs bg-white text-black border border-gray-300 rounded hover:bg-gray-200 hover:border-gray-400 cursor-pointer transition-all flex items-center gap-1"
-                  title="計算過程を表示"
-                >
-                  <Calculator size={14} />
-                  計算過程
-                </button>
+                <CalculationProcessButton onClick={() => setModalOpen('netAsset')} />
               </td>
               <td className="text-right">{result.perShareNetAssetValue.toLocaleString('ja-JP')}円</td>
             </tr>
@@ -283,15 +269,7 @@ export default function Results() {
             <tr>
               <td className="flex items-center justify-between">
                 <span>1口あたりの評価額</span>
-                <button
-                  type="button"
-                  onClick={() => setModalOpen('perShare')}
-                  className="ml-2 px-2 py-1 text-xs bg-white text-black border border-gray-300 rounded hover:bg-gray-200 hover:border-gray-400 cursor-pointer transition-all flex items-center gap-1"
-                  title="計算過程を表示"
-                >
-                  <Calculator size={14} />
-                  計算過程
-                </button>
+                <CalculationProcessButton onClick={() => setModalOpen('perShare')} />
               </td>
               <td className="text-right">{result.perShareValue.toLocaleString('ja-JP')}円</td>
             </tr>
@@ -304,7 +282,7 @@ export default function Results() {
       </div>
 
       <div className="flex justify-center gap-4">
-        <button onClick={goBack} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+        <button onClick={() => router.back()} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
           <ArrowLeft size={20} />
           入力画面に戻る
         </button>

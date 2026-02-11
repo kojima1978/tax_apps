@@ -7,6 +7,21 @@ interface ValuationResultCardsProps {
   netAssetPerShare: number;
 }
 
+/** results オブジェクトからカード表示用 props を抽出 */
+export function getResultCardsProps(results: {
+  finalValue: number;
+  comparableValue: number;
+  netAssetPerShare: number;
+  comparisonDetails: { name: string }[];
+}): ValuationResultCardsProps {
+  return {
+    finalValue: results.finalValue,
+    methodName: results.comparisonDetails.length > 0 ? results.comparisonDetails[0].name : "",
+    comparableValue: results.comparableValue,
+    netAssetPerShare: results.netAssetPerShare,
+  };
+}
+
 /** Step 6/7 共通のメイン結果カード + S/N内訳カード */
 export function ValuationResultCards({
   finalValue,

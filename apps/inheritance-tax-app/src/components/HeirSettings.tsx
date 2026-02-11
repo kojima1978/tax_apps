@@ -2,9 +2,15 @@ import React, { memo } from 'react';
 import { Users } from 'lucide-react';
 import type { HeirComposition } from '../types';
 import { SpouseSettings } from './heirs/SpouseSettings';
-import { Rank1Settings } from './heirs/Rank1Settings';
 import { Rank2Settings } from './heirs/Rank2Settings';
-import { Rank3Settings } from './heirs/Rank3Settings';
+import { RankHeirSettings, RANK1_CONFIG, RANK3_CONFIG } from './heirs/RankHeirSettings';
+
+const RANK_OPTIONS = [
+  { value: 'none', id: 'rank-none-desc', label: '選択なし（配偶者のみ）' },
+  { value: 'rank1', id: 'rank-1-desc', label: '第1順位：子供（代襲相続：孫）' },
+  { value: 'rank2', id: 'rank-2-desc', label: '第2順位：直系尊属（親・祖父母）' },
+  { value: 'rank3', id: 'rank-3-desc', label: '第3順位：兄弟姉妹（甥姪）※2割加算' },
+] as const;
 
 interface HeirSettingsProps {
   composition: HeirComposition;
@@ -30,57 +36,26 @@ export const HeirSettings: React.FC<HeirSettingsProps> = memo(({ composition, on
       <fieldset className="mb-6 p-4 bg-green-50 rounded-lg border-0">
         <legend className="font-semibold text-gray-700 mb-3">相続人の順位を選択</legend>
         <div className="space-y-2" role="radiogroup" aria-label="相続人の順位">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="rank"
-              checked={composition.selectedRank === 'none'}
-              onChange={() => selectRank('none')}
-              className="w-4 h-4 accent-green-600"
-              aria-describedby="rank-none-desc"
-            />
-            <span className="text-sm" id="rank-none-desc">選択なし（配偶者のみ）</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="rank"
-              checked={composition.selectedRank === 'rank1'}
-              onChange={() => selectRank('rank1')}
-              className="w-4 h-4 accent-green-600"
-              aria-describedby="rank-1-desc"
-            />
-            <span className="text-sm" id="rank-1-desc">第1順位：子供（代襲相続：孫）</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="rank"
-              checked={composition.selectedRank === 'rank2'}
-              onChange={() => selectRank('rank2')}
-              className="w-4 h-4 accent-green-600"
-              aria-describedby="rank-2-desc"
-            />
-            <span className="text-sm" id="rank-2-desc">第2順位：直系尊属（親・祖父母）</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="rank"
-              checked={composition.selectedRank === 'rank3'}
-              onChange={() => selectRank('rank3')}
-              className="w-4 h-4 accent-green-600"
-              aria-describedby="rank-3-desc"
-            />
-            <span className="text-sm" id="rank-3-desc">第3順位：兄弟姉妹（甥姪）※2割加算</span>
-          </label>
+          {RANK_OPTIONS.map(opt => (
+            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="rank"
+                checked={composition.selectedRank === opt.value}
+                onChange={() => selectRank(opt.value)}
+                className="w-4 h-4 accent-green-600"
+                aria-describedby={opt.id}
+              />
+              <span className="text-sm" id={opt.id}>{opt.label}</span>
+            </label>
+          ))}
         </div>
       </fieldset>
 
       {/* 各順位の設定コンポーネント */}
-      <Rank1Settings composition={composition} onChange={onChange} />
+      <RankHeirSettings composition={composition} onChange={onChange} config={RANK1_CONFIG} />
       <Rank2Settings composition={composition} onChange={onChange} />
-      <Rank3Settings composition={composition} onChange={onChange} />
+      <RankHeirSettings composition={composition} onChange={onChange} config={RANK3_CONFIG} />
     </div>
   );
 });

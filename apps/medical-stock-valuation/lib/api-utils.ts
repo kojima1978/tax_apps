@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from './db';
 
 /**
@@ -98,4 +98,71 @@ export async function updateRecord(options: UpdateOptions) {
     success: true,
     message: `${data.name}に更新しました`,
   });
+}
+
+/**
+ * 単一フィールドのマスタ管理用ルートハンドラー生成ファクトリ
+ * users/companies のような「名前1フィールド + is_active」のCRUD API用
+ */
+interface MasterRouteConfig {
+  tableName: string;
+  nameField: string;
+  entityLabel: string;
+}
+
+export function createMasterRouteHandlers(config: MasterRouteConfig) {
+  const { tableName, nameField, entityLabel } = config;
+  const columns = `id, ${nameField}, is_active, created_at, updated_at`;
+
+  return {
+    GET: (request: NextRequest) =>
+      withErrorHandler(async () => {
+        const db = getDatabase();
+        const showInactive = new URL(request.url).searchParams.get('showInactive') === 'true';
+        const query = showInactive
+          ? `SELECT ${columns} FROM ${tableName} ORDER BY is_active DESC, ${nameField}`
+          : `SELECT ${columns} FROM ${tableName} WHERE is_active = 1 ORDER BY ${nameField}`;
+        return db.prepare(query).all();
+      }, `${entityLabel}一覧の取得に失敗しました`),
+
+    POST: (request: NextRequest) =>
+      withErrorHandler(async () => {
+        const body = await request.json();
+        const name = body[nameField];
+        if (!name || !name.trim()) {
+          return NextResponse.json({ error: `${entityLabel}名を入力してください` }, { status: 400 });
+        }
+        return await createRecord({ tableName, nameField, data: { name } });
+      }, `${entityLabel}の登録に失敗しました`),
+
+    PUT: (request: NextRequest) =>
+      withErrorHandler(async () => {
+        const body = await request.json();
+        const name = body[nameField];
+        if (!body.id || !name || !name.trim()) {
+          return NextResponse.json({ error: `IDと${entityLabel}名を入力してください` }, { status: 400 });
+        }
+        return await updateRecord({ tableName, nameField, data: { id: body.id, name } });
+      }, `${entityLabel}情報の更新に失敗しました`),
+
+    PATCH: (request: NextRequest) =>
+      withErrorHandler(async () => {
+        const { id, action } = await request.json();
+        if (!id) {
+          return NextResponse.json({ error: 'IDを指定してください' }, { status: 400 });
+        }
+        const db = getDatabase();
+        if (action === 'deactivate') {
+          db.prepare(`UPDATE ${tableName} SET is_active = 0, updated_at = datetime('now', 'localtime') WHERE id = ?`).run(id);
+          return { message: `${entityLabel}を無効化しました` };
+        } else if (action === 'activate') {
+          db.prepare(`UPDATE ${tableName} SET is_active = 1, updated_at = datetime('now', 'localtime') WHERE id = ?`).run(id);
+          return { message: `${entityLabel}を有効化しました` };
+        } else if (action === 'delete') {
+          db.prepare(`DELETE FROM ${tableName} WHERE id = ?`).run(id);
+          return { message: `${entityLabel}を削除しました` };
+        }
+        return NextResponse.json({ error: '無効なアクションです' }, { status: 400 });
+      }, `${entityLabel}の操作に失敗しました`),
+  };
 }
