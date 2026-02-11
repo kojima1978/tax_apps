@@ -31,14 +31,14 @@ export const initializeEditableList = (): EditableDocumentList => [
   ...giftData.baseRequired.map((base): EditableCategory => ({
     id: generateId(),
     name: base.category,
-    documents: toEditableDocuments(base.documents, true),
+    documents: toEditableDocuments(base.documents, false),
     isExpanded: true,
     isSpecial: false,
   })),
   // オプション（財産の種類）
   ...giftData.options.map((opt): EditableCategory => ({
     id: opt.id,
-    name: opt.label.replace('をもらいましたか？', '').replace('はありますか？', ''),
+    name: opt.label.replace('をもらいましたか？', ''),
     documents: toEditableDocuments(opt.documents, false),
     isExpanded: true,
     isSpecial: false,
@@ -212,20 +212,22 @@ export const reorderCategories = (
   newIndex: number
 ): EditableDocumentList => reorderArray(list, oldIndex, newIndex);
 
-// チェック済み書類のみでDocumentGroup形式に変換（印刷/出力用）
+// DocumentGroup形式に変換（印刷/出力用）
+// hideSubmitted=true: 提出済み（checked）を除外し未提出のみ表示
 export const toDocumentGroups = (
   list: EditableDocumentList,
-  includeUnchecked: boolean = false
+  hideSubmitted: boolean = false
 ): DocumentGroup[] =>
   list
-    .filter(cat => includeUnchecked || cat.documents.some(doc => doc.checked))
     .map(cat => ({
       category: cat.isSpecial ? `【特例】${cat.name}` : cat.name,
       documents: cat.documents
-        .filter(doc => includeUnchecked || doc.checked)
+        .filter(doc => !hideSubmitted || !doc.checked)
         .map(doc => ({
           text: doc.text,
+          checked: doc.checked,
           subItems: doc.subItems.map(sub => sub.text),
         })),
       note: cat.note,
-    }));
+    }))
+    .filter(cat => cat.documents.length > 0);

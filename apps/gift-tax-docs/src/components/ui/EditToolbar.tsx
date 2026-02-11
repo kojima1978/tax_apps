@@ -4,14 +4,22 @@ import {
   ChevronUp,
   Printer,
   FileSpreadsheet,
-  RefreshCw,
   ChevronsUpDown,
   RotateCcw,
   Download,
   Upload,
   Home,
+  ExternalLink,
+  Layout,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
-import { giftData, type Step } from '@/constants';
+import { giftData, EXTERNAL_LINKS } from '@/constants';
+
+const EXTERNAL_LINK_ITEMS = [
+  { key: 'ntaCheckSheet', shortLabel: 'シート' },
+  { key: 'etaxDocuments', shortLabel: 'e-Tax' },
+] as const;
 
 // ─── ツールバーボタン内部ヘルパー ───
 
@@ -56,9 +64,12 @@ type EditToolbarProps = {
   onShowResetDialog: () => void;
   onJsonExport: () => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onPreview: () => void;
+  onPrint: () => void;
   onExcelExport: () => void;
-  onResetToMenu: () => void;
+  isTwoColumnPrint: boolean;
+  togglePrintColumn: () => void;
+  hideSubmittedInPrint: boolean;
+  toggleHideSubmitted: () => void;
 };
 
 // ─── ツールバーコンポーネント ───
@@ -70,19 +81,23 @@ export const EditToolbar = ({
   onShowResetDialog,
   onJsonExport,
   onFileSelect,
-  onPreview,
+  onPrint,
   onExcelExport,
-  onResetToMenu,
+  isTwoColumnPrint,
+  togglePrintColumn,
+  hideSubmittedInPrint,
+  toggleHideSubmitted,
 }: EditToolbarProps) => (
   <div className="no-print bg-white rounded-xl shadow-lg p-4 mb-6 sticky top-4 z-10" role="toolbar" aria-label="編集ツールバー">
-    <div className="flex flex-wrap items-center justify-between gap-4">
+    {/* 1行目: タイトル + 編集操作 + JSON */}
+    <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-4">
         <a href="/" title="ポータルに戻る" className="text-slate-400 hover:text-emerald-600 transition-colors">
           <Home className="w-5 h-5" />
         </a>
         <h1 className="text-xl font-bold text-slate-800">{giftData.title}</h1>
         <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium" aria-live="polite">
-          {checkedCount} / {totalCount} 選択中
+          {checkedCount} / {totalCount} 提出済み
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -110,7 +125,7 @@ export const EditToolbar = ({
           icon={<RotateCcw className="w-4 h-4 mr-1" aria-hidden="true" />}
           label="リセット"
         />
-        <div className="w-px h-6 bg-slate-300 mx-2" aria-hidden="true" />
+        <div className="w-px h-6 bg-slate-300 mx-1" aria-hidden="true" />
         <ToolbarButton
           onClick={onJsonExport}
           className="px-3 py-2 text-sm bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-lg"
@@ -135,28 +150,65 @@ export const EditToolbar = ({
             aria-label="JSONファイルを選択"
           />
         </ToolbarButton>
-        <div className="w-px h-6 bg-slate-300 mx-2" aria-hidden="true" />
-        <ToolbarButton
-          onClick={onPreview}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium"
-          ariaLabel="印刷プレビューを表示"
-          icon={<Printer className="w-4 h-4 mr-2" aria-hidden="true" />}
-          label="印刷プレビュー"
-        />
-        <ToolbarButton
-          onClick={onExcelExport}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
-          ariaLabel="Excelファイルとして出力"
-          icon={<FileSpreadsheet className="w-4 h-4 mr-2" aria-hidden="true" />}
-          label="Excel"
-        />
-        <ToolbarButton
-          onClick={onResetToMenu}
-          className="px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg"
-          ariaLabel="トップメニューに戻る"
-          icon={<RefreshCw className="w-4 h-4" aria-hidden="true" />}
-        />
       </div>
+    </div>
+    {/* 2行目: 外部リンク + 印刷設定 + 出力 */}
+    <div className="flex flex-wrap items-center justify-end gap-2 mt-2">
+      {EXTERNAL_LINK_ITEMS.map(({ key, shortLabel }) => (
+        <a
+          key={key}
+          href={EXTERNAL_LINKS[key].url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600"
+          title={EXTERNAL_LINKS[key].label}
+        >
+          <ExternalLink className="w-4 h-4 mr-1" aria-hidden="true" />
+          {shortLabel}
+        </a>
+      ))}
+      <div className="w-px h-6 bg-slate-300 mx-1" aria-hidden="true" />
+      <ToolbarButton
+        onClick={toggleHideSubmitted}
+        className={`px-3 py-2 text-sm rounded-lg font-medium ${
+          hideSubmittedInPrint
+            ? 'bg-amber-500 text-white hover:bg-amber-600'
+            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+        }`}
+        title={hideSubmittedInPrint ? '取消線も含めて印刷' : '未提出のみ印刷'}
+        ariaLabel={hideSubmittedInPrint ? '取消線も含めて印刷に切り替え' : '未提出のみ印刷に切り替え'}
+        icon={hideSubmittedInPrint
+          ? <EyeOff className="w-4 h-4 mr-1" aria-hidden="true" />
+          : <Eye className="w-4 h-4 mr-1" aria-hidden="true" />
+        }
+        label={hideSubmittedInPrint ? '未提出のみ' : '取消線も印刷'}
+      />
+      <ToolbarButton
+        onClick={togglePrintColumn}
+        className={`px-3 py-2 text-sm rounded-lg font-medium ${
+          isTwoColumnPrint
+            ? 'bg-purple-600 text-white hover:bg-purple-700'
+            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+        }`}
+        ariaLabel={isTwoColumnPrint ? '1列レイアウトに切り替え' : '2列レイアウトに切り替え'}
+        icon={<Layout className="w-4 h-4 mr-1" aria-hidden="true" />}
+        label={isTwoColumnPrint ? '2列' : '1列'}
+      />
+      <div className="w-px h-6 bg-slate-300 mx-1" aria-hidden="true" />
+      <ToolbarButton
+        onClick={onExcelExport}
+        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+        ariaLabel="Excelファイルとして出力"
+        icon={<FileSpreadsheet className="w-4 h-4 mr-2" aria-hidden="true" />}
+        label="Excel"
+      />
+      <ToolbarButton
+        onClick={onPrint}
+        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium"
+        ariaLabel="印刷またはPDF保存"
+        icon={<Printer className="w-4 h-4 mr-2" aria-hidden="true" />}
+        label="印刷"
+      />
     </div>
   </div>
 );

@@ -1,12 +1,11 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { giftData, STORAGE_KEYS, type DocumentGroup, type Step, type EditableDocumentList } from '@/constants';
+import { giftData, STORAGE_KEYS, type DocumentGroup, type EditableDocumentList } from '@/constants';
 import { generateGiftTaxExcel } from '@/utils/excelGenerator';
 import { initializeEditableList, toDocumentGroups } from '@/utils/editableListUtils';
 
 export const useGiftTaxGuide = () => {
-    const [step, setStep] = useState<Step>('menu');
     const [isTwoColumnPrint, setIsTwoColumnPrint] = useState(false);
-    const [showUncheckedInPrint, setShowUncheckedInPrint] = useState(false);
+    const [hideSubmittedInPrint, setHideSubmittedInPrint] = useState(false);
 
     // 編集可能な書類リスト
     const [documentList, setDocumentList] = useState<EditableDocumentList>(() =>
@@ -49,26 +48,19 @@ export const useGiftTaxGuide = () => {
         } catch { /* プライベートブラウジング等でストレージが使用不可の場合は無視 */ }
     }, [staffName, staffPhone, customerName]);
 
-    // 状態リセット
-    const resetToMenu = useCallback(() => {
-        setStep('menu');
-        setDocumentList(initializeEditableList());
-    }, []);
-
     // 結果リスト生成（メモ化）- 編集可能リストから変換
     const results = useMemo((): DocumentGroup[] => {
-        return toDocumentGroups(documentList, showUncheckedInPrint);
-    }, [documentList, showUncheckedInPrint]);
+        return toDocumentGroups(documentList, hideSubmittedInPrint);
+    }, [documentList, hideSubmittedInPrint]);
 
-    // 画面遷移時に日付を再計算（タブを長時間開いている場合の対策）
+    // 現在日付（印刷用）
     const currentDate = useMemo(() => {
         return new Date().toLocaleDateString('ja-JP', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [step]);
+    }, []);
 
     const handlePrint = useCallback(() => {
         window.print();
@@ -79,30 +71,23 @@ export const useGiftTaxGuide = () => {
             giftData.title,
             results,
             currentDate,
-            showUncheckedInPrint,
+            hideSubmittedInPrint,
             staffName,
             staffPhone,
             customerName
         );
-    }, [results, currentDate, showUncheckedInPrint, staffName, staffPhone, customerName]);
+    }, [results, currentDate, hideSubmittedInPrint, staffName, staffPhone, customerName]);
 
     const togglePrintColumn = useCallback(() => {
         setIsTwoColumnPrint(prev => !prev);
     }, []);
 
-    const toggleShowUnchecked = useCallback(() => {
-        setShowUncheckedInPrint(prev => !prev);
+    const toggleHideSubmitted = useCallback(() => {
+        setHideSubmittedInPrint(prev => !prev);
     }, []);
-
-    // 印刷用クラス生成
-    const getPrintClass = useCallback((oneCol: string, twoCol: string) => {
-        return isTwoColumnPrint ? twoCol : oneCol;
-    }, [isTwoColumnPrint]);
 
     return {
         // State
-        step,
-        setStep,
         isTwoColumnPrint,
         results,
         currentDate,
@@ -110,15 +95,13 @@ export const useGiftTaxGuide = () => {
         staffPhone,
         customerName,
         documentList,
-        showUncheckedInPrint,
+        hideSubmittedInPrint,
 
         // Handlers
-        resetToMenu,
         handlePrint,
         handleExcelExport,
         togglePrintColumn,
-        toggleShowUnchecked,
-        getPrintClass,
+        toggleHideSubmitted,
         setStaffName,
         setStaffPhone,
         setCustomerName,

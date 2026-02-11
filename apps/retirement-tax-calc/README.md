@@ -38,31 +38,33 @@
 ```
 retirement-tax-calc/
 ├── app/
-│   ├── globals.css          # グローバルスタイル + 印刷スタイル
-│   ├── layout.tsx           # ルートレイアウト
-│   └── page.tsx             # メインページ（1画面完結）
+│   ├── globals.css            # グローバルスタイル + 印刷スタイル
+│   ├── layout.tsx             # ルートレイアウト
+│   └── page.tsx               # メインページ（1画面完結）
 ├── components/
-│   ├── Header.tsx           # アプリヘッダー + 印刷ボタン
-│   ├── RetirementForm.tsx   # 入力フォーム
-│   ├── ServiceYearsInput.tsx # 勤続年数（直接入力/日付計算切替）
+│   ├── CheckboxField.tsx      # チェックボックス共通コンポーネント
+│   ├── Header.tsx             # アプリヘッダー + 印刷ボタン
+│   ├── InputWithUnit.tsx      # 入力欄+単位ラベル共通コンポーネント
 │   ├── OfficerLimitSection.tsx # 役員退職金限度額
-│   ├── CheckboxField.tsx    # チェックボックス共通コンポーネント
-│   ├── ResultSection.tsx    # 計算結果テーブル
-│   ├── ReferenceTables.tsx  # 参照表（控除額・速算表）
-│   └── PrintFooter.tsx      # 印刷用フッター
+│   ├── PrintFooter.tsx        # 印刷用フッター
+│   ├── ReferenceTables.tsx    # 参照表（控除額・速算表）
+│   ├── ResultSection.tsx      # 計算結果テーブル
+│   ├── RetirementForm.tsx     # 入力フォーム
+│   └── ServiceYearsInput.tsx  # 勤続年数（直接入力/日付計算切替）
 ├── hooks/
 │   └── useRetirementTaxForm.ts # フォーム状態管理フック
 ├── lib/
-│   ├── retirement-tax.ts    # 退職所得・税額計算ロジック
-│   ├── tax-rates.ts         # 年度別税率テーブル
-│   └── utils.ts             # フォーマットユーティリティ
-├── Dockerfile               # マルチステージビルド（Port: 3013）
+│   ├── retirement-tax.ts      # 退職所得・税額計算ロジック
+│   ├── tax-rates.ts           # 年度別税率テーブル
+│   └── utils.ts               # フォーマットユーティリティ
+├── Dockerfile                 # マルチステージビルド（Port: 3013）
+├── next.config.ts             # basePath: /retirement-tax-calc, standalone
 └── package.json
 ```
 
 ## Docker
 
-### スタンドアロン（推奨）
+### 開発環境（推奨）
 
 ```bash
 # 起動
