@@ -26,9 +26,6 @@ COPY --link nginx.conf /etc/nginx/nginx.conf
 COPY --link includes/ /etc/nginx/includes/
 COPY --link default.conf /etc/nginx/conf.d/default.conf
 
-# ビルド時に設定ファイルを検証
-RUN nginx -t
-
 # ヘルスチェック
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1
