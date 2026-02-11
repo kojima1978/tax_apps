@@ -74,6 +74,9 @@ export default function Home() {
         <p className="text-sm text-gray-600 mt-4">
           ※ 正確な評価額を算出するには、税理士等の専門家へご相談ください。
         </p>
+        <p className="text-sm text-gray-600 mt-2">
+          ※ 参考: <a href="https://www.nta.go.jp/law/tsutatsu/kobetsu/hyoka/zaisan.htm" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">財産評価基本通達（国税庁）</a>
+        </p>
       </div>
 
       <Step0BasicInfo
