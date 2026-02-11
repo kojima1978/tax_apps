@@ -69,12 +69,10 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         try {
             if (isCreateMode) {
                 await createCase({ ...formData, acceptanceStatus: formData.acceptanceStatus || "未判定" })
-                console.log("Created data:", formData)
                 toast.success("新規登録しました")
                 router.push("/")
             } else {
                 await updateCase(formData.id, formData)
-                console.log("Saved data:", formData)
                 toast.success("保存しました")
                 router.refresh()
             }

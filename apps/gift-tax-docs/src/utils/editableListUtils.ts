@@ -1,7 +1,7 @@
 import { giftData, type DocumentGroup, type EditableCategory, type EditableDocument, type EditableDocumentList } from '@/constants';
 
 // 一意のIDを生成
-export const generateId = () => crypto.randomUUID();
+const generateId = () => crypto.randomUUID();
 
 // カテゴリを更新するヘルパー（list.map + id比較パターンの共通化）
 const updateCategory = (

@@ -32,7 +32,7 @@ export function combineDividend(yen: number, sen: number): number {
   return yen + sen * 0.1;
 }
 
-export interface ProfitValuesInput {
+interface ProfitValuesInput {
   p1: number; // 直前期 所得金額
   l1: number; // 直前期 繰越欠損金
   p2: number; // 直前々期 所得金額
@@ -45,7 +45,7 @@ export interface ProfitValuesInput {
   profitMethodC2: "auto" | "c1" | "c2";
 }
 
-export interface ProfitValuesResult {
+interface ProfitValuesResult {
   ownProfit: number;    // c: 比準用利益
   ownProfitC1: number;  // c1: 判定用
   ownProfitC2: number;  // c2: 判定用
@@ -121,7 +121,7 @@ export function calculateProfitValues(input: ProfitValuesInput): ProfitValuesRes
   };
 }
 
-export interface OwnDataCompleteInput {
+interface OwnDataCompleteInput {
   divPrev: number;
   div2Prev: number;
   div3Prev: number;
@@ -141,7 +141,7 @@ export interface OwnDataCompleteInput {
   profitMethodC2: "auto" | "c1" | "c2";
 }
 
-export interface OwnDataCompleteResult {
+interface OwnDataCompleteResult {
   ownDividends: number;
   ownProfit: number;
   ownBookValue: number;
@@ -246,7 +246,7 @@ export type IndustryType =
 
 export type CompanySize = "Big" | "Medium" | "Small";
 
-export interface CompanySizeResult {
+interface CompanySizeResult {
   size: CompanySize;
   sizeMultiplier: 0.7 | 0.6 | 0.5; // coefficient for Similar Industry Value (A)
   lRatio: 1.0 | 0.9 | 0.75 | 0.6 | 0.5 | 0.0; // L for blending

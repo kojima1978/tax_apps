@@ -21,8 +21,6 @@ type SavedValuation = {
   updated_at: string;
 };
 
-export type { SavedValuation };
-
 type SortField = 'fiscal_year' | 'person_in_charge' | 'updated_at';
 type SortOrder = 'asc' | 'desc';
 
