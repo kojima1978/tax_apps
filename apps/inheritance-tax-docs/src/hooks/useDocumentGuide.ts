@@ -34,6 +34,8 @@ export function useDocumentGuide() {
   const [clientName, setClientName] = useState('');
   const [deceasedName, setDeceasedName] = useState('');
   const [deadline, setDeadline] = useState('');
+  const [personInCharge, setPersonInCharge] = useState('');
+  const [personInChargeContact, setPersonInChargeContact] = useState('');
 
   const toggleExpanded = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => ({ ...prev, [categoryId]: !prev[categoryId] }));
@@ -133,9 +135,10 @@ export function useDocumentGuide() {
       clientName, deceasedName, deadline,
       deletedDocuments, customDocuments, documentOrder,
       editedDocuments, canDelegateOverrides, specificDocNames,
+      personInCharge, personInChargeContact,
     });
     downloadAsJson(exportData);
-  }, [clientName, deceasedName, deadline, deletedDocuments, customDocuments, documentOrder, editedDocuments, canDelegateOverrides, specificDocNames]);
+  }, [clientName, deceasedName, deadline, deletedDocuments, customDocuments, documentOrder, editedDocuments, canDelegateOverrides, specificDocNames, personInCharge, personInChargeContact]);
 
   const importFromJson = useCallback((data: ExportData) => {
     setClientName(data.data.clientName);
@@ -147,6 +150,8 @@ export function useDocumentGuide() {
     setEditedDocuments(data.data.editedDocuments);
     setCanDelegateOverrides(data.data.canDelegateOverrides);
     setSpecificDocNames(data.data.specificDocNames ?? {});
+    setPersonInCharge(data.data.personInCharge ?? '');
+    setPersonInChargeContact(data.data.personInChargeContact ?? '');
   }, []);
 
   const getSelectedDocuments = useCallback((): { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[] => {
@@ -217,11 +222,11 @@ export function useDocumentGuide() {
     // state
     expandedCategories, deletedDocuments, customDocuments, documentOrder,
     editedDocuments, canDelegateOverrides, specificDocNames,
-    clientName, deceasedName, deadline, stats,
+    clientName, deceasedName, deadline, personInCharge, personInChargeContact, stats,
     // モーダル
     ...modal,
     // handlers
-    setClientName, setDeceasedName, setDeadline,
+    setClientName, setDeceasedName, setDeadline, setPersonInCharge, setPersonInChargeContact,
     toggleExpanded, deleteDocument, restoreDocument,
     addCustomDocument, removeCustomDocument, reorderDocuments,
     editDocument, toggleCanDelegate,

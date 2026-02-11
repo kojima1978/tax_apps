@@ -30,6 +30,8 @@ interface UnifiedDocumentViewProps {
   clientName: string;
   deceasedName: string;
   deadline: string;
+  personInCharge: string;
+  personInChargeContact: string;
   expandedCategories: Record<string, boolean>;
   deletedDocuments: Record<string, boolean>;
   customDocuments: CustomDocumentItem[];
@@ -41,6 +43,8 @@ interface UnifiedDocumentViewProps {
   onClientNameChange: (value: string) => void;
   onDeceasedNameChange: (value: string) => void;
   onDeadlineChange: (value: string) => void;
+  onPersonInChargeChange: (value: string) => void;
+  onPersonInChargeContactChange: (value: string) => void;
   onToggleExpanded: (categoryId: string) => void;
   onDeleteDocument: (docId: string) => void;
   onRestoreDocument: (docId: string) => void;
@@ -64,6 +68,8 @@ function UnifiedDocumentViewComponent({
   clientName,
   deceasedName,
   deadline,
+  personInCharge,
+  personInChargeContact,
   expandedCategories,
   deletedDocuments,
   customDocuments,
@@ -75,6 +81,8 @@ function UnifiedDocumentViewComponent({
   onClientNameChange,
   onDeceasedNameChange,
   onDeadlineChange,
+  onPersonInChargeChange,
+  onPersonInChargeContactChange,
   onToggleExpanded,
   onDeleteDocument,
   onRestoreDocument,
@@ -105,7 +113,7 @@ function UnifiedDocumentViewComponent({
     setExportError(null);
     try {
       const results = getSelectedDocuments();
-      exportToExcel({ results, clientName, deceasedName, deadline, specificDocNames });
+      exportToExcel({ results, clientName, deceasedName, deadline, specificDocNames, personInCharge, personInChargeContact });
     } catch (error) {
       console.error('Excel export failed:', error);
       setExportError('Excelファイルの出力に失敗しました。もう一度お試しください。');
@@ -184,7 +192,7 @@ function UnifiedDocumentViewComponent({
               <p>税理士法人 マスエージェント</p>
             </div>
           </div>
-          {(clientName || deceasedName || deadline) && (
+          {(clientName || deceasedName || deadline || personInCharge || personInChargeContact) && (
             <div className="mt-4 p-4 bg-white border border-blue-200 rounded-lg grid grid-cols-3 gap-4 print-compact-info">
               {clientName && (
                 <div>
@@ -202,6 +210,18 @@ function UnifiedDocumentViewComponent({
                 <div>
                   <span className="text-xs text-slate-500 print:text-[9px]">資料収集期限（目安）</span>
                   <p className="font-bold text-slate-800 print:text-xs">{formatDeadline(deadline)}</p>
+                </div>
+              )}
+              {personInCharge && (
+                <div>
+                  <span className="text-xs text-slate-500 print:text-[9px]">担当者</span>
+                  <p className="font-bold text-slate-800 print:text-xs">{personInCharge}</p>
+                </div>
+              )}
+              {personInChargeContact && (
+                <div>
+                  <span className="text-xs text-slate-500 print:text-[9px]">担当者連絡先</span>
+                  <p className="font-bold text-slate-800 print:text-xs">{personInChargeContact}</p>
                 </div>
               )}
             </div>
@@ -243,6 +263,28 @@ function UnifiedDocumentViewComponent({
                 value={deadline}
                 onChange={(e) => onDeadlineChange(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm text-slate-600 mb-1">担当者</label>
+              <input
+                type="text"
+                value={personInCharge}
+                onChange={(e) => onPersonInChargeChange(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="例：佐藤 花子"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-slate-600 mb-1">担当者連絡先</label>
+              <input
+                type="text"
+                value={personInChargeContact}
+                onChange={(e) => onPersonInChargeContactChange(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="例：088-632-6228"
               />
             </div>
           </div>
