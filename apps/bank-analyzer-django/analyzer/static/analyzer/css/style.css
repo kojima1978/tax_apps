@@ -100,3 +100,8 @@ h4 {
     background-color: #f1f5f9;
     cursor: pointer;
 }
+
+/* フィルターコントロールの高さ統一 */
+.filter-control {
+    height: 4.5rem;
+}

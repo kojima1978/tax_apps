@@ -1,6 +1,7 @@
 <!-- 分類フィルター -->
 <form method="get" class="row g-3 mb-4">
     <input type="hidden" name="tab" value="{{ tab_name }}">
+    {% if filter_state.large_amount_threshold %}<input type="hidden" name="large_amount_threshold" value="{{ filter_state.large_amount_threshold }}">{% endif %}
     <div class="col-md-4">
         <label class="form-label">分類で絞り込み{% if label_note %} <small class="text-muted">({{ label_note }})</small>{% endif %}</label>
         <select name="{{ filter_prefix }}_category" class="form-select" multiple size="3">
@@ -11,7 +12,7 @@
     </div>
     <div class="col-md-3">
         <label class="form-label">絞り込み方法</label>
-        <div class="d-flex gap-3">
+        <div>
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="{{ filter_prefix }}_category_mode" id="{{ filter_prefix }}_mode_include" value="include" {% if selected_mode != 'exclude' %}checked{% endif %}>
                 <label class="form-check-label" for="{{ filter_prefix }}_mode_include">選択を含む</label>
@@ -22,7 +23,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 d-flex align-items-end gap-2">
+    <div class="col-md-3 d-flex align-items-start gap-2 pt-4">
         <button class="btn btn-primary" type="submit">
             <i class="bi bi-search"></i> 絞り込み
         </button>

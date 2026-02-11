@@ -660,10 +660,6 @@ class AnalysisService:
         amount_max = AnalysisService._parse_amount_str(filter_state.get('amount_max', ''))
         queryset = AnalysisService._apply_amount_filters(queryset, amount_type, amount_min, amount_max)
 
-        # 多額取引のみフィルター
-        if filter_state.get('large_only'):
-            queryset = queryset.filter(is_large=True)
-
         return queryset
 
     @staticmethod
@@ -734,7 +730,15 @@ class AnalysisService:
     @staticmethod
     def _build_large_txs(df: pd.DataFrame, filter_state: dict) -> list:
         """多額取引データを生成（フィルター適用含む）"""
-        large_df = df[df['is_large']].copy()
+        custom_threshold = AnalysisService._parse_amount_str(
+            filter_state.get('large_amount_threshold', '')
+        )
+        if custom_threshold is not None:
+            large_df = df[
+                (df['amount_out'] >= custom_threshold) | (df['amount_in'] >= custom_threshold)
+            ].copy()
+        else:
+            large_df = df[df['is_large']].copy()
         if filter_state.get('large_category'):
             if filter_state.get('large_category_mode') == 'exclude':
                 large_df = large_df[~large_df['category'].isin(filter_state['large_category'])]

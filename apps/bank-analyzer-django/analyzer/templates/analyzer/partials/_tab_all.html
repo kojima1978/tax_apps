@@ -20,7 +20,7 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label">銀行名</label>
-                <select name="bank" class="form-select" multiple size="3">
+                <select name="bank" class="form-select filter-control" multiple size="3">
                     {% for bank in banks %}
                     <option value="{{ bank }}" {% if bank in filter_state.bank %}selected{% endif %}>{{ bank }}
                     </option>
@@ -29,7 +29,7 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label">口座</label>
-                <select name="account" class="form-select" multiple size="3">
+                <select name="account" class="form-select filter-control" multiple size="3">
                     {% for acc in accounts %}
                     <option value="{{ acc }}" {% if acc in filter_state.account %}selected{% endif %}>{{ acc }}
                     </option>
@@ -38,7 +38,7 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label">分類</label>
-                <select name="category" class="form-select" multiple size="3">
+                <select name="category" class="form-select filter-control" multiple size="3">
                     {% for cat in categories %}
                     <option value="{{ cat }}" {% if cat in filter_state.category %}selected{% endif %}>{{ cat }}
                     </option>
@@ -57,8 +57,8 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label">キーワード検索</label>
-                <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}"
-                    placeholder="摘要を検索..." style="height: 72px;">
+                <input type="text" name="keyword" class="form-control filter-control" value="{{ filter_state.keyword }}"
+                    placeholder="摘要を検索...">
             </div>
             <div class="col-md-2 d-flex align-items-start gap-1 pt-4">
                 <button class="btn btn-sm btn-outline-secondary" type="submit">
@@ -72,16 +72,16 @@
 
         <!-- 金額フィルター（折りたたみ式） -->
         <div class="mb-4">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#amountFilterCollapse" aria-expanded="{% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' or filter_state.large_only %}true{% else %}false{% endif %}">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#amountFilterCollapse" aria-expanded="{% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' %}true{% else %}false{% endif %}">
                 <i class="bi bi-funnel"></i> 金額で絞り込み
-                {% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' or filter_state.large_only %}
+                {% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' %}
                 <span class="badge bg-primary ms-1">適用中</span>
                 {% endif %}
             </button>
             <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-sm btn-outline-secondary ms-2">
                 <i class="bi bi-x-lg"></i> フィルタークリア
             </a>
-            <div class="collapse {% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' or filter_state.large_only %}show{% endif %}" id="amountFilterCollapse">
+            <div class="collapse {% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' %}show{% endif %}" id="amountFilterCollapse">
                 <form method="get" class="row g-3 mt-2 p-3 bg-light rounded">
                     <!-- タブ状態を保持 -->
                     <input type="hidden" name="tab" value="all">
@@ -111,13 +111,6 @@
                         <label class="form-label small">最大金額</label>
                         <input type="text" name="amount_max" class="form-control form-control-sm"
                             value="{{ filter_state.amount_max }}" placeholder="例: 500000">
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="large_only" value="1" id="largeOnlyCheck"
-                                {% if filter_state.large_only %}checked{% endif %}>
-                            <label class="form-check-label small" for="largeOnlyCheck">多額取引のみ</label>
-                        </div>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button class="btn btn-primary btn-sm w-100" type="submit">
@@ -156,18 +149,17 @@
                     <small class="text-muted">({{ all_txs.number }} / {{ all_txs.paginator.num_pages }}ページ)</small>
                     {% endif %}
                 </h5>
-                <div>
+                <div class="d-flex align-items-center gap-1">
                     {% if all_txs %}
-                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                    <button type="submit" class="btn btn-primary btn-sm">
                         <i class="bi bi-check-lg"></i> 分類を一括保存
                     </button>
                     {% endif %}
-                    <!-- 絞り込み結果をCSV出力 -->
-                    <a href="{% url 'export-csv-filtered' case.pk %}?{% for b in filter_state.bank %}bank={{ b }}&{% endfor %}{% for a in filter_state.account %}account={{ a }}&{% endfor %}{% for c in filter_state.category %}category={{ c }}&{% endfor %}{% if filter_state.category_mode %}category_mode={{ filter_state.category_mode }}&{% endif %}{% if filter_state.keyword %}keyword={{ filter_state.keyword }}&{% endif %}{% if filter_state.amount_min %}amount_min={{ filter_state.amount_min }}&{% endif %}{% if filter_state.amount_max %}amount_max={{ filter_state.amount_max }}&{% endif %}{% if filter_state.amount_type %}amount_type={{ filter_state.amount_type }}&{% endif %}{% if filter_state.large_only %}large_only={{ filter_state.large_only }}{% endif %}"
-                       class="btn btn-success btn-sm me-1" title="現在の絞り込み結果をCSV出力（{{ all_txs_count }}件）">
+                    <a href="{% url 'export-csv-filtered' case.pk %}?{% for b in filter_state.bank %}bank={{ b }}&{% endfor %}{% for a in filter_state.account %}account={{ a }}&{% endfor %}{% for c in filter_state.category %}category={{ c }}&{% endfor %}{% if filter_state.category_mode %}category_mode={{ filter_state.category_mode }}&{% endif %}{% if filter_state.keyword %}keyword={{ filter_state.keyword }}&{% endif %}{% if filter_state.amount_min %}amount_min={{ filter_state.amount_min }}&{% endif %}{% if filter_state.amount_max %}amount_max={{ filter_state.amount_max }}&{% endif %}{% if filter_state.amount_type %}amount_type={{ filter_state.amount_type }}{% endif %}"
+                       class="btn btn-success btn-sm" title="現在の絞り込み結果をCSV出力（{{ all_txs_count }}件）">
                         <i class="bi bi-download"></i> 絞込結果CSV
                     </a>
-                    <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm me-1" title="全データをCSV出力">
+                    <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm" title="全データをCSV出力">
                         <i class="bi bi-download"></i> 全データCSV
                     </a>
                     <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-primary btn-sm" title="JSONバックアップをダウンロード">

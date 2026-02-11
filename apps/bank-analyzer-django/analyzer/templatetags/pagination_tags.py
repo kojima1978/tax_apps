@@ -32,7 +32,4 @@ def pagination_url(tab, page, filter_state):
     if amount_type != 'both':
         params.append(('amount_type', amount_type))
 
-    if filter_state.get('large_only'):
-        params.append(('large_only', filter_state['large_only']))
-
     return '?' + urlencode(params)
