@@ -1,6 +1,6 @@
 import XLSX from 'xlsx-js-style';
 import { CategoryGroup } from '@/types';
-import { toReiwa } from '@/utils/date';
+import { formatReiwaYear } from '@/utils/date';
 import { taxReturnData } from '@/data/taxReturnData';
 
 // スタイル定義
@@ -258,7 +258,7 @@ export function exportToExcel(documentGroups: CategoryGroup[], year: number, cus
   ws['!printHeader'] = { s: { r: 0 }, e: { r: 1 } };
 
   // ファイル名を生成
-  const fileName = `確定申告_必要書類リスト_令和${toReiwa(year)}年分.xlsx`;
+  const fileName = `確定申告_必要書類リスト_${formatReiwaYear(year)}分.xlsx`;
 
   // ダウンロード
   XLSX.writeFile(wb, fileName);

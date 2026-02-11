@@ -6,6 +6,11 @@ export function toReiwa(year: number): number {
   return year - REIWA_OFFSET;
 }
 
+/** 「令和X年」形式の文字列を返す */
+export function formatReiwaYear(year: number): string {
+  return `令和${toReiwa(year)}年`;
+}
+
 /**
  * デフォルトの対象年度（西暦）を計算
  * 1-3月の場合は前年の確定申告なので前年を返す

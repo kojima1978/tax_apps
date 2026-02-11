@@ -52,11 +52,6 @@ body {
   .rounded-2xl {
     border-radius: 0;
   }
-  .bg-blue-600 {
-    background-color: white !important;
-    color: black !important;
-    border-bottom: 2px solid #000;
-  }
   .text-white {
     color: black !important;
   }

@@ -7,7 +7,7 @@ import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { CategoryGroup } from '@/types';
 import { fetchDocuments, saveDocuments, copyToNextYear as apiCopyToNextYear } from '@/utils/api';
 import { getErrorMessage } from '@/utils/error';
-import { getDefaultYear, toReiwa } from '@/utils/date';
+import { getDefaultYear, formatReiwaYear } from '@/utils/date';
 
 type Step = 'menu' | 'editor';
 
@@ -98,7 +98,7 @@ export default function Home() {
       const data = await apiCopyToNextYear(state.customerName, state.staffName, state.year);
 
       if (data.success) {
-        alert(`令和${toReiwa(state.year)}年のデータを令和${toReiwa(state.year) + 1}年にコピーしました。\n年度を切り替えて確認してください。`);
+        alert(`${formatReiwaYear(state.year)}のデータを${formatReiwaYear(state.year + 1)}にコピーしました。\n年度を切り替えて確認してください。`);
       } else {
         alert('翌年度更新に失敗しました');
       }

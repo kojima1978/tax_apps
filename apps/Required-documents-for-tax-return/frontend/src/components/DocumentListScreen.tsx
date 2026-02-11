@@ -17,15 +17,16 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { ArrowLeft, Home, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, PlusCircle, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Home, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, RefreshCcw } from 'lucide-react';
 import { exportToExcel } from '@/utils/exportExcel';
 import { CategoryGroup } from '@/types';
 import { SortableCategory } from './document-list/SortableCategory';
-import { formatDate, toReiwa } from '@/utils/date';
+import { formatDate, formatReiwaYear } from '@/utils/date';
 import { fetchStaff } from '@/utils/api';
 import { getErrorMessage } from '@/utils/error';
 import { handleInlineKeyDown } from '@/utils/keyboard';
-import { taxReturnData, replaceYearPlaceholder } from '@/data/taxReturnData';
+import { taxReturnData } from '@/data/taxReturnData';
+import { MissingCategoriesRestore } from './document-list/MissingCategoriesRestore';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { useDocumentListEditing } from '@/hooks/useDocumentListEditing';
 import { exportCustomerJson, readJsonFile, validateCustomerImport, CustomerExport } from '@/utils/jsonExportImport';
@@ -84,7 +85,13 @@ export default function DocumentListScreen({
     })
   );
 
-  const reiwaYear = useMemo(() => toReiwa(year), [year]);
+  const reiwaYearStr = useMemo(() => formatReiwaYear(year), [year]);
+
+  const INFO_BAR_ITEMS = [
+    { label: '対象年度', value: reiwaYearStr + '分', className: 'text-sm' },
+    { label: 'お客様', value: customerName, className: 'text-lg' },
+    { label: '担当者', value: staffName, className: 'text-sm' },
+  ];
 
   // カテゴリの並び替え
   const handleCategoryDragStart = (event: DragStartEvent) => {
@@ -152,7 +159,7 @@ export default function DocumentListScreen({
       const importedData = parsed.data;
 
       if (!confirm(
-        `「${importedData.customer_name}」の令和${toReiwa(importedData.year)}年のデータをインポートします。\n` +
+        `「${importedData.customer_name}」の${formatReiwaYear(importedData.year)}のデータをインポートします。\n` +
         `現在の編集内容は上書きされます。よろしいですか？`
       )) return;
 
@@ -239,18 +246,12 @@ export default function DocumentListScreen({
 
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-              <div className="flex items-center">
-                <span className="text-xs font-bold text-slate-500 mr-2">対象年度:</span>
-                <span className="text-sm font-bold text-slate-800">令和{reiwaYear}年分</span>
-              </div>
-              <div className="flex items-center">
-                <span className="text-xs font-bold text-slate-500 mr-2">お客様:</span>
-                <span className="text-lg font-bold text-slate-800">{customerName}</span>
-              </div>
-              <div className="flex items-center">
-                <span className="text-xs font-bold text-slate-500 mr-2">担当者:</span>
-                <span className="text-sm font-bold text-slate-800">{staffName}</span>
-              </div>
+              {INFO_BAR_ITEMS.map(({ label, value, className }) => (
+                <div key={label} className="flex items-center">
+                  <span className="text-xs font-bold text-slate-500 mr-2">{label}:</span>
+                  <span className={`${className} font-bold text-slate-800`}>{value}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -349,7 +350,7 @@ export default function DocumentListScreen({
         <div className="flex justify-between items-end">
           <div className="flex flex-col">
             <div className="text-left mb-0.5">
-              <p className="text-xs">対象年度: <span className="font-bold text-sm">令和{reiwaYear}年分</span></p>
+              <p className="text-xs">対象年度: <span className="font-bold text-sm">{reiwaYearStr}分</span></p>
             </div>
             <h1 className="text-2xl font-bold mb-1">確定申告 必要書類確認リスト</h1>
             <div className="flex items-end gap-2 mb-1">
@@ -495,98 +496,13 @@ export default function DocumentListScreen({
       <div className="hidden print:block mt-8 pt-8 border-t border-slate-800 text-center text-xs">
         <div className="flex justify-between items-end">
           <div className="text-left">
-            <p>※ このリストは令和{reiwaYear}年分の確定申告に必要な書類の目安です。</p>
+            <p>※ このリストは{reiwaYearStr}分の確定申告に必要な書類の目安です。</p>
             <p>※ 個別の事情により、追加の書類が必要になる場合があります。</p>
           </div>
           <div className="text-right">
             <p>作成日: {currentDate}</p>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// 削除されたデフォルトカテゴリの復元コンポーネント
-function MissingCategoriesRestore({
-  documentGroups,
-  year,
-  onRestore,
-}: {
-  documentGroups: CategoryGroup[];
-  year: number;
-  onRestore: (group: CategoryGroup) => void;
-}) {
-  const currentGroupIds = useMemo(() => new Set(documentGroups.map((g) => g.id)), [documentGroups]);
-
-  const missingDefaults = useMemo(() => {
-    return [
-      ...taxReturnData.baseRequired.map((g, i) => ({
-        id: `base_${i}`,
-        category: g.category,
-        original: g,
-        type: 'base' as const,
-      })),
-      ...taxReturnData.options.map((o) => ({
-        id: `option_${o.id}`,
-        category: `【所得】${o.label}`,
-        original: o,
-        type: 'option' as const,
-      })),
-      ...taxReturnData.deductions.map((d) => ({
-        id: `deduction_${d.id}`,
-        category: `【控除】${d.label}`,
-        original: d,
-        type: 'deduction' as const,
-      })),
-    ].filter((item) => !currentGroupIds.has(item.id));
-  }, [currentGroupIds]);
-
-  if (missingDefaults.length === 0) return null;
-
-  return (
-    <div className="mt-4 pt-4 border-t border-slate-200">
-      <p className="text-sm text-slate-500 font-bold mb-2 flex items-center">
-        <RefreshCcw className="w-3 h-3 mr-1" />
-        削除されたデフォルトカテゴリを復元:
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {missingDefaults.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => {
-              let documents: string[] = [];
-              let note: string | undefined = undefined;
-
-              if (item.type === 'base') {
-                const original = item.original as { documents: string[]; note?: string };
-                documents = original.documents;
-                note = original.note;
-              } else {
-                const original = item.original as { documents: string[] };
-                documents = original.documents;
-              }
-
-              const newGroup: CategoryGroup = {
-                id: item.id,
-                category: item.category,
-                documents: documents.map((doc, idx) => ({
-                  id: `doc_${Date.now()}_${idx}`,
-                  text: replaceYearPlaceholder(doc, year),
-                  checked: false,
-                  subItems: [],
-                })),
-                note,
-              };
-
-              onRestore(newGroup);
-            }}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 text-xs rounded-full border border-slate-200 hover:border-emerald-200 transition-colors flex items-center"
-          >
-            <PlusCircle className="w-3 h-3 mr-1" />
-            {item.category}
-          </button>
-        ))}
       </div>
     </div>
   );

@@ -1,25 +1,25 @@
 import { toReiwa } from '@/utils/date';
 
-export interface DocumentGroup {
+interface DocumentGroup {
   category: string;
   documents: string[];
   note?: string;
 }
 
-export interface OptionItem {
+interface OptionItem {
   id: string;
   label: string;
   documents: string[];
 }
 
-export interface ContactInfo {
+interface ContactInfo {
   office: string;
   address: string;
   tel: string;
   fax?: string;
 }
 
-export interface TaxReturnData {
+interface TaxReturnData {
   title: string;
   description: string;
   contactInfo: ContactInfo;
