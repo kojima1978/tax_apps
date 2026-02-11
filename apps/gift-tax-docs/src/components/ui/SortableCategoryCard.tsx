@@ -18,7 +18,7 @@ import { handleInlineKeyDown } from './EditableInput';
 
 // ─── カテゴリ編集状態の型 ───
 
-export type CategoryEditState = {
+type CategoryEditState = {
   editingId: string | null;
   editName: string;
   setEditName: (name: string) => void;
@@ -26,7 +26,7 @@ export type CategoryEditState = {
   cancel: () => void;
 };
 
-export type CategoryHandlers = {
+type CategoryHandlers = {
   toggleExpand: (id: string) => void;
   toggleSpecial: (id: string) => void;
   startEdit: (id: string, name: string) => void;

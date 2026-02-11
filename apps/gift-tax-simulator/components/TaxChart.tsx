@@ -6,7 +6,6 @@ import {
     CategoryScale,
     LinearScale,
     BarElement,
-    Title,
     Tooltip,
     Legend,
     type TooltipItem,
@@ -15,7 +14,7 @@ import { Bar } from 'react-chartjs-2';
 import { type CalculationResult } from '@/lib/tax-calculation';
 import { formatCurrency } from '@/lib/utils';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 const chartOptions = {
     responsive: true,

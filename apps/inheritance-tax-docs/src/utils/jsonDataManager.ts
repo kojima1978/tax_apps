@@ -22,7 +22,7 @@ export interface ExportData {
 }
 
 // インポートデータの検証結果
-export interface ValidationResult {
+interface ValidationResult {
   isValid: boolean;
   error?: string;
 }

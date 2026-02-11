@@ -28,59 +28,6 @@ export function toWareki(year: number | string): string {
 }
 
 /**
- * 令和年を西暦年に変換
- * @param wareki 令和年（例: "令和6"、"R6"、"6"）
- * @returns 西暦年（例: 2024）
- */
-export function toSeireki(wareki: string): number {
-  // "令和"を除去
-  let reiwaYear = wareki.replace(/令和|R/g, '').trim();
-
-  // "元"を1に変換
-  if (reiwaYear === '元') {
-    reiwaYear = '1';
-  }
-
-  const numReiwaYear = parseInt(reiwaYear, 10);
-
-  if (isNaN(numReiwaYear)) {
-    return 0;
-  }
-
-  // 令和元年は2019年
-  return numReiwaYear + 2018;
-}
-
-/**
- * 西暦年の配列を令和年の配列に変換
- * @param years 西暦年の配列
- * @returns 令和年の配列（表示用）
- */
-export function yearsToWareki(years: string[]): Array<{ seireki: string; wareki: string }> {
-  return years.map(year => ({
-    seireki: year,
-    wareki: toWareki(year),
-  }));
-}
-
-/**
- * 現在の年度（令和）を取得
- * @returns 令和年（例: "令和6"）
- */
-export function getCurrentWarekiYear(): string {
-  const currentYear = new Date().getFullYear();
-  return toWareki(currentYear);
-}
-
-/**
- * 現在の年度（西暦）を取得
- * @returns 西暦年（例: 2024）
- */
-export function getCurrentSeirekiYear(): number {
-  return new Date().getFullYear();
-}
-
-/**
  * 現在年を中心に ±offset の年度配列を降順で生成
  * @param offset 前後の年数（デフォルト: 5）
  * @returns 年度の数値配列（降順）

@@ -2,7 +2,7 @@ import XLSX from 'xlsx-js-style';
 import type { CategoryData, DocumentItem, CustomDocumentItem } from '../constants/documents';
 import { isCustomDocument, formatDate, formatDeadline } from './helpers';
 
-export interface ExcelExportParams {
+interface ExcelExportParams {
   results: { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[];
   clientName: string;
   deceasedName: string;

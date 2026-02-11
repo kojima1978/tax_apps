@@ -22,7 +22,7 @@ export function generateId(prefix: string, length: number = 11): string {
  * @param data バリデーション対象のデータ
  * @returns バリデーション結果 { isValid: boolean, message?: string }
  */
-export function validateBasicInfo(data: {
+function validateBasicInfo(data: {
   fiscalYear?: string;
   companyName?: string;
   personInCharge?: string;
@@ -34,19 +34,6 @@ export function validateBasicInfo(data: {
     };
   }
   return { isValid: true };
-}
-
-/**
- * 共通のエラーハンドラー
- * @param error エラーオブジェクト
- * @param defaultMessage デフォルトのエラーメッセージ
- * @returns エラーメッセージ
- */
-export function handleError(error: unknown, defaultMessage: string): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return defaultMessage;
 }
 
 /**
@@ -66,7 +53,7 @@ export async function checkApiResponse(response: Response): Promise<void> {
  * @param data バリデーション対象のデータ
  * @returns バリデーション結果 { isValid: boolean, message?: string }
  */
-export function validateStep1(data: {
+function validateStep1(data: {
   employees?: string;
   totalAssets?: string;
   sales?: string;
@@ -85,7 +72,7 @@ export function validateStep1(data: {
  * @param data バリデーション対象のデータ
  * @returns バリデーション結果 { isValid: boolean, message?: string }
  */
-export function validateStep2(data: {
+function validateStep2(data: {
   currentPeriodNetAsset?: string;
   netAssetTaxValue?: string;
   currentPeriodProfit?: string;
@@ -104,7 +91,7 @@ export function validateStep2(data: {
  * @param investors 出資者リスト
  * @returns バリデーション結果 { isValid: boolean, message?: string, validInvestors?: Array }
  */
-export function validateStep3(investors: Array<{ name?: string; amount?: number }>): {
+function validateStep3(investors: Array<{ name?: string; amount?: number }>): {
   isValid: boolean;
   message?: string;
   validInvestors?: Array<{ name: string; amount: number }>;
