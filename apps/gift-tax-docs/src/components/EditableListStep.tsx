@@ -26,6 +26,7 @@ const infoBarInputClass = 'px-3 py-1.5 rounded border border-slate-300 focus:rin
 
 const INFO_BAR_FIELDS = [
   { id: 'customerName', label: 'お客様名:', type: 'text', placeholder: '例：山田 太郎 様' },
+  { id: 'deadline', label: '資料収集期限:', type: 'text', placeholder: '例：3月末まで' },
   { id: 'staffName', label: '担当者名:', type: 'text', placeholder: '例：鈴木 一郎' },
   { id: 'staffPhone', label: '担当者携帯:', type: 'tel', placeholder: '例：090-1234-5678' },
 ] as const;
@@ -46,6 +47,8 @@ export const EditableListStep = () => {
     setStaffPhone,
     customerName,
     setCustomerName,
+    deadline,
+    setDeadline,
     documentList,
     setDocumentList,
   } = useGiftTaxGuide();
@@ -59,13 +62,15 @@ export const EditableListStep = () => {
     setStaffPhone,
     customerName,
     setCustomerName,
+    deadline,
+    setDeadline,
   });
 
   const dnd = useDragAndDrop(documentList, setDocumentList);
   const dndId = useId();
 
-  const valueMap = { customerName, staffName, staffPhone } as const;
-  const setterMap = { customerName: setCustomerName, staffName: setStaffName, staffPhone: setStaffPhone } as const;
+  const valueMap = { customerName, staffName, staffPhone, deadline } as const;
+  const setterMap = { customerName: setCustomerName, staffName: setStaffName, staffPhone: setStaffPhone, deadline: setDeadline } as const;
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
@@ -225,6 +230,7 @@ export const EditableListStep = () => {
         staffName={staffName}
         staffPhone={staffPhone}
         customerName={customerName}
+        deadline={deadline}
       />
 
       {/* リセット確認ダイアログ */}

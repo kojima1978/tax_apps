@@ -10,6 +10,7 @@ export interface ExportData {
   staffName: string;
   staffPhone: string;
   customerName: string;
+  deadline?: string;
   documentList: EditableDocumentList;
 }
 
@@ -18,7 +19,8 @@ export const exportToJson = (
   documentList: EditableDocumentList,
   staffName: string,
   staffPhone: string,
-  customerName: string
+  customerName: string,
+  deadline: string
 ): void => {
   const exportData: ExportData = {
     version: '1.0',
@@ -26,6 +28,7 @@ export const exportToJson = (
     staffName,
     staffPhone,
     customerName,
+    deadline,
     documentList,
   };
 
@@ -96,6 +99,7 @@ const parseImportedJson = (jsonString: string): ExportData | null => {
       staffName: data.staffName || '',
       staffPhone: data.staffPhone || '',
       customerName: data.customerName || '',
+      deadline: data.deadline || '',
       documentList,
     };
   } catch (error) {

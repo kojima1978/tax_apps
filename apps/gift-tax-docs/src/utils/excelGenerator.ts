@@ -80,7 +80,8 @@ export function generateGiftTaxExcel(
     hideSubmitted: boolean,
     staffName: string,
     staffPhone: string,
-    customerName: string
+    customerName: string,
+    deadline: string
 ) {
     const wb = XLSX.utils.book_new();
     type CellStyle = typeof excelStyles[keyof typeof excelStyles];
@@ -107,10 +108,11 @@ export function generateGiftTaxExcel(
     pushMergedRow(`発行日: ${currentDate}`, excelStyles.subTitle);
     pushMergedRow(COMPANY_INFO.name, excelStyles.subTitle);
 
-    // 担当者・お客様名
-    if (staffName || customerName) {
+    // 担当者・お客様名・期限
+    if (staffName || customerName || deadline) {
         const parts = [];
         if (customerName) parts.push(`お客様名: ${customerName}`);
+        if (deadline) parts.push(`資料収集期限: ${deadline}`);
         if (staffName) parts.push(`担当者: ${staffName}`);
         pushMergedRow(parts.join(' / '), excelStyles.subTitle);
     }

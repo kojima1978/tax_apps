@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
   staffName: 'gift_tax_staff_name',
   staffPhone: 'gift_tax_staff_phone',
   customerName: 'gift_tax_customer_name',
+  deadline: 'gift_tax_deadline',
 } as const;
 
 // 会社情報
