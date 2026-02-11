@@ -148,22 +148,6 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
         <h1 className="text-3xl font-bold mb-3">{taxReturnData.title}</h1>
         <p className="text-emerald-100 text-lg">必要書類を確認・編集して、準備リストを作成できます。</p>
 
-        <div className="absolute top-4 right-4 flex gap-3">
-          <Link
-            href="/staff"
-            className="p-2 bg-emerald-700 hover:bg-emerald-800 rounded-full transition-colors text-white"
-            title="担当者管理"
-          >
-            <Users className="w-5 h-5" />
-          </Link>
-          <Link
-            href="/customers"
-            className="p-2 bg-emerald-700 hover:bg-emerald-800 rounded-full transition-colors text-white"
-            title="お客様管理"
-          >
-            <UserPlus className="w-5 h-5" />
-          </Link>
-        </div>
       </header>
 
       <div className="p-8 flex-1 flex flex-col">
@@ -193,6 +177,24 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
         {/* 通常表示: 担当者がいる場合 */}
         {hasData && (
           <>
+            {/* 登録リンク */}
+            <div className="mb-8 flex items-center gap-6">
+              <Link
+                href="/staff/create"
+                className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+              >
+                <UserPlus className="w-4 h-4 mr-1.5" />
+                担当者登録
+              </Link>
+              <Link
+                href="/customers/create"
+                className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+              >
+                <Users className="w-4 h-4 mr-1.5" />
+                お客様登録
+              </Link>
+            </div>
+
             {/* 保存済みデータ読み込みセクション */}
             <div className="mb-10">
               <div className="flex items-center mb-6">
