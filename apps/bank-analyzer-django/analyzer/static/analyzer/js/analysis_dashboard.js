@@ -199,15 +199,20 @@ function showToast(message, type = 'success') {
 
 // ===== 一括選択機能 =====
 const selectAllTx = document.getElementById('selectAllTx');
-const txCheckboxes = document.querySelectorAll('.tx-select-check');
 const bulkActionBar = document.getElementById('bulkActionBar');
 const selectedCountText = document.getElementById('selectedCountText');
 const clearSelectionBtn = document.getElementById('clearSelectionBtn');
 const applyBulkCategoryBtn = document.getElementById('applyBulkCategoryBtn');
 const bulkCategorySelect = document.getElementById('bulkCategorySelect');
 
+// 現在のチェックボックスを都度取得（削除後も正確）
+function getTxCheckboxes() {
+    return document.querySelectorAll('.tx-select-check');
+}
+
 // 選択状態の更新
 function updateSelectionUI() {
+    const allBoxes = getTxCheckboxes();
     const checkedCount = document.querySelectorAll('.tx-select-check:checked').length;
     if (selectedCountText) {
         selectedCountText.textContent = `${checkedCount}件選択中`;
@@ -215,30 +220,31 @@ function updateSelectionUI() {
     if (bulkActionBar) {
         bulkActionBar.style.display = checkedCount > 0 ? 'block' : 'none';
     }
-    // 全選択チェックボックスの状態を更新
     if (selectAllTx) {
-        selectAllTx.checked = checkedCount === txCheckboxes.length && txCheckboxes.length > 0;
-        selectAllTx.indeterminate = checkedCount > 0 && checkedCount < txCheckboxes.length;
+        selectAllTx.checked = checkedCount === allBoxes.length && allBoxes.length > 0;
+        selectAllTx.indeterminate = checkedCount > 0 && checkedCount < allBoxes.length;
     }
 }
 
 // 全選択チェックボックス
 if (selectAllTx) {
     selectAllTx.addEventListener('change', function() {
-        txCheckboxes.forEach(cb => cb.checked = this.checked);
+        getTxCheckboxes().forEach(cb => cb.checked = this.checked);
         updateSelectionUI();
     });
 }
 
-// 個別チェックボックス
-txCheckboxes.forEach(cb => {
-    cb.addEventListener('change', updateSelectionUI);
+// 個別チェックボックス（イベント委譲で削除後も動作）
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('tx-select-check')) {
+        updateSelectionUI();
+    }
 });
 
 // 選択解除ボタン
 if (clearSelectionBtn) {
     clearSelectionBtn.addEventListener('click', function() {
-        txCheckboxes.forEach(cb => cb.checked = false);
+        getTxCheckboxes().forEach(cb => cb.checked = false);
         if (selectAllTx) selectAllTx.checked = false;
         updateSelectionUI();
     });
@@ -260,11 +266,14 @@ if (applyBulkCategoryBtn) {
         }
 
         // 選択された行のセレクトボックスを変更
+        var changedCount = 0;
         checkedBoxes.forEach(cb => {
             const txId = cb.value;
-            const categorySelect = document.querySelector(`select[name="cat-${txId}"]`);
+            const row = cb.closest('tr');
+            const categorySelect = row ? row.querySelector('select[name^="cat-"]') : null;
             if (categorySelect) {
                 categorySelect.value = selectedCategory;
+                changedCount++;
             }
         });
 
@@ -389,6 +398,7 @@ document.querySelectorAll('.delete-tx-btn').forEach(btn => {
                 row.style.transform = 'translateX(-20px)';
                 setTimeout(() => {
                     row.remove();
+                    updateSelectionUI();
                 }, 300);
                 showToast('取引を削除しました', 'success');
             } else {
