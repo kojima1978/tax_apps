@@ -12,11 +12,6 @@ class Case(models.Model):
     def __str__(self):
         return self.name
 
-    @property
-    def transaction_count(self):
-        """取引件数を返す"""
-        return self.transactions.count()
-
     class Meta:
         verbose_name = "案件"
         verbose_name_plural = "案件一覧"
@@ -54,11 +49,6 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.date} - {self.description}"
-
-    @property
-    def net_amount(self):
-        """純額（入金 - 出金）を返す"""
-        return self.amount_in - self.amount_out
 
     class Meta:
         verbose_name = "取引"

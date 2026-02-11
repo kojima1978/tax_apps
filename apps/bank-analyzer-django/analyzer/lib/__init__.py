@@ -10,7 +10,6 @@ from .llm_classifier import classify_transactions, classify_by_rules
 from .config import (
     load_user_settings,
     save_user_settings,
-    get_setting,
     get_classification_patterns,
     DEFAULT_PATTERNS,
 )
@@ -29,7 +28,6 @@ __all__ = [
     # config
     "load_user_settings",
     "save_user_settings",
-    "get_setting",
     "get_classification_patterns",
     "DEFAULT_PATTERNS",
     # constants

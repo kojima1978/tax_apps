@@ -17,13 +17,6 @@ _settings_cache: dict | None = None
 _settings_mtime: float | None = None
 
 
-def _invalidate_cache():
-    """キャッシュを無効化する（テスト用）"""
-    global _settings_cache, _settings_mtime
-    _settings_cache = None
-    _settings_mtime = None
-
-
 def ensure_data_dir():
     """データディレクトリを作成"""
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -88,12 +81,6 @@ def save_user_settings(new_settings: dict):
     except OSError as e:
         logger.error(f"設定ファイルの保存に失敗: {e}")
         raise
-
-
-def get_setting(key: str, default=None):
-    """特定の設定値を取得"""
-    user_settings = load_user_settings()
-    return user_settings.get(key, default)
 
 
 # デフォルト分類パターン
