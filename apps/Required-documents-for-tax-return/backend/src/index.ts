@@ -10,7 +10,6 @@ import {
   getCustomerYears,
   searchCustomers,
   getDistinctCustomerNames,
-  getDistinctStaffNames,
   getDistinctYears,
   getCustomerNamesByStaff,
   getYearsByCustomerAndStaff,
@@ -66,6 +65,11 @@ function handleCreateError(res: express.Response, e: unknown, duplicateMessage: 
 const REIWA_OFFSET = 2018;
 function toReiwa(year: number): number {
   return year - REIWA_OFFSET;
+}
+
+/** 「令和X年」形式の文字列を返す */
+function formatReiwaYear(year: number): string {
+  return `令和${toReiwa(year)}年`;
 }
 
 // ミドルウェア
@@ -150,12 +154,6 @@ app.get('/api/search', (req, res) => {
 
   const results = searchCustomers(trimmedQ);
   res.json({ results });
-});
-
-// 担当者一覧を取得
-app.get('/api/staff-names', (_req, res) => {
-  const staffNames = getDistinctStaffNames();
-  res.json({ staffNames });
 });
 
 // [NEW] Staff Management API
@@ -296,7 +294,7 @@ app.post('/api/documents', (req, res) => {
 
     return res.json({
       success: true,
-      message: `令和${toReiwa(year)}年のデータを令和${toReiwa(year) + 1}年にコピーしました`,
+      message: `${formatReiwaYear(year)}のデータを${formatReiwaYear(year + 1)}にコピーしました`,
       nextYear: year + 1,
     });
   }
@@ -309,7 +307,7 @@ app.post('/api/documents', (req, res) => {
   saveDocumentRecord(customerId, year, documentGroups);
   res.json({
     success: true,
-    message: `令和${toReiwa(year)}年のデータを保存しました`,
+    message: `${formatReiwaYear(year)}のデータを保存しました`,
   });
 });
 

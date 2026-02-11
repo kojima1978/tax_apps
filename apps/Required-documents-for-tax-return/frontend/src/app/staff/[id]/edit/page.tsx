@@ -7,6 +7,7 @@ import { getErrorMessage } from '@/utils/error';
 import { ChevronLeft, Loader2, Save } from 'lucide-react';
 import Link from 'next/link';
 import FormErrorDisplay from '@/components/FormErrorDisplay';
+import FullScreenLoader from '@/components/FullScreenLoader';
 
 export default function EditStaffPage() {
     const router = useRouter();
@@ -56,13 +57,7 @@ export default function EditStaffPage() {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-            </div>
-        );
-    }
+    if (isLoading) return <FullScreenLoader />;
 
     return (
         <div className="min-h-screen bg-slate-50 p-8">

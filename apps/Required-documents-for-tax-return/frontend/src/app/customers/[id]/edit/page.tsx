@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { fetchStaff, fetchCustomers, updateCustomerName } from '@/utils/api';
-import { getErrorMessage } from '@/utils/error';
+import { translateCustomerError } from '@/utils/error';
 import { Staff } from '@/types';
 import { ChevronLeft, Loader2, Save } from 'lucide-react';
 import Link from 'next/link';
 import FormErrorDisplay from '@/components/FormErrorDisplay';
+import FullScreenLoader from '@/components/FullScreenLoader';
 
 export default function EditCustomerPage() {
     const router = useRouter();
@@ -63,23 +64,12 @@ export default function EditCustomerPage() {
             await updateCustomerName(id, name, Number(staffId));
             router.push('/customers');
         } catch (e: unknown) {
-            const message = getErrorMessage(e, '更新に失敗しました');
-            if (message.includes('already exists')) {
-                setError('この担当者に同名のお客様が既に登録されています');
-            } else {
-                setError(message);
-            }
+            setError(translateCustomerError(e, '更新に失敗しました'));
             setIsSubmitting(false);
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-            </div>
-        );
-    }
+    if (isLoading) return <FullScreenLoader />;
 
     return (
         <div className="min-h-screen bg-slate-50 p-8">

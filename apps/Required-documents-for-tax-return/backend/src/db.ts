@@ -26,6 +26,28 @@ function withDb<T>(operation: (db: Database.Database) => T): T {
   return operation(getDb());
 }
 
+/** 書類データの upsert（SELECT→UPDATE or INSERT） */
+function upsertDocumentRecord(db: Database.Database, customerId: number, year: number, jsonData: string): void {
+  const existing = db
+    .prepare('SELECT id FROM document_records WHERE customer_id = ? AND year = ?')
+    .get(customerId, year);
+  if (existing) {
+    db.prepare('UPDATE document_records SET document_groups = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? AND year = ?')
+      .run(jsonData, customerId, year);
+  } else {
+    db.prepare('INSERT INTO document_records (customer_id, year, document_groups) VALUES (?, ?, ?)')
+      .run(customerId, year, jsonData);
+  }
+}
+
+/** 担当者の取得/作成（SELECT→無ければINSERT） */
+function getOrCreateStaff(db: Database.Database, staffName: string, mobileNumber?: string | null): number {
+  const existing = db.prepare('SELECT id FROM staff WHERE staff_name = ?').get(staffName) as { id: number } | undefined;
+  if (existing) return existing.id;
+  const info = db.prepare('INSERT INTO staff (staff_name, mobile_number) VALUES (?, ?)').run(staffName, mobileNumber || null);
+  return info.lastInsertRowid as number;
+}
+
 /** カラムが存在しない場合に追加するマイグレーションヘルパー */
 function addColumnIfMissing(
   db: Database.Database, table: string, column: string,
@@ -80,18 +102,12 @@ export function initializeDb(): void {
       (db) => {
         // Migrate existing staff names to staff table
         const customers = db.prepare('SELECT id, staff_name FROM customers WHERE staff_id IS NULL').all() as { id: number, staff_name: string }[];
-
-        const insertStaff = db.prepare('INSERT OR IGNORE INTO staff (staff_name) VALUES (?)');
-        const getStaffId = db.prepare('SELECT id FROM staff WHERE staff_name = ?');
         const updateCustomer = db.prepare('UPDATE customers SET staff_id = ? WHERE id = ?');
 
         db.transaction(() => {
           for (const customer of customers) {
-            insertStaff.run(customer.staff_name);
-            const staff = getStaffId.get(customer.staff_name) as { id: number };
-            if (staff) {
-              updateCustomer.run(staff.id, customer.id);
-            }
+            const staffId = getOrCreateStaff(db, customer.staff_name);
+            updateCustomer.run(staffId, customer.id);
           }
         })();
         console.log('Migration completed.');
@@ -243,16 +259,12 @@ export function deleteCustomer(id: number): boolean {
 export function getOrCreateCustomer(customerName: string, staffName: string): number {
   return withDb((db) => {
     // 1. Ensure staff exists
-    let staff = db.prepare('SELECT id FROM staff WHERE staff_name = ?').get(staffName) as { id: number } | undefined;
-    if (!staff) {
-      const info = db.prepare('INSERT INTO staff (staff_name) VALUES (?)').run(staffName);
-      staff = { id: info.lastInsertRowid as number };
-    }
+    const staffId = getOrCreateStaff(db, staffName);
 
     // 2. Check for existing customer with this staff_id
     const existing = db
       .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id = ?')
-      .get(customerName, staff.id) as { id: number } | undefined;
+      .get(customerName, staffId) as { id: number } | undefined;
 
     if (existing) {
       return existing.id;
@@ -261,7 +273,7 @@ export function getOrCreateCustomer(customerName: string, staffName: string): nu
     // 3. Insert new customer
     const result = db
       .prepare('INSERT INTO customers (customer_name, staff_name, staff_id) VALUES (?, ?, ?)')
-      .run(customerName, staffName, staff.id);
+      .run(customerName, staffName, staffId);
 
     return result.lastInsertRowid as number;
   });
@@ -270,23 +282,7 @@ export function getOrCreateCustomer(customerName: string, staffName: string): nu
 // 書類データを保存
 export function saveDocumentRecord(customerId: number, year: number, documentGroups: unknown): void {
   withDb((db) => {
-    const existing = db
-      .prepare('SELECT id FROM document_records WHERE customer_id = ? AND year = ?')
-      .get(customerId, year);
-
-    const jsonData = JSON.stringify(documentGroups);
-
-    if (existing) {
-      db.prepare(
-        'UPDATE document_records SET document_groups = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? AND year = ?'
-      ).run(jsonData, customerId, year);
-    } else {
-      db.prepare('INSERT INTO document_records (customer_id, year, document_groups) VALUES (?, ?, ?)').run(
-        customerId,
-        year,
-        jsonData
-      );
-    }
+    upsertDocumentRecord(db, customerId, year, JSON.stringify(documentGroups));
   });
 }
 
@@ -335,21 +331,7 @@ export function copyToNextYear(customerId: number, currentYear: number): boolean
       }
 
       const nextYear = currentYear + 1;
-      const existingNext = db
-        .prepare('SELECT id FROM document_records WHERE customer_id = ? AND year = ?')
-        .get(customerId, nextYear);
-
-      if (existingNext) {
-        db.prepare(
-          'UPDATE document_records SET document_groups = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? AND year = ?'
-        ).run(currentRecord.document_groups, customerId, nextYear);
-      } else {
-        db.prepare('INSERT INTO document_records (customer_id, year, document_groups) VALUES (?, ?, ?)').run(
-          customerId,
-          nextYear,
-          currentRecord.document_groups
-        );
-      }
+      upsertDocumentRecord(db, customerId, nextYear, currentRecord.document_groups);
 
       return true;
     });
@@ -425,14 +407,6 @@ export function getDistinctCustomerNames(): string[] {
       .all() as { customer_name: string }[];
 
     return customers.map((c) => c.customer_name);
-  });
-}
-
-// 担当者名一覧を取得
-export function getDistinctStaffNames(): string[] {
-  return withDb((db) => {
-    const staffs = db.prepare('SELECT staff_name FROM staff ORDER BY staff_name').all() as { staff_name: string }[];
-    return staffs.map(s => s.staff_name);
   });
 }
 
@@ -570,21 +544,15 @@ export function restoreFullBackup(data: {
       let customerCount = 0;
       let recordCount = 0;
 
-      const insertStaff = db.prepare(
-        'INSERT OR IGNORE INTO staff (staff_name, mobile_number) VALUES (?, ?)'
-      );
-      const getStaffId = db.prepare('SELECT id FROM staff WHERE staff_name = ?');
-
       // 1. 担当者の upsert
       for (const s of data.staff) {
-        insertStaff.run(s.staff_name, s.mobile_number);
+        getOrCreateStaff(db, s.staff_name, s.mobile_number);
         staffCount++;
       }
 
       // 2. 顧客と書類データの upsert
       for (const c of data.customers) {
-        const staff = getStaffId.get(c.staff_name) as { id: number } | undefined;
-        const staffId = staff?.id ?? null;
+        const staffId = getOrCreateStaff(db, c.staff_name);
 
         let customer = db
           .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_name = ?')
@@ -599,20 +567,7 @@ export function restoreFullBackup(data: {
         customerCount++;
 
         for (const r of c.records) {
-          const jsonData = JSON.stringify(r.document_groups);
-          const existing = db
-            .prepare('SELECT id FROM document_records WHERE customer_id = ? AND year = ?')
-            .get(customer.id, r.year);
-
-          if (existing) {
-            db.prepare(
-              'UPDATE document_records SET document_groups = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? AND year = ?'
-            ).run(jsonData, customer.id, r.year);
-          } else {
-            db.prepare(
-              'INSERT INTO document_records (customer_id, year, document_groups) VALUES (?, ?, ?)'
-            ).run(customer.id, r.year, jsonData);
-          }
+          upsertDocumentRecord(db, customer.id, r.year, JSON.stringify(r.document_groups));
           recordCount++;
         }
       }
