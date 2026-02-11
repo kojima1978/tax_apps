@@ -8,17 +8,6 @@ import {
 } from '@/lib/real-estate-tax';
 import { formatInputValue, parseFormattedNumber, formatYen } from '@/lib/utils';
 
-const INITIAL_RESULTS: TaxResults = {
-    total: 0,
-    landAcq: 0,
-    landReg: 0,
-    bldgAcq: 0,
-    bldgReg: 0,
-    totalAcq: 0,
-    totalReg: 0,
-    process: { landAcq: [], landReg: [], bldgAcq: [], bldgReg: [] },
-};
-
 export const useRealEstateForm = () => {
     const yearOptions = useMemo(() => {
         const currentYear = new Date().getFullYear();
@@ -53,7 +42,7 @@ export const useRealEstateForm = () => {
 
     // 結果
     const [showDetails, setShowDetails] = useState(false);
-    const [results, setResults] = useState<TaxResults>(INITIAL_RESULTS);
+    const [results, setResults] = useState<TaxResults | null>(null);
 
     const handleFormattedInput = useCallback((
         e: React.ChangeEvent<HTMLInputElement>,
@@ -106,10 +95,6 @@ export const useRealEstateForm = () => {
         isResidential, hasHousingCertificate, acquisitionDeduction
     ]);
 
-    useEffect(() => {
-        calculateTax();
-    }, [calculateTax]);
-
     return {
         // 共通
         transactionType, setTransactionType,
@@ -135,6 +120,6 @@ export const useRealEstateForm = () => {
         yearOptions,
 
         // 結果
-        results, showDetails, setShowDetails,
+        results, showDetails, setShowDetails, calculateTax,
     };
 };
