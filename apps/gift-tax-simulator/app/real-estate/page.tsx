@@ -95,47 +95,51 @@ export default function RealEstatePage() {
                 </div>
             </div>
 
+            <button className="btn-calc" onClick={form.calculateTax}>計算する</button>
+
             {/* 計算結果 */}
-            <div className="result-section">
-                <div className="re-result-box">
-                    <div className="re-result-row">
-                        <div className="re-result-item">
-                            <span className="re-result-label">不動産取得税</span>
-                            <span className="re-result-sub">
-                                {form.includeLand && `土地: ${formatYen(form.results.landAcq)}`}
-                                {form.includeLand && form.includeBuilding && ' / '}
-                                {form.includeBuilding && `建物: ${formatYen(form.results.bldgAcq)}`}
-                            </span>
-                            <span className="re-result-value">{formatYen(form.results.totalAcq)}</span>
+            {form.results !== null && (
+                <div className="result-section">
+                    <div className="re-result-box">
+                        <div className="re-result-row">
+                            <div className="re-result-item">
+                                <span className="re-result-label">不動産取得税</span>
+                                <span className="re-result-sub">
+                                    {form.includeLand && `土地: ${formatYen(form.results.landAcq)}`}
+                                    {form.includeLand && form.includeBuilding && ' / '}
+                                    {form.includeBuilding && `建物: ${formatYen(form.results.bldgAcq)}`}
+                                </span>
+                                <span className="re-result-value">{formatYen(form.results.totalAcq)}</span>
+                            </div>
+                            <div className="re-result-item">
+                                <span className="re-result-label">登録免許税</span>
+                                <span className="re-result-sub">
+                                    {form.includeLand && `土地: ${formatYen(form.results.landReg)}`}
+                                    {form.includeLand && form.includeBuilding && ' / '}
+                                    {form.includeBuilding && `建物: ${formatYen(form.results.bldgReg)}`}
+                                </span>
+                                <span className="re-result-value">{formatYen(form.results.totalReg)}</span>
+                            </div>
                         </div>
-                        <div className="re-result-item">
-                            <span className="re-result-label">登録免許税</span>
-                            <span className="re-result-sub">
-                                {form.includeLand && `土地: ${formatYen(form.results.landReg)}`}
-                                {form.includeLand && form.includeBuilding && ' / '}
-                                {form.includeBuilding && `建物: ${formatYen(form.results.bldgReg)}`}
-                            </span>
-                            <span className="re-result-value">{formatYen(form.results.totalReg)}</span>
+                        <div className="re-result-total">
+                            <span>合計納税額</span>
+                            <span className="total-value">{formatYen(form.results.total)}</span>
                         </div>
                     </div>
-                    <div className="re-result-total">
-                        <span>合計納税額</span>
-                        <span className="total-value">{formatYen(form.results.total)}</span>
-                    </div>
+
+                    <CalculationDetails
+                        results={form.results}
+                        includeLand={form.includeLand}
+                        includeBuilding={form.includeBuilding}
+                        showDetails={form.showDetails}
+                        setShowDetails={form.setShowDetails}
+                    />
+
+                    <p className="disclaimer no-print">
+                        ※この計算は概算です。実際の税額は、自治体の条例や端数処理のルールにより異なる場合があります。
+                    </p>
                 </div>
-
-                <CalculationDetails
-                    results={form.results}
-                    includeLand={form.includeLand}
-                    includeBuilding={form.includeBuilding}
-                    showDetails={form.showDetails}
-                    setShowDetails={form.setShowDetails}
-                />
-
-                <p className="disclaimer no-print">
-                    ※この計算は概算です。実際の税額は、自治体の条例や端数処理のルールにより異なる場合があります。
-                </p>
-            </div>
+            )}
 
             <PrintFooter />
         </div>
