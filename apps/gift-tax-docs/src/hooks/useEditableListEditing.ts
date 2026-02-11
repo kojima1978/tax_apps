@@ -57,6 +57,8 @@ type UseEditableListEditingArgs = {
   setStaffPhone: (phone: string) => void;
   customerName: string;
   setCustomerName: (name: string) => void;
+  deadline: string;
+  setDeadline: (v: string) => void;
 };
 
 export const useEditableListEditing = ({
@@ -68,6 +70,8 @@ export const useEditableListEditing = ({
   setStaffPhone,
   customerName,
   setCustomerName,
+  deadline,
+  setDeadline,
 }: UseEditableListEditingArgs) => {
   // documentListの最新値をrefで保持（handleRemoveCategoryの依存配列から除外するため）
   const documentListRef = useRef(documentList);
@@ -290,8 +294,8 @@ export const useEditableListEditing = ({
 
   // === JSON エクスポート/インポート ===
   const handleJsonExport = useCallback(() => {
-    exportToJson(documentList, staffName, staffPhone, customerName);
-  }, [documentList, staffName, staffPhone, customerName]);
+    exportToJson(documentList, staffName, staffPhone, customerName, deadline);
+  }, [documentList, staffName, staffPhone, customerName, deadline]);
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -314,10 +318,11 @@ export const useEditableListEditing = ({
       if (importPreview.staffName) setStaffName(importPreview.staffName);
       if (importPreview.staffPhone) setStaffPhone(importPreview.staffPhone);
       if (importPreview.customerName) setCustomerName(importPreview.customerName);
+      setDeadline(importPreview.deadline || '');
       setShowImportDialog(false);
       setImportPreview(null);
     }
-  }, [importPreview, setDocumentList, setStaffName, setStaffPhone, setCustomerName]);
+  }, [importPreview, setDocumentList, setStaffName, setStaffPhone, setCustomerName, setDeadline]);
 
   const cancelImport = useCallback(() => {
     setShowImportDialog(false);

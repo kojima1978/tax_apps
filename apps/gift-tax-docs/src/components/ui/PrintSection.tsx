@@ -8,6 +8,7 @@ type PrintSectionProps = {
   staffName: string;
   staffPhone: string;
   customerName: string;
+  deadline: string;
 };
 
 export const PrintSection = ({
@@ -17,6 +18,7 @@ export const PrintSection = ({
   staffName,
   staffPhone,
   customerName,
+  deadline,
 }: PrintSectionProps) => {
   const hasResults = results.length > 0 && results.some((g) => g.documents.length > 0);
 
@@ -34,6 +36,7 @@ export const PrintSection = ({
           </h1>
           <div className={`text-slate-700 font-medium mb-2 ${p('print:text-base', 'print:text-xs')}`}>
             {customerName && <span className="mr-4">お客様名: {customerName}</span>}
+            {deadline && <span className="mr-4">資料収集期限: {deadline}</span>}
             {staffName && <span>担当者: {staffName}</span>}
           </div>
           <p className={`text-slate-600 ${p('print:text-sm', 'print:text-[10px]')}`}>

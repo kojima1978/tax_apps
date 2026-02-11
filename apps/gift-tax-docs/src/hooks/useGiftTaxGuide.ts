@@ -12,10 +12,11 @@ export const useGiftTaxGuide = () => {
         initializeEditableList()
     );
 
-    // 担当者・お客様名・携帯番号
+    // 担当者・お客様名・携帯番号・期限
     const [staffName, setStaffName] = useState('');
     const [staffPhone, setStaffPhone] = useState('');
     const [customerName, setCustomerName] = useState('');
+    const [deadline, setDeadline] = useState('');
 
     // 初期化完了フラグ（保存effectが初期値''で上書きしないようにガード）
     const isInitialized = useRef(false);
@@ -31,6 +32,9 @@ export const useGiftTaxGuide = () => {
 
             const savedCustomer = sessionStorage.getItem(STORAGE_KEYS.customerName);
             if (savedCustomer) setCustomerName(savedCustomer);
+
+            const savedDeadline = sessionStorage.getItem(STORAGE_KEYS.deadline);
+            if (savedDeadline) setDeadline(savedDeadline);
         } catch {
             // プライベートブラウジング等でストレージが使用不可の場合は無視
         }
@@ -45,8 +49,9 @@ export const useGiftTaxGuide = () => {
             localStorage.setItem(STORAGE_KEYS.staffName, staffName);
             localStorage.setItem(STORAGE_KEYS.staffPhone, staffPhone);
             sessionStorage.setItem(STORAGE_KEYS.customerName, customerName);
+            sessionStorage.setItem(STORAGE_KEYS.deadline, deadline);
         } catch { /* プライベートブラウジング等でストレージが使用不可の場合は無視 */ }
-    }, [staffName, staffPhone, customerName]);
+    }, [staffName, staffPhone, customerName, deadline]);
 
     // 結果リスト生成（メモ化）- 編集可能リストから変換
     const results = useMemo((): DocumentGroup[] => {
@@ -74,9 +79,10 @@ export const useGiftTaxGuide = () => {
             hideSubmittedInPrint,
             staffName,
             staffPhone,
-            customerName
+            customerName,
+            deadline
         );
-    }, [results, currentDate, hideSubmittedInPrint, staffName, staffPhone, customerName]);
+    }, [results, currentDate, hideSubmittedInPrint, staffName, staffPhone, customerName, deadline]);
 
     const togglePrintColumn = useCallback(() => {
         setIsTwoColumnPrint(prev => !prev);
@@ -94,6 +100,7 @@ export const useGiftTaxGuide = () => {
         staffName,
         staffPhone,
         customerName,
+        deadline,
         documentList,
         hideSubmittedInPrint,
 
@@ -105,6 +112,7 @@ export const useGiftTaxGuide = () => {
         setStaffName,
         setStaffPhone,
         setCustomerName,
+        setDeadline,
         setDocumentList,
     }
 };
