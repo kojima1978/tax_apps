@@ -3,6 +3,31 @@
 
 <div class="tab-pane fade" id="large" role="tabpanel" aria-labelledby="large-tab">
     <div class="glass-card p-4">
+        <form method="get" class="row g-3 mb-4">
+            <input type="hidden" name="tab" value="large">
+            {% for c in filter_state.large_category %}<input type="hidden" name="large_category" value="{{ c }}">{% endfor %}
+            {% if filter_state.large_category_mode %}<input type="hidden" name="large_category_mode" value="{{ filter_state.large_category_mode }}">{% endif %}
+            <div class="col-md-3">
+                <label class="form-label">金額で絞り込み</label>
+                <div class="input-group">
+                    <input type="text" name="large_amount_threshold" class="form-control"
+                        value="{{ filter_state.large_amount_threshold }}" placeholder="例: 500000">
+                    <span class="input-group-text">円以上</span>
+                </div>
+                <small class="text-muted">未入力時はデフォルト閾値を使用</small>
+            </div>
+            <div class="col-md-3 d-flex align-items-center gap-2 pt-3">
+                <button class="btn btn-primary btn-sm" type="submit">
+                    <i class="bi bi-search"></i> 適用
+                </button>
+                {% if filter_state.large_amount_threshold %}
+                <a href="{% url 'analysis-dashboard' case.pk %}?tab=large{% for c in filter_state.large_category %}&large_category={{ c }}{% endfor %}{% if filter_state.large_category_mode != 'include' %}&large_category_mode={{ filter_state.large_category_mode }}{% endif %}"
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-counterclockwise"></i> デフォルトに戻す
+                </a>
+                {% endif %}
+            </div>
+        </form>
         {% with tab_name="large" filter_prefix="large" selected_categories=filter_state.large_category selected_mode=filter_state.large_category_mode %}
         {% include "analyzer/partials/_category_filter.html" %}
         {% endwith %}
@@ -13,7 +38,10 @@
             <input type="hidden" name="source_tab" value="large">
 
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0">多額取引リスト {% if filter_state.large_category %}<small class="text-muted">(フィルター適用中)</small>{% endif %}</h4>
+                <h4 class="mb-0">多額取引リスト ({{ large_txs|length }}件)
+                    {% if filter_state.large_amount_threshold %}<small class="text-muted">({{ filter_state.large_amount_threshold }}円以上)</small>
+                    {% elif filter_state.large_category %}<small class="text-muted">(フィルター適用中)</small>{% endif %}
+                </h4>
                 <div>
                     {% if large_txs %}
                     <button type="submit" class="btn btn-primary btn-sm me-2">

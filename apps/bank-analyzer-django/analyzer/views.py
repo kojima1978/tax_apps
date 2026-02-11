@@ -28,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 # 定数
 ITEMS_PER_PAGE = 100  # ページネーションの1ページあたりの件数
-MAX_VALIDATION_ERRORS_DISPLAY = 5  # バリデーションエラーの最大表示件数
 
 # フィールドラベル定義（CSV出力・一括置換で共用）
 FIELD_LABELS = {
@@ -168,7 +167,6 @@ def _build_filter_state(request: HttpRequest, include_tab_filters: bool = False)
         'amount_min': request.GET.get('amount_min', ''),
         'amount_max': request.GET.get('amount_max', ''),
         'amount_type': request.GET.get('amount_type', 'both'),
-        'large_only': request.GET.get('large_only', ''),
         'date_from': request.GET.get('date_from', ''),
         'date_to': request.GET.get('date_to', ''),
     }
@@ -176,6 +174,7 @@ def _build_filter_state(request: HttpRequest, include_tab_filters: bool = False)
         state.update({
             'large_category': request.GET.getlist('large_category'),
             'large_category_mode': request.GET.get('large_category_mode', 'include'),
+            'large_amount_threshold': request.GET.get('large_amount_threshold', ''),
             'transfer_category': request.GET.getlist('transfer_category'),
             'transfer_category_mode': request.GET.get('transfer_category_mode', 'include'),
         })
@@ -213,9 +212,6 @@ def _build_filtered_filename(
             filter_desc.append(f"{amount_min}円以上")
         elif amount_max:
             filter_desc.append(f"{amount_max}円以下")
-    if filter_state.get('large_only'):
-        filter_desc.append("多額取引")
-
     sanitized = _sanitize_filename(case_name)
     if filter_desc:
         return f"{sanitized}_絞込_{'-'.join(filter_desc)}.csv"
@@ -626,39 +622,7 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        if action == 'recalculate':
-            updated_data, validation_errors = _extract_form_rows(request, validate=True)
-
-            if validation_errors:
-                for error in validation_errors[:MAX_VALIDATION_ERRORS_DISPLAY]:
-                    messages.warning(request, error)
-                remaining = len(validation_errors) - MAX_VALIDATION_ERRORS_DISPLAY
-                if remaining > 0:
-                    messages.warning(request, f"他にも{remaining}件のエラーがあります")
-
-            # 残高再検証
-            df = pd.DataFrame(updated_data)
-
-            # 全行削除された場合
-            if df.empty:
-                request.session['import_data'] = []
-                import_data = []
-                messages.info(request, "全ての行が削除されました。")
-            else:
-                # 型変換
-                df['amount_out'] = df['amount_out'].astype(int)
-                df['amount_in'] = df['amount_in'].astype(int)
-                df['balance'] = df['balance'].astype(int)
-
-                # 残高再計算
-                df = importer.validate_balance(df)
-
-                # セッションに保存
-                request.session['import_data'] = df.to_dict(orient='records')
-                import_data = request.session['import_data']
-                messages.info(request, "再計算しました（削除反映済み）。")
-
-        elif action == 'commit':
+        if action == 'commit':
             try:
                 filtered_data, _ = _extract_form_rows(request)
 
@@ -678,9 +642,31 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
                 logger.exception(f"取引インポートエラー: case_id={pk}, error={e}")
                 messages.error(request, _safe_error_message(e, "取り込み"))
 
+    # 既存DBとの重複チェック（銀行名+日付+出金+入金）
+    existing_keys = set()
+    for bank, dt, amt_out, amt_in in (
+        Transaction.objects.filter(case=case)
+        .values_list('bank_name', 'date', 'amount_out', 'amount_in')
+    ):
+        existing_keys.add((bank or '', str(dt) if dt else '', amt_out, amt_in))
+
+    duplicate_count = 0
+    for row in import_data:
+        key = (
+            row.get('bank_name') or '',
+            str(row.get('date', '')),
+            int(row.get('amount_out', 0)),
+            int(row.get('amount_in', 0)),
+        )
+        is_dup = key in existing_keys
+        row['is_duplicate'] = is_dup
+        if is_dup:
+            duplicate_count += 1
+
     return render(request, 'analyzer/import_confirm.html', {
         'case': case,
-        'transactions': import_data
+        'transactions': import_data,
+        'duplicate_count': duplicate_count,
     })
 
 def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:

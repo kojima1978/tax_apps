@@ -138,10 +138,10 @@ document.addEventListener('DOMContentLoaded', function () {
             </td>
             <td>
                 <div class="d-flex align-items-center">
+                    <span class="wareki-display" style="white-space: nowrap;">${toWareki(prevDate)}</span>
                     <input type="date" name="form-${index}-date"
                         value="${prevDate}"
-                        class="form-control form-control-sm border-0 bg-transparent date-input" style="width: 130px;">
-                    <span class="wareki-display text-muted small ms-1" style="white-space: nowrap;">${toWareki(prevDate)}</span>
+                        class="date-input wareki-picker ms-1">
                 </div>
             </td>
             <td>
@@ -274,6 +274,158 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             updateSelectedState();
+            updateErrorNav();
+        });
+    }
+
+    // 残高再計算（クライアントサイド）
+    function recalculateBalances() {
+        var visibleRows = Array.from(tableBody.querySelectorAll('tr.data-row')).filter(
+            function (row) { return row.style.display !== 'none'; }
+        );
+
+        if (visibleRows.length === 0) return 0;
+
+        var prevBalance = 0;
+        var errorCount = 0;
+
+        visibleRows.forEach(function (row, index) {
+            var amountOut = parseInt(row.querySelector('input[name$="-amount_out"]').value) || 0;
+            var amountIn = parseInt(row.querySelector('input[name$="-amount_in"]').value) || 0;
+            var balance = parseInt(row.querySelector('input[name$="-balance"]').value) || 0;
+
+            var calcBalance;
+            var isError = false;
+
+            if (index === 0) {
+                calcBalance = balance;
+            } else {
+                calcBalance = prevBalance + amountIn - amountOut;
+                isError = (calcBalance !== balance);
+            }
+
+            // 計算残高セル更新
+            var calcCell = row.querySelector('.calc-balance');
+            if (calcCell) {
+                calcCell.textContent = calcBalance.toLocaleString();
+            }
+
+            // 状態バッジ更新（重複バッジを保持）
+            var statusCell = row.querySelector('.status-cell');
+            if (statusCell) {
+                var dupBadge = row.hasAttribute('data-duplicate')
+                    ? '<span class="badge bg-warning text-dark">重複</span> ' : '';
+                if (isError) {
+                    statusCell.innerHTML = dupBadge + '<span class="badge bg-danger">誤差</span>';
+                    errorCount++;
+                } else {
+                    statusCell.innerHTML = dupBadge + '<span class="badge bg-success">OK</span>';
+                }
+            }
+
+            // 行のスタイル更新
+            row.classList.remove('table-danger', 'table-warning', 'table-info');
+            if (isError) {
+                row.classList.add('table-danger');
+            }
+
+            // 残高入力のスタイル更新
+            var balanceInput = row.querySelector('input[name$="-balance"]');
+            if (balanceInput) {
+                balanceInput.classList.toggle('text-danger', isError);
+                balanceInput.classList.toggle('fw-bold', isError);
+            }
+
+            // 次行の計算基準: エラー時はCSV残高を使用（Python側と同一ロジック）
+            prevBalance = isError ? balance : calcBalance;
+        });
+
+        return errorCount;
+    }
+
+    // 問題行ナビゲーション
+    var errorNav = document.getElementById('errorNav');
+    var errorCountSpan = document.getElementById('errorCount');
+    var currentProblemIndex = -1;
+
+    function getProblemRows() {
+        return Array.from(tableBody.querySelectorAll('tr.data-row')).filter(function (row) {
+            if (row.style.display === 'none') return false;
+            var statusCell = row.querySelector('.status-cell');
+            if (!statusCell) return false;
+            return statusCell.querySelector('.badge.bg-danger') !== null ||
+                   statusCell.querySelector('.badge.bg-warning') !== null;
+        });
+    }
+
+    function updateErrorNav() {
+        var problems = getProblemRows();
+        if (errorNav) {
+            if (problems.length > 0) {
+                errorNav.classList.remove('d-none');
+                errorCountSpan.textContent = problems.length + '件の問題';
+            } else {
+                errorNav.classList.add('d-none');
+            }
+        }
+        currentProblemIndex = -1;
+    }
+
+    function navigateToProblem(direction) {
+        var problems = getProblemRows();
+        if (problems.length === 0) return;
+
+        currentProblemIndex += direction;
+        if (currentProblemIndex >= problems.length) currentProblemIndex = 0;
+        if (currentProblemIndex < 0) currentProblemIndex = problems.length - 1;
+
+        var targetRow = problems[currentProblemIndex];
+        targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // ハイライト（既存の背景色と干渉しないようbox-shadowを使用）
+        targetRow.style.boxShadow = '0 0 0 2px #0d6efd';
+        setTimeout(function () { targetRow.style.boxShadow = ''; }, 1500);
+    }
+
+    var prevErrorBtn = document.getElementById('prevErrorBtn');
+    var nextErrorBtn = document.getElementById('nextErrorBtn');
+    if (prevErrorBtn) prevErrorBtn.addEventListener('click', function () { navigateToProblem(-1); });
+    if (nextErrorBtn) nextErrorBtn.addEventListener('click', function () { navigateToProblem(1); });
+
+    // 初期表示
+    updateErrorNav();
+
+    // 再計算ボタン
+    var recalculateBtn = document.getElementById('recalculateBtn');
+    if (recalculateBtn) {
+        recalculateBtn.addEventListener('click', function () {
+            var errorCount = recalculateBalances();
+            updateErrorNav();
+
+            // 視覚フィードバック
+            var originalHTML = recalculateBtn.innerHTML;
+            if (errorCount > 0) {
+                recalculateBtn.innerHTML = '<i class="bi bi-exclamation-triangle"></i> ' + errorCount + '件の誤差';
+                recalculateBtn.classList.replace('btn-warning', 'btn-danger');
+            } else {
+                recalculateBtn.innerHTML = '<i class="bi bi-check-lg"></i> OK';
+                recalculateBtn.classList.replace('btn-warning', 'btn-success');
+            }
+
+            setTimeout(function () {
+                recalculateBtn.innerHTML = originalHTML;
+                recalculateBtn.classList.remove('btn-danger', 'btn-success');
+                recalculateBtn.classList.add('btn-warning');
+            }, 2000);
+        });
+    }
+
+    // Enter キーによるフォーム送信を防止（誤って取り込み実行されないように）
+    if (form) {
+        form.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                e.preventDefault();
+            }
         });
     }
 
@@ -330,6 +482,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 e.preventDefault();
                 alert('取り込むデータがありません。');
                 return false;
+            }
+
+            // 重複チェック確認
+            var duplicateRows = Array.from(
+                tableBody.querySelectorAll('tr.data-row[data-duplicate="true"]')
+            ).filter(function (row) { return row.style.display !== 'none'; });
+
+            if (duplicateRows.length > 0) {
+                if (!confirm(duplicateRows.length + '件の重複データが含まれています。取り込みますか？')) {
+                    e.preventDefault();
+                    return false;
+                }
             }
 
             isSubmitting = true;
