@@ -667,8 +667,10 @@ class UpdateTransactionTest(TestCase):
     def test_update_success(self):
         """正常な更新"""
         result = TransactionService.update_transaction(
-            self.case, self.tx.id, '2024-02-01', '更新取引',
-            5000, 0, '生活費'
+            self.case, self.tx.id, {
+                'date': '2024-02-01', 'description': '更新取引',
+                'amount_out': 5000, 'amount_in': 0, 'category': '生活費',
+            }
         )
         self.assertTrue(result)
         self.tx.refresh_from_db()
@@ -678,15 +680,19 @@ class UpdateTransactionTest(TestCase):
     def test_update_invalid_date(self):
         """不正な日付"""
         result = TransactionService.update_transaction(
-            self.case, self.tx.id, 'not-a-date', 'テスト',
-            0, 0, '未分類'
+            self.case, self.tx.id, {
+                'date': 'not-a-date', 'description': 'テスト',
+                'amount_out': 0, 'amount_in': 0, 'category': '未分類',
+            }
         )
         self.assertFalse(result)
 
     def test_update_nonexistent(self):
         """存在しない取引"""
         result = TransactionService.update_transaction(
-            self.case, 99999, '2024-01-01', 'テスト',
-            0, 0, '未分類'
+            self.case, 99999, {
+                'date': '2024-01-01', 'description': 'テスト',
+                'amount_out': 0, 'amount_in': 0, 'category': '未分類',
+            }
         )
         self.assertFalse(result)

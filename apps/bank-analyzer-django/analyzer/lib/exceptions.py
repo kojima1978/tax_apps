@@ -238,11 +238,6 @@ class AmountParseError(DataError):
         self.invalid_values = invalid_values
 
 
-class ValidationError(CsvImportError):
-    """バリデーションエラー"""
-    error_type = ImportErrorType.VALIDATION
-
-
 class MultipleValueError(CsvImportError):
     """複数値検出エラーの基底クラス"""
     error_type = ImportErrorType.VALIDATION
