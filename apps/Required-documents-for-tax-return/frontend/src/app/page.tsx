@@ -6,6 +6,7 @@ import DocumentListScreen from '@/components/DocumentListScreen';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { CategoryGroup } from '@/types';
 import { fetchDocuments, saveDocuments, copyToNextYear as apiCopyToNextYear } from '@/utils/api';
+import { getErrorMessage } from '@/utils/error';
 import { getDefaultYear, toReiwa } from '@/utils/date';
 
 type Step = 'menu' | 'editor';
@@ -50,7 +51,7 @@ export default function Home() {
       setState((prev) => ({
         ...prev,
         isSaving: false,
-        saveError: error instanceof Error ? error.message : '保存に失敗しました',
+        saveError: getErrorMessage(error, '保存に失敗しました'),
       }));
       return false;
     }

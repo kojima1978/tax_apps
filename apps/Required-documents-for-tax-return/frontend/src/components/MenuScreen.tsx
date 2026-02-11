@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronRight, Database, Download, Home, Loader2, Settings, Upload, Users, UserPlus } from 'lucide-react';
+import { ChevronRight, Download, Edit2, Home, Loader2, Settings, Upload, Users, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { taxReturnData } from '@/data/taxReturnData';
 import { toReiwa } from '@/utils/date';
 import { fetchStaff, fetchCustomerNames, fetchAvailableYears } from '@/utils/api';
+import { getErrorMessage } from '@/utils/error';
 import { exportFullBackup, importFullBackup, readJsonFile, validateFullBackupImport, FullBackupExport } from '@/utils/jsonExportImport';
 
 interface MenuScreenProps {
@@ -104,7 +105,7 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
     try {
       await exportFullBackup();
     } catch (error) {
-      alert('バックアップのエクスポートに失敗しました: ' + (error instanceof Error ? error.message : ''));
+      alert('バックアップのエクスポートに失敗しました: ' + getErrorMessage(error, ''));
     } finally {
       setIsExporting(false);
     }
@@ -129,7 +130,7 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
       alert(`復元が完了しました。\n担当者: ${result.staffCount}件\nお客様: ${result.customerCount}件\n書類データ: ${result.recordCount}件`);
       loadStaff();
     } catch (error) {
-      alert('バックアップの復元に失敗しました: ' + (error instanceof Error ? error.message : ''));
+      alert('バックアップの復元に失敗しました: ' + getErrorMessage(error, ''));
     } finally {
       setIsImporting(false);
       if (backupFileInputRef.current) backupFileInputRef.current.value = '';
@@ -137,7 +138,6 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
   };
 
   const canLoad = selectedStaffName && selectedCustomer && selectedYear;
-  const hasData = staffList.length > 0;
 
   return (
     <div className="bg-white shadow-xl rounded-2xl overflow-hidden animate-fade-in relative min-h-[600px] flex flex-col">
@@ -151,59 +151,47 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
       </header>
 
       <div className="p-8 flex-1 flex flex-col">
-        {/* 初回ガイド: 担当者がいない場合 */}
-        {!hasData && (
-          <div className="flex-1 flex flex-col items-center justify-center py-10 animate-fade-in">
-            <div className="max-w-lg w-full bg-white border-2 border-emerald-100 rounded-2xl p-8 text-center shadow-lg">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Users className="w-8 h-8" />
-              </div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-4">まずは担当者を登録しましょう</h2>
-              <p className="text-slate-600 mb-8 leading-relaxed">
-                このアプリでは、担当者ごとにお客様のデータを管理します。<br />
-                まずはあなたの名前（または担当者名）を登録してください。
-              </p>
-              <Link
-                href="/staff/create"
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-xl transition-all flex items-center justify-center gap-2"
-              >
-                <Database className="w-5 h-5" />
-                担当者を登録する
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* 通常表示: 担当者がいる場合 */}
-        {hasData && (
-          <>
-            {/* 登録リンク */}
-            <div className="mb-8 flex items-center gap-6">
-              <Link
-                href="/staff/create"
-                className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-              >
-                <UserPlus className="w-4 h-4 mr-1.5" />
-                担当者登録
-              </Link>
-              <Link
-                href="/customers/create"
-                className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-              >
-                <Users className="w-4 h-4 mr-1.5" />
-                お客様登録
-              </Link>
-            </div>
-
             {/* 保存済みデータ読み込みセクション */}
             <div className="mb-10">
-              <div className="flex items-center mb-6">
+              <div className="flex items-center mb-4">
                 <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center mr-3 text-emerald-600">
                   <span className="font-bold">1</span>
                 </div>
                 <h2 className="text-xl font-bold text-slate-800">
-                  データを選択して開始
+                  データを選択して開始（担当者・お客様登録）
                 </h2>
+              </div>
+
+              {/* 登録・編集リンク */}
+              <div className="mb-6 ml-11 flex items-center gap-6">
+                <Link
+                  href="/staff/create"
+                  className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                >
+                  <UserPlus className="w-4 h-4 mr-1.5" />
+                  担当者登録
+                </Link>
+                <Link
+                  href="/staff"
+                  className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-emerald-600 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4 mr-1.5" />
+                  担当者一覧・編集
+                </Link>
+                <Link
+                  href="/customers/create"
+                  className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                >
+                  <Users className="w-4 h-4 mr-1.5" />
+                  お客様登録
+                </Link>
+                <Link
+                  href="/customers"
+                  className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-emerald-600 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4 mr-1.5" />
+                  お客様一覧・編集
+                </Link>
               </div>
 
               <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200 shadow-sm">
@@ -300,8 +288,6 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
                 />
               </div>
             </div>
-          </>
-        )}
 
         <div className="mt-auto pt-10 text-center text-xs text-slate-400">
           <p>{taxReturnData.contactInfo.office}</p>

@@ -26,6 +26,22 @@ function withDb<T>(operation: (db: Database.Database) => T): T {
   return operation(getDb());
 }
 
+/** カラムが存在しない場合に追加するマイグレーションヘルパー */
+function addColumnIfMissing(
+  db: Database.Database, table: string, column: string,
+  alterSql: string, onAdded?: (db: Database.Database) => void
+): void {
+  try {
+    const columns = db.pragma(`table_info(${table})`) as { name: string }[];
+    if (columns.some(col => col.name === column)) return;
+    console.log(`Migrating: Adding ${column} to ${table} table...`);
+    db.exec(alterSql);
+    onAdded?.(db);
+  } catch (e: unknown) {
+    console.error(`Migration for ${column} failed:`, e);
+  }
+}
+
 // データベース初期化
 export function initializeDb(): void {
   withDb((db) => {
@@ -41,16 +57,7 @@ export function initializeDb(): void {
     `);
 
     // Migration: Add mobile_number if not exists
-    try {
-      const columns = db.pragma('table_info(staff)') as { name: string }[];
-      const hasMobileNumber = columns.some(col => col.name === 'mobile_number');
-      if (!hasMobileNumber) {
-        console.log('Migrating: Adding mobile_number to staff table...');
-        db.exec('ALTER TABLE staff ADD COLUMN mobile_number TEXT');
-      }
-    } catch (e: unknown) {
-      console.error('Migration for mobile_number failed:', e);
-    }
+    addColumnIfMissing(db, 'staff', 'mobile_number', 'ALTER TABLE staff ADD COLUMN mobile_number TEXT');
 
     // Customers table (ensure generic structure)
     db.exec(`
@@ -67,16 +74,10 @@ export function initializeDb(): void {
     `);
 
     // Add staff_id column if not exists (Migration)
-    // Legacy migration code - can be kept for robust startup but commenting out if we assume fresh start or already migrated.
-    // Keeping it active for safety as it handles idempotent check.
-    try {
-      const columns = db.pragma('table_info(customers)') as { name: string }[];
-      const hasStaffId = columns.some(col => col.name === 'staff_id');
-
-      if (!hasStaffId) {
-        console.log('Migrating: Adding staff_id to customers table...');
-        db.exec('ALTER TABLE customers ADD COLUMN staff_id INTEGER REFERENCES staff(id) ON DELETE SET NULL');
-
+    addColumnIfMissing(
+      db, 'customers', 'staff_id',
+      'ALTER TABLE customers ADD COLUMN staff_id INTEGER REFERENCES staff(id) ON DELETE SET NULL',
+      (db) => {
         // Migrate existing staff names to staff table
         const customers = db.prepare('SELECT id, staff_name FROM customers WHERE staff_id IS NULL').all() as { id: number, staff_name: string }[];
 
@@ -95,9 +96,7 @@ export function initializeDb(): void {
         })();
         console.log('Migration completed.');
       }
-    } catch (e: unknown) {
-      console.error('Migration failed:', e);
-    }
+    );
 
     db.exec(`
       CREATE TABLE IF NOT EXISTS document_records (

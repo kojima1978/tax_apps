@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addCustomer, fetchStaff } from '@/utils/api';
+import { getErrorMessage } from '@/utils/error';
 import { Staff } from '@/types';
 import { ChevronLeft, Loader2, Save, UserPlus, Users } from 'lucide-react';
 import Link from 'next/link';
@@ -57,7 +58,7 @@ export default function CreateCustomerPage() {
             await addCustomer(name, Number(staffId));
             router.push('/customers');
         } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : '登録に失敗しました';
+            const message = getErrorMessage(e, '登録に失敗しました');
             if (message.includes('already exists')) {
                 setError('この担当者に同名のお客様が既に登録されています');
             } else {

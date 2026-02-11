@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { fetchStaff, fetchCustomers, updateCustomerName } from '@/utils/api';
+import { getErrorMessage } from '@/utils/error';
 import { Staff } from '@/types';
 import { ChevronLeft, Loader2, Save } from 'lucide-react';
 import Link from 'next/link';
@@ -62,7 +63,7 @@ export default function EditCustomerPage() {
             await updateCustomerName(id, name, Number(staffId));
             router.push('/customers');
         } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : '更新に失敗しました';
+            const message = getErrorMessage(e, '更新に失敗しました');
             if (message.includes('already exists')) {
                 setError('この担当者に同名のお客様が既に登録されています');
             } else {

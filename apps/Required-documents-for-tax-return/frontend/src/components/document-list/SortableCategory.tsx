@@ -3,6 +3,7 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from '@dnd-kit/utilities';
 import { Check, ChevronDown, ChevronRight, Edit2, GripVertical, Info, Plus, Trash2, X } from 'lucide-react';
 import { CategoryGroup } from '@/types';
+import { handleInlineKeyDown } from '@/utils/keyboard';
 import { SortableDocumentItem, SubItemHandlers } from './SortableDocumentItem';
 
 export interface CategoryEditHandlers {
@@ -135,10 +136,7 @@ export function SortableCategory({
                                     onChange={(e) => onEditCategoryNameChange(e.target.value)}
                                     className="flex-1 px-2 py-1 border border-slate-300 rounded mr-2"
                                     autoFocus
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') onSaveEditCategory();
-                                        if (e.key === 'Escape') onCancelEditCategory();
-                                    }}
+                                    onKeyDown={handleInlineKeyDown(onSaveEditCategory, onCancelEditCategory)}
                                 />
                                 <button
                                     onClick={onSaveEditCategory}
@@ -229,10 +227,7 @@ export function SortableCategory({
                                 placeholder="書類名を入力..."
                                 className="flex-1 px-3 py-2 border border-slate-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                 autoFocus
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') onAddDocument(group.id);
-                                    if (e.key === 'Escape') onCancelAddDocument();
-                                }}
+                                onKeyDown={handleInlineKeyDown(() => onAddDocument(group.id), onCancelAddDocument)}
                             />
                             <button
                                 onClick={() => onAddDocument(group.id)}
