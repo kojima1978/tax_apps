@@ -6,7 +6,7 @@ import { TaxTable } from './components/TaxTable';
 import { ExcelExport } from './components/ExcelExport';
 import { PrintButton } from './components/PrintButton';
 import type { HeirComposition, TaxCalculationResult } from './types';
-import { TABLE_CONFIG } from './constants';
+import { TABLE_CONFIG, COMPANY_INFO } from './constants';
 import { generateId, calculateInheritanceTax } from './utils';
 
 function App() {
@@ -51,9 +51,9 @@ function App() {
           <h1 className="text-2xl font-bold text-green-800">相続税早見表</h1>
         </div>
         <address className="text-right text-sm not-italic text-gray-700">
-          <p className="font-bold text-base">税理士法人マスエージェント</p>
-          <p>〒770-0002 徳島県徳島市春日２丁目３−３３</p>
-          <p>TEL: 088-632-6228</p>
+          <p className="font-bold text-base">{COMPANY_INFO.name}</p>
+          <p>{COMPANY_INFO.postalCode} {COMPANY_INFO.address}</p>
+          <p>TEL: {COMPANY_INFO.phone}</p>
         </address>
       </div>
 

@@ -13,10 +13,9 @@ import {
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { type CalculationResult } from '@/lib/tax-calculation';
+import { formatCurrency } from '@/lib/utils';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-
-const formatJPY = (value: number) => new Intl.NumberFormat('ja-JP').format(value);
 
 const chartOptions = {
     responsive: true,
@@ -28,7 +27,7 @@ const chartOptions = {
                 label: (context: TooltipItem<'bar'>) => {
                     const label = context.dataset.label || '';
                     const value = context.parsed.y;
-                    return value !== null ? `${label}: ${formatJPY(value)} 円` : label;
+                    return value !== null ? `${label}: ${formatCurrency(value)} 円` : label;
                 }
             }
         }
@@ -38,7 +37,7 @@ const chartOptions = {
             beginAtZero: true,
             ticks: {
                 callback: (value: number | string) =>
-                    typeof value === 'number' ? formatJPY(value) : value
+                    typeof value === 'number' ? formatCurrency(value) : value
             }
         }
     }

@@ -1,4 +1,11 @@
 /**
+ * 千円単位のフォーマット
+ */
+export function formatSen(num: number): string {
+  return `${num.toLocaleString('ja-JP')}千円`;
+}
+
+/**
  * IDを生成するユーティリティ関数
  * @param prefix IDのプレフィックス (例: "val", "user", "company")
  * @param length ランダム部分の長さ (デフォルト: 11)

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Home } from 'lucide-react';
+import { COMPANY_INFO } from '../constants';
 
 export const Header: React.FC = () => {
   return (
@@ -16,10 +17,10 @@ export const Header: React.FC = () => {
             </div>
           </div>
           <address className="text-right text-sm not-italic">
-            <p className="font-bold text-lg mb-1">税理士法人マスエージェント</p>
-            <p className="text-green-100">〒770-0002</p>
-            <p className="text-green-100">徳島県徳島市春日２丁目３−３３</p>
-            <p className="text-green-100 mt-1">TEL: 088-632-6228</p>
+            <p className="font-bold text-lg mb-1">{COMPANY_INFO.name}</p>
+            <p className="text-green-100">{COMPANY_INFO.postalCode}</p>
+            <p className="text-green-100">{COMPANY_INFO.address}</p>
+            <p className="text-green-100 mt-1">TEL: {COMPANY_INFO.phone}</p>
           </address>
         </div>
       </div>

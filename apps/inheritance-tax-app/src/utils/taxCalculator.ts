@@ -5,7 +5,7 @@ import {
   THIRD_RANK_SURCHARGE_RATE,
   SHARE_RATIOS,
 } from '../constants';
-import { countEffectiveHeirs } from './heirUtils';
+import { getHeirInfo } from './heirUtils';
 
 /**
  * 法定相続分に対する税額を計算
@@ -17,42 +17,6 @@ function calculateTaxForShare(shareAmount: number): number {
   const bracket = TAX_BRACKETS.find(b => shareAmount <= b.threshold) || TAX_BRACKETS[TAX_BRACKETS.length - 1];
   const tax = shareAmount * (bracket.rate / 100) - bracket.deduction;
   return Math.floor(Math.max(0, tax));
-}
-
-/**
- * 有効な相続人の情報を取得（基礎控除計算用および税額計算用）
- */
-function getHeirInfo(composition: HeirComposition): {
-  rank: number;
-  totalHeirsCount: number; // 基礎控除計算用の法定相続人数
-  rankHeirsCount: number; // 税額計算上の同順位相続人の数
-} {
-  let rank = 0;
-  let rankHeirsCount = 0;
-
-  // selectedRank に基づいて相続人を決定
-  // 'none' の場合は配偶者のみ（rank=0）
-  switch (composition.selectedRank) {
-    case 'rank1': {
-      const count = countEffectiveHeirs(composition.rank1Children);
-      if (count > 0) { rank = 1; rankHeirsCount = count; }
-      break;
-    }
-    case 'rank2': {
-      const count = composition.rank2Ascendants.length;
-      if (count > 0) { rank = 2; rankHeirsCount = count; }
-      break;
-    }
-    case 'rank3': {
-      const count = countEffectiveHeirs(composition.rank3Siblings);
-      if (count > 0) { rank = 3; rankHeirsCount = count; }
-      break;
-    }
-  }
-
-  const totalHeirsCount = (composition.hasSpouse ? 1 : 0) + rankHeirsCount;
-
-  return { rank, totalHeirsCount, rankHeirsCount };
 }
 
 /**

@@ -35,53 +35,46 @@ interface DocumentFormProps {
   onCancel: () => void;
 }
 
+const FORM_FIELDS = [
+  { key: 'name' as const, label: '書類名', required: true, autoFocus: true },
+  { key: 'description' as const, label: '説明', required: false, autoFocus: false },
+  { key: 'howToGet' as const, label: '取得方法', required: false, autoFocus: false },
+] as const;
+
 function DocumentFormComponent({ variant, initialValues, onSubmit, onCancel }: DocumentFormProps) {
-  const [name, setName] = useState(initialValues?.name ?? '');
-  const [description, setDescription] = useState(initialValues?.description ?? '');
-  const [howToGet, setHowToGet] = useState(initialValues?.howToGet ?? '');
+  const [values, setValues] = useState({
+    name: initialValues?.name ?? '',
+    description: initialValues?.description ?? '',
+    howToGet: initialValues?.howToGet ?? '',
+  });
 
   const config = VARIANT_CONFIG[variant];
+  const inputClass = `w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 ${config.ring}`;
 
   const handleSubmit = () => {
-    if (name.trim()) {
-      onSubmit({ name: name.trim(), description: description.trim(), howToGet: howToGet.trim() });
+    if (values.name.trim()) {
+      onSubmit({ name: values.name.trim(), description: values.description.trim(), howToGet: values.howToGet.trim() });
     }
   };
 
   return (
     <div className={config.container}>
       <div className="space-y-3">
-        <div>
-          <label className="block text-xs text-slate-600 mb-1">書類名 <span className="text-red-500">*</span></label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={`w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 ${config.ring}`}
-            placeholder={config.placeholders.name}
-            autoFocus
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-600 mb-1">説明</label>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className={`w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 ${config.ring}`}
-            placeholder={config.placeholders.description}
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-600 mb-1">取得方法</label>
-          <input
-            type="text"
-            value={howToGet}
-            onChange={(e) => setHowToGet(e.target.value)}
-            className={`w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 ${config.ring}`}
-            placeholder={config.placeholders.howToGet}
-          />
-        </div>
+        {FORM_FIELDS.map(({ key, label, required, autoFocus }) => (
+          <div key={key}>
+            <label className="block text-xs text-slate-600 mb-1">
+              {label}{required && <span className="text-red-500"> *</span>}
+            </label>
+            <input
+              type="text"
+              value={values[key]}
+              onChange={(e) => setValues(prev => ({ ...prev, [key]: e.target.value }))}
+              className={inputClass}
+              placeholder={config.placeholders[key]}
+              autoFocus={autoFocus}
+            />
+          </div>
+        ))}
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
@@ -91,9 +84,9 @@ function DocumentFormComponent({ variant, initialValues, onSubmit, onCancel }: D
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!name.trim()}
+            disabled={!values.name.trim()}
             className={`px-4 py-2 text-sm text-white rounded-lg ${
-              name.trim() ? config.submitBtn : 'bg-slate-300 cursor-not-allowed'
+              values.name.trim() ? config.submitBtn : 'bg-slate-300 cursor-not-allowed'
             }`}
           >
             {config.submitText}

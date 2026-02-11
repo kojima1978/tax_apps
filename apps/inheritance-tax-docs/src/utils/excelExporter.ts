@@ -11,6 +11,16 @@ export interface ExcelExportParams {
 }
 
 // Excel スタイル定義
+const thinBorder = (rgb: string) => ({ style: 'thin' as const, color: { rgb } });
+const allBorders = (rgb: string) => {
+  const b = thinBorder(rgb);
+  return { top: b, bottom: b, left: b, right: b };
+};
+
+const CELL_BORDER = allBorders('E5E7EB');
+const CELL_ALIGN = { horizontal: 'left' as const, vertical: 'center' as const, wrapText: true };
+const CELL_FONT = { sz: 11, color: { rgb: '1F2937' } };
+
 const styles = {
   title: {
     font: { bold: true, sz: 18, color: { rgb: 'FFFFFF' } },
@@ -27,15 +37,10 @@ const styles = {
     alignment: { horizontal: 'left', vertical: 'center' },
   },
   clientInfo: {
-    font: { sz: 11, color: { rgb: '1F2937' } },
+    font: CELL_FONT,
     fill: { fgColor: { rgb: 'DBEAFE' } },
     alignment: { horizontal: 'left', vertical: 'center' },
-    border: {
-      top: { style: 'thin', color: { rgb: '93C5FD' } },
-      bottom: { style: 'thin', color: { rgb: '93C5FD' } },
-      left: { style: 'thin', color: { rgb: '93C5FD' } },
-      right: { style: 'thin', color: { rgb: '93C5FD' } },
-    },
+    border: allBorders('93C5FD'),
   },
   noticeHeader: {
     font: { bold: true, sz: 11, color: { rgb: 'B45309' } },
@@ -51,65 +56,35 @@ const styles = {
     font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
     fill: { fgColor: { rgb: '1E40AF' } },
     alignment: { horizontal: 'left', vertical: 'center' },
-    border: {
-      top: { style: 'thin', color: { rgb: '1E3A8A' } },
-      bottom: { style: 'thin', color: { rgb: '1E3A8A' } },
-      left: { style: 'thin', color: { rgb: '1E3A8A' } },
-      right: { style: 'thin', color: { rgb: '1E3A8A' } },
-    },
+    border: allBorders('1E3A8A'),
   },
   tableHeader: {
     font: { bold: true, sz: 11, color: { rgb: '374151' } },
     fill: { fgColor: { rgb: 'F3F4F6' } },
     alignment: { horizontal: 'center', vertical: 'center' },
-    border: {
-      top: { style: 'thin', color: { rgb: 'D1D5DB' } },
-      bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
-      left: { style: 'thin', color: { rgb: 'D1D5DB' } },
-      right: { style: 'thin', color: { rgb: 'D1D5DB' } },
-    },
+    border: allBorders('D1D5DB'),
   },
   documentCell: {
-    font: { sz: 11, color: { rgb: '1F2937' } },
-    alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-    border: {
-      top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-      bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-      left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-      right: { style: 'thin', color: { rgb: 'E5E7EB' } },
-    },
+    font: CELL_FONT,
+    alignment: CELL_ALIGN,
+    border: CELL_BORDER,
   },
   documentCellAlt: {
-    font: { sz: 11, color: { rgb: '1F2937' } },
+    font: CELL_FONT,
     fill: { fgColor: { rgb: 'F9FAFB' } },
-    alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-    border: {
-      top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-      bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-      left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-      right: { style: 'thin', color: { rgb: 'E5E7EB' } },
-    },
+    alignment: CELL_ALIGN,
+    border: CELL_BORDER,
   },
   checkCell: {
     font: { sz: 14, color: { rgb: '6B7280' } },
     alignment: { horizontal: 'center', vertical: 'center' },
-    border: {
-      top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-      bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-      left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-      right: { style: 'thin', color: { rgb: 'E5E7EB' } },
-    },
+    border: CELL_BORDER,
   },
   delegateBadge: {
     font: { sz: 9, color: { rgb: 'B45309' } },
     fill: { fgColor: { rgb: 'FEF3C7' } },
     alignment: { horizontal: 'center', vertical: 'center' },
-    border: {
-      top: { style: 'thin', color: { rgb: 'FCD34D' } },
-      bottom: { style: 'thin', color: { rgb: 'FCD34D' } },
-      left: { style: 'thin', color: { rgb: 'FCD34D' } },
-      right: { style: 'thin', color: { rgb: 'FCD34D' } },
-    },
+    border: allBorders('FCD34D'),
   },
   footer: {
     font: { sz: 9, color: { rgb: '9CA3AF' } },

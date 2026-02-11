@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { File, Building2, CalendarDays, UserPen } from 'lucide-react';
-import { toWareki } from '@/lib/date-utils';
+import { toWareki, generateYearRange } from '@/lib/date-utils';
 import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 import { UserOption, CompanyOption } from '@/lib/types';
 
@@ -43,11 +43,7 @@ export default function Step0BasicInfo({
         router.push(path);
     };
 
-    const currentYear = new Date().getFullYear();
-    const yearOptions = [];
-    for (let i = currentYear + 5; i >= currentYear - 5; i--) {
-        yearOptions.push(i);
-    }
+    const yearOptions = generateYearRange();
 
     // ユーザー一覧を取得
     const fetchUsers = async () => {

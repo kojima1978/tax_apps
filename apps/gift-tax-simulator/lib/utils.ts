@@ -1,9 +1,15 @@
+const NUMBER_FORMAT = new Intl.NumberFormat('ja-JP');
+const YEN_FORMAT = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
+
 /**
  * カンマ区切りフォーマット（円単位）
  */
-export const formatCurrency = (num: number): string => {
-    return new Intl.NumberFormat('ja-JP').format(num);
-};
+export const formatCurrency = (num: number): string => NUMBER_FORMAT.format(num);
+
+/**
+ * 通貨フォーマット（￥付き）
+ */
+export const formatYen = (num: number): string => YEN_FORMAT.format(num);
 
 /**
  * 万円単位でフォーマット

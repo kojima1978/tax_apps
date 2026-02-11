@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { useMemo } from "react";
 
 import { calculateFinalValuation } from "@/lib/valuation-logic";
-import { ValuationResultCards } from "./ValuationResultCards";
+import { ValuationResultCards, getResultCardsProps } from "./ValuationResultCards";
 
 interface ValuationResultProps {
   basicInfo: BasicInfo;
@@ -49,12 +49,7 @@ export function ValuationResult({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ValuationResultCards
-          finalValue={results.finalValue}
-          methodName={results.comparisonDetails.length > 0 ? results.comparisonDetails[0].name : ""}
-          comparableValue={results.comparableValue}
-          netAssetPerShare={results.netAssetPerShare}
-        />
+        <ValuationResultCards {...getResultCardsProps(results)} />
 
         {/* 計算過程 */}
         <Card className="col-span-1 md:col-span-2 p-6 border-2 border-green-200 bg-gradient-to-br from-green-50 to-green-100/20">

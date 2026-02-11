@@ -5,7 +5,8 @@ import Navigation from '@/components/Navigation';
 import LandInputSection from '@/components/real-estate/LandInputSection';
 import BuildingInputSection from '@/components/real-estate/BuildingInputSection';
 import CalculationDetails from '@/components/real-estate/CalculationDetails';
-import { formatCurrency, type TransactionType } from '@/lib/real-estate-tax';
+import { type TransactionType } from '@/lib/real-estate-tax';
+import { formatYen } from '@/lib/utils';
 import { useRealEstateForm } from '@/hooks/useRealEstateForm';
 
 export default function RealEstatePage() {
@@ -101,25 +102,25 @@ export default function RealEstatePage() {
                         <div className="re-result-item">
                             <span className="re-result-label">不動産取得税</span>
                             <span className="re-result-sub">
-                                {form.includeLand && `土地: ${formatCurrency(form.results.landAcq)}`}
+                                {form.includeLand && `土地: ${formatYen(form.results.landAcq)}`}
                                 {form.includeLand && form.includeBuilding && ' / '}
-                                {form.includeBuilding && `建物: ${formatCurrency(form.results.bldgAcq)}`}
+                                {form.includeBuilding && `建物: ${formatYen(form.results.bldgAcq)}`}
                             </span>
-                            <span className="re-result-value">{formatCurrency(form.results.totalAcq)}</span>
+                            <span className="re-result-value">{formatYen(form.results.totalAcq)}</span>
                         </div>
                         <div className="re-result-item">
                             <span className="re-result-label">登録免許税</span>
                             <span className="re-result-sub">
-                                {form.includeLand && `土地: ${formatCurrency(form.results.landReg)}`}
+                                {form.includeLand && `土地: ${formatYen(form.results.landReg)}`}
                                 {form.includeLand && form.includeBuilding && ' / '}
-                                {form.includeBuilding && `建物: ${formatCurrency(form.results.bldgReg)}`}
+                                {form.includeBuilding && `建物: ${formatYen(form.results.bldgReg)}`}
                             </span>
-                            <span className="re-result-value">{formatCurrency(form.results.totalReg)}</span>
+                            <span className="re-result-value">{formatYen(form.results.totalReg)}</span>
                         </div>
                     </div>
                     <div className="re-result-total">
                         <span>合計納税額</span>
-                        <span className="total-value">{formatCurrency(form.results.total)}</span>
+                        <span className="total-value">{formatYen(form.results.total)}</span>
                     </div>
                 </div>
 

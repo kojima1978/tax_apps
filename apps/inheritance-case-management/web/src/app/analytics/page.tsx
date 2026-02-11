@@ -6,10 +6,15 @@ import { getAssignees } from "@/lib/api/assignees"
 import type { InheritanceCase } from "@tax-apps/shared"
 import { Button } from "@/components/ui/Button"
 import Link from "next/link"
-import { calcNet, formatCurrency, aggregateCases } from "@/lib/analytics-utils"
+import { calcNet, formatCurrency, aggregateCases, type AnnualData } from "@/lib/analytics-utils"
 import { RankingTable } from "./RankingTable"
 
 type TabId = "overview" | "breakdown" | "referrer"
+type StatusTableConfig = {
+    title: string
+    columns: { label: string; highlight?: boolean }[]
+    getValues: (d: AnnualData) => number[]
+}
 
 const TABS: { id: TabId; label: string }[] = [
     { id: "overview", label: "経営概況" },
@@ -126,35 +131,25 @@ export default function AnalyticsPage() {
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
                     {/* Summary Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="p-6 bg-white rounded-lg border-2 border-primary/20 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-10">
-                                <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                        {[
+                            { title: "事業総額 (売上 + 見込)", badge: "手取り実額", badgeClass: "bg-primary/10 text-primary", cardClass: "bg-white border-2 border-primary/20", valueClass: "text-3xl font-bold text-primary", hasIcon: true, net: grandTotalNet, count: grandCount, gross: grandTotalGross, footnote: "※請求総額" },
+                            { title: "売上実績 (完了案件)", badge: "手取り実額", badgeClass: "bg-muted text-foreground", cardClass: "bg-card border", valueClass: "text-2xl font-bold", hasIcon: false, net: salesTotalNet, count: salesCount, gross: salesTotalGross, footnote: "※請求総額" },
+                            { title: "見込額 (進行中のみ)", badge: "予測実額", badgeClass: "bg-muted text-foreground", cardClass: "bg-card border", valueClass: "text-2xl font-bold", hasIcon: false, net: estimateTotalNet, count: estimateCount, gross: estimateTotalGross, footnote: "※見積総額" },
+                        ].map((card) => (
+                            <div key={card.title} className={`p-6 rounded-lg shadow-sm ${card.cardClass} ${card.hasIcon ? "relative overflow-hidden" : ""}`}>
+                                {card.hasIcon && (
+                                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                                        <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                                    </div>
+                                )}
+                                <div className="text-sm font-medium text-muted-foreground mb-2">{card.title} <span className={`text-xs ${card.badgeClass} px-1 rounded`}>{card.badge}</span></div>
+                                <div className="flex items-baseline gap-2">
+                                    <div className={card.valueClass}>{formatCurrency(card.net)}</div>
+                                    <div className="text-sm text-muted-foreground">/ {card.count} 件</div>
+                                </div>
+                                <div className="mt-2 text-xs text-muted-foreground">{card.footnote}: {formatCurrency(card.gross)}</div>
                             </div>
-                            <div className="text-sm font-medium text-muted-foreground mb-2">事業総額 (売上 + 見込) <span className="text-xs bg-primary/10 text-primary px-1 rounded">手取り実額</span></div>
-                            <div className="flex items-baseline gap-2">
-                                <div className="text-3xl font-bold text-primary">{formatCurrency(grandTotalNet)}</div>
-                                <div className="text-sm text-muted-foreground">/ {grandCount} 件</div>
-                            </div>
-                            <div className="mt-2 text-xs text-muted-foreground">※請求総額: {formatCurrency(grandTotalGross)}</div>
-                        </div>
-
-                        <div className="p-6 bg-card rounded-lg border shadow-sm">
-                            <div className="text-sm font-medium text-muted-foreground mb-2">売上実績 (完了案件) <span className="text-xs bg-muted text-foreground px-1 rounded">手取り実額</span></div>
-                            <div className="flex items-baseline gap-2">
-                                <div className="text-2xl font-bold">{formatCurrency(salesTotalNet)}</div>
-                                <div className="text-sm text-muted-foreground">/ {salesCount} 件</div>
-                            </div>
-                            <div className="mt-2 text-xs text-muted-foreground">※請求総額: {formatCurrency(salesTotalGross)}</div>
-                        </div>
-
-                        <div className="p-6 bg-card rounded-lg border shadow-sm">
-                            <div className="text-sm font-medium text-muted-foreground mb-2">見込額 (進行中のみ) <span className="text-xs bg-muted text-foreground px-1 rounded">予測実額</span></div>
-                            <div className="flex items-baseline gap-2">
-                                <div className="text-2xl font-bold">{formatCurrency(estimateTotalNet)}</div>
-                                <div className="text-sm text-muted-foreground">/ {estimateCount} 件</div>
-                            </div>
-                            <div className="mt-2 text-xs text-muted-foreground">※見積総額: {formatCurrency(estimateTotalGross)}</div>
-                        </div>
+                        ))}
                     </div>
 
                     {/* Annual Performance */}
@@ -189,57 +184,37 @@ export default function AnalyticsPage() {
 
                         {/* Status Breakdown Tables */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
-                            <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                                <div className="p-3 bg-muted border-b text-sm font-medium text-muted-foreground">年度別 受託ステータス内訳</div>
-                                <table className="w-full text-sm text-center">
-                                    <thead className="text-muted-foreground border-b bg-card">
-                                        <tr>
-                                            <th className="p-2">年度</th>
-                                            <th className="p-2 text-foreground font-bold">受託可</th>
-                                            <th className="p-2 text-muted-foreground">受託不可</th>
-                                            <th className="p-2 text-muted-foreground">未判定</th>
-                                            <th className="p-2">合計</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {annualData.map(d => (
-                                            <tr key={d.year}>
-                                                <td className="p-2 font-medium">{d.year}年度</td>
-                                                <td className="p-2">{d.acceptanceCounts.accepted}</td>
-                                                <td className="p-2">{d.acceptanceCounts.rejected}</td>
-                                                <td className="p-2">{d.acceptanceCounts.undecided}</td>
-                                                <td className="p-2 font-bold">{d.acceptanceCounts.accepted + d.acceptanceCounts.rejected + d.acceptanceCounts.undecided}</td>
+                            {([
+                                { title: "年度別 受託ステータス内訳", columns: [{ label: "受託可", highlight: true }, { label: "受託不可" }, { label: "未判定" }], getValues: (d: AnnualData) => [d.acceptanceCounts.accepted, d.acceptanceCounts.rejected, d.acceptanceCounts.undecided] },
+                                { title: "年度別 進行ステータス内訳", columns: [{ label: "完了", highlight: true }, { label: "手続中" }, { label: "未着手" }], getValues: (d: AnnualData) => [d.statusCounts.completed, d.statusCounts.ongoing, d.statusCounts.notStarted] },
+                            ] satisfies StatusTableConfig[]).map((table) => (
+                                <div key={table.title} className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                                    <div className="p-3 bg-muted border-b text-sm font-medium text-muted-foreground">{table.title}</div>
+                                    <table className="w-full text-sm text-center">
+                                        <thead className="text-muted-foreground border-b bg-card">
+                                            <tr>
+                                                <th className="p-2">年度</th>
+                                                {table.columns.map((col) => (
+                                                    <th key={col.label} className={`p-2 ${col.highlight ? "text-foreground font-bold" : "text-muted-foreground"}`}>{col.label}</th>
+                                                ))}
+                                                <th className="p-2">合計</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                                <div className="p-3 bg-muted border-b text-sm font-medium text-muted-foreground">年度別 進行ステータス内訳</div>
-                                <table className="w-full text-sm text-center">
-                                    <thead className="text-muted-foreground border-b bg-card">
-                                        <tr>
-                                            <th className="p-2">年度</th>
-                                            <th className="p-2 text-foreground font-bold">完了</th>
-                                            <th className="p-2 text-muted-foreground">手続中</th>
-                                            <th className="p-2 text-muted-foreground">未着手</th>
-                                            <th className="p-2">合計</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {annualData.map(d => (
-                                            <tr key={d.year}>
-                                                <td className="p-2 font-medium">{d.year}年度</td>
-                                                <td className="p-2">{d.statusCounts.completed}</td>
-                                                <td className="p-2">{d.statusCounts.ongoing}</td>
-                                                <td className="p-2">{d.statusCounts.notStarted}</td>
-                                                <td className="p-2 font-bold">{d.statusCounts.completed + d.statusCounts.ongoing + d.statusCounts.notStarted}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {annualData.map(d => {
+                                                const values = table.getValues(d)
+                                                return (
+                                                    <tr key={d.year}>
+                                                        <td className="p-2 font-medium">{d.year}年度</td>
+                                                        {values.map((v, i) => <td key={i} className="p-2">{v}</td>)}
+                                                        <td className="p-2 font-bold">{values.reduce((a, b) => a + b, 0)}</td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>

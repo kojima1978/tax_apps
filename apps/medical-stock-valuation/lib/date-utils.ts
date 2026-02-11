@@ -79,3 +79,17 @@ export function getCurrentWarekiYear(): string {
 export function getCurrentSeirekiYear(): number {
   return new Date().getFullYear();
 }
+
+/**
+ * 現在年を中心に ±offset の年度配列を降順で生成
+ * @param offset 前後の年数（デフォルト: 5）
+ * @returns 年度の数値配列（降順）
+ */
+export function generateYearRange(offset = 5): number[] {
+  const currentYear = new Date().getFullYear();
+  const years: number[] = [];
+  for (let i = currentYear + offset; i >= currentYear - offset; i--) {
+    years.push(i);
+  }
+  return years;
+}

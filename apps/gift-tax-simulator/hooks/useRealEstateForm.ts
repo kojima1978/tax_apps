@@ -2,12 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     calculateRealEstateTax,
     calculateBuildingDeduction,
-    formatCurrency,
     type TaxResults,
     type TransactionType,
     type LandType,
 } from '@/lib/real-estate-tax';
-import { formatInputValue, parseFormattedNumber } from '@/lib/utils';
+import { formatInputValue, parseFormattedNumber, formatYen } from '@/lib/utils';
 
 const INITIAL_RESULTS: TaxResults = {
     total: 0,
@@ -79,7 +78,7 @@ export const useRealEstateForm = () => {
         const result = calculateBuildingDeduction(buildingDate, transactionType, isResidential);
         setAcquisitionDeduction(formatInputValue(result.deduction));
         if (result.deduction > 0) {
-            setDeductionMessage(`建築時期により自動設定: ${formatCurrency(result.deduction)} (${result.message})`);
+            setDeductionMessage(`建築時期により自動設定: ${formatYen(result.deduction)} (${result.message})`);
         } else {
             setDeductionMessage(result.message);
         }
