@@ -18,6 +18,8 @@ export interface ExportData {
     editedDocuments: Record<string, DocChanges>;
     canDelegateOverrides: Record<string, boolean>;
     specificDocNames?: Record<string, string[]>;
+    personInCharge?: string;
+    personInChargeContact?: string;
   };
 }
 
@@ -38,6 +40,8 @@ export function createExportData(params: {
   editedDocuments: Record<string, DocChanges>;
   canDelegateOverrides: Record<string, boolean>;
   specificDocNames: Record<string, string[]>;
+  personInCharge: string;
+  personInChargeContact: string;
 }): ExportData {
   return {
     version: DATA_VERSION,
@@ -53,6 +57,8 @@ export function createExportData(params: {
       editedDocuments: params.editedDocuments,
       canDelegateOverrides: params.canDelegateOverrides,
       specificDocNames: params.specificDocNames,
+      personInCharge: params.personInCharge,
+      personInChargeContact: params.personInChargeContact,
     },
   };
 }
@@ -115,6 +121,14 @@ export function validateImportData(data: unknown): ValidationResult {
     if (typeof dataObj.specificDocNames !== 'object' || dataObj.specificDocNames === null) {
       return { isValid: false, error: '具体的書類名データが不正です。' };
     }
+  }
+
+  // personInCharge, personInChargeContact は optional（後方互換）
+  if (dataObj.personInCharge !== undefined && typeof dataObj.personInCharge !== 'string') {
+    return { isValid: false, error: '担当者データが不正です。' };
+  }
+  if (dataObj.personInChargeContact !== undefined && typeof dataObj.personInChargeContact !== 'string') {
+    return { isValid: false, error: '担当者連絡先データが不正です。' };
   }
 
   return { isValid: true };

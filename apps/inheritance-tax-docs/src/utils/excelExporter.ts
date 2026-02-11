@@ -8,6 +8,8 @@ interface ExcelExportParams {
   deceasedName: string;
   deadline: string;
   specificDocNames: Record<string, string[]>;
+  personInCharge: string;
+  personInChargeContact: string;
 }
 
 // Excel スタイル定義
@@ -113,7 +115,7 @@ function pushEmptyRow(wsData: object[][]): void {
  * Excel ファイルをエクスポート
  */
 export function exportToExcel(params: ExcelExportParams): void {
-  const { results, clientName, deceasedName, deadline, specificDocNames } = params;
+  const { results, clientName, deceasedName, deadline, specificDocNames, personInCharge, personInChargeContact } = params;
   const exportDate = formatDate(new Date());
 
   const wb = XLSX.utils.book_new();
@@ -127,7 +129,7 @@ export function exportToExcel(params: ExcelExportParams): void {
   pushEmptyRow(wsData);
 
   // 基本情報（入力されている場合）
-  if (clientName || deceasedName || deadline) {
+  if (clientName || deceasedName || deadline || personInCharge || personInChargeContact) {
     const infoRow: object[] = [];
     if (clientName) infoRow.push({ v: `お客様名: ${clientName} 様`, s: styles.clientInfo });
     if (deceasedName) infoRow.push({ v: `被相続人: ${deceasedName} 様`, s: styles.clientInfo });
@@ -135,6 +137,12 @@ export function exportToExcel(params: ExcelExportParams): void {
       infoRow.push({ v: `資料収集期限: ${formatDeadline(deadline)}`, s: styles.clientInfo });
     }
     wsData.push(infoRow);
+    if (personInCharge || personInChargeContact) {
+      const chargeRow: object[] = [];
+      if (personInCharge) chargeRow.push({ v: `担当者: ${personInCharge}`, s: styles.clientInfo });
+      if (personInChargeContact) chargeRow.push({ v: `連絡先: ${personInChargeContact}`, s: styles.clientInfo });
+      wsData.push(chargeRow);
+    }
     pushEmptyRow(wsData);
   }
 

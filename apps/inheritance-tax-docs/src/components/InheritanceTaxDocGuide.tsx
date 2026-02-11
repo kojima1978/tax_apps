@@ -9,11 +9,11 @@ export default function InheritanceTaxDocGuide() {
     // state
     expandedCategories, deletedDocuments, customDocuments, documentOrder,
     editedDocuments, canDelegateOverrides, specificDocNames,
-    clientName, deceasedName, deadline, stats,
+    clientName, deceasedName, deadline, personInCharge, personInChargeContact, stats,
     // モーダル
     editingDocId, editingDocData, isModalOpen, modalVariant,
     // handlers
-    setClientName, setDeceasedName, setDeadline,
+    setClientName, setDeceasedName, setDeadline, setPersonInCharge, setPersonInChargeContact,
     toggleExpanded, deleteDocument, restoreDocument,
     removeCustomDocument, reorderDocuments,
     toggleCanDelegate,
@@ -30,6 +30,8 @@ export default function InheritanceTaxDocGuide() {
         clientName={clientName}
         deceasedName={deceasedName}
         deadline={deadline}
+        personInCharge={personInCharge}
+        personInChargeContact={personInChargeContact}
         expandedCategories={expandedCategories}
         deletedDocuments={deletedDocuments}
         customDocuments={customDocuments}
@@ -41,6 +43,8 @@ export default function InheritanceTaxDocGuide() {
         onClientNameChange={setClientName}
         onDeceasedNameChange={setDeceasedName}
         onDeadlineChange={setDeadline}
+        onPersonInChargeChange={setPersonInCharge}
+        onPersonInChargeContactChange={setPersonInChargeContact}
         onToggleExpanded={toggleExpanded}
         onDeleteDocument={deleteDocument}
         onRestoreDocument={restoreDocument}
