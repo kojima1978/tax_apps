@@ -135,6 +135,8 @@ services:
     volumes: !reset []
     command: []
     deploy: *prod-small-deploy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5173/inheritance-tax-app/ || exit 1" ]
 
   # ===========================================
   # 贈与税シミュレーター（間接税統合）- 本番設定
