@@ -127,7 +127,7 @@ services:
       - ../apps/medical-stock-valuation/lib:/app/lib:ro
       - ../apps/medical-stock-valuation/hooks:/app/hooks:ro
       - ../apps/medical-stock-valuation/public:/app/public:ro
-      - medical_stock_data:/app/data
+      - ./data/medical-stock:/app/data
     environment:
       <<: *nextjs-dev-env
     command: npm run dev -- -p 3010
@@ -172,7 +172,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-inheritance_tax_db}
     volumes:
-      - itcm_postgres_data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     ports:
       - "3022:5432"
     shm_size: 128m
@@ -254,12 +254,12 @@ services:
     volumes:
       - ../apps/bank-analyzer-django/analyzer:/app/analyzer:ro
       - ../apps/bank-analyzer-django/bank_project:/app/bank_project:ro
-      - bank_analyzer_data:/app/data
-      - bank_analyzer_db:/app/db
+      - ./data/bank-analyzer/data:/app/data
+      - ./data/bank-analyzer/db:/app/db
     environment:
       <<: *common-env
       DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,bank-analyzer}
       DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
     command: [ "/docker-entrypoint.sh", "python", "manage.py", "runserver", "0.0.0.0:8000" ]
@@ -405,7 +405,7 @@ services:
       - "3006:3001"
     volumes:
       - ../apps/Required-documents-for-tax-return/backend/src:/app/src:ro
-      - tax_docs_data:/app/data
+      - ./data/tax-docs:/app/data
     environment:
       <<: *common-env
       NODE_ENV: development
@@ -451,16 +451,9 @@ networks:
     driver: bridge
 
 # ===========================================
-# ボリューム
+# ボリューム（ホストバインドマウント: ./data/）
 # ===========================================
-volumes:
-  itcm_postgres_data:
-    name: tax-apps-itcm-postgres
-  tax_docs_data:
-    name: tax-apps-tax-docs-data
-  medical_stock_data:
-    name: tax-apps-medical-stock-data
-  bank_analyzer_data:
-    name: tax-apps-bank-analyzer-data
-  bank_analyzer_db:
-    name: tax-apps-bank-analyzer-db
+# postgres        → ./data/postgres/
+# tax-docs        → ./data/tax-docs/
+# medical-stock   → ./data/medical-stock/
+# bank-analyzer   → ./data/bank-analyzer/{data,db}/

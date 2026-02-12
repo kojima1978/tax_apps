@@ -81,6 +81,7 @@ apps/*/prisma/migrations/
 # Docker volumes data
 ollama_data/
 itcm_postgres_data/
+docker/backups/
 
 # Data directories (keep structure, ignore contents)
 apps/*/data/*
