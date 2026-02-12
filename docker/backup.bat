@@ -5,9 +5,9 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 echo.
-echo ╔════════════════════════════════════════════════════════════╗
-echo ║          Tax Apps - Backup                                 ║
-echo ╚════════════════════════════════════════════════════════════╝
+echo ============================================================
+echo   Tax Apps - Backup
+echo ============================================================
 echo.
 
 :: ──────────────────────────────────────────────────────────────
@@ -113,9 +113,9 @@ echo.
 :: バックアップサイズを取得（ロケール非依存）
 for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$s = (Get-ChildItem -Path '%BACKUP_DIR%' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s -gt 1MB) { '{0:N1} MB' -f ($s/1MB) } elseif ($s -gt 1KB) { '{0:N1} KB' -f ($s/1KB) } else { '{0} bytes' -f $s }"`) do set "TOTAL_SIZE=%%S"
 
-echo ╔════════════════════════════════════════════════════════════╗
-echo ║          Backup Complete                                   ║
-echo ╚════════════════════════════════════════════════════════════╝
+echo ============================================================
+echo   Backup Complete
+echo ============================================================
 echo.
 echo   保存先: %BACKUP_DIR%\
 echo   サイズ: %TOTAL_SIZE%

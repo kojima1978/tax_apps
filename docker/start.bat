@@ -2,9 +2,9 @@
 chcp 65001 >nul
 
 echo.
-echo ╔════════════════════════════════════════════════════════════╗
-echo ║          Tax Apps - Starting Services                      ║
-echo ╚════════════════════════════════════════════════════════════╝
+echo ============================================================
+echo   Tax Apps - Starting Services
+echo ============================================================
 echo.
 
 cd /d "%~dp0"
@@ -37,9 +37,9 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo ╔════════════════════════════════════════════════════════════╗
-echo ║          Services Started Successfully!                    ║
-echo ╚════════════════════════════════════════════════════════════╝
+echo ============================================================
+echo   Services Started Successfully!
+echo ============================================================
 echo.
 echo   Main Portal:  http://localhost
 echo.
@@ -56,7 +56,7 @@ echo     Retirement Tax:     http://localhost/retirement-tax-calc/
 echo     ITCM:               http://localhost/itcm/
 echo     Bank Analyzer:      http://localhost/bank-analyzer/
 echo.
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 echo.
 echo Usage: start.bat [options]
 echo   --build, -b    Rebuild containers
