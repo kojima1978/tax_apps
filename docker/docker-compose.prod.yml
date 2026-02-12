@@ -41,12 +41,11 @@ x-prod-small-deploy: &prod-small-deploy
 
 # 本番 Node.js サービス共通設定
 # runner ステージは ENTRYPOINT に tini を持つため、compose の init は無効化
+# Note: ports/volumes の !reset はアンカー(<<:)経由では保持されないため各サービスに明示
 x-prod-node-defaults: &prod-node-defaults
   build:
     target: runner
   init: false
-  ports: []
-  volumes: []
   environment:
     NODE_ENV: production
   deploy: *prod-deploy
@@ -56,8 +55,8 @@ services:
   # Gateway - 本番設定
   # ===========================================
   gateway:
-    volumes: []
-    ports:
+    volumes: !reset []
+    ports: !override
       - "80:80"
     deploy: *prod-gateway-deploy
 
@@ -65,7 +64,7 @@ services:
   # Portal - 本番設定
   # ===========================================
   portal-app:
-    ports: []
+    ports: !reset []
     deploy: *prod-gateway-deploy
 
   # ===========================================
@@ -73,22 +72,25 @@ services:
   # ===========================================
   medical-stock-valuation:
     <<: *prod-node-defaults
-    command: []
-    volumes:
+    ports: !reset []
+    volumes: !override
       - ./data/medical-stock:/app/data
+    command: []
 
   # ===========================================
   # 非上場株式評価 - 本番設定
   # ===========================================
   shares-valuation:
     <<: *prod-node-defaults
+    ports: !reset []
+    volumes: !reset []
     command: []
 
   # ===========================================
   # ITCM PostgreSQL - 本番設定
   # ===========================================
   itcm-postgres:
-    ports: []
+    ports: !reset []
     deploy: *prod-postgres-deploy
 
   # ===========================================
@@ -96,12 +98,16 @@ services:
   # ===========================================
   itcm-backend:
     <<: *prod-node-defaults
+    ports: !reset []
+    volumes: !reset []
 
   # ===========================================
   # ITCM Frontend - 本番設定
   # ===========================================
   itcm-frontend:
     <<: *prod-node-defaults
+    ports: !reset []
+    volumes: !reset []
 
   # ===========================================
   # Bank Analyzer - 本番設定
@@ -110,8 +116,8 @@ services:
     build:
       target: production
     init: false
-    ports: []
-    volumes:
+    ports: !reset []
+    volumes: !override
       - ./data/bank-analyzer/data:/app/data
       - ./data/bank-analyzer/db:/app/db
     environment:
@@ -125,16 +131,18 @@ services:
   # ===========================================
   inheritance-tax-app:
     <<: *prod-node-defaults
+    ports: !reset []
+    volumes: !reset []
     command: []
     deploy: *prod-small-deploy
-    healthcheck:
-      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3013/inheritance-tax-app/ || exit 1" ]
 
   # ===========================================
   # 贈与税シミュレーター（間接税統合）- 本番設定
   # ===========================================
   gift-tax-simulator:
     <<: *prod-node-defaults
+    ports: !reset []
+    volumes: !reset []
     command: []
 
   # ===========================================
@@ -142,6 +150,8 @@ services:
   # ===========================================
   gift-tax-docs:
     <<: *prod-node-defaults
+    ports: !reset []
+    volumes: !reset []
     command: []
 
   # ===========================================
@@ -149,6 +159,8 @@ services:
   # ===========================================
   inheritance-tax-docs:
     <<: *prod-node-defaults
+    ports: !reset []
+    volumes: !reset []
     command: []
 
   # ===========================================
@@ -156,6 +168,8 @@ services:
   # ===========================================
   retirement-tax-calc:
     <<: *prod-node-defaults
+    ports: !reset []
+    volumes: !reset []
     command: []
 
   # ===========================================
@@ -163,7 +177,8 @@ services:
   # ===========================================
   tax-docs-backend:
     <<: *prod-node-defaults
-    volumes:
+    ports: !reset []
+    volumes: !override
       - ./data/tax-docs:/app/data
     deploy: *prod-small-deploy
 
@@ -172,3 +187,5 @@ services:
   # ===========================================
   tax-docs-frontend:
     <<: *prod-node-defaults
+    ports: !reset []
+    volumes: !reset []
