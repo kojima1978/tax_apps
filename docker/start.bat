@@ -10,7 +10,7 @@ echo.
 cd /d "%~dp0"
 
 :: Run preflight checks
-call preflight.bat
+call "%~dp0preflight.bat"
 if %ERRORLEVEL% neq 0 (
     pause
     exit /b 1
@@ -18,7 +18,7 @@ if %ERRORLEVEL% neq 0 (
 echo.
 
 :: Parse command line arguments
-call _parse_args.bat %*
+call "%~dp0_parse_args.bat" %*
 
 :: Start services
 if defined PROD_FLAG (

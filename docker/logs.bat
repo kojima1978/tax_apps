@@ -10,7 +10,7 @@ echo.
 cd /d "%~dp0"
 
 :: Parse command line arguments
-call _parse_args.bat %*
+call "%~dp0_parse_args.bat" %*
 
 :: Show logs
 if defined SERVICE (
