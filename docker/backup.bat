@@ -33,26 +33,30 @@ mkdir "%BACKUP_DIR%" 2>nul
 echo [1/3] PostgreSQL ...
 
 docker compose ps --status running 2>nul | findstr "itcm-postgres" >nul 2>&1
+if !ERRORLEVEL! neq 0 goto :pg_fallback
+
+docker exec itcm-postgres pg_dump -U postgres -d inheritance_tax_db > "%BACKUP_DIR%\postgres.sql" 2>nul
 if !ERRORLEVEL! equ 0 (
-    docker exec itcm-postgres pg_dump -U postgres -d inheritance_tax_db > "%BACKUP_DIR%\postgres.sql" 2>nul
-    if !ERRORLEVEL! equ 0 (
-        echo [OK]    postgres.sql
+    echo [OK]    postgres.sql
+) else (
+    echo [WARN]  pg_dump に失敗しました
+)
+goto :pg_done
+
+:pg_fallback
+if exist "data\postgres" (
+    echo [WARN]  PostgreSQL コンテナが停止中のためファイルコピーにフォールバック
+    robocopy "data\postgres" "%BACKUP_DIR%\postgres" /E /NFL /NDL /NJH /NJS >nul 2>&1
+    if !ERRORLEVEL! lss 8 (
+        echo [OK]    postgres/ (ファイルコピー)
     ) else (
-        echo [WARN]  pg_dump に失敗しました
+        echo [ERROR] postgres/ のコピーに失敗しました
     )
 ) else (
-    if exist "data\postgres" (
-        echo [WARN]  PostgreSQL コンテナが停止中のためファイルコピーにフォールバック
-        robocopy "data\postgres" "%BACKUP_DIR%\postgres" /E /NFL /NDL /NJH /NJS >nul 2>&1
-        if !ERRORLEVEL! lss 8 (
-            echo [OK]    postgres/ (ファイルコピー)
-        ) else (
-            echo [ERROR] postgres/ のコピーに失敗しました
-        )
-    ) else (
-        echo [SKIP]  data/postgres/ が存在しません
-    )
+    echo [SKIP]  data/postgres/ が存在しません
 )
+
+:pg_done
 
 :: ──────────────────────────────────────────────────────────────
 :: 2. SQLite データベース (ファイルコピー)
