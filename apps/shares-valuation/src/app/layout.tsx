@@ -37,8 +37,8 @@ export default function RootLayout({
         <ToastProvider>
           <main className="min-h-screen p-4 sm:p-8">
             <div className="max-w-4xl mx-auto">
-              <a href="/" title="ポータルに戻る" className="no-print inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4">
-                <Home className="w-4 h-4" />
+              <a href="/" title="ポータルに戻る" aria-label="ポータルに戻る" className="no-print inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4">
+                <Home className="w-4 h-4" aria-hidden="true" />
                 <span>ポータル</span>
               </a>
               {children}

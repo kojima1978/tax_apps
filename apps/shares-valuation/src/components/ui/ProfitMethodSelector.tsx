@@ -48,11 +48,13 @@ export function ProfitMethodSelector({
   return (
     <div className="flex items-center gap-2 text-xs">
       <span className="text-muted-foreground w-[80px]">{label}</span>
-      <div className="flex gap-2 flex-1">
+      <div className="flex gap-2 flex-1" role="radiogroup" aria-label={label}>
         {OPTIONS.map(({ key }) => (
           <button
             key={key}
             type="button"
+            role="radio"
+            aria-checked={value === key}
             onClick={() => onChange(key)}
             className={`px-3 py-1 text-xs rounded transition-colors min-w-[60px] ${
               value === key

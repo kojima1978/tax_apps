@@ -174,6 +174,15 @@ function EditableCategoryTableComponent({
       <div
         className={`flex items-center justify-between p-3 cursor-pointer rounded-t-lg ${category.bgColor} hover:opacity-90 print:cursor-default print:p-1`}
         onClick={() => onToggleExpanded(category.id)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggleExpanded(category.id);
+          }
+        }}
       >
         <div className="flex items-center">
           <span className={`mr-2 print:mr-1 ${category.color}`}>{getIcon(category.iconName)}</span>

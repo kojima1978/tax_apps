@@ -36,6 +36,9 @@ export default function ConfirmDialog({
   return (
     <div
       className="fixed inset-0 bg-black/50 flex justify-center items-center z-[1000]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-dialog-title"
       onClick={onCancel}
       onKeyDown={handleKeyDown}
     >
@@ -43,19 +46,19 @@ export default function ConfirmDialog({
         className="bg-white rounded-lg p-6 min-w-[360px] max-w-[90%] shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mt-0 mb-4 text-lg font-bold">{title}</h3>
+        <h3 id="confirm-dialog-title" className="mt-0 mb-4 text-lg font-bold">{title}</h3>
         <p className="mb-6 whitespace-pre-line text-gray-700">{message}</p>
         <div className="flex justify-end gap-3">
           <button
             ref={cancelRef}
             onClick={onCancel}
-            className="px-4 py-2 bg-white text-black border border-gray-300 rounded-lg hover:bg-gray-200 hover:border-gray-400 cursor-pointer transition-all"
+            className="px-4 py-2 bg-white text-black border border-gray-300 rounded-lg hover:bg-gray-200 hover:border-gray-400 cursor-pointer transition-colors"
           >
             キャンセル
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 bg-red-600 text-white border border-red-600 rounded-lg hover:bg-red-700 cursor-pointer transition-all"
+            className="px-4 py-2 bg-red-600 text-white border border-red-600 rounded-lg hover:bg-red-700 cursor-pointer transition-colors"
           >
             OK
           </button>

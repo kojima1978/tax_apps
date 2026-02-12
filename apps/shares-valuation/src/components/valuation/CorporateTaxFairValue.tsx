@@ -143,7 +143,7 @@ export function CorporateTaxFairValue({
           type="button"
           onClick={onNext}
           size="lg"
-          className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
+          className="shadow-lg hover:shadow-xl transition-colors hover:-translate-y-1"
         >
           次へ進む
         </Button>

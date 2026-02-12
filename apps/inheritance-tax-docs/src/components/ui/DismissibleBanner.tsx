@@ -19,7 +19,7 @@ export function DismissibleBanner({ message, onDismiss, variant }: DismissibleBa
           : <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />}
         {message}
       </div>
-      <button onClick={onDismiss} className={isError ? 'text-red-500 hover:text-red-700' : 'text-emerald-500 hover:text-emerald-700'}>
+      <button onClick={onDismiss} className={isError ? 'text-red-500 hover:text-red-700' : 'text-emerald-500 hover:text-emerald-700'} aria-label="閉じる">
         <X className="w-4 h-4" />
       </button>
     </div>

@@ -29,13 +29,14 @@ export function DocumentFormModal({ isOpen, variant, initialValues, onSubmit, on
       onKeyDown={handleOverlayKeyDown}
       role="dialog"
       aria-modal="true"
+      aria-labelledby="document-form-modal-title"
     >
       <div
         className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-slate-200">
-          <h3 className="text-lg font-bold text-slate-800">
+          <h3 id="document-form-modal-title" className="text-lg font-bold text-slate-800">
             {variant === 'add' ? '書類を追加' : '書類を編集'}
           </h3>
         </div>

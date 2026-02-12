@@ -39,7 +39,7 @@ export function FormNavigationButtons({
       <Button
         type="submit"
         size="lg"
-        className={`flex-[2] shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 ${nextClassName ?? ""}`}
+        className={`flex-[2] shadow-lg hover:shadow-xl transition-[shadow,transform,colors] hover:-translate-y-1 ${nextClassName ?? ""}`}
         disabled={isPending}
       >
         {isPending ? pendingLabel ?? nextLabel : nextLabel}
