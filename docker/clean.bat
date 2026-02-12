@@ -86,6 +86,7 @@ for %%D in (
     if exist "%%~D" (
         rd /s /q "%%~D" 2>nul
         mkdir "%%~D" 2>nul
+        type nul > "%%~D\.gitkeep"
         echo   [OK] %%~D
     )
 )
