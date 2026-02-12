@@ -2,9 +2,9 @@
 chcp 65001 >nul
 
 echo.
-echo ╔════════════════════════════════════════════════════════════╗
-echo ║          Tax Apps - Restarting Services                    ║
-echo ╚════════════════════════════════════════════════════════════╝
+echo ============================================================
+echo   Tax Apps - Restarting Services
+echo ============================================================
 echo.
 
 cd /d "%~dp0"
@@ -45,13 +45,13 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo ╔════════════════════════════════════════════════════════════╗
-echo ║          Services Restarted Successfully!                  ║
-echo ╚════════════════════════════════════════════════════════════╝
+echo ============================================================
+echo   Services Restarted Successfully!
+echo ============================================================
 echo.
 echo   Main Portal:  http://localhost
 echo.
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 echo.
 echo Usage: restart.bat [options] [service]
 echo   --build, -b    Rebuild containers
