@@ -22,7 +22,7 @@ export function generateId(prefix: string, length: number = 11): string {
  * @param data バリデーション対象のデータ
  * @returns バリデーション結果 { isValid: boolean, message?: string }
  */
-function validateBasicInfo(data: {
+export function validateBasicInfo(data: {
   fiscalYear?: string;
   companyName?: string;
   personInCharge?: string;

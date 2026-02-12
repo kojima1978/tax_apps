@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addCustomer, fetchStaff } from '@/utils/api';
 import { translateCustomerError } from '@/utils/error';
@@ -11,6 +11,10 @@ import SearchableSelect from '@/components/SearchableSelect';
 import FormErrorDisplay from '@/components/FormErrorDisplay';
 
 export default function CreateCustomerPage() {
+    return <Suspense><CreateCustomerContent /></Suspense>;
+}
+
+function CreateCustomerContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [name, setName] = useState('');

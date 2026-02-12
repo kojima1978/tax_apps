@@ -20,7 +20,7 @@ interface CrudRouterConfig {
 
 export function createCrudRouter(config: CrudRouterConfig): Hono {
   const { model, orderBy, entityLabel, createSchema, updateSchema } = config;
-  const delegate = (prisma as Record<string, unknown>)[model] as {
+  const delegate = (prisma as unknown as Record<string, unknown>)[model] as {
     findMany: (args: unknown) => Promise<unknown>;
     findUnique: (args: unknown) => Promise<unknown>;
     create: (args: unknown) => Promise<Record<string, unknown>>;
