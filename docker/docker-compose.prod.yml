@@ -75,7 +75,7 @@ services:
     <<: *prod-node-defaults
     command: []
     volumes:
-      - medical_stock_data:/app/data
+      - ./data/medical-stock:/app/data
 
   # ===========================================
   # 非上場株式評価 - 本番設定
@@ -112,8 +112,8 @@ services:
     init: false
     ports: []
     volumes:
-      - bank_analyzer_data:/app/data
-      - bank_analyzer_db:/app/db
+      - ./data/bank-analyzer/data:/app/data
+      - ./data/bank-analyzer/db:/app/db
     environment:
       DJANGO_DEBUG: "False"
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required for production}
@@ -162,7 +162,7 @@ services:
   tax-docs-backend:
     <<: *prod-node-defaults
     volumes:
-      - tax_docs_data:/app/data
+      - ./data/tax-docs:/app/data
     deploy: *prod-small-deploy
 
   # ===========================================

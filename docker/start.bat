@@ -9,22 +9,13 @@ echo.
 
 cd /d "%~dp0"
 
-:: Check if .env exists
-if not exist ".env" (
-    echo [WARNING] .env file not found!
-    echo Creating from .env.example...
-    if exist ".env.example" (
-        copy .env.example .env >nul
-        echo Please edit .env file and set POSTGRES_PASSWORD
-        echo.
-        pause
-        exit /b 1
-    ) else (
-        echo [ERROR] .env.example not found!
-        pause
-        exit /b 1
-    )
+:: Run preflight checks
+call preflight.bat
+if %ERRORLEVEL% neq 0 (
+    pause
+    exit /b 1
 )
+echo.
 
 :: Parse command line arguments
 call _parse_args.bat %*
