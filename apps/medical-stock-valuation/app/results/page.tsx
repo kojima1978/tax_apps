@@ -12,7 +12,7 @@ import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 import CalculationDetailsModal from '@/components/CalculationDetailsModal';
 import { useToast } from '@/components/Toast';
 
-const CALC_BTN_CLASS = "ml-2 px-2 py-1 text-xs bg-white text-black border border-gray-300 rounded hover:bg-gray-200 hover:border-gray-400 cursor-pointer transition-all flex items-center gap-1";
+const CALC_BTN_CLASS = "ml-2 px-2 py-1 text-xs bg-white text-black border border-gray-300 rounded hover:bg-gray-200 hover:border-gray-400 cursor-pointer transition-colors flex items-center gap-1";
 
 function CalculationProcessButton({ onClick }: { onClick: () => void }) {
   return (

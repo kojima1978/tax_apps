@@ -22,6 +22,7 @@ export function TrendArrow({ ratio }: TrendArrowProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={`${isUp ? "text-red-500" : "text-blue-500"} animate-pulse`}
+      aria-hidden="true"
     >
       {isUp ? (
         <>

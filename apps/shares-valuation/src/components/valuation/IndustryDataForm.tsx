@@ -407,7 +407,7 @@ export function IndustryDataForm({
                     {([["Big", "大会社", "0.7"], ["Medium", "中会社", "0.6"], ["Small", "小会社", "0.5"]] as const).map(([sizeKey, label, rate]) => (
                       <div
                         key={sizeKey}
-                        className={`p-2 rounded text-center transition-all ${basicInfo.size === sizeKey ? "bg-primary/20 text-primary font-semibold border border-primary/30" : "bg-white/30 text-gray-400 border border-gray-200"}`}
+                        className={`p-2 rounded text-center transition-colors ${basicInfo.size === sizeKey ? "bg-primary/20 text-primary font-semibold border border-primary/30" : "bg-white/30 text-gray-400 border border-gray-200"}`}
                       >
                         <div className="font-normal text-xs">{label}</div>
                         <div className="mt-1">{rate}</div>

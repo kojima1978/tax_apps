@@ -123,7 +123,14 @@ export const SortableCategoryCard = ({
         <div
           className="flex items-center gap-3 flex-grow cursor-pointer"
           onClick={() => handlers.toggleExpand(category.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handlers.toggleExpand(category.id);
+            }
+          }}
           role="button"
+          tabIndex={0}
           aria-expanded={category.isExpanded}
           aria-label={`${category.name}を${category.isExpanded ? '折りたたむ' : '展開する'}`}
         >

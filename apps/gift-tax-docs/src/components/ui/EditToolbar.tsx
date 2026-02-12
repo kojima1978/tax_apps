@@ -39,7 +39,7 @@ const ToolbarButton = ({ onClick, className, title, ariaLabel, icon, label, asLa
 
   if (asLabel) {
     return (
-      <label className={`${baseClass} cursor-pointer`} title={title}>
+      <label className={`${baseClass} cursor-pointer`} title={title} aria-label={ariaLabel}>
         {icon}
         {label}
         {children}
@@ -92,8 +92,8 @@ export const EditToolbar = ({
     {/* 1行目: タイトル + 編集操作 + JSON */}
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-4">
-        <a href="/" title="ポータルに戻る" className="text-slate-400 hover:text-emerald-600 transition-colors">
-          <Home className="w-5 h-5" />
+        <a href="/" title="ポータルに戻る" aria-label="ポータルに戻る" className="text-slate-400 hover:text-emerald-600 transition-colors">
+          <Home className="w-5 h-5" aria-hidden="true" />
         </a>
         <h1 className="text-xl font-bold text-slate-800">{giftData.title}</h1>
         <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium" aria-live="polite">

@@ -7,7 +7,7 @@ export default function AppCard({ app }: { app: Application }) {
   const external = app.url.startsWith('http');
 
   const card = (
-    <div className="group relative h-full bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer">
+    <div className="group relative h-full bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-2xl transition-[shadow,transform] duration-300 hover:scale-105 cursor-pointer">
       <div className="flex flex-col space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg group-hover:shadow-xl transition-shadow duration-300">

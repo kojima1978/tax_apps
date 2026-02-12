@@ -166,6 +166,7 @@ const RowContent = memo(function RowContent({
               onClick={() => onStartEdit(doc.id)}
               className="p-1.5 rounded text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
               title="編集"
+              aria-label="編集"
             >
               <Pencil className="w-4 h-4" />
             </button>
@@ -175,6 +176,7 @@ const RowContent = memo(function RowContent({
               onClick={() => onRemoveCustom(doc.id, categoryId)}
               className="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
               title="完全削除"
+              aria-label="完全削除"
             >
               <X className="w-4 h-4" />
             </button>
@@ -187,6 +189,7 @@ const RowContent = memo(function RowContent({
                   : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
               }`}
               title={isDeleted ? '復元' : '不要'}
+              aria-label={isDeleted ? '復元' : '不要'}
             >
               {isDeleted ? <RotateCcw className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
             </button>

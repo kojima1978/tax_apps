@@ -84,7 +84,7 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full px-4">
-        <Card className="p-8 text-center space-y-6 border-4 border-secondary/20 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+        <Card className="p-8 text-center space-y-6 border-4 border-secondary/20 shadow-xl hover:shadow-2xl transition-[shadow,transform,colors] hover:-translate-y-1">
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">
               ステップバイステップ
@@ -98,14 +98,14 @@ export default function Home() {
 
           <Button
             size="lg"
-            className="w-full text-lg shadow-lg hover:shadow-xl transition-all"
+            className="w-full text-lg shadow-lg hover:shadow-xl transition-[shadow,transform,colors]"
             onClick={handleStepByStepClick}
           >
             スタート！
           </Button>
         </Card>
 
-        <Card className="p-8 text-center space-y-6 border-4 border-primary/20 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+        <Card className="p-8 text-center space-y-6 border-4 border-primary/20 shadow-xl hover:shadow-2xl transition-[shadow,transform,colors] hover:-translate-y-1">
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">一覧入力</h2>
             <p className="text-sm text-muted-foreground">
@@ -117,7 +117,7 @@ export default function Home() {
 
           <Button
             size="lg"
-            className="w-full text-lg shadow-lg hover:shadow-xl transition-all"
+            className="w-full text-lg shadow-lg hover:shadow-xl transition-[shadow,transform,colors]"
             onClick={handleBulkInputClick}
           >
             スタート！

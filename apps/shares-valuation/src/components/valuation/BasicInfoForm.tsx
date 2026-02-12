@@ -289,7 +289,7 @@ export function BasicInfoForm({
             <Button
               type="submit"
               size="lg"
-              className={`${onBack ? "flex-[2]" : "w-full"} text-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all`}
+              className={`${onBack ? "flex-[2]" : "w-full"} text-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-colors`}
             >
               次へ進む
             </Button>

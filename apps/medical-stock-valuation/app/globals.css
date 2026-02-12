@@ -47,3 +47,14 @@ select {
   @apply bg-white rounded-lg p-6 shadow-sm mb-6;
 }
 
+/* アニメーション軽減 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

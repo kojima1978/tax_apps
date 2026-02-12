@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -18,6 +18,18 @@ export default function Modal({
   children,
   minWidth = '400px',
 }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    dialogRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -26,11 +38,16 @@ export default function Modal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        tabIndex={-1}
         className="bg-white p-6 rounded-lg max-w-[90%] max-h-[80vh] overflow-auto"
         style={{ minWidth }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mt-0">{title}</h3>
+        <h3 id="modal-title" className="mt-0">{title}</h3>
         {children}
       </div>
     </div>

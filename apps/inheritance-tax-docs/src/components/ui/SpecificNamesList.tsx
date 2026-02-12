@@ -67,6 +67,7 @@ function SpecificNamesListComponent({ docId, names, onAdd, onEdit, onRemove }: S
                     onClick={() => { setEditingIndex(i); setEditingValue(name); }}
                     className="p-0.5 text-slate-300 hover:text-blue-500 transition-colors"
                     title="編集"
+                    aria-label="編集"
                   >
                     <Pencil className="w-3 h-3" />
                   </button>
@@ -74,6 +75,7 @@ function SpecificNamesListComponent({ docId, names, onAdd, onEdit, onRemove }: S
                     onClick={() => onRemove(docId, i)}
                     className="p-0.5 text-slate-300 hover:text-red-500 transition-colors"
                     title="削除"
+                    aria-label="削除"
                   >
                     <X className="w-3 h-3" />
                   </button>

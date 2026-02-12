@@ -231,7 +231,7 @@ body {
   padding: 0.5rem 0.75rem;
   border: 1px solid #ddd;
   border-radius: 4px;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s;
   font-size: 0.9rem;
 }
 
@@ -283,7 +283,7 @@ body {
   background-color: var(--white);
   color: var(--text-color);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
   font-size: 0.85rem;
 }
 
@@ -805,6 +805,17 @@ tr:nth-child(even) {
   margin: 0;
   font-size: 0.85rem;
   color: #666;
+}
+
+/* アニメーション軽減 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ========================================

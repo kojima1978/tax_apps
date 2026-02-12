@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { FormData, CalculationResult } from '@/lib/types';
 import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
 import SimilarIndustryDetails from './calculation-details/SimilarIndustryDetails';
@@ -31,16 +32,26 @@ export default function CalculationDetailsModal({
   sizeMultiplier,
   result,
 }: CalculationDetailsModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="calculation-details-title">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold">{TITLES[type]}</h2>
+          <h2 id="calculation-details-title" className="text-xl font-bold">{TITLES[type]}</h2>
           <button
             type="button"
             onClick={onClose}
+            aria-label="閉じる"
             className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
           >
             ×

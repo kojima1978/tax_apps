@@ -168,7 +168,7 @@ export function ValuationSimulation({
             type="button"
             onClick={onSummary}
             size="lg"
-            className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
+            className="shadow-lg hover:shadow-xl transition-colors hover:-translate-y-1"
           >
             まとめを見る
           </Button>
