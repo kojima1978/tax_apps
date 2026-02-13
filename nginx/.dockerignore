@@ -1,2 +1,33 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Development
+.env*
+.vscode
+.idea
+
+# Documentation
+README.md
 readme.md
+CHANGELOG.md
+LICENSE
+docs
+
+# Docker (prevent recursion)
+Dockerfile*
+docker-compose*.yml
 .dockerignore
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+*.pem
