@@ -1,3 +1,5 @@
+import { COMPANY_INFO } from '../constants';
+
 /**
  * Excel スタイル定数（ExcelExport / CalculatorExcelExport 共通）
  */
@@ -42,12 +44,11 @@ interface WorkbookSetupConfig {
 }
 
 export function setupExcelWorkbook({ ExcelJS, sheetName, title, colCount, pageSetup }: WorkbookSetupConfig) {
-  const COMPANY_NAME = '税理士法人マスエージェント';
-  const COMPANY_FULL = '税理士法人マスエージェント　〒770-0002 徳島県徳島市春日２丁目３−３３　TEL: 088-632-6228';
-  const COMPANY_FOOTER = '税理士法人マスエージェント　TEL: 088-632-6228';
+  const COMPANY_FULL = `${COMPANY_INFO.name}　${COMPANY_INFO.postalCode} ${COMPANY_INFO.address}　TEL: ${COMPANY_INFO.phone}`;
+  const COMPANY_FOOTER = `${COMPANY_INFO.name}　TEL: ${COMPANY_INFO.phone}`;
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = COMPANY_NAME;
+  workbook.creator = COMPANY_INFO.name;
   workbook.created = new Date();
 
   const worksheet = workbook.addWorksheet(sheetName, {
