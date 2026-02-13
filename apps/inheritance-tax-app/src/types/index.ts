@@ -35,3 +35,46 @@ export interface TaxCalculationResult {
   effectiveTaxRate: number; // 実効税率（%）
   effectiveTaxRateAfterSpouse: number; // 配偶者控除後の実効税率（%）
 }
+
+// 配偶者の取得割合モード
+export type SpouseAcquisitionMode =
+  | { mode: 'legal' }
+  | { mode: 'limit160m' }
+  | { mode: 'custom'; value: number };
+
+// 個別相続人の税額内訳
+export interface HeirTaxBreakdown {
+  label: string;
+  type: HeirType;
+  legalShareRatio: number;
+  legalShareAmount: number;
+  taxOnShare: number;
+  acquisitionRatio: number;
+  acquisitionAmount: number;
+  proportionalTax: number;
+  surchargeAmount: number;
+  spouseDeduction: number;
+  finalTax: number;
+}
+
+// 配偶者控除の詳細
+export interface SpouseDeductionDetail {
+  acquisitionAmount: number;
+  legalShareAmount: number;
+  limit160m: number;
+  deductionLimit: number;
+  taxBeforeDeduction: number;
+  actualDeduction: number;
+}
+
+// 詳細計算結果
+export interface DetailedTaxCalculationResult {
+  estateValue: number;
+  basicDeduction: number;
+  taxableAmount: number;
+  totalTax: number;
+  heirBreakdowns: HeirTaxBreakdown[];
+  spouseDeductionDetail: SpouseDeductionDetail | null;
+  totalFinalTax: number;
+  effectiveTaxRate: number;
+}

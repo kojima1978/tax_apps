@@ -1,0 +1,86 @@
+import { useState, useMemo } from 'react';
+import { HeirSettings } from '../components/HeirSettings';
+import { EstateInput } from '../components/calculator/EstateInput';
+import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
+import { CalculationResult } from '../components/calculator/CalculationResult';
+import { CalculatorExcelExport } from '../components/calculator/CalculatorExcelExport';
+import { PrintButton } from '../components/PrintButton';
+import type { HeirComposition, SpouseAcquisitionMode } from '../types';
+import { generateId, calculateDetailedInheritanceTax } from '../utils';
+
+export const CalculatorPage: React.FC = () => {
+  const [composition, setComposition] = useState<HeirComposition>({
+    hasSpouse: true,
+    selectedRank: 'rank1',
+    rank1Children: [
+      {
+        id: generateId(),
+        type: 'child',
+        isDeceased: false,
+        representatives: [],
+      },
+    ],
+    rank2Ascendants: [],
+    rank3Siblings: [],
+  });
+
+  const [estateValue, setEstateValue] = useState<number>(0);
+  const [spouseMode, setSpouseMode] = useState<SpouseAcquisitionMode>({ mode: 'legal' });
+
+  const result = useMemo(() => {
+    if (estateValue <= 0) return null;
+    return calculateDetailedInheritanceTax(estateValue, composition, spouseMode);
+  }, [estateValue, composition, spouseMode]);
+
+  return (
+    <>
+      {/* CalculatorPage専用: A4縦 (TablePageのA3横を上書き) */}
+      <style>{`@media print { @page { size: A4 portrait; margin: 10mm; } }`}</style>
+      <main className="max-w-5xl mx-auto px-4 py-8 calculator-print">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
+          <div className="space-y-6">
+            <EstateInput value={estateValue} onChange={setEstateValue} />
+            <HeirSettings composition={composition} onChange={setComposition} />
+          </div>
+          <div className="space-y-6">
+            <SpouseAcquisitionSettings
+              value={spouseMode}
+              onChange={setSpouseMode}
+              hasSpouse={composition.hasSpouse}
+            />
+
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+              <h3 className="font-bold text-yellow-800 mb-2">ご注意</h3>
+              <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+                <li>この計算は概算です。実際の税額は個別の事情により異なります。</li>
+                <li>配偶者の税額軽減は、法定相続分または1億6,000万円のいずれか大きい額まで適用されます。</li>
+                <li>第3順位（兄弟姉妹）の相続人には2割加算が適用されます。</li>
+                <li>未成年者控除・障害者控除等の税額控除は考慮していません。</li>
+                <li>詳細は税理士にご相談ください。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {result && result.taxableAmount > 0 && (
+          <>
+            <CalculationResult result={result} />
+            <div className="flex gap-4 mt-6 no-print">
+              <CalculatorExcelExport result={result} composition={composition} spouseMode={spouseMode} />
+              <PrintButton />
+            </div>
+          </>
+        )}
+
+        {result && result.taxableAmount === 0 && estateValue > 0 && (
+          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-8 text-center">
+            <p className="text-xl font-bold text-green-800 mb-2">相続税はかかりません</p>
+            <p className="text-sm text-green-600">
+              遺産総額（{result.estateValue.toLocaleString()}万円）が基礎控除額（{result.basicDeduction.toLocaleString()}万円）以下のため、課税されません。
+            </p>
+          </div>
+        )}
+      </main>
+    </>
+  );
+};

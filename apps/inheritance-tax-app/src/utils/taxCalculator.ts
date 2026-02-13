@@ -1,9 +1,17 @@
-import type { HeirComposition, TaxCalculationResult } from '../types';
+import type {
+  HeirComposition,
+  TaxCalculationResult,
+  SpouseAcquisitionMode,
+  HeirTaxBreakdown,
+  SpouseDeductionDetail,
+  DetailedTaxCalculationResult,
+} from '../types';
 import {
   TAX_BRACKETS,
   BASIC_DEDUCTION,
   THIRD_RANK_SURCHARGE_RATE,
   SHARE_RATIOS,
+  SPOUSE_DEDUCTION_LIMIT,
 } from '../constants';
 import { getHeirInfo } from './heirUtils';
 
@@ -12,7 +20,7 @@ import { getHeirInfo } from './heirUtils';
  * @param shareAmount 法定相続分の金額（万円）
  * @returns 算出税額（万円）
  */
-function calculateTaxForShare(shareAmount: number): number {
+export function calculateTaxForShare(shareAmount: number): number {
   if (shareAmount <= 0) return 0;
   const bracket = TAX_BRACKETS.find(b => shareAmount <= b.threshold) || TAX_BRACKETS[TAX_BRACKETS.length - 1];
   const tax = shareAmount * (bracket.rate / 100) - bracket.deduction;
@@ -125,5 +133,230 @@ export function calculateInheritanceTax(
     taxAfterSpouseDeduction,
     effectiveTaxRate,
     effectiveTaxRateAfterSpouse,
+  };
+}
+
+/**
+ * 相続人ラベルを生成
+ */
+function getHeirLabel(type: string, index: number, count: number): string {
+  const labels: Record<string, string> = {
+    spouse: '配偶者',
+    child: '子',
+    grandchild: '孫',
+    parent: '親',
+    grandparent: '祖父母',
+    sibling: '兄弟姉妹',
+    nephew_niece: '甥姪',
+  };
+  const base = labels[type] || type;
+  return count > 1 ? `${base}${index + 1}` : base;
+}
+
+/**
+ * 詳細な相続税計算（計算ページ用）
+ */
+export function calculateDetailedInheritanceTax(
+  estateValue: number,
+  composition: HeirComposition,
+  spouseMode: SpouseAcquisitionMode
+): DetailedTaxCalculationResult {
+  const { rank, totalHeirsCount, rankHeirsCount } = getHeirInfo(composition);
+
+  const basicDeduction = totalHeirsCount > 0
+    ? BASIC_DEDUCTION.BASE + (BASIC_DEDUCTION.PER_HEIR * totalHeirsCount)
+    : BASIC_DEDUCTION.BASE;
+
+  const taxableAmount = Math.max(0, estateValue - basicDeduction);
+
+  if (taxableAmount === 0 || totalHeirsCount === 0) {
+    return {
+      estateValue,
+      basicDeduction,
+      taxableAmount: 0,
+      totalTax: 0,
+      heirBreakdowns: [],
+      spouseDeductionDetail: null,
+      totalFinalTax: 0,
+      effectiveTaxRate: 0,
+    };
+  }
+
+  // 法定相続分の割合
+  let spouseLegalRatio = 0;
+  let othersLegalRatio = 0;
+
+  if (composition.hasSpouse) {
+    const ratios = SHARE_RATIOS[rank];
+    if (ratios) {
+      spouseLegalRatio = ratios.spouse;
+      othersLegalRatio = ratios.others;
+    } else {
+      spouseLegalRatio = 1.0;
+    }
+  } else {
+    othersLegalRatio = 1.0;
+  }
+
+  // 相続税の総額を算出（法定相続分ベース）
+  const breakdowns: HeirTaxBreakdown[] = [];
+
+  // 配偶者
+  if (composition.hasSpouse) {
+    const legalShareAmount = Math.floor(taxableAmount * spouseLegalRatio);
+    breakdowns.push({
+      label: '配偶者',
+      type: 'spouse',
+      legalShareRatio: spouseLegalRatio,
+      legalShareAmount,
+      taxOnShare: calculateTaxForShare(legalShareAmount),
+      acquisitionRatio: 0,
+      acquisitionAmount: 0,
+      proportionalTax: 0,
+      surchargeAmount: 0,
+      spouseDeduction: 0,
+      finalTax: 0,
+    });
+  }
+
+  // 他の相続人
+  if (othersLegalRatio > 0 && rankHeirsCount > 0) {
+    const perPersonRatio = othersLegalRatio / rankHeirsCount;
+    const othersTotalAmount = Math.floor(taxableAmount * othersLegalRatio);
+    const perPersonAmount = Math.floor(othersTotalAmount / rankHeirsCount);
+
+    // 相続人の型名を特定
+    let heirType: string;
+    if (rank === 1) heirType = 'child';
+    else if (rank === 2) heirType = 'parent';
+    else heirType = 'sibling';
+
+    for (let i = 0; i < rankHeirsCount; i++) {
+      breakdowns.push({
+        label: getHeirLabel(heirType, i, rankHeirsCount),
+        type: heirType as import('../types').HeirType,
+        legalShareRatio: perPersonRatio,
+        legalShareAmount: perPersonAmount,
+        taxOnShare: calculateTaxForShare(perPersonAmount),
+        acquisitionRatio: 0,
+        acquisitionAmount: 0,
+        proportionalTax: 0,
+        surchargeAmount: 0,
+        spouseDeduction: 0,
+        finalTax: 0,
+      });
+    }
+  }
+
+  // 相続税の総額
+  const totalTax = breakdowns.reduce((sum, b) => sum + b.taxOnShare, 0);
+
+  // 実際の取得割合を計算
+  const spouseIdx = breakdowns.findIndex(b => b.type === 'spouse');
+  const otherIndices = breakdowns.map((_, i) => i).filter(i => i !== spouseIdx);
+
+  if (spouseIdx >= 0) {
+    let spouseAcquisitionAmount: number;
+
+    if (spouseMode.mode === 'legal') {
+      spouseAcquisitionAmount = Math.floor(estateValue * spouseLegalRatio);
+    } else if (spouseMode.mode === 'limit160m') {
+      spouseAcquisitionAmount = Math.min(estateValue, SPOUSE_DEDUCTION_LIMIT);
+    } else {
+      spouseAcquisitionAmount = Math.min(spouseMode.value, estateValue);
+    }
+
+    breakdowns[spouseIdx].acquisitionAmount = spouseAcquisitionAmount;
+    breakdowns[spouseIdx].acquisitionRatio = estateValue > 0
+      ? spouseAcquisitionAmount / estateValue : 0;
+
+    // 残りを他の相続人で均等割
+    const remaining = estateValue - spouseAcquisitionAmount;
+    const otherCount = otherIndices.length;
+    if (otherCount > 0) {
+      const perPerson = Math.floor(remaining / otherCount);
+      for (const idx of otherIndices) {
+        breakdowns[idx].acquisitionAmount = perPerson;
+        breakdowns[idx].acquisitionRatio = estateValue > 0
+          ? perPerson / estateValue : 0;
+      }
+    }
+  } else {
+    // 配偶者なし: 全員均等
+    const perPerson = Math.floor(estateValue / breakdowns.length);
+    for (const b of breakdowns) {
+      b.acquisitionAmount = perPerson;
+      b.acquisitionRatio = estateValue > 0 ? perPerson / estateValue : 0;
+    }
+  }
+
+  // 按分税額の計算
+  for (const b of breakdowns) {
+    b.proportionalTax = estateValue > 0
+      ? Math.floor(totalTax * (b.acquisitionAmount / estateValue))
+      : 0;
+  }
+
+  // 2割加算（rank3の相続人）
+  if (rank === 3) {
+    for (const idx of otherIndices) {
+      breakdowns[idx].surchargeAmount = Math.floor(
+        breakdowns[idx].proportionalTax * 0.2
+      );
+    }
+  }
+
+  // 配偶者の税額軽減
+  let spouseDeductionDetail: SpouseDeductionDetail | null = null;
+
+  if (spouseIdx >= 0) {
+    const spouse = breakdowns[spouseIdx];
+    const legalShareOfEstate = Math.floor(estateValue * spouseLegalRatio);
+    const deductionLimit = Math.max(legalShareOfEstate, SPOUSE_DEDUCTION_LIMIT);
+    const taxBeforeDeduction = spouse.proportionalTax + spouse.surchargeAmount;
+
+    let actualDeduction: number;
+    if (spouse.acquisitionAmount <= deductionLimit) {
+      actualDeduction = taxBeforeDeduction;
+    } else {
+      actualDeduction = Math.floor(
+        totalTax * (deductionLimit / estateValue)
+      );
+      actualDeduction = Math.min(actualDeduction, taxBeforeDeduction);
+    }
+
+    spouse.spouseDeduction = actualDeduction;
+
+    spouseDeductionDetail = {
+      acquisitionAmount: spouse.acquisitionAmount,
+      legalShareAmount: legalShareOfEstate,
+      limit160m: SPOUSE_DEDUCTION_LIMIT,
+      deductionLimit,
+      taxBeforeDeduction,
+      actualDeduction,
+    };
+  }
+
+  // 最終税額
+  for (const b of breakdowns) {
+    b.finalTax = Math.max(
+      0,
+      b.proportionalTax + b.surchargeAmount - b.spouseDeduction
+    );
+  }
+
+  const totalFinalTax = breakdowns.reduce((sum, b) => sum + b.finalTax, 0);
+  const effectiveTaxRate = estateValue > 0
+    ? (totalFinalTax / estateValue) * 100 : 0;
+
+  return {
+    estateValue,
+    basicDeduction,
+    taxableAmount,
+    totalTax,
+    heirBreakdowns: breakdowns,
+    spouseDeductionDetail,
+    totalFinalTax,
+    effectiveTaxRate,
   };
 }
