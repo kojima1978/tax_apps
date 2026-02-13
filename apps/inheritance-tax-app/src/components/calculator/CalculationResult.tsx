@@ -1,0 +1,69 @@
+import React from 'react';
+import type { DetailedTaxCalculationResult } from '../../types';
+import { formatCurrency, formatPercent } from '../../utils';
+import { COMPANY_INFO } from '../../constants';
+import { CalculationSteps } from './CalculationSteps';
+import { HeirBreakdownTable } from './HeirBreakdownTable';
+
+interface CalculationResultProps {
+  result: DetailedTaxCalculationResult;
+}
+
+const SUMMARY_ITEMS = [
+  { label: '遺産総額', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.estateValue) },
+  { label: '基礎控除', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.basicDeduction) },
+  { label: '課税遺産総額', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.taxableAmount) },
+  { label: '相続税の総額', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.totalTax) },
+] as const;
+
+export const CalculationResult: React.FC<CalculationResultProps> = ({ result }) => {
+  return (
+    <div className="space-y-6">
+      {/* 印刷用ヘッダー */}
+      <div className="print-only justify-between items-start px-4 py-3 border-b-2 border-green-700 mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-green-800">相続税計算結果</h1>
+        </div>
+        <address className="text-right text-sm not-italic text-gray-700">
+          <p className="font-bold text-base">{COMPANY_INFO.name}</p>
+          <p>{COMPANY_INFO.postalCode} {COMPANY_INFO.address}</p>
+          <p>TEL: {COMPANY_INFO.phone}</p>
+        </address>
+      </div>
+
+      {/* サマリーカード */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-bold text-gray-800 mb-4">計算結果</h3>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          {SUMMARY_ITEMS.map(({ label, getValue }) => (
+            <div key={label} className="text-center p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">{label}</p>
+              <p className="text-sm font-bold text-gray-800">{getValue(result)}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center p-4 bg-green-50 rounded-lg border-2 border-green-200">
+            <p className="text-sm text-green-600 mb-1">納付税額合計</p>
+            <p className="text-2xl font-bold text-green-800">{formatCurrency(result.totalFinalTax)}</p>
+          </div>
+          <div className="text-center p-4 bg-green-50 rounded-lg border-2 border-green-200">
+            <p className="text-sm text-green-600 mb-1">実効税率</p>
+            <p className="text-2xl font-bold text-green-800">{formatPercent(result.effectiveTaxRate)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 計算過程 */}
+      <CalculationSteps result={result} />
+
+      {/* 相続人別内訳 */}
+      <HeirBreakdownTable
+        breakdowns={result.heirBreakdowns}
+        totalFinalTax={result.totalFinalTax}
+      />
+    </div>
+  );
+};

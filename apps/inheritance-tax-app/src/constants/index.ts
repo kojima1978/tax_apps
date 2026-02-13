@@ -54,6 +54,11 @@ export const SHARE_RATIOS: Record<number, { spouse: number; others: number }> = 
 };
 
 /**
+ * 配偶者の税額軽減の限度額（万円単位）: 1億6000万円
+ */
+export const SPOUSE_DEDUCTION_LIMIT = 16000;
+
+/**
  * テーブル表示設定
  */
 export const TABLE_CONFIG = {

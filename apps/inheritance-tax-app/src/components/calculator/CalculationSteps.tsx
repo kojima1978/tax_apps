@@ -1,0 +1,180 @@
+import React from 'react';
+import type { DetailedTaxCalculationResult } from '../../types';
+import { formatCurrency } from '../../utils';
+import { BASIC_DEDUCTION } from '../../constants';
+
+interface CalculationStepsProps {
+  result: DetailedTaxCalculationResult;
+}
+
+interface Step {
+  number: number;
+  title: string;
+  content: React.ReactNode;
+}
+
+export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) => {
+  const { heirBreakdowns, spouseDeductionDetail } = result;
+  const heirCount = heirBreakdowns.length;
+  const hasRank3 = heirBreakdowns.some(b => b.surchargeAmount > 0);
+
+  const steps: Step[] = [
+    {
+      number: 1,
+      title: '遺産総額',
+      content: <p className="text-lg font-bold text-green-800">{formatCurrency(result.estateValue)}</p>,
+    },
+    {
+      number: 2,
+      title: '基礎控除額',
+      content: (
+        <div>
+          <p className="text-sm text-gray-600 mb-1">
+            {BASIC_DEDUCTION.BASE.toLocaleString()}万円 + {BASIC_DEDUCTION.PER_HEIR.toLocaleString()}万円 × {heirCount}人（法定相続人）
+          </p>
+          <p className="text-lg font-bold text-green-800">= {formatCurrency(result.basicDeduction)}</p>
+        </div>
+      ),
+    },
+    {
+      number: 3,
+      title: '課税遺産総額',
+      content: (
+        <div>
+          <p className="text-sm text-gray-600 mb-1">
+            {formatCurrency(result.estateValue)} − {formatCurrency(result.basicDeduction)}
+          </p>
+          <p className="text-lg font-bold text-green-800">= {formatCurrency(result.taxableAmount)}</p>
+        </div>
+      ),
+    },
+    {
+      number: 4,
+      title: '法定相続分に応じた取得金額',
+      content: (
+        <div className="space-y-1">
+          {heirBreakdowns.map((b) => (
+            <p key={b.label} className="text-sm text-gray-700 pl-4">
+              {b.label}: {formatCurrency(result.taxableAmount)} × {(b.legalShareRatio * 100).toFixed(1)}% = <span className="font-medium">{formatCurrency(b.legalShareAmount)}</span>
+            </p>
+          ))}
+        </div>
+      ),
+    },
+    {
+      number: 5,
+      title: '各取得金額に対する税額（速算表適用）',
+      content: (
+        <div className="space-y-1">
+          {heirBreakdowns.map((b) => (
+            <p key={b.label} className="text-sm text-gray-700 pl-4">
+              {b.label}: <span className="font-medium">{formatCurrency(b.taxOnShare)}</span>
+            </p>
+          ))}
+        </div>
+      ),
+    },
+    {
+      number: 6,
+      title: '相続税の総額',
+      content: (
+        <div>
+          <p className="text-sm text-gray-600 mb-1">
+            {heirBreakdowns.map(b => formatCurrency(b.taxOnShare)).join(' + ')}
+          </p>
+          <p className="text-lg font-bold text-green-800">= {formatCurrency(result.totalTax)}</p>
+        </div>
+      ),
+    },
+    {
+      number: 7,
+      title: '各相続人の按分後税額',
+      content: (
+        <div className="space-y-1">
+          {heirBreakdowns.map((b) => (
+            <p key={b.label} className="text-sm text-gray-700 pl-4">
+              {b.label}: {formatCurrency(result.totalTax)} × ({formatCurrency(b.acquisitionAmount)} / {formatCurrency(result.estateValue)}) = <span className="font-medium">{formatCurrency(b.proportionalTax)}</span>
+            </p>
+          ))}
+        </div>
+      ),
+    },
+  ];
+
+  // 配偶者の税額軽減（該当時）
+  if (spouseDeductionDetail) {
+    steps.push({
+      number: 8,
+      title: '配偶者の税額軽減',
+      content: (
+        <div className="bg-green-50 rounded-lg p-3">
+          <div className="space-y-1 text-sm text-gray-700">
+            <p>配偶者の取得額: {formatCurrency(spouseDeductionDetail.acquisitionAmount)}</p>
+            <p>法定相続分相当額: {formatCurrency(spouseDeductionDetail.legalShareAmount)}</p>
+            <p>控除限度額: max({formatCurrency(spouseDeductionDetail.legalShareAmount)}, {formatCurrency(spouseDeductionDetail.limit160m)}) = <span className="font-medium">{formatCurrency(spouseDeductionDetail.deductionLimit)}</span></p>
+            <p className="text-green-700 font-bold">控除額: {formatCurrency(spouseDeductionDetail.actualDeduction)}</p>
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  // 2割加算（該当時）
+  if (hasRank3) {
+    const rank3Heirs = heirBreakdowns.filter(b => b.surchargeAmount > 0);
+    steps.push({
+      number: spouseDeductionDetail ? 9 : 8,
+      title: '2割加算',
+      content: (
+        <div className="bg-orange-50 rounded-lg p-3">
+          <div className="space-y-1 text-sm text-gray-700">
+            {rank3Heirs.map((b) => (
+              <p key={b.label}>
+                {b.label}: {formatCurrency(b.proportionalTax)} × 20% = <span className="font-medium text-orange-700">{formatCurrency(b.surchargeAmount)}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  // 最終ステップ
+  steps.push({
+    number: steps.length + 1,
+    title: '納付すべき相続税額',
+    content: (
+      <div>
+        <div className="space-y-1 mb-2">
+          {heirBreakdowns.map((b) => (
+            <p key={b.label} className="text-sm text-gray-700 pl-4">
+              {b.label}: <span className="font-bold">{formatCurrency(b.finalTax)}</span>
+            </p>
+          ))}
+        </div>
+        <p className="text-xl font-bold text-green-800 border-t pt-2">
+          合計: {formatCurrency(result.totalFinalTax)}
+        </p>
+      </div>
+    ),
+  });
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <h3 className="text-lg font-bold text-gray-800 mb-6">計算過程</h3>
+      <div className="space-y-6">
+        {steps.map((step) => (
+          <div key={step.number} className="flex gap-4">
+            <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+              {step.number}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-800 mb-1">{step.title}</h4>
+              {step.content}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
