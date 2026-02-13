@@ -16,6 +16,29 @@ import {
 import { getHeirInfo, getHeirLabel } from './heirUtils';
 
 /**
+ * 法定相続分の割合を取得
+ */
+function getLegalShareRatios(hasSpouse: boolean, rank: number): { spouse: number; others: number } {
+  if (hasSpouse) {
+    const ratios = SHARE_RATIOS[rank];
+    return ratios ? { spouse: ratios.spouse, others: ratios.others } : { spouse: 1.0, others: 0 };
+  }
+  return { spouse: 0, others: 1.0 };
+}
+
+/**
+ * 基礎控除額を計算
+ */
+function calculateBasicDeduction(totalHeirsCount: number): number {
+  return totalHeirsCount > 0
+    ? BASIC_DEDUCTION.BASE + (BASIC_DEDUCTION.PER_HEIR * totalHeirsCount)
+    : BASIC_DEDUCTION.BASE;
+}
+
+/** 順位→相続人種別 */
+const RANK_TO_HEIR_TYPE: Record<number, import('../types').HeirType> = { 1: 'child', 2: 'parent', 3: 'sibling' };
+
+/**
  * 法定相続分に対する税額を計算
  * @param shareAmount 法定相続分の金額（万円）
  * @returns 算出税額（万円）
@@ -37,10 +60,8 @@ export function calculateInheritanceTax(
   // 1. 相続人情報の取得
   const { rank, totalHeirsCount, rankHeirsCount } = getHeirInfo(composition);
 
-  // 2. 基礎控除額の計算: 3,000万円 + (600万円 × 法定相続人の数)
-  const basicDeduction = totalHeirsCount > 0
-    ? BASIC_DEDUCTION.BASE + (BASIC_DEDUCTION.PER_HEIR * totalHeirsCount)
-    : BASIC_DEDUCTION.BASE;
+  // 2. 基礎控除額の計算
+  const basicDeduction = calculateBasicDeduction(totalHeirsCount);
 
   // 3. 課税遺産総額
   const taxableAmount = Math.max(0, estateValue - basicDeduction);
@@ -58,24 +79,7 @@ export function calculateInheritanceTax(
   }
 
   // 4. 法定相続分の計算
-  let spouseShareRatio = 0;
-  let otherShareRatio = 0;
-
-  if (composition.hasSpouse) {
-    const ratios = SHARE_RATIOS[rank];
-    if (ratios) {
-      spouseShareRatio = ratios.spouse;
-      otherShareRatio = ratios.others;
-    } else {
-      // 配偶者のみ（該当順位の相続人なし）
-      spouseShareRatio = 1.0;
-      otherShareRatio = 0;
-    }
-  } else {
-    // 配偶者なし
-    spouseShareRatio = 0;
-    otherShareRatio = 1.0;
-  }
+  const { spouse: spouseShareRatio, others: otherShareRatio } = getLegalShareRatios(composition.hasSpouse, rank);
 
   // 5. 各相続人の法的相続分に応じた税額計算（相続税の総額）
   let totalTax = 0;
@@ -146,9 +150,7 @@ export function calculateDetailedInheritanceTax(
 ): DetailedTaxCalculationResult {
   const { rank, totalHeirsCount, rankHeirsCount } = getHeirInfo(composition);
 
-  const basicDeduction = totalHeirsCount > 0
-    ? BASIC_DEDUCTION.BASE + (BASIC_DEDUCTION.PER_HEIR * totalHeirsCount)
-    : BASIC_DEDUCTION.BASE;
+  const basicDeduction = calculateBasicDeduction(totalHeirsCount);
 
   const taxableAmount = Math.max(0, estateValue - basicDeduction);
 
@@ -166,20 +168,7 @@ export function calculateDetailedInheritanceTax(
   }
 
   // 法定相続分の割合
-  let spouseLegalRatio = 0;
-  let othersLegalRatio = 0;
-
-  if (composition.hasSpouse) {
-    const ratios = SHARE_RATIOS[rank];
-    if (ratios) {
-      spouseLegalRatio = ratios.spouse;
-      othersLegalRatio = ratios.others;
-    } else {
-      spouseLegalRatio = 1.0;
-    }
-  } else {
-    othersLegalRatio = 1.0;
-  }
+  const { spouse: spouseLegalRatio, others: othersLegalRatio } = getLegalShareRatios(composition.hasSpouse, rank);
 
   // 相続税の総額を算出（法定相続分ベース）
   const breakdowns: HeirTaxBreakdown[] = [];
@@ -207,16 +196,12 @@ export function calculateDetailedInheritanceTax(
     const othersTotalAmount = Math.floor(taxableAmount * othersLegalRatio);
     const perPersonAmount = Math.floor(othersTotalAmount / rankHeirsCount);
 
-    // 相続人の型名を特定
-    let heirType: string;
-    if (rank === 1) heirType = 'child';
-    else if (rank === 2) heirType = 'parent';
-    else heirType = 'sibling';
+    const heirType = RANK_TO_HEIR_TYPE[rank] || 'sibling';
 
     for (let i = 0; i < rankHeirsCount; i++) {
       breakdowns.push({
         label: getHeirLabel(heirType, i, rankHeirsCount),
-        type: heirType as import('../types').HeirType,
+        type: heirType,
         legalShareRatio: perPersonRatio,
         legalShareAmount: perPersonAmount,
         taxOnShare: calculateTaxForShare(perPersonAmount),
