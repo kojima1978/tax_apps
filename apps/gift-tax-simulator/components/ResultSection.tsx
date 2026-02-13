@@ -1,8 +1,10 @@
 "use client";
 
+import dynamic from 'next/dynamic';
 import TaxTable from './TaxTable';
-import TaxChart from './TaxChart';
 import { CalculationResult } from '@/lib/tax-calculation';
+
+const TaxChart = dynamic(() => import('./TaxChart'), { ssr: false });
 
 type Props = {
     results: CalculationResult[] | null;

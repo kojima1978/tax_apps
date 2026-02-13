@@ -1,4 +1,4 @@
-import XLSX from 'xlsx-js-style';
+import type XLSX from 'xlsx-js-style';
 import { COMPANY_INFO, type DocumentGroup } from '@/constants';
 
 // 共通ボーダー定義
@@ -73,7 +73,7 @@ const excelStyles = {
     },
 };
 
-export function generateGiftTaxExcel(
+export async function generateGiftTaxExcel(
     title: string,
     results: DocumentGroup[],
     currentDate: string,
@@ -83,6 +83,7 @@ export function generateGiftTaxExcel(
     customerName: string,
     deadline: string
 ) {
+    const XLSX = (await import('xlsx-js-style')).default;
     const wb = XLSX.utils.book_new();
     type CellStyle = typeof excelStyles[keyof typeof excelStyles];
     type Row = Array<{ v: string; s?: CellStyle }>;

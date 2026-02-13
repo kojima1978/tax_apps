@@ -44,7 +44,11 @@ export default function Home() {
   const goToResults = () => {
     const formData = f.getValidFormData(true);
     if (!formData) return;
-    localStorage.setItem('formData', JSON.stringify(formData));
+    try {
+      localStorage.setItem('formData', JSON.stringify(formData));
+    } catch (error) {
+      console.error('localStorage書き込みに失敗:', error);
+    }
     router.push('/results');
   };
 

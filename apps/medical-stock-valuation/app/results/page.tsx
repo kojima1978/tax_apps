@@ -33,7 +33,8 @@ export default function Results() {
 
   useEffect(() => {
     const loadDataAndCalculate = async () => {
-      const savedData = localStorage.getItem('formData');
+      let savedData: string | null = null;
+      try { savedData = localStorage.getItem('formData'); } catch { /* private browsing */ }
       if (savedData) {
         const data: FormData = JSON.parse(savedData);
 
@@ -81,10 +82,12 @@ export default function Results() {
     const saveResult = await saveOverwrite(formData);
     if (saveResult.success) {
       toast.success('データをデータベースに保存しました');
-      const savedData = localStorage.getItem('formData');
-      if (savedData) {
-        setFormData(JSON.parse(savedData));
-      }
+      try {
+        const savedData = localStorage.getItem('formData');
+        if (savedData) {
+          setFormData(JSON.parse(savedData));
+        }
+      } catch { /* ignore */ }
     } else {
       toast.error('データの保存に失敗しました。再度お試しください');
     }

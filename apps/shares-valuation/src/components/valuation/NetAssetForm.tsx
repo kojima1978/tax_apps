@@ -23,7 +23,7 @@ export function NetAssetForm({
   onNext,
   defaultValues,
 }: NetAssetFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     // Convert Yen to Thousand Yen for display if values exist
     assetsBookValue: defaultValues?.assetsBookValue
       ? (defaultValues.assetsBookValue / 1000).toString()
@@ -40,7 +40,7 @@ export function NetAssetForm({
     liabilitiesInheritanceValue: defaultValues?.liabilitiesInheritanceValue
       ? (defaultValues.liabilitiesInheritanceValue / 1000).toString()
       : "",
-  });
+  }));
 
   const handleChange = (
     e:

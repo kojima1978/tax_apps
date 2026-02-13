@@ -59,7 +59,7 @@ export function OwnDataForm({
   const [profitMethodC2, setProfitMethodC2] = useState<"auto" | "c1" | "c2">(
     defaultValues?.profitMethodC2 || "auto",
   );
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     ownDividendPrev: isMedicalCorporation
       ? "0"
       : defaultValues?.ownDividendPrev?.toString() || "",
@@ -86,7 +86,7 @@ export function OwnDataForm({
       defaultValues?.ownRetainedEarningsPrev?.toString() || "",
     ownRetainedEarnings2Prev:
       defaultValues?.ownRetainedEarnings2Prev?.toString() || "",
-  });
+  }));
 
   const handleChange = (
     e:

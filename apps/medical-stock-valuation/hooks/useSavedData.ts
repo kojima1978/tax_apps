@@ -64,23 +64,27 @@ export function useSavedData() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const loadRecord = useCallback((record: SavedValuation) => {
-    const formData = {
-      id: record.id,
-      fiscalYear: record.fiscalYear,
-      companyName: record.companyName,
-      personInCharge: record.personInCharge,
-      employees: record.employees,
-      totalAssets: record.totalAssets,
-      sales: record.sales,
-      currentPeriodNetAsset: record.currentPeriodNetAsset,
-      previousPeriodNetAsset: record.previousPeriodNetAsset,
-      netAssetTaxValue: record.netAssetTaxValue,
-      currentPeriodProfit: record.currentPeriodProfit,
-      previousPeriodProfit: record.previousPeriodProfit,
-      previousPreviousPeriodProfit: record.previousPreviousPeriodProfit,
-      investors: typeof record.investors === 'string' ? JSON.parse(record.investors) : record.investors,
-    };
-    localStorage.setItem('formData', JSON.stringify(formData));
+    try {
+      const formData = {
+        id: record.id,
+        fiscalYear: record.fiscalYear,
+        companyName: record.companyName,
+        personInCharge: record.personInCharge,
+        employees: record.employees,
+        totalAssets: record.totalAssets,
+        sales: record.sales,
+        currentPeriodNetAsset: record.currentPeriodNetAsset,
+        previousPeriodNetAsset: record.previousPeriodNetAsset,
+        netAssetTaxValue: record.netAssetTaxValue,
+        currentPeriodProfit: record.currentPeriodProfit,
+        previousPeriodProfit: record.previousPeriodProfit,
+        previousPreviousPeriodProfit: record.previousPreviousPeriodProfit,
+        investors: typeof record.investors === 'string' ? JSON.parse(record.investors) : record.investors,
+      };
+      localStorage.setItem('formData', JSON.stringify(formData));
+    } catch (error) {
+      console.error('データ読み込みに失敗:', error);
+    }
     router.push('/');
   }, [router]);
 
