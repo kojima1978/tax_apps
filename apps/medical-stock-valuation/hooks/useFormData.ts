@@ -24,16 +24,16 @@ export function useFormData() {
   const [currentPeriodProfit, setCurrentPeriodProfit] = useState('');
   const [previousPeriodProfit, setPreviousPeriodProfit] = useState('');
   const [previousPreviousPeriodProfit, setPreviousPreviousPeriodProfit] = useState('');
-  const [investors, setInvestors] = useState<Investor[]>([
+  const [investors, setInvestors] = useState<Investor[]>(() => [
     { name: '', amount: 0 },
     { name: '', amount: 0 },
     { name: '', amount: 0 },
   ]);
 
   useEffect(() => {
-    const savedData = localStorage.getItem('formData');
-    if (!savedData) return;
     try {
+      const savedData = localStorage.getItem('formData');
+      if (!savedData) return;
       const data = JSON.parse(savedData);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentDataId(data.id);
