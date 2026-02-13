@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   // next/image: export モードでは unoptimized 必須
   images: { unoptimized: true },
 
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
+
   // セキュリティヘッダーは nginx ゲートウェイで設定済み
 };
 

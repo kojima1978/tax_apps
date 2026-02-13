@@ -45,7 +45,8 @@ COPY apps/inheritance-case-management/web/next.config.ts ./apps/inheritance-case
 COPY apps/inheritance-case-management/web/postcss.config.mjs ./apps/inheritance-case-management/web/
 
 # 共有パッケージ → Next.js ビルド（1つのRUNにまとめてレイヤー削減）
-RUN cd packages/shared && ../../node_modules/.bin/tsc && \
+RUN --mount=type=cache,id=nextjs-icm-web,target=/app/apps/inheritance-case-management/web/.next/cache \
+    cd packages/shared && ../../node_modules/.bin/tsc && \
     cd ../validation && ../../node_modules/.bin/tsc && \
     cd ../ui && ../../node_modules/.bin/tsc && \
     cd ../../apps/inheritance-case-management/web && \
