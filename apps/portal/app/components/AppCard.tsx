@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { Application } from '@/lib/applications';
 import { ExternalLink } from 'lucide-react';
 
@@ -30,8 +29,10 @@ export default function AppCard({ app }: { app: Application }) {
     </div>
   );
 
-  if (external) {
-    return <a href={app.url} target="_blank" rel="noopener noreferrer" className="h-full">{card}</a>;
-  }
-  return <Link href={app.url} className="h-full">{card}</Link>;
+  // 全リンクを <a> で描画（各アプリは nginx 経由の別サービスなので client-side routing は不可）
+  return (
+    <a href={app.url} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="h-full">
+      {card}
+    </a>
+  );
 }
