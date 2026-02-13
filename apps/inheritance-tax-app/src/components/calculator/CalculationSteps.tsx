@@ -1,5 +1,5 @@
 import React from 'react';
-import type { DetailedTaxCalculationResult } from '../../types';
+import type { DetailedTaxCalculationResult, HeirTaxBreakdown } from '../../types';
 import { formatCurrency } from '../../utils';
 import { BASIC_DEDUCTION } from '../../constants';
 
@@ -12,6 +12,29 @@ interface Step {
   title: string;
   content: React.ReactNode;
 }
+
+const FormulaResult: React.FC<{
+  formula: React.ReactNode;
+  result: React.ReactNode;
+}> = ({ formula, result }) => (
+  <div>
+    <p className="text-sm text-gray-600 mb-1">{formula}</p>
+    <p className="text-lg font-bold text-green-800">= {result}</p>
+  </div>
+);
+
+const BreakdownList: React.FC<{
+  breakdowns: HeirTaxBreakdown[];
+  renderContent: (b: HeirTaxBreakdown) => React.ReactNode;
+}> = ({ breakdowns, renderContent }) => (
+  <div className="space-y-1">
+    {breakdowns.map((b) => (
+      <p key={b.label} className="text-sm text-gray-700 pl-4">
+        {b.label}: {renderContent(b)}
+      </p>
+    ))}
+  </div>
+);
 
 export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) => {
   const { heirBreakdowns, spouseDeductionDetail } = result;
@@ -28,75 +51,57 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
       number: 2,
       title: '基礎控除額',
       content: (
-        <div>
-          <p className="text-sm text-gray-600 mb-1">
-            {BASIC_DEDUCTION.BASE.toLocaleString()}万円 + {BASIC_DEDUCTION.PER_HEIR.toLocaleString()}万円 × {heirCount}人（法定相続人）
-          </p>
-          <p className="text-lg font-bold text-green-800">= {formatCurrency(result.basicDeduction)}</p>
-        </div>
+        <FormulaResult
+          formula={<>{BASIC_DEDUCTION.BASE.toLocaleString()}万円 + {BASIC_DEDUCTION.PER_HEIR.toLocaleString()}万円 × {heirCount}人（法定相続人）</>}
+          result={formatCurrency(result.basicDeduction)}
+        />
       ),
     },
     {
       number: 3,
       title: '課税遺産総額',
       content: (
-        <div>
-          <p className="text-sm text-gray-600 mb-1">
-            {formatCurrency(result.estateValue)} − {formatCurrency(result.basicDeduction)}
-          </p>
-          <p className="text-lg font-bold text-green-800">= {formatCurrency(result.taxableAmount)}</p>
-        </div>
+        <FormulaResult
+          formula={<>{formatCurrency(result.estateValue)} − {formatCurrency(result.basicDeduction)}</>}
+          result={formatCurrency(result.taxableAmount)}
+        />
       ),
     },
     {
       number: 4,
       title: '法定相続分に応じた取得金額',
       content: (
-        <div className="space-y-1">
-          {heirBreakdowns.map((b) => (
-            <p key={b.label} className="text-sm text-gray-700 pl-4">
-              {b.label}: {formatCurrency(result.taxableAmount)} × {(b.legalShareRatio * 100).toFixed(1)}% = <span className="font-medium">{formatCurrency(b.legalShareAmount)}</span>
-            </p>
-          ))}
-        </div>
+        <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
+          <>{formatCurrency(result.taxableAmount)} × {(b.legalShareRatio * 100).toFixed(1)}% = <span className="font-medium">{formatCurrency(b.legalShareAmount)}</span></>
+        )} />
       ),
     },
     {
       number: 5,
       title: '各取得金額に対する税額（速算表適用）',
       content: (
-        <div className="space-y-1">
-          {heirBreakdowns.map((b) => (
-            <p key={b.label} className="text-sm text-gray-700 pl-4">
-              {b.label}: <span className="font-medium">{formatCurrency(b.taxOnShare)}</span>
-            </p>
-          ))}
-        </div>
+        <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
+          <span className="font-medium">{formatCurrency(b.taxOnShare)}</span>
+        )} />
       ),
     },
     {
       number: 6,
       title: '相続税の総額',
       content: (
-        <div>
-          <p className="text-sm text-gray-600 mb-1">
-            {heirBreakdowns.map(b => formatCurrency(b.taxOnShare)).join(' + ')}
-          </p>
-          <p className="text-lg font-bold text-green-800">= {formatCurrency(result.totalTax)}</p>
-        </div>
+        <FormulaResult
+          formula={heirBreakdowns.map(b => formatCurrency(b.taxOnShare)).join(' + ')}
+          result={formatCurrency(result.totalTax)}
+        />
       ),
     },
     {
       number: 7,
       title: '各相続人の按分後税額',
       content: (
-        <div className="space-y-1">
-          {heirBreakdowns.map((b) => (
-            <p key={b.label} className="text-sm text-gray-700 pl-4">
-              {b.label}: {formatCurrency(result.totalTax)} × ({formatCurrency(b.acquisitionAmount)} / {formatCurrency(result.estateValue)}) = <span className="font-medium">{formatCurrency(b.proportionalTax)}</span>
-            </p>
-          ))}
-        </div>
+        <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
+          <>{formatCurrency(result.totalTax)} × ({formatCurrency(b.acquisitionAmount)} / {formatCurrency(result.estateValue)}) = <span className="font-medium">{formatCurrency(b.proportionalTax)}</span></>
+        )} />
       ),
     },
   ];
@@ -145,12 +150,10 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
     title: '納付すべき相続税額',
     content: (
       <div>
-        <div className="space-y-1 mb-2">
-          {heirBreakdowns.map((b) => (
-            <p key={b.label} className="text-sm text-gray-700 pl-4">
-              {b.label}: <span className="font-bold">{formatCurrency(b.finalTax)}</span>
-            </p>
-          ))}
+        <div className="mb-2">
+          <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
+            <span className="font-bold">{formatCurrency(b.finalTax)}</span>
+          )} />
         </div>
         <p className="text-xl font-bold text-green-800 border-t pt-2">
           合計: {formatCurrency(result.totalFinalTax)}

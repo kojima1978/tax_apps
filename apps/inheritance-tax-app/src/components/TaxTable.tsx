@@ -16,6 +16,22 @@ type SubColumn = {
 const TH_CLASS = 'border border-gray-300 px-4 py-3 text-center font-semibold text-xs';
 const TD_CLASS = 'border border-gray-300 px-4 py-2 text-right';
 
+const SPOUSE_COLUMNS: SubColumn[] = [
+  { label: '相続税額', getValue: r => formatCurrency(r.totalTax) },
+  { label: '実効税率', getValue: r => formatPercent(r.effectiveTaxRate) },
+  { label: '配偶者控除後', getValue: r => formatCurrency(r.taxAfterSpouseDeduction) },
+];
+
+const MAIN_COLUMNS_WITH_SPOUSE: SubColumn[] = [
+  { label: '相続税額', getValue: r => formatCurrency(r.taxAfterSpouseDeduction) },
+  { label: '実効税率', getValue: r => formatPercent(r.effectiveTaxRateAfterSpouse) },
+];
+
+const MAIN_COLUMNS_NO_SPOUSE: SubColumn[] = [
+  { label: '相続税額', getValue: r => formatCurrency(r.totalTax) },
+  { label: '実効税率', getValue: r => formatPercent(r.effectiveTaxRate) },
+];
+
 export const TaxTable: React.FC<TaxTableProps> = memo(({ data, hasSpouse }) => {
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
   const headerHover = (col: number) => hoveredCol === col ? 'bg-green-700' : '';
@@ -25,15 +41,8 @@ export const TaxTable: React.FC<TaxTableProps> = memo(({ data, hasSpouse }) => {
     onMouseLeave: () => setHoveredCol(null),
   });
 
-  const spouseColumns: SubColumn[] = hasSpouse ? [
-    { label: '相続税額', getValue: r => formatCurrency(r.totalTax) },
-    { label: '実効税率', getValue: r => formatPercent(r.effectiveTaxRate) },
-    { label: '配偶者控除後', getValue: r => formatCurrency(r.taxAfterSpouseDeduction) },
-  ] : [];
-  const mainColumns: SubColumn[] = [
-    { label: '相続税額', getValue: r => formatCurrency(hasSpouse ? r.taxAfterSpouseDeduction : r.totalTax) },
-    { label: '実効税率', getValue: r => formatPercent(hasSpouse ? r.effectiveTaxRateAfterSpouse : r.effectiveTaxRate) },
-  ];
+  const spouseColumns = hasSpouse ? SPOUSE_COLUMNS : [];
+  const mainColumns = hasSpouse ? MAIN_COLUMNS_WITH_SPOUSE : MAIN_COLUMNS_NO_SPOUSE;
   const allSubColumns = [...spouseColumns, ...mainColumns];
 
   return (

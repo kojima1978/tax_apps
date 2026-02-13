@@ -1,7 +1,12 @@
 import React, { memo } from 'react';
-import { Trash2 } from 'lucide-react';
+import Trash2 from 'lucide-react/icons/trash-2';
 import type { HeirComposition, Heir } from '../../types';
 import { generateId } from '../../utils';
+
+const ASCENDANT_TYPES = [
+    { type: 'parent' as const, label: '親を追加' },
+    { type: 'grandparent' as const, label: '祖父母を追加' },
+] as const;
 
 interface Rank2SettingsProps {
     composition: HeirComposition;
@@ -37,20 +42,16 @@ export const Rank2Settings: React.FC<Rank2SettingsProps> = memo(({ composition, 
             <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-gray-700">第2順位：直系尊属</h3>
                 <div className="flex gap-2">
-                    <button
-                        onClick={() => addAscendant('parent')}
-                        className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                        aria-label="親を追加"
-                    >
-                        親を追加
-                    </button>
-                    <button
-                        onClick={() => addAscendant('grandparent')}
-                        className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                        aria-label="祖父母を追加"
-                    >
-                        祖父母を追加
-                    </button>
+                    {ASCENDANT_TYPES.map((opt) => (
+                        <button
+                            key={opt.type}
+                            onClick={() => addAscendant(opt.type)}
+                            className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                            aria-label={opt.label}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
                 </div>
             </div>
             {composition.rank2Ascendants.map((ascendant, index) => {

@@ -1,4 +1,5 @@
-import type { TaxBracket } from '../types';
+import type { TaxBracket, HeirComposition } from '../types';
+import { generateId } from '../utils/idGenerator';
 
 /**
  * 会社情報
@@ -8,8 +9,6 @@ export const COMPANY_INFO = {
   postalCode: '〒770-0002',
   address: '徳島県徳島市春日２丁目３−３３',
   phone: '088-632-6228',
-  fullLine: '税理士法人マスエージェント　〒770-0002 徳島県徳島市春日２丁目３−３３　TEL: 088-632-6228',
-  footerLine: '税理士法人マスエージェント　TEL: 088-632-6228',
 } as const;
 
 /**
@@ -59,6 +58,11 @@ export const SHARE_RATIOS: Record<number, { spouse: number; others: number }> = 
 export const SPOUSE_DEDUCTION_LIMIT = 16000;
 
 /**
+ * 相続人順位のラベル（ファイル名生成・表示用）
+ */
+export const RANK_LABELS: Record<number, string> = { 1: '子', 2: '直系尊属', 3: '兄弟姉妹' };
+
+/**
  * テーブル表示設定
  */
 export const TABLE_CONFIG = {
@@ -69,6 +73,21 @@ export const TABLE_CONFIG = {
   /** デフォルト最大値（万円）: 10億円 */
   DEFAULT_MAX_VALUE: 100000,
 } as const;
+
+/**
+ * 初期相続人構成（配偶者あり + 子1人）
+ */
+export function createDefaultComposition(): HeirComposition {
+  return {
+    hasSpouse: true,
+    selectedRank: 'rank1',
+    rank1Children: [
+      { id: generateId(), type: 'child', isDeceased: false, representatives: [] },
+    ],
+    rank2Ascendants: [],
+    rank3Siblings: [],
+  };
+}
 
 /**
  * 1億円単位でハイライト表示するかどうかを判定

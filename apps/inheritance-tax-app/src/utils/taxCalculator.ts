@@ -13,7 +13,7 @@ import {
   SHARE_RATIOS,
   SPOUSE_DEDUCTION_LIMIT,
 } from '../constants';
-import { getHeirInfo } from './heirUtils';
+import { getHeirInfo, getHeirLabel } from './heirUtils';
 
 /**
  * 法定相続分に対する税額を計算
@@ -137,23 +137,6 @@ export function calculateInheritanceTax(
 }
 
 /**
- * 相続人ラベルを生成
- */
-function getHeirLabel(type: string, index: number, count: number): string {
-  const labels: Record<string, string> = {
-    spouse: '配偶者',
-    child: '子',
-    grandchild: '孫',
-    parent: '親',
-    grandparent: '祖父母',
-    sibling: '兄弟姉妹',
-    nephew_niece: '甥姪',
-  };
-  const base = labels[type] || type;
-  return count > 1 ? `${base}${index + 1}` : base;
-}
-
-/**
  * 詳細な相続税計算（計算ページ用）
  */
 export function calculateDetailedInheritanceTax(
@@ -210,7 +193,6 @@ export function calculateDetailedInheritanceTax(
       legalShareRatio: spouseLegalRatio,
       legalShareAmount,
       taxOnShare: calculateTaxForShare(legalShareAmount),
-      acquisitionRatio: 0,
       acquisitionAmount: 0,
       proportionalTax: 0,
       surchargeAmount: 0,
@@ -238,7 +220,6 @@ export function calculateDetailedInheritanceTax(
         legalShareRatio: perPersonRatio,
         legalShareAmount: perPersonAmount,
         taxOnShare: calculateTaxForShare(perPersonAmount),
-        acquisitionRatio: 0,
         acquisitionAmount: 0,
         proportionalTax: 0,
         surchargeAmount: 0,
@@ -267,8 +248,6 @@ export function calculateDetailedInheritanceTax(
     }
 
     breakdowns[spouseIdx].acquisitionAmount = spouseAcquisitionAmount;
-    breakdowns[spouseIdx].acquisitionRatio = estateValue > 0
-      ? spouseAcquisitionAmount / estateValue : 0;
 
     // 残りを他の相続人で均等割
     const remaining = estateValue - spouseAcquisitionAmount;
@@ -277,8 +256,6 @@ export function calculateDetailedInheritanceTax(
       const perPerson = Math.floor(remaining / otherCount);
       for (const idx of otherIndices) {
         breakdowns[idx].acquisitionAmount = perPerson;
-        breakdowns[idx].acquisitionRatio = estateValue > 0
-          ? perPerson / estateValue : 0;
       }
     }
   } else {
@@ -286,7 +263,6 @@ export function calculateDetailedInheritanceTax(
     const perPerson = Math.floor(estateValue / breakdowns.length);
     for (const b of breakdowns) {
       b.acquisitionAmount = perPerson;
-      b.acquisitionRatio = estateValue > 0 ? perPerson / estateValue : 0;
     }
   }
 

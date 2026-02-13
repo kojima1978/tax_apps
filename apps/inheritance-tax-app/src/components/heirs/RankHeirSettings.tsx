@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
-import { UserPlus, Trash2 } from 'lucide-react';
+import UserPlus from 'lucide-react/icons/user-plus';
+import Trash2 from 'lucide-react/icons/trash-2';
 import type { HeirComposition, Heir } from '../../types';
 import { generateId } from '../../utils';
 

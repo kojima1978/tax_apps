@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
-import { Users } from 'lucide-react';
+import Users from 'lucide-react/icons/users';
 import type { HeirComposition } from '../types';
+import { SectionHeader } from './SectionHeader';
 import { SpouseSettings } from './heirs/SpouseSettings';
 import { Rank2Settings } from './heirs/Rank2Settings';
 import { RankHeirSettings, RANK1_CONFIG, RANK3_CONFIG } from './heirs/RankHeirSettings';
@@ -24,10 +25,7 @@ export const HeirSettings: React.FC<HeirSettingsProps> = memo(({ composition, on
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 no-print">
-      <div className="flex items-center gap-2 mb-4">
-        <Users className="w-5 h-5 text-green-600" aria-hidden="true" />
-        <h2 className="text-xl font-bold text-gray-800">相続人の構成</h2>
-      </div>
+      <SectionHeader icon={Users} title="相続人の構成" />
 
       {/* 配偶者 */}
       <SpouseSettings composition={composition} onChange={onChange} />

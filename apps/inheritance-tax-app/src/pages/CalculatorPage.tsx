@@ -5,24 +5,13 @@ import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquis
 import { CalculationResult } from '../components/calculator/CalculationResult';
 import { CalculatorExcelExport } from '../components/calculator/CalculatorExcelExport';
 import { PrintButton } from '../components/PrintButton';
+import { CautionBox } from '../components/CautionBox';
 import type { HeirComposition, SpouseAcquisitionMode } from '../types';
-import { generateId, calculateDetailedInheritanceTax } from '../utils';
+import { createDefaultComposition } from '../constants';
+import { calculateDetailedInheritanceTax } from '../utils';
 
 export const CalculatorPage: React.FC = () => {
-  const [composition, setComposition] = useState<HeirComposition>({
-    hasSpouse: true,
-    selectedRank: 'rank1',
-    rank1Children: [
-      {
-        id: generateId(),
-        type: 'child',
-        isDeceased: false,
-        representatives: [],
-      },
-    ],
-    rank2Ascendants: [],
-    rank3Siblings: [],
-  });
+  const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
 
   const [estateValue, setEstateValue] = useState<number>(0);
   const [spouseMode, setSpouseMode] = useState<SpouseAcquisitionMode>({ mode: 'legal' });
@@ -49,16 +38,15 @@ export const CalculatorPage: React.FC = () => {
               hasSpouse={composition.hasSpouse}
             />
 
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-              <h3 className="font-bold text-yellow-800 mb-2">ご注意</h3>
-              <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
-                <li>この計算は概算です。実際の税額は個別の事情により異なります。</li>
-                <li>配偶者の税額軽減は、法定相続分または1億6,000万円のいずれか大きい額まで適用されます。</li>
-                <li>第3順位（兄弟姉妹）の相続人には2割加算が適用されます。</li>
-                <li>未成年者控除・障害者控除等の税額控除は考慮していません。</li>
-                <li>詳細は税理士にご相談ください。</li>
-              </ul>
-            </div>
+            <CautionBox
+              items={[
+                'この計算は概算です。実際の税額は個別の事情により異なります。',
+                '配偶者の税額軽減は、法定相続分または1億6,000万円のいずれか大きい額まで適用されます。',
+                '第3順位（兄弟姉妹）の相続人には2割加算が適用されます。',
+                '未成年者控除・障害者控除等の税額控除は考慮していません。',
+                '詳細は税理士にご相談ください。',
+              ]}
+            />
           </div>
         </div>
 

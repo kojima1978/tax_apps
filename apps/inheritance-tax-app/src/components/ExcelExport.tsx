@@ -1,21 +1,10 @@
-import React, { memo, useState } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import React, { memo, useCallback } from 'react';
 import type { TaxCalculationResult, HeirComposition } from '../types';
-import { formatCurrency, formatPercent, getHeirInfo } from '../utils';
-import { isHighlightRow, COMPANY_INFO } from '../constants';
-
-// Excel スタイル定数
-const solidFill = (argb: string) => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } });
-const FILLS = {
-  mainHeader: solidFill('FF16A34A'),
-  subHeader: solidFill('FF22C55E'),
-  highlight: solidFill('FFFEF3C7'),
-  alternate: solidFill('FFF0FDF4'),
-};
-const GREEN_BORDER = { style: 'medium' as const, color: { argb: 'FF16A34A' } };
-const THIN_BORDER = { style: 'thin' as const, color: { argb: 'FFD1D5DB' } };
-const ALL_THIN_BORDERS = { top: THIN_BORDER, left: THIN_BORDER, bottom: THIN_BORDER, right: THIN_BORDER };
-const ALL_GREEN_BORDERS = { top: GREEN_BORDER, left: GREEN_BORDER, bottom: GREEN_BORDER, right: GREEN_BORDER };
+import { formatCurrency, formatPercent, getScenarioName } from '../utils';
+import { isHighlightRow } from '../constants';
+import { FILLS, GREEN_BORDER, ALL_THIN_BORDERS, applyMainHeaderStyle, setupExcelWorkbook } from '../utils/excelStyles';
+import { useExcelExport } from '../hooks/useExcelExport';
+import { ExcelExportButton } from './ExcelExportButton';
 
 interface ExcelExportProps {
   data: TaxCalculationResult[];
@@ -27,75 +16,20 @@ export const ExcelExport: React.FC<ExcelExportProps> = memo(({
   composition,
 }) => {
   const hasSpouse = composition.hasSpouse;
-  const [isExporting, setIsExporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const getScenarioName = (): string => {
-    const parts: string[] = [];
-    if (composition.hasSpouse) parts.push('配偶者あり');
+  const exportFn = useCallback(async () => {
+    const [ExcelJS, { saveAs }] = await Promise.all([
+      import('exceljs').then(m => m.default),
+      import('file-saver'),
+    ]);
 
-    const { rank, rankHeirsCount } = getHeirInfo(composition);
-    const rankLabels: Record<number, string> = { 1: '子', 2: '直系尊属', 3: '兄弟姉妹' };
-    if (rank > 0 && rankHeirsCount > 0) parts.push(`${rankLabels[rank]}${rankHeirsCount}人`);
-
-    return parts.join('_') || '相続人なし';
-  };
-
-  const handleExport = async () => {
-    if (data.length === 0) {
-      setError('データがありません');
-      return;
-    }
-
-    setIsExporting(true);
-    setError(null);
-
-    try {
-      const [ExcelJS, { saveAs }] = await Promise.all([
-        import('exceljs').then(m => m.default),
-        import('file-saver'),
-      ]);
-
-      const workbook = new ExcelJS.Workbook();
-      workbook.creator = COMPANY_INFO.name;
-      workbook.created = new Date();
-
-      const worksheet = workbook.addWorksheet('相続税早見表', {
-        pageSetup: {
-          paperSize: 9, // A3
-          orientation: 'landscape',
-          fitToPage: true,
-          fitToWidth: 1,
-          fitToHeight: 0,
-        },
+      const { workbook, worksheet } = setupExcelWorkbook({
+        ExcelJS,
+        sheetName: '相続税早見表',
+        title: '相続税早見表',
+        colCount: 6,
+        pageSetup: { paperSize: 9, orientation: 'landscape' },
       });
-
-      // タイトル行を追加
-      worksheet.mergeCells('A1:F1');
-      const titleCell = worksheet.getCell('A1');
-      titleCell.value = '相続税早見表';
-      titleCell.font = { size: 18, bold: true, color: { argb: 'FF16A34A' } };
-      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getRow(1).height = 30;
-
-      // 企業情報行
-      worksheet.mergeCells('A2:F2');
-      const companyCell = worksheet.getCell('A2');
-      companyCell.value = COMPANY_INFO.fullLine;
-      companyCell.font = { size: 10, color: { argb: 'FF666666' } };
-      companyCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getRow(2).height = 20;
-
-      // 空行
-      worksheet.addRow([]);
-
-      // ヘッダーセルの共通スタイル適用
-      const applyMainHeaderStyle = (cell: ReturnType<typeof worksheet.getCell>) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
-        cell.fill = FILLS.mainHeader;
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = ALL_GREEN_BORDERS;
-      };
 
       // メインヘッダー（1次相続・2次相続）
       if (hasSpouse) {
@@ -171,11 +105,8 @@ export const ExcelExport: React.FC<ExcelExportProps> = memo(({
         { width: 14 },
       ];
 
-      // フッター
-      worksheet.headerFooter.oddFooter = `&C${COMPANY_INFO.footerLine}`;
-
       // ファイル名の生成
-      const fileName = `相続税早見表_${getScenarioName()}.xlsx`;
+      const fileName = `相続税早見表_${getScenarioName(composition)}.xlsx`;
 
       // ファイルを生成してダウンロード
       const buffer = await workbook.xlsx.writeBuffer();
@@ -183,35 +114,18 @@ export const ExcelExport: React.FC<ExcelExportProps> = memo(({
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
       saveAs(blob, fileName);
-    } catch (err) {
-      console.error('Excel export error:', err);
-      setError('Excelファイルの生成に失敗しました。もう一度お試しください。');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  }, [data, hasSpouse, composition]);
+
+  const { isExporting, error, handleExport } = useExcelExport(exportFn);
 
   return (
     <div className="no-print">
-      <button
+      <ExcelExportButton
         onClick={handleExport}
-        disabled={data.length === 0 || isExporting}
-        aria-busy={isExporting}
-        aria-label="Excelファイルをダウンロード"
-        className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md transition-colors"
-      >
-        {isExporting ? (
-          <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
-        ) : (
-          <Download className="w-5 h-5" aria-hidden="true" />
-        )}
-        {isExporting ? 'エクスポート中...' : 'Excelダウンロード'}
-      </button>
-      {error && (
-        <p className="mt-2 text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      )}
+        disabled={data.length === 0}
+        isExporting={isExporting}
+        error={error}
+      />
     </div>
   );
 });

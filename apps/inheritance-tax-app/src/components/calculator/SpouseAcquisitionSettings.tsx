@@ -1,7 +1,8 @@
 import React from 'react';
-import { Heart } from 'lucide-react';
+import Heart from 'lucide-react/icons/heart';
 import type { SpouseAcquisitionMode } from '../../types';
 import { formatCurrency } from '../../utils';
+import { SectionHeader } from '../SectionHeader';
 
 const MODE_OPTIONS = [
   {
@@ -36,10 +37,7 @@ export const SpouseAcquisitionSettings: React.FC<SpouseAcquisitionSettingsProps>
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Heart className="w-5 h-5 text-green-600" aria-hidden="true" />
-        <h2 className="text-xl font-bold text-gray-800">配偶者の取得割合</h2>
-      </div>
+      <SectionHeader icon={Heart} title="配偶者の取得割合" />
 
       <fieldset className="space-y-3 border-0">
         <legend className="sr-only">配偶者の取得割合モード</legend>
