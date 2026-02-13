@@ -118,6 +118,8 @@ for %%F in (
     "..\nginx\includes\upstreams.conf"
     "..\nginx\includes\proxy_params.conf"
     "..\nginx\includes\maps.conf"
+    "..\nginx\includes\rate_limit_general.conf"
+    "..\nginx\includes\rate_limit_api.conf"
 ) do (
     if not exist %%F (
         echo [ERROR] Missing: %%~F
@@ -166,14 +168,12 @@ if !DATA_CREATED! gtr 0 (
 :: 5. Port conflicts
 :: ──────────────────────────────────────────────────────────────
 set PORT_CONFLICT=0
-set CHECKED_PORTS=80 3000 3001 3002 3003 3005 3006 3010 3012 3013 3020 3021 3022 5173 8000
 
-for %%P in (%CHECKED_PORTS%) do (
-    for /f "tokens=*" %%L in ('powershell -NoProfile -Command "netstat -ano 2>$null | Select-String 'LISTENING' | Where-Object { $_ -match ':%%P\s' }"') do (
-        echo [WARN]  Port %%P is already in use
-        set PORT_CONFLICT=1
-        set /a WARNINGS+=1
-    )
+:: 全ポートを1回の PowerShell 呼び出しでチェック（15回→1回に最適化）
+for /f "tokens=*" %%L in ('powershell -NoProfile -Command "$ports = @(80,3000,3001,3002,3003,3005,3006,3010,3012,3013,3020,3021,3022,5173,8000); $lines = netstat -ano 2>$null; foreach ($p in $ports) { foreach ($l in $lines) { if ($l -match 'LISTENING' -and $l -match \":$p\s\") { Write-Output $p; break } } }"') do (
+    echo [WARN]  Port %%L is already in use
+    set PORT_CONFLICT=1
+    set /a WARNINGS+=1
 )
 
 if !PORT_CONFLICT! equ 0 (
