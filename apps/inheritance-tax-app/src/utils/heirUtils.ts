@@ -1,4 +1,5 @@
-import type { Heir, HeirComposition } from '../types';
+import type { Heir, HeirComposition, SpouseAcquisitionMode } from '../types';
+import { RANK_LABELS } from '../constants';
 
 /**
  * 有効な相続人数を計算（代襲相続を考慮）
@@ -47,4 +48,46 @@ export function getHeirInfo(composition: HeirComposition): {
   const totalHeirsCount = (composition.hasSpouse ? 1 : 0) + rankHeirsCount;
 
   return { rank, totalHeirsCount, rankHeirsCount };
+}
+
+/**
+ * 相続人ラベルを生成（例: "子1", "兄弟姉妹2"）
+ */
+const HEIR_TYPE_LABELS: Record<string, string> = {
+  spouse: '配偶者',
+  child: '子',
+  grandchild: '孫',
+  parent: '親',
+  grandparent: '祖父母',
+  sibling: '兄弟姉妹',
+  nephew_niece: '甥姪',
+};
+
+export function getHeirLabel(type: string, index: number, count: number): string {
+  const base = HEIR_TYPE_LABELS[type] || type;
+  return count > 1 ? `${base}${index + 1}` : base;
+}
+
+/**
+ * シナリオ名を生成（ファイル名用: "配偶者あり_子2人"）
+ */
+export function getScenarioName(composition: HeirComposition): string {
+  const parts: string[] = [];
+  if (composition.hasSpouse) parts.push('配偶者あり');
+
+  const { rank, rankHeirsCount } = getHeirInfo(composition);
+  if (rank > 0 && rankHeirsCount > 0) parts.push(`${RANK_LABELS[rank]}${rankHeirsCount}人`);
+
+  return parts.join('_') || '相続人なし';
+}
+
+/**
+ * 配偶者取得モードのラベルを生成
+ */
+export function getSpouseModeLabel(mode: SpouseAcquisitionMode): string {
+  switch (mode.mode) {
+    case 'legal': return '法定相続分';
+    case 'limit160m': return '1億6,000万円';
+    case 'custom': return `${mode.value.toLocaleString()}万円（カスタム）`;
+  }
 }

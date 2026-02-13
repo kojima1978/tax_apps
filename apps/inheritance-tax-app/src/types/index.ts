@@ -49,7 +49,6 @@ export interface HeirTaxBreakdown {
   legalShareRatio: number;
   legalShareAmount: number;
   taxOnShare: number;
-  acquisitionRatio: number;
   acquisitionAmount: number;
   proportionalTax: number;
   surchargeAmount: number;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer } from 'lucide-react';
+import Printer from 'lucide-react/icons/printer';
 
 export const PrintButton: React.FC = () => {
   const handlePrint = () => {

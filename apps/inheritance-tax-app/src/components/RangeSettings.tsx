@@ -1,7 +1,8 @@
 import React, { memo } from 'react';
-import { Settings } from 'lucide-react';
+import SettingsIcon from 'lucide-react/icons/settings';
 import { TABLE_CONFIG } from '../constants';
 import { formatCurrency } from '../utils';
+import { SectionHeader } from './SectionHeader';
 
 interface RangeSettingsProps {
   maxValue: number;
@@ -32,10 +33,7 @@ export const RangeSettings: React.FC<RangeSettingsProps> = memo(({
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6 no-print">
-      <div className="flex items-center gap-2 mb-4">
-        <Settings className="w-5 h-5 text-green-600" aria-hidden="true" />
-        <h2 className="text-xl font-bold text-gray-800">シミュレーション設定</h2>
-      </div>
+      <SectionHeader icon={SettingsIcon} title="シミュレーション設定" />
 
       <div className="space-y-4">
         {/* 最小値（固定） */}

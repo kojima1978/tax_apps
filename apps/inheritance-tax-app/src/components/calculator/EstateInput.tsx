@@ -1,6 +1,7 @@
 import React from 'react';
-import { Landmark } from 'lucide-react';
+import Landmark from 'lucide-react/icons/landmark';
 import { formatCurrency } from '../../utils';
+import { SectionHeader } from '../SectionHeader';
 
 interface EstateInputProps {
   value: number;
@@ -10,10 +11,7 @@ interface EstateInputProps {
 export const EstateInput: React.FC<EstateInputProps> = ({ value, onChange }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Landmark className="w-5 h-5 text-green-600" aria-hidden="true" />
-        <h2 className="text-xl font-bold text-gray-800">遺産総額</h2>
-      </div>
+      <SectionHeader icon={Landmark} title="遺産総額" />
 
       <div className="flex items-center gap-3">
         <input

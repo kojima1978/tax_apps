@@ -1,7 +1,7 @@
 import React from 'react';
 import type { DetailedTaxCalculationResult } from '../../types';
 import { formatCurrency, formatPercent } from '../../utils';
-import { COMPANY_INFO } from '../../constants';
+import { PrintHeader } from '../PrintHeader';
 import { CalculationSteps } from './CalculationSteps';
 import { HeirBreakdownTable } from './HeirBreakdownTable';
 
@@ -19,17 +19,7 @@ const SUMMARY_ITEMS = [
 export const CalculationResult: React.FC<CalculationResultProps> = ({ result }) => {
   return (
     <div className="space-y-6">
-      {/* 印刷用ヘッダー */}
-      <div className="print-only justify-between items-start px-4 py-3 border-b-2 border-green-700 mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-green-800">相続税計算結果</h1>
-        </div>
-        <address className="text-right text-sm not-italic text-gray-700">
-          <p className="font-bold text-base">{COMPANY_INFO.name}</p>
-          <p>{COMPANY_INFO.postalCode} {COMPANY_INFO.address}</p>
-          <p>TEL: {COMPANY_INFO.phone}</p>
-        </address>
-      </div>
+      <PrintHeader title="相続税計算結果" />
 
       {/* サマリーカード */}
       <div className="bg-white rounded-lg shadow-md p-6">

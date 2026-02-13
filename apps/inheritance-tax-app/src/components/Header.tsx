@@ -1,6 +1,8 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Table, Calculator } from 'lucide-react';
+import Home from 'lucide-react/icons/home';
+import Table from 'lucide-react/icons/table';
+import Calculator from 'lucide-react/icons/calculator';
 import { COMPANY_INFO } from '../constants';
 
 const NAV_ITEMS = [
