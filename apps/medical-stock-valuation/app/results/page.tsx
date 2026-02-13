@@ -98,8 +98,6 @@ export default function Results() {
     );
   }
 
-  const toSen = (amount: number) => Math.round(amount / 1000);
-
   return (
     <div>
       <h1>評価額の概算（計算結果）</h1>
@@ -168,7 +166,7 @@ export default function Results() {
               <tr key={index}>
                 <td className="text-center">{index + 1}</td>
                 <td className="text-left">{investor.name || ''}</td>
-                <td className="text-right">{formatSen(toSen(investor.amount || 0))}</td>
+                <td className="text-right">{formatSen(Math.round((investor.amount || 0) / 1000))}</td>
                 <td className="text-right">{formatSen(investor.evaluationValue || 0)}</td>
                 <td className="text-right">{formatSen(investor.giftTax || 0)}</td>
               </tr>
@@ -179,7 +177,7 @@ export default function Results() {
               <td className="text-center">合計</td>
               <td></td>
               <td className="text-right">
-                {formatSen(toSen(formData.investors.reduce((sum, inv) => sum + (inv.amount || 0), 0)))}
+                {formatSen(Math.round(formData.investors.reduce((sum, inv) => sum + (inv.amount || 0), 0) / 1000))}
               </td>
               <td className="text-right">
                 {formatSen(result.investorResults.reduce((sum, inv) => sum + (inv.evaluationValue || 0), 0))}

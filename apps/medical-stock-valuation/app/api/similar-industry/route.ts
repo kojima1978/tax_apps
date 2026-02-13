@@ -179,11 +179,12 @@ export async function PATCH(request: NextRequest) {
 
     const db = getDatabase();
 
-    if (action === 'deactivate') {
-      // 無効化
+    if (action === 'deactivate' || action === 'activate') {
+      const isActive = action === 'activate' ? 1 : 0;
+      const label = action === 'activate' ? '有効化' : '無効化';
       const result = db
-        .prepare('UPDATE similar_industry_data SET is_active = 0, updated_at = datetime(\'now\', \'localtime\') WHERE id = ?')
-        .run(id);
+        .prepare('UPDATE similar_industry_data SET is_active = ?, updated_at = datetime(\'now\', \'localtime\') WHERE id = ?')
+        .run(isActive, id);
 
       if (result.changes === 0) {
         return NextResponse.json(
@@ -194,24 +195,7 @@ export async function PATCH(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: '類似業種データを無効化しました',
-      });
-    } else if (action === 'activate') {
-      // 有効化
-      const result = db
-        .prepare('UPDATE similar_industry_data SET is_active = 1, updated_at = datetime(\'now\', \'localtime\') WHERE id = ?')
-        .run(id);
-
-      if (result.changes === 0) {
-        return NextResponse.json(
-          { error: 'データが見つかりません' },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: '類似業種データを有効化しました',
+        message: `類似業種データを${label}しました`,
       });
     } else if (action === 'delete') {
       // 削除（無効化されたデータのみ）
@@ -255,51 +239,3 @@ export async function PATCH(request: NextRequest) {
   }, '類似業種データの更新に失敗しました');
 }
 
-export async function DELETE(request: NextRequest) {
-  return withErrorHandler(async () => {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'IDを指定してください' },
-        { status: 400 }
-      );
-    }
-
-    const db = getDatabase();
-
-    // 物理削除（無効化されたデータのみ）
-    const record = db
-      .prepare('SELECT is_active FROM similar_industry_data WHERE id = ?')
-      .get(id) as { is_active: number } | undefined;
-
-    if (!record) {
-      return NextResponse.json(
-        { error: 'データが見つかりません' },
-        { status: 404 }
-      );
-    }
-
-    if (record.is_active === 1) {
-      return NextResponse.json(
-        { error: '有効なデータは削除できません。先に無効化してください' },
-        { status: 400 }
-      );
-    }
-
-    const result = db.prepare('DELETE FROM similar_industry_data WHERE id = ?').run(id);
-
-    if (result.changes === 0) {
-      return NextResponse.json(
-        { error: 'データが見つかりません' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: '類似業種データを削除しました',
-    });
-  }, '類似業種データの削除に失敗しました');
-}

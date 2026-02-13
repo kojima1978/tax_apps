@@ -45,43 +45,12 @@ export default function Step0BasicInfo({
 
     const yearOptions = generateYearRange();
 
-    // ユーザー一覧を取得
-    const fetchUsers = async () => {
+    const fetchList = async <T,>(endpoint: string, setter: (data: T) => void) => {
         try {
-            const response = await fetch('/medical/api/users');
-            if (response.ok) {
-                const data = await response.json();
-                setUsers(data);
-            }
+            const response = await fetch(endpoint);
+            if (response.ok) setter(await response.json());
         } catch (error) {
-            console.error('Failed to fetch users:', error);
-        }
-    };
-
-    // 会社一覧を取得
-    const fetchCompanies = async () => {
-        try {
-            const response = await fetch('/medical/api/companies');
-            if (response.ok) {
-                const data = await response.json();
-                setCompanies(data);
-            }
-        } catch (error) {
-            console.error('Failed to fetch companies:', error);
-        }
-    };
-
-    // 類似業種データが登録されている年度を取得
-    const fetchRegisteredYears = async () => {
-        try {
-            const response = await fetch('/medical/api/similar-industry');
-            if (response.ok) {
-                const data = await response.json();
-                const years = data.map((item: { fiscal_year: string }) => item.fiscal_year);
-                setRegisteredYears(years);
-            }
-        } catch (error) {
-            console.error('Failed to fetch similar industry data:', error);
+            console.error(`${endpoint}の取得に失敗:`, error);
         }
     };
 
@@ -111,10 +80,11 @@ export default function Step0BasicInfo({
     };
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchUsers();
-        fetchCompanies();
-        fetchRegisteredYears();
+        fetchList<UserOption[]>('/medical/api/users', setUsers);
+        fetchList<CompanyOption[]>('/medical/api/companies', setCompanies);
+        fetchList('/medical/api/similar-industry', (data: { fiscal_year: string }[]) =>
+            setRegisteredYears(data.map((item) => item.fiscal_year))
+        );
     }, []);
 
     useEffect(() => {

@@ -43,7 +43,7 @@ interface UpdateOptions {
 /**
  * 新規レコード作成
  */
-export async function createRecord(options: CreateOptions) {
+async function createRecord(options: CreateOptions) {
   const { tableName, nameField, data } = options;
   const db = getDatabase();
 
@@ -73,7 +73,7 @@ export async function createRecord(options: CreateOptions) {
 /**
  * レコード更新
  */
-export async function updateRecord(options: UpdateOptions) {
+async function updateRecord(options: UpdateOptions) {
   const { tableName, nameField, data } = options;
   const db = getDatabase();
 
