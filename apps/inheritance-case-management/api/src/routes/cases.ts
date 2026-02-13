@@ -39,16 +39,16 @@ casesRouter.get(
       where.deceasedName = { contains: search, mode: 'insensitive' };
     }
 
-    // Get total count for pagination
-    const total = await prisma.inheritanceCase.count({ where });
-
-    // Get paginated cases with sorting
-    const cases = await prisma.inheritanceCase.findMany({
-      where,
-      orderBy: { [sortBy]: sortOrder },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+    // ページネーション用のカウントとデータ取得を並列実行
+    const [total, cases] = await Promise.all([
+      prisma.inheritanceCase.count({ where }),
+      prisma.inheritanceCase.findMany({
+        where,
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     return c.json({
       data: cases,

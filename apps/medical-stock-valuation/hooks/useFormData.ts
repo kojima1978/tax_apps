@@ -74,14 +74,16 @@ export function useFormData() {
   };
 
   const saveCurrentFormData = () => {
-    localStorage.setItem('formData', JSON.stringify({
-      ...(currentDataId ? { id: currentDataId } : {}),
-      fiscalYear, companyName, personInCharge,
-      employees, totalAssets, sales,
-      currentPeriodNetAsset, previousPeriodNetAsset, netAssetTaxValue,
-      currentPeriodProfit, previousPeriodProfit, previousPreviousPeriodProfit,
-      investors,
-    }));
+    try {
+      localStorage.setItem('formData', JSON.stringify({
+        ...(currentDataId ? { id: currentDataId } : {}),
+        fiscalYear, companyName, personInCharge,
+        employees, totalAssets, sales,
+        currentPeriodNetAsset, previousPeriodNetAsset, netAssetTaxValue,
+        currentPeriodProfit, previousPeriodProfit, previousPreviousPeriodProfit,
+        investors,
+      }));
+    } catch { /* QuotaExceededError */ }
   };
 
   /** バリデーション + 計算用FormData構築（失敗時はnull, toast自動表示） */

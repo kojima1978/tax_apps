@@ -8,19 +8,23 @@ export function handleDoubleClickToStep0(
   value: string,
   router: ReturnType<typeof useRouter>
 ) {
-  const savedData = localStorage.getItem('formData');
-  if (savedData) {
-    const formData = JSON.parse(savedData);
-    formData[fieldName] = value;
-    localStorage.setItem('formData', JSON.stringify(formData));
-  } else {
-    const formData = {
-      [fieldName]: value,
-      fiscalYear: '',
-      companyName: fieldName === 'personInCharge' ? '' : value,
-      personInCharge: fieldName === 'companyName' ? '' : value,
-    };
-    localStorage.setItem('formData', JSON.stringify(formData));
+  try {
+    const savedData = localStorage.getItem('formData');
+    if (savedData) {
+      const formData = JSON.parse(savedData);
+      formData[fieldName] = value;
+      localStorage.setItem('formData', JSON.stringify(formData));
+    } else {
+      const formData = {
+        [fieldName]: value,
+        fiscalYear: '',
+        companyName: fieldName === 'personInCharge' ? '' : value,
+        personInCharge: fieldName === 'companyName' ? '' : value,
+      };
+      localStorage.setItem('formData', JSON.stringify(formData));
+    }
+  } catch (error) {
+    console.error('localStorage操作に失敗:', error);
   }
   router.push('/');
 }

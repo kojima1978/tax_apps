@@ -27,12 +27,12 @@ function SimilarIndustrySettingsContent() {
   const searchParams = useSearchParams();
   const initialYear = searchParams.get('year');
   const ms = useMasterSettings<SimilarIndustryData>('/medical/api/similar-industry');
-  const [selectedFields, setSelectedFields] = useState({
+  const [selectedFields, setSelectedFields] = useState(() => ({
     fiscal_year: initialYear || '',
     profit_per_share: '',
     net_asset_per_share: '',
     average_stock_price: '',
-  });
+  }));
 
   useEffect(() => {
     if (initialYear) {

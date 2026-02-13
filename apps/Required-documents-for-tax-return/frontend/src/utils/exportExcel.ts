@@ -1,4 +1,3 @@
-import XLSX from 'xlsx-js-style';
 import { CategoryGroup } from '@/types';
 import { formatReiwaYear } from '@/utils/date';
 import { taxReturnData } from '@/data/taxReturnData';
@@ -89,7 +88,8 @@ function pushFooterRow(data: Row[], merges: Merge[], row: number, text: string, 
   return row + 1;
 }
 
-export function exportToExcel(documentGroups: CategoryGroup[], year: number, customerName: string = '', staffName: string = '', mobileNumber?: string): void {
+export async function exportToExcel(documentGroups: CategoryGroup[], year: number, customerName: string = '', staffName: string = '', mobileNumber?: string): Promise<void> {
+  const XLSX = (await import('xlsx-js-style')).default;
   const data: Row[] = [];
   const merges: Merge[] = [];
 

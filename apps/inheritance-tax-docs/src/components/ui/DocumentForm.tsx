@@ -42,11 +42,11 @@ const FORM_FIELDS = [
 ] as const;
 
 function DocumentFormComponent({ variant, initialValues, onSubmit, onCancel }: DocumentFormProps) {
-  const [values, setValues] = useState({
+  const [values, setValues] = useState(() => ({
     name: initialValues?.name ?? '',
     description: initialValues?.description ?? '',
     howToGet: initialValues?.howToGet ?? '',
-  });
+  }));
 
   const config = VARIANT_CONFIG[variant];
   const inputClass = `w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 ${config.ring}`;

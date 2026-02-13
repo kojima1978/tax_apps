@@ -37,7 +37,7 @@ export function IndustryDataForm({
   const initDiv = defaultValues?.industryDividends || 0;
   const { yen: initDivYen, sen: initDivSen } = splitDividend(initDiv);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     // Industry (A) - 4 Indicators
     industryStockPriceCurrent:
       defaultValues?.industryStockPriceCurrent?.toString() || "",
@@ -63,7 +63,7 @@ export function IndustryDataForm({
     // Industry (C, D)
     industryProfit: defaultValues?.industryProfit?.toString() || "",
     industryBookValue: defaultValues?.industryBookValue?.toString() || "",
-  });
+  }));
 
   const handleChange = (
     e:

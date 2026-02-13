@@ -42,7 +42,7 @@ export function ValuationBulkInput({
     "auto",
   );
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     // Step 1: 基礎情報
     companyName: "",
     taxationPeriod: "",
@@ -87,7 +87,7 @@ export function ValuationBulkInput({
     landFairValueAddition: "",
     liabilitiesBookValue: "",
     liabilitiesInheritanceValue: "",
-  });
+  }));
 
   // Update formData when props change
   useEffect(() => {

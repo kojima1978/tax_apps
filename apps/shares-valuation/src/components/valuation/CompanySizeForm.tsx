@@ -25,14 +25,14 @@ export function CompanySizeForm({
   onChange,
 }: CompanySizeFormProps) {
   const toast = useToast();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     employees: defaultValues?.employees?.toString() || "",
     totalAssets: defaultValues?.totalAssets
       ? (defaultValues.totalAssets / 1000).toString()
       : "",
     sales: defaultValues?.sales ? (defaultValues.sales / 1000).toString() : "",
     industryType: (defaultValues?.industryType as IndustryType) || "Wholesale",
-  });
+  }));
 
   const isInitialMount = useRef(true);
   const isUpdatingFromDefault = useRef(false);

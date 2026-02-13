@@ -28,13 +28,13 @@ export function BasicInfoForm({
   defaultValues,
 }: BasicInfoFormProps) {
   const toast = useToast();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     companyName: defaultValues?.companyName || "",
     taxationPeriod: defaultValues?.taxationPeriod || "",
     previousPeriod: defaultValues?.previousPeriod || "",
     capital: defaultValues?.capital?.toString() || "",
     issuedShares: defaultValues?.issuedShares?.toString() || "",
-  });
+  }));
   const [selectedDummyPattern, setSelectedDummyPattern] = useState<
     DummyDataPatternKey | undefined
   >(undefined);

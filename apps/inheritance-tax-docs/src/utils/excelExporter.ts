@@ -1,4 +1,3 @@
-import XLSX from 'xlsx-js-style';
 import type { CategoryData, DocumentItem, CustomDocumentItem } from '../constants/documents';
 import { isCustomDocument, formatDate, formatDeadline } from './helpers';
 
@@ -114,7 +113,8 @@ function pushEmptyRow(wsData: object[][]): void {
 /**
  * Excel ファイルをエクスポート
  */
-export function exportToExcel(params: ExcelExportParams): void {
+export async function exportToExcel(params: ExcelExportParams): Promise<void> {
+  const XLSX = (await import('xlsx-js-style')).default;
   const { results, clientName, deceasedName, deadline, specificDocNames, personInCharge, personInChargeContact } = params;
   const exportDate = formatDate(new Date());
 
