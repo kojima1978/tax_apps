@@ -112,6 +112,28 @@ export function useFormData() {
     };
   };
 
+  const loadSampleData = () => {
+    setCurrentDataId(undefined);
+    setFiscalYear('2024');
+    setCompanyName('医療法人サンプル会');
+    setPersonInCharge('山田太郎');
+    setEmployees('3');          // 20人超35人以下
+    setTotalAssets('3');        // 2億5,000万円以上5億円未満
+    setSales('3');              // 2億5,000万円以上5億円未満
+    setCurrentPeriodNetAsset('350000000');   // 3億5,000万円
+    setPreviousPeriodNetAsset('320000000');  // 3億2,000万円
+    setNetAssetTaxValue('380000000');        // 3億8,000万円
+    setCurrentPeriodProfit('25000000');      // 2,500万円
+    setPreviousPeriodProfit('22000000');     // 2,200万円
+    setPreviousPreviousPeriodProfit('20000000'); // 2,000万円
+    setInvestors([
+      { name: '山田太郎', amount: 3000000 },  // 300万円
+      { name: '山田花子', amount: 2000000 },  // 200万円
+      { name: '鈴木一郎', amount: 1000000 },  // 100万円
+    ]);
+    toast.success('サンプルデータを読み込みました');
+  };
+
   return {
     currentDataId, setCurrentDataId,
     fiscalYear, setFiscalYear, companyName, setCompanyName,
@@ -125,6 +147,6 @@ export function useFormData() {
     previousPreviousPeriodProfit, setPreviousPreviousPeriodProfit,
     investors, addInvestorRow, removeInvestorRow, updateInvestor, reorderInvestors,
     totalInvestment, copyToTaxValue,
-    saveCurrentFormData, getValidFormData, toast,
+    saveCurrentFormData, getValidFormData, loadSampleData, toast,
   };
 }

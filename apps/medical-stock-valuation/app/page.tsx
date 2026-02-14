@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Save, FilePlus, Calculator } from 'lucide-react';
+import { Save, FilePlus, Calculator, Database } from 'lucide-react';
 import Header from '@/components/Header';
 import Step0BasicInfo from '@/components/valuation/Step0BasicInfo';
 import Step1CompanySize from '@/components/valuation/Step1CompanySize';
@@ -58,6 +58,10 @@ export default function Home() {
 
       <div className="card">
         <p className="text-lg mb-4">医療法人の出資持分の評価額の概算を知りたい方向けのツールです。</p>
+        <button onClick={f.loadSampleData} className={BTN}>
+          <Database size={20} />
+          サンプルデータを読み込む
+        </button>
       </div>
 
       <div className="card">

@@ -100,13 +100,20 @@ function initializeDatabase(database: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_similar_industry_fiscal_year ON similar_industry_data(fiscal_year);
   `);
 
-  // デフォルトの類似業種データを挿入（令和6年度 = 2024年度）
-  const defaultYear = '2024';
-  const existingDefault = database.prepare('SELECT id FROM similar_industry_data WHERE fiscal_year = ?').get(defaultYear);
-  if (!existingDefault) {
-    database.prepare(`
-      INSERT INTO similar_industry_data (fiscal_year, profit_per_share, net_asset_per_share, average_stock_price)
-      VALUES (?, 51, 395, 532)
-    `).run(defaultYear);
+  // デフォルトの類似業種データを挿入（既存データは正しい値に更新）
+  const defaultYears = [
+    { year: '2024', C: 46, D: 348, A: 473 }, // 令和6年度
+    { year: '2025', C: 51, D: 395, A: 532 }, // 令和7年度
+  ];
+  const upsertStmt = database.prepare(`
+    INSERT INTO similar_industry_data (fiscal_year, profit_per_share, net_asset_per_share, average_stock_price)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(fiscal_year) DO UPDATE SET
+      profit_per_share = excluded.profit_per_share,
+      net_asset_per_share = excluded.net_asset_per_share,
+      average_stock_price = excluded.average_stock_price
+  `);
+  for (const { year, C, D, A } of defaultYears) {
+    upsertStmt.run(year, C, D, A);
   }
 }
