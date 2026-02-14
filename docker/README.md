@@ -507,6 +507,12 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 
 ## 更新履歴
 
+### 2026-02 (inheritance-tax-docs 機能追加・bank-analyzer 修正)
+
+- **inheritance-tax-docs**: 初期化ボタン追加（書類カスタマイズを標準状態に戻す、確認ダイアログ付き、基本情報保持）
+- **inheritance-tax-docs**: 具体名の連続入力対応（Enter後に入力欄維持）、テキストクリック編集、編集/削除アイコン視認性向上
+- **bank-analyzer**: `runserver --nostatic` 追加（`FORCE_SCRIPT_NAME` と `StaticFilesHandler` の競合で静的ファイルが404になる問題を修正、WhiteNoise middleware に配信を委譲）
+
 ### 2026-02 (medical-stock-valuation 機能追加・Docker改善)
 
 - **medical-stock-valuation**: JSON個別エクスポート/インポート、Excel出力（ExcelJS）、印刷機能（A4縦3ページ）追加
