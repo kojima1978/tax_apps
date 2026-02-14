@@ -22,7 +22,6 @@ function CalculationProcessButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className={INLINE_BTN} title="計算過程を表示">
       <Calculator size={14} />
-      計算過程
     </button>
   );
 }
