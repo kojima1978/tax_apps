@@ -7,6 +7,7 @@ import {
   Download,
   Upload,
   RefreshCw,
+  RotateCcw,
   Info,
   AlertCircle,
   Home,
@@ -24,6 +25,7 @@ interface Stats {
   deletedCount: number;
   customCount: number;
   activeCount: number;
+  hasCustomizations: boolean;
 }
 
 interface UnifiedDocumentViewProps {
@@ -57,6 +59,7 @@ interface UnifiedDocumentViewProps {
   onEditSpecificName: (docId: string, index: number, name: string) => void;
   onRemoveSpecificName: (docId: string, index: number) => void;
   onRestoreAll: () => void;
+  onResetToDefault: () => void;
   onExportJson: () => void;
   onImportJson: (data: ExportData) => void;
   onOpenAddModal: (categoryId: string) => void;
@@ -95,6 +98,7 @@ function UnifiedDocumentViewComponent({
   onEditSpecificName,
   onRemoveSpecificName,
   onRestoreAll,
+  onResetToDefault,
   onExportJson,
   onImportJson,
   onOpenAddModal,
@@ -103,6 +107,7 @@ function UnifiedDocumentViewComponent({
 }: UnifiedDocumentViewProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess } = useJsonImport(onImportJson);
   const currentDate = formatDate(new Date());
 
@@ -172,6 +177,16 @@ function UnifiedDocumentViewComponent({
               >
                 <FileDown className="w-4 h-4 mr-1" /> 印刷
               </button>
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                disabled={!stats.hasCustomizations}
+                className={`flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm ${
+                  stats.hasCustomizations ? 'bg-slate-600 hover:bg-slate-700' : 'bg-slate-400 cursor-not-allowed opacity-50'
+                }`}
+                title="書類のカスタマイズをすべて初期状態に戻す"
+              >
+                <RotateCcw className="w-4 h-4 mr-1" /> 初期化
+              </button>
             </div>
           </div>
         </header>
@@ -227,6 +242,47 @@ function UnifiedDocumentViewComponent({
             </div>
           )}
         </div>
+
+        {/* 初期化確認ダイアログ */}
+        {showResetConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 no-print" onClick={() => setShowResetConfirm(false)}>
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => { if (e.key === 'Escape') setShowResetConfirm(false); }}
+            >
+              <h3 className="text-lg font-bold text-slate-800 mb-2">書類設定を初期化</h3>
+              <p className="text-sm text-slate-600 mb-1">
+                以下のカスタマイズがすべてリセットされます:
+              </p>
+              <ul className="text-sm text-slate-500 list-disc list-inside mb-4 space-y-0.5">
+                <li>追加した書類</li>
+                <li>削除した書類</li>
+                <li>並び替え</li>
+                <li>名称・説明の変更</li>
+                <li>代行可否の変更</li>
+                <li>具体的な書類名</li>
+              </ul>
+              <p className="text-xs text-slate-400 mb-4">
+                ※ お客様名・被相続人名・期限・担当者情報は保持されます。
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={() => { onResetToDefault(); setShowResetConfirm(false); }}
+                  className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg font-bold"
+                >
+                  初期化する
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* エラー表示 */}
         <DismissibleBanner message={exportError} onDismiss={() => setExportError(null)} variant="error" />

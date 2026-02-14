@@ -265,7 +265,10 @@ services:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,bank-analyzer}
       DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
-    command: [ "/docker-entrypoint.sh", "python", "manage.py", "runserver", "0.0.0.0:8000" ]
+    # --nostatic: StaticFilesHandler が FORCE_SCRIPT_NAME 付きの request.path を
+    # 使って file_path を算出するため静的ファイルが 404 になる。
+    # WhiteNoise middleware は request.path_info を使うため正しく配信できる。
+    command: [ "/docker-entrypoint.sh", "python", "manage.py", "runserver", "--nostatic", "0.0.0.0:8000" ]
     # Gunicorn graceful_timeout(30s) に合わせて SIGKILL 猶予を延長（デフォルト10s）
     stop_grace_period: 35s
     healthcheck:
