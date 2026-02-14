@@ -17,7 +17,7 @@ import {
   THOUSAND_TO_TEN_THOUSAND,
 } from './constants';
 
-export type CompanySize = 'Big' | 'Medium' | 'Small';
+type CompanySize = 'Big' | 'Medium' | 'Small';
 
 interface CompanySizeResult {
   size: CompanySize;

@@ -1,6 +1,6 @@
 'use client';
 
-import { Upload, Trash2, X, ArrowLeft, Download } from 'lucide-react';
+import { Upload, Trash2, X, ArrowLeft, Download, FileJson } from 'lucide-react';
 import Header from '@/components/Header';
 import { toWareki } from '@/lib/date-utils';
 import { BTN, SMALL_BTN } from '@/lib/button-styles';
@@ -41,6 +41,10 @@ export default function SavedDataPage() {
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <h1 className="mb-0">保存データ一覧</h1>
         <div className="flex gap-2">
+          <button onClick={sd.triggerJsonFileInput} className={SMALL_BTN}>
+            <FileJson size={16} />
+            JSONインポート
+          </button>
           <button onClick={sd.handleExport} disabled={sd.exporting} className={SMALL_BTN}>
             <Download size={16} />
             {sd.exporting ? 'エクスポート中...' : 'バックアップ'}
@@ -54,6 +58,13 @@ export default function SavedDataPage() {
             type="file"
             accept=".json"
             onChange={sd.handleFileSelect}
+            className="hidden"
+          />
+          <input
+            ref={sd.jsonFileInputRef}
+            type="file"
+            accept=".json"
+            onChange={sd.handleJsonFileSelect}
             className="hidden"
           />
         </div>
@@ -141,6 +152,10 @@ export default function SavedDataPage() {
                         <button onClick={() => sd.loadRecord(record)} className={SMALL_BTN}>
                           <Upload size={16} />
                           読込
+                        </button>
+                        <button onClick={() => sd.handleJsonExport(record)} className={SMALL_BTN}>
+                          <FileJson size={16} />
+                          JSON
                         </button>
                         <button onClick={() => sd.setDeleteTargetId(record.id)} className={SMALL_BTN}>
                           <Trash2 size={16} />

@@ -14,11 +14,11 @@ function InfoPopup({ id, activePopup, setActivePopup, children }: {
     return (
         <>
             <button
-                className={INLINE_BTN}
+                className={`${INLINE_BTN} shrink-0`}
                 onClick={() => setActivePopup(activePopup === id ? null : id)}
+                title="正確な評価についてはこちら"
             >
                 <ListChecks size={14} />
-                正確な評価
             </button>
             {activePopup === id && (
                 <div className="absolute bg-white border border-gray-300 p-4 rounded-lg mt-2 text-sm max-w-md shadow-lg z-10">
@@ -92,12 +92,14 @@ export default function Step2FinancialData({
                 <tbody>
                     <tr>
                         <td>
-                            「貸借対照表」の「純資産の部（又は資本の部）合計」の金額（注１）
-                            <InfoPopup id={1} activePopup={activePopup} setActivePopup={setActivePopup}>
+                            <div className="flex items-center gap-1">
+                                <span>「貸借対照表」の「純資産の部（又は資本の部）合計」の金額（注１）</span>
+                                <InfoPopup id={1} activePopup={activePopup} setActivePopup={setActivePopup}>
                                 <p className="text-gray-700">
                                     もしくは法人税申告書の別表五(一)上、「Ⅰ利益積立金額」及び「Ⅱ資本金等の額」の各「差引翌期首現在」列「差引合計額」行の合計額
                                 </p>
                             </InfoPopup>
+                            </div>
                         </td>
                         <td className="text-right">
                             <NumericFormat
@@ -125,9 +127,9 @@ export default function Step2FinancialData({
                             <button
                                 className={INLINE_BTN}
                                 onClick={copyToTaxValue}
+                                title="直前期の純資産額を複写"
                             >
                                 <Copy size={14} />
-                                複写
                             </button>
                         </td>
                         <td className="text-right">
@@ -144,8 +146,9 @@ export default function Step2FinancialData({
                     </tr>
                     <tr>
                         <td>
-                            「損益計算書」の「税引前当期純利益」の金額
-                            <InfoPopup id={2} activePopup={activePopup} setActivePopup={setActivePopup}>
+                            <div className="flex items-center gap-1">
+                                <span>「損益計算書」の「税引前当期純利益」の金額</span>
+                                <InfoPopup id={2} activePopup={activePopup} setActivePopup={setActivePopup}>
                                 <p className="text-gray-700 mb-2">
                                     もしくは法人税申告書上の「所得金額」に下記の金額を加減算した金額を入力してください。
                                 </p>
@@ -155,6 +158,7 @@ export default function Step2FinancialData({
                                     <li>非経常的な利益の金額は減算</li>
                                 </ul>
                             </InfoPopup>
+                            </div>
                         </td>
                         <td className="text-right">
                             <NumericFormat

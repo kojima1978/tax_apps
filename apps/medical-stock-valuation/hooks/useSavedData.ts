@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/Toast';
+import { exportValuationJson, readJsonFile, validateValuationImport } from '@/lib/json-export-import';
+import { FormData } from '@/lib/types';
 
 type SavedValuation = {
   id: string;
@@ -23,6 +25,24 @@ type SavedValuation = {
 
 type SortField = 'fiscal_year' | 'person_in_charge' | 'updated_at';
 type SortOrder = 'asc' | 'desc';
+
+function savedRecordToFormData(record: SavedValuation): FormData {
+  return {
+    fiscalYear: record.fiscalYear,
+    companyName: record.companyName,
+    personInCharge: record.personInCharge,
+    employees: record.employees,
+    totalAssets: record.totalAssets,
+    sales: record.sales,
+    currentPeriodNetAsset: record.currentPeriodNetAsset,
+    previousPeriodNetAsset: record.previousPeriodNetAsset,
+    netAssetTaxValue: record.netAssetTaxValue,
+    currentPeriodProfit: record.currentPeriodProfit,
+    previousPeriodProfit: record.previousPeriodProfit,
+    previousPreviousPeriodProfit: record.previousPreviousPeriodProfit,
+    investors: typeof record.investors === 'string' ? JSON.parse(record.investors) : record.investors,
+  };
+}
 
 export function useSavedData() {
   const router = useRouter();
@@ -65,23 +85,7 @@ export function useSavedData() {
 
   const loadRecord = useCallback((record: SavedValuation) => {
     try {
-      const formData = {
-        id: record.id,
-        fiscalYear: record.fiscalYear,
-        companyName: record.companyName,
-        personInCharge: record.personInCharge,
-        employees: record.employees,
-        totalAssets: record.totalAssets,
-        sales: record.sales,
-        currentPeriodNetAsset: record.currentPeriodNetAsset,
-        previousPeriodNetAsset: record.previousPeriodNetAsset,
-        netAssetTaxValue: record.netAssetTaxValue,
-        currentPeriodProfit: record.currentPeriodProfit,
-        previousPeriodProfit: record.previousPeriodProfit,
-        previousPreviousPeriodProfit: record.previousPreviousPeriodProfit,
-        investors: typeof record.investors === 'string' ? JSON.parse(record.investors) : record.investors,
-      };
-      localStorage.setItem('formData', JSON.stringify(formData));
+      localStorage.setItem('formData', JSON.stringify({ id: record.id, ...savedRecordToFormData(record) }));
     } catch (error) {
       console.error('データ読み込みに失敗:', error);
     }
@@ -215,6 +219,34 @@ export function useSavedData() {
     setFilterPersonInCharge('');
   }, []);
 
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleJsonExport = useCallback((record: SavedValuation) => {
+    exportValuationJson(savedRecordToFormData(record));
+    toast.success('JSONファイルをエクスポートしました');
+  }, [toast]);
+
+  const handleJsonFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (jsonFileInputRef.current) jsonFileInputRef.current.value = '';
+
+    try {
+      const raw = await readJsonFile(file);
+      const formData = validateValuationImport(raw);
+      if (!formData) {
+        toast.error('無効なファイル形式です。出資持分評価データのJSONファイルを選択してください');
+        return;
+      }
+      localStorage.setItem('formData', JSON.stringify(formData));
+      toast.success('JSONデータを読み込みました。入力画面に移動します');
+      router.push('/');
+    } catch (err) {
+      console.error('JSONインポートエラー:', err);
+      toast.error(err instanceof Error ? err.message : 'JSONの読み込みに失敗しました');
+    }
+  }, [toast, router]);
+
   const hasFilters = filterYear || filterCompanyName || filterPersonInCharge;
 
   return {
@@ -228,7 +260,9 @@ export function useSavedData() {
     showImportConfirm, handleImportConfirm, cancelImport,
     loadRecord, handleSort, getSortIndicator,
     handleExport, handleFileSelect,
+    handleJsonExport, handleJsonFileSelect, jsonFileInputRef,
     goToInput: () => router.push('/'),
     triggerFileInput: () => fileInputRef.current?.click(),
+    triggerJsonFileInput: () => jsonFileInputRef.current?.click(),
   };
 }

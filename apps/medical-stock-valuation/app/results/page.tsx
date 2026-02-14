@@ -2,21 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, FileText, Calculator } from 'lucide-react';
+import { ArrowLeft, Save, FileText, Calculator, FileJson, Printer } from 'lucide-react';
 import { FormData, CalculationResult } from '@/lib/types';
 import { calculateEvaluation } from '@/lib/calculations';
 import { useSaveValuation } from '@/hooks/useSaveValuation';
 import { validateBasicInfo, formatSen } from '@/lib/utils';
 import { toWareki } from '@/lib/date-utils';
-import { BTN } from '@/lib/button-styles';
+import { BTN, INLINE_BTN } from '@/lib/button-styles';
 import CalculationDetailsModal from '@/components/CalculationDetailsModal';
+import SimilarIndustryDetails from '@/components/calculation-details/SimilarIndustryDetails';
+import NetAssetDetails from '@/components/calculation-details/NetAssetDetails';
+import PerShareDetails from '@/components/calculation-details/PerShareDetails';
+import PrintHeader from '@/components/PrintHeader';
 import { useToast } from '@/components/Toast';
-
-const CALC_BTN_CLASS = "ml-2 px-2 py-1 text-xs bg-white text-black border border-gray-300 rounded hover:bg-gray-200 hover:border-gray-400 cursor-pointer transition-colors flex items-center gap-1";
+import { exportValuationJson } from '@/lib/json-export-import';
+import ResultsExcelExport from '@/components/ResultsExcelExport';
 
 function CalculationProcessButton({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={CALC_BTN_CLASS} title="計算過程を表示">
+    <button type="button" onClick={onClick} className={INLINE_BTN} title="計算過程を表示">
       <Calculator size={14} />
       計算過程
     </button>
@@ -101,9 +105,20 @@ export default function Results() {
     );
   }
 
+  const sizeMultiplier = result.companySize === '大会社' ? 0.7 : result.companySize.includes('中会社') ? 0.6 : 0.5;
+  const reiwa = formData.fiscalYear ? `${toWareki(formData.fiscalYear)}年度` : '';
+
+  const handleJsonExport = () => {
+    if (formData && result) {
+      exportValuationJson(formData);
+      toast.success('JSONファイルをエクスポートしました');
+    }
+  };
+
   return (
     <div>
-      <h1>評価額の概算（計算結果）</h1>
+      <PrintHeader title="出資持分の評価額試算（計算結果）" personInCharge={formData.personInCharge || ''} companyName={formData.companyName || ''} reiwa={reiwa} />
+      <h1 className="no-print">評価額の概算（計算結果）</h1>
 
       <div className="card">
         <h2 className="mt-0">1．出資持分評価額・持分なし医療法人移行時のみなし贈与税額</h2>
@@ -112,7 +127,7 @@ export default function Results() {
           <div className="flex-1 text-center">
             <div className="text-lg font-bold mb-3">設立時</div>
             <div className="mb-3">
-              <img src="/doctor.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
+              <img src="/medical/doctor.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
             </div>
             <div className="font-bold mb-2">当初出資額</div>
             <div className="inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold">
@@ -123,9 +138,9 @@ export default function Results() {
           <div className="text-blue-500 text-4xl">→</div>
 
           <div className="flex-1 text-center">
-            <div className="text-lg font-bold mb-3">現在（持分あり医療法人）</div>
+            <div className="text-lg font-bold mb-3">現在<br />（持分あり医療法人）</div>
             <div className="mb-3">
-              <img src="/hospital.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
+              <img src="/medical/hospital.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
             </div>
             <div className="font-bold mb-2">出資持分評価額</div>
             <div className="inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold">
@@ -136,9 +151,9 @@ export default function Results() {
           <div className="text-blue-400 text-4xl">→</div>
 
           <div className="flex-1 text-center">
-            <div className="text-lg font-bold mb-3">移行後（持分なし医療法人）</div>
+            <div className="text-lg font-bold mb-3">移行後<br />（持分なし医療法人）</div>
             <div className="mb-3">
-              <img src="/hospital2.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
+              <img src="/medical/hospital2.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
             </div>
             <div className="font-bold mb-2">みなし贈与税額</div>
             <div className="inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold">
@@ -192,6 +207,10 @@ export default function Results() {
           </tfoot>
         </table>
       </div>
+
+      <div className="print-page-break" />
+
+      <PrintHeader title="出資持分の評価額試算（詳細情報）" personInCharge={formData.personInCharge || ''} companyName={formData.companyName || ''} reiwa={reiwa} />
 
       <div className="card">
         <h2 className="mt-0">（参考）出資持分評価額を算定する上での各要素</h2>
@@ -282,19 +301,48 @@ export default function Results() {
         </p>
       </div>
 
-      <div className="flex justify-center gap-4">
-        <button onClick={() => router.back()} className={BTN}>
-          <ArrowLeft size={20} />
-          入力画面に戻る
-        </button>
-        <button onClick={saveToDatabase} className={BTN}>
-          <Save size={20} />
-          保存
-        </button>
-        <button onClick={() => router.push('/gift-tax-table')} className={BTN}>
-          <FileText size={20} />
-          相続税額早見表を見る
-        </button>
+      <div className="print-page-break" />
+
+      <PrintHeader title="出資持分の評価額試算（計算過程）" personInCharge={formData.personInCharge || ''} companyName={formData.companyName || ''} reiwa={reiwa} />
+
+      <div className="print-only flex-col">
+        <div className="card">
+          <SimilarIndustryDetails formData={formData} totalShares={result.totalShares} sizeMultiplier={sizeMultiplier} />
+        </div>
+        <div className="card">
+          <NetAssetDetails formData={formData} totalShares={result.totalShares} />
+        </div>
+        <div className="card">
+          <PerShareDetails result={result} />
+        </div>
+      </div>
+
+      <div className="no-print flex-col gap-3 items-center">
+        <div className="flex justify-center gap-4">
+          <button onClick={() => router.back()} className={BTN}>
+            <ArrowLeft size={20} />
+            入力画面に戻る
+          </button>
+          <button onClick={() => window.print()} className={BTN}>
+            <Printer size={20} />
+            印刷
+          </button>
+          <button onClick={() => router.push('/gift-tax-table')} className={BTN}>
+            <FileText size={20} />
+            相続税額早見表を見る →
+          </button>
+        </div>
+        <div className="flex justify-center gap-4">
+          <button onClick={handleJsonExport} className={BTN}>
+            <FileJson size={20} />
+            JSONエクスポート
+          </button>
+          <button onClick={saveToDatabase} className={BTN}>
+            <Save size={20} />
+            保存
+          </button>
+          <ResultsExcelExport formData={formData} result={result} />
+        </div>
       </div>
 
       {modalOpen && formData && (
@@ -304,7 +352,7 @@ export default function Results() {
           type={modalOpen}
           formData={formData}
           totalShares={result.totalShares}
-          sizeMultiplier={result.companySize === '大会社' ? 0.7 : result.companySize.includes('中会社') ? 0.6 : 0.5}
+          sizeMultiplier={sizeMultiplier}
           result={result}
         />
       )}

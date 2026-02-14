@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NumericFormat } from 'react-number-format';
-import { UserPlus, Trash2, ArrowUpDown, Check } from 'lucide-react';
+import { UserPlus, Trash2, ArrowUpDown, Check, X } from 'lucide-react';
 import { Investor } from '@/lib/types';
 import { SMALL_BTN } from '@/lib/button-styles';
 
@@ -74,15 +74,16 @@ export default function Step3Investors({
                             <button
                                 className={SMALL_BTN}
                                 onClick={handleCancelReorder}
+                                title="キャンセル"
                             >
-                                キャンセル
+                                <X size={16} />
                             </button>
                             <button
                                 className={SMALL_BTN}
                                 onClick={handleConfirmReorder}
+                                title="確定"
                             >
                                 <Check size={16} />
-                                確定
                             </button>
                         </>
                     ) : (
@@ -90,16 +91,16 @@ export default function Step3Investors({
                             <button
                                 className={SMALL_BTN}
                                 onClick={handleStartReorder}
+                                title="並び替え"
                             >
                                 <ArrowUpDown size={16} />
-                                並び替え
                             </button>
                             <button
                                 className={SMALL_BTN}
                                 onClick={addInvestorRow}
+                                title="出資者を追加"
                             >
                                 <UserPlus size={16} />
-                                出資者を追加
                             </button>
                         </>
                     )}
@@ -161,9 +162,9 @@ export default function Step3Investors({
                                     <button
                                         className={SMALL_BTN}
                                         onClick={() => removeInvestorRow(index)}
+                                        title="削除"
                                     >
                                         <Trash2 size={16} />
-                                        削除
                                     </button>
                                 )}
                             </td>
