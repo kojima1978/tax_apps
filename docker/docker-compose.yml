@@ -96,10 +96,12 @@ services:
   # ポータルサイト (メインダッシュボード)
   # Port: 3000
   # ===========================================
+  # 注: Dockerfile に dev ステージなし — 常に production nginx ビルド（hot-reload なし）
   portal-app:
     <<: *service-defaults
     build:
       context: ../apps/portal/app
+      target: runner
     container_name: portal-app
     ports:
       - "3000:3000"
