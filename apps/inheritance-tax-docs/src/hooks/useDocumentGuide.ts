@@ -211,12 +211,26 @@ export function useDocumentGuide() {
 
   const restoreAll = useCallback(() => { setDeletedDocuments({}); }, []);
 
+  const resetToDefault = useCallback(() => {
+    setExpandedCategories(initializeExpanded());
+    setDeletedDocuments({});
+    setCustomDocuments([]);
+    setDocumentOrder(initializeDocumentOrder());
+    setEditedDocuments({});
+    setCanDelegateOverrides({});
+    setSpecificDocNames({});
+  }, []);
+
   const stats = useMemo(() => {
     const totalBuiltIn = CATEGORIES.reduce((acc, cat) => acc + cat.documents.length, 0);
     const deletedCount = Object.keys(deletedDocuments).length;
     const customCount = customDocuments.length;
-    return { totalBuiltIn, deletedCount, customCount, activeCount: totalBuiltIn - deletedCount + customCount };
-  }, [deletedDocuments, customDocuments]);
+    const editedCount = Object.keys(editedDocuments).length;
+    const overrideCount = Object.keys(canDelegateOverrides).length;
+    const specificCount = Object.keys(specificDocNames).length;
+    const hasCustomizations = deletedCount > 0 || customCount > 0 || editedCount > 0 || overrideCount > 0 || specificCount > 0;
+    return { totalBuiltIn, deletedCount, customCount, activeCount: totalBuiltIn - deletedCount + customCount, hasCustomizations };
+  }, [deletedDocuments, customDocuments, editedDocuments, canDelegateOverrides, specificDocNames]);
 
   return {
     // state
@@ -231,7 +245,7 @@ export function useDocumentGuide() {
     addCustomDocument, removeCustomDocument, reorderDocuments,
     editDocument, toggleCanDelegate,
     addSpecificName, editSpecificName, removeSpecificName,
-    deleteAllInCategory, restoreAllInCategory, restoreAll,
+    deleteAllInCategory, restoreAllInCategory, restoreAll, resetToDefault,
     exportToJson, importFromJson, getSelectedDocuments,
   };
 }

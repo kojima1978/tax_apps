@@ -18,7 +18,7 @@ export default function InheritanceTaxDocGuide() {
     removeCustomDocument, reorderDocuments,
     toggleCanDelegate,
     addSpecificName, editSpecificName, removeSpecificName,
-    deleteAllInCategory, restoreAllInCategory, restoreAll,
+    deleteAllInCategory, restoreAllInCategory, restoreAll, resetToDefault,
     exportToJson, importFromJson, getSelectedDocuments,
     openEditModal, openAddModal, closeModal,
     handleEditSubmit, handleAddSubmit,
@@ -57,6 +57,7 @@ export default function InheritanceTaxDocGuide() {
         onEditSpecificName={editSpecificName}
         onRemoveSpecificName={removeSpecificName}
         onRestoreAll={restoreAll}
+        onResetToDefault={resetToDefault}
         onExportJson={exportToJson}
         onImportJson={importFromJson}
         onOpenAddModal={openAddModal}

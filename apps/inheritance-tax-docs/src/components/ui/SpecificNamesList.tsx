@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useState } from 'react';
-import { Pencil, X, Plus } from 'lucide-react';
+import { Pencil, X, Plus, Check } from 'lucide-react';
 
 interface SpecificNamesListProps {
   docId: string;
@@ -32,8 +32,17 @@ function SpecificNamesListComponent({ docId, names, onAdd, onEdit, onRemove }: S
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState('');
 
-  const cancelAdd = () => { setNewName(''); setAddingName(false); };
+  const closeAdd = () => { setNewName(''); setAddingName(false); };
   const cancelEdit = () => { setEditingIndex(null); setEditingValue(''); };
+
+  const submitAdd = () => {
+    const trimmed = newName.trim();
+    if (trimmed) {
+      onAdd(docId, trimmed);
+      setNewName('');
+      // 入力欄を開いたまま維持（連続入力）
+    }
+  };
 
   return (
     <div className="mt-1 print:mt-0">
@@ -58,14 +67,20 @@ function SpecificNamesListComponent({ docId, names, onAdd, onEdit, onRemove }: S
               ) : (
                 <>
                   <span className="text-slate-400 mr-0.5">・</span>
-                  <span className="flex-1">{name}</span>
+                  <span
+                    className="flex-1 cursor-pointer hover:underline hover:text-blue-600 transition-colors print:cursor-default print:no-underline print:hover:text-slate-600"
+                    onClick={() => { setEditingIndex(i); setEditingValue(name); }}
+                    title="クリックで編集"
+                  >
+                    {name}
+                  </span>
                 </>
               )}
               {editingIndex !== i && (
                 <span className="print:hidden flex items-center gap-0.5">
                   <button
                     onClick={() => { setEditingIndex(i); setEditingValue(name); }}
-                    className="p-0.5 text-slate-300 hover:text-blue-500 transition-colors"
+                    className="p-0.5 text-slate-400 hover:text-blue-500 transition-colors"
                     title="編集"
                     aria-label="編集"
                   >
@@ -73,7 +88,7 @@ function SpecificNamesListComponent({ docId, names, onAdd, onEdit, onRemove }: S
                   </button>
                   <button
                     onClick={() => onRemove(docId, i)}
-                    className="p-0.5 text-slate-300 hover:text-red-500 transition-colors"
+                    className="p-0.5 text-slate-400 hover:text-red-500 transition-colors"
                     title="削除"
                     aria-label="削除"
                   >
@@ -91,16 +106,19 @@ function SpecificNamesListComponent({ docId, names, onAdd, onEdit, onRemove }: S
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => handleKeyDown(
-              e,
-              newName,
-              () => { onAdd(docId, newName.trim()); cancelAdd(); },
-              cancelAdd,
-            )}
-            placeholder="例：三菱UFJ銀行 普通口座"
+            onKeyDown={(e) => handleKeyDown(e, newName, submitAdd, closeAdd)}
+            placeholder="Enter で追加、Escape で完了"
             autoFocus
             className={INPUT_CLASS}
           />
+          <button
+            onClick={closeAdd}
+            className="p-0.5 text-slate-400 hover:text-emerald-600 transition-colors"
+            title="完了"
+            aria-label="完了"
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
         </div>
       ) : (
         <button
