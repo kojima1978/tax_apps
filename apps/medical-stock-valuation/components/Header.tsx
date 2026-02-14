@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Home, Trash2 } from 'lucide-react';
-import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { BTN } from '@/lib/button-styles';
 import { useToast } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
@@ -52,7 +52,7 @@ export default function Header({ showClearButton = false }: HeaderProps) {
           {showClearButton ? (
             <button
               onClick={handleClearData}
-              className={`${BTN_CLASS} ${HOVER_CLASS}`}
+              className={BTN}
             >
               <Trash2 size={20} />
               データクリア
@@ -60,7 +60,7 @@ export default function Header({ showClearButton = false }: HeaderProps) {
           ) : (
             <button
               onClick={handleGoHome}
-              className={`${BTN_CLASS} ${HOVER_CLASS}`}
+              className={BTN}
             >
               <Home size={20} />
               ホームに戻る

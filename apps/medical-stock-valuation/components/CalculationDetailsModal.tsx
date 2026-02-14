@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { FormData, CalculationResult } from '@/lib/types';
-import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { BTN } from '@/lib/button-styles';
 import SimilarIndustryDetails from './calculation-details/SimilarIndustryDetails';
 import NetAssetDetails from './calculation-details/NetAssetDetails';
 import PerShareDetails from './calculation-details/PerShareDetails';
@@ -63,7 +63,7 @@ export default function CalculationDetailsModal({
           {type === 'perShare' && result && <PerShareDetails result={result} />}
         </div>
         <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end">
-          <button type="button" onClick={onClose} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+          <button type="button" onClick={onClose} className={BTN}>
             閉じる
           </button>
         </div>

@@ -3,7 +3,7 @@
 import { Upload, Trash2, X, ArrowLeft, Download } from 'lucide-react';
 import Header from '@/components/Header';
 import { toWareki } from '@/lib/date-utils';
-import { BTN_CLASS, SMALL_BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { BTN, SMALL_BTN } from '@/lib/button-styles';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useSavedData } from '@/hooks/useSavedData';
 
@@ -27,7 +27,7 @@ export default function SavedDataPage() {
         <h1>保存データ一覧</h1>
         <div className="card">
           <p className="text-gray-600">{sd.error}</p>
-          <button className={`${BTN_CLASS} ${HOVER_CLASS} mt-4`} onClick={sd.goToInput}>
+          <button className={`${BTN} mt-4`} onClick={sd.goToInput}>
             戻る
           </button>
         </div>
@@ -41,11 +41,11 @@ export default function SavedDataPage() {
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <h1 className="mb-0">保存データ一覧</h1>
         <div className="flex gap-2">
-          <button onClick={sd.handleExport} disabled={sd.exporting} className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}>
+          <button onClick={sd.handleExport} disabled={sd.exporting} className={SMALL_BTN}>
             <Download size={16} />
             {sd.exporting ? 'エクスポート中...' : 'バックアップ'}
           </button>
-          <button onClick={sd.triggerFileInput} disabled={sd.importing} className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}>
+          <button onClick={sd.triggerFileInput} disabled={sd.importing} className={SMALL_BTN}>
             <Upload size={16} />
             {sd.importing ? '復元中...' : '復元'}
           </button>
@@ -62,7 +62,7 @@ export default function SavedDataPage() {
       {sd.data.length === 0 ? (
         <div className="card">
           <p className="mb-4">保存されたデータはありません。</p>
-          <button className={`${BTN_CLASS} ${HOVER_CLASS}`} onClick={sd.goToInput}>
+          <button className={BTN} onClick={sd.goToInput}>
             入力画面へ
           </button>
         </div>
@@ -104,7 +104,7 @@ export default function SavedDataPage() {
                 <span className="text-sm text-gray-600">
                   {sd.filteredData.length}件 / {sd.data.length}件中
                 </span>
-                <button onClick={sd.clearFilters} className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}>
+                <button onClick={sd.clearFilters} className={SMALL_BTN}>
                   <X size={16} />
                   クリア
                 </button>
@@ -138,11 +138,11 @@ export default function SavedDataPage() {
                     <td className="text-center">{new Date(record.updated_at).toLocaleString('ja-JP')}</td>
                     <td className="text-center">
                       <div className="flex gap-2 justify-center">
-                        <button onClick={() => sd.loadRecord(record)} className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}>
+                        <button onClick={() => sd.loadRecord(record)} className={SMALL_BTN}>
                           <Upload size={16} />
                           読込
                         </button>
-                        <button onClick={() => sd.setDeleteTargetId(record.id)} className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}>
+                        <button onClick={() => sd.setDeleteTargetId(record.id)} className={SMALL_BTN}>
                           <Trash2 size={16} />
                           削除
                         </button>
@@ -155,7 +155,7 @@ export default function SavedDataPage() {
           </div>
 
           <div className="mt-6">
-            <button onClick={sd.goToInput} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+            <button onClick={sd.goToInput} className={BTN}>
               <ArrowLeft size={20} />
               入力画面へ戻る
             </button>

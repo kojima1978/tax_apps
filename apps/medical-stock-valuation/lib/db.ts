@@ -110,10 +110,3 @@ function initializeDatabase(database: Database.Database) {
     `).run(defaultYear);
   }
 }
-
-export function closeDatabase() {
-  if (db) {
-    db.close();
-    db = null;
-  }
-}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NumericFormat } from 'react-number-format';
 import { UserPlus, Trash2, ArrowUpDown, Check } from 'lucide-react';
 import { Investor } from '@/lib/types';
-import { SMALL_BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { SMALL_BTN } from '@/lib/button-styles';
 
 type Props = {
     investors: Investor[];
@@ -72,13 +72,13 @@ export default function Step3Investors({
                     {isReorderMode ? (
                         <>
                             <button
-                                className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+                                className={SMALL_BTN}
                                 onClick={handleCancelReorder}
                             >
                                 キャンセル
                             </button>
                             <button
-                                className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+                                className={SMALL_BTN}
                                 onClick={handleConfirmReorder}
                             >
                                 <Check size={16} />
@@ -88,14 +88,14 @@ export default function Step3Investors({
                     ) : (
                         <>
                             <button
-                                className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+                                className={SMALL_BTN}
                                 onClick={handleStartReorder}
                             >
                                 <ArrowUpDown size={16} />
                                 並び替え
                             </button>
                             <button
-                                className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+                                className={SMALL_BTN}
                                 onClick={addInvestorRow}
                             >
                                 <UserPlus size={16} />
@@ -159,7 +159,7 @@ export default function Step3Investors({
                                     <div className="text-gray-400 text-sm">ドラッグして移動</div>
                                 ) : (
                                     <button
-                                        className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+                                        className={SMALL_BTN}
                                         onClick={() => removeInvestorRow(index)}
                                     >
                                         <Trash2 size={16} />
