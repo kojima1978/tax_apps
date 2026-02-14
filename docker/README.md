@@ -507,6 +507,15 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 
 ## 更新履歴
 
+### 2026-02 (medical-stock-valuation 機能追加・Docker改善)
+
+- **medical-stock-valuation**: JSON個別エクスポート/インポート、Excel出力（ExcelJS）、印刷機能（A4縦3ページ）追加
+- **medical-stock-valuation**: リファクタリングR1-R4（useMasterSettings汎用hook、SimpleMasterSettingsPage共通化、CalculationDetailsModal分割、useFormData hook抽出、PrintHeader抽出、savedRecordToFormData DRY、formatSen統一、CalculationProcessButton抽出）
+- **medical-stock-valuation**: 死コード削除（solidFill/THIN_BORDER dead export、CompanySize dead type export、useExcelExport dead error state、print-page2-header dead className）
+- **medical-stock-valuation Dockerfile**: `VOLUME /app/data` 宣言追加、`serverExternalPackages: ['better-sqlite3']` 追加
+- **docker-compose.yml**: portal-app に `build.target: runner` 明示（dev ステージなしを明確化）
+- **docker-compose.prod.yml**: inheritance-tax-app healthcheck `localhost` → `127.0.0.1` 統一
+
 ### 2026-02 (Prod Override・アクセシビリティ)
 
 - **docker-compose.prod.yml `!reset`/`!override` 修正**: Docker Compose のファイルマージではリスト型（ports, volumes）が結合されるため、`ports: []` / `volumes: []` ではベース定義を消せない問題を修正。`!reset []` で完全クリア、`!override [...]` で値の置き換え。YAML アンカー(`<<:`)経由では `!reset` タグが保持されないため各サービスに明示
