@@ -116,6 +116,9 @@ COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/stati
 # データベースディレクトリを作成（書き込み権限）
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
 
+# データ永続化のマウントポイントを宣言
+VOLUME /app/data
+
 # Switch to non-root user
 USER nextjs
 
