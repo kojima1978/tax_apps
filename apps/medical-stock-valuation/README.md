@@ -1,269 +1,190 @@
-# 出資持分の評価額試算ツール (Next.js版)
+# 出資持分の評価額試算ツール
 
 医療法人の出資持分の評価額の概算を知りたい方向けのツールです。
 
 ## 主な機能
 
-### 評価額計算
-- **STEP0**: 会社名・担当者・事業年度の選択
-- **STEP1**: 医療法人の規模を判定するためのデータを選択
-- **STEP2**: 決算書より医療法人の財務データを入力
-- **STEP3**: 出資者名簿より出資者情報を入力
-- **計算結果**: 出資持分評価額・みなし贈与税額の表示
+### 評価額計算（4ステップ入力）
+
+| STEP | 内容 |
+|:-----|:-----|
+| STEP0 | 基本情報（会社名・担当者・事業年度の選択） |
+| STEP1 | 会社規模の判定（正職員数・総資産・売上高） |
+| STEP2 | 財務データ入力（決算書より純資産・利益を入力） |
+| STEP3 | 出資者情報（出資者名簿より出資者・出資金額を入力） |
+
+### 計算結果
+
+- **出資持分評価額**: 当初出資額 → 現在評価額 → みなし贈与税額の3段階表示
+- **各出資者の内訳**: 出資者別の評価額・贈与税額テーブル
+- **参考要素一覧**: 会社規模・類似業種比準価額・純資産価額・L値・評価方式
+- **計算過程モーダル**: 類似業種比準方式・純資産価額方式・1口あたり評価額の詳細計算過程
+
+### 出力機能
+
+| 機能 | 説明 |
+|:-----|:-----|
+| Excel出力 | 基本情報・評価額・出資者内訳・参考要素をExcelファイルとしてダウンロード |
+| JSON出力 | 評価データをJSON形式でエクスポート（バックアップ・移行用） |
+| JSONインポート | エクスポートしたJSONを読み込んで入力画面に復元 |
+| 印刷 | A4縦3ページ（計算結果・詳細情報・計算過程）の印刷レイアウト |
+| DB保存 | SQLiteデータベースへの保存・上書き |
 
 ### マスタデータ管理
-- **会社マスタ設定**: 会社情報の登録・編集・論理削除
-- **担当者マスタ設定**: 担当者情報の登録・編集・論理削除
-- **類似業種データ設定**: 類似業種比準方式の基準値管理
-  - 年度別のデータ登録・編集・無効化・削除
-  - データ未登録年度は令和6年度（2024）のデータを自動使用
-  - データ登録状況の表示（基本情報入力画面で確認可能）
 
-### データ管理機能
-- **保存データ一覧**: 過去の評価計算の閲覧・読込・削除
-- **新規保存/上書保存**: データの保存方法を選択可能
-- **論理削除**: マスタデータの無効化機能（データの整合性維持）
-- **検索・絞り込み**: 各種データの検索とフィルタリング
-- **データクリア**: 入力中のデータをクリア
+- **会社マスタ**: 会社情報の登録・編集・無効化・削除
+- **担当者マスタ**: 担当者情報の登録・編集・無効化・削除
+- **類似業種データ**: 年度別の類似業種比準方式の基準値管理
+  - データ未登録年度は令和6年度のデフォルト値を自動使用
+
+### 保存データ管理
+
+- 過去の評価計算の一覧表示・検索・読込・削除
+- 個別レコードのJSONエクスポート
+- JSONインポートによるデータ復元
+- DBバックアップ・リストア（全データJSON一括）
 
 ## セットアップ
 
-### 依存パッケージのインストール
+### Docker（推奨）
+
+中央統合環境から起動:
 
 ```bash
-npm install
+cd tax_apps/docker
+start.bat
 ```
 
-### データベースの初期化
+http://localhost/medical/ でアクセスできます。
 
-アプリケーション起動時に自動的に `data/doctor.db` が作成され、テーブルが初期化されます。
-
-### 開発サーバーの起動
+### スタンドアロンDocker
 
 ```bash
-npm run dev
-```
+cd tax_apps/apps/medical-stock-valuation
 
-ブラウザで [http://localhost:3000](http://localhost:3000) を開いてください。（Docker使用時は後述のポートになります）
-
-## ビルド
-
-### 本番ビルド
-
-```bash
-npm run build
-npm start
-```
-
-### Dockerでの実行（スタンドアロン）
-
-```bash
 # 開発環境（ホットリロード付き）
 docker compose up -d
 
 # 再ビルド
 docker compose up -d --build
-
-# ログ確認
-docker compose logs -f
-
-# 停止
-docker compose down
 ```
 
-ブラウザで http://localhost:3010 にアクセスします。
+http://localhost:3010 でアクセスできます。
 
-> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/medical/ からアクセスできます。
+### ローカル開発
+
+```bash
+npm install
+npm run dev
+```
+
+http://localhost:3000 でアクセスできます。
 
 ## データベース
 
 ### スキーマ
 
-- **companies**: 会社マスタ（論理削除対応）
-- **users**: 担当者マスタ（論理削除対応）
-- **valuations**: 評価レコード
-- **financial_data**: 財務データ
-- **investors**: 出資者情報
-- **similar_industry_data**: 類似業種データマスタ（論理削除対応）
+| テーブル | 説明 |
+|:--------|:-----|
+| companies | 会社マスタ（論理削除対応） |
+| users | 担当者マスタ（論理削除対応） |
+| valuations | 評価レコード |
+| financial_data | 財務データ |
+| investors | 出資者情報 |
+| similar_industry_data | 類似業種データマスタ（論理削除対応） |
 
 詳細は [ER_DIAGRAM.md](ER_DIAGRAM.md) を参照してください。
 
-### マイグレーション
+### データベースファイル
 
-データベーススキーマの変更が必要な場合は、`scripts/` ディレクトリにマイグレーションスクリプトを作成します。
-
-例:
-```bash
-npx tsx scripts/migration-script-name.ts
-```
-
-**注**: 論理削除機能のマイグレーション（is_active カラム追加）は既に完了しています。
-
-#### 既存データベースへの is_active カラム追加
-
-既存のデータベースを使用している場合は、以下のマイグレーションを実行してください:
-
-```bash
-npx tsx scripts/add-is-active-to-similar-industry.ts
-```
-
-このマイグレーションにより、`similar_industry_data` テーブルに `is_active` カラムが追加されます。
+- **パス**: `data/doctor.db`（アプリ起動時に自動作成）
+- **Docker**: `docker/data/medical-stock/` にバインドマウント
 
 ## 技術スタック
 
-- **Next.js 16.1.1** - Reactフレームワーク (App Router, Turbopack)
-- **React 19.0.0** - UIライブラリ
-- **TypeScript 5** - 型安全性
-- **Tailwind CSS 3.4** - スタイリング
-- **SQLite** - データベース (better-sqlite3 12.5)
-- **Lucide React** - アイコンライブラリ
+| カテゴリ | 技術 |
+|:--------|:-----|
+| フレームワーク | Next.js 16.1 (App Router) |
+| UI | React 19, Tailwind CSS 3.4 |
+| 言語 | TypeScript 5 |
+| データベース | SQLite (better-sqlite3 12.5) |
+| Excel出力 | ExcelJS 4.4 + file-saver 2.0 |
+| 数値入力 | react-number-format 5.4 |
+| アイコン | Lucide React |
+| 画像最適化 | sharp 0.33 |
+| Docker | Port 3010, basePath: /medical |
 
 ## プロジェクト構造
 
 ```
-doctor-nextjs/
+medical-stock-valuation/
 ├── app/                                    # Next.js App Router
 │   ├── page.tsx                            # ホーム画面（評価データ入力）
-│   ├── results/page.tsx                    # 計算結果表示
+│   ├── results/page.tsx                    # 計算結果（Excel/JSON/印刷）
 │   ├── saved-data/page.tsx                 # 保存データ一覧
+│   ├── gift-tax-table/page.tsx             # 贈与税速算表
 │   ├── company-settings/page.tsx           # 会社マスタ設定
 │   ├── user-settings/page.tsx              # 担当者マスタ設定
 │   ├── similar-industry-settings/page.tsx  # 類似業種データ設定
-│   ├── gift-tax-table/page.tsx             # 贈与税速算表
-│   ├── api/                                # APIルート
-│   │   ├── companies/route.ts              # 会社CRUD API
-│   │   ├── users/route.ts                  # 担当者CRUD API
-│   │   ├── valuations/route.ts             # 評価レコードAPI
-│   │   └── similar-industry/route.ts       # 類似業種データAPI
+│   ├── not-found.tsx                       # 404ページ
 │   ├── layout.tsx                          # ルートレイアウト
-│   └── globals.css                         # グローバルスタイル
+│   ├── globals.css                         # グローバルスタイル（印刷CSS含む）
+│   └── api/                                # APIルート
+│       ├── companies/route.ts              # 会社CRUD API
+│       ├── users/route.ts                  # 担当者CRUD API
+│       ├── valuations/route.ts             # 評価レコードAPI
+│       ├── similar-industry/route.ts       # 類似業種データAPI
+│       └── backup/route.ts                 # DBバックアップ/リストアAPI
 ├── components/
-│   ├── Header.tsx                          # ヘッダーコンポーネント
+│   ├── Header.tsx                          # ヘッダー（ナビゲーション）
 │   ├── Modal.tsx                           # モーダルダイアログ
-│   └── valuation/                          # 評価入力コンポーネント
+│   ├── Button.tsx                          # ボタンコンポーネント
+│   ├── Toast.tsx                           # トースト通知
+│   ├── ConfirmDialog.tsx                   # 確認ダイアログ
+│   ├── PrintHeader.tsx                     # 印刷用ヘッダー
+│   ├── ResultsExcelExport.tsx              # Excel出力コンポーネント
+│   ├── SimpleMasterSettingsPage.tsx         # マスタ設定共通ページ
+│   ├── CalculationDetailsModal.tsx         # 計算過程モーダル（dispatcher）
+│   ├── calculation-details/               # 計算過程詳細
+│   │   ├── SimilarIndustryDetails.tsx      # 類似業種比準方式
+│   │   ├── NetAssetDetails.tsx             # 純資産価額方式
+│   │   ├── PerShareDetails.tsx             # 1口あたり評価額
+│   │   └── helpers.tsx                     # DetailRow/DetailTable/ResultBox
+│   └── valuation/                          # 評価入力ステップ
 │       ├── Step0BasicInfo.tsx              # 基本情報入力
 │       ├── Step1CompanySize.tsx            # 会社規模判定
 │       ├── Step2FinancialData.tsx          # 財務データ入力
 │       └── Step3Investors.tsx              # 出資者情報入力
 ├── hooks/
-│   └── useSaveValuation.ts                 # 保存機能カスタムフック
+│   ├── useFormData.ts                      # フォームデータ管理（14 state + handlers）
+│   ├── useSavedData.ts                     # 保存データ管理（CRUD + JSON export/import）
+│   ├── useMasterSettings.ts               # マスタ設定共通hook（3設定ページ共通）
+│   ├── useSaveValuation.ts                 # DB保存機能
+│   └── useExcelExport.ts                   # Excel出力hook（isExporting + handleExport）
 ├── lib/
-│   ├── db.ts                               # データベース初期化
-│   ├── db-types.ts                         # データベース型定義
-│   ├── types.ts                            # アプリケーション型定義
 │   ├── calculations.ts                     # 評価額計算ロジック
-│   ├── button-styles.ts                    # ボタンスタイル定義
+│   ├── types.ts                            # アプリケーション型定義
+│   ├── db.ts                               # データベース初期化・テーブル定義
+│   ├── db-types.ts                         # データベース型定義
+│   ├── excel-styles.ts                     # Excelスタイル定数・setupExcelWorkbook
+│   ├── json-export-import.ts               # JSON出力/読込ユーティリティ
+│   ├── button-styles.ts                    # ボタンスタイル定数（BTN/INLINE_BTN）
+│   ├── constants.ts                        # 定数定義
+│   ├── utils.ts                            # 汎用ユーティリティ（formatSen等）
+│   ├── date-utils.ts                       # 日付変換（toWareki/generateYearRange）
 │   ├── form-utils.ts                       # フォームユーティリティ
 │   ├── record-actions.ts                   # レコード操作共通処理
-│   ├── api-utils.ts                        # API共通処理
-│   ├── date-utils.ts                       # 日付変換ユーティリティ
-│   └── utils.ts                            # 汎用ユーティリティ
+│   └── api-utils.ts                        # API共通処理（createMasterRouteHandlers）
 ├── data/
 │   └── doctor.db                           # SQLiteデータベース
+├── scripts/
+│   └── add-is-active-to-similar-industry.ts # マイグレーション
+├── Dockerfile                              # マルチステージビルド（dev/runner）
+├── .dockerignore                           # ビルド除外
 ├── ER_DIAGRAM.md                           # データベースER図
-├── Dockerfile                              # Docker設定
-├── docker compose.yml                      # Docker Compose設定
+├── next.config.ts                          # Next.js設定（standalone出力）
 └── package.json
 ```
-
-## 主要な機能アップデート
-
-### 類似業種データのフォールバック機能
-
-年度別の類似業種データが未登録の場合、令和6年度（2024年度）のデータが自動的に使用されます。
-
-- **メリット**: データ未登録の年度でも評価計算が可能
-- **表示**: 基本情報入力画面で「⚠ データ未登録」と表示され、登録状況を確認可能
-- **デフォルト値**:
-  - 1株当たりの利益金額: 51
-  - 1株当たりの純資産価額: 395
-  - 課税時期の属する年の平均株価: 532
-
-### 論理削除機能
-
-マスタデータ（会社・担当者・類似業種データ）は論理削除に対応:
-
-- **無効化**: データを非表示にするが、データベースには保持
-- **削除**: 無効化されたデータのみ物理削除可能（データ整合性を保護）
-- **有効化**: 無効化したデータを再度有効にすることが可能
-
-## トラブルシューティング
-
-### データベースエラー: no such column: is_active
-
-既存のデータベースを使用している場合、以下のマイグレーションを実行してください:
-
-```bash
-npx tsx scripts/add-is-active-to-similar-industry.ts
-```
-
-### Dockerコンテナでアプリケーションが落ちた場合
-
-#### 1. ログの確認
-```bash
-# コンテナのログを確認
-docker compose logs
-
-# リアルタイムでログを監視
-docker compose logs -f
-```
-
-#### 2. アプリケーションへのアクセス
-- **スタンドアロン**: [http://localhost:3010](http://localhost:3010)
-- **Gateway経由**: [http://localhost/medical/](http://localhost/medical/)
-
-#### 3. コンテナの再起動
-```bash
-# コンテナを停止して再起動
-docker compose down
-docker compose up -d
-
-# または強制的に再ビルド
-docker compose down
-docker compose build --no-cache
-docker compose up -d
-```
-
-#### 4. コンテナの状態確認
-```bash
-# 実行中のコンテナを確認
-docker ps -a
-
-# 特定のコンテナに入ってデバッグ
-docker exec -it medical-stock-valuation-standalone sh
-
-# コンテナ内でファイルを確認
-docker exec -it medical-stock-valuation-standalone ls -la /app
-```
-
-#### 5. データベースの問題確認
-```bash
-# データベースファイルの存在確認
-docker exec -it medical-stock-valuation-standalone ls -la /app/data
-
-# データベースの権限確認
-docker exec -it medical-stock-valuation-standalone ls -l /app/data/doctor.db
-```
-
-#### 6. ボリュームのクリーンアップ（注意：データが消えます）
-```bash
-# すべてのコンテナとボリュームを削除
-docker compose down -v
-
-# ボリュームを再作成して起動
-docker compose up -d
-```
-
-#### 7. よくある問題
-
-**ポートが既に使用されている**
-```bash
-# Windowsでポートを確認
-netstat -ano | findstr :3010
-```
-
-**本番環境の自動再起動**
-本番環境では `restart: unless-stopped` が設定されているため、コンテナが落ちても自動的に再起動されます。
 
 ## 注意事項
 
