@@ -1,129 +1,136 @@
-# 相続税申告 資料準備ガイド (Inheritance Tax Docs)
+# 相続税申告 資料準備ガイド
 
-相続税申告に必要な資料の準備、確認、および管理をサポートするWebアプリケーションです。
+相続税申告に必要な資料の準備・確認・管理をサポートするWebアプリケーションです。
 
-## プロジェクト概要
+## 主な機能
 
-このアプリケーションは、複雑になりがちな相続税申告の必要書類を整理し、ユーザーが効率的に準備を進められるよう支援します。
+### 統合ビュー（1画面完結）
 
-### 主な機能
-- **統合ビュー**: テーブル上で直接 編集・削除・並べ替え・代行切替ができるWYSIWYG型の1画面構成
-- **ドラッグ&ドロップ**: テーブル行のドラッグ&ドロップで書類の並び順を変更
-- **書類の編集**: モーダルダイアログで書類名、説明、取得方法をカスタマイズ
-- **カスタム書類追加**: モーダルダイアログで独自の書類をリストに追加
-- **具体的書類名**: 各書類に具体的な名称（例：三菱UFJ銀行 普通口座）をインライン追加
-- **代行可否設定**: 各書類の取得代行可否をワンクリックで切り替え
-- **一括操作**: カテゴリ単位の一括不要/一括復元
-- **Excel出力**: `xlsx-js-style` を使用したスタイル付きExcelファイルの出力
-- **印刷/PDF保存**: ブラウザの印刷機能を使用（印刷時は自動でチェックボックス列に変換）
-- **JSON保存/読込**: 設定をJSONファイルとして保存・復元（後方互換あり）
-- **レスポンシブデザイン**: Tailwind CSS v4 を採用したモダンなUI
+テーブル上で直接 編集・削除・並べ替え・代行切替ができるWYSIWYG型の画面構成です。
 
-### 画面構成
-統合ビュー（1画面）で以下の操作をすべて実行できます：
-- **ヘッダーツールバー**: 保存・読込・Excel出力・印刷ボタン
-- **基本情報入力**: お客様名・被相続人名・資料収集期限
-- **カテゴリテーブル群**: カテゴリごとに展開/折りたたみ可能なテーブル
-  - 各行: DnDハンドル | 書類名+具体名 | 内容説明 | 取得方法 | 代行 | 操作
+| 機能 | 説明 |
+|:-----|:-----|
+| 書類の編集 | モーダルダイアログで書類名・説明・取得方法をカスタマイズ |
+| カスタム書類追加 | 独自の書類をカテゴリに追加 |
+| 具体的書類名 | 各書類に具体名をインライン追加（連続入力対応、テキストクリック編集） |
+| ドラッグ&ドロップ | テーブル行のD&Dで並び順を変更 |
+| 代行可否設定 | 各書類の取得代行可否をワンクリック切替 |
+| 一括操作 | カテゴリ単位の一括不要/一括復元 |
+| 初期化 | 書類カスタマイズを標準状態に戻す（確認ダイアログ付き、基本情報は保持） |
+
+### 出力機能
+
+| 機能 | 説明 |
+|:-----|:-----|
+| Excel出力 | xlsx-js-style によるスタイル付きExcelファイル |
+| 印刷/PDF保存 | ブラウザ印刷機能（印刷時はチェックボックス列に自動変換） |
+| JSON保存 | 設定をJSONファイルとして保存（後方互換あり） |
+| JSON読込 | JSONファイルから設定を復元 |
+
+### 画面レイアウト
+
+- **ヘッダーツールバー**: 保存・読込・Excel・印刷・初期化ボタン
+- **基本情報入力**: お客様名・被相続人名・資料収集期限・担当者・担当者連絡先
+- **統計バー**: 有効件数・削除済み件数・追加件数 + 全て復元ボタン
+- **カテゴリテーブル群**: カテゴリごとに展開/折りたたみ可能
+  - 各行: D&Dハンドル | 書類名+具体名 | 内容説明 | 取得方法 | 代行 | 操作
   - 削除した行は斜線表示（印刷時は非表示）
 - **注意事項・留意事項・フッター**
 
+## セットアップ
+
+### Docker（推奨）
+
+中央統合環境から起動:
+
+```bash
+cd tax_apps/docker
+start.bat
+```
+
+http://localhost/inheritance-tax-docs/ でアクセスできます。
+
+### スタンドアロンDocker
+
+```bash
+cd tax_apps/apps/inheritance-tax-docs
+docker compose up -d
+```
+
+http://localhost:3003/inheritance-tax-docs/ でアクセスできます。
+
+### ローカル開発
+
+```bash
+npm install
+npm run dev
+```
+
+http://localhost:3000/inheritance-tax-docs/ でアクセスできます。
+
 ## 技術スタック
 
-- **Framework**: [Next.js 16](https://nextjs.org/) (App Router, standalone output)
-- **Language**: [TypeScript 5](https://www.typescriptlang.org/)
-- **UI library**: [React 19](https://react.dev/)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **DnD**: [@dnd-kit/core](https://dndkit.com/) + @dnd-kit/sortable
-- **Excel**: [xlsx-js-style](https://github.com/gitbrent/xlsx-js-style)
+| カテゴリ | 技術 |
+|:--------|:-----|
+| フレームワーク | Next.js 16 (App Router, standalone) |
+| UI | React 19, Tailwind CSS v4 |
+| 言語 | TypeScript 5 |
+| D&D | @dnd-kit/core + @dnd-kit/sortable |
+| Excel出力 | xlsx-js-style |
+| アイコン | Lucide React |
+| Docker | Port 3003, basePath: /inheritance-tax-docs |
 
-## 開発環境のセットアップ
-
-### 必要要件
-- Node.js (v22以上推奨)
-- Docker (コンテナで実行する場合)
-
-### ローカル開発環境での実行
-
-1. 依存関係のインストール
-   ```bash
-   npm install
-   ```
-
-2. 開発サーバーの起動
-   ```bash
-   npm run dev
-   ```
-
-3. ブラウザで確認
-   [http://localhost:3000/inheritance-tax-docs](http://localhost:3000/inheritance-tax-docs) にアクセスしてください。
-
-### Docker環境での実行
-
-#### スタンドアロン（このアプリのみ）
-```bash
-docker compose up -d
-```
-ポート **3003** で公開されます: [http://localhost:3003/inheritance-tax-docs](http://localhost:3003/inheritance-tax-docs)
-
-#### 統合環境（全アプリ）
-```bash
-cd ../../docker
-docker compose up -d
-```
-Nginx Gateway 経由でポート **80** から全アプリにアクセスできます。
-
-## コマンド一覧
-
-| コマンド | 説明 |
-|---------|------|
-| `npm run dev` | 開発サーバーを起動 |
-| `npm run build` | 本番用ビルドを作成 |
-| `npm run start` | ビルドされたアプリケーションを起動 |
-| `npm run lint` | ESLintを実行 |
-
-## ディレクトリ構成
+## プロジェクト構造
 
 ```
-src/
-├── app/                  # Next.js App Router
-│   ├── layout.tsx        # ルートレイアウト
-│   ├── page.tsx          # メインページ
-│   └── globals.css       # グローバルスタイル（印刷CSS含む）
-├── components/
-│   ├── InheritanceTaxDocGuide.tsx  # エントリポイント（hook + render）
-│   ├── UnifiedDocumentView.tsx     # 統合ビュー（ツールバー/基本情報/テーブル群/注意事項）
-│   └── ui/
-│       ├── DocumentForm.tsx        # 書類入力フォーム（追加/編集共通）
-│       ├── DocumentFormModal.tsx   # フォームモーダル
-│       ├── EditableCategoryTable.tsx # カテゴリテーブル（DnD/展開/一括操作）
-│       └── EditableDocumentRow.tsx  # テーブル行（DnD/具体名/操作ボタン）
-├── constants/
-│   └── documents.ts      # 書類マスターデータ + 型定義（DocChanges, IconName等）
-├── hooks/
-│   ├── useDocumentGuide.ts  # 全状態管理 + ハンドラー
-│   └── useJsonImport.ts     # JSONインポートロジック
-└── utils/
-    ├── excelExporter.ts   # Excel出力（xlsx-js-style）
-    ├── jsonDataManager.ts # JSON保存/読込/バリデーション
-    ├── helpers.ts         # ユーティリティ（isCustomDocument, formatDate等）
-    └── iconMap.tsx        # アイコン名→Lucideコンポーネント変換
+inheritance-tax-docs/
+├── src/
+│   ├── app/                          # Next.js App Router
+│   │   ├── page.tsx                  # メインページ
+│   │   ├── layout.tsx                # ルートレイアウト
+│   │   └── globals.css               # グローバルスタイル（印刷CSS含む）
+│   ├── components/
+│   │   ├── InheritanceTaxDocGuide.tsx # エントリポイント（hook→view+modal）
+│   │   ├── UnifiedDocumentView.tsx   # 統合ビュー（ツールバー/基本情報/テーブル群）
+│   │   └── ui/
+│   │       ├── DocumentFormModal.tsx  # 書類追加/編集モーダル
+│   │       ├── DocumentForm.tsx      # 書類入力フォーム（add/edit共通）
+│   │       ├── EditableCategoryTable.tsx # カテゴリテーブル（D&D/展開/一括操作）
+│   │       ├── EditableDocumentRow.tsx   # テーブル行（D&D/具体名/操作）
+│   │       ├── SpecificNamesList.tsx # 具体的書類名リスト（連続入力/編集/削除）
+│   │       └── DismissibleBanner.tsx # 閉じられるバナー（error/success）
+│   ├── constants/
+│   │   └── documents.ts             # 書類マスターデータ + 型定義
+│   ├── hooks/
+│   │   ├── useDocumentGuide.ts      # 全状態管理 + ハンドラー（初期化含む）
+│   │   ├── useDocumentModal.ts      # モーダル状態管理
+│   │   └── useJsonImport.ts         # JSONインポートロジック
+│   └── utils/
+│       ├── excelExporter.ts         # Excel出力（xlsx-js-style）
+│       ├── jsonDataManager.ts       # JSON保存/読込/バリデーション
+│       ├── helpers.ts               # isCustomDocument, formatDate等
+│       └── iconMap.tsx              # アイコン名→Lucideコンポーネント変換
+├── Dockerfile                        # マルチステージビルド（base/deps/dev/builder/runner）
+├── docker-compose.yml                # スタンドアロンDocker設定
+├── next.config.ts                    # Next.js設定（standalone, basePath）
+└── package.json
 ```
 
 ## JSONデータ形式
 
-保存されるJSONファイルには以下の情報が含まれます：
+保存されるJSONファイルの構造:
 
 ```json
 {
   "version": "1.0.0",
-  "exportedAt": "2026-02-09T00:00:00.000Z",
+  "exportedAt": "2026-02-14T00:00:00.000Z",
   "appName": "inheritance-tax-docs",
   "data": {
-    "clientName": "お客様名",
-    "deceasedName": "被相続人名",
+    "clientName": "山田 太郎",
+    "deceasedName": "山田 一郎",
     "deadline": "2026-03-31",
+    "personInCharge": "佐藤 花子",
+    "personInChargeContact": "088-632-6228",
     "deletedDocuments": {},
     "customDocuments": [],
     "documentOrder": {},
