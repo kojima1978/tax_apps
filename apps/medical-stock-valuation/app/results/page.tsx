@@ -8,7 +8,7 @@ import { calculateEvaluation } from '@/lib/calculations';
 import { useSaveValuation } from '@/hooks/useSaveValuation';
 import { validateBasicInfo, formatSen } from '@/lib/utils';
 import { toWareki } from '@/lib/date-utils';
-import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { BTN } from '@/lib/button-styles';
 import CalculationDetailsModal from '@/components/CalculationDetailsModal';
 import { useToast } from '@/components/Toast';
 
@@ -283,15 +283,15 @@ export default function Results() {
       </div>
 
       <div className="flex justify-center gap-4">
-        <button onClick={() => router.back()} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+        <button onClick={() => router.back()} className={BTN}>
           <ArrowLeft size={20} />
           入力画面に戻る
         </button>
-        <button onClick={saveToDatabase} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+        <button onClick={saveToDatabase} className={BTN}>
           <Save size={20} />
           保存
         </button>
-        <button onClick={() => router.push('/gift-tax-table')} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+        <button onClick={() => router.push('/gift-tax-table')} className={BTN}>
           <FileText size={20} />
           相続税額早見表を見る
         </button>

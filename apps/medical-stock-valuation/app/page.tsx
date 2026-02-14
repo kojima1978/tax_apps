@@ -9,7 +9,7 @@ import Step2FinancialData from '@/components/valuation/Step2FinancialData';
 import Step3Investors from '@/components/valuation/Step3Investors';
 import { useSaveValuation } from '@/hooks/useSaveValuation';
 import { useFormData } from '@/hooks/useFormData';
-import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { BTN } from '@/lib/button-styles';
 import { toWareki } from '@/lib/date-utils';
 
 export default function Home() {
@@ -137,15 +137,15 @@ export default function Home() {
         )}
 
         <div className="flex gap-4">
-          <button onClick={handleSaveAsNew} className={`${BTN_CLASS} ${HOVER_CLASS}`} disabled={isSaving}>
+          <button onClick={handleSaveAsNew} className={BTN} disabled={isSaving}>
             <FilePlus size={20} />
             新規保存
           </button>
-          <button onClick={handleSaveOverwrite} className={`${BTN_CLASS} ${HOVER_CLASS}`} disabled={isSaving}>
+          <button onClick={handleSaveOverwrite} className={BTN} disabled={isSaving}>
             <Save size={20} />
             {f.currentDataId ? '上書保存' : '保存'}
           </button>
-          <button onClick={goToResults} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+          <button onClick={goToResults} className={BTN}>
             <Calculator size={20} />
             計算結果を確認する
           </button>

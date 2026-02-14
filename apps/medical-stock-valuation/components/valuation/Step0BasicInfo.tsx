@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { File, Building2, CalendarDays, UserPen } from 'lucide-react';
 import { toWareki, generateYearRange } from '@/lib/date-utils';
-import { BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { BTN } from '@/lib/button-styles';
 import { UserOption, CompanyOption } from '@/lib/types';
 
 type Props = {
@@ -98,7 +98,7 @@ export default function Step0BasicInfo({
                 <h2 className="mt-0 mb-0">STEP０．基本情報を入力する</h2>
                 <button
                     onClick={() => router.push('/saved-data')}
-                    className={`${BTN_CLASS} ${HOVER_CLASS}`}
+                    className={BTN}
                 >
                     <File size={20} />
                     読み込み
@@ -128,7 +128,7 @@ export default function Step0BasicInfo({
                                 </select>
                                 <button
                                     onClick={() => handleNavigation('/company-settings')}
-                                    className={`${BTN_CLASS} ${HOVER_CLASS}`}
+                                    className={BTN}
                                 >
                                     <Building2 size={20} />
                                     会社マスタ設定
@@ -169,7 +169,7 @@ export default function Step0BasicInfo({
                                 </div>
                                 <button
                                     onClick={() => handleNavigation(`/similar-industry-settings?year=${fiscalYear}`)}
-                                    className={`${BTN_CLASS} ${HOVER_CLASS}`}
+                                    className={BTN}
                                 >
                                     <CalendarDays size={20} />
                                     類似業種データ設定
@@ -195,7 +195,7 @@ export default function Step0BasicInfo({
                                 </select>
                                 <button
                                     onClick={() => handleNavigation('/user-settings')}
-                                    className={`${BTN_CLASS} ${HOVER_CLASS}`}
+                                    className={BTN}
                                 >
                                     <UserPen size={20} />
                                     担当者マスタ設定

@@ -6,7 +6,7 @@ import { ArrowLeft, Plus, Edit2, Save, X, Ban, Eye, RefreshCw, Trash2 } from 'lu
 import Header from '@/components/Header';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import { BTN_CLASS, SMALL_BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { BTN, SMALL_BTN } from '@/lib/button-styles';
 import { handleDoubleClickToStep0 } from '@/lib/form-utils';
 import { ACTION_MESSAGES } from '@/lib/record-actions';
 import { useMasterSettings } from '@/hooks/useMasterSettings';
@@ -77,13 +77,13 @@ export function SimpleMasterSettingsPage<T extends BaseMasterRecord>({
           評価額計算時に選択できます。
         </p>
         <div className="flex gap-2">
-          <button onClick={handleOpenCreate} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+          <button onClick={handleOpenCreate} className={BTN}>
             <Plus size={20} />
             新規登録
           </button>
           <button
             onClick={() => ms.setShowInactive(!ms.showInactive)}
-            className={`${BTN_CLASS} ${HOVER_CLASS}`}
+            className={BTN}
           >
             <Eye size={20} />
             {ms.showInactive ? '有効データのみ表示' : '無効化データを表示'}
@@ -166,14 +166,14 @@ export function SimpleMasterSettingsPage<T extends BaseMasterRecord>({
                           <>
                             <button
                               onClick={() => handleOpenEdit(record)}
-                              className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+                              className={SMALL_BTN}
                             >
                               <Edit2 size={16} />
                               修正
                             </button>
                             <button
                               onClick={() => ms.requestAction(record.id, config.getName(record), 'deactivate')}
-                              className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+                              className={SMALL_BTN}
                             >
                               <Ban size={16} />
                               無効化
@@ -183,14 +183,14 @@ export function SimpleMasterSettingsPage<T extends BaseMasterRecord>({
                           <>
                             <button
                               onClick={() => ms.requestAction(record.id, config.getName(record), 'activate')}
-                              className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+                              className={SMALL_BTN}
                             >
                               <RefreshCw size={16} />
                               有効化
                             </button>
                             <button
                               onClick={() => ms.requestAction(record.id, config.getName(record), 'delete')}
-                              className={`${SMALL_BTN_CLASS} ${HOVER_CLASS}`}
+                              className={SMALL_BTN}
                             >
                               <Trash2 size={16} />
                               削除
@@ -208,7 +208,7 @@ export function SimpleMasterSettingsPage<T extends BaseMasterRecord>({
       )}
 
       <div className="mt-6">
-        <button onClick={() => router.push('/')} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+        <button onClick={() => router.push('/')} className={BTN}>
           <ArrowLeft size={20} />
           入力画面へ戻る
         </button>
@@ -232,11 +232,11 @@ export function SimpleMasterSettingsPage<T extends BaseMasterRecord>({
             />
           </div>
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={ms.closeModal} className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+            <button type="button" onClick={ms.closeModal} className={BTN}>
               <X size={20} />
               キャンセル
             </button>
-            <button type="submit" className={`${BTN_CLASS} ${HOVER_CLASS}`}>
+            <button type="submit" className={BTN}>
               <Save size={20} />
               {ms.formMode === 'create' ? '登録' : '更新'}
             </button>

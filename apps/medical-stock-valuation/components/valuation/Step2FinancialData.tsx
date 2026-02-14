@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { NumericFormat } from 'react-number-format';
 import { ListChecks, Copy } from 'lucide-react';
-import { INLINE_BTN_CLASS, HOVER_CLASS } from '@/lib/button-styles';
+import { INLINE_BTN } from '@/lib/button-styles';
 
 const NUMERIC_INPUT_CLASS = 'w-full px-3 py-2 text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
 
@@ -14,7 +14,7 @@ function InfoPopup({ id, activePopup, setActivePopup, children }: {
     return (
         <>
             <button
-                className={`${INLINE_BTN_CLASS} ${HOVER_CLASS}`}
+                className={INLINE_BTN}
                 onClick={() => setActivePopup(activePopup === id ? null : id)}
             >
                 <ListChecks size={14} />
@@ -123,7 +123,7 @@ export default function Step2FinancialData({
                         <td>
                             貸借対照表の各勘定科目の金額について、相続税評価額とした金額を基に計算した「純資産」の金額を上書き入力してください。
                             <button
-                                className={`${INLINE_BTN_CLASS} ${HOVER_CLASS}`}
+                                className={INLINE_BTN}
                                 onClick={copyToTaxValue}
                             >
                                 <Copy size={14} />

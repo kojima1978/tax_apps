@@ -19,7 +19,7 @@ import {
 
 export type CompanySize = 'Big' | 'Medium' | 'Small';
 
-export interface CompanySizeResult {
+interface CompanySizeResult {
   size: CompanySize;
   sizeLabel: string;
   sizeMultiplier: 0.7 | 0.6 | 0.5;
