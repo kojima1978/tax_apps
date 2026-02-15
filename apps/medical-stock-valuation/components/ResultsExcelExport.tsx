@@ -21,6 +21,9 @@ export default function ResultsExcelExport({ formData, result }: Props) {
       import('file-saver'),
     ]);
 
+    // Type definition for Cell needed for strict mode
+    type Cell = import('exceljs').Cell;
+
     const reiwa = formData.fiscalYear ? `${toWareki(formData.fiscalYear)}年度` : '';
     const colCount = 5;
 
@@ -102,7 +105,7 @@ export default function ResultsExcelExport({ formData, result }: Props) {
 
     // テーブルヘッダー
     const headerRow = worksheet.addRow(['№', '出資者名', '出資金額', '出資持分評価額', '贈与税額']);
-    headerRow.eachCell(cell => {
+    headerRow.eachCell((cell: Cell) => {
       applyHeaderStyle(cell);
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
     });
@@ -118,7 +121,7 @@ export default function ResultsExcelExport({ formData, result }: Props) {
       ]);
       row.getCell(1).alignment = { horizontal: 'center' };
       [3, 4, 5].forEach(c => { row.getCell(c).alignment = { horizontal: 'right' }; });
-      row.eachCell(cell => { cell.border = ALL_THIN_BORDERS; });
+      row.eachCell((cell: Cell) => { cell.border = ALL_THIN_BORDERS; });
     });
 
     // 合計行
@@ -131,7 +134,7 @@ export default function ResultsExcelExport({ formData, result }: Props) {
     ]);
     totalRow.getCell(1).alignment = { horizontal: 'center' };
     [3, 4, 5].forEach(c => { totalRow.getCell(c).alignment = { horizontal: 'right' }; });
-    totalRow.eachCell(cell => {
+    totalRow.eachCell((cell: Cell) => {
       cell.font = { bold: true, size: 10 };
       cell.fill = FILLS.totalRow;
       cell.border = ALL_THIN_BORDERS;
@@ -145,7 +148,7 @@ export default function ResultsExcelExport({ formData, result }: Props) {
     const refHeaderRow = worksheet.addRow(['', '項目', '', '', '対象法人']);
     worksheet.mergeCells(refHeaderRow.number, 1, refHeaderRow.number, 1);
     worksheet.mergeCells(refHeaderRow.number, 2, refHeaderRow.number, 4);
-    refHeaderRow.eachCell(cell => {
+    refHeaderRow.eachCell((cell: Cell) => {
       applyHeaderStyle(cell);
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
     });
@@ -155,7 +158,7 @@ export default function ResultsExcelExport({ formData, result }: Props) {
       worksheet.mergeCells(row.number, 1, row.number, 1);
       worksheet.mergeCells(row.number, 2, row.number, 4);
       row.getCell(5).alignment = { horizontal: 'right' };
-      row.eachCell(cell => { cell.border = ALL_THIN_BORDERS; });
+      row.eachCell((cell: Cell) => { cell.border = ALL_THIN_BORDERS; });
     };
 
     addRefRow('会社規模', result.companySize);

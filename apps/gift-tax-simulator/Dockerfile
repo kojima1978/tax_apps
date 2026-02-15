@@ -60,10 +60,10 @@ RUN --mount=type=cache,id=nextjs-gift-tax-simulator,target=/app/apps/gift-tax-si
 FROM node:${NODE_VERSION}-alpine AS runner
 
 LABEL org.opencontainers.image.title="Gift Tax Simulator" \
-      org.opencontainers.image.description="贈与税計算シミュレーター" \
-      org.opencontainers.image.vendor="税理士法人マスエージェント" \
-      org.opencontainers.image.licenses="Private" \
-      org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
+    org.opencontainers.image.description="贈与税計算シミュレーター" \
+    org.opencontainers.image.vendor="税理士法人マスエージェント" \
+    org.opencontainers.image.licenses="Private" \
+    org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
 WORKDIR /app
 

@@ -28,7 +28,7 @@ export function applyHeaderStyle(cell: any) {
 }
 
 interface WorkbookSetupConfig {
-  ExcelJS: typeof import('exceljs').default;
+  ExcelJS: typeof import('exceljs');
   sheetName: string;
   title: string;
   colCount: number;

@@ -33,7 +33,7 @@ export function applyMainHeaderStyle(cell: any) {
  * Excel ワークブック共通セットアップ（タイトル行 + 企業情報行 + 空行 + フッター）
  */
 interface WorkbookSetupConfig {
-  ExcelJS: typeof import('exceljs').default;
+  ExcelJS: typeof import('exceljs');
   sheetName: string;
   title: string;
   colCount: number;
