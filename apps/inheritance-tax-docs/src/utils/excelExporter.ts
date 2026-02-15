@@ -1,4 +1,5 @@
 import type { CategoryData, DocumentItem, CustomDocumentItem } from '../constants/documents';
+import { COMPANY_INFO, getFullAddress, getContactLine } from '@tax-apps/utils';
 import { isCustomDocument, formatDate, formatDeadline } from './helpers';
 
 interface ExcelExportParams {
@@ -124,7 +125,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   // タイトル行
   wsData.push([{ v: '相続税申告 資料準備ガイド', s: styles.title }]);
   wsData.push([{ v: `発行日: ${exportDate}`, s: styles.subTitle }]);
-  wsData.push([{ v: '税理士法人 マスエージェント', s: styles.subTitle }]);
+  wsData.push([{ v: COMPANY_INFO.name, s: styles.subTitle }]);
   wsData.push([{ v: '【お客様専用リスト】', s: styles.badge }]);
   pushEmptyRow(wsData);
 
@@ -205,7 +206,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   pushEmptyRow(wsData);
 
   // フッター
-  wsData.push([{ v: '〒770-0002 徳島県徳島市春日２丁目３番３３号 / TEL 088-632-6228 / FAX 088-631-9870', s: styles.footer }]);
+  wsData.push([{ v: `${getFullAddress()} / ${getContactLine()}`, s: styles.footer }]);
 
   // ワークシート作成
   const ws = XLSX.utils.aoa_to_sheet(wsData);

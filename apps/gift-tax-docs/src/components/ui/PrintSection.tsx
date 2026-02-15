@@ -1,5 +1,5 @@
 import { Info, AlertCircle } from 'lucide-react';
-import { COMPANY_INFO, giftData, type DocumentGroup } from '@/constants';
+import { COMPANY_INFO, getFullAddress, getContactLine, giftData, type DocumentGroup } from '@/constants';
 
 type PrintSectionProps = {
   results: DocumentGroup[];
@@ -107,9 +107,9 @@ export const PrintSection = ({
           </div>
         </div>
         <div className={`mt-8 text-center text-sm text-slate-400 ${p('print:mt-8 print:text-xs', 'print:mt-2 print:text-[9px] print:leading-tight')}`}>
-          {COMPANY_INFO.fullAddress}
+          {getFullAddress()}
           <br />
-          {COMPANY_INFO.contactLine}
+          {getContactLine()}
           {staffPhone && (
             <>
               <br />

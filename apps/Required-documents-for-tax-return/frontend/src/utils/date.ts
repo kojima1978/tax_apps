@@ -1,15 +1,5 @@
-/** 令和元年の西暦 - 1（令和年 = 西暦年 - REIWA_OFFSET） */
-export const REIWA_OFFSET = 2018;
-
-/** 西暦年を令和年に変換 */
-export function toReiwa(year: number): number {
-  return year - REIWA_OFFSET;
-}
-
-/** 「令和X年」形式の文字列を返す */
-export function formatReiwaYear(year: number): string {
-  return `令和${toReiwa(year)}年`;
-}
+// 令和関連ユーティリティ（共有パッケージから再エクスポート）
+export { REIWA_OFFSET, toReiwa, formatReiwaYear } from '@tax-apps/utils';
 
 /**
  * デフォルトの対象年度（西暦）を計算

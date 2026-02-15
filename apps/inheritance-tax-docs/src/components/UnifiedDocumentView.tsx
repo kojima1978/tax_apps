@@ -13,6 +13,7 @@ import {
   Home,
 } from 'lucide-react';
 import { CATEGORIES, type CategoryData, type DocumentItem, type CustomDocumentItem, type DocChanges } from '../constants/documents';
+import { COMPANY_INFO, getFullAddress, getContactLine } from '@tax-apps/utils';
 import { exportToExcel } from '../utils/excelExporter';
 import { type ExportData } from '../utils/jsonDataManager';
 import { formatDate, formatDeadline } from '../utils/helpers';
@@ -204,7 +205,7 @@ function UnifiedDocumentViewComponent({
             </div>
             <div className="text-right text-sm text-slate-500 print:text-xs">
               <p>発行日: {currentDate}</p>
-              <p>税理士法人 マスエージェント</p>
+              <p>{COMPANY_INFO.name}</p>
             </div>
           </div>
           {(clientName || deceasedName || deadline || personInCharge || personInChargeContact) && (
@@ -435,7 +436,7 @@ function UnifiedDocumentViewComponent({
             </div>
           </div>
           <div className="mt-8 text-center text-sm text-slate-400 print-compact-address">
-            〒770-0002 徳島県徳島市春日２丁目３番３３号 / TEL 088-632-6228 / FAX 088-631-9870
+            {getFullAddress()} / {getContactLine()}
           </div>
         </div>
       </div>

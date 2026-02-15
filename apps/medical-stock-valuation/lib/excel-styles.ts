@@ -2,12 +2,8 @@
  * Excel スタイル定数（テーマカラー: 青系 #2563EB）
  */
 
-export const COMPANY_INFO = {
-  name: '税理士法人マスエージェント',
-  postalCode: '〒770-0002',
-  address: '徳島県徳島市春日２丁目３−３３',
-  phone: '088-632-6228',
-} as const;
+import { COMPANY_INFO } from '@tax-apps/utils';
+export { COMPANY_INFO };
 
 const solidFill = (argb: string) => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } });
 
