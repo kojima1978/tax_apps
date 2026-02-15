@@ -8,7 +8,8 @@
     <div class="col-lg-10">
         <h1 class="h2 mb-4">⚙️ 設定</h1>
 
-        <form method="post">
+        <!-- CSRF token for AJAX requests -->
+        <form id="settingsForm" method="post">
             {% csrf_token %}
 
             <!-- 分析パラメータ設定 -->
@@ -25,86 +26,19 @@
                         {{ form.transfer_amount_tolerance|as_crispy_field }}
                     </div>
                 </div>
-            </div>
-
-            <!-- 自動分類キーワード設定 -->
-            <div class="glass-card p-4 mb-4">
-                <h4 class="mb-3">📝 自動分類キーワード設定</h4>
-                <p class="text-muted small mb-3">
-                    各カテゴリに分類するためのキーワードをカンマ区切りで入力してください。<br>
-                    取引の摘要にキーワードが含まれている場合、そのカテゴリに自動分類されます。
-                </p>
-
-                <ul class="nav nav-tabs mb-3" id="patternTabs" role="tablist"
-                    style="border-bottom-color: var(--glass-border);">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="life-tab" data-bs-toggle="tab" data-bs-target="#life"
-                            type="button" role="tab">生活費</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="salary-tab" data-bs-toggle="tab" data-bs-target="#salary" type="button"
-                            role="tab">給与</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="gift-tab" data-bs-toggle="tab" data-bs-target="#gift" type="button"
-                            role="tab">贈与</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="related-tab" data-bs-toggle="tab" data-bs-target="#related"
-                            type="button" role="tab">関連会社</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="bank-tab" data-bs-toggle="tab" data-bs-target="#bank" type="button"
-                            role="tab">銀行</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security"
-                            type="button" role="tab">証券・株式</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="insurance-tab" data-bs-toggle="tab" data-bs-target="#insurance"
-                            type="button" role="tab">保険会社</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="other-tab" data-bs-toggle="tab" data-bs-target="#other"
-                            type="button" role="tab">その他</button>
-                    </li>
-                </ul>
-
-                <div class="tab-content" id="patternTabsContent">
-                    <div class="tab-pane fade show active" id="life" role="tabpanel">
-                        {{ form.cat_life|as_crispy_field }}
-                    </div>
-                    <div class="tab-pane fade" id="salary" role="tabpanel">
-                        {{ form.cat_salary|as_crispy_field }}
-                    </div>
-                    <div class="tab-pane fade" id="gift" role="tabpanel">
-                        {{ form.cat_gift|as_crispy_field }}
-                    </div>
-                    <div class="tab-pane fade" id="related" role="tabpanel">
-                        {{ form.cat_related|as_crispy_field }}
-                    </div>
-                    <div class="tab-pane fade" id="bank" role="tabpanel">
-                        {{ form.cat_bank|as_crispy_field }}
-                    </div>
-                    <div class="tab-pane fade" id="security" role="tabpanel">
-                        {{ form.cat_security|as_crispy_field }}
-                    </div>
-                    <div class="tab-pane fade" id="insurance" role="tabpanel">
-                        {{ form.cat_insurance|as_crispy_field }}
-                    </div>
-                    <div class="tab-pane fade" id="other" role="tabpanel">
-                        {{ form.cat_other|as_crispy_field }}
-                    </div>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-save"></i> 分析パラメータを保存
+                    </button>
                 </div>
             </div>
-
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <button type="submit" class="btn btn-primary px-5">
-                    <i class="bi bi-save"></i> 設定を保存
-                </button>
-            </div>
         </form>
+
+        <!-- 自動分類パターン設定 -->
+        <div class="glass-card p-4 mb-4">
+            <h4 class="mb-3">📝 自動分類パターン設定</h4>
+            {% include 'analyzer/partials/_pattern_manager.html' with show_global=True show_case=False global_patterns=global_patterns collapsed=False card_style="default" %}
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -1,14 +1,22 @@
+"""
+設定管理
+
+ユーザー設定の読み込み・保存およびキャッシュ管理を行う。
+"""
 import os
 import json
 import logging
 import tempfile
 from pathlib import Path
+
 from django.conf import settings as django_settings
+
+from .defaults import DEFAULT_PATTERNS, DEFAULT_GIFT_THRESHOLD, DEFAULT_FUZZY_CONFIG
 
 logger = logging.getLogger(__name__)
 
 # Django settings から BASE_DIR を取得
-BASE_DIR = getattr(django_settings, 'BASE_DIR', Path(__file__).resolve().parent.parent.parent)
+BASE_DIR = getattr(django_settings, 'BASE_DIR', Path(__file__).resolve().parent.parent.parent.parent)
 DATA_DIR = BASE_DIR / "data"
 CONFIG_FILE = DATA_DIR / "user_settings.json"
 
@@ -83,36 +91,13 @@ def save_user_settings(new_settings: dict):
         raise
 
 
-# デフォルト分類パターン
-DEFAULT_PATTERNS = {
-    "生活費": [
-        "イオン", "セブン", "ローソン", "ファミマ", "スーパー", "マート",
-        "電気", "ガス", "水道", "東京電力", "東電", "関西電力", "関電",
-        "NTT", "ドコモ", "DOCOMO", "ソフトバンク", "au", "通信", "電話",
-        "NHK", "薬局", "ドラッグ", "病院", "医院", "クリニック", "介護",
-        "ガソリン", "ENEOS", "出光", "昭和シェル",
-        "マクドナルド", "スターバックス", "スタバ", "コンビニ"
-    ],
-    "給与": ["給与", "給料", "賞与", "ボーナス", "報酬", "振込給与"],
-    "贈与": ["フリコミ", "振込", "送金"],
-    "関連会社": ["商事", "物産", "興業", "実業", "有限会社", "株式会社"],
-    "銀行": ["定期預金", "定期", "積立"],
-    "証券・株式": [
-        "証券", "野村", "大和", "SMBC", "みずほ証券", "楽天証券", "SBI",
-        "投資信託", "株式", "債券", "ファンド", "配当"
-    ],
-    "保険会社": [
-        "生命保険", "損保", "保険", "共済", "かんぽ", "日本生命", "第一生命"
-    ],
-    "通帳間移動": [
-        "振替", "口座振替", "資金移動", "自己口座", "本人口座", "自分宛", "同一名義"
-    ],
-    "その他": ["手数料", "利息", "ATM", "時間外", "引出", "預入"]
-}
-
-
-# 贈与判定のデフォルト閾値（円）
-DEFAULT_GIFT_THRESHOLD = 1_000_000
+def get_fuzzy_config() -> dict:
+    """ファジーマッチング設定を取得"""
+    user_settings = load_user_settings()
+    default_config = DEFAULT_FUZZY_CONFIG.copy()
+    user_fuzzy = user_settings.get("FUZZY_MATCHING", {})
+    default_config.update(user_fuzzy)
+    return default_config
 
 
 def get_classification_patterns() -> dict:

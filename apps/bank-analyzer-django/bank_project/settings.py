@@ -96,12 +96,33 @@ WSGI_APPLICATION = 'bank_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.environ.get('DB_PATH', BASE_DIR / 'db.sqlite3'),
+# データベースエンジンの選択（環境変数 DB_ENGINE で切り替え）
+_db_engine = os.environ.get('DB_ENGINE', 'sqlite').lower()
+
+if _db_engine == 'postgresql':
+    # PostgreSQL設定
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DB_NAME', 'bank_analyzer'),
+            'USER': os.environ.get('DB_USER', 'bankuser'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
+            'OPTIONS': {
+                'connect_timeout': 10,
+            },
+            'CONN_MAX_AGE': 600,  # 接続プーリング（10分）
+        }
     }
-}
+else:
+    # SQLite設定（デフォルト/レガシー）
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.environ.get('SQLITE_PATH', BASE_DIR / 'db.sqlite3'),
+        }
+    }
 
 
 # Password validation

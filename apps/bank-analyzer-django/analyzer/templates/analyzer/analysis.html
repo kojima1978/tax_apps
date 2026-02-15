@@ -13,12 +13,8 @@
     <div class="col-md-4 text-end">
         <form method="post" class="d-inline">
             {% csrf_token %}
-            <button type="submit" name="action" value="apply_rules" class="btn btn-outline-primary me-2"
-                onclick="return confirm('設定画面のキーワードルールを未分類の取引に適用しますか？')">
-                <i class="bi bi-list-check"></i> ルール適用
-            </button>
             <button type="submit" name="action" value="run_classifier" class="btn btn-primary"
-                onclick="return confirm('自動分類を実行しますか？現在の手動設定が上書きされる可能性があります。')">
+                onclick="return confirm('パターンマッチングで未分類の取引を自動分類しますか？')">
                 <i class="bi bi-robot"></i> 自動分類実行
             </button>
         </form>
@@ -57,9 +53,27 @@
 <!-- タブ -->
 <ul class="nav nav-tabs mb-4" id="analysisTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="transfers-tab" data-bs-toggle="tab" data-bs-target="#transfers"
-            type="button" role="tab" aria-controls="transfers" aria-selected="true">
-            🔄 資金移動フロー
+        <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all"
+            type="button" role="tab" aria-controls="all" aria-selected="true">
+            📄 取引一覧・検索
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-warning" id="unclassified-tab" data-bs-toggle="tab" data-bs-target="#unclassified"
+            type="button" role="tab" aria-controls="unclassified" aria-selected="false">
+            ❓ 未分類
+            {% if unclassified_count %}
+                <span class="badge bg-warning text-dark">{{ unclassified_count }}</span>
+            {% endif %}
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-primary" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai"
+            type="button" role="tab" aria-controls="ai" aria-selected="false">
+            🤖 AI分類
+            {% if suggestions_count %}
+                <span class="badge bg-primary">{{ suggestions_count }}</span>
+            {% endif %}
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -69,9 +83,9 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab"
-            aria-controls="all" aria-selected="false">
-            📄 取引一覧・検索
+        <button class="nav-link" id="transfers-tab" data-bs-toggle="tab" data-bs-target="#transfers"
+            type="button" role="tab" aria-controls="transfers" aria-selected="false">
+            🔄 資金移動フロー
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -89,9 +103,11 @@
 </ul>
 
 <div class="tab-content" id="analysisTabsContent">
-    {% include 'analyzer/partials/_tab_transfers.html' %}
-    {% include 'analyzer/partials/_tab_large.html' %}
     {% include 'analyzer/partials/_tab_all.html' %}
+    {% include 'analyzer/partials/_tab_unclassified.html' %}
+    {% include 'analyzer/partials/_tab_ai.html' %}
+    {% include 'analyzer/partials/_tab_large.html' %}
+    {% include 'analyzer/partials/_tab_transfers.html' %}
     {% include 'analyzer/partials/_tab_cleanup.html' %}
     {% include 'analyzer/partials/_tab_flagged.html' %}
 </div>
@@ -147,9 +163,97 @@
     </div>
 </div>
 
+<!-- パターン登録モーダル -->
+<div class="modal fade" id="patternAddModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-bottom-0 bg-light">
+                <h5 class="modal-title"><i class="bi bi-bookmark-plus"></i> パターン登録</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- 摘要表示 -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small">摘要</label>
+                    <div id="patternAddDescription" class="form-control-plaintext bg-light rounded p-2"></div>
+                </div>
+
+                <!-- カテゴリー表示 -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small">登録先カテゴリー</label>
+                    <div id="patternAddCategory" class="form-control-plaintext fw-bold">
+                        <span class="badge bg-primary" id="patternAddCategoryBadge"></span>
+                    </div>
+                </div>
+
+                <!-- 既存キーワード表示 -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small">
+                        <i class="bi bi-tags"></i> 既存のキーワード
+                        <span class="badge bg-secondary" id="existingKeywordsCount">0</span>
+                    </label>
+                    <div id="existingKeywords" class="border rounded p-2 bg-light" style="max-height: 100px; overflow-y: auto;">
+                        <span class="text-muted small">読み込み中...</span>
+                    </div>
+                </div>
+
+                <!-- キーワード候補 -->
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="bi bi-lightbulb"></i> キーワード候補（クリックで選択）
+                    </label>
+                    <div id="keywordCandidates" class="d-flex flex-wrap gap-1">
+                        <!-- JSで動的生成 -->
+                    </div>
+                </div>
+
+                <!-- キーワード入力 -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">追加するキーワード <span class="text-danger">*</span></label>
+                    <input type="text" id="patternAddKeyword" class="form-control" placeholder="キーワードを入力または上から選択">
+                    <div class="form-text">このキーワードを含む取引が自動的にこのカテゴリーに分類されます</div>
+                </div>
+
+                <!-- スコープ選択 -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">適用範囲</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="patternScope" id="scopeGlobal" value="global" checked>
+                            <label class="form-check-label" for="scopeGlobal">
+                                <i class="bi bi-globe text-primary"></i> グローバル
+                                <small class="text-muted d-block">全案件で使用</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="patternScope" id="scopeCase" value="case">
+                            <label class="form-check-label" for="scopeCase">
+                                <i class="bi bi-folder text-warning"></i> この案件のみ
+                                <small class="text-muted d-block">案件固有</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 結果表示エリア -->
+                <div id="patternAddResult" class="d-none">
+                    <div class="alert" role="alert"></div>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" id="patternAddSubmitBtn">
+                    <i class="bi bi-plus-lg"></i> 追加
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'analyzer/js/utils.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_dashboard.js' %}"></script>
 
 <!-- トースト通知 -->
