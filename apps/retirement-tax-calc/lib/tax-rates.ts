@@ -1,7 +1,7 @@
 /**
  * 所得税速算表のブラケット
  */
-export type TaxBracket = {
+type TaxBracket = {
     /** 課税所得の上限（この金額以下に適用、最後のブラケットはInfinity） */
     limit: number;
     /** 税率（小数） */

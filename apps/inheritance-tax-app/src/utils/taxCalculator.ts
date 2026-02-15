@@ -43,7 +43,7 @@ const RANK_TO_HEIR_TYPE: Record<number, import('../types').HeirType> = { 1: 'chi
  * @param shareAmount 法定相続分の金額（万円）
  * @returns 算出税額（万円）
  */
-export function calculateTaxForShare(shareAmount: number): number {
+function calculateTaxForShare(shareAmount: number): number {
   if (shareAmount <= 0) return 0;
   const bracket = TAX_BRACKETS.find(b => shareAmount <= b.threshold) || TAX_BRACKETS[TAX_BRACKETS.length - 1];
   const tax = shareAmount * (bracket.rate / 100) - bracket.deduction;

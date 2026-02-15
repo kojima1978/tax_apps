@@ -20,11 +20,11 @@ import {
 } from '@/utils/editableListUtils';
 import { exportToJson, readJsonFile } from '@/utils/jsonExportImport';
 
-export type EditingDoc = { categoryId: string; docId: string } | null;
+type EditingDoc = { categoryId: string; docId: string } | null;
 export type EditingSubItem = { categoryId: string; docId: string; subItemId: string } | null;
 export type AddingSubItemTo = { categoryId: string; docId: string } | null;
 
-export type DeleteTarget =
+type DeleteTarget =
   | { type: 'document'; categoryId: string; docId: string }
   | { type: 'category'; categoryId: string; name: string };
 

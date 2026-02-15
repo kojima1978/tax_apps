@@ -13,7 +13,8 @@ from .models import Case, Transaction
 from .forms import CaseForm, ImportForm, SettingsForm
 from .services import TransactionService, AnalysisService, parse_int_ids
 from .templatetags.japanese_date import wareki, wareki_short, wareki_year, get_japanese_era
-from .views import _parse_amount, _sanitize_filename
+from .handlers import parse_amount
+from .views import _sanitize_filename
 from .lib.importer import _convert_japanese_date
 from .lib.llm_classifier import classify_by_rules
 
@@ -440,41 +441,41 @@ class ViewsTest(TestCase):
 
 
 class ParseAmountTest(TestCase):
-    """_parse_amount関数のテスト"""
+    """parse_amount関数のテスト"""
 
     def test_normal_integer(self):
         """通常の整数"""
-        value, ok = _parse_amount('12345')
+        value, ok = parse_amount('12345')
         self.assertEqual(value, 12345)
         self.assertTrue(ok)
 
     def test_comma_separated(self):
         """カンマ区切り"""
-        value, ok = _parse_amount('1,234,567')
+        value, ok = parse_amount('1,234,567')
         self.assertEqual(value, 1234567)
         self.assertTrue(ok)
 
     def test_empty_string(self):
         """空文字列"""
-        value, ok = _parse_amount('')
+        value, ok = parse_amount('')
         self.assertEqual(value, 0)
         self.assertTrue(ok)
 
     def test_none_value(self):
         """None"""
-        value, ok = _parse_amount(None)
+        value, ok = parse_amount(None)
         self.assertEqual(value, 0)
         self.assertTrue(ok)
 
     def test_invalid_string(self):
         """不正な文字列"""
-        value, ok = _parse_amount('abc')
+        value, ok = parse_amount('abc')
         self.assertEqual(value, 0)
         self.assertFalse(ok)
 
     def test_custom_default(self):
         """カスタムデフォルト値"""
-        value, ok = _parse_amount('abc', default=-1)
+        value, ok = parse_amount('abc', default=-1)
         self.assertEqual(value, -1)
         self.assertFalse(ok)
 

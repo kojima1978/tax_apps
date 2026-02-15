@@ -3,7 +3,7 @@ export type CaseStatus = '未着手' | '進行中' | '完了' | '請求済';
 export type AcceptanceStatus = '受託可' | '受託不可' | '未判定' | '保留';
 
 // Progress Step
-export interface ProgressStep {
+interface ProgressStep {
   id: string;
   name: string;
   date: string | null;
@@ -12,7 +12,7 @@ export interface ProgressStep {
 }
 
 // Contact
-export interface Contact {
+interface Contact {
   name: string;
   phone: string;
   email: string;
@@ -66,19 +66,8 @@ export interface Referrer {
   updatedAt?: Date;
 }
 
-// API Response Types
-export interface ApiError {
-  code: string;
-  message: string;
-  details?: Record<string, unknown>;
-}
-
-export interface ApiResponse<T> {
-  data?: T;
-  error?: ApiError;
-}
-
-export interface Pagination {
+// Pagination (used by PaginatedResponse)
+interface Pagination {
   page: number;
   pageSize: number;
   total: number;
@@ -91,6 +80,4 @@ export interface PaginatedResponse<T> {
 }
 
 // Constants
-export const CASE_STATUSES: CaseStatus[] = ['未着手', '進行中', '完了', '請求済'];
-export const ACCEPTANCE_STATUSES: AcceptanceStatus[] = ['受託可', '受託不可', '未判定', '保留'];
 export const DEPARTMENTS = ['会計部', '医療部', '建設部', '資産税部'] as const;

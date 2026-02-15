@@ -92,7 +92,7 @@ export const calcServiceYears = (startDate: string, endDate: string): number => 
 /**
  * 退職所得控除額を算出
  */
-export const calcDeduction = (years: number, isDisability: boolean): number => {
+const calcDeduction = (years: number, isDisability: boolean): number => {
     if (years <= 0) return 0;
 
     let deduction: number;
@@ -114,7 +114,7 @@ export const calcDeduction = (years: number, isDisability: boolean): number => {
 /**
  * 課税退職所得金額を算出（1,000円未満切捨て）
  */
-export const calcTaxableIncome = (
+const calcTaxableIncome = (
     amount: number,
     deduction: number,
     type: RetirementType,
@@ -149,7 +149,7 @@ export const calcTaxableIncome = (
 /**
  * 所得税額を算出（100円未満切捨て）
  */
-export const calcIncomeTax = (taxableIncome: number, rates: TaxRateYear): number => {
+const calcIncomeTax = (taxableIncome: number, rates: TaxRateYear): number => {
     if (taxableIncome <= 0) return 0;
 
     const bracket = rates.brackets.find((b) => taxableIncome <= b.limit);
@@ -163,14 +163,14 @@ export const calcIncomeTax = (taxableIncome: number, rates: TaxRateYear): number
 /**
  * 復興特別所得税額を算出（1円未満切捨て）
  */
-export const calcReconstructionTax = (incomeTax: number, rates: TaxRateYear): number => {
+const calcReconstructionTax = (incomeTax: number, rates: TaxRateYear): number => {
     return Math.floor(incomeTax * rates.reconstructionTaxRate);
 };
 
 /**
  * 住民税額を算出（100円未満切捨て）
  */
-export const calcResidentTax = (
+const calcResidentTax = (
     taxableIncome: number,
     rates: TaxRateYear,
 ): { total: number; municipal: number; prefectural: number } => {

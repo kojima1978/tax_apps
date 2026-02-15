@@ -1,1 +1,1 @@
-export { Input, type InputProps } from "@tax-apps/ui";
+export { Input } from "@tax-apps/ui";

@@ -1,6 +1,6 @@
 import { BasicInfo, Financials } from "@/types/valuation";
 
-export interface ValuationData {
+interface ValuationData {
   basicInfo: BasicInfo;
   financials: Financials;
   exportDate: string;
