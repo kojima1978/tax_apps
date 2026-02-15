@@ -1,5 +1,7 @@
 @echo off
+:: ============================================================
 :: Common argument parser for Tax Apps batch scripts
+:: ============================================================
 :: Usage: call _parse_args.bat %*
 ::
 :: Sets the following variables:
@@ -9,6 +11,8 @@
 ::   FOLLOW       - Log follow option (-f), default: -f
 ::   LINES        - Log tail lines, default: 100
 ::   SERVICE      - Target service name
+::   SHOW_HELP    - Help requested (1 if --help or -h)
+:: ============================================================
 
 set "PROD_FLAG="
 set "BUILD_FLAG="
@@ -16,9 +20,20 @@ set "VOLUME_FLAG="
 set "FOLLOW=-f"
 set "LINES=100"
 set "SERVICE="
+set "SHOW_HELP="
 
 :_parse_loop
 if "%~1"=="" goto :eof
+if /i "%~1"=="--help" (
+    set "SHOW_HELP=1"
+    shift
+    goto :_parse_loop
+)
+if /i "%~1"=="-h" (
+    set "SHOW_HELP=1"
+    shift
+    goto :_parse_loop
+)
 if /i "%~1"=="--build" (
     set "BUILD_FLAG=--build"
     shift

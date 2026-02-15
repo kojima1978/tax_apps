@@ -123,16 +123,18 @@ rd /s /q tax_apps
 
 すべて `tax_apps/docker/` フォルダ内にあります。実行前に `cd tax_apps/docker` で移動してください。
 
+> **ヒント**: すべてのスクリプトで `--help` または `-h` オプションが使用可能です。
+
 | スクリプト | 説明 | オプション |
 |-----------|------|-----------|
-| `start.bat` | Preflight + サービス起動 | `--build`, `--prod` |
-| `stop.bat` | サービス停止 | `--volumes`, `--prod` |
-| `restart.bat` | サービス再起動 | `--build`, `--prod`, `[service]` |
-| `status.bat` | 状態確認 | - |
-| `logs.bat` | ログ表示 | `--no-follow`, `--tail N`, `[service]` |
-| `preflight.bat` | 環境チェック（単独実行可） | - |
-| `backup.bat` | データバックアップ | - |
-| `clean.bat` | 完全削除（二段階確認付き） | - |
+| `start.bat` | Preflight + サービス起動 | `--build`, `--prod`, `--help` |
+| `stop.bat` | サービス停止 | `--volumes`, `--prod`, `--help` |
+| `restart.bat` | サービス再起動 | `--build`, `--prod`, `[service]`, `--help` |
+| `status.bat` | 状態・リソース確認 | `--help` |
+| `logs.bat` | ログ表示 | `--no-follow`, `--tail N`, `[service]`, `--help` |
+| `preflight.bat` | 環境チェック（単独実行可） | `--help` |
+| `backup.bat` | データバックアップ（4ステップ） | `--help` |
+| `clean.bat` | 完全削除（二段階確認付き） | `--help` |
 
 ### コマンドプロンプトの開き方
 
@@ -147,6 +149,10 @@ rd /s /q tax_apps
 ### 使用例
 
 ```bash
+# ヘルプを表示
+start.bat --help
+logs.bat -h
+
 # 開発モードで起動（ビルド付き）
 start.bat --build
 
@@ -194,7 +200,8 @@ stop.bat --volumes
 |:--------|:-----|:-----|
 | tax-docs-backend | 3006 | 確定申告書類 API |
 | itcm-backend | 3021 | 案件管理 API |
-| itcm-postgres | 3022 | PostgreSQL |
+| itcm-postgres | 3022 | ITCM用 PostgreSQL |
+| bank-analyzer-db | 5432 (内部) | 銀行分析用 PostgreSQL + pgvector |
 
 ## ディレクトリ構造
 
@@ -218,12 +225,15 @@ tax_apps/
 │   ├── .env                    # 環境変数（自動生成、git管理外）
 │   ├── .env.example            # 環境変数テンプレート
 │   ├── data/                   # 永続データ（ホストバインドマウント）
-│   │   ├── postgres/           # PostgreSQL データ
+│   │   ├── postgres/           # ITCM用 PostgreSQL データ
 │   │   ├── tax-docs/           # 確定申告書類 SQLite
 │   │   ├── medical-stock/      # 医療法人株式 SQLite
-│   │   └── bank-analyzer/      # 銀行分析 SQLite + アップロード
-│   │       ├── data/
-│   │       └── db/
+│   │   └── bank-analyzer/      # 銀行分析データ
+│   │       ├── data/           # アップロードファイル
+│   │       ├── db/             # SQLite（レガシー/移行用）
+│   │       └── postgres/       # PostgreSQL + pgvector
+│   ├── postgres/               # PostgreSQL 初期化スクリプト
+│   │   └── init-pgvector.sql   # pgvector 拡張有効化
 │   ├── backups/                # バックアップ保存先（git管理外）
 │   ├── preflight.bat           # 環境チェック（start.batから自動呼出）
 │   ├── _parse_args.bat         # 共通引数パーサー
@@ -277,9 +287,9 @@ tax_apps/
 |:------|:------------------------|:------------------------|:------------|
 | Gateway | 128M / 32M | 64M / 16M | gateway, portal |
 | Small | — | 128M / 32M | inheritance-tax-app, tax-docs-backend |
-| Medium | 256M / 64M | — | itcm-postgres, tax-docs-backend |
+| Medium | 256M / 64M | — | itcm-postgres, bank-analyzer-db, tax-docs-backend |
 | Default | 512M / 128M | 256M / 64M | その他全サービス |
-| Postgres | — | 512M / 128M | itcm-postgres |
+| Postgres | — | 512M / 128M | itcm-postgres, bank-analyzer-db |
 
 ## Preflight Check
 
@@ -312,11 +322,12 @@ tax_apps/
 
 | ディレクトリ | サービス | 内容 |
 |:------------|:---------|:-----|
-| `data/postgres/` | itcm-postgres | PostgreSQL データファイル |
+| `data/postgres/` | itcm-postgres | ITCM用 PostgreSQL データファイル |
+| `data/bank-analyzer/postgres/` | bank-analyzer-db | 銀行分析用 PostgreSQL + pgvector |
+| `data/bank-analyzer/data/` | bank-analyzer | アップロードデータ |
+| `data/bank-analyzer/db/` | bank-analyzer | 銀行分析 SQLite（レガシー/移行用） |
 | `data/tax-docs/` | tax-docs-backend | 確定申告書類 SQLite |
 | `data/medical-stock/` | medical-stock-valuation | 医療法人株式 SQLite |
-| `data/bank-analyzer/data/` | bank-analyzer | アップロードデータ |
-| `data/bank-analyzer/db/` | bank-analyzer | 銀行分析 SQLite |
 
 データを完全に削除したい場合は、`clean.bat` の Step 2 を実行するか、ホスト上の `data/` 配下を手動で削除してください。
 
@@ -500,12 +511,28 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 
 | 対象 | ヘルスチェック方式 | 備考 |
 |:-----|:------------------|:-----|
-| Gateway, Portal, inheritance-tax-app (prod) | `wget --spider` | Alpine BusyBox / nginx:alpine 内蔵 |
+| Gateway | `curl --fail` | nginx Dockerfile に curl 追加 |
+| Portal, inheritance-tax-app (prod) | `wget --spider` | Alpine BusyBox / nginx:alpine 内蔵 |
 | Next.js / Hono / Express 系 (dev) | `node -e "fetch(...)"` | Node.js 内蔵 |
 | bank-analyzer (Django) | `python urllib.request` | Python 内蔵 |
 | PostgreSQL | `pg_isready -U <user> -d <db>` | PostgreSQL 内蔵 |
 
 ## 更新履歴
+
+### 2026-02 (bank-analyzer PostgreSQL + pgvector 対応・バッチ改善)
+
+- **bank-analyzer-db**: PostgreSQL 16 + pgvector サービス新規追加（意味検索 Phase 2 準備）
+- **bank-analyzer**: PostgreSQL/SQLite 切り替え対応（`DB_ENGINE` 環境変数）
+- **docker-compose.yml**: セキュリティオプション追加（`no-new-privileges:true`）
+- **docker-compose.yml**: gateway healthcheck を `wget` → `curl` に変更（信頼性向上）
+- **docker-compose.yml**: サービス一覧コメント追加（17サービス）
+- **docker-compose.prod.yml**: bank-analyzer-db 本番設定追加
+- **.env.example**: bank-analyzer PostgreSQL 設定・AI分類設定追加
+- **postgres/init-pgvector.sql**: pgvector 拡張初期化スクリプト新規追加
+- **全batファイル**: `--help` / `-h` オプション追加（9ファイル）
+- **status.bat**: サービス数カウント、ヘルス列、ネットワークI/O列追加
+- **backup.bat**: bank-analyzer PostgreSQL バックアップ追加（4ステップ）
+- **preflight.bat**: bank-analyzer/postgres ディレクトリ自動作成、init-pgvector.sql チェック追加
 
 ### 2026-02 (inheritance-tax-docs 機能追加・bank-analyzer 修正)
 

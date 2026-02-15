@@ -4,6 +4,43 @@ setlocal enabledelayedexpansion
 
 cd /d "%~dp0"
 
+:: ──────────────────────────────────────────────────────────────
+:: ヘルプ表示
+:: ──────────────────────────────────────────────────────────────
+if /i "%~1"=="--help" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+goto :main
+
+:show_help
+echo.
+echo ============================================================
+echo   Tax Apps - Preflight Check
+echo ============================================================
+echo.
+echo Usage: preflight.bat [--help]
+echo.
+echo Description:
+echo   Tax Apps の起動前環境チェックを行います。
+echo   start.bat から自動的に呼び出されますが、単独でも実行可能です。
+echo.
+echo Checks:
+echo   1. Docker Desktop         - 起動確認
+echo   2. docker compose         - コマンド確認
+echo   3. .env                   - 存在確認、シークレット自動生成
+echo   4. Dockerfiles            - 14 ファイルの存在確認
+echo   4b. Nginx config          - 設定ファイルの存在確認
+echo   4c. PostgreSQL init       - init-pgvector.sql の存在確認
+echo   4d. Data directories      - 自動作成（6 ディレクトリ）
+echo   5. Port conflicts         - 15 ポートの競合検出
+echo   6. Disk space             - 5GB 以上の空き容量確認
+echo.
+echo Options:
+echo   --help, -h    Show this help
+echo.
+pause
+exit /b 0
+
+:main
 set ERRORS=0
 set WARNINGS=0
 set OK=0
@@ -65,8 +102,8 @@ if not exist ".env" (
 if exist ".env" (
     findstr /C:"your_secure_password_here" ".env" >nul 2>&1
     if !ERRORLEVEL! equ 0 (
-        echo [WARN]  POSTGRES_PASSWORD is still set to placeholder value
-        echo         Generating secure password...
+        echo [WARN]  Placeholder passwords detected
+        echo         Generating secure passwords...
         call :replace_secret "your_secure_password_here"
     )
     findstr /C:"dev-secret-key-change-in-production" ".env" >nul 2>&1
@@ -133,6 +170,15 @@ if !NGINX_OK! equ 1 (
     set /a OK+=1
 )
 
+:: PostgreSQL init scripts
+if not exist "postgres\init-pgvector.sql" (
+    echo [WARN]  Missing: postgres\init-pgvector.sql
+    set /a WARNINGS+=1
+) else (
+    echo [OK]    PostgreSQL init scripts present
+    set /a OK+=1
+)
+
 :: ──────────────────────────────────────────────────────────────
 :: 4b. Data directories (auto-create if missing)
 :: ──────────────────────────────────────────────────────────────
@@ -144,6 +190,7 @@ for %%D in (
     "data\medical-stock"
     "data\bank-analyzer\data"
     "data\bank-analyzer\db"
+    "data\bank-analyzer\postgres"
 ) do (
     if not exist "%%~D" (
         mkdir "%%~D" 2>nul

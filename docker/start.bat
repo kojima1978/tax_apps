@@ -1,13 +1,40 @@
 @echo off
 chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+cd /d "%~dp0"
+
+:: Parse command line arguments first for help check
+call "%~dp0_parse_args.bat" %*
+
+:: Show help if requested
+if defined SHOW_HELP (
+    echo.
+    echo ============================================================
+    echo   Tax Apps - Starting Services
+    echo ============================================================
+    echo.
+    echo Usage: start.bat [options]
+    echo.
+    echo Options:
+    echo   --build, -b    Rebuild containers ^(required after Dockerfile changes^)
+    echo   --prod, -p     Use production configuration
+    echo   --help, -h     Show this help
+    echo.
+    echo Example:
+    echo   start.bat              Start in development mode
+    echo   start.bat --build      Rebuild and start
+    echo   start.bat --prod       Start in production mode
+    echo.
+    pause
+    exit /b 0
+)
 
 echo.
 echo ============================================================
 echo   Tax Apps - Starting Services
 echo ============================================================
 echo.
-
-cd /d "%~dp0"
 
 :: Run preflight checks
 call "%~dp0preflight.bat"
@@ -17,16 +44,17 @@ if %ERRORLEVEL% neq 0 (
 )
 echo.
 
-:: Parse command line arguments
-call "%~dp0_parse_args.bat" %*
-
 :: Start services
 if defined PROD_FLAG (
     echo [MODE] Production
 ) else (
     echo [MODE] Development
 )
-echo Starting services...
+echo [INFO] Starting 17 services...
+if defined BUILD_FLAG (
+    echo [INFO] Build requested - this may take 5-15 minutes on first run
+)
+echo.
 docker compose %PROD_FLAG% up -d %BUILD_FLAG%
 
 if %ERRORLEVEL% neq 0 (
@@ -56,10 +84,9 @@ echo     Retirement Tax:     http://localhost/retirement-tax-calc/
 echo     ITCM:               http://localhost/itcm/
 echo     Bank Analyzer:      http://localhost/bank-analyzer/
 echo.
-echo ============================================================
-echo.
-echo Usage: start.bat [options]
-echo   --build, -b    Rebuild containers
-echo   --prod, -p     Use production configuration
+echo   Commands:
+echo     status.bat           Check service status
+echo     logs.bat [service]   View logs
+echo     stop.bat             Stop all services
 echo.
 pause
