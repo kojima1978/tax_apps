@@ -299,12 +299,16 @@ def _convert_amounts(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def load_csv(file) -> pd.DataFrame:
+def load_csv(file, allow_multiple: bool = False) -> pd.DataFrame:
     """
     OCR済みCSVを読み込み、標準フォーマットに変換する。
 
     想定CSVカラム: 銀行名,年月日,摘要,払戻,お預り,差引残高
     または: 銀行名,支店名,口座番号,年月日,摘要,払戻,お預り,差引残高
+
+    Args:
+        file: アップロードされたファイル
+        allow_multiple: Trueの場合、複数銀行/口座の混在を許可（ウィザード用）
     """
     # ファイルの内容をメモリに読み込む (Django UploadedFileによる副作用回避)
     if hasattr(file, 'seek'):
@@ -320,8 +324,9 @@ def load_csv(file) -> pd.DataFrame:
     # 3. メタデータ抽出
     csv_metadata = _extract_metadata(df)
 
-    # 4. 一意性チェック（銀行名・口座番号）
-    _validate_uniqueness(df)
+    # 4. 一意性チェック（銀行名・口座番号）- allow_multipleの場合はスキップ
+    if not allow_multiple:
+        _validate_uniqueness(df)
 
     # 5. 日付変換
     df = _convert_dates(df)

@@ -1,0 +1,203 @@
+{% extends 'analyzer/base.html' %}
+{% load humanize %}
+{% load japanese_date %}
+
+{% block title %}自動分類プレビュー - {{ case.name }} - Bank Analyzer{% endblock %}
+
+{% block content %}
+<style>
+.preview-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+.match-exact { color: #198754; font-weight: bold; }
+.match-case { color: #0d6efd; font-weight: bold; }
+.match-partial { color: #fd7e14; }
+.score-high { background-color: #198754 !important; }
+.score-medium { background-color: #0d6efd !important; }
+.score-low { background-color: #ffc107 !important; color: #000 !important; }
+.category-arrow {
+    color: #6c757d;
+    font-weight: bold;
+}
+tr.selected-row {
+    background-color: #e8f5e9 !important;
+}
+</style>
+
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        <!-- ブレッドクラム -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-3">
+                <li class="breadcrumb-item"><a href="{% url 'case-list' %}" class="text-decoration-none">案件一覧</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'case-detail' case.pk %}" class="text-decoration-none">{{ case.name }}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'analysis-dashboard' case.pk %}" class="text-decoration-none">編集・分析</a></li>
+                <li class="breadcrumb-item active" aria-current="page">自動分類プレビュー</li>
+            </ol>
+        </nav>
+
+        <h1 class="h2 mb-4">
+            <i class="bi bi-eye me-2"></i>自動分類プレビュー
+        </h1>
+
+        {% if preview_data %}
+        <!-- サマリーカード -->
+        <div class="preview-card mb-4">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <div class="h2 mb-0">{{ total_count }}</div>
+                    <small>変更候補</small>
+                </div>
+                <div class="col-md-4">
+                    <div class="h2 mb-0">{{ high_confidence_count }}</div>
+                    <small>高信頼度 (90%+)</small>
+                </div>
+                <div class="col-md-4">
+                    <div class="h2 mb-0" id="selectedCount">0</div>
+                    <small>選択中</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作バー -->
+        <div class="glass-card p-3 mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="selectAll">
+                            <label class="form-check-label" for="selectAll">全選択</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="selectHighConfidence">
+                            <label class="form-check-label" for="selectHighConfidence">高信頼度のみ (90%+)</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-end gap-2">
+                        <select class="form-select form-select-sm" id="categoryFilter" style="width: auto;">
+                            <option value="">全てのカテゴリ</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- プレビューテーブル -->
+        <form method="post" id="applyForm">
+            {% csrf_token %}
+            <input type="hidden" name="selected_ids" id="selectedIds">
+
+            <div class="glass-card p-0 mb-4">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="previewTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;" class="text-center">
+                                    <input type="checkbox" class="form-check-input" id="tableSelectAll">
+                                </th>
+                                <th style="width: 90px;">日付</th>
+                                <th>摘要</th>
+                                <th style="width: 100px;" class="text-end">出金</th>
+                                <th style="width: 100px;" class="text-end">入金</th>
+                                <th style="width: 100px;">現在</th>
+                                <th style="width: 30px;" class="text-center"></th>
+                                <th style="width: 100px;">提案</th>
+                                <th style="width: 80px;" class="text-center">信頼度</th>
+                                <th style="width: 120px;">マッチ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in preview_data %}
+                            <tr data-tx-id="{{ item.tx_id }}" data-category="{{ item.proposed_category }}" data-score="{{ item.score }}">
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input row-checkbox" value="{{ item.tx_id }}">
+                                </td>
+                                <td>{{ item.date|wareki_short }}</td>
+                                <td>
+                                    <span class="text-truncate d-inline-block" style="max-width: 250px;" title="{{ item.description }}">
+                                        {{ item.description }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    {% if item.amount_out > 0 %}
+                                    <span class="text-danger">{{ item.amount_out|intcomma }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if item.amount_in > 0 %}
+                                    <span class="text-success">{{ item.amount_in|intcomma }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item.current_category }}</span>
+                                </td>
+                                <td class="text-center category-arrow">
+                                    <i class="bi bi-arrow-right"></i>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info text-dark">{{ item.proposed_category }}</span>
+                                </td>
+                                <td class="text-center">
+                                    {% if item.score >= 90 %}
+                                    <span class="badge score-high">{{ item.score }}%</span>
+                                    {% elif item.score >= 80 %}
+                                    <span class="badge score-medium">{{ item.score }}%</span>
+                                    {% else %}
+                                    <span class="badge score-low">{{ item.score }}%</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="{% if item.match_type == 'exact' %}match-exact{% elif item.match_type == 'case' %}match-case{% else %}match-partial{% endif %}">
+                                        {% if item.match_type == 'exact' %}完全一致{% elif item.match_type == 'case' %}案件固有{% else %}部分一致{% endif %}
+                                    </small>
+                                    <br>
+                                    <small class="text-muted" title="{{ item.matched_keyword }}">
+                                        「{{ item.matched_keyword|truncatechars:12 }}」
+                                    </small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- アクションボタン -->
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'analysis-dashboard' case.pk %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> 戻る
+                </a>
+                <button type="submit" class="btn btn-success btn-lg" id="applyBtn" disabled>
+                    <i class="bi bi-check-lg me-1"></i>
+                    選択した <span id="applyCount">0</span>件 を適用
+                </button>
+            </div>
+        </form>
+
+        {% else %}
+        <!-- 候補なし -->
+        <div class="glass-card p-5 text-center">
+            <i class="bi bi-check-circle display-1 text-success mb-3"></i>
+            <h3>変更候補はありません</h3>
+            <p class="text-muted mb-4">
+                全ての取引が分類済みか、マッチするパターンがありません。
+            </p>
+            <a href="{% url 'analysis-dashboard' case.pk %}" class="btn btn-primary">
+                <i class="bi bi-arrow-left me-1"></i> 分析ダッシュボードに戻る
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% load static %}
+<script src="{% static 'analyzer/js/classify_preview.js' %}"></script>
+{% endblock %}

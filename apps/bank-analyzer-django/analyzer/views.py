@@ -1,3 +1,9 @@
+"""
+Bank Analyzer ビュー
+
+案件管理、取引インポート/エクスポート、分析ダッシュボードのビューを提供する。
+ハンドラーロジックは analyzer.handlers モジュールに分離されている。
+"""
 import json
 import logging
 import re
@@ -12,37 +18,65 @@ from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
-from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 import pandas as pd
 
 from .models import Case, Transaction
-from .forms import CaseForm, ImportForm, SettingsForm, CATEGORY_FIELD_MAP
+from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, config
 from .lib.exceptions import CsvImportError
+from .lib.constants import UNCATEGORIZED, sort_patterns_dict
 from .services import TransactionService, AnalysisService
-from .lib.constants import UNCATEGORIZED
 from .templatetags.japanese_date import wareki
+
+# ハンドラーモジュールからインポート
+from .handlers import (
+    FIELD_LABELS,
+    safe_error_message,
+    count_message,
+    build_redirect_url,
+    # Pattern handlers
+    handle_add_pattern,
+    handle_delete_pattern,
+    handle_update_pattern,
+    handle_move_pattern,
+    handle_get_category_keywords,
+    handle_bulk_pattern_changes,
+    # AI handlers
+    handle_run_classifier,
+    handle_apply_rules,
+    handle_apply_ai_suggestion,
+    handle_bulk_apply_ai_suggestions,
+    handle_run_auto_classify,
+    # Transaction handlers
+    handle_delete_account,
+    handle_update_category,
+    handle_bulk_update_categories,
+    handle_bulk_update_categories_transfer,
+    handle_update_transaction,
+    handle_delete_duplicates,
+    handle_delete_by_range,
+    handle_toggle_flag,
+    handle_update_memo,
+    handle_bulk_replace_field,
+    # Wizard
+    import_wizard,
+    # API endpoints
+    api_toggle_flag,
+    api_create_transaction,
+    api_delete_transaction,
+    api_get_field_values,
+)
 
 logger = logging.getLogger(__name__)
 
 # 定数
-ITEMS_PER_PAGE = 100  # ページネーションの1ページあたりの件数
+ITEMS_PER_PAGE = 100
 
-# フィールドラベル定義（CSV出力・一括置換で共用）
-FIELD_LABELS = {
-    'date': '日付',
-    'bank_name': '銀行名',
-    'branch_name': '支店名',
-    'account_type': '種別',
-    'account_id': '口座番号',
-    'description': '摘要',
-    'amount_out': '払戻',
-    'amount_in': 'お預り',
-    'balance': '残高',
-    'category': '分類',
-}
 
+# =============================================================================
+# ユーティリティ関数
+# =============================================================================
 
 def _paginate(queryset, page, per_page=ITEMS_PER_PAGE):
     """ページネーション共通処理"""
@@ -56,16 +90,7 @@ def _paginate(queryset, page, per_page=ITEMS_PER_PAGE):
 
 
 def _parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
-    """
-    金額文字列を整数に変換
-
-    Args:
-        value: 金額文字列（カンマ区切り可）
-        default: 変換失敗時のデフォルト値
-
-    Returns:
-        (変換後の金額, 成功フラグ) のタプル
-    """
+    """金額文字列を整数に変換"""
     try:
         cleaned = (value or '0').replace(',', '')
         return int(cleaned), True
@@ -79,33 +104,6 @@ def _sanitize_filename(name: str) -> str:
     return sanitized.strip('_. ') or 'export'
 
 
-def _safe_error_message(e: Exception, context: str = "") -> str:
-    """DEBUGモード以外ではエラー詳細を隠蔽する"""
-    if django_settings.DEBUG:
-        prefix = f'{context}: ' if context else ''
-        return f'{prefix}エラー: {e}'
-    return 'サーバーエラーが発生しました'
-
-
-def _json_error(message: str, status: int = 400) -> JsonResponse:
-    """JSON APIのエラーレスポンスを生成"""
-    return JsonResponse({'success': False, 'message': message}, status=status)
-
-
-def _json_api_error(e: Exception, error_context: str) -> JsonResponse:
-    """JSON APIの例外エラーレスポンスを生成（ログ出力付き）"""
-    logger.exception(f"{error_context}: error={e}")
-    return _json_error(_safe_error_message(e), status=500)
-
-
-def _count_message(request, count: int, success_msg: str, zero_msg: str, zero_level: str = "warning"):
-    """件数に応じたメッセージを表示"""
-    if count > 0:
-        messages.success(request, success_msg)
-    else:
-        getattr(messages, zero_level)(request, zero_msg)
-
-
 def _handle_post_action(request, action_fn, error_context: str, **log_params) -> bool:
     """POST処理の共通例外ハンドリング。成功時True、失敗時Falseを返す。"""
     try:
@@ -114,7 +112,7 @@ def _handle_post_action(request, action_fn, error_context: str, **log_params) ->
     except Exception as e:
         params_str = ", ".join(f"{k}={v}" for k, v in log_params.items())
         logger.exception(f"{error_context}エラー: {params_str}, error={e}")
-        messages.error(request, _safe_error_message(e, error_context))
+        messages.error(request, safe_error_message(e, error_context))
         return False
 
 
@@ -127,28 +125,6 @@ def _do_toggle_flag(request, case: Case, tx_id: str):
         messages.success(request, "付箋を追加しました。")
     else:
         messages.info(request, "付箋を外しました。")
-
-
-def _extract_category_updates(request, prefixes: list[str]) -> dict[str, str]:
-    """POSTデータからカテゴリ更新辞書を構築する"""
-    category_updates = {}
-    for key, value in request.POST.items():
-        for prefix in prefixes:
-            if key.startswith(prefix):
-                tx_id = key[len(prefix):]
-                if tx_id:
-                    category_updates[tx_id] = value
-                break
-    return category_updates
-
-
-# エクスポートタイプ設定: (フィルタフィールド, ファイル名サフィックス)
-_EXPORT_TYPE_CONFIG = {
-    'large':     ('is_large',    '多額取引'),
-    'transfers': ('is_transfer', '資金移動'),
-    'flagged':   ('is_flagged',  '付箋付き取引'),
-    'all':       (None,          '全取引'),
-}
 
 
 def _parse_keywords(text: str) -> list[str]:
@@ -255,33 +231,6 @@ def _extract_form_rows(request: HttpRequest, validate: bool = False) -> tuple[li
     return rows, errors
 
 
-def _build_redirect_url(
-    view_name: str,
-    pk: int,
-    tab: Optional[str] = None,
-    filters: Optional[dict] = None
-) -> str:
-    """タブパラメータとフィルター付きのリダイレクトURLを生成"""
-    url = reverse(view_name, kwargs={'pk': pk})
-    params = []
-
-    if tab:
-        params.append(('tab', tab))
-
-    if filters:
-        for key, values in filters.items():
-            if isinstance(values, list):
-                for v in values:
-                    params.append((key, v))
-            elif values:
-                params.append((key, values))
-
-    if params:
-        url += '?' + urlencode(params)
-
-    return url
-
-
 def _update_transaction_from_post(request: HttpRequest, case: Case, tx_id: str) -> None:
     """POSTデータから取引を更新する共通処理"""
     def _do_update():
@@ -309,6 +258,43 @@ def _update_transaction_from_post(request: HttpRequest, case: Case, tx_id: str) 
     _handle_post_action(request, _do_update, "取引更新", tx_id=tx_id)
 
 
+# =============================================================================
+# エクスポートビュー
+# =============================================================================
+
+# エクスポートタイプ設定: (フィルタフィールド, ファイル名サフィックス)
+_EXPORT_TYPE_CONFIG = {
+    'large':     ('is_large',    '多額取引'),
+    'transfers': ('is_transfer', '資金移動'),
+    'flagged':   ('is_flagged',  '付箋付き取引'),
+    'all':       (None,          '全取引'),
+}
+
+
+def _build_csv_response(df: pd.DataFrame, filename: str, include_memo: bool = False) -> HttpResponse:
+    """DataFrameからCSVレスポンスを生成する共通処理"""
+    export_columns = dict(FIELD_LABELS)
+    if include_memo:
+        export_columns['memo'] = 'メモ'
+
+    # 存在するカラムのみ抽出
+    cols_to_export = [c for c in export_columns.keys() if c in df.columns]
+    export_df = df[cols_to_export].copy()
+
+    # 日付を和暦に変換
+    if 'date' in export_df.columns:
+        export_df['date'] = export_df['date'].apply(lambda d: wareki(d, 'short'))
+
+    export_df.columns = [export_columns[c] for c in cols_to_export]
+
+    # BOM付きUTF-8でCSVレスポンスを作成（Excelで文字化けしないように）
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    export_df.to_csv(response, index=False, encoding='utf-8-sig')
+
+    return response
+
+
 def export_json(request: HttpRequest, pk: int) -> HttpResponse:
     """案件データをJSONでバックアップエクスポート"""
     logger.info(f"JSONエクスポート開始: case_id={pk}")
@@ -319,10 +305,8 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
         messages.warning(request, "エクスポートするデータがありません。")
         return redirect('case-detail', pk=pk)
 
-    # 統計情報をDB集計で取得（クエリセット再評価を避ける）
     totals = transactions.aggregate(total_in=Sum('amount_in'), total_out=Sum('amount_out'))
 
-    # 取引データをシリアライズ（values()で一括取得しORMオブジェクト化を回避）
     export_fields = [
         'date', 'bank_name', 'branch_name', 'account_type', 'account_id',
         'description', 'amount_out', 'amount_in', 'balance',
@@ -331,12 +315,10 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
     ]
     transactions_data = []
     for tx_dict in transactions.values(*export_fields):
-        # 日付をISO形式文字列に変換
         if tx_dict['date']:
             tx_dict['date'] = tx_dict['date'].isoformat()
         transactions_data.append(tx_dict)
 
-    # エクスポートデータを構築
     export_data = {
         'version': '1.0',
         'exported_at': datetime.now().isoformat(),
@@ -353,7 +335,6 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
         'settings': config.load_user_settings(),
     }
 
-    # JSONレスポンスを作成
     response = HttpResponse(
         json.dumps(export_data, ensure_ascii=False, indent=2),
         content_type='application/json; charset=utf-8'
@@ -388,38 +369,14 @@ def import_json(request: HttpRequest) -> HttpResponse:
 
             except json.JSONDecodeError as e:
                 logger.exception(f"JSONパースエラー: {e}")
-                messages.error(request, _safe_error_message(e, "JSONパース"))
+                messages.error(request, safe_error_message(e, "JSONパース"))
             except Exception as e:
                 logger.exception(f"JSONインポートエラー: {e}")
-                messages.error(request, _safe_error_message(e, "JSONインポート"))
+                messages.error(request, safe_error_message(e, "JSONインポート"))
     else:
         form = JsonImportForm()
 
     return render(request, 'analyzer/json_import.html', {'form': form})
-
-
-def _build_csv_response(df: pd.DataFrame, filename: str, include_memo: bool = False) -> HttpResponse:
-    """DataFrameからCSVレスポンスを生成する共通処理"""
-    export_columns = dict(FIELD_LABELS)
-    if include_memo:
-        export_columns['memo'] = 'メモ'
-
-    # 存在するカラムのみ抽出
-    cols_to_export = [c for c in export_columns.keys() if c in df.columns]
-    export_df = df[cols_to_export].copy()
-
-    # 日付を和暦に変換
-    if 'date' in export_df.columns:
-        export_df['date'] = export_df['date'].apply(lambda d: wareki(d, 'short'))
-
-    export_df.columns = [export_columns[c] for c in cols_to_export]
-
-    # BOM付きUTF-8でCSVレスポンスを作成（Excelで文字化けしないように）
-    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    export_df.to_csv(response, index=False, encoding='utf-8-sig')
-
-    return response
 
 
 def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
@@ -434,7 +391,6 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
 
     df = pd.DataFrame(list(transactions.values()))
 
-    # エクスポートタイプに応じてフィルタリング
     config_entry = _EXPORT_TYPE_CONFIG.get(export_type)
     if config_entry:
         filter_field, suffix = config_entry
@@ -456,14 +412,10 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
     logger.info(f"絞り込みCSVエクスポート開始: case_id={pk}")
     case = get_object_or_404(Case, pk=pk)
 
-    # フィルター条件を取得
     filter_state = _build_filter_state(request)
-
-    # 基本クエリにフィルター適用
     transactions = case.transactions.all().order_by('date', 'id')
     transactions = AnalysisService.apply_filters(transactions, filter_state)
 
-    # 金額パース（ファイル名生成用）
     amount_min_val, amount_min_ok = _parse_amount(filter_state['amount_min']) if filter_state['amount_min'] else (None, True)
     amount_max_val, amount_max_ok = _parse_amount(filter_state['amount_max']) if filter_state['amount_max'] else (None, True)
     amount_min = amount_min_val if amount_min_ok and amount_min_val else None
@@ -474,18 +426,22 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
         return redirect('analysis-dashboard', pk=pk)
 
     df = pd.DataFrame(list(transactions.values()))
-
     filename = _build_filtered_filename(case.name, filter_state, amount_min, amount_max)
 
     logger.info(f"絞り込みCSVエクスポート完了: case_id={pk}, count={len(df)}")
     return _build_csv_response(df, filename, include_memo=True)
 
 
+# =============================================================================
+# 案件管理ビュー
+# =============================================================================
+
 class CaseListView(ListView):
     model = Case
     template_name = 'analyzer/case_list.html'
     context_object_name = 'cases'
     ordering = ['-created_at']
+
 
 class CaseCreateView(CreateView):
     model = Case
@@ -497,6 +453,7 @@ class CaseCreateView(CreateView):
         messages.success(self.request, "案件を作成しました。")
         return super().form_valid(form)
 
+
 class CaseUpdateView(UpdateView):
     model = Case
     form_class = CaseForm
@@ -505,6 +462,7 @@ class CaseUpdateView(UpdateView):
     def get_success_url(self):
         messages.success(self.request, "案件を更新しました。")
         return reverse('case-detail', kwargs={'pk': self.object.pk})
+
 
 class CaseDeleteView(DeleteView):
     model = Case
@@ -515,11 +473,11 @@ class CaseDeleteView(DeleteView):
         messages.success(self.request, "案件を削除しました。")
         return super().delete(request, *args, **kwargs)
 
+
 def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
     """案件詳細ビュー（ページネーション付き）"""
     case = get_object_or_404(Case, pk=pk)
 
-    # POST処理（付箋トグル・取引更新）
     if request.method == 'POST':
         action = request.POST.get('action')
         tx_id = request.POST.get('tx_id')
@@ -537,11 +495,8 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
         return redirect(f"{reverse('case-detail', args=[pk])}?page={page}")
 
     transactions_list = case.transactions.all().order_by('date', 'id')
-
-    # ページネーション
     transactions = _paginate(transactions_list, request.GET.get('page', 1))
 
-    # セレクト用のユニークリストを取得（単一クエリで3フィールド分取得）
     field_values = case.transactions.values_list('bank_name', 'branch_name', 'account_id')
     banks_set, branches_set, accounts_set = set(), set(), set()
     for bank, branch, account in field_values:
@@ -567,6 +522,11 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
     }
     return render(request, 'analyzer/case_detail.html', context)
 
+
+# =============================================================================
+# インポートビュー
+# =============================================================================
+
 def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
     """取引データのインポート"""
     case = get_object_or_404(Case, pk=pk)
@@ -577,11 +537,9 @@ def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
             csv_file = request.FILES['csv_file']
             logger.info(f"ファイルインポート開始: case_id={pk}, filename={csv_file.name}, size={csv_file.size}")
             try:
-                # CSV読込・残高検証
                 df = importer.load_csv(csv_file)
                 df = importer.validate_balance(df)
 
-                # セッション保存用にJSON変換可能な形式へ
                 df['date'] = df['date'].dt.strftime('%Y-%m-%d').replace('NaT', None)
                 df = df.where(pd.notnull(df), None)
 
@@ -600,19 +558,18 @@ def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
                 })
 
             except Exception as e:
-                # 予期しないエラー（既存の動作を維持）
                 logger.exception(f"ファイルインポートエラー: case_id={pk}, error={e}")
-                messages.error(request, _safe_error_message(e, "ファイルインポート"))
+                messages.error(request, safe_error_message(e, "ファイルインポート"))
     else:
         form = ImportForm()
 
     return render(request, 'analyzer/import_form.html', {'case': case, 'form': form})
 
+
 def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
     """インポートプレビューと確定"""
     case = get_object_or_404(Case, pk=pk)
 
-    # セッション確認
     if request.session.get('import_case_id') != case.id or 'import_data' not in request.session:
         messages.error(request, "セッションが切れました。再度アップロードしてください。")
         return redirect('transaction-import', pk=pk)
@@ -640,23 +597,23 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
 
             except Exception as e:
                 logger.exception(f"取引インポートエラー: case_id={pk}, error={e}")
-                messages.error(request, _safe_error_message(e, "取り込み"))
+                messages.error(request, safe_error_message(e, "取り込み"))
 
-    # 既存DBとの重複チェック（銀行名+日付+出金+入金）
+    # 既存DBとの重複チェック
     existing_keys = set()
-    for bank, dt, amt_out, amt_in in (
+    for acct_id, dt, amt_out, amt_in in (
         Transaction.objects.filter(case=case)
-        .values_list('bank_name', 'date', 'amount_out', 'amount_in')
+        .values_list('account_id', 'date', 'amount_out', 'amount_in')
     ):
-        existing_keys.add((bank or '', str(dt) if dt else '', amt_out, amt_in))
+        existing_keys.add((acct_id or '', str(dt) if dt else '', amt_out or 0, amt_in or 0))
 
     duplicate_count = 0
     for row in import_data:
         key = (
-            row.get('bank_name') or '',
+            row.get('account_number') or '',
             str(row.get('date', '')),
-            int(row.get('amount_out', 0)),
-            int(row.get('amount_in', 0)),
+            int(row.get('amount_out') or 0),
+            int(row.get('amount_in') or 0),
         )
         is_dup = key in existing_keys
         row['is_duplicate'] = is_dup
@@ -669,26 +626,30 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
         'duplicate_count': duplicate_count,
     })
 
+
+# =============================================================================
+# 分析ダッシュボード
+# =============================================================================
+
 def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     """分析・表示ダッシュボード"""
     case = get_object_or_404(Case, pk=pk)
 
-    # POSTリクエストの処理
     if request.method == 'POST':
         return _handle_analysis_post(request, case, pk)
 
-    # GETリクエスト: データ表示
     filter_state = _build_filter_state(request, include_tab_filters=True)
-
     analysis_data = AnalysisService.get_analysis_data(case, filter_state)
 
     if analysis_data.get('no_data'):
         return render(request, 'analyzer/analysis.html', {'case': case, 'no_data': True})
 
-    # 取引一覧のページネーション
     all_txs_queryset = analysis_data['all_txs']
     all_txs_count = all_txs_queryset.count()
     all_txs_page = _paginate(all_txs_queryset, request.GET.get('page', 1))
+
+    unclassified_txs = case.transactions.filter(category=UNCATEGORIZED).order_by('-date', '-id')
+    unclassified_page = _paginate(unclassified_txs, request.GET.get('unclassified_page', 1))
 
     context = {
         'case': case,
@@ -697,6 +658,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'large_txs': analysis_data['large_txs'],
         'all_txs': all_txs_page,
         'all_txs_count': all_txs_count,
+        'unclassified_txs': unclassified_page,
         'duplicate_txs': analysis_data['duplicate_txs'],
         'flagged_txs': analysis_data['flagged_txs'],
         'banks': analysis_data['banks'],
@@ -704,6 +666,12 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'accounts': analysis_data['accounts'],
         'categories': analysis_data['categories'],
         'filter_state': filter_state,
+        'fuzzy_threshold': analysis_data.get('fuzzy_threshold', 90),
+        'unclassified_count': analysis_data.get('unclassified_count', 0),
+        'suggestions_count': analysis_data.get('suggestions_count', 0),
+        'ai_suggestions': analysis_data.get('ai_suggestions', []),
+        'global_patterns': sort_patterns_dict(config.get_classification_patterns()),
+        'case_patterns': sort_patterns_dict(case.custom_patterns or {}),
     }
     return render(request, 'analyzer/analysis.html', context)
 
@@ -713,18 +681,27 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
     action = request.POST.get('action')
 
     handlers = {
-        'run_classifier': _handle_run_classifier,
-        'apply_rules': _handle_apply_rules,
-        'delete_account': _handle_delete_account,
-        'update_category': _handle_update_category,
-        'bulk_update_categories': _handle_bulk_update_categories,
-        'bulk_update_transfer_categories': _handle_bulk_update_categories_transfer,
-        'update_transaction': _handle_update_transaction,
-        'delete_duplicates': _handle_delete_duplicates,
-        'delete_by_range': _handle_delete_by_range,
-        'toggle_flag': _handle_toggle_flag,
-        'update_memo': _handle_update_memo,
-        'bulk_replace_field': _handle_bulk_replace_field,
+        'run_classifier': handle_run_classifier,
+        'apply_rules': handle_apply_rules,
+        'delete_account': handle_delete_account,
+        'update_category': handle_update_category,
+        'bulk_update_categories': handle_bulk_update_categories,
+        'bulk_update_transfer_categories': handle_bulk_update_categories_transfer,
+        'update_transaction': handle_update_transaction,
+        'delete_duplicates': handle_delete_duplicates,
+        'delete_by_range': handle_delete_by_range,
+        'toggle_flag': handle_toggle_flag,
+        'update_memo': handle_update_memo,
+        'bulk_replace_field': handle_bulk_replace_field,
+        'apply_ai_suggestion': handle_apply_ai_suggestion,
+        'bulk_apply_ai_suggestions': handle_bulk_apply_ai_suggestions,
+        'add_pattern': handle_add_pattern,
+        'delete_pattern': handle_delete_pattern,
+        'update_pattern': handle_update_pattern,
+        'move_pattern': handle_move_pattern,
+        'get_category_keywords': handle_get_category_keywords,
+        'bulk_pattern_changes': handle_bulk_pattern_changes,
+        'run_auto_classify': handle_run_auto_classify,
     }
 
     handler = handlers.get(action)
@@ -734,198 +711,55 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
     return redirect('analysis-dashboard', pk=pk)
 
 
-def _handle_run_classifier(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    def _action():
-        count = TransactionService.run_classifier(case)
-        _count_message(request, count, "自動分類が完了しました。", "データがありません。")
+def classify_preview(request: HttpRequest, pk: int) -> HttpResponse:
+    """自動分類プレビューページ"""
+    case = get_object_or_404(Case, pk=pk)
 
-    _handle_post_action(request, _action, "自動分類", case_id=pk)
-    return redirect('analysis-dashboard', pk=pk)
-
-
-def _handle_apply_rules(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    def _action():
-        count = TransactionService.apply_classification_rules(case)
-        _count_message(
-            request, count,
-            f"キーワードルールを適用し、{count}件を分類しました。",
-            "未分類の取引がないか、マッチするルールがありませんでした。",
-            zero_level="info",
-        )
-
-    _handle_post_action(request, _action, "ルール適用", case_id=pk)
-    return redirect('analysis-dashboard', pk=pk)
-
-
-def _handle_delete_account(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    account_id = request.POST.get('account_id')
-    if account_id:
-        def _action():
-            count = TransactionService.delete_account_transactions(case, account_id)
-            messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
-
-        _handle_post_action(request, _action, "口座削除", case_id=pk, account_id=account_id)
-    return redirect('analysis-dashboard', pk=pk)
-
-
-def _handle_update_category(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    tx_id = request.POST.get('tx_id')
-    new_category = request.POST.get('new_category')
-    apply_all = request.POST.get('apply_all') == 'true'
-
-    if tx_id and new_category:
-        try:
-            tx_id_int = int(tx_id)
-        except (ValueError, TypeError):
-            messages.error(request, "不正な取引IDです。")
-            return redirect('analysis-dashboard', pk=pk)
-
-        count = TransactionService.update_transaction_category(
-            case, tx_id_int, new_category, apply_all
-        )
-        if apply_all and count > 0:
-            tx = case.transactions.filter(pk=tx_id_int).first()
-            if tx:
-                messages.success(request, f"「{tx.description}」の取引 {count}件を「{new_category}」に変更しました。")
+    if request.method == 'POST':
+        selected_ids_str = request.POST.get('selected_ids', '')
+        if selected_ids_str:
+            try:
+                selected_ids = [int(x) for x in selected_ids_str.split(',') if x.strip()]
+                count = TransactionService.apply_selected_classifications(case, selected_ids)
+                messages.success(request, f"{count}件の取引を分類しました。")
+            except (ValueError, TypeError) as e:
+                messages.error(request, f"エラーが発生しました: {e}")
         else:
-            messages.success(request, "分類を更新しました。")
-    return redirect('analysis-dashboard', pk=pk)
+            messages.warning(request, "適用する取引が選択されていません。")
+
+        return redirect('analysis-dashboard', pk=pk)
+
+    preview_data = TransactionService.get_classification_preview(case)
+    categories = sorted(set(item['proposed_category'] for item in preview_data))
+    high_confidence = sum(1 for item in preview_data if item['score'] >= 90)
+    total_count = len(preview_data)
+
+    context = {
+        'case': case,
+        'preview_data': preview_data,
+        'categories': categories,
+        'high_confidence_count': high_confidence,
+        'total_count': total_count,
+    }
+    return render(request, 'analyzer/classify_preview.html', context)
 
 
-def _handle_bulk_update_categories(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    source_tab = request.POST.get('source_tab', 'large')
-
-    category_updates = _extract_category_updates(request, ['cat-'])
-
-    count = TransactionService.bulk_update_categories(case, category_updates)
-    _count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
-
-    # フィルター状態を復元（allタブの場合）
-    filters = None
-    if source_tab == 'all':
-        filters = {
-            'bank': request.POST.getlist('filter_bank'),
-            'account': request.POST.getlist('filter_account'),
-            'category': request.POST.getlist('filter_category'),
-            'keyword': request.POST.get('filter_keyword', ''),
-            'page': request.POST.get('filter_page', ''),
-        }
-
-    return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab, filters))
-
-
-def _handle_bulk_update_categories_transfer(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    # transfer-src-{id} と transfer-dest-{id} 形式のパラメータを処理
-    category_updates = _extract_category_updates(request, ['transfer-src-', 'transfer-dest-'])
-
-    count = TransactionService.bulk_update_categories(case, category_updates)
-    _count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
-
-    return redirect(_build_redirect_url('analysis-dashboard', pk, 'transfers', None))
-
-
-def _handle_update_transaction(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    source_tab = request.POST.get('source_tab', '')
-    tx_id = request.POST.get('tx_id')
-
-    if tx_id:
-        _update_transaction_from_post(request, case, tx_id)
-
-    return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
-
-
-def _handle_delete_duplicates(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    delete_ids = request.POST.getlist('delete_ids')
-    count = TransactionService.delete_duplicates(case, delete_ids)
-    _count_message(request, count, f"{count}件の重複データを削除しました。", "削除対象が選択されていません。")
-    # データクレンジングタブに留まる
-    return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-
-def _handle_delete_by_range(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    start_id = request.POST.get('start_id')
-    end_id = request.POST.get('end_id')
-    try:
-        start_id_int = int(start_id)
-        end_id_int = int(end_id)
-        count = TransactionService.delete_by_range(case, start_id_int, end_id_int)
-        _count_message(
-            request, count,
-            f"ID {start_id_int}〜{end_id_int} の範囲で {count}件の取引を削除しました。",
-            "指定した範囲に削除対象の取引がありませんでした。",
-        )
-    except (ValueError, TypeError):
-        messages.error(request, "IDは整数で入力してください。")
-    # データクレンジングタブに留まる
-    return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-
-def _handle_toggle_flag(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    tx_id = request.POST.get('tx_id')
-    source_tab = request.POST.get('source_tab', '')
-    if tx_id:
-        _handle_post_action(
-            request, lambda: _do_toggle_flag(request, case, tx_id),
-            "フラグ更新", tx_id=tx_id
-        )
-    return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
-
-
-def _handle_update_memo(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    tx_id = request.POST.get('tx_id')
-    memo = request.POST.get('memo', '')
-    source_tab = request.POST.get('source_tab', '')
-    if tx_id:
-        def _action():
-            success = TransactionService.update_memo(case, int(tx_id), memo)
-            if success:
-                messages.success(request, "メモを更新しました。")
-
-        _handle_post_action(request, _action, "メモ更新", tx_id=tx_id)
-    return redirect(_build_redirect_url('analysis-dashboard', pk, source_tab))
-
-
-def _handle_bulk_replace_field(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
-    """フィールド値の一括置換を処理"""
-    field_name = request.POST.get('field_name')
-    old_value = request.POST.get('old_value', '').strip()
-    new_value = request.POST.get('new_value', '').strip()
-
-    if not field_name or field_name not in TransactionService.REPLACEABLE_FIELDS:
-        messages.error(request, "不正なフィールドが指定されました。")
-        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-    if not old_value:
-        messages.warning(request, "置換前の値を選択してください。")
-        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-    if not new_value:
-        messages.warning(request, "置換後の値を入力してください。")
-        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-    if old_value == new_value:
-        messages.warning(request, "置換前と置換後の値が同じです。")
-        return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-    def _action():
-        count = TransactionService.bulk_replace_field_value(case, field_name, old_value, new_value)
-        field_label = FIELD_LABELS.get(field_name, field_name)
-        _count_message(
-            request, count,
-            f"{field_label}「{old_value}」を「{new_value}」に置換しました（{count}件）。",
-            "該当するデータがありませんでした。",
-        )
-
-    _handle_post_action(request, _action, "一括置換", field=field_name, old=old_value, new=new_value)
-
-    return redirect(_build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
+# =============================================================================
+# 設定ビュー
+# =============================================================================
 
 def settings_view(request: HttpRequest) -> HttpResponse:
     """アプリケーション設定ビュー"""
     current_settings = config.load_user_settings()
     current_patterns = current_settings.get("CLASSIFICATION_PATTERNS", config.DEFAULT_PATTERNS)
 
+    # AJAX: パターン一括変更
+    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        action = request.POST.get('action')
+        if action == 'bulk_pattern_changes':
+            return _handle_settings_bulk_pattern_changes(request, current_settings, current_patterns)
+
+    # 通常のフォーム送信
     if request.method == 'POST':
         form = SettingsForm(request.POST)
         if form.is_valid():
@@ -933,179 +767,73 @@ def settings_view(request: HttpRequest) -> HttpResponse:
                 "LARGE_AMOUNT_THRESHOLD": form.cleaned_data['large_amount_threshold'],
                 "TRANSFER_DAYS_WINDOW": form.cleaned_data['transfer_days_window'],
                 "TRANSFER_AMOUNT_TOLERANCE": form.cleaned_data['transfer_amount_tolerance'],
-                "CLASSIFICATION_PATTERNS": {
-                    cat_label: _parse_keywords(form.cleaned_data[field_name])
-                    for field_name, cat_label in CATEGORY_FIELD_MAP.items()
-                }
+                "CLASSIFICATION_PATTERNS": current_patterns,
             }
 
             config.save_user_settings(new_settings)
-            messages.success(request, "設定を保存しました。")
+            messages.success(request, "分析パラメータを保存しました。")
             return redirect('settings')
     else:
         initial_data = {
             'large_amount_threshold': current_settings.get("LARGE_AMOUNT_THRESHOLD", 500000),
             'transfer_days_window': current_settings.get("TRANSFER_DAYS_WINDOW", 3),
             'transfer_amount_tolerance': current_settings.get("TRANSFER_AMOUNT_TOLERANCE", 1000),
-            **{
-                field_name: ", ".join(current_patterns.get(cat_label, []))
-                for field_name, cat_label in CATEGORY_FIELD_MAP.items()
-            },
         }
         form = SettingsForm(initial=initial_data)
 
-    return render(request, 'analyzer/settings.html', {'form': form})
+    sorted_patterns = sort_patterns_dict(current_patterns)
+
+    return render(request, 'analyzer/settings.html', {
+        'form': form,
+        'global_patterns': sorted_patterns,
+    })
 
 
-# =============================================================================
-# APIエンドポイント (AJAX)
-# =============================================================================
-
-@require_POST
-def api_toggle_flag(request: HttpRequest, pk: int) -> JsonResponse:
-    """
-    付箋トグルAPIエンドポイント（AJAX用）
-
-    Returns:
-        JSON: {success: bool, is_flagged: bool, message: str}
-    """
-    case = get_object_or_404(Case, pk=pk)
-    tx_id = request.POST.get('tx_id')
-
-    if not tx_id:
-        return _json_error('取引IDが指定されていません')
-
+def _handle_settings_bulk_pattern_changes(
+    request: HttpRequest, current_settings: dict, current_patterns: dict
+) -> JsonResponse:
+    """設定ページでのパターン一括変更を処理"""
     try:
-        new_state = TransactionService.toggle_flag(case, int(tx_id))
-        if new_state is None:
-            return _json_error('取引が見つかりません', status=404)
-        return JsonResponse({
-            'success': True,
-            'is_flagged': new_state,
-            'message': '付箋を追加しました' if new_state else '付箋を外しました'
-        })
+        changes = json.loads(request.POST.get('changes', '[]'))
+        if not changes:
+            return JsonResponse({'success': False, 'error': '変更がありません'})
+
+        new_patterns = {k: list(v) for k, v in current_patterns.items()}
+        saved_count = 0
+
+        for change in changes:
+            action = change.get('action')
+            category = change.get('category')
+            keyword = change.get('keyword')
+            scope = change.get('scope', 'global')
+
+            if scope != 'global':
+                continue
+
+            if action == 'add':
+                if category not in new_patterns:
+                    new_patterns[category] = []
+                if keyword and keyword not in new_patterns[category]:
+                    new_patterns[category].append(keyword)
+                    saved_count += 1
+
+            elif action == 'delete':
+                if category in new_patterns and keyword in new_patterns[category]:
+                    new_patterns[category].remove(keyword)
+                    saved_count += 1
+                    if not new_patterns[category]:
+                        del new_patterns[category]
+
+        new_settings = {
+            **current_settings,
+            "CLASSIFICATION_PATTERNS": new_patterns,
+        }
+        config.save_user_settings(new_settings)
+
+        return JsonResponse({'success': True, 'saved_count': saved_count})
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'JSONパースエラー'})
     except Exception as e:
-        return _json_api_error(e, f"フラグ更新APIエラー: tx_id={tx_id}")
-
-
-@require_POST
-def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
-    """
-    取引追加APIエンドポイント（AJAX用）
-
-    Returns:
-        JSON: {success: bool, transaction: dict, message: str}
-    """
-    case = get_object_or_404(Case, pk=pk)
-
-    try:
-        # フォームデータを取得
-        date_str = request.POST.get('date')
-        date_val = None
-        if date_str:
-            try:
-                date_val = datetime.strptime(date_str, '%Y-%m-%d').date()
-            except ValueError:
-                pass
-
-        # 金額をパース
-        amount_out, _ = _parse_amount(request.POST.get('amount_out', '0'))
-        amount_in, _ = _parse_amount(request.POST.get('amount_in', '0'))
-        balance_str = request.POST.get('balance', '')
-        balance_val = None
-        if balance_str:
-            balance_val, _ = _parse_amount(balance_str)
-
-        # 取引を作成
-        tx = Transaction.objects.create(
-            case=case,
-            date=date_val,
-            description=request.POST.get('description', ''),
-            amount_out=amount_out,
-            amount_in=amount_in,
-            balance=balance_val,
-            bank_name=request.POST.get('bank_name', ''),
-            branch_name=request.POST.get('branch_name', ''),
-            account_id=request.POST.get('account_id', ''),
-            account_type=request.POST.get('account_type', ''),
-            category=request.POST.get('category', UNCATEGORIZED),
-            memo=request.POST.get('memo', ''),
-        )
-
-        logger.info(f"取引作成: case_id={pk}, tx_id={tx.id}")
-        return JsonResponse({
-            'success': True,
-            'transaction': {
-                'id': tx.id,
-                'date': tx.date.isoformat() if tx.date else None,
-                'description': tx.description,
-                'amount_out': tx.amount_out,
-                'amount_in': tx.amount_in,
-                'balance': tx.balance,
-                'bank_name': tx.bank_name,
-                'branch_name': tx.branch_name,
-                'account_id': tx.account_id,
-                'account_type': tx.account_type,
-                'category': tx.category,
-                'memo': tx.memo,
-            },
-            'message': '取引を追加しました'
-        })
-    except Exception as e:
-        return _json_api_error(e, f"取引作成APIエラー: case_id={pk}")
-
-
-@require_POST
-def api_delete_transaction(request: HttpRequest, pk: int) -> JsonResponse:
-    """
-    取引削除APIエンドポイント（AJAX用）
-
-    Returns:
-        JSON: {success: bool, message: str}
-    """
-    case = get_object_or_404(Case, pk=pk)
-    tx_id = request.POST.get('tx_id')
-
-    if not tx_id:
-        return _json_error('取引IDが指定されていません')
-
-    try:
-        tx = case.transactions.get(pk=int(tx_id))
-        tx.delete()
-
-        logger.info(f"取引削除: case_id={pk}, tx_id={tx_id}")
-        return JsonResponse({
-            'success': True,
-            'message': '取引を削除しました'
-        })
-    except Transaction.DoesNotExist:
-        return _json_error('取引が見つかりません', status=404)
-    except Exception as e:
-        return _json_api_error(e, f"取引削除APIエラー: tx_id={tx_id}")
-
-
-def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
-    """
-    フィールドのユニーク値を取得するAPIエンドポイント
-
-    Args:
-        pk: 案件ID
-        field_name (GET param): 対象フィールド名
-
-    Returns:
-        JSON: {success: bool, values: [{value: str, count: int}, ...]}
-    """
-    case = get_object_or_404(Case, pk=pk)
-    field_name = request.GET.get('field_name', '')
-
-    if not field_name:
-        return _json_error('フィールド名が指定されていません')
-
-    try:
-        values = TransactionService.get_unique_field_values(case, field_name)
-        return JsonResponse({
-            'success': True,
-            'values': values
-        })
-    except Exception as e:
-        return _json_api_error(e, f"フィールド値取得APIエラー: field_name={field_name}")
+        logger.exception("パターン一括変更エラー")
+        return JsonResponse({'success': False, 'error': str(e)})

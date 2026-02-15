@@ -1,0 +1,1284 @@
+{% extends 'analyzer/base.html' %}
+{% load humanize %}
+{% load japanese_date %}
+{% load static %}
+
+{% block title %}CSVインポートウィザード - {{ case.name }}{% endblock %}
+
+{% block content %}
+<style>
+/* ウィザードステッパー */
+.wizard-steps {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+.wizard-step {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    color: #6c757d;
+}
+.wizard-step.active {
+    color: #0d6efd;
+    font-weight: bold;
+}
+.wizard-step.completed {
+    color: #198754;
+}
+.wizard-step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.5rem;
+    background: #e9ecef;
+    font-weight: bold;
+}
+.wizard-step.active .wizard-step-number {
+    background: #0d6efd;
+    color: white;
+}
+.wizard-step.completed .wizard-step-number {
+    background: #198754;
+    color: white;
+}
+.wizard-step-connector {
+    width: 40px;
+    height: 2px;
+    background: #e9ecef;
+    margin: 0 0.5rem;
+}
+.wizard-step.completed + .wizard-step-connector {
+    background: #198754;
+}
+
+/* ドラッグ＆ドロップエリア */
+.drop-zone {
+    border: 3px dashed #dee2e6;
+    border-radius: 12px;
+    padding: 3rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    cursor: pointer;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+    border-color: #0d6efd;
+    background: rgba(13, 110, 253, 0.05);
+}
+.drop-zone.drag-over {
+    transform: scale(1.02);
+}
+.drop-zone-icon {
+    font-size: 4rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+.drop-zone:hover .drop-zone-icon {
+    color: #0d6efd;
+}
+
+/* ファイルリスト */
+.file-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s;
+}
+.file-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.file-item.processing {
+    opacity: 0.7;
+}
+.file-item.error {
+    border-color: #dc3545;
+    background: #fff5f5;
+}
+.file-item.success {
+    border-color: #198754;
+    background: #f0fff4;
+}
+
+/* 口座割り当てカード */
+.account-assignment {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+.account-assignment.auto-detected {
+    border-left: 4px solid #198754;
+}
+.account-assignment.manual-required {
+    border-left: 4px solid #ffc107;
+}
+
+/* プレビューサマリー */
+.preview-summary-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+/* 編集可能テーブル */
+.editable-table input {
+    border: none;
+    background: transparent;
+    width: 100%;
+    padding: 2px 4px;
+}
+.editable-table input:focus {
+    outline: 2px solid #0d6efd;
+    border-radius: 4px;
+    background: white;
+}
+.editable-table input[type="number"] {
+    text-align: right;
+}
+.editable-table .drag-handle {
+    cursor: grab;
+    color: #6c757d;
+    padding: 4px;
+}
+.editable-table .drag-handle:hover {
+    color: #495057;
+}
+.editable-table .drag-handle:active {
+    cursor: grabbing;
+}
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: #e3f2fd !important;
+}
+.sortable-chosen {
+    background-color: #bbdefb !important;
+}
+.sortable-drag {
+    background-color: #fff !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.editable-table tr.deleted {
+    display: none;
+}
+.editable-table tr.balance-error {
+    background-color: #ffebee !important;
+}
+.editable-table tr.is-new {
+    background-color: #fff8e1 !important;
+}
+.editable-table .calc-balance {
+    font-family: monospace;
+    color: #666;
+}
+.editable-table .balance-error .calc-balance {
+    color: #dc3545;
+    font-weight: bold;
+}
+/* 和暦表示 */
+.wareki-display {
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+.wareki-picker {
+    width: 24px;
+    min-width: 0;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    cursor: pointer;
+}
+.wareki-picker::-webkit-datetime-edit {
+    display: none;
+}
+.wareki-picker::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    margin: 0;
+    opacity: 0.5;
+}
+.wareki-picker::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+</style>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-3">
+                <li class="breadcrumb-item"><a href="{% url 'case-list' %}" class="text-decoration-none">案件一覧</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'case-detail' case.pk %}" class="text-decoration-none">{{ case.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">CSVインポート</li>
+            </ol>
+        </nav>
+
+        <!-- ウィザードステップ表示 -->
+        <div class="wizard-steps">
+            <div class="wizard-step active" id="wizardStep1Indicator">
+                <span class="wizard-step-number">1</span>
+                <span>ファイル選択</span>
+            </div>
+            <div class="wizard-step-connector"></div>
+            <div class="wizard-step" id="wizardStep2Indicator">
+                <span class="wizard-step-number">2</span>
+                <span>口座割り当て</span>
+            </div>
+            <div class="wizard-step-connector"></div>
+            <div class="wizard-step" id="wizardStep3Indicator">
+                <span class="wizard-step-number">3</span>
+                <span>確認・取込</span>
+            </div>
+        </div>
+
+        <!-- Step 1: ファイル選択 -->
+        <div class="glass-card p-4" id="wizardStep1">
+            <h3 class="h4 mb-4"><i class="bi bi-file-earmark-arrow-up me-2"></i>ステップ1: CSVファイルを選択</h3>
+
+            <div class="drop-zone" id="dropZone">
+                <div class="drop-zone-icon">
+                    <i class="bi bi-cloud-upload"></i>
+                </div>
+                <h5 class="mb-2">CSVファイルをドラッグ＆ドロップ</h5>
+                <p class="text-muted mb-3">または</p>
+                <button type="button" class="btn btn-primary" id="selectFilesBtn">
+                    <i class="bi bi-folder2-open me-1"></i> ファイルを選択
+                </button>
+                <input type="file" id="fileInput" multiple accept=".csv" class="d-none">
+                <p class="text-muted small mt-3 mb-0">
+                    複数のCSVファイルを同時に選択できます（最大10ファイル）
+                </p>
+            </div>
+
+            <!-- 選択されたファイル一覧 -->
+            <div id="fileList" class="mt-4 d-none">
+                <h5 class="mb-3">
+                    <i class="bi bi-files me-1"></i>
+                    選択されたファイル
+                    <span class="badge bg-primary" id="fileCount">0</span>
+                </h5>
+                <div id="fileItems"></div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary" id="clearFilesBtn">
+                        <i class="bi bi-x-lg me-1"></i> クリア
+                    </button>
+                    <button type="button" class="btn btn-primary" id="processFilesBtn" disabled>
+                        <i class="bi bi-arrow-right me-1"></i> 口座割り当てへ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: 口座割り当て -->
+        <div class="glass-card p-4 d-none" id="wizardStep2">
+            <h3 class="h4 mb-4"><i class="bi bi-bank me-2"></i>ステップ2: 口座を割り当て</h3>
+
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-info-circle me-1"></i>
+                各ファイルの口座情報を確認してください。自動検出された情報は緑色で表示されます。
+            </div>
+
+            <!-- 複数口座検出通知 -->
+            <div id="splitNotification" class="alert alert-success mb-4 d-none">
+                <i class="bi bi-diagram-2 me-1"></i>
+                <strong>複数口座を自動検出しました！</strong>
+                <span id="splitNotificationText"></span>
+            </div>
+
+            <div id="accountAssignments"></div>
+
+            <!-- 既存口座から選択 -->
+            <div class="mb-4 p-3 bg-light rounded">
+                <h6><i class="bi bi-clock-history me-1"></i> 既存の口座</h6>
+                <div id="existingAccounts" class="d-flex flex-wrap gap-2">
+                    {% for acc in existing_accounts %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary existing-account-btn"
+                        data-bank="{{ acc.bank_name }}"
+                        data-branch="{{ acc.branch_name }}"
+                        data-type="{{ acc.account_type }}"
+                        data-id="{{ acc.account_id }}">
+                        {{ acc.bank_name }} {{ acc.branch_name }} {{ acc.account_id }}
+                    </button>
+                    {% empty %}
+                    <span class="text-muted small">まだ口座が登録されていません</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-outline-secondary" id="backToStep1Btn">
+                    <i class="bi bi-arrow-left me-1"></i> 戻る
+                </button>
+                <button type="button" class="btn btn-primary" id="toPreviewBtn">
+                    <i class="bi bi-arrow-right me-1"></i> プレビューへ
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: プレビュー＆確認（編集可能） -->
+        <div class="glass-card p-4 d-none" id="wizardStep3">
+            <h3 class="h4 mb-4"><i class="bi bi-pencil-square me-2"></i>ステップ3: 確認・編集して取込</h3>
+
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-info-circle me-1"></i>
+                データを確認・編集してください。行のドラッグで並び替え、セルをクリックして編集できます。
+                残高不整合は<span class="text-danger fw-bold">赤</span>で表示されます。
+            </div>
+
+            <!-- サマリーカード -->
+            <div class="preview-summary-card mb-4">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="h2 mb-0" id="summaryTotalFiles">0</div>
+                        <small>ファイル数</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="h2 mb-0" id="summaryTotalRows">0</div>
+                        <small>総取引数</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="h2 mb-0" id="summaryNewRows">0</div>
+                        <small>新規取引</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="h2 mb-0 text-danger" id="summaryErrors">0</div>
+                        <small>残高不整合</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作バー -->
+            <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="deleteSelectedBtn" disabled>
+                        <i class="bi bi-trash"></i> 選択削除
+                    </button>
+                    <span id="selectedCount" class="text-muted small"></span>
+                    <span id="errorNav" class="d-none">
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="prevErrorBtn" title="前の問題行">
+                            <i class="bi bi-chevron-up"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="nextErrorBtn" title="次の問題行">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                        <span id="errorCount" class="ms-1 text-danger small fw-bold"></span>
+                    </span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-warning btn-sm" id="recalculateBtn">
+                        <i class="bi bi-calculator"></i> 残高再計算
+                    </button>
+                    <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input" type="checkbox" id="skipDuplicates" checked>
+                        <label class="form-check-label small" for="skipDuplicates">重複スキップ</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ファイル別プレビュー（編集可能テーブル） -->
+            <div class="accordion" id="previewAccordion"></div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-outline-secondary" id="backToStep2Btn">
+                    <i class="bi bi-arrow-left me-1"></i> 戻る
+                </button>
+                <form method="post" id="importForm" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="commit_wizard">
+                    <input type="hidden" name="wizard_data" id="wizardDataInput">
+                    <button type="submit" class="btn btn-success btn-lg" id="commitImportBtn">
+                        <i class="bi bi-check-lg me-1"></i> 取り込み実行
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// グローバル状態管理
+const wizardState = {
+    files: [],           // 選択されたファイル
+    parsedData: [],      // パースされたデータ
+    accountAssignments: [], // 口座割り当て
+    duplicateAction: 'skip'
+};
+
+// 案件ID
+const caseId = {{ case.pk }};
+
+// ===== Step 1: ファイル選択 =====
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const selectFilesBtn = document.getElementById('selectFilesBtn');
+const fileList = document.getElementById('fileList');
+const fileItems = document.getElementById('fileItems');
+const fileCount = document.getElementById('fileCount');
+const clearFilesBtn = document.getElementById('clearFilesBtn');
+const processFilesBtn = document.getElementById('processFilesBtn');
+
+// ドラッグ&ドロップ
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    handleFiles(e.dataTransfer.files);
+});
+
+dropZone.addEventListener('click', () => fileInput.click());
+selectFilesBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    fileInput.click();
+});
+
+fileInput.addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+});
+
+clearFilesBtn.addEventListener('click', () => {
+    wizardState.files = [];
+    wizardState.parsedData = [];
+    updateFileList();
+});
+
+function handleFiles(filesList) {
+    const csvFiles = Array.from(filesList).filter(f => f.name.toLowerCase().endsWith('.csv'));
+
+    if (csvFiles.length === 0) {
+        showToast('CSVファイルのみ選択できます', 'warning');
+        return;
+    }
+
+    if (wizardState.files.length + csvFiles.length > 10) {
+        showToast('最大10ファイルまで選択できます', 'warning');
+        return;
+    }
+
+    csvFiles.forEach(file => {
+        if (!wizardState.files.some(f => f.name === file.name)) {
+            wizardState.files.push(file);
+        }
+    });
+
+    updateFileList();
+}
+
+function updateFileList() {
+    if (wizardState.files.length === 0) {
+        fileList.classList.add('d-none');
+        processFilesBtn.disabled = true;
+        return;
+    }
+
+    fileList.classList.remove('d-none');
+    fileCount.textContent = wizardState.files.length;
+
+    fileItems.innerHTML = wizardState.files.map((file, index) => `
+        <div class="file-item" id="file-${index}">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-file-earmark-text me-2 text-primary"></i>
+                    <strong>${file.name}</strong>
+                    <small class="text-muted ms-2">${formatFileSize(file.size)}</small>
+                </div>
+                <div>
+                    <span class="file-status"></span>
+                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeFile(${index})">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    processFilesBtn.disabled = false;
+}
+
+function removeFile(index) {
+    wizardState.files.splice(index, 1);
+    wizardState.parsedData.splice(index, 1);
+    updateFileList();
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ファイル処理してStep 2へ
+processFilesBtn.addEventListener('click', async () => {
+    processFilesBtn.disabled = true;
+    processFilesBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 処理中...';
+
+    try {
+        // 各ファイルをサーバーに送信してパース
+        const formData = new FormData();
+        formData.append('action', 'parse_files');
+
+        // CSRFトークンを追加
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        formData.append('csrfmiddlewaretoken', csrfToken);
+
+        wizardState.files.forEach((file, index) => {
+            formData.append(`file_${index}`, file);
+        });
+
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            wizardState.parsedData = result.files;
+
+            // 分割されたファイルがあるかチェック
+            const splitFiles = result.files.filter(f => f.is_split);
+            const splitNotification = document.getElementById('splitNotification');
+            const splitNotificationText = document.getElementById('splitNotificationText');
+
+            if (splitFiles.length > 0) {
+                const uniqueOriginals = [...new Set(splitFiles.map(f => f.original_filename))];
+                splitNotificationText.textContent =
+                    ` ${uniqueOriginals.length}個のCSVファイルから${splitFiles.length}口座を検出し、自動的に分割しました。`;
+                splitNotification.classList.remove('d-none');
+            } else {
+                splitNotification.classList.add('d-none');
+            }
+
+            goToStep(2);
+        } else {
+            showToast(result.error || 'ファイルの処理に失敗しました', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('エラーが発生しました', 'danger');
+    } finally {
+        processFilesBtn.disabled = false;
+        processFilesBtn.innerHTML = '<i class="bi bi-arrow-right me-1"></i> 口座割り当てへ';
+    }
+});
+
+// ===== Step 2: 口座割り当て =====
+
+const accountAssignments = document.getElementById('accountAssignments');
+const backToStep1Btn = document.getElementById('backToStep1Btn');
+const toPreviewBtn = document.getElementById('toPreviewBtn');
+
+backToStep1Btn.addEventListener('click', () => goToStep(1));
+
+function renderAccountAssignments() {
+    accountAssignments.innerHTML = wizardState.parsedData.map((fileData, index) => {
+        const detected = fileData.detected_account || {};
+        const hasDetection = detected.bank_name || detected.account_id;
+        const isSplit = fileData.is_split || false;
+
+        // 分割されたファイルは特別なスタイルで表示
+        const splitBadge = isSplit
+            ? '<span class="badge bg-info text-dark me-1"><i class="bi bi-diagram-2 me-1"></i>自動分割</span>'
+            : '';
+        const detectionBadge = hasDetection
+            ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>自動検出</span>'
+            : '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>手動入力</span>';
+
+        return `
+            <div class="account-assignment ${hasDetection ? 'auto-detected' : 'manual-required'} ${isSplit ? 'border-info' : ''}" data-file-index="${index}">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="bi ${isSplit ? 'bi-diagram-2' : 'bi-file-earmark-text'} me-1"></i>
+                            ${fileData.filename}
+                        </h6>
+                        <small class="text-muted">${fileData.row_count}件の取引</small>
+                        ${fileData.duplicate_count > 0 ? `<small class="text-warning ms-2"><i class="bi bi-exclamation-triangle"></i> ${fileData.duplicate_count}件重複</small>` : ''}
+                    </div>
+                    <div>
+                        ${splitBadge}
+                        ${detectionBadge}
+                    </div>
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label small">銀行名</label>
+                        <input type="text" class="form-control form-control-sm account-input"
+                            data-field="bank_name" data-index="${index}"
+                            value="${detected.bank_name || ''}" placeholder="例: みずほ銀行">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">支店名</label>
+                        <input type="text" class="form-control form-control-sm account-input"
+                            data-field="branch_name" data-index="${index}"
+                            value="${detected.branch_name || ''}" placeholder="例: 新宿支店">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">種別</label>
+                        <input type="text" class="form-control form-control-sm account-input"
+                            data-field="account_type" data-index="${index}"
+                            value="${detected.account_type || ''}" placeholder="例: 普通">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">口座番号 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm account-input"
+                            data-field="account_id" data-index="${index}"
+                            value="${detected.account_id || ''}" placeholder="例: 1234567" required>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // 既存口座ボタンのクリックイベント
+    document.querySelectorAll('.existing-account-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // 現在フォーカスされている入力フィールドに値を設定
+            const lastFocused = document.querySelector('.account-assignment:hover');
+            if (lastFocused) {
+                const index = lastFocused.dataset.fileIndex;
+                document.querySelector(`[data-field="bank_name"][data-index="${index}"]`).value = btn.dataset.bank;
+                document.querySelector(`[data-field="branch_name"][data-index="${index}"]`).value = btn.dataset.branch;
+                document.querySelector(`[data-field="account_type"][data-index="${index}"]`).value = btn.dataset.type;
+                document.querySelector(`[data-field="account_id"][data-index="${index}"]`).value = btn.dataset.id;
+            }
+        });
+    });
+}
+
+toPreviewBtn.addEventListener('click', () => {
+    // 口座情報を収集
+    const assignments = [];
+    let hasError = false;
+
+    wizardState.parsedData.forEach((fileData, index) => {
+        const accountId = document.querySelector(`[data-field="account_id"][data-index="${index}"]`).value.trim();
+
+        if (!accountId) {
+            hasError = true;
+            document.querySelector(`[data-field="account_id"][data-index="${index}"]`).classList.add('is-invalid');
+        } else {
+            assignments.push({
+                fileIndex: index,
+                bank_name: document.querySelector(`[data-field="bank_name"][data-index="${index}"]`).value.trim(),
+                branch_name: document.querySelector(`[data-field="branch_name"][data-index="${index}"]`).value.trim(),
+                account_type: document.querySelector(`[data-field="account_type"][data-index="${index}"]`).value.trim(),
+                account_id: accountId
+            });
+        }
+    });
+
+    if (hasError) {
+        showToast('口座番号は必須です', 'warning');
+        return;
+    }
+
+    wizardState.accountAssignments = assignments;
+    goToStep(3);
+});
+
+// ===== Step 3: プレビュー =====
+
+const backToStep2Btn = document.getElementById('backToStep2Btn');
+const previewAccordion = document.getElementById('previewAccordion');
+const commitImportBtn = document.getElementById('commitImportBtn');
+const wizardDataInput = document.getElementById('wizardDataInput');
+
+backToStep2Btn.addEventListener('click', () => goToStep(2));
+
+// ===== 和暦変換 =====
+function toWareki(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+
+    let era, eraYear;
+    if (year >= 2019 || (year === 2019 && month >= 5)) {
+        era = 'R'; eraYear = year - 2018;
+    } else if (year >= 1989) {
+        era = 'H'; eraYear = year - 1988;
+    } else if (year >= 1926) {
+        era = 'S'; eraYear = year - 1925;
+    } else if (year >= 1912) {
+        era = 'T'; eraYear = year - 1911;
+    } else {
+        era = 'M'; eraYear = year - 1867;
+    }
+    return `${era}${eraYear}.${month}.${day}`;
+}
+
+// ===== 編集可能プレビュー描画 =====
+function renderPreview() {
+    let totalRows = 0;
+    let newRows = 0;
+    let errorCount = 0;
+
+    previewAccordion.innerHTML = wizardState.parsedData.map((fileData, fileIndex) => {
+        const assignment = wizardState.accountAssignments[fileIndex];
+        const fileDuplicates = fileData.duplicate_count || 0;
+        const fileNew = fileData.row_count - fileDuplicates;
+
+        totalRows += fileData.row_count;
+        newRows += fileNew;
+
+        // 各行のHTMLを生成
+        const rowsHtml = fileData.rows.map((row, rowIndex) => {
+            const globalId = `f${fileIndex}_r${rowIndex}`;
+            const isDuplicate = row.is_duplicate || false;
+            const isError = row.is_balance_error || false;
+            if (isError) errorCount++;
+
+            return `
+                <tr class="data-row ${isDuplicate ? 'table-warning' : ''} ${isError ? 'balance-error' : ''}"
+                    data-file-index="${fileIndex}" data-row-index="${rowIndex}" data-global-id="${globalId}"
+                    ${isDuplicate ? 'data-duplicate="true"' : ''}>
+                    <td class="text-center drag-handle" title="ドラッグで移動">
+                        <i class="bi bi-grip-vertical"></i>
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input row-select" data-global-id="${globalId}">
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-secondary insert-row-btn p-0 px-1"
+                            title="この下に行を挿入" data-file-index="${fileIndex}" data-row-index="${rowIndex}">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span class="wareki-display me-1">${toWareki(row.date)}</span>
+                            <input type="date" class="wareki-picker" data-field="date"
+                                value="${row.date || ''}" data-global-id="${globalId}">
+                        </div>
+                    </td>
+                    <td>
+                        <input type="text" data-field="description" value="${row.description || ''}"
+                            data-global-id="${globalId}" style="min-width: 150px;">
+                    </td>
+                    <td>
+                        <input type="number" data-field="amount_out" value="${row.amount_out || 0}"
+                            data-global-id="${globalId}" style="width: 90px;">
+                    </td>
+                    <td>
+                        <input type="number" data-field="amount_in" value="${row.amount_in || 0}"
+                            data-global-id="${globalId}" style="width: 90px;">
+                    </td>
+                    <td>
+                        <input type="number" data-field="balance" value="${row.balance || 0}"
+                            data-global-id="${globalId}" class="${isError ? 'text-danger fw-bold' : ''}" style="width: 100px;">
+                    </td>
+                    <td class="calc-balance text-end">${(row.calc_balance || row.balance || 0).toLocaleString()}</td>
+                    <td class="status-cell text-center">
+                        ${isDuplicate ? '<span class="badge bg-warning text-dark">重複</span>' : ''}
+                        ${isError ? '<span class="badge bg-danger">誤差</span>' : '<span class="badge bg-success">OK</span>'}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <div class="accordion-item" data-file-index="${fileIndex}">
+                <h2 class="accordion-header">
+                    <button class="accordion-button ${fileIndex > 0 ? 'collapsed' : ''}" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#preview-${fileIndex}">
+                        <div class="d-flex justify-content-between w-100 me-3">
+                            <span>
+                                <i class="bi bi-file-earmark-text me-2"></i>
+                                ${fileData.filename}
+                            </span>
+                            <span>
+                                <span class="badge bg-primary file-row-count" data-file-index="${fileIndex}">${fileData.row_count}件</span>
+                                ${fileDuplicates > 0 ? `<span class="badge bg-warning text-dark ms-1">重複${fileDuplicates}</span>` : ''}
+                            </span>
+                        </div>
+                    </button>
+                </h2>
+                <div id="preview-${fileIndex}" class="accordion-collapse collapse ${fileIndex === 0 ? 'show' : ''}">
+                    <div class="accordion-body p-0">
+                        <div class="p-2 bg-light border-bottom small">
+                            <i class="bi bi-bank me-1"></i>
+                            <strong>${assignment.bank_name || '-'}</strong>
+                            ${assignment.branch_name || ''} ${assignment.account_type || ''} ${assignment.account_id}
+                        </div>
+                        <div class="table-responsive" style="max-height: 400px;">
+                            <table class="table table-sm table-hover mb-0 editable-table">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width: 30px;"></th>
+                                        <th style="width: 30px;">
+                                            <input type="checkbox" class="form-check-input select-all-file" data-file-index="${fileIndex}">
+                                        </th>
+                                        <th style="width: 30px;"></th>
+                                        <th style="width: 100px;">日付</th>
+                                        <th>摘要</th>
+                                        <th style="width: 100px;" class="text-end">出金</th>
+                                        <th style="width: 100px;" class="text-end">入金</th>
+                                        <th style="width: 110px;" class="text-end">残高</th>
+                                        <th style="width: 90px;" class="text-end">計算残高</th>
+                                        <th style="width: 60px;">状態</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="sortable-tbody" data-file-index="${fileIndex}">
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // サマリー更新
+    document.getElementById('summaryTotalFiles').textContent = wizardState.parsedData.length;
+    document.getElementById('summaryTotalRows').textContent = totalRows;
+    document.getElementById('summaryNewRows').textContent = newRows;
+    document.getElementById('summaryErrors').textContent = errorCount;
+
+    // イベントリスナー設定
+    setupEditableTableEvents();
+    initSortable();
+    updateErrorNav();
+}
+
+// ===== イベントリスナー設定 =====
+function setupEditableTableEvents() {
+    // 行選択チェックボックス
+    document.querySelectorAll('.row-select').forEach(cb => {
+        cb.addEventListener('change', updateSelectedState);
+    });
+
+    // ファイル全選択
+    document.querySelectorAll('.select-all-file').forEach(cb => {
+        cb.addEventListener('change', function() {
+            const fileIndex = this.dataset.fileIndex;
+            const isChecked = this.checked;
+            document.querySelectorAll(`.row-select`).forEach(rowCb => {
+                const row = rowCb.closest('tr');
+                if (row && row.dataset.fileIndex === fileIndex && !row.classList.contains('deleted')) {
+                    rowCb.checked = isChecked;
+                }
+            });
+            updateSelectedState();
+        });
+    });
+
+    // 行挿入ボタン
+    document.querySelectorAll('.insert-row-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            insertNewRow(parseInt(this.dataset.fileIndex), parseInt(this.dataset.rowIndex));
+        });
+    });
+
+    // 日付変更時に和暦更新
+    document.querySelectorAll('.wareki-picker').forEach(input => {
+        input.addEventListener('change', function() {
+            const warekiSpan = this.closest('td').querySelector('.wareki-display');
+            if (warekiSpan) {
+                warekiSpan.textContent = toWareki(this.value);
+            }
+        });
+    });
+
+    // 入力変更をwizardStateに反映
+    document.querySelectorAll('.editable-table input').forEach(input => {
+        input.addEventListener('change', function() {
+            syncInputToState(this);
+        });
+    });
+}
+
+// ===== 入力値をStateに同期 =====
+function syncInputToState(input) {
+    const row = input.closest('tr');
+    if (!row) return;
+
+    const fileIndex = parseInt(row.dataset.fileIndex);
+    const rowIndex = parseInt(row.dataset.rowIndex);
+    const field = input.dataset.field;
+    const value = input.type === 'number' ? (parseInt(input.value) || 0) : input.value;
+
+    if (wizardState.parsedData[fileIndex] && wizardState.parsedData[fileIndex].rows[rowIndex]) {
+        wizardState.parsedData[fileIndex].rows[rowIndex][field] = value;
+    }
+}
+
+// ===== 行挿入 =====
+let newRowCounter = 10000; // 新規行のインデックス
+function insertNewRow(fileIndex, afterRowIndex) {
+    const tbody = document.querySelector(`.sortable-tbody[data-file-index="${fileIndex}"]`);
+    const targetRow = tbody.querySelector(`tr[data-row-index="${afterRowIndex}"]`);
+    if (!targetRow) return;
+
+    const newIndex = newRowCounter++;
+    const globalId = `f${fileIndex}_r${newIndex}`;
+    const assignment = wizardState.accountAssignments[fileIndex];
+
+    // 前の行からデータをコピー
+    const prevDate = targetRow.querySelector('[data-field="date"]')?.value || '';
+
+    const newTr = document.createElement('tr');
+    newTr.className = 'data-row is-new';
+    newTr.dataset.fileIndex = fileIndex;
+    newTr.dataset.rowIndex = newIndex;
+    newTr.dataset.globalId = globalId;
+    newTr.dataset.isNew = 'true';
+
+    newTr.innerHTML = `
+        <td class="text-center drag-handle" title="ドラッグで移動">
+            <i class="bi bi-grip-vertical"></i>
+        </td>
+        <td class="text-center">
+            <input type="checkbox" class="form-check-input row-select" data-global-id="${globalId}">
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-secondary insert-row-btn p-0 px-1"
+                title="この下に行を挿入" data-file-index="${fileIndex}" data-row-index="${newIndex}">
+                <i class="bi bi-plus"></i>
+            </button>
+        </td>
+        <td>
+            <div class="d-flex align-items-center">
+                <span class="wareki-display me-1">${toWareki(prevDate)}</span>
+                <input type="date" class="wareki-picker" data-field="date" value="${prevDate}" data-global-id="${globalId}">
+            </div>
+        </td>
+        <td>
+            <input type="text" data-field="description" value="" data-global-id="${globalId}" placeholder="摘要" style="min-width: 150px;">
+        </td>
+        <td>
+            <input type="number" data-field="amount_out" value="0" data-global-id="${globalId}" style="width: 90px;">
+        </td>
+        <td>
+            <input type="number" data-field="amount_in" value="0" data-global-id="${globalId}" style="width: 90px;">
+        </td>
+        <td>
+            <input type="number" data-field="balance" value="0" data-global-id="${globalId}" style="width: 100px;">
+        </td>
+        <td class="calc-balance text-end">-</td>
+        <td class="status-cell text-center">
+            <span class="badge bg-info">新規</span>
+        </td>
+    `;
+
+    targetRow.parentNode.insertBefore(newTr, targetRow.nextSibling);
+
+    // 新しい行のデータをStateに追加
+    const newRowData = {
+        date: prevDate,
+        description: '',
+        amount_out: 0,
+        amount_in: 0,
+        balance: 0,
+        is_new: true,
+        bank_name: assignment.bank_name,
+        branch_name: assignment.branch_name,
+        account_type: assignment.account_type,
+        account_number: assignment.account_id
+    };
+    wizardState.parsedData[fileIndex].rows.splice(afterRowIndex + 1, 0, newRowData);
+
+    // イベントリスナー再設定
+    setupEditableTableEvents();
+    updateSummary();
+}
+
+// ===== 選択状態更新 =====
+function updateSelectedState() {
+    const checked = document.querySelectorAll('.row-select:checked').length;
+    const deleteBtn = document.getElementById('deleteSelectedBtn');
+    const countSpan = document.getElementById('selectedCount');
+
+    deleteBtn.disabled = checked === 0;
+    countSpan.textContent = checked > 0 ? `${checked}件選択中` : '';
+}
+
+// ===== 選択行削除 =====
+document.getElementById('deleteSelectedBtn').addEventListener('click', function() {
+    const checkedRows = document.querySelectorAll('.row-select:checked');
+    if (checkedRows.length === 0) return;
+
+    if (!confirm(`${checkedRows.length}件の行を削除しますか？`)) return;
+
+    checkedRows.forEach(cb => {
+        const row = cb.closest('tr');
+        if (row) {
+            row.classList.add('deleted');
+            cb.checked = false;
+
+            // Stateにも反映
+            const fileIndex = parseInt(row.dataset.fileIndex);
+            const rowIndex = parseInt(row.dataset.rowIndex);
+            if (wizardState.parsedData[fileIndex]?.rows[rowIndex]) {
+                wizardState.parsedData[fileIndex].rows[rowIndex].deleted = true;
+            }
+        }
+    });
+
+    updateSelectedState();
+    updateSummary();
+    recalculateAllBalances();
+});
+
+// ===== 残高再計算 =====
+function recalculateAllBalances() {
+    let totalErrors = 0;
+
+    wizardState.parsedData.forEach((fileData, fileIndex) => {
+        const tbody = document.querySelector(`.sortable-tbody[data-file-index="${fileIndex}"]`);
+        if (!tbody) return;
+
+        const visibleRows = Array.from(tbody.querySelectorAll('tr.data-row:not(.deleted)'));
+        let prevBalance = 0;
+
+        visibleRows.forEach((row, idx) => {
+            const amountOut = parseInt(row.querySelector('[data-field="amount_out"]')?.value) || 0;
+            const amountIn = parseInt(row.querySelector('[data-field="amount_in"]')?.value) || 0;
+            const balance = parseInt(row.querySelector('[data-field="balance"]')?.value) || 0;
+
+            let calcBalance, isError = false;
+
+            if (idx === 0) {
+                calcBalance = balance;
+            } else {
+                calcBalance = prevBalance + amountIn - amountOut;
+                isError = calcBalance !== balance;
+            }
+
+            // UI更新
+            const calcCell = row.querySelector('.calc-balance');
+            const statusCell = row.querySelector('.status-cell');
+            const balanceInput = row.querySelector('[data-field="balance"]');
+            const isDuplicate = row.hasAttribute('data-duplicate');
+
+            if (calcCell) calcCell.textContent = calcBalance.toLocaleString();
+
+            row.classList.toggle('balance-error', isError);
+            if (balanceInput) {
+                balanceInput.classList.toggle('text-danger', isError);
+                balanceInput.classList.toggle('fw-bold', isError);
+            }
+
+            if (statusCell) {
+                const dupBadge = isDuplicate ? '<span class="badge bg-warning text-dark me-1">重複</span>' : '';
+                statusCell.innerHTML = dupBadge + (isError
+                    ? '<span class="badge bg-danger">誤差</span>'
+                    : '<span class="badge bg-success">OK</span>');
+            }
+
+            if (isError) totalErrors++;
+
+            prevBalance = isError ? balance : calcBalance;
+        });
+    });
+
+    document.getElementById('summaryErrors').textContent = totalErrors;
+    updateErrorNav();
+    return totalErrors;
+}
+
+document.getElementById('recalculateBtn').addEventListener('click', function() {
+    const errorCount = recalculateAllBalances();
+
+    // 視覚フィードバック
+    const btn = this;
+    const originalHtml = btn.innerHTML;
+    if (errorCount > 0) {
+        btn.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${errorCount}件の誤差`;
+        btn.classList.replace('btn-warning', 'btn-danger');
+    } else {
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> OK';
+        btn.classList.replace('btn-warning', 'btn-success');
+    }
+    setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.classList.remove('btn-danger', 'btn-success');
+        btn.classList.add('btn-warning');
+    }, 2000);
+});
+
+// ===== エラーナビゲーション =====
+let currentErrorIndex = -1;
+
+function updateErrorNav() {
+    const errorRows = document.querySelectorAll('.data-row.balance-error:not(.deleted)');
+    const errorNav = document.getElementById('errorNav');
+    const errorCountSpan = document.getElementById('errorCount');
+
+    if (errorRows.length > 0) {
+        errorNav.classList.remove('d-none');
+        errorCountSpan.textContent = `${errorRows.length}件の問題`;
+    } else {
+        errorNav.classList.add('d-none');
+    }
+    currentErrorIndex = -1;
+}
+
+function navigateToError(direction) {
+    const errorRows = Array.from(document.querySelectorAll('.data-row.balance-error:not(.deleted)'));
+    if (errorRows.length === 0) return;
+
+    currentErrorIndex += direction;
+    if (currentErrorIndex >= errorRows.length) currentErrorIndex = 0;
+    if (currentErrorIndex < 0) currentErrorIndex = errorRows.length - 1;
+
+    const targetRow = errorRows[currentErrorIndex];
+    targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    targetRow.style.boxShadow = '0 0 0 2px #dc3545';
+    setTimeout(() => targetRow.style.boxShadow = '', 1500);
+}
+
+document.getElementById('prevErrorBtn').addEventListener('click', () => navigateToError(-1));
+document.getElementById('nextErrorBtn').addEventListener('click', () => navigateToError(1));
+
+// ===== サマリー更新 =====
+function updateSummary() {
+    let totalRows = 0;
+    let newRows = 0;
+
+    wizardState.parsedData.forEach((fileData, fileIndex) => {
+        const tbody = document.querySelector(`.sortable-tbody[data-file-index="${fileIndex}"]`);
+        if (!tbody) return;
+
+        const visibleRows = tbody.querySelectorAll('tr.data-row:not(.deleted)');
+        const duplicateRows = tbody.querySelectorAll('tr.data-row:not(.deleted)[data-duplicate="true"]');
+
+        totalRows += visibleRows.length;
+        newRows += visibleRows.length - duplicateRows.length;
+
+        // ファイル別件数更新
+        const countBadge = document.querySelector(`.file-row-count[data-file-index="${fileIndex}"]`);
+        if (countBadge) countBadge.textContent = `${visibleRows.length}件`;
+    });
+
+    document.getElementById('summaryTotalRows').textContent = totalRows;
+    document.getElementById('summaryNewRows').textContent = newRows;
+}
+
+// ===== SortableJS初期化 =====
+function initSortable() {
+    document.querySelectorAll('.sortable-tbody').forEach(tbody => {
+        new Sortable(tbody, {
+            handle: '.drag-handle',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            onEnd: function(evt) {
+                evt.item.classList.add('table-info');
+                setTimeout(() => evt.item.classList.remove('table-info'), 500);
+                recalculateAllBalances();
+            }
+        });
+    });
+}
+
+// ===== フォーム送信時にデータを収集 =====
+document.getElementById('importForm').addEventListener('submit', function(e) {
+    const skipDuplicates = document.getElementById('skipDuplicates').checked;
+
+    // 現在のDOM状態からデータを収集
+    const submitFiles = [];
+
+    wizardState.parsedData.forEach((fileData, fileIndex) => {
+        const tbody = document.querySelector(`.sortable-tbody[data-file-index="${fileIndex}"]`);
+        if (!tbody) return;
+
+        const rows = [];
+        const visibleRows = tbody.querySelectorAll('tr.data-row:not(.deleted)');
+
+        visibleRows.forEach(tr => {
+            const isDuplicate = tr.hasAttribute('data-duplicate');
+
+            // 重複スキップの場合、重複行は除外
+            if (skipDuplicates && isDuplicate) return;
+
+            rows.push({
+                date: tr.querySelector('[data-field="date"]')?.value || null,
+                description: tr.querySelector('[data-field="description"]')?.value || '',
+                amount_out: parseInt(tr.querySelector('[data-field="amount_out"]')?.value) || 0,
+                amount_in: parseInt(tr.querySelector('[data-field="amount_in"]')?.value) || 0,
+                balance: parseInt(tr.querySelector('[data-field="balance"]')?.value) || 0,
+                is_new: tr.dataset.isNew === 'true'
+            });
+        });
+
+        submitFiles.push({
+            filename: fileData.filename,
+            rows: rows,
+            account: wizardState.accountAssignments[fileIndex]
+        });
+    });
+
+    const submitData = {
+        files: submitFiles,
+        skipDuplicates: skipDuplicates
+    };
+
+    wizardDataInput.value = JSON.stringify(submitData);
+});
+
+// ===== ステップ切り替え =====
+
+function goToStep(step) {
+    // すべてのステップを非表示
+    document.getElementById('wizardStep1').classList.add('d-none');
+    document.getElementById('wizardStep2').classList.add('d-none');
+    document.getElementById('wizardStep3').classList.add('d-none');
+
+    // インジケーター更新
+    ['wizardStep1Indicator', 'wizardStep2Indicator', 'wizardStep3Indicator'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        el.classList.remove('active', 'completed');
+        if (i + 1 < step) el.classList.add('completed');
+        if (i + 1 === step) el.classList.add('active');
+    });
+
+    // 該当ステップを表示
+    document.getElementById(`wizardStep${step}`).classList.remove('d-none');
+
+    // ステップ固有の処理
+    if (step === 2) {
+        renderAccountAssignments();
+    } else if (step === 3) {
+        renderPreview();
+    }
+
+    // スクロールトップ
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// トースト通知
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} position-fixed bottom-0 end-0 m-3`;
+    toast.style.zIndex = '9999';
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+</script>
+
+<!-- SortableJS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+{% endblock %}

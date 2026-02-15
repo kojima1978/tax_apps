@@ -62,11 +62,19 @@
 
 <div class="mb-3">
     <label class="form-label">分類</label>
-    <select {% if show_name %}name="category"{% endif %} class="form-select" id="{{ id_prefix }}TxCategory">
-        {% for cat in categories %}
-        <option value="{{ cat }}" {% if not show_name and cat == '未分類' %}selected{% endif %}>{{ cat }}</option>
-        {% endfor %}
-    </select>
+    <div class="input-group">
+        <select {% if show_name %}name="category"{% endif %} class="form-select" id="{{ id_prefix }}TxCategory">
+            {% for cat in categories %}
+            <option value="{{ cat }}" {% if not show_name and cat == '未分類' %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+        </select>
+        {% if show_name %}
+        <button type="button" class="btn btn-outline-secondary" id="{{ id_prefix }}AddPatternBtn"
+            onclick="openPatternAddFromModal('{{ id_prefix }}')" title="この分類にキーワードを追加">
+            <i class="bi bi-plus-lg"></i> パターン登録
+        </button>
+        {% endif %}
+    </div>
 </div>
 
 <div class="mb-3">

@@ -1,7 +1,7 @@
 {% load humanize %}
 {% load japanese_date %}
 
-<div class="tab-pane fade show active" id="transfers" role="tabpanel" aria-labelledby="transfers-tab">
+<div class="tab-pane fade" id="transfers" role="tabpanel" aria-labelledby="transfers-tab">
     <div class="glass-card p-4">
         {% with tab_name="transfers" filter_prefix="transfer" selected_categories=filter_state.transfer_category selected_mode=filter_state.transfer_category_mode label_note="出金元/移動先いずれか" %}
         {% include "analyzer/partials/_category_filter.html" %}

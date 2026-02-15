@@ -78,7 +78,7 @@ class JsonImportForm(forms.Form):
         return file
 
 
-# カテゴリフィールド名 → 日本語カテゴリ名のマッピング
+# カテゴリフィールド名 → 日本語カテゴリ名のマッピング（後方互換性のため維持）
 CATEGORY_FIELD_MAP = {
     'cat_life': '生活費',
     'cat_salary': '給与',
@@ -92,7 +92,12 @@ CATEGORY_FIELD_MAP = {
 
 
 class SettingsForm(forms.Form):
-    """設定フォーム"""
+    """
+    設定フォーム（分析パラメータのみ）
+
+    分類パターンは _pattern_manager.html パーシャルで管理するため、
+    このフォームでは分析パラメータのみを扱う。
+    """
     large_amount_threshold = forms.IntegerField(
         label="多額取引の閾値（円）",
         min_value=0,
@@ -116,14 +121,3 @@ class SettingsForm(forms.Form):
         help_text="出金額と入金額の差がこの範囲内であれば資金移動として判定します",
         widget=forms.NumberInput(attrs={"class": "form-control"})
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # 分類パターンフィールドを動的生成
-        for field_name, category_label in CATEGORY_FIELD_MAP.items():
-            self.fields[field_name] = forms.CharField(
-                label=f"{category_label} キーワード",
-                required=False,
-                widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-                help_text="カンマ区切りでキーワードを入力"
-            )

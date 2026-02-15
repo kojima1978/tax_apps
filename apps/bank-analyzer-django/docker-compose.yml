@@ -1,14 +1,25 @@
 # ============================================
 # 銀行取引分析ツール - Docker Compose
 # ============================================
+#
 # Usage:
-#   開発:   docker compose up -d
-#   再ビルド: docker compose up -d --build
-#   ログ:   docker compose logs -f
-#   停止:   docker compose down
+#   開発起動:     docker compose up -d
+#   再ビルド:     docker compose up -d --build
+#   ログ確認:     docker compose logs -f
+#   停止:         docker compose down
+#   テスト実行:   docker compose run --rm test
+#   本番ビルド:   docker compose build --build-arg APP_VERSION=1.0.0 bank-analyzer-django
+#
+# Services:
+#   - bank-analyzer-db:     PostgreSQL + pgvector
+#   - bank-analyzer-django: Django application (dev mode)
+#   - test:                 Test runner (on-demand)
+#
 # ============================================
 
-# 共通設定
+# ------------------------------------------
+# 共通設定（YAML anchors）
+# ------------------------------------------
 x-common-env: &common-env
   TZ: Asia/Tokyo
 
@@ -24,41 +35,116 @@ x-healthcheck-defaults: &healthcheck-defaults
   retries: 5
   start_period: 30s
 
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+
+# ------------------------------------------
+# サービス定義
+# ------------------------------------------
 services:
   # ===========================================
-  # 銀行取引分析ツール（Django runserver）
+  # PostgreSQL Database with pgvector
+  # ===========================================
+  # Port: 5432 (internal only)
+  #
+  # 機能:
+  #   - 取引データの永続化
+  #   - pgvector拡張によるベクトル検索対応（Phase 2）
+  #
+  # データ:
+  #   - bank_analyzer_pgdata ボリュームに永続化
+  # ===========================================
+  bank-analyzer-db:
+    image: pgvector/pgvector:pg16
+    container_name: bank-analyzer-postgres
+    environment:
+      <<: *common-env
+      POSTGRES_DB: bank_analyzer
+      POSTGRES_USER: bankuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev-password-change-in-production}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - bank_analyzer_pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init-pgvector.sql:/docker-entrypoint-initdb.d/01-init-pgvector.sql:ro
+    networks:
+      - bank-analyzer-network
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bankuser -d bank_analyzer"]
+      <<: *healthcheck-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ===========================================
+  # 銀行取引分析ツール（Django - 開発モード）
+  # ===========================================
   # Port: 8000
   #
   # 機能:
   #   - 銀行取引CSVの読込・分析
   #   - 相続税申告向け取引分類
-  #   - SQLiteによるデータ永続化
+  #   - RapidFuzzによるファジーマッチング分類
+  #   - PostgreSQLによるデータ永続化
+  #
+  # ビルドターゲット:
+  #   - dev: Django runserver（ホットリロード対応）
+  #   - production: Gunicorn（本番用）
   # ===========================================
   bank-analyzer-django:
     build:
       context: .
       dockerfile: Dockerfile
       target: dev
+      args:
+        PYTHON_VERSION: "3.12"
+        APP_VERSION: ${APP_VERSION:-1.0.0}
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
     container_name: bank-analyzer-standalone
+    depends_on:
+      bank-analyzer-db:
+        condition: service_healthy
     ports:
       - "8000:8000"
     volumes:
       # ソースコードをマウント（ホットリロード用）
       - ./analyzer:/app/analyzer:ro
       - ./bank_project:/app/bank_project:ro
-      # データ永続化
+      # データ永続化（SQLiteレガシー用）
       - bank_analyzer_data:/app/db
+      # ユーザー設定
+      - ./data:/app/data
     environment:
       <<: *common-env
       DJANGO_DEBUG: "True"
-      DJANGO_SECRET_KEY: dev-secret-key-not-for-production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-not-for-production}
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
-      DB_PATH: /app/db/db.sqlite3
+      # PostgreSQL接続設定
+      DB_ENGINE: postgresql
+      DB_NAME: bank_analyzer
+      DB_USER: bankuser
+      DB_PASSWORD: ${DB_PASSWORD:-dev-password-change-in-production}
+      DB_HOST: bank-analyzer-db
+      DB_PORT: "5432"
+      # レガシーSQLite設定（移行時の参照用）
+      SQLITE_PATH: /app/db/db.sqlite3
+      # ファジーマッチング設定
+      FUZZY_THRESHOLD: ${FUZZY_THRESHOLD:-90}
+      FUZZY_ENABLED: ${FUZZY_ENABLED:-true}
+    networks:
+      - bank-analyzer-network
     init: true
     restart: unless-stopped
     logging: *default-logging
+    <<: *security-opts
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')\""]
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:8000/health/ || exit 1"]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -67,6 +153,119 @@ services:
         reservations:
           memory: 128M
 
+  # ===========================================
+  # テストランナー（オンデマンド実行）
+  # ===========================================
+  # Usage:
+  #   docker compose run --rm test
+  #   docker compose run --rm test pytest -v analyzer/tests.py
+  #   docker compose run --rm test coverage run -m pytest
+  #
+  # 終了後自動削除（--rm相当の設定）
+  # ===========================================
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: bank-analyzer-test
+    depends_on:
+      bank-analyzer-db:
+        condition: service_healthy
+    environment:
+      <<: *common-env
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: test-secret-key-not-for-production
+      # テスト用PostgreSQL接続
+      DB_ENGINE: postgresql
+      DB_NAME: bank_analyzer
+      DB_USER: bankuser
+      DB_PASSWORD: ${DB_PASSWORD:-dev-password-change-in-production}
+      DB_HOST: bank-analyzer-db
+      DB_PORT: "5432"
+    networks:
+      - bank-analyzer-network
+    profiles:
+      - test
+    <<: *security-opts
+
+  # ===========================================
+  # 本番サービス（Gunicorn）
+  # ===========================================
+  # Usage:
+  #   docker compose --profile production up -d bank-analyzer-prod
+  #
+  # 本番環境での使用を想定
+  # ===========================================
+  bank-analyzer-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        APP_VERSION: ${APP_VERSION:-1.0.0}
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
+    container_name: bank-analyzer-production
+    depends_on:
+      bank-analyzer-db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      # データ永続化のみ（ソースコードはイメージ内）
+      - bank_analyzer_data:/app/db
+      - ./data:/app/data
+    environment:
+      <<: *common-env
+      DJANGO_DEBUG: "False"
+      # 本番環境では必ず .env で設定すること
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-CHANGE_THIS_IN_PRODUCTION}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost}
+      # PostgreSQL接続設定
+      DB_ENGINE: postgresql
+      DB_NAME: bank_analyzer
+      DB_USER: bankuser
+      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_THIS_IN_PRODUCTION}
+      DB_HOST: bank-analyzer-db
+      DB_PORT: "5432"
+      # Gunicorn設定
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-300}
+      # ファジーマッチング設定
+      FUZZY_THRESHOLD: ${FUZZY_THRESHOLD:-90}
+      FUZZY_ENABLED: ${FUZZY_ENABLED:-true}
+    networks:
+      - bank-analyzer-network
+    init: true
+    restart: unless-stopped
+    logging: *default-logging
+    <<: *security-opts
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:8000/health/ || exit 1"]
+      <<: *healthcheck-defaults
+    profiles:
+      - production
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+# ------------------------------------------
+# ネットワーク定義
+# ------------------------------------------
+networks:
+  bank-analyzer-network:
+    name: bank-analyzer-net
+    driver: bridge
+
+# ------------------------------------------
+# ボリューム定義
+# ------------------------------------------
 volumes:
   bank_analyzer_data:
     name: bank-analyzer-sqlite
+  bank_analyzer_pgdata:
+    name: bank-analyzer-postgres

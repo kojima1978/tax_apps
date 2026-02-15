@@ -11,7 +11,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from .models import Case, Transaction
 from .forms import CaseForm, ImportForm, SettingsForm
-from .services import TransactionService, AnalysisService, _parse_int_ids
+from .services import TransactionService, AnalysisService, parse_int_ids
 from .templatetags.japanese_date import wareki, wareki_short, wareki_year, get_japanese_era
 from .views import _parse_amount, _sanitize_filename
 from .lib.importer import _convert_japanese_date
@@ -162,26 +162,26 @@ class SettingsFormTest(TestCase):
 
 
 class ParseIntIdsTest(TestCase):
-    """_parse_int_ids関数のテスト"""
+    """parse_int_ids関数のテスト"""
 
     def test_valid_ids(self):
         """有効なIDリスト"""
-        result = _parse_int_ids(["1", "2", "3"])
+        result = parse_int_ids(["1", "2", "3"])
         self.assertEqual(result, [1, 2, 3])
 
     def test_empty_list(self):
         """空のリスト"""
-        result = _parse_int_ids([])
+        result = parse_int_ids([])
         self.assertEqual(result, [])
 
     def test_invalid_ids(self):
         """無効なIDを含むリスト"""
-        result = _parse_int_ids(["1", "abc", "3"])
+        result = parse_int_ids(["1", "abc", "3"])
         self.assertIsNone(result)
 
     def test_none_in_list(self):
         """Noneを含むリスト"""
-        result = _parse_int_ids(["1", None, "3"])
+        result = parse_int_ids(["1", None, "3"])
         self.assertIsNone(result)
 
 
@@ -543,38 +543,54 @@ class ConvertJapaneseDateTest(TestCase):
 
 
 class ClassifyByRulesTest(TestCase):
-    """classify_by_rules関数のテスト"""
+    """classify_by_rules関数のテスト
+
+    Note: classify_by_rules は (カテゴリー, スコア) のタプルを返す
+          スコアは 100=完全一致、0=未分類
+    """
 
     def test_salary_keyword(self):
         """給与キーワードの検出"""
-        self.assertEqual(classify_by_rules('給与振込', 0, 300000), '給与')
+        category, score = classify_by_rules('給与振込', 0, 300000)
+        self.assertEqual(category, '給与')
+        self.assertEqual(score, 100)  # 完全一致
 
     def test_life_expense(self):
         """生活費キーワードの検出"""
-        self.assertEqual(classify_by_rules('イオンモール', 5000, 0), '生活費')
+        category, score = classify_by_rules('イオンモール', 5000, 0)
+        self.assertEqual(category, '生活費')
+        self.assertEqual(score, 100)
 
     def test_case_insensitive(self):
         """大文字小文字の区別なし"""
-        self.assertEqual(classify_by_rules('NTT通信料', 3000, 0), '生活費')
-        self.assertEqual(classify_by_rules('ntt通信料', 3000, 0), '生活費')
+        category1, _ = classify_by_rules('NTT通信料', 3000, 0)
+        category2, _ = classify_by_rules('ntt通信料', 3000, 0)
+        self.assertEqual(category1, '生活費')
+        self.assertEqual(category2, '生活費')
 
     def test_unclassified(self):
         """未分類"""
-        self.assertEqual(classify_by_rules('不明な取引', 100, 0), '未分類')
+        category, score = classify_by_rules('不明な取引', 100, 0)
+        self.assertEqual(category, '未分類')
+        self.assertEqual(score, 0)
 
     def test_empty_description(self):
         """空の摘要"""
-        self.assertEqual(classify_by_rules('', 100, 0), '未分類')
+        category, score = classify_by_rules('', 100, 0)
+        self.assertEqual(category, '未分類')
+        self.assertEqual(score, 0)
 
     def test_gift_over_threshold(self):
         """贈与（閾値以上）"""
-        result = classify_by_rules('振込', 1500000, 0)
-        self.assertEqual(result, '贈与')
+        category, score = classify_by_rules('振込', 1500000, 0)
+        self.assertEqual(category, '贈与')
+        self.assertEqual(score, 100)
 
     def test_gift_under_threshold(self):
         """贈与（閾値未満は未分類）"""
-        result = classify_by_rules('振込', 500000, 0)
-        self.assertEqual(result, '未分類')
+        category, score = classify_by_rules('振込', 500000, 0)
+        self.assertEqual(category, '未分類')
+        self.assertEqual(score, 0)
 
 
 class ApplyFiltersTest(TestCase):

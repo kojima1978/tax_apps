@@ -9,6 +9,14 @@ class Case(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
 
+    # 案件固有の分類パターン（グローバル設定に追加して適用）
+    custom_patterns = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="カスタム分類パターン",
+        help_text="案件固有のキーワードパターン"
+    )
+
     def __str__(self):
         return self.name
 
@@ -42,6 +50,13 @@ class Transaction(models.Model):
     is_transfer = models.BooleanField(default=False, verbose_name="資金移動")
     transfer_to = models.CharField(max_length=255, null=True, blank=True, verbose_name="移動先推定")
     category = models.CharField(max_length=100, default=UNCATEGORIZED, verbose_name="分類")
+
+    # AI分類の信頼度（0-100）
+    classification_score = models.IntegerField(
+        default=0,
+        verbose_name="分類信頼度",
+        help_text="0: 未分類, 100: 完全一致, 90+: ファジーマッチ"
+    )
 
     # 付箋・メモ機能
     is_flagged = models.BooleanField(default=False, verbose_name="要確認フラグ")

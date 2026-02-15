@@ -1,0 +1,283 @@
+{% comment %}
+Pattern Manager Component - Reusable partial for classification pattern management
+
+Usage:
+  {% include 'analyzer/partials/_pattern_manager.html' with
+      show_global=True
+      show_case=False
+      global_patterns=global_patterns
+      case_patterns=case_patterns
+      case_id=case.id
+      collapsed=False
+      card_style="default"
+  %}
+
+Parameters:
+  - show_global: Boolean - Show global patterns section (default: True)
+  - show_case: Boolean - Show case-specific patterns section (default: False)
+  - global_patterns: Dict - Global pattern data {category: [keywords]}
+  - case_patterns: Dict - Case-specific pattern data {category: [keywords]}
+  - case_id: Int - Case ID for case-specific operations (required if show_case=True)
+  - collapsed: Boolean - Start with accordion collapsed (default: False)
+  - card_style: String - "default" or "secondary" for header styling
+{% endcomment %}
+
+<!-- Pattern Manager Styles -->
+<style>
+.draggable-pattern {
+    cursor: grab;
+    transition: all 0.2s ease;
+}
+.draggable-pattern:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.draggable-pattern.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+.drag-handle {
+    font-size: 0.7em;
+    opacity: 0.5;
+    margin-right: 2px;
+}
+.pattern-drop-zone {
+    transition: all 0.3s ease;
+    border: 2px dashed transparent;
+    border-radius: 8px;
+    padding: 10px;
+}
+.pattern-drop-zone.drag-over {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.1);
+}
+.pattern-drop-zone[data-scope="case"].drag-over {
+    border-color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.1);
+}
+.drop-hint {
+    border: 2px dashed #ccc;
+    text-align: center;
+    padding: 20px;
+}
+/* Pending changes visualization */
+.pattern-pending-add {
+    background-color: #d4edda !important;
+    border-color: #28a745 !important;
+    animation: pulse-green 1.5s infinite;
+}
+.pattern-pending-delete {
+    text-decoration: line-through;
+    opacity: 0.5;
+    background-color: #f8d7da !important;
+}
+.pattern-pending-move-out {
+    opacity: 0.5;
+    border-style: dashed !important;
+}
+.pattern-pending-move-in {
+    background-color: #cce5ff !important;
+    border-color: #007bff !important;
+}
+@keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(40, 167, 69, 0); }
+}
+.pending-changes-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+/* Settings page specific styles */
+.pattern-manager-settings .accordion-button {
+    padding: 0.5rem 1rem;
+}
+.pattern-manager-settings .accordion-body {
+    padding: 0.75rem;
+}
+.pattern-manager-settings .pattern-badge {
+    font-size: 0.85rem;
+}
+</style>
+
+<!-- Pattern Manager Card -->
+<div class="card {% if not show_case %}pattern-manager-settings{% endif %}" id="patternManagerCard">
+    <div class="card-header {% if card_style == 'secondary' %}bg-secondary text-white{% else %}bg-primary text-white{% endif %}">
+        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+            <span>
+                <i class="bi bi-gear"></i> 分類パターン管理
+            </span>
+            {% if collapsed %}
+            <button class="btn btn-sm btn-outline-light" type="button"
+                data-bs-toggle="collapse" data-bs-target="#patternManagementCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            {% endif %}
+        </h5>
+    </div>
+
+    <!-- Pending Changes Bar -->
+    <div id="pendingChangesBar" class="pending-changes-bar text-white p-2 d-none">
+        <div class="d-flex justify-content-between align-items-center">
+            <span>
+                <i class="bi bi-exclamation-circle"></i>
+                <strong id="pendingChangesCount">0</strong>件の未保存の変更があります
+            </span>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-light" onclick="PatternManager.saveAllChanges()">
+                    <i class="bi bi-check-lg"></i> 変更を保存
+                </button>
+                <button type="button" class="btn btn-outline-light" onclick="PatternManager.discardAllChanges()">
+                    <i class="bi bi-x-lg"></i> 破棄
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="{% if collapsed %}collapse{% endif %}" id="patternManagementCollapse">
+        <div class="card-body">
+            <div class="row">
+                {% if show_global %}
+                <!-- Global Patterns -->
+                <div class="{% if show_case %}col-md-6{% else %}col-12{% endif %} pattern-drop-zone" data-scope="global"
+                    ondragover="PatternManager.handleDragOver(event)" ondragleave="PatternManager.handleDragLeave(event)"
+                    ondrop="PatternManager.handleDrop(event, 'global')">
+
+                    {% if show_case %}
+                    <h6><i class="bi bi-globe"></i> グローバルパターン</h6>
+                    <p class="text-muted small">全案件で使用{% if show_case %} - ドラッグで移動可能{% endif %}</p>
+                    {% else %}
+                    <p class="text-muted small mb-3">
+                        各カテゴリに分類するためのキーワードを管理します。<br>
+                        取引の摘要にキーワードが含まれている場合、そのカテゴリに自動分類されます。
+                    </p>
+                    {% endif %}
+
+                    <div class="accordion accordion-flush" id="globalPatternsAccordion">
+                        {% for category, keywords in global_patterns.items %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed py-2" type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#global-{{ forloop.counter }}">
+                                        <span class="badge bg-info me-2">{{ keywords|length }}</span>
+                                        {{ category }}
+                                    </button>
+                                </h2>
+                                <div id="global-{{ forloop.counter }}" class="accordion-collapse collapse">
+                                    <div class="accordion-body py-2">
+                                        {% for kw in keywords %}
+                                            <span class="badge bg-light text-dark me-1 mb-1 pattern-badge draggable-pattern"
+                                                {% if show_case %}draggable="true"{% endif %}
+                                                data-category="{{ category }}"
+                                                data-keyword="{{ kw }}"
+                                                data-scope="global"
+                                                {% if show_case %}ondragstart="PatternManager.handleDragStart(event)"{% endif %}>
+                                                {% if show_case %}<i class="bi bi-grip-vertical drag-handle"></i>{% endif %}
+                                                {{ kw }}
+                                                <button type="button" class="btn-close btn-close-sm ms-1"
+                                                    onclick="PatternManager.deletePattern('{{ category }}', '{{ kw }}', 'global')"
+                                                    title="削除"></button>
+                                            </span>
+                                        {% empty %}
+                                            <span class="text-muted">キーワードなし</span>
+                                        {% endfor %}
+                                        <div class="mt-2">
+                                            <button class="btn btn-sm btn-outline-primary"
+                                                onclick="PatternManager.addPatternPrompt('{{ category }}', 'global')">
+                                                <i class="bi bi-plus"></i> 追加
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-secondary"
+                            onclick="PatternManager.addNewCategoryPattern('global')">
+                            <i class="bi bi-plus-circle"></i> 新しいカテゴリーを追加
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if show_case %}
+                <!-- Case-Specific Patterns -->
+                <div class="col-md-6 pattern-drop-zone" data-scope="case"
+                    ondragover="PatternManager.handleDragOver(event)" ondragleave="PatternManager.handleDragLeave(event)"
+                    ondrop="PatternManager.handleDrop(event, 'case')">
+                    <h6><i class="bi bi-folder"></i> 案件固有パターン</h6>
+                    <p class="text-muted small">この案件のみ - ドラッグで移動可能</p>
+                    {% if case_patterns %}
+                        <div class="accordion accordion-flush" id="casePatternsAccordion">
+                            {% for category, keywords in case_patterns.items %}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed py-2" type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#case-{{ forloop.counter }}">
+                                            <span class="badge bg-warning text-dark me-2">{{ keywords|length }}</span>
+                                            {{ category }}
+                                        </button>
+                                    </h2>
+                                    <div id="case-{{ forloop.counter }}" class="accordion-collapse collapse">
+                                        <div class="accordion-body py-2">
+                                            {% for kw in keywords %}
+                                                <span class="badge bg-warning text-dark me-1 mb-1 pattern-badge draggable-pattern"
+                                                    draggable="true"
+                                                    data-category="{{ category }}"
+                                                    data-keyword="{{ kw }}"
+                                                    data-scope="case"
+                                                    ondragstart="PatternManager.handleDragStart(event)">
+                                                    <i class="bi bi-grip-vertical drag-handle"></i>
+                                                    {{ kw }}
+                                                    <button type="button" class="btn-close btn-close-sm ms-1"
+                                                        onclick="PatternManager.deletePattern('{{ category }}', '{{ kw }}', 'case')"
+                                                        title="削除"></button>
+                                                </span>
+                                            {% endfor %}
+                                            <div class="mt-2">
+                                                <button class="btn btn-sm btn-outline-warning"
+                                                    onclick="PatternManager.addPatternPrompt('{{ category }}', 'case')">
+                                                    <i class="bi bi-plus"></i> 追加
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-light drop-hint" id="caseDropHint">
+                            <i class="bi bi-arrow-left-circle"></i>
+                            グローバルからキーワードをドラッグしてここにドロップ<br>
+                            または「この案件に追加」を選択
+                        </div>
+                    {% endif %}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-secondary"
+                            onclick="PatternManager.addNewCategoryPattern('case')">
+                            <i class="bi bi-plus-circle"></i> 新しいカテゴリーを追加
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pattern Manager JavaScript -->
+{% load static %}
+<script src="{% static 'analyzer/js/pattern_manager.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    PatternManager.init({
+        showCase: {{ show_case|yesno:"true,false" }},
+        caseId: {% if case_id %}{{ case_id }}{% else %}null{% endif %},
+        saveUrl: window.location.href
+    });
+});
+</script>

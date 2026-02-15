@@ -28,3 +28,42 @@ STANDARD_CATEGORIES = [
     "生活費", "給与", "贈与", "事業・不動産", "関連会社",
     "銀行", "証券・株式", "保険会社", "通帳間移動", "その他", UNCATEGORIZED,
 ]
+
+# カテゴリーの固定順序（STANDARD_CATEGORIESの順序を使用）
+# 未知のカテゴリーは末尾に追加される
+CATEGORY_ORDER = {cat: idx for idx, cat in enumerate(STANDARD_CATEGORIES)}
+
+
+def sort_categories(categories: list | set) -> list:
+    """
+    カテゴリーを固定順序でソート
+
+    STANDARD_CATEGORIESの順序に従ってソートし、
+    未知のカテゴリーは末尾にアルファベット順で追加される。
+
+    Args:
+        categories: ソート対象のカテゴリーリストまたはセット
+
+    Returns:
+        固定順序でソートされたカテゴリーリスト
+    """
+    def sort_key(cat):
+        if cat in CATEGORY_ORDER:
+            return (0, CATEGORY_ORDER[cat], cat)
+        return (1, 0, cat)  # 未知のカテゴリーは末尾にアルファベット順
+
+    return sorted(categories, key=sort_key)
+
+
+def sort_patterns_dict(patterns: dict) -> dict:
+    """
+    パターン辞書をカテゴリーの固定順序でソート
+
+    Args:
+        patterns: {カテゴリー: [キーワード, ...], ...} の辞書
+
+    Returns:
+        固定順序でソートされた辞書
+    """
+    sorted_keys = sort_categories(patterns.keys())
+    return {k: patterns[k] for k in sorted_keys}
