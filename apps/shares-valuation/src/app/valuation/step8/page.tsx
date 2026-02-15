@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ValuationSimulation } from "@/components/valuation/ValuationSimulation";
 import { useValuationData } from "@/hooks/useValuationData";
+import { PageLayout } from "@/components/ui/PageLayout";
 
 export default function Step8Page() {
   const router = useRouter();
@@ -25,16 +26,14 @@ export default function Step8Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <ValuationSimulation
-          basicInfo={basicInfo}
-          financials={financials}
-          onBack={handleBack}
-          onHome={handleHome}
-          onSummary={handleSummary}
-        />
-      </div>
-    </div>
+    <PageLayout>
+      <ValuationSimulation
+        basicInfo={basicInfo}
+        financials={financials}
+        onBack={handleBack}
+        onHome={handleHome}
+        onSummary={handleSummary}
+      />
+    </PageLayout>
   );
 }

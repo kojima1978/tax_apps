@@ -26,6 +26,12 @@ function CalculationProcessButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+const AMOUNT_BADGE = 'inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold';
+
+function AmountBadge({ value }: { value: string }) {
+  return <div className={AMOUNT_BADGE}>{value}</div>;
+}
+
 export default function Results() {
   const router = useRouter();
   const toast = useToast();
@@ -129,9 +135,7 @@ export default function Results() {
               <img src="/medical/doctor.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
             </div>
             <div className="font-bold mb-2">当初出資額</div>
-            <div className="inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold">
-              {formatSen(result.totalCapital)}
-            </div>
+            <AmountBadge value={formatSen(result.totalCapital)} />
           </div>
 
           <div className="text-blue-500 text-4xl">→</div>
@@ -142,9 +146,7 @@ export default function Results() {
               <img src="/medical/hospital.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
             </div>
             <div className="font-bold mb-2">出資持分評価額</div>
-            <div className="inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold">
-              {formatSen(result.totalEvaluationValue)}
-            </div>
+            <AmountBadge value={formatSen(result.totalEvaluationValue)} />
           </div>
 
           <div className="text-blue-400 text-4xl">→</div>
@@ -155,9 +157,7 @@ export default function Results() {
               <img src="/medical/hospital2.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
             </div>
             <div className="font-bold mb-2">みなし贈与税額</div>
-            <div className="inline-block bg-blue-100 rounded-full px-6 py-3 text-lg font-bold">
-              {formatSen(result.deemedGiftTax)}
-            </div>
+            <AmountBadge value={formatSen(result.deemedGiftTax)} />
           </div>
         </div>
 

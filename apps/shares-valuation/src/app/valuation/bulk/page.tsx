@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ValuationBulkInput } from "@/components/valuation/ValuationBulkInput";
 import { BasicInfo, Financials } from "@/types/valuation";
+import { PageLayout } from "@/components/ui/PageLayout";
 
 export default function ValuationBulkInputPage() {
   const router = useRouter();
@@ -49,15 +50,13 @@ export default function ValuationBulkInputPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <ValuationBulkInput
-          onSubmit={handleSubmit}
-          onBack={handleBack}
-          defaultBasicInfo={defaultBasicInfo}
-          defaultFinancials={defaultFinancials}
-        />
-      </div>
-    </div>
+    <PageLayout>
+      <ValuationBulkInput
+        onSubmit={handleSubmit}
+        onBack={handleBack}
+        defaultBasicInfo={defaultBasicInfo}
+        defaultFinancials={defaultFinancials}
+      />
+    </PageLayout>
   );
 }

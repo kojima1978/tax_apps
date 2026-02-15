@@ -2,10 +2,10 @@
 
 import { BasicInfo, Financials } from "@/types/valuation";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { useMemo } from "react";
 import { calculateCorporateTaxFairValue } from "@/lib/valuation-logic";
 import { ValuationResultCards, getResultCardsProps } from "./ValuationResultCards";
+import { CalculationProcessDisplay } from "./CalculationProcessDisplay";
 
 interface CorporateTaxFairValueProps {
   basicInfo: BasicInfo;
@@ -39,95 +39,16 @@ export function CorporateTaxFairValue({
         <ValuationResultCards {...getResultCardsProps(results)} />
 
         {/* 計算過程 */}
-        <Card className="col-span-1 md:col-span-2 p-6 border-2 border-green-200 bg-gradient-to-br from-green-50 to-green-100/20">
-          <div className="text-sm">
-            {(() => {
-              const S = results.comparableValue;
-              const N = results.netAssetPerShare;
-
-              // 比準要素数0
-              if (financials.isZeroElementCompany) {
-                return (
-                  <div className="space-y-2">
-                    <p className="font-semibold text-foreground">
-                      比準要素数0の会社
-                    </p>
-                    <p className="text-muted-foreground">
-                      純資産価額（土地は時価＋法人税控除しない）
-                    </p>
-                    <p className="text-foreground pl-4">
-                      {N.toLocaleString()}円
-                    </p>
-                  </div>
-                );
-              }
-
-              // 比準要素数1
-              if (financials.isOneElementCompany) {
-                const blended = Math.floor(S * 0.25 + N * 0.75);
-                return (
-                  <div className="space-y-2">
-                    <p className="font-semibold text-foreground">
-                      比準要素数1の会社
-                    </p>
-                    <p className="text-muted-foreground">
-                      次のうちいずれか低い方の金額
-                    </p>
-                    <div className="pl-4 space-y-1">
-                      <p className="text-muted-foreground">
-                        イ　（類似業種比準価額 × 0.25）＋（純資産価額 × 0.75）
-                      </p>
-                      <p className="text-foreground pl-6">
-                        = ({S.toLocaleString()} × 0.25) + ({N.toLocaleString()}{" "}
-                        × 0.75)
-                      </p>
-                      <p className="text-foreground pl-6">
-                        = {blended.toLocaleString()}円
-                      </p>
-                      <p className="text-muted-foreground mt-2">
-                        ロ　純資産価額（土地は時価＋法人税控除しない）
-                      </p>
-                      <p className="text-foreground pl-6">
-                        = {N.toLocaleString()}円
-                      </p>
-                    </div>
-                  </div>
-                );
-              }
-
-              // 比準要素数0、1以外は小会社の株式の価額で評価（会社規模に関わらず）
-              const blended = Math.floor(S * 0.5 + N * 0.5);
-              return (
-                <div className="space-y-2">
-                  <p className="font-semibold text-foreground">
-                    法人税法上の時価（小会社の株式の価額）
-                  </p>
-                  <p className="text-muted-foreground">
-                    次のうちいずれか低い方の金額
-                  </p>
-                  <div className="pl-4 space-y-1">
-                    <p className="text-muted-foreground">
-                      イ　純資産価額（土地は時価＋法人税控除しない）
-                    </p>
-                    <p className="text-foreground pl-6">
-                      {N.toLocaleString()}円
-                    </p>
-                    <p className="text-muted-foreground mt-2">
-                      ロ　（類似業種比準価額 × 0.50）＋（純資産価額 × 0.50）
-                    </p>
-                    <p className="text-foreground pl-6">
-                      = ({S.toLocaleString()} × 0.50) + ({N.toLocaleString()} ×
-                      0.50)
-                    </p>
-                    <p className="text-foreground pl-6">
-                      = {blended.toLocaleString()}円
-                    </p>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        </Card>
+        <CalculationProcessDisplay
+          comparableValue={results.comparableValue}
+          netAssetPerShare={results.netAssetPerShare}
+          lRatio={results.lRatio}
+          size={results.size}
+          isZeroElementCompany={financials.isZeroElementCompany}
+          isOneElementCompany={financials.isOneElementCompany}
+          netAssetSuffix="（土地は時価＋法人税控除しない）"
+          variant="corporate"
+        />
       </div>
 
       <div className="flex flex-col-reverse sm:flex-row justify-center gap-4 pt-8">

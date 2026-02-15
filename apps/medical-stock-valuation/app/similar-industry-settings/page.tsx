@@ -8,6 +8,7 @@ import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { toWareki, generateYearRange } from '@/lib/date-utils';
 import { BTN, SMALL_BTN } from '@/lib/button-styles';
+import { LABEL_CLASS } from '@/lib/constants';
 import { ACTION_MESSAGES } from '@/lib/record-actions';
 import { useMasterSettings } from '@/hooks/useMasterSettings';
 
@@ -229,7 +230,7 @@ function SimilarIndustrySettingsContent() {
       >
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">年度</label>
+            <label className={LABEL_CLASS}>年度</label>
             {ms.formMode === 'create' ? (
               <select
                 value={selectedFields.fiscal_year}
@@ -262,7 +263,7 @@ function SimilarIndustrySettingsContent() {
             { key: 'average_stock_price' as const, label: 'A:平均株価（円）', placeholder: '例：532' },
           ].map(({ key, label, placeholder }) => (
             <div key={key} className="mb-4">
-              <label className="block text-sm font-medium mb-2">{label}</label>
+              <label className={LABEL_CLASS}>{label}</label>
               <input
                 type="number"
                 step="0.01"

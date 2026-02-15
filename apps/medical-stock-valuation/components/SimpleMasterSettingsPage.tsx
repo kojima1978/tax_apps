@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { BTN, SMALL_BTN } from '@/lib/button-styles';
+import { LABEL_CLASS } from '@/lib/constants';
 import { handleDoubleClickToStep0 } from '@/lib/form-utils';
 import { ACTION_MESSAGES } from '@/lib/record-actions';
 import { useMasterSettings } from '@/hooks/useMasterSettings';
@@ -102,7 +103,7 @@ export function SimpleMasterSettingsPage<T extends BaseMasterRecord>({
       ) : (
         <div className="card">
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">{config.searchLabel}</label>
+            <label className={LABEL_CLASS}>{config.searchLabel}</label>
             <input
               type="text"
               value={searchTerm}
@@ -222,7 +223,7 @@ export function SimpleMasterSettingsPage<T extends BaseMasterRecord>({
       >
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">{config.formLabel}</label>
+            <label className={LABEL_CLASS}>{config.formLabel}</label>
             <input
               type="text"
               value={name}

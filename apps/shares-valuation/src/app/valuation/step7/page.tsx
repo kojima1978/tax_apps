@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { CorporateTaxFairValue } from "@/components/valuation/CorporateTaxFairValue";
 import { useValuationData } from "@/hooks/useValuationData";
+import { PageLayout } from "@/components/ui/PageLayout";
 
 export default function Step7Page() {
   const router = useRouter();
@@ -25,16 +26,14 @@ export default function Step7Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <CorporateTaxFairValue
-          basicInfo={basicInfo}
-          financials={financials}
-          onBack={handleBack}
-          onNext={handleNext}
-          onHome={handleHome}
-        />
-      </div>
-    </div>
+    <PageLayout>
+      <CorporateTaxFairValue
+        basicInfo={basicInfo}
+        financials={financials}
+        onBack={handleBack}
+        onNext={handleNext}
+        onHome={handleHome}
+      />
+    </PageLayout>
   );
 }

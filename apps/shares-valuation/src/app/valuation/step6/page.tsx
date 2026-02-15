@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ValuationResult } from "@/components/valuation/ValuationResult";
 import { useValuationData } from "@/hooks/useValuationData";
+import { PageLayout } from "@/components/ui/PageLayout";
 
 export default function Step6Page() {
   const router = useRouter();
@@ -21,15 +22,13 @@ export default function Step6Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <ValuationResult
-          basicInfo={basicInfo}
-          financials={financials}
-          onBack={handleBack}
-          onNext={handleNext}
-        />
-      </div>
-    </div>
+    <PageLayout>
+      <ValuationResult
+        basicInfo={basicInfo}
+        financials={financials}
+        onBack={handleBack}
+        onNext={handleNext}
+      />
+    </PageLayout>
   );
 }

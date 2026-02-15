@@ -2,6 +2,7 @@
 
 import { useState, useId, useEffect } from "react";
 import InputWithUnit from "./InputWithUnit";
+import FormField from "./FormField";
 import { calcServiceYears } from "@/lib/retirement-tax";
 import { parseIntInput } from "@/lib/utils";
 
@@ -59,8 +60,7 @@ const ServiceYearsInput = ({ value, onChange }: ServiceYearsInputProps) => {
             </div>
 
             {mode === "direct" ? (
-                <div className="input-item">
-                    <label htmlFor={yearsId}>勤続年数</label>
+                <FormField label="勤続年数" htmlFor={yearsId}>
                     <InputWithUnit
                         unit="年"
                         type="number"
@@ -71,27 +71,25 @@ const ServiceYearsInput = ({ value, onChange }: ServiceYearsInputProps) => {
                         onChange={(e) => onChange(parseIntInput(e.target.value))}
                         placeholder="例: 30"
                     />
-                </div>
+                </FormField>
             ) : (
                 <div className="date-inputs">
-                    <div className="input-item">
-                        <label htmlFor={startId}>勤続開始日</label>
+                    <FormField label="勤続開始日" htmlFor={startId}>
                         <input
                             type="date"
                             id={startId}
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
                         />
-                    </div>
-                    <div className="input-item">
-                        <label htmlFor={endId}>退職日</label>
+                    </FormField>
+                    <FormField label="退職日" htmlFor={endId}>
                         <input
                             type="date"
                             id={endId}
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
                         />
-                    </div>
+                    </FormField>
                     {startDate && endDate && value > 0 && (
                         <p className="calc-result-note">
                             → 勤続年数: <strong>{value}年</strong>（1年未満切上げ）

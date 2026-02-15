@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ValuationSummary } from "@/components/valuation/ValuationSummary";
 import { useValuationData } from "@/hooks/useValuationData";
+import { PageLayout } from "@/components/ui/PageLayout";
 
 export default function SummaryPage() {
   const router = useRouter();
@@ -25,16 +26,14 @@ export default function SummaryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <ValuationSummary
-          basicInfo={basicInfo}
-          financials={financials}
-          onBack={handleBack}
-          onHome={handleHome}
-          onDetails={handleDetails}
-        />
-      </div>
-    </div>
+    <PageLayout>
+      <ValuationSummary
+        basicInfo={basicInfo}
+        financials={financials}
+        onBack={handleBack}
+        onHome={handleHome}
+        onDetails={handleDetails}
+      />
+    </PageLayout>
   );
 }

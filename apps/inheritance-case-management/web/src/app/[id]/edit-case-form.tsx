@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { SelectField } from "@/components/ui/SelectField"
 import { CurrencyField } from "@/components/ui/CurrencyField"
+import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer } from "@tax-apps/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
@@ -302,11 +303,11 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 />
             </div>
 
-            <div className="sticky bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur border-t mt-4 -mx-6 px-6 shadow-lg z-10 flex justify-end gap-4">
+            <StickyActionBar>
                 <Button onClick={handleSave} disabled={isSaving} variant="outline" className="min-w-[120px] font-bold shadow-sm">
                     {isSaving ? "処理中..." : isCreateMode ? "新規登録" : "変更を保存"}
                 </Button>
-            </div>
+            </StickyActionBar>
         </div>
     )
 }

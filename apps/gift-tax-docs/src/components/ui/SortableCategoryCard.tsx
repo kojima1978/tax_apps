@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { EditableCategory } from '@/constants';
 import { handleInlineKeyDown } from './EditableInput';
+import { VerticalDivider } from './VerticalDivider';
 
 // ─── カテゴリ編集状態の型 ───
 
@@ -210,7 +211,7 @@ export const SortableCategoryCard = ({
               >
                 <Trash2 className="w-4 h-4" />
               </button>
-              <div className="w-px h-6 bg-slate-300 mx-1" aria-hidden="true" />
+              <VerticalDivider />
             </>
           )}
           <button
