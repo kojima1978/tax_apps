@@ -110,6 +110,12 @@ services:
     volumes: !reset []
 
   # ===========================================
+  # Bank Analyzer DB - 本番設定
+  # ===========================================
+  bank-analyzer-db:
+    deploy: *prod-postgres-deploy
+
+  # ===========================================
   # Bank Analyzer - 本番設定
   # ===========================================
   bank-analyzer:
@@ -123,6 +129,13 @@ services:
     environment:
       DJANGO_DEBUG: "False"
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required for production}
+      # 本番環境では PostgreSQL を使用
+      DB_ENGINE: postgresql
+      DB_NAME: ${BANK_ANALYZER_DB_NAME:-bank_analyzer}
+      DB_USER: ${BANK_ANALYZER_DB_USER:-bankuser}
+      DB_PASSWORD: ${BANK_ANALYZER_DB_PASSWORD:?BANK_ANALYZER_DB_PASSWORD is required for production}
+      DB_HOST: bank-analyzer-db
+      DB_PORT: "5432"
     command: ["/docker-entrypoint.sh", "gunicorn"]
     deploy: *prod-deploy
 

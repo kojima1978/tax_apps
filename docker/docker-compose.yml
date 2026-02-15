@@ -2,12 +2,32 @@
 # Tax Apps - Docker Compose
 # 税理士業務支援アプリケーション統合プラットフォーム
 # ============================================
+#
+# Services (17 total):
+#   - gateway                : Nginx リバースプロキシ (Port 80)
+#   - portal-app             : ポータルサイト (Port 3000)
+#   - medical-stock-valuation: 医療法人株式評価 (Port 3010)
+#   - shares-valuation       : 非上場株式評価 (Port 3012)
+#   - itcm-postgres          : 相続税案件管理 DB (Port 3022)
+#   - itcm-backend           : 相続税案件管理 API (Port 3021)
+#   - itcm-frontend          : 相続税案件管理 Web (Port 3020)
+#   - bank-analyzer-db       : 銀行分析 DB - PostgreSQL+pgvector (Port 5432)
+#   - bank-analyzer          : 銀行分析システム - Django (Port 8000)
+#   - inheritance-tax-app    : 相続税計算アプリ (Port 5173)
+#   - gift-tax-simulator     : 贈与税シミュレーター (Port 3001)
+#   - gift-tax-docs          : 贈与税申告書類案内 (Port 3002)
+#   - inheritance-tax-docs   : 相続税申告書類案内 (Port 3003)
+#   - retirement-tax-calc    : 退職金税額計算 (Port 3013)
+#   - tax-docs-backend       : 確定申告書類 API (Port 3006)
+#   - tax-docs-frontend      : 確定申告書類 Web (Port 3005)
+#
 # Usage:
 #   Development: docker compose up -d
 #   Production:  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #   Rebuild:     docker compose up -d --build
 #   Logs:        docker compose logs -f [service]
 #   Stop:        docker compose down
+#
 # ============================================
 
 # 共通設定
@@ -33,8 +53,14 @@ x-healthcheck-defaults: &healthcheck-defaults
   retries: 5
   start_period: 60s
 
-# サービス共通設定（ネットワーク・再起動・ログ・シグナル処理）
+# セキュリティオプション（権限昇格防止）
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+
+# サービス共通設定（ネットワーク・再起動・ログ・シグナル処理・セキュリティ）
 x-service-defaults: &service-defaults
+  <<: *security-opts
   networks:
     - app-network
   restart: unless-stopped
@@ -85,7 +111,7 @@ services:
       - ../nginx/includes:/etc/nginx/includes:ro
       - ../nginx/html:/usr/share/nginx/html:ro
     healthcheck:
-      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1" ]
+      test: [ "CMD-SHELL", "curl --fail --silent --show-error http://127.0.0.1/health || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -243,6 +269,31 @@ services:
     deploy: *default-deploy
 
   # ===========================================
+  # 銀行分析システム - PostgreSQL + pgvector
+  # Port: 5432 (内部のみ)
+  # Features: ベクトル類似度検索、意味検索（Phase 2）
+  # ===========================================
+  bank-analyzer-db:
+    <<: *service-defaults
+    image: pgvector/pgvector:pg16
+    container_name: bank-analyzer-postgres
+    environment:
+      <<: *common-env
+      POSTGRES_DB: ${BANK_ANALYZER_DB_NAME:-bank_analyzer}
+      POSTGRES_USER: ${BANK_ANALYZER_DB_USER:-bankuser}
+      POSTGRES_PASSWORD: ${BANK_ANALYZER_DB_PASSWORD:?BANK_ANALYZER_DB_PASSWORD is required}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./data/bank-analyzer/postgres:/var/lib/postgresql/data
+      - ./postgres/init-pgvector.sql:/docker-entrypoint-initdb.d/01-init-pgvector.sql:ro
+    shm_size: 128m
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${BANK_ANALYZER_DB_USER:-bankuser} -d ${BANK_ANALYZER_DB_NAME:-bank_analyzer}" ]
+      <<: *healthcheck-defaults
+      start_period: 10s
+    deploy: *medium-deploy
+
+  # ===========================================
   # 銀行分析システム (Django)
   # Port: 8000
   # ===========================================
@@ -265,6 +316,20 @@ services:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,bank-analyzer}
       DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
+      # PostgreSQL 接続設定
+      DB_ENGINE: ${BANK_ANALYZER_DB_ENGINE:-sqlite}
+      DB_NAME: ${BANK_ANALYZER_DB_NAME:-bank_analyzer}
+      DB_USER: ${BANK_ANALYZER_DB_USER:-bankuser}
+      DB_PASSWORD: ${BANK_ANALYZER_DB_PASSWORD:-}
+      DB_HOST: bank-analyzer-db
+      DB_PORT: "5432"
+      SQLITE_PATH: /app/db/db.sqlite3
+      # ファジーマッチング設定
+      FUZZY_ENABLED: ${FUZZY_ENABLED:-true}
+      FUZZY_THRESHOLD: ${FUZZY_THRESHOLD:-90}
+    depends_on:
+      bank-analyzer-db:
+        condition: service_healthy
     # --nostatic: StaticFilesHandler が FORCE_SCRIPT_NAME 付きの request.path を
     # 使って file_path を算出するため静的ファイルが 404 になる。
     # WhiteNoise middleware は request.path_info を使うため正しく配信できる。
@@ -461,7 +526,8 @@ networks:
 # ===========================================
 # ボリューム（ホストバインドマウント: ./data/）
 # ===========================================
-# postgres        → ./data/postgres/
-# tax-docs        → ./data/tax-docs/
-# medical-stock   → ./data/medical-stock/
-# bank-analyzer   → ./data/bank-analyzer/{data,db}/
+# itcm-postgres     → ./data/postgres/
+# bank-analyzer-db  → ./data/bank-analyzer/postgres/
+# bank-analyzer     → ./data/bank-analyzer/{data,db}/
+# tax-docs          → ./data/tax-docs/
+# medical-stock     → ./data/medical-stock/
