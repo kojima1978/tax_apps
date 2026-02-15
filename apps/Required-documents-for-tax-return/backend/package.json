@@ -2,6 +2,7 @@
   "name": "tax-documents-backend",
   "version": "1.0.0",
   "description": "Tax documents API server",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

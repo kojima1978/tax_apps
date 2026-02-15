@@ -1,8 +1,11 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import { Customer, DocumentRecordWithCustomer, CustomerWithYears, Staff } from './types';
+import { fileURLToPath } from 'url';
+import type { Customer, DocumentRecordWithCustomer, CustomerWithYears, Staff } from './types.js';
 
 // データベースファイルのパス
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, '..', 'data', 'tax_documents.db');
 
 // シングルトンDB接続

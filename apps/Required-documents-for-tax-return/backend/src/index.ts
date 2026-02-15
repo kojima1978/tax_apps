@@ -25,7 +25,7 @@ import {
   deleteStaff,
   getFullBackupData,
   restoreFullBackup,
-} from './db';
+} from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
