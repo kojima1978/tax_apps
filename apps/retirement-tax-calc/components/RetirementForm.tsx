@@ -2,6 +2,7 @@
 
 import { useState, useId } from "react";
 import InputWithUnit from "./InputWithUnit";
+import FormField from "./FormField";
 import ServiceYearsInput from "./ServiceYearsInput";
 import OfficerLimitSection from "./OfficerLimitSection";
 import CheckboxField from "./CheckboxField";
@@ -49,8 +50,7 @@ const RetirementForm = ({
     return (
         <div className="form-section">
             {/* 退職金額（3パターン横並び） */}
-            <div className="input-item">
-                <label>退職金支給額</label>
+            <FormField label="退職金支給額">
                 <div className="pattern-inputs">
                     {PATTERN_LABELS.map((label, i) => (
                         <div key={label} className="pattern-input-item">
@@ -66,7 +66,7 @@ const RetirementForm = ({
                         </div>
                     ))}
                 </div>
-            </div>
+            </FormField>
 
             {/* 役員退職金チェック（短期退職手当等以外で表示） — 支給額の直下 */}
             {showOfficer && (
@@ -91,8 +91,7 @@ const RetirementForm = ({
             {/* 条件設定（2列グリッド） */}
             <div className="form-row">
                 {/* 退職区分 */}
-                <div className="input-item">
-                    <label>退職区分</label>
+                <FormField label="退職区分">
                     <div className="radio-group">
                         {(Object.keys(RETIREMENT_TYPE_LABELS) as RetirementType[]).map((type) => (
                             <label key={type} className="radio-label">
@@ -107,7 +106,7 @@ const RetirementForm = ({
                             </label>
                         ))}
                     </div>
-                </div>
+                </FormField>
 
                 {/* 勤続年数 */}
                 <ServiceYearsInput value={serviceYears} onChange={onServiceYearsChange} />
@@ -121,8 +120,7 @@ const RetirementForm = ({
                 />
 
                 {/* 税率年度 */}
-                <div className="input-item">
-                    <label htmlFor={yearId}>適用税率年度</label>
+                <FormField label="適用税率年度" htmlFor={yearId}>
                     <select
                         id={yearId}
                         value={taxYear}
@@ -134,7 +132,7 @@ const RetirementForm = ({
                             </option>
                         ))}
                     </select>
-                </div>
+                </FormField>
             </div>
 
             {/* 計算ボタン */}

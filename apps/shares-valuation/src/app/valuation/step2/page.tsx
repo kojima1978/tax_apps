@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CompanySizeForm } from "@/components/valuation/CompanySizeForm";
 import { BasicInfo } from "@/types/valuation";
+import { PageLayout } from "@/components/ui/PageLayout";
 
 export default function Step2Page() {
   const router = useRouter();
@@ -50,15 +51,13 @@ export default function Step2Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <CompanySizeForm
-          onNext={handleNext}
-          onBack={handleBack}
-          defaultValues={basicInfo}
-          onChange={handleFormChange}
-        />
-      </div>
-    </div>
+    <PageLayout narrow>
+      <CompanySizeForm
+        onNext={handleNext}
+        onBack={handleBack}
+        defaultValues={basicInfo}
+        onChange={handleFormChange}
+      />
+    </PageLayout>
   );
 }

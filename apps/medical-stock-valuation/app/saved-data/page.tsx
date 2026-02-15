@@ -4,6 +4,7 @@ import { Upload, Trash2, X, ArrowLeft, Download, FileJson } from 'lucide-react';
 import Header from '@/components/Header';
 import { toWareki } from '@/lib/date-utils';
 import { BTN, SMALL_BTN } from '@/lib/button-styles';
+import { LABEL_CLASS } from '@/lib/constants';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useSavedData } from '@/hooks/useSavedData';
 
@@ -83,7 +84,7 @@ export default function SavedDataPage() {
             <h2 className="mt-0">絞り込み</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">年度</label>
+                <label className={`${LABEL_CLASS} text-gray-700`}>年度</label>
                 <select value={sd.filterYear} onChange={(e) => sd.setFilterYear(e.target.value)}>
                   <option value="">すべて</option>
                   {sd.availableYears.map((year) => (
@@ -92,7 +93,7 @@ export default function SavedDataPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">会社名</label>
+                <label className={`${LABEL_CLASS} text-gray-700`}>会社名</label>
                 <input
                   type="text"
                   placeholder="会社名で検索"
@@ -101,7 +102,7 @@ export default function SavedDataPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">担当者</label>
+                <label className={`${LABEL_CLASS} text-gray-700`}>担当者</label>
                 <input
                   type="text"
                   placeholder="担当者名で検索"

@@ -3,9 +3,15 @@
 import React, { type ReactNode } from "react"
 import { Button } from "@/components/ui/Button"
 import { Label } from "@/components/ui/Label"
+import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
 import { Trash2, Plus, Pencil, Check, X, ArrowUpDown, Ban, RotateCcw } from "lucide-react"
+
+const ICON_BTN_MUTED = "h-8 w-8 text-muted-foreground hover:text-foreground"
+const ICON_BTN_GREEN = "h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
+const ICON_BTN_ORANGE = "h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-100"
+const ICON_BTN_DESTRUCTIVE = "h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
 
 export interface ColumnDef<T> {
     key: string
@@ -131,7 +137,7 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
+                                                                className={ICON_BTN_GREEN}
                                                                 onClick={onSaveEdit}
                                                             >
                                                                 <Check className="h-4 w-4" />
@@ -139,7 +145,7 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                className={ICON_BTN_MUTED}
                                                                 onClick={onCancelEdit}
                                                             >
                                                                 <X className="h-4 w-4" />
@@ -159,7 +165,7 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                className={ICON_BTN_MUTED}
                                                                 onClick={() => onStartEdit(item)}
                                                             >
                                                                 <Pencil className="h-4 w-4" />
@@ -169,7 +175,7 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="icon"
-                                                                        className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
+                                                                        className={ICON_BTN_GREEN}
                                                                         onClick={() => onToggleActive(item.id)}
                                                                         title="有効化"
                                                                     >
@@ -178,7 +184,7 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="icon"
-                                                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                                        className={ICON_BTN_DESTRUCTIVE}
                                                                         onClick={() => onPermanentDelete(item.id)}
                                                                         title="完全削除"
                                                                     >
@@ -189,7 +195,7 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-100"
+                                                                    className={ICON_BTN_ORANGE}
                                                                     onClick={() => onToggleActive(item.id)}
                                                                     title="無効化"
                                                                 >
@@ -209,7 +215,7 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
                 </div>
             </div>
 
-            <div className="sticky bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur border-t mt-4 -mx-6 px-6 shadow-lg z-10 flex justify-end gap-4 rounded-b-lg">
+            <StickyActionBar className="rounded-b-lg">
                 <Button
                     onClick={onSave}
                     disabled={isSaving || !isDirty}
@@ -218,7 +224,7 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
                 >
                     {isSaving ? "処理中..." : "変更を保存"}
                 </Button>
-            </div>
+            </StickyActionBar>
         </div>
     )
 }

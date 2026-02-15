@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useId } from "react";
 import InputWithUnit from "./InputWithUnit";
+import FormField from "./FormField";
 import { OFFICER_PRESETS, PATTERN_LABELS, calcOfficerLimit } from "@/lib/retirement-tax";
 import { formatYen, formatInputValue, parseFormattedNumber, parseIntInput } from "@/lib/utils";
 
@@ -42,8 +43,7 @@ const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmo
             <h3 className="section-subtitle">役員退職金限度額</h3>
 
             <div className="officer-inputs">
-                <div className="input-item">
-                    <label htmlFor={compId}>最終月額報酬</label>
+                <FormField label="最終月額報酬" htmlFor={compId}>
                     <InputWithUnit
                         unit="円"
                         type="text"
@@ -53,10 +53,9 @@ const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmo
                         placeholder="例: 1,000,000"
                         inputMode="numeric"
                     />
-                </div>
+                </FormField>
 
-                <div className="input-item">
-                    <label>役職プリセット</label>
+                <FormField label="役職プリセット">
                     <div className="preset-buttons">
                         {OFFICER_PRESETS.map((p) => (
                             <button
@@ -69,11 +68,10 @@ const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmo
                             </button>
                         ))}
                     </div>
-                </div>
+                </FormField>
 
                 <div className="officer-inputs-row">
-                    <div className="input-item">
-                        <label htmlFor={multId}>功績倍率</label>
+                    <FormField label="功績倍率" htmlFor={multId}>
                         <input
                             type="number"
                             id={multId}
@@ -83,9 +81,8 @@ const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmo
                             value={multiplier}
                             onChange={(e) => setMultiplier(e.target.value)}
                         />
-                    </div>
-                    <div className="input-item">
-                        <label htmlFor={yearsId}>勤続年数</label>
+                    </FormField>
+                    <FormField label="勤続年数" htmlFor={yearsId}>
                         <InputWithUnit
                             unit="年"
                             type="number"
@@ -95,7 +92,7 @@ const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmo
                             value={serviceYears || ""}
                             onChange={(e) => onServiceYearsChange(parseIntInput(e.target.value))}
                         />
-                    </div>
+                    </FormField>
                 </div>
             </div>
 

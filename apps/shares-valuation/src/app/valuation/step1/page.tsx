@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { BasicInfoForm } from "@/components/valuation/BasicInfoForm";
 import { BasicInfo, Financials } from "@/types/valuation";
 import { DUMMY_DATA_PATTERNS, DummyDataPatternKey } from "@/lib/dummy-data";
+import { PageLayout } from "@/components/ui/PageLayout";
 
 export default function Step1Page() {
   const router = useRouter();
@@ -108,14 +109,12 @@ export default function Step1Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <BasicInfoForm
-          onNext={handleNext}
-          onBack={handleBack}
-          defaultValues={defaultValues || undefined}
-        />
-      </div>
-    </div>
+    <PageLayout narrow>
+      <BasicInfoForm
+        onNext={handleNext}
+        onBack={handleBack}
+        defaultValues={defaultValues || undefined}
+      />
+    </PageLayout>
   );
 }

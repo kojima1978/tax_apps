@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { OwnDataForm } from "@/components/valuation/OwnDataForm";
 import { Financials } from "@/types/valuation";
 import { useValuationFormData } from "@/hooks/useValuationData";
+import { PageLayout } from "@/components/ui/PageLayout";
 
 export default function Step3Page() {
   const router = useRouter();
@@ -25,15 +26,13 @@ export default function Step3Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <OwnDataForm
-          basicInfo={basicInfo}
-          onNext={handleNext}
-          onBack={handleBack}
-          defaultValues={financials || undefined}
-        />
-      </div>
-    </div>
+    <PageLayout narrow>
+      <OwnDataForm
+        basicInfo={basicInfo}
+        onNext={handleNext}
+        onBack={handleBack}
+        defaultValues={financials || undefined}
+      />
+    </PageLayout>
   );
 }

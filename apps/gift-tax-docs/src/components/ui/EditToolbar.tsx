@@ -15,6 +15,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { giftData, EXTERNAL_LINKS } from '@/constants';
+import { VerticalDivider } from './VerticalDivider';
 
 const EXTERNAL_LINK_ITEMS = [
   { key: 'ntaCheckSheet', shortLabel: 'シート' },
@@ -125,7 +126,7 @@ export const EditToolbar = ({
           icon={<RotateCcw className="w-4 h-4 mr-1" aria-hidden="true" />}
           label="リセット"
         />
-        <div className="w-px h-6 bg-slate-300 mx-1" aria-hidden="true" />
+        <VerticalDivider />
         <ToolbarButton
           onClick={onJsonExport}
           className="px-3 py-2 text-sm bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-lg"
@@ -167,7 +168,7 @@ export const EditToolbar = ({
           {shortLabel}
         </a>
       ))}
-      <div className="w-px h-6 bg-slate-300 mx-1" aria-hidden="true" />
+      <VerticalDivider />
       <ToolbarButton
         onClick={toggleHideSubmitted}
         className={`px-3 py-2 text-sm rounded-lg font-medium ${
@@ -194,7 +195,7 @@ export const EditToolbar = ({
         icon={<Layout className="w-4 h-4 mr-1" aria-hidden="true" />}
         label={isTwoColumnPrint ? '2列' : '1列'}
       />
-      <div className="w-px h-6 bg-slate-300 mx-1" aria-hidden="true" />
+      <VerticalDivider />
       <ToolbarButton
         onClick={onExcelExport}
         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"

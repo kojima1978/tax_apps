@@ -82,3 +82,10 @@ export const YEN_TO_TEN_THOUSAND = 10000;
 
 /** 千円から万円への変換 */
 export const THOUSAND_TO_TEN_THOUSAND = 10;
+
+// ============================================================================
+// 共通CSSクラス
+// ============================================================================
+
+/** ラベル要素の共通クラス */
+export const LABEL_CLASS = 'block text-sm font-medium mb-2';
