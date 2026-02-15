@@ -95,7 +95,6 @@ RUN apk upgrade --no-cache && \
 
 # 本番用依存関係をコピー（ビルド済みネイティブモジュール含む）
 COPY --from=prod-deps --link /app/node_modules ./node_modules
-COPY --from=prod-deps --link /app/packages/utils/node_modules ./packages/utils/node_modules
 COPY --from=prod-deps --link /app/apps/Required-documents-for-tax-return/backend/node_modules ./apps/Required-documents-for-tax-return/backend/node_modules
 
 # ビルド済み utils パッケージ
@@ -110,9 +109,10 @@ COPY --from=builder --link /app/apps/Required-documents-for-tax-return/backend/p
 COPY pnpm-workspace.yaml package.json ./
 
 # データベースディレクトリを作成（データ領域のみ書き込み権限付与）
-RUN mkdir -p /app/data && chown node:node /app/data
+RUN mkdir -p /app/apps/Required-documents-for-tax-return/backend/data && \
+    chown node:node /app/apps/Required-documents-for-tax-return/backend/data
 
-VOLUME ["/app/data"]
+VOLUME ["/app/apps/Required-documents-for-tax-return/backend/data"]
 
 USER node
 EXPOSE 3001
