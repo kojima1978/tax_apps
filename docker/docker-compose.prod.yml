@@ -194,7 +194,7 @@ services:
     <<: *prod-node-defaults
     ports: !reset []
     volumes: !override
-      - ./data/tax-docs:/app/data
+      - ./data/tax-docs:/app/apps/Required-documents-for-tax-return/backend/data
     deploy: *prod-small-deploy
 
   # ===========================================

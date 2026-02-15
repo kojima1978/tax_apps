@@ -5,6 +5,7 @@
 """
 import json
 import logging
+import math
 import re
 
 from django.contrib import messages
@@ -106,6 +107,16 @@ def _handle_parse_files(request: HttpRequest, case: Case) -> JsonResponse:
         })
 
 
+def _df_to_json_safe_rows(df: pd.DataFrame) -> list[dict]:
+    """DataFrame を JSON 互換の dict リストに変換（NaN → None）"""
+    rows = df.to_dict(orient='records')
+    for row in rows:
+        for key, value in row.items():
+            if isinstance(value, float) and math.isnan(value):
+                row[key] = None
+    return rows
+
+
 def _build_existing_keys(case: Case) -> set:
     """既存取引の重複チェック用キーセットを構築"""
     existing_keys = set()
@@ -125,9 +136,8 @@ def _parse_single_file(csv_file, existing_keys: set) -> list[dict]:
 
     # 日付を文字列に変換
     df['date'] = df['date'].dt.strftime('%Y-%m-%d').replace('NaT', None)
-    df = df.where(pd.notnull(df), None)
 
-    rows = df.to_dict(orient='records')
+    rows = _df_to_json_safe_rows(df)
 
     # CSV内の口座をグルーピング（bank_name + account_number の組み合わせ）
     account_groups = _group_rows_by_account(rows)
@@ -211,8 +221,7 @@ def _process_multi_account_file(filename: str, account_groups: dict, existing_ke
             group_df = importer.validate_balance(group_df)
             # 日付を文字列に戻す
             group_df['date'] = group_df['date'].dt.strftime('%Y-%m-%d').replace('NaT', None)
-            group_df = group_df.where(pd.notnull(group_df), None)
-            group_rows = group_df.to_dict(orient='records')
+            group_rows = _df_to_json_safe_rows(group_df)
 
         # 重複チェック
         duplicate_count = 0

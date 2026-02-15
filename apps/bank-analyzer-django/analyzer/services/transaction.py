@@ -648,7 +648,7 @@ class TransactionService:
                     balance=row.get('balance', 0) if pd.notna(row['balance']) else None,
                     account_id=str(row.get('account_number', 'unknown')),
                     is_large=row.get('is_large', False),
-                    category=row.get('category'),
+                    category=row.get('category') if pd.notna(row.get('category')) else UNCATEGORIZED,
                     branch_name=row.get('branch_name'),
                     bank_name=row.get('bank_name'),
                     account_type=row.get('account_type'),
