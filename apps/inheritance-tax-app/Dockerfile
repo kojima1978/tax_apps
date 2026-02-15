@@ -2,73 +2,53 @@
 
 # =============================================================================
 # 相続税シミュレーター - Dockerfile
-# Multi-stage build for development and production
+# Multi-stage build for development and production (pnpm monorepo)
 # =============================================================================
 
-# =============================================================================
-# Build Arguments
-# =============================================================================
 ARG NODE_VERSION=22
 
 # =============================================================================
 # Base stage - Common configuration
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
-
-# Install security updates
-RUN apk upgrade --no-cache
-
+RUN apk upgrade --no-cache && \
+    corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 
 # =============================================================================
-# Dependencies stage - Install npm packages
+# Dependencies stage - Install pnpm packages
 # =============================================================================
 FROM base AS deps
-
-# Copy only package files first (better layer caching)
-COPY package.json package-lock.json ./
-
-# Install dependencies with caching (id= prevents collision with other apps)
-RUN --mount=type=cache,id=npm-inheritance-tax-app,target=/root/.npm \
-    npm ci --no-audit --no-fund
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/utils/package.json ./packages/utils/
+COPY apps/inheritance-tax-app/package.json ./apps/inheritance-tax-app/
+RUN --mount=type=cache,id=pnpm-store-inheritance-tax-app,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # =============================================================================
 # Development stage - For local development with hot reload
 # =============================================================================
-FROM base AS dev
-
+FROM deps AS dev
 ENV NODE_ENV=development
-
-# Copy dependencies from deps stage
-COPY --from=deps --link /app/node_modules ./node_modules
-
-# Copy source code
-COPY --link . .
-
+COPY packages/utils/ ./packages/utils/
+COPY apps/inheritance-tax-app/ ./apps/inheritance-tax-app/
+RUN cd packages/utils && pnpm build
+WORKDIR /app/apps/inheritance-tax-app
 EXPOSE 5173
-
-# Port is controlled by docker-compose command override
-CMD ["npm", "run", "dev", "--", "--host"]
+CMD ["pnpm", "dev", "--host"]
 
 # =============================================================================
 # Builder stage - Build the production application
 # =============================================================================
-FROM base AS builder
-
-# Build configuration
+FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
-ENV NODE_ENV=production \
-    NODE_OPTIONS=${NODE_OPTIONS}
-
-# Copy dependencies (devDependencies included via deps stage)
-COPY --from=deps --link /app/node_modules ./node_modules
-
-# Copy source files
-COPY --link . .
-
-# Build
-RUN npm run build && \
-    rm -rf node_modules/.cache
+ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS}
+COPY packages/utils/src ./packages/utils/src
+COPY packages/utils/tsconfig.json ./packages/utils/
+COPY apps/inheritance-tax-app/ ./apps/inheritance-tax-app/
+RUN cd packages/utils && pnpm build && \
+    cd ../../apps/inheritance-tax-app && \
+    pnpm build
 
 # =============================================================================
 # Production stage - Minimal nginx image serving static files
@@ -77,22 +57,21 @@ FROM nginx:1.27-alpine AS runner
 
 RUN apk upgrade --no-cache
 
-# OCI Image Labels
 LABEL org.opencontainers.image.title="相続税シミュレーター" \
       org.opencontainers.image.description="相続税額シミュレーション（早見表＋計算）" \
       org.opencontainers.image.vendor="税理士法人マスエージェント" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# nginx設定をコピー（メイン設定・サーバー設定・セキュリティヘッダー）
-COPY --link nginx-main.conf /etc/nginx/nginx.conf
-COPY --link nginx.conf /etc/nginx/conf.d/default.conf
-COPY --link nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
+# nginx設定をコピー
+COPY --link apps/inheritance-tax-app/nginx-main.conf /etc/nginx/nginx.conf
+COPY --link apps/inheritance-tax-app/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --link apps/inheritance-tax-app/nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 
-# ビルド成果物をコピー（nginx所有権で直接配置）
-COPY --link --chown=nginx:nginx --from=builder /app/dist /usr/share/nginx/html/inheritance-tax-app
+# ビルド成果物をコピー
+COPY --link --chown=nginx:nginx --from=builder /app/apps/inheritance-tax-app/dist /usr/share/nginx/html/inheritance-tax-app
 
-# non-root実行の準備: デフォルトHTMLを削除、nginx作業ディレクトリの所有権変更
+# non-root実行の準備
 RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html && \
     chown -R nginx:nginx /var/cache/nginx /var/log/nginx && \
     touch /var/run/nginx.pid && \

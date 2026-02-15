@@ -50,7 +50,7 @@ if defined PROD_FLAG (
 ) else (
     echo [MODE] Development
 )
-echo [INFO] Starting 17 services...
+echo [INFO] Starting 16 services...
 if defined BUILD_FLAG (
     echo [INFO] Build requested - this may take 5-15 minutes on first run
 )

@@ -3,7 +3,7 @@
 # 税理士業務支援アプリケーション統合プラットフォーム
 # ============================================
 #
-# Services (17 total):
+# Services (16 total):
 #   - gateway                : Nginx リバースプロキシ (Port 80)
 #   - portal-app             : ポータルサイト (Port 3000)
 #   - medical-stock-valuation: 医療法人株式評価 (Port 3010)
@@ -144,21 +144,22 @@ services:
   medical-stock-valuation:
     <<: *service-defaults
     build:
-      context: ../apps/medical-stock-valuation
+      context: ../
+      dockerfile: apps/medical-stock-valuation/Dockerfile
       target: dev
     container_name: medical-stock-valuation
     ports:
       - "3010:3010"
     volumes:
-      - ../apps/medical-stock-valuation/app:/app/app:ro
-      - ../apps/medical-stock-valuation/components:/app/components:ro
-      - ../apps/medical-stock-valuation/lib:/app/lib:ro
-      - ../apps/medical-stock-valuation/hooks:/app/hooks:ro
-      - ../apps/medical-stock-valuation/public:/app/public:ro
-      - ./data/medical-stock:/app/data
+      - ../apps/medical-stock-valuation/app:/app/apps/medical-stock-valuation/app:ro
+      - ../apps/medical-stock-valuation/components:/app/apps/medical-stock-valuation/components:ro
+      - ../apps/medical-stock-valuation/lib:/app/apps/medical-stock-valuation/lib:ro
+      - ../apps/medical-stock-valuation/hooks:/app/apps/medical-stock-valuation/hooks:ro
+      - ../apps/medical-stock-valuation/public:/app/apps/medical-stock-valuation/public:ro
+      - ./data/medical-stock:/app/apps/medical-stock-valuation/data
     environment:
       <<: *nextjs-dev-env
-    command: npm run dev -- -p 3010
+    command: pnpm dev -- -p 3010
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3010/medical/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
@@ -171,16 +172,17 @@ services:
   shares-valuation:
     <<: *service-defaults
     build:
-      context: ../apps/shares-valuation
+      context: ../
+      dockerfile: apps/shares-valuation/Dockerfile
       target: dev
     container_name: shares-valuation
     ports:
       - "3012:3012"
     volumes:
-      - ../apps/shares-valuation/src:/app/src:ro
+      - ../apps/shares-valuation/src:/app/apps/shares-valuation/src:ro
     environment:
       <<: *nextjs-dev-env
-    command: npm run dev -- -p 3012
+    command: pnpm dev -- -p 3012
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3012/shares/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
@@ -348,18 +350,19 @@ services:
   inheritance-tax-app:
     <<: *service-defaults
     build:
-      context: ../apps/inheritance-tax-app
+      context: ../
+      dockerfile: apps/inheritance-tax-app/Dockerfile
       target: dev
     container_name: inheritance-tax-app
     ports:
       - "5173:5173"
     volumes:
-      - ../apps/inheritance-tax-app/src:/app/src:ro
-      - ../apps/inheritance-tax-app/public:/app/public:ro
+      - ../apps/inheritance-tax-app/src:/app/apps/inheritance-tax-app/src:ro
+      - ../apps/inheritance-tax-app/public:/app/apps/inheritance-tax-app/public:ro
     environment:
       <<: *common-env
       NODE_ENV: development
-    command: npm run dev -- --host
+    command: pnpm dev --host
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:5173/inheritance-tax-app/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
@@ -373,20 +376,21 @@ services:
   gift-tax-simulator:
     <<: *service-defaults
     build:
-      context: ../apps/gift-tax-simulator
+      context: ../
+      dockerfile: apps/gift-tax-simulator/Dockerfile
       target: dev
     container_name: gift-tax-simulator
     ports:
       - "3001:3001"
     volumes:
-      - ../apps/gift-tax-simulator/app:/app/app:ro
-      - ../apps/gift-tax-simulator/components:/app/components:ro
-      - ../apps/gift-tax-simulator/hooks:/app/hooks:ro
-      - ../apps/gift-tax-simulator/lib:/app/lib:ro
-      - ../apps/gift-tax-simulator/public:/app/public:ro
+      - ../apps/gift-tax-simulator/app:/app/apps/gift-tax-simulator/app:ro
+      - ../apps/gift-tax-simulator/components:/app/apps/gift-tax-simulator/components:ro
+      - ../apps/gift-tax-simulator/hooks:/app/apps/gift-tax-simulator/hooks:ro
+      - ../apps/gift-tax-simulator/lib:/app/apps/gift-tax-simulator/lib:ro
+      - ../apps/gift-tax-simulator/public:/app/apps/gift-tax-simulator/public:ro
     environment:
       <<: *nextjs-dev-env
-    command: npm run dev -- -p 3001
+    command: pnpm dev -- -p 3001
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3001/gift-tax-simulator/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
@@ -400,17 +404,18 @@ services:
   gift-tax-docs:
     <<: *service-defaults
     build:
-      context: ../apps/gift-tax-docs
+      context: ../
+      dockerfile: apps/gift-tax-docs/Dockerfile
       target: dev
     container_name: gift-tax-docs
     ports:
       - "3002:3002"
     volumes:
-      - ../apps/gift-tax-docs/src:/app/src:ro
-      - ../apps/gift-tax-docs/public:/app/public:ro
+      - ../apps/gift-tax-docs/src:/app/apps/gift-tax-docs/src:ro
+      - ../apps/gift-tax-docs/public:/app/apps/gift-tax-docs/public:ro
     environment:
       <<: *nextjs-dev-env
-    command: npm run dev -- -p 3002
+    command: pnpm dev -- -p 3002
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3002/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
@@ -423,17 +428,18 @@ services:
   inheritance-tax-docs:
     <<: *service-defaults
     build:
-      context: ../apps/inheritance-tax-docs
+      context: ../
+      dockerfile: apps/inheritance-tax-docs/Dockerfile
       target: dev
     container_name: inheritance-tax-docs
     ports:
       - "3003:3003"
     volumes:
-      - ../apps/inheritance-tax-docs/src:/app/src:ro
-      - ../apps/inheritance-tax-docs/public:/app/public:ro
+      - ../apps/inheritance-tax-docs/src:/app/apps/inheritance-tax-docs/src:ro
+      - ../apps/inheritance-tax-docs/public:/app/apps/inheritance-tax-docs/public:ro
     environment:
       <<: *nextjs-dev-env
-    command: npm run dev -- -p 3003
+    command: pnpm dev -- -p 3003
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
@@ -446,19 +452,20 @@ services:
   retirement-tax-calc:
     <<: *service-defaults
     build:
-      context: ../apps/retirement-tax-calc
+      context: ../
+      dockerfile: apps/retirement-tax-calc/Dockerfile
       target: dev
     container_name: retirement-tax-calc
     ports:
       - "3013:3013"
     volumes:
-      - ../apps/retirement-tax-calc/app:/app/app:ro
-      - ../apps/retirement-tax-calc/components:/app/components:ro
-      - ../apps/retirement-tax-calc/hooks:/app/hooks:ro
-      - ../apps/retirement-tax-calc/lib:/app/lib:ro
+      - ../apps/retirement-tax-calc/app:/app/apps/retirement-tax-calc/app:ro
+      - ../apps/retirement-tax-calc/components:/app/apps/retirement-tax-calc/components:ro
+      - ../apps/retirement-tax-calc/hooks:/app/apps/retirement-tax-calc/hooks:ro
+      - ../apps/retirement-tax-calc/lib:/app/apps/retirement-tax-calc/lib:ro
     environment:
       <<: *nextjs-dev-env
-    command: npm run dev -- -p 3013
+    command: pnpm dev -- -p 3013
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3013/retirement-tax-calc/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults
@@ -471,14 +478,15 @@ services:
   tax-docs-backend:
     <<: *service-defaults
     build:
-      context: ../apps/Required-documents-for-tax-return/backend
+      context: ../
+      dockerfile: apps/Required-documents-for-tax-return/backend/Dockerfile
       target: dev
     container_name: tax-docs-backend
     ports:
       - "3006:3001"
     volumes:
-      - ../apps/Required-documents-for-tax-return/backend/src:/app/src:ro
-      - ./data/tax-docs:/app/data
+      - ../apps/Required-documents-for-tax-return/backend/src:/app/apps/Required-documents-for-tax-return/backend/src:ro
+      - ./data/tax-docs:/app/apps/Required-documents-for-tax-return/backend/data
     environment:
       <<: *common-env
       NODE_ENV: development
@@ -495,7 +503,8 @@ services:
   tax-docs-frontend:
     <<: *service-defaults
     build:
-      context: ../apps/Required-documents-for-tax-return/frontend
+      context: ../
+      dockerfile: apps/Required-documents-for-tax-return/frontend/Dockerfile
       target: dev
       args:
         NEXT_PUBLIC_API_URL: /tax-docs-api
@@ -503,7 +512,7 @@ services:
     ports:
       - "3005:3000"
     volumes:
-      - ../apps/Required-documents-for-tax-return/frontend/src:/app/src:ro
+      - ../apps/Required-documents-for-tax-return/frontend/src:/app/apps/Required-documents-for-tax-return/frontend/src:ro
     environment:
       <<: *nextjs-dev-env
       NEXT_PUBLIC_API_URL: /tax-docs-api

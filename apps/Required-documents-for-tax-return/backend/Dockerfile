@@ -1,70 +1,79 @@
 # syntax=docker/dockerfile:1
-# ============================================
-# Backend Dockerfile - Express + SQLite API
-# ============================================
 
-# ベースイメージ（Node.js 22 LTS - Alpine for smaller size）
-FROM node:22-alpine AS base
+# =============================================================================
+# 確定申告 必要書類管理システム API - Dockerfile
+# Multi-stage build for development and production (pnpm monorepo)
+# =============================================================================
 
-RUN apk upgrade --no-cache
+ARG NODE_VERSION=22
 
+# =============================================================================
+# Base stage - Common configuration
+# =============================================================================
+FROM node:${NODE_VERSION}-alpine AS base
+RUN apk upgrade --no-cache && \
+    corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 
-# ============================================
-# ネイティブモジュールビルド用ステージ
-# better-sqlite3のビルドに python3/make/g++ が必要
-# ============================================
+# =============================================================================
+# Native build stage - better-sqlite3 requires build tools
+# =============================================================================
 FROM base AS native-build
 RUN apk add --no-cache python3 make g++
 
-# ============================================
-# 依存関係インストール用ステージ（全依存）
-# ============================================
+# =============================================================================
+# Dependencies stage - Install all dependencies
+# =============================================================================
 FROM native-build AS deps
-COPY package*.json ./
-RUN --mount=type=cache,id=npm-tax-docs-backend,target=/root/.npm npm ci --no-audit --no-fund
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/utils/package.json ./packages/utils/
+COPY apps/Required-documents-for-tax-return/backend/package.json ./apps/Required-documents-for-tax-return/backend/
+RUN --mount=type=cache,id=pnpm-store-tax-docs-backend,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
-# ============================================
-# 開発用ステージ
-# ============================================
+# =============================================================================
+# Development stage - For local development with hot reload
+# =============================================================================
 FROM native-build AS dev
-
-RUN apk add --no-cache tzdata
-
-COPY --from=deps --link /app/node_modules ./node_modules
-COPY --link . .
-
 ENV NODE_ENV=development \
     PORT=3001 \
     TZ=Asia/Tokyo
-
-RUN mkdir -p /app/data
-
+RUN apk add --no-cache tzdata
+COPY --from=deps --link /app ./
+COPY packages/utils/ ./packages/utils/
+COPY apps/Required-documents-for-tax-return/backend/ ./apps/Required-documents-for-tax-return/backend/
+RUN cd packages/utils && pnpm build
+RUN mkdir -p /app/apps/Required-documents-for-tax-return/backend/data
+WORKDIR /app/apps/Required-documents-for-tax-return/backend
 EXPOSE 3001
+CMD ["pnpm", "dev"]
 
-CMD ["npm", "run", "dev"]
-
-# ============================================
-# ビルドステージ
-# ============================================
-FROM native-build AS builder
-COPY --from=deps --link /app/node_modules ./node_modules
-COPY --link . .
-# ビルド後、本番に不要な型定義・ソースマップを除去
-RUN npm run build && \
+# =============================================================================
+# Builder stage - Compile TypeScript
+# =============================================================================
+FROM deps AS builder
+COPY packages/utils/src ./packages/utils/src
+COPY packages/utils/tsconfig.json ./packages/utils/
+COPY apps/Required-documents-for-tax-return/backend/ ./apps/Required-documents-for-tax-return/backend/
+RUN cd packages/utils && pnpm build && \
+    cd ../../apps/Required-documents-for-tax-return/backend && \
+    pnpm build && \
     find dist \( -name '*.d.ts' -o -name '*.d.ts.map' -o -name '*.js.map' \) -delete
 
-# ============================================
-# 本番用依存関係ステージ（devDependencies除外）
-# ============================================
+# =============================================================================
+# Production dependencies stage - devDependencies excluded
+# =============================================================================
 FROM native-build AS prod-deps
-COPY package*.json ./
-RUN --mount=type=cache,id=npm-tax-docs-backend,target=/root/.npm npm ci --omit=dev --no-audit --no-fund
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/utils/package.json ./packages/utils/
+COPY apps/Required-documents-for-tax-return/backend/package.json ./apps/Required-documents-for-tax-return/backend/
+RUN --mount=type=cache,id=pnpm-store-tax-docs-backend,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod
 
-# ============================================
-# 本番ステージ（ビルドツール不要 → クリーンなalpineイメージ）
-# ============================================
-FROM base AS runner
+# =============================================================================
+# Production runner stage - Minimal, secure production image
+# =============================================================================
+FROM node:${NODE_VERSION}-alpine AS runner
 
 LABEL org.opencontainers.image.title="Tax Documents Backend" \
       org.opencontainers.image.description="確定申告 必要書類管理システム API" \
@@ -72,40 +81,45 @@ LABEL org.opencontainers.image.title="Tax Documents Backend" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# ランタイム依存パッケージ + タイムゾーン設定
-RUN apk add --no-cache tini tzdata && \
-    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
-    echo "Asia/Tokyo" > /etc/timezone && \
-    apk del tzdata
+WORKDIR /app
 
 ENV NODE_ENV=production \
     PORT=3001 \
     TZ=Asia/Tokyo
 
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tini tzdata && \
+    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
+    echo "Asia/Tokyo" > /etc/timezone && \
+    apk del tzdata
+
 # 本番用依存関係をコピー（ビルド済みネイティブモジュール含む）
 COPY --from=prod-deps --link /app/node_modules ./node_modules
-COPY --link package*.json ./
+COPY --from=prod-deps --link /app/packages/utils/node_modules ./packages/utils/node_modules
+COPY --from=prod-deps --link /app/apps/Required-documents-for-tax-return/backend/node_modules ./apps/Required-documents-for-tax-return/backend/node_modules
+
+# ビルド済み utils パッケージ
+COPY --from=builder --link /app/packages/utils/dist ./packages/utils/dist
+COPY --from=builder --link /app/packages/utils/package.json ./packages/utils/
 
 # ビルド成果物をコピー
-COPY --from=builder --link /app/dist ./dist
+COPY --from=builder --link /app/apps/Required-documents-for-tax-return/backend/dist ./apps/Required-documents-for-tax-return/backend/dist
+COPY --from=builder --link /app/apps/Required-documents-for-tax-return/backend/package.json ./apps/Required-documents-for-tax-return/backend/
+
+# ワークスペース設定
+COPY pnpm-workspace.yaml package.json ./
 
 # データベースディレクトリを作成（データ領域のみ書き込み権限付与）
 RUN mkdir -p /app/data && chown node:node /app/data
 
-# データ永続化用ボリューム
 VOLUME ["/app/data"]
 
-# セキュリティ: 非rootユーザーで実行
 USER node
-
 EXPOSE 3001
 
-# ヘルスチェック（Node 22+ native fetch使用）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3001/api/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
-# グレースフルシャットダウン
 STOPSIGNAL SIGTERM
-
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "dist/index.js"]
+CMD ["node", "apps/Required-documents-for-tax-return/backend/dist/index.js"]

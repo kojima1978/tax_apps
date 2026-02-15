@@ -27,12 +27,13 @@ echo Checks:
 echo   1. Docker Desktop         - 起動確認
 echo   2. docker compose         - コマンド確認
 echo   3. .env                   - 存在確認、シークレット自動生成
-echo   4. Dockerfiles            - 14 ファイルの存在確認
-echo   4b. Nginx config          - 設定ファイルの存在確認
-echo   4c. PostgreSQL init       - init-pgvector.sql の存在確認
-echo   4d. Data directories      - 自動作成（6 ディレクトリ）
-echo   5. Port conflicts         - 15 ポートの競合検出
-echo   6. Disk space             - 5GB 以上の空き容量確認
+echo   4. Monorepo workspace     - pnpm-workspace.yaml, pnpm-lock.yaml, packages/utils
+echo   5. Dockerfiles            - 14 ファイルの存在確認
+echo   5b. Nginx config          - 設定ファイルの存在確認
+echo   5c. PostgreSQL init       - init-pgvector.sql の存在確認
+echo   5d. Data directories      - 自動作成（6 ディレクトリ）
+echo   6. Port conflicts         - 15 ポートの競合検出
+echo   7. Disk space             - 5GB 以上の空き容量確認
 echo.
 echo Options:
 echo   --help, -h    Show this help
@@ -115,7 +116,32 @@ if exist ".env" (
 )
 
 :: ──────────────────────────────────────────────────────────────
-:: 4. Dockerfiles and directories
+:: 4. Monorepo workspace files (pnpm)
+:: ──────────────────────────────────────────────────────────────
+set WORKSPACE_OK=1
+
+for %%F in (
+    "..\pnpm-workspace.yaml"
+    "..\pnpm-lock.yaml"
+    "..\package.json"
+    "..\.dockerignore"
+    "..\packages\utils\package.json"
+    "..\packages\utils\tsconfig.json"
+) do (
+    if not exist %%F (
+        echo [ERROR] Missing: %%~F
+        set WORKSPACE_OK=0
+        set /a ERRORS+=1
+    )
+)
+
+if !WORKSPACE_OK! equ 1 (
+    echo [OK]    Monorepo workspace files present ^(pnpm-workspace.yaml, pnpm-lock.yaml, packages/utils^)
+    set /a OK+=1
+)
+
+:: ──────────────────────────────────────────────────────────────
+:: 5. Dockerfiles and directories
 :: ──────────────────────────────────────────────────────────────
 set DOCKER_OK=1
 
@@ -180,7 +206,7 @@ if not exist "postgres\init-pgvector.sql" (
 )
 
 :: ──────────────────────────────────────────────────────────────
-:: 4b. Data directories (auto-create if missing)
+:: 5d. Data directories (auto-create if missing)
 :: ──────────────────────────────────────────────────────────────
 set DATA_CREATED=0
 
@@ -212,7 +238,7 @@ if !DATA_CREATED! gtr 0 (
 )
 
 :: ──────────────────────────────────────────────────────────────
-:: 5. Port conflicts
+:: 6. Port conflicts
 :: ──────────────────────────────────────────────────────────────
 set PORT_CONFLICT=0
 
@@ -229,7 +255,7 @@ if !PORT_CONFLICT! equ 0 (
 )
 
 :: ──────────────────────────────────────────────────────────────
-:: 6. Disk space
+:: 7. Disk space
 :: ──────────────────────────────────────────────────────────────
 set "DRIVE=%~d0"
 for /f "usebackq delims=" %%R in (`powershell -NoProfile -Command "$d = Get-PSDrive -Name '%DRIVE:~0,1%' -ErrorAction SilentlyContinue; if ($d) { if ($d.Free -lt 5GB) { 'LOW' } else { 'OK' } } else { 'UNKNOWN' }"`) do set "DISK_RESULT=%%R"
@@ -246,7 +272,7 @@ if "!DISK_RESULT!"=="LOW" (
 )
 
 :: ──────────────────────────────────────────────────────────────
-:: 7. Summary
+:: 8. Summary
 :: ──────────────────────────────────────────────────────────────
 :summary
 echo.

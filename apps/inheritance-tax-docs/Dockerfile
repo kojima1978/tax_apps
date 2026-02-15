@@ -2,123 +2,94 @@
 
 # =============================================================================
 # 相続税申告 資料準備ガイド - Dockerfile
-# Multi-stage build for development and production
+# Multi-stage build for development and production (pnpm monorepo)
 # =============================================================================
 
-# =============================================================================
-# Build Arguments
-# =============================================================================
 ARG NODE_VERSION=22
 
 # =============================================================================
 # Base stage - Common configuration
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
-
-# Install security updates + Alpine glibc compatibility layer (Next.js recommended)
 RUN apk upgrade --no-cache && \
-    apk add --no-cache libc6-compat
-
+    apk add --no-cache libc6-compat && \
+    corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
-
-# Disable telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # =============================================================================
-# Dependencies stage - Install npm packages
+# Dependencies stage - Install pnpm packages
 # =============================================================================
 FROM base AS deps
-
-# Copy only package files first (better layer caching)
-COPY package.json package-lock.json ./
-
-# Install dependencies with caching (id= prevents collision with other apps)
-RUN --mount=type=cache,id=npm-inheritance-tax-docs,target=/root/.npm \
-    npm ci --no-audit --no-fund
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/utils/package.json ./packages/utils/
+COPY apps/inheritance-tax-docs/package.json ./apps/inheritance-tax-docs/
+RUN --mount=type=cache,id=pnpm-store-inheritance-tax-docs,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # =============================================================================
 # Development stage - For local development with hot reload
 # =============================================================================
-FROM base AS dev
-
+FROM deps AS dev
 ENV NODE_ENV=development
-
-# Copy dependencies from deps stage
-COPY --from=deps --link /app/node_modules ./node_modules
-
-# Copy source code
-COPY --link . .
-
+COPY packages/utils/ ./packages/utils/
+COPY apps/inheritance-tax-docs/ ./apps/inheritance-tax-docs/
+RUN cd packages/utils && pnpm build
+WORKDIR /app/apps/inheritance-tax-docs
 EXPOSE 3003
-
-# Port is controlled by docker-compose command override
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "dev"]
 
 # =============================================================================
 # Builder stage - Build the production application
 # =============================================================================
-FROM base AS builder
-
-# Build configuration
+FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
-ENV NODE_ENV=production \
-    NODE_OPTIONS=${NODE_OPTIONS}
-
-# Copy dependencies
-COPY --from=deps --link /app/node_modules ./node_modules
-
-# Copy source files
-COPY --link . .
-
-# Build with persistent cache for faster rebuilds
-RUN --mount=type=cache,id=nextjs-inheritance-tax-docs,target=/app/.next/cache \
+ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS}
+COPY packages/utils/src ./packages/utils/src
+COPY packages/utils/tsconfig.json ./packages/utils/
+COPY apps/inheritance-tax-docs/ ./apps/inheritance-tax-docs/
+RUN --mount=type=cache,id=nextjs-inheritance-tax-docs,target=/app/apps/inheritance-tax-docs/.next/cache \
+    cd packages/utils && pnpm build && \
+    cd ../../apps/inheritance-tax-docs && \
     mkdir -p public && \
-    npm run build && \
-    rm -rf node_modules/.cache
+    pnpm next build
 
 # =============================================================================
 # Production runner stage - Minimal, secure production image
 # =============================================================================
-FROM base AS runner
+FROM node:${NODE_VERSION}-alpine AS runner
 
-# OCI Image Labels
 LABEL org.opencontainers.image.title="Inheritance Tax Docs" \
       org.opencontainers.image.description="相続税申告 資料準備ガイド" \
       org.opencontainers.image.vendor="税理士法人マスエージェント" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# Environment configuration (WORKDIR, NEXT_TELEMETRY_DISABLED inherited from base)
+WORKDIR /app
+
 ENV NODE_ENV=production \
     PORT=3003 \
     HOSTNAME=0.0.0.0 \
     TZ=Asia/Tokyo
 
-# Install runtime dependencies, configure timezone, create non-root user
-RUN apk add --no-cache tini tzdata && \
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del tzdata && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-# Copy built assets with correct ownership (--link enables independent layer caching)
-COPY --from=builder --chown=nextjs:nodejs --link /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-tax-docs/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-tax-docs/.next/static ./apps/inheritance-tax-docs/.next/static
+COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-tax-docs/public ./apps/inheritance-tax-docs/public
 
-# Switch to non-root user
 USER nextjs
-
 EXPOSE 3003
 
-# Health check for container orchestration (uses Node 22+ native fetch)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
-# Graceful shutdown signal
 STOPSIGNAL SIGTERM
-
-# Use tini as init process for proper signal handling
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "server.js"]
+CMD ["node", "apps/inheritance-tax-docs/server.js"]
