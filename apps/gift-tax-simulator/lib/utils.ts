@@ -1,10 +1,6 @@
-const NUMBER_FORMAT = new Intl.NumberFormat('ja-JP');
-const YEN_FORMAT = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
+export { formatCurrency } from '@tax-apps/utils';
 
-/**
- * カンマ区切りフォーマット（円単位）
- */
-export const formatCurrency = (num: number): string => NUMBER_FORMAT.format(num);
+const YEN_FORMAT = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
 
 /**
  * 通貨フォーマット（￥付き）

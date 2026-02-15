@@ -1,19 +1,10 @@
-/**
- * カンマ区切りフォーマット（円単位）
- */
-export const formatCurrency = (num: number): string => {
-    return new Intl.NumberFormat("ja-JP").format(num);
-};
-
-/**
- * カンマ区切り + 円（表示用）
- */
-export const formatYen = (num: number): string => `${formatCurrency(num)}円`;
+// Re-export shared utilities
+export { formatCurrency, formatYen } from '@tax-apps/utils';
 
 /**
  * 全角数字を半角に変換し、カンマを除去して数値文字列にする
  */
-export const normalizeNumberString = (val: string): string => {
+const normalizeNumberString = (val: string): string => {
     return val
         .replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
         .replace(/,/g, "")

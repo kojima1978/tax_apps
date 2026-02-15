@@ -2,6 +2,8 @@
  * Date and taxation period utility functions
  */
 
+import { formatReiwaYear } from '@tax-apps/utils';
+
 /**
  * Extract month from taxationPeriod
  * Format can be either "YYYY-MM-DD" (date input) or "令和X年Y月" (Japanese text)
@@ -21,19 +23,6 @@ export function getTaxationMonth(taxationPeriod: string): string {
 }
 
 /**
- * Convert Western year to Japanese era (Reiwa)
- */
-export function convertToReiwa(year: number): string {
-  // 令和元年 = 2019
-  const reiwaYear = year - 2018;
-  if (reiwaYear < 1) {
-    // Before Reiwa era
-    return `${year}年`;
-  }
-  return `令和${reiwaYear}年`;
-}
-
-/**
  * Get previous year from taxation period
  */
 export function getPreviousYear(taxationPeriod: string): string {
@@ -50,7 +39,7 @@ export function getPreviousYear(taxationPeriod: string): string {
   const isoMatch = taxationPeriod.match(/^(\d{4})-\d{2}-\d{2}$/);
   if (isoMatch) {
     const year = parseInt(isoMatch[1], 10);
-    return convertToReiwa(year - 1);
+    return formatReiwaYear(year - 1);
   }
 
   return "";

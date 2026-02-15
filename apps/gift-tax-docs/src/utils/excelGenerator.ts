@@ -1,5 +1,5 @@
 import type XLSX from 'xlsx-js-style';
-import { COMPANY_INFO, type DocumentGroup } from '@/constants';
+import { COMPANY_INFO, getFullAddress, getContactLine, type DocumentGroup } from '@/constants';
 
 // 共通ボーダー定義
 const thinBorder = { style: 'thin', color: { rgb: 'E5E7EB' } } as const;
@@ -163,7 +163,7 @@ export async function generateGiftTaxExcel(
 
     // フッター
     pushMergedRow(
-        `${COMPANY_INFO.fullAddress} / ${COMPANY_INFO.contactLine}`,
+        `${getFullAddress()} / ${getContactLine()}`,
         excelStyles.footer,
     );
 

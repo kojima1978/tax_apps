@@ -6,12 +6,8 @@ export const STORAGE_KEYS = {
   deadline: 'gift_tax_deadline',
 } as const;
 
-// 会社情報
-export const COMPANY_INFO = {
-  name: '税理士法人 マスエージェント',
-  fullAddress: '〒770-0002 徳島県徳島市春日２丁目３番３３号',
-  contactLine: 'TEL 088-632-6228 / FAX 088-631-9870',
-} as const;
+// 会社情報（共有パッケージから再エクスポート）
+export { COMPANY_INFO, getFullAddress, getContactLine } from '@tax-apps/utils';
 
 export * from './giftData';
 

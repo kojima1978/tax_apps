@@ -1,5 +1,6 @@
 import express, { ErrorRequestHandler } from 'express';
 import cors from 'cors';
+import { formatReiwaYear } from '@tax-apps/utils';
 import {
   initializeDb,
   getOrCreateCustomer,
@@ -59,17 +60,6 @@ function handleCreateError(res: express.Response, e: unknown, duplicateMessage: 
   } else {
     res.status(500).json({ error: message });
   }
-}
-
-/** 西暦年を令和年に変換（令和元年 = 2019年） */
-const REIWA_OFFSET = 2018;
-function toReiwa(year: number): number {
-  return year - REIWA_OFFSET;
-}
-
-/** 「令和X年」形式の文字列を返す */
-function formatReiwaYear(year: number): string {
-  return `令和${toReiwa(year)}年`;
 }
 
 // ミドルウェア

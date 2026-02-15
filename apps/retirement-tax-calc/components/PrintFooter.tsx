@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useId } from "react";
 import { formatJapaneseDate } from "@/lib/utils";
+import { COMPANY_INFO, getFullAddress } from "@tax-apps/utils";
 
 const PrintFooter = () => {
     const [staff, setStaff] = useState("");
@@ -16,9 +17,9 @@ const PrintFooter = () => {
         <footer className="print-footer">
             <div className="print-footer-content">
                 <div className="print-footer-company">
-                    <p className="company-name">税理士法人 マスエージェント</p>
-                    <p>〒770-0002 徳島県徳島市春日２丁目３−３３</p>
-                    <p>TEL: 088-632-6228</p>
+                    <p className="company-name">{COMPANY_INFO.name}</p>
+                    <p>{getFullAddress()}</p>
+                    <p>TEL: {COMPANY_INFO.phone}</p>
                 </div>
                 <div className="print-footer-meta">
                     <div className="staff-input-wrapper">
