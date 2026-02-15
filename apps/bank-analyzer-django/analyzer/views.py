@@ -34,6 +34,7 @@ from .handlers import (
     FIELD_LABELS,
     safe_error_message,
     count_message,
+    parse_amount,
     build_redirect_url,
     # Pattern handlers
     handle_add_pattern,
@@ -87,15 +88,6 @@ def _paginate(queryset, page, per_page=ITEMS_PER_PAGE):
         return paginator.page(1)
     except EmptyPage:
         return paginator.page(paginator.num_pages)
-
-
-def _parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
-    """金額文字列を整数に変換"""
-    try:
-        cleaned = (value or '0').replace(',', '')
-        return int(cleaned), True
-    except (ValueError, AttributeError):
-        return default, False
 
 
 def _sanitize_filename(name: str) -> str:
@@ -220,7 +212,7 @@ def _extract_form_rows(request: HttpRequest, validate: bool = False) -> tuple[li
         ]
         for field_name, field_label in amount_fields:
             value_str = request.POST.get(f'form-{i}-{field_name}', '0')
-            parsed_value, success = _parse_amount(value_str, 0)
+            parsed_value, success = parse_amount(value_str, 0)
             new_row[field_name] = parsed_value
             if validate and not success:
                 errors.append(f"行{i+1}: {field_label}が不正な値です")
@@ -234,10 +226,10 @@ def _extract_form_rows(request: HttpRequest, validate: bool = False) -> tuple[li
 def _update_transaction_from_post(request: HttpRequest, case: Case, tx_id: str) -> None:
     """POSTデータから取引を更新する共通処理"""
     def _do_update():
-        amount_out, _ = _parse_amount(request.POST.get('amount_out', '0'))
-        amount_in, _ = _parse_amount(request.POST.get('amount_in', '0'))
+        amount_out, _ = parse_amount(request.POST.get('amount_out', '0'))
+        amount_in, _ = parse_amount(request.POST.get('amount_in', '0'))
         balance_str = request.POST.get('balance')
-        balance_val, _ = _parse_amount(balance_str) if balance_str else (None, True)
+        balance_val, _ = parse_amount(balance_str) if balance_str else (None, True)
         data = {
             'date': request.POST.get('date'),
             'description': request.POST.get('description'),
@@ -416,8 +408,8 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
     transactions = case.transactions.all().order_by('date', 'id')
     transactions = AnalysisService.apply_filters(transactions, filter_state)
 
-    amount_min_val, amount_min_ok = _parse_amount(filter_state['amount_min']) if filter_state['amount_min'] else (None, True)
-    amount_max_val, amount_max_ok = _parse_amount(filter_state['amount_max']) if filter_state['amount_max'] else (None, True)
+    amount_min_val, amount_min_ok = parse_amount(filter_state['amount_min']) if filter_state['amount_min'] else (None, True)
+    amount_max_val, amount_max_ok = parse_amount(filter_state['amount_max']) if filter_state['amount_max'] else (None, True)
     amount_min = amount_min_val if amount_min_ok and amount_min_val else None
     amount_max = amount_max_val if amount_max_ok and amount_max_val else None
 

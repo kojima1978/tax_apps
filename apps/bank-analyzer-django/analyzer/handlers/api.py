@@ -13,18 +13,9 @@ from django.views.decorators.http import require_POST
 from ..models import Case, Transaction
 from ..services import TransactionService
 from ..lib.constants import UNCATEGORIZED
-from .base import json_error, safe_error_message
+from .base import json_error, parse_amount, safe_error_message
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
-    """金額文字列を整数に変換"""
-    try:
-        cleaned = (value or '0').replace(',', '')
-        return int(cleaned), True
-    except (ValueError, AttributeError):
-        return default, False
 
 
 def _json_api_error(e: Exception, error_context: str) -> JsonResponse:
@@ -69,12 +60,12 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
             except ValueError:
                 pass
 
-        amount_out, _ = _parse_amount(request.POST.get('amount_out', '0'))
-        amount_in, _ = _parse_amount(request.POST.get('amount_in', '0'))
+        amount_out, _ = parse_amount(request.POST.get('amount_out', '0'))
+        amount_in, _ = parse_amount(request.POST.get('amount_in', '0'))
         balance_str = request.POST.get('balance', '')
         balance_val = None
         if balance_str:
-            balance_val, _ = _parse_amount(balance_str)
+            balance_val, _ = parse_amount(balance_str)
 
         tx = Transaction.objects.create(
             case=case,

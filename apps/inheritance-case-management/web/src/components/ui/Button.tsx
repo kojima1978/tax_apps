@@ -1,1 +1,1 @@
-export { Button, buttonVariants, type ButtonProps } from "@tax-apps/ui";
+export { Button } from "@tax-apps/ui";

@@ -149,6 +149,15 @@ def count_message(request: HttpRequest, count: int, success_msg: str, zero_msg: 
         getattr(messages, zero_level)(request, zero_msg)
 
 
+def parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
+    """金額文字列を整数に変換"""
+    try:
+        cleaned = (value or '0').replace(',', '')
+        return int(cleaned), True
+    except (ValueError, AttributeError):
+        return default, False
+
+
 def build_redirect_url(view_name: str, pk: int, tab: Optional[str] = None, filters: Optional[dict] = None) -> str:
     """タブパラメータとフィルター付きのリダイレクトURLを生成"""
     from urllib.parse import urlencode

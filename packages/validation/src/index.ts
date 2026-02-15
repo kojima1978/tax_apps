@@ -1,18 +1,18 @@
 import { z } from 'zod';
 
-// Status Schemas
-export const caseStatusSchema = z.enum(['未着手', '進行中', '完了', '請求済']);
-export const acceptanceStatusSchema = z.enum(['受託可', '受託不可', '未判定', '保留']);
+// Status Schemas (internal - used by createCaseSchema/listQuerySchema)
+const caseStatusSchema = z.enum(['未着手', '進行中', '完了', '請求済']);
+const acceptanceStatusSchema = z.enum(['受託可', '受託不可', '未判定', '保留']);
 
-// Contact Schema
-export const contactSchema = z.object({
+// Contact Schema (internal - used by createCaseSchema)
+const contactSchema = z.object({
   name: z.string(),
   phone: z.string(),
   email: z.string().email('メールアドレスの形式が正しくありません').or(z.literal('')),
 });
 
-// Progress Step Schema
-export const progressStepSchema = z.object({
+// Progress Step Schema (internal - used by createCaseSchema)
+const progressStepSchema = z.object({
   id: z.string(),
   name: z.string(),
   date: z.string().nullable(),
@@ -69,8 +69,8 @@ export const updateReferrerSchema = createReferrerSchema.partial().extend({
   active: z.boolean().optional(),
 });
 
-// Sort Field Schema
-export const sortFieldSchema = z.enum([
+// Sort Field Schema (internal - used by listQuerySchema)
+const sortFieldSchema = z.enum([
   'deceasedName',
   'dateOfDeath',
   'fiscalYear',
@@ -81,7 +81,7 @@ export const sortFieldSchema = z.enum([
   'updatedAt',
 ]);
 
-export const sortOrderSchema = z.enum(['asc', 'desc']);
+const sortOrderSchema = z.enum(['asc', 'desc']);
 
 // Query Params Schema
 export const listQuerySchema = z.object({

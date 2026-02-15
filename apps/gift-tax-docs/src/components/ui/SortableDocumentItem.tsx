@@ -28,7 +28,7 @@ const CheckboxIcon = ({ checked }: { checked: boolean }) => (
 
 // ─── Props ───
 
-export type SortableDocumentItemProps = {
+type SortableDocumentItemProps = {
   doc: EditableDocument;
   categoryId: string;
   isEditing: boolean;

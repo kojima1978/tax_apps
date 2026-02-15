@@ -10,7 +10,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
 from ..services import TransactionService
-from .base import is_ajax, json_error, count_message, build_redirect_url
+from .base import is_ajax, json_error, count_message, parse_amount, build_redirect_url
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +27,6 @@ FIELD_LABELS = {
     'balance': '残高',
     'category': '分類',
 }
-
-
-def _parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
-    """金額文字列を整数に変換"""
-    try:
-        cleaned = (value or '0').replace(',', '')
-        return int(cleaned), True
-    except (ValueError, AttributeError):
-        return default, False
 
 
 def _extract_category_updates(request: HttpRequest, prefixes: list[str]) -> dict[str, str]:
@@ -138,10 +129,10 @@ def handle_update_transaction(request: HttpRequest, case, pk: int) -> HttpRespon
 
     if tx_id:
         try:
-            amount_out, _ = _parse_amount(request.POST.get('amount_out', '0'))
-            amount_in, _ = _parse_amount(request.POST.get('amount_in', '0'))
+            amount_out, _ = parse_amount(request.POST.get('amount_out', '0'))
+            amount_in, _ = parse_amount(request.POST.get('amount_in', '0'))
             balance_str = request.POST.get('balance')
-            balance_val, _ = _parse_amount(balance_str) if balance_str else (None, True)
+            balance_val, _ = parse_amount(balance_str) if balance_str else (None, True)
 
             data = {
                 'date': request.POST.get('date'),

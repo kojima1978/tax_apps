@@ -7,7 +7,7 @@ import { RANK_LABELS } from '../constants';
  * - 死亡かつ代襲相続人あり: 代襲相続人の人数をカウント
  * - 死亡かつ代襲相続人なし: 0人
  */
-export function countEffectiveHeirs(heirs: Heir[]): number {
+function countEffectiveHeirs(heirs: Heir[]): number {
   return heirs.reduce((acc, heir) => {
     if (heir.isDeceased && heir.representatives) {
       return acc + heir.representatives.length;

@@ -13,6 +13,7 @@ from .base import (
     handle_ajax_error,
     require_params,
     count_message,
+    parse_amount,
     build_redirect_url,
 )
 
@@ -68,6 +69,7 @@ __all__ = [
     'handle_ajax_error',
     'require_params',
     'count_message',
+    'parse_amount',
     'build_redirect_url',
     'FIELD_LABELS',
 
