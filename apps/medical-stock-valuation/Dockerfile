@@ -2,135 +2,104 @@
 
 # =============================================================================
 # 医療法人株式評価システム - Dockerfile
-# Multi-stage build for development and production
+# Multi-stage build for development and production (pnpm monorepo)
 # =============================================================================
 
-# =============================================================================
-# Build Arguments
-# =============================================================================
 ARG NODE_VERSION=22
 
 # =============================================================================
 # Base stage - Common configuration
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
-
-# Install security updates + Alpine glibc compatibility layer (Next.js recommended)
 RUN apk upgrade --no-cache && \
-    apk add --no-cache libc6-compat
-
+    apk add --no-cache libc6-compat && \
+    corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
-
-# Disable telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # =============================================================================
-# Dependencies stage - Install npm packages
+# Dependencies stage - Install pnpm packages
 # =============================================================================
 FROM base AS deps
 
-# better-sqlite3 のネイティブビルドに必要 (libc6-compat is inherited from base)
+# better-sqlite3 のネイティブビルドに必要
 RUN apk add --no-cache python3 make g++ pkgconfig
 
-# Copy only package files first (better layer caching)
-COPY package.json package-lock.json ./
-
-# Install dependencies with caching (id= prevents collision with other apps)
-RUN --mount=type=cache,id=npm-medical-stock-valuation,target=/root/.npm \
-    npm ci --no-audit --no-fund
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/utils/package.json ./packages/utils/
+COPY apps/medical-stock-valuation/package.json ./apps/medical-stock-valuation/
+RUN --mount=type=cache,id=pnpm-store-medical-stock-valuation,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # =============================================================================
 # Development stage - For local development with hot reload
 # =============================================================================
-FROM base AS dev
-
+FROM deps AS dev
 ENV NODE_ENV=development
-
-# Copy dependencies from deps stage
-COPY --from=deps --link /app/node_modules ./node_modules
-
-# Copy source code
-COPY --link . .
-
-# データベースディレクトリを作成
-RUN mkdir -p /app/data
-
+COPY packages/utils/ ./packages/utils/
+COPY apps/medical-stock-valuation/ ./apps/medical-stock-valuation/
+RUN cd packages/utils && pnpm build
+RUN mkdir -p /app/apps/medical-stock-valuation/data
+WORKDIR /app/apps/medical-stock-valuation
 EXPOSE 3010
-
-# Port is controlled by docker-compose command override
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "dev"]
 
 # =============================================================================
 # Builder stage - Build the production application
 # =============================================================================
-FROM base AS builder
-
-# Build configuration
+FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
-ENV NODE_ENV=production \
-    NODE_OPTIONS=${NODE_OPTIONS}
-
-# Copy dependencies
-COPY --from=deps --link /app/node_modules ./node_modules
-
-# Copy source files
-COPY --link . .
-
-# Build with persistent cache for faster rebuilds (id= prevents collision with other apps)
-RUN --mount=type=cache,id=nextjs-medical-stock-valuation,target=/app/.next/cache \
+ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS}
+COPY packages/utils/src ./packages/utils/src
+COPY packages/utils/tsconfig.json ./packages/utils/
+COPY apps/medical-stock-valuation/ ./apps/medical-stock-valuation/
+RUN --mount=type=cache,id=nextjs-medical-stock-valuation,target=/app/apps/medical-stock-valuation/.next/cache \
+    cd packages/utils && pnpm build && \
+    cd ../../apps/medical-stock-valuation && \
     mkdir -p public && \
-    npm run build && \
-    rm -rf node_modules/.cache
+    pnpm next build
 
 # =============================================================================
 # Production runner stage - Minimal, secure production image
 # =============================================================================
-FROM base AS runner
+FROM node:${NODE_VERSION}-alpine AS runner
 
-# OCI Image Labels
 LABEL org.opencontainers.image.title="Medical Stock Valuation" \
       org.opencontainers.image.description="医療法人株式評価システム" \
       org.opencontainers.image.vendor="税理士法人マスエージェント" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# Environment configuration (WORKDIR, NEXT_TELEMETRY_DISABLED inherited from base)
+WORKDIR /app
+
 ENV NODE_ENV=production \
     PORT=3010 \
     HOSTNAME=0.0.0.0 \
     TZ=Asia/Tokyo
 
-# Install runtime dependencies, configure timezone, create non-root user (libc6-compat inherited from base)
-RUN apk add --no-cache tini tzdata && \
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del tzdata && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-# Copy built assets with correct ownership (--link enables independent layer caching)
-COPY --from=builder --chown=nextjs:nodejs --link /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs --link /app/apps/medical-stock-valuation/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs --link /app/apps/medical-stock-valuation/.next/static ./apps/medical-stock-valuation/.next/static
+COPY --from=builder --chown=nextjs:nodejs --link /app/apps/medical-stock-valuation/public ./apps/medical-stock-valuation/public
 
 # データベースディレクトリを作成（書き込み権限）
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
 
-# データ永続化のマウントポイントを宣言
 VOLUME /app/data
 
-# Switch to non-root user
 USER nextjs
-
 EXPOSE 3010
 
-# Health check for container orchestration (uses Node 22+ native fetch)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3010/medical/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
-# Graceful shutdown signal
 STOPSIGNAL SIGTERM
-
-# Use tini as init process for proper signal handling
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "server.js"]
+CMD ["node", "apps/medical-stock-valuation/server.js"]

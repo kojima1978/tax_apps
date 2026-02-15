@@ -2,123 +2,94 @@
 
 # =============================================================================
 # 退職金税額計算シミュレーター - Dockerfile
-# Multi-stage build for development and production
+# Multi-stage build for development and production (pnpm monorepo)
 # =============================================================================
 
-# =============================================================================
-# Build Arguments
-# =============================================================================
 ARG NODE_VERSION=22
 
 # =============================================================================
 # Base stage - Common configuration
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
-
-# Install security updates + Alpine glibc compatibility layer (Next.js recommended)
 RUN apk upgrade --no-cache && \
-    apk add --no-cache libc6-compat
-
+    apk add --no-cache libc6-compat && \
+    corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
-
-# Disable telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # =============================================================================
-# Dependencies stage - Install npm packages
+# Dependencies stage - Install pnpm packages
 # =============================================================================
 FROM base AS deps
-
-# Copy only package files first (better layer caching)
-COPY package.json package-lock.json ./
-
-# Install dependencies with caching (id= prevents collision with other apps)
-RUN --mount=type=cache,id=npm-retirement-tax-calc,target=/root/.npm \
-    npm ci --no-audit --no-fund
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/utils/package.json ./packages/utils/
+COPY apps/retirement-tax-calc/package.json ./apps/retirement-tax-calc/
+RUN --mount=type=cache,id=pnpm-store-retirement-tax-calc,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # =============================================================================
 # Development stage - For local development with hot reload
 # =============================================================================
-FROM base AS dev
-
+FROM deps AS dev
 ENV NODE_ENV=development
-
-# Copy dependencies from deps stage
-COPY --from=deps --link /app/node_modules ./node_modules
-
-# Copy source code
-COPY --link . .
-
+COPY packages/utils/ ./packages/utils/
+COPY apps/retirement-tax-calc/ ./apps/retirement-tax-calc/
+RUN cd packages/utils && pnpm build
+WORKDIR /app/apps/retirement-tax-calc
 EXPOSE 3013
-
-# Port is controlled by docker-compose command override
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "dev"]
 
 # =============================================================================
 # Builder stage - Build the production application
 # =============================================================================
-FROM base AS builder
-
-# Build configuration
+FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
-ENV NODE_ENV=production \
-    NODE_OPTIONS=${NODE_OPTIONS}
-
-# Copy dependencies
-COPY --from=deps --link /app/node_modules ./node_modules
-
-# Copy source files
-COPY --link . .
-
-# Build with persistent cache for faster rebuilds (id= prevents collision with other apps)
-RUN --mount=type=cache,id=nextjs-retirement-tax-calc,target=/app/.next/cache \
+ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS}
+COPY packages/utils/src ./packages/utils/src
+COPY packages/utils/tsconfig.json ./packages/utils/
+COPY apps/retirement-tax-calc/ ./apps/retirement-tax-calc/
+RUN --mount=type=cache,id=nextjs-retirement-tax-calc,target=/app/apps/retirement-tax-calc/.next/cache \
+    cd packages/utils && pnpm build && \
+    cd ../../apps/retirement-tax-calc && \
     mkdir -p public && \
-    npm run build && \
-    rm -rf node_modules/.cache
+    pnpm next build
 
 # =============================================================================
 # Production runner stage - Minimal, secure production image
 # =============================================================================
-FROM base AS runner
+FROM node:${NODE_VERSION}-alpine AS runner
 
-# OCI Image Labels
 LABEL org.opencontainers.image.title="Retirement Tax Calculator" \
       org.opencontainers.image.description="退職金税額計算シミュレーター" \
       org.opencontainers.image.vendor="税理士法人マスエージェント" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# Environment configuration (WORKDIR, NEXT_TELEMETRY_DISABLED inherited from base)
+WORKDIR /app
+
 ENV NODE_ENV=production \
     PORT=3013 \
     HOSTNAME=0.0.0.0 \
     TZ=Asia/Tokyo
 
-# Install runtime dependencies, configure timezone, create non-root user
-RUN apk add --no-cache tini tzdata && \
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del tzdata && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-# Copy built assets with correct ownership (--link enables independent layer caching)
-COPY --from=builder --chown=nextjs:nodejs --link /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs --link /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs --link /app/apps/retirement-tax-calc/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs --link /app/apps/retirement-tax-calc/.next/static ./apps/retirement-tax-calc/.next/static
+COPY --from=builder --chown=nextjs:nodejs --link /app/apps/retirement-tax-calc/public ./apps/retirement-tax-calc/public
 
-# Switch to non-root user
 USER nextjs
-
 EXPOSE 3013
 
-# Health check for container orchestration (uses Node 22+ native fetch)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3013/retirement-tax-calc/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
-# Graceful shutdown signal
 STOPSIGNAL SIGTERM
-
-# Use tini as init process for proper signal handling
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "server.js"]
+CMD ["node", "apps/retirement-tax-calc/server.js"]

@@ -57,7 +57,7 @@ if defined SERVICE (
         docker compose %PROD_FLAG% restart %SERVICE%
     )
 ) else (
-    echo [INFO] Restarting all 17 services...
+    echo [INFO] Restarting all 16 services...
     echo.
     docker compose %PROD_FLAG% down
     echo.
