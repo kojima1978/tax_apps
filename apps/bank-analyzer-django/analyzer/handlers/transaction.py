@@ -10,7 +10,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
 from ..services import TransactionService
-from .base import is_ajax, json_error, count_message, parse_amount, build_redirect_url
+from .base import is_ajax, json_error, count_message, build_redirect_url, build_transaction_data
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,17 @@ def _extract_category_updates(request: HttpRequest, prefixes: list[str]) -> dict
                     category_updates[tx_id] = value
                 break
     return category_updates
+
+
+def _extract_filters(request: HttpRequest) -> dict:
+    """POSTデータからフィルター状態を抽出"""
+    return {
+        'bank': request.POST.getlist('filter_bank'),
+        'account': request.POST.getlist('filter_account'),
+        'category': request.POST.getlist('filter_category'),
+        'keyword': request.POST.get('filter_keyword', ''),
+        'page': request.POST.get('filter_page', ''),
+    }
 
 
 def handle_delete_account(request: HttpRequest, case, pk: int) -> HttpResponse:
@@ -99,15 +110,7 @@ def handle_bulk_update_categories(request: HttpRequest, case, pk: int) -> HttpRe
     count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
 
     # フィルター状態を復元（allタブの場合）
-    filters = None
-    if source_tab == 'all':
-        filters = {
-            'bank': request.POST.getlist('filter_bank'),
-            'account': request.POST.getlist('filter_account'),
-            'category': request.POST.getlist('filter_category'),
-            'keyword': request.POST.get('filter_keyword', ''),
-            'page': request.POST.get('filter_page', ''),
-        }
+    filters = _extract_filters(request) if source_tab == 'all' else None
 
     return redirect(build_redirect_url('analysis-dashboard', pk, source_tab, filters))
 
@@ -129,24 +132,7 @@ def handle_update_transaction(request: HttpRequest, case, pk: int) -> HttpRespon
 
     if tx_id:
         try:
-            amount_out, _ = parse_amount(request.POST.get('amount_out', '0'))
-            amount_in, _ = parse_amount(request.POST.get('amount_in', '0'))
-            balance_str = request.POST.get('balance')
-            balance_val, _ = parse_amount(balance_str) if balance_str else (None, True)
-
-            data = {
-                'date': request.POST.get('date'),
-                'description': request.POST.get('description'),
-                'amount_out': amount_out,
-                'amount_in': amount_in,
-                'category': request.POST.get('category'),
-                'memo': request.POST.get('memo'),
-                'bank_name': request.POST.get('bank_name'),
-                'branch_name': request.POST.get('branch_name'),
-                'account_id': request.POST.get('account_id'),
-                'account_type': request.POST.get('account_type'),
-                'balance': balance_val,
-            }
+            data = build_transaction_data(request)
             success = TransactionService.update_transaction(case, int(tx_id), data)
             if success:
                 messages.success(request, "取引データを更新しました。")
@@ -154,7 +140,10 @@ def handle_update_transaction(request: HttpRequest, case, pk: int) -> HttpRespon
             logger.exception(f"取引更新エラー: tx_id={tx_id}")
             messages.error(request, f"エラーが発生しました: {e}")
 
-    return redirect(build_redirect_url('analysis-dashboard', pk, source_tab))
+    # フィルター状態を復元（allタブの場合）
+    filters = _extract_filters(request) if source_tab == 'all' else None
+
+    return redirect(build_redirect_url('analysis-dashboard', pk, source_tab, filters))
 
 
 def handle_delete_duplicates(request: HttpRequest, case, pk: int) -> HttpResponse:

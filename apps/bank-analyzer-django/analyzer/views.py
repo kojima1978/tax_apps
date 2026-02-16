@@ -9,9 +9,8 @@ import logging
 import re
 from datetime import datetime
 from typing import Optional
-from urllib.parse import urlencode
+from urllib.parse import quote
 
-from django.conf import settings as django_settings
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Sum
@@ -21,7 +20,7 @@ from django.urls import reverse_lazy, reverse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 import pandas as pd
 
-from .models import Case, Transaction
+from .models import Case
 from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, config
 from .lib.exceptions import CsvImportError
@@ -33,9 +32,8 @@ from .templatetags.japanese_date import wareki
 from .handlers import (
     FIELD_LABELS,
     safe_error_message,
-    count_message,
     parse_amount,
-    build_redirect_url,
+    build_transaction_data,
     # Pattern handlers
     handle_add_pattern,
     handle_delete_pattern,
@@ -68,6 +66,7 @@ from .handlers import (
     api_delete_transaction,
     api_get_field_values,
 )
+from .handlers.wizard import _build_existing_keys, _mark_duplicates
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +95,14 @@ def _sanitize_filename(name: str) -> str:
     return sanitized.strip('_. ') or 'export'
 
 
+def _set_download_filename(response: HttpResponse, filename: str) -> None:
+    """Content-Disposition に attachment + RFC 5987 filename* を設定する"""
+    ascii_name = filename.encode('ascii', 'replace').decode()
+    response['Content-Disposition'] = (
+        f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
+    )
+
+
 def _handle_post_action(request, action_fn, error_context: str, **log_params) -> bool:
     """POST処理の共通例外ハンドリング。成功時True、失敗時Falseを返す。"""
     try:
@@ -106,22 +113,6 @@ def _handle_post_action(request, action_fn, error_context: str, **log_params) ->
         logger.exception(f"{error_context}エラー: {params_str}, error={e}")
         messages.error(request, safe_error_message(e, error_context))
         return False
-
-
-def _do_toggle_flag(request, case: Case, tx_id: str):
-    """付箋トグル処理の共通ロジック"""
-    new_state = TransactionService.toggle_flag(case, int(tx_id))
-    if new_state is None:
-        messages.warning(request, "取引が見つかりません。")
-    elif new_state:
-        messages.success(request, "付箋を追加しました。")
-    else:
-        messages.info(request, "付箋を外しました。")
-
-
-def _parse_keywords(text: str) -> list[str]:
-    """カンマまたは改行区切りのテキストをキーワードリストに変換"""
-    return [k.strip() for k in text.replace('\n', ',').split(',') if k.strip()]
 
 
 def _build_filter_state(request: HttpRequest, include_tab_filters: bool = False) -> dict:
@@ -226,23 +217,7 @@ def _extract_form_rows(request: HttpRequest, validate: bool = False) -> tuple[li
 def _update_transaction_from_post(request: HttpRequest, case: Case, tx_id: str) -> None:
     """POSTデータから取引を更新する共通処理"""
     def _do_update():
-        amount_out, _ = parse_amount(request.POST.get('amount_out', '0'))
-        amount_in, _ = parse_amount(request.POST.get('amount_in', '0'))
-        balance_str = request.POST.get('balance')
-        balance_val, _ = parse_amount(balance_str) if balance_str else (None, True)
-        data = {
-            'date': request.POST.get('date'),
-            'description': request.POST.get('description'),
-            'amount_out': amount_out,
-            'amount_in': amount_in,
-            'category': request.POST.get('category'),
-            'memo': request.POST.get('memo'),
-            'bank_name': request.POST.get('bank_name'),
-            'branch_name': request.POST.get('branch_name'),
-            'account_id': request.POST.get('account_id'),
-            'account_type': request.POST.get('account_type'),
-            'balance': balance_val,
-        }
+        data = build_transaction_data(request)
         success = TransactionService.update_transaction(case, int(tx_id), data)
         if success:
             messages.success(request, "取引データを更新しました。")
@@ -281,7 +256,7 @@ def _build_csv_response(df: pd.DataFrame, filename: str, include_memo: bool = Fa
 
     # BOM付きUTF-8でCSVレスポンスを作成（Excelで文字化けしないように）
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    _set_download_filename(response, filename)
     export_df.to_csv(response, index=False, encoding='utf-8-sig')
 
     return response
@@ -332,7 +307,7 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
         content_type='application/json; charset=utf-8'
     )
     filename = f"{_sanitize_filename(case.name)}_backup.json"
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    _set_download_filename(response, filename)
 
     logger.info(f"JSONエクスポート完了: case_id={pk}, transactions={len(transactions_data)}")
     return response
@@ -476,10 +451,15 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
         page = request.POST.get('page', 1)
 
         if action == 'toggle_flag' and tx_id:
-            _handle_post_action(
-                request, lambda: _do_toggle_flag(request, case, tx_id),
-                "フラグ更新", tx_id=tx_id
-            )
+            def _toggle():
+                new_state = TransactionService.toggle_flag(case, int(tx_id))
+                if new_state is None:
+                    messages.warning(request, "取引が見つかりません。")
+                elif new_state:
+                    messages.success(request, "付箋を追加しました。")
+                else:
+                    messages.info(request, "付箋を外しました。")
+            _handle_post_action(request, _toggle, "フラグ更新", tx_id=tx_id)
 
         elif action == 'update_transaction' and tx_id:
             _update_transaction_from_post(request, case, tx_id)
@@ -592,25 +572,9 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
                 messages.error(request, safe_error_message(e, "取り込み"))
 
     # 既存DBとの重複チェック
-    existing_keys = set()
-    for acct_id, dt, amt_out, amt_in in (
-        Transaction.objects.filter(case=case)
-        .values_list('account_id', 'date', 'amount_out', 'amount_in')
-    ):
-        existing_keys.add((acct_id or '', str(dt) if dt else '', amt_out or 0, amt_in or 0))
+    existing_keys = _build_existing_keys(case)
 
-    duplicate_count = 0
-    for row in import_data:
-        key = (
-            row.get('account_number') or '',
-            str(row.get('date', '')),
-            int(row.get('amount_out') or 0),
-            int(row.get('amount_in') or 0),
-        )
-        is_dup = key in existing_keys
-        row['is_duplicate'] = is_dup
-        if is_dup:
-            duplicate_count += 1
+    duplicate_count = _mark_duplicates(import_data, existing_keys)
 
     return render(request, 'analyzer/import_confirm.html', {
         'case': case,

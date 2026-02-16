@@ -1,5 +1,5 @@
 // ===== Analysis Dashboard Module =====
-// Requires: utils.js (createFormData, getApiUrl, showToast, extractKeywordFromDescription)
+// Requires: utils.js (createFormData, getApiUrl, showToast, fadeOutRow, highlightAndRemoveRow, extractKeywordFromDescription)
 
 // Modal Logic
 const editModal = document.getElementById('editModal');
@@ -12,7 +12,9 @@ editModal.addEventListener('show.bs.modal', function (event) {
     const txAmountOut = button.getAttribute('data-tx-amount-out');
     const txAmountIn = button.getAttribute('data-tx-amount-in');
     const txBalance = button.getAttribute('data-tx-balance');
-    const txCat = button.getAttribute('data-tx-cat');
+    const txRow = button.closest('tr');
+    const inlineSelect = txRow ? txRow.querySelector('select[name^="cat-"], select[name^="uncat-"]') : null;
+    const txCat = inlineSelect ? inlineSelect.value : button.getAttribute('data-tx-cat');
     const txMemo = button.getAttribute('data-tx-memo');
     const txBank = button.getAttribute('data-tx-bank');
     const txBranch = button.getAttribute('data-tx-branch');
@@ -38,6 +40,33 @@ editModal.addEventListener('show.bs.modal', function (event) {
         const tabId = activeTab.getAttribute('data-bs-target').replace('#', '');
         document.getElementById('modalSourceTab').value = tabId;
     }
+
+    // フィルター状態をモーダルに転送（動的 hidden input）
+    const form = editModal.querySelector('form');
+    form.querySelectorAll('.modal-filter-input').forEach(el => el.remove());
+
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, value] of params.entries()) {
+        if (['bank', 'account', 'category'].includes(key)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'filter_' + key;
+            input.value = value;
+            input.className = 'modal-filter-input';
+            form.appendChild(input);
+        }
+    }
+    ['keyword', 'page'].forEach(key => {
+        const val = params.get(key);
+        if (val) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'filter_' + key;
+            input.value = val;
+            input.className = 'modal-filter-input';
+            form.appendChild(input);
+        }
+    });
 });
 
 // Select All Duplicates
@@ -94,11 +123,7 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
             if (data.success) {
                 // 付箋タブで付箋を外した場合は行をフェードアウト
                 if (sourceTab === 'flagged' && !data.is_flagged) {
-                    row.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                    row.style.opacity = '0';
-                    row.style.transform = 'translateX(-20px)';
-                    setTimeout(() => {
-                        row.remove();
+                    fadeOutRow(row, () => {
                         // 残り件数を確認し、0件ならメッセージ表示
                         const tbody = document.querySelector('#flagged tbody');
                         if (tbody && tbody.querySelectorAll('tr').length === 0) {
@@ -110,7 +135,7 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
                                 </tr>
                             `;
                         }
-                    }, 300);
+                    });
                     showToast('付箋を外しました', 'info');
                 } else {
                     // ボタンの見た目を更新
@@ -348,14 +373,7 @@ document.querySelectorAll('.delete-tx-btn').forEach(btn => {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // 行をフェードアウトして削除
-                row.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                row.style.opacity = '0';
-                row.style.transform = 'translateX(-20px)';
-                setTimeout(() => {
-                    row.remove();
-                    updateSelectionUI();
-                }, 300);
+                fadeOutRow(row, () => updateSelectionUI());
                 showToast('取引を削除しました', 'success');
             } else {
                 showToast('エラー: ' + data.message, 'danger');
@@ -1033,15 +1051,7 @@ const AISuggestions = {
 
     // 行をフェードアウトして削除
     removeRow: function(txId) {
-        const row = document.getElementById(`ai-row-${txId}`);
-        if (row) {
-            row.classList.add('table-success');
-            setTimeout(() => {
-                row.style.opacity = '0';
-                row.style.transition = 'opacity 0.3s';
-                setTimeout(() => row.remove(), 300);
-            }, 500);
-        }
+        highlightAndRemoveRow(document.getElementById(`ai-row-${txId}`));
     },
 
     // 一括適用
