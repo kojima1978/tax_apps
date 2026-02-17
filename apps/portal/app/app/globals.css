@@ -56,8 +56,14 @@ body {
     background: white !important;
   }
 
-  header,
   .no-print {
     display: none !important;
+  }
+
+  /* 料金表の印刷 */
+  .print-title {
+    background: none !important;
+    -webkit-text-fill-color: #171717 !important;
+    color: #171717 !important;
   }
 }
