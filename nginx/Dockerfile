@@ -36,12 +36,12 @@ LABEL org.opencontainers.image.title="Tax Apps Gateway" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# セキュリティ更新 + curl追加 + タイムゾーン設定 + non-root 準備
+# タイムゾーン設定
+ENV TZ=Asia/Tokyo
+
+# セキュリティ更新 + タイムゾーン + non-root 準備
 RUN apk upgrade --no-cache && \
-    apk add --no-cache tzdata curl && \
-    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
-    echo "Asia/Tokyo" > /etc/timezone && \
-    apk del tzdata && \
+    apk add --no-cache tzdata && \
     # non-root ユーザー用のディレクトリ権限設定
     chown -R nginx:nginx /var/cache/nginx /var/log/nginx && \
     touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
@@ -52,9 +52,9 @@ COPY --link nginx.conf /etc/nginx/nginx.conf
 COPY --link includes/ /etc/nginx/includes/
 COPY --link default.conf /etc/nginx/conf.d/default.conf
 
-# ヘルスチェック（curlベース - より信頼性が高い）
+# ヘルスチェック（Alpine BusyBox内蔵のwgetを使用）
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl --fail --silent --show-error http://127.0.0.1/health || exit 1
+    CMD wget -qO /dev/null http://127.0.0.1/health || exit 1
 
 # non-root ユーザーで実行
 USER nginx
