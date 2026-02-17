@@ -332,14 +332,11 @@ services:
     depends_on:
       bank-analyzer-db:
         condition: service_healthy
-    # --nostatic: StaticFilesHandler が FORCE_SCRIPT_NAME 付きの request.path を
-    # 使って file_path を算出するため静的ファイルが 404 になる。
-    # WhiteNoise middleware は request.path_info を使うため正しく配信できる。
-    command: [ "/docker-entrypoint.sh", "python", "manage.py", "runserver", "--nostatic", "0.0.0.0:8000" ]
+    init: false
     # Gunicorn graceful_timeout(30s) に合わせて SIGKILL 猶予を延長（デフォルト10s）
     stop_grace_period: 35s
     healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/')\"" ]
+      test: [ "CMD-SHELL", "curl --fail --silent --show-error http://127.0.0.1:8000/health/ || exit 1" ]
       <<: *healthcheck-defaults
     deploy: *default-deploy
 

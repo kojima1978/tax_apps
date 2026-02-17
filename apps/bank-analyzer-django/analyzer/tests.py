@@ -5,8 +5,8 @@
 """
 from datetime import date, datetime
 
-from django.test import TestCase, Client
-from django.urls import reverse
+from django.test import TestCase, Client, override_settings
+from django.urls import reverse, set_script_prefix
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from .models import Case, Transaction
@@ -317,10 +317,12 @@ class JapaneseDateTest(TestCase):
         self.assertEqual(result, "R6.1.15")
 
 
+@override_settings(FORCE_SCRIPT_NAME=None, ALLOWED_HOSTS=['*'])
 class ViewsTest(TestCase):
     """ビューのテスト"""
 
     def setUp(self):
+        set_script_prefix('/')
         self.client = Client()
         self.case = Case.objects.create(name="テスト案件")
 

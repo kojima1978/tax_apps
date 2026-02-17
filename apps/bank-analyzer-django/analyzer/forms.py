@@ -78,18 +78,6 @@ class JsonImportForm(forms.Form):
         return file
 
 
-# カテゴリフィールド名 → 日本語カテゴリ名のマッピング（後方互換性のため維持）
-CATEGORY_FIELD_MAP = {
-    'cat_life': '生活費',
-    'cat_salary': '給与',
-    'cat_gift': '贈与',
-    'cat_related': '関連会社',
-    'cat_bank': '銀行',
-    'cat_security': '証券・株式',
-    'cat_insurance': '保険会社',
-    'cat_other': 'その他',
-}
-
 
 class SettingsForm(forms.Form):
     """

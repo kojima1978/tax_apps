@@ -108,12 +108,17 @@ def _fuzzy_match_category(
     best_category = None
     best_score = 0
 
+    # 贈与は閾値チェック付きの専用ロジックで処理するため除外
+    _fuzzy_exclude = ["その他", UNCATEGORIZED, "贈与"]
+
     def _evaluate_patterns(patterns: dict, scope_name: str):
         """パターン辞書を評価してベストマッチを更新"""
         nonlocal best_category, best_score
 
         # キーワード数の昇順でソート（少ないものが先）
-        sorted_categories = _sort_categories_by_keyword_count(patterns)
+        sorted_categories = _sort_categories_by_keyword_count(
+            patterns, exclude_categories=_fuzzy_exclude
+        )
 
         for category in sorted_categories:
             keywords = patterns.get(category, [])
@@ -157,7 +162,7 @@ def _fuzzy_match_category(
     # 案件固有で既にカバーされているカテゴリーのキーワードは重複評価しない
     global_only = {}
     for cat, keywords in global_patterns.items():
-        if cat in ["その他", UNCATEGORIZED]:
+        if cat in _fuzzy_exclude:
             continue
         case_kws = set(case_patterns.get(cat, []))
         # 案件固有に含まれないキーワードのみ
@@ -234,7 +239,10 @@ def classify_by_rules(
             マッチした場合は (カテゴリー, 100)、なければ None
         """
         # キーワード数の昇順でソート（少ないものが先）
-        sorted_categories = _sort_categories_by_keyword_count(patterns_dict)
+        # 贈与は閾値チェック付きの専用ロジックで処理するため除外
+        sorted_categories = _sort_categories_by_keyword_count(
+            patterns_dict, exclude_categories=["その他", UNCATEGORIZED, "贈与"]
+        )
 
         for category in sorted_categories:
             keywords = patterns_dict.get(category, [])
