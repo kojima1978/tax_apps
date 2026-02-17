@@ -11,7 +11,7 @@ from django.db.models import Q
 from ..models import Case, Transaction
 from ..lib import analyzer, llm_classifier, config
 from ..lib.constants import UNCATEGORIZED, STANDARD_CATEGORIES, sort_categories
-from ..lib.text_utils import filter_by_keyword, normalize_text
+from ..lib.text_utils import filter_by_keyword, matches_all_keywords, split_keywords
 from .utils import parse_amount_str, convert_amounts_to_int
 
 logger = logging.getLogger(__name__)
@@ -175,14 +175,17 @@ class AnalysisService:
                         (pair['destination'] and pair['destination'].get('category') in filter_cats))
                 ]
 
-        # キーワードフィルター（source/destinationのdescriptionで絞り込み）
+        # キーワードフィルター（source/destinationのdescriptionで絞り込み、AND検索対応）
         keyword = filter_state.get('keyword', '')
         if keyword:
-            nk = normalize_text(keyword)
+            kws = split_keywords(keyword)
             transfer_pairs = [
                 pair for pair in transfer_pairs
-                if nk in normalize_text(pair['source'].get('description', '') or '')
-                or (pair['destination'] and nk in normalize_text(pair['destination'].get('description', '') or ''))
+                if all(
+                    matches_all_keywords(pair['source'].get('description', ''), [kw])
+                    or (pair['destination'] and matches_all_keywords(pair['destination'].get('description', ''), [kw]))
+                    for kw in kws
+                )
             ]
 
         return transfer_pairs

@@ -26,7 +26,7 @@ from .lib import importer, config
 from .lib.exceptions import CsvImportError
 from .lib.constants import UNCATEGORIZED, sort_categories, sort_patterns_dict
 from .services import TransactionService, AnalysisService
-from .lib.text_utils import filter_by_keyword, normalize_text
+from .lib.text_utils import filter_by_keyword, matches_all_keywords, split_keywords
 from .templatetags.japanese_date import wareki
 
 # ハンドラーモジュールからインポート
@@ -392,11 +392,11 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
 
     df = pd.DataFrame(list(transactions.values()))
 
-    # NFKCキーワードフィルタ
+    # キーワードフィルタ（NFKC + ひらがな/カタカナ横断 + AND検索）
     keyword = filter_state.get('keyword', '')
     if keyword:
-        nk = normalize_text(keyword)
-        df = df[df['description'].fillna('').apply(lambda d: nk in normalize_text(d))].copy()
+        kws = split_keywords(keyword)
+        df = df[df['description'].fillna('').apply(lambda d: matches_all_keywords(d, kws))].copy()
         if df.empty:
             messages.warning(request, "エクスポートするデータがありません。")
             return redirect('analysis-dashboard', pk=pk)
