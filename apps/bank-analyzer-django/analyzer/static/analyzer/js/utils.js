@@ -154,6 +154,81 @@ function extractMultipleKeywords(description) {
         .slice(0, 6);
 }
 
+// ===== AJAX Utilities =====
+
+/**
+ * POST JSON request with standard error handling
+ * @param {string} url - Request URL
+ * @param {FormData} formData - Form data to send
+ * @param {Object} callbacks - { onSuccess, onError, onFinally }
+ */
+function postJson(url, formData, { onSuccess, onError, onFinally } = {}) {
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (onSuccess) onSuccess(data);
+        } else {
+            showToast(data.error || data.message || 'エラーが発生しました', 'danger');
+            if (onError) onError(data);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('通信エラーが発生しました', 'danger');
+        if (onError) onError(error);
+    })
+    .finally(() => {
+        if (onFinally) onFinally();
+    });
+}
+
+// ===== Button State Utilities =====
+
+/**
+ * Disable a button with reduced opacity
+ * @param {HTMLElement} btn - Button element
+ */
+function disableButton(btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+}
+
+/**
+ * Enable a button with full opacity
+ * @param {HTMLElement} btn - Button element
+ */
+function enableButton(btn) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+}
+
+/**
+ * Set a button to loading state with spinner
+ * @param {HTMLElement} btn - Button element
+ * @param {string} text - Loading text to display
+ */
+function setButtonLoading(btn, text) {
+    btn.disabled = true;
+    btn._originalHtml = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${text}`;
+}
+
+/**
+ * Reset a button from loading state
+ * @param {HTMLElement} btn - Button element
+ */
+function resetButton(btn) {
+    btn.disabled = false;
+    if (btn._originalHtml) {
+        btn.innerHTML = btn._originalHtml;
+    }
+}
+
 // ===== Row Animation Utilities =====
 
 /**
