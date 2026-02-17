@@ -111,9 +111,10 @@ ENV GUNICORN_WORKERS=2 \
 # Copy application code with proper ownership
 COPY --link --chown=appuser:appgroup . .
 
-# Create runtime directories (not in COPY context due to .dockerignore)
+# Create runtime directories and fix /app ownership for bytecode compilation
+# WORKDIR /app is root-owned; appuser needs write access for __pycache__
 RUN mkdir -p data staticfiles db && \
-    chown appuser:appgroup data staticfiles db
+    chown appuser:appgroup /app data staticfiles db
 
 EXPOSE 8000
 
