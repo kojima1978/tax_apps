@@ -130,7 +130,7 @@ export default function Results() {
 
         <div className="flex justify-between items-center gap-4">
           <div className="flex-1 text-center">
-            <div className="text-lg font-bold mb-3">設立時</div>
+            <div className="text-lg font-bold mb-3">設立時<br />&nbsp;</div>
             <div className="mb-3">
               <img src="/medical/doctor.svg" alt="医療法人" className="mx-auto" width="120" height="80" />
             </div>
