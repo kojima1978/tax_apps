@@ -35,7 +35,7 @@ nginx/
 - **Gzip圧縮**: テキスト、CSS、JS、JSON、WASMなどを自動圧縮
 - **Keep-Alive**: コネクション再利用で高速化（サービス種別に応じた keepalive 値）
 - **静的ファイルキャッシュ**: Next.js/Vite のハッシュ付き静的ファイルは1年キャッシュ
-- **アップストリーム障害リトライ**: `proxy_next_upstream` による自動リカバリ
+- **アップストリーム障害リトライ**: `proxy_next_upstream error timeout` による自動リカバリ（非冪等メソッドの二重送信防止のためHTTPステータスでのリトライは無効）
 
 ### セキュリティ
 
@@ -44,12 +44,13 @@ nginx/
 - **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy
 - **サーバー情報非表示**: server_tokens off, proxy_hide_header (X-Powered-By, Server)
 - **Real IP対応**: Docker内部ネットワークからの X-Forwarded-For を信頼
+- **APIエラー応答保護**: APIエンドポイントは `proxy_intercept_errors off` でバックエンドのJSON応答をそのまま返却
 
 ### 監視・トレーシング
 
-- **ヘルスチェック**: `/health` エンドポイント（curlベース）
+- **ヘルスチェック**: `/health` エンドポイント（Alpine BusyBox内蔵wget使用）
 - **Nginx Status**: `/nginx-status` (内部ネットワークのみ)
-- **詳細ログ**: レスポンスタイム、アップストリーム時間（main形式 + JSON形式）
+- **詳細ログ**: レスポンスタイム、アップストリーム時間（main形式）
 - **リクエストトレーシング**: X-Request-ID, X-Request-Start ヘッダー
 
 ### エラーページ
