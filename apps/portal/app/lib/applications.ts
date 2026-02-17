@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity, Briefcase, Building, Calculator, ClipboardList,
-  CreditCard, FileCheck, FileText, Gift, TrendingUp,
+  CreditCard, FileCheck, FileText, Gift, Receipt, TrendingUp,
 } from 'lucide-react';
 
 export interface Application {
@@ -25,4 +25,6 @@ export const applications: Application[] = [
   // 分析・管理
   { title: '預貯金分析', description: '預金移動の分析ツール', url: '/bank-analyzer/', icon: Building },
   { title: '案件管理', description: '相続税案件の進捗管理', url: '/itcm/', icon: Briefcase },
+  // その他
+  { title: '料金表', description: '報酬についてのご案内', url: '/fee-table/', icon: Receipt },
 ];
