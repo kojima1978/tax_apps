@@ -3,16 +3,12 @@
 
 取引の更新・削除・フラグ・メモ・一括置換などを処理する。
 """
-import logging
-
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
 from ..services import TransactionService
-from .base import is_ajax, json_error, count_message, build_redirect_url, build_transaction_data
-
-logger = logging.getLogger(__name__)
+from .base import is_ajax, json_error, count_message, build_redirect_url, build_transaction_data, handle_ajax_error
 
 # フィールドラベル定義（CSV出力・一括置換で共用）
 FIELD_LABELS = {
@@ -61,8 +57,7 @@ def handle_delete_account(request: HttpRequest, case, pk: int) -> HttpResponse:
             count = TransactionService.delete_account_transactions(case, account_id)
             messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
         except Exception as e:
-            logger.exception(f"口座削除エラー: account_id={account_id}")
-            messages.error(request, f"エラーが発生しました: {e}")
+            return handle_ajax_error(request, pk, e, "口座削除エラー")
 
     return redirect('analysis-dashboard', pk=pk)
 
@@ -137,8 +132,7 @@ def handle_update_transaction(request: HttpRequest, case, pk: int) -> HttpRespon
             if success:
                 messages.success(request, "取引データを更新しました。")
         except Exception as e:
-            logger.exception(f"取引更新エラー: tx_id={tx_id}")
-            messages.error(request, f"エラーが発生しました: {e}")
+            return handle_ajax_error(request, pk, e, "取引更新エラー")
 
     # フィルター状態を復元（allタブの場合）
     filters = _extract_filters(request) if source_tab == 'all' else None
@@ -189,8 +183,7 @@ def handle_toggle_flag(request: HttpRequest, case, pk: int) -> HttpResponse:
             else:
                 messages.info(request, "付箋を外しました。")
         except Exception as e:
-            logger.exception(f"フラグ更新エラー: tx_id={tx_id}")
-            messages.error(request, f"エラーが発生しました: {e}")
+            return handle_ajax_error(request, pk, e, "フラグ更新エラー")
 
     return redirect(build_redirect_url('analysis-dashboard', pk, source_tab))
 
@@ -207,8 +200,7 @@ def handle_update_memo(request: HttpRequest, case, pk: int) -> HttpResponse:
             if success:
                 messages.success(request, "メモを更新しました。")
         except Exception as e:
-            logger.exception(f"メモ更新エラー: tx_id={tx_id}")
-            messages.error(request, f"エラーが発生しました: {e}")
+            return handle_ajax_error(request, pk, e, "メモ更新エラー")
 
     return redirect(build_redirect_url('analysis-dashboard', pk, source_tab))
 
@@ -244,7 +236,6 @@ def handle_bulk_replace_field(request: HttpRequest, case, pk: int) -> HttpRespon
             "該当するデータがありませんでした。",
         )
     except Exception as e:
-        logger.exception(f"一括置換エラー: field={field_name}")
-        messages.error(request, f"エラーが発生しました: {e}")
+        return handle_ajax_error(request, pk, e, "一括置換エラー")
 
     return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))

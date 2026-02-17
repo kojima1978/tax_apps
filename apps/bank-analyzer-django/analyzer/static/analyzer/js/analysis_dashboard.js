@@ -1,5 +1,5 @@
 // ===== Analysis Dashboard Module =====
-// Requires: utils.js (createFormData, getApiUrl, showToast, fadeOutRow, highlightAndRemoveRow, extractKeywordFromDescription)
+// Requires: utils.js (createFormData, getApiUrl, showToast, postJson, fadeOutRow, highlightAndRemoveRow, extractKeywordFromDescription, disableButton, enableButton, setButtonLoading, resetButton)
 
 // Modal Logic
 const editModal = document.getElementById('editModal');
@@ -108,8 +108,7 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
         const row = button.closest('tr');
 
         // ボタンを一時的に無効化（二重クリック防止）
-        button.disabled = true;
-        button.style.opacity = '0.5';
+        disableButton(button);
 
         const formData = createFormData({ tx_id: txId });
         const apiUrl = getApiUrl('toggle-flag');
@@ -150,21 +149,17 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
                         button.title = '付箋を付ける';
                         showToast('付箋を外しました', 'info');
                     }
-                    // ボタンを再有効化
-                    button.disabled = false;
-                    button.style.opacity = '1';
+                    enableButton(button);
                 }
             } else {
                 showToast('エラー: ' + data.message, 'danger');
-                button.disabled = false;
-                button.style.opacity = '1';
+                enableButton(button);
             }
         })
         .catch(error => {
             console.error('Error:', error);
             showToast('通信エラーが発生しました', 'danger');
-            button.disabled = false;
-            button.style.opacity = '1';
+            enableButton(button);
         });
     });
 });
@@ -314,36 +309,18 @@ if (addTxSubmitBtn) {
             memo: document.getElementById('addTxMemo').value,
         });
 
-        // ボタンを無効化
-        addTxSubmitBtn.disabled = true;
-        addTxSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 追加中...';
+        setButtonLoading(addTxSubmitBtn, '追加中...');
 
         const apiUrl = getApiUrl('create-transaction');
 
-        fetch(apiUrl, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+        postJson(apiUrl, formData, {
+            onSuccess: () => {
                 showToast('取引を追加しました', 'success');
-                // モーダルを閉じる
                 const modal = bootstrap.Modal.getInstance(addTxModal);
                 modal.hide();
-                // ページをリロードして最新データを表示
                 window.location.reload();
-            } else {
-                showToast('エラー: ' + data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('通信エラーが発生しました', 'danger');
-        })
-        .finally(() => {
-            addTxSubmitBtn.disabled = false;
-            addTxSubmitBtn.innerHTML = '<i class="bi bi-plus-lg"></i> 追加';
+            },
+            onFinally: () => resetButton(addTxSubmitBtn),
         });
     });
 }
@@ -359,33 +336,18 @@ document.querySelectorAll('.delete-tx-btn').forEach(btn => {
         }
 
         const formData = createFormData({ tx_id: txId });
+        const button = this;
 
-        // ボタンを無効化
-        this.disabled = true;
-        this.style.opacity = '0.5';
+        disableButton(button);
 
         const apiUrl = getApiUrl('delete-transaction');
 
-        fetch(apiUrl, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+        postJson(apiUrl, formData, {
+            onSuccess: () => {
                 fadeOutRow(row, () => updateSelectionUI());
                 showToast('取引を削除しました', 'success');
-            } else {
-                showToast('エラー: ' + data.message, 'danger');
-                this.disabled = false;
-                this.style.opacity = '1';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('通信エラーが発生しました', 'danger');
-            this.disabled = false;
-            this.style.opacity = '1';
+            },
+            onError: () => enableButton(button),
         });
     });
 });
@@ -557,8 +519,7 @@ if (replaceFieldSelect) {
         }
 
         // 送信中の表示
-        bulkReplaceSubmitBtn.disabled = true;
-        bulkReplaceSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 処理中...';
+        setButtonLoading(bulkReplaceSubmitBtn, '処理中...');
     });
 }
 
@@ -734,8 +695,7 @@ function submitPatternAdd() {
     }
 
     const submitBtn = document.getElementById('patternAddSubmitBtn');
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 追加中...';
+    setButtonLoading(submitBtn, '追加中...');
 
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     const formData = new FormData();
@@ -767,23 +727,20 @@ function submitPatternAdd() {
                     // トースト通知
                     showToast(`「${keyword}」を「${category}」に追加しました（${scopeLabel}）`, 'success');
                     // ボタンをリセット
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="bi bi-plus-lg"></i> 追加';
+                    resetButton(submitBtn);
                     submitBtn.classList.remove('btn-success');
                     submitBtn.classList.add('btn-primary');
                 }, 500);
             }
         } else {
             showPatternAddResult('danger', data.error || '追加に失敗しました');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="bi bi-plus-lg"></i> 追加';
+            resetButton(submitBtn);
         }
     })
     .catch(error => {
         console.error('Error:', error);
         showPatternAddResult('danger', 'エラーが発生しました');
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="bi bi-plus-lg"></i> 追加';
+        resetButton(submitBtn);
     });
 }
 
@@ -907,23 +864,11 @@ const UnclassifiedTab = {
             scope: scope
         });
 
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+        postJson(window.location.href, formData, {
+            onSuccess: () => {
                 const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
                 showToast(`キーワード「${keyword}」を「${category}」に追加しました${scopeMsg}`, 'success');
-            } else {
-                showToast(data.error || 'パターン追加に失敗しました', 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('エラーが発生しました', 'danger');
+            },
         });
     },
 
@@ -1021,24 +966,12 @@ const AISuggestions = {
 
         const self = this;
 
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+        postJson(window.location.href, formData, {
+            onSuccess: () => {
                 self.removeRow(txId);
                 self.updateBadgeCount(-1);
                 showToast(`「${category}」に分類しました`, 'success');
-            } else {
-                showToast('エラーが発生しました', 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('ネットワークエラーが発生しました', 'danger');
+            },
         });
     },
 

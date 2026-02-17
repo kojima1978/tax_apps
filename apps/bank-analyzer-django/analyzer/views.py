@@ -66,7 +66,7 @@ from .handlers import (
     api_delete_transaction,
     api_get_field_values,
 )
-from .handlers.wizard import _build_existing_keys, _mark_duplicates
+from .handlers import build_existing_keys, mark_duplicates
 
 logger = logging.getLogger(__name__)
 
@@ -572,9 +572,9 @@ def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
                 messages.error(request, safe_error_message(e, "取り込み"))
 
     # 既存DBとの重複チェック
-    existing_keys = _build_existing_keys(case)
+    existing_keys = build_existing_keys(case)
 
-    duplicate_count = _mark_duplicates(import_data, existing_keys)
+    duplicate_count = mark_duplicates(import_data, existing_keys)
 
     return render(request, 'analyzer/import_confirm.html', {
         'case': case,

@@ -49,6 +49,9 @@ from .transaction import (
 
 from .wizard import (
     import_wizard,
+    make_dedup_key,
+    build_existing_keys,
+    mark_duplicates,
 )
 
 from .api import (
@@ -100,6 +103,9 @@ __all__ = [
 
     # Wizard
     'import_wizard',
+    'make_dedup_key',
+    'build_existing_keys',
+    'mark_duplicates',
 
     # API endpoints
     'api_toggle_flag',
