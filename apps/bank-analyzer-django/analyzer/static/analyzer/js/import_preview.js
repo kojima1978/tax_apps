@@ -18,17 +18,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const month = date.getMonth() + 1;
         const day = date.getDate();
 
+        // Keep in sync with analyzer/lib/constants.py ERA_DATA
         let era, eraYear;
-        if (year >= 2019 || (year === 2019 && month >= 5)) {
+        if (year > 2019 || (year === 2019 && (month > 5 || (month === 5 && day >= 1)))) {
             era = 'R';
             eraYear = year - 2018;
-        } else if (year >= 1989 || (year === 1989 && month >= 1 && day >= 8)) {
+        } else if (year > 1989 || (year === 1989 && (month > 1 || (month === 1 && day >= 8)))) {
             era = 'H';
             eraYear = year - 1988;
-        } else if (year >= 1926 || (year === 1926 && month >= 12 && day >= 25)) {
+        } else if (year > 1926 || (year === 1926 && month === 12 && day >= 25)) {
             era = 'S';
             eraYear = year - 1925;
-        } else if (year >= 1912 || (year === 1912 && month >= 7 && day >= 30)) {
+        } else if (year > 1912 || (year === 1912 && (month > 7 || (month === 7 && day >= 30)))) {
             era = 'T';
             eraYear = year - 1911;
         } else {

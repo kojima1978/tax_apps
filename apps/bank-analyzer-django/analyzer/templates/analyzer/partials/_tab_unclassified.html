@@ -4,6 +4,20 @@
 <!-- 未分類タブ -->
 <div class="tab-pane fade" id="unclassified" role="tabpanel" aria-labelledby="unclassified-tab">
     <div class="glass-card p-4">
+        <!-- キーワード検索 -->
+        <form method="get" class="row g-2 mb-3">
+            <input type="hidden" name="tab" value="unclassified">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}" placeholder="摘要をキーワード検索（半角/全角カタカナ対応）">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                    {% if filter_state.keyword %}
+                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=unclassified" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+
         {% if unclassified_txs %}
         <!-- 分類編集フォーム -->
         <form method="post" id="unclassifiedTxForm">
@@ -14,7 +28,8 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0">
                     <span class="text-warning me-2">❓</span>
-                    未分類取引: {{ unclassified_count }}件
+                    未分類取引: {{ unclassified_txs.paginator.count }}件
+                    {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
                     {% if unclassified_txs.paginator.num_pages > 1 %}
                     <small class="text-muted">({{ unclassified_txs.number }} / {{ unclassified_txs.paginator.num_pages }}ページ)</small>
                     {% endif %}
@@ -129,10 +144,10 @@
             <ul class="pagination justify-content-center mb-0">
                 {% if unclassified_txs.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?tab=unclassified&unclassified_page=1">&laquo; 最初</a>
+                    <a class="page-link" href="?tab=unclassified&unclassified_page=1{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">&laquo; 最初</a>
                 </li>
                 <li class="page-item">
-                    <a class="page-link" href="?tab=unclassified&unclassified_page={{ unclassified_txs.previous_page_number }}">前へ</a>
+                    <a class="page-link" href="?tab=unclassified&unclassified_page={{ unclassified_txs.previous_page_number }}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">前へ</a>
                 </li>
                 {% endif %}
                 <li class="page-item disabled">
@@ -140,10 +155,10 @@
                 </li>
                 {% if unclassified_txs.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?tab=unclassified&unclassified_page={{ unclassified_txs.next_page_number }}">次へ</a>
+                    <a class="page-link" href="?tab=unclassified&unclassified_page={{ unclassified_txs.next_page_number }}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">次へ</a>
                 </li>
                 <li class="page-item">
-                    <a class="page-link" href="?tab=unclassified&unclassified_page={{ unclassified_txs.paginator.num_pages }}">最後 &raquo;</a>
+                    <a class="page-link" href="?tab=unclassified&unclassified_page={{ unclassified_txs.paginator.num_pages }}{% if filter_state.keyword %}&keyword={{ filter_state.keyword }}{% endif %}">最後 &raquo;</a>
                 </li>
                 {% endif %}
             </ul>

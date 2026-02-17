@@ -4,7 +4,9 @@
 <div class="tab-pane fade" id="flagged" role="tabpanel" aria-labelledby="flagged-tab">
     <div class="glass-card p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0 text-info"><i class="bi bi-pin-angle"></i> 付箋付き取引</h4>
+            <h4 class="mb-0 text-info"><i class="bi bi-pin-angle"></i> 付箋付き取引
+                {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
+            </h4>
             {% if flagged_txs %}
             <a href="{% url 'export-csv' case.pk 'flagged' %}" class="btn btn-outline-success btn-sm">
                 <i class="bi bi-download"></i> CSV出力
@@ -14,6 +16,20 @@
         <p class="text-muted">
             後で確認したい取引に付箋を付けることができます。各タブの取引一覧で📌ボタンをクリックして付箋を追加できます。
         </p>
+
+        <!-- キーワード検索 -->
+        <form method="get" class="row g-2 mb-3">
+            <input type="hidden" name="tab" value="flagged">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}" placeholder="摘要をキーワード検索（半角/全角カタカナ対応）">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                    {% if filter_state.keyword %}
+                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=flagged" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
 
         {% if flagged_txs %}
         <div class="table-responsive">

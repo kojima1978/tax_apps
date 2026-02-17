@@ -17,6 +17,7 @@ urlpatterns = [
     path('case/<int:pk>/export/<str:export_type>/', views.export_csv, name='export-csv'),
     path('case/<int:pk>/export-filtered/', views.export_csv_filtered, name='export-csv-filtered'),
     path('case/<int:pk>/export-json/', views.export_json, name='export-json'),
+    path('case/<int:pk>/export-xlsx-by-category/', views.export_xlsx_by_category, name='export-xlsx-by-category'),
     # API Endpoints (AJAX)
     path('case/<int:pk>/api/toggle-flag/', views.api_toggle_flag, name='api-toggle-flag'),
     path('case/<int:pk>/api/create-transaction/', views.api_create_transaction, name='api-create-transaction'),

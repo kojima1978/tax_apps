@@ -1,38 +1,34 @@
 // ===== Analysis Dashboard Module =====
 // Requires: utils.js (createFormData, getApiUrl, showToast, postJson, fadeOutRow, highlightAndRemoveRow, extractKeywordFromDescription, disableButton, enableButton, setButtonLoading, resetButton)
 
+// Modal field mapping: [modalElementId, data-attribute, fallback]
+const MODAL_FIELDS = [
+    ['modalTxId',          'data-tx-id'],
+    ['modalTxDate',        'data-tx-date'],
+    ['modalTxDescription', 'data-tx-desc'],
+    ['modalTxAmountOut',   'data-tx-amount-out'],
+    ['modalTxAmountIn',    'data-tx-amount-in'],
+    ['modalTxBalance',     'data-tx-balance',       ''],
+    ['modalTxMemo',        'data-tx-memo',           ''],
+    ['modalTxBankName',    'data-tx-bank',           ''],
+    ['modalTxBranchName',  'data-tx-branch',         ''],
+    ['modalTxAccountType', 'data-tx-account-type',   ''],
+    ['modalTxAccountId',   'data-tx-account',        ''],
+];
+
 // Modal Logic
 const editModal = document.getElementById('editModal');
 editModal.addEventListener('show.bs.modal', function (event) {
     const button = event.relatedTarget;
 
-    const txId = button.getAttribute('data-tx-id');
-    const txDate = button.getAttribute('data-tx-date');
-    const txDesc = button.getAttribute('data-tx-desc');
-    const txAmountOut = button.getAttribute('data-tx-amount-out');
-    const txAmountIn = button.getAttribute('data-tx-amount-in');
-    const txBalance = button.getAttribute('data-tx-balance');
+    MODAL_FIELDS.forEach(([id, attr, fallback]) => {
+        document.getElementById(id).value = button.getAttribute(attr) || fallback || '';
+    });
+
+    // カテゴリーはインラインセレクトを優先
     const txRow = button.closest('tr');
     const inlineSelect = txRow ? txRow.querySelector('select[name^="cat-"], select[name^="uncat-"]') : null;
-    const txCat = inlineSelect ? inlineSelect.value : button.getAttribute('data-tx-cat');
-    const txMemo = button.getAttribute('data-tx-memo');
-    const txBank = button.getAttribute('data-tx-bank');
-    const txBranch = button.getAttribute('data-tx-branch');
-    const txAccountType = button.getAttribute('data-tx-account-type');
-    const txAccount = button.getAttribute('data-tx-account');
-
-    document.getElementById('modalTxId').value = txId;
-    document.getElementById('modalTxDate').value = txDate;
-    document.getElementById('modalTxDescription').value = txDesc;
-    document.getElementById('modalTxAmountOut').value = txAmountOut;
-    document.getElementById('modalTxAmountIn').value = txAmountIn;
-    document.getElementById('modalTxBalance').value = txBalance || '';
-    document.getElementById('modalTxCategory').value = txCat || '未分類';
-    document.getElementById('modalTxMemo').value = txMemo || '';
-    document.getElementById('modalTxBankName').value = txBank || '';
-    document.getElementById('modalTxBranchName').value = txBranch || '';
-    document.getElementById('modalTxAccountType').value = txAccountType || '';
-    document.getElementById('modalTxAccountId').value = txAccount || '';
+    document.getElementById('modalTxCategory').value = inlineSelect ? inlineSelect.value : (button.getAttribute('data-tx-cat') || '未分類');
 
     // 現在のタブを記録
     const activeTab = document.querySelector('#analysisTabs .nav-link.active');
@@ -264,29 +260,28 @@ updateSelectionUI();
 const addTxModal = document.getElementById('addTxModal');
 const addTxSubmitBtn = document.getElementById('addTxSubmitBtn');
 
+// Add transaction field mapping: [elementId, formKey, data-attribute (for reset), resetDefault, readDefault]
+const ADD_TX_FIELDS = [
+    ['addTxDate',        'date',         'data-tx-date',         ''],
+    ['addTxDescription', 'description',   null,                   ''],
+    ['addTxAmountOut',   'amount_out',    null,                   '0',  '0'],
+    ['addTxAmountIn',    'amount_in',     null,                   '0',  '0'],
+    ['addTxBalance',     'balance',       null,                   ''],
+    ['addTxBankName',    'bank_name',    'data-tx-bank',          ''],
+    ['addTxBranchName',  'branch_name',  'data-tx-branch',        ''],
+    ['addTxAccountType', 'account_type', 'data-tx-account-type',  ''],
+    ['addTxAccountId',   'account_id',   'data-tx-account',       ''],
+    ['addTxCategory',    'category',      null,                   '未分類'],
+    ['addTxMemo',        'memo',          null,                   ''],
+];
+
 // 追加ボタンクリック時 - モーダルを開く
 document.querySelectorAll('.insert-tx-btn').forEach(btn => {
     btn.addEventListener('click', function() {
-        const txDate = this.getAttribute('data-tx-date');
-        const txBank = this.getAttribute('data-tx-bank');
-        const txBranch = this.getAttribute('data-tx-branch');
-        const txAccountType = this.getAttribute('data-tx-account-type');
-        const txAccount = this.getAttribute('data-tx-account');
+        ADD_TX_FIELDS.forEach(([id, , attr, resetDefault]) => {
+            document.getElementById(id).value = (attr ? this.getAttribute(attr) : null) || resetDefault;
+        });
 
-        // フォームをリセット
-        document.getElementById('addTxDate').value = txDate || '';
-        document.getElementById('addTxDescription').value = '';
-        document.getElementById('addTxAmountOut').value = '0';
-        document.getElementById('addTxAmountIn').value = '0';
-        document.getElementById('addTxBalance').value = '';
-        document.getElementById('addTxBankName').value = txBank || '';
-        document.getElementById('addTxBranchName').value = txBranch || '';
-        document.getElementById('addTxAccountType').value = txAccountType || '';
-        document.getElementById('addTxAccountId').value = txAccount || '';
-        document.getElementById('addTxCategory').value = '未分類';
-        document.getElementById('addTxMemo').value = '';
-
-        // モーダルを表示
         const modal = new bootstrap.Modal(addTxModal);
         modal.show();
     });
@@ -295,19 +290,11 @@ document.querySelectorAll('.insert-tx-btn').forEach(btn => {
 // 追加ボタン（モーダル内）クリック時 - APIに送信
 if (addTxSubmitBtn) {
     addTxSubmitBtn.addEventListener('click', function() {
-        const formData = createFormData({
-            date: document.getElementById('addTxDate').value,
-            description: document.getElementById('addTxDescription').value,
-            amount_out: document.getElementById('addTxAmountOut').value || '0',
-            amount_in: document.getElementById('addTxAmountIn').value || '0',
-            balance: document.getElementById('addTxBalance').value || '',
-            bank_name: document.getElementById('addTxBankName').value,
-            branch_name: document.getElementById('addTxBranchName').value,
-            account_type: document.getElementById('addTxAccountType').value,
-            account_id: document.getElementById('addTxAccountId').value,
-            category: document.getElementById('addTxCategory').value,
-            memo: document.getElementById('addTxMemo').value,
+        const data = {};
+        ADD_TX_FIELDS.forEach(([id, key, , , readDefault]) => {
+            data[key] = document.getElementById(id).value || readDefault || '';
         });
+        const formData = createFormData(data);
 
         setButtonLoading(addTxSubmitBtn, '追加中...');
 
@@ -1050,47 +1037,24 @@ const AISuggestions = {
             category: category
         });
 
-        fetch(window.location.href, {
-            method: 'POST',
-            body: applyFormData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.success) {
-                showToast('分類の適用に失敗しました', 'danger');
-                return;
-            }
+        postJson(window.location.href, applyFormData, {
+            onSuccess: () => {
+                // 2. パターンに追加
+                const patternFormData = createFormData({
+                    action: 'add_pattern',
+                    category: category,
+                    keyword: keyword,
+                    scope: scope
+                });
 
-            // 2. パターンに追加
-            const patternFormData = createFormData({
-                action: 'add_pattern',
-                category: category,
-                keyword: keyword,
-                scope: scope
-            });
-
-            return fetch(window.location.href, {
-                method: 'POST',
-                body: patternFormData,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-        })
-        .then(response => {
-            if (response) return response.json();
-        })
-        .then(data => {
-            if (data && data.success) {
-                self.removeRow(txId);
-                const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
-                showToast(`「${category}」に分類し、キーワード「${keyword}」を追加しました${scopeMsg}`, 'success');
-            } else if (data) {
-                showToast(data.error || 'パターン追加に失敗しました', 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('エラーが発生しました', 'danger');
+                postJson(window.location.href, patternFormData, {
+                    onSuccess: () => {
+                        self.removeRow(txId);
+                        const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
+                        showToast(`「${category}」に分類し、キーワード「${keyword}」を追加しました${scopeMsg}`, 'success');
+                    },
+                });
+            },
         });
     },
 

@@ -11,6 +11,7 @@ from django.db.models import Q
 from ..models import Case, Transaction
 from ..lib import analyzer, llm_classifier, config
 from ..lib.constants import UNCATEGORIZED, STANDARD_CATEGORIES, sort_categories
+from ..lib.text_utils import filter_by_keyword, normalize_text
 from .utils import parse_amount_str, convert_amounts_to_int
 
 logger = logging.getLogger(__name__)
@@ -85,9 +86,6 @@ class AnalysisService:
                 queryset = queryset.exclude(category__in=filter_state['category'])
             else:
                 queryset = queryset.filter(category__in=filter_state['category'])
-        if filter_state.get('keyword'):
-            queryset = queryset.filter(description__icontains=filter_state['keyword'])
-
         # 日付フィルター
         if filter_state.get('date_from'):
             queryset = queryset.filter(date__gte=filter_state['date_from'])
@@ -177,6 +175,16 @@ class AnalysisService:
                         (pair['destination'] and pair['destination'].get('category') in filter_cats))
                 ]
 
+        # キーワードフィルター（source/destinationのdescriptionで絞り込み）
+        keyword = filter_state.get('keyword', '')
+        if keyword:
+            nk = normalize_text(keyword)
+            transfer_pairs = [
+                pair for pair in transfer_pairs
+                if nk in normalize_text(pair['source'].get('description', '') or '')
+                or (pair['destination'] and nk in normalize_text(pair['destination'].get('description', '') or ''))
+            ]
+
         return transfer_pairs
 
     @staticmethod
@@ -199,7 +207,8 @@ class AnalysisService:
         large_df = convert_amounts_to_int(
             large_df.sort_values('date', ascending=True).copy()
         )
-        return large_df.to_dict(orient='records')
+        large_txs = large_df.to_dict(orient='records')
+        return filter_by_keyword(large_txs, filter_state.get('keyword', ''))
 
     @staticmethod
     def _build_filter_options(df: pd.DataFrame, case=None) -> dict:

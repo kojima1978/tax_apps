@@ -16,14 +16,18 @@
                 </div>
                 <small class="text-muted">未入力時はデフォルト閾値を使用</small>
             </div>
+            <div class="col-md-3">
+                <label class="form-label">キーワード検索</label>
+                <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}" placeholder="摘要を検索（半角/全角対応）">
+            </div>
             <div class="col-md-3 d-flex align-items-center gap-2 pt-3">
                 <button class="btn btn-primary btn-sm" type="submit">
                     <i class="bi bi-search"></i> 適用
                 </button>
-                {% if filter_state.large_amount_threshold %}
+                {% if filter_state.large_amount_threshold or filter_state.keyword %}
                 <a href="{% url 'analysis-dashboard' case.pk %}?tab=large{% for c in filter_state.large_category %}&large_category={{ c }}{% endfor %}{% if filter_state.large_category_mode != 'include' %}&large_category_mode={{ filter_state.large_category_mode }}{% endif %}"
                    class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-counterclockwise"></i> デフォルトに戻す
+                    <i class="bi bi-arrow-counterclockwise"></i> クリア
                 </a>
                 {% endif %}
             </div>
@@ -39,8 +43,9 @@
 
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 class="mb-0">多額取引リスト ({{ large_txs|length }}件)
-                    {% if filter_state.large_amount_threshold %}<small class="text-muted">({{ filter_state.large_amount_threshold }}円以上)</small>
-                    {% elif filter_state.large_category %}<small class="text-muted">(フィルター適用中)</small>{% endif %}
+                    {% if filter_state.large_amount_threshold %}<small class="text-muted">({{ filter_state.large_amount_threshold }}円以上)</small>{% endif %}
+                    {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
+                    {% if filter_state.large_category %}<small class="text-muted">(フィルター適用中)</small>{% endif %}
                 </h4>
                 <div>
                     {% if large_txs %}
