@@ -2,6 +2,7 @@
 <form method="get" class="row g-3 mb-4">
     <input type="hidden" name="tab" value="{{ tab_name }}">
     {% if filter_state.large_amount_threshold %}<input type="hidden" name="large_amount_threshold" value="{{ filter_state.large_amount_threshold }}">{% endif %}
+    {% if filter_state.keyword %}<input type="hidden" name="keyword" value="{{ filter_state.keyword }}">{% endif %}
     <div class="col-md-4">
         <label class="form-label">分類で絞り込み{% if label_note %} <small class="text-muted">({{ label_note }})</small>{% endif %}</label>
         <select name="{{ filter_prefix }}_category" class="form-select" multiple size="3">

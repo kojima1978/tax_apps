@@ -139,7 +139,6 @@ services:
       FUZZY_ENABLED: ${FUZZY_ENABLED:-true}
     networks:
       - bank-analyzer-network
-    init: true
     restart: unless-stopped
     logging: *default-logging
     <<: *security-opts
@@ -237,7 +236,6 @@ services:
       FUZZY_ENABLED: ${FUZZY_ENABLED:-true}
     networks:
       - bank-analyzer-network
-    init: true
     restart: unless-stopped
     logging: *default-logging
     <<: *security-opts

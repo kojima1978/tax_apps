@@ -162,6 +162,9 @@
                     <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm" title="全データをCSV出力">
                         <i class="bi bi-download"></i> 全データCSV
                     </a>
+                    <a href="{% url 'export-xlsx-by-category' case.pk %}" class="btn btn-outline-success btn-sm" title="分類ごとにシート分けしたExcelファイルを出力">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> 分類別Excel
+                    </a>
                     <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-primary btn-sm" title="JSONバックアップをダウンロード">
                         <i class="bi bi-box-arrow-down"></i> JSON
                     </a>

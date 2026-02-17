@@ -109,14 +109,11 @@ ENV GUNICORN_WORKERS=2 \
     GUNICORN_KEEP_ALIVE=5
 
 # Copy application code with proper ownership
-COPY --chown=appuser:appgroup . .
+COPY --link --chown=appuser:appgroup . .
 
-# Create directories and collect static files at build time
-# COPY --chown already sets ownership; only chown the new directories
+# Create runtime directories (not in COPY context due to .dockerignore)
 RUN mkdir -p data staticfiles db && \
-    chown appuser:appgroup data staticfiles db && \
-    DJANGO_SECRET_KEY=build-only-dummy-key \
-    python manage.py collectstatic --noinput
+    chown appuser:appgroup data staticfiles db
 
 EXPOSE 8000
 
@@ -126,6 +123,13 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 
 # Run as non-root user for security
 USER appuser
+
+# Collect static files and pre-compile bytecode as appuser
+# - collectstatic: WhiteNoise用の静的ファイルをappuser所有で生成
+# - compileall: .pycを事前生成しコールドスタートを高速化
+RUN DJANGO_SECRET_KEY=build-only-dummy-key \
+    python manage.py collectstatic --noinput && \
+    python -m compileall -q .
 
 # Graceful shutdown signal
 STOPSIGNAL SIGTERM
@@ -165,6 +169,9 @@ USER root
 
 # Enable Django debug mode
 ENV DJANGO_DEBUG=True
+
+# 開発時はヘルスチェック不要（docker-composeで必要に応じて設定）
+HEALTHCHECK NONE
 
 # Use Django development server (--nostatic for FORCE_SCRIPT_NAME compatibility)
 CMD ["/docker-entrypoint.sh", \

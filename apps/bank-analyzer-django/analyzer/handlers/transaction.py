@@ -99,7 +99,7 @@ def handle_update_category(request: HttpRequest, case, pk: int) -> HttpResponse:
 def handle_bulk_update_categories(request: HttpRequest, case, pk: int) -> HttpResponse:
     """複数取引のカテゴリーを一括更新"""
     source_tab = request.POST.get('source_tab', 'large')
-    category_updates = _extract_category_updates(request, ['cat-'])
+    category_updates = _extract_category_updates(request, ['cat-', 'uncat-'])
 
     count = TransactionService.bulk_update_categories(case, category_updates)
     count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")

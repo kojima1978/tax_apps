@@ -24,8 +24,9 @@ from .models import Case
 from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, config
 from .lib.exceptions import CsvImportError
-from .lib.constants import UNCATEGORIZED, sort_patterns_dict
+from .lib.constants import UNCATEGORIZED, sort_categories, sort_patterns_dict
 from .services import TransactionService, AnalysisService
+from .lib.text_utils import filter_by_keyword, normalize_text
 from .templatetags.japanese_date import wareki
 
 # ハンドラーモジュールからインポート
@@ -334,9 +335,6 @@ def import_json(request: HttpRequest) -> HttpResponse:
                 )
                 return redirect('case-detail', pk=new_case.pk)
 
-            except json.JSONDecodeError as e:
-                logger.exception(f"JSONパースエラー: {e}")
-                messages.error(request, safe_error_message(e, "JSONパース"))
             except Exception as e:
                 logger.exception(f"JSONインポートエラー: {e}")
                 messages.error(request, safe_error_message(e, "JSONインポート"))
@@ -393,10 +391,70 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
         return redirect('analysis-dashboard', pk=pk)
 
     df = pd.DataFrame(list(transactions.values()))
+
+    # NFKCキーワードフィルタ
+    keyword = filter_state.get('keyword', '')
+    if keyword:
+        nk = normalize_text(keyword)
+        df = df[df['description'].fillna('').apply(lambda d: nk in normalize_text(d))].copy()
+        if df.empty:
+            messages.warning(request, "エクスポートするデータがありません。")
+            return redirect('analysis-dashboard', pk=pk)
+
     filename = _build_filtered_filename(case.name, filter_state, amount_min, amount_max)
 
     logger.info(f"絞り込みCSVエクスポート完了: case_id={pk}, count={len(df)}")
     return _build_csv_response(df, filename, include_memo=True)
+
+
+def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
+    """分類別にシート分けしたExcelファイルをエクスポート"""
+    from io import BytesIO
+    from openpyxl import Workbook
+
+    case = get_object_or_404(Case, pk=pk)
+    transactions = case.transactions.all().order_by('date', 'id')
+
+    if not transactions.exists():
+        messages.warning(request, "エクスポートするデータがありません。")
+        return redirect('analysis-dashboard', pk=pk)
+
+    df = pd.DataFrame(list(transactions.values()))
+
+    export_columns = dict(FIELD_LABELS)
+    export_columns['memo'] = 'メモ'
+    cols_to_export = [c for c in export_columns.keys() if c in df.columns]
+    headers = [export_columns[c] for c in cols_to_export]
+
+    # 日付を和暦に変換
+    if 'date' in df.columns:
+        df['date'] = df['date'].apply(lambda d: wareki(d, 'short'))
+
+    # 分類ごとにグループ化し、sort_categories順にシート作成
+    grouped = df.groupby('category')
+    sorted_cats = sort_categories(grouped.groups.keys())
+
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    for cat in sorted_cats:
+        cat_df = grouped.get_group(cat)
+        ws = wb.create_sheet(title=str(cat)[:31])
+        ws.append(headers)
+        for _, row in cat_df[cols_to_export].iterrows():
+            ws.append([row[c] for c in cols_to_export])
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    filename = f"{_sanitize_filename(case.name)}_分類別取引.xlsx"
+    _set_download_filename(response, filename)
+    return response
 
 
 # =============================================================================
@@ -600,12 +658,25 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     if analysis_data.get('no_data'):
         return render(request, 'analyzer/analysis.html', {'case': case, 'no_data': True})
 
+    keyword = filter_state.get('keyword', '')
+
     all_txs_queryset = analysis_data['all_txs']
-    all_txs_count = all_txs_queryset.count()
-    all_txs_page = _paginate(all_txs_queryset, request.GET.get('page', 1))
+    if keyword:
+        all_txs_filtered = filter_by_keyword(all_txs_queryset, keyword)
+        all_txs_count = len(all_txs_filtered)
+        all_txs_page = _paginate(all_txs_filtered, request.GET.get('page', 1))
+    else:
+        all_txs_count = all_txs_queryset.count()
+        all_txs_page = _paginate(all_txs_queryset, request.GET.get('page', 1))
 
     unclassified_txs = case.transactions.filter(category=UNCATEGORIZED).order_by('-date', '-id')
-    unclassified_page = _paginate(unclassified_txs, request.GET.get('unclassified_page', 1))
+    if keyword:
+        unclassified_filtered = filter_by_keyword(unclassified_txs, keyword)
+        unclassified_page = _paginate(unclassified_filtered, request.GET.get('unclassified_page', 1))
+    else:
+        unclassified_page = _paginate(unclassified_txs, request.GET.get('unclassified_page', 1))
+
+    flagged_txs = filter_by_keyword(analysis_data['flagged_txs'], keyword)
 
     context = {
         'case': case,
@@ -616,7 +687,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'all_txs_count': all_txs_count,
         'unclassified_txs': unclassified_page,
         'duplicate_txs': analysis_data['duplicate_txs'],
-        'flagged_txs': analysis_data['flagged_txs'],
+        'flagged_txs': flagged_txs,
         'banks': analysis_data['banks'],
         'branches': analysis_data['branches'],
         'accounts': analysis_data['accounts'],

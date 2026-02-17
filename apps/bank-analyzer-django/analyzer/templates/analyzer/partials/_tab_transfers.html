@@ -3,6 +3,22 @@
 
 <div class="tab-pane fade" id="transfers" role="tabpanel" aria-labelledby="transfers-tab">
     <div class="glass-card p-4">
+        <!-- キーワード検索 -->
+        <form method="get" class="row g-2 mb-3">
+            <input type="hidden" name="tab" value="transfers">
+            {% for c in filter_state.transfer_category %}<input type="hidden" name="transfer_category" value="{{ c }}">{% endfor %}
+            {% if filter_state.transfer_category_mode != 'include' %}<input type="hidden" name="transfer_category_mode" value="{{ filter_state.transfer_category_mode }}">{% endif %}
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}" placeholder="摘要をキーワード検索（半角/全角カタカナ対応）">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                    {% if filter_state.keyword %}
+                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=transfers" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+
         {% with tab_name="transfers" filter_prefix="transfer" selected_categories=filter_state.transfer_category selected_mode=filter_state.transfer_category_mode label_note="出金元/移動先いずれか" %}
         {% include "analyzer/partials/_category_filter.html" %}
         {% endwith %}
@@ -13,7 +29,10 @@
             <input type="hidden" name="source_tab" value="transfers">
 
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="mb-0">🔄 検出された資金移動リスト {% if filter_state.transfer_category %}<small class="text-muted">(フィルター適用中)</small>{% endif %}</h4>
+                <h4 class="mb-0">🔄 検出された資金移動リスト ({{ transfer_pairs|length }}件)
+                    {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
+                    {% if filter_state.transfer_category %}<small class="text-muted">(フィルター適用中)</small>{% endif %}
+                </h4>
                 <div>
                     {% if transfer_pairs %}
                     <button type="submit" class="btn btn-primary btn-sm me-2">

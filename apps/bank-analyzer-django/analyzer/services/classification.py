@@ -146,35 +146,3 @@ def classify_unclassified_transactions(
                 updates.append(tx)
 
     return updates
-
-
-def get_ai_suggestions_for_transaction(
-    tx: Transaction,
-    case_patterns: dict,
-    global_patterns: dict,
-    fuzzy_config: dict,
-    top_n: int = 3
-) -> list[tuple[str, int]]:
-    """
-    単一の取引に対するAI分類提案を取得
-
-    Args:
-        tx: 対象の取引
-        case_patterns: 案件固有パターン
-        global_patterns: グローバルパターン
-        fuzzy_config: ファジーマッチング設定
-        top_n: 返す提案の最大数
-
-    Returns:
-        [(カテゴリー, スコア), ...] のリスト
-    """
-    if not tx.description:
-        return []
-
-    return llm_classifier.get_fuzzy_suggestions(
-        tx.description,
-        case_patterns=case_patterns,
-        global_patterns=global_patterns,
-        fuzzy_config=fuzzy_config,
-        top_n=top_n
-    )

@@ -517,19 +517,6 @@ class TransactionService:
     # その他
     # =========================================================================
 
-    @staticmethod
-    def get_flagged_transactions(case: Case):
-        """
-        要確認フラグが付いた取引を取得
-
-        Args:
-            case: 対象の案件
-
-        Returns:
-            フラグ付き取引のQuerySet
-        """
-        return case.transactions.filter(is_flagged=True).order_by('date', 'id')
-
     # =========================================================================
     # インポート
     # =========================================================================
