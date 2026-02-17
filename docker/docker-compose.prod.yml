@@ -136,7 +136,6 @@ services:
       DB_PASSWORD: ${BANK_ANALYZER_DB_PASSWORD:?BANK_ANALYZER_DB_PASSWORD is required for production}
       DB_HOST: bank-analyzer-db
       DB_PORT: "5432"
-    command: ["/docker-entrypoint.sh", "gunicorn"]
     deploy: *prod-deploy
 
   # ===========================================

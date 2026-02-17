@@ -91,20 +91,11 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
     rm -rf /wheels requirements.txt
 
 # Copy entrypoint script (changes rarely, so copy early for caching)
+# sed strips CRLF for Windows compatibility
 COPY --link docker-entrypoint.sh /docker-entrypoint.sh
-RUN sed -i 's/\r$//' /docker-entrypoint.sh && \
-    chmod +x /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 
-# Copy application code with proper ownership
-COPY --chown=appuser:appgroup . .
-
-# Create directories and collect static files at build time
-RUN mkdir -p data staticfiles db && \
-    DJANGO_SECRET_KEY=build-only-dummy-key \
-    python manage.py collectstatic --noinput && \
-    chown -R appuser:appgroup /app
-
-# Python runtime configuration
+# Python runtime configuration (before COPY . . for better layer caching)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
@@ -116,6 +107,16 @@ ENV GUNICORN_WORKERS=2 \
     GUNICORN_TIMEOUT=300 \
     GUNICORN_GRACEFUL_TIMEOUT=30 \
     GUNICORN_KEEP_ALIVE=5
+
+# Copy application code with proper ownership
+COPY --chown=appuser:appgroup . .
+
+# Create directories and collect static files at build time
+# COPY --chown already sets ownership; only chown the new directories
+RUN mkdir -p data staticfiles db && \
+    chown appuser:appgroup data staticfiles db && \
+    DJANGO_SECRET_KEY=build-only-dummy-key \
+    python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
@@ -138,11 +139,14 @@ CMD ["/docker-entrypoint.sh", "gunicorn"]
 # ------------------------------------------
 FROM production AS test
 
-# Switch to root for test execution
+# Switch to root for pip install
 USER root
 
 # Install test dependencies
 RUN pip install --no-cache-dir pytest pytest-django coverage
+
+# Run tests as non-root
+USER appuser
 
 # Set test environment
 ENV DJANGO_DEBUG=True \
@@ -162,6 +166,6 @@ USER root
 # Enable Django debug mode
 ENV DJANGO_DEBUG=True
 
-# Use Django development server
+# Use Django development server (--nostatic for FORCE_SCRIPT_NAME compatibility)
 CMD ["/docker-entrypoint.sh", \
-     "python", "manage.py", "runserver", "0.0.0.0:8000"]
+     "python", "manage.py", "runserver", "--nostatic", "0.0.0.0:8000"]

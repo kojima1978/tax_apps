@@ -10,7 +10,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
 from ..lib import config
-from .base import is_ajax, json_error, require_params
+from .base import handle_ajax_error, is_ajax, json_error, require_params
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,11 @@ def _pattern_response(
     return redirect('analysis-dashboard', pk=pk)
 
 
+def _get_scope_label(scope: str, case) -> str:
+    """スコープに応じたラベルを返す"""
+    return f"案件「{case.name}」" if scope == 'case' else "グローバル"
+
+
 @require_params('category', 'keyword')
 def handle_add_pattern(request: HttpRequest, case, pk: int, category: str, keyword: str) -> HttpResponse:
     """分類パターンにキーワードを追加（グローバルまたは案件固有）"""
@@ -43,11 +48,10 @@ def handle_add_pattern(request: HttpRequest, case, pk: int, category: str, keywo
     try:
         if scope == 'case':
             success = config.add_case_pattern_keyword(case, category, keyword)
-            scope_label = f"案件「{case.name}」"
         else:
             success = config.add_pattern_keyword(category, keyword)
-            scope_label = "グローバル"
 
+        scope_label = _get_scope_label(scope, case)
         return _pattern_response(
             request, pk, success,
             success_msg=f"キーワード「{keyword}」を「{category}」に追加しました（{scope_label}）。",
@@ -55,12 +59,7 @@ def handle_add_pattern(request: HttpRequest, case, pk: int, category: str, keywo
             category=category, keyword=keyword, scope=scope
         )
     except Exception as e:
-        logger.exception(f"パターン追加エラー: category={category}, keyword={keyword}")
-        if is_ajax(request):
-            return json_error(str(e))
-        from django.contrib import messages
-        messages.error(request, f"エラーが発生しました: {e}")
-        return redirect('analysis-dashboard', pk=pk)
+        return handle_ajax_error(request, pk, e, "パターン追加エラー")
 
 
 @require_params('category', 'keyword')
@@ -71,11 +70,10 @@ def handle_delete_pattern(request: HttpRequest, case, pk: int, category: str, ke
     try:
         if scope == 'case':
             success = config.delete_case_pattern_keyword(case, category, keyword)
-            scope_label = f"案件「{case.name}」"
         else:
             success = config.delete_pattern_keyword(category, keyword)
-            scope_label = "グローバル"
 
+        scope_label = _get_scope_label(scope, case)
         return _pattern_response(
             request, pk, success,
             success_msg=f"キーワード「{keyword}」を削除しました（{scope_label}）。",
@@ -83,12 +81,7 @@ def handle_delete_pattern(request: HttpRequest, case, pk: int, category: str, ke
             category=category, keyword=keyword
         )
     except Exception as e:
-        logger.exception(f"パターン削除エラー: category={category}, keyword={keyword}")
-        if is_ajax(request):
-            return json_error(str(e))
-        from django.contrib import messages
-        messages.error(request, f"エラーが発生しました: {e}")
-        return redirect('analysis-dashboard', pk=pk)
+        return handle_ajax_error(request, pk, e, "パターン削除エラー")
 
 
 @require_params('category', 'old_keyword', 'new_keyword')
@@ -102,11 +95,10 @@ def handle_update_pattern(
     try:
         if scope == 'case':
             success = config.update_case_pattern_keyword(case, category, old_keyword, new_keyword)
-            scope_label = f"案件「{case.name}」"
         else:
             success = config.update_pattern_keyword(category, old_keyword, new_keyword)
-            scope_label = "グローバル"
 
+        scope_label = _get_scope_label(scope, case)
         return _pattern_response(
             request, pk, success,
             success_msg=f"キーワードを「{old_keyword}」→「{new_keyword}」に更新しました（{scope_label}）。",
@@ -114,12 +106,7 @@ def handle_update_pattern(
             category=category, old_keyword=old_keyword, new_keyword=new_keyword
         )
     except Exception as e:
-        logger.exception(f"パターン更新エラー: category={category}")
-        if is_ajax(request):
-            return json_error(str(e))
-        from django.contrib import messages
-        messages.error(request, f"エラーが発生しました: {e}")
-        return redirect('analysis-dashboard', pk=pk)
+        return handle_ajax_error(request, pk, e, "パターン更新エラー")
 
 
 @require_params('category', 'keyword', 'from_scope', 'to_scope')
@@ -153,12 +140,7 @@ def handle_move_pattern(
             category=category, keyword=keyword, direction=direction
         )
     except Exception as e:
-        logger.exception(f"パターン移動エラー: category={category}, keyword={keyword}")
-        if is_ajax(request):
-            return json_error(str(e))
-        from django.contrib import messages
-        messages.error(request, f"エラーが発生しました: {e}")
-        return redirect('analysis-dashboard', pk=pk)
+        return handle_ajax_error(request, pk, e, "パターン移動エラー")
 
 
 def handle_get_category_keywords(request: HttpRequest, case, pk: int) -> JsonResponse:

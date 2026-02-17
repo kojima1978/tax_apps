@@ -34,12 +34,14 @@ def import_wizard(request: HttpRequest, pk: int) -> HttpResponse:
     case = get_object_or_404(Case, pk=pk)
 
     # 既存口座の一覧を取得
+    # order_by(): Meta.ordering (date, id) を除去し DISTINCT を正しく機能させる
     existing_accounts = (
         case.transactions
-        .values('bank_name', 'branch_name', 'account_type', 'account_id')
-        .distinct()
         .exclude(account_id__isnull=True)
         .exclude(account_id='')
+        .values('bank_name', 'branch_name', 'account_type', 'account_id')
+        .order_by('bank_name', 'branch_name', 'account_type', 'account_id')
+        .distinct()
     )
 
     if request.method == 'POST':
@@ -117,6 +119,16 @@ def _df_to_json_safe_rows(df: pd.DataFrame) -> list[dict]:
     return rows
 
 
+def _make_dedup_key(account_id, date, amount_out, amount_in) -> tuple:
+    """重複チェック用のキータプルを構築"""
+    return (
+        account_id or '',
+        str(date) if date else '',
+        int(amount_out or 0),
+        int(amount_in or 0),
+    )
+
+
 def _build_existing_keys(case: Case) -> set:
     """既存取引の重複チェック用キーセットを構築"""
     existing_keys = set()
@@ -124,8 +136,21 @@ def _build_existing_keys(case: Case) -> set:
         Transaction.objects.filter(case=case)
         .values_list('account_id', 'date', 'amount_out', 'amount_in')
     ):
-        existing_keys.add((acct_id or '', str(dt) if dt else '', amt_out or 0, amt_in or 0))
+        existing_keys.add(_make_dedup_key(acct_id, dt, amt_out, amt_in))
     return existing_keys
+
+
+def _mark_duplicates(rows: list[dict], existing_keys: set, default_account_id: str = '') -> int:
+    """行に is_duplicate フラグを付与し、重複件数を返す"""
+    duplicate_count = 0
+    for row in rows:
+        row_account_id = row.get('account_number') or default_account_id
+        key = _make_dedup_key(row_account_id, row.get('date', ''), row.get('amount_out'), row.get('amount_in'))
+        is_dup = key in existing_keys
+        row['is_duplicate'] = is_dup
+        if is_dup:
+            duplicate_count += 1
+    return duplicate_count
 
 
 def _parse_single_file(csv_file, existing_keys: set) -> list[dict]:
@@ -180,19 +205,7 @@ def _process_single_account_file(filename: str, df: pd.DataFrame, rows: list[dic
     detected_account = _detect_account_from_csv(df, filename)
     detected_account_id = detected_account.get('account_id', '')
 
-    duplicate_count = 0
-    for row in rows:
-        row_account_id = row.get('account_number') or detected_account_id
-        key = (
-            row_account_id,
-            str(row.get('date', '')),
-            int(row.get('amount_out') or 0),
-            int(row.get('amount_in') or 0),
-        )
-        is_dup = key in existing_keys
-        row['is_duplicate'] = is_dup
-        if is_dup:
-            duplicate_count += 1
+    duplicate_count = _mark_duplicates(rows, existing_keys, detected_account_id)
 
     return [{
         'filename': filename,
@@ -224,18 +237,7 @@ def _process_multi_account_file(filename: str, account_groups: dict, existing_ke
             group_rows = _df_to_json_safe_rows(group_df)
 
         # 重複チェック
-        duplicate_count = 0
-        for row in group_rows:
-            key = (
-                account_id,
-                str(row.get('date', '')),
-                int(row.get('amount_out') or 0),
-                int(row.get('amount_in') or 0),
-            )
-            is_dup = key in existing_keys
-            row['is_duplicate'] = is_dup
-            if is_dup:
-                duplicate_count += 1
+        duplicate_count = _mark_duplicates(group_rows, existing_keys, account_id)
 
         # 口座名を生成
         display_name = group_data['bank_name'] or '不明'
@@ -343,12 +345,7 @@ def _handle_commit_wizard(request: HttpRequest, case: Case, pk: int) -> HttpResp
                 row['account_number'] = final_account_id
 
                 # 最終口座番号で重複チェック
-                key = (
-                    final_account_id,
-                    str(row.get('date', '')),
-                    int(row.get('amount_out') or 0),
-                    int(row.get('amount_in') or 0),
-                )
+                key = _make_dedup_key(final_account_id, row.get('date', ''), row.get('amount_out'), row.get('amount_in'))
                 is_duplicate = key in existing_keys
 
                 if duplicate_action == 'skip' and is_duplicate:

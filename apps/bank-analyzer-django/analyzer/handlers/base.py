@@ -20,15 +20,6 @@ def json_error(message: str, status: int = 400) -> JsonResponse:
     return JsonResponse({'success': False, 'error': message}, status=status)
 
 
-def json_success(data: dict = None, **kwargs) -> JsonResponse:
-    """JSON APIの成功レスポンスを生成"""
-    response = {'success': True}
-    if data:
-        response.update(data)
-    response.update(kwargs)
-    return response
-
-
 def safe_error_message(e: Exception, context: str = "") -> str:
     """DEBUGモード以外ではエラー詳細を隠蔽する"""
     if django_settings.DEBUG:
@@ -40,40 +31,6 @@ def safe_error_message(e: Exception, context: str = "") -> str:
 def is_ajax(request: HttpRequest) -> bool:
     """リクエストがAJAXかどうかを判定"""
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-
-
-def ajax_or_redirect(
-    request: HttpRequest,
-    pk: int,
-    success_data: dict = None,
-    success_message: str = None,
-    redirect_url: str = 'analysis-dashboard',
-    tab: str = None
-) -> HttpResponse:
-    """
-    AJAXならJSONレスポンス、そうでなければリダイレクト
-
-    Args:
-        request: HTTPリクエスト
-        pk: 案件ID
-        success_data: AJAX成功時のデータ
-        success_message: 非AJAX時のメッセージ
-        redirect_url: リダイレクト先のURL名
-        tab: リダイレクト先のタブ
-
-    Returns:
-        JsonResponse または HttpResponseRedirect
-    """
-    if is_ajax(request):
-        return JsonResponse({'success': True, **(success_data or {})})
-
-    if success_message:
-        messages.success(request, success_message)
-
-    url = redirect(redirect_url, pk=pk).url
-    if tab:
-        url += f'?tab={tab}'
-    return redirect(url)
 
 
 def handle_ajax_error(
@@ -156,6 +113,27 @@ def parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
         return int(cleaned), True
     except (ValueError, AttributeError):
         return default, False
+
+
+def build_transaction_data(request: HttpRequest) -> dict:
+    """POSTデータから取引更新用のデータ辞書を構築"""
+    amount_out, _ = parse_amount(request.POST.get('amount_out', '0'))
+    amount_in, _ = parse_amount(request.POST.get('amount_in', '0'))
+    balance_str = request.POST.get('balance')
+    balance_val, _ = parse_amount(balance_str) if balance_str else (None, True)
+    return {
+        'date': request.POST.get('date'),
+        'description': request.POST.get('description'),
+        'amount_out': amount_out,
+        'amount_in': amount_in,
+        'category': request.POST.get('category'),
+        'memo': request.POST.get('memo'),
+        'bank_name': request.POST.get('bank_name'),
+        'branch_name': request.POST.get('branch_name'),
+        'account_id': request.POST.get('account_id'),
+        'account_type': request.POST.get('account_type'),
+        'balance': balance_val,
+    }
 
 
 def build_redirect_url(view_name: str, pk: int, tab: Optional[str] = None, filters: Optional[dict] = None) -> str:
