@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import { prisma } from './prisma.js';
 import { logger } from './logger.js';
 import { idParamSchema } from './schemas.js';
+import { isPrismaNotFound } from './prisma-utils.js';
 
 interface CrudRouterConfig {
   /** Prisma model name (e.g. 'assignee', 'referrer') */
@@ -52,16 +53,30 @@ export function createCrudRouter(config: CrudRouterConfig): Hono {
   router.put('/:id', zValidator('param', idParamSchema), zValidator('json', updateSchema), async (c) => {
     const { id } = c.req.valid('param');
     const data = c.req.valid('json');
-    const updated = await delegate.update({ where: { id }, data });
-    logger.info({ [`${model}Id`]: id }, `${entityLabel} updated`);
-    return c.json(updated);
+    try {
+      const updated = await delegate.update({ where: { id }, data });
+      logger.info({ [`${model}Id`]: id }, `${entityLabel} updated`);
+      return c.json(updated);
+    } catch (e) {
+      if (isPrismaNotFound(e)) {
+        return c.json({ error: `${entityLabel}が見つかりません`, code: 'NOT_FOUND' }, 404);
+      }
+      throw e;
+    }
   });
 
   router.delete('/:id', zValidator('param', idParamSchema), async (c) => {
     const { id } = c.req.valid('param');
-    await delegate.delete({ where: { id } });
-    logger.info({ [`${model}Id`]: id }, `${entityLabel} deleted`);
-    return c.body(null, 204);
+    try {
+      await delegate.delete({ where: { id } });
+      logger.info({ [`${model}Id`]: id }, `${entityLabel} deleted`);
+      return c.body(null, 204);
+    } catch (e) {
+      if (isPrismaNotFound(e)) {
+        return c.json({ error: `${entityLabel}が見つかりません`, code: 'NOT_FOUND' }, 404);
+      }
+      throw e;
+    }
   });
 
   return router;

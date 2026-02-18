@@ -118,13 +118,11 @@ function ReferrerSettingsContent() {
             items={masterList.items}
             filteredItems={masterList.filteredAndSortedItems}
             showInactive={masterList.showInactive}
-            onToggleShowInactive={() => masterList.setShowInactive(!masterList.showInactive)}
+            onToggleShowInactive={masterList.handleToggleShowInactive}
             editingId={masterList.editingId}
             columns={columns}
             newItemForm={newItemForm}
             onAdd={handleAdd}
-            editingFields={masterList.editingFields}
-            onEditFieldChange={(field, value) => masterList.setEditingFields(prev => ({ ...prev, [field]: value }))}
             renderEditCell={renderEditCell}
             onStartEdit={(r) => masterList.handleStartEdit(r, { company: r.company, department: r.department || "", name: r.name })}
             onSaveEdit={handleSaveEdit}

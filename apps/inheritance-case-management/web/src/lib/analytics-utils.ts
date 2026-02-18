@@ -15,16 +15,10 @@ export type RankingData = {
     count: number
 }
 
-export type DepartmentData = {
-    name: string
-    feeTotal: number
-    count: number
-}
-
 export type AggregationResult = {
     annualData: AnnualData[]
     assigneeRanking: RankingData[]
-    departmentTotals: DepartmentData[]
+    departmentTotals: RankingData[]
     referrerRanking: RankingData[]
 }
 
@@ -39,14 +33,16 @@ export function calcNet(c: InheritanceCase, baseType: "fee" | "estimate"): numbe
     return base - referral
 }
 
+const currencyFormatter = new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY" })
+
 export function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY" }).format(amount)
+    return currencyFormatter.format(amount)
 }
 
 export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, string>): AggregationResult {
     const annualMap = new Map<number, AnnualData>()
     const assigneeMap = new Map<string, RankingData>()
-    const deptRankingMap = new Map<string, DepartmentData>()
+    const deptRankingMap = new Map<string, RankingData>()
     const referrerMap = new Map<string, RankingData>()
 
     cases.forEach(c => {
@@ -91,20 +87,14 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         }
         const aData = assigneeMap.get(assignee)!
 
-        let baseAmount = 0
-        let deduction = 0
+        let netAmount = 0
         if (c.status === "完了") {
-            baseAmount = c.feeAmount || 0
-            deduction = c.referralFeeAmount || 0
+            netAmount = calcNet(c, "fee")
         } else if (c.status === "進行中" && c.acceptanceStatus === "受託可") {
-            baseAmount = c.estimateAmount || 0
-            deduction = c.referralFeeAmount || 0
-            if (deduction === 0 && c.referralFeeRate && c.referralFeeRate > 0) {
-                deduction = Math.floor(baseAmount * (c.referralFeeRate / 100))
-            }
+            netAmount = calcNet(c, "estimate")
         }
 
-        aData.feeTotal += (baseAmount - deduction)
+        aData.feeTotal += netAmount
         aData.count++
 
         // Referrer
@@ -122,7 +112,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
             deptRankingMap.set(dept, { name: dept, feeTotal: 0, count: 0 })
         }
         const dData = deptRankingMap.get(dept)!
-        dData.feeTotal += (baseAmount - deduction)
+        dData.feeTotal += netAmount
         dData.count++
     })
 

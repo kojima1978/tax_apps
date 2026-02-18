@@ -1,19 +1,5 @@
 import type { InheritanceCase } from "@tax-apps/shared";
 
-const STATUS_LABELS: Record<string, string> = {
-  未着手: "未着手",
-  進行中: "進行中",
-  完了: "完了",
-  請求済: "請求済",
-};
-
-const ACCEPTANCE_LABELS: Record<string, string> = {
-  受託可: "受託可",
-  受託不可: "受託不可",
-  未判定: "未判定",
-  保留: "保留",
-};
-
 export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
   // CSVヘッダー
   const headers = [
@@ -41,8 +27,8 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
     c.deceasedName,
     c.dateOfDeath,
     c.fiscalYear,
-    STATUS_LABELS[c.status] || c.status,
-    c.acceptanceStatus ? ACCEPTANCE_LABELS[c.acceptanceStatus] || c.acceptanceStatus : "",
+    c.status,
+    c.acceptanceStatus || "",
     c.assignee || "",
     c.referrer || "",
     c.propertyValue || 0,

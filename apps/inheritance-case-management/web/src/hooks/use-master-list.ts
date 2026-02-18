@@ -167,6 +167,10 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
         setEditingFields({})
     }, [])
 
+    const handleToggleShowInactive = useCallback(() => {
+        setShowInactive(prev => !prev)
+    }, [])
+
     const handleSort = useCallback((field: string) => {
         setSortField(prev => {
             if (prev === field) {
@@ -199,7 +203,7 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
         isDirty,
         isSaving,
         showInactive,
-        setShowInactive,
+        handleToggleShowInactive,
         editingId,
         editingFields,
         setEditingFields,

@@ -3,7 +3,7 @@ export type CaseStatus = '未着手' | '進行中' | '完了' | '請求済';
 export type AcceptanceStatus = '受託可' | '受託不可' | '未判定' | '保留';
 
 // Progress Step
-interface ProgressStep {
+export interface ProgressStep {
   id: string;
   name: string;
   date: string | null;
@@ -12,7 +12,7 @@ interface ProgressStep {
 }
 
 // Contact
-interface Contact {
+export interface Contact {
   name: string;
   phone: string;
   email: string;
@@ -27,11 +27,9 @@ export interface InheritanceCase {
   acceptanceStatus?: AcceptanceStatus;
   taxAmount: number;
   assignee: string;
-  assigneeId?: string;
   feeAmount: number;
   fiscalYear: number;
   referrer?: string;
-  referrerId?: string;
   estimateAmount: number;
   propertyValue: number;
   referralFeeRate?: number;
@@ -40,8 +38,6 @@ export interface InheritanceCase {
   contacts?: Contact[];
   createdAt?: Date;
   updatedAt?: Date;
-  createdBy?: string;
-  updatedBy?: string;
 }
 
 // Assignee Entity

@@ -52,6 +52,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     const [isSaving, setIsSaving] = useState(false)
 
+    const currencyChange = (field: keyof InheritanceCase) => (value: string | undefined) =>
+        setFormData((prev) => ({ ...prev, [field]: value ? Number(value) : 0 }))
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         setFormData((prev) => ({
@@ -84,6 +87,8 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             setIsSaving(false)
         }
     }
+
+    const returnToPath = isCreateMode ? '/new' : `/${formData.id}`
 
     const netRevenue = useMemo(() =>
         (formData.feeAmount || 0) - (formData.referralFeeAmount || 0),
@@ -176,7 +181,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         ))}
                     </SelectField>
                     <div className="text-right text-xs">
-                        <a href={`/settings/assignees?returnTo=${isCreateMode ? '/new' : `/${formData.id}`}`} className="text-muted-foreground hover:underline hover:text-primary">
+                        <a href={`/settings/assignees?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
                             担当者を追加・編集
                         </a>
                     </div>
@@ -193,7 +198,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         })}
                     </SelectField>
                     <div className="text-right text-xs">
-                        <a href={`/settings/referrers?returnTo=${isCreateMode ? '/new' : `/${formData.id}`}`} className="text-muted-foreground hover:underline hover:text-primary">
+                        <a href={`/settings/referrers?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
                             紹介者を追加・編集
                         </a>
                     </div>
@@ -205,7 +210,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         id="propertyValue"
                         name="propertyValue"
                         value={formData.propertyValue}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, propertyValue: value ? Number(value) : 0 }))}
+                        onValueChange={currencyChange("propertyValue")}
                     />
                 </div>
 
@@ -215,7 +220,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         id="taxAmount"
                         name="taxAmount"
                         value={formData.taxAmount}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, taxAmount: value ? Number(value) : 0 }))}
+                        onValueChange={currencyChange("taxAmount")}
                     />
                 </div>
 
@@ -225,7 +230,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         id="estimateAmount"
                         name="estimateAmount"
                         value={formData.estimateAmount}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, estimateAmount: value ? Number(value) : 0 }))}
+                        onValueChange={currencyChange("estimateAmount")}
                     />
                 </div>
 
@@ -272,7 +277,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                                 id="referralFeeAmount"
                                 name="referralFeeAmount"
                                 value={formData.referralFeeAmount || 0}
-                                onValueChange={(value) => setFormData((prev) => ({ ...prev, referralFeeAmount: value ? Number(value) : 0 }))}
+                                onValueChange={currencyChange("referralFeeAmount")}
                             />
                         </div>
                     </div>

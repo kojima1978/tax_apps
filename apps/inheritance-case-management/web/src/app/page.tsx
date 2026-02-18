@@ -19,6 +19,8 @@ import { parseError } from "@/hooks/use-error-handler"
 type SortField = 'deceasedName' | 'dateOfDeath' | 'fiscalYear' | 'status' | 'taxAmount' | 'feeAmount' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
+const SELECT_CLASS = "border rounded px-3 py-2"
+
 export default function InheritanceMockupPage() {
     const [queryParams, setQueryParams] = useState<CasesQueryParams>({
         page: 1,
@@ -41,13 +43,6 @@ export default function InheritanceMockupPage() {
 
     const handlePageChange = (newPage: number) => {
         setQueryParams(prev => ({ ...prev, page: newPage }))
-    }
-
-    const handleSortChange = (field: SortField) => {
-        setQueryParams(prev => {
-            const newOrder: SortOrder = prev.sortBy === field && prev.sortOrder === 'desc' ? 'asc' : 'desc';
-            return { ...prev, sortBy: field, sortOrder: newOrder, page: 1 };
-        });
     }
 
     return (
@@ -106,7 +101,7 @@ export default function InheritanceMockupPage() {
                     </Button>
                 </div>
                 <select
-                    className="border rounded px-3 py-2"
+                    className={SELECT_CLASS}
                     value={queryParams.status || ""}
                     onChange={(e) => handleFilterChange("status", e.target.value as CaseStatus)}
                 >
@@ -117,7 +112,7 @@ export default function InheritanceMockupPage() {
                     <option value="請求済">請求済</option>
                 </select>
                 <select
-                    className="border rounded px-3 py-2"
+                    className={SELECT_CLASS}
                     value={queryParams.acceptanceStatus || ""}
                     onChange={(e) => handleFilterChange("acceptanceStatus", e.target.value as AcceptanceStatus)}
                 >
@@ -128,7 +123,7 @@ export default function InheritanceMockupPage() {
                     <option value="保留">保留</option>
                 </select>
                 <select
-                    className="border rounded px-3 py-2"
+                    className={SELECT_CLASS}
                     value={queryParams.fiscalYear || ""}
                     onChange={(e) => handleFilterChange("fiscalYear", e.target.value)}
                 >
@@ -140,7 +135,7 @@ export default function InheritanceMockupPage() {
                 <div className="flex items-center gap-1">
                     <ArrowUpDown className="h-4 w-4 text-gray-500" />
                     <select
-                        className="border rounded px-3 py-2"
+                        className={SELECT_CLASS}
                         value={`${queryParams.sortBy || 'createdAt'}_${queryParams.sortOrder || 'desc'}`}
                         onChange={(e) => {
                             const [field, order] = e.target.value.split('_') as [SortField, SortOrder];

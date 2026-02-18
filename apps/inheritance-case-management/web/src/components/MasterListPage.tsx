@@ -36,8 +36,6 @@ interface MasterListPageProps<T extends { id: string; active: boolean }> {
     newItemForm: ReactNode
     onAdd: () => void
     // Editing
-    editingFields: Record<string, string>
-    onEditFieldChange: (field: string, value: string) => void
     renderEditCell: (column: ColumnDef<T>) => ReactNode
     // Actions
     onStartEdit: (item: T) => void

@@ -192,13 +192,11 @@ function AssigneeSettingsContent() {
             items={masterList.items}
             filteredItems={masterList.filteredAndSortedItems}
             showInactive={masterList.showInactive}
-            onToggleShowInactive={() => masterList.setShowInactive(!masterList.showInactive)}
+            onToggleShowInactive={masterList.handleToggleShowInactive}
             editingId={masterList.editingId}
             columns={columns}
             newItemForm={newItemForm}
             onAdd={handleAdd}
-            editingFields={masterList.editingFields}
-            onEditFieldChange={(field, value) => masterList.setEditingFields(prev => ({ ...prev, [field]: value }))}
             renderEditCell={renderEditCell}
             onStartEdit={(a) => masterList.handleStartEdit(a, { name: a.name, employeeId: a.employeeId || "", department: a.department || "" })}
             onSaveEdit={handleSaveEdit}

@@ -1,6 +1,3 @@
-"use client";
-
-import { useCallback } from "react";
 import { ApiError } from "@/lib/api/client";
 
 export type ErrorInfo = {
@@ -79,14 +76,4 @@ export function parseError(error: unknown): ErrorInfo {
     isValidationError: false,
     isServerError: false,
   };
-}
-
-export function useErrorHandler() {
-  const handleError = useCallback((error: unknown): ErrorInfo => {
-    const errorInfo = parseError(error);
-    console.error("[Error]", errorInfo.code, errorInfo.message, error);
-    return errorInfo;
-  }, []);
-
-  return { handleError, parseError };
 }
