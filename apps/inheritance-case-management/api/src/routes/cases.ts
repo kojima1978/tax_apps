@@ -9,10 +9,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
-
-function isPrismaNotFound(e: unknown): boolean {
-  return e instanceof Error && e.name === 'PrismaClientKnownRequestError' && (e as { code?: string }).code === 'P2025';
-}
+import { isPrismaNotFound } from '../lib/prisma-utils.js';
 
 export const casesRouter = new Hono();
 

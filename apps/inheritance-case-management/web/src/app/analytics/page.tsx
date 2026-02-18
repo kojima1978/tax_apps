@@ -16,6 +16,8 @@ type StatusTableConfig = {
     getValues: (d: AnnualData) => number[]
 }
 
+const YEAR_SELECT_CLASS = "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+
 const TABS: { id: TabId; label: string }[] = [
     { id: "overview", label: "経営概況" },
     { id: "breakdown", label: "部門・担当者" },
@@ -103,7 +105,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">表示年度:</span>
                     <select
-                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className={YEAR_SELECT_CLASS}
                         value={selectedYear}
                         onChange={(e) => setSelectedYear(e.target.value)}
                     >
@@ -268,7 +270,7 @@ export default function AnalyticsPage() {
                                     { label: "紹介料合計", align: "right", sortKey: "feeTotal" },
                                     { label: "件数", align: "center", sortKey: "count" },
                                 ]}
-                                onSort={(col) => handleReferrerSort(col as "feeTotal" | "count")}
+                                onSort={(col) => handleReferrerSort(col as "feeTotal" | "count" | "name")}
                                 sortState={referrerSort}
                             />
                         </div>

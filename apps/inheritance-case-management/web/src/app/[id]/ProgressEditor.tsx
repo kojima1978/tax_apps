@@ -3,14 +3,7 @@
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
-
-type ProgressStep = {
-    id: string
-    name: string
-    date: string | null
-    memo?: string
-    isDynamic?: boolean
-}
+import type { ProgressStep } from "@tax-apps/shared"
 
 interface ProgressEditorProps {
     progress: ProgressStep[]
