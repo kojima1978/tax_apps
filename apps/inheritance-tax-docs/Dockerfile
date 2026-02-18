@@ -80,9 +80,9 @@ RUN apk upgrade --no-cache && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-tax-docs/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-tax-docs/.next/static ./apps/inheritance-tax-docs/.next/static
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-tax-docs/public ./apps/inheritance-tax-docs/public
+COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-tax-docs/.next/standalone ./
+COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-tax-docs/.next/static ./apps/inheritance-tax-docs/.next/static
+COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-tax-docs/public ./apps/inheritance-tax-docs/public
 
 USER nextjs
 EXPOSE 3003

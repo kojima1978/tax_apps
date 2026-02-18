@@ -77,9 +77,9 @@ RUN apk upgrade --no-cache && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
 # standalone ビルド成果物をコピー (--link enables independent layer caching)
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-case-management/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-case-management/web/.next/static ./apps/inheritance-case-management/web/.next/static
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/inheritance-case-management/web/public ./apps/inheritance-case-management/web/public
+COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-case-management/web/.next/standalone ./
+COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-case-management/web/.next/static ./apps/inheritance-case-management/web/.next/static
+COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-case-management/web/public ./apps/inheritance-case-management/web/public
 
 USER nextjs
 EXPOSE 3020

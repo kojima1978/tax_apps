@@ -87,9 +87,9 @@ RUN apk upgrade --no-cache && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/Required-documents-for-tax-return/frontend/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/Required-documents-for-tax-return/frontend/.next/static ./apps/Required-documents-for-tax-return/frontend/.next/static
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/Required-documents-for-tax-return/frontend/public ./apps/Required-documents-for-tax-return/frontend/public
+COPY --from=builder --chown=1001:1001 --link /app/apps/Required-documents-for-tax-return/frontend/.next/standalone ./
+COPY --from=builder --chown=1001:1001 --link /app/apps/Required-documents-for-tax-return/frontend/.next/static ./apps/Required-documents-for-tax-return/frontend/.next/static
+COPY --from=builder --chown=1001:1001 --link /app/apps/Required-documents-for-tax-return/frontend/public ./apps/Required-documents-for-tax-return/frontend/public
 
 USER nextjs
 EXPOSE 3000

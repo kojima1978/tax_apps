@@ -80,9 +80,9 @@ RUN apk upgrade --no-cache && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/shares-valuation/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/shares-valuation/.next/static ./apps/shares-valuation/.next/static
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/shares-valuation/public ./apps/shares-valuation/public
+COPY --from=builder --chown=1001:1001 --link /app/apps/shares-valuation/.next/standalone ./
+COPY --from=builder --chown=1001:1001 --link /app/apps/shares-valuation/.next/static ./apps/shares-valuation/.next/static
+COPY --from=builder --chown=1001:1001 --link /app/apps/shares-valuation/public ./apps/shares-valuation/public
 
 USER nextjs
 EXPOSE 3012
