@@ -69,7 +69,7 @@ COPY --link apps/inheritance-tax-app/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --link apps/inheritance-tax-app/nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 
 # ビルド成果物をコピー
-COPY --link --chown=nginx:nginx --from=builder /app/apps/inheritance-tax-app/dist /usr/share/nginx/html/inheritance-tax-app
+COPY --link --chown=101:101 --from=builder /app/apps/inheritance-tax-app/dist /usr/share/nginx/html/inheritance-tax-app
 
 # non-root実行の準備
 RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html && \

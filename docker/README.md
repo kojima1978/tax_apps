@@ -458,6 +458,29 @@ docker compose logs itcm-postgres
 docker exec -it itcm-postgres psql -U postgres -d inheritance_tax_db
 ```
 
+### 本番ビルドで pnpm install が失敗する
+
+多数のサービスを同時にビルドすると `pnpm install --frozen-lockfile` がネットワークタイムアウトで失敗することがあります。`start.bat --prod` はグループ分割ビルドで対策済みですが、手動で `docker compose build` を実行する場合は一度にビルドするサービス数を制限してください。
+
+```bash
+# 手動でグループ分けしてビルド
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build gateway portal-app bank-analyzer
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build itcm-backend tax-docs-backend
+# ...
+```
+
+### COPY --link で invalid user index エラー
+
+Dockerfile で `COPY --link --chown=username:groupname` を使用すると `invalid user index: -1` エラーが発生します。`--link` フラグは独立レイヤーを生成するため、前段で作成したユーザー名を参照できません。数値 UID:GID を使用してください。
+
+```dockerfile
+# NG: --link と名前指定の組み合わせ
+COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
+
+# OK: 数値 UID:GID を使用
+COPY --from=builder --chown=1001:1001 --link /app/.next/standalone ./
+```
+
 ### ホットリロードが効かない
 
 Windows + Docker Desktop環境では、ボリュームマウントでファイル監視が正常に動作しないことがあります。
@@ -486,6 +509,19 @@ start.bat --prod
 - `init: false`（runner ステージの tini ENTRYPOINT と Docker init の二重起動を防止）
 - Djangoの `DJANGO_DEBUG=False` + `gunicorn` 起動
 - `DJANGO_SECRET_KEY` の必須化
+
+### 本番ビルドのグループ分割
+
+`start.bat --prod` では、BuildKit のリソース枯渇を防ぐためにイメージビルドを4グループに分割して順次実行します。14サービスが同時に `pnpm install` を実行するとネットワークタイムアウトが発生するため、3〜4サービスずつビルドします。
+
+| グループ | サービス | 内容 |
+|:---------|:---------|:-----|
+| 1/4 | gateway, portal-app, bank-analyzer | インフラ・Gateway |
+| 2/4 | itcm-backend, tax-docs-backend, inheritance-tax-app | バックエンド |
+| 3/4 | itcm-frontend, tax-docs-frontend, gift-tax-simulator, gift-tax-docs | フロントエンドA |
+| 4/4 | inheritance-tax-docs, shares-valuation, medical-stock-valuation, retirement-tax-calc | フロントエンドB |
+
+全グループのビルド完了後、`docker compose up -d` で全サービスを一括起動します。開発モード（`start.bat`）では従来通り `docker compose up -d --build` で一括実行します。
 
 ## 技術スタック
 
@@ -518,6 +554,14 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 | PostgreSQL | `pg_isready -U <user> -d <db>` | PostgreSQL 内蔵 |
 
 ## 更新履歴
+
+### 2026-02 (Dockerfile --link 修正・本番ビルド安定化)
+
+- **全Dockerfile `COPY --link --chown` 修正**: `--link` フラグは独立レイヤーを生成するため、前段の `/etc/passwd` から名前付きユーザーを解決できず `invalid user index: -1` エラーが発生。10ファイルで名前指定を数値 UID:GID に変更
+  - Next.js 系 8ファイル: `--chown=nextjs:nodejs` → `--chown=1001:1001`
+  - nginx 系 1ファイル (inheritance-tax-app): `--chown=nginx:nginx` → `--chown=101:101`
+  - Django 系 1ファイル (bank-analyzer): `--chown=appuser:appgroup` → `--chown=1001:1001`
+- **start.bat 本番ビルド安定化**: 14サービス同時ビルドで `pnpm install --frozen-lockfile` がネットワークタイムアウトする問題を修正。本番モード時は4グループ（各3〜4サービス）に分割して順次ビルド後、全サービスを一括起動
 
 ### 2026-02 (bank-analyzer PostgreSQL + pgvector 対応・バッチ改善)
 

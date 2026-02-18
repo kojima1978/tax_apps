@@ -109,7 +109,7 @@ ENV GUNICORN_WORKERS=2 \
     GUNICORN_KEEP_ALIVE=5
 
 # Copy application code with proper ownership
-COPY --link --chown=appuser:appgroup . .
+COPY --link --chown=1001:1001 . .
 
 # Create runtime directories and fix /app ownership for bytecode compilation
 # WORKDIR /app is root-owned; appuser needs write access for __pycache__

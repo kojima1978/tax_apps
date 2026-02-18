@@ -85,9 +85,9 @@ RUN apk upgrade --no-cache && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/medical-stock-valuation/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/medical-stock-valuation/.next/static ./apps/medical-stock-valuation/.next/static
-COPY --from=builder --chown=nextjs:nodejs --link /app/apps/medical-stock-valuation/public ./apps/medical-stock-valuation/public
+COPY --from=builder --chown=1001:1001 --link /app/apps/medical-stock-valuation/.next/standalone ./
+COPY --from=builder --chown=1001:1001 --link /app/apps/medical-stock-valuation/.next/static ./apps/medical-stock-valuation/.next/static
+COPY --from=builder --chown=1001:1001 --link /app/apps/medical-stock-valuation/public ./apps/medical-stock-valuation/public
 
 # データベースディレクトリを作成（書き込み権限）
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
