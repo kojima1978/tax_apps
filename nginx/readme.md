@@ -72,20 +72,20 @@ nginx/
 | URL Path | 宛先サービス | 説明 |
 |:---------|:-------------|:-----|
 | `/` | `portal-app:3000` | ポータルサイト (Next.js) |
-| `/tax-docs/` | `tax-docs-frontend:3000` | 確定申告 必要書類 (Front) |
-| `/tax-docs-api/` | `tax-docs-backend:3001` | 確定申告 必要書類 (API) |
+| `/tax-docs/` | `tax-docs-frontend:3005` | 確定申告 必要書類 (Front) |
+| `/tax-docs-api/` | `tax-docs-backend:3006` | 確定申告 必要書類 (API) |
 | `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Front) |
 | `/itcm-api/` | `itcm-backend:3021` | 相続税案件管理 (API) |
 | `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価 |
 | `/shares/` | `shares-valuation:3012` | 非上場株式評価 |
-| `/inheritance-tax-app/` | `inheritance-tax-app:5173` | 相続税計算 (Vite) |
+| `/inheritance-tax-app/` | `inheritance-tax-app:3004` | 相続税計算 (Vite) |
 | `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド |
 | `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター |
 | `/gift-tax-docs/` | `gift-tax-docs:3002` | 贈与税 必要書類 |
 | `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 |
-| `/bank-analyzer/` | `bank-analyzer:8000` | 銀行分析 (Django + PostgreSQL) |
-| `/bank-analyzer/api/` | `bank-analyzer:8000` | 銀行分析 API |
-| `/bank-analyzer/static/` | `bank-analyzer:8000` | 銀行分析 静的ファイル |
+| `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Django + PostgreSQL) |
+| `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API |
+| `/bank-analyzer/static/` | `bank-analyzer:3007` | 銀行分析 静的ファイル |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
 
 ## Docker Compose 設定例
