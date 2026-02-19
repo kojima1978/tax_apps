@@ -86,7 +86,7 @@ docker compose up -d
 docker compose up -d inheritance-tax-app
 ```
 
-アクセス: http://localhost:5173/inheritance-tax-app/
+アクセス: http://localhost:3004/inheritance-tax-app/
 
 > **Note**: 中央統合環境で起動する場合は、Nginx Gateway 経由で http://localhost/inheritance-tax-app/ からアクセスできます。
 

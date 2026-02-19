@@ -1,7 +1,13 @@
 import type { TaxBracket, HeirComposition } from '../types';
 import { generateId } from '../utils/idGenerator';
 
-export { COMPANY_INFO } from '@tax-apps/utils';
+export const COMPANY_INFO = {
+  name: '税理士法人マスエージェント',
+  postalCode: '〒770-0002',
+  address: '徳島県徳島市春日２丁目３−３３',
+  phone: '088-632-6228',
+  fax: '088-631-9870',
+} as const;
 
 /**
  * 相続税の税率区分（法定相続分に応じた取得金額ベース）

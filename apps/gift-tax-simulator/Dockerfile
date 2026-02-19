@@ -2,7 +2,7 @@
 
 # =============================================================================
 # 贈与税計算シミュレーター - Dockerfile
-# Multi-stage build for development and production (pnpm monorepo)
+# Multi-stage build for development and production (standalone)
 # =============================================================================
 
 ARG NODE_VERSION=22
@@ -12,32 +12,26 @@ ARG NODE_VERSION=22
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
 RUN apk upgrade --no-cache && \
-    apk add --no-cache libc6-compat && \
-    corepack enable && corepack prepare pnpm@9.15.4 --activate
+    apk add --no-cache libc6-compat
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # =============================================================================
-# Dependencies stage - Install pnpm packages
+# Dependencies stage - Install npm packages
 # =============================================================================
 FROM base AS deps
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/utils/package.json ./packages/utils/
-COPY apps/gift-tax-simulator/package.json ./apps/gift-tax-simulator/
-RUN --mount=type=cache,id=pnpm-store-gift-tax-simulator,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,id=npm-store-gift-tax-simulator,target=/root/.npm \
+    npm ci
 
 # =============================================================================
 # Development stage - For local development with hot reload
 # =============================================================================
 FROM deps AS dev
-ENV NODE_ENV=development
-COPY packages/utils/ ./packages/utils/
-COPY apps/gift-tax-simulator/ ./apps/gift-tax-simulator/
-RUN cd packages/utils && pnpm build
-WORKDIR /app/apps/gift-tax-simulator
+ENV NODE_ENV=development WATCHPACK_POLLING=true HOSTNAME=0.0.0.0 TZ=Asia/Tokyo
+COPY . .
 EXPOSE 3001
-CMD ["pnpm", "dev"]
+CMD ["npm", "run", "dev"]
 
 # =============================================================================
 # Builder stage - Build the production application
@@ -45,14 +39,10 @@ CMD ["pnpm", "dev"]
 FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
 ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS}
-COPY packages/utils/src ./packages/utils/src
-COPY packages/utils/tsconfig.json ./packages/utils/
-COPY apps/gift-tax-simulator/ ./apps/gift-tax-simulator/
-RUN --mount=type=cache,id=nextjs-gift-tax-simulator,target=/app/apps/gift-tax-simulator/.next/cache \
-    cd packages/utils && pnpm build && \
-    cd ../../apps/gift-tax-simulator && \
+COPY . .
+RUN --mount=type=cache,id=nextjs-gift-tax-simulator,target=/app/.next/cache \
     mkdir -p public && \
-    pnpm next build
+    npm run build
 
 # =============================================================================
 # Production runner stage - Minimal, secure production image
@@ -80,9 +70,9 @@ RUN apk upgrade --no-cache && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-COPY --from=builder --chown=1001:1001 --link /app/apps/gift-tax-simulator/.next/standalone ./
-COPY --from=builder --chown=1001:1001 --link /app/apps/gift-tax-simulator/.next/static ./apps/gift-tax-simulator/.next/static
-COPY --from=builder --chown=1001:1001 --link /app/apps/gift-tax-simulator/public ./apps/gift-tax-simulator/public
+COPY --from=builder --chown=1001:1001 --link /app/.next/standalone ./
+COPY --from=builder --chown=1001:1001 --link /app/.next/static ./.next/static
+COPY --from=builder --chown=1001:1001 --link /app/public ./public
 
 USER nextjs
 EXPOSE 3001
@@ -92,4 +82,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "apps/gift-tax-simulator/server.js"]
+CMD ["node", "server.js"]

@@ -212,7 +212,7 @@ docker compose logs -f
 docker compose down
 ```
 
-ブラウザで http://localhost:8000/ にアクセスします。
+ブラウザで http://localhost:3007/ にアクセスします。
 ソースコードがマウントされ、変更時にホットリロードされます。
 
 > **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/bank-analyzer/ からアクセスできます。
@@ -350,9 +350,9 @@ docker compose --profile production up -d bank-analyzer-prod
 | サービス | 説明 | ポート |
 |---------|------|--------|
 | `bank-analyzer-db` | PostgreSQL 16 + pgvector | 5432（内部） |
-| `bank-analyzer-django` | Django runserver（開発モード） | 8000 |
+| `bank-analyzer-django` | Django runserver（開発モード） | 3007 |
 | `test` | テストランナー（オンデマンド） | — |
-| `bank-analyzer-prod` | Gunicorn（本番モード） | 8000 |
+| `bank-analyzer-prod` | Gunicorn（本番モード） | 3007 |
 
 ### 開発環境
 
