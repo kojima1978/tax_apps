@@ -148,7 +148,7 @@ services:
     command: []
     deploy: *prod-small-deploy
     healthcheck:
-      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5173/inheritance-tax-app/ || exit 1" ]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3004/inheritance-tax-app/ || exit 1" ]
 
   # ===========================================
   # 贈与税シミュレーター（間接税統合）- 本番設定
@@ -160,22 +160,32 @@ services:
     command: []
 
   # ===========================================
-  # 贈与税書類 - 本番設定
+  # 贈与税書類 - 本番設定 (nginx static)
   # ===========================================
   gift-tax-docs:
-    <<: *prod-node-defaults
+    build:
+      target: runner
+    init: false
     ports: !reset []
     volumes: !reset []
     command: []
+    deploy: *prod-small-deploy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3002/gift-tax-docs/ || exit 1" ]
 
   # ===========================================
-  # 相続税書類 - 本番設定
+  # 相続税書類 - 本番設定 (nginx static)
   # ===========================================
   inheritance-tax-docs:
-    <<: *prod-node-defaults
+    build:
+      target: runner
+    init: false
     ports: !reset []
     volumes: !reset []
     command: []
+    deploy: *prod-small-deploy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3003/inheritance-tax-docs/ || exit 1" ]
 
   # ===========================================
   # 退職金税額計算 - 本番設定
@@ -193,7 +203,7 @@ services:
     <<: *prod-node-defaults
     ports: !reset []
     volumes: !override
-      - ./data/tax-docs:/app/apps/Required-documents-for-tax-return/backend/data
+      - ./data/tax-docs:/app/data
     deploy: *prod-small-deploy
 
   # ===========================================

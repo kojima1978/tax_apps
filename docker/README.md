@@ -187,12 +187,12 @@ stop.bat --volumes
 | - 間接税 | http://localhost/gift-tax-simulator/real-estate | - | 土地・建物取得税計算 |
 | Gift Tax Docs | http://localhost/gift-tax-docs/ | 3002 | 贈与税 必要書類 |
 | Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | 相続税 資料ガイド |
-| Inheritance Tax App | http://localhost/inheritance-tax-app/ | 5173 | 相続税計算 (Vite) |
+| Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | 相続税計算 (Vite) |
 | Medical Stock | http://localhost/medical/ | 3010 | 医療法人株式評価 |
 | Shares Valuation | http://localhost/shares/ | 3012 | 非上場株式評価 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | 退職金税額計算 |
 | ITCM | http://localhost/itcm/ | 3020 | 案件管理システム |
-| Bank Analyzer | http://localhost/bank-analyzer/ | 8000 | 銀行分析 (Django) |
+| Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | 銀行分析 (Django) |
 
 ### バックエンド
 
@@ -596,7 +596,7 @@ Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初�
 ### 2026-02 (Prod Override・アクセシビリティ)
 
 - **docker-compose.prod.yml `!reset`/`!override` 修正**: Docker Compose のファイルマージではリスト型（ports, volumes）が結合されるため、`ports: []` / `volumes: []` ではベース定義を消せない問題を修正。`!reset []` で完全クリア、`!override [...]` で値の置き換え。YAML アンカー(`<<:`)経由では `!reset` タグが保持されないため各サービスに明示
-- **inheritance-tax-app ポート統一**: prod nginx の listen ポートを 3013→5173 に変更（upstream 定義と一致させ、dev/prod で統一）
+- **inheritance-tax-app ポート統一**: prod nginx の listen ポートを 3013→3004 に変更（upstream 定義と一致させ、dev/prod で統一）
 - **本番ポート非公開**: Gateway（ポート80）のみホストに公開、他の全サービスはコンテナ内部ポートのみ
 - **本番ボリューム最適化**: dev のソースコードマウントを除去、データボリューム（PostgreSQL, SQLite, アップロード）のみ維持
 - **アクセシビリティ改善**: 全6アプリで `transition-all` → `transition-colors` / `transition-shadow`（prefers-reduced-motion 対応）、`aria-label` 追加
