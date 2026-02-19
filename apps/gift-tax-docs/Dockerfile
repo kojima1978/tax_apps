@@ -2,7 +2,7 @@
 
 # =============================================================================
 # 贈与税申告 必要書類案内 - Dockerfile
-# Multi-stage build for development and production (pnpm monorepo)
+# Multi-stage build for development and production (nginx static)
 # =============================================================================
 
 ARG NODE_VERSION=22
@@ -12,32 +12,25 @@ ARG NODE_VERSION=22
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
 RUN apk upgrade --no-cache && \
-    apk add --no-cache libc6-compat && \
-    corepack enable && corepack prepare pnpm@9.15.4 --activate
+    apk add --no-cache libc6-compat
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
 
 # =============================================================================
-# Dependencies stage - Install pnpm packages
+# Dependencies stage - Install npm packages
 # =============================================================================
 FROM base AS deps
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/utils/package.json ./packages/utils/
-COPY apps/gift-tax-docs/package.json ./apps/gift-tax-docs/
-RUN --mount=type=cache,id=pnpm-store-gift-tax-docs,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,id=npm-store-gift-tax-docs,target=/root/.npm \
+    npm ci
 
 # =============================================================================
 # Development stage - For local development with hot reload
 # =============================================================================
 FROM deps AS dev
-ENV NODE_ENV=development
-COPY packages/utils/ ./packages/utils/
-COPY apps/gift-tax-docs/ ./apps/gift-tax-docs/
-RUN cd packages/utils && pnpm build
-WORKDIR /app/apps/gift-tax-docs
+ENV NODE_ENV=development TZ=Asia/Tokyo
+COPY . .
 EXPOSE 3002
-CMD ["pnpm", "dev"]
+CMD ["npm", "run", "dev", "--", "--host", "--port", "3002"]
 
 # =============================================================================
 # Builder stage - Build the production application
@@ -45,19 +38,15 @@ CMD ["pnpm", "dev"]
 FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
 ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS}
-COPY packages/utils/src ./packages/utils/src
-COPY packages/utils/tsconfig.json ./packages/utils/
-COPY apps/gift-tax-docs/ ./apps/gift-tax-docs/
-RUN --mount=type=cache,id=nextjs-gift-tax-docs,target=/app/apps/gift-tax-docs/.next/cache \
-    cd packages/utils && pnpm build && \
-    cd ../../apps/gift-tax-docs && \
-    mkdir -p public && \
-    pnpm next build
+COPY . .
+RUN npm run build
 
 # =============================================================================
-# Production runner stage - Minimal, secure production image
+# Production stage - Minimal nginx image serving static files
 # =============================================================================
-FROM node:${NODE_VERSION}-alpine AS runner
+FROM nginx:1.27-alpine AS runner
+
+RUN apk upgrade --no-cache
 
 LABEL org.opencontainers.image.title="Gift Tax Docs" \
       org.opencontainers.image.description="贈与税申告 必要書類案内システム" \
@@ -65,31 +54,26 @@ LABEL org.opencontainers.image.title="Gift Tax Docs" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-WORKDIR /app
+# nginx設定をコピー
+COPY --link nginx-main.conf /etc/nginx/nginx.conf
+COPY --link nginx.conf /etc/nginx/conf.d/default.conf
+COPY --link nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 
-ENV NODE_ENV=production \
-    PORT=3002 \
-    HOSTNAME=0.0.0.0 \
-    TZ=Asia/Tokyo
+# ビルド成果物をコピー
+COPY --link --chown=101:101 --from=builder /app/dist /usr/share/nginx/html/gift-tax-docs
 
-RUN apk upgrade --no-cache && \
-    apk add --no-cache tini tzdata && \
-    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
-    echo "Asia/Tokyo" > /etc/timezone && \
-    apk del tzdata && \
-    addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 --ingroup nodejs nextjs
+# non-root実行の準備
+RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html && \
+    chown -R nginx:nginx /var/cache/nginx /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown nginx:nginx /var/run/nginx.pid
 
-COPY --from=builder --chown=1001:1001 --link /app/apps/gift-tax-docs/.next/standalone ./
-COPY --from=builder --chown=1001:1001 --link /app/apps/gift-tax-docs/.next/static ./apps/gift-tax-docs/.next/static
-COPY --from=builder --chown=1001:1001 --link /app/apps/gift-tax-docs/public ./apps/gift-tax-docs/public
+USER nginx
 
-USER nextjs
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3002/gift-tax-docs/ || exit 1
+
+STOPSIGNAL SIGQUIT
+
 EXPOSE 3002
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3002/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
-
-STOPSIGNAL SIGTERM
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "apps/gift-tax-docs/server.js"]
+CMD ["nginx", "-g", "daemon off;"]

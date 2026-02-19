@@ -6,8 +6,22 @@ export const STORAGE_KEYS = {
   deadline: 'gift_tax_deadline',
 } as const;
 
-// 会社情報（共有パッケージから再エクスポート）
-export { COMPANY_INFO, getFullAddress, getContactLine } from '@tax-apps/utils';
+// 会社情報
+export const COMPANY_INFO = {
+  name: '税理士法人マスエージェント',
+  postalCode: '〒770-0002',
+  address: '徳島県徳島市春日２丁目３−３３',
+  phone: '088-632-6228',
+  fax: '088-631-9870',
+} as const;
+
+export function getFullAddress(): string {
+  return `${COMPANY_INFO.postalCode} ${COMPANY_INFO.address}`;
+}
+
+export function getContactLine(): string {
+  return `TEL ${COMPANY_INFO.phone} / FAX ${COMPANY_INFO.fax}`;
+}
 
 export * from './giftData';
 
