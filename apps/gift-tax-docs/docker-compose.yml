@@ -11,7 +11,6 @@
 # 共通設定
 x-common-env: &common-env
   TZ: Asia/Tokyo
-  NEXT_TELEMETRY_DISABLED: "1"
 
 x-logging: &default-logging
   driver: "json-file"
@@ -48,16 +47,16 @@ services:
       # ソースコードをマウント（ホットリロード用）
       - ./src:/app/src:ro
       - ./public:/app/public:ro
+      - ./index.html:/app/index.html:ro
     environment:
       <<: *common-env
       NODE_ENV: development
-      WATCHPACK_POLLING: "true"
-    command: npm run dev -- -p 3002
+    command: npm run dev -- --host --port 3002
     init: true
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3002/gift-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3002/gift-tax-docs/ || exit 1"]
       <<: *healthcheck-defaults
       start_period: 60s
     deploy:

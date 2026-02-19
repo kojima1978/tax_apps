@@ -1,11 +1,7 @@
 # Dependencies
 node_modules
-.pnpm-store
 
 # Build outputs
-.next
-out
-build
 dist
 *.tsbuildinfo
 
@@ -21,7 +17,6 @@ __tests__
 
 # Development
 .env*.local
-.turbo
 
 # IDEs and editors
 .vscode
@@ -58,4 +53,3 @@ docs
 *.log
 *.pem
 .vercel
-.netlify

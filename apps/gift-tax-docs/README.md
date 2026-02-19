@@ -37,22 +37,22 @@
 
 | カテゴリ | 技術 |
 |---------|------|
-| Framework | [Next.js 16](https://nextjs.org/) (App Router, standalone output) |
+| Build Tool | [Vite](https://vite.dev/) |
 | UI Library | [React 19](https://react.dev/) |
 | Styling | [Tailwind CSS v4](https://tailwindcss.com/) (@tailwindcss/postcss) |
 | Drag & Drop | [@dnd-kit](https://dndkit.com/) (core, sortable, utilities) |
 | Icons | [Lucide React](https://lucide.dev/) |
 | Excel Generation | [xlsx-js-style](https://www.npmjs.com/package/xlsx-js-style) |
 | Language | TypeScript 5 |
-| Runtime | Node.js 22 (Alpine) |
+| Production | nginx (static files) |
 
 ## ディレクトリ構成
 
 ```
 src/
-├── app/                              # Next.js App Router
-│   ├── layout.tsx                    # ルートレイアウト
-│   ├── page.tsx                      # メインページ（EditableListStep直接描画）
+├── App.tsx                           # メインコンポーネント（EditableListStep描画）
+├── main.tsx                          # Reactエントリポイント
+├── app/
 │   └── globals.css                   # グローバルスタイル・印刷用CSS
 ├── components/                       # UIコンポーネント
 │   ├── EditableListStep.tsx          # 統合ビュー（ツールバー+入力バー+DnDリスト+印刷セクション）

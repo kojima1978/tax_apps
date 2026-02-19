@@ -1,5 +1,3 @@
-'use client';
-
 import { Check, X } from 'lucide-react';
 
 /** Enter/Escape キー共通ハンドラ */
