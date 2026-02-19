@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
-import type { ProgressStep } from "@tax-apps/shared"
+import type { ProgressStep } from "@/types/shared"
 
 interface ProgressEditorProps {
     progress: ProgressStep[]

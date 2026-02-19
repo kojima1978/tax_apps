@@ -1,6 +1,5 @@
 # Dependencies
 node_modules
-.pnpm-store
 
 # Build outputs
 dist
@@ -19,7 +18,6 @@ __tests__
 
 # Development
 .env*.local
-.turbo
 
 # IDEs and editors
 .vscode

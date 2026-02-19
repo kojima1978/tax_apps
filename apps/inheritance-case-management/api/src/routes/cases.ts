@@ -5,7 +5,7 @@ import {
   updateCaseSchema,
   caseIdParamSchema,
   listQuerySchema,
-} from '@tax-apps/validation';
+} from '../schemas/validation.js';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';

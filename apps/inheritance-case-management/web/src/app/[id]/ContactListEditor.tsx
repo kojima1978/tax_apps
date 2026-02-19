@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
-import type { Contact } from "@tax-apps/shared"
+import type { Contact } from "@/types/shared"
 
 interface ContactListEditorProps {
     contacts: Contact[]

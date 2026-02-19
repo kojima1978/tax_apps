@@ -1,45 +1,23 @@
 # syntax=docker/dockerfile:1
 
-# Development Dockerfile for API
-FROM node:22-alpine
+# =============================================================================
+# 相続税案件管理システム API - Development Dockerfile
+# =============================================================================
 
-RUN apk upgrade --no-cache && apk add --no-cache tini \
-    && corepack enable && corepack prepare pnpm@9.15.4 --activate
+ARG NODE_VERSION=22
 
-ENV NODE_ENV=development
+FROM node:${NODE_VERSION}-alpine AS deps
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tini
 WORKDIR /app
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,id=npm-store-itcm-api-dev,target=/root/.npm \
+    npm ci
 
-# Copy workspace config and all package.json files
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json ./
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/validation/package.json ./packages/validation/
-COPY apps/inheritance-case-management/api/package.json ./apps/inheritance-case-management/api/
-
-# Install dependencies with pnpm store cache
-RUN --mount=type=cache,id=pnpm-store-icm-api-dev,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
-
-# Copy source files (only src and tsconfig, not node_modules)
-COPY packages/shared/src ./packages/shared/src
-COPY packages/shared/tsconfig.json ./packages/shared/
-COPY packages/validation/src ./packages/validation/src
-COPY packages/validation/tsconfig.json ./packages/validation/
-COPY apps/inheritance-case-management/api/src ./apps/inheritance-case-management/api/src
-COPY apps/inheritance-case-management/api/tsconfig.json ./apps/inheritance-case-management/api/
-COPY apps/inheritance-case-management/api/vitest.config.ts ./apps/inheritance-case-management/api/
-COPY apps/inheritance-case-management/api/prisma ./apps/inheritance-case-management/api/prisma
-
-# Build shared packages
-RUN cd packages/shared && ../../node_modules/.bin/tsc \
-    && cd ../validation && ../../node_modules/.bin/tsc
-
-# Generate Prisma client
-WORKDIR /app/apps/inheritance-case-management/api
-RUN pnpm db:generate
-
+FROM deps AS dev
+ENV NODE_ENV=development TZ=Asia/Tokyo
+COPY . .
+RUN npx prisma generate
 EXPOSE 3021
-
 ENTRYPOINT ["/sbin/tini", "--"]
-
-# Run with hot reload (db push for dev, creates tables if not exist)
-CMD ["sh", "-c", "npx prisma db push && pnpm dev"]
+CMD ["sh", "-c", "npx prisma db push && npm run dev"]

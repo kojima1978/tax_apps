@@ -1,6 +1,6 @@
 import { apiClient } from './client';
-import type { InheritanceCase, PaginatedResponse } from '@tax-apps/shared';
-import type { CreateCaseInput, UpdateCaseInput, ListQueryInput } from '@tax-apps/validation';
+import type { InheritanceCase, PaginatedResponse } from '@/types/shared';
+import type { CreateCaseInput, UpdateCaseInput, ListQueryInput } from '@/types/validation';
 
 export type CasesQueryParams = Partial<ListQueryInput>;
 

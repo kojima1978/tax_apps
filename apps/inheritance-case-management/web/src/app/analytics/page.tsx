@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
-import type { InheritanceCase } from "@tax-apps/shared"
+import type { InheritanceCase } from "@/types/shared"
 import { Button } from "@/components/ui/Button"
 import Link from "next/link"
 import { calcNet, formatCurrency, aggregateCases, type AnnualData } from "@/lib/analytics-utils"

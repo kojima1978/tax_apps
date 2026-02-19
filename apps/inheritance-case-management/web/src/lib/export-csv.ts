@@ -1,4 +1,4 @@
-import type { InheritanceCase } from "@tax-apps/shared";
+import type { InheritanceCase } from "@/types/shared";
 
 export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
   // CSVヘッダー

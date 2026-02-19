@@ -1,5 +1,5 @@
-import type { Assignee } from '@tax-apps/shared';
-import type { CreateAssigneeInput, UpdateAssigneeInput } from '@tax-apps/validation';
+import type { Assignee } from '@/types/shared';
+import type { CreateAssigneeInput, UpdateAssigneeInput } from '@/types/validation';
 import { createCrudApi } from './crud-factory';
 
 const api = createCrudApi<Assignee, CreateAssigneeInput, UpdateAssigneeInput>('/assignees');

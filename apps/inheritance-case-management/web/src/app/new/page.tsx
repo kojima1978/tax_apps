@@ -2,7 +2,7 @@
 
 import { EditCaseForm } from "../[id]/edit-case-form"
 import { Suspense } from "react"
-import type { InheritanceCase } from "@tax-apps/shared"
+import type { InheritanceCase } from "@/types/shared"
 import { Button } from "@/components/ui/Button"
 import Link from "next/link"
 

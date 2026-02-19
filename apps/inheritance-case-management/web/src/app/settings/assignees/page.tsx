@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react"
 import { Label } from "@/components/ui/Label"
-import { DEPARTMENTS, type Assignee } from "@tax-apps/shared"
+import { DEPARTMENTS, type Assignee } from "@/types/shared"
 import { getAssignees, createAssignee, updateAssignee, deleteAssignee } from "@/lib/api/assignees"
 import { useMasterList } from "@/hooks/use-master-list"
 import { MasterListPage, type ColumnDef } from "@/components/MasterListPage"

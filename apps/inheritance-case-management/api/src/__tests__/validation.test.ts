@@ -3,7 +3,7 @@ import {
   createCaseSchema,
   createAssigneeSchema,
   createReferrerSchema,
-} from '@tax-apps/validation';
+} from '../schemas/validation.js';
 
 describe('Validation Schemas', () => {
   describe('createCaseSchema', () => {

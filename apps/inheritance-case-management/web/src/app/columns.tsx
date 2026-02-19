@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/Button"
-import type { InheritanceCase } from "@tax-apps/shared"
+import type { InheritanceCase } from "@/types/shared"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { SortableHeader } from "@/components/ui/SortableHeader"
 import Link from "next/link"
