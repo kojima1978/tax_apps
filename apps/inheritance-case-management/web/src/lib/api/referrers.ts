@@ -1,5 +1,5 @@
-import type { Referrer } from '@tax-apps/shared';
-import type { CreateReferrerInput, UpdateReferrerInput } from '@tax-apps/validation';
+import type { Referrer } from '@/types/shared';
+import type { CreateReferrerInput, UpdateReferrerInput } from '@/types/validation';
 import { createCrudApi } from './crud-factory';
 
 const api = createCrudApi<Referrer, CreateReferrerInput, UpdateReferrerInput>('/referrers');

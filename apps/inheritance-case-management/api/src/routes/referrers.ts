@@ -1,4 +1,4 @@
-import { createReferrerSchema, updateReferrerSchema } from '@tax-apps/validation';
+import { createReferrerSchema, updateReferrerSchema } from '../schemas/validation.js';
 import { createCrudRouter } from '../lib/create-crud-router.js';
 
 export const referrersRouter = createCrudRouter({

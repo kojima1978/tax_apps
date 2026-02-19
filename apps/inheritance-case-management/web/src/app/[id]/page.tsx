@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use, Suspense } from "react"
 import { useRouter } from "next/navigation"
-import type { InheritanceCase } from "@tax-apps/shared"
+import type { InheritanceCase } from "@/types/shared"
 import { Button } from "@/components/ui/Button"
 import Link from "next/link"
 import { EditCaseForm } from "./edit-case-form"

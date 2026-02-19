@@ -1,4 +1,4 @@
-import { createAssigneeSchema, updateAssigneeSchema } from '@tax-apps/validation';
+import { createAssigneeSchema, updateAssigneeSchema } from '../schemas/validation.js';
 import { createCrudRouter } from '../lib/create-crud-router.js';
 
 export const assigneesRouter = createCrudRouter({

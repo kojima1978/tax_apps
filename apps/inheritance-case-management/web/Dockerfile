@@ -1,63 +1,62 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-alpine AS base
+# =============================================================================
+# 相続税案件管理システム フロントエンド - Dockerfile
+# Multi-stage build for development and production (standalone)
+# =============================================================================
+
+ARG NODE_VERSION=22
+
+# =============================================================================
+# Base stage - Common configuration
+# =============================================================================
+FROM node:${NODE_VERSION}-alpine AS base
 RUN apk upgrade --no-cache && \
-    corepack enable && corepack prepare pnpm@9.15.4 --activate
+    apk add --no-cache libc6-compat
 WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# ── deps ────────────────────────────────────────────────
+# =============================================================================
+# Dependencies stage - Install npm packages
+# =============================================================================
 FROM base AS deps
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/validation/package.json ./packages/validation/
-COPY packages/ui/package.json ./packages/ui/
-COPY apps/inheritance-case-management/web/package.json ./apps/inheritance-case-management/web/
-RUN --mount=type=cache,id=pnpm-store-icm-web,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,id=npm-store-itcm-web,target=/root/.npm \
+    npm ci
 
-# ── development ─────────────────────────────────────────
+# =============================================================================
+# Development stage - For local development with hot reload
+# =============================================================================
 FROM deps AS dev
-ENV NODE_ENV=development \
-    NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=development WATCHPACK_POLLING=true HOSTNAME=0.0.0.0 TZ=Asia/Tokyo
 COPY . .
-RUN pnpm --filter @tax-apps/shared build && \
-    pnpm --filter @tax-apps/validation build && \
-    pnpm --filter @tax-apps/ui build
-CMD ["pnpm", "--filter", "@inheritance-case-management/web", "dev"]
+EXPOSE 3020
+CMD ["npm", "run", "dev"]
 
-# ── builder ─────────────────────────────────────────────
+# =============================================================================
+# Builder stage - Build the production application
+# =============================================================================
 FROM deps AS builder
+ARG NODE_OPTIONS="--max-old-space-size=4096"
 ARG NEXT_PUBLIC_API_URL=http://localhost:3021/api
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
-    NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production \
+    NODE_OPTIONS=${NODE_OPTIONS} \
+    NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+COPY . .
+RUN --mount=type=cache,id=nextjs-itcm-web,target=/app/.next/cache \
+    mkdir -p public && \
+    npm run build
 
-# ソースを選択的にコピー（pnpmシンボリックリンク保持）
-COPY packages/shared/src ./packages/shared/src
-COPY packages/shared/tsconfig.json ./packages/shared/
-COPY packages/validation/src ./packages/validation/src
-COPY packages/validation/tsconfig.json ./packages/validation/
-COPY packages/ui/src ./packages/ui/src
-COPY packages/ui/tsconfig.json ./packages/ui/
-COPY apps/inheritance-case-management/web/src ./apps/inheritance-case-management/web/src
-COPY apps/inheritance-case-management/web/public ./apps/inheritance-case-management/web/public
-COPY apps/inheritance-case-management/web/tsconfig.json ./apps/inheritance-case-management/web/
-COPY apps/inheritance-case-management/web/next.config.ts ./apps/inheritance-case-management/web/
-COPY apps/inheritance-case-management/web/postcss.config.mjs ./apps/inheritance-case-management/web/
-
-# 共有パッケージ → Next.js ビルド（1つのRUNにまとめてレイヤー削減）
-RUN --mount=type=cache,id=nextjs-icm-web,target=/app/apps/inheritance-case-management/web/.next/cache \
-    cd packages/shared && ../../node_modules/.bin/tsc && \
-    cd ../validation && ../../node_modules/.bin/tsc && \
-    cd ../ui && ../../node_modules/.bin/tsc && \
-    cd ../../apps/inheritance-case-management/web && \
-    ./node_modules/.bin/next build
-
-# ── production ──────────────────────────────────────────
-FROM node:22-alpine AS runner
+# =============================================================================
+# Production runner stage - Minimal, secure production image
+# =============================================================================
+FROM node:${NODE_VERSION}-alpine AS runner
 
 LABEL org.opencontainers.image.title="ITCM Frontend" \
       org.opencontainers.image.description="相続税案件管理システム フロントエンド" \
-      org.opencontainers.image.vendor="税理士法人マスエージェント"
+      org.opencontainers.image.vendor="税理士法人マスエージェント" \
+      org.opencontainers.image.licenses="Private" \
+      org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
 WORKDIR /app
 
@@ -67,7 +66,6 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     TZ=Asia/Tokyo
 
-# Install security updates, runtime dependencies, configure timezone, create non-root user
 RUN apk upgrade --no-cache && \
     apk add --no-cache libc6-compat tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
@@ -76,19 +74,16 @@ RUN apk upgrade --no-cache && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --ingroup nodejs nextjs
 
-# standalone ビルド成果物をコピー (--link enables independent layer caching)
-COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-case-management/web/.next/standalone ./
-COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-case-management/web/.next/static ./apps/inheritance-case-management/web/.next/static
-COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-case-management/web/public ./apps/inheritance-case-management/web/public
+COPY --from=builder --chown=1001:1001 --link /app/.next/standalone ./
+COPY --from=builder --chown=1001:1001 --link /app/.next/static ./.next/static
+COPY --from=builder --chown=1001:1001 --link /app/public ./public
 
 USER nextjs
 EXPOSE 3020
 
-# Health check for container orchestration (uses Node 22+ native fetch)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
-# Graceful shutdown signal
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "apps/inheritance-case-management/web/server.js"]
+CMD ["node", "server.js"]

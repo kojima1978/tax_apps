@@ -61,8 +61,8 @@ services:
   # ===========================================
   api:
     build:
-      context: ../..
-      dockerfile: apps/inheritance-case-management/api/Dockerfile
+      context: ./api
+      dockerfile: Dockerfile
     container_name: itcm-api
     restart: unless-stopped
     environment:
@@ -100,8 +100,8 @@ services:
   # ===========================================
   web:
     build:
-      context: ../..
-      dockerfile: apps/inheritance-case-management/web/Dockerfile
+      context: ./web
+      dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3021/api}
     container_name: itcm-web
