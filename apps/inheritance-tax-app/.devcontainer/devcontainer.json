@@ -23,6 +23,6 @@
       }
     }
   },
-  "forwardPorts": [5173],
-  "postAttachCommand": "echo 'Dev Container Ready! Run: npm run dev -- --host'"
+  "forwardPorts": [3004],
+  "postAttachCommand": "echo 'Dev Container Ready! Run: npm run dev -- --host --port 3004'"
 }

@@ -27,7 +27,7 @@ x-healthcheck-defaults: &healthcheck-defaults
 services:
   # ===========================================
   # 相続税シミュレーター（Vite dev server）
-  # Port: 5173
+  # Port: 3004
   #
   # 機能:
   #   - 相続税額の簡易シミュレーション
@@ -42,7 +42,7 @@ services:
       target: dev
     container_name: inheritance-tax-app-standalone
     ports:
-      - "5173:5173"
+      - "3004:3004"
     volumes:
       # ソースコードをマウント（ホットリロード用）
       - ./src:/app/src:ro
@@ -54,7 +54,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:5173/inheritance-tax-app/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3004/inheritance-tax-app/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
       <<: *healthcheck-defaults
     deploy:
       resources:

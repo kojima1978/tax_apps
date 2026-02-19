@@ -3,6 +3,9 @@ import { TAX_RATES, type TaxRateYear } from "./tax-rates";
 /** 退職区分 */
 export type RetirementType = "general" | "officer" | "short_term";
 
+/** 退職区分一覧 */
+export const RETIREMENT_TYPES: RetirementType[] = ["general", "officer", "short_term"];
+
 /** 退職区分ラベル */
 export const RETIREMENT_TYPE_LABELS: Record<RetirementType, string> = {
     general: "一般退職手当等",

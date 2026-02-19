@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useId } from "react";
 import { formatJapaneseDate } from "@/lib/utils";
-import { COMPANY_INFO, getFullAddress } from "@tax-apps/utils";
+import { COMPANY_INFO, getFullAddress } from "@/lib/company";
 
 const PrintFooter = () => {
     const [staff, setStaff] = useState("");

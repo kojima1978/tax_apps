@@ -1,4 +1,11 @@
-export { formatCurrency } from '@tax-apps/utils';
+const NUMBER_FORMAT = new Intl.NumberFormat('ja-JP');
+
+/**
+ * 数値をカンマ区切りにフォーマット
+ */
+export function formatCurrency(num: number): string {
+    return NUMBER_FORMAT.format(num);
+}
 
 const YEN_FORMAT = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
 

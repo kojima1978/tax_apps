@@ -2,7 +2,7 @@
  * Excel スタイル定数（テーマカラー: 青系 #2563EB）
  */
 
-import { COMPANY_INFO } from '@tax-apps/utils';
+import { COMPANY_INFO } from './company';
 export { COMPANY_INFO };
 
 const solidFill = (argb: string) => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } });

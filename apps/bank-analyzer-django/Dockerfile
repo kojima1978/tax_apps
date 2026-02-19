@@ -116,11 +116,11 @@ COPY --link --chown=1001:1001 . .
 RUN mkdir -p data staticfiles db && \
     chown appuser:appgroup /app data staticfiles db
 
-EXPOSE 8000
+EXPOSE 3007
 
 # Healthcheck using curl (more reliable than Python urllib)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl --fail --silent --show-error http://localhost:8000/health/ || exit 1
+    CMD curl --fail --silent --show-error http://localhost:3007/health/ || exit 1
 
 # Run as non-root user for security
 USER appuser
@@ -176,4 +176,4 @@ HEALTHCHECK NONE
 
 # Use Django development server (--nostatic for FORCE_SCRIPT_NAME compatibility)
 CMD ["/docker-entrypoint.sh", \
-     "python", "manage.py", "runserver", "--nostatic", "0.0.0.0:8000"]
+     "python", "manage.py", "runserver", "--nostatic", "0.0.0.0:3007"]

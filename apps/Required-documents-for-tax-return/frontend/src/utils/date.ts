@@ -1,5 +1,16 @@
-// 令和関連ユーティリティ（共有パッケージから再エクスポート）
-export { REIWA_OFFSET, toReiwa, formatReiwaYear } from '@tax-apps/utils';
+// 令和関連ユーティリティ
+export const REIWA_OFFSET = 2018;
+
+export function toReiwa(year: number): number {
+  return year - REIWA_OFFSET;
+}
+
+export function formatReiwaYear(year: number): string {
+  const reiwaYear = toReiwa(year);
+  if (reiwaYear === 1) return '令和元年';
+  if (reiwaYear < 1) return `${year}年`;
+  return `令和${reiwaYear}年`;
+}
 
 /**
  * デフォルトの対象年度（西暦）を計算

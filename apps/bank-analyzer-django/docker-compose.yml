@@ -84,7 +84,7 @@ services:
   # ===========================================
   # 銀行取引分析ツール（Django - 開発モード）
   # ===========================================
-  # Port: 8000
+  # Port: 3007
   #
   # 機能:
   #   - 銀行取引CSVの読込・分析
@@ -111,7 +111,7 @@ services:
       bank-analyzer-db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "3007:3007"
     volumes:
       # ソースコードをマウント（ホットリロード用）
       - ./analyzer:/app/analyzer:ro
@@ -143,7 +143,7 @@ services:
     logging: *default-logging
     <<: *security-opts
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:8000/health/ || exit 1"]
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:3007/health/ || exit 1"]
       <<: *healthcheck-defaults
     deploy:
       resources:
@@ -210,7 +210,7 @@ services:
       bank-analyzer-db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "3007:3007"
     volumes:
       # データ永続化のみ（ソースコードはイメージ内）
       - bank_analyzer_data:/app/db
@@ -240,7 +240,7 @@ services:
     logging: *default-logging
     <<: *security-opts
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:8000/health/ || exit 1"]
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:3007/health/ || exit 1"]
       <<: *healthcheck-defaults
     profiles:
       - production

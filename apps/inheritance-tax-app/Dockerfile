@@ -2,7 +2,7 @@
 
 # =============================================================================
 # 相続税シミュレーター - Dockerfile
-# Multi-stage build for development and production (pnpm monorepo)
+# Multi-stage build for development and production (standalone)
 # =============================================================================
 
 ARG NODE_VERSION=22
@@ -12,30 +12,25 @@ ARG NODE_VERSION=22
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
 RUN apk upgrade --no-cache && \
-    corepack enable && corepack prepare pnpm@9.15.4 --activate
+    apk add --no-cache libc6-compat
 WORKDIR /app
 
 # =============================================================================
-# Dependencies stage - Install pnpm packages
+# Dependencies stage - Install npm packages
 # =============================================================================
 FROM base AS deps
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/utils/package.json ./packages/utils/
-COPY apps/inheritance-tax-app/package.json ./apps/inheritance-tax-app/
-RUN --mount=type=cache,id=pnpm-store-inheritance-tax-app,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,id=npm-store-inheritance-tax-app,target=/root/.npm \
+    npm ci
 
 # =============================================================================
 # Development stage - For local development with hot reload
 # =============================================================================
 FROM deps AS dev
-ENV NODE_ENV=development
-COPY packages/utils/ ./packages/utils/
-COPY apps/inheritance-tax-app/ ./apps/inheritance-tax-app/
-RUN cd packages/utils && pnpm build
-WORKDIR /app/apps/inheritance-tax-app
-EXPOSE 5173
-CMD ["pnpm", "dev", "--host"]
+ENV NODE_ENV=development TZ=Asia/Tokyo
+COPY . .
+EXPOSE 3004
+CMD ["npm", "run", "dev", "--", "--host", "--port", "3004"]
 
 # =============================================================================
 # Builder stage - Build the production application
@@ -43,12 +38,8 @@ CMD ["pnpm", "dev", "--host"]
 FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
 ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS}
-COPY packages/utils/src ./packages/utils/src
-COPY packages/utils/tsconfig.json ./packages/utils/
-COPY apps/inheritance-tax-app/ ./apps/inheritance-tax-app/
-RUN cd packages/utils && pnpm build && \
-    cd ../../apps/inheritance-tax-app && \
-    pnpm build
+COPY . .
+RUN npm run build
 
 # =============================================================================
 # Production stage - Minimal nginx image serving static files
@@ -64,12 +55,12 @@ LABEL org.opencontainers.image.title="相続税シミュレーター" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
 # nginx設定をコピー
-COPY --link apps/inheritance-tax-app/nginx-main.conf /etc/nginx/nginx.conf
-COPY --link apps/inheritance-tax-app/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --link apps/inheritance-tax-app/nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
+COPY --link nginx-main.conf /etc/nginx/nginx.conf
+COPY --link nginx.conf /etc/nginx/conf.d/default.conf
+COPY --link nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 
 # ビルド成果物をコピー
-COPY --link --chown=101:101 --from=builder /app/apps/inheritance-tax-app/dist /usr/share/nginx/html/inheritance-tax-app
+COPY --link --chown=101:101 --from=builder /app/dist /usr/share/nginx/html/inheritance-tax-app
 
 # non-root実行の準備
 RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html && \
@@ -80,9 +71,9 @@ RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html && \
 USER nginx
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:5173/inheritance-tax-app/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3004/inheritance-tax-app/ || exit 1
 
 STOPSIGNAL SIGQUIT
 
-EXPOSE 5173
+EXPOSE 3004
 CMD ["nginx", "-g", "daemon off;"]

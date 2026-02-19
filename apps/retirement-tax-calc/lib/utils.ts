@@ -1,5 +1,12 @@
-// Re-export shared utilities
-export { formatCurrency, formatYen } from '@tax-apps/utils';
+const NUMBER_FORMAT = new Intl.NumberFormat('ja-JP');
+
+export function formatCurrency(num: number): string {
+    return NUMBER_FORMAT.format(num);
+}
+
+export function formatYen(num: number): string {
+    return `${NUMBER_FORMAT.format(num)}円`;
+}
 
 /**
  * 全角数字を半角に変換し、カンマを除去して数値文字列にする

@@ -1,6 +1,6 @@
 import express, { ErrorRequestHandler } from 'express';
 import cors from 'cors';
-import { formatReiwaYear } from '@tax-apps/utils';
+import { formatReiwaYear } from './utils/date.js';
 import {
   initializeDb,
   getOrCreateCustomer,
@@ -28,7 +28,7 @@ import {
 } from './db.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3006;
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -65,7 +65,7 @@ function handleCreateError(res: express.Response, e: unknown, duplicateMessage: 
 // ミドルウェア
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3005'],
+    origin: ['http://localhost:3005', 'http://127.0.0.1:3005'],
     credentials: true,
   })
 );

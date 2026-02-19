@@ -1,1 +1,3 @@
-export { parseNumericInput } from '@tax-apps/utils';
+export function parseNumericInput(value: string): number {
+  return Number(value.replace(/,/g, ''));
+}

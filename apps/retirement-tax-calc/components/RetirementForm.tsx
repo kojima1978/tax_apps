@@ -6,7 +6,7 @@ import FormField from "./FormField";
 import ServiceYearsInput from "./ServiceYearsInput";
 import OfficerLimitSection from "./OfficerLimitSection";
 import CheckboxField from "./CheckboxField";
-import { RETIREMENT_TYPE_LABELS, PATTERN_LABELS, type RetirementType } from "@/lib/retirement-tax";
+import { RETIREMENT_TYPES, RETIREMENT_TYPE_LABELS, PATTERN_LABELS, type RetirementType } from "@/lib/retirement-tax";
 import { TAX_RATES, AVAILABLE_YEARS } from "@/lib/tax-rates";
 import { parseFormattedNumber } from "@/lib/utils";
 
@@ -93,7 +93,7 @@ const RetirementForm = ({
                 {/* 退職区分 */}
                 <FormField label="退職区分">
                     <div className="radio-group">
-                        {(Object.keys(RETIREMENT_TYPE_LABELS) as RetirementType[]).map((type) => (
+                        {RETIREMENT_TYPES.map((type) => (
                             <label key={type} className="radio-label">
                                 <input
                                     type="radio"

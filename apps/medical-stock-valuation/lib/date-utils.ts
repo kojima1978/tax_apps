@@ -2,7 +2,12 @@
  * 西暦を和暦（令和）に変換するユーティリティ
  */
 
-export { generateYearRange } from '@tax-apps/utils';
+export function generateYearRange(offset = 5): number[] {
+  const currentYear = new Date().getFullYear();
+  const years: number[] = [];
+  for (let i = currentYear + offset; i >= currentYear - offset; i--) { years.push(i); }
+  return years;
+}
 
 /**
  * 西暦年を令和年に変換
