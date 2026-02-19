@@ -1,5 +1,3 @@
-'use client';
-
 import { useCallback } from 'react';
 import type { DocChanges } from '../../constants/documents';
 import { DocumentForm } from './DocumentForm';

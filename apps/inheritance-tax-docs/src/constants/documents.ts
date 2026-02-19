@@ -37,6 +37,20 @@ export interface CategoryData {
   documents: DocumentItem[];
 }
 
+/** getSelectedDocuments / Excel export で使用するカテゴリ＋書類の組 */
+export interface CategoryDocuments {
+  category: CategoryData;
+  documents: (DocumentItem | CustomDocumentItem)[];
+}
+
+/** 統計情報（useDocumentGuide → UnifiedDocumentView） */
+export interface Stats {
+  totalCount: number;
+  customCount: number;
+  checkedCount: number;
+  hasCustomizations: boolean;
+}
+
 export const CATEGORIES: CategoryData[] = [
   {
     id: 'identity',

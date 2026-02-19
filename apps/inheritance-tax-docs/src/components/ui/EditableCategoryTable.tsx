@@ -1,5 +1,3 @@
-'use client';
-
 import { memo, useMemo, useState, useEffect, useId } from 'react';
 import {
   DndContext,
@@ -16,56 +14,58 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { ChevronDown, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { ChevronDown, Plus, CheckSquare, Square, Trash2 } from 'lucide-react';
 import type { CategoryData, DocumentItem, CustomDocumentItem, DocChanges } from '../../constants/documents';
-import { isCustomDocument } from '../../utils/helpers';
+import { isCustomDocument, toCircledNumber } from '../../utils/helpers';
 import { getIcon } from '../../utils/iconMap';
 import { SortableDocumentRow, StaticDocumentRow, type EditableDocumentRowProps } from './EditableDocumentRow';
 
 interface EditableCategoryTableProps {
   category: CategoryData;
+  categoryIndex: number;
   isExpanded: boolean;
-  deletedDocuments: Record<string, boolean>;
   customDocuments: CustomDocumentItem[];
   documentOrder: string[];
   editedDocuments: Record<string, DocChanges>;
   canDelegateOverrides: Record<string, boolean>;
   specificDocNames: Record<string, string[]>;
   onToggleExpanded: (categoryId: string) => void;
-  onDeleteDocument: (docId: string) => void;
-  onRestoreDocument: (docId: string) => void;
-  onDeleteAllInCategory: (categoryId: string) => void;
-  onRestoreAllInCategory: (categoryId: string) => void;
-  onRemoveCustomDocument: (docId: string, categoryId: string) => void;
   onReorderDocuments: (categoryId: string, newOrder: string[]) => void;
   onToggleCanDelegate: (docId: string, originalCanDelegate: boolean) => void;
   onAddSpecificName: (docId: string, name: string) => void;
   onEditSpecificName: (docId: string, index: number, name: string) => void;
   onRemoveSpecificName: (docId: string, index: number) => void;
+  checkedDocuments: Record<string, boolean>;
+  onToggleDocumentCheck: (docId: string) => void;
+  onToggleAllInCategory: (categoryId: string, checked: boolean) => void;
+  onRemoveDocument: (docId: string, categoryId: string, name: string) => void;
+  onRemoveCategory: (categoryId: string, name: string) => void;
+  hideSubmittedInPrint: boolean;
   onOpenAddModal: (categoryId: string) => void;
   onStartEdit: (docId: string) => void;
 }
 
 function EditableCategoryTableComponent({
   category,
+  categoryIndex,
   isExpanded,
-  deletedDocuments,
   customDocuments,
   documentOrder,
   editedDocuments,
   canDelegateOverrides,
   specificDocNames,
   onToggleExpanded,
-  onDeleteDocument,
-  onRestoreDocument,
-  onDeleteAllInCategory,
-  onRestoreAllInCategory,
-  onRemoveCustomDocument,
   onReorderDocuments,
   onToggleCanDelegate,
   onAddSpecificName,
   onEditSpecificName,
   onRemoveSpecificName,
+  checkedDocuments,
+  onToggleDocumentCheck,
+  onToggleAllInCategory,
+  onRemoveDocument,
+  onRemoveCategory,
+  hideSubmittedInPrint,
   onOpenAddModal,
   onStartEdit,
 }: EditableCategoryTableProps) {
@@ -93,21 +93,18 @@ function EditableCategoryTableComponent({
 
   const orderedDocs = useMemo(() => {
     const result: (DocumentItem | CustomDocumentItem)[] = [];
-    const usedIds = new Set<string>();
     documentOrder.forEach((docId) => {
       const doc = docMap.get(docId);
-      if (doc) { result.push(doc); usedIds.add(docId); }
-    });
-    docMap.forEach((doc, docId) => {
-      if (!usedIds.has(docId)) result.push(doc);
+      if (doc) result.push(doc);
     });
     return result;
   }, [documentOrder, docMap]);
 
-  const deletedCount = category.documents.filter((doc) => deletedDocuments[doc.id]).length;
-  const activeCount = category.documents.length - deletedCount + customDocsInCategory.length;
-  const totalCount = category.documents.length + customDocsInCategory.length;
-  const allBuiltInDeleted = deletedCount === category.documents.length;
+  const checkedCount = orderedDocs.filter(doc => checkedDocuments[doc.id]).length;
+  const allChecked = orderedDocs.length > 0 && checkedCount === orderedDocs.length;
+  const someChecked = checkedCount > 0 && !allChecked;
+
+  const totalCount = orderedDocs.length;
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -121,14 +118,12 @@ function EditableCategoryTableComponent({
     }
   };
 
-  const sortableIds = orderedDocs
-    .filter((doc) => !deletedDocuments[doc.id])
-    .map((doc) => doc.id);
+  const sortableIds = orderedDocs.map((doc) => doc.id);
 
   const tableHead = (
     <thead className="bg-slate-100">
       <tr>
-        <th className="w-8 px-1 py-2 text-center print:w-6">
+        <th className="w-10 px-1 py-2 text-center print:w-6">
           <span className="print:hidden">≡</span>
           <span className="hidden print:inline">✓</span>
         </th>
@@ -151,25 +146,26 @@ function EditableCategoryTableComponent({
     return {
       doc,
       categoryId: category.id,
-      isDeleted: deletedDocuments[doc.id] ?? false,
       isCustom,
       editedValues: editedDocuments[doc.id],
       canDelegate: canDelegateOverrides[doc.id] ?? originalCanDelegate,
       specificNames: specificDocNames[doc.id] || [],
       rowIndex: index,
-      onDelete: onDeleteDocument,
-      onRestore: onRestoreDocument,
-      onRemoveCustom: onRemoveCustomDocument,
+      docNumber: `${index + 1}`,
       onStartEdit,
       onToggleCanDelegate: () => onToggleCanDelegate(doc.id, originalCanDelegate),
       onAddSpecificName,
       onEditSpecificName,
       onRemoveSpecificName,
+      isChecked: checkedDocuments[doc.id] ?? false,
+      onToggleCheck: onToggleDocumentCheck,
+      onRemoveDocument,
+      hideSubmittedInPrint,
     };
   };
 
   return (
-    <div className="print-compact-section">
+    <div className={`print-compact-section ${allChecked && hideSubmittedInPrint ? 'print:hidden' : ''}`}>
       {/* カテゴリヘッダー */}
       <div
         className={`flex items-center justify-between p-3 cursor-pointer rounded-t-lg ${category.bgColor} hover:opacity-90 print:cursor-default print:p-1`}
@@ -186,33 +182,42 @@ function EditableCategoryTableComponent({
       >
         <div className="flex items-center">
           <span className={`mr-2 print:mr-1 ${category.color}`}>{getIcon(category.iconName)}</span>
-          <span className={`font-bold text-lg print:text-xs ${category.color}`}>{category.name}</span>
+          <span className={`font-bold text-lg print:text-xs ${category.color}`}>{toCircledNumber(categoryIndex)} {category.name}</span>
           <span className="ml-2 text-sm text-slate-500 print:text-xs print:ml-1">
-            ({activeCount}/{totalCount}件)
+            ({totalCount}件)
           </span>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (allBuiltInDeleted) {
-                onRestoreAllInCategory(category.id);
-              } else {
-                onDeleteAllInCategory(category.id);
-              }
+              onRemoveCategory(category.id, category.name);
             }}
-            className={`flex items-center px-2.5 py-1 text-xs rounded-lg transition-colors ${
-              allBuiltInDeleted
-                ? 'text-emerald-600 hover:bg-emerald-100'
-                : 'text-slate-500 hover:bg-red-100 hover:text-red-600'
-            }`}
-            title={allBuiltInDeleted ? '一括復元' : '一括不要'}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50/50 transition-colors"
+            title="カテゴリを削除"
+            aria-label="カテゴリを削除"
           >
-            {allBuiltInDeleted ? (
-              <><RefreshCw className="w-3.5 h-3.5 mr-1" />一括復元</>
-            ) : (
-              <><Trash2 className="w-3.5 h-3.5 mr-1" />一括不要</>
-            )}
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleAllInCategory(category.id, !allChecked);
+            }}
+            className={`flex items-center px-2.5 py-1 text-xs rounded-lg font-medium transition-colors ${
+              allChecked
+                ? 'bg-emerald-600 text-white'
+                : someChecked
+                ? 'bg-emerald-200 text-emerald-800'
+                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+            }`}
+            title={allChecked ? '全済みを解除' : '全て提出済みにする'}
+          >
+            {allChecked
+              ? <CheckSquare className="w-3.5 h-3.5 mr-1" />
+              : <Square className="w-3.5 h-3.5 mr-1" />
+            }
+            全済み
           </button>
           <ChevronDown
             className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}

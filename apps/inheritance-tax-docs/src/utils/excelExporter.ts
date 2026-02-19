@@ -1,13 +1,14 @@
-import type { CategoryData, DocumentItem, CustomDocumentItem } from '../constants/documents';
-import { COMPANY_INFO, getFullAddress, getContactLine } from '@tax-apps/utils';
-import { isCustomDocument, formatDate, formatDeadline } from './helpers';
+import type { CategoryDocuments, DocumentItem, CustomDocumentItem } from '../constants/documents';
+import { COMPANY_INFO, getFullAddress, getContactLine } from './company';
+import { isCustomDocument, formatDate, formatDeadline, toCircledNumber } from './helpers';
 
 interface ExcelExportParams {
-  results: { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[];
+  results: CategoryDocuments[];
   clientName: string;
   deceasedName: string;
   deadline: string;
   specificDocNames: Record<string, string[]>;
+  checkedDocuments: Record<string, boolean>;
   personInCharge: string;
   personInChargeContact: string;
 }
@@ -116,7 +117,7 @@ function pushEmptyRow(wsData: object[][]): void {
  */
 export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   const XLSX = (await import('xlsx-js-style')).default;
-  const { results, clientName, deceasedName, deadline, specificDocNames, personInCharge, personInChargeContact } = params;
+  const { results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, personInCharge, personInChargeContact } = params;
   const exportDate = formatDate(new Date());
 
   const wb = XLSX.utils.book_new();
@@ -159,29 +160,31 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   pushEmptyRow(wsData);
 
   // 書類行を追加するヘルパー
-  let rowIdx = 0;
-  function pushDocRow(doc: DocumentItem | CustomDocumentItem): void {
-    const cellStyle = rowIdx % 2 === 0 ? styles.documentCell : styles.documentCellAlt;
+  function pushDocRow(doc: DocumentItem | CustomDocumentItem, index: number): void {
+    const cellStyle = index % 2 === 0 ? styles.documentCell : styles.documentCellAlt;
     const isCustom = isCustomDocument(doc);
     const canDelegate = doc.canDelegate ?? false;
+    const isChecked = checkedDocuments[doc.id] ?? false;
     const baseName = isCustom ? `${doc.name} [追加]` : doc.name;
+    const docNumber = `${index + 1}`;
+    const nameWithStatus = isChecked ? `[済] ${docNumber} ${baseName}` : `${docNumber} ${baseName}`;
     const names = specificDocNames[doc.id];
     const docName = names && names.length > 0
-      ? baseName + '\n' + names.map(n => '・' + n).join('\n')
-      : baseName;
+      ? nameWithStatus + '\n' + names.map((n, i) => `(${i + 1}) ${n}`).join('\n')
+      : nameWithStatus;
     wsData.push([
-      { v: '☐', s: styles.checkCell },
+      { v: isChecked ? '☑' : '☐', s: styles.checkCell },
       { v: docName, s: cellStyle },
       { v: doc.description, s: cellStyle },
       { v: doc.howToGet || '-', s: cellStyle },
       { v: canDelegate ? '可' : '', s: canDelegate ? styles.delegateBadge : cellStyle },
     ]);
-    rowIdx++;
   }
 
   // 各カテゴリのデータ
-  results.forEach(({ category, documents }) => {
-    pushMergedRow(wsData, categoryHeaderRows, `■ ${category.name}（${documents.length}件）`, styles.categoryHeader);
+  results.forEach(({ category, documents }, catIdx) => {
+    const catNum = toCircledNumber(catIdx + 1);
+    pushMergedRow(wsData, categoryHeaderRows, `■ ${catNum} ${category.name}（${documents.length}件）`, styles.categoryHeader);
 
     // テーブルヘッダー
     wsData.push([
@@ -192,8 +195,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
       { v: '代行', s: styles.tableHeader },
     ]);
 
-    rowIdx = 0;
-    documents.forEach(pushDocRow);
+    documents.forEach((doc, i) => pushDocRow(doc, i));
 
     pushEmptyRow(wsData);
   });
@@ -241,11 +243,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
     { s: { r: 3, c: 0 }, e: { r: 3, c: 4 } }, // モード表示
   ];
 
-  categoryHeaderRows.forEach((rowNum) => {
-    merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 4 } });
-  });
-
-  noticeRows.forEach((rowNum) => {
+  [...categoryHeaderRows, ...noticeRows].forEach((rowNum) => {
     merges.push({ s: { r: rowNum, c: 0 }, e: { r: rowNum, c: 4 } });
   });
 

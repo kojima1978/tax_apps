@@ -1,5 +1,3 @@
-'use client';
-
 import { useDocumentGuide } from '../hooks/useDocumentGuide';
 import { UnifiedDocumentView } from './UnifiedDocumentView';
 import { DocumentFormModal } from './ui/DocumentFormModal';
@@ -7,18 +5,21 @@ import { DocumentFormModal } from './ui/DocumentFormModal';
 export default function InheritanceTaxDocGuide() {
   const {
     // state
-    expandedCategories, deletedDocuments, customDocuments, documentOrder,
-    editedDocuments, canDelegateOverrides, specificDocNames,
+    expandedCategories, customDocuments, documentOrder,
+    editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
+    deleteConfirmation,
     clientName, deceasedName, deadline, personInCharge, personInChargeContact, stats,
     // モーダル
     editingDocId, editingDocData, isModalOpen, modalVariant,
     // handlers
     setClientName, setDeceasedName, setDeadline, setPersonInCharge, setPersonInChargeContact,
-    toggleExpanded, deleteDocument, restoreDocument,
-    removeCustomDocument, reorderDocuments,
+    toggleExpanded,
+    reorderDocuments,
     toggleCanDelegate,
     addSpecificName, editSpecificName, removeSpecificName,
-    deleteAllInCategory, restoreAllInCategory, restoreAll, resetToDefault,
+    toggleDocumentCheck, toggleAllInCategory,
+    requestDelete, requestDeleteCategory, confirmDelete, cancelDelete,
+    resetToDefault,
     exportToJson, importFromJson, getSelectedDocuments,
     openEditModal, openAddModal, closeModal,
     handleEditSubmit, handleAddSubmit,
@@ -33,12 +34,13 @@ export default function InheritanceTaxDocGuide() {
         personInCharge={personInCharge}
         personInChargeContact={personInChargeContact}
         expandedCategories={expandedCategories}
-        deletedDocuments={deletedDocuments}
         customDocuments={customDocuments}
         documentOrder={documentOrder}
         editedDocuments={editedDocuments}
         canDelegateOverrides={canDelegateOverrides}
         specificDocNames={specificDocNames}
+        checkedDocuments={checkedDocuments}
+        deleteConfirmation={deleteConfirmation}
         stats={stats}
         onClientNameChange={setClientName}
         onDeceasedNameChange={setDeceasedName}
@@ -46,17 +48,17 @@ export default function InheritanceTaxDocGuide() {
         onPersonInChargeChange={setPersonInCharge}
         onPersonInChargeContactChange={setPersonInChargeContact}
         onToggleExpanded={toggleExpanded}
-        onDeleteDocument={deleteDocument}
-        onRestoreDocument={restoreDocument}
-        onDeleteAllInCategory={deleteAllInCategory}
-        onRestoreAllInCategory={restoreAllInCategory}
-        onRemoveCustomDocument={removeCustomDocument}
         onReorderDocuments={reorderDocuments}
         onToggleCanDelegate={toggleCanDelegate}
         onAddSpecificName={addSpecificName}
         onEditSpecificName={editSpecificName}
         onRemoveSpecificName={removeSpecificName}
-        onRestoreAll={restoreAll}
+        onToggleDocumentCheck={toggleDocumentCheck}
+        onToggleAllInCategory={toggleAllInCategory}
+        onRemoveDocument={requestDelete}
+        onRemoveCategory={requestDeleteCategory}
+        onConfirmDelete={confirmDelete}
+        onCancelDelete={cancelDelete}
         onResetToDefault={resetToDefault}
         onExportJson={exportToJson}
         onImportJson={importFromJson}
