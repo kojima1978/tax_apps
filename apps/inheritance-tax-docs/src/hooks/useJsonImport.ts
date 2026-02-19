@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useCallback } from 'react';
 import { readJsonFile, validateImportData, type ExportData } from '../utils/jsonDataManager';
 

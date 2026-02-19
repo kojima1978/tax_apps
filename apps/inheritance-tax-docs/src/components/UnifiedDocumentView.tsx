@@ -1,33 +1,28 @@
-'use client';
-
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
 import {
   FileSpreadsheet,
   FileDown,
   Download,
   Upload,
-  RefreshCw,
   RotateCcw,
   Info,
   AlertCircle,
   Home,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
-import { CATEGORIES, type CategoryData, type DocumentItem, type CustomDocumentItem, type DocChanges } from '../constants/documents';
-import { COMPANY_INFO, getFullAddress, getContactLine } from '@tax-apps/utils';
+import { CATEGORIES, type CategoryDocuments, type CustomDocumentItem, type DocChanges, type Stats } from '../constants/documents';
+import { COMPANY_INFO, getFullAddress, getContactLine } from '../utils/company';
 import { exportToExcel } from '../utils/excelExporter';
 import { type ExportData } from '../utils/jsonDataManager';
 import { formatDate, formatDeadline } from '../utils/helpers';
 import { useJsonImport } from '../hooks/useJsonImport';
 import { DismissibleBanner } from './ui/DismissibleBanner';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 import { EditableCategoryTable } from './ui/EditableCategoryTable';
 
-interface Stats {
-  totalBuiltIn: number;
-  deletedCount: number;
-  customCount: number;
-  activeCount: number;
-  hasCustomizations: boolean;
-}
+const TOOLBAR_BTN = 'flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm';
+const FORM_INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 interface UnifiedDocumentViewProps {
   clientName: string;
@@ -36,12 +31,13 @@ interface UnifiedDocumentViewProps {
   personInCharge: string;
   personInChargeContact: string;
   expandedCategories: Record<string, boolean>;
-  deletedDocuments: Record<string, boolean>;
   customDocuments: CustomDocumentItem[];
   documentOrder: Record<string, string[]>;
   editedDocuments: Record<string, DocChanges>;
   canDelegateOverrides: Record<string, boolean>;
   specificDocNames: Record<string, string[]>;
+  checkedDocuments: Record<string, boolean>;
+  deleteConfirmation: { type: 'document' | 'category'; name: string } | null;
   stats: Stats;
   onClientNameChange: (value: string) => void;
   onDeceasedNameChange: (value: string) => void;
@@ -49,23 +45,23 @@ interface UnifiedDocumentViewProps {
   onPersonInChargeChange: (value: string) => void;
   onPersonInChargeContactChange: (value: string) => void;
   onToggleExpanded: (categoryId: string) => void;
-  onDeleteDocument: (docId: string) => void;
-  onRestoreDocument: (docId: string) => void;
-  onDeleteAllInCategory: (categoryId: string) => void;
-  onRestoreAllInCategory: (categoryId: string) => void;
-  onRemoveCustomDocument: (docId: string, categoryId: string) => void;
   onReorderDocuments: (categoryId: string, newOrder: string[]) => void;
   onToggleCanDelegate: (docId: string, originalCanDelegate: boolean) => void;
   onAddSpecificName: (docId: string, name: string) => void;
   onEditSpecificName: (docId: string, index: number, name: string) => void;
   onRemoveSpecificName: (docId: string, index: number) => void;
-  onRestoreAll: () => void;
+  onToggleDocumentCheck: (docId: string) => void;
+  onToggleAllInCategory: (categoryId: string, checked: boolean) => void;
+  onRemoveDocument: (docId: string, categoryId: string, name: string) => void;
+  onRemoveCategory: (categoryId: string, name: string) => void;
+  onConfirmDelete: () => void;
+  onCancelDelete: () => void;
   onResetToDefault: () => void;
   onExportJson: () => void;
   onImportJson: (data: ExportData) => void;
   onOpenAddModal: (categoryId: string) => void;
   onStartEdit: (docId: string) => void;
-  getSelectedDocuments: () => { category: CategoryData; documents: (DocumentItem | CustomDocumentItem)[] }[];
+  getSelectedDocuments: () => CategoryDocuments[];
 }
 
 function UnifiedDocumentViewComponent({
@@ -75,12 +71,13 @@ function UnifiedDocumentViewComponent({
   personInCharge,
   personInChargeContact,
   expandedCategories,
-  deletedDocuments,
   customDocuments,
   documentOrder,
   editedDocuments,
   canDelegateOverrides,
   specificDocNames,
+  checkedDocuments,
+  deleteConfirmation,
   stats,
   onClientNameChange,
   onDeceasedNameChange,
@@ -88,17 +85,17 @@ function UnifiedDocumentViewComponent({
   onPersonInChargeChange,
   onPersonInChargeContactChange,
   onToggleExpanded,
-  onDeleteDocument,
-  onRestoreDocument,
-  onDeleteAllInCategory,
-  onRestoreAllInCategory,
-  onRemoveCustomDocument,
   onReorderDocuments,
   onToggleCanDelegate,
   onAddSpecificName,
   onEditSpecificName,
   onRemoveSpecificName,
-  onRestoreAll,
+  onToggleDocumentCheck,
+  onToggleAllInCategory,
+  onRemoveDocument,
+  onRemoveCategory,
+  onConfirmDelete,
+  onCancelDelete,
   onResetToDefault,
   onExportJson,
   onImportJson,
@@ -110,16 +107,36 @@ function UnifiedDocumentViewComponent({
   const [exportError, setExportError] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess } = useJsonImport(onImportJson);
-  const currentDate = formatDate(new Date());
+  const [hideSubmittedInPrint, setHideSubmittedInPrint] = useState(false);
+  const [currentDate, setCurrentDate] = useState('');
+  useEffect(() => { setCurrentDate(formatDate(new Date())); }, []);
 
-  const handlePrint = () => { window.print(); };
+  const printInfoFields: { label: string; value: string; format?: (v: string) => string }[] = [
+    { label: 'お客様名', value: clientName, format: v => `${v} 様` },
+    { label: '被相続人', value: deceasedName, format: v => `${v} 様` },
+    { label: '資料収集期限（目安）', value: deadline, format: formatDeadline },
+    { label: '担当者', value: personInCharge },
+    { label: '担当者連絡先', value: personInChargeContact },
+  ];
+
+  const inputRows: { cols: string; fields: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }[] }[] = [
+    { cols: 'md:grid-cols-3', fields: [
+      { label: 'お客様名', value: clientName, onChange: onClientNameChange, placeholder: '例：山田 太郎' },
+      { label: '被相続人名', value: deceasedName, onChange: onDeceasedNameChange, placeholder: '例：山田 一郎' },
+      { label: '資料収集期限', value: deadline, onChange: onDeadlineChange, type: 'date' },
+    ]},
+    { cols: 'md:grid-cols-2', fields: [
+      { label: '担当者', value: personInCharge, onChange: onPersonInChargeChange, placeholder: '例：佐藤 花子' },
+      { label: '担当者連絡先', value: personInChargeContact, onChange: onPersonInChargeContactChange, placeholder: '例：088-632-6228' },
+    ]},
+  ];
 
   const handleExcelExport = async () => {
     setIsExporting(true);
     setExportError(null);
     try {
       const results = getSelectedDocuments();
-      exportToExcel({ results, clientName, deceasedName, deadline, specificDocNames, personInCharge, personInChargeContact });
+      exportToExcel({ results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, personInCharge, personInChargeContact });
     } catch (error) {
       console.error('Excel export failed:', error);
       setExportError('Excelファイルの出力に失敗しました。もう一度お試しください。');
@@ -149,13 +166,13 @@ function UnifiedDocumentViewComponent({
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={onExportJson}
-                className="flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm bg-indigo-600 hover:bg-indigo-700"
+                className={`${TOOLBAR_BTN} bg-indigo-600 hover:bg-indigo-700`}
                 title="設定をJSONファイルとして保存"
               >
                 <Download className="w-4 h-4 mr-1" /> 保存
               </button>
               <label
-                className={`flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm cursor-pointer ${
+                className={`${TOOLBAR_BTN} cursor-pointer ${
                   isImporting ? 'bg-slate-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
                 }`}
                 title="JSONファイルから設定を読み込み"
@@ -166,22 +183,22 @@ function UnifiedDocumentViewComponent({
               <button
                 onClick={handleExcelExport}
                 disabled={isExporting}
-                className={`flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm bg-emerald-600 hover:bg-emerald-700 ${
+                className={`${TOOLBAR_BTN} bg-emerald-600 hover:bg-emerald-700 ${
                   isExporting ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 <FileSpreadsheet className="w-4 h-4 mr-1" /> {isExporting ? '出力中...' : 'Excel'}
               </button>
               <button
-                onClick={handlePrint}
-                className="flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm bg-blue-600 hover:bg-blue-700"
+                onClick={() => window.print()}
+                className={`${TOOLBAR_BTN} bg-blue-600 hover:bg-blue-700`}
               >
                 <FileDown className="w-4 h-4 mr-1" /> 印刷
               </button>
               <button
                 onClick={() => setShowResetConfirm(true)}
                 disabled={!stats.hasCustomizations}
-                className={`flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm ${
+                className={`${TOOLBAR_BTN} ${
                   stats.hasCustomizations ? 'bg-slate-600 hover:bg-slate-700' : 'bg-slate-400 cursor-not-allowed opacity-50'
                 }`}
                 title="書類のカスタマイズをすべて初期状態に戻す"
@@ -208,81 +225,53 @@ function UnifiedDocumentViewComponent({
               <p>{COMPANY_INFO.name}</p>
             </div>
           </div>
-          {(clientName || deceasedName || deadline || personInCharge || personInChargeContact) && (
+          {printInfoFields.some(f => f.value) && (
             <div className="mt-4 p-4 bg-white border border-blue-200 rounded-lg grid grid-cols-3 gap-4 print-compact-info">
-              {clientName && (
-                <div>
-                  <span className="text-xs text-slate-500 print:text-[9px]">お客様名</span>
-                  <p className="font-bold text-slate-800 print:text-xs">{clientName} 様</p>
+              {printInfoFields.filter(f => f.value).map(({ label, value, format }) => (
+                <div key={label}>
+                  <span className="text-xs text-slate-500 print:text-[9px]">{label}</span>
+                  <p className="font-bold text-slate-800 print:text-xs">{format ? format(value) : value}</p>
                 </div>
-              )}
-              {deceasedName && (
-                <div>
-                  <span className="text-xs text-slate-500 print:text-[9px]">被相続人</span>
-                  <p className="font-bold text-slate-800 print:text-xs">{deceasedName} 様</p>
-                </div>
-              )}
-              {deadline && (
-                <div>
-                  <span className="text-xs text-slate-500 print:text-[9px]">資料収集期限（目安）</span>
-                  <p className="font-bold text-slate-800 print:text-xs">{formatDeadline(deadline)}</p>
-                </div>
-              )}
-              {personInCharge && (
-                <div>
-                  <span className="text-xs text-slate-500 print:text-[9px]">担当者</span>
-                  <p className="font-bold text-slate-800 print:text-xs">{personInCharge}</p>
-                </div>
-              )}
-              {personInChargeContact && (
-                <div>
-                  <span className="text-xs text-slate-500 print:text-[9px]">担当者連絡先</span>
-                  <p className="font-bold text-slate-800 print:text-xs">{personInChargeContact}</p>
-                </div>
-              )}
+              ))}
             </div>
           )}
         </div>
 
         {/* 初期化確認ダイアログ */}
         {showResetConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 no-print" onClick={() => setShowResetConfirm(false)}>
-            <div
-              className="bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4"
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => { if (e.key === 'Escape') setShowResetConfirm(false); }}
-            >
-              <h3 className="text-lg font-bold text-slate-800 mb-2">書類設定を初期化</h3>
-              <p className="text-sm text-slate-600 mb-1">
-                以下のカスタマイズがすべてリセットされます:
-              </p>
-              <ul className="text-sm text-slate-500 list-disc list-inside mb-4 space-y-0.5">
-                <li>追加した書類</li>
-                <li>削除した書類</li>
-                <li>並び替え</li>
-                <li>名称・説明の変更</li>
-                <li>代行可否の変更</li>
-                <li>具体的な書類名</li>
-              </ul>
-              <p className="text-xs text-slate-400 mb-4">
-                ※ お客様名・被相続人名・期限・担当者情報は保持されます。
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowResetConfirm(false)}
-                  className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
-                >
-                  キャンセル
-                </button>
-                <button
-                  onClick={() => { onResetToDefault(); setShowResetConfirm(false); }}
-                  className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg font-bold"
-                >
-                  初期化する
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmDialog
+            title="書類設定を初期化"
+            onConfirm={() => { onResetToDefault(); setShowResetConfirm(false); }}
+            onCancel={() => setShowResetConfirm(false)}
+            confirmLabel="初期化する"
+          >
+            <p className="text-sm text-slate-600 mb-1">
+              以下のカスタマイズがすべてリセットされます:
+            </p>
+            <ul className="text-sm text-slate-500 list-disc list-inside mb-4 space-y-0.5">
+              <li>追加した書類</li>
+              <li>並び替え</li>
+              <li>名称・説明の変更</li>
+              <li>代行可否の変更</li>
+              <li>具体的な書類名</li>
+            </ul>
+            <p className="text-xs text-slate-400 mb-4">
+              ※ お客様名・被相続人名・期限・担当者情報は保持されます。
+            </p>
+          </ConfirmDialog>
+        )}
+
+        {/* 削除確認ダイアログ */}
+        {deleteConfirmation && (
+          <ConfirmDialog
+            title={deleteConfirmation.type === 'document' ? '書類を削除' : 'カテゴリを削除'}
+            onConfirm={onConfirmDelete}
+            onCancel={onCancelDelete}
+          >
+            <p className="text-sm text-slate-600 mb-4">
+              「{deleteConfirmation.name}」を削除しますか？
+            </p>
+          </ConfirmDialog>
         )}
 
         {/* エラー表示 */}
@@ -292,86 +281,51 @@ function UnifiedDocumentViewComponent({
 
         {/* 基本情報入力（スクリーン用） */}
         <div className="p-6 bg-blue-50 border-b border-blue-100 no-print">
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm text-slate-600 mb-1">お客様名</label>
-              <input
-                type="text"
-                value={clientName}
-                onChange={(e) => onClientNameChange(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例：山田 太郎"
-              />
+          {inputRows.map(({ cols, fields }, ri) => (
+            <div key={ri} className={`grid ${cols} gap-4${ri > 0 ? ' mt-4' : ''}`}>
+              {fields.map(({ label, value, onChange, type, placeholder }) => (
+                <div key={label}>
+                  <label className="block text-sm text-slate-600 mb-1">{label}</label>
+                  <input
+                    type={type ?? 'text'}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className={FORM_INPUT_CLASS}
+                    placeholder={placeholder}
+                  />
+                </div>
+              ))}
             </div>
-            <div>
-              <label className="block text-sm text-slate-600 mb-1">被相続人名</label>
-              <input
-                type="text"
-                value={deceasedName}
-                onChange={(e) => onDeceasedNameChange(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例：山田 一郎"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-slate-600 mb-1">資料収集期限</label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => onDeadlineChange(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          <div className="grid md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="block text-sm text-slate-600 mb-1">担当者</label>
-              <input
-                type="text"
-                value={personInCharge}
-                onChange={(e) => onPersonInChargeChange(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例：佐藤 花子"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-slate-600 mb-1">担当者連絡先</label>
-              <input
-                type="text"
-                value={personInChargeContact}
-                onChange={(e) => onPersonInChargeContactChange(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例：088-632-6228"
-              />
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* 統計バー（スクリーン用） */}
         <div className="px-6 py-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 no-print">
           <div className="text-sm text-slate-600 flex items-center gap-4">
-            <span>
-              有効: <span className="font-bold text-blue-600">{stats.activeCount}</span>件
+            <span className="bg-emerald-100 text-emerald-700 px-3 py-0.5 rounded-full font-medium">
+              {stats.checkedCount} / {stats.totalCount} 提出済み
             </span>
-            {stats.deletedCount > 0 && (
-              <span className="text-slate-400">
-                削除済み: <span className="text-red-500">{stats.deletedCount}</span>件
-              </span>
-            )}
             {stats.customCount > 0 && (
               <span className="text-slate-400">
                 追加: <span className="text-emerald-600">{stats.customCount}</span>件
               </span>
             )}
           </div>
-          {stats.deletedCount > 0 && (
-            <button
-              onClick={onRestoreAll}
-              className="flex items-center px-3 py-1 text-sm text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-            >
-              <RefreshCw className="w-3 h-3 mr-1" /> 全て復元
-            </button>
-          )}
+          <button
+            onClick={() => setHideSubmittedInPrint(!hideSubmittedInPrint)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              hideSubmittedInPrint
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+            }`}
+            title={hideSubmittedInPrint ? '提出済みを印刷に含める' : '提出済みを印刷で非表示'}
+          >
+            {hideSubmittedInPrint
+              ? <EyeOff className="w-4 h-4" />
+              : <Eye className="w-4 h-4" />
+            }
+            提出済みを印刷で非表示
+          </button>
         </div>
 
         {/* 注意事項 */}
@@ -397,28 +351,29 @@ function UnifiedDocumentViewComponent({
 
         {/* カテゴリテーブル群 */}
         <div className="p-6 space-y-4 print:space-y-1 print:p-2">
-          {CATEGORIES.map((category) => (
+          {CATEGORIES.filter((category) => (documentOrder[category.id] || []).length > 0).map((category, index) => (
             <EditableCategoryTable
               key={category.id}
               category={category}
+              categoryIndex={index + 1}
               isExpanded={expandedCategories[category.id] ?? false}
-              deletedDocuments={deletedDocuments}
               customDocuments={customDocuments}
               documentOrder={documentOrder[category.id] || []}
               editedDocuments={editedDocuments}
               canDelegateOverrides={canDelegateOverrides}
               specificDocNames={specificDocNames}
               onToggleExpanded={onToggleExpanded}
-              onDeleteDocument={onDeleteDocument}
-              onRestoreDocument={onRestoreDocument}
-              onDeleteAllInCategory={onDeleteAllInCategory}
-              onRestoreAllInCategory={onRestoreAllInCategory}
-              onRemoveCustomDocument={onRemoveCustomDocument}
               onReorderDocuments={onReorderDocuments}
               onToggleCanDelegate={onToggleCanDelegate}
               onAddSpecificName={onAddSpecificName}
               onEditSpecificName={onEditSpecificName}
               onRemoveSpecificName={onRemoveSpecificName}
+              checkedDocuments={checkedDocuments}
+              onToggleDocumentCheck={onToggleDocumentCheck}
+              onToggleAllInCategory={onToggleAllInCategory}
+              onRemoveDocument={onRemoveDocument}
+              onRemoveCategory={onRemoveCategory}
+              hideSubmittedInPrint={hideSubmittedInPrint}
               onOpenAddModal={onOpenAddModal}
               onStartEdit={onStartEdit}
             />

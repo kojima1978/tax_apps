@@ -2,7 +2,7 @@
 
 # =============================================================================
 # 相続税申告 資料準備ガイド - Dockerfile
-# Multi-stage build for development and production (pnpm monorepo)
+# Multi-stage build for development and production (nginx static)
 # =============================================================================
 
 ARG NODE_VERSION=22
@@ -12,32 +12,25 @@ ARG NODE_VERSION=22
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS base
 RUN apk upgrade --no-cache && \
-    apk add --no-cache libc6-compat && \
-    corepack enable && corepack prepare pnpm@9.15.4 --activate
+    apk add --no-cache libc6-compat
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
 
 # =============================================================================
-# Dependencies stage - Install pnpm packages
+# Dependencies stage - Install npm packages
 # =============================================================================
 FROM base AS deps
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/utils/package.json ./packages/utils/
-COPY apps/inheritance-tax-docs/package.json ./apps/inheritance-tax-docs/
-RUN --mount=type=cache,id=pnpm-store-inheritance-tax-docs,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,id=npm-store-inheritance-tax-docs,target=/root/.npm \
+    npm ci
 
 # =============================================================================
 # Development stage - For local development with hot reload
 # =============================================================================
 FROM deps AS dev
-ENV NODE_ENV=development
-COPY packages/utils/ ./packages/utils/
-COPY apps/inheritance-tax-docs/ ./apps/inheritance-tax-docs/
-RUN cd packages/utils && pnpm build
-WORKDIR /app/apps/inheritance-tax-docs
+ENV NODE_ENV=development TZ=Asia/Tokyo
+COPY . .
 EXPOSE 3003
-CMD ["pnpm", "dev"]
+CMD ["npm", "run", "dev", "--", "--host", "--port", "3003"]
 
 # =============================================================================
 # Builder stage - Build the production application
@@ -45,19 +38,15 @@ CMD ["pnpm", "dev"]
 FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
 ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS}
-COPY packages/utils/src ./packages/utils/src
-COPY packages/utils/tsconfig.json ./packages/utils/
-COPY apps/inheritance-tax-docs/ ./apps/inheritance-tax-docs/
-RUN --mount=type=cache,id=nextjs-inheritance-tax-docs,target=/app/apps/inheritance-tax-docs/.next/cache \
-    cd packages/utils && pnpm build && \
-    cd ../../apps/inheritance-tax-docs && \
-    mkdir -p public && \
-    pnpm next build
+COPY . .
+RUN npm run build
 
 # =============================================================================
-# Production runner stage - Minimal, secure production image
+# Production stage - Minimal nginx image serving static files
 # =============================================================================
-FROM node:${NODE_VERSION}-alpine AS runner
+FROM nginx:1.27-alpine AS runner
+
+RUN apk upgrade --no-cache
 
 LABEL org.opencontainers.image.title="Inheritance Tax Docs" \
       org.opencontainers.image.description="相続税申告 資料準備ガイド" \
@@ -65,31 +54,26 @@ LABEL org.opencontainers.image.title="Inheritance Tax Docs" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-WORKDIR /app
+# nginx設定をコピー
+COPY --link nginx-main.conf /etc/nginx/nginx.conf
+COPY --link nginx.conf /etc/nginx/conf.d/default.conf
+COPY --link nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 
-ENV NODE_ENV=production \
-    PORT=3003 \
-    HOSTNAME=0.0.0.0 \
-    TZ=Asia/Tokyo
+# ビルド成果物をコピー
+COPY --link --chown=101:101 --from=builder /app/dist /usr/share/nginx/html/inheritance-tax-docs
 
-RUN apk upgrade --no-cache && \
-    apk add --no-cache tini tzdata && \
-    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
-    echo "Asia/Tokyo" > /etc/timezone && \
-    apk del tzdata && \
-    addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 --ingroup nodejs nextjs
+# non-root実行の準備
+RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html && \
+    chown -R nginx:nginx /var/cache/nginx /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown nginx:nginx /var/run/nginx.pid
 
-COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-tax-docs/.next/standalone ./
-COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-tax-docs/.next/static ./apps/inheritance-tax-docs/.next/static
-COPY --from=builder --chown=1001:1001 --link /app/apps/inheritance-tax-docs/public ./apps/inheritance-tax-docs/public
+USER nginx
 
-USER nextjs
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3003/inheritance-tax-docs/ || exit 1
+
+STOPSIGNAL SIGQUIT
+
 EXPOSE 3003
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3003/inheritance-tax-docs/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
-
-STOPSIGNAL SIGTERM
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "apps/inheritance-tax-docs/server.js"]
+CMD ["nginx", "-g", "daemon off;"]

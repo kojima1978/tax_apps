@@ -15,27 +15,31 @@
 | 具体的書類名 | 各書類に具体名をインライン追加（連続入力対応、テキストクリック編集） |
 | ドラッグ&ドロップ | テーブル行のD&Dで並び順を変更 |
 | 代行可否設定 | 各書類の取得代行可否をワンクリック切替 |
-| 一括操作 | カテゴリ単位の一括不要/一括復元 |
+| 提出済みチェック | 書類ごとのチェックボックス + カテゴリ単位の「全済み」3段階ボタン |
+| 書類・カテゴリ削除 | 確認ダイアログ付きの永久削除（Trash2アイコン） |
+| 印刷非表示 | 提出済み書類を印刷時に非表示にするトグル（Eye/EyeOff） |
 | 初期化 | 書類カスタマイズを標準状態に戻す（確認ダイアログ付き、基本情報は保持） |
 
 ### 出力機能
 
 | 機能 | 説明 |
 |:-----|:-----|
-| Excel出力 | xlsx-js-style によるスタイル付きExcelファイル |
-| 印刷/PDF保存 | ブラウザ印刷機能（印刷時はチェックボックス列に自動変換） |
-| JSON保存 | 設定をJSONファイルとして保存（後方互換あり） |
-| JSON読込 | JSONファイルから設定を復元 |
+| Excel出力 | xlsx-js-style によるスタイル付きExcelファイル（提出済みは`[済]`+`☑`表示） |
+| 印刷/PDF保存 | ブラウザ印刷機能（印刷専用ヘッダー自動表示、チェック列付き） |
+| JSON保存 | 設定をJSONファイルとして保存 |
+| JSON読込 | JSONファイルから設定を復元（旧データの後方互換あり） |
 
 ### 画面レイアウト
 
 - **ヘッダーツールバー**: 保存・読込・Excel・印刷・初期化ボタン
 - **基本情報入力**: お客様名・被相続人名・資料収集期限・担当者・担当者連絡先
-- **統計バー**: 有効件数・削除済み件数・追加件数 + 全て復元ボタン
+- **統計バー**: `N / M 提出済み` ピルバッジ + 追加件数 + 印刷非表示トグル
+- **注意事項**: 原本・代行・身分関係書類の案内
 - **カテゴリテーブル群**: カテゴリごとに展開/折りたたみ可能
-  - 各行: D&Dハンドル | 書類名+具体名 | 内容説明 | 取得方法 | 代行 | 操作
-  - 削除した行は斜線表示（印刷時は非表示）
-- **注意事項・留意事項・フッター**
+  - ヘッダー: 丸数字+カテゴリ名 + 全済みボタン + 書類追加 + カテゴリ削除
+  - 各行: D&Dハンドル | チェックボックス | 書類名+具体名 | 内容説明 | 取得方法 | 代行 | 操作（編集/削除）
+  - 提出済み行は取消線+テキスト薄表示
+- **留意事項・フッター**: 事務所住所・連絡先
 
 ## セットアップ
 
@@ -72,9 +76,9 @@ http://localhost:3000/inheritance-tax-docs/ でアクセスできます。
 
 | カテゴリ | 技術 |
 |:--------|:-----|
-| フレームワーク | Next.js 16 (App Router, standalone) |
+| ビルドツール | Vite 6 |
 | UI | React 19, Tailwind CSS v4 |
-| 言語 | TypeScript 5 |
+| 言語 | TypeScript 5.9 |
 | D&D | @dnd-kit/core + @dnd-kit/sortable |
 | Excel出力 | xlsx-js-style |
 | アイコン | Lucide React |
@@ -85,34 +89,36 @@ http://localhost:3000/inheritance-tax-docs/ でアクセスできます。
 ```
 inheritance-tax-docs/
 ├── src/
-│   ├── app/                          # Next.js App Router
-│   │   ├── page.tsx                  # メインページ
-│   │   ├── layout.tsx                # ルートレイアウト
+│   ├── App.tsx                       # メインコンポーネント
+│   ├── main.tsx                      # Reactエントリポイント
+│   ├── app/
 │   │   └── globals.css               # グローバルスタイル（印刷CSS含む）
 │   ├── components/
 │   │   ├── InheritanceTaxDocGuide.tsx # エントリポイント（hook→view+modal）
-│   │   ├── UnifiedDocumentView.tsx   # 統合ビュー（ツールバー/基本情報/テーブル群）
+│   │   ├── UnifiedDocumentView.tsx    # 統合ビュー（ツールバー/基本情報/テーブル群）
 │   │   └── ui/
+│   │       ├── ConfirmDialog.tsx      # 汎用確認ダイアログ（削除/初期化）
+│   │       ├── DismissibleBanner.tsx  # 閉じられるバナー（error/success）
+│   │       ├── DocumentForm.tsx       # 書類入力フォーム（add/edit共通）
 │   │       ├── DocumentFormModal.tsx  # 書類追加/編集モーダル
-│   │       ├── DocumentForm.tsx      # 書類入力フォーム（add/edit共通）
-│   │       ├── EditableCategoryTable.tsx # カテゴリテーブル（D&D/展開/一括操作）
-│   │       ├── EditableDocumentRow.tsx   # テーブル行（D&D/具体名/操作）
-│   │       ├── SpecificNamesList.tsx # 具体的書類名リスト（連続入力/編集/削除）
-│   │       └── DismissibleBanner.tsx # 閉じられるバナー（error/success）
+│   │       ├── EditableCategoryTable.tsx # カテゴリテーブル（D&D/展開/全済み/削除）
+│   │       ├── EditableDocumentRow.tsx   # テーブル行（チェック/D&D/具体名/操作）
+│   │       └── SpecificNamesList.tsx  # 具体的書類名リスト（連続入力/編集/削除）
 │   ├── constants/
-│   │   └── documents.ts             # 書類マスターデータ + 型定義
+│   │   └── documents.ts              # 書類マスターデータ + 共有型定義
 │   ├── hooks/
-│   │   ├── useDocumentGuide.ts      # 全状態管理 + ハンドラー（初期化含む）
-│   │   ├── useDocumentModal.ts      # モーダル状態管理
-│   │   └── useJsonImport.ts         # JSONインポートロジック
+│   │   ├── useDocumentGuide.ts       # 全状態管理 + ハンドラー
+│   │   ├── useDocumentModal.ts       # モーダル状態管理
+│   │   └── useJsonImport.ts          # JSONインポートロジック
 │   └── utils/
-│       ├── excelExporter.ts         # Excel出力（xlsx-js-style）
-│       ├── jsonDataManager.ts       # JSON保存/読込/バリデーション
-│       ├── helpers.ts               # isCustomDocument, formatDate等
-│       └── iconMap.tsx              # アイコン名→Lucideコンポーネント変換
-├── Dockerfile                        # マルチステージビルド（base/deps/dev/builder/runner）
+│       ├── company.ts                # 事務所情報（COMPANY_INFO）
+│       ├── excelExporter.ts          # Excel出力（xlsx-js-style）
+│       ├── helpers.ts                # isCustomDocument, formatDate, toCircledNumber等
+│       ├── iconMap.tsx               # アイコン名→Lucideコンポーネント変換
+│       └── jsonDataManager.ts        # JSON保存/読込/バリデーション
+├── Dockerfile                        # マルチステージビルド
 ├── docker-compose.yml                # スタンドアロンDocker設定
-├── next.config.ts                    # Next.js設定（standalone, basePath）
+├── vite.config.ts                    # Vite設定（basePath, エイリアス）
 └── package.json
 ```
 
@@ -131,14 +137,14 @@ inheritance-tax-docs/
     "deadline": "2026-03-31",
     "personInCharge": "佐藤 花子",
     "personInChargeContact": "088-632-6228",
-    "deletedDocuments": {},
     "customDocuments": [],
-    "documentOrder": {},
+    "documentOrder": { "cat_01": ["doc_01", "doc_02"] },
     "editedDocuments": {},
     "canDelegateOverrides": {},
     "specificDocNames": {
       "doc_id": ["三菱UFJ銀行 普通口座", "ゆうちょ銀行 通常貯金"]
-    }
+    },
+    "checkedDocuments": { "doc_01": true }
   }
 }
 ```
