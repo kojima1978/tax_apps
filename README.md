@@ -14,16 +14,16 @@
 | アプリ名 | パス | ゲートウェイURL (推奨) | コンテナポート | 技術スタック | 説明 |
 |---------|------|----------------------|----------------|-------------|------|
 | ポータル | `/` | http://localhost/ | 3000 | Next.js (Static) | ランチャーダッシュボード |
-| 相続税計算 | `/inheritance-tax-app/` | http://localhost/inheritance-tax-app/ | 5173 | Vite/React | 相続税シミュレーション |
+| 相続税計算 | `/inheritance-tax-app/` | http://localhost/inheritance-tax-app/ | 3004 | Vite/React | 相続税シミュレーション |
 | 贈与税計算 | `/gift-tax-simulator/` | http://localhost/gift-tax-simulator/ | 3001 | Next.js | 贈与税シミュレーション |
-| 贈与税申告書類案内 | `/gift-tax-docs/` | http://localhost/gift-tax-docs/ | 3002 | Next.js | 必要書類ガイド |
-| 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Next.js | 必要書類ガイド |
-| 不動産取得税 | `/real-estate-tax/` | http://localhost/real-estate-tax/ | 3004 | Next.js | 不動産取得税計算 |
-| 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3000/3001 | Next.js + Express | 確定申告書類管理 |
+| 贈与税申告書類案内 | `/gift-tax-docs/` | http://localhost/gift-tax-docs/ | 3002 | Vite/React | 必要書類ガイド |
+| 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite/React | 必要書類ガイド |
+| 不動産取得税 | `/real-estate-tax/` | http://localhost/real-estate-tax/ | — (→3001) | Next.js | 301→贈与税シミュレーター |
+| 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3005/3006 | Next.js + Express | 確定申告書類管理 |
 | 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js | 医療法人の株式評価 |
 | 非上場株式評価 | `/shares/` | http://localhost/shares/ | 3012 | Next.js | 非上場株式の評価 |
 | 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3021 | Next.js + Express | 相続税案件管理 |
-| 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 8000 | Django | 預金移動分析 |
+| 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | Django | 預金移動分析 |
 
 ## ディレクトリ構造
 
