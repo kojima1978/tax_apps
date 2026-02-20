@@ -1,9 +1,6 @@
-'use client';
-
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ChevronRight, Download, Edit2, Home, Loader2, Settings, Upload, Users, UserPlus } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Link, useNavigate } from 'react-router-dom';
 import { taxReturnData } from '@/data/taxReturnData';
 import { formatReiwaYear } from '@/utils/date';
 import { fetchStaff, fetchCustomerNames, fetchAvailableYears } from '@/utils/api';
@@ -23,7 +20,7 @@ interface MenuScreenProps {
 }
 
 export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [staffList, setStaffList] = useState<{ id: number, staff_name: string }[]>([]);
   const [customerNames, setCustomerNames] = useState<string[]>([]);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
@@ -167,7 +164,7 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
                 {MENU_LINKS.map(({ href, icon: Icon, label, primary }) => (
                   <Link
                     key={href}
-                    href={href}
+                    to={href}
                     className={`inline-flex items-center text-sm font-medium transition-colors ${
                       primary ? 'text-emerald-600 hover:text-emerald-700' : 'text-slate-500 hover:text-emerald-600'
                     }`}
@@ -186,7 +183,7 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
                       value={selectedStaffName}
                       onChange={setSelectedStaffName}
                       options={staffList.map(s => s.staff_name)}
-                      onAdd={() => router.push('/staff/create')}
+                      onAdd={() => navigate('/staff/create')}
                       addLabel="新規登録"
                     />
                     <SelectField
@@ -195,7 +192,7 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
                       onChange={setSelectedCustomer}
                       options={customerNames}
                       disabled={!selectedStaffName}
-                      onAdd={() => router.push('/customers/create')}
+                      onAdd={() => navigate('/customers/create')}
                       addLabel="新規登録"
                     />
                   </div>
@@ -236,7 +233,7 @@ export default function MenuScreen({ onLoadCustomerData }: MenuScreenProps) {
             {/* 管理画面リンク */}
             <div className="mt-12 text-center">
               <Link
-                href="/data-management"
+                to="/data-management"
                 className="inline-flex items-center px-6 py-3 text-slate-500 hover:text-emerald-600 transition-colors hover:bg-slate-50 rounded-full border border-transparent hover:border-slate-200"
               >
                 <Settings className="w-4 h-4 mr-2" />

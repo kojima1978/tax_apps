@@ -1,9 +1,7 @@
-'use client';
-
 import { useState, useEffect, ReactNode } from 'react';
 import { Plus, Trash2, Edit2, Loader2, ChevronLeft } from 'lucide-react';
 import { getErrorMessage } from '@/utils/error';
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 
 interface ListPageProps<T extends { id: number }> {
     title: string;
@@ -67,13 +65,13 @@ export default function ListPage<T extends { id: number }>({
             <div className="max-w-2xl mx-auto">
                 <header className="mb-8 flex items-center justify-between">
                     <div className="flex items-center">
-                        <Link href={backHref} className="mr-4 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all">
+                        <Link to={backHref} className="mr-4 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all">
                             <ChevronLeft className="w-5 h-5" />
                         </Link>
                         <h1 className="text-2xl font-bold text-slate-800">{title}</h1>
                     </div>
                     <Link
-                        href={createHref}
+                        to={createHref}
                         className="flex items-center px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 shadow-md hover:shadow-lg transition-all"
                     >
                         <Plus className="w-5 h-5 mr-1.5" />
@@ -104,7 +102,7 @@ export default function ListPage<T extends { id: number }>({
                                         {renderItem(item)}
                                         <div className="flex items-center gap-2">
                                             <Link
-                                                href={editHref(item.id)}
+                                                to={editHref(item.id)}
                                                 className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                             >
                                                 <Edit2 className="w-5 h-5" />

@@ -1,0 +1,891 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #1b5e20;
+  --primary-light: #4c8c4a;
+  --primary-dark: #003300;
+  --bg-color: #f4f6f4;
+  --text-color: #333;
+  --error-color: #d32f2f;
+  --white: #ffffff;
+  --special-color: #1565c0;
+  --special-bg: #e3f2fd;
+  --general-color: #e65100;
+  --general-bg: #fff3e0;
+}
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+/* コンテナ */
+.container-custom {
+  width: 100%;
+  max-width: 900px;
+  background-color: var(--white);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ヘッダー */
+.header-custom {
+  background-color: var(--primary-color);
+  color: var(--white);
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-custom h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.btn-portal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.btn-portal:hover {
+  opacity: 1;
+}
+
+.btn-print,
+.btn-nav {
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: var(--white);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  text-decoration: none;
+}
+
+.btn-print:hover,
+.btn-nav:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-nav.active {
+  background-color: var(--white);
+  color: var(--primary-color);
+  font-weight: 700;
+  cursor: default;
+}
+
+/* 入力セクション */
+.input-section {
+  padding: 1.5rem;
+  background-color: #fff;
+  border-bottom: 1px solid #eee;
+}
+
+.input-group-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.input-item {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 200px;
+}
+
+.input-item label {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--primary-color);
+  font-size: 0.9rem;
+}
+
+.input-item input[type="text"],
+.input-item select {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-item input[type="text"] {
+  text-align: right;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.btn-calc {
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  height: 50px;
+}
+
+.btn-calc:hover {
+  background-color: var(--primary-light);
+}
+
+.error-msg {
+  color: var(--error-color);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  min-height: 1.2em;
+  font-weight: bold;
+}
+
+/* 結果セクション */
+.result-section {
+  padding: 1.5rem;
+}
+
+/* テーブル共通 */
+.table-container {
+  overflow-x: auto;
+  margin-bottom: 2rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+th,
+td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #ddd;
+  text-align: right;
+}
+
+th {
+  background-color: #e8f5e9;
+  color: var(--primary-dark);
+  text-align: center;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+td:first-child {
+  text-align: left;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+tr:hover {
+  background-color: #f1f8e9;
+}
+
+.highlight-total {
+  font-weight: bold;
+  color: var(--primary-dark);
+}
+
+.row-zero-tax {
+  background-color: #f5f5f5;
+}
+
+.row-zero-tax td {
+  color: #999;
+}
+
+/* 早見表テーブル */
+.tax-table-section {
+  margin-bottom: 2rem;
+}
+
+.table-section-title {
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin: 0 0 0.75rem 0;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+}
+
+.table-section-title.special {
+  background-color: var(--special-bg);
+  color: var(--special-color);
+  border-left: 4px solid var(--special-color);
+}
+
+.table-section-title.general {
+  background-color: var(--general-bg);
+  color: var(--general-color);
+  border-left: 4px solid var(--general-color);
+}
+
+.tax-table-single {
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+.tax-table-single th,
+.tax-table-single td {
+  border: 1px solid #ddd;
+  text-align: center;
+  padding: 10px 15px;
+}
+
+.tax-table-single .col-amount {
+  text-align: left;
+  font-weight: bold;
+  color: var(--primary-color);
+  background-color: #f9f9f9;
+}
+
+.header-special {
+  background-color: var(--special-bg) !important;
+  color: var(--special-color) !important;
+}
+
+.header-general {
+  background-color: var(--general-bg) !important;
+  color: var(--general-color) !important;
+}
+
+.table-common-note {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.table-note {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0.5rem 0 0 0;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.table-note.note-special {
+  color: var(--special-color);
+  background-color: #f5f9ff;
+}
+
+.table-note.note-general {
+  color: var(--general-color);
+  background-color: #fffaf5;
+}
+
+/* 早見表ページ */
+.table-page {
+  page: table-page;
+}
+
+/* グラフエリア */
+.chart-container-custom {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+/* 印刷用フッター */
+.print-footer {
+  margin-top: 2rem;
+  padding: 1rem;
+  border-top: 1px solid #ddd;
+  background-color: #fafafa;
+}
+
+.print-footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.print-footer-company {
+  flex: 1;
+}
+
+.print-footer-company p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.print-footer-company .company-name {
+  font-weight: bold;
+  font-size: 1rem;
+  color: var(--primary-color);
+}
+
+.print-footer-meta {
+  text-align: right;
+}
+
+.staff-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.staff-input-wrapper label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.staff-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 150px;
+}
+
+.print-date {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* =============================================================================
+   間接税シミュレーターページ (統一スタイル)
+   ============================================================================= */
+
+/* トグルボタン */
+.toggle-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: var(--white);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.toggle-btn.active {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--white);
+}
+
+.toggle-btn:hover:not(.active):not(:disabled) {
+  background-color: #f5f5f5;
+}
+
+.toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 2カラムレイアウト */
+.re-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .re-two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
+.re-column {
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+}
+
+.re-column.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.re-column-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.input-item small {
+  display: block;
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+/* 結果ボックス */
+.re-result-box {
+  background-color: var(--primary-dark);
+  color: var(--white);
+  padding: 1.5rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.re-result-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 600px) {
+  .re-result-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.re-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.re-result-label {
+  font-size: 0.85rem;
+  color: #a5d6a7;
+  font-weight: 600;
+}
+
+.re-result-sub {
+  font-size: 0.75rem;
+  color: #bbb;
+}
+
+.re-result-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.re-result-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.re-result-total .total-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+/* 計算過程の詳細 */
+.details-toggle {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 1rem;
+}
+
+.details-toggle:hover {
+  background-color: #eee;
+}
+
+.details-content {
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.detail-section {
+  margin-bottom: 1rem;
+}
+
+.detail-section h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0 0 0.5rem 0;
+}
+
+.detail-box {
+  background-color: var(--white);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.detail-box strong {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.detail-box ul {
+  list-style: disc;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.detail-box li {
+  font-size: 0.8rem;
+  color: #555;
+  margin-bottom: 0.25rem;
+}
+
+/* 免責事項 */
+.disclaimer {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 1rem;
+}
+
+/* A3印刷用ページ設定 */
+@page table-page {
+  size: A3 portrait;
+  margin: 10mm;
+}
+
+/* 印刷用スタイル */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 5mm;
+  }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    overflow: visible !important;
+  }
+
+  .container-custom {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  .btn-print,
+  .btn-nav,
+  .btn-calc,
+  .btn-portal {
+    display: none !important;
+  }
+
+  .input-section {
+    padding: 5px 0 !important;
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .input-group-row {
+    gap: 20px;
+  }
+
+  .input-item {
+    min-width: auto !important;
+    flex: unset !important;
+  }
+
+  .input-item label {
+    font-size: 10pt;
+    color: #000;
+  }
+
+  .input-item input,
+  .input-item select {
+    border: none !important;
+    padding: 0 !important;
+    font-size: 11pt;
+    background: transparent;
+    text-align: left;
+    height: auto;
+    width: auto;
+  }
+
+  .header-custom {
+    padding: 10px 0 !important;
+    color: #000 !important;
+    background: transparent !important;
+    border-bottom: 2px solid var(--primary-color);
+  }
+
+  .header-custom h1 {
+    font-size: 16pt !important;
+    color: var(--primary-color);
+  }
+
+  .result-section {
+    padding: 10px 0 !important;
+  }
+
+  .chart-container-custom {
+    page-break-inside: avoid;
+    height: 300px !important;
+    width: 100% !important;
+    max-width: 170mm !important;
+    margin: 10px auto !important;
+    position: relative !important;
+  }
+
+  .chart-container-custom canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
+  .table-container {
+    margin-bottom: 10px;
+    width: 100% !important;
+  }
+
+  table {
+    font-size: 9pt !important;
+    width: 100% !important;
+  }
+
+  th,
+  td {
+    padding: 4px 6px !important;
+    white-space: nowrap;
+  }
+
+  p {
+    font-size: 8pt !important;
+  }
+
+  /* シミュレーターページ用縮小 */
+  body:not(:has(.table-page)) {
+    transform: scale(0.95);
+    transform-origin: top left;
+    width: 105%;
+  }
+
+  /* 早見表ページ */
+  .table-page {
+    max-width: 100% !important;
+    page: table-page;
+  }
+
+  .table-page .input-section {
+    display: none !important;
+  }
+
+  .table-page .result-section {
+    padding: 5px 0 !important;
+  }
+
+  .table-page .tax-table-section {
+    margin-bottom: 0.75rem;
+    page-break-inside: avoid;
+  }
+
+  .table-page .table-section-title {
+    font-size: 10pt !important;
+    margin-bottom: 0.3rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .table-page .table-common-note {
+    font-size: 8pt !important;
+    margin-bottom: 0.5rem;
+    padding: 0.2rem;
+  }
+
+  .table-page .table-note {
+    font-size: 7pt !important;
+    margin-top: 0.2rem;
+    padding: 0.2rem;
+  }
+
+  .table-page .tax-table-single {
+    width: 100% !important;
+  }
+
+  .table-page .tax-table-single th,
+  .table-page .tax-table-single td {
+    padding: 2px 4px !important;
+    font-size: 8pt !important;
+  }
+
+  .table-page .table-container {
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* 印刷用フッター */
+  .print-footer {
+    margin-top: 1rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid #999;
+    background-color: transparent;
+  }
+
+  .print-footer-content {
+    gap: 1rem;
+  }
+
+  .print-footer-company p {
+    font-size: 9pt !important;
+    margin: 0.15rem 0;
+  }
+
+  .print-footer-company .company-name {
+    font-size: 10pt !important;
+  }
+
+  .staff-input-wrapper {
+    margin-bottom: 0.3rem;
+  }
+
+  .staff-input-wrapper label,
+  .staff-input {
+    font-size: 9pt !important;
+  }
+
+  .staff-input {
+    border: none;
+    border-bottom: 1px solid #333;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .print-date {
+    font-size: 9pt !important;
+  }
+
+  /* 間接税ページ印刷用 */
+  .real-estate-page {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .real-estate-page .input-section {
+    padding: 10px 0 !important;
+  }
+
+  .real-estate-page .re-two-column {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 2rem !important;
+    width: 100% !important;
+  }
+
+  .real-estate-page .re-column {
+    background: transparent !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  .real-estate-page .re-column .input-item {
+    margin-bottom: 8px !important;
+  }
+
+  .real-estate-page .re-column-title {
+    font-size: 10pt !important;
+    border-bottom-color: var(--primary-color);
+  }
+
+  .real-estate-page .toggle-btn {
+    padding: 3px 8px !important;
+    font-size: 9pt !important;
+  }
+
+  .real-estate-page .re-result-box {
+    background-color: var(--primary-dark) !important;
+    color: var(--white) !important;
+    padding: 10px !important;
+    border: none !important;
+  }
+
+  .real-estate-page .re-result-label {
+    color: #a5d6a7 !important;
+    font-size: 9pt !important;
+  }
+
+  .real-estate-page .re-result-sub {
+    color: #bbb !important;
+    font-size: 8pt !important;
+  }
+
+  .real-estate-page .re-result-value {
+    font-size: 11pt !important;
+    color: var(--white) !important;
+  }
+
+  .real-estate-page .re-result-total .total-value {
+    font-size: 14pt !important;
+    color: var(--white) !important;
+  }
+
+  .real-estate-page .details-toggle {
+    display: none !important;
+  }
+
+  .real-estate-page .details-content {
+    display: block !important;
+    background: transparent !important;
+    padding: 5px 0 !important;
+  }
+
+  .real-estate-page .detail-box {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    padding: 5px !important;
+  }
+
+  .real-estate-page .detail-box li {
+    font-size: 8pt !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

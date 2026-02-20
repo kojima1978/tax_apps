@@ -1,6 +1,6 @@
 import { CategoryGroup, Customer, Staff } from '@/types';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3006';
 
 async function throwIfNotOk(response: Response, defaultMsg: string): Promise<void> {
   if (response.ok) return;

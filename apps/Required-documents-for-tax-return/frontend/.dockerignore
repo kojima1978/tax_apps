@@ -2,12 +2,8 @@
 node_modules
 
 # Build outputs
-.next
-out
-build
 dist
 *.tsbuildinfo
-next-env.d.ts
 
 # Testing
 coverage
@@ -56,5 +52,5 @@ docs
 # Misc
 *.log
 *.pem
-.vercel
-.netlify
+# nginx config (keep in Docker context)
+!nginx*.conf

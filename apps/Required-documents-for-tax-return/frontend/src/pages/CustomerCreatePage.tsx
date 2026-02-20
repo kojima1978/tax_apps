@@ -1,0 +1,164 @@
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { addCustomer, fetchStaff } from '@/utils/api';
+import { translateCustomerError } from '@/utils/error';
+import { Staff } from '@/types';
+import { ChevronLeft, UserPlus, Users } from 'lucide-react';
+import SearchableSelect from '@/components/SearchableSelect';
+import FormErrorDisplay from '@/components/FormErrorDisplay';
+import SubmitButton from '@/components/SubmitButton';
+
+export default function CreateCustomerPage() {
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const [name, setName] = useState('');
+    const [staffId, setStaffId] = useState<number | ''>('');
+    const [staffList, setStaffList] = useState<Staff[]>([]);
+    const [isLoadingStaff, setIsLoadingStaff] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Validation states
+    const [touched, setTouched] = useState({ name: false, staffId: false });
+
+    useEffect(() => {
+        loadStaff();
+    }, []);
+
+    const loadStaff = async () => {
+        try {
+            const data = await fetchStaff();
+            setStaffList(data);
+
+            const paramStaffId = searchParams.get('staffId');
+            if (paramStaffId) {
+                const id = Number(paramStaffId);
+                if (data.some(s => s.id === id)) {
+                    setStaffId(id);
+                    setTouched(prev => ({ ...prev, staffId: true }));
+                }
+            }
+        } catch {
+            setError('担当者リストの取得に失敗しました');
+        } finally {
+            setIsLoadingStaff(false);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setTouched({ name: true, staffId: true });
+        if (!name.trim() || !staffId) return;
+
+        setIsSubmitting(true);
+        setError(null);
+        try {
+            await addCustomer(name, Number(staffId));
+            navigate('/customers');
+        } catch (e: unknown) {
+            setError(translateCustomerError(e, '登録に失敗しました'));
+            setIsSubmitting(false);
+        }
+    };
+
+    const isNameValid = name.trim().length > 0;
+    const isStaffValid = staffId !== '';
+
+    return (
+        <div className="min-h-screen bg-slate-50 p-6 md:p-12 transition-colors">
+            <div className="max-w-xl mx-auto">
+                <header className="mb-8">
+                    <div className="flex items-center mb-2">
+                        <Link to="/customers" className="mr-3 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all group">
+                            <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+                        </Link>
+                        <h1 className="text-2xl font-bold text-slate-800">お客様 新規登録</h1>
+                    </div>
+                    <p className="text-slate-500 ml-12 text-sm">
+                        新しいお客様情報を登録し、担当者を割り当てます。
+                    </p>
+                </header>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="p-1 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80" />
+
+                    <div className="p-8">
+                        <FormErrorDisplay error={error} />
+
+                        <form onSubmit={handleSubmit} className="space-y-8">
+                            <div>
+                                <label htmlFor="staff-select" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                    <UserPlus className="w-4 h-4 mr-2 text-emerald-600" />
+                                    担当者 <span className="ml-2 text-xs font-normal text-red-500">*必須</span>
+                                </label>
+                                {isLoadingStaff ? (
+                                    <div className="h-12 w-full bg-slate-100 rounded-xl animate-pulse" />
+                                ) : (
+                                    <div className="relative">
+                                        <SearchableSelect
+                                            options={staffList.map(staff => ({ value: staff.id, label: staff.staff_name }))}
+                                            value={staffId}
+                                            onChange={(val) => {
+                                                setStaffId(Number(val));
+                                                setTouched(prev => ({ ...prev, staffId: true }));
+                                            }}
+                                            placeholder="担当者を検索・選択"
+                                            error={touched.staffId && !isStaffValid}
+                                            disabled={isLoadingStaff}
+                                        />
+                                    </div>
+                                )}
+                                {touched.staffId && !isStaffValid && (
+                                    <p className="mt-2 text-sm text-red-500 animate-in slide-in-from-top-1">
+                                        担当者を選択してください
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label htmlFor="name-input" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                    <Users className="w-4 h-4 mr-2 text-emerald-600" />
+                                    お客様名 <span className="ml-2 text-xs font-normal text-red-500">*必須</span>
+                                </label>
+                                <input
+                                    id="name-input"
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
+                                    placeholder="例：日本 太郎"
+                                    className={`w-full px-4 py-3.5 border rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all text-base
+                                        ${touched.name && !isNameValid
+                                            ? 'border-red-300 bg-red-50 focus:border-red-500'
+                                            : 'border-slate-200 focus:border-emerald-500'}`}
+                                    autoFocus
+                                />
+                                {touched.name && !isNameValid && (
+                                    <p className="mt-2 text-sm text-red-500 animate-in slide-in-from-top-1">
+                                        お客様名を入力してください
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                                <Link
+                                    to="/customers"
+                                    className="order-2 sm:order-1 flex-1 py-3.5 px-6 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all flex items-center justify-center border border-slate-200 hover:border-slate-300"
+                                >
+                                    キャンセル
+                                </Link>
+                                <SubmitButton
+                                    isSubmitting={isSubmitting}
+                                    disabled={isSubmitting || !isNameValid || !isStaffValid}
+                                    submitLabel="登録"
+                                    submittingLabel="登録中..."
+                                    className="order-1 sm:order-2 flex-1 py-3.5 px-6 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 hover:shadow-lg hover:-translate-y-0.5 disabled:bg-slate-300 disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-md bg-gradient-to-br from-emerald-500 to-emerald-700"
+                                />
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
