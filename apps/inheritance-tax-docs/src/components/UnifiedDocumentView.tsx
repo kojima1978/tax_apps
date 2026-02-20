@@ -220,7 +220,7 @@ function UnifiedDocumentViewComponent({
                 以下の書類をご準備の上、ご来所・ご郵送ください。
               </p>
             </div>
-            <div className="text-right text-sm text-slate-500 print:text-xs">
+            <div className="text-right text-sm text-slate-500 print:text-sm">
               <p>発行日: {currentDate}</p>
               <p>{COMPANY_INFO.name}</p>
             </div>
@@ -229,8 +229,8 @@ function UnifiedDocumentViewComponent({
             <div className="mt-4 p-4 bg-white border border-blue-200 rounded-lg grid grid-cols-3 gap-4 print-compact-info">
               {printInfoFields.filter(f => f.value).map(({ label, value, format }) => (
                 <div key={label}>
-                  <span className="text-xs text-slate-500 print:text-[9px]">{label}</span>
-                  <p className="font-bold text-slate-800 print:text-xs">{format ? format(value) : value}</p>
+                  <span className="text-xs text-slate-500 print:text-xs">{label}</span>
+                  <p className="font-bold text-slate-800 print:text-sm">{format ? format(value) : value}</p>
                 </div>
               ))}
             </div>
@@ -333,7 +333,7 @@ function UnifiedDocumentViewComponent({
           <div className="flex items-start">
             <Info className="w-5 h-5 text-amber-600 mr-2 mt-0.5 flex-shrink-0 print:w-4 print:h-4" />
             <div className="text-sm text-amber-800">
-              <p className="font-bold mb-1 print:mb-0 print:text-xs">ご確認ください</p>
+              <p className="font-bold mb-1 print:mb-0 print:text-sm">ご確認ください</p>
               <ul className="list-disc list-inside space-y-1 print:space-y-0">
                 <li>
                   資料は原本、コピー、データなどどのような形でお送りいただいても結構です。原本はスキャンやコピーを行った後、すべてお返しいたします。

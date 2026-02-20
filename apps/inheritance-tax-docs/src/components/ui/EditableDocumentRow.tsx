@@ -78,7 +78,7 @@ const RowContent = memo(function RowContent({
       className={`${rowBg} ${isChecked && hideSubmittedInPrint ? 'print:hidden' : ''} ${isDragging ? 'shadow-lg z-10 opacity-70' : ''} border-b border-slate-100 last:border-b-0`}
     >
       {/* 列1: DnDハンドル + チェックボックス / 印刷チェック */}
-      <td className="w-10 px-1 py-2 text-center align-top print:py-0.5">
+      <td className="w-10 px-1 py-2 text-center align-top print:py-1">
         <div className="flex flex-col items-center gap-0.5 print:hidden">
           {dragHandleProps ? (
             <button
@@ -104,20 +104,20 @@ const RowContent = memo(function RowContent({
           </button>
         </div>
         {isChecked
-          ? <span className="hidden print:inline-block text-slate-400 print:text-xs">☑</span>
+          ? <span className="hidden print:inline-block text-slate-400 print:text-sm">☑</span>
           : <span className="hidden print:inline-block w-4 h-4 border-2 border-slate-400 rounded-sm print:w-3 print:h-3 print:border" />
         }
       </td>
 
       {/* 列2: 書類名 + バッジ + 具体名 */}
-      <td className="px-3 py-2 align-top print:px-1 print:py-0.5">
+      <td className="px-3 py-2 align-top print:px-2 print:py-1">
         <div className="flex items-center flex-wrap gap-1 print:flex-nowrap print:gap-0.5 print:leading-tight">
-          <span className="text-xs text-slate-400 font-mono mr-0.5 print:text-[11px] print:mr-0">{docNumber}</span>
-          <span className={`font-medium doc-name print:text-[10px] ${isChecked ? checkedClass : 'text-slate-800'}`}>
+          <span className="text-xs text-slate-400 font-mono mr-0.5 print:text-sm print:mr-0">{docNumber}</span>
+          <span className={`font-medium doc-name ${isChecked ? checkedClass : 'text-slate-800'}`}>
             {displayName}
           </span>
           {isCustom && (
-            <span className="px-1.5 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded print:border print:border-emerald-700 print:px-1 print:py-0 print:text-[8px]">
+            <span className="px-1.5 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded print:border print:border-emerald-700 print:px-1 print:py-0 print:text-xs">
               追加
             </span>
           )}
@@ -143,17 +143,17 @@ const RowContent = memo(function RowContent({
       </td>
 
       {/* 列3: 内容説明 */}
-      <td className={`px-3 py-2 text-sm text-slate-600 hidden md:table-cell print:table-cell align-top print:px-1 print:py-0.5 print:text-[10px] doc-desc ${checkedClass}`}>
+      <td className={`px-3 py-2 text-sm text-slate-600 hidden md:table-cell print:table-cell align-top print:px-2 print:py-1 doc-desc ${checkedClass}`}>
         {displayDescription}
       </td>
 
       {/* 列4: 取得方法 */}
-      <td className={`px-3 py-2 text-xs text-slate-500 hidden lg:table-cell print:table-cell align-top print:px-1 print:py-0.5 print:text-[9px] doc-how ${checkedClass}`}>
+      <td className={`px-3 py-2 text-xs text-slate-500 hidden lg:table-cell print:table-cell align-top print:px-2 print:py-1 doc-how ${checkedClass}`}>
         {displayHowToGet || '-'}
       </td>
 
       {/* 列5: 代行 */}
-      <td className="w-16 px-2 py-2 text-center align-top print:px-1 print:py-0.5">
+      <td className="w-16 px-2 py-2 text-center align-top print:px-2 print:py-1">
         <button
           onClick={(e) => { e.stopPropagation(); onToggleCanDelegate(); }}
           className={`px-1.5 py-0.5 text-xs rounded transition-colors cursor-pointer print:hidden ${
@@ -166,7 +166,7 @@ const RowContent = memo(function RowContent({
           {canDelegate ? '可' : '−'}
         </button>
         {canDelegate && (
-          <span className="hidden print:inline-block px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded print:border print:border-amber-700 print:px-1 print:py-0 print:text-[8px]">
+          <span className="hidden print:inline-block px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded print:border print:border-amber-700 print:px-1 print:py-0 print:text-xs">
             可
           </span>
         )}
