@@ -24,7 +24,7 @@ export const CalculatorPage: React.FC = () => {
   return (
     <>
       {/* CalculatorPage専用: A4縦 (TablePageのA3横を上書き) */}
-      <style>{`@media print { @page { size: A4 portrait; margin: 10mm; } }`}</style>
+      <style>{`@media print { @page { size: A4 landscape; margin: 12mm 15mm; } }`}</style>
       <main className="max-w-5xl mx-auto px-4 py-8 calculator-print">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
           <div className="space-y-6">
