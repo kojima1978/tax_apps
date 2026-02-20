@@ -13,8 +13,8 @@ type SubColumn = {
   getValue: (row: TaxCalculationResult) => string;
 };
 
-const TH_CLASS = 'border border-gray-300 px-4 py-3 text-center font-semibold text-xs';
-const TD_CLASS = 'border border-gray-300 px-4 py-2 text-right';
+const TH_CLASS = 'border border-gray-300 px-4 py-3 text-center font-semibold text-sm';
+const TD_CLASS = 'border border-gray-300 px-5 py-2.5 text-right';
 
 const SPOUSE_COLUMNS: SubColumn[] = [
   { label: '相続税額', getValue: r => formatCurrency(r.totalTax) },
