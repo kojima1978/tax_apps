@@ -1,6 +1,6 @@
 export function PrintStyles() {
   return (
-    <style jsx global>{`
+    <style dangerouslySetInnerHTML={{ __html: `
       @media print {
         body {
           print-color-adjust: exact;
@@ -100,6 +100,6 @@ export function PrintStyles() {
         }
         th { font-weight: bold !important; color: #000 !important; }
       }
-    `}</style>
+    ` }} />
   );
 }

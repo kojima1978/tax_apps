@@ -1,5 +1,3 @@
-"use client";
-
 interface TrendArrowProps {
   /** 比準割合の値 — 1超で上矢印(赤)、1未満で下矢印(青)、ちょうど1は非表示 */
   ratio: number;

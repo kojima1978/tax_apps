@@ -15,11 +15,9 @@ export const columns: ColumnDef<InheritanceCase>[] = [
         accessorKey: "deceasedName",
         header: ({ column }) => <SortableHeader column={column}>被相続人氏名</SortableHeader>,
         cell: ({ row }) => (
-            <div className="lowercase">
-                <Link href={`/${row.original.id}`} className="text-blue-600 hover:underline">
-                    {row.getValue("deceasedName") || "(氏名未入力)"}
-                </Link>
-            </div>
+            <Link href={`/${row.original.id}`} className="text-blue-600 hover:underline">
+                {row.getValue("deceasedName") || "(氏名未入力)"}
+            </Link>
         ),
     },
     {
@@ -110,12 +108,11 @@ function ActionCell({ caseData }: { caseData: InheritanceCase }) {
                 <MoreHorizontal className="h-4 w-4" />
             </Button>
 
-            {showModal && (
-                <Modal
-                    isOpen={showModal}
-                    onClose={() => setShowModal(false)}
-                    title={`${caseData.deceasedName} 様 - 進捗確認`}
-                >
+            <Modal
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                title={`${caseData.deceasedName} 様 - 進捗確認`}
+            >
                     <div className="space-y-4">
                         <div className="text-sm text-muted-foreground mb-4">
                             ID: {caseData.id} | 相続開始日: {caseData.dateOfDeath}
@@ -157,8 +154,7 @@ function ActionCell({ caseData }: { caseData: InheritanceCase }) {
                             </Link>
                         </div>
                     </div>
-                </Modal>
-            )}
+            </Modal>
         </>
     )
 }

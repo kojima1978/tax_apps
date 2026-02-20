@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 
 # =============================================================================
-# 相続税案件管理システム フロントエンド - Dockerfile
+# 相続税案件管理システム - Dockerfile
 # Multi-stage build for development and production (standalone)
+# Next.js + Prisma (API Routes内蔵)
 # =============================================================================
 
 ARG NODE_VERSION=22
@@ -21,6 +22,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # =============================================================================
 FROM base AS deps
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
 RUN --mount=type=cache,id=npm-store-itcm-web,target=/root/.npm \
     npm ci
 
@@ -29,8 +31,12 @@ RUN --mount=type=cache,id=npm-store-itcm-web,target=/root/.npm \
 # =============================================================================
 FROM deps AS dev
 ENV NODE_ENV=development WATCHPACK_POLLING=true HOSTNAME=0.0.0.0 TZ=Asia/Tokyo
+RUN npx prisma generate
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 COPY . .
 EXPOSE 3020
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["npm", "run", "dev"]
 
 # =============================================================================
@@ -38,7 +44,7 @@ CMD ["npm", "run", "dev"]
 # =============================================================================
 FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
-ARG NEXT_PUBLIC_API_URL=http://localhost:3021/api
+ARG NEXT_PUBLIC_API_URL=/itcm/api
 ENV NODE_ENV=production \
     NODE_OPTIONS=${NODE_OPTIONS} \
     NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
@@ -52,8 +58,8 @@ RUN --mount=type=cache,id=nextjs-itcm-web,target=/app/.next/cache \
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS runner
 
-LABEL org.opencontainers.image.title="ITCM Frontend" \
-      org.opencontainers.image.description="相続税案件管理システム フロントエンド" \
+LABEL org.opencontainers.image.title="ITCM" \
+      org.opencontainers.image.description="相続税案件管理システム" \
       org.opencontainers.image.vendor="税理士法人マスエージェント" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
@@ -77,6 +83,8 @@ RUN apk upgrade --no-cache && \
 COPY --from=builder --chown=1001:1001 --link /app/.next/standalone ./
 COPY --from=builder --chown=1001:1001 --link /app/.next/static ./.next/static
 COPY --from=builder --chown=1001:1001 --link /app/public ./public
+COPY --from=builder --chown=1001:1001 --link /app/prisma ./prisma
+COPY --from=builder --chown=1001:1001 --link /app/docker-entrypoint.sh /docker-entrypoint.sh
 
 USER nextjs
 EXPOSE 3020
@@ -85,5 +93,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()"
 
 STOPSIGNAL SIGTERM
-ENTRYPOINT ["/sbin/tini", "--"]
+ENTRYPOINT ["/sbin/tini", "--", "/docker-entrypoint.sh"]
 CMD ["node", "server.js"]

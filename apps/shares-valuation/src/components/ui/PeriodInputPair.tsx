@@ -1,5 +1,3 @@
-"use client";
-
 import { Label } from "./Label";
 import { NumberInputWithUnit } from "./NumberInputWithUnit";
 

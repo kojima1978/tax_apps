@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useTransition } from "react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";

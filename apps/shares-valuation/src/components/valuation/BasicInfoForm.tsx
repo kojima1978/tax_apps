@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useMemo } from "react";
 import { BasicInfo } from "@/types/valuation";
 import { Button } from "@/components/ui/Button";

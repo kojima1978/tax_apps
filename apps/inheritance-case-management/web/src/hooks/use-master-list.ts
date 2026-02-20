@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useToast } from "@/components/ui/Toast"
 
@@ -28,6 +28,9 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
     const searchParams = useSearchParams()
     const returnTo = searchParams.get("returnTo")
 
+    const configRef = useRef(config)
+    configRef.current = config
+
     const [originalItems, setOriginalItems] = useState<T[]>([])
     const [items, setItems] = useState<T[]>([])
     const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
@@ -45,7 +48,7 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
     useEffect(() => {
         const load = async () => {
             try {
-                const data = await config.fetchAll()
+                const data = await configRef.current.fetchAll()
                 setOriginalItems(data)
                 setItems(data)
             } catch (e) {
@@ -53,7 +56,6 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
             }
         }
         load()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {
@@ -73,28 +75,29 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
     const handleSave = useCallback(async () => {
         setIsSaving(true)
         try {
+            const cfg = configRef.current
             const promises: Promise<unknown>[] = []
 
             for (const id of deletedIds) {
                 if (!id.startsWith("temp_")) {
-                    promises.push(config.remove(id))
+                    promises.push(cfg.remove(id))
                 }
             }
 
             for (const item of items) {
                 if (item.id.startsWith("temp_")) {
-                    promises.push(config.create(config.getCreatePayload(item)))
+                    promises.push(cfg.create(cfg.getCreatePayload(item)))
                 } else {
                     const original = originalItems.find(o => o.id === item.id)
                     if (original && JSON.stringify(original) !== JSON.stringify(item)) {
-                        promises.push(config.update(item.id, config.getUpdatePayload(item)))
+                        promises.push(cfg.update(item.id, cfg.getUpdatePayload(item)))
                     }
                 }
             }
 
             await Promise.all(promises)
 
-            const newData = await config.fetchAll()
+            const newData = await cfg.fetchAll()
             setOriginalItems(newData)
             setItems(newData)
             setDeletedIds(new Set())
@@ -102,7 +105,7 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
 
             router.refresh()
             if (returnTo) {
-                router.push(`${returnTo}?saved=${config.savedParam}`)
+                router.push(`${returnTo}?saved=${cfg.savedParam}`)
             } else {
                 toast.success("変更を保存しました")
             }
@@ -112,7 +115,7 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
         } finally {
             setIsSaving(false)
         }
-    }, [config, deletedIds, items, originalItems, returnTo, router, toast])
+    }, [deletedIds, items, originalItems, returnTo, router, toast])
 
     const handleAdd = useCallback((newItem: T) => {
         setItems(prev => [...prev, newItem])
@@ -133,7 +136,7 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
             return
         }
 
-        if (!confirm(`${config.getDeleteLabel(item)} を一覧から削除しますか？\n（保存ボタンを押すまで確定しません）`)) {
+        if (!confirm(`${configRef.current.getDeleteLabel(item)} を一覧から削除しますか？\n（保存ボタンを押すまで確定しません）`)) {
             return
         }
 
@@ -145,7 +148,7 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
                 return next
             })
         }
-    }, [config, items, toast])
+    }, [items, toast])
 
     const handleStartEdit = useCallback((item: T, fields: Record<string, string>) => {
         setEditingId(item.id)
@@ -189,13 +192,14 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
         }
         if (!sortField) return filtered
 
+        const getSortValue = configRef.current.getSortValue
         return [...filtered].sort((a, b) => {
-            const aValue = config.getSortValue(a, sortField)
-            const bValue = config.getSortValue(b, sortField)
+            const aValue = getSortValue(a, sortField)
+            const bValue = getSortValue(b, sortField)
             const comparison = aValue.localeCompare(bValue, "ja")
             return sortOrder === "asc" ? comparison : -comparison
         })
-    }, [items, sortField, sortOrder, showInactive, config])
+    }, [items, sortField, sortOrder, showInactive])
 
     return {
         items,

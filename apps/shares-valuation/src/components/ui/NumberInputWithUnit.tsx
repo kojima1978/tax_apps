@@ -1,5 +1,3 @@
-"use client";
-
 import { NumberInput } from "./NumberInput";
 
 interface NumberInputWithUnitProps {

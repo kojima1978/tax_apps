@@ -24,9 +24,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const [formData, setFormData] = useState<InheritanceCase>(initialData)
     const [assignees, setAssignees] = useState<Assignee[]>([])
     const [referrers, setReferrers] = useState<Referrer[]>([])
-    const [showSaveMessage, setShowSaveMessage] = useState(false)
-    const [saveMessageType, setSaveMessageType] = useState<"assignees" | "referrers" | null>(null)
-
     useEffect(() => {
         const loadMasters = async () => {
             try {
@@ -41,9 +38,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
         const saved = searchParams.get("saved")
         if (saved === "assignees" || saved === "referrers") {
-            setSaveMessageType(saved)
-            setShowSaveMessage(true)
-            setTimeout(() => setShowSaveMessage(false), 3000)
+            toast.success(saved === "assignees" ? "担当者設定を保存しました" : "紹介者設定を保存しました")
             const currentPath = window.location.pathname
             router.replace(currentPath)
         }
@@ -102,16 +97,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     return (
         <div className="space-y-6">
-            {showSaveMessage && (
-                <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg flex items-center justify-between shadow-sm">
-                    <span>
-                        {saveMessageType === "assignees" ? "担当者設定を保存しました" : "紹介者設定を保存しました"}
-                    </span>
-                    <button onClick={() => setShowSaveMessage(false)} className="text-green-600 hover:text-green-800 font-bold text-lg">
-                        ×
-                    </button>
-                </div>
-            )}
             <div className="grid grid-cols-2 gap-6">
                 {!isCreateMode && (
                     <div className="space-y-2">
