@@ -61,9 +61,15 @@ export function exportCustomerJson(
   downloadJson(payload, `${customerName}_令和${reiwaYear}年_書類データ.json`);
 }
 
-// ==================== 顧客単位インポートバリデーション ====================
+// ==================== インポートバリデーション共通 ====================
 
-export function validateCustomerImport(data: unknown): ValidationResult {
+function validateImport(
+  data: unknown,
+  expectedType: string,
+  typeError: string,
+  checkData: (d: Record<string, unknown>) => boolean,
+  dataError: string,
+): ValidationResult {
   if (!data || typeof data !== 'object') {
     return { isValid: false, error: '無効なJSONデータです。' };
   }
@@ -71,20 +77,24 @@ export function validateCustomerImport(data: unknown): ValidationResult {
   if (obj.appName !== 'required-documents-for-tax-return') {
     return { isValid: false, error: 'このファイルは確定申告 必要書類アプリのデータではありません。' };
   }
-  if (obj.type !== 'customer-data') {
-    return { isValid: false, error: 'お客様データ形式ではありません。一括バックアップファイルの可能性があります。' };
+  if (obj.type !== expectedType) {
+    return { isValid: false, error: typeError };
   }
   const d = obj.data as Record<string, unknown> | undefined;
-  if (
-    !d ||
-    typeof d.customer_name !== 'string' ||
-    typeof d.staff_name !== 'string' ||
-    typeof d.year !== 'number' ||
-    !Array.isArray(d.document_groups)
-  ) {
-    return { isValid: false, error: 'データ構造が不正です。' };
+  if (!d || !checkData(d)) {
+    return { isValid: false, error: dataError };
   }
   return { isValid: true };
+}
+
+export function validateCustomerImport(data: unknown): ValidationResult {
+  return validateImport(
+    data,
+    'customer-data',
+    'お客様データ形式ではありません。一括バックアップファイルの可能性があります。',
+    (d) => typeof d.customer_name === 'string' && typeof d.staff_name === 'string' && typeof d.year === 'number' && Array.isArray(d.document_groups),
+    'データ構造が不正です。',
+  );
 }
 
 // ==================== 全データバックアップエクスポート ====================
@@ -100,21 +110,13 @@ export async function exportFullBackup(): Promise<void> {
 // ==================== 全データバックアップインポート ====================
 
 export function validateFullBackupImport(data: unknown): ValidationResult {
-  if (!data || typeof data !== 'object') {
-    return { isValid: false, error: '無効なJSONデータです。' };
-  }
-  const obj = data as Record<string, unknown>;
-  if (obj.appName !== 'required-documents-for-tax-return') {
-    return { isValid: false, error: 'このファイルは確定申告 必要書類アプリのデータではありません。' };
-  }
-  if (obj.type !== 'full-backup') {
-    return { isValid: false, error: '一括バックアップ形式ではありません。' };
-  }
-  const d = obj.data as Record<string, unknown> | undefined;
-  if (!d || !Array.isArray(d.staff) || !Array.isArray(d.customers)) {
-    return { isValid: false, error: 'バックアップデータの構造が不正です。' };
-  }
-  return { isValid: true };
+  return validateImport(
+    data,
+    'full-backup',
+    '一括バックアップ形式ではありません。',
+    (d) => Array.isArray(d.staff) && Array.isArray(d.customers),
+    'バックアップデータの構造が不正です。',
+  );
 }
 
 export async function importFullBackup(

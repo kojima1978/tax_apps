@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   DndContext,
@@ -30,6 +28,11 @@ import { MissingCategoriesRestore } from './document-list/MissingCategoriesResto
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { useDocumentListEditing } from '@/hooks/useDocumentListEditing';
 import { exportCustomerJson, readJsonFile, validateCustomerImport, CustomerExport } from '@/utils/jsonExportImport';
+
+const PRINT_LAYOUTS = [
+  { value: 'single' as const, label: '1列' },
+  { value: 'double' as const, label: '2列' },
+];
 
 interface DocumentListScreenProps {
   year: number;
@@ -178,6 +181,14 @@ export default function DocumentListScreen({
     [staffList, staffName]
   );
 
+  const TOOLBAR_ACTIONS = [
+    { onClick: onCopyToNextYear, disabled: isSaving || !customerName || !staffName, colorClass: 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-50', title: '現在の内容を翌年度にコピーします', icon: Copy, label: '翌年度へコピー' },
+    { onClick: handlePrint, colorClass: 'bg-slate-700 text-white hover:bg-slate-800', icon: Printer, label: '印刷' },
+    { onClick: handleExportExcel, colorClass: 'bg-[#217346] text-white hover:bg-[#1e6b41]', icon: FileSpreadsheet, label: 'Excel出力' },
+    { onClick: handleExportJson, colorClass: 'bg-amber-600 text-white hover:bg-amber-700', title: 'JSONファイルとしてエクスポート', icon: FileJson, label: 'JSON出力' },
+    { onClick: () => jsonFileInputRef.current?.click(), disabled: isJsonImporting, colorClass: 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-50', title: 'JSONファイルからインポート', icon: Upload, label: isJsonImporting ? '読込中...' : 'JSON読込' },
+  ];
+
   return (
     <div className="bg-slate-50 min-h-screen">
       {/* 固定ヘッダー */}
@@ -273,66 +284,33 @@ export default function DocumentListScreen({
             </div>
             <div className="flex space-x-2">
               <div className="flex bg-white border border-slate-300 rounded overflow-hidden mr-2" role="radiogroup" aria-label="印刷レイアウト">
-                <button
-                  onClick={() => setPrintLayout('single')}
-                  className={`px-3 py-1.5 text-xs font-medium ${printLayout === 'single' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                  role="radio"
-                  aria-checked={printLayout === 'single'}
-                  title="1列で印刷"
-                >
-                  1列
-                </button>
-                <div className="w-px bg-slate-300" aria-hidden="true"></div>
-                <button
-                  onClick={() => setPrintLayout('double')}
-                  className={`px-3 py-1.5 text-xs font-medium ${printLayout === 'double' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                  role="radio"
-                  aria-checked={printLayout === 'double'}
-                  title="2列で印刷"
-                >
-                  2列
-                </button>
+                {PRINT_LAYOUTS.map(({ value, label }, i) => (
+                  <span key={value} className="contents">
+                    {i > 0 && <div className="w-px bg-slate-300" aria-hidden="true" />}
+                    <button
+                      onClick={() => setPrintLayout(value)}
+                      className={`px-3 py-1.5 text-xs font-medium ${printLayout === value ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                      role="radio"
+                      aria-checked={printLayout === value}
+                      title={`${label}で印刷`}
+                    >
+                      {label}
+                    </button>
+                  </span>
+                ))}
               </div>
-              <button
-                onClick={onCopyToNextYear}
-                disabled={isSaving || !customerName || !staffName}
-                className="flex items-center px-3 py-1.5 text-xs bg-white border border-slate-300 text-slate-600 rounded hover:bg-slate-50 disabled:opacity-50"
-                title="現在の内容を翌年度にコピーします"
-              >
-                <Copy className="w-3 h-3 mr-1" />
-                翌年度へコピー
-              </button>
-              <button
-                onClick={handlePrint}
-                className="flex items-center px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800"
-              >
-                <Printer className="w-3 h-3 mr-1" />
-                印刷
-              </button>
-              <button
-                onClick={handleExportExcel}
-                className="flex items-center px-3 py-1.5 text-xs bg-[#217346] text-white rounded hover:bg-[#1e6b41]"
-              >
-                <FileSpreadsheet className="w-3 h-3 mr-1" />
-                Excel出力
-              </button>
-              <button
-                onClick={handleExportJson}
-                className="flex items-center px-3 py-1.5 text-xs bg-amber-600 text-white rounded hover:bg-amber-700"
-                title="JSONファイルとしてエクスポート"
-              >
-                <FileJson className="w-3 h-3 mr-1" />
-                JSON出力
-              </button>
-              <button
-                onClick={() => jsonFileInputRef.current?.click()}
-                disabled={isJsonImporting}
-                className="flex items-center px-3 py-1.5 text-xs bg-white border border-slate-300 text-slate-600 rounded hover:bg-slate-50 disabled:opacity-50"
-                title="JSONファイルからインポート"
-              >
-                <Upload className="w-3 h-3 mr-1" />
-                {isJsonImporting ? '読込中...' : 'JSON読込'}
-              </button>
+              {TOOLBAR_ACTIONS.map(({ onClick, disabled, colorClass, title, icon: Icon, label }) => (
+                <button
+                  key={label}
+                  onClick={onClick}
+                  disabled={disabled}
+                  className={`flex items-center px-3 py-1.5 text-xs rounded ${colorClass}`}
+                  title={title}
+                >
+                  <Icon className="w-3 h-3 mr-1" />
+                  {label}
+                </button>
+              ))}
               <input
                 ref={jsonFileInputRef}
                 type="file"

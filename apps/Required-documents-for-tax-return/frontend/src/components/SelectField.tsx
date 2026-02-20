@@ -1,4 +1,4 @@
-import { ChevronRight, UserPlus } from 'lucide-react';
+import { ChevronDown, UserPlus } from 'lucide-react';
 
 interface SelectFieldProps<T extends string | number> {
   label: string;
@@ -50,7 +50,7 @@ export default function SelectField<T extends string | number>({
           ))}
         </select>
         <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400">
-          <ChevronRight className="w-4 h-4 rotate-90" />
+          <ChevronDown className="w-4 h-4" />
         </div>
       </div>
     </div>

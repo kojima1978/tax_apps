@@ -11,7 +11,6 @@
 # 共通設定
 x-common-env: &common-env
   TZ: Asia/Tokyo
-  NEXT_TELEMETRY_DISABLED: "1"
 
 x-logging: &default-logging
   driver: "json-file"
@@ -44,23 +43,19 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      # ソースコードをマウント（ホットリロード用）
-      - ./app:/app/app:ro
-      - ./components:/app/components:ro
-      - ./hooks:/app/hooks:ro
-      - ./lib:/app/lib:ro
-      - ./public:/app/public:ro
+      - ./src:/app/src:ro
+      - ./index.html:/app/index.html:ro
     environment:
       <<: *common-env
       NODE_ENV: development
-      WATCHPACK_POLLING: "true"
-    command: npm run dev -- -p 3001
+    command: npm run dev -- --host --port 3001
     init: true
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3001/gift-tax-simulator/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/gift-tax-simulator/ || exit 1"]
       <<: *healthcheck-defaults
+      start_period: 60s
     deploy:
       resources:
         limits:
