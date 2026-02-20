@@ -1,5 +1,3 @@
-"use client";
-
 import { type IndustryType } from "@/lib/valuation-logic";
 
 interface IndustryTypeSelectorProps {

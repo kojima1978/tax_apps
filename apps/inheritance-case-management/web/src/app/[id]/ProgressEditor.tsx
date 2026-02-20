@@ -61,7 +61,7 @@ export function ProgressEditor({ progress, onChange }: ProgressEditorProps) {
     }
 
     const showAddVisitButton = (step: ProgressStep, index: number) => {
-        if (!step.name.includes("回目訪問") && step.name !== "2回目訪問") return false
+        if (!step.name.includes("回目訪問")) return false
         const nextStep = progress[index + 1]
         return nextStep && !nextStep.name.includes("回目訪問")
     }

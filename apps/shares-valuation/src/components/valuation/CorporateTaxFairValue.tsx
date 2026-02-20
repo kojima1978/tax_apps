@@ -1,5 +1,3 @@
-"use client";
-
 import { BasicInfo, Financials } from "@/types/valuation";
 import { Button } from "@/components/ui/Button";
 import { useMemo } from "react";

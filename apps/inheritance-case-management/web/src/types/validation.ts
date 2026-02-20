@@ -21,7 +21,7 @@ const progressStepSchema = z.object({
 });
 
 // Case Schemas
-const createCaseSchema = z.object({
+export const createCaseSchema = z.object({
   deceasedName: z.string().min(1, '被相続人氏名は必須です').max(100, '被相続人氏名は100文字以内で入力してください'),
   dateOfDeath: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）'),
   fiscalYear: z.number().int('年度は整数で入力してください').min(2000, '年度は2000年以上を入力してください').max(2100, '年度は2100年以下を入力してください'),
@@ -39,27 +39,31 @@ const createCaseSchema = z.object({
   progress: z.array(progressStepSchema).optional(),
 });
 
-const updateCaseSchema = createCaseSchema.partial();
+export const updateCaseSchema = createCaseSchema.partial();
+
+export const caseIdParamSchema = z.object({
+  id: z.string().uuid('無効なID形式です'),
+});
 
 // Assignee Schemas
-const createAssigneeSchema = z.object({
+export const createAssigneeSchema = z.object({
   name: z.string().min(1, '氏名は必須です').max(50, '氏名は50文字以内で入力してください'),
   employeeId: z.string().max(20, '社員番号は20文字以内で入力してください').optional(),
   department: z.string().max(50, '部署は50文字以内で入力してください').optional(),
 });
 
-const updateAssigneeSchema = createAssigneeSchema.partial().extend({
+export const updateAssigneeSchema = createAssigneeSchema.partial().extend({
   active: z.boolean().optional(),
 });
 
 // Referrer Schemas
-const createReferrerSchema = z.object({
+export const createReferrerSchema = z.object({
   company: z.string().min(1, '会社名は必須です').max(100, '会社名は100文字以内で入力してください'),
   name: z.string().min(1, '担当者名は必須です').max(50, '担当者名は50文字以内で入力してください'),
   department: z.string().max(50, '部署は50文字以内で入力してください').optional(),
 });
 
-const updateReferrerSchema = createReferrerSchema.partial().extend({
+export const updateReferrerSchema = createReferrerSchema.partial().extend({
   active: z.boolean().optional(),
 });
 
@@ -78,7 +82,7 @@ const sortFieldSchema = z.enum([
 const sortOrderSchema = z.enum(['asc', 'desc']);
 
 // Query Params Schema
-const listQuerySchema = z.object({
+export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(30),
   status: caseStatusSchema.optional(),

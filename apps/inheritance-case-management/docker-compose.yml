@@ -6,7 +6,6 @@
 #   再ビルド: docker compose up -d --build
 #   ログ:   docker compose logs -f
 #   停止:   docker compose down
-#   開発:   docker compose -f docker-compose.dev.yml up -d
 # ============================================
 
 # 共通設定
@@ -52,66 +51,30 @@ services:
       retries: 5
 
   # ===========================================
-  # バックエンドAPI（Hono + Prisma）
-  # Port: 3021
-  #
-  # 機能:
-  #   - 相続税案件のCRUD API
-  #   - PostgreSQLによるデータ永続化
-  # ===========================================
-  api:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
-    container_name: itcm-api
-    restart: unless-stopped
-    environment:
-      <<: *common-env
-      NODE_ENV: production
-      PORT: "3021"
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3020}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-    ports:
-      - "3021:3021"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    stop_grace_period: 30s
-    logging: *default-logging
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3021/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
-      <<: *healthcheck-defaults
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
-
-  # ===========================================
-  # フロントエンド（Next.js）
+  # フロントエンド + API（Next.js + Prisma）
   # Port: 3020
   #
   # 機能:
   #   - 案件一覧・詳細・編集
   #   - 分析ダッシュボード
   #   - 担当者・紹介元マスタ管理
+  #   - API Routes内蔵
   # ===========================================
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3021/api}
+        NEXT_PUBLIC_API_URL: /itcm/api
     container_name: itcm-web
     restart: unless-stopped
     environment:
       <<: *common-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
     ports:
       - "3020:3020"
     depends_on:
-      api:
+      postgres:
         condition: service_healthy
     stop_grace_period: 15s
     logging: *default-logging

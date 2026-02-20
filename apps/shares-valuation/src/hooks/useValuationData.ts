@@ -1,6 +1,4 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { BasicInfo, Financials } from "@/types/valuation";
 
@@ -9,7 +7,7 @@ import { BasicInfo, Financials } from "@/types/valuation";
  * どちらかが欠けている場合は step1 にリダイレクトする。
  */
 export function useValuationData() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [basicInfo, setBasicInfo] = useState<BasicInfo | null>(null);
   const [financials, setFinancials] = useState<Financials | null>(null);
 
@@ -23,12 +21,12 @@ export function useValuationData() {
         setFinancials(JSON.parse(savedFinancials));
       } catch (e) {
         console.error("Failed to parse saved data:", e);
-        router.push("/valuation/step1");
+        navigate("/valuation/step1");
       }
     } else {
-      router.push("/valuation/step1");
+      navigate("/valuation/step1");
     }
-  }, [router]);
+  }, [navigate]);
 
   return { basicInfo, financials };
 }
@@ -38,7 +36,7 @@ export function useValuationData() {
  * basicInfo が欠けている場合は step1 にリダイレクトする。
  */
 export function useValuationFormData() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [basicInfo, setBasicInfo] = useState<
     BasicInfo | Partial<BasicInfo> | null
   >(null);
@@ -55,11 +53,11 @@ export function useValuationFormData() {
         setBasicInfo(JSON.parse(savedBasic));
       } catch (e) {
         console.error("Failed to parse saved data:", e);
-        router.push("/valuation/step1");
+        navigate("/valuation/step1");
         return;
       }
     } else {
-      router.push("/valuation/step1");
+      navigate("/valuation/step1");
       return;
     }
 
@@ -70,7 +68,7 @@ export function useValuationFormData() {
         console.error("Failed to parse financials:", e);
       }
     }
-  }, [router]);
+  }, [navigate]);
 
   return { basicInfo, financials };
 }

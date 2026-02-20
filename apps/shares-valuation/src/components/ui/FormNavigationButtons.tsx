@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "./Button";
 
 interface FormNavigationButtonsProps {

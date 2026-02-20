@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, Suspense } from "react"
+import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
+import { SelectField } from "@/components/ui/SelectField"
 import { DEPARTMENTS, type Assignee } from "@/types/shared"
 import { getAssignees, createAssignee, updateAssignee, deleteAssignee } from "@/lib/api/assignees"
 import { useMasterList } from "@/hooks/use-master-list"
@@ -97,88 +99,76 @@ function AssigneeSettingsContent() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
             <div className="grid gap-1.5">
                 <Label htmlFor="new-id">社員ID (任意)</Label>
-                <div className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 ${newIdError ? "border-red-500" : "border-input"}`}>
-                    <input
-                        id="new-id"
-                        placeholder="例: 001"
-                        value={newId}
-                        onChange={(e) => { setNewId(e.target.value); if (newIdError) setNewIdError("") }}
-                        onBlur={(e) => setNewId(formatEmployeeId(e.target.value))}
-                        className="w-full bg-transparent outline-none"
-                    />
-                </div>
+                <Input
+                    id="new-id"
+                    placeholder="例: 001"
+                    value={newId}
+                    onChange={(e) => { setNewId(e.target.value); if (newIdError) setNewIdError("") }}
+                    onBlur={(e) => setNewId(formatEmployeeId(e.target.value))}
+                    className={newIdError ? "border-red-500" : ""}
+                />
                 {newIdError && <p className="text-xs text-red-500">{newIdError}</p>}
             </div>
             <div className="grid gap-1.5">
                 <Label htmlFor="new-dept">部署 (必須)</Label>
-                <div className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 ${newDeptError ? "border-red-500" : "border-input"}`}>
-                    <select
-                        id="new-dept"
-                        value={newDept}
-                        onChange={(e) => { setNewDept(e.target.value); if (newDeptError) setNewDeptError("") }}
-                        className="w-full bg-transparent outline-none"
-                    >
-                        <option value="">部署を選択</option>
-                        {DEPARTMENTS.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-                    </select>
-                </div>
+                <SelectField
+                    id="new-dept"
+                    value={newDept}
+                    onChange={(e) => { setNewDept(e.target.value); if (newDeptError) setNewDeptError("") }}
+                    className={newDeptError ? "border-red-500" : ""}
+                >
+                    <option value="">部署を選択</option>
+                    {DEPARTMENTS.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                </SelectField>
                 {newDeptError && <p className="text-xs text-red-500">{newDeptError}</p>}
             </div>
             <div className="grid gap-1.5">
                 <Label htmlFor="new-name">氏名 (必須)</Label>
-                <div className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 ${newNameError ? "border-red-500" : "border-input"}`}>
-                    <input
-                        id="new-name"
-                        placeholder="氏名を入力"
-                        value={newName}
-                        onChange={(e) => { setNewName(e.target.value); if (newNameError) setNewNameError("") }}
-                        onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                        className="w-full bg-transparent outline-none"
-                    />
-                </div>
+                <Input
+                    id="new-name"
+                    placeholder="氏名を入力"
+                    value={newName}
+                    onChange={(e) => { setNewName(e.target.value); if (newNameError) setNewNameError("") }}
+                    onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                    className={newNameError ? "border-red-500" : ""}
+                />
                 {newNameError && <p className="text-xs text-red-500">{newNameError}</p>}
             </div>
         </div>
     )
 
     const renderEditCell = (col: ColumnDef<Assignee>) => {
-        if (col.key === "employeeId") {
-            return (
-                <div className="flex h-9 w-full rounded-md border border-input bg-background px-2 ring-offset-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 items-center">
-                    <input
-                        value={masterList.editingFields.employeeId || ""}
-                        onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, employeeId: e.target.value }))}
-                        onBlur={(e) => masterList.setEditingFields(prev => ({ ...prev, employeeId: formatEmployeeId(e.target.value) }))}
-                        className="w-full bg-transparent outline-none text-sm"
-                        placeholder="例: 001"
-                    />
-                </div>
-            )
-        }
         if (col.key === "department") {
             return (
-                <div className="h-9 rounded-md border border-input bg-background px-2 flex items-center">
-                    <select
-                        value={masterList.editingFields.department || ""}
-                        onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, department: e.target.value }))}
-                        className="w-full bg-transparent outline-none h-full text-sm"
-                    >
-                        <option value="">部署を選択</option>
-                        {DEPARTMENTS.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-                    </select>
-                </div>
+                <SelectField
+                    value={masterList.editingFields.department || ""}
+                    onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, department: e.target.value }))}
+                    className="h-9"
+                >
+                    <option value="">部署を選択</option>
+                    {DEPARTMENTS.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                </SelectField>
+            )
+        }
+        if (col.key === "employeeId") {
+            return (
+                <Input
+                    value={masterList.editingFields.employeeId || ""}
+                    onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, employeeId: e.target.value }))}
+                    onBlur={(e) => masterList.setEditingFields(prev => ({ ...prev, employeeId: formatEmployeeId(e.target.value) }))}
+                    className="h-9"
+                    placeholder="例: 001"
+                />
             )
         }
         return (
-            <div className="flex h-9 w-full rounded-md border border-input bg-background px-2 ring-offset-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 items-center">
-                <input
-                    value={masterList.editingFields.name || ""}
-                    onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-transparent outline-none text-sm"
-                    autoFocus
-                    placeholder="氏名"
-                />
-            </div>
+            <Input
+                value={masterList.editingFields.name || ""}
+                onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, name: e.target.value }))}
+                className="h-9"
+                autoFocus
+                placeholder="氏名"
+            />
         )
     }
 

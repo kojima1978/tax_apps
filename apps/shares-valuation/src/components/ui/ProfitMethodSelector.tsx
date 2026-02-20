@@ -1,5 +1,3 @@
-"use client";
-
 type ProfitMethod = "auto" | "c1" | "c2";
 
 interface ProfitMethodSelectorProps {
