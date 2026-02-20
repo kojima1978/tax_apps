@@ -43,19 +43,19 @@ body {
   }
 }
 
-/* 印刷時のスタイル設定 */
+/* 印刷時のスタイル設定 — A4横向き・大きめフォント */
 @media print {
   @page {
-    margin: 5mm 6mm;
-    size: A4;
+    margin: 12mm 15mm;
+    size: A4 landscape;
   }
 
   body {
     background: white;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    font-size: 9px;
-    line-height: 1.2;
+    font-size: 12px;
+    line-height: 1.4;
   }
 
   .no-print {
@@ -92,97 +92,98 @@ body {
     display: table-header-group;
   }
 
-  /* コンパクト印刷用スタイル - 縦詰め強化 */
+  /* 印刷用スタイル */
   .print-compact {
-    padding: 6px !important;
+    padding: 8px !important;
   }
 
   .print-compact-header {
-    padding-bottom: 4px !important;
-    margin-bottom: 6px !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 10px !important;
   }
 
   .print-compact-title {
-    font-size: 16px !important;
-    margin-bottom: 1px !important;
+    font-size: 22px !important;
+    margin-bottom: 2px !important;
   }
 
   .print-compact-subtitle {
-    font-size: 10px !important;
+    font-size: 13px !important;
   }
 
   .print-compact-info {
-    margin-top: 4px !important;
-    padding: 4px 6px !important;
-    gap: 6px !important;
+    margin-top: 8px !important;
+    padding: 8px 12px !important;
+    gap: 12px !important;
   }
 
   .print-compact-notice {
-    margin-bottom: 6px !important;
-    padding: 4px 6px !important;
+    margin-bottom: 10px !important;
+    padding: 8px 12px !important;
   }
 
   .print-compact-notice ul {
     margin: 0 !important;
-    font-size: 8px !important;
-    line-height: 1.3 !important;
+    font-size: 11px !important;
+    line-height: 1.5 !important;
   }
 
   .print-compact-notice li {
-    margin-bottom: 0 !important;
+    margin-bottom: 2px !important;
   }
 
   .print-compact-section {
-    margin-bottom: 6px !important;
+    margin-bottom: 10px !important;
     break-inside: auto;
   }
 
   .print-compact-table th {
-    padding: 2px 4px !important;
-    font-size: 9px !important;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
   }
 
   .print-compact-table td {
-    padding: 2px 4px !important;
-    font-size: 8px !important;
-    line-height: 1.2 !important;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
   }
 
   .print-compact-table .doc-name {
-    font-size: 9px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
   }
 
   .print-compact-table .doc-desc {
-    font-size: 7px !important;
+    font-size: 11px !important;
   }
 
   .print-compact-table .doc-how {
-    font-size: 7px !important;
+    font-size: 11px !important;
   }
 
   .print-compact-footer {
-    margin-top: 8px !important;
-    padding-top: 4px !important;
+    margin-top: 12px !important;
+    padding-top: 8px !important;
   }
 
   .print-compact-footer-box {
-    padding: 4px 6px !important;
-    font-size: 8px !important;
-    line-height: 1.3 !important;
+    padding: 8px 12px !important;
+    font-size: 11px !important;
+    line-height: 1.5 !important;
   }
 
   .print-compact-address {
-    margin-top: 4px !important;
-    font-size: 8px !important;
+    margin-top: 8px !important;
+    font-size: 11px !important;
   }
 
-  /* 書類リストの余白を詰める */
+  /* 書類リストの余白 */
   .space-y-4 {
-    gap: 4px !important;
+    gap: 8px !important;
   }
 
   .space-y-3 {
-    gap: 2px !important;
+    gap: 4px !important;
   }
 
   /* 統合テーブル: input要素をテキスト表示に */

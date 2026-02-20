@@ -182,8 +182,8 @@ function EditableCategoryTableComponent({
       >
         <div className="flex items-center">
           <span className={`mr-2 print:mr-1 ${category.color}`}>{getIcon(category.iconName)}</span>
-          <span className={`font-bold text-lg print:text-xs ${category.color}`}>{toCircledNumber(categoryIndex)} {category.name}</span>
-          <span className="ml-2 text-sm text-slate-500 print:text-xs print:ml-1">
+          <span className={`font-bold text-lg print:text-sm ${category.color}`}>{toCircledNumber(categoryIndex)} {category.name}</span>
+          <span className="ml-2 text-sm text-slate-500 print:text-sm print:ml-1">
             ({totalCount}件)
           </span>
         </div>
