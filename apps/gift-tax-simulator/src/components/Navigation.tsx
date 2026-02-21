@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-type Page = 'gift-tax' | 'table' | 'real-estate';
+type Page = 'gift-tax' | 'table' | 'acquisition-tax' | 'registration-tax';
 
 type NavigationProps = {
     title: string;
@@ -10,7 +10,8 @@ type NavigationProps = {
 const NAV_ITEMS: { page: Page; href: string; label: string }[] = [
     { page: 'gift-tax', href: '/', label: '贈与税' },
     { page: 'table', href: '/table', label: '早見表' },
-    { page: 'real-estate', href: '/real-estate', label: '間接税' },
+    { page: 'acquisition-tax', href: '/acquisition-tax', label: '取得税' },
+    { page: 'registration-tax', href: '/registration-tax', label: '登録免許税' },
 ];
 
 const Navigation = ({ title, activePage }: NavigationProps) => (
