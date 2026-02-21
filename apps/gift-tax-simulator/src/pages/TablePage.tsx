@@ -38,7 +38,7 @@ export default function TablePage() {
 
     return (
         <div className="container-custom table-page">
-            <Navigation title="贈与税 早見表" activePage="table" />
+            <Navigation />
 
             <div className="input-section">
                 <div className="input-group-row">

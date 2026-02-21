@@ -12,7 +12,7 @@ export default function AcquisitionTaxPage() {
 
     return (
         <div className="container-custom real-estate-page">
-            <Navigation title="不動産取得税シミュレーター" activePage="acquisition-tax" />
+            <Navigation />
 
             <CommonInputSection
                 transactionType={form.transactionType}

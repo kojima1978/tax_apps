@@ -1,10 +1,10 @@
 # 贈与税 比較Webアプリ
 
-贈与税の税額をシミュレーションし、一括贈与と分割贈与を比較するWebアプリケーションです。
+贈与税の税額シミュレーション、不動産取得税・登録免許税の計算を行うWebアプリケーションです。
 
 ## 機能
 
-### シミュレーター（メインページ）
+### 贈与税シミュレーター（メインページ）
 - 贈与金額に対する税額計算
 - 一般贈与・特例贈与の切り替え
 - 一括贈与 / 2年分割 / 4年分割の比較
@@ -16,7 +16,19 @@
 - 100万円単位の税額早見表
 - 特例贈与・一般贈与を縦並びで表示
 - 表示上限の切り替え（1,000万円〜3,000万円）
-- A3印刷対応
+
+### 不動産取得税シミュレーター
+- 取引種別（売買・新築・相続・贈与）に対応
+- 土地・建物の取得税を個別計算
+- 宅地特例（1/2）・住宅用地の税額軽減に対応
+- 建築年月日から控除額を自動判定
+- 計算過程の詳細表示
+
+### 登録免許税シミュレーター
+- 取引種別ごとの税率を自動適用
+- 土地・建物の登録免許税を個別計算
+- 住宅用家屋証明書による軽減税率に対応
+- 計算過程の詳細表示
 
 ### 共通機能
 - 印刷用フッター（会社情報・担当者・作成日）
@@ -26,12 +38,13 @@
 
 | カテゴリ | 技術 |
 |---------|------|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript |
+| Build | Vite 6 |
+| Language | TypeScript 5 |
 | UI | React 19 |
+| Routing | react-router-dom v7 |
 | Chart | Chart.js + react-chartjs-2 |
 | Styling | Tailwind CSS 4 |
-| Container | Docker + Docker Compose |
+| Container | Docker + nginx |
 
 ## 開発環境のセットアップ
 
@@ -60,45 +73,65 @@ npm run dev
 
 ## アクセス
 
-| 環境 | URL |
-|------|-----|
-| シミュレーター | http://localhost:3001/gift-tax-simulator/ |
+| ページ | URL |
+|--------|-----|
+| 贈与税シミュレーター | http://localhost:3001/gift-tax-simulator/ |
 | 早見表 | http://localhost:3001/gift-tax-simulator/table |
+| 不動産取得税 | http://localhost:3001/gift-tax-simulator/acquisition-tax |
+| 登録免許税 | http://localhost:3001/gift-tax-simulator/registration-tax |
 
 > **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/gift-tax-simulator/ からアクセスできます。
 
 ## プロジェクト構成
 
 ```
-├── app/
-│   ├── layout.tsx           # ルートレイアウト
-│   ├── page.tsx             # シミュレーターページ
-│   ├── globals.css          # グローバルスタイル
-│   └── table/
-│       └── page.tsx         # 早見表ページ
-├── components/
-│   ├── Header.tsx           # ヘッダー
-│   ├── InputSection.tsx     # 入力フォーム
-│   ├── ResultSection.tsx    # 結果表示
-│   ├── TaxTable.tsx         # シミュレーター用テーブル
-│   ├── TaxChart.tsx         # 棒グラフ
-│   ├── QuickRefTable.tsx    # 早見表用テーブル
-│   └── PrintFooter.tsx      # 印刷用フッター
-├── lib/
-│   ├── tax-calculation.ts   # 税額計算ロジック
-│   └── utils.ts             # ユーティリティ関数
-├── Dockerfile               # マルチステージビルド
-├── docker-compose.yml       # 開発/本番環境設定
+├── src/
+│   ├── main.tsx                  # エントリーポイント
+│   ├── App.tsx                   # ルーティング
+│   ├── app/
+│   │   └── globals.css           # グローバルスタイル
+│   ├── pages/
+│   │   ├── GiftTaxPage.tsx       # 贈与税シミュレーター
+│   │   ├── TablePage.tsx         # 早見表
+│   │   ├── AcquisitionTaxPage.tsx # 不動産取得税
+│   │   └── RegistrationTaxPage.tsx # 登録免許税
+│   ├── components/
+│   │   ├── Header.tsx            # 贈与税ヘッダー
+│   │   ├── Navigation.tsx        # ナビゲーション（4ページ切替）
+│   │   ├── InputSection.tsx      # 贈与税入力フォーム
+│   │   ├── ResultSection.tsx     # 贈与税結果表示
+│   │   ├── TaxTable.tsx          # シミュレーター用テーブル
+│   │   ├── TaxChart.tsx          # 棒グラフ
+│   │   ├── QuickRefTable.tsx     # 早見表用テーブル
+│   │   ├── PrintFooter.tsx       # 印刷用フッター
+│   │   ├── acquisition-tax/
+│   │   │   ├── LandInput.tsx     # 土地入力（評価額・面積・地目）
+│   │   │   └── BuildingInput.tsx # 建物入力（評価額・床面積・建築年月日・控除額）
+│   │   └── shared/
+│   │       ├── CommonInputSection.tsx  # 取引種別・計算対象トグル
+│   │       ├── TaxResultBox.tsx        # 結果表示ボックス
+│   │       └── CalculationDetails.tsx  # 計算過程の詳細
+│   ├── hooks/
+│   │   ├── useAcquisitionTaxForm.ts   # 不動産取得税フォーム
+│   │   └── useRegistrationTaxForm.ts  # 登録免許税フォーム
+│   └── lib/
+│       ├── tax-calculation.ts    # 贈与税計算ロジック
+│       ├── real-estate-tax.ts    # 不動産税計算ロジック
+│       ├── utils.ts              # ユーティリティ関数
+│       └── company.ts            # 会社情報
+├── index.html                    # HTMLエントリー
+├── vite.config.ts                # Vite設定
+├── Dockerfile
+├── docker-compose.yml
 └── package.json
 ```
 
 ## 税額計算について
 
-### 基礎控除
-- **110万円**（暦年課税）
+### 贈与税
 
-### 税率表
-国税庁の速算表に基づいて計算しています。
+#### 基礎控除
+- **110万円**（暦年課税）
 
 #### 特例贈与
 直系尊属（父母・祖父母など）から、贈与を受けた年の1月1日時点で18歳以上の者への贈与。
@@ -128,20 +161,14 @@ npm run dev
 | 3,000万円以下 | 50% | 250万円 |
 | 3,000万円超 | 55% | 400万円 |
 
-## Docker設定
+### 不動産取得税
+- 土地: 評価額 × 3%（宅地は評価額1/2の特例あり、住宅用地の税額軽減あり）
+- 建物: 評価額 × 3%（住宅用）/ 4%（非住宅）、建築年月日に応じた控除あり
+- 相続の場合は非課税
 
-### スタンドアロン（docker-compose.yml）
-- ホットリロード対応
-- ソースコードのバインドマウント(:ro)
-- ヘルスチェック設定
-- リソース制限（メモリ）
-
-### 本番環境（中央 docker/docker-compose.prod.yml）
-- マルチステージビルドによる軽量イメージ
-- 非rootユーザーで実行
-- ヘルスチェック設定
-- リソース制限（メモリ）
-- セキュリティオプション有効
+### 登録免許税
+- 取引種別に応じた税率（売買1.5%〜2%、相続0.4%、贈与2%等）
+- 住宅用家屋証明書ありの場合、軽減税率を適用
 
 ## ライセンス
 

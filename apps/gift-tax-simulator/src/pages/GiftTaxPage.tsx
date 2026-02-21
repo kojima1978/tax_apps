@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import Header from '@/components/Header';
+import Navigation from '@/components/Navigation';
 import InputSection from '@/components/InputSection';
 import ResultSection from '@/components/ResultSection';
 import PrintFooter from '@/components/PrintFooter';
@@ -28,7 +28,7 @@ export default function GiftTaxPage() {
 
   return (
     <div className="container-custom">
-      <Header />
+      <Navigation />
       <InputSection
         amount={amount}
         setAmount={setAmount}
