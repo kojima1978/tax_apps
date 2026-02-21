@@ -54,8 +54,11 @@
 # 起動
 docker compose up -d
 
-# 再ビルドして起動
+# 再ビルドして起動（依存関係追加時など）
 docker compose up -d --build
+
+# コンテナ再起動
+docker compose restart
 
 # ログ確認
 docker compose logs -f
@@ -96,8 +99,7 @@ npm run dev
 │   │   ├── AcquisitionTaxPage.tsx # 不動産取得税
 │   │   └── RegistrationTaxPage.tsx # 登録免許税
 │   ├── components/
-│   │   ├── Header.tsx            # 贈与税ヘッダー
-│   │   ├── Navigation.tsx        # ナビゲーション（4ページ切替）
+│   │   ├── Navigation.tsx        # ナビゲーション（タブ形式・4ページ切替）
 │   │   ├── InputSection.tsx      # 贈与税入力フォーム
 │   │   ├── ResultSection.tsx     # 贈与税結果表示
 │   │   ├── TaxTable.tsx          # シミュレーター用テーブル

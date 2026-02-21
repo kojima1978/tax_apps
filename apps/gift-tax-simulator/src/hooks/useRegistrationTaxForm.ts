@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     calculateRealEstateTax,
     type TaxResults,
     type TransactionType,
 } from '@/lib/real-estate-tax';
 import { formatInputValue, parseFormattedNumber } from '@/lib/utils';
+import { saveValuations, loadValuations } from '@/lib/valuation-storage';
 
 export const useRegistrationTaxForm = () => {
     // 共通設定
@@ -23,6 +24,19 @@ export const useRegistrationTaxForm = () => {
     // 結果
     const [showDetails, setShowDetails] = useState(false);
     const [results, setResults] = useState<TaxResults | null>(null);
+
+    // 評価額をlocalStorageに保存
+    useEffect(() => {
+        saveValuations('registration-tax', { landValuation, buildingValuation });
+    }, [landValuation, buildingValuation]);
+
+    // 取得税ページの評価額を引用
+    const importValuations = useCallback(() => {
+        const data = loadValuations('acquisition-tax');
+        if (!data) return;
+        if (data.landValuation) setLandValuation(data.landValuation);
+        if (data.buildingValuation) setBuildingValuation(data.buildingValuation);
+    }, []);
 
     const handleFormattedInput = useCallback((
         e: React.ChangeEvent<HTMLInputElement>,
@@ -61,5 +75,6 @@ export const useRegistrationTaxForm = () => {
         isResidential, setIsResidential,
         hasHousingCertificate, setHasHousingCertificate,
         results, showDetails, setShowDetails, calculateTax,
+        importValuations,
     };
 };

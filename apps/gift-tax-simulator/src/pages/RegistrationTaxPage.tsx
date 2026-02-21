@@ -3,6 +3,7 @@ import Navigation from '@/components/Navigation';
 import CommonInputSection from '@/components/shared/CommonInputSection';
 import TaxResultBox from '@/components/shared/TaxResultBox';
 import CalculationDetails from '@/components/shared/CalculationDetails';
+import ImportButton from '@/components/shared/ImportButton';
 import { useRegistrationTaxForm } from '@/hooks/useRegistrationTaxForm';
 
 export default function RegistrationTaxPage() {
@@ -19,6 +20,12 @@ export default function RegistrationTaxPage() {
                 setIncludeLand={form.setIncludeLand}
                 includeBuilding={form.includeBuilding}
                 setIncludeBuilding={form.setIncludeBuilding}
+            />
+
+            <ImportButton
+                sourceLabel="取得税ページ（土地合計）"
+                sourcePage="acquisition-tax"
+                onImport={form.importValuations}
             />
 
             <div className="input-section" style={{ borderBottom: 'none' }}>
