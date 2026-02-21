@@ -8,7 +8,7 @@ import {
 } from '@/lib/real-estate-tax';
 import { formatInputValue, parseFormattedNumber, formatYen } from '@/lib/utils';
 
-export const useRealEstateForm = () => {
+export const useAcquisitionTaxForm = () => {
     const yearOptions = useMemo(() => {
         const currentYear = new Date().getFullYear();
         const years: number[] = [];
@@ -36,7 +36,6 @@ export const useRealEstateForm = () => {
     const [selDay, setSelDay] = useState('');
     const [buildingDate, setBuildingDate] = useState('');
     const [isResidential, setIsResidential] = useState(true);
-    const [hasHousingCertificate, setHasHousingCertificate] = useState(true);
     const [acquisitionDeduction, setAcquisitionDeduction] = useState('');
     const [deductionMessage, setDeductionMessage] = useState('');
 
@@ -73,7 +72,6 @@ export const useRealEstateForm = () => {
         }
     }, [buildingDate, transactionType, isResidential]);
 
-    // 税額の自動計算
     const calculateTax = useCallback(() => {
         const result = calculateRealEstateTax({
             includeLand,
@@ -85,41 +83,33 @@ export const useRealEstateForm = () => {
             landArea: parseFormattedNumber(landArea),
             buildingArea: parseFormattedNumber(buildingArea),
             isResidential,
-            hasHousingCertificate,
+            hasHousingCertificate: false,
             acquisitionDeduction: parseFormattedNumber(acquisitionDeduction),
         });
         setResults(result);
     }, [
         includeLand, includeBuilding, landValuation, buildingValuation,
         transactionType, landType, landArea, buildingArea,
-        isResidential, hasHousingCertificate, acquisitionDeduction
+        isResidential, acquisitionDeduction
     ]);
 
     return {
-        // 共通
         transactionType, setTransactionType,
         includeLand, setIncludeLand,
         includeBuilding, setIncludeBuilding,
         handleFormattedInput,
-
-        // 土地
         landValuation, setLandValuation,
         landArea, setLandArea,
         landType, setLandType,
-
-        // 建物
         buildingValuation, setBuildingValuation,
         buildingArea, setBuildingArea,
         selYear, setSelYear,
         selMonth, setSelMonth,
         selDay, setSelDay,
         isResidential, setIsResidential,
-        hasHousingCertificate, setHasHousingCertificate,
         acquisitionDeduction, setAcquisitionDeduction,
         deductionMessage,
         yearOptions,
-
-        // 結果
         results, showDetails, setShowDetails, calculateTax,
     };
 };

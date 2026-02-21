@@ -6,6 +6,13 @@ import { formatYen } from './utils';
 export type TransactionType = 'purchase' | 'new_build' | 'inheritance' | 'gift';
 export type LandType = 'residential' | 'other';
 
+export const TRANSACTION_OPTIONS: { value: TransactionType; label: string }[] = [
+    { value: 'purchase', label: '売買 (購入)' },
+    { value: 'new_build', label: '新築 (建物の保存登記)' },
+    { value: 'inheritance', label: '相続' },
+    { value: 'gift', label: '贈与' },
+];
+
 export interface TaxResults {
     total: number;
     landAcq: number;

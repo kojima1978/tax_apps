@@ -1,6 +1,6 @@
 import type { LandType } from '@/lib/real-estate-tax';
 
-type LandInputSectionProps = {
+type LandInputProps = {
     disabled: boolean;
     valuation: string;
     area: string;
@@ -10,7 +10,7 @@ type LandInputSectionProps = {
     onAreaChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
 
-const LandInputSection = ({
+const LandInput = ({
     disabled,
     valuation,
     area,
@@ -18,7 +18,7 @@ const LandInputSection = ({
     setLandType,
     onValuationChange,
     onAreaChange,
-}: LandInputSectionProps) => (
+}: LandInputProps) => (
     <div className={`re-column ${disabled ? 'disabled' : ''}`}>
         <h3 className="re-column-title">土地の情報</h3>
         <div className="input-item">
@@ -68,4 +68,4 @@ const LandInputSection = ({
     </div>
 );
 
-export default LandInputSection;
+export default LandInput;

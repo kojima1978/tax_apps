@@ -1,6 +1,6 @@
 import { getWareki } from '@/lib/real-estate-tax';
 
-type BuildingInputSectionProps = {
+type BuildingInputProps = {
     disabled: boolean;
     valuation: string;
     area: string;
@@ -8,7 +8,6 @@ type BuildingInputSectionProps = {
     selMonth: string;
     selDay: string;
     isResidential: boolean;
-    hasHousingCertificate: boolean;
     acquisitionDeduction: string;
     deductionMessage: string;
     yearOptions: number[];
@@ -18,11 +17,10 @@ type BuildingInputSectionProps = {
     setSelMonth: (v: string) => void;
     setSelDay: (v: string) => void;
     setIsResidential: (v: boolean) => void;
-    setHasHousingCertificate: (v: boolean) => void;
     onDeductionChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
 
-const BuildingInputSection = ({
+const BuildingInput = ({
     disabled,
     valuation,
     area,
@@ -30,7 +28,6 @@ const BuildingInputSection = ({
     selMonth,
     selDay,
     isResidential,
-    hasHousingCertificate,
     acquisitionDeduction,
     deductionMessage,
     yearOptions,
@@ -40,9 +37,8 @@ const BuildingInputSection = ({
     setSelMonth,
     setSelDay,
     setIsResidential,
-    setHasHousingCertificate,
     onDeductionChange,
-}: BuildingInputSectionProps) => (
+}: BuildingInputProps) => (
     <div className={`re-column ${disabled ? 'disabled' : ''}`}>
         <h3 className="re-column-title">建物の情報</h3>
         <div className="input-item">
@@ -118,35 +114,22 @@ const BuildingInputSection = ({
             </label>
         </div>
         {isResidential && (
-            <>
-                <div className="input-item">
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input
-                            type="checkbox"
-                            checked={hasHousingCertificate}
-                            onChange={(e) => setHasHousingCertificate(e.target.checked)}
-                            disabled={disabled}
-                        />
-                        住宅用家屋証明書あり
-                    </label>
-                </div>
-                <div className="input-item">
-                    <label>建物不動産取得税の控除額</label>
-                    <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="例: 12,000,000"
-                        value={acquisitionDeduction}
-                        onChange={onDeductionChange}
-                        disabled={disabled}
-                    />
-                    {deductionMessage && (
-                        <small style={{ color: 'var(--primary-color)' }}>{deductionMessage}</small>
-                    )}
-                </div>
-            </>
+            <div className="input-item">
+                <label>建物不動産取得税の控除額</label>
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="例: 12,000,000"
+                    value={acquisitionDeduction}
+                    onChange={onDeductionChange}
+                    disabled={disabled}
+                />
+                {deductionMessage && (
+                    <small style={{ color: 'var(--primary-color)' }}>{deductionMessage}</small>
+                )}
+            </div>
         )}
     </div>
 );
 
-export default BuildingInputSection;
+export default BuildingInput;
