@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import TaxTable from './TaxTable';
-import { CalculationResult } from '@/lib/tax-calculation';
+import { type CalculationResult } from '@/lib/tax-calculation';
 
 const TaxChart = lazy(() => import('./TaxChart'));
 

@@ -1,4 +1,4 @@
-import { CalculationResult } from '@/lib/tax-calculation';
+import { type CalculationResult } from '@/lib/tax-calculation';
 import { formatCurrency, formatPercent } from '@/lib/utils';
 
 type Props = {

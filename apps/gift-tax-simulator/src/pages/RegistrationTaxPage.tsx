@@ -10,7 +10,7 @@ export default function RegistrationTaxPage() {
 
     return (
         <div className="container-custom real-estate-page">
-            <Navigation title="登録免許税シミュレーター" activePage="registration-tax" />
+            <Navigation />
 
             <CommonInputSection
                 transactionType={form.transactionType}

@@ -8,6 +8,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'lucide-react/icons': fileURLToPath(
+        new URL('./node_modules/lucide-react/dist/esm/icons', import.meta.url)
+      ),
     },
   },
   build: {
