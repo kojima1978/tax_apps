@@ -35,7 +35,7 @@ const CommonInputSection = ({
             </div>
             <div className="input-item toggle-buttons">
                 <label>計算対象</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="flex-row">
                     <button
                         type="button"
                         className={`toggle-btn ${includeLand ? 'active' : ''}`}
