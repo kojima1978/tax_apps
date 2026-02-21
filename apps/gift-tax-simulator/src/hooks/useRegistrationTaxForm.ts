@@ -4,8 +4,9 @@ import {
     type TaxResults,
     type TransactionType,
 } from '@/lib/real-estate-tax';
-import { formatInputValue, parseFormattedNumber } from '@/lib/utils';
+import { parseFormattedNumber } from '@/lib/utils';
 import { saveValuations, loadValuations } from '@/lib/valuation-storage';
+import { useFormattedInput } from './useFormattedInput';
 
 export const useRegistrationTaxForm = () => {
     // 共通設定
@@ -38,12 +39,7 @@ export const useRegistrationTaxForm = () => {
         if (data.buildingValuation) setBuildingValuation(data.buildingValuation);
     }, []);
 
-    const handleFormattedInput = useCallback((
-        e: React.ChangeEvent<HTMLInputElement>,
-        setter: React.Dispatch<React.SetStateAction<string>>
-    ) => {
-        setter(formatInputValue(e.target.value));
-    }, []);
+    const handleFormattedInput = useFormattedInput();
 
     const calculateTax = useCallback(() => {
         const result = calculateRealEstateTax({

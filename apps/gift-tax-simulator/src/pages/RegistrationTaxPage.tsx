@@ -61,7 +61,7 @@ export default function RegistrationTaxPage() {
                             />
                         </div>
                         <div className="input-item">
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <label className="checkbox-label">
                                 <input
                                     type="checkbox"
                                     checked={form.isResidential}
@@ -73,7 +73,7 @@ export default function RegistrationTaxPage() {
                         </div>
                         {form.isResidential && (
                             <div className="input-item">
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <label className="checkbox-label">
                                     <input
                                         type="checkbox"
                                         checked={form.hasHousingCertificate}

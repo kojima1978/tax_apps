@@ -66,12 +66,12 @@ const BuildingInput = ({
         </div>
         <div className="input-item">
             <label>建築年月日</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="flex-row">
                 <select
                     value={selYear}
                     onChange={(e) => setSelYear(e.target.value)}
                     disabled={disabled}
-                    style={{ flex: 1 }}
+                    className="flex-1"
                 >
                     <option value="">年</option>
                     {yearOptions.map((y) => (
@@ -82,7 +82,7 @@ const BuildingInput = ({
                     value={selMonth}
                     onChange={(e) => setSelMonth(e.target.value)}
                     disabled={disabled}
-                    style={{ flex: 1 }}
+                    className="flex-1"
                 >
                     <option value="">月</option>
                     {[...Array(12)].map((_, i) => (
@@ -93,7 +93,7 @@ const BuildingInput = ({
                     value={selDay}
                     onChange={(e) => setSelDay(e.target.value)}
                     disabled={disabled}
-                    style={{ flex: 1 }}
+                    className="flex-1"
                 >
                     <option value="">日</option>
                     {[...Array(31)].map((_, i) => (
@@ -103,7 +103,7 @@ const BuildingInput = ({
             </div>
         </div>
         <div className="input-item">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label className="checkbox-label">
                 <input
                     type="checkbox"
                     checked={isResidential}
@@ -125,7 +125,7 @@ const BuildingInput = ({
                     disabled={disabled}
                 />
                 {deductionMessage && (
-                    <small style={{ color: 'var(--primary-color)' }}>{deductionMessage}</small>
+                    <small className="text-primary">{deductionMessage}</small>
                 )}
             </div>
         )}

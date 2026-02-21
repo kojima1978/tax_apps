@@ -7,6 +7,7 @@ import {
 } from '@/lib/real-estate-tax';
 import { formatInputValue, parseFormattedNumber, formatYen } from '@/lib/utils';
 import { saveValuations, loadValuations } from '@/lib/valuation-storage';
+import { useFormattedInput } from './useFormattedInput';
 
 export type AcquisitionResults = TaxResults & {
     resLandAcq: number;
@@ -50,12 +51,7 @@ export const useAcquisitionTaxForm = () => {
     const [showDetails, setShowDetails] = useState(false);
     const [results, setResults] = useState<AcquisitionResults | null>(null);
 
-    const handleFormattedInput = useCallback((
-        e: React.ChangeEvent<HTMLInputElement>,
-        setter: React.Dispatch<React.SetStateAction<string>>
-    ) => {
-        setter(formatInputValue(e.target.value));
-    }, []);
+    const handleFormattedInput = useFormattedInput();
 
     // 評価額をlocalStorageに保存（土地は宅地+その他の合計値を保存）
     useEffect(() => {

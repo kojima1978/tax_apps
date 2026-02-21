@@ -19,9 +19,10 @@
 
 ### 不動産取得税シミュレーター
 - 取引種別（売買・新築・相続・贈与）に対応
-- 土地・建物の取得税を個別計算
+- 土地を「宅地（特例あり）」と「その他（宅地以外）」に分離入力
 - 宅地特例（1/2）・住宅用地の税額軽減に対応
 - 建築年月日から控除額を自動判定
+- 結果に宅地/その他/建物の内訳表示
 - 計算過程の詳細表示
 
 ### 登録免許税シミュレーター
@@ -31,7 +32,10 @@
 - 計算過程の詳細表示
 
 ### 共通機能
+- 取得税⇔登録免許税間の評価額引用（localStorage経由）
+- 印刷時にページタイトル（税目名）をヘッダーに表示
 - 印刷用フッター（会社情報・担当者・作成日）
+- タブ形式ナビゲーション（4ページ切替）
 - レスポンシブデザイン
 
 ## 技術スタック
@@ -43,6 +47,7 @@
 | UI | React 19 |
 | Routing | react-router-dom v7 |
 | Chart | Chart.js + react-chartjs-2 |
+| Icons | lucide-react |
 | Styling | Tailwind CSS 4 |
 | Container | Docker + nginx |
 
@@ -107,12 +112,13 @@ npm run dev
 │   │   ├── QuickRefTable.tsx     # 早見表用テーブル
 │   │   ├── PrintFooter.tsx       # 印刷用フッター
 │   │   ├── acquisition-tax/
-│   │   │   ├── LandInput.tsx     # 土地入力（評価額・面積・地目）
+│   │   │   ├── LandInput.tsx     # 土地入力（宅地・その他 分離入力）
 │   │   │   └── BuildingInput.tsx # 建物入力（評価額・床面積・建築年月日・控除額）
 │   │   └── shared/
 │   │       ├── CommonInputSection.tsx  # 取引種別・計算対象トグル
 │   │       ├── TaxResultBox.tsx        # 結果表示ボックス
-│   │       └── CalculationDetails.tsx  # 計算過程の詳細
+│   │       ├── CalculationDetails.tsx  # 計算過程の詳細
+│   │       └── ImportButton.tsx        # 評価額引用ボタン
 │   ├── hooks/
 │   │   ├── useAcquisitionTaxForm.ts   # 不動産取得税フォーム
 │   │   └── useRegistrationTaxForm.ts  # 登録免許税フォーム
@@ -120,6 +126,7 @@ npm run dev
 │       ├── tax-calculation.ts    # 贈与税計算ロジック
 │       ├── real-estate-tax.ts    # 不動産税計算ロジック
 │       ├── utils.ts              # ユーティリティ関数
+│       ├── valuation-storage.ts  # 評価額のlocalStorage管理
 │       └── company.ts            # 会社情報
 ├── index.html                    # HTMLエントリー
 ├── vite.config.ts                # Vite設定
