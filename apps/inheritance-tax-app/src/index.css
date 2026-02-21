@@ -27,12 +27,44 @@
     line-height: 1.4;
   }
 
+  /* min-h-screen が印刷レイアウトに干渉するのを防止 */
+  .min-h-screen {
+    min-height: auto !important;
+  }
+
+  /* overflow が印刷時にコンテンツを切り取るのを防止 */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
   @page {
     size: A3 landscape;
     margin: 1cm;
   }
 
-  /* 計算ページ印刷 */
+  /* 計算ページ・比較ページ: A4横に上書き */
+  .calculator-print, .comparison-print { page: a4-landscape; }
+  @page a4-landscape { size: A4 landscape; margin: 12mm 15mm; }
+
+  .comparison-print {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .comparison-print .bg-white {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 10px 16px !important;
+  }
+
+  /* 比較詳細パネル */
+  .comparison-detail-print {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    margin-top: 12px !important;
+    break-inside: avoid;
+  }
+
   .calculator-print {
     padding: 0 !important;
     max-width: 100% !important;

@@ -2,7 +2,7 @@ import React, { memo, useCallback } from 'react';
 import type { TaxCalculationResult, HeirComposition } from '../types';
 import { formatCurrency, formatPercent, getScenarioName } from '../utils';
 import { isHighlightRow } from '../constants';
-import { FILLS, GREEN_BORDER, ALL_THIN_BORDERS, applyMainHeaderStyle, setupExcelWorkbook } from '../utils/excelStyles';
+import { FILLS, GREEN_BORDER, ALL_THIN_BORDERS, applyMainHeaderStyle, setupExcelWorkbook, saveWorkbook } from '../utils/excelStyles';
 import { useExcelExport } from '../hooks/useExcelExport';
 import { ExcelExportButton } from './ExcelExportButton';
 
@@ -18,10 +18,7 @@ export const ExcelExport: React.FC<ExcelExportProps> = memo(({
   const hasSpouse = composition.hasSpouse;
 
   const exportFn = useCallback(async () => {
-    const [ExcelJS, { saveAs }] = await Promise.all([
-      import('exceljs'),
-      import('file-saver'),
-    ]);
+    const ExcelJS = await import('exceljs');
 
     const { workbook, worksheet } = setupExcelWorkbook({
       ExcelJS,
@@ -105,28 +102,18 @@ export const ExcelExport: React.FC<ExcelExportProps> = memo(({
       { width: 14 },
     ];
 
-    // ファイル名の生成
-    const fileName = `相続税早見表_${getScenarioName(composition)}.xlsx`;
-
-    // ファイルを生成してダウンロード
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    saveAs(blob, fileName);
+    await saveWorkbook(workbook, `相続税早見表_${getScenarioName(composition)}.xlsx`);
   }, [data, hasSpouse, composition]);
 
   const { isExporting, error, handleExport } = useExcelExport(exportFn);
 
   return (
-    <div className="no-print">
-      <ExcelExportButton
-        onClick={handleExport}
-        disabled={data.length === 0}
-        isExporting={isExporting}
-        error={error}
-      />
-    </div>
+    <ExcelExportButton
+      onClick={handleExport}
+      disabled={data.length === 0}
+      isExporting={isExporting}
+      error={error}
+    />
   );
 });
 

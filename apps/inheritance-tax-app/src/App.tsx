@@ -1,16 +1,15 @@
 import { Routes, Route } from 'react-router-dom';
-import { Header } from './components/Header';
 import { TablePage } from './pages/TablePage';
 import { CalculatorPage } from './pages/CalculatorPage';
+import { ComparisonPage } from './pages/ComparisonPage';
 
 function App() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-
       <Routes>
         <Route path="/" element={<TablePage />} />
         <Route path="/calculator" element={<CalculatorPage />} />
+        <Route path="/comparison" element={<ComparisonPage />} />
       </Routes>
 
       <footer className="bg-gray-800 text-white py-6 mt-12 no-print">

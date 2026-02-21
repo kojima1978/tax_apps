@@ -68,8 +68,8 @@ export const TABLE_CONFIG = {
   STEP: 500,
   /** 最小値（万円）: 5,000万円 */
   MIN_VALUE: 5000,
-  /** デフォルト最大値（万円）: 10億円 */
-  DEFAULT_MAX_VALUE: 100000,
+  /** デフォルト最大値（万円）: 2億円 */
+  DEFAULT_MAX_VALUE: 20000,
 } as const;
 
 /**

@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
+import { Header } from '../components/Header';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/calculator/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { CalculationResult } from '../components/calculator/CalculationResult';
 import { CalculatorExcelExport } from '../components/calculator/CalculatorExcelExport';
-import { PrintButton } from '../components/PrintButton';
 import { CautionBox } from '../components/CautionBox';
 import type { HeirComposition, SpouseAcquisitionMode } from '../types';
 import { createDefaultComposition } from '../constants';
@@ -21,23 +21,25 @@ export const CalculatorPage: React.FC = () => {
     return calculateDetailedInheritanceTax(estateValue, composition, spouseMode);
   }, [estateValue, composition, spouseMode]);
 
+  const excelAction = result && result.taxableAmount > 0
+    ? <CalculatorExcelExport result={result} composition={composition} spouseMode={spouseMode} />
+    : undefined;
+
   return (
     <>
-      {/* CalculatorPage専用: A4縦 (TablePageのA3横を上書き) */}
-      <style>{`@media print { @page { size: A4 landscape; margin: 12mm 15mm; } }`}</style>
-      <main className="max-w-5xl mx-auto px-4 py-8 calculator-print">
+      <Header actions={excelAction} />
+      <main className="max-w-7xl mx-auto px-4 py-8 calculator-print">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
           <div className="space-y-6">
-            <EstateInput value={estateValue} onChange={setEstateValue} />
             <HeirSettings composition={composition} onChange={setComposition} />
           </div>
           <div className="space-y-6">
+            <EstateInput value={estateValue} onChange={setEstateValue} />
             <SpouseAcquisitionSettings
               value={spouseMode}
               onChange={setSpouseMode}
               hasSpouse={composition.hasSpouse}
             />
-
             <CautionBox
               items={[
                 'この計算は概算です。実際の税額は個別の事情により異なります。',
@@ -51,13 +53,7 @@ export const CalculatorPage: React.FC = () => {
         </div>
 
         {result && result.taxableAmount > 0 && (
-          <>
-            <CalculationResult result={result} />
-            <div className="flex gap-4 mt-6 no-print">
-              <CalculatorExcelExport result={result} composition={composition} spouseMode={spouseMode} />
-              <PrintButton />
-            </div>
-          </>
+          <CalculationResult result={result} />
         )}
 
         {result && result.taxableAmount === 0 && estateValue > 0 && (

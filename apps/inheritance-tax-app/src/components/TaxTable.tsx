@@ -1,7 +1,8 @@
-import React, { useState, memo } from 'react';
+import React, { memo } from 'react';
 import type { TaxCalculationResult } from '../types';
 import { formatCurrency, formatPercent } from '../utils';
 import { isHighlightRow } from '../constants';
+import { useColumnHover } from '../hooks/useColumnHover';
 
 interface TaxTableProps {
   data: TaxCalculationResult[];
@@ -33,13 +34,7 @@ const MAIN_COLUMNS_NO_SPOUSE: SubColumn[] = [
 ];
 
 export const TaxTable: React.FC<TaxTableProps> = memo(({ data, hasSpouse }) => {
-  const [hoveredCol, setHoveredCol] = useState<number | null>(null);
-  const headerHover = (col: number) => hoveredCol === col ? 'bg-green-700' : '';
-  const cellHighlight = (col: number) => hoveredCol === col ? 'bg-green-100' : '';
-  const hoverProps = (col: number) => ({
-    onMouseEnter: () => setHoveredCol(col),
-    onMouseLeave: () => setHoveredCol(null),
-  });
+  const { headerHover, cellHighlight, hoverProps } = useColumnHover();
 
   const spouseColumns = hasSpouse ? SPOUSE_COLUMNS : [];
   const mainColumns = hasSpouse ? MAIN_COLUMNS_WITH_SPOUSE : MAIN_COLUMNS_NO_SPOUSE;

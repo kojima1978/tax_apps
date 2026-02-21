@@ -77,3 +77,15 @@ export interface DetailedTaxCalculationResult {
   totalFinalTax: number;
   effectiveTaxRate: number;
 }
+
+// 1次2次比較テーブルの行
+export interface ComparisonRow {
+  ratio: number;              // 配偶者取得割合 (0-100)
+  spouseAcquisition: number;  // 配偶者取得額（万円）
+  firstTax: number;           // 1次相続税額（万円）
+  secondEstate: number;       // 2次相続遺産額（万円）
+  secondTax: number;          // 2次相続税額（万円）
+  totalTax: number;           // 合計税額（万円）
+  firstBreakdowns: HeirTaxBreakdown[];   // 1次相続 相続人別内訳
+  secondBreakdowns: HeirTaxBreakdown[];  // 2次相続 相続人別内訳
+}

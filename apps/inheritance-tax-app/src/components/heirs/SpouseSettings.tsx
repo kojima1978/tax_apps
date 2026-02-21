@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import type { HeirComposition } from '../../types';
+import { RadioGroup } from '../RadioGroup';
 
 interface SpouseSettingsProps {
     composition: HeirComposition;
@@ -7,31 +8,18 @@ interface SpouseSettingsProps {
 }
 
 const SPOUSE_OPTIONS = [
-    { value: true, label: '配偶者あり', id: 'spouse-yes-desc' },
-    { value: false, label: '配偶者なし', id: 'spouse-no-desc' },
+    { value: true as const, label: '配偶者あり', id: 'spouse-yes-desc' },
+    { value: false as const, label: '配偶者なし', id: 'spouse-no-desc' },
 ] as const;
 
-export const SpouseSettings: React.FC<SpouseSettingsProps> = memo(({ composition, onChange }) => {
-    return (
-        <fieldset className="mb-6 p-4 bg-gray-50 rounded-lg border-0">
-            <legend className="font-semibold text-gray-700 mb-3">配偶者の有無</legend>
-            <div className="space-y-2" role="radiogroup" aria-label="配偶者の有無">
-                {SPOUSE_OPTIONS.map((opt) => (
-                    <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="radio"
-                            name="spouse"
-                            checked={composition.hasSpouse === opt.value}
-                            onChange={() => onChange({ ...composition, hasSpouse: opt.value })}
-                            className="w-4 h-4 accent-green-600"
-                            aria-describedby={opt.id}
-                        />
-                        <span className="text-sm" id={opt.id}>{opt.label}</span>
-                    </label>
-                ))}
-            </div>
-        </fieldset>
-    );
-});
+export const SpouseSettings: React.FC<SpouseSettingsProps> = memo(({ composition, onChange }) => (
+    <RadioGroup
+        name="spouse"
+        legend="配偶者の有無"
+        options={SPOUSE_OPTIONS}
+        selected={composition.hasSpouse}
+        onSelect={(value) => onChange({ ...composition, hasSpouse: value })}
+    />
+));
 
 SpouseSettings.displayName = 'SpouseSettings';

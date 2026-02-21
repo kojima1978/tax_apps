@@ -1,5 +1,6 @@
 import type {
   HeirComposition,
+  HeirType,
   TaxCalculationResult,
   SpouseAcquisitionMode,
   HeirTaxBreakdown,
@@ -36,7 +37,7 @@ function calculateBasicDeduction(totalHeirsCount: number): number {
 }
 
 /** 順位→相続人種別 */
-const RANK_TO_HEIR_TYPE: Record<number, import('../types').HeirType> = { 1: 'child', 2: 'parent', 3: 'sibling' };
+const RANK_TO_HEIR_TYPE: Record<number, HeirType> = { 1: 'child', 2: 'parent', 3: 'sibling' };
 
 /**
  * 法定相続分に対する税額を計算
