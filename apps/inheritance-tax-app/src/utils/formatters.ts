@@ -25,3 +25,19 @@ export function formatCurrency(value: number): string {
 export function formatPercent(value: number, decimals: number = 2): string {
   return `${value.toFixed(decimals)}%`;
 }
+
+/** 差額を符号付きフォーマット（+1,000万円 / −500万円 / ±0） */
+export function formatDelta(diff: number): string {
+  if (diff > 0) return `+${formatCurrency(diff)}`;
+  if (diff < 0) return `−${formatCurrency(Math.abs(diff))}`;
+  return '±0';
+}
+
+/** 差額に応じた色クラス（invert=trueで税額など「減った方が良い」項目用） */
+export function deltaColor(diff: number, invert = false): string {
+  const positive = invert ? diff < 0 : diff > 0;
+  const negative = invert ? diff > 0 : diff < 0;
+  if (positive) return 'text-green-700';
+  if (negative) return 'text-red-600';
+  return 'text-gray-500';
+}

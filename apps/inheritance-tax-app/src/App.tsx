@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { TablePage } from './pages/TablePage';
 import { CalculatorPage } from './pages/CalculatorPage';
 import { ComparisonPage } from './pages/ComparisonPage';
+import { InsurancePage } from './pages/InsurancePage';
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
         <Route path="/" element={<TablePage />} />
         <Route path="/calculator" element={<CalculatorPage />} />
         <Route path="/comparison" element={<ComparisonPage />} />
+        <Route path="/insurance" element={<InsurancePage />} />
       </Routes>
 
       <footer className="bg-gray-800 text-white py-6 mt-12 no-print">

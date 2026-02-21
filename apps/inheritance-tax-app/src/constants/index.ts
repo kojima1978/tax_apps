@@ -56,6 +56,11 @@ export const SHARE_RATIOS: Record<number, { spouse: number; others: number }> = 
 export const SPOUSE_DEDUCTION_LIMIT = 16000;
 
 /**
+ * 死亡保険金の非課税限度額（1人あたり・万円単位）: 500万円
+ */
+export const INSURANCE_EXEMPT_PER_HEIR = 500;
+
+/**
  * 相続人順位のラベル（ファイル名生成・表示用）
  */
 export const RANK_LABELS: Record<number, string> = { 1: '子', 2: '直系尊属', 3: '兄弟姉妹' };
