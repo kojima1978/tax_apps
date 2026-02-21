@@ -10,7 +10,7 @@ import { COMPANY_INFO } from '@/lib/company';
 const NAV_ITEMS = [
     { to: '/', label: '贈与税', icon: Gift },
     { to: '/table', label: '早見表', icon: Table },
-    { to: '/acquisition-tax', label: '取得税', icon: Building },
+    { to: '/acquisition-tax', label: '不動産取得税', icon: Building },
     { to: '/registration-tax', label: '登録免許税', icon: FileText },
 ] as const;
 

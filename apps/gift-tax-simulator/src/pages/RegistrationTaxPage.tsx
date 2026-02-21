@@ -22,13 +22,22 @@ export default function RegistrationTaxPage() {
                 setIncludeBuilding={form.setIncludeBuilding}
             />
 
-            <ImportButton
-                sourceLabel="取得税ページ（土地合計）"
-                sourcePage="acquisition-tax"
-                onImport={form.importValuations}
-            />
+            <div className="import-bar-group no-print">
+                <ImportButton
+                    sourceLabel="不動産取得税ページ"
+                    sourcePage="acquisition-tax"
+                    field="land"
+                    onImport={form.importLandValuation}
+                />
+                <ImportButton
+                    sourceLabel="不動産取得税ページ"
+                    sourcePage="acquisition-tax"
+                    field="building"
+                    onImport={form.importBuildingValuation}
+                />
+            </div>
 
-            <div className="input-section" style={{ borderBottom: 'none' }}>
+            <div className="input-section input-section-flat">
                 <div className="re-two-column">
                     {/* 土地: 評価額のみ */}
                     <div className={`re-column ${!form.includeLand ? 'disabled' : ''}`}>

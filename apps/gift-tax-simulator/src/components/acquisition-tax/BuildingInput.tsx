@@ -1,5 +1,8 @@
 import { getWareki } from '@/lib/real-estate-tax';
 
+const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
+
 type BuildingInputProps = {
     disabled: boolean;
     valuation: string;
@@ -85,8 +88,8 @@ const BuildingInput = ({
                     className="flex-1"
                 >
                     <option value="">月</option>
-                    {[...Array(12)].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>{i + 1}月</option>
+                    {MONTHS.map((m) => (
+                        <option key={m} value={m}>{m}月</option>
                     ))}
                 </select>
                 <select
@@ -96,8 +99,8 @@ const BuildingInput = ({
                     className="flex-1"
                 >
                     <option value="">日</option>
-                    {[...Array(31)].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>{i + 1}日</option>
+                    {DAYS.map((d) => (
+                        <option key={d} value={d}>{d}日</option>
                     ))}
                 </select>
             </div>

@@ -6,8 +6,9 @@ import {
     type TransactionType,
 } from '@/lib/real-estate-tax';
 import { formatInputValue, parseFormattedNumber, formatYen } from '@/lib/utils';
-import { saveValuations, loadValuations } from '@/lib/valuation-storage';
+import { saveValuations } from '@/lib/valuation-storage';
 import { useFormattedInput } from './useFormattedInput';
+import { useValuationImport } from './useValuationImport';
 
 export type AcquisitionResults = TaxResults & {
     resLandAcq: number;
@@ -62,13 +63,8 @@ export const useAcquisitionTaxForm = () => {
         saveValuations('acquisition-tax', { landValuation, buildingValuation });
     }, [resLandValuation, otherLandValuation, buildingValuation]);
 
-    // 登録免許税ページの評価額を引用
-    const importValuations = useCallback(() => {
-        const data = loadValuations('registration-tax');
-        if (!data) return;
-        if (data.landValuation) setResLandValuation(data.landValuation);
-        if (data.buildingValuation) setBuildingValuation(data.buildingValuation);
-    }, []);
+    const { importLandValuation, importBuildingValuation } =
+        useValuationImport('registration-tax', setResLandValuation, setBuildingValuation);
 
     // 建築年月日の組み立て
     useEffect(() => {
@@ -202,6 +198,6 @@ export const useAcquisitionTaxForm = () => {
         deductionMessage,
         yearOptions,
         results, showDetails, setShowDetails, calculateTax,
-        importValuations,
+        importLandValuation, importBuildingValuation,
     };
 };

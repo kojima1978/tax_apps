@@ -5,8 +5,9 @@ import {
     type TransactionType,
 } from '@/lib/real-estate-tax';
 import { parseFormattedNumber } from '@/lib/utils';
-import { saveValuations, loadValuations } from '@/lib/valuation-storage';
+import { saveValuations } from '@/lib/valuation-storage';
 import { useFormattedInput } from './useFormattedInput';
+import { useValuationImport } from './useValuationImport';
 
 export const useRegistrationTaxForm = () => {
     // 共通設定
@@ -31,13 +32,8 @@ export const useRegistrationTaxForm = () => {
         saveValuations('registration-tax', { landValuation, buildingValuation });
     }, [landValuation, buildingValuation]);
 
-    // 取得税ページの評価額を引用
-    const importValuations = useCallback(() => {
-        const data = loadValuations('acquisition-tax');
-        if (!data) return;
-        if (data.landValuation) setLandValuation(data.landValuation);
-        if (data.buildingValuation) setBuildingValuation(data.buildingValuation);
-    }, []);
+    const { importLandValuation, importBuildingValuation } =
+        useValuationImport('acquisition-tax', setLandValuation, setBuildingValuation);
 
     const handleFormattedInput = useFormattedInput();
 
@@ -71,6 +67,6 @@ export const useRegistrationTaxForm = () => {
         isResidential, setIsResidential,
         hasHousingCertificate, setHasHousingCertificate,
         results, showDetails, setShowDetails, calculateTax,
-        importValuations,
+        importLandValuation, importBuildingValuation,
     };
 };

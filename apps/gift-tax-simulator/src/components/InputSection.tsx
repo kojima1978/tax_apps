@@ -33,13 +33,13 @@ const InputSection = ({
     return (
         <div className="input-section">
             <noscript>
-                <div style={{ color: 'red', fontWeight: 'bold', padding: '10px' }}>
+                <div className="noscript-warning">
                     ※このアプリを使用するにはJavaScriptを有効にしてください。
                 </div>
             </noscript>
 
             <div className="input-group-row">
-                <div className="input-item" style={{ flex: 1 }}>
+                <div className="input-item flex-1">
                     <label htmlFor="giftAmount">贈与金額 (円)</label>
                     <input
                         type="text"
@@ -53,7 +53,7 @@ const InputSection = ({
                     />
                 </div>
 
-                <div className="input-item" style={{ flex: 1 }}>
+                <div className="input-item flex-1">
                     <label htmlFor="giftType">贈与区分</label>
                     <select
                         id="giftType"
