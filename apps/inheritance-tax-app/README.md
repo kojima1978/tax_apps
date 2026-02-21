@@ -1,10 +1,10 @@
 # 相続税シミュレーター
 
-相続財産額に応じた相続税額をシミュレーションするツールです。早見表と詳細計算の2つのモードを提供します。
+相続財産額に応じた相続税額をシミュレーションするツールです。早見表・詳細計算・1次2次比較の3つのモードを提供します。
 
 ## 機能
 
-### 早見表モード
+### 早見表モード（`/`）
 - 相続人構成の設定（配偶者、子、直系尊属、兄弟姉妹）
 - 代襲相続（孫、甥姪）のサポート
 - 1次相続（配偶者あり）・2次相続（配偶者なし）の税額比較
@@ -12,21 +12,29 @@
 - 第3順位（兄弟姉妹）の2割加算
 - Excel出力・印刷対応（A3横向き）
 
-### 計算モード
+### 計算モード（`/calculator`）
 - 任意の遺産総額を入力して相続税を計算
 - 配偶者の取得割合を選択（法定相続分 / 1億6千万円 / 任意額）
 - 計算過程のステップ表示（基礎控除→法定相続分→速算表→按分→控除）
 - 相続人別内訳テーブル（按分税額・2割加算・配偶者控除・納付税額）
 - Excel出力・印刷対応（A4横向き、大きめフォント）
 
+### 1次2次比較モード（`/comparison`）
+- 1次相続と2次相続の税額を合算比較
+- 配偶者の取得割合別に合計税額を比較表示（100%→0%降順）
+- 配偶者固有財産の考慮（2次遺産額 = 固有 + 取得 の内訳表示）
+- 行クリックで相続人別内訳パネル表示（1次/2次の取得額・納付税額）
+- Excel出力対応（比較表 + 相続人別内訳の2シート構成）
+
 ## 技術スタック
 
 - **フレームワーク**: React 19 + TypeScript 5
-- **ビルドツール**: Vite 7
-- **ルーティング**: React Router DOM 7
-- **スタイリング**: Tailwind CSS 3
+- **ビルドツール**: Vite 7.2
+- **ルーティング**: React Router DOM 7.6
+- **スタイリング**: Tailwind CSS 3.4 + PostCSS + Autoprefixer
 - **アイコン**: Lucide React（直接 icon import）
 - **Excel出力**: ExcelJS + FileSaver（lazy dynamic import）
+- **Lint**: ESLint 9 + typescript-eslint
 
 ## プロジェクト構成
 
@@ -34,7 +42,8 @@
 src/
 ├── pages/
 │   ├── TablePage.tsx               # 早見表ページ
-│   └── CalculatorPage.tsx          # 相続税計算ページ
+│   ├── CalculatorPage.tsx          # 相続税計算ページ
+│   └── ComparisonPage.tsx          # 1次2次相続比較ページ
 ├── components/
 │   ├── calculator/
 │   │   ├── CalculationResult.tsx   # 計算結果サマリー
@@ -43,28 +52,35 @@ src/
 │   │   ├── EstateInput.tsx         # 遺産総額入力
 │   │   ├── HeirBreakdownTable.tsx  # 相続人別内訳テーブル
 │   │   └── SpouseAcquisitionSettings.tsx # 配偶者取得割合設定
+│   ├── comparison/
+│   │   ├── ComparisonTable.tsx     # 1次2次比較テーブル
+│   │   ├── ComparisonDetailPanel.tsx # 相続人別内訳パネル
+│   │   └── ComparisonExcelExport.tsx # 比較結果Excel出力
 │   ├── heirs/
 │   │   ├── Rank2Settings.tsx       # 第2順位：直系尊属
 │   │   ├── RankHeirSettings.tsx    # 第1/3順位共通（子・兄弟姉妹）
 │   │   └── SpouseSettings.tsx      # 配偶者設定
 │   ├── CautionBox.tsx              # 注意書きボックス
+│   ├── CurrencyInput.tsx           # 金額入力（万円 + フォーマット表示）
 │   ├── ExcelExport.tsx             # 早見表Excel出力
 │   ├── ExcelExportButton.tsx       # Excel出力ボタン共通
 │   ├── Header.tsx                  # ヘッダー（タブナビゲーション）
 │   ├── HeirSettings.tsx            # 相続人設定メイン
-│   ├── PrintButton.tsx             # 印刷ボタン
 │   ├── PrintHeader.tsx             # 印刷専用ヘッダー
+│   ├── RadioGroup.tsx              # ラジオボタングループ共通
 │   ├── RangeSettings.tsx           # シミュレーション範囲設定
 │   ├── SectionHeader.tsx           # セクション見出し共通
 │   └── TaxTable.tsx                # 税額一覧テーブル
 ├── hooks/
+│   ├── useColumnHover.ts           # テーブル列ホバーハイライトhook
 │   └── useExcelExport.ts           # Excel出力状態管理hook
 ├── constants/
 │   └── index.ts                    # 定数（税率テーブル、基礎控除、会社情報等）
 ├── types/
 │   └── index.ts                    # 型定義
 ├── utils/
-│   ├── excelStyles.ts              # Excel共通スタイル・ワークブック生成
+│   ├── comparisonCalculator.ts     # 1次2次比較計算ロジック
+│   ├── excelStyles.ts              # Excel共通スタイル・ワークブック生成・保存
 │   ├── formatters.ts               # フォーマット関数
 │   ├── heirUtils.ts                # 相続人ユーティリティ
 │   ├── idGenerator.ts              # ID生成
@@ -95,12 +111,6 @@ docker compose up -d inheritance-tax-app
 ```bash
 npm install
 npm run dev
-```
-
-## ビルド
-
-```bash
-npm run build
 ```
 
 ## 税額計算ロジック

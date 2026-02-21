@@ -84,3 +84,53 @@ export function setupExcelWorkbook({ ExcelJS, sheetName, title, colCount, pageSe
 
   return { workbook, worksheet };
 }
+
+/**
+ * セクションヘッダー行を追加（結合 + メインヘッダースタイル）
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function addSectionHeader(worksheet: any, colCount: number, title: string) {
+  const rowNum = worksheet.rowCount + 1;
+  worksheet.mergeCells(rowNum, 1, rowNum, colCount);
+  const cell = worksheet.getCell(`A${rowNum}`);
+  cell.value = title;
+  applyMainHeaderStyle(cell);
+  worksheet.getRow(rowNum).height = 25;
+}
+
+/**
+ * ラベル + 値の行を追加（2列ラベル + 残り値）
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function addLabelValueRow(worksheet: any, colCount: number, label: string, value: string) {
+  const row = worksheet.addRow([]);
+  worksheet.mergeCells(row.number, 1, row.number, 2);
+  worksheet.mergeCells(row.number, 3, row.number, colCount);
+  const lCell = worksheet.getCell(`A${row.number}`);
+  lCell.value = label;
+  lCell.font = { bold: true, size: 11 };
+  lCell.fill = solidFill('FFF3F4F6');
+  lCell.border = ALL_THIN_BORDERS;
+  lCell.alignment = { vertical: 'middle' };
+  worksheet.getCell(`B${row.number}`).border = ALL_THIN_BORDERS;
+  const vCell = worksheet.getCell(`C${row.number}`);
+  vCell.value = value;
+  vCell.font = { size: 11 };
+  vCell.border = ALL_THIN_BORDERS;
+  vCell.alignment = { vertical: 'middle', horizontal: 'right' };
+  for (let c = 4; c <= colCount; c++) {
+    worksheet.getCell(row.number, c).border = ALL_THIN_BORDERS;
+  }
+}
+
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/**
+ * ワークブックをBlobに変換してダウンロード
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function saveWorkbook(workbook: any, fileName: string) {
+  const { saveAs } = await import('file-saver');
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer], { type: XLSX_MIME }), fileName);
+}

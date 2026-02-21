@@ -3,14 +3,21 @@ import { NavLink } from 'react-router-dom';
 import Home from 'lucide-react/icons/home';
 import Table from 'lucide-react/icons/table';
 import Calculator from 'lucide-react/icons/calculator';
+import Scale from 'lucide-react/icons/scale';
+import Printer from 'lucide-react/icons/printer';
 import { COMPANY_INFO } from '../constants';
 
 const NAV_ITEMS = [
   { to: '/', label: '早見表', icon: Table },
   { to: '/calculator', label: '相続税計算', icon: Calculator },
+  { to: '/comparison', label: '1次2次比較', icon: Scale },
 ] as const;
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  actions?: React.ReactNode;
+}
+
+export const Header: React.FC<HeaderProps> = ({ actions }) => {
   return (
     <header className="bg-gradient-to-r from-green-600 to-green-800 text-white shadow-lg no-print">
       <div className="max-w-7xl mx-auto py-6 px-8">
@@ -33,7 +40,7 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      <nav className="max-w-7xl mx-auto px-8 pb-0">
+      <nav className="max-w-7xl mx-auto px-8 pb-0 flex justify-between items-end">
         <div className="flex gap-1">
           {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -52,6 +59,16 @@ export const Header: React.FC = () => {
               {label}
             </NavLink>
           ))}
+        </div>
+        <div className="flex items-center gap-2 mb-1.5">
+          {actions}
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-green-100 text-green-100 rounded text-sm hover:bg-green-700 hover:text-white transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            印刷
+          </button>
         </div>
       </nav>
     </header>

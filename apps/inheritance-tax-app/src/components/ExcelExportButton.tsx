@@ -15,25 +15,25 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
   isExporting,
   error,
 }) => (
-  <div>
+  <>
     <button
       onClick={onClick}
       disabled={disabled || isExporting}
       aria-busy={isExporting}
       aria-label="Excelファイルをダウンロード"
-      className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md transition-colors"
+      className="flex items-center gap-1.5 px-3 py-1.5 border border-green-100 text-green-100 rounded text-sm hover:bg-green-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
     >
       {isExporting ? (
-        <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
       ) : (
-        <Download className="w-5 h-5" aria-hidden="true" />
+        <Download className="w-4 h-4" aria-hidden="true" />
       )}
-      {isExporting ? 'エクスポート中...' : 'Excelダウンロード'}
+      {isExporting ? '出力中...' : 'Excel'}
     </button>
     {error && (
-      <p className="mt-2 text-sm text-red-600" role="alert">
+      <p className="text-xs text-red-300 whitespace-nowrap" role="alert">
         {error}
       </p>
     )}
-  </div>
+  </>
 );

@@ -1,0 +1,79 @@
+import { useState, useMemo } from 'react';
+import Landmark from 'lucide-react/icons/landmark';
+import { Header } from '../components/Header';
+import { HeirSettings } from '../components/HeirSettings';
+import { SectionHeader } from '../components/SectionHeader';
+import { CurrencyInput } from '../components/CurrencyInput';
+import { ComparisonTable } from '../components/comparison/ComparisonTable';
+import { ComparisonExcelExport } from '../components/comparison/ComparisonExcelExport';
+import { PrintHeader } from '../components/PrintHeader';
+import { CautionBox } from '../components/CautionBox';
+import type { HeirComposition } from '../types';
+import { createDefaultComposition } from '../constants';
+import { calculateComparisonTable } from '../utils';
+
+export const ComparisonPage: React.FC = () => {
+  const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
+  const [estateValue, setEstateValue] = useState<number>(0);
+  const [spouseOwnEstate, setSpouseOwnEstate] = useState<number>(0);
+
+  const comparisonData = useMemo(() => {
+    if (estateValue <= 0 || !composition.hasSpouse) return [];
+    return calculateComparisonTable(estateValue, spouseOwnEstate, composition);
+  }, [estateValue, spouseOwnEstate, composition]);
+
+  const hasData = comparisonData.length > 0;
+
+  const excelAction = hasData
+    ? <ComparisonExcelExport data={comparisonData} composition={composition} estateValue={estateValue} spouseOwnEstate={spouseOwnEstate} />
+    : undefined;
+
+  return (
+    <>
+      <Header actions={excelAction} />
+      <main className="max-w-7xl mx-auto px-4 py-8 comparison-print">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
+          <div className="space-y-6">
+            <HeirSettings composition={composition} onChange={setComposition} />
+          </div>
+
+          <div className="space-y-6">
+            {/* 相続財産入力 */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <SectionHeader icon={Landmark} title="相続財産" />
+              <div className="space-y-4">
+                <CurrencyInput id="estate-value" label="対象者の相続財産額" value={estateValue} onChange={setEstateValue} placeholder="例: 20000" />
+                <CurrencyInput id="spouse-estate" label="配偶者の固有財産額" value={spouseOwnEstate} onChange={setSpouseOwnEstate} placeholder="例: 5000" />
+              </div>
+            </div>
+
+            <CautionBox
+              items={[
+                'この比較は1次相続と2次相続の合計税額を概算で比較するものです。',
+                '2次相続の相続人は、1次相続の配偶者以外の相続人と同じ構成と仮定しています。',
+                '配偶者の固有財産額には、1次相続前から配偶者が保有している財産を入力してください。',
+                '実際の税額は個別の事情により異なります。詳細は税理士にご相談ください。',
+              ]}
+            />
+          </div>
+        </div>
+
+        {!composition.hasSpouse && estateValue > 0 && (
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-8 text-center no-print">
+            <p className="text-lg font-bold text-yellow-800 mb-2">配偶者ありの構成を選択してください</p>
+            <p className="text-sm text-yellow-600">
+              1次2次比較は、配偶者がいる場合の取得割合による税額の変化を比較する機能です。
+            </p>
+          </div>
+        )}
+
+        {hasData && (
+          <>
+            <PrintHeader title="1次相続・2次相続 配偶者取得割合別比較" />
+            <ComparisonTable data={comparisonData} spouseOwnEstate={spouseOwnEstate} />
+          </>
+        )}
+      </main>
+    </>
+  );
+};

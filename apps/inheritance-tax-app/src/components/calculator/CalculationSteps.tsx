@@ -1,6 +1,6 @@
 import React from 'react';
 import type { DetailedTaxCalculationResult, HeirTaxBreakdown } from '../../types';
-import { formatCurrency } from '../../utils';
+import { formatCurrency, formatPercent } from '../../utils';
 import { BASIC_DEDUCTION } from '../../constants';
 
 interface CalculationStepsProps {
@@ -8,7 +8,6 @@ interface CalculationStepsProps {
 }
 
 interface Step {
-  number: number;
   title: string;
   content: React.ReactNode;
 }
@@ -43,12 +42,10 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
 
   const steps: Step[] = [
     {
-      number: 1,
       title: '遺産総額',
       content: <p className="text-lg font-bold text-green-800">{formatCurrency(result.estateValue)}</p>,
     },
     {
-      number: 2,
       title: '基礎控除額',
       content: (
         <FormulaResult
@@ -58,7 +55,6 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
       ),
     },
     {
-      number: 3,
       title: '課税遺産総額',
       content: (
         <FormulaResult
@@ -68,16 +64,14 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
       ),
     },
     {
-      number: 4,
       title: '法定相続分に応じた取得金額',
       content: (
         <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
-          <>{formatCurrency(result.taxableAmount)} × {(b.legalShareRatio * 100).toFixed(1)}% = <span className="font-medium">{formatCurrency(b.legalShareAmount)}</span></>
+          <>{formatCurrency(result.taxableAmount)} × {formatPercent(b.legalShareRatio * 100, 1)} = <span className="font-medium">{formatCurrency(b.legalShareAmount)}</span></>
         )} />
       ),
     },
     {
-      number: 5,
       title: '各取得金額に対する税額（速算表適用）',
       content: (
         <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
@@ -86,7 +80,6 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
       ),
     },
     {
-      number: 6,
       title: '相続税の総額',
       content: (
         <FormulaResult
@@ -96,7 +89,6 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
       ),
     },
     {
-      number: 7,
       title: '各相続人の按分後税額',
       content: (
         <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
@@ -109,7 +101,6 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
   // 配偶者の税額軽減（該当時）
   if (spouseDeductionDetail) {
     steps.push({
-      number: 8,
       title: '配偶者の税額軽減',
       content: (
         <div className="bg-green-50 rounded-lg p-3">
@@ -128,7 +119,6 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
   if (hasRank3) {
     const rank3Heirs = heirBreakdowns.filter(b => b.surchargeAmount > 0);
     steps.push({
-      number: spouseDeductionDetail ? 9 : 8,
       title: '2割加算',
       content: (
         <div className="bg-orange-50 rounded-lg p-3">
@@ -146,7 +136,6 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
 
   // 最終ステップ
   steps.push({
-    number: steps.length + 1,
     title: '納付すべき相続税額',
     content: (
       <div>
@@ -166,10 +155,10 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
     <div className="bg-white rounded-lg shadow-md p-6">
       <h3 className="text-lg font-bold text-gray-800 mb-6">計算過程</h3>
       <div className="space-y-6">
-        {steps.map((step) => (
-          <div key={step.number} className="flex gap-4">
+        {steps.map((step, index) => (
+          <div key={index} className="flex gap-4">
             <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-              {step.number}
+              {index + 1}
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-gray-800 mb-1">{step.title}</h4>
