@@ -20,7 +20,7 @@ const ResultSection = ({ results }: Props) => {
                 <TaxChart results={results} />
             </Suspense>
 
-            <p style={{ textAlign: 'right', fontSize: '0.8rem', color: '#666', marginTop: '1rem' }}>
+            <p className="disclaimer-right">
                 ※基礎控除110万円を含んで計算しています。<br />
                 ※税額は国税庁の速算表に基づきます。実際の納税額と端数処理等で異なる場合があります。
             </p>

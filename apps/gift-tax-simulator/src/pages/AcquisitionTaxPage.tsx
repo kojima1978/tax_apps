@@ -24,19 +24,28 @@ export default function AcquisitionTaxPage() {
                 setIncludeBuilding={form.setIncludeBuilding}
             >
                 {form.transactionType === 'inheritance' && (
-                    <p style={{ color: 'var(--primary-color)', fontWeight: 'bold', marginTop: '0.5rem' }}>
+                    <p className="notice-primary">
                         ※ 相続の場合、不動産取得税は非課税です。
                     </p>
                 )}
             </CommonInputSection>
 
-            <ImportButton
-                sourceLabel="登録免許税ページ"
-                sourcePage="registration-tax"
-                onImport={form.importValuations}
-            />
+            <div className="import-bar-group no-print">
+                <ImportButton
+                    sourceLabel="登録免許税ページ"
+                    sourcePage="registration-tax"
+                    field="land"
+                    onImport={form.importLandValuation}
+                />
+                <ImportButton
+                    sourceLabel="登録免許税ページ"
+                    sourcePage="registration-tax"
+                    field="building"
+                    onImport={form.importBuildingValuation}
+                />
+            </div>
 
-            <div className="input-section" style={{ borderBottom: 'none' }}>
+            <div className="input-section input-section-flat">
                 <div className="re-two-column">
                     <LandInput
                         disabled={!form.includeLand}

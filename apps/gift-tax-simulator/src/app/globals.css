@@ -160,10 +160,16 @@ body {
 }
 
 /* 評価額引用バー */
-.import-bar {
+.import-bar-group {
+  display: flex;
+  gap: 0.5rem;
   padding: 0.5rem 1.5rem;
   background-color: #f0fdf4;
   border-bottom: 1px solid #bbf7d0;
+}
+
+.import-bar-group:not(:has(> *)) {
+  display: none;
 }
 
 .btn-import {
@@ -497,6 +503,29 @@ tr:hover {
 
 .text-primary {
   color: var(--primary-color);
+}
+
+.notice-primary {
+  color: var(--primary-color);
+  font-weight: bold;
+  margin-top: 0.5rem;
+}
+
+.input-section-flat {
+  border-bottom: none;
+}
+
+.noscript-warning {
+  color: red;
+  font-weight: bold;
+  padding: 10px;
+}
+
+.disclaimer-right {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 1rem;
 }
 
 /* トグルボタン */

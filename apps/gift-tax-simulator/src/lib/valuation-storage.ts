@@ -1,4 +1,4 @@
-type PageKey = 'acquisition-tax' | 'registration-tax';
+export type PageKey = 'acquisition-tax' | 'registration-tax';
 
 type ValuationData = {
     landValuation: string;
