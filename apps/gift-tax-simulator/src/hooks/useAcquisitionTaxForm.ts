@@ -4,9 +4,14 @@ import {
     calculateBuildingDeduction,
     type TaxResults,
     type TransactionType,
-    type LandType,
 } from '@/lib/real-estate-tax';
 import { formatInputValue, parseFormattedNumber, formatYen } from '@/lib/utils';
+import { saveValuations, loadValuations } from '@/lib/valuation-storage';
+
+export type AcquisitionResults = TaxResults & {
+    resLandAcq: number;
+    otherLandAcq: number;
+};
 
 export const useAcquisitionTaxForm = () => {
     const yearOptions = useMemo(() => {
@@ -23,10 +28,12 @@ export const useAcquisitionTaxForm = () => {
     const [includeBuilding, setIncludeBuilding] = useState(true);
     const [transactionType, setTransactionType] = useState<TransactionType>('purchase');
 
-    // 土地
-    const [landValuation, setLandValuation] = useState('');
-    const [landArea, setLandArea] = useState('');
-    const [landType, setLandType] = useState<LandType>('residential');
+    // 土地（宅地）
+    const [resLandValuation, setResLandValuation] = useState('');
+    const [resLandArea, setResLandArea] = useState('');
+
+    // 土地（その他）
+    const [otherLandValuation, setOtherLandValuation] = useState('');
 
     // 建物
     const [buildingValuation, setBuildingValuation] = useState('');
@@ -41,13 +48,30 @@ export const useAcquisitionTaxForm = () => {
 
     // 結果
     const [showDetails, setShowDetails] = useState(false);
-    const [results, setResults] = useState<TaxResults | null>(null);
+    const [results, setResults] = useState<AcquisitionResults | null>(null);
 
     const handleFormattedInput = useCallback((
         e: React.ChangeEvent<HTMLInputElement>,
         setter: React.Dispatch<React.SetStateAction<string>>
     ) => {
         setter(formatInputValue(e.target.value));
+    }, []);
+
+    // 評価額をlocalStorageに保存（土地は宅地+その他の合計値を保存）
+    useEffect(() => {
+        const resVal = parseFormattedNumber(resLandValuation);
+        const otherVal = parseFormattedNumber(otherLandValuation);
+        const total = resVal + otherVal;
+        const landValuation = total > 0 ? formatInputValue(total) : '';
+        saveValuations('acquisition-tax', { landValuation, buildingValuation });
+    }, [resLandValuation, otherLandValuation, buildingValuation]);
+
+    // 登録免許税ページの評価額を引用
+    const importValuations = useCallback(() => {
+        const data = loadValuations('registration-tax');
+        if (!data) return;
+        if (data.landValuation) setResLandValuation(data.landValuation);
+        if (data.buildingValuation) setBuildingValuation(data.buildingValuation);
     }, []);
 
     // 建築年月日の組み立て
@@ -73,24 +97,95 @@ export const useAcquisitionTaxForm = () => {
     }, [buildingDate, transactionType, isResidential]);
 
     const calculateTax = useCallback(() => {
-        const result = calculateRealEstateTax({
-            includeLand,
-            includeBuilding,
-            landValuation: parseFormattedNumber(landValuation),
-            buildingValuation: parseFormattedNumber(buildingValuation),
+        const resVal = parseFormattedNumber(resLandValuation);
+        const otherVal = parseFormattedNumber(otherLandValuation);
+        const bldgVal = parseFormattedNumber(buildingValuation);
+        const bArea = parseFormattedNumber(buildingArea);
+
+        // 宅地の計算
+        const resResult = (includeLand && resVal > 0) ? calculateRealEstateTax({
+            includeLand: true,
+            includeBuilding: false,
+            landValuation: resVal,
+            buildingValuation: 0,
             transactionType,
-            landType,
-            landArea: parseFormattedNumber(landArea),
-            buildingArea: parseFormattedNumber(buildingArea),
+            landType: 'residential',
+            landArea: parseFormattedNumber(resLandArea),
+            buildingArea: bArea,
+            isResidential: true,
+            hasHousingCertificate: false,
+            acquisitionDeduction: 0,
+        }) : null;
+
+        // その他（宅地以外）の計算
+        const otherResult = (includeLand && otherVal > 0) ? calculateRealEstateTax({
+            includeLand: true,
+            includeBuilding: false,
+            landValuation: otherVal,
+            buildingValuation: 0,
+            transactionType,
+            landType: 'other',
+            landArea: 0,
+            buildingArea: 0,
+            isResidential: false,
+            hasHousingCertificate: false,
+            acquisitionDeduction: 0,
+        }) : null;
+
+        // 建物の計算
+        const bldgResult = (includeBuilding && bldgVal > 0) ? calculateRealEstateTax({
+            includeLand: false,
+            includeBuilding: true,
+            landValuation: 0,
+            buildingValuation: bldgVal,
+            transactionType,
+            landType: 'residential',
+            landArea: 0,
+            buildingArea: bArea,
             isResidential,
             hasHousingCertificate: false,
             acquisitionDeduction: parseFormattedNumber(acquisitionDeduction),
+        }) : null;
+
+        const resLandAcq = resResult?.landAcq ?? 0;
+        const otherLandAcq = otherResult?.landAcq ?? 0;
+        const bldgAcq = bldgResult?.bldgAcq ?? 0;
+
+        // 計算過程を結合
+        const landAcqProcess: string[] = [];
+        if (resResult && resResult.process.landAcq.length > 0) {
+            landAcqProcess.push('【宅地（特例あり）】');
+            landAcqProcess.push(...resResult.process.landAcq);
+        }
+        if (otherResult && otherResult.process.landAcq.length > 0) {
+            if (landAcqProcess.length > 0) landAcqProcess.push('');
+            landAcqProcess.push('【その他（宅地以外）】');
+            landAcqProcess.push(...otherResult.process.landAcq);
+        }
+
+        setResults({
+            landAcq: resLandAcq + otherLandAcq,
+            bldgAcq,
+            landReg: 0,
+            bldgReg: 0,
+            totalAcq: resLandAcq + otherLandAcq + bldgAcq,
+            totalReg: 0,
+            total: resLandAcq + otherLandAcq + bldgAcq,
+            process: {
+                landAcq: landAcqProcess,
+                bldgAcq: bldgResult?.process.bldgAcq ?? [],
+                landReg: [],
+                bldgReg: [],
+            },
+            resLandAcq,
+            otherLandAcq,
         });
-        setResults(result);
     }, [
-        includeLand, includeBuilding, landValuation, buildingValuation,
-        transactionType, landType, landArea, buildingArea,
-        isResidential, acquisitionDeduction
+        includeLand, includeBuilding,
+        resLandValuation, resLandArea,
+        otherLandValuation,
+        buildingValuation, buildingArea,
+        transactionType, isResidential, acquisitionDeduction
     ]);
 
     return {
@@ -98,9 +193,9 @@ export const useAcquisitionTaxForm = () => {
         includeLand, setIncludeLand,
         includeBuilding, setIncludeBuilding,
         handleFormattedInput,
-        landValuation, setLandValuation,
-        landArea, setLandArea,
-        landType, setLandType,
+        resLandValuation, setResLandValuation,
+        resLandArea, setResLandArea,
+        otherLandValuation, setOtherLandValuation,
         buildingValuation, setBuildingValuation,
         buildingArea, setBuildingArea,
         selYear, setSelYear,
@@ -111,5 +206,6 @@ export const useAcquisitionTaxForm = () => {
         deductionMessage,
         yearOptions,
         results, showDetails, setShowDetails, calculateTax,
+        importValuations,
     };
 };

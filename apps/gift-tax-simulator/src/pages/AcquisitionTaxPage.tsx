@@ -5,6 +5,7 @@ import BuildingInput from '@/components/acquisition-tax/BuildingInput';
 import CommonInputSection from '@/components/shared/CommonInputSection';
 import TaxResultBox from '@/components/shared/TaxResultBox';
 import CalculationDetails from '@/components/shared/CalculationDetails';
+import ImportButton from '@/components/shared/ImportButton';
 import { useAcquisitionTaxForm } from '@/hooks/useAcquisitionTaxForm';
 
 export default function AcquisitionTaxPage() {
@@ -29,16 +30,22 @@ export default function AcquisitionTaxPage() {
                 )}
             </CommonInputSection>
 
+            <ImportButton
+                sourceLabel="登録免許税ページ"
+                sourcePage="registration-tax"
+                onImport={form.importValuations}
+            />
+
             <div className="input-section" style={{ borderBottom: 'none' }}>
                 <div className="re-two-column">
                     <LandInput
                         disabled={!form.includeLand}
-                        valuation={form.landValuation}
-                        area={form.landArea}
-                        landType={form.landType}
-                        setLandType={form.setLandType}
-                        onValuationChange={(e) => form.handleFormattedInput(e, form.setLandValuation)}
-                        onAreaChange={(e) => form.handleFormattedInput(e, form.setLandArea)}
+                        resValuation={form.resLandValuation}
+                        resArea={form.resLandArea}
+                        otherValuation={form.otherLandValuation}
+                        onResValuationChange={(e) => form.handleFormattedInput(e, form.setResLandValuation)}
+                        onResAreaChange={(e) => form.handleFormattedInput(e, form.setResLandArea)}
+                        onOtherValuationChange={(e) => form.handleFormattedInput(e, form.setOtherLandValuation)}
                     />
                     <BuildingInput
                         disabled={!form.includeBuilding}
@@ -68,7 +75,8 @@ export default function AcquisitionTaxPage() {
                 <div className="result-section">
                     <TaxResultBox
                         items={[
-                            { label: '土地', value: form.results.landAcq, show: form.includeLand },
+                            { label: '土地（宅地）', value: form.results.resLandAcq, show: form.includeLand && !!form.resLandValuation },
+                            { label: 'その他（宅地以外）', value: form.results.otherLandAcq, show: form.includeLand && !!form.otherLandValuation },
                             { label: '建物', value: form.results.bldgAcq, show: form.includeBuilding },
                         ]}
                         totalLabel="不動産取得税 合計"
