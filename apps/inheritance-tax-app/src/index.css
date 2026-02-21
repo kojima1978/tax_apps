@@ -42,8 +42,8 @@
     margin: 1cm;
   }
 
-  /* 計算ページ・比較ページ: A4横に上書き */
-  .calculator-print, .comparison-print { page: a4-landscape; }
+  /* 計算ページ・比較ページ・保険ページ: A4横に上書き */
+  .calculator-print, .comparison-print, .insurance-print { page: a4-landscape; }
   @page a4-landscape { size: A4 landscape; margin: 12mm 15mm; }
 
   .comparison-print {
@@ -157,5 +157,42 @@
   .calculator-print table .py-2 {
     padding-top: 4px !important;
     padding-bottom: 4px !important;
+  }
+
+  /* 保険ページ */
+  .insurance-print {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .insurance-print .bg-white {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 10px 16px !important;
+  }
+
+  .insurance-print .space-y-6 > * + * {
+    margin-top: 16px !important;
+  }
+
+  .insurance-print h3 {
+    font-size: 16px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .insurance-print .text-2xl {
+    font-size: 22px !important;
+  }
+
+  .insurance-print .text-lg {
+    font-size: 16px !important;
+  }
+
+  .insurance-print .text-sm {
+    font-size: 13px !important;
+  }
+
+  .insurance-print table {
+    break-inside: avoid;
   }
 }

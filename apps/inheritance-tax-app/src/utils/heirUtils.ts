@@ -1,4 +1,4 @@
-import type { Heir, HeirComposition, SpouseAcquisitionMode } from '../types';
+import type { Heir, HeirComposition, SpouseAcquisitionMode, BeneficiaryOption } from '../types';
 import { RANK_LABELS } from '../constants';
 
 /**
@@ -90,4 +90,42 @@ export function getSpouseModeLabel(mode: SpouseAcquisitionMode): string {
     case 'limit160m': return '1億6,000万円';
     case 'custom': return `${mode.value.toLocaleString()}万円（カスタム）`;
   }
+}
+
+/**
+ * 相続人構成から受取人選択肢リストを生成（保険契約用）
+ */
+export function getBeneficiaryOptions(composition: HeirComposition): BeneficiaryOption[] {
+  const options: BeneficiaryOption[] = [];
+
+  if (composition.hasSpouse) {
+    options.push({ id: 'spouse', label: '配偶者' });
+  }
+
+  const addHeirs = (heirs: Heir[], baseType: string) => {
+    const effective: { id: string; type: string }[] = [];
+    for (const heir of heirs) {
+      if (heir.isDeceased && heir.representatives) {
+        for (const rep of heir.representatives) {
+          effective.push({ id: rep.id, type: rep.type });
+        }
+      } else if (!heir.isDeceased) {
+        effective.push({ id: heir.id, type: baseType });
+      }
+    }
+    for (let i = 0; i < effective.length; i++) {
+      options.push({
+        id: effective[i].id,
+        label: getHeirLabel(effective[i].type, i, effective.length),
+      });
+    }
+  };
+
+  switch (composition.selectedRank) {
+    case 'rank1': addHeirs(composition.rank1Children, 'child'); break;
+    case 'rank2': addHeirs(composition.rank2Ascendants, 'parent'); break;
+    case 'rank3': addHeirs(composition.rank3Siblings, 'sibling'); break;
+  }
+
+  return options;
 }

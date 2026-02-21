@@ -89,3 +89,54 @@ export interface ComparisonRow {
   firstBreakdowns: HeirTaxBreakdown[];   // 1次相続 相続人別内訳
   secondBreakdowns: HeirTaxBreakdown[];  // 2次相続 相続人別内訳
 }
+
+// ── 死亡保険金シミュレーション ──
+
+// 保険契約
+export interface InsuranceContract {
+  id: string;
+  category: 'existing' | 'new';      // 既存 or 新規検討
+  beneficiaryId: string;              // 受取人（相続人ID or 'spouse'）
+  beneficiaryLabel: string;           // 受取人ラベル（表示用）
+  benefit: number;                    // 受取保険金額（万円）
+  premium: number;                    // 支払保険料（万円）
+}
+
+// 受取人選択肢
+export interface BeneficiaryOption {
+  id: string;       // 'spouse' | heir.id
+  label: string;    // '配偶者', '子1', '子2' etc.
+}
+
+// 相続人別の保険内訳
+export interface InsuranceHeirBreakdown {
+  label: string;              // 相続人名
+  totalBenefit: number;       // 受取保険金合計
+  nonTaxableAmount: number;   // 非課税額
+  taxableAmount: number;      // 課税対象額
+  premiumPaid: number;        // 保険料負担（新規契約分のみ、受取人帰属）
+}
+
+// シナリオ別結果
+export interface InsuranceScenarioResult {
+  label: string;                         // '現状' or '提案'
+  totalBenefit: number;                  // 保険金合計
+  nonTaxableLimit: number;               // 非課税限度額
+  nonTaxableAmount: number;              // 適用非課税額
+  taxableInsurance: number;              // 課税対象保険金
+  adjustedEstate: number;                // 調整後遺産額
+  premiumDeduction: number;              // 新規保険料控除額
+  totalNetProceeds: number;              // 手取り合計（遺産取得+保険金全額−税額）
+  taxResult: DetailedTaxCalculationResult; // 税額計算結果
+  heirBreakdowns: InsuranceHeirBreakdown[]; // 相続人別保険内訳
+}
+
+// シミュレーション全体結果
+export interface InsuranceSimulationResult {
+  current: InsuranceScenarioResult;      // 現状
+  proposed: InsuranceScenarioResult;     // 提案
+  taxSaving: number;                     // 節税額
+  netProceedsDiff: number;               // 手取り増減額
+  newPremiumTotal: number;               // 新規保険料合計
+  baseEstate: number;                    // 元の遺産額
+}

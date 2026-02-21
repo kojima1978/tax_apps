@@ -4,6 +4,7 @@ import Home from 'lucide-react/icons/home';
 import Table from 'lucide-react/icons/table';
 import Calculator from 'lucide-react/icons/calculator';
 import Scale from 'lucide-react/icons/scale';
+import Shield from 'lucide-react/icons/shield';
 import Printer from 'lucide-react/icons/printer';
 import { COMPANY_INFO } from '../constants';
 
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/', label: '早見表', icon: Table },
   { to: '/calculator', label: '相続税計算', icon: Calculator },
   { to: '/comparison', label: '1次2次比較', icon: Scale },
+  { to: '/insurance', label: '保険金', icon: Shield },
 ] as const;
 
 interface HeaderProps {
