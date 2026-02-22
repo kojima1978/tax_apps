@@ -116,4 +116,4 @@ docker compose down
 
 ブラウザで http://localhost:3012 にアクセスします。
 
-> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/shares/ からアクセスできます。
+> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/shares/ からアクセスできます。

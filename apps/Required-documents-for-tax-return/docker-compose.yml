@@ -46,6 +46,8 @@ services:
       target: dev
     <<: *security-opts
     container_name: tax-docs-backend
+    networks:
+      - tax-apps-network
     ports:
       - "3006:3006"
     volumes:
@@ -86,6 +88,8 @@ services:
       target: dev
     <<: *security-opts
     container_name: tax-docs-frontend
+    networks:
+      - tax-apps-network
     ports:
       - "3005:3005"
     volumes:
@@ -112,6 +116,13 @@ services:
           memory: 512M
         reservations:
           memory: 128M
+
+# ==========================================
+# ネットワーク定義
+# ==========================================
+networks:
+  tax-apps-network:
+    external: true
 
 # ==========================================
 # ボリューム定義

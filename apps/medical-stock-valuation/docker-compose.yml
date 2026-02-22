@@ -42,7 +42,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
-    container_name: medical-stock-valuation-standalone
+    container_name: medical-stock-valuation
+    networks:
+      - tax-apps-network
     ports:
       - "3010:3010"
     volumes:
@@ -71,6 +73,10 @@ services:
           memory: 512M
         reservations:
           memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true
 
 volumes:
   medical_stock_data:

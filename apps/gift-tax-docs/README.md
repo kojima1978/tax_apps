@@ -141,7 +141,7 @@ docker compose down
 
 > **Note**: `next.config.ts` で `basePath: '/gift-tax-docs'` が設定されているため、URLにはサブパスが必要です。
 
-> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/gift-tax-docs/ からアクセスできます。
+> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/gift-tax-docs/ からアクセスできます。
 
 ### Dockerfile（マルチステージビルド）
 

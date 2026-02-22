@@ -41,7 +41,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
-    container_name: inheritance-tax-docs-standalone
+    container_name: inheritance-tax-docs
+    networks:
+      - tax-apps-network
     ports:
       - "3003:3003"
     volumes:
@@ -65,3 +67,7 @@ services:
           memory: 512M
         reservations:
           memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true

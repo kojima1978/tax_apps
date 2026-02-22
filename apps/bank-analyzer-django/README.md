@@ -215,7 +215,7 @@ docker compose down
 ブラウザで http://localhost:3007/ にアクセスします。
 ソースコードがマウントされ、変更時にホットリロードされます。
 
-> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/bank-analyzer/ からアクセスできます。
+> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/bank-analyzer/ からアクセスできます。
 
 ### 本番環境
 

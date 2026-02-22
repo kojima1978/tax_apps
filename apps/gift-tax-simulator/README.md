@@ -88,7 +88,7 @@ npm run dev
 | 不動産取得税 | http://localhost:3001/gift-tax-simulator/acquisition-tax |
 | 登録免許税 | http://localhost:3001/gift-tax-simulator/registration-tax |
 
-> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/gift-tax-simulator/ からアクセスできます。
+> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/gift-tax-simulator/ からアクセスできます。
 
 ## プロジェクト構成
 

@@ -6,6 +6,8 @@ Tax Apps プロジェクトのゲートウェイ（リバースプロキシ）�
 
 この Nginx サービスは、外部からの HTTP リクエスト (`port 80`) を受け取り、URL パスに基づいて適切なバックエンドサービス（コンテナ）にリクエストを振り分けます。
 
+各アプリケーションは独立した Docker Compose プロジェクトとして起動しますが、共有ネットワーク (`tax-apps-network`) 上でコンテナ名による名前解決が行われるため、Nginx は各コンテナに直接通信できます。
+
 ## ファイル構成
 
 ```
@@ -20,7 +22,7 @@ nginx/
 │   └── 503.html    # メンテナンスページ
 ├── includes/       # 共通設定ディレクトリ
 │   ├── proxy_params.conf       # 共通プロキシヘッダー設定
-│   ├── upstreams.conf          # アップストリーム定義（13サービス）
+│   ├── upstreams.conf          # アップストリーム定義（12サービス）
 │   ├── maps.conf               # map定義（WebSocket Upgrade, Font Routing）
 │   ├── rate_limit_general.conf # 一般レート制限（burst=20）
 │   └── rate_limit_api.conf     # APIレート制限（burst=10）
@@ -74,8 +76,8 @@ nginx/
 | `/` | `portal-app:3000` | ポータルサイト (Next.js) |
 | `/tax-docs/` | `tax-docs-frontend:3005` | 確定申告 必要書類 (Front) |
 | `/tax-docs-api/` | `tax-docs-backend:3006` | 確定申告 必要書類 (API) |
-| `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Front) |
-| `/itcm-api/` | `itcm-backend:3021` | 相続税案件管理 (API) |
+| `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Next.js + API Routes) |
+| `/itcm/api/` | `itcm-frontend:3020` | 相続税案件管理 API（同一サービス内） |
 | `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価 |
 | `/shares/` | `shares-valuation:3012` | 非上場株式評価 |
 | `/inheritance-tax-app/` | `inheritance-tax-app:3004` | 相続税計算 (Vite) |
@@ -88,53 +90,35 @@ nginx/
 | `/bank-analyzer/static/` | `bank-analyzer:3007` | 銀行分析 静的ファイル |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
 
-## Docker Compose 設定例
+## Docker Compose
 
-### カスタムイメージビルド（推奨）
+Gateway は独立した Compose プロジェクトとして `docker/gateway/docker-compose.yml` で管理されます。
+Portal（ポータルサイト）と同一プロジェクト内に含まれます。
 
-```yaml
-services:
-  gateway:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-      args:
-        APP_VERSION: "1.0.0"
-    container_name: tax-apps-gateway
-    ports:
-      - "80:80"
-    networks:
-      - app-network
-    restart: unless-stopped
-    depends_on:
-      - portal-app
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    security_opt:
-      - no-new-privileges:true
+```bash
+# 起動（manage.bat start で自動実行）
+docker compose -f docker/gateway/docker-compose.yml up -d
+
+# 再ビルド
+docker compose -f docker/gateway/docker-compose.yml up -d --build
+
+# または管理スクリプト経由
+manage.bat restart gateway
+manage.bat build gateway
 ```
 
-### ボリュームマウント（開発用）
+### ネットワーク
 
-```yaml
-services:
-  gateway:
-    image: nginx:1.27-alpine
-    container_name: tax-apps-gateway
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/includes:/etc/nginx/includes:ro
-      - ./nginx/html:/usr/share/nginx/html:ro
-    networks:
-      - app-network
-    restart: unless-stopped
+全アプリケーションは外部ネットワーク `tax-apps-network` を共有します。
+Gateway が各コンテナ名（= upstream 定義のサーバー名）で直接通信します。
+
+```bash
+# ネットワーク作成（manage.bat start で自動実行）
+docker network create tax-apps-network
 ```
+
+> **重要**: 各アプリの `docker-compose.yml` で定義される `container_name` は
+> `upstreams.conf` の `server` ディレクティブと一致している必要があります。
 
 ## 設定のカスタマイズ
 
@@ -205,10 +189,11 @@ docker exec tax-apps-gateway nginx -s reload
 ### ログの確認
 
 ```bash
-# アクセスログ
-docker exec tax-apps-gateway tail -f /var/log/nginx/access.log
+# manage.bat 経由
+manage.bat logs gateway
 
-# エラーログ
+# コンテナ内ログファイル
+docker exec tax-apps-gateway tail -f /var/log/nginx/access.log
 docker exec tax-apps-gateway tail -f /var/log/nginx/error.log
 
 # レート制限超過ログ（429エラー）
@@ -236,7 +221,7 @@ curl -I http://localhost/itcm/
 
 | 症状 | 原因 | 対処 |
 |------|------|------|
-| 502 Bad Gateway | アップストリームが起動していない | `docker ps` で対象サービスの状態確認 |
+| 502 Bad Gateway | アップストリームが起動していない | `manage.bat status` で対象サービスの状態確認 |
 | 504 Gateway Timeout | 処理時間超過 | `proxy_read_timeout` を延長 |
 | 429 Too Many Requests | レート制限超過 | rate 値または burst 値を調整 |
 | 413 Request Entity Too Large | アップロードサイズ超過 | `client_max_body_size` を調整 |

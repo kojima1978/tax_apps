@@ -5,7 +5,7 @@
 ## 概要
 
 複数の税理士業務支援アプリケーションを統合管理するポータルシステムです。
-Docker Composeを使用して、すべてのアプリケーションを一元的に起動・管理し、Nginx Gatewayを通じてアクセスします。
+各アプリケーションは独立した Docker Compose プロジェクトとして運用され、共有ネットワーク (`tax-apps-network`) を通じて Nginx Gateway 経由でアクセスします。
 
 ## アーキテクチャ
 
@@ -17,6 +17,8 @@ Docker Composeを使用して、すべてのアプリケーションを一元的
                          │  - Rate Limiting    │
                          │  - Gzip Compression │
                          └──────────┬──────────┘
+                                    │
+                           tax-apps-network（外部ネットワーク）
                                     │
         ┌───────────────────────────┼───────────────────────────┐
         │                           │                           │
@@ -32,7 +34,21 @@ Docker Composeを使用して、すべてのアプリケーションを一元的
                                                        │ (PostgreSQL/    │
                                                        │  SQLite)        │
                                                        └─────────────────┘
+
+※ 各ボックスはそれぞれ独立した docker-compose プロジェクト
+※ DB依存アプリ（ITCM, bank-analyzer, tax-docs）は同一プロジェクト内にDBを含む
 ```
+
+### 個別コンテナ方式
+
+各アプリケーションが独立した Docker Compose プロジェクトとして動作します。
+
+| 特徴 | 説明 |
+|:-----|:-----|
+| **障害分離** | 1つのアプリがクラッシュしても他のアプリに影響しない |
+| **個別操作** | アプリ単位で起動・停止・リビルドが可能 |
+| **共有ネットワーク** | `tax-apps-network`（外部ネットワーク）で全コンテナが通信 |
+| **統一アクセス** | Nginx Gateway がリバースプロキシとして全アプリへルーティング |
 
 ## 前提条件
 
@@ -61,21 +77,21 @@ git clone https://github.com/kojima1978/tax_apps.git
 
 タスクバーにクジラのアイコンが表示され、**"Docker Desktop is running"** になるまで待ちます。
 
-### Step 3. start.bat を実行
+### Step 3. manage.bat start を実行
 
 ```bash
-cd tax_apps/docker
-start.bat
+cd tax_apps\docker\scripts
+manage.bat start
 ```
 
 **これだけで完了です。** 内部で以下が自動的に行われます:
 
 | 順番 | 処理 | 説明 |
 |:-----|:-----|:-----|
-| 1 | Preflight Check | Docker起動確認、ポート競合検出、ディスク容量確認 |
-| 2 | `.env` 自動生成 | パスワード・シークレットキーをランダム生成（手動編集不要） |
-| 3 | データディレクトリ作成 | `data/` 配下の永続化フォルダを自動作成 |
-| 4 | `docker compose up -d` | 全サービスのコンテナをビルド・起動 |
+| 1 | Docker 起動確認 | Docker Desktop が起動しているか確認 |
+| 2 | ネットワーク作成 | `tax-apps-network` を自動作成（未作成時のみ） |
+| 3 | 順次起動 | Gateway → DB依存アプリ → フロントエンドアプリの順に起動 |
+| 4 | 状態表示 | 全コンテナの状態を一覧表示 |
 
 > 初回はDockerイメージのビルドがあるため、5〜15分ほどかかります。
 > 2回目以降はキャッシュが効くため、数十秒で起動します。
@@ -87,92 +103,115 @@ http://localhost を開くとポータル画面が表示されます。
 ### 停止するとき
 
 ```bash
-cd tax_apps/docker
-stop.bat
+manage.bat stop
 ```
 
-データは `data/` フォルダに保存されているため、停止してもデータは消えません。
+データは Docker ボリュームに保存されているため、停止してもデータは消えません。
 
 ### 完全削除（アンインストール）
 
 すべてのコンテナ・イメージ・データを削除したい場合:
 
 ```bash
-cd docker
-clean.bat
+manage.bat clean
 ```
 
 二段階で確認されます:
 
 | Step | 削除対象 | 確認 |
 |:-----|:---------|:-----|
-| Step 1 | コンテナ、Dockerイメージ、ネットワーク | Y/N |
-| Step 2 | `data/` 内のデータベース・アップロードファイル | Y/N |
+| Step 1 | コンテナ、Docker イメージ、ネットワーク | Y/N |
+| Step 2 | Docker ボリューム（PostgreSQL, SQLite データ） | Y/N |
 
 > Step 1 のみ実行して Step 2 をスキップすれば、データを残したままコンテナだけ削除できます。
-> 削除後に `start.bat` を実行すれば、再セットアップされます。
+> 削除後に `manage.bat start` を実行すれば、再セットアップされます。
 
 ソースコードごと完全に削除する場合は、上記の後にフォルダを削除します:
 
 ```bash
-cd ..\..\
+cd ..\..\..\
 rd /s /q tax_apps
 ```
 
-## バッチスクリプト
+## 管理スクリプト
 
-すべて `tax_apps/docker/` フォルダ内にあります。実行前に `cd tax_apps/docker` で移動してください。
+`tax_apps\docker\scripts\` フォルダにあります。
 
-> **ヒント**: すべてのスクリプトで `--help` または `-h` オプションが使用可能です。
+| スクリプト | 環境 | 説明 |
+|-----------|------|------|
+| `manage.bat` | Windows (CMD) | 全機能搭載の管理スクリプト |
+| `manage.sh` | Linux / Git Bash | 基本コマンド（start/stop/down/restart/build/logs/status） |
 
-| スクリプト | 説明 | オプション |
-|-----------|------|-----------|
-| `start.bat` | Preflight + サービス起動 | `--build`, `--prod`, `--help` |
-| `stop.bat` | サービス停止 | `--volumes`, `--prod`, `--help` |
-| `restart.bat` | サービス再起動 | `--build`, `--prod`, `[service]`, `--help` |
-| `status.bat` | 状態・リソース確認 | `--help` |
-| `logs.bat` | ログ表示 | `--no-follow`, `--tail N`, `[service]`, `--help` |
-| `preflight.bat` | 環境チェック（単独実行可） | `--help` |
-| `backup.bat` | データバックアップ（4ステップ） | `--help` |
-| `clean.bat` | 完全削除（二段階確認付き） | `--help` |
+### コマンド一覧
+
+#### 基本コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `manage.bat start` | 全アプリを起動（ネットワーク自動作成） |
+| `manage.bat stop` | 全アプリを停止（逆順） |
+| `manage.bat down` | 全アプリを停止してコンテナ削除（逆順） |
+| `manage.bat restart <app>` | 指定アプリのみ再起動 |
+| `manage.bat build <app>` | 指定アプリを再ビルドして起動 |
+| `manage.bat logs <app>` | 指定アプリのログ表示 |
+| `manage.bat status` | 全アプリの状態表示 |
+
+#### 運用コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `manage.bat backup` | 全データベース・データをバックアップ |
+| `manage.bat restore [dir]` | バックアップからリストア |
+| `manage.bat clean` | コンテナ・イメージ・ボリュームのクリーンアップ |
+| `manage.bat preflight` | 起動前環境チェック |
+
+### アプリ名の指定
+
+`restart`, `build`, `logs` コマンドではアプリ名を部分一致で指定できます:
+
+```bash
+# フルネーム
+manage.bat restart bank-analyzer-django
+
+# 部分一致
+manage.bat restart bank-analyzer
+manage.bat logs gift-tax-sim
+manage.bat build retirement
+```
 
 ### コマンドプロンプトの開き方
 
-バッチスクリプトはすべて `tax_apps\docker` フォルダで実行します。以下のいずれかの方法でコマンドプロンプトを開いてください。
+管理スクリプトは `tax_apps\docker\scripts` フォルダで実行します。
 
 | 方法 | 手順 |
 |:-----|:-----|
-| **アドレスバー** | エクスプローラーで `docker` フォルダを開き、アドレスバーに `cmd` と入力して Enter |
+| **アドレスバー** | エクスプローラーで `docker\scripts` フォルダを開き、アドレスバーに `cmd` と入力して Enter |
 | **右クリック（Win11）** | フォルダ内の空白部分を右クリック →「ターミナルで開く」 |
 | **Shift+右クリック（Win10）** | フォルダ内の空白部分を Shift + 右クリック →「コマンド ウィンドウをここで開く」 |
 
 ### 使用例
 
 ```bash
-# ヘルプを表示
-start.bat --help
-logs.bat -h
+# 全アプリを起動
+manage.bat start
 
-# 開発モードで起動（ビルド付き）
-start.bat --build
+# 状態確認
+manage.bat status
 
-# 本番モードで起動
-start.bat --prod
+# 特定アプリを再ビルドして起動
+manage.bat build bank-analyzer
 
-# 特定サービスのみ再起動
-restart.bat tax-docs-backend
+# 特定アプリのログを確認
+manage.bat logs gift-tax-docs
 
-# 特定サービスをリビルドして再起動
-restart.bat --build tax-docs-backend
+# 特定アプリを再起動
+manage.bat restart retirement-tax-calc
 
-# ログを確認（最新100行）
-logs.bat --tail 100 gateway
+# バックアップ
+manage.bat backup
 
-# 本番モードで停止
-stop.bat --prod
-
-# コンテナ＋ネットワーク削除（data/ のデータはホストに残る）
-stop.bat --volumes
+# 起動前チェック
+manage.bat preflight
 ```
 
 ## サービス一覧
@@ -199,9 +238,26 @@ stop.bat --volumes
 | サービス | Port | 説明 |
 |:--------|:-----|:-----|
 | tax-docs-backend | 3006 | 確定申告書類 API |
-| itcm-backend | 3021 | 案件管理 API |
 | itcm-postgres | 3022 | ITCM用 PostgreSQL |
-| bank-analyzer-db | 5432 (内部) | 銀行分析用 PostgreSQL + pgvector |
+| bank-analyzer-postgres | 5432 (内部) | 銀行分析用 PostgreSQL + pgvector |
+
+### 起動順序
+
+manage.bat/sh は以下の順序でアプリを起動します（停止は逆順）:
+
+| # | アプリ | 備考 |
+|:--|:------|:-----|
+| 1 | gateway | Nginx + Portal |
+| 2 | inheritance-case-management | PostgreSQL + Next.js |
+| 3 | bank-analyzer-django | PostgreSQL + Django |
+| 4 | Required-documents-for-tax-return | SQLite + Express + Vite |
+| 5 | medical-stock-valuation | SQLite + Next.js |
+| 6 | shares-valuation | Next.js |
+| 7 | inheritance-tax-app | Vite |
+| 8 | gift-tax-simulator | Vite |
+| 9 | gift-tax-docs | Next.js |
+| 10 | inheritance-tax-docs | Next.js |
+| 11 | retirement-tax-calc | Vite |
 
 ## ディレクトリ構造
 
@@ -210,43 +266,40 @@ tax_apps/
 ├── apps/                       # アプリケーションコード
 │   ├── portal/                 # ポータルサイト
 │   ├── Required-documents-for-tax-return/  # 確定申告書類
+│   │   ├── frontend/           #   Vite フロントエンド
+│   │   ├── backend/            #   Express API
+│   │   └── docker-compose.yml  #   独立 Compose
 │   ├── gift-tax-simulator/     # 贈与税計算
+│   │   └── docker-compose.yml
 │   ├── gift-tax-docs/          # 贈与税書類
+│   │   └── docker-compose.yml
 │   ├── inheritance-tax-docs/   # 相続税資料ガイド
+│   │   └── docker-compose.yml
 │   ├── inheritance-tax-app/    # 相続税計算
+│   │   └── docker-compose.yml
 │   ├── inheritance-case-management/  # 案件管理
+│   │   ├── web/                #   Next.js + Prisma
+│   │   ├── .env                #   PostgreSQL認証情報
+│   │   └── docker-compose.yml  #   PostgreSQL + Web
 │   ├── medical-stock-valuation/ # 医療法人株式
+│   │   └── docker-compose.yml
 │   ├── shares-valuation/       # 非上場株式
-│   ├── retirement-tax-calc/   # 退職金税額計算
+│   │   └── docker-compose.yml
+│   ├── retirement-tax-calc/    # 退職金税額計算
+│   │   └── docker-compose.yml
 │   └── bank-analyzer-django/   # 銀行分析
-├── docker/                     # Docker設定
-│   ├── docker-compose.yml      # メイン設定
-│   ├── docker-compose.prod.yml # 本番用オーバーライド
-│   ├── .env                    # 環境変数（自動生成、git管理外）
-│   ├── .env.example            # 環境変数テンプレート
-│   ├── data/                   # 永続データ（ホストバインドマウント）
-│   │   ├── postgres/           # ITCM用 PostgreSQL データ
-│   │   ├── tax-docs/           # 確定申告書類 SQLite
-│   │   ├── medical-stock/      # 医療法人株式 SQLite
-│   │   └── bank-analyzer/      # 銀行分析データ
-│   │       ├── data/           # アップロードファイル
-│   │       ├── db/             # SQLite（レガシー/移行用）
-│   │       └── postgres/       # PostgreSQL + pgvector
-│   ├── postgres/               # PostgreSQL 初期化スクリプト
-│   │   └── init-pgvector.sql   # pgvector 拡張有効化
+│       ├── data/               #   アップロードデータ（バインドマウント）
+│       └── docker-compose.yml  #   PostgreSQL + Django + テスト
+├── docker/                     # Docker 管理
+│   ├── gateway/                # Gateway Compose プロジェクト
+│   │   └── docker-compose.yml  #   Nginx + Portal
+│   ├── scripts/                # 管理スクリプト
+│   │   ├── manage.bat          #   Windows 管理スクリプト
+│   │   └── manage.sh           #   Linux/Bash 管理スクリプト
 │   ├── backups/                # バックアップ保存先（git管理外）
-│   ├── preflight.bat           # 環境チェック（start.batから自動呼出）
-│   ├── _parse_args.bat         # 共通引数パーサー
-│   ├── start.bat               # 起動スクリプト
-│   ├── stop.bat                # 停止スクリプト
-│   ├── restart.bat             # 再起動スクリプト
-│   ├── status.bat              # 状態確認スクリプト
-│   ├── logs.bat                # ログ表示スクリプト
-│   ├── backup.bat              # データバックアップ
-│   ├── clean.bat               # 完全削除（二段階確認付き）
 │   └── README.md               # このファイル
-└── nginx/                      # Nginx設定
-    ├── Dockerfile              # Nginxイメージ
+└── nginx/                      # Nginx 設定
+    ├── Dockerfile              # Nginx イメージ
     ├── nginx.conf              # グローバル設定
     ├── default.conf            # ルーティング設定
     ├── includes/               # 共通設定ファイル
@@ -259,7 +312,6 @@ tax_apps/
     │   ├── 429.html            # Rate Limit超過
     │   ├── 50x.html            # サーバーエラー
     │   └── 503.html            # メンテナンス
-    ├── .dockerignore           # ビルド除外ファイル
     └── readme.md               # Nginx説明
 ```
 
@@ -273,96 +325,81 @@ tax_apps/
 - **Keep-Alive**: コネクション再利用
 - **ヘルスチェック**: `/health` エンドポイント
 
-### Docker Compose
+### Docker Compose（各プロジェクト共通）
 
 - **ログローテーション**: 10MB × 3ファイル
-- **リソース制限**: YAMLアンカーによるティア管理（下表参照）
+- **リソース制限**: deploy.resources による memory limit/reservation
 - **ヘルスチェック**: 全サービスに設定
-- **依存関係管理**: service_healthy条件
-- **ホストバインドマウント**: `data/` ディレクトリへのデータ永続化
-
-#### リソースティア
-
-| ティア | 開発 (limit/reservation) | 本番 (limit/reservation) | 対象サービス |
-|:------|:------------------------|:------------------------|:------------|
-| Gateway | 128M / 32M | 64M / 16M | gateway, portal |
-| Small | — | 128M / 32M | inheritance-tax-app, tax-docs-backend |
-| Medium | 256M / 64M | — | itcm-postgres, bank-analyzer-db, tax-docs-backend |
-| Default | 512M / 128M | 256M / 64M | その他全サービス |
-| Postgres | — | 512M / 128M | itcm-postgres, bank-analyzer-db |
+- **依存関係管理**: service_healthy 条件
+- **外部ネットワーク**: `tax-apps-network` で全コンテナ間通信
 
 ## Preflight Check
 
-`preflight.bat` は `start.bat` から自動呼出されますが、単独でも実行できます。
+`manage.bat preflight` で起動前の環境チェックを実行できます。`start` コマンドからも Docker 起動確認が自動実行されます。
 
 | # | チェック項目 | 判定 |
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | `.env` 存在確認・自動作成・シークレット自動生成 | OK / WARN |
-| 4a | Dockerfile 14件 + Nginx設定ファイル存在確認 | OK / ERROR |
-| 4b | データディレクトリ自動作成（`data/` 配下） | OK / ERROR |
-| 5 | ポート競合検出（15ポート） | OK / WARN |
-| 6 | ディスク空き容量（5GB未満で警告） | OK / WARN |
-| 7 | 結果サマリー + エラー時 Y/N プロンプト | — |
-
-### シークレット自動生成
-
-初回起動時、`.env` が存在しない場合:
-
-1. `.env.example` → `.env` にコピー
-2. `POSTGRES_PASSWORD` と `DJANGO_SECRET_KEY` のプレースホルダーを PowerShell で生成した44文字のランダム英数字に自動置換
-3. 手動編集不要でそのまま起動可能
-
-既存の `.env` にプレースホルダーが残っている場合も自動検出・置換されます。
+| 3 | docker-compose.yml ファイル存在確認（11個） | OK / WARN |
+| 4 | Nginx 設定ファイル存在確認 | OK / WARN |
+| 5 | ITCM `.env` ファイル存在確認 | OK / WARN |
+| 6 | ポート競合検出（15ポート） | OK / WARN |
+| 7 | ディスク空き容量（5GB未満で警告） | OK / WARN |
 
 ## データ永続化
 
-全データはホストの `data/` ディレクトリにバインドマウントされます。`docker compose down` や `docker compose down -v` を実行してもデータは消えません。
+各アプリケーションのデータは Docker Named Volume に保存されます。`manage.bat stop` や `manage.bat down` を実行してもデータは消えません。
 
-| ディレクトリ | サービス | 内容 |
+| ボリューム名 | サービス | 内容 |
 |:------------|:---------|:-----|
-| `data/postgres/` | itcm-postgres | ITCM用 PostgreSQL データファイル |
-| `data/bank-analyzer/postgres/` | bank-analyzer-db | 銀行分析用 PostgreSQL + pgvector |
-| `data/bank-analyzer/data/` | bank-analyzer | アップロードデータ |
-| `data/bank-analyzer/db/` | bank-analyzer | 銀行分析 SQLite（レガシー/移行用） |
-| `data/tax-docs/` | tax-docs-backend | 確定申告書類 SQLite |
-| `data/medical-stock/` | medical-stock-valuation | 医療法人株式 SQLite |
+| `inheritance-case-management_postgres_data` | itcm-postgres | ITCM用 PostgreSQL データ |
+| `bank-analyzer-postgres` | bank-analyzer-postgres | 銀行分析用 PostgreSQL + pgvector |
+| `bank-analyzer-sqlite` | bank-analyzer | 銀行分析 SQLite（レガシー） |
+| `tax-docs-data` | tax-docs-backend | 確定申告書類 SQLite |
+| `medical-stock-valuation-data` | medical-stock-valuation | 医療法人株式 SQLite |
 
-データを完全に削除したい場合は、`clean.bat` の Step 2 を実行するか、ホスト上の `data/` 配下を手動で削除してください。
+> `bank-analyzer-django/data/` のみバインドマウント（アップロードファイル用）
+
+データを完全に削除したい場合は、`manage.bat clean` の Step 2 を実行してください。
 
 ## バックアップとリストア
 
 ### バックアップ
 
 ```bash
-cd tax_apps/docker
-backup.bat
+manage.bat backup
 ```
 
-`backups/2026-02-12_153000/` のようなタイムスタンプ付きフォルダにバックアップされます。
+`docker\backups\2026-02-22_153000\` のようなタイムスタンプ付きフォルダにバックアップされます。
 
-| データ | 方式 | 備考 |
-|:------|:-----|:-----|
-| PostgreSQL | `pg_dump`（SQLダンプ） | コンテナ起動中に整合性を保って取得 |
-| SQLite（tax-docs, medical-stock, bank-analyzer） | ファイルコピー | |
-| アップロードデータ（bank-analyzer） | ファイルコピー | |
-
-> PostgreSQL コンテナが停止中の場合は、自動的にファイルコピーにフォールバックします。
+| # | データ | 方式 | 備考 |
+|:--|:------|:-----|:-----|
+| 1 | ITCM PostgreSQL | `pg_dump`（SQLダンプ） | コンテナ停止中はボリューム tar バックアップ |
+| 2 | Bank Analyzer PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
+| 3 | SQLite ボリューム（3つ） | `docker run alpine tar` | bank-analyzer-sqlite, tax-docs-data, medical-stock-data |
+| 4 | アップロードデータ | `robocopy` | bank-analyzer/data/ |
+| 5 | 設定ファイル | `copy` | ITCM .env |
 
 ### リストア
 
 ```bash
-# PostgreSQL
-docker exec -i itcm-postgres psql -U postgres -d inheritance_tax_db < backups\[日時]\postgres.sql
+# 一覧から選択
+manage.bat restore
 
-# SQLite・アップロードデータ
-# backups\[日時]\ 配下のフォルダを data\ にコピー
+# 直接指定
+manage.bat restore 2026-02-22_153000
+```
+
+PostgreSQL はコンテナ起動中に `psql` でリストア、SQLite はボリュームに `tar` で復元します。
+
+リストア後はアプリの再起動が必要です:
+```bash
+manage.bat restart inheritance-case-management
+manage.bat restart bank-analyzer-django
 ```
 
 ## コード更新時の対応（git pull）
-
-他のメンバーが変更をプッシュした場合や、最新版に更新したい場合の手順です。
 
 ### Step 1. 最新コードを取得
 
@@ -371,49 +408,26 @@ cd tax_apps
 git pull
 ```
 
-> `git pull` は GitHub から最新の変更をダウンロードしてローカルに反映します。
-
 ### Step 2. 変更内容に応じて再起動
-
-変更された内容によって対応が異なります。
 
 #### ソースコードのみの変更（`.ts`, `.tsx`, `.py` 等）
 
 開発モードではソースコードがホストからコンテナにマウントされているため、**多くの場合は自動で反映されます**（ホットリロード）。反映されない場合:
 
 ```bash
-cd docker
-restart.bat [service-name]
+manage.bat restart <app-name>
 ```
-
-> `[service-name]` は対象のサービス名（例: `gift-tax-docs`, `bank-analyzer`）に置き換えてください。
-> サービス名は `status.bat` で確認できます。
 
 #### 依存関係・Dockerfile の変更を含む場合
 
 `package.json`、`requirements.txt`、`Dockerfile` 等が変更された場合は**リビルドが必要**です。
 
 ```bash
-cd docker
-
-# 全サービスをリビルドして起動
-start.bat --build
-
-# 特定のサービスだけリビルドしたい場合
-restart.bat --build [service-name]
+# 特定アプリをリビルド
+manage.bat build <app-name>
 ```
 
-> `--build` を付けると Docker イメージを再構築してから起動します。
-> どれが変更されたかわからない場合は `start.bat --build` で全体をリビルドすれば安全です。
-
-#### 本番モードの場合
-
-本番モードではソースコードがイメージ内にビルドされるため、**全ての変更でリビルドが必要**です。
-
-```bash
-cd docker
-start.bat --prod --build
-```
+> どのアプリが変更されたかわからない場合は、変更されたアプリを個別に `build` してください。
 
 #### Nginx 設定の変更
 
@@ -428,100 +442,89 @@ docker exec tax-apps-gateway nginx -s reload
 ### コンテナが起動しない
 
 ```bash
-# ログを確認
-docker compose logs [service-name]
+# 特定アプリのログを確認
+manage.bat logs <app-name>
 
 # 全コンテナの状態を確認
-docker compose ps -a
+manage.bat status
 ```
 
 ### 502 Bad Gateway
 
 ```bash
-# Gatewayのログを確認
-docker compose logs gateway
+# Gateway のログを確認
+manage.bat logs gateway
 
 # バックエンドサービスの状態を確認
-status.bat
+manage.bat status
 
-# Nginxをリロード
+# Nginx をリロード
 docker exec tax-apps-gateway nginx -s reload
 ```
 
 ### データベース接続エラー
 
 ```bash
-# PostgreSQLの状態を確認
-docker compose logs itcm-postgres
+# ITCM PostgreSQL のログを確認
+manage.bat logs inheritance-case-management
+
+# Bank Analyzer のログを確認
+manage.bat logs bank-analyzer
 
 # 直接接続テスト
 docker exec -it itcm-postgres psql -U postgres -d inheritance_tax_db
-```
-
-### 本番ビルドで pnpm install が失敗する
-
-多数のサービスを同時にビルドすると `pnpm install --frozen-lockfile` がネットワークタイムアウトで失敗することがあります。`start.bat --prod` はグループ分割ビルドで対策済みですが、手動で `docker compose build` を実行する場合は一度にビルドするサービス数を制限してください。
-
-```bash
-# 手動でグループ分けしてビルド
-docker compose -f docker-compose.yml -f docker-compose.prod.yml build gateway portal-app bank-analyzer
-docker compose -f docker-compose.yml -f docker-compose.prod.yml build itcm-backend tax-docs-backend
-# ...
-```
-
-### COPY --link で invalid user index エラー
-
-Dockerfile で `COPY --link --chown=username:groupname` を使用すると `invalid user index: -1` エラーが発生します。`--link` フラグは独立レイヤーを生成するため、前段で作成したユーザー名を参照できません。数値 UID:GID を使用してください。
-
-```dockerfile
-# NG: --link と名前指定の組み合わせ
-COPY --from=builder --chown=nextjs:nodejs --link /app/.next/standalone ./
-
-# OK: 数値 UID:GID を使用
-COPY --from=builder --chown=1001:1001 --link /app/.next/standalone ./
+docker exec -it bank-analyzer-postgres psql -U bankuser -d bank_analyzer
 ```
 
 ### ホットリロードが効かない
 
-Windows + Docker Desktop環境では、ボリュームマウントでファイル監視が正常に動作しないことがあります。
-`WATCHPACK_POLLING=true` が設定済みですが、変更が反映されない場合はコンテナを再起動してください。
+Windows + Docker Desktop環境では、ボリュームマウントでファイル監視が正常に動作しないことがあります。変更が反映されない場合はコンテナを再起動してください。
 
 ```bash
-restart.bat [service-name]
+manage.bat restart <app-name>
 ```
 
-## 本番環境
+### 特定アプリだけ起動したい
+
+全アプリを起動する必要はありません。個別の docker-compose.yml を直接使用できます:
 
 ```bash
-# 本番用設定で起動
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ネットワークを先に作成
+docker network create tax-apps-network
 
-# または
-start.bat --prod
+# Gateway を起動
+docker compose -f docker\gateway\docker-compose.yml up -d
+
+# 必要なアプリだけ起動
+docker compose -f apps\gift-tax-docs\docker-compose.yml up -d
 ```
 
-本番環境では以下が変更されます:
+### ネットワークエラー
 
-- `NODE_ENV=production`
-- ソースコードのボリュームマウント無効化（ビルド済みイメージを使用、データボリュームは維持）
-- 内部サービスのポート非公開（Gateway経由のみアクセス可）
-- リソース制限の最適化（メモリ使用量を削減）
-- `init: false`（runner ステージの tini ENTRYPOINT と Docker init の二重起動を防止）
-- Djangoの `DJANGO_DEBUG=False` + `gunicorn` 起動
-- `DJANGO_SECRET_KEY` の必須化
+全コンテナは `tax-apps-network` という外部ネットワークで通信します。ネットワークが存在しない場合:
 
-### 本番ビルドのグループ分割
+```bash
+docker network create tax-apps-network
+```
 
-`start.bat --prod` では、BuildKit のリソース枯渇を防ぐためにイメージビルドを4グループに分割して順次実行します。14サービスが同時に `pnpm install` を実行するとネットワークタイムアウトが発生するため、3〜4サービスずつビルドします。
+## ポートマップ
 
-| グループ | サービス | 内容 |
-|:---------|:---------|:-----|
-| 1/4 | gateway, portal-app, bank-analyzer | インフラ・Gateway |
-| 2/4 | itcm-backend, tax-docs-backend, inheritance-tax-app | バックエンド |
-| 3/4 | itcm-frontend, tax-docs-frontend, gift-tax-simulator, gift-tax-docs | フロントエンドA |
-| 4/4 | inheritance-tax-docs, shares-valuation, medical-stock-valuation, retirement-tax-calc | フロントエンドB |
-
-全グループのビルド完了後、`docker compose up -d` で全サービスを一括起動します。開発モード（`start.bat`）では従来通り `docker compose up -d --build` で一括実行します。
+| Port | サービス | Compose プロジェクト |
+|:-----|:---------|:-------------------|
+| 80 | Nginx Gateway | docker/gateway |
+| 3000 | Portal | docker/gateway |
+| 3001 | Gift Tax Simulator | apps/gift-tax-simulator |
+| 3002 | Gift Tax Docs | apps/gift-tax-docs |
+| 3003 | Inheritance Tax Docs | apps/inheritance-tax-docs |
+| 3004 | Inheritance Tax App | apps/inheritance-tax-app |
+| 3005 | Tax Docs Frontend | apps/Required-documents-for-tax-return |
+| 3006 | Tax Docs Backend | apps/Required-documents-for-tax-return |
+| 3007 | Bank Analyzer | apps/bank-analyzer-django |
+| 3010 | Medical Stock Valuation | apps/medical-stock-valuation |
+| 3012 | Shares Valuation | apps/shares-valuation |
+| 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
+| 3020 | ITCM Web | apps/inheritance-case-management |
+| 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
 
 ## 技術スタック
 
@@ -532,120 +535,13 @@ start.bat --prod
 - **Node.js**: v22 LTS (Frontend) / v24 (Backend)
 - **Python**: 3.12 (Django)
 
-### Prisma & OpenSSL (Alpine vs Debian)
-
-Alpine Linux (musl) と OpenSSL 3.x の組み合わせで Prisma Client の初期化に失敗する場合（特に `node:24-alpine`）、以下の対応を行ってください：
-
-1. ベースイメージを `node:24-slim` (Debian bookworm) に変更
-2. `openssl` を明示的にインストール
-3. `schema.prisma` の `binaryTargets` に `debian-openssl-3.0.x` を追加
-
-### ヘルスチェックエラー
-
-コンテナが "Unhealthy" になる場合、ヘルスチェックコマンドを確認してください。
-コンテナ内で使用可能なツールに応じて使い分けています：
+### ヘルスチェック方式
 
 | 対象 | ヘルスチェック方式 | 備考 |
 |:-----|:------------------|:-----|
 | Gateway | `curl --fail` | nginx Dockerfile に curl 追加 |
-| Portal, inheritance-tax-app (prod) | `wget --spider` | Alpine BusyBox / nginx:alpine 内蔵 |
+| Portal (prod) | `wget --spider` | nginx:alpine 内蔵 |
 | Next.js / Hono / Express 系 (dev) | `node -e "fetch(...)"` | Node.js 内蔵 |
-| bank-analyzer (Django) | `python urllib.request` | Python 内蔵 |
+| Vite 系 (dev) | `wget --spider` | BusyBox 内蔵 |
+| bank-analyzer (Django) | `curl --fail` | Dockerfile に curl 追加 |
 | PostgreSQL | `pg_isready -U <user> -d <db>` | PostgreSQL 内蔵 |
-
-## 更新履歴
-
-### 2026-02 (Dockerfile --link 修正・本番ビルド安定化)
-
-- **全Dockerfile `COPY --link --chown` 修正**: `--link` フラグは独立レイヤーを生成するため、前段の `/etc/passwd` から名前付きユーザーを解決できず `invalid user index: -1` エラーが発生。10ファイルで名前指定を数値 UID:GID に変更
-  - Next.js 系 8ファイル: `--chown=nextjs:nodejs` → `--chown=1001:1001`
-  - nginx 系 1ファイル (inheritance-tax-app): `--chown=nginx:nginx` → `--chown=101:101`
-  - Django 系 1ファイル (bank-analyzer): `--chown=appuser:appgroup` → `--chown=1001:1001`
-- **start.bat 本番ビルド安定化**: 14サービス同時ビルドで `pnpm install --frozen-lockfile` がネットワークタイムアウトする問題を修正。本番モード時は4グループ（各3〜4サービス）に分割して順次ビルド後、全サービスを一括起動
-
-### 2026-02 (bank-analyzer PostgreSQL + pgvector 対応・バッチ改善)
-
-- **bank-analyzer-db**: PostgreSQL 16 + pgvector サービス新規追加（意味検索 Phase 2 準備）
-- **bank-analyzer**: PostgreSQL/SQLite 切り替え対応（`DB_ENGINE` 環境変数）
-- **docker-compose.yml**: セキュリティオプション追加（`no-new-privileges:true`）
-- **docker-compose.yml**: gateway healthcheck を `wget` → `curl` に変更（信頼性向上）
-- **docker-compose.yml**: サービス一覧コメント追加（17サービス）
-- **docker-compose.prod.yml**: bank-analyzer-db 本番設定追加
-- **.env.example**: bank-analyzer PostgreSQL 設定・AI分類設定追加
-- **postgres/init-pgvector.sql**: pgvector 拡張初期化スクリプト新規追加
-- **全batファイル**: `--help` / `-h` オプション追加（9ファイル）
-- **status.bat**: サービス数カウント、ヘルス列、ネットワークI/O列追加
-- **backup.bat**: bank-analyzer PostgreSQL バックアップ追加（4ステップ）
-- **preflight.bat**: bank-analyzer/postgres ディレクトリ自動作成、init-pgvector.sql チェック追加
-
-### 2026-02 (inheritance-tax-docs 機能追加・bank-analyzer 修正)
-
-- **inheritance-tax-docs**: 初期化ボタン追加（書類カスタマイズを標準状態に戻す、確認ダイアログ付き、基本情報保持）
-- **inheritance-tax-docs**: 具体名の連続入力対応（Enter後に入力欄維持）、テキストクリック編集、編集/削除アイコン視認性向上
-- **bank-analyzer**: `runserver --nostatic` 追加（`FORCE_SCRIPT_NAME` と `StaticFilesHandler` の競合で静的ファイルが404になる問題を修正、WhiteNoise middleware に配信を委譲）
-
-### 2026-02 (medical-stock-valuation 機能追加・Docker改善)
-
-- **medical-stock-valuation**: JSON個別エクスポート/インポート、Excel出力（ExcelJS）、印刷機能（A4縦3ページ）追加
-- **medical-stock-valuation**: リファクタリングR1-R4（useMasterSettings汎用hook、SimpleMasterSettingsPage共通化、CalculationDetailsModal分割、useFormData hook抽出、PrintHeader抽出、savedRecordToFormData DRY、formatSen統一、CalculationProcessButton抽出）
-- **medical-stock-valuation**: 死コード削除（solidFill/THIN_BORDER dead export、CompanySize dead type export、useExcelExport dead error state、print-page2-header dead className）
-- **medical-stock-valuation Dockerfile**: `VOLUME /app/data` 宣言追加、`serverExternalPackages: ['better-sqlite3']` 追加
-- **docker-compose.yml**: portal-app に `build.target: runner` 明示（dev ステージなしを明確化）
-- **docker-compose.prod.yml**: inheritance-tax-app healthcheck `localhost` → `127.0.0.1` 統一
-
-### 2026-02 (Prod Override・アクセシビリティ)
-
-- **docker-compose.prod.yml `!reset`/`!override` 修正**: Docker Compose のファイルマージではリスト型（ports, volumes）が結合されるため、`ports: []` / `volumes: []` ではベース定義を消せない問題を修正。`!reset []` で完全クリア、`!override [...]` で値の置き換え。YAML アンカー(`<<:`)経由では `!reset` タグが保持されないため各サービスに明示
-- **inheritance-tax-app ポート統一**: prod nginx の listen ポートを 3013→3004 に変更（upstream 定義と一致させ、dev/prod で統一）
-- **本番ポート非公開**: Gateway（ポート80）のみホストに公開、他の全サービスはコンテナ内部ポートのみ
-- **本番ボリューム最適化**: dev のソースコードマウントを除去、データボリューム（PostgreSQL, SQLite, アップロード）のみ維持
-- **アクセシビリティ改善**: 全6アプリで `transition-all` → `transition-colors` / `transition-shadow`（prefers-reduced-motion 対応）、`aria-label` 追加
-- **clean.bat `.gitkeep` 復元**: データディレクトリ削除後に `.gitkeep` を再作成（git 管理のディレクトリ構造を維持）
-
-### 2026-02 (Preflight・データ永続化)
-
-- **preflight.bat新規作成**: Docker起動・compose確認・.env・Dockerfile・ポート競合・ディスク容量の7段階チェック
-- **シークレット自動生成**: `.env` 未作成時に `.env.example` からコピーし、`POSTGRES_PASSWORD`/`DJANGO_SECRET_KEY` を PowerShell でランダム生成・自動置換
-- **データ永続化**: Named volume → ホストバインドマウント（`data/` ディレクトリ）に移行、`docker compose down -v` でもデータ保持
-- **データディレクトリ自動作成**: preflight.bat 内で `data/` 配下の5ディレクトリを自動作成
-- **セキュリティ強化**: `DJANGO_SECRET_KEY` のデフォルト値を廃止、`POSTGRES_PASSWORD` と同様に必須化（Public リポジトリ対応）
-- **start.bat簡素化**: `.env` チェックを preflight.bat に移動、`call preflight.bat` に統合
-- **docker-compose.prod.yml**: Named volume 参照をホストバインドマウントに統一
-
-### 2026-02 (ポータル全面刷新)
-
-- **portal全面簡素化**: 管理画面(/admin)・API・Prisma/SQLite全廃、TypeScript静的定数化（30+ファイル削除、-1,572行）
-- **portal Dockerfile**: standalone→export、node:22-alpine→nginx:alpine（~235MB→~45MB）、非rootユーザー、nginx設定heredocインライン化
-- **docker-compose.yml**: 全12サービスのヘルスチェックをwget統一、NEXT_TELEMETRY_DISABLEDをnextjs-dev-envに移動、start_period 120s→60s、portal deploy small-deploy化、冗長dockerfile指定12件削除
-- **docker-compose.prod.yml**: portal init:false削除（tini不使用）、deploy→prod-gateway-deploy（64M/16M）
-
-### 2026-02 (後半)
-
-- **Docker基盤改善**: Dockerfile app-specific cache mount IDs、standalone docker-compose.yml作成（shares-valuation/inheritance-tax-app）、.dockerignore Pattern A標準化
-- **docker-compose.prod.yml**: `command: []` 追加（medical-stock-valuation/shares-valuation/gift-tax-docs）、bank-analyzer `build.target: production`
-- **docker-compose.yml**: 不足volume mount追加（public/:ro, hooks/:ro）、bank-analyzer `target: dev`/`:ro`/healthcheck URL修正、itcm-postgres `shm_size`
-- **Dockerfile修正**: gift-tax-docs/gift-tax-simulator EXPOSE ポート修正、icm Dockerfile.dev `--frozen-lockfile`/`pnpm-lock.yaml`追加
-- **PostgreSQL統一**: 全standalone composeをpostgres:16-alpineに統一、pg_isready `-d`フラグ追加
-- **README/env整備**: medical-stock-valuation `docker-compose`→`docker compose`、bank-analyzer `--profile`削除、.env.example不足変数追加
-- **retirement-tax-calc**: 退職金税額計算シミュレーター新規追加（3パターン比較・役員限度額・参照表・印刷対応）
-- **docker-compose**: デプロイリソース定義をYAMLアンカー化してDRY化（7箇所のインライン定義→アンカー参照）
-- **docker-compose.yml**: gift-tax-docsの冗長な`build.args.NODE_VERSION`を削除
-- **全Dockerfile改善**: OCIラベル統一(vendor/licenses/source)、libc6-compat追加、コメント整備
-- **docker-compose.yml**: ヘルスチェックURLを`localhost`→`127.0.0.1`に統一（DNS解決回避）
-- **icm/api Dockerfile**: runner stageにタイムゾーン設定(tzdata)追加
-- **portal Dockerfile**: libc6-compat追加、HEALTHCHECKのr.ok判定統一
-- **nginx Dockerfile**: RUNレイヤー集約、COPY --link追加
-- **shares-valuation**: R7-R8リファクタリング（parseNumericInput/calculateOwnDataComplete/useValuationData/MedicalCorporationBadge）
-- **inheritance-case-management**: R2リファクタリング（formatCurrency統一/SortableHeader/UI re-export/RankingTable/P2025 catch）
-
-### 2026-02 (前半)
-
-- **Gift Tax Simulator**: 間接税シミュレーター（不動産取得税）を統合、早見表機能追加
-- **real-estate-tax**: 独立アプリを廃止、gift-tax-simulatorに統合
-- **Bank Analyzer**: 取引追加/削除機能、日付範囲フィルター追加
-- **Dockerfile改善**: 重複コード削除、nginx設定検証の有効化
-- **docker-compose.prod.yml**: gunicornのwsgiパス修正、タイムアウト設定追加
-- **batファイル**: `_parse_args.bat`共通パーサー抽出、if/else分岐を削除して簡素化
-- **docker-compose.prod.yml**: Node.jsサービスに`init: false`追加（tini二重起動防止）
-- **Required-docs**: R1リファクタリング（ListPage/FormErrorDisplay共通化、handler grouping、Excel helper）
-
