@@ -50,6 +50,8 @@ services:
   frontend:
     build:
       target: runner
+      args:
+        VITE_API_URL: /tax-docs-api
     init: false
     command: ["nginx", "-g", "daemon off;"]
     volumes: []

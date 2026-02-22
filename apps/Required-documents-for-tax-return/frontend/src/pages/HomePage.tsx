@@ -96,7 +96,23 @@ export default function Home() {
       const data = await apiCopyToNextYear(state.customerName, state.staffName, state.year);
 
       if (data.success) {
-        alert(`${formatReiwaYear(state.year)}のデータを${formatReiwaYear(state.year + 1)}にコピーしました。\n年度を切り替えて確認してください。`);
+        const nextYear = state.year + 1;
+        const switchYear = confirm(
+          `${formatReiwaYear(state.year)}のデータを${formatReiwaYear(nextYear)}にコピーしました。\n\n対象年度を${formatReiwaYear(nextYear)}に切り替えますか？`
+        );
+
+        if (switchYear) {
+          const nextData = await fetchDocuments(state.customerName, state.staffName, nextYear);
+          setState((prev) => ({
+            ...prev,
+            year: nextYear,
+            documentGroups: nextData.found && nextData.documentGroups
+              ? (nextData.documentGroups as CategoryGroup[])
+              : generateInitialDocumentGroups(nextYear),
+            lastSaved: null,
+            saveError: null,
+          }));
+        }
       } else {
         alert('翌年度更新に失敗しました');
       }
