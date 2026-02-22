@@ -83,10 +83,22 @@ export default function AcquisitionTaxPage() {
             {form.results !== null && (
                 <div className="result-section">
                     <TaxResultBox
-                        items={[
-                            { label: '土地（宅地）', value: form.results.resLandAcq, show: form.includeLand && !!form.resLandValuation },
-                            { label: 'その他（宅地以外）', value: form.results.otherLandAcq, show: form.includeLand && !!form.otherLandValuation },
-                            { label: '建物', value: form.results.bldgAcq, show: form.includeBuilding },
+                        groups={[
+                            {
+                                title: '土地',
+                                show: form.includeLand,
+                                items: [
+                                    { label: '宅地', value: form.results.resLandAcq, show: !!form.resLandValuation },
+                                    { label: 'その他（宅地以外）', value: form.results.otherLandAcq, show: !!form.otherLandValuation },
+                                ],
+                            },
+                            {
+                                title: '建物',
+                                show: form.includeBuilding,
+                                items: [
+                                    { label: '不動産取得税', value: form.results.bldgAcq, show: true },
+                                ],
+                            },
                         ]}
                         totalLabel="不動産取得税 合計"
                         totalValue={form.results.totalAcq}
