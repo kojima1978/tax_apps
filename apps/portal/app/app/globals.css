@@ -66,4 +66,51 @@ body {
     -webkit-text-fill-color: #171717 !important;
     color: #171717 !important;
   }
+
+  /* A4幅に収める */
+  header,
+  main {
+    padding: 0 !important;
+  }
+
+  header > div,
+  main > div > div {
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+
+  /* タイトルとテーブルの間の余白を詰める */
+  header {
+    border-bottom: none !important;
+    box-shadow: none !important;
+  }
+
+  header > div {
+    padding-top: 0 !important;
+    padding-bottom: 4px !important;
+  }
+
+  main {
+    padding-top: 0 !important;
+  }
+
+  /* テーブルのページ跨ぎ防止 */
+  tbody {
+    break-inside: avoid;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  /* ページ余白 */
+  @page {
+    margin: 10mm 8mm;
+  }
 }
