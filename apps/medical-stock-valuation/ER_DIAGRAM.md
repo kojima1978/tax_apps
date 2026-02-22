@@ -113,14 +113,12 @@
 ### 3. valuations（評価レコード）
 | カラム名 | 型 | 制約 | 説明 |
 |---------|-----|------|------|
-| id | TEXT | PRIMARY KEY | 評価ID（例: val_1767399557891_m9zhe30a3b8） |
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 評価ID |
 | company_id | INTEGER | NOT NULL, FK → companies.id | 会社ID |
 | user_id | INTEGER | NOT NULL, FK → users.id | 担当者ID |
 | fiscal_year | TEXT | NOT NULL | 事業年度 |
 | created_at | DATETIME | DEFAULT (datetime('now', 'localtime')) | 作成日時 |
 | updated_at | DATETIME | DEFAULT (datetime('now', 'localtime')) | 更新日時 |
-
-**IDの形式**: `val_[タイムスタンプ]_[ランダム文字列]` で一意性を保証
 
 **外部キー制約**:
 - `company_id` → `companies.id` ON DELETE CASCADE
@@ -130,7 +128,7 @@
 | カラム名 | 型 | 制約 | 説明 |
 |---------|-----|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 財務データID |
-| valuation_id | TEXT | NOT NULL, FK → valuations.id | 評価ID |
+| valuation_id | INTEGER | NOT NULL, FK → valuations.id | 評価ID |
 | employees | TEXT | | 従業員数 |
 | total_assets | TEXT | | 総資産 |
 | sales | TEXT | | 売上高 |
@@ -150,7 +148,7 @@
 | カラム名 | 型 | 制約 | 説明 |
 |---------|-----|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 投資家ID |
-| valuation_id | TEXT | NOT NULL, FK → valuations.id | 評価ID |
+| valuation_id | INTEGER | NOT NULL, FK → valuations.id | 評価ID |
 | investor_name | TEXT | NOT NULL | 投資家名 |
 | shares_held | INTEGER | | 保有株数 |
 | shareholding_ratio | REAL | | 持株比率 |
@@ -176,10 +174,14 @@
 
 **論理削除**: `is_active = 0` で無効化。データの整合性を維持しながら削除扱いとする。
 
+**初期データ（UPSERT）**: アプリ起動時に以下の2年度のデータが自動挿入/更新されます。
+- 令和6年度（2024）: profit_per_share=46, net_asset_per_share=348, average_stock_price=473
+- 令和7年度（2025）: profit_per_share=51, net_asset_per_share=395, average_stock_price=532
+
 **フォールバック機能**: データ未登録の年度が選択された場合、令和6年度（2024年度）のデータが自動的に使用されます。
-- デフォルト年度: 2024
-- デフォルト値: profit_per_share=51, net_asset_per_share=395, average_stock_price=532
-- APIレスポンスに `is_fallback: true` フラグが含まれ、フロントエンドで判別可能
+- フォールバック年度: 2024
+- APIレスポンスに `is_fallback: true` / `fallback_year: '2024'` フラグが含まれ、フロントエンドで判別可能
+- 2024年度も存在しない場合は全値0を返す
 
 ## リレーションシップの詳細
 
@@ -250,10 +252,11 @@
 
 - **関係**: 他のテーブルとの外部キー関係はなし
 - **用途**: 評価額計算時に年度（fiscal_year）をキーとして参照
-- **データ例**: 令和6年度（2024年度）の医療業界の標準的な株価データ
+- **データ例**: 令和6年度（2024）・令和7年度（2025）の類似業種の株価データ
 - **フォールバック動作**:
-  - リクエストされた年度のデータが存在しない場合、2024年度のデータを自動的に返す
+  - リクエストされた年度のデータが存在しない場合、2024年度のデータをフォールバックとして返す
   - レスポンスに `is_fallback: true` と `fallback_year: '2024'` を含める
+  - 2024年度も存在しない場合は全値0を返す
   - フロントエンド側で「⚠ データ未登録」と表示されるが、計算は継続可能
 
 ## データフロー例
@@ -327,7 +330,7 @@ erDiagram
     }
 
     valuations {
-        TEXT id PK
+        INTEGER id PK
         INTEGER company_id FK
         INTEGER user_id FK
         TEXT fiscal_year
@@ -337,7 +340,7 @@ erDiagram
 
     financial_data {
         INTEGER id PK
-        TEXT valuation_id FK
+        INTEGER valuation_id FK
         TEXT employees
         TEXT total_assets
         TEXT sales
@@ -353,7 +356,7 @@ erDiagram
 
     investors {
         INTEGER id PK
-        TEXT valuation_id FK
+        INTEGER valuation_id FK
         TEXT investor_name
         INTEGER shares_held
         REAL shareholding_ratio
