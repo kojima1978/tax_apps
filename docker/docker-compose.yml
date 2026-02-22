@@ -340,9 +340,9 @@ services:
     deploy: *default-deploy
 
   # ===========================================
-  # 贈与税計算シミュレーター（間接税シミュレーター統合）
+  # 贈与税計算シミュレーター (Vite/React)
   # Port: 3001
-  # Features: 贈与税計算、早見表、間接税（土地・建物）シミュレーター
+  # Features: 贈与税計算、早見表、不動産取得税、登録免許税
   # ===========================================
   gift-tax-simulator:
     <<: *service-defaults
@@ -354,14 +354,12 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ../apps/gift-tax-simulator/app:/app/app:ro
-      - ../apps/gift-tax-simulator/components:/app/components:ro
-      - ../apps/gift-tax-simulator/hooks:/app/hooks:ro
-      - ../apps/gift-tax-simulator/lib:/app/lib:ro
-      - ../apps/gift-tax-simulator/public:/app/public:ro
+      - ../apps/gift-tax-simulator/src:/app/src:ro
+      - ../apps/gift-tax-simulator/index.html:/app/index.html:ro
     environment:
-      <<: *nextjs-dev-env
-    command: npm run dev -- -p 3001
+      <<: *common-env
+      NODE_ENV: development
+    command: npm run dev -- --host --port 3001
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3001/gift-tax-simulator/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\"" ]
       <<: *healthcheck-defaults

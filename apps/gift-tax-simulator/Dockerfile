@@ -49,7 +49,7 @@ FROM nginx:1.27-alpine AS runner
 RUN apk upgrade --no-cache
 
 LABEL org.opencontainers.image.title="Gift Tax Simulator" \
-      org.opencontainers.image.description="贈与税計算シミュレーター" \
+      org.opencontainers.image.description="贈与税シミュレーション（税額計算・早見表・不動産取得税・登録免許税）" \
       org.opencontainers.image.vendor="税理士法人マスエージェント" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
