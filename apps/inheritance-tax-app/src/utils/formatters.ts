@@ -47,6 +47,44 @@ export function formatSavingArrow(diff: number): string {
   return '±0';
 }
 
+/**
+ * 小数の比率を分数文字列に変換（法定相続分の表示用）
+ * @param ratio 比率（例: 0.5, 0.25, 0.333...）
+ * @returns 分数文字列（例: "1/2", "1/4", "1/3"）
+ */
+export function formatFraction(ratio: number): string {
+  if (ratio === 1) return '1';
+  if (ratio === 0) return '0';
+
+  const maxDenom = 100;
+  let bestNum = 1;
+  let bestDen = 1;
+  let bestErr = Math.abs(ratio - 1);
+
+  for (let d = 1; d <= maxDenom; d++) {
+    const n = Math.round(ratio * d);
+    if (n > 0) {
+      const err = Math.abs(ratio - n / d);
+      if (err < bestErr) {
+        bestErr = err;
+        bestNum = n;
+        bestDen = d;
+      }
+      if (err < 1e-9) break;
+    }
+  }
+
+  const g = gcd(bestNum, bestDen);
+  return `${bestNum / g}/${bestDen / g}`;
+}
+
+function gcd(a: number, b: number): number {
+  while (b) {
+    [a, b] = [b, a % b];
+  }
+  return a;
+}
+
 /** 差額に応じた色クラス（invert=trueで税額など「減った方が良い」項目用） */
 export function deltaColor(diff: number, invert = false): string {
   const positive = invert ? diff < 0 : diff > 0;

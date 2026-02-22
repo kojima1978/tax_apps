@@ -1,6 +1,6 @@
 import React from 'react';
 import type { DetailedTaxCalculationResult, HeirTaxBreakdown } from '../../types';
-import { formatCurrency, formatPercent } from '../../utils';
+import { formatCurrency, formatFraction } from '../../utils';
 import { BASIC_DEDUCTION } from '../../constants';
 
 interface CalculationStepsProps {
@@ -67,7 +67,7 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
       title: '法定相続分に応じた取得金額',
       content: (
         <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
-          <>{formatCurrency(result.taxableAmount)} × {formatPercent(b.legalShareRatio * 100, 1)} = <span className="font-medium">{formatCurrency(b.legalShareAmount)}</span></>
+          <>{formatCurrency(result.taxableAmount)} × {formatFraction(b.legalShareRatio)} = <span className="font-medium">{formatCurrency(b.legalShareAmount)}</span></>
         )} />
       ),
     },

@@ -1,4 +1,4 @@
-export { formatCurrency, formatPercent, formatDelta, formatDeltaArrow, formatSavingArrow, deltaColor } from './formatters';
+export { formatCurrency, formatPercent, formatFraction, formatDelta, formatDeltaArrow, formatSavingArrow, deltaColor } from './formatters';
 export { generateId } from './idGenerator';
 export { calculateInheritanceTax, calculateDetailedInheritanceTax, calculateBracketAnalysis } from './taxCalculator';
 export type { BracketAnalysisRow } from './taxCalculator';

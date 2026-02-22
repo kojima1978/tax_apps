@@ -1,6 +1,6 @@
 import React from 'react';
 import type { HeirTaxBreakdown } from '../../types';
-import { formatCurrency, formatPercent } from '../../utils';
+import { formatCurrency, formatFraction } from '../../utils';
 
 interface HeirBreakdownTableProps {
   breakdowns: HeirTaxBreakdown[];
@@ -35,7 +35,7 @@ export const HeirBreakdownTable: React.FC<HeirBreakdownTableProps> = ({
               return (
                 <tr key={b.label} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="px-3 py-2 font-medium">{b.label}</td>
-                  <td className="px-3 py-2 text-right">{formatPercent(b.legalShareRatio * 100, 1)}</td>
+                  <td className="px-3 py-2 text-right">{formatFraction(b.legalShareRatio)}</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(b.acquisitionAmount)}</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(b.proportionalTax)}</td>
                   <td className="px-3 py-2 text-right">

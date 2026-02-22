@@ -1,6 +1,6 @@
 import React, { memo, useCallback } from 'react';
 import type { DetailedTaxCalculationResult, HeirComposition, SpouseAcquisitionMode } from '../../types';
-import { formatCurrency, formatPercent, getHeirInfo, getScenarioName, getSpouseModeLabel } from '../../utils';
+import { formatCurrency, formatPercent, formatFraction, getHeirInfo, getScenarioName, getSpouseModeLabel } from '../../utils';
 import { BASIC_DEDUCTION } from '../../constants';
 import { FILLS, ALL_THIN_BORDERS, ALL_GREEN_BORDERS, setupExcelWorkbook, addSectionHeader, addLabelValueRow, applyTableHeaderStyle, saveWorkbook } from '../../utils/excelStyles';
 import { useExcelExport } from '../../hooks/useExcelExport';
@@ -64,7 +64,7 @@ export const CalculatorExcelExport: React.FC<CalculatorExcelExportProps> = memo(
 
       const dataRow = worksheet.addRow([
         b.label,
-        formatPercent(b.legalShareRatio * 100, 1),
+        formatFraction(b.legalShareRatio),
         formatCurrency(b.acquisitionAmount),
         formatCurrency(b.proportionalTax),
         adjustment,
