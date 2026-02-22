@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>預金取引確認のご案内 - Bank Analyzer</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Serif JP', 'Noto Sans JP', serif;
+            color: #1a1a1a;
+            background: #f0f0f0;
+            line-height: 2;
+            font-size: 15px;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            padding: 20mm 25mm 20mm 25mm;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* ヘッダー */
+        .company-header {
+            text-align: right;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #2563eb;
+        }
+
+        .company-name {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: #2563eb;
+            margin-bottom: 4px;
+        }
+
+        .company-detail {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 12px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        /* 本文 */
+        .letter-body {
+            margin-top: 32px;
+        }
+
+        .letter-body p {
+            text-indent: 1em;
+            margin-bottom: 1.5em;
+        }
+
+        .letter-body p.note {
+            text-indent: 0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .letter-body p.note::before {
+            content: '※';
+            margin-right: 0.25em;
+        }
+
+        /* 印刷ボタン */
+        .print-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 8px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .print-bar a,
+        .print-bar button {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            padding: 6px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: white;
+            color: #333;
+        }
+
+        .print-bar button {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .print-bar button:hover {
+            background: #1d4ed8;
+        }
+
+        .print-bar a:hover {
+            background: #f5f5f5;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .page {
+                width: auto;
+                min-height: auto;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+
+            .print-bar {
+                display: none;
+            }
+
+            @page {
+                size: A4;
+                margin: 20mm 25mm;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="print-bar">
+        <a href="javascript:void(0)" onclick="window.close()">
+            <i class="bi bi-x-lg"></i> 閉じる
+        </a>
+        <button onclick="window.print()">
+            <i class="bi bi-printer"></i> 印刷
+        </button>
+    </div>
+
+    <div class="page">
+        <div class="company-header">
+            <div class="company-name">税理士法人マスエージェント</div>
+            <div class="company-detail">
+                〒770-0002 徳島県徳島市春日２丁目３−３３<br>
+                TEL 088-632-6228 ／ FAX 088-631-9870
+            </div>
+        </div>
+
+        <div class="letter-body">
+            <p class="note">
+                税務調査においては被相続人の預金取引に関する内容が最も指摘される可能性の高いものであるため、税務調査と同じ確認を事前に弊社で行い、生前贈与や生命保険契約、直前の現金引出し等の有無を確認しております。
+            </p>
+
+            <p>
+                相続開始日時点での被相続人のお手元にあった現金の金額も相続税の課税対象となります。
+            </p>
+
+            <p>
+                なお、葬式費用の準備のため等として死亡日よりも前に現金を引き出している場合は、その引き出した金額も合計した額をお知らせください。
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>

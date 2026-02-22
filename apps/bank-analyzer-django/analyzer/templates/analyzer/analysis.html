@@ -11,6 +11,9 @@
         <h1 class="h2">📊 編集・分析: {{ case.name }}</h1>
     </div>
     <div class="col-md-4 text-end">
+        <a href="{% url 'customer-letter' %}" target="_blank" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-envelope-paper"></i> お客様配布用文書
+        </a>
         <form method="post" class="d-inline">
             {% csrf_token %}
             <button type="submit" name="action" value="run_classifier" class="btn btn-primary"
