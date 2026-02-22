@@ -1,0 +1,22 @@
+# ============================================
+# 相続税シミュレーター - Production Override
+# ============================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# ============================================
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 256M
+    reservations:
+      memory: 64M
+
+services:
+  inheritance-tax-app:
+    build:
+      target: runner
+    init: false
+    volumes: []
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3004/inheritance-tax-app/ || exit 1"]
+    deploy: *prod-deploy

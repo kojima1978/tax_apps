@@ -1,0 +1,21 @@
+# ============================================
+# 退職金税額計算シミュレーター - Production Override
+# ============================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# ============================================
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 256M
+    reservations:
+      memory: 64M
+
+services:
+  retirement-tax-calc:
+    build:
+      target: runner
+    init: false
+    command: ["nginx", "-g", "daemon off;"]
+    volumes: []
+    deploy: *prod-deploy

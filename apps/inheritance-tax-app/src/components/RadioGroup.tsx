@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface RadioOption<T extends string | boolean> {
   value: T;
   label: string;

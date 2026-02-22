@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
-import { CategoryGroup, DocumentItem } from '@/types';
+import { useState, useCallback } from 'react';
+import { CategoryGroup } from '@/types';
 
 // 編集状態の型定義
 export interface EditingDoc {
