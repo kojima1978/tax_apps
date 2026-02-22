@@ -1,40 +1,39 @@
 @echo off
-chcp 65001 >nul
 setlocal enabledelayedexpansion
 :: ============================================
-:: Tax Apps å€‹åˆ¥ã‚³ãƒ³ãƒ†ãƒŠç®¡ç†ã‚¹ã‚¯ãƒªãƒ—ãƒˆ
+:: Tax Apps ŒÂ•ÊƒRƒ“ƒeƒiŠÇ—ƒXƒNƒŠƒvƒg
 :: ============================================
 ::
 :: Usage:
-::   manage.bat start              å…¨ã‚¢ãƒ—ãƒªã‚’èµ·å‹•ï¼ˆãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯è‡ªå‹•ä½œæˆï¼‰
-::   manage.bat stop               å…¨ã‚¢ãƒ—ãƒªã‚’åœæ­¢
-::   manage.bat down               å…¨ã‚¢ãƒ—ãƒªã‚’åœæ­¢ã—ã¦ã‚³ãƒ³ãƒ†ãƒŠå‰Šé™¤
-::   manage.bat restart <app>      æŒ‡å®šã‚¢ãƒ—ãƒªã®ã¿å†èµ·å‹•
-::   manage.bat build <app>        æŒ‡å®šã‚¢ãƒ—ãƒªã‚’å†ãƒ“ãƒ«ãƒ‰ã—ã¦èµ·å‹•
-::   manage.bat logs <app>         æŒ‡å®šã‚¢ãƒ—ãƒªã®ãƒ­ã‚°è¡¨ç¤º
-::   manage.bat status             å…¨ã‚¢ãƒ—ãƒªã®çŠ¶æ…‹è¡¨ç¤º
-::   manage.bat backup             å…¨ãƒ‡ãƒ¼ã‚¿ãƒ™ãƒ¼ã‚¹ãƒ»ãƒ‡ãƒ¼ã‚¿ã‚’ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—
-::   manage.bat restore [dir]      ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—ã‹ã‚‰ãƒªã‚¹ãƒˆã‚¢
-::   manage.bat clean              ã‚³ãƒ³ãƒ†ãƒŠãƒ»ã‚¤ãƒ¡ãƒ¼ã‚¸ã®ã‚¯ãƒªãƒ¼ãƒ³ã‚¢ãƒƒãƒ—
-::   manage.bat preflight          èµ·å‹•å‰ç’°å¢ƒãƒã‚§ãƒƒã‚¯
+::   manage.bat start              ‘SƒAƒvƒŠ‚ğ‹N“®iƒlƒbƒgƒ[ƒN©“®ì¬j
+::   manage.bat stop               ‘SƒAƒvƒŠ‚ğ’â~
+::   manage.bat down               ‘SƒAƒvƒŠ‚ğ’â~‚µ‚ÄƒRƒ“ƒeƒiíœ
+::   manage.bat restart <app>      w’èƒAƒvƒŠ‚Ì‚İÄ‹N“®
+::   manage.bat build <app>        w’èƒAƒvƒŠ‚ğÄƒrƒ‹ƒh‚µ‚Ä‹N“®
+::   manage.bat logs <app>         w’èƒAƒvƒŠ‚ÌƒƒO•\¦
+::   manage.bat status             ‘SƒAƒvƒŠ‚Ìó‘Ô•\¦
+::   manage.bat backup             ‘Sƒf[ƒ^ƒx[ƒXEƒf[ƒ^‚ğƒoƒbƒNƒAƒbƒv
+::   manage.bat restore [dir]      ƒoƒbƒNƒAƒbƒv‚©‚çƒŠƒXƒgƒA
+::   manage.bat clean              ƒRƒ“ƒeƒiEƒCƒ[ƒW‚ÌƒNƒŠ[ƒ“ƒAƒbƒv
+::   manage.bat preflight          ‹N“®‘OŠÂ‹«ƒ`ƒFƒbƒN
 ::
 :: ============================================
 
-:: ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆãƒ«ãƒ¼ãƒˆï¼ˆdocker/scripts/ ã®2ã¤ä¸Šï¼‰
+:: ƒvƒƒWƒFƒNƒgƒ‹[ƒgidocker/scripts/ ‚Ì2‚Âãj
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%\..\..\") do set "PROJECT_ROOT=%%~fI"
-:: æœ«å°¾ã® \ ã‚’é™¤å»
+:: ––”ö‚Ì \ ‚ğœ‹
 if "%PROJECT_ROOT:~-1%"=="\" set "PROJECT_ROOT=%PROJECT_ROOT:~0,-1%"
 
-:: å¤–éƒ¨ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯å
+:: ŠO•”ƒlƒbƒgƒ[ƒN–¼
 set "NETWORK_NAME=tax-apps-network"
 
-:: ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒª
+:: ƒoƒbƒNƒAƒbƒvƒfƒBƒŒƒNƒgƒŠ
 set "BACKUP_BASE=%SCRIPT_DIR%..\backups"
 
 :: ------------------------------------
-:: ã‚¢ãƒ—ãƒªä¸€è¦§ï¼ˆèµ·å‹•é †åºã‚’è€ƒæ…®ï¼‰
-:: gateway ã¯æœ€åˆã€DBä¾å­˜ã‚¢ãƒ—ãƒªã¯ DBâ†’App ã®é †
+:: ƒAƒvƒŠˆê——i‹N“®‡˜‚ğl—¶j
+:: gateway ‚ÍÅ‰ADBˆË‘¶ƒAƒvƒŠ‚Í DB¨App ‚Ì‡
 :: ------------------------------------
 set "APP_COUNT=11"
 set "APP_1=docker\gateway"
@@ -50,7 +49,7 @@ set "APP_10=apps\inheritance-tax-docs"
 set "APP_11=apps\retirement-tax-calc"
 
 :: ------------------------------------
-:: ãƒ¡ã‚¤ãƒ³
+:: ƒƒCƒ“
 :: ------------------------------------
 if /i "%~1"=="" goto :show_help
 if /i "%~1"=="--help" goto :show_help
@@ -69,7 +68,7 @@ if /i "%~1"=="preflight" goto :cmd_preflight
 goto :show_help
 
 :: ============================================================
-:: start - å…¨ã‚¢ãƒ—ãƒªã‚’èµ·å‹•
+:: start - ‘SƒAƒvƒŠ‚ğ‹N“®
 :: ============================================================
 :cmd_start
 call :preflight_quick
@@ -81,74 +80,44 @@ if !ERRORLEVEL! neq 0 (
 )
 call :ensure_network
 echo.
-echo [manage] å…¨ã‚¢ãƒ—ãƒªã‚’èµ·å‹•ã—ã¾ã™...
+echo [manage] ‘SƒAƒvƒŠ‚ğ‹N“®‚µ‚Ü‚·...
 echo.
-for /L %%I in (1,1,%APP_COUNT%) do (
-    set "APP_PATH=!APP_%%I!"
-    set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-    if exist "!COMPOSE_FILE!" (
-        for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-        echo [manage]   èµ·å‹•: !APP_NAME!
-        docker compose -f "!COMPOSE_FILE!" up -d
-        if !ERRORLEVEL! neq 0 (
-            echo [ERROR]   !APP_NAME! ã®èµ·å‹•ã«å¤±æ•—ã—ã¾ã—ãŸ
-        )
-    ) else (
-        for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-        echo [WARN]    ã‚¹ã‚­ãƒƒãƒ—ï¼ˆdocker-compose.yml ãªã—ï¼‰: !APP_NAME!
-    )
-)
+for /L %%I in (1,1,%APP_COUNT%) do call :do_start_app %%I
 echo.
-echo [manage] å…¨ã‚¢ãƒ—ãƒªã®èµ·å‹•ãŒå®Œäº†ã—ã¾ã—ãŸ
+echo [manage] ‘SƒAƒvƒŠ‚Ì‹N“®‚ªŠ®—¹‚µ‚Ü‚µ‚½
 call :cmd_status_inner
 goto :end
 
 :: ============================================================
-:: stop - å…¨ã‚¢ãƒ—ãƒªã‚’åœæ­¢ï¼ˆé€†é †ï¼‰
+:: stop - ‘SƒAƒvƒŠ‚ğ’â~i‹t‡j
 :: ============================================================
 :cmd_stop
 echo.
-echo [manage] å…¨ã‚¢ãƒ—ãƒªã‚’åœæ­¢ã—ã¾ã™...
+echo [manage] ‘SƒAƒvƒŠ‚ğ’â~‚µ‚Ü‚·...
 echo.
-for /L %%I in (%APP_COUNT%,-1,1) do (
-    set "APP_PATH=!APP_%%I!"
-    set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-    if exist "!COMPOSE_FILE!" (
-        for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-        echo [manage]   åœæ­¢: !APP_NAME!
-        docker compose -f "!COMPOSE_FILE!" stop
-    )
-)
+for /L %%I in (%APP_COUNT%,-1,1) do call :do_stop_app %%I
 echo.
-echo [manage] å…¨ã‚¢ãƒ—ãƒªã‚’åœæ­¢ã—ã¾ã—ãŸ
+echo [manage] ‘SƒAƒvƒŠ‚ğ’â~‚µ‚Ü‚µ‚½
 goto :end
 
 :: ============================================================
-:: down - å…¨ã‚¢ãƒ—ãƒªã‚’åœæ­¢ãƒ»å‰Šé™¤ï¼ˆé€†é †ï¼‰
+:: down - ‘SƒAƒvƒŠ‚ğ’â~Eíœi‹t‡j
 :: ============================================================
 :cmd_down
 echo.
-echo [manage] å…¨ã‚¢ãƒ—ãƒªã‚’åœæ­¢ãƒ»å‰Šé™¤ã—ã¾ã™...
+echo [manage] ‘SƒAƒvƒŠ‚ğ’â~Eíœ‚µ‚Ü‚·...
 echo.
-for /L %%I in (%APP_COUNT%,-1,1) do (
-    set "APP_PATH=!APP_%%I!"
-    set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-    if exist "!COMPOSE_FILE!" (
-        for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-        echo [manage]   å‰Šé™¤: !APP_NAME!
-        docker compose -f "!COMPOSE_FILE!" down
-    )
-)
+for /L %%I in (%APP_COUNT%,-1,1) do call :do_down_app %%I
 echo.
-echo [manage] å…¨ã‚¢ãƒ—ãƒªã‚’å‰Šé™¤ã—ã¾ã—ãŸ
+echo [manage] ‘SƒAƒvƒŠ‚ğíœ‚µ‚Ü‚µ‚½
 goto :end
 
 :: ============================================================
-:: restart <app> - æŒ‡å®šã‚¢ãƒ—ãƒªã‚’å†èµ·å‹•
+:: restart <app> - w’èƒAƒvƒŠ‚ğÄ‹N“®
 :: ============================================================
 :cmd_restart
 if "%~2"=="" (
-    echo [ERROR] ã‚¢ãƒ—ãƒªåã‚’æŒ‡å®šã—ã¦ãã ã•ã„
+    echo [ERROR] ƒAƒvƒŠ–¼‚ğw’è‚µ‚Ä‚­‚¾‚³‚¢
     echo Usage: manage.bat restart ^<app-name^>
     call :show_apps
     goto :end
@@ -158,17 +127,17 @@ if "!RESOLVED_DIR!"=="" goto :end
 call :ensure_network
 for %%N in ("!RESOLVED_DIR!") do set "APP_NAME=%%~nxN"
 echo.
-echo [manage] !APP_NAME! ã‚’å†èµ·å‹•ã—ã¾ã™...
+echo [manage] !APP_NAME! ‚ğÄ‹N“®‚µ‚Ü‚·...
 docker compose -f "!RESOLVED_DIR!\docker-compose.yml" restart
-echo [manage] !APP_NAME! ã‚’å†èµ·å‹•ã—ã¾ã—ãŸ
+echo [manage] !APP_NAME! ‚ğÄ‹N“®‚µ‚Ü‚µ‚½
 goto :end
 
 :: ============================================================
-:: build <app> - æŒ‡å®šã‚¢ãƒ—ãƒªã‚’å†ãƒ“ãƒ«ãƒ‰ã—ã¦èµ·å‹•
+:: build <app> - w’èƒAƒvƒŠ‚ğÄƒrƒ‹ƒh‚µ‚Ä‹N“®
 :: ============================================================
 :cmd_build
 if "%~2"=="" (
-    echo [ERROR] ã‚¢ãƒ—ãƒªåã‚’æŒ‡å®šã—ã¦ãã ã•ã„
+    echo [ERROR] ƒAƒvƒŠ–¼‚ğw’è‚µ‚Ä‚­‚¾‚³‚¢
     echo Usage: manage.bat build ^<app-name^>
     call :show_apps
     goto :end
@@ -178,17 +147,17 @@ if "!RESOLVED_DIR!"=="" goto :end
 call :ensure_network
 for %%N in ("!RESOLVED_DIR!") do set "APP_NAME=%%~nxN"
 echo.
-echo [manage] !APP_NAME! ã‚’å†ãƒ“ãƒ«ãƒ‰ã—ã¦èµ·å‹•ã—ã¾ã™...
+echo [manage] !APP_NAME! ‚ğÄƒrƒ‹ƒh‚µ‚Ä‹N“®‚µ‚Ü‚·...
 docker compose -f "!RESOLVED_DIR!\docker-compose.yml" up -d --build
-echo [manage] !APP_NAME! ã®ãƒ“ãƒ«ãƒ‰ãŒå®Œäº†ã—ã¾ã—ãŸ
+echo [manage] !APP_NAME! ‚Ìƒrƒ‹ƒh‚ªŠ®—¹‚µ‚Ü‚µ‚½
 goto :end
 
 :: ============================================================
-:: logs <app> - æŒ‡å®šã‚¢ãƒ—ãƒªã®ãƒ­ã‚°è¡¨ç¤º
+:: logs <app> - w’èƒAƒvƒŠ‚ÌƒƒO•\¦
 :: ============================================================
 :cmd_logs
 if "%~2"=="" (
-    echo [ERROR] ã‚¢ãƒ—ãƒªåã‚’æŒ‡å®šã—ã¦ãã ã•ã„
+    echo [ERROR] ƒAƒvƒŠ–¼‚ğw’è‚µ‚Ä‚­‚¾‚³‚¢
     echo Usage: manage.bat logs ^<app-name^>
     call :show_apps
     goto :end
@@ -199,7 +168,7 @@ docker compose -f "!RESOLVED_DIR!\docker-compose.yml" logs -f
 goto :end
 
 :: ============================================================
-:: status - å…¨ã‚¢ãƒ—ãƒªã®çŠ¶æ…‹è¡¨ç¤º
+:: status - ‘SƒAƒvƒŠ‚Ìó‘Ô•\¦
 :: ============================================================
 :cmd_status
 call :cmd_status_inner
@@ -208,25 +177,16 @@ goto :end
 :cmd_status_inner
 echo.
 echo ============================================================
-echo   Tax Apps ã‚³ãƒ³ãƒ†ãƒŠçŠ¶æ…‹
+echo   Tax Apps ƒRƒ“ƒeƒió‘Ô
 echo ============================================================
 echo.
-for /L %%I in (1,1,%APP_COUNT%) do (
-    set "APP_PATH=!APP_%%I!"
-    set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-    if exist "!COMPOSE_FILE!" (
-        for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-        for /f "tokens=*" %%L in ('docker compose -f "!COMPOSE_FILE!" ps --format "{{.Name}}	{{.Status}}	{{.Ports}}" 2^>nul') do (
-            echo   %%L
-        )
-    )
-)
+for /L %%I in (1,1,%APP_COUNT%) do call :do_status_app %%I
 echo.
 echo ============================================================
 goto :eof
 
 :: ============================================================
-:: backup - å…¨ãƒ‡ãƒ¼ã‚¿ãƒ™ãƒ¼ã‚¹ãƒ»ãƒ‡ãƒ¼ã‚¿ã‚’ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—
+:: backup - ‘Sƒf[ƒ^ƒx[ƒXEƒf[ƒ^‚ğƒoƒbƒNƒAƒbƒv
 :: ============================================================
 :cmd_backup
 echo.
@@ -265,7 +225,6 @@ if !ERRORLEVEL! equ 0 (
 goto :backup_itcm_done
 
 :backup_itcm_volume
-:: ãƒœãƒªãƒ¥ãƒ¼ãƒ åã‚’ç‰¹å®šï¼ˆcompose project name = inheritance-case-managementï¼‰
 docker volume inspect inheritance-case-management_postgres_data >nul 2>&1
 if !ERRORLEVEL! neq 0 (
     echo [SKIP]  ITCM PostgreSQL volume not found
@@ -326,47 +285,9 @@ echo [3/5] SQLite volumes ...
 set "SQLITE_OK=0"
 set "SQLITE_SKIP=0"
 
-:: Bank Analyzer SQLite
-docker volume inspect bank-analyzer-sqlite >nul 2>&1
-if !ERRORLEVEL! equ 0 (
-    docker run --rm -v bank-analyzer-sqlite:/data -v "%BACKUP_DIR%":/backup alpine tar czf /backup/bank-analyzer-sqlite.tar.gz -C /data . >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        set /a SQLITE_OK+=1
-    ) else (
-        echo [ERROR] bank-analyzer-sqlite backup failed
-        set /a BACKUP_FAIL+=1
-    )
-) else (
-    set /a SQLITE_SKIP+=1
-)
-
-:: Tax Docs SQLite
-docker volume inspect tax-docs-data >nul 2>&1
-if !ERRORLEVEL! equ 0 (
-    docker run --rm -v tax-docs-data:/data -v "%BACKUP_DIR%":/backup alpine tar czf /backup/tax-docs-data.tar.gz -C /data . >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        set /a SQLITE_OK+=1
-    ) else (
-        echo [ERROR] tax-docs-data backup failed
-        set /a BACKUP_FAIL+=1
-    )
-) else (
-    set /a SQLITE_SKIP+=1
-)
-
-:: Medical Stock Valuation SQLite
-docker volume inspect medical-stock-valuation-data >nul 2>&1
-if !ERRORLEVEL! equ 0 (
-    docker run --rm -v medical-stock-valuation-data:/data -v "%BACKUP_DIR%":/backup alpine tar czf /backup/medical-stock-data.tar.gz -C /data . >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        set /a SQLITE_OK+=1
-    ) else (
-        echo [ERROR] medical-stock-data backup failed
-        set /a BACKUP_FAIL+=1
-    )
-) else (
-    set /a SQLITE_SKIP+=1
-)
+call :do_backup_sqlite "bank-analyzer-sqlite" "bank-analyzer-sqlite"
+call :do_backup_sqlite "tax-docs-data" "tax-docs-data"
+call :do_backup_sqlite "medical-stock-valuation-data" "medical-stock-data"
 
 if !SQLITE_OK! gtr 0 (
     echo [OK]    SQLite !SQLITE_OK! volumes
@@ -436,7 +357,7 @@ echo.
 goto :end
 
 :: ============================================================
-:: restore [dir] - ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—ã‹ã‚‰ãƒªã‚¹ãƒˆã‚¢
+:: restore [dir] - ƒoƒbƒNƒAƒbƒv‚©‚çƒŠƒXƒgƒA
 :: ============================================================
 :cmd_restore
 echo.
@@ -461,7 +382,7 @@ if not "%~2"=="" (
     echo.
 )
 
-:: ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—ä¸€è¦§ã‚’è¡¨ç¤º
+:: ƒoƒbƒNƒAƒbƒvˆê——‚ğ•\¦
 set "COUNT=0"
 for /f "delims=" %%D in ('dir /b /ad /o-n "%BACKUP_BASE%\" 2^>nul') do (
     set /a COUNT+=1
@@ -475,11 +396,7 @@ if !COUNT! equ 0 (
 
 echo Available backups:
 echo.
-for /L %%I in (1,1,!COUNT!) do (
-    for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$s = (Get-ChildItem -Path '%BACKUP_BASE%\!BACKUP_%%I!' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s -gt 1MB) { '{0:N1} MB' -f ($s/1MB) } elseif ($s -gt 1KB) { '{0:N1} KB' -f ($s/1KB) } else { '{0} bytes' -f $s }"`) do (
-        echo   [%%I] !BACKUP_%%I!  ^(%%S^)
-    )
-)
+for /L %%I in (1,1,!COUNT!) do call :do_show_backup %%I
 echo.
 echo   [0] Cancel
 echo.
@@ -504,12 +421,12 @@ if !CHOICE_NUM! gtr !COUNT! (
 set "BACKUP_DIR=%BACKUP_BASE%\!BACKUP_%CHOICE_NUM%!"
 
 :confirm_restore
-echo Restore from: %BACKUP_DIR%\
+echo Restore from: !BACKUP_DIR!\
 echo.
 
-:: ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—å†…å®¹ã‚’è¡¨ç¤º
+:: ƒoƒbƒNƒAƒbƒv“à—e‚ğ•\¦
 echo Contents:
-dir /b "%BACKUP_DIR%" 2>nul
+dir /b "!BACKUP_DIR!" 2>nul
 echo.
 
 echo   [WARN] This will overwrite current data!
@@ -528,7 +445,7 @@ set "RESTORE_SKIP=0"
 :: --- 1/5 ITCM PostgreSQL ---
 echo [1/5] ITCM PostgreSQL ...
 
-if exist "%BACKUP_DIR%\itcm-postgres.sql" (
+if exist "!BACKUP_DIR!\itcm-postgres.sql" (
     docker ps --filter "name=itcm-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "itcm-postgres" >nul 2>&1
     if !ERRORLEVEL! neq 0 (
         echo [ERROR] itcm-postgres container is not running.
@@ -539,7 +456,7 @@ if exist "%BACKUP_DIR%\itcm-postgres.sql" (
     docker exec itcm-postgres psql -U postgres -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='inheritance_tax_db' AND pid <> pg_backend_pid();" >nul 2>&1
     docker exec itcm-postgres psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS inheritance_tax_db;" >nul 2>&1
     docker exec itcm-postgres psql -U postgres -d postgres -c "CREATE DATABASE inheritance_tax_db;" >nul 2>&1
-    docker exec -i itcm-postgres psql -U postgres -d inheritance_tax_db < "%BACKUP_DIR%\itcm-postgres.sql" >nul 2>&1
+    docker exec -i itcm-postgres psql -U postgres -d inheritance_tax_db < "!BACKUP_DIR!\itcm-postgres.sql" >nul 2>&1
     if !ERRORLEVEL! equ 0 (
         echo [OK]    itcm-postgres.sql
         set /a RESTORE_OK+=1
@@ -547,13 +464,13 @@ if exist "%BACKUP_DIR%\itcm-postgres.sql" (
         echo [ERROR] ITCM PostgreSQL restore failed
         set /a RESTORE_FAIL+=1
     )
-) else if exist "%BACKUP_DIR%\itcm-postgres-volume.tar.gz" (
+) else if exist "!BACKUP_DIR!\itcm-postgres-volume.tar.gz" (
     echo [WARN]  Volume restore - container must be stopped
     docker volume inspect inheritance-case-management_postgres_data >nul 2>&1
     if !ERRORLEVEL! neq 0 (
         docker volume create inheritance-case-management_postgres_data >nul 2>&1
     )
-    docker run --rm -v inheritance-case-management_postgres_data:/data -v "%BACKUP_DIR%":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/itcm-postgres-volume.tar.gz" >nul 2>&1
+    docker run --rm -v inheritance-case-management_postgres_data:/data -v "!BACKUP_DIR!":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/itcm-postgres-volume.tar.gz" >nul 2>&1
     if !ERRORLEVEL! equ 0 (
         echo [OK]    itcm-postgres-volume.tar.gz
         set /a RESTORE_OK+=1
@@ -570,7 +487,7 @@ if exist "%BACKUP_DIR%\itcm-postgres.sql" (
 :: --- 2/5 Bank Analyzer PostgreSQL ---
 echo [2/5] Bank Analyzer PostgreSQL ...
 
-if exist "%BACKUP_DIR%\bank-analyzer-postgres.sql" (
+if exist "!BACKUP_DIR!\bank-analyzer-postgres.sql" (
     docker ps --filter "name=bank-analyzer-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "bank-analyzer-postgres" >nul 2>&1
     if !ERRORLEVEL! neq 0 (
         echo [ERROR] bank-analyzer-postgres container is not running.
@@ -581,7 +498,7 @@ if exist "%BACKUP_DIR%\bank-analyzer-postgres.sql" (
     docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='bank_analyzer' AND pid <> pg_backend_pid();" >nul 2>&1
     docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "DROP DATABASE IF EXISTS bank_analyzer;" >nul 2>&1
     docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "CREATE DATABASE bank_analyzer;" >nul 2>&1
-    docker exec -i bank-analyzer-postgres psql -U bankuser -d bank_analyzer < "%BACKUP_DIR%\bank-analyzer-postgres.sql" >nul 2>&1
+    docker exec -i bank-analyzer-postgres psql -U bankuser -d bank_analyzer < "!BACKUP_DIR!\bank-analyzer-postgres.sql" >nul 2>&1
     if !ERRORLEVEL! equ 0 (
         echo [OK]    bank-analyzer-postgres.sql
         set /a RESTORE_OK+=1
@@ -589,13 +506,13 @@ if exist "%BACKUP_DIR%\bank-analyzer-postgres.sql" (
         echo [ERROR] Bank Analyzer PostgreSQL restore failed
         set /a RESTORE_FAIL+=1
     )
-) else if exist "%BACKUP_DIR%\bank-analyzer-postgres-volume.tar.gz" (
+) else if exist "!BACKUP_DIR!\bank-analyzer-postgres-volume.tar.gz" (
     echo [WARN]  Volume restore - container must be stopped
     docker volume inspect bank-analyzer-postgres >nul 2>&1
     if !ERRORLEVEL! neq 0 (
         docker volume create bank-analyzer-postgres >nul 2>&1
     )
-    docker run --rm -v bank-analyzer-postgres:/data -v "%BACKUP_DIR%":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/bank-analyzer-postgres-volume.tar.gz" >nul 2>&1
+    docker run --rm -v bank-analyzer-postgres:/data -v "!BACKUP_DIR!":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/bank-analyzer-postgres-volume.tar.gz" >nul 2>&1
     if !ERRORLEVEL! equ 0 (
         echo [OK]    bank-analyzer-postgres-volume.tar.gz
         set /a RESTORE_OK+=1
@@ -614,29 +531,9 @@ echo [3/5] SQLite volumes ...
 
 set "SQLITE_OK=0"
 
-:: Bank Analyzer SQLite
-if exist "%BACKUP_DIR%\bank-analyzer-sqlite.tar.gz" (
-    docker volume inspect bank-analyzer-sqlite >nul 2>&1
-    if !ERRORLEVEL! neq 0 docker volume create bank-analyzer-sqlite >nul 2>&1
-    docker run --rm -v bank-analyzer-sqlite:/data -v "%BACKUP_DIR%":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/bank-analyzer-sqlite.tar.gz" >nul 2>&1
-    if !ERRORLEVEL! equ 0 ( set /a SQLITE_OK+=1 ) else ( set /a RESTORE_FAIL+=1 )
-)
-
-:: Tax Docs SQLite
-if exist "%BACKUP_DIR%\tax-docs-data.tar.gz" (
-    docker volume inspect tax-docs-data >nul 2>&1
-    if !ERRORLEVEL! neq 0 docker volume create tax-docs-data >nul 2>&1
-    docker run --rm -v tax-docs-data:/data -v "%BACKUP_DIR%":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/tax-docs-data.tar.gz" >nul 2>&1
-    if !ERRORLEVEL! equ 0 ( set /a SQLITE_OK+=1 ) else ( set /a RESTORE_FAIL+=1 )
-)
-
-:: Medical Stock Valuation SQLite
-if exist "%BACKUP_DIR%\medical-stock-data.tar.gz" (
-    docker volume inspect medical-stock-valuation-data >nul 2>&1
-    if !ERRORLEVEL! neq 0 docker volume create medical-stock-valuation-data >nul 2>&1
-    docker run --rm -v medical-stock-valuation-data:/data -v "%BACKUP_DIR%":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/medical-stock-data.tar.gz" >nul 2>&1
-    if !ERRORLEVEL! equ 0 ( set /a SQLITE_OK+=1 ) else ( set /a RESTORE_FAIL+=1 )
-)
+call :do_restore_sqlite "bank-analyzer-sqlite.tar.gz" "bank-analyzer-sqlite"
+call :do_restore_sqlite "tax-docs-data.tar.gz" "tax-docs-data"
+call :do_restore_sqlite "medical-stock-data.tar.gz" "medical-stock-valuation-data"
 
 if !SQLITE_OK! gtr 0 (
     echo [OK]    SQLite !SQLITE_OK! volumes
@@ -649,10 +546,10 @@ if !SQLITE_OK! gtr 0 (
 :: --- 4/5 Upload data ---
 echo [4/5] Upload data ...
 
-if exist "%BACKUP_DIR%\bank-analyzer-upload" (
+if exist "!BACKUP_DIR!\bank-analyzer-upload" (
     set "BANK_DATA=%PROJECT_ROOT%\apps\bank-analyzer-django\data"
     mkdir "!BANK_DATA!" 2>nul
-    robocopy "%BACKUP_DIR%\bank-analyzer-upload" "!BANK_DATA!" /E /NFL /NDL /NJH /NJS >nul 2>&1
+    robocopy "!BACKUP_DIR!\bank-analyzer-upload" "!BANK_DATA!" /E /NFL /NDL /NJH /NJS >nul 2>&1
     if !ERRORLEVEL! lss 8 (
         echo [OK]    bank-analyzer-upload/
         set /a RESTORE_OK+=1
@@ -668,9 +565,9 @@ if exist "%BACKUP_DIR%\bank-analyzer-upload" (
 :: --- 5/5 Settings ---
 echo [5/5] Settings ...
 
-if exist "%BACKUP_DIR%\itcm-.env" (
+if exist "!BACKUP_DIR!\itcm-.env" (
     set "ITCM_ENV=%PROJECT_ROOT%\apps\inheritance-case-management\.env"
-    copy "%BACKUP_DIR%\itcm-.env" "!ITCM_ENV!" >nul 2>&1
+    copy "!BACKUP_DIR!\itcm-.env" "!ITCM_ENV!" >nul 2>&1
     echo [OK]    itcm-.env
     set /a RESTORE_OK+=1
 ) else (
@@ -688,7 +585,7 @@ if !RESTORE_FAIL! equ 0 (
 )
 echo ============================================================
 echo.
-echo   Source: %BACKUP_DIR%\
+echo   Source: !BACKUP_DIR!\
 echo   OK: !RESTORE_OK!  Skipped: !RESTORE_SKIP!  Failed: !RESTORE_FAIL!
 echo.
 if !RESTORE_OK! gtr 0 (
@@ -700,7 +597,7 @@ if !RESTORE_OK! gtr 0 (
 goto :end
 
 :: ============================================================
-:: clean - ã‚¯ãƒªãƒ¼ãƒ³ã‚¢ãƒƒãƒ—
+:: clean - ƒNƒŠ[ƒ“ƒAƒbƒv
 :: ============================================================
 :cmd_clean
 echo.
@@ -711,88 +608,68 @@ echo.
 echo   * Backup recommendation: manage.bat backup
 echo.
 
-:: Step 1: ã‚³ãƒ³ãƒ†ãƒŠãƒ»ã‚¤ãƒ¡ãƒ¼ã‚¸ã®å‰Šé™¤
-echo [Step 1] ã‚³ãƒ³ãƒ†ãƒŠãƒ»ã‚¤ãƒ¡ãƒ¼ã‚¸ã®å‰Šé™¤
+:: Step 1: ƒRƒ“ƒeƒiEƒCƒ[ƒW‚Ìíœ
+echo [Step 1] ƒRƒ“ƒeƒiEƒCƒ[ƒW‚Ìíœ
 echo.
-echo   ä»¥ä¸‹ãŒå‰Šé™¤ã•ã‚Œã¾ã™:
-echo     - å…¨ã‚³ãƒ³ãƒ†ãƒŠï¼ˆåœæ­¢ä¸­ã‚’å«ã‚€ï¼‰
-echo     - ãƒ“ãƒ«ãƒ‰ã•ã‚ŒãŸ Docker ã‚¤ãƒ¡ãƒ¼ã‚¸
+echo   ˆÈ‰º‚ªíœ‚³‚ê‚Ü‚·:
+echo     - ‘SƒRƒ“ƒeƒii’â~’†‚ğŠÜ‚Şj
+echo     - ƒrƒ‹ƒh‚³‚ê‚½ Docker ƒCƒ[ƒW
 echo.
 
-set /p "CONFIRM1=  å‰Šé™¤ã—ã¦ã‚ˆã‚ã—ã„ã§ã™ã‹ï¼Ÿ (Y/N): "
+set /p "CONFIRM1=  íœ‚µ‚Ä‚æ‚ë‚µ‚¢‚Å‚·‚©H (Y/N): "
 if /i not "!CONFIRM1!"=="Y" (
     echo.
-    echo ã‚­ãƒ£ãƒ³ã‚»ãƒ«ã—ã¾ã—ãŸã€‚
+    echo ƒLƒƒƒ“ƒZƒ‹‚µ‚Ü‚µ‚½B
     goto :end
 )
 
 echo.
-echo ã‚³ãƒ³ãƒ†ãƒŠã‚’åœæ­¢ãƒ»å‰Šé™¤ã—ã¦ã„ã¾ã™...
+echo ƒRƒ“ƒeƒi‚ğ’â~Eíœ‚µ‚Ä‚¢‚Ü‚·...
 
-for /L %%I in (%APP_COUNT%,-1,1) do (
-    set "APP_PATH=!APP_%%I!"
-    set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-    if exist "!COMPOSE_FILE!" (
-        for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-        echo   å‰Šé™¤: !APP_NAME!
-        docker compose -f "!COMPOSE_FILE!" down --rmi local --remove-orphans 2>nul
-    )
-)
+for /L %%I in (%APP_COUNT%,-1,1) do call :do_clean_app %%I
 
 echo.
-echo [OK]    ã‚³ãƒ³ãƒ†ãƒŠãƒ»ã‚¤ãƒ¡ãƒ¼ã‚¸ã‚’å‰Šé™¤ã—ã¾ã—ãŸ
+echo [OK]    ƒRƒ“ƒeƒiEƒCƒ[ƒW‚ğíœ‚µ‚Ü‚µ‚½
 
-:: Step 2: ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ã®å‰Šé™¤
+:: ƒlƒbƒgƒ[ƒN‚Ìíœ
 docker network inspect %NETWORK_NAME% >nul 2>&1
 if !ERRORLEVEL! equ 0 (
     docker network rm %NETWORK_NAME% >nul 2>&1
-    echo [OK]    %NETWORK_NAME% ã‚’å‰Šé™¤ã—ã¾ã—ãŸ
+    echo [OK]    %NETWORK_NAME% ‚ğíœ‚µ‚Ü‚µ‚½
 )
 
-:: Step 3: ãƒ‡ãƒ¼ã‚¿ãƒœãƒªãƒ¥ãƒ¼ãƒ ã®å‰Šé™¤ï¼ˆã‚ªãƒ—ã‚·ãƒ§ãƒ³ï¼‰
+:: Step 2: ƒf[ƒ^ƒ{ƒŠƒ…[ƒ€‚ÌíœiƒIƒvƒVƒ‡ƒ“j
 echo.
-echo [Step 2] ãƒ‡ãƒ¼ã‚¿ãƒœãƒªãƒ¥ãƒ¼ãƒ ã®å‰Šé™¤
+echo [Step 2] ƒf[ƒ^ƒ{ƒŠƒ…[ƒ€‚Ìíœ
 echo.
-echo   ä»¥ä¸‹ã®ãƒ‡ãƒ¼ã‚¿ãŒå®Œå…¨ã«å‰Šé™¤ã•ã‚Œã¾ã™ï¼ˆå¾©å…ƒã§ãã¾ã›ã‚“ï¼‰:
+echo   ˆÈ‰º‚Ìƒf[ƒ^‚ªŠ®‘S‚Éíœ‚³‚ê‚Ü‚·i•œŒ³‚Å‚«‚Ü‚¹‚ñj:
 echo.
 echo     inheritance-case-management_postgres_data   ITCM PostgreSQL
-echo     bank-analyzer-postgres                      éŠ€è¡Œåˆ†æ PostgreSQL
-echo     bank-analyzer-sqlite                        éŠ€è¡Œåˆ†æ SQLite
-echo     tax-docs-data                               ç¢ºå®šç”³å‘Šæ›¸é¡ SQLite
-echo     medical-stock-valuation-data                åŒ»ç™‚æ³•äººæ ªå¼ SQLite
+echo     bank-analyzer-postgres                      ‹âs•ªÍ PostgreSQL
+echo     bank-analyzer-sqlite                        ‹âs•ªÍ SQLite
+echo     tax-docs-data                               Šm’è\‘—Ş SQLite
+echo     medical-stock-valuation-data                ˆã—Ã–@lŠ”® SQLite
 echo.
 
-set /p "CONFIRM2=  æœ¬å½“ã«å‰Šé™¤ã—ã¦ã‚ˆã‚ã—ã„ã§ã™ã‹ï¼Ÿ (Y/N): "
+set /p "CONFIRM2=  –{“–‚Éíœ‚µ‚Ä‚æ‚ë‚µ‚¢‚Å‚·‚©H (Y/N): "
 if /i not "!CONFIRM2!"=="Y" (
     echo.
-    echo ãƒ‡ãƒ¼ã‚¿ã®å‰Šé™¤ã‚’ã‚¹ã‚­ãƒƒãƒ—ã—ã¾ã—ãŸã€‚
-    echo ã‚³ãƒ³ãƒ†ãƒŠãƒ»ã‚¤ãƒ¡ãƒ¼ã‚¸ã®ã¿å‰Šé™¤æ¸ˆã¿ã§ã™ã€‚
+    echo ƒf[ƒ^‚Ìíœ‚ğƒXƒLƒbƒv‚µ‚Ü‚µ‚½B
+    echo ƒRƒ“ƒeƒiEƒCƒ[ƒW‚Ì‚İíœÏ‚İ‚Å‚·B
     goto :clean_done
 )
 
 echo.
-echo ãƒ‡ãƒ¼ã‚¿ãƒœãƒªãƒ¥ãƒ¼ãƒ ã‚’å‰Šé™¤ã—ã¦ã„ã¾ã™...
+echo ƒf[ƒ^ƒ{ƒŠƒ…[ƒ€‚ğíœ‚µ‚Ä‚¢‚Ü‚·...
 
-for %%V in (
-    "inheritance-case-management_postgres_data"
-    "bank-analyzer-postgres"
-    "bank-analyzer-sqlite"
-    "tax-docs-data"
-    "medical-stock-valuation-data"
-) do (
-    docker volume inspect %%~V >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        docker volume rm %%~V >nul 2>&1
-        if !ERRORLEVEL! equ 0 (
-            echo   [OK] %%~V
-        ) else (
-            echo   [ERROR] %%~V ã®å‰Šé™¤ã«å¤±æ•—ã—ã¾ã—ãŸ
-        )
-    )
-)
+call :do_clean_volume "inheritance-case-management_postgres_data"
+call :do_clean_volume "bank-analyzer-postgres"
+call :do_clean_volume "bank-analyzer-sqlite"
+call :do_clean_volume "tax-docs-data"
+call :do_clean_volume "medical-stock-valuation-data"
 
 echo.
-echo [OK]    ãƒ‡ãƒ¼ã‚¿ãƒœãƒªãƒ¥ãƒ¼ãƒ ã‚’å‰Šé™¤ã—ã¾ã—ãŸ
+echo [OK]    ƒf[ƒ^ƒ{ƒŠƒ…[ƒ€‚ğíœ‚µ‚Ü‚µ‚½
 
 :clean_done
 echo.
@@ -800,12 +677,12 @@ echo ============================================================
 echo   Clean Up Complete
 echo ============================================================
 echo.
-echo   å†ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—: manage.bat start
+echo   ÄƒZƒbƒgƒAƒbƒv: manage.bat start
 echo.
 goto :end
 
 :: ============================================================
-:: preflight - èµ·å‹•å‰ç’°å¢ƒãƒã‚§ãƒƒã‚¯
+:: preflight - ‹N“®‘OŠÂ‹«ƒ`ƒFƒbƒN
 :: ============================================================
 :cmd_preflight
 set "PF_OK=0"
@@ -845,17 +722,7 @@ if %ERRORLEVEL% neq 0 (
 :: 3. Compose files exist
 set "COMPOSE_FOUND=0"
 set "COMPOSE_MISSING=0"
-for /L %%I in (1,1,%APP_COUNT%) do (
-    set "APP_PATH=!APP_%%I!"
-    if exist "%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml" (
-        set /a COMPOSE_FOUND+=1
-    ) else (
-        for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-        echo [WARN]  Missing: !APP_NAME!/docker-compose.yml
-        set /a COMPOSE_MISSING+=1
-        set /a PF_WARN+=1
-    )
-)
+for /L %%I in (1,1,%APP_COUNT%) do call :do_preflight_compose %%I
 if !COMPOSE_MISSING! equ 0 (
     echo [OK]    All !COMPOSE_FOUND! docker-compose.yml files present
     set /a PF_OK+=1
@@ -863,18 +730,10 @@ if !COMPOSE_MISSING! equ 0 (
 
 :: 4. Nginx configs
 set "NGINX_OK=1"
-for %%F in (
-    "nginx\nginx.conf"
-    "nginx\default.conf"
-    "nginx\includes\upstreams.conf"
-    "nginx\includes\maps.conf"
-) do (
-    if not exist "%PROJECT_ROOT%\%%~F" (
-        echo [WARN]  Missing: %%~F
-        set "NGINX_OK=0"
-        set /a PF_WARN+=1
-    )
-)
+call :do_preflight_nginx "nginx\nginx.conf"
+call :do_preflight_nginx "nginx\default.conf"
+call :do_preflight_nginx "nginx\includes\upstreams.conf"
+call :do_preflight_nginx "nginx\includes\maps.conf"
 if "!NGINX_OK!"=="1" (
     echo [OK]    Nginx config files present
     set /a PF_OK+=1
@@ -898,11 +757,7 @@ if not exist "!ITCM_ENV!" (
 
 :: 6. Port conflicts
 set "PORT_CONFLICT=0"
-for /f "tokens=*" %%L in ('powershell -NoProfile -Command "$ports = @(80,3000,3001,3002,3003,3004,3005,3006,3007,3010,3012,3013,3020,3022,5173); $lines = netstat -ano 2>$null; foreach ($p in $ports) { foreach ($l in $lines) { if ($l -match 'LISTENING' -and $l -match \":$p\s\") { Write-Output $p; break } } }"') do (
-    echo [WARN]  Port %%L is already in use
-    set "PORT_CONFLICT=1"
-    set /a PF_WARN+=1
-)
+for /f "tokens=*" %%L in ('powershell -NoProfile -Command "$ports = @(80,3000,3001,3002,3003,3004,3005,3006,3007,3010,3012,3013,3020,3022,5173); $lines = netstat -ano 2>$null; foreach ($p in $ports) { foreach ($l in $lines) { if ($l -match 'LISTENING' -and $l -match \":$p\s\") { Write-Output $p; break } } }"') do call :do_preflight_port %%L
 if "!PORT_CONFLICT!"=="0" (
     echo [OK]    No port conflicts detected
     set /a PF_OK+=1
@@ -944,46 +799,183 @@ echo.
 goto :end
 
 :: ============================================================
-:: ãƒ¦ãƒ¼ãƒ†ã‚£ãƒªãƒ†ã‚£é–¢æ•°
+:: for ƒ‹[ƒv—pƒTƒuƒ‹[ƒ`ƒ“
 :: ============================================================
 
-:: --- ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ä½œæˆ ---
+:: --- ƒAƒvƒŠ‹N“® ---
+:do_start_app
+set "APP_PATH=!APP_%1!"
+set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
+if not exist "!COMPOSE_FILE!" (
+    for %%N in ("!APP_PATH!") do echo [WARN]    ƒXƒLƒbƒv: %%~nxN
+    goto :eof
+)
+for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
+echo [manage]   ‹N“®: !APP_NAME!
+docker compose -f "!COMPOSE_FILE!" up -d
+if !ERRORLEVEL! neq 0 echo [ERROR]   !APP_NAME! ‚Ì‹N“®‚É¸”s‚µ‚Ü‚µ‚½
+goto :eof
+
+:: --- ƒAƒvƒŠ’â~ ---
+:do_stop_app
+set "APP_PATH=!APP_%1!"
+set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
+if not exist "!COMPOSE_FILE!" goto :eof
+for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
+echo [manage]   ’â~: !APP_NAME!
+docker compose -f "!COMPOSE_FILE!" stop
+goto :eof
+
+:: --- ƒAƒvƒŠ’â~Eíœ ---
+:do_down_app
+set "APP_PATH=!APP_%1!"
+set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
+if not exist "!COMPOSE_FILE!" goto :eof
+for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
+echo [manage]   íœ: !APP_NAME!
+docker compose -f "!COMPOSE_FILE!" down
+goto :eof
+
+:: --- ƒAƒvƒŠó‘Ô•\¦ ---
+:do_status_app
+set "APP_PATH=!APP_%1!"
+set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
+if not exist "!COMPOSE_FILE!" goto :eof
+for /f "tokens=*" %%L in ('docker compose -f "!COMPOSE_FILE!" ps --format "{{.Name}}	{{.Status}}	{{.Ports}}" 2^>nul') do echo   %%L
+goto :eof
+
+:: --- ƒAƒvƒŠƒNƒŠ[ƒ“ ---
+:do_clean_app
+set "APP_PATH=!APP_%1!"
+set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
+if not exist "!COMPOSE_FILE!" goto :eof
+for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
+echo   íœ: !APP_NAME!
+docker compose -f "!COMPOSE_FILE!" down --rmi local --remove-orphans 2>nul
+goto :eof
+
+:: --- ƒ{ƒŠƒ…[ƒ€íœ ---
+:do_clean_volume
+docker volume inspect %~1 >nul 2>&1
+if !ERRORLEVEL! neq 0 goto :eof
+docker volume rm %~1 >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    echo   [OK] %~1
+) else (
+    echo   [ERROR] %~1 ‚Ìíœ‚É¸”s‚µ‚Ü‚µ‚½
+)
+goto :eof
+
+:: --- SQLiteƒoƒbƒNƒAƒbƒv ---
+:do_backup_sqlite
+:: %1 = volume name, %2 = backup filename (without .tar.gz)
+docker volume inspect %~1 >nul 2>&1
+if !ERRORLEVEL! neq 0 (
+    set /a SQLITE_SKIP+=1
+    goto :eof
+)
+docker run --rm -v %~1:/data -v "!BACKUP_DIR!":/backup alpine tar czf /backup/%~2.tar.gz -C /data . >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    set /a SQLITE_OK+=1
+) else (
+    echo [ERROR] %~1 backup failed
+    set /a BACKUP_FAIL+=1
+)
+goto :eof
+
+:: --- SQLiteƒŠƒXƒgƒA ---
+:do_restore_sqlite
+:: %1 = backup filename (with .tar.gz), %2 = volume name
+if not exist "!BACKUP_DIR!\%~1" goto :eof
+docker volume inspect %~2 >nul 2>&1
+if !ERRORLEVEL! neq 0 docker volume create %~2 >nul 2>&1
+docker run --rm -v %~2:/data -v "!BACKUP_DIR!":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/%~1" >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    set /a SQLITE_OK+=1
+) else (
+    set /a RESTORE_FAIL+=1
+)
+goto :eof
+
+:: --- Preflight: compose ƒtƒ@ƒCƒ‹ƒ`ƒFƒbƒN ---
+:do_preflight_compose
+set "APP_PATH=!APP_%1!"
+if exist "%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml" (
+    set /a COMPOSE_FOUND+=1
+) else (
+    for %%N in ("!APP_PATH!") do echo [WARN]  Missing: %%~nxN/docker-compose.yml
+    set /a COMPOSE_MISSING+=1
+    set /a PF_WARN+=1
+)
+goto :eof
+
+:: --- Preflight: nginx ƒtƒ@ƒCƒ‹ƒ`ƒFƒbƒN ---
+:do_preflight_nginx
+if not exist "%PROJECT_ROOT%\%~1" (
+    echo [WARN]  Missing: %~1
+    set "NGINX_OK=0"
+    set /a PF_WARN+=1
+)
+goto :eof
+
+:: --- Preflight: ƒ|[ƒgƒ`ƒFƒbƒN ---
+:do_preflight_port
+echo [WARN]  Port %1 is already in use
+set "PORT_CONFLICT=1"
+set /a PF_WARN+=1
+goto :eof
+
+:: --- ƒoƒbƒNƒAƒbƒvˆê——•\¦ ---
+:do_show_backup
+set "BK_NAME=!BACKUP_%1!"
+for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$s = (Get-ChildItem -Path '%BACKUP_BASE%\!BK_NAME!' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s -gt 1MB) { '{0:N1} MB' -f ($s/1MB) } elseif ($s -gt 1KB) { '{0:N1} KB' -f ($s/1KB) } else { '{0} bytes' -f $s }"`) do echo   [%1] !BK_NAME!  (%%S)
+goto :eof
+
+:: --- ƒAƒvƒŠ–¼•\¦ ---
+:do_show_app
+set "APP_PATH=!APP_%1!"
+for %%N in ("!APP_PATH!") do echo   %%~nxN
+goto :eof
+
+:: ============================================================
+:: ƒ†[ƒeƒBƒŠƒeƒBŠÖ”
+:: ============================================================
+
+:: --- ƒlƒbƒgƒ[ƒNì¬ ---
 :ensure_network
 docker network inspect %NETWORK_NAME% >nul 2>&1
 if !ERRORLEVEL! neq 0 (
-    echo [manage] ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ %NETWORK_NAME% ã‚’ä½œæˆ...
+    echo [manage] ƒlƒbƒgƒ[ƒN %NETWORK_NAME% ‚ğì¬...
     docker network create %NETWORK_NAME% >nul 2>&1
 )
 goto :eof
 
-:: --- ã‚¢ãƒ—ãƒªåã‹ã‚‰ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã‚’è§£æ±º ---
+:: --- ƒAƒvƒŠ–¼‚©‚çƒfƒBƒŒƒNƒgƒŠ‚ğ‰ğŒˆ ---
 :resolve_app
 set "RESOLVED_DIR="
 set "SEARCH=%~1"
-for /L %%I in (1,1,%APP_COUNT%) do (
-    set "APP_PATH=!APP_%%I!"
-    echo !APP_PATH! | findstr /i "%SEARCH%" >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        set "RESOLVED_DIR=%PROJECT_ROOT%\!APP_PATH!"
-        goto :eof
-    )
+for /L %%I in (1,1,%APP_COUNT%) do call :do_resolve_check %%I
+if "!RESOLVED_DIR!"=="" (
+    echo [ERROR] ƒAƒvƒŠ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ: !SEARCH!
+    call :show_apps
 )
-echo [ERROR] ã‚¢ãƒ—ãƒªãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“: %SEARCH%
-call :show_apps
-set "RESOLVED_DIR="
 goto :eof
 
-:: --- ã‚¢ãƒ—ãƒªä¸€è¦§è¡¨ç¤º ---
+:do_resolve_check
+if defined RESOLVED_DIR goto :eof
+set "APP_PATH=!APP_%1!"
+echo !APP_PATH! | findstr /i "!SEARCH!" >nul 2>&1
+if !ERRORLEVEL! equ 0 set "RESOLVED_DIR=%PROJECT_ROOT%\!APP_PATH!"
+goto :eof
+
+:: --- ƒAƒvƒŠˆê——•\¦ ---
 :show_apps
 echo.
 echo Available apps:
-for /L %%I in (1,1,%APP_COUNT%) do (
-    set "APP_PATH=!APP_%%I!"
-    for %%N in ("!APP_PATH!") do echo   %%~nxN
-)
+for /L %%I in (1,1,%APP_COUNT%) do call :do_show_app %%I
 goto :eof
 
-:: --- ç°¡æ˜“ preflightï¼ˆDockerèµ·å‹•ãƒã‚§ãƒƒã‚¯ã®ã¿ï¼‰ ---
+:: --- ŠÈˆÕ preflightiDocker‹N“®ƒ`ƒFƒbƒN‚Ì‚İj ---
 :preflight_quick
 docker info >nul 2>&1
 if !ERRORLEVEL! neq 0 (
@@ -993,7 +985,7 @@ if !ERRORLEVEL! neq 0 (
 exit /b 0
 
 :: ============================================================
-:: ãƒ˜ãƒ«ãƒ—è¡¨ç¤º
+:: ƒwƒ‹ƒv•\¦
 :: ============================================================
 :show_help
 echo.
@@ -1004,30 +996,27 @@ echo.
 echo Usage: manage.bat ^<command^> [app-name]
 echo.
 echo Commands:
-echo   start              å…¨ã‚¢ãƒ—ãƒªã‚’èµ·å‹•ï¼ˆãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯è‡ªå‹•ä½œæˆï¼‰
-echo   stop               å…¨ã‚¢ãƒ—ãƒªã‚’åœæ­¢
-echo   down               å…¨ã‚¢ãƒ—ãƒªã‚’åœæ­¢ã—ã¦ã‚³ãƒ³ãƒ†ãƒŠå‰Šé™¤
-echo   restart ^<app^>      æŒ‡å®šã‚¢ãƒ—ãƒªã®ã¿å†èµ·å‹•
-echo   build ^<app^>        æŒ‡å®šã‚¢ãƒ—ãƒªã‚’å†ãƒ“ãƒ«ãƒ‰ã—ã¦èµ·å‹•
-echo   logs ^<app^>         æŒ‡å®šã‚¢ãƒ—ãƒªã®ãƒ­ã‚°è¡¨ç¤º
-echo   status             å…¨ã‚¢ãƒ—ãƒªã®çŠ¶æ…‹è¡¨ç¤º
+echo   start              ‘SƒAƒvƒŠ‚ğ‹N“®iƒlƒbƒgƒ[ƒN©“®ì¬j
+echo   stop               ‘SƒAƒvƒŠ‚ğ’â~
+echo   down               ‘SƒAƒvƒŠ‚ğ’â~‚µ‚ÄƒRƒ“ƒeƒiíœ
+echo   restart ^<app^>      w’èƒAƒvƒŠ‚Ì‚İÄ‹N“®
+echo   build ^<app^>        w’èƒAƒvƒŠ‚ğÄƒrƒ‹ƒh‚µ‚Ä‹N“®
+echo   logs ^<app^>         w’èƒAƒvƒŠ‚ÌƒƒO•\¦
+echo   status             ‘SƒAƒvƒŠ‚Ìó‘Ô•\¦
 echo.
 echo Operations:
-echo   backup             å…¨ãƒ‡ãƒ¼ã‚¿ãƒ™ãƒ¼ã‚¹ãƒ»ãƒ‡ãƒ¼ã‚¿ã‚’ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—
-echo   restore [dir]      ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—ã‹ã‚‰ãƒªã‚¹ãƒˆã‚¢
-echo   clean              ã‚³ãƒ³ãƒ†ãƒŠãƒ»ã‚¤ãƒ¡ãƒ¼ã‚¸ã®ã‚¯ãƒªãƒ¼ãƒ³ã‚¢ãƒƒãƒ—
-echo   preflight          èµ·å‹•å‰ç’°å¢ƒãƒã‚§ãƒƒã‚¯
+echo   backup             ‘Sƒf[ƒ^ƒx[ƒXEƒf[ƒ^‚ğƒoƒbƒNƒAƒbƒv
+echo   restore [dir]      ƒoƒbƒNƒAƒbƒv‚©‚çƒŠƒXƒgƒA
+echo   clean              ƒRƒ“ƒeƒiEƒCƒ[ƒW‚ÌƒNƒŠ[ƒ“ƒAƒbƒv
+echo   preflight          ‹N“®‘OŠÂ‹«ƒ`ƒFƒbƒN
 echo.
 echo Apps:
-for /L %%I in (1,1,%APP_COUNT%) do (
-    set "APP_PATH=!APP_%%I!"
-    for %%N in ("!APP_PATH!") do echo   %%~nxN
-)
+for /L %%I in (1,1,%APP_COUNT%) do call :do_show_app %%I
 echo.
 goto :end
 
 :: ============================================================
-:: çµ‚äº†
+:: I—¹
 :: ============================================================
 :end
 endlocal
