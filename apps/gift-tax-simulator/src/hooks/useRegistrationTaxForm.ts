@@ -11,9 +11,9 @@ import { useValuationImport } from './useValuationImport';
 
 export const useRegistrationTaxForm = () => {
     // 共通設定
-    const [includeLand, setIncludeLand] = useState(true);
-    const [includeBuilding, setIncludeBuilding] = useState(true);
-    const [transactionType, setTransactionType] = useState<TransactionType>('purchase');
+    const [includeLand, setIncludeLand] = useState(false);
+    const [includeBuilding, setIncludeBuilding] = useState(false);
+    const [transactionType, setTransactionType] = useState<TransactionType>('gift');
 
     // 土地（評価額のみ）
     const [landValuation, setLandValuation] = useState('');

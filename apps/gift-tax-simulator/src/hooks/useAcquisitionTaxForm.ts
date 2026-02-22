@@ -26,9 +26,9 @@ export const useAcquisitionTaxForm = () => {
     }, []);
 
     // 共通設定
-    const [includeLand, setIncludeLand] = useState(true);
-    const [includeBuilding, setIncludeBuilding] = useState(true);
-    const [transactionType, setTransactionType] = useState<TransactionType>('purchase');
+    const [includeLand, setIncludeLand] = useState(false);
+    const [includeBuilding, setIncludeBuilding] = useState(false);
+    const [transactionType, setTransactionType] = useState<TransactionType>('gift');
 
     // 土地（宅地）
     const [resLandValuation, setResLandValuation] = useState('');
