@@ -58,3 +58,9 @@ export const parseFormattedNumber = (val: string): number => {
     const num = parseFloat(normalized);
     return isNaN(num) ? 0 : num;
 };
+
+/**
+ * 日付を「YYYY年M月D日」形式にフォーマット
+ */
+export const formatDate = (date: Date): string =>
+    `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;

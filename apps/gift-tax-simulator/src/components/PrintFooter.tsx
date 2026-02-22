@@ -1,9 +1,6 @@
 import { useState, useEffect, useId } from 'react';
 import { COMPANY_INFO, getFullAddress } from '../lib/company';
-
-const formatDate = (date: Date): string => {
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-};
+import { formatDate } from '../lib/utils';
 
 const PrintFooter = () => {
     const [staff, setStaff] = useState('');

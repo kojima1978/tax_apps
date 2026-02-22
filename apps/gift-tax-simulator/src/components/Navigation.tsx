@@ -8,22 +8,15 @@ import Printer from 'lucide-react/icons/printer';
 import { COMPANY_INFO } from '@/lib/company';
 
 const NAV_ITEMS = [
-    { to: '/', label: '贈与税', icon: Gift },
-    { to: '/table', label: '早見表', icon: Table },
-    { to: '/acquisition-tax', label: '不動産取得税', icon: Building },
-    { to: '/registration-tax', label: '登録免許税', icon: FileText },
+    { to: '/', label: '贈与税', icon: Gift, pageTitle: '贈与税シミュレーター' },
+    { to: '/table', label: '早見表', icon: Table, pageTitle: '贈与税 早見表' },
+    { to: '/acquisition-tax', label: '不動産取得税', icon: Building, pageTitle: '不動産取得税シミュレーター' },
+    { to: '/registration-tax', label: '登録免許税', icon: FileText, pageTitle: '登録免許税シミュレーター' },
 ] as const;
-
-const PAGE_TITLES: Record<string, string> = {
-    '/': '贈与税シミュレーター',
-    '/table': '贈与税 早見表',
-    '/acquisition-tax': '不動産取得税シミュレーター',
-    '/registration-tax': '登録免許税シミュレーター',
-};
 
 const Navigation = () => {
     const { pathname } = useLocation();
-    const pageTitle = PAGE_TITLES[pathname] ?? '';
+    const pageTitle = NAV_ITEMS.find(item => item.to === pathname)?.pageTitle ?? '';
 
     return (
     <header className="header-custom">
