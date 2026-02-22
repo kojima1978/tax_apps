@@ -7,6 +7,7 @@ import { SectionHeader } from '../SectionHeader';
 import { CurrencyInput } from '../CurrencyInput';
 import type { InsuranceContract, BeneficiaryOption } from '../../types';
 import { generateId } from '../../utils';
+import { useUniqueOptions } from '../../hooks/useUniqueOptions';
 
 interface InsuranceContractListProps {
   contracts: InsuranceContract[];
@@ -27,17 +28,17 @@ export const InsuranceContractList: React.FC<InsuranceContractListProps> = ({
   onChange,
 }) => {
   const config = CATEGORY_CONFIG[category];
+  const { nextAvailable, canAdd, getAvailableFor } = useUniqueOptions(contracts, beneficiaryOptions, c => c.beneficiaryId);
 
   const addContract = () => {
-    const defaultBeneficiary = beneficiaryOptions[0];
-    if (!defaultBeneficiary) return;
+    if (!nextAvailable) return;
     onChange([
       ...contracts,
       {
         id: generateId(),
         category,
-        beneficiaryId: defaultBeneficiary.id,
-        beneficiaryLabel: defaultBeneficiary.label,
+        beneficiaryId: nextAvailable.id,
+        beneficiaryLabel: nextAvailable.label,
         benefit: 0,
         premium: 0,
       },
@@ -68,8 +69,10 @@ export const InsuranceContractList: React.FC<InsuranceContractListProps> = ({
         <p className="text-sm text-gray-400 text-center py-4">契約なし</p>
       ) : (
         <div className="space-y-4">
-          {contracts.map((contract, index) => (
-            <div
+          {contracts.map((contract, index) => {
+            const availableOptions = getAvailableFor(contract.id);
+
+            return (<div
               key={contract.id}
               className={`border rounded-lg p-4 ${category === 'new' ? 'border-blue-200 bg-blue-50/30' : 'border-gray-200'}`}
             >
@@ -96,7 +99,7 @@ export const InsuranceContractList: React.FC<InsuranceContractListProps> = ({
                     onChange={e => updateContract(contract.id, { beneficiaryId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
                   >
-                    {beneficiaryOptions.map(opt => (
+                    {availableOptions.map(opt => (
                       <option key={opt.id} value={opt.id}>{opt.label}</option>
                     ))}
                   </select>
@@ -119,14 +122,14 @@ export const InsuranceContractList: React.FC<InsuranceContractListProps> = ({
                 />
               </div>
             </div>
-          ))}
+          );})}
         </div>
       )}
 
       <button
         type="button"
         onClick={addContract}
-        disabled={beneficiaryOptions.length === 0}
+        disabled={!canAdd}
         className={`mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
           category === 'new'
             ? 'border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50'

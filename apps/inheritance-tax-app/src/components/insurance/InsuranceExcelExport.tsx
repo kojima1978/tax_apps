@@ -1,7 +1,7 @@
 import React, { memo, useCallback } from 'react';
 import type { InsuranceSimulationResult, InsuranceContract, HeirComposition } from '../../types';
-import { formatCurrency, formatDelta, getScenarioName, getHeirNetProceeds, getHeirBaseAcquisition } from '../../utils';
-import { FILLS, ALL_THIN_BORDERS, ALL_GREEN_BORDERS, solidFill, setupExcelWorkbook, addSectionHeader, addLabelValueRow, saveWorkbook } from '../../utils/excelStyles';
+import { formatCurrency, formatDelta, formatDeltaArrow, formatSavingArrow, getScenarioName, getHeirNetProceeds, getHeirBaseAcquisition } from '../../utils';
+import { FILLS, ALL_THIN_BORDERS, ALL_GREEN_BORDERS, solidFill, setupExcelWorkbook, addSectionHeader, addLabelValueRow, applyTableHeaderStyle, addHighlightRows, addHeirComparisonSection, saveWorkbook } from '../../utils/excelStyles';
 import { useExcelExport } from '../../hooks/useExcelExport';
 import { ExcelExportButton } from '../ExcelExportButton';
 
@@ -44,20 +44,14 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
 
     const compHeaders = ['項目', '現状', '提案', '差額（Δ）'];
     const compHeaderRow = worksheet.addRow(compHeaders);
-    compHeaderRow.eachCell((cell: any) => {
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-      cell.fill = FILLS.subHeader;
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.border = ALL_GREEN_BORDERS;
-    });
-    compHeaderRow.height = 24;
+    applyTableHeaderStyle(compHeaderRow);
 
     const { current, proposed, taxSaving, netProceedsDiff, newPremiumTotal, baseEstate } = result;
 
-    type CompRow = { label: string; cur: number; prop: number; highlight?: boolean };
+    type CompRow = { label: string; cur: number; prop: number; highlight?: boolean; displayPrefix?: string };
     const compData: CompRow[] = [
       { label: '元の遺産額', cur: baseEstate, prop: baseEstate },
-      { label: '新規保険料支出', cur: 0, prop: newPremiumTotal },
+      { label: '新規保険料', cur: 0, prop: newPremiumTotal, displayPrefix: 'ー' },
       { label: '受取保険金（全額）', cur: current.totalBenefit, prop: proposed.totalBenefit },
       { label: '非課税額', cur: current.nonTaxableAmount, prop: proposed.nonTaxableAmount },
       { label: '課税対象保険金', cur: current.taxableInsurance, prop: proposed.taxableInsurance },
@@ -66,9 +60,11 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
       { label: '手取り合計', cur: current.totalNetProceeds, prop: proposed.totalNetProceeds, highlight: true },
     ];
 
-    compData.forEach(({ label, cur, prop, highlight }) => {
+    compData.forEach(({ label, cur, prop, highlight, displayPrefix }) => {
       const diff = prop - cur;
-      const row = worksheet.addRow([label, formatCurrency(cur), formatCurrency(prop), diff !== 0 ? formatDelta(diff) : '—']);
+      const fmtProp = displayPrefix && prop > 0 ? `${displayPrefix}${formatCurrency(prop)}` : formatCurrency(prop);
+      const fmtDiff = diff !== 0 ? (displayPrefix ? `${displayPrefix}${formatCurrency(Math.abs(diff))}` : formatDelta(diff)) : '—';
+      const row = worksheet.addRow([label, formatCurrency(cur), fmtProp, fmtDiff]);
       row.eachCell((cell: any, colNumber: number) => {
         cell.font = { size: 10, bold: colNumber === 1 || highlight || false };
         cell.alignment = { vertical: 'middle', horizontal: colNumber === 1 ? 'left' : 'right' };
@@ -78,20 +74,10 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
     });
 
     // 結果ハイライト行
-    const highlightRows = [
-      ['節税効果', taxSaving > 0 ? `▼ ${formatCurrency(taxSaving)}` : taxSaving < 0 ? `▲ ${formatCurrency(Math.abs(taxSaving))}` : '±0'],
-      ['手取り増減', netProceedsDiff > 0 ? `▲ ${formatCurrency(netProceedsDiff)}` : netProceedsDiff < 0 ? `▼ ${formatCurrency(Math.abs(netProceedsDiff))}` : '±0'],
-    ];
-    highlightRows.forEach(([label, value]) => {
-      const row = worksheet.addRow([label, '', '', value]);
-      row.eachCell((cell: any) => {
-        cell.font = { bold: true, size: 12, color: { argb: 'FF166534' } };
-        cell.fill = FILLS.highlight;
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = ALL_GREEN_BORDERS;
-      });
-      row.height = 28;
-    });
+    addHighlightRows(worksheet, colCount, [
+      ['節税効果', formatSavingArrow(taxSaving)],
+      ['手取り増減', formatDeltaArrow(netProceedsDiff)],
+    ]);
 
     worksheet.addRow([]);
     worksheet.columns = [
@@ -178,7 +164,7 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
     heirSheet.addRow([]);
 
     const scenarios = [
-      { scenario: current, headerFill: solidFill('FF666666') },
+      { scenario: current, headerFill: FILLS.mainHeader },
       { scenario: proposed, headerFill: FILLS.mainHeader },
     ];
 
@@ -212,7 +198,7 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
         const row = heirSheet.addRow([
           heir.label,
           formatCurrency(baseAcq),
-          heir.premiumPaid > 0 ? formatCurrency(heir.premiumPaid) : '—',
+          heir.premiumPaid > 0 ? `ー${formatCurrency(heir.premiumPaid)}` : '—',
           formatCurrency(heir.totalBenefit),
           taxEntry ? formatCurrency(taxEntry.finalTax) : '—',
           formatCurrency(netProceeds),
@@ -227,7 +213,7 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
       const totalRow = heirSheet.addRow([
         '合計',
         formatCurrency(totalBaseAcquisition),
-        totalPremiumPaid > 0 ? formatCurrency(totalPremiumPaid) : '—',
+        totalPremiumPaid > 0 ? `ー${formatCurrency(totalPremiumPaid)}` : '—',
         formatCurrency(scenario.totalBenefit),
         formatCurrency(scenario.taxResult.totalFinalTax),
         formatCurrency(scenario.totalNetProceeds),
@@ -242,49 +228,17 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
     });
 
     // 手取り比較セクション
-    const compSecNum = heirSheet.rowCount + 1;
-    heirSheet.mergeCells(compSecNum, 1, compSecNum, 6);
-    const compSecCell = heirSheet.getCell(`A${compSecNum}`);
-    compSecCell.value = '相続人別 手取り比較';
-    compSecCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-    compSecCell.fill = solidFill('FF166534');
-    compSecCell.alignment = { vertical: 'middle', horizontal: 'left' };
-    compSecCell.border = ALL_GREEN_BORDERS;
-    heirSheet.getRow(compSecNum).height = 24;
-
-    const compHdr = heirSheet.addRow(['相続人', '現状 手取り', '提案 手取り', '差額（Δ）']);
-    compHdr.eachCell((cell: any) => {
-      cell.font = { bold: true, size: 10 };
-      cell.fill = solidFill('FFF3F4F6');
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.border = ALL_THIN_BORDERS;
-    });
-
     const heirCount = current.heirBreakdowns.length;
-    for (let i = 0; i < heirCount; i++) {
-      const label = current.heirBreakdowns[i]?.label || '';
-      const currentNet = getHeirNetProceeds(current, i);
-      const proposedNet = getHeirNetProceeds(proposed, i);
-      const diff = proposedNet - currentNet;
-      const row = heirSheet.addRow([label, formatCurrency(currentNet), formatCurrency(proposedNet), diff !== 0 ? formatDelta(diff) : '—']);
-      row.eachCell((cell: any, col: number) => {
-        cell.font = { size: 10, bold: col === 4 };
-        cell.alignment = { vertical: 'middle', horizontal: col === 1 ? 'left' : 'right' };
-        cell.border = ALL_THIN_BORDERS;
-      });
-    }
-
-    const compTotalRow = heirSheet.addRow([
-      '合計',
-      formatCurrency(current.totalNetProceeds),
-      formatCurrency(proposed.totalNetProceeds),
-      formatDelta(netProceedsDiff),
-    ]);
-    compTotalRow.eachCell((cell: any, col: number) => {
-      cell.font = { bold: true, size: 10 };
-      cell.fill = FILLS.highlight;
-      cell.alignment = { vertical: 'middle', horizontal: col === 1 ? 'left' : 'right' };
-      cell.border = ALL_THIN_BORDERS;
+    addHeirComparisonSection(heirSheet, 6, {
+      heirCount,
+      getLabel: i => current.heirBreakdowns[i]?.label || '',
+      getCurrentNet: i => getHeirNetProceeds(current, i),
+      getProposedNet: i => getHeirNetProceeds(proposed, i),
+      totalCurrentNet: current.totalNetProceeds,
+      totalProposedNet: proposed.totalNetProceeds,
+      totalDiff: netProceedsDiff,
+      formatCurrency,
+      formatDelta,
     });
 
     heirSheet.columns = [

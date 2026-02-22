@@ -61,6 +61,26 @@ export const SPOUSE_DEDUCTION_LIMIT = 16000;
 export const INSURANCE_EXEMPT_PER_HEIR = 500;
 
 /**
+ * 特例贈与税率テーブル（直系尊属→18歳以上の子・孫）
+ * 金額は万円単位
+ */
+export const SPECIAL_GIFT_TAX_BRACKETS: TaxBracket[] = [
+  { threshold: 200, rate: 10, deduction: 0 },       // 200万円以下
+  { threshold: 400, rate: 15, deduction: 10 },       // 400万円以下
+  { threshold: 600, rate: 20, deduction: 30 },       // 600万円以下
+  { threshold: 1000, rate: 30, deduction: 90 },      // 1,000万円以下
+  { threshold: 1500, rate: 40, deduction: 190 },     // 1,500万円以下
+  { threshold: 3000, rate: 45, deduction: 265 },     // 3,000万円以下
+  { threshold: 4500, rate: 50, deduction: 415 },     // 4,500万円以下
+  { threshold: Infinity, rate: 55, deduction: 640 }, // 4,500万円超
+];
+
+/**
+ * 贈与税の基礎控除額（万円単位）: 110万円/年/人
+ */
+export const GIFT_TAX_BASIC_EXEMPTION = 110;
+
+/**
  * 相続人順位のラベル（ファイル名生成・表示用）
  */
 export const RANK_LABELS: Record<number, string> = { 1: '子', 2: '直系尊属', 3: '兄弟姉妹' };

@@ -2,7 +2,7 @@ import React, { memo, useCallback } from 'react';
 import type { DetailedTaxCalculationResult, HeirComposition, SpouseAcquisitionMode } from '../../types';
 import { formatCurrency, formatPercent, getHeirInfo, getScenarioName, getSpouseModeLabel } from '../../utils';
 import { BASIC_DEDUCTION } from '../../constants';
-import { FILLS, ALL_THIN_BORDERS, ALL_GREEN_BORDERS, setupExcelWorkbook, addSectionHeader, addLabelValueRow, saveWorkbook } from '../../utils/excelStyles';
+import { FILLS, ALL_THIN_BORDERS, ALL_GREEN_BORDERS, setupExcelWorkbook, addSectionHeader, addLabelValueRow, applyTableHeaderStyle, saveWorkbook } from '../../utils/excelStyles';
 import { useExcelExport } from '../../hooks/useExcelExport';
 import { ExcelExportButton } from '../ExcelExportButton';
 
@@ -54,13 +54,7 @@ export const CalculatorExcelExport: React.FC<CalculatorExcelExportProps> = memo(
 
     const tableHeaders = ['相続人', '法定相続分', '取得額', '按分税額', '加算/控除', '納付税額'];
     const headerRow = worksheet.addRow(tableHeaders);
-    headerRow.eachCell((cell: any) => {
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-      cell.fill = FILLS.subHeader;
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.border = ALL_GREEN_BORDERS;
-    });
-    headerRow.height = 22;
+    applyTableHeaderStyle(headerRow, 22);
 
     // データ行
     result.heirBreakdowns.forEach((b) => {

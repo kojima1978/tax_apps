@@ -123,6 +123,100 @@ export function addLabelValueRow(worksheet: any, colCount: number, label: string
   }
 }
 
+/**
+ * 比較テーブルのヘッダー行スタイル（白太字 + subHeader fill + center + green borders）
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function applyTableHeaderStyle(row: any, height = 24) {
+  row.eachCell((cell: any) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+    cell.fill = FILLS.subHeader;
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = ALL_GREEN_BORDERS;
+  });
+  row.height = height;
+}
+
+/**
+ * 結果ハイライト行（節税効果・手取り増減）を追加
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function addHighlightRows(worksheet: any, colCount: number, rows: [string, string][]) {
+  rows.forEach(([label, value]) => {
+    const row = worksheet.addRow([label, ...Array(colCount - 2).fill(''), value]);
+    row.eachCell((cell: any) => {
+      cell.font = { bold: true, size: 12, color: { argb: 'FF166534' } };
+      cell.fill = FILLS.highlight;
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = ALL_GREEN_BORDERS;
+    });
+    row.height = 28;
+  });
+}
+
+/**
+ * 相続人別 手取り比較セクションを追加（シート3共通）
+ */
+interface HeirComparisonConfig {
+  heirCount: number;
+  getLabel: (i: number) => string;
+  getCurrentNet: (i: number) => number;
+  getProposedNet: (i: number) => number;
+  totalCurrentNet: number;
+  totalProposedNet: number;
+  totalDiff: number;
+  formatCurrency: (v: number) => string;
+  formatDelta: (v: number) => string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function addHeirComparisonSection(sheet: any, sheetColCount: number, config: HeirComparisonConfig) {
+  const { heirCount, getLabel, getCurrentNet, getProposedNet, totalCurrentNet, totalProposedNet, totalDiff, formatCurrency: fmtCur, formatDelta: fmtDelta } = config;
+
+  // セクションヘッダー
+  const secRowNum = sheet.rowCount + 1;
+  sheet.mergeCells(secRowNum, 1, secRowNum, sheetColCount);
+  const secCell = sheet.getCell(`A${secRowNum}`);
+  secCell.value = '相続人別 手取り比較';
+  secCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+  secCell.fill = solidFill('FF166534');
+  secCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  secCell.border = ALL_GREEN_BORDERS;
+  sheet.getRow(secRowNum).height = 24;
+
+  // カラムヘッダー
+  const compHdr = sheet.addRow(['相続人', '現状 手取り', '提案 手取り', '差額（Δ）']);
+  compHdr.eachCell((cell: any) => {
+    cell.font = { bold: true, size: 10 };
+    cell.fill = solidFill('FFF3F4F6');
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = ALL_THIN_BORDERS;
+  });
+
+  // 各相続人行
+  for (let i = 0; i < heirCount; i++) {
+    const label = getLabel(i);
+    const currentNet = getCurrentNet(i);
+    const proposedNet = getProposedNet(i);
+    const diff = proposedNet - currentNet;
+    const row = sheet.addRow([label, fmtCur(currentNet), fmtCur(proposedNet), diff !== 0 ? fmtDelta(diff) : '—']);
+    row.eachCell((cell: any, col: number) => {
+      cell.font = { size: 10, bold: col === 4 };
+      cell.alignment = { vertical: 'middle', horizontal: col === 1 ? 'left' : 'right' };
+      cell.border = ALL_THIN_BORDERS;
+    });
+  }
+
+  // 合計行
+  const compTotalRow = sheet.addRow(['合計', fmtCur(totalCurrentNet), fmtCur(totalProposedNet), fmtDelta(totalDiff)]);
+  compTotalRow.eachCell((cell: any, col: number) => {
+    cell.font = { bold: true, size: 10 };
+    cell.fill = FILLS.highlight;
+    cell.alignment = { vertical: 'middle', horizontal: col === 1 ? 'left' : 'right' };
+    cell.border = ALL_THIN_BORDERS;
+  });
+}
+
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 /**

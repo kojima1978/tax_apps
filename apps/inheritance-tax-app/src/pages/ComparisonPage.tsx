@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import Landmark from 'lucide-react/icons/landmark';
 import { Header } from '../components/Header';
 import { HeirSettings } from '../components/HeirSettings';
@@ -6,8 +6,10 @@ import { SectionHeader } from '../components/SectionHeader';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { ComparisonTable } from '../components/comparison/ComparisonTable';
 import { ComparisonExcelExport } from '../components/comparison/ComparisonExcelExport';
+import { CalculateButton } from '../components/CalculateButton';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
+import { StatusCard } from '../components/StatusCard';
 import type { HeirComposition } from '../types';
 import { createDefaultComposition } from '../constants';
 import { calculateComparisonTable } from '../utils';
@@ -17,9 +19,14 @@ export const ComparisonPage: React.FC = () => {
   const [estateValue, setEstateValue] = useState<number>(0);
   const [spouseOwnEstate, setSpouseOwnEstate] = useState<number>(0);
 
-  const comparisonData = useMemo(() => {
-    if (estateValue <= 0 || !composition.hasSpouse) return [];
-    return calculateComparisonTable(estateValue, spouseOwnEstate, composition);
+  const [comparisonData, setComparisonData] = useState<ReturnType<typeof calculateComparisonTable>>([]);
+
+  const handleCalculate = useCallback(() => {
+    if (estateValue <= 0 || !composition.hasSpouse) {
+      setComparisonData([]);
+      return;
+    }
+    setComparisonData(calculateComparisonTable(estateValue, spouseOwnEstate, composition));
   }, [estateValue, spouseOwnEstate, composition]);
 
   const hasData = comparisonData.length > 0;
@@ -58,13 +65,17 @@ export const ComparisonPage: React.FC = () => {
           </div>
         </div>
 
+        <div className="mb-8 no-print">
+          <CalculateButton onClick={handleCalculate} />
+        </div>
+
         {!composition.hasSpouse && estateValue > 0 && (
-          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-8 text-center no-print">
-            <p className="text-lg font-bold text-yellow-800 mb-2">配偶者ありの構成を選択してください</p>
-            <p className="text-sm text-yellow-600">
-              1次2次比較は、配偶者がいる場合の取得割合による税額の変化を比較する機能です。
-            </p>
-          </div>
+          <StatusCard
+            variant="warning"
+            title="配偶者ありの構成を選択してください"
+            description="1次2次比較は、配偶者がいる場合の取得割合による税額の変化を比較する機能です。"
+            className="no-print"
+          />
         )}
 
         {hasData && (

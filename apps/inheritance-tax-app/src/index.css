@@ -8,7 +8,8 @@
   }
 }
 
-.print-only {
+.print-only,
+.print-only-block {
   display: none !important;
 }
 
@@ -19,6 +20,10 @@
 
   .print-only {
     display: flex !important;
+  }
+
+  .print-only-block {
+    display: block !important;
   }
 
   body {
@@ -37,13 +42,18 @@
     overflow: visible !important;
   }
 
+  /* セクション改ページ */
+  .print-page-break {
+    break-before: page;
+  }
+
   @page {
     size: A3 landscape;
     margin: 1cm;
   }
 
-  /* 計算ページ・比較ページ・保険ページ: A4横に上書き */
-  .calculator-print, .comparison-print, .insurance-print { page: a4-landscape; }
+  /* 計算ページ・比較ページ・保険ページ・贈与ページ: A4横に上書き */
+  .calculator-print, .comparison-print, .insurance-print, .cash-gift-print { page: a4-landscape; }
   @page a4-landscape { size: A4 landscape; margin: 12mm 15mm; }
 
   .comparison-print {
@@ -159,6 +169,15 @@
     padding-bottom: 4px !important;
   }
 
+  .calculator-print table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .calculator-print h4 {
+    break-after: avoid;
+  }
+
   /* 保険ページ */
   .insurance-print {
     padding: 0 !important;
@@ -194,5 +213,52 @@
 
   .insurance-print table {
     break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .insurance-print h4 {
+    break-after: avoid;
+  }
+
+  /* 贈与ページ */
+  .cash-gift-print {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .cash-gift-print .bg-white {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 10px 16px !important;
+  }
+
+  .cash-gift-print .space-y-6 > * + * {
+    margin-top: 16px !important;
+  }
+
+  .cash-gift-print h3 {
+    font-size: 16px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .cash-gift-print .text-2xl {
+    font-size: 22px !important;
+  }
+
+  .cash-gift-print .text-lg {
+    font-size: 16px !important;
+  }
+
+  .cash-gift-print .text-sm {
+    font-size: 13px !important;
+  }
+
+  .cash-gift-print table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cash-gift-print h4 {
+    break-after: avoid;
   }
 }

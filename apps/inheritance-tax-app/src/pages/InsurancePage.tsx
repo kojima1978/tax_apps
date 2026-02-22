@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Landmark from 'lucide-react/icons/landmark';
 import { Header } from '../components/Header';
 import { HeirSettings } from '../components/HeirSettings';
@@ -10,9 +10,12 @@ import { InsuranceSummaryCard } from '../components/insurance/InsuranceSummaryCa
 import { InsuranceFlowSteps } from '../components/insurance/InsuranceFlowSteps';
 import { InsuranceHeirTable } from '../components/insurance/InsuranceHeirTable';
 import { InsuranceExcelExport } from '../components/insurance/InsuranceExcelExport';
+import { CalculateButton } from '../components/CalculateButton';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
-import type { HeirComposition, SpouseAcquisitionMode, InsuranceContract } from '../types';
+import { StatusCard } from '../components/StatusCard';
+import { useCleanOptions } from '../hooks/useCleanOptions';
+import type { HeirComposition, SpouseAcquisitionMode, InsuranceContract, InsuranceSimulationResult } from '../types';
 import { createDefaultComposition } from '../constants';
 import { calculateInsuranceSimulation, getBeneficiaryOptions } from '../utils';
 
@@ -29,25 +32,19 @@ export const InsurancePage: React.FC = () => {
   );
 
   // 相続人構成が変わったら、無効な受取人を持つ契約をクリーンアップ
-  const validIds = useMemo(() => new Set(beneficiaryOptions.map(o => o.id)), [beneficiaryOptions]);
+  const getContractId = useCallback((c: InsuranceContract) => c.beneficiaryId, []);
+  const setContractId = useCallback((c: InsuranceContract, id: string, label: string) => ({ ...c, beneficiaryId: id, beneficiaryLabel: label }), []);
+  const cleanedExisting = useCleanOptions(existingContracts, beneficiaryOptions, getContractId, setContractId);
+  const cleanedNew = useCleanOptions(newContracts, beneficiaryOptions, getContractId, setContractId);
 
-  const cleanContracts = (contracts: InsuranceContract[]): InsuranceContract[] => {
-    if (beneficiaryOptions.length === 0) return [];
-    const defaultOpt = beneficiaryOptions[0];
-    return contracts.map(c => {
-      if (validIds.has(c.beneficiaryId)) return c;
-      return { ...c, beneficiaryId: defaultOpt.id, beneficiaryLabel: defaultOpt.label };
-    });
-  };
+  const [result, setResult] = useState<InsuranceSimulationResult | null>(null);
 
-  const cleanedExisting = useMemo(() => cleanContracts(existingContracts), [existingContracts, validIds, beneficiaryOptions]);
-  const cleanedNew = useMemo(() => cleanContracts(newContracts), [newContracts, validIds, beneficiaryOptions]);
-
-  const result = useMemo(() => {
-    if (estateValue <= 0) return null;
-    const allContracts = [...cleanedExisting, ...cleanedNew];
-    if (allContracts.length === 0) return null;
-    return calculateInsuranceSimulation(estateValue, composition, cleanedExisting, cleanedNew, spouseMode);
+  const handleCalculate = useCallback(() => {
+    if (estateValue <= 0 || [...cleanedExisting, ...cleanedNew].length === 0) {
+      setResult(null);
+      return;
+    }
+    setResult(calculateInsuranceSimulation(estateValue, composition, cleanedExisting, cleanedNew, spouseMode));
   }, [estateValue, composition, cleanedExisting, cleanedNew, spouseMode]);
 
   const excelAction = result
@@ -106,6 +103,10 @@ export const InsurancePage: React.FC = () => {
           />
         </div>
 
+        <div className="mb-8 no-print">
+          <CalculateButton onClick={handleCalculate} />
+        </div>
+
         {/* 結果表示 */}
         {result && (
           <>
@@ -120,12 +121,12 @@ export const InsurancePage: React.FC = () => {
 
         {/* 未入力ガイド */}
         {!result && estateValue > 0 && (
-          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-8 text-center no-print">
-            <p className="text-lg font-bold text-green-800 mb-2">保険契約を追加してください</p>
-            <p className="text-sm text-green-600">
-              既存保険契約または新規検討契約を追加すると、シミュレーション結果が表示されます。
-            </p>
-          </div>
+          <StatusCard
+            variant="success"
+            title="保険契約を追加してください"
+            description="既存保険契約または新規検討契約を追加すると、シミュレーション結果が表示されます。"
+            className="no-print"
+          />
         )}
       </main>
     </>
