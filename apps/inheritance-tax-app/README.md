@@ -1,6 +1,6 @@
 # 相続税シミュレーター
 
-相続財産額に応じた相続税額をシミュレーションするツールです。早見表・詳細計算・1次2次比較・保険金シミュレーションの4つのモードを提供します。
+相続財産額に応じた相続税額をシミュレーションするツールです。早見表・詳細計算・1次2次比較・保険金シミュレーション・現金贈与シミュレーションの5つのモードを提供します。
 
 ## 機能
 
@@ -29,8 +29,8 @@
 ### 保険金シミュレーション（`/insurance`）
 - 死亡保険金の非課税枠（500万円 × 法定相続人数）を活用した節税効果の検証
 - 既存保険契約と新規検討契約の2カテゴリで個別入力
-- 各契約: 受取人（相続人リストから選択）、受取保険金額、支払保険料
-- 現状（既存のみ）vs 提案（既存＋新規）の2シナリオ税額比較（Δ差額列付き）
+- 各契約: 受取人（相続人リストから選択・重複不可）、受取保険金額、支払保険料
+- 現状（既存のみ）vs 提案（既存＋新規）の2シナリオ税額比較（差額列付き）
 - 財産フロー表示（元の遺産→保険料→保険金→非課税→課税遺産→税額→手取り）
 - 相続人別の保険内訳テーブル（受取保険金・非課税額・納付税額・手取り）
 - 相続人別手取り比較テーブル（現状 vs 提案 の差額表示）
@@ -38,12 +38,24 @@
 - Excel出力対応（サマリー + 契約一覧 + 相続人別内訳の3シート構成）
 - 印刷対応（A4横向き）
 
+### 現金贈与シミュレーション（`/cash-gift`）
+- 生前贈与（現金）による節税効果のシミュレーション
+- 受取人ごとに年間贈与額・贈与年数を個別設定（受贈者の重複不可）
+- 特例贈与税率（直系尊属→18歳以上の子・孫）で贈与税を自動計算
+- 贈与前（現状）vs 贈与後（提案）の相続税・手取り比較
+- 財産フロー表示（元の遺産→贈与→贈与税→相続税→手取り）
+- 相続人別内訳テーブル（贈与額・贈与税・相続分・納付税額・手取り）
+- 年数別最適贈与比較テーブル（1〜10年の最適年間贈与額と手取り増減）
+- 贈与総額が遺産総額を超えた場合の警告表示
+- Excel出力対応
+- 印刷対応（A4横向き）
+
 ## 技術スタック
 
 - **フレームワーク**: React 19 + TypeScript 5
-- **ビルドツール**: Vite 7.2
+- **ビルドツール**: Vite 7.3
 - **ルーティング**: React Router DOM 7.6
-- **スタイリング**: Tailwind CSS 3.4 + PostCSS + Autoprefixer
+- **スタイリング**: Tailwind CSS v4 + PostCSS
 - **アイコン**: Lucide React（直接 icon import）
 - **Excel出力**: ExcelJS + FileSaver（lazy dynamic import）
 - **Lint**: ESLint 9 + typescript-eslint
@@ -56,7 +68,8 @@ src/
 │   ├── TablePage.tsx               # 早見表ページ
 │   ├── CalculatorPage.tsx          # 相続税計算ページ
 │   ├── ComparisonPage.tsx          # 1次2次相続比較ページ
-│   └── InsurancePage.tsx           # 保険金シミュレーションページ
+│   ├── InsurancePage.tsx           # 保険金シミュレーションページ
+│   └── CashGiftPage.tsx            # 現金贈与シミュレーションページ
 ├── components/
 │   ├── calculator/
 │   │   ├── CalculationResult.tsx   # 計算結果サマリー
@@ -64,6 +77,7 @@ src/
 │   │   ├── CalculatorExcelExport.tsx # 計算結果Excel出力
 │   │   ├── EstateInput.tsx         # 遺産総額入力
 │   │   ├── HeirBreakdownTable.tsx  # 相続人別内訳テーブル
+│   │   ├── ProgressiveTaxBreakdown.tsx # 超過累進税率の内訳表示
 │   │   └── SpouseAcquisitionSettings.tsx # 配偶者取得割合設定
 │   ├── comparison/
 │   │   ├── ComparisonTable.tsx     # 1次2次比較テーブル
@@ -71,35 +85,54 @@ src/
 │   │   └── ComparisonExcelExport.tsx # 比較結果Excel出力
 │   ├── insurance/
 │   │   ├── InsuranceContractList.tsx # 保険契約入力リスト
-│   │   ├── InsuranceSummaryCard.tsx  # シミュレーション結果サマリー（Δ列付き）
+│   │   ├── InsuranceSummaryCard.tsx  # シミュレーション結果サマリー
 │   │   ├── InsuranceFlowSteps.tsx   # 財産フロー（ステップ表示）
 │   │   ├── InsuranceHeirTable.tsx    # 相続人別保険内訳・手取り比較
 │   │   └── InsuranceExcelExport.tsx  # 保険シミュレーションExcel出力
+│   ├── gift/
+│   │   ├── CashGiftRecipientList.tsx # 贈与受取人入力リスト
+│   │   ├── CashGiftSummaryCard.tsx   # 贈与シミュレーション結果サマリー
+│   │   ├── CashGiftFlowSteps.tsx    # 財産フロー（ステップ表示）
+│   │   ├── CashGiftHeirTable.tsx     # 相続人別贈与内訳
+│   │   ├── CashGiftYearComparison.tsx # 年数別最適贈与比較テーブル
+│   │   └── CashGiftExcelExport.tsx   # 贈与シミュレーションExcel出力
 │   ├── heirs/
 │   │   ├── Rank2Settings.tsx       # 第2順位：直系尊属
 │   │   ├── RankHeirSettings.tsx    # 第1/3順位共通（子・兄弟姉妹）
 │   │   └── SpouseSettings.tsx      # 配偶者設定
+│   ├── BracketRateTable.tsx         # 加重平均適用税率テーブル
+│   ├── CalculateButton.tsx          # 計算ボタン共通
 │   ├── CautionBox.tsx              # 注意書きボックス
 │   ├── CurrencyInput.tsx           # 金額入力（万円 + フォーマット表示）
 │   ├── ExcelExport.tsx             # 早見表Excel出力
 │   ├── ExcelExportButton.tsx       # Excel出力ボタン共通
+│   ├── FlowSteps.tsx               # 財産フロー共通コンポーネント
 │   ├── Header.tsx                  # ヘッダー（タブナビゲーション）
+│   ├── HeirNetComparisonTable.tsx   # 相続人別手取り比較テーブル共通
 │   ├── HeirSettings.tsx            # 相続人設定メイン
 │   ├── PrintHeader.tsx             # 印刷専用ヘッダー
 │   ├── RadioGroup.tsx              # ラジオボタングループ共通
 │   ├── RangeSettings.tsx           # シミュレーション範囲設定
+│   ├── ScenarioComparisonCard.tsx   # シナリオ比較サマリーカード共通
 │   ├── SectionHeader.tsx           # セクション見出し共通
-│   └── TaxTable.tsx                # 税額一覧テーブル
+│   ├── StatusCard.tsx              # ステータスカード共通（success/warning/error）
+│   ├── TaxBracketTable.tsx          # 速算表テーブル
+│   ├── TaxTable.tsx                # 税額一覧テーブル
+│   └── tableStyles.ts              # テーブルスタイル定数
 ├── hooks/
+│   ├── useCleanOptions.ts          # 選択肢変更時の無効値クリーンアップhook
 │   ├── useColumnHover.ts           # テーブル列ホバーハイライトhook
-│   └── useExcelExport.ts           # Excel出力状態管理hook
+│   ├── useExcelExport.ts           # Excel出力状態管理hook
+│   └── useUniqueOptions.ts         # 選択肢の重複防止hook
 ├── constants/
 │   └── index.ts                    # 定数（税率テーブル、基礎控除、会社情報等）
 ├── types/
 │   └── index.ts                    # 型定義
 ├── utils/
 │   ├── comparisonCalculator.ts     # 1次2次比較計算ロジック
+│   ├── giftCalculator.ts           # 贈与シミュレーション計算ロジック
 │   ├── insuranceCalculator.ts      # 保険金シミュレーション計算ロジック
+│   ├── reapportionTax.ts           # 税額按分ロジック
 │   ├── excelStyles.ts              # Excel共通スタイル・ワークブック生成・保存
 │   ├── formatters.ts               # フォーマット関数
 │   ├── heirUtils.ts                # 相続人ユーティリティ
@@ -179,6 +212,31 @@ npm run dev
 | 提案（既存＋新規） | 遺産額 − 新規保険料 | 全契約の保険金 |
 
 課税遺産額 = 調整後遺産額 + (保険金合計 − 非課税額)
+
+### 贈与税の計算（特例贈与税率）
+
+| 基礎控除後の課税価格 | 税率 | 控除額 |
+|-------------------|------|--------|
+| 200万円以下 | 10% | - |
+| 400万円以下 | 15% | 10万円 |
+| 600万円以下 | 20% | 30万円 |
+| 1,000万円以下 | 30% | 90万円 |
+| 1,500万円以下 | 40% | 190万円 |
+| 3,000万円以下 | 45% | 265万円 |
+| 4,500万円以下 | 50% | 415万円 |
+| 4,500万円超 | 55% | 640万円 |
+
+基礎控除: 年間110万円/受贈者
+
+### 現金贈与シミュレーションの計算モデル
+
+| シナリオ | 遺産額 | 贈与の扱い |
+|---------|--------|-----------|
+| 現状（贈与なし） | 遺産額そのまま | なし |
+| 提案（贈与あり） | 遺産額 − 総贈与額 | 贈与税を別途計算 |
+
+総負担 = 相続税 + 贈与税合計
+手取り = 遺産額 − 総負担
 
 ## ライセンス
 
