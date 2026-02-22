@@ -6,6 +6,7 @@ setlocal enabledelayedexpansion
 ::
 :: Usage:
 ::   manage.bat start              全アプリを起動（ネットワーク自動作成）
+::   manage.bat start --prod       全アプリを本番モードで起動
 ::   manage.bat stop               全アプリを停止
 ::   manage.bat down               全アプリを停止してコンテナ削除
 ::   manage.bat restart <app>      指定アプリのみ再起動
@@ -71,6 +72,8 @@ goto :show_help
 :: start - 全アプリを起動
 :: ============================================================
 :cmd_start
+set "PROD_MODE=0"
+if /i "%~2"=="--prod" set "PROD_MODE=1"
 call :preflight_quick
 if !ERRORLEVEL! neq 0 (
     echo.
@@ -80,7 +83,11 @@ if !ERRORLEVEL! neq 0 (
 )
 call :ensure_network
 echo.
-echo [manage] 全アプリを起動します...
+if "!PROD_MODE!"=="1" (
+    echo [manage] 全アプリを本番モードで起動します...
+) else (
+    echo [manage] 全アプリを起動します...
+)
 echo.
 for /L %%I in (1,1,%APP_COUNT%) do call :do_start_app %%I
 echo.
@@ -811,8 +818,27 @@ if not exist "!COMPOSE_FILE!" (
     goto :eof
 )
 for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-echo [manage]   起動: !APP_NAME!
-docker compose -f "!COMPOSE_FILE!" up -d
+:: .env.example があり .env がない場合は自動作成
+set "APP_DIR=%PROJECT_ROOT%\!APP_PATH!"
+if exist "!APP_DIR!\.env.example" (
+    if not exist "!APP_DIR!\.env" (
+        copy "!APP_DIR!\.env.example" "!APP_DIR!\.env" >nul
+        echo [manage]   .env を作成しました: !APP_NAME!
+    )
+)
+if "!PROD_MODE!"=="1" (
+    set "PROD_COMPOSE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.prod.yml"
+    if exist "!PROD_COMPOSE!" (
+        echo [manage]   起動[本番]: !APP_NAME!
+        docker compose -f "!COMPOSE_FILE!" -f "!PROD_COMPOSE!" up -d --build
+    ) else (
+        echo [manage]   起動[本番]: !APP_NAME!
+        docker compose -f "!COMPOSE_FILE!" up -d --build
+    )
+) else (
+    echo [manage]   起動: !APP_NAME!
+    docker compose -f "!COMPOSE_FILE!" up -d
+)
 if !ERRORLEVEL! neq 0 echo [ERROR]   !APP_NAME! の起動に失敗しました
 goto :eof
 
@@ -997,6 +1023,7 @@ echo Usage: manage.bat ^<command^> [app-name]
 echo.
 echo Commands:
 echo   start              全アプリを起動（ネットワーク自動作成）
+echo   start --prod       全アプリを本番モードで起動
 echo   stop               全アプリを停止
 echo   down               全アプリを停止してコンテナ削除
 echo   restart ^<app^>      指定アプリのみ再起動

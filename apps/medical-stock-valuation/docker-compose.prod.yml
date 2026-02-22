@@ -1,0 +1,24 @@
+# ============================================
+# 医療法人株式評価システム - Production Override
+# ============================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# ============================================
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 512M
+    reservations:
+      memory: 128M
+
+services:
+  medical-stock-valuation:
+    build:
+      target: runner
+    init: false
+    command: ["node", "server.js"]
+    volumes:
+      - medical_stock_data:/app/data
+    environment:
+      NODE_ENV: production
+    deploy: *prod-deploy

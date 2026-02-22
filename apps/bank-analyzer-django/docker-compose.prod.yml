@@ -1,0 +1,23 @@
+# ============================================
+# 銀行取引分析ツール - Production Override
+# ============================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# ============================================
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 1G
+    reservations:
+      memory: 256M
+
+services:
+  bank-analyzer-django:
+    build:
+      target: production
+    volumes:
+      - bank_analyzer_data:/app/db
+      - ./data:/app/data
+    environment:
+      DJANGO_DEBUG: "False"
+    deploy: *prod-deploy

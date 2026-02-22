@@ -8,7 +8,7 @@
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
     "erasableSyntaxOnly": true,
     "noEmit": true,
     "jsx": "react-jsx",
@@ -18,7 +18,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "lucide-react/icons/*": ["./node_modules/lucide-react/dist/esm/icons/*"]
     }
   },
   "include": ["src"]
