@@ -174,7 +174,8 @@ medical-stock-valuation/
 │   ├── date-utils.ts                       # 日付変換（toWareki/generateYearRange）
 │   ├── form-utils.ts                       # フォームユーティリティ
 │   ├── record-actions.ts                   # レコード操作共通処理
-│   └── api-utils.ts                        # API共通処理（createMasterRouteHandlers）
+│   ├── api-utils.ts                        # API共通処理（createMasterRouteHandlers）
+│   └── company.ts                          # 会社情報定数
 ├── data/
 │   └── doctor.db                           # SQLiteデータベース
 ├── scripts/

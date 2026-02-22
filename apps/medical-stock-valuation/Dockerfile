@@ -55,7 +55,7 @@ RUN --mount=type=cache,id=nextjs-medical-stock-valuation,target=/app/.next/cache
 FROM node:${NODE_VERSION}-alpine AS runner
 
 LABEL org.opencontainers.image.title="Medical Stock Valuation" \
-      org.opencontainers.image.description="医療法人株式評価システム" \
+      org.opencontainers.image.description="出資持分の評価額試算（4ステップ入力・Excel/JSON出力・マスタ管理）" \
       org.opencontainers.image.vendor="税理士法人マスエージェント" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"

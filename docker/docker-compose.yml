@@ -6,7 +6,7 @@
 # Services (15 total):
 #   - gateway                : Nginx リバースプロキシ (Port 80)
 #   - portal-app             : ポータルサイト (Port 3000)
-#   - medical-stock-valuation: 医療法人株式評価 (Port 3010)
+#   - medical-stock-valuation: 出資持分評価額試算 (Port 3010)
 #   - shares-valuation       : 非上場株式評価 - Vite/React (Port 3012)
 #   - itcm-postgres          : 相続税案件管理 DB (Port 3022)
 #   - itcm-frontend          : 相続税案件管理 Web+API (Port 3020)
@@ -137,8 +137,9 @@ services:
     deploy: *small-deploy
 
   # ===========================================
-  # 医療法人株式評価システム
+  # 出資持分の評価額試算ツール
   # Port: 3010
+  # Features: 出資持分評価額計算、Excel/JSON出力、マスタ管理、SQLiteデータ永続化
   # ===========================================
   medical-stock-valuation:
     <<: *service-defaults
