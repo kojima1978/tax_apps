@@ -1,0 +1,31 @@
+export type TableId =
+  | 'table1_1'
+  | 'table1_2'
+  | 'table2'
+  | 'table3'
+  | 'table4'
+  | 'table5'
+  | 'table6'
+  | 'table7_8';
+
+export interface FormData {
+  table1_1: Record<string, string>;
+  table1_2: Record<string, string>;
+  table2: Record<string, string>;
+  table3: Record<string, string>;
+  table4: Record<string, string>;
+  table5: Record<string, string>;
+  table6: Record<string, string>;
+  table7_8: Record<string, string>;
+}
+
+export const initialFormData: FormData = {
+  table1_1: {},
+  table1_2: {},
+  table2: {},
+  table3: {},
+  table4: {},
+  table5: {},
+  table6: {},
+  table7_8: {},
+};
