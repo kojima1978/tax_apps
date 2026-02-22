@@ -30,8 +30,11 @@ RUN --mount=type=cache,id=npm-store-tax-docs-backend,target=/root/.npm \
 
 # =============================================================================
 # Development stage - For local development with hot reload
+# Build tools (python3, make, g++) are NOT inherited — only node_modules is copied
 # =============================================================================
-FROM deps AS dev
+FROM base AS dev
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
 ENV NODE_ENV=development \
     PORT=3006 \
     TZ=Asia/Tokyo

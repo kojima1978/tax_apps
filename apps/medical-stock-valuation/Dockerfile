@@ -26,12 +26,22 @@ RUN apk add --no-cache python3 make g++ pkgconfig
 
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,id=npm-store-medical-stock-valuation,target=/root/.npm \
-    npm ci
+    npm ci && \
+    # Alpine(musl)環境では glibc 用バイナリは不要
+    rm -rf node_modules/@next/swc-linux-x64-gnu \
+           node_modules/@img/sharp-libvips-linux-x64 \
+           node_modules/@img/sharp-linux-x64 && \
+    # Next.js は ESM を使用 — UMD/CJS ビルドは不要
+    rm -rf node_modules/lucide-react/dist/umd \
+           node_modules/lucide-react/dist/cjs
 
 # =============================================================================
 # Development stage - For local development with hot reload
+# Build tools (python3, make, g++) are NOT inherited — only node_modules is copied
 # =============================================================================
-FROM deps AS dev
+FROM base AS dev
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
 ENV NODE_ENV=development WATCHPACK_POLLING=true HOSTNAME=0.0.0.0 TZ=Asia/Tokyo
 COPY . .
 RUN mkdir -p /app/data
