@@ -49,7 +49,7 @@ FROM nginx:1.27-alpine AS runner
 RUN apk upgrade --no-cache
 
 LABEL org.opencontainers.image.title="相続税シミュレーター" \
-      org.opencontainers.image.description="相続税額シミュレーション（早見表＋計算）" \
+      org.opencontainers.image.description="相続税額シミュレーション（早見表・計算・1次2次比較・保険金・現金贈与）" \
       org.opencontainers.image.vendor="税理士法人マスエージェント" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"

@@ -12,7 +12,7 @@
 #   - itcm-frontend          : 相続税案件管理 Web+API (Port 3020)
 #   - bank-analyzer-db       : 銀行分析 DB - PostgreSQL+pgvector (Port 5432)
 #   - bank-analyzer          : 銀行分析システム - Django (Port 3007)
-#   - inheritance-tax-app    : 相続税計算アプリ (Port 3004)
+#   - inheritance-tax-app    : 相続税シミュレーター (Port 3004)
 #   - gift-tax-simulator     : 贈与税シミュレーター (Port 3001)
 #   - gift-tax-docs          : 贈与税申告書類案内 - Vite/React (Port 3002)
 #   - inheritance-tax-docs   : 相続税申告書類案内 - Vite/React (Port 3003)
@@ -314,8 +314,9 @@ services:
     deploy: *default-deploy
 
   # ===========================================
-  # 相続税計算アプリ (Vite/React)
+  # 相続税シミュレーター (Vite/React)
   # Port: 3004
+  # Features: 早見表、相続税計算、1次2次比較、保険金、現金贈与
   # ===========================================
   inheritance-tax-app:
     <<: *service-defaults
