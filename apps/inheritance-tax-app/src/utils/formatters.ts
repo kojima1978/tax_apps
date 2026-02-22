@@ -33,6 +33,20 @@ export function formatDelta(diff: number): string {
   return '±0';
 }
 
+/** 差額をフォーマット（増加=＋ / 減少=ー） */
+export function formatDeltaArrow(diff: number): string {
+  if (diff > 0) return `＋ ${formatCurrency(diff)}`;
+  if (diff < 0) return `ー ${formatCurrency(Math.abs(diff))}`;
+  return '±0';
+}
+
+/** 節税額をフォーマット（節税=ー / 増税=＋） */
+export function formatSavingArrow(diff: number): string {
+  if (diff > 0) return `ー ${formatCurrency(diff)}`;
+  if (diff < 0) return `＋ ${formatCurrency(Math.abs(diff))}`;
+  return '±0';
+}
+
 /** 差額に応じた色クラス（invert=trueで税額など「減った方が良い」項目用） */
 export function deltaColor(diff: number, invert = false): string {
   const positive = invert ? diff < 0 : diff > 0;

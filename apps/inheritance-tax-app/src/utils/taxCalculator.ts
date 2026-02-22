@@ -142,6 +142,64 @@ export function calculateInheritanceTax(
 }
 
 /**
+ * 法定相続分に対するブラケット税率を取得
+ */
+function getBracketRate(shareAmount: number): number {
+  if (shareAmount <= 0) return 0;
+  const bracket = TAX_BRACKETS.find(b => shareAmount <= b.threshold) || TAX_BRACKETS[TAX_BRACKETS.length - 1];
+  return bracket.rate;
+}
+
+/**
+ * 加重平均適用税率の分析結果
+ */
+export interface BracketAnalysisRow {
+  estateValue: number;
+  spouseRate: number | null;
+  otherRate: number;
+  weightedRate: number;
+  weightedRateAfterSpouse: number;
+}
+
+/**
+ * 各法定相続人のブラケット税率を取得し、加重平均を算出する。
+ * 「財産が増えたとき税がどれだけ増えるか」を表す限界税率の近似値。
+ */
+export function calculateBracketAnalysis(
+  estateValue: number,
+  composition: HeirComposition,
+): BracketAnalysisRow {
+  const { rank, totalHeirsCount, rankHeirsCount } = getHeirInfo(composition);
+  const basicDeduction = calculateBasicDeduction(totalHeirsCount);
+  const taxableAmount = Math.max(0, estateValue - basicDeduction);
+
+  if (taxableAmount === 0 || totalHeirsCount === 0) {
+    return { estateValue, spouseRate: composition.hasSpouse ? 0 : null, otherRate: 0, weightedRate: 0, weightedRateAfterSpouse: 0 };
+  }
+
+  const { spouse: spouseRatio, others: othersRatio } = getLegalShareRatios(composition.hasSpouse, rank);
+  const surcharge = rank === 3 ? THIRD_RANK_SURCHARGE_RATE : 1;
+
+  // 配偶者
+  const spouseRate = spouseRatio > 0
+    ? getBracketRate(Math.floor(taxableAmount * spouseRatio))
+    : null;
+
+  // 他の相続人（全員均等なので同一税率）
+  const otherRate = othersRatio > 0 && rankHeirsCount > 0
+    ? getBracketRate(Math.floor(Math.floor(taxableAmount * othersRatio) / rankHeirsCount))
+    : 0;
+
+  // 加重平均（全体）
+  const weightedRate = (spouseRate ?? 0) * spouseRatio + otherRate * othersRatio * surcharge;
+
+  // 配偶者控除後（配偶者分を除く）
+  const weightedRateAfterSpouse = otherRate * othersRatio * surcharge;
+
+  return { estateValue, spouseRate, otherRate, weightedRate, weightedRateAfterSpouse };
+}
+
+/**
  * 詳細な相続税計算（計算ページ用）
  */
 export function calculateDetailedInheritanceTax(

@@ -75,6 +75,7 @@ export const SpouseAcquisitionSettings: React.FC<SpouseAcquisitionSettingsProps>
               }
               min={0}
               step={100}
+              onWheel={e => e.currentTarget.blur()}
               className="w-48 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right"
               placeholder="金額を入力"
             />

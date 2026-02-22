@@ -3,6 +3,7 @@ import type { TaxCalculationResult } from '../types';
 import { formatCurrency, formatPercent } from '../utils';
 import { isHighlightRow } from '../constants';
 import { useColumnHover } from '../hooks/useColumnHover';
+import { TH_WIDE, TH_MID, TD_WIDE } from './tableStyles';
 
 interface TaxTableProps {
   data: TaxCalculationResult[];
@@ -13,9 +14,6 @@ type SubColumn = {
   label: string;
   getValue: (row: TaxCalculationResult) => string;
 };
-
-const TH_CLASS = 'border border-gray-300 px-4 py-3 text-center font-semibold text-sm';
-const TD_CLASS = 'border border-gray-300 px-5 py-2.5 text-right';
 
 const SPOUSE_COLUMNS: SubColumn[] = [
   { label: '相続税額', getValue: r => formatCurrency(r.totalTax) },
@@ -49,20 +47,20 @@ export const TaxTable: React.FC<TaxTableProps> = memo(({ data, hasSpouse }) => {
           <tr className="bg-green-600 text-white">
             <th
               scope="col"
-              className={`border border-gray-300 px-4 py-3 text-center font-semibold ${headerHover(0)}`}
+              className={`${TH_WIDE} ${headerHover(0)}`}
               rowSpan={2}
               {...hoverProps(0)}
             >
               相続財産
             </th>
             {hasSpouse && (
-              <th scope="colgroup" className="border border-gray-300 px-4 py-2 text-center font-semibold bg-green-600" colSpan={spouseColumns.length}>
+              <th scope="colgroup" className={`${TH_MID} bg-green-600`} colSpan={spouseColumns.length}>
                 1次相続（配偶者あり）
               </th>
             )}
             <th
               scope="colgroup"
-              className={`border border-gray-300 px-4 py-2 text-center font-semibold ${hasSpouse ? 'bg-green-700' : 'bg-green-600'}`}
+              className={`${TH_MID} ${hasSpouse ? 'bg-green-700' : 'bg-green-600'}`}
               colSpan={mainColumns.length}
             >
               {hasSpouse ? '2次相続（配偶者なし）' : '相続税額'}
@@ -70,7 +68,7 @@ export const TaxTable: React.FC<TaxTableProps> = memo(({ data, hasSpouse }) => {
           </tr>
           <tr className="bg-green-600 text-white">
             {allSubColumns.map((col, i) => (
-              <th key={i} scope="col" className={`${TH_CLASS} ${headerHover(i + 1)}`} {...hoverProps(i + 1)}>
+              <th key={i} scope="col" className={`${TH_WIDE} ${headerHover(i + 1)}`} {...hoverProps(i + 1)}>
                 {col.label}
               </th>
             ))}
@@ -79,11 +77,11 @@ export const TaxTable: React.FC<TaxTableProps> = memo(({ data, hasSpouse }) => {
         <tbody>
           {data.map((row) => (
             <tr key={row.estateValue} className={`group ${isHighlightRow(row.estateValue) ? 'bg-yellow-50' : ''} hover:bg-green-50`}>
-              <td className={`${TD_CLASS} font-medium ${cellHighlight(0)} group-hover:bg-green-100`}>
+              <td className={`${TD_WIDE} font-medium ${cellHighlight(0)} group-hover:bg-green-100`}>
                 {formatCurrency(row.estateValue)}
               </td>
               {allSubColumns.map((col, i) => (
-                <td key={i} className={`${TD_CLASS} ${cellHighlight(i + 1)} group-hover:bg-green-100`}>
+                <td key={i} className={`${TD_WIDE} ${cellHighlight(i + 1)} group-hover:bg-green-100`}>
                   {col.getValue(row)}
                 </td>
               ))}

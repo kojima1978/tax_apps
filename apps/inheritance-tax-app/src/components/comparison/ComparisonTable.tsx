@@ -3,14 +3,12 @@ import type { ComparisonRow } from '../../types';
 import { formatCurrency } from '../../utils';
 import { useColumnHover } from '../../hooks/useColumnHover';
 import { ComparisonDetailPanel } from './ComparisonDetailPanel';
+import { TH_WIDE, TD_WIDE } from '../tableStyles';
 
 interface ComparisonTableProps {
   data: ComparisonRow[];
   spouseOwnEstate: number;
 }
-
-const TH_CLASS = 'border border-gray-300 px-4 py-3 text-center font-semibold text-sm';
-const TD_CLASS = 'border border-gray-300 px-5 py-2.5 text-right';
 
 type Column = {
   label: string;
@@ -41,6 +39,11 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
     return data.find(r => r.ratio === selectedRatio) ?? null;
   }, [data, selectedRatio]);
 
+  const optimalRow = useMemo(() => {
+    if (minTotalTax < 0) return null;
+    return data.find(r => r.totalTax === minTotalTax) ?? null;
+  }, [data, minTotalTax]);
+
   const handleRowClick = (ratio: number) => {
     setSelectedRatio(prev => prev === ratio ? null : ratio);
   };
@@ -54,16 +57,16 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
       <table className="w-full border-collapse text-sm" aria-labelledby="comparison-heading">
         <thead>
           <tr className="bg-green-600 text-white">
-            <th scope="col" className={`${TH_CLASS} ${headerHover(0)}`} rowSpan={2} {...hoverProps(0)}>
+            <th scope="col" className={`${TH_WIDE} ${headerHover(0)}`} rowSpan={2} {...hoverProps(0)}>
               取得割合
             </th>
-            <th scope="colgroup" className={`${TH_CLASS} bg-green-600`} colSpan={2}>
+            <th scope="colgroup" className={`${TH_WIDE} bg-green-600`} colSpan={2}>
               1次相続
             </th>
-            <th scope="colgroup" className={`${TH_CLASS} bg-green-700`} colSpan={2}>
+            <th scope="colgroup" className={`${TH_WIDE} bg-green-700`} colSpan={2}>
               2次相続
             </th>
-            <th scope="col" className={`${TH_CLASS} bg-green-800 ${headerHover(5)}`} rowSpan={2} {...hoverProps(5)}>
+            <th scope="col" className={`${TH_WIDE} bg-green-800 ${headerHover(5)}`} rowSpan={2} {...hoverProps(5)}>
               合計税額
             </th>
           </tr>
@@ -72,7 +75,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
               <th
                 key={col.label}
                 scope="col"
-                className={`${TH_CLASS} ${col.group === 'second' ? 'bg-green-700' : ''} ${headerHover(i + 1)}`}
+                className={`${TH_WIDE} ${col.group === 'second' ? 'bg-green-700' : ''} ${headerHover(i + 1)}`}
                 {...hoverProps(i + 1)}
               >
                 {col.label}
@@ -93,7 +96,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
                 {COLUMNS.map((col, i) => (
                   <td
                     key={col.label}
-                    className={`${TD_CLASS} ${i === 0 ? 'font-medium text-center' : ''} ${i === 5 && isOptimal ? 'text-green-800 font-bold' : ''} ${!isSelected ? cellHighlight(i) : ''} ${!isSelected ? 'group-hover:bg-green-100' : ''}`}
+                    className={`${TD_WIDE} ${i === 0 ? 'font-medium text-center' : ''} ${i === 5 && isOptimal ? 'text-green-800 font-bold' : ''} ${!isSelected ? cellHighlight(i) : ''} ${!isSelected ? 'group-hover:bg-green-100' : ''}`}
                   >
                     {i === 3 ? (
                       <div>
@@ -124,6 +127,17 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
           spouseOwnEstate={spouseOwnEstate}
           onClose={() => setSelectedRatio(null)}
         />
+      )}
+
+      {!selectedRow && optimalRow && (
+        <div className="print-only-block">
+          <ComparisonDetailPanel
+            row={optimalRow}
+            spouseOwnEstate={spouseOwnEstate}
+            onClose={() => {}}
+            optimalLabel
+          />
+        </div>
       )}
     </div>
   );

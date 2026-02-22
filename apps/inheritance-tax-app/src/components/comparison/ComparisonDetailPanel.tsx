@@ -1,15 +1,14 @@
 import React, { memo } from 'react';
 import type { ComparisonRow, HeirTaxBreakdown } from '../../types';
 import { formatCurrency } from '../../utils';
+import { TH_MID, TD_MID } from '../tableStyles';
 
 interface ComparisonDetailPanelProps {
   row: ComparisonRow;
   spouseOwnEstate: number;
   onClose: () => void;
+  optimalLabel?: boolean;
 }
-
-const TH_CLASS = 'border border-gray-300 px-4 py-2 text-center font-semibold text-sm';
-const TD_CLASS = 'border border-gray-300 px-4 py-2 text-right text-sm';
 
 const HeirTable: React.FC<{
   breakdowns: HeirTaxBreakdown[];
@@ -19,23 +18,23 @@ const HeirTable: React.FC<{
   <table className="w-full border-collapse">
     <thead>
       <tr className={`${headerBg} text-white`}>
-        <th className={TH_CLASS}>相続人</th>
-        <th className={TH_CLASS}>取得額</th>
-        <th className={TH_CLASS}>納付税額</th>
+        <th className={TH_MID}>相続人</th>
+        <th className={TH_MID}>取得額</th>
+        <th className={TH_MID}>納付税額</th>
       </tr>
     </thead>
     <tbody>
       {breakdowns.length > 0 ? (
         breakdowns.map((heir) => (
           <tr key={heir.label} className="hover:bg-green-50">
-            <td className={`${TD_CLASS} text-left font-medium`}>{heir.label}</td>
-            <td className={TD_CLASS}>{formatCurrency(heir.acquisitionAmount)}</td>
-            <td className={TD_CLASS}>{formatCurrency(heir.finalTax)}</td>
+            <td className={`${TD_MID} text-left font-medium`}>{heir.label}</td>
+            <td className={TD_MID}>{formatCurrency(heir.acquisitionAmount)}</td>
+            <td className={TD_MID}>{formatCurrency(heir.finalTax)}</td>
           </tr>
         ))
       ) : emptyMessage ? (
         <tr>
-          <td colSpan={3} className={`${TD_CLASS} text-center text-gray-400`}>
+          <td colSpan={3} className={`${TD_MID} text-center text-gray-400`}>
             {emptyMessage}
           </td>
         </tr>
@@ -44,12 +43,13 @@ const HeirTable: React.FC<{
   </table>
 );
 
-export const ComparisonDetailPanel: React.FC<ComparisonDetailPanelProps> = memo(({ row, spouseOwnEstate, onClose }) => {
+export const ComparisonDetailPanel: React.FC<ComparisonDetailPanelProps> = memo(({ row, spouseOwnEstate, onClose, optimalLabel }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mt-4 border-2 border-green-200 comparison-detail-print">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-gray-800">
           配偶者取得割合 {row.ratio}% の相続人別内訳
+          {optimalLabel && <span className="ml-2 text-green-700">★最適解</span>}
         </h3>
         <button
           type="button"

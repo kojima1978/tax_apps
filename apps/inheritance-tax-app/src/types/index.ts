@@ -140,3 +140,48 @@ export interface InsuranceSimulationResult {
   newPremiumTotal: number;               // 新規保険料合計
   baseEstate: number;                    // 元の遺産額
 }
+
+// ── 現金贈与シミュレーション ──
+
+// 贈与受取人（入力モデル）
+export interface GiftRecipient {
+  id: string;
+  heirId: string;          // 相続人ID
+  heirLabel: string;       // '子1', '孫1' etc.
+  annualAmount: number;    // 年間贈与額（万円）
+  years: number;           // 贈与年数
+}
+
+// 受取人別の贈与税計算結果
+export interface GiftRecipientResult {
+  id: string;
+  heirId: string;
+  heirLabel: string;
+  annualAmount: number;
+  years: number;
+  taxableAmountPerYear: number;  // 年間課税価格
+  giftTaxPerYear: number;        // 年間贈与税額
+  totalGift: number;             // 総贈与額
+  totalGiftTax: number;          // 総贈与税額
+  netGift: number;               // 手取り贈与 = totalGift - totalGiftTax
+}
+
+// シナリオ別結果
+export interface GiftScenarioResult {
+  label: string;
+  estateValue: number;
+  taxResult: DetailedTaxCalculationResult;
+  totalNetProceeds: number;
+}
+
+// シミュレーション全体結果
+export interface CashGiftSimulationResult {
+  current: GiftScenarioResult;
+  proposed: GiftScenarioResult;
+  recipientResults: GiftRecipientResult[];
+  totalGifts: number;
+  totalGiftTax: number;
+  inheritanceTaxSaving: number;   // 相続税の節減額
+  netProceedsDiff: number;        // 手取り増減額
+  baseEstate: number;
+}

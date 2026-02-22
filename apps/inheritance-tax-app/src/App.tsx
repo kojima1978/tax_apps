@@ -3,6 +3,7 @@ import { TablePage } from './pages/TablePage';
 import { CalculatorPage } from './pages/CalculatorPage';
 import { ComparisonPage } from './pages/ComparisonPage';
 import { InsurancePage } from './pages/InsurancePage';
+import { CashGiftPage } from './pages/CashGiftPage';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/calculator" element={<CalculatorPage />} />
         <Route path="/comparison" element={<ComparisonPage />} />
         <Route path="/insurance" element={<InsurancePage />} />
+        <Route path="/cash-gift" element={<CashGiftPage />} />
       </Routes>
 
       <footer className="bg-gray-800 text-white py-6 mt-12 no-print">

@@ -1,37 +1,50 @@
-import { useState, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { Header } from '../components/Header';
 import { HeirSettings } from '../components/HeirSettings';
 import { RangeSettings } from '../components/RangeSettings';
 import { TaxTable } from '../components/TaxTable';
+import { BracketRateTable } from '../components/BracketRateTable';
+import { TaxBracketTable } from '../components/TaxBracketTable';
 import { ExcelExport } from '../components/ExcelExport';
+import { CalculateButton } from '../components/CalculateButton';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import type { HeirComposition, TaxCalculationResult } from '../types';
-import { TABLE_CONFIG, createDefaultComposition } from '../constants';
-import { calculateInheritanceTax } from '../utils';
+import type { BracketAnalysisRow } from '../utils';
+import { TABLE_CONFIG, createDefaultComposition, RANK_LABELS } from '../constants';
+import { calculateInheritanceTax, calculateBracketAnalysis, getHeirInfo } from '../utils';
 
 export const TablePage: React.FC = () => {
   const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
 
   const [maxValue, setMaxValue] = useState<number>(TABLE_CONFIG.DEFAULT_MAX_VALUE);
 
-  const tableData = useMemo<TaxCalculationResult[]>(() => {
-    const data: TaxCalculationResult[] = [];
+  const [tableData, setTableData] = useState<TaxCalculationResult[]>([]);
+  const [bracketData, setBracketData] = useState<BracketAnalysisRow[]>([]);
+
+  const handleCalculate = useCallback(() => {
+    const newTableData: TaxCalculationResult[] = [];
+    const newBracketData: BracketAnalysisRow[] = [];
     for (let value = TABLE_CONFIG.MIN_VALUE; value <= maxValue; value += TABLE_CONFIG.STEP) {
-      const result = calculateInheritanceTax(value, composition);
-      data.push(result);
+      newTableData.push(calculateInheritanceTax(value, composition));
+      newBracketData.push(calculateBracketAnalysis(value, composition));
     }
-    return data;
+    setTableData(newTableData);
+    setBracketData(newBracketData);
   }, [maxValue, composition]);
+
+  const { rank } = getHeirInfo(composition);
+  const heirLabel = RANK_LABELS[rank] || '子';
 
   return (
     <>
       <Header
         actions={
-          <ExcelExport data={tableData} composition={composition} />
+          tableData.length > 0
+            ? <ExcelExport data={tableData} composition={composition} />
+            : undefined
         }
       />
-      <PrintHeader title="相続税早見表" />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
@@ -54,7 +67,26 @@ export const TablePage: React.FC = () => {
           </div>
         </div>
 
-        <TaxTable data={tableData} hasSpouse={composition.hasSpouse} />
+        <div className="mb-8 no-print">
+          <CalculateButton onClick={handleCalculate} />
+        </div>
+
+        {tableData.length > 0 && (
+          <>
+            <PrintHeader title="相続税早見表" />
+            <TaxTable data={tableData} hasSpouse={composition.hasSpouse} />
+
+            <div className="mt-6 print-page-break">
+              <PrintHeader title="加重平均適用税率表" />
+              <BracketRateTable data={bracketData} hasSpouse={composition.hasSpouse} heirLabel={heirLabel} />
+            </div>
+          </>
+        )}
+
+        <div className="mt-6 print-page-break">
+          <PrintHeader title="相続税の速算表" />
+          <TaxBracketTable />
+        </div>
       </main>
     </>
   );

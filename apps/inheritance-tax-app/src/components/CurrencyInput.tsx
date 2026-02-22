@@ -23,6 +23,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({ id, label, value, 
           type="number"
           value={value || ''}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
+          onWheel={(e) => e.currentTarget.blur()}
           min={0}
           step={100}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right text-lg"
