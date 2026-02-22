@@ -60,7 +60,7 @@ docker compose up -d --build
 
 ソースコードはボリュームマウントされており、変更時にホットリロードされます。
 
-> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/tax-docs/ からアクセスできます。
+> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/tax-docs/ からアクセスできます。
 
 ```bash
 # ログ確認
@@ -81,10 +81,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 本番ビルドでは `runner` ステージの軽量イメージが使用されます。
 
-`NEXT_PUBLIC_API_URL` を環境変数で上書きできます:
+`VITE_API_URL` を環境変数で上書きできます:
 
 ```bash
-NEXT_PUBLIC_API_URL=https://api.example.com docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+VITE_API_URL=https://api.example.com docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 ### 方法2: ローカル開発（Docker不使用）

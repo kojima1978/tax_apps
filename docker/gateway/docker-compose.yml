@@ -1,0 +1,94 @@
+# ============================================
+# Gateway + Portal - Docker Compose
+# ============================================
+#
+# Nginx リバースプロキシ + ポータルサイト
+# 他のアプリとは独立したプロジェクトとして起動
+#
+# Usage:
+#   起動:     docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:     docker compose logs -f
+#   停止:     docker compose down
+#
+# 前提:
+#   docker network create tax-apps-network
+#
+# ============================================
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ===========================================
+  # Nginx Gateway (リバースプロキシ)
+  # Port: 80
+  # ===========================================
+  gateway:
+    build:
+      context: ../../nginx
+    container_name: tax-apps-gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ../../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../nginx/includes:/etc/nginx/includes:ro
+      - ../../nginx/html:/usr/share/nginx/html:ro
+    networks:
+      - tax-apps-network
+    restart: unless-stopped
+    logging: *default-logging
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+
+  # ===========================================
+  # ポータルサイト (メインダッシュボード)
+  # Port: 3000
+  # ===========================================
+  portal-app:
+    build:
+      context: ../../apps/portal/app
+      target: runner
+    container_name: portal-app
+    ports:
+      - "3000:3000"
+    networks:
+      - tax-apps-network
+    restart: unless-stopped
+    logging: *default-logging
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+
+networks:
+  tax-apps-network:
+    external: true

@@ -48,16 +48,14 @@
 
 ### Docker（推奨）
 
-中央統合環境から起動:
-
 ```bash
-cd tax_apps/docker
-start.bat
+cd tax_apps/docker/scripts
+manage.bat start
 ```
 
-http://localhost/medical/ でアクセスできます。
+http://localhost/medical/ でアクセスできます（Nginx Gateway 経由）。
 
-### スタンドアロンDocker
+個別起動も可能です:
 
 ```bash
 cd tax_apps/apps/medical-stock-valuation

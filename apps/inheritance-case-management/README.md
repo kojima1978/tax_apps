@@ -65,7 +65,7 @@ docker compose -f docker-compose.dev.yml up --build
 docker compose up --build -d
 ```
 
-> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/itcm/ からアクセスできます。
+> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/itcm/ からアクセスできます。
 
 ## ポート設定
 

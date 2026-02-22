@@ -40,7 +40,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
-    container_name: gift-tax-docs-standalone
+    container_name: gift-tax-docs
+    networks:
+      - tax-apps-network
     ports:
       - "3002:3002"
     volumes:
@@ -65,3 +67,7 @@ services:
           memory: 512M
         reservations:
           memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true

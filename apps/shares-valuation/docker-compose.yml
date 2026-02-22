@@ -41,7 +41,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
-    container_name: shares-valuation-standalone
+    container_name: shares-valuation
+    networks:
+      - tax-apps-network
     ports:
       - "3012:3012"
     volumes:
@@ -63,3 +65,7 @@ services:
           memory: 512M
         reservations:
           memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true

@@ -41,7 +41,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
-    container_name: retirement-tax-calc-standalone
+    container_name: retirement-tax-calc
+    networks:
+      - tax-apps-network
     ports:
       - "3013:3013"
     volumes:
@@ -64,3 +66,7 @@ services:
           memory: 512M
         reservations:
           memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true

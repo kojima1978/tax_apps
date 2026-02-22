@@ -41,7 +41,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
-    container_name: gift-tax-simulator-standalone
+    container_name: gift-tax-simulator
+    networks:
+      - tax-apps-network
     ports:
       - "3001:3001"
     volumes:
@@ -64,3 +66,7 @@ services:
           memory: 512M
         reservations:
           memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true

@@ -82,4 +82,4 @@ docker compose down
 
 アクセス: http://localhost:3013/retirement-tax-calc/
 
-> **Note**: 中央統合環境（docker/docker-compose.yml）で起動する場合は、Nginx Gateway 経由で http://localhost/retirement-tax-calc/ からアクセスできます。
+> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/retirement-tax-calc/ からアクセスできます。

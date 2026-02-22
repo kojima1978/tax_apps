@@ -31,7 +31,9 @@ services:
   # ===========================================
   postgres:
     image: postgres:16-alpine
-    container_name: itcm-db
+    container_name: itcm-postgres
+    networks:
+      - tax-apps-network
     restart: unless-stopped
     environment:
       <<: *common-env
@@ -66,7 +68,9 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: /itcm/api
-    container_name: itcm-web
+    container_name: itcm-frontend
+    networks:
+      - tax-apps-network
     restart: unless-stopped
     environment:
       <<: *common-env
@@ -88,6 +92,10 @@ services:
           memory: 512M
         reservations:
           memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true
 
 volumes:
   postgres_data:
