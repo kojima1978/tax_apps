@@ -9,7 +9,3 @@ export const COMPANY_INFO = {
 export function getFullAddress(): string {
     return `${COMPANY_INFO.postalCode} ${COMPANY_INFO.address}`;
 }
-
-export function getContactLine(): string {
-    return `TEL ${COMPANY_INFO.phone} / FAX ${COMPANY_INFO.fax}`;
-}

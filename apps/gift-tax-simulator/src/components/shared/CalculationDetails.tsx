@@ -20,15 +20,16 @@ const ProcessList = ({ title, steps }: { title: string; steps: string[] }) => (
     </div>
 );
 
-const LABELS: Record<TaxType, { land: string; building: string }> = {
-    acquisition: { land: '土地 — 不動産取得税', building: '建物 — 不動産取得税' },
-    registration: { land: '土地 — 登録免許税', building: '建物 — 登録免許税' },
+const SECTIONS: Record<TaxType, { key: 'land' | 'building'; label: string; includeKey: 'includeLand' | 'includeBuilding'; processKey: 'landAcq' | 'bldgAcq' | 'landReg' | 'bldgReg' }[]> = {
+    acquisition: [
+        { key: 'land', label: '土地 — 不動産取得税', includeKey: 'includeLand', processKey: 'landAcq' },
+        { key: 'building', label: '建物 — 不動産取得税', includeKey: 'includeBuilding', processKey: 'bldgAcq' },
+    ],
+    registration: [
+        { key: 'land', label: '土地 — 登録免許税', includeKey: 'includeLand', processKey: 'landReg' },
+        { key: 'building', label: '建物 — 登録免許税', includeKey: 'includeBuilding', processKey: 'bldgReg' },
+    ],
 };
-
-const getProcess = (results: TaxResults, taxType: TaxType) => ({
-    land: taxType === 'acquisition' ? results.process.landAcq : results.process.landReg,
-    building: taxType === 'acquisition' ? results.process.bldgAcq : results.process.bldgReg,
-});
 
 const CalculationDetails = ({
     results,
@@ -38,8 +39,7 @@ const CalculationDetails = ({
     setShowDetails,
     taxType,
 }: CalculationDetailsProps) => {
-    const process = getProcess(results, taxType);
-    const labels = LABELS[taxType];
+    const includes = { includeLand, includeBuilding };
 
     return (
         <>
@@ -52,16 +52,14 @@ const CalculationDetails = ({
 
             {showDetails && (
                 <div className="details-content">
-                    {includeLand && process.land.length > 0 && (
-                        <div className="detail-section">
-                            <ProcessList title={labels.land} steps={process.land} />
-                        </div>
-                    )}
-                    {includeBuilding && process.building.length > 0 && (
-                        <div className="detail-section">
-                            <ProcessList title={labels.building} steps={process.building} />
-                        </div>
-                    )}
+                    {SECTIONS[taxType].map(({ key, label, includeKey, processKey }) => {
+                        const steps = results.process[processKey];
+                        return includes[includeKey] && steps.length > 0 && (
+                            <div key={key} className="detail-section">
+                                <ProcessList title={label} steps={steps} />
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </>
