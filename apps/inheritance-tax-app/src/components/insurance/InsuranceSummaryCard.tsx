@@ -41,7 +41,7 @@ export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ resu
       topSlot={
         <div className="bg-green-50 rounded-lg px-4 py-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-green-700 font-medium">死亡保険金の非課税限度額</span>
+            <span className="text-sm text-green-700 font-medium">保険金の非課税限度額（500万円×{current.nonTaxableLimit / 500}人）</span>
             <span className="text-lg font-bold text-green-800">{formatCurrency(current.nonTaxableLimit)}</span>
           </div>
         </div>
