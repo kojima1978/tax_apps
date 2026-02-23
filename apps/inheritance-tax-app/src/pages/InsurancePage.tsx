@@ -110,7 +110,7 @@ export const InsurancePage: React.FC = () => {
         {/* 結果表示 */}
         {result && (
           <>
-            <PrintHeader title="死亡保険金シミュレーション" />
+            <PrintHeader title="保険金シミュレーション" />
             <div className="space-y-6">
               <InsuranceSummaryCard result={result} />
               <InsuranceFlowSteps result={result} />
