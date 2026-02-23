@@ -6,6 +6,11 @@ interface NumberFieldProps {
   placeholder?: string;
 }
 
+function addCommas(v: string): string {
+  if (!v) return '';
+  return Number(v).toLocaleString();
+}
+
 export function NumberField({
   value,
   onChange,
@@ -14,10 +19,10 @@ export function NumberField({
   placeholder,
 }: NumberFieldProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value;
-    // 空文字か0以上の整数のみ許可
-    if (v === '' || /^\d+$/.test(v)) {
-      onChange(v);
+    // カンマを除去して数字のみ許可
+    const raw = e.target.value.replace(/,/g, '');
+    if (raw === '' || /^\d+$/.test(raw)) {
+      onChange(raw);
     }
   };
 
@@ -26,7 +31,7 @@ export function NumberField({
       <input
         type="text"
         inputMode="numeric"
-        value={value}
+        value={addCommas(value)}
         onChange={handleChange}
         className="gov-input gov-input-number"
         placeholder={placeholder}

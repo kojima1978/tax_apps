@@ -32,15 +32,7 @@ export function Table7({ getField, updateField }: Props) {
       </div>
 
       {/* ===== 3カラム ===== */}
-      <div style={{ display: 'grid', gridTemplateColumns: '20px 1fr 20px', flex: 1, minHeight: 0 }}>
-
-        {/* 左サイドバー */}
-        <div className="gov-side-header" style={{ ...br, fontSize: 9, letterSpacing: '0.12em' }}>
-          取引相場のない株式（出資）の評価明細書
-        </div>
-
-        {/* ===== 中央コンテンツ ===== */}
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
 
           {/* ======== 1. 受取配当金等収受割合の計算 ======== */}
           <div style={{ ...bb, ...hdr, padding: '2px 4px', fontWeight: 700, fontSize: 8, textAlign: 'center', letterSpacing: '0.3em' }}>
@@ -232,12 +224,6 @@ export function Table7({ getField, updateField }: Props) {
               ))}
             </tbody>
           </table>
-        </div>
-
-        {/* 右サイドバー */}
-        <div className="gov-side-header" style={{ ...bl, fontSize: 9, letterSpacing: '0.12em' }}>
-          （令和六年一月一日以降用）
-        </div>
       </div>
     </div>
   );

@@ -12,7 +12,7 @@ import { Table7 } from '@/components/tables/Table7';
 import { Table8 } from '@/components/tables/Table8';
 import type { TableId } from '@/types/form';
 
-const TABLE_COMPONENTS: Record<TableId, React.ComponentType<{ getField: (table: TableId, field: string) => string; updateField: (table: TableId, field: string, value: string) => void }>> = {
+const TABLE_COMPONENTS: Record<TableId, React.ComponentType<{ getField: (table: TableId, field: string) => string; updateField: (table: TableId, field: string, value: string) => void; onTabChange?: (tab: TableId) => void }>> = {
   table1_1: Table1_1,
   table1_2: Table1_2,
   table2: Table2,
@@ -33,6 +33,7 @@ export default function App() {
     getField: (table: TableId, field: string) => getField(table, field),
     updateField: (table: TableId, field: string, value: string) =>
       updateField(table, field, value),
+    onTabChange: setActiveTab,
   };
 
   const ActiveTable = TABLE_COMPONENTS[activeTab];
