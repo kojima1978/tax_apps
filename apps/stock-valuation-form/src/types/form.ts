@@ -6,7 +6,8 @@ export type TableId =
   | 'table4'
   | 'table5'
   | 'table6'
-  | 'table7_8';
+  | 'table7'
+  | 'table8';
 
 export interface FormData {
   table1_1: Record<string, string>;
@@ -16,7 +17,8 @@ export interface FormData {
   table4: Record<string, string>;
   table5: Record<string, string>;
   table6: Record<string, string>;
-  table7_8: Record<string, string>;
+  table7: Record<string, string>;
+  table8: Record<string, string>;
 }
 
 export const initialFormData: FormData = {
@@ -27,5 +29,6 @@ export const initialFormData: FormData = {
   table4: {},
   table5: {},
   table6: {},
-  table7_8: {},
+  table7: {},
+  table8: {},
 };

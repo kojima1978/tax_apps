@@ -14,5 +14,6 @@ export const TABS: TabDef[] = [
   { id: 'table4', label: '第４表', subtitle: '類似業種比準' },
   { id: 'table5', label: '第５表', subtitle: '純資産価額' },
   { id: 'table6', label: '第６表', subtitle: '特定の評価会社' },
-  { id: 'table7_8', label: '第７・８表', subtitle: '株式保有特定会社' },
+  { id: 'table7', label: '第７表', subtitle: '株式保有特定会社' },
+  { id: 'table8', label: '第８表', subtitle: '株式保有特定会社（続）' },
 ];

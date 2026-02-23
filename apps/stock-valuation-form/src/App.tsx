@@ -8,11 +8,25 @@ import { Table3 } from '@/components/tables/Table3';
 import { Table4 } from '@/components/tables/Table4';
 import { Table5 } from '@/components/tables/Table5';
 import { Table6 } from '@/components/tables/Table6';
-import { Table7_8 } from '@/components/tables/Table7_8';
+import { Table7 } from '@/components/tables/Table7';
+import { Table8 } from '@/components/tables/Table8';
 import type { TableId } from '@/types/form';
+
+const TABLE_COMPONENTS: Record<TableId, React.ComponentType<{ getField: (table: TableId, field: string) => string; updateField: (table: TableId, field: string, value: string) => void }>> = {
+  table1_1: Table1_1,
+  table1_2: Table1_2,
+  table2: Table2,
+  table3: Table3,
+  table4: Table4,
+  table5: Table5,
+  table6: Table6,
+  table7: Table7,
+  table8: Table8,
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TableId>('table1_1');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { getField, updateField } = useFormData();
 
   const tableProps = {
@@ -21,20 +35,66 @@ export default function App() {
       updateField(table, field, value),
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-4" style={{ fontFamily: '"Noto Sans JP", sans-serif' }}>
-      <div className="max-w-[210mm] mx-auto">
-        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+  const ActiveTable = TABLE_COMPONENTS[activeTab];
 
-        {activeTab === 'table1_1' && <Table1_1 {...tableProps} />}
-        {activeTab === 'table1_2' && <Table1_2 {...tableProps} />}
-        {activeTab === 'table2' && <Table2 {...tableProps} />}
-        {activeTab === 'table3' && <Table3 {...tableProps} />}
-        {activeTab === 'table4' && <Table4 {...tableProps} />}
-        {activeTab === 'table5' && <Table5 {...tableProps} />}
-        {activeTab === 'table6' && <Table6 {...tableProps} />}
-        {activeTab === 'table7_8' && <Table7_8 {...tableProps} />}
-      </div>
+  return (
+    <div className="min-h-screen bg-gray-200" style={{ fontFamily: '"Noto Sans JP", sans-serif', display: 'flex' }}>
+      {/* 左サイドバー */}
+      {sidebarOpen && (
+        <aside className="no-print" style={{
+          width: 180,
+          flexShrink: 0,
+          background: '#fff',
+          borderRight: '1px solid #ddd',
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#333', lineHeight: 1.3 }}>
+              取引相場のない株式の<br />評価明細書
+            </span>
+            <span
+              onClick={() => setSidebarOpen(false)}
+              style={{ cursor: 'pointer', fontSize: 14, color: '#999', padding: '0 2px' }}
+              title="サイドバーを閉じる"
+            >✕</span>
+          </div>
+          <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+        </aside>
+      )}
+
+      {/* メインコンテンツ */}
+      <main style={{ flex: 1, padding: 16, overflowX: 'auto' }}>
+        {!sidebarOpen && (
+          <button
+            className="no-print"
+            onClick={() => setSidebarOpen(true)}
+            style={{
+              background: '#fff',
+              border: '1px solid #ccc',
+              borderRadius: 4,
+              padding: '4px 8px',
+              cursor: 'pointer',
+              fontSize: 12,
+              marginBottom: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+            title="サイドバーを開く"
+          >
+            <span style={{ fontSize: 14, lineHeight: 1 }}>☰</span>
+            <span>メニュー</span>
+          </button>
+        )}
+        <div className="gov-page">
+          <ActiveTable {...tableProps} />
+        </div>
+      </main>
     </div>
   );
 }
