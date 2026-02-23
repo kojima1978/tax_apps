@@ -196,6 +196,30 @@
   background: #fff8e1;
 }
 
+/* マトリクス行ハイライト */
+.gov-row-highlight td {
+  background: #fff8e1;
+  font-weight: 700;
+}
+
+/* 行番号（ドラッグハンドル＋ダブルクリック削除） */
+.sortable-row .row-num {
+  transition: color 0.15s, background 0.15s;
+  user-select: none;
+}
+.sortable-row .row-num:hover {
+  color: #555 !important;
+  background: #e3f2fd;
+}
+.sortable-row .row-num:active {
+  cursor: grabbing;
+}
+
+/* 印刷専用要素（画面では非表示） */
+.print-only {
+  display: none !important;
+}
+
 /* ============================================
    印刷用スタイル
    ============================================ */
@@ -214,6 +238,10 @@
 
   .no-print {
     display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
   }
 
   .gov-page {
@@ -246,7 +274,23 @@
     background: transparent;
   }
 
+  /* 判定選択肢: 印刷時はカーソル無効化 */
+  .gov-choice {
+    cursor: default;
+  }
+
+  .gov-choice:hover {
+    background: transparent;
+  }
+
   .gov-choice.selected {
-    background: #fff8e1 !important;
+    background: #e0e0e0 !important;
+    font-weight: 700;
+  }
+
+  /* マトリクスのハイライトセル: 印刷時はグレー階調に変換 */
+  .gov-table td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

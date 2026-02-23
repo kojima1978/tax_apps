@@ -31,15 +31,7 @@ export function Table2({ getField, updateField }: Props) {
       </div>
 
       {/* ===== メインボディ ===== */}
-      <div style={{ display: 'grid', gridTemplateColumns: '20px 1fr 20px', flex: 1, minHeight: 0 }}>
-
-        {/* 左サイドバー */}
-        <div className="gov-side-header" style={{ ...br, fontSize: 9, letterSpacing: '0.12em' }}>
-          取引相場のない株式（出資）の評価明細書
-        </div>
-
-        {/* ===== 中央コンテンツ ===== */}
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
 
           {/* =============== 1. 比準要素数１の会社 =============== */}
           <div style={{ display: 'flex', ...bb }}>
@@ -494,12 +486,6 @@ export function Table2({ getField, updateField }: Props) {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* 右サイドバー */}
-        <div className="gov-side-header" style={{ ...bl, fontSize: 8, letterSpacing: '0.1em' }}>
-          （令和六年一月一日以降用）
-        </div>
       </div>
     </div>
   );

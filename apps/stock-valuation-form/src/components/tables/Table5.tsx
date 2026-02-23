@@ -1,250 +1,550 @@
+import { useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
 import type { TableId } from '@/types/form';
 
+/* ================================================
+ * Types
+ * ================================================ */
+
 interface Props {
   getField: (table: TableId, field: string) => string;
   updateField: (table: TableId, field: string, value: string) => void;
+  onTabChange?: (tab: TableId) => void;
 }
 
+type Preset = { name: string; note?: string };
+
+/* ================================================
+ * Constants
+ * ================================================ */
+
 const T: TableId = 'table5';
+const DEFAULT_ROWS = 20;
+const ROW_H = 16;
+const NOTE_OPTIONS = ['', '株式等', '土地等'];
+const ROW_FIELDS = ['name', 'eval', 'book', 'note'];
+const parseNum = (v: string) => parseInt(v.replace(/,/g, ''), 10) || 0;
+
+// Border shorthands
 const bb = { borderBottom: '0.5px solid #000' } as const;
 const br = { borderRight: '0.5px solid #000' } as const;
 const bl = { borderLeft: '0.5px solid #000' } as const;
 const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500 };
-const vt: React.CSSProperties = { writingMode: 'vertical-rl', textOrientation: 'mixed', letterSpacing: '0.12em' };
 
-const ROWS = 16; // 資産・負債の行数
+// Shared cell styles
+const flex: React.CSSProperties = { display: 'flex', alignItems: 'center' };
+const cellVal: React.CSSProperties = { flex: 1, ...br, padding: '0px 2px', ...flex };
+const cellName: React.CSSProperties = { width: '28%', ...br, padding: '0px 2px' };
 
-export function Table5({ getField, updateField }: Props) {
+const ASSET_PRESETS: Preset[] = [
+  { name: '現金預金' },
+  { name: '受取手形' },
+  { name: '売掛金' },
+  { name: '有価証券', note: '株式等' },
+  { name: '商品・製品' },
+  { name: '原材料' },
+  { name: '前払費用' },
+  { name: '貸付金' },
+  { name: '建物' },
+  { name: '構築物' },
+  { name: '機械装置' },
+  { name: '車両運搬具' },
+  { name: '器具備品' },
+  { name: '土地', note: '土地等' },
+  { name: '借地権', note: '土地等' },
+  { name: '電話加入権' },
+  { name: '保険積立金' },
+  { name: '死亡保険金' },
+  { name: 'その他の資産' },
+];
+
+const LIABILITY_PRESETS: Preset[] = [
+  { name: '支払手形' },
+  { name: '買掛金' },
+  { name: '借入金' },
+  { name: '未払金' },
+  { name: '未払費用' },
+  { name: '未払法人税等' },
+  { name: '未払消費税等' },
+  { name: '前受金' },
+  { name: '預り金' },
+  { name: '賞与引当金' },
+  { name: '退職金' },
+  { name: '保険差益に対する法人税等' },
+  { name: 'その他の負債' },
+];
+
+/* ================================================
+ * Sub-Components
+ * ================================================ */
+
+function SortableRow({ id, rowIndex, onDelete, children }: { id: string; rowIndex: number; onDelete: () => void; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className="sortable-row"
+      style={{
+        ...flex, borderBottom: '0.5px solid #000', height: ROW_H,
+        transform: CSS.Transform.toString(transform), transition,
+        opacity: isDragging ? 0.5 : 1,
+        background: isDragging ? '#fff8e1' : undefined,
+      }}
+    >
+      <div
+        className="no-print row-num"
+        {...attributes}
+        {...listeners}
+        onDoubleClick={(e) => { e.preventDefault(); onDelete(); }}
+        style={{ width: 18, ...br, ...flex, justifyContent: 'center', fontSize: 6.5, color: '#999', cursor: 'grab' }}
+      >
+        {rowIndex + 1}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+const Computed = ({ value, unit }: { value: number | null; unit?: string }) => (
+  <span style={{ ...flex, width: '100%' }}>
+    <span style={{ flex: 1, textAlign: 'right', padding: '3px 2px' }}>
+      {value !== null && value !== undefined ? value.toLocaleString() : ''}
+    </span>
+    {unit && <span className="whitespace-nowrap ml-0.5">{unit}</span>}
+  </span>
+);
+
+const CalcResult = ({ children, active }: { children: React.ReactNode; active?: boolean }) => (
+  <span style={{ fontWeight: 700, padding: '0 3px', background: active ? '#fff8e1' : '#e8eaf6' }}>{children}</span>
+);
+
+const NoPrintSpacer = () => <div className="no-print" style={{ width: 18, ...br }} />;
+
+const RowBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
+  <button
+    className="no-print"
+    onClick={onClick}
+    style={{ width: 16, height: 16, fontSize: 10, lineHeight: 1, border: '1px solid #ccc', borderRadius: 2, cursor: 'pointer', background: '#f5f5f5' }}
+  >{label}</button>
+);
+
+function SectionTitle({ label, side, showPreset, setShowPreset, onClear }: {
+  label: string; side: 'a' | 'l';
+  showPreset: 'a' | 'l' | null; setShowPreset: (v: 'a' | 'l' | null) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div style={{ ...bb, ...hdr, textAlign: 'center', padding: '1px', letterSpacing: '0.5em', fontWeight: 700, height: ROW_H, ...flex, justifyContent: 'center', position: 'relative' }}>
+      {label}
+      <span className="no-print" style={{ position: 'absolute', right: 2, display: 'flex', gap: 2, letterSpacing: 0, fontSize: 7, fontWeight: 400 }}>
+        <button onClick={() => setShowPreset(showPreset === side ? null : side)} style={{ padding: '0 3px', border: '1px solid #aaa', borderRadius: 2, cursor: 'pointer', background: showPreset === side ? '#e3f2fd' : '#fff', fontSize: 7 }}>科目</button>
+        <button onClick={onClear} style={{ padding: '0 3px', border: '1px solid #aaa', borderRadius: 2, cursor: 'pointer', background: '#fff', fontSize: 7, color: '#c62828' }}>クリア</button>
+      </span>
+    </div>
+  );
+}
+
+function PresetPanel({ presets, onSelect, onSelectAll }: {
+  presets: Preset[]; onSelect: (p: Preset) => void; onSelectAll: () => void;
+}) {
+  return (
+    <div className="no-print" style={{ padding: '3px 4px', background: '#e3f2fd', ...bb, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+      {presets.map((p) => (
+        <button key={p.name} onClick={() => onSelect(p)} style={{ padding: '1px 4px', fontSize: 7, border: '1px solid #90caf9', borderRadius: 2, cursor: 'pointer', background: '#fff' }}>{p.name}</button>
+      ))}
+      <button onClick={onSelectAll} style={{ padding: '1px 4px', fontSize: 7, border: '1px solid #1565c0', borderRadius: 2, cursor: 'pointer', background: '#1565c0', color: '#fff' }}>全科目</button>
+    </div>
+  );
+}
+
+const ColumnHeaders = () => (
+  <div style={{ display: 'flex', ...bb, fontSize: 7, textAlign: 'center', height: ROW_H }}>
+    <div className="no-print" style={{ width: 18, ...br, ...hdr, ...flex, justifyContent: 'center', fontSize: 6 }}>No</div>
+    <div style={{ width: '28%', ...br, ...hdr, ...flex, justifyContent: 'center' }}>科　目</div>
+    <div style={{ flex: 1, ...br, ...hdr, ...flex, justifyContent: 'center' }}>相続税評価額（千円）</div>
+    <div style={{ flex: 1, ...br, ...hdr, ...flex, justifyContent: 'center' }}>帳簿価額（千円）</div>
+    <div style={{ width: '14%', ...hdr, ...flex, justifyContent: 'center' }}>備　考</div>
+  </div>
+);
+
+/* ================================================
+ * Main Component
+ * ================================================ */
+
+export function Table5({ getField, updateField, onTabChange }: Props) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
+  const [rows, setRows] = useState(DEFAULT_ROWS);
+  const [showPreset, setShowPreset] = useState<'a' | 'l' | null>(null);
+
+  /* ---- Actions ---- */
+  const applyPreset = (prefix: string, presets: Preset[]) => {
+    let idx = 0;
+    for (const p of presets) {
+      const exists = Array.from({ length: rows }, (_, i) => g(`${prefix}_name_${i}`)).includes(p.name);
+      if (exists) continue;
+      while (idx < rows && g(`${prefix}_name_${idx}`)) idx++;
+      if (idx >= rows) break;
+      u(`${prefix}_name_${idx}`, p.name);
+      if (p.note) u(`${prefix}_note_${idx}`, p.note);
+      idx++;
+    }
+    setShowPreset(null);
+  };
+
+  const clearSection = (prefix: string) => {
+    for (let i = 0; i < rows; i++) ROW_FIELDS.forEach(f => u(`${prefix}_${f}_${i}`, ''));
+  };
+
+  const deleteRow = (prefix: string, idx: number) => {
+    const name = g(`${prefix}_name_${idx}`);
+    const label = name ? `行${idx + 1}「${name}」` : `行${idx + 1}`;
+    if (!confirm(`${label}を削除しますか？`)) return;
+    for (let i = idx; i < rows - 1; i++) {
+      ROW_FIELDS.forEach(f => u(`${prefix}_${f}_${i}`, g(`${prefix}_${f}_${i + 1}`)));
+    }
+    ROW_FIELDS.forEach(f => u(`${prefix}_${f}_${rows - 1}`, ''));
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleReorder = (prefix: string) => (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const data = Array.from({ length: rows }, (_, i) =>
+      ROW_FIELDS.map(f => g(`${prefix}_${f}_${i}`))
+    );
+    const reordered = arrayMove(data, Number(active.id), Number(over.id));
+    reordered.forEach((row, i) => {
+      ROW_FIELDS.forEach((f, j) => u(`${prefix}_${f}_${i}`, row[j]));
+    });
+  };
+
+  const rowIds = Array.from({ length: rows }, (_, i) => String(i));
+
+  /* ---- Calculations ---- */
+  // 資産の部
+  let aEvalSum = 0, aBookSum = 0;
+  let stockEval = 0, stockBook = 0, landEval = 0;
+  for (let i = 0; i < rows; i++) {
+    const ev = parseNum(g(`a_eval_${i}`));
+    const bk = parseNum(g(`a_book_${i}`));
+    aEvalSum += ev; aBookSum += bk;
+    const note = g(`a_note_${i}`);
+    if (note === '株式等') { stockEval += ev; stockBook += bk; }
+    else if (note === '土地等') { landEval += ev; }
+  }
+
+  // 負債の部
+  let lEvalSum = 0, lBookSum = 0;
+  let insuranceTaxRowIdx = -1;
+  for (let i = 0; i < rows; i++) {
+    lEvalSum += parseNum(g(`l_eval_${i}`));
+    lBookSum += parseNum(g(`l_book_${i}`));
+    if (g(`l_name_${i}`) === '保険差益に対する法人税等') insuranceTaxRowIdx = i;
+  }
+
+  // 保険差益に対する法人税等
+  const insClaim = parseNum(g('ins_claim'));
+  const insRetire = parseNum(g('ins_retire'));
+  const insuranceTax = Math.floor(Math.max(0, insClaim - insRetire) * 0.37);
+
+  // ⑤〜⑧
+  const genbutsuEval = parseNum(g('genbutsu_eval'));
+  const genbutsuBook = parseNum(g('genbutsu_book'));
+  const netEval  = Math.max(0, aEvalSum - lEvalSum);
+  const netBook  = Math.max(0, aBookSum + genbutsuEval - genbutsuBook - lBookSum);
+  const diff     = Math.max(0, netEval - netBook);
+  const corpTax  = Math.floor(diff * 0.37);
+
+  // ⑨〜⑫
+  const currentNet     = netEval - corpTax;
+  const issuedShares   = parseNum(getField('table1_1', 'total_shares_sum'));
+  const treasuryShares = parseNum(getField('table1_1', 'treasury_shares'));
+  const currentShares  = issuedShares - treasuryShares;
+  const netPerShare    = currentShares > 0 ? Math.floor(currentNet * 1000 / currentShares) : null;
+  const ratio5         = parseFloat(getField('table1_1', 'ratio5')) || null;
+  const is50orLess     = ratio5 !== null && ratio5 <= 50;
+  const net80pct       = netPerShare !== null ? Math.floor(netPerShare * 0.8) : null;
+
+  /* ---- Grid data ⑤-⑫ ---- */
+  type GridCell = { label: string; value: number | null; unit: string; highlight?: boolean };
+  const gridRows: [GridCell, GridCell][] = [
+    [
+      { label: '⑤　相続税評価額による純資産価額（①−③、マイナスの場合は０）', value: netEval, unit: '千円' },
+      { label: '⑨　課税時期現在の純資産価額（相続税評価額）（⑤−⑧）', value: currentNet, unit: '千円' },
+    ],
+    [
+      { label: '⑥　帳簿価額による純資産価額（（②＋（ニ−ホ）−④）、マイナスの場合は０）', value: netBook, unit: '千円' },
+      { label: '⑩　課税時期現在の発行済株式数（（第１表の１の①）−自己株式数）', value: currentShares > 0 ? currentShares : null, unit: '株' },
+    ],
+    [
+      { label: '⑦　評価差額に相当する金額（⑤−⑥、マイナスの場合は０）', value: diff, unit: '千円' },
+      { label: '⑪　課税時期現在の1株当たりの純資産価額（相続税評価額）（⑨÷⑩）', value: netPerShare, unit: '円', highlight: ratio5 !== null && !is50orLess },
+    ],
+    [
+      { label: '⑧　評価差額に対する法人税額等相当額（⑦×37%）', value: corpTax, unit: '千円' },
+      { label: '⑫　同族株主等の議決権割合（第１表の１の⑤の割合）が50％以下の場合（⑪×80%）', value: net80pct, unit: '円', highlight: is50orLess },
+    ],
+  ];
+
+  const renderGridCell = (cell: GridCell, isRight: boolean) => {
+    const hl = cell.highlight ? { background: '#fff8e1' } : {};
+    const hlBold = cell.highlight ? { background: '#fff8e1', fontWeight: 700 as const } : {};
+    return (
+      <div style={{ display: 'flex', ...bb, ...(isRight ? {} : br), ...hl }}>
+        <div style={{ flex: 1, ...hdr, padding: '2px 3px', fontSize: 6.5, ...flex, ...hlBold }}>
+          {cell.label}
+        </div>
+        <div style={{ width: '30%', ...(isRight ? {} : bl), ...flex, ...hlBold }}>
+          <Computed value={cell.value} unit={cell.unit} />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="gov-form" style={{ fontSize: 8 }}>
-      {/* ===== タイトル行 ===== */}
-      <div style={{ display: 'flex', ...bb }}>
-        <div style={{ flex: 1, padding: '3px 6px', fontWeight: 700, fontSize: 9.5 }}>
+
+      {/* Group 1: タイトル */}
+      <div style={{ ...flex, ...bb }}>
+        <div style={{ flex: 1, padding: '3px 6px', fontWeight: 700, fontSize: 9.5, whiteSpace: 'nowrap' }}>
           第５表　１株当たりの純資産価額（相続税評価額）の計算明細書
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', ...bl }}>
+        <div style={{ ...flex, gap: 4, padding: '2px 6px', whiteSpace: 'nowrap', ...bl }}>
           <span>会社名</span>
-          <FormField value={g('companyName')} onChange={(v) => u('companyName', v)} className="w-32" />
+          <span style={{ minWidth: 80 }}>{getField('table1_1', 'companyName')}</span>
         </div>
       </div>
 
-      {/* ===== 3カラム ===== */}
-      <div style={{ display: 'grid', gridTemplateColumns: '20px 1fr 20px', flex: 1, minHeight: 0 }}>
-
-        {/* 左サイドバー */}
-        <div className="gov-side-header" style={{ ...br, fontSize: 9, letterSpacing: '0.12em' }}>
-          取引相場のない株式（出資）の評価明細書
-        </div>
-
-        {/* ===== 中央コンテンツ ===== */}
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-
-          {/* ======== 1. 資産及び負債の金額 ======== */}
-          <div style={{ ...bb, padding: '2px 4px', fontWeight: 700, fontSize: 8, textAlign: 'center', letterSpacing: '0.3em' }}>
-            １．資産及び負債の金額（課税時期現在）
-          </div>
-
-          {/* 資産の部 ＋ 負債の部 */}
-          <div style={{ display: 'flex', flex: 1, ...bb }}>
-            {/* ---- 資産の部 ---- */}
-            <div style={{ flex: 1, ...br, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ ...bb, ...hdr, textAlign: 'center', padding: '1px', letterSpacing: '0.5em', fontWeight: 700 }}>
-                資　産　の　部
-              </div>
-              {/* ヘッダー */}
-              <div style={{ display: 'flex', ...bb, fontSize: 7, textAlign: 'center' }}>
-                <div style={{ width: '28%', ...br, ...hdr, padding: '1px' }}>科　目</div>
-                <div style={{ flex: 1, ...br, ...hdr, padding: '1px' }}>相続税評価額</div>
-                <div style={{ flex: 1, ...br, ...hdr, padding: '1px' }}>帳 簿 価 額</div>
-                <div style={{ width: '14%', ...hdr, padding: '1px' }}>備　考</div>
-              </div>
-              <div style={{ display: 'flex', ...bb, fontSize: 6.5, textAlign: 'center' }}>
-                <div style={{ width: '28%', ...br, padding: '0px' }}>&nbsp;</div>
-                <div style={{ flex: 1, ...br, padding: '0px' }}>千円</div>
-                <div style={{ flex: 1, ...br, padding: '0px' }}>千円</div>
-                <div style={{ width: '14%', padding: '0px' }}>&nbsp;</div>
-              </div>
-              {/* データ行 */}
-              {Array.from({ length: ROWS }, (_, i) => (
-                <div key={i} style={{ display: 'flex', ...bb, minHeight: 13 }}>
-                  <div style={{ width: '28%', ...br, padding: '0px 2px' }}>
-                    <FormField value={g(`a_name_${i}`)} onChange={(v) => u(`a_name_${i}`, v)} />
-                  </div>
-                  <div style={{ flex: 1, ...br, padding: '0px 2px' }}>
-                    <NumberField value={g(`a_eval_${i}`)} onChange={(v) => u(`a_eval_${i}`, v)} />
-                  </div>
-                  <div style={{ flex: 1, ...br, padding: '0px 2px' }}>
-                    <NumberField value={g(`a_book_${i}`)} onChange={(v) => u(`a_book_${i}`, v)} />
-                  </div>
-                  <div style={{ width: '14%', padding: '0px 2px' }}>
-                    <FormField value={g(`a_note_${i}`)} onChange={(v) => u(`a_note_${i}`, v)} />
-                  </div>
-                </div>
-              ))}
-              {/* 合計 */}
-              <div style={{ display: 'flex', ...bb, fontWeight: 700 }}>
-                <div style={{ width: '28%', ...br, ...hdr, textAlign: 'center', padding: '2px', letterSpacing: '0.5em' }}>合　計</div>
-                <div style={{ flex: 1, ...br, padding: '1px 2px', textAlign: 'center' }}>
-                  <span>①</span>
-                  <NumberField value={g('a_eval_total')} onChange={(v) => u('a_eval_total', v)} />
-                </div>
-                <div style={{ flex: 1, ...br, padding: '1px 2px', textAlign: 'center' }}>
-                  <span>②</span>
-                  <NumberField value={g('a_book_total')} onChange={(v) => u('a_book_total', v)} />
-                </div>
-                <div style={{ width: '14%' }} />
-              </div>
-              {/* 株式等・土地等・現物出資等 */}
-              {[
-                { label: '株式等の価額の合計額', e: 'イ', b: 'ロ', fe: 'stock_eval', fb: 'stock_book' },
-                { label: '土地等の価額の合計額', e: 'ハ', b: '', fe: 'land_eval', fb: '' },
-                { label: '現物出資等受入れ資産の価額の合計額', e: 'ニ', b: 'ホ', fe: 'genbutsu_eval', fb: 'genbutsu_book' },
-              ].map((row) => (
-                <div key={row.fe} style={{ display: 'flex', ...bb, fontSize: 7 }}>
-                  <div style={{ width: '28%', ...br, ...hdr, padding: '1px 2px' }}>{row.label}</div>
-                  <div style={{ flex: 1, ...br, padding: '1px 2px', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ marginRight: 2 }}>{row.e}</span>
-                    <NumberField value={g(row.fe)} onChange={(v) => u(row.fe, v)} />
-                  </div>
-                  <div style={{ flex: 1, ...br, padding: '1px 2px', display: 'flex', alignItems: 'center' }}>
-                    {row.fb && (
-                      <>
-                        <span style={{ marginRight: 2 }}>{row.b}</span>
-                        <NumberField value={g(row.fb)} onChange={(v) => u(row.fb, v)} />
-                      </>
-                    )}
-                  </div>
-                  <div style={{ width: '14%' }} />
-                </div>
-              ))}
-            </div>
-
-            {/* ---- 負債の部 ---- */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ ...bb, ...hdr, textAlign: 'center', padding: '1px', letterSpacing: '0.5em', fontWeight: 700 }}>
-                負　債　の　部
-              </div>
-              {/* ヘッダー */}
-              <div style={{ display: 'flex', ...bb, fontSize: 7, textAlign: 'center' }}>
-                <div style={{ width: '28%', ...br, ...hdr, padding: '1px' }}>科　目</div>
-                <div style={{ flex: 1, ...br, ...hdr, padding: '1px' }}>相続税評価額</div>
-                <div style={{ flex: 1, ...br, ...hdr, padding: '1px' }}>帳 簿 価 額</div>
-                <div style={{ width: '14%', ...hdr, padding: '1px' }}>備　考</div>
-              </div>
-              <div style={{ display: 'flex', ...bb, fontSize: 6.5, textAlign: 'center' }}>
-                <div style={{ width: '28%', ...br, padding: '0px' }}>&nbsp;</div>
-                <div style={{ flex: 1, ...br, padding: '0px' }}>千円</div>
-                <div style={{ flex: 1, ...br, padding: '0px' }}>千円</div>
-                <div style={{ width: '14%', padding: '0px' }}>&nbsp;</div>
-              </div>
-              {/* データ行 */}
-              {Array.from({ length: ROWS }, (_, i) => (
-                <div key={i} style={{ display: 'flex', ...bb, minHeight: 13 }}>
-                  <div style={{ width: '28%', ...br, padding: '0px 2px' }}>
-                    <FormField value={g(`l_name_${i}`)} onChange={(v) => u(`l_name_${i}`, v)} />
-                  </div>
-                  <div style={{ flex: 1, ...br, padding: '0px 2px' }}>
-                    <NumberField value={g(`l_eval_${i}`)} onChange={(v) => u(`l_eval_${i}`, v)} />
-                  </div>
-                  <div style={{ flex: 1, ...br, padding: '0px 2px' }}>
-                    <NumberField value={g(`l_book_${i}`)} onChange={(v) => u(`l_book_${i}`, v)} />
-                  </div>
-                  <div style={{ width: '14%', padding: '0px 2px' }}>
-                    <FormField value={g(`l_note_${i}`)} onChange={(v) => u(`l_note_${i}`, v)} />
-                  </div>
-                </div>
-              ))}
-              {/* 合計 */}
-              <div style={{ display: 'flex', ...bb, fontWeight: 700 }}>
-                <div style={{ width: '28%', ...br, ...hdr, textAlign: 'center', padding: '2px', letterSpacing: '0.5em' }}>合　計</div>
-                <div style={{ flex: 1, ...br, padding: '1px 2px', textAlign: 'center' }}>
-                  <span>③</span>
-                  <NumberField value={g('l_eval_total')} onChange={(v) => u('l_eval_total', v)} />
-                </div>
-                <div style={{ flex: 1, ...br, padding: '1px 2px', textAlign: 'center' }}>
-                  <span>④</span>
-                  <NumberField value={g('l_book_total')} onChange={(v) => u('l_book_total', v)} />
-                </div>
-                <div style={{ width: '14%' }} />
-              </div>
-              {/* 空き行（資産側の特別行と高さを合わせる） */}
-              {[0, 1, 2].map((i) => (
-                <div key={i} style={{ display: 'flex', ...bb, minHeight: 13 }}>
-                  <div style={{ width: '28%', ...br }} />
-                  <div style={{ flex: 1, ...br }} />
-                  <div style={{ flex: 1, ...br }} />
-                  <div style={{ width: '14%' }} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ======== 下段: セクション2 (左) + セクション3 (右) ======== */}
-          <div style={{ display: 'flex' }}>
-            {/* ---- 2. 評価差額に対する法人税額等相当額の計算 ---- */}
-            <div style={{ flex: 1, ...br }}>
-              <div style={{ ...bb, ...hdr, padding: '2px 4px', fontWeight: 700, fontSize: 7.5 }}>
-                ２．評価差額に対する法人税額等相当額の計算
-              </div>
-              <table className="gov-table" style={{ fontSize: 7 }}>
-                <tbody>
-                  {[
-                    { n: '⑤', label: '相続税評価額による純資産価額（①−③）', f: 'net_eval', unit: '千円' },
-                    { n: '⑥', label: '帳簿価額による純資産価額（（②＋ニ−ホ−④）、マイナスの場合は０）', f: 'net_book', unit: '千円' },
-                    { n: '⑦', label: '評価差額に相当する金額（⑤−⑥、マイナスの場合は０）', f: 'diff', unit: '千円' },
-                    { n: '⑧', label: '評価差額に対する法人税額等相当額（⑦×37%）', f: 'corp_tax', unit: '千円' },
-                  ].map((row) => (
-                    <tr key={row.f}>
-                      <td className="gov-header text-left" style={{ fontSize: 6.5 }}>
-                        {row.n}　{row.label}
-                      </td>
-                      <td style={{ width: '30%' }}>
-                        <NumberField value={g(row.f)} onChange={(v) => u(row.f, v)} unit={row.unit} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* ---- 3. 1株当たりの純資産価額の計算 ---- */}
-            <div style={{ flex: 1 }}>
-              <div style={{ ...bb, ...hdr, padding: '2px 4px', fontWeight: 700, fontSize: 7.5 }}>
-                ３．１株当たりの純資産価額の計算
-              </div>
-              <table className="gov-table" style={{ fontSize: 7 }}>
-                <tbody>
-                  {[
-                    { n: '⑨', label: '課税時期現在の純資産価額（相続税評価額）（⑤−⑧）', f: 'current_net', unit: '千円' },
-                    { n: '⑩', label: '課税時期現在の発行済株式数（（第１表の１の①）−自己株式数）', f: 'current_shares', unit: '株' },
-                    { n: '⑪', label: '課税時期現在の1株当たりの純資産価額（相続税評価額）（⑨÷⑩）', f: 'net_per_share', unit: '円' },
-                    { n: '⑫', label: '同族株主等の議決権割合（第１表の１の⑤の割合）が50％以下の場合（⑪×80%）', f: 'net_80pct', unit: '円' },
-                  ].map((row) => (
-                    <tr key={row.f}>
-                      <td className="gov-header text-left" style={{ fontSize: 6.5 }}>
-                        {row.n}　{row.label}
-                      </td>
-                      <td style={{ width: '30%' }}>
-                        <NumberField value={g(row.f)} onChange={(v) => u(row.f, v)} unit={row.unit} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* 右サイドバー */}
-        <div className="gov-side-header" style={{ ...bl, fontSize: 9, letterSpacing: '0.12em' }}>
-          （令和六年一月一日以降用）
-        </div>
+      {/* Group 2: 1. 資産及び負債の金額（課税時期現在） */}
+      <div style={{ ...bb, padding: '2px 4px', fontWeight: 700, fontSize: 8, textAlign: 'center', letterSpacing: '0.3em', ...flex, justifyContent: 'center' }}>
+        <span style={{ flex: 1 }}>１．資産及び負債の金額（課税時期現在）</span>
+        <span className="no-print" style={{ display: 'inline-flex', gap: 2, marginLeft: 4, letterSpacing: 0 }}>
+          <RowBtn label="−" onClick={() => setRows(Math.max(1, rows - 1))} />
+          <RowBtn label="＋" onClick={() => setRows(rows + 1)} />
+        </span>
       </div>
+
+      <div style={{ display: 'flex', ...bb }}>
+
+        {/* Group 2-1: 資産の部 */}
+        <div style={{ flex: 1, ...br, display: 'flex', flexDirection: 'column' }}>
+          <SectionTitle label="資　産　の　部" side="a" showPreset={showPreset} setShowPreset={setShowPreset}
+            onClear={() => { if (confirm('資産の部を全てクリアしますか？')) clearSection('a'); }} />
+          {showPreset === 'a' && (
+            <PresetPanel presets={ASSET_PRESETS} onSelect={(p) => applyPreset('a', [p])} onSelectAll={() => applyPreset('a', ASSET_PRESETS)} />
+          )}
+          <ColumnHeaders />
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReorder('a')}>
+            <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
+              {rowIds.map((id) => {
+                const i = Number(id);
+                return (
+                  <SortableRow key={id} id={id} rowIndex={i} onDelete={() => deleteRow('a', i)}>
+                    <div style={cellName}>
+                      <FormField value={g(`a_name_${i}`)} onChange={(v) => u(`a_name_${i}`, v)} />
+                    </div>
+                    <div style={cellVal}>
+                      <NumberField value={g(`a_eval_${i}`)} onChange={(v) => { const bk = g(`a_book_${i}`); u(`a_eval_${i}`, v); if (!bk || bk === g(`a_eval_${i}`)) u(`a_book_${i}`, v); }} />
+                    </div>
+                    <div style={cellVal}>
+                      <NumberField value={g(`a_book_${i}`)} onChange={(v) => u(`a_book_${i}`, v)} />
+                    </div>
+                    <div style={{ width: '14%', padding: '0px 1px' }}>
+                      <select value={g(`a_note_${i}`)} onChange={(e) => u(`a_note_${i}`, e.target.value)} className="gov-input" style={{ fontSize: 'inherit', padding: '1px 0' }}>
+                        {NOTE_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt || '—'}</option>)}
+                      </select>
+                    </div>
+                  </SortableRow>
+                );
+              })}
+            </SortableContext>
+          </DndContext>
+          {/* 合計 ①② */}
+          <div style={{ display: 'flex', ...bb, height: ROW_H, fontWeight: 700 }}>
+            <NoPrintSpacer />
+            <div style={{ width: '28%', ...br, ...hdr, textAlign: 'center', ...flex, justifyContent: 'center', letterSpacing: '0.5em' }}>合　計</div>
+            <div style={cellVal}><span style={{ marginRight: 2 }}>①</span><Computed value={aEvalSum} /></div>
+            <div style={cellVal}><span style={{ marginRight: 2 }}>②</span><Computed value={aBookSum} /></div>
+            <div style={{ width: '14%' }} />
+          </div>
+          {/* 株式等 イ・ロ */}
+          <div style={{ display: 'flex', ...bb, height: ROW_H, fontSize: 7 }}>
+            <NoPrintSpacer />
+            <div style={{ width: '28%', ...br, ...hdr, padding: '0px 2px', ...flex }}>株式等の価額の合計額</div>
+            <div style={cellVal}><span style={{ marginRight: 2 }}>イ</span><Computed value={stockEval} /></div>
+            <div style={cellVal}><span style={{ marginRight: 2 }}>ロ</span><Computed value={stockBook} /></div>
+            <div style={{ width: '14%' }} />
+          </div>
+          {/* 土地等 ハ */}
+          <div style={{ display: 'flex', ...bb, height: ROW_H, fontSize: 7 }}>
+            <NoPrintSpacer />
+            <div style={{ width: '28%', ...br, ...hdr, padding: '0px 2px', ...flex }}>土地等の価額の合計額</div>
+            <div style={cellVal}><span style={{ marginRight: 2 }}>ハ</span><Computed value={landEval} /></div>
+            <div style={{ flex: 1, ...br, padding: '0px 2px', ...flex, justifyContent: 'center' }}>
+              <span style={{ fontSize: 14, color: '#999' }}>／</span>
+            </div>
+            <div style={{ width: '14%' }} />
+          </div>
+          {/* 現物出資等 ニ・ホ */}
+          <div style={{ display: 'flex', height: ROW_H, fontSize: 7 }}>
+            <NoPrintSpacer />
+            <div style={{ width: '28%', ...br, ...hdr, padding: '0px 2px', fontSize: 6, ...flex, lineHeight: 1.1 }}>現物出資等受入れ<br />資産の価額の合計額</div>
+            <div style={cellVal}><span style={{ marginRight: 2 }}>ニ</span><NumberField value={g('genbutsu_eval')} onChange={(v) => u('genbutsu_eval', v)} /></div>
+            <div style={cellVal}><span style={{ marginRight: 2 }}>ホ</span><NumberField value={g('genbutsu_book')} onChange={(v) => u('genbutsu_book', v)} /></div>
+            <div style={{ width: '14%' }} />
+          </div>
+        </div>
+
+        {/* Group 2-2: 負債の部 */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <SectionTitle label="負　債　の　部" side="l" showPreset={showPreset} setShowPreset={setShowPreset}
+            onClear={() => { if (confirm('負債の部を全てクリアしますか？')) clearSection('l'); }} />
+          {showPreset === 'l' && (
+            <PresetPanel presets={LIABILITY_PRESETS} onSelect={(p) => applyPreset('l', [p])} onSelectAll={() => applyPreset('l', LIABILITY_PRESETS)} />
+          )}
+          <ColumnHeaders />
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReorder('l')}>
+            <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
+              {rowIds.map((id) => {
+                const i = Number(id);
+                return (
+                  <SortableRow key={id} id={id} rowIndex={i} onDelete={() => deleteRow('l', i)}>
+                    <div style={cellName}>
+                      <FormField value={g(`l_name_${i}`)} onChange={(v) => u(`l_name_${i}`, v)} />
+                    </div>
+                    <div style={cellVal}>
+                      <NumberField value={g(`l_eval_${i}`)} onChange={(v) => { const bk = g(`l_book_${i}`); u(`l_eval_${i}`, v); if (!bk || bk === g(`l_eval_${i}`)) u(`l_book_${i}`, v); }} />
+                    </div>
+                    <div style={cellVal}>
+                      <NumberField value={g(`l_book_${i}`)} onChange={(v) => u(`l_book_${i}`, v)} />
+                    </div>
+                    <div style={{ width: '14%', padding: '0px 2px' }}>
+                      <FormField value={g(`l_note_${i}`)} onChange={(v) => u(`l_note_${i}`, v)} />
+                    </div>
+                  </SortableRow>
+                );
+              })}
+            </SortableContext>
+          </DndContext>
+          {/* 合計 ③④ */}
+          <div style={{ display: 'flex', ...bb, height: ROW_H, fontWeight: 700 }}>
+            <NoPrintSpacer />
+            <div style={{ width: '28%', ...br, ...hdr, textAlign: 'center', ...flex, justifyContent: 'center', letterSpacing: '0.5em' }}>合　計</div>
+            <div style={cellVal}><span style={{ marginRight: 2 }}>③</span><Computed value={lEvalSum} /></div>
+            <div style={cellVal}><span style={{ marginRight: 2 }}>④</span><Computed value={lBookSum} /></div>
+            <div style={{ width: '14%' }} />
+          </div>
+          {/* 保険差益に対する法人税等 計算 */}
+          <div className="no-print" style={{ ...bb, padding: '3px 4px', background: '#f5f5f5', fontSize: 7, lineHeight: 1.8 }}>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>▶ 保険差益に対する法人税等　（生命保険金請求権 − 退職金）× 37%</div>
+            <div style={{ ...flex, gap: 4 }}>
+              <span style={{ fontWeight: 500 }}>生命保険金請求権（千円）</span>
+              <div style={{ width: 100 }}><NumberField value={g('ins_claim')} onChange={(v) => u('ins_claim', v)} /></div>
+              <span>−</span>
+              <span style={{ fontWeight: 500 }}>退職金（千円）</span>
+              <div style={{ width: 100 }}><NumberField value={g('ins_retire')} onChange={(v) => u('ins_retire', v)} /></div>
+              <span>× 37% =</span>
+              <span style={{ fontWeight: 700, background: '#e8eaf6', padding: '1px 4px' }}>{insuranceTax.toLocaleString()}千円</span>
+              {insuranceTaxRowIdx >= 0 ? (
+                <button
+                  onClick={() => { const v = insuranceTax.toLocaleString(); u(`l_eval_${insuranceTaxRowIdx}`, v); u(`l_book_${insuranceTaxRowIdx}`, v); }}
+                  style={{ padding: '1px 6px', fontSize: 7, border: '1px solid #1565c0', borderRadius: 2, cursor: 'pointer', background: '#e3f2fd', color: '#1565c0' }}
+                >
+                  行{insuranceTaxRowIdx + 1}に反映
+                </button>
+              ) : (
+                <span style={{ color: '#c62828', fontSize: 6.5 }}>※「保険差益に対する法人税等」行を追加で反映可</span>
+              )}
+            </div>
+          </div>
+          <div style={{ flex: 1, background: '#fafafa' }} />
+        </div>
+
+      </div>
+
+      {/* Group 3+4: ⑤-⑫ Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: 'auto repeat(4, 1fr)', fontSize: 7 }}>
+        <div style={{ ...bb, ...br, ...hdr, padding: '2px 4px', fontWeight: 700, fontSize: 7.5, ...flex, height: ROW_H }}>
+          ２．評価差額に対する法人税額等相当額の計算
+        </div>
+        <div style={{ ...bb, ...hdr, padding: '2px 4px', fontWeight: 700, fontSize: 7.5, ...flex, height: ROW_H }}>
+          ３．１株当たりの純資産価額の計算
+        </div>
+        {gridRows.map(([left, right], i) => (
+          <div key={i} style={{ display: 'contents' }}>
+            {renderGridCell(left, false)}
+            {renderGridCell(right, true)}
+          </div>
+        ))}
+      </div>
+
+      {/* 計算過程（no-print） */}
+      {(aEvalSum > 0 || aBookSum > 0 || lEvalSum > 0 || lBookSum > 0) && (
+        <div className="no-print" style={{ padding: '3px 6px', fontSize: 7.5, background: '#f5f5f5', lineHeight: 1.8 }}>
+          <div style={{ fontWeight: 700, marginBottom: 1 }}>▶ 計算過程</div>
+          <div>
+            ⑤　{aEvalSum.toLocaleString()}千円 − {lEvalSum.toLocaleString()}千円 = {(aEvalSum - lEvalSum).toLocaleString()}千円
+            {aEvalSum - lEvalSum < 0 ? ' → 0（マイナスのため）' : '（プラス）'}
+            {' => '}<CalcResult>{netEval.toLocaleString()}千円</CalcResult>
+          </div>
+          <div>
+            ⑥　{aBookSum.toLocaleString()}千円 ＋（{genbutsuEval.toLocaleString()}千円 − {genbutsuBook.toLocaleString()}千円）− {lBookSum.toLocaleString()}千円 = {(aBookSum + genbutsuEval - genbutsuBook - lBookSum).toLocaleString()}千円
+            {aBookSum + genbutsuEval - genbutsuBook - lBookSum < 0 ? ' → 0（マイナスのため）' : '（プラス）'}
+            {' => '}<CalcResult>{netBook.toLocaleString()}千円</CalcResult>
+          </div>
+          <div>
+            ⑦　{netEval.toLocaleString()}千円 − {netBook.toLocaleString()}千円 = {(netEval - netBook).toLocaleString()}千円
+            {netEval - netBook < 0 ? ' → 0（マイナスのため）' : '（プラス）'}
+            {' => '}<CalcResult>{diff.toLocaleString()}千円</CalcResult>
+          </div>
+          <div>⑧　{diff.toLocaleString()}千円 × 37% = <CalcResult>{corpTax.toLocaleString()}千円</CalcResult></div>
+          <div>⑨　{netEval.toLocaleString()}千円 − {corpTax.toLocaleString()}千円 = <CalcResult>{currentNet.toLocaleString()}千円</CalcResult></div>
+          <div>
+            ⑩　{issuedShares > 0 ? `${issuedShares.toLocaleString()}株` : '—'} − {treasuryShares > 0 ? `${treasuryShares.toLocaleString()}株` : '0株'} = <CalcResult>{currentShares > 0 ? `${currentShares.toLocaleString()}株` : '—'}</CalcResult>
+            {issuedShares === 0 && onTabChange && <span onClick={() => onTabChange('table1_1')} style={{ marginLeft: 4, color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontSize: 7 }}>第１表の１で株式数を入力</span>}
+          </div>
+          {currentShares > 0 && netPerShare !== null && (
+            <div>
+              ⑪　{currentNet.toLocaleString()}千円 × 1,000 ÷ {currentShares.toLocaleString()}株 = <CalcResult active={ratio5 !== null && !is50orLess}>{netPerShare.toLocaleString()}円</CalcResult>
+              {ratio5 !== null && !is50orLess && <span style={{ color: '#2e7d32', fontWeight: 700, marginLeft: 4 }}>← 適用</span>}
+            </div>
+          )}
+          {currentShares > 0 && net80pct !== null && (
+            <div>
+              ⑫　{netPerShare!.toLocaleString()}円 × 80% = <CalcResult active={is50orLess}>{net80pct.toLocaleString()}円</CalcResult>
+              {is50orLess && <span style={{ color: '#2e7d32', fontWeight: 700, marginLeft: 4 }}>← 適用</span>}
+            </div>
+          )}
+          <div style={{ marginTop: 2, fontSize: 7 }}>
+            第１表の１の⑤の割合: {ratio5 !== null
+              ? <span style={{ fontWeight: 700, background: is50orLess ? '#c8e6c9' : '#ffcdd2', padding: '0 3px' }}>{ratio5}%{is50orLess ? '（50%以下 → ⑫適用）' : '（50%超 → ⑪適用）'}</span>
+              : <><span style={{ background: '#fff3e0', padding: '0 3px' }}>未入力</span>{onTabChange && <span onClick={() => onTabChange('table1_1')} style={{ marginLeft: 4, color: '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}>第１表の１で株主情報を入力</span>}</>
+            }
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

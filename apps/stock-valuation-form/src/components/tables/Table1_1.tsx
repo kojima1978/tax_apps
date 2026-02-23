@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
 import { CircledNumber } from '@/components/ui/CircledNumber';
@@ -14,7 +14,7 @@ interface Props {
 const T: TableId = 'table1_1';
 const MIN_ROWS = 1;
 const MAX_ROWS = 20;
-const DEFAULT_ROWS = 8;
+const DEFAULT_ROWS = 10;
 const SH_KEYS = ['sh_name', 'sh_dozoku', 'sh_hittou', 'sh_rel', 'sh_shares', 'sh_votes', 'sh_ratio'];
 
 // ---- Styles ----
@@ -90,7 +90,7 @@ export function Table1_1({ getField, updateField }: Props) {
   const [defOpen, setDefOpen] = useState(false);
 
   // 株主行管理
-  const rowCount = parseNum(g('sh_count')) || DEFAULT_ROWS;
+  const rowCount = Math.max(parseNum(g('sh_count')) || DEFAULT_ROWS, DEFAULT_ROWS);
   const indices = Array.from({ length: rowCount }, (_, i) => i);
 
   const addRow = () => {
@@ -138,6 +138,32 @@ export function Table1_1({ getField, updateField }: Props) {
     HEADER_FIELDS.forEach((f) => u(f, ''));
   };
 
+  // クイック操作: 議決権数の多い順にソート
+  const sortByVotes = () => {
+    const rows = Array.from({ length: rowCount }, (_, i) =>
+      SH_KEYS.map((k) => g(`${k}_${i}`))
+    );
+    rows.sort((a, b) => parseNum(b[5]) - parseNum(a[5]));
+    rows.forEach((vals, i) => {
+      SH_KEYS.forEach((k, j) => u(`${k}_${i}`, vals[j]));
+    });
+  };
+
+  // クイック操作: 空行を削除
+  const clearEmptyRows = () => {
+    const nonEmpty: string[][] = [];
+    for (let i = 0; i < rowCount; i++) {
+      const row = SH_KEYS.map((k) => g(`${k}_${i}`));
+      if (row.some((v) => v !== '')) nonEmpty.push(row);
+    }
+    const newCount = Math.max(nonEmpty.length, DEFAULT_ROWS);
+    for (let i = 0; i < rowCount; i++) {
+      const vals = i < nonEmpty.length ? nonEmpty[i] : SH_KEYS.map(() => '');
+      SH_KEYS.forEach((k, j) => u(`${k}_${i}`, vals[j]));
+    }
+    u('sh_count', String(newCount));
+  };
+
   // 自動計算
   const totalSharesSum = indices.reduce((s, i) => s + parseNum(g(`sh_shares_${i}`)), 0);
   const dozokuVotesSum = indices.reduce((s, i) => g(`sh_dozoku_${i}`) === '1' ? s + parseNum(g(`sh_votes_${i}`)) : s, 0);
@@ -145,6 +171,17 @@ export function Table1_1({ getField, updateField }: Props) {
   const totalVotesSum = indices.reduce((s, i) => s + parseNum(g(`sh_votes_${i}`)), 0);
   const ratio5 = pct(dozokuVotesSum, totalVotesSum);
   const ratio6 = pct(hittouVotesSum, totalVotesSum);
+
+  // ① 発行済株式総数・⑤議決権割合をフォーム状態に同期（他の表から参照用）
+  useEffect(() => {
+    updateField(T, 'total_shares_sum', totalSharesSum > 0 ? String(totalSharesSum) : '');
+    updateField(T, 'ratio5', ratio5 !== null ? String(ratio5) : '');
+  }, [totalSharesSum, ratio5, updateField]);
+
+  // 入力検証
+  const hasAnyName = indices.some((i) => g(`sh_name_${i}`) !== '');
+  const hasDozoku = indices.some((i) => g(`sh_dozoku_${i}`) === '1');
+  const hasHittou = indices.some((i) => g(`sh_hittou_${i}`) === '1');
 
   // 判定ロジック: ⑤⑥ → マトリクス → 株主区分
   const matrixRow: 'over50' | 'under50' | null = ratio5 !== null ? (ratio5 > 50 ? 'over50' : 'under50') : null;
@@ -164,15 +201,15 @@ export function Table1_1({ getField, updateField }: Props) {
 
   return (
     <div className="gov-form">
-      {/* ===== Group 1: タイトル行 ===== */}
+      {/* ========== グループ１: タイトル行 ========== */}
       <div style={{ padding: '3px 6px', fontWeight: 700, fontSize: 11, ...bb, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>第１表の１　評価上の株主の判定及び会社規模の判定の明細書</span>
         <span className="no-print" onClick={resetHeader} style={{ cursor: 'pointer', color: '#d32f2f', fontSize: 8, fontWeight: 400 }}>会社情報リセット</span>
       </div>
 
-      {/* ===== Groups 2+3: ヘッダー（会社情報）2列 ===== */}
+      {/* ========== グループ２＋３: ヘッダー（会社情報）2列 ========== */}
       <div style={{ display: 'grid', gridTemplateColumns: '50% 50%', ...bb }}>
-        {/* ---- Group 2: 左ヘッダー ---- */}
+        {/* ---- グループ２: 左ヘッダー ---- */}
         <div style={{ ...br }}>
           <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 22 }}>
             <span style={{ ...lbl, width: 60 }}>会 社 名</span>
@@ -203,7 +240,7 @@ export function Table1_1({ getField, updateField }: Props) {
           </div>
         </div>
 
-        {/* ---- Group 3: 右ヘッダー ---- */}
+        {/* ---- グループ３: 右ヘッダー ---- */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 22 }}>
             <span style={{ ...lbl, width: 55, flexDirection: 'column', lineHeight: 1.2, fontSize: 8 }}>
@@ -242,17 +279,19 @@ export function Table1_1({ getField, updateField }: Props) {
         </div>
       </div>
 
-      {/* ===== Groups 4+5: メイン（株主判定 + 判定フロー）2列 ===== */}
+      {/* ========== グループ４＋５: メイン（株主判定 + 判定フロー）2列 ========== */}
       <div style={{ display: 'grid', gridTemplateColumns: '50% 50%', flex: 1, minHeight: 0 }}>
 
-        {/* ---- Group 4: 株主テーブル ---- */}
+        {/* ---- グループ４: 株主テーブル ---- */}
         <div className="panel-left" style={{ ...br, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '2px 4px', fontWeight: 700, ...bb, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>１．株主及び評価方式の判定</span>
             <span className="no-print" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {rowCount < MAX_ROWS && (
-                <span onClick={addRow} style={{ cursor: 'pointer', color: '#1976d2', fontSize: 8, fontWeight: 400 }}>＋ 株主追加</span>
+                <span onClick={addRow} style={{ cursor: 'pointer', color: '#1976d2', fontSize: 8, fontWeight: 400 }}>＋ 追加</span>
               )}
+              <span onClick={sortByVotes} style={{ cursor: 'pointer', color: '#1976d2', fontSize: 8, fontWeight: 400 }}>↓ ソート</span>
+              <span onClick={clearEmptyRows} style={{ cursor: 'pointer', color: '#1976d2', fontSize: 8, fontWeight: 400 }}>空行削除</span>
               <span onClick={resetShareholders} style={{ cursor: 'pointer', color: '#d32f2f', fontSize: 8, fontWeight: 400 }}>リセット</span>
             </span>
           </div>
@@ -306,8 +345,10 @@ export function Table1_1({ getField, updateField }: Props) {
                     <input type="checkbox" checked={g(`sh_hittou_${i}`) === '1'} onChange={(e) => { u(`sh_hittou_${i}`, e.target.checked ? '1' : ''); if (e.target.checked) u(`sh_dozoku_${i}`, '1'); }} style={{ cursor: 'pointer' }} />
                   </td>
                   <td><FormField value={g(`sh_rel_${i}`)} onChange={(v) => u(`sh_rel_${i}`, v)} textAlign="center" /></td>
-                  <td><NumberField value={g(`sh_shares_${i}`)} onChange={(v) => { u(`sh_shares_${i}`, v); if (!g(`sh_votes_${i}`)) u(`sh_votes_${i}`, v); }} /></td>
-                  <td><NumberField value={g(`sh_votes_${i}`)} onChange={(v) => u(`sh_votes_${i}`, v)} /></td>
+                  <td><NumberField value={g(`sh_shares_${i}`)} onChange={(v) => { const votes = g(`sh_votes_${i}`); u(`sh_shares_${i}`, v); if (!votes || votes === g(`sh_shares_${i}`)) u(`sh_votes_${i}`, v); }} /></td>
+                  <td style={parseNum(g(`sh_shares_${i}`)) > 0 && parseNum(g(`sh_votes_${i}`)) > parseNum(g(`sh_shares_${i}`)) ? { background: '#fff3e0' } : undefined}>
+                    <NumberField value={g(`sh_votes_${i}`)} onChange={(v) => u(`sh_votes_${i}`, v)} />
+                  </td>
                   <td>
                     <span className="gov-input gov-input-number" style={roStyle}>
                       {totalVotesSum > 0 && g(`sh_votes_${i}`) ? `${pct(parseNum(g(`sh_votes_${i}`)), totalVotesSum)}%` : ''}
@@ -351,9 +392,16 @@ export function Table1_1({ getField, updateField }: Props) {
               </tr>
             </tbody>
           </table>
+          {/* ---- 入力検証 ---- */}
+          {hasAnyName && (!hasDozoku || !hasHittou) && (
+            <div className="no-print" style={{ padding: '2px 6px', fontSize: 7.5, color: '#795548', background: '#fff3e0' }}>
+              {!hasDozoku && <div>○ 同族関係者グループのチェックがありません</div>}
+              {!hasHittou && <div>○ 筆頭株主グループのチェックがありません</div>}
+            </div>
+          )}
         </div>
 
-        {/* ---- Group 5: 判定フロー ---- */}
+        {/* ---- グループ５: 判定フロー ---- */}
         <div className="panel-right" style={{ display: 'flex', flexDirection: 'column' }}>
           {/* 判定基準ヘッダー */}
           <div style={{ padding: '2px 4px', fontSize: 8, ...bb }}>
@@ -471,7 +519,7 @@ export function Table1_1({ getField, updateField }: Props) {
         </div>
       </div>
 
-      {/* ===== Group 6: 用語の定義（折りたたみ・印刷非表示） ===== */}
+      {/* ========== グループ６: 用語の定義（折りたたみ・印刷非表示） ========== */}
       <div className="no-print" style={{ ...bb }}>
         <div
           style={{ padding: '2px 4px', fontWeight: 700, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
