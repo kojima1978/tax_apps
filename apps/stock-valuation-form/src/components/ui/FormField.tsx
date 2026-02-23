@@ -23,7 +23,7 @@ export function FormField({
         : 'text-left';
 
   return (
-    <span className={`inline-flex items-center ${className}`}>
+    <span className={`flex items-center w-full ${className}`}>
       <input
         type="text"
         value={value}
