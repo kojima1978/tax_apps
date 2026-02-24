@@ -126,7 +126,7 @@ export interface InsuranceScenarioResult {
   taxableInsurance: number;              // 課税対象保険金
   adjustedEstate: number;                // 調整後遺産額
   premiumDeduction: number;              // 新規保険料控除額
-  totalNetProceeds: number;              // 手取り合計（遺産取得+保険金全額−税額）
+  totalNetProceeds: number;              // 税引後財産額（遺産取得+保険金全額−税額）
   taxResult: DetailedTaxCalculationResult; // 税額計算結果
   heirBreakdowns: InsuranceHeirBreakdown[]; // 相続人別保険内訳
 }
@@ -136,9 +136,9 @@ export interface InsuranceSimulationResult {
   current: InsuranceScenarioResult;      // 現状
   proposed: InsuranceScenarioResult;     // 提案
   taxSaving: number;                     // 節税額
-  netProceedsDiff: number;               // 手取り増減額
+  netProceedsDiff: number;               // 財産額の増減
   newPremiumTotal: number;               // 新規保険料合計
-  baseEstate: number;                    // 元の遺産額
+  baseEstate: number;                    // 元の財産額
 }
 
 // ── 現金贈与シミュレーション ──
@@ -163,7 +163,7 @@ export interface GiftRecipientResult {
   giftTaxPerYear: number;        // 年間贈与税額
   totalGift: number;             // 総贈与額
   totalGiftTax: number;          // 総贈与税額
-  netGift: number;               // 手取り贈与 = totalGift - totalGiftTax
+  netGift: number;               // 差引贈与 = totalGift - totalGiftTax
 }
 
 // シナリオ別結果
@@ -182,6 +182,6 @@ export interface CashGiftSimulationResult {
   totalGifts: number;
   totalGiftTax: number;
   inheritanceTaxSaving: number;   // 相続税の節減額
-  netProceedsDiff: number;        // 手取り増減額
+  netProceedsDiff: number;        // 財産額の増減
   baseEstate: number;
 }

@@ -48,7 +48,7 @@ export const CashGiftExcelExport: React.FC<CashGiftExcelExportProps> = memo(({
     type CompRow = { label: string; cur: number; prop: number; highlight?: boolean; sectionEnd?: boolean; valuePrefix?: string };
     const compData: CompRow[] = [
       // 遺産縮小
-      { label: '元の遺産額', cur: baseEstate, prop: baseEstate },
+      { label: '元の財産額', cur: baseEstate, prop: baseEstate },
       { label: '生前贈与', cur: 0, prop: totalGifts, valuePrefix: 'ー' },
       // 税額計算
       { label: '課税遺産額', cur: current.estateValue, prop: proposed.estateValue },
@@ -57,7 +57,7 @@ export const CashGiftExcelExport: React.FC<CashGiftExcelExportProps> = memo(({
       { label: '生前贈与', cur: 0, prop: totalGifts },
       { label: '贈与税 合計', cur: 0, prop: totalGiftTax, sectionEnd: true },
       { label: '税負担合計（相続税＋贈与税）', cur: current.taxResult.totalFinalTax, prop: proposed.taxResult.totalFinalTax + totalGiftTax },
-      { label: '手取り合計', cur: current.totalNetProceeds, prop: proposed.totalNetProceeds, highlight: true },
+      { label: '税引後財産額', cur: current.totalNetProceeds, prop: proposed.totalNetProceeds, highlight: true },
     ];
 
     const SECTION_BORDER = { style: 'medium' as const, color: { argb: 'FF9CA3AF' } };
@@ -79,7 +79,7 @@ export const CashGiftExcelExport: React.FC<CashGiftExcelExportProps> = memo(({
     // 結果ハイライト行
     addHighlightRows(worksheet, colCount, [
       ['相続税の節減', formatSavingArrow(inheritanceTaxSaving)],
-      ['手取り増減', formatDeltaArrow(netProceedsDiff)],
+      ['財産額の増減', formatDeltaArrow(netProceedsDiff)],
     ]);
 
     worksheet.addRow([]);
@@ -146,7 +146,7 @@ export const CashGiftExcelExport: React.FC<CashGiftExcelExportProps> = memo(({
 
     heirSheet.mergeCells(1, 1, 1, 6);
     const heirTitle = heirSheet.getCell('A1');
-    heirTitle.value = '相続人別 内訳・手取り比較';
+    heirTitle.value = '相続人別 内訳・税引後比較';
     heirTitle.font = { size: 18, bold: true, color: { argb: 'FF16A34A' } };
     heirTitle.alignment = { vertical: 'middle', horizontal: 'center' };
     heirSheet.getRow(1).height = 30;
@@ -161,14 +161,14 @@ export const CashGiftExcelExport: React.FC<CashGiftExcelExportProps> = memo(({
       const secRowNum = heirSheet.rowCount + 1;
       heirSheet.mergeCells(secRowNum, 1, secRowNum, 6);
       const secCell = heirSheet.getCell(`A${secRowNum}`);
-      secCell.value = `${scenario.label}（税額: ${formatCurrency(scenario.taxResult.totalFinalTax)} / 手取り: ${formatCurrency(scenario.totalNetProceeds)}）`;
+      secCell.value = `${scenario.label}（税額: ${formatCurrency(scenario.taxResult.totalFinalTax)} / 税引後: ${formatCurrency(scenario.totalNetProceeds)}）`;
       secCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
       secCell.fill = headerFill;
       secCell.alignment = { vertical: 'middle', horizontal: 'left' };
       secCell.border = ALL_GREEN_BORDERS;
       heirSheet.getRow(secRowNum).height = 24;
 
-      const colHeaders = ['相続人', '遺産取得額', '贈与受取額', '贈与税負担', '納付相続税', '手取り'];
+      const colHeaders = ['相続人', '遺産取得額', '贈与受取額', '贈与税負担', '納付相続税', '税引後'];
       const hdr = heirSheet.addRow(colHeaders);
       hdr.eachCell((cell: any) => {
         cell.font = { bold: true, size: 10 };
@@ -216,7 +216,7 @@ export const CashGiftExcelExport: React.FC<CashGiftExcelExportProps> = memo(({
       heirSheet.addRow([]);
     });
 
-    // 手取り比較セクション
+    // 税引後比較セクション
     const emptyResults: typeof result.recipientResults = [];
     const heirCount = current.taxResult.heirBreakdowns.length;
     addHeirComparisonSection(heirSheet, 6, {

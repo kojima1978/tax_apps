@@ -11,7 +11,7 @@ export const CashGiftFlowSteps: React.FC<CashGiftFlowStepsProps> = ({ result }) 
 
   const steps: FlowStep[] = [
     {
-      title: '元の遺産額',
+      title: '元の財産額',
       description: '被相続人の相続財産',
       currentValue: baseEstate,
       proposedValue: baseEstate,
@@ -45,7 +45,7 @@ export const CashGiftFlowSteps: React.FC<CashGiftFlowStepsProps> = ({ result }) 
       sign: '−',
     },
     {
-      title: '手取り合計',
+      title: '税引後財産額',
       description: '遺産 − 相続税 − 贈与税',
       currentValue: current.totalNetProceeds,
       proposedValue: proposed.totalNetProceeds,

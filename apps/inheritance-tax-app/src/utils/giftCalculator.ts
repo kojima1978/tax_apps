@@ -58,7 +58,7 @@ export function getGiftRecipientOptions(
 }
 
 /**
- * 相続人別の手取り額を算出（贈与シミュレーション用）
+ * 相続人別の税引後取得額を算出（贈与シミュレーション用）
  */
 export function getGiftHeirNetProceeds(
   scenario: GiftScenarioResult,
@@ -105,7 +105,7 @@ function reapportionForGiftModel(
  * 現金贈与シミュレーション
  *
  * 現状（贈与なし）と提案（贈与あり）の2シナリオを比較し、
- * 相続税・贈与税の合計と手取り増減を算出する。
+ * 相続税・贈与税の合計と財産額の増減を算出する。
  */
 export function calculateCashGiftSimulation(
   estateValue: number,

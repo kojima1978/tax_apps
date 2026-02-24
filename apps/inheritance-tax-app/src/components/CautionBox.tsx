@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface CautionBoxProps {
-  items: string[];
+  items: readonly string[];
   className?: string;
 }
 

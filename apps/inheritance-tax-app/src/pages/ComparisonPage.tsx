@@ -12,6 +12,7 @@ import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
 import type { HeirComposition } from '../types';
 import { createDefaultComposition } from '../constants';
+import { COMPARISON_CAUTIONS } from '../constants/cautionMessages';
 import { calculateComparisonTable } from '../utils';
 
 export const ComparisonPage: React.FC = () => {
@@ -54,14 +55,7 @@ export const ComparisonPage: React.FC = () => {
               </div>
             </div>
 
-            <CautionBox
-              items={[
-                'この比較は1次相続と2次相続の合計税額を概算で比較するものです。',
-                '2次相続の相続人は、1次相続の配偶者以外の相続人と同じ構成と仮定しています。',
-                '配偶者の固有財産額には、1次相続前から配偶者が保有している財産を入力してください。',
-                '実際の税額は個別の事情により異なります。詳細は税理士にご相談ください。',
-              ]}
-            />
+            <CautionBox items={COMPARISON_CAUTIONS} />
           </div>
         </div>
 

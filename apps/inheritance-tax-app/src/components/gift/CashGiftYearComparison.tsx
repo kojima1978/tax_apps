@@ -62,7 +62,7 @@ export const CashGiftYearComparison: React.FC<CashGiftYearComparisonProps> = ({
     <div className="bg-white rounded-lg shadow-md p-6">
       <SectionHeader icon={TrendingUp} title="年数別 最適贈与比較" />
       <p className="text-sm text-gray-500 mb-4">
-        受取人{recipients.length}人 × 各贈与年数での最適な年間贈与額と手取りの比較
+        受取人{recipients.length}人 × 各贈与年数での最適な年間贈与額と税引後の比較
       </p>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
@@ -74,8 +74,8 @@ export const CashGiftYearComparison: React.FC<CashGiftYearComparisonProps> = ({
               <th className={TH}>贈与税合計</th>
               <th className={TH}>相続税</th>
               <th className={TH}>税負担合計</th>
-              <th className={TH}>手取り合計</th>
-              <th className={TH}>手取り増減</th>
+              <th className={TH}>税引後財産額</th>
+              <th className={TH}>財産額の増減</th>
             </tr>
           </thead>
           <tbody>
@@ -98,7 +98,7 @@ export const CashGiftYearComparison: React.FC<CashGiftYearComparisonProps> = ({
       </div>
       {rows[bestIdx] && rows[bestIdx].netDiff > 0 && (
         <p className="mt-3 text-sm text-green-700 font-medium">
-          {rows[bestIdx].years}年贈与が最も手取りが増加します（+{formatCurrency(rows[bestIdx].netDiff)}）
+          {rows[bestIdx].years}年贈与が最も財産額が増加します（+{formatCurrency(rows[bestIdx].netDiff)}）
         </p>
       )}
     </div>

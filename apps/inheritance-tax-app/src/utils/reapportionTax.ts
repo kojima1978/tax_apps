@@ -15,7 +15,7 @@ import { getHeirInfo } from './heirUtils';
  * 按分ロジック（基本取得額計算 → 2割加算 → 配偶者控除 → 最終税額）を統合。
  *
  * @param taxResult 元の詳細税額計算結果
- * @param baseEstate 元の遺産額
+ * @param baseEstate 元の財産額
  * @param composition 相続人構成
  * @param spouseMode 配偶者取得割合モード
  * @param adjustAcquisitions 基本取得額計算後にモデル固有の調整を行うコールバック

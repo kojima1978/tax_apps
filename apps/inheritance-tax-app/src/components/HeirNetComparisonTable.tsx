@@ -23,14 +23,14 @@ export const HeirNetComparisonTable: React.FC<HeirNetComparisonTableProps> = ({
 }) => {
   return (
     <div>
-      <h4 className="text-base font-bold text-gray-700 mb-2">相続人別 手取り比較</h4>
+      <h4 className="text-base font-bold text-gray-700 mb-2">相続人別 税引後比較</h4>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-green-600 text-white">
               <th className={TH}>相続人</th>
-              <th className={TH}>現状 手取り</th>
-              <th className={TH}>提案 手取り</th>
+              <th className={TH}>現状 税引後</th>
+              <th className={TH}>提案 税引後</th>
               <th className={TH}>差額（Δ）</th>
             </tr>
           </thead>

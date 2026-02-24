@@ -9,7 +9,7 @@ interface CashGiftSummaryCardProps {
 
 const ROWS: ComparisonRowDef<CashGiftSimulationResult>[] = [
   // ── 遺産縮小 ──
-  { id: 'estate', label: '元の遺産額', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate },
+  { id: 'estate', label: '元の財産額', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate },
   { id: 'gift-deduct', label: '生前贈与', getCurrent: () => 0, getProposed: r => r.totalGifts, valuePrefix: 'ー' },
   // ── 税額計算 ──
   { id: 'taxable', label: '課税遺産額', getCurrent: r => r.current.estateValue, getProposed: r => r.proposed.estateValue },
@@ -20,7 +20,7 @@ const ROWS: ComparisonRowDef<CashGiftSimulationResult>[] = [
   { id: 'total-tax', label: '税負担合計（相続税＋贈与税）',
     getCurrent: r => r.current.taxResult.totalFinalTax,
     getProposed: r => r.proposed.taxResult.totalFinalTax + r.totalGiftTax },
-  { id: 'net', label: '手取り合計', getCurrent: r => r.current.totalNetProceeds, getProposed: r => r.proposed.totalNetProceeds, highlight: true },
+  { id: 'net', label: '税引後財産額', getCurrent: r => r.current.totalNetProceeds, getProposed: r => r.proposed.totalNetProceeds, highlight: true },
 ];
 
 export const CashGiftSummaryCard: React.FC<CashGiftSummaryCardProps> = ({ result }) => {
@@ -29,7 +29,7 @@ export const CashGiftSummaryCard: React.FC<CashGiftSummaryCardProps> = ({ result
   const highlights: HighlightItem[] = [
     { label: '相続税の節減', value: inheritanceTaxSaving, format: 'saving' },
     {
-      label: '手取り増減',
+      label: '財産額の増減',
       value: netProceedsDiff,
       format: 'gain',
       footnote: result.totalGifts > 0

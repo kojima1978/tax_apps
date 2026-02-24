@@ -89,7 +89,7 @@ export const FlowSteps: React.FC<FlowStepsProps> = ({ steps }) => {
       </div>
 
       <div className={`mt-4 text-center rounded-lg p-3 ${diff > 0 ? 'bg-green-100' : diff < 0 ? 'bg-red-50' : 'bg-gray-100'}`}>
-        <span className="text-sm text-gray-600">提案による手取り変動: </span>
+        <span className="text-sm text-gray-600">提案による財産額の変動: </span>
         <span className={`text-lg font-bold ${diff > 0 ? 'text-green-700' : diff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
           {formatDeltaArrow(diff)}
         </span>

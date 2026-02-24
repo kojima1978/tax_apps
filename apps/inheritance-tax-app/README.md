@@ -31,10 +31,10 @@
 - 既存保険契約と新規検討契約の2カテゴリで個別入力
 - 各契約: 受取人（相続人リストから選択・重複不可）、受取保険金額、支払保険料
 - 現状（既存のみ）vs 提案（既存＋新規）の2シナリオ税額比較（差額列付き）
-- 財産フロー表示（元の遺産→保険料→保険金→非課税→課税遺産→税額→手取り）
-- 相続人別の保険内訳テーブル（受取保険金・非課税額・納付税額・手取り）
-- 相続人別手取り比較テーブル（現状 vs 提案 の差額表示）
-- 節税効果・手取り増減の強調表示
+- 財産フロー表示（元の遺産→保険料→保険金→非課税→課税遺産→税額→税引後）
+- 相続人別の保険内訳テーブル（受取保険金・非課税額・納付税額・税引後）
+- 相続人別税引後比較テーブル（現状 vs 提案 の差額表示）
+- 節税効果・財産額の増減の強調表示
 - Excel出力対応（サマリー + 契約一覧 + 相続人別内訳の3シート構成）
 - 印刷対応（A4横向き）
 
@@ -42,10 +42,10 @@
 - 生前贈与（現金）による節税効果のシミュレーション
 - 受取人ごとに年間贈与額・贈与年数を個別設定（受贈者の重複不可）
 - 特例贈与税率（直系尊属→18歳以上の子・孫）で贈与税を自動計算
-- 贈与前（現状）vs 贈与後（提案）の相続税・手取り比較
-- 財産フロー表示（元の遺産→贈与→贈与税→相続税→手取り）
-- 相続人別内訳テーブル（贈与額・贈与税・相続分・納付税額・手取り）
-- 年数別最適贈与比較テーブル（1〜10年の最適年間贈与額と手取り増減）
+- 贈与前（現状）vs 贈与後（提案）の相続税・税引後比較
+- 財産フロー表示（元の遺産→贈与→贈与税→相続税→税引後）
+- 相続人別内訳テーブル（贈与額・贈与税・相続分・納付税額・税引後）
+- 年数別最適贈与比較テーブル（1〜10年の最適年間贈与額と財産額の増減）
 - 贈与総額が遺産総額を超えた場合の警告表示
 - Excel出力対応
 - 印刷対応（A4横向き）
@@ -75,7 +75,6 @@ src/
 │   │   ├── CalculationResult.tsx   # 計算結果サマリー
 │   │   ├── CalculationSteps.tsx    # 計算過程ステップ表示
 │   │   ├── CalculatorExcelExport.tsx # 計算結果Excel出力
-│   │   ├── EstateInput.tsx         # 遺産総額入力
 │   │   ├── HeirBreakdownTable.tsx  # 相続人別内訳テーブル
 │   │   ├── ProgressiveTaxBreakdown.tsx # 超過累進税率の内訳表示
 │   │   └── SpouseAcquisitionSettings.tsx # 配偶者取得割合設定
@@ -104,6 +103,7 @@ src/
 │   ├── CalculateButton.tsx          # 計算ボタン共通
 │   ├── CautionBox.tsx              # 注意書きボックス
 │   ├── CurrencyInput.tsx           # 金額入力（万円 + フォーマット表示）
+│   ├── EstateInput.tsx            # 遺産総額入力（共通）
 │   ├── ExcelExport.tsx             # 早見表Excel出力
 │   ├── ExcelExportButton.tsx       # Excel出力ボタン共通
 │   ├── FlowSteps.tsx               # 財産フロー共通コンポーネント
@@ -120,11 +120,14 @@ src/
 │   ├── TaxTable.tsx                # 税額一覧テーブル
 │   └── tableStyles.ts              # テーブルスタイル定数
 ├── hooks/
+│   ├── useCashGiftSimulation.ts    # 贈与シミュレーション状態管理hook
 │   ├── useCleanOptions.ts          # 選択肢変更時の無効値クリーンアップhook
 │   ├── useColumnHover.ts           # テーブル列ホバーハイライトhook
 │   ├── useExcelExport.ts           # Excel出力状態管理hook
+│   ├── useInsuranceSimulation.ts   # 保険シミュレーション状態管理hook
 │   └── useUniqueOptions.ts         # 選択肢の重複防止hook
 ├── constants/
+│   ├── cautionMessages.ts          # 各ページの注意事項メッセージ
 │   └── index.ts                    # 定数（税率テーブル、基礎控除、会社情報等）
 ├── types/
 │   └── index.ts                    # 型定義
@@ -147,13 +150,90 @@ src/
 
 ### Docker（推奨）
 
+#### 単体起動（このアプリのみ）
+
 ```bash
+# 起動
 docker compose up -d
+
+# 再ビルド（package.json, Dockerfile, nginx設定等の変更時）
+docker compose up -d --build
+
+# ログ確認
+docker compose logs -f
+
+# 再起動
+docker compose restart
+
+# 停止
+docker compose down
 ```
 
 アクセス: http://localhost:3004/inheritance-tax-app/
 
-> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/inheritance-tax-app/ からアクセスできます。
+> 事前に `docker network create tax-apps-network` でネットワークを作成しておく必要があります。
+
+#### manage.bat 経由（全アプリ統合管理）
+
+`docker\scripts\manage.bat` を使うと、Gateway を含む全アプリを一括管理できます。
+
+```bash
+# 全アプリ起動
+manage.bat start
+
+# このアプリのみ再起動
+manage.bat restart inheritance-tax-app
+
+# このアプリのみ再ビルドして起動
+manage.bat build inheritance-tax-app
+
+# このアプリのログ確認
+manage.bat logs inheritance-tax-app
+
+# 全アプリ停止
+manage.bat stop
+```
+
+Gateway 経由アクセス: http://localhost/inheritance-tax-app/
+
+> アプリ名は部分一致で指定可能です（例: `manage.bat restart inheritance-tax`）。
+
+#### コード変更後の反映方法
+
+| 変更内容 | 開発モード | 本番モード |
+|:---------|:----------|:----------|
+| `src/` 内のコード（`.tsx`, `.ts`, `.css`） | 自動反映（Vite HMR） | 再ビルドが必要 |
+| `package.json`（依存関係の追加・更新） | 再ビルドが必要 | 再ビルドが必要 |
+| `Dockerfile`, nginx設定 | 再ビルドが必要 | 再ビルドが必要 |
+| `index.html` | 自動反映（ボリュームマウント） | 再ビルドが必要 |
+
+**開発モード** — ソースコード変更は自動反映されます（`src/` と `index.html` がマウント済み）。反映されない場合:
+
+```bash
+manage.bat restart inheritance-tax-app
+```
+
+**開発モード（再ビルドが必要な場合）**:
+
+```bash
+# manage.bat 経由
+manage.bat build inheritance-tax-app
+
+# または docker compose 直接
+docker compose up -d --build
+```
+
+**本番モード** — コード変更後は必ず再ビルドが必要です（ソースマウントなし、ビルド成果物がイメージに内包されるため）:
+
+```bash
+# manage.bat 経由（全アプリ）
+manage.bat start --prod
+
+# 単体で再ビルド
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+本番ではViteビルド成果物をnginx（1.27-alpine）で配信します。メモリ上限256MBで動作します。
 
 ### ローカル
 
@@ -232,7 +312,7 @@ npm run dev
 | 提案（贈与あり） | 遺産額 − 総贈与額 | 贈与税を別途計算 |
 
 総負担 = 相続税 + 贈与税合計
-手取り = 遺産額 − 総負担
+税引後財産額 = 遺産額 − 総負担
 
 ## ライセンス
 

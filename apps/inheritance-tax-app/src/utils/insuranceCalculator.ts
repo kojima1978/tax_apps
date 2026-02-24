@@ -118,7 +118,7 @@ function calculateScenario(
     baseTaxResult, baseEstate, adjustedEstate, heirBreakdowns, composition, spouseMode,
   );
 
-  // 手取り合計 = (元の遺産 − 保険料) + 保険金全額 − 相続税
+  // 税引後財産額 = (元の遺産 − 保険料) + 保険金全額 − 相続税
   const totalNetProceeds = (baseEstate - premiumDeduction) + totalBenefit - taxResult.totalFinalTax;
 
   return {
@@ -143,7 +143,7 @@ export function getHeirBaseAcquisition(scenario: InsuranceScenarioResult, index:
   return tax.acquisitionAmount + ins.premiumPaid - ins.taxableAmount;
 }
 
-/** 手取り = 遺産取得額 − 保険料負担 + 受取保険金 − 納付税額 */
+/** 税引後取得額 = 遺産取得額 − 保険料負担 + 受取保険金 − 納付税額 */
 export function getHeirNetProceeds(scenario: InsuranceScenarioResult, index: number): number {
   const ins = scenario.heirBreakdowns[index];
   const tax = scenario.taxResult.heirBreakdowns[index];
