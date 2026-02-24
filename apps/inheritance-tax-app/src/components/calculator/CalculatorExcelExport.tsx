@@ -4,6 +4,7 @@ import { formatCurrency, formatPercent, formatFraction, getHeirInfo, getScenario
 import { BASIC_DEDUCTION } from '../../constants';
 import { FILLS, ALL_THIN_BORDERS, ALL_GREEN_BORDERS, setupExcelWorkbook, addSectionHeader, addLabelValueRow, applyTableHeaderStyle, saveWorkbook } from '../../utils/excelStyles';
 import { useExcelExport } from '../../hooks/useExcelExport';
+import { useStaffInfo } from '../../contexts/StaffContext';
 import { ExcelExportButton } from '../ExcelExportButton';
 
 interface CalculatorExcelExportProps {
@@ -17,6 +18,8 @@ export const CalculatorExcelExport: React.FC<CalculatorExcelExportProps> = memo(
   composition,
   spouseMode,
 }) => {
+  const { staffName, staffPhone } = useStaffInfo();
+
   const exportFn = useCallback(async () => {
     const ExcelJS = await import('exceljs');
 
@@ -27,6 +30,7 @@ export const CalculatorExcelExport: React.FC<CalculatorExcelExportProps> = memo(
       title: '相続税計算結果',
       colCount,
       pageSetup: { paperSize: 9, orientation: 'portrait' },
+      staffInfo: { name: staffName, phone: staffPhone },
     });
 
     // --- 入力条件セクション ---
@@ -108,7 +112,7 @@ export const CalculatorExcelExport: React.FC<CalculatorExcelExportProps> = memo(
 
     // --- ファイル生成 ---
     await saveWorkbook(workbook, `相続税計算_${getScenarioName(composition)}_${formatCurrency(result.estateValue)}.xlsx`);
-  }, [result, composition, spouseMode]);
+  }, [result, composition, spouseMode, staffName, staffPhone]);
 
   const { isExporting, error, handleExport } = useExcelExport(exportFn);
 

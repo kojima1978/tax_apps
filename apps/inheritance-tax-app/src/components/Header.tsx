@@ -8,6 +8,7 @@ import Shield from 'lucide-react/icons/shield';
 import Gift from 'lucide-react/icons/gift';
 import Printer from 'lucide-react/icons/printer';
 import { COMPANY_INFO } from '../constants';
+import { useStaffInfo } from '../contexts/StaffContext';
 
 const NAV_ITEMS = [
   { to: '/', label: '早見表', icon: Table },
@@ -21,7 +22,11 @@ interface HeaderProps {
   actions?: React.ReactNode;
 }
 
+const STAFF_INPUT = 'bg-transparent border-b border-green-300 text-green-100 placeholder-green-300/60 text-sm px-1 py-0.5 focus:outline-none focus:border-white w-32';
+
 export const Header: React.FC<HeaderProps> = ({ actions }) => {
+  const { staffName, staffPhone, setStaffName, setStaffPhone } = useStaffInfo();
+
   return (
     <header className="bg-gradient-to-r from-green-600 to-green-800 text-white shadow-lg no-print">
       <div className="max-w-7xl mx-auto py-6 px-8">
@@ -40,6 +45,28 @@ export const Header: React.FC<HeaderProps> = ({ actions }) => {
             <p className="text-green-100">{COMPANY_INFO.postalCode}</p>
             <p className="text-green-100">{COMPANY_INFO.address}</p>
             <p className="text-green-100 mt-1">TEL: {COMPANY_INFO.phone}</p>
+            <div className="flex items-center gap-3 mt-2 text-xs">
+              <label className="flex items-center gap-1">
+                <span className="text-green-200">担当</span>
+                <input
+                  type="text"
+                  value={staffName}
+                  onChange={e => setStaffName(e.target.value)}
+                  placeholder="担当者名"
+                  className={STAFF_INPUT}
+                />
+              </label>
+              <label className="flex items-center gap-1">
+                <span className="text-green-200">TEL</span>
+                <input
+                  type="tel"
+                  value={staffPhone}
+                  onChange={e => setStaffPhone(e.target.value)}
+                  placeholder="電話番号"
+                  className={STAFF_INPUT}
+                />
+              </label>
+            </div>
           </address>
         </div>
       </div>

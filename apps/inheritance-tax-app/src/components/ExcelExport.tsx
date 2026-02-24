@@ -4,6 +4,7 @@ import { formatCurrency, formatPercent, getScenarioName } from '../utils';
 import { isHighlightRow } from '../constants';
 import { FILLS, GREEN_BORDER, ALL_THIN_BORDERS, applyMainHeaderStyle, setupExcelWorkbook, saveWorkbook } from '../utils/excelStyles';
 import { useExcelExport } from '../hooks/useExcelExport';
+import { useStaffInfo } from '../contexts/StaffContext';
 import { ExcelExportButton } from './ExcelExportButton';
 
 interface ExcelExportProps {
@@ -16,6 +17,7 @@ export const ExcelExport: React.FC<ExcelExportProps> = memo(({
   composition,
 }) => {
   const hasSpouse = composition.hasSpouse;
+  const { staffName, staffPhone } = useStaffInfo();
 
   const exportFn = useCallback(async () => {
     const ExcelJS = await import('exceljs');
@@ -26,6 +28,7 @@ export const ExcelExport: React.FC<ExcelExportProps> = memo(({
       title: '相続税早見表',
       colCount: 6,
       pageSetup: { paperSize: 9, orientation: 'landscape' },
+      staffInfo: { name: staffName, phone: staffPhone },
     });
 
     // メインヘッダー（1次相続・2次相続）
@@ -103,7 +106,7 @@ export const ExcelExport: React.FC<ExcelExportProps> = memo(({
     ];
 
     await saveWorkbook(workbook, `相続税早見表_${getScenarioName(composition)}.xlsx`);
-  }, [data, hasSpouse, composition]);
+  }, [data, hasSpouse, composition, staffName, staffPhone]);
 
   const { isExporting, error, handleExport } = useExcelExport(exportFn);
 

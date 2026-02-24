@@ -3,6 +3,7 @@ import type { InsuranceSimulationResult, InsuranceContract, HeirComposition } fr
 import { formatCurrency, formatDelta, formatDeltaArrow, formatSavingArrow, getScenarioName, getHeirNetProceeds, getHeirBaseAcquisition } from '../../utils';
 import { FILLS, ALL_THIN_BORDERS, ALL_GREEN_BORDERS, solidFill, setupExcelWorkbook, addSectionHeader, addLabelValueRow, applyTableHeaderStyle, addHighlightRows, addHeirComparisonSection, saveWorkbook } from '../../utils/excelStyles';
 import { useExcelExport } from '../../hooks/useExcelExport';
+import { useStaffInfo } from '../../contexts/StaffContext';
 import { ExcelExportButton } from '../ExcelExportButton';
 
 interface InsuranceExcelExportProps {
@@ -20,6 +21,8 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
   existingContracts,
   newContracts,
 }) => {
+  const { staffName, staffPhone } = useStaffInfo();
+
   const exportFn = useCallback(async () => {
     const ExcelJS = await import('exceljs');
 
@@ -30,6 +33,7 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
       title: '死亡保険金シミュレーション',
       colCount,
       pageSetup: { paperSize: 9, orientation: 'landscape' },
+      staffInfo: { name: staffName, phone: staffPhone },
     });
 
     // --- 入力条件 ---
@@ -247,7 +251,7 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
 
     // --- 保存 ---
     await saveWorkbook(workbook, `保険金シミュレーション_${getScenarioName(composition)}_${formatCurrency(estateValue)}.xlsx`);
-  }, [result, composition, estateValue, existingContracts, newContracts]);
+  }, [result, composition, estateValue, existingContracts, newContracts, staffName, staffPhone]);
 
   const { isExporting, error, handleExport } = useExcelExport(exportFn);
 
