@@ -12,7 +12,7 @@ export const InsuranceFlowSteps: React.FC<InsuranceFlowStepsProps> = ({ result }
 
   const steps: FlowStep[] = [
     {
-      title: '元の遺産額',
+      title: '元の財産額',
       description: '保険金を含まない相続財産',
       currentValue: baseEstate,
       proposedValue: baseEstate,
@@ -53,7 +53,7 @@ export const InsuranceFlowSteps: React.FC<InsuranceFlowStepsProps> = ({ result }
       sign: '−',
     },
     {
-      title: '手取り合計',
+      title: '税引後財産額',
       description: '遺産 + 保険金 − 税額',
       currentValue: current.totalNetProceeds,
       proposedValue: proposed.totalNetProceeds,

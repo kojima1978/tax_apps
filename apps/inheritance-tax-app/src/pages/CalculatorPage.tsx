@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Header } from '../components/Header';
 import { HeirSettings } from '../components/HeirSettings';
-import { EstateInput } from '../components/calculator/EstateInput';
+import { EstateInput } from '../components/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { CalculationResult } from '../components/calculator/CalculationResult';
 import { CalculatorExcelExport } from '../components/calculator/CalculatorExcelExport';
@@ -10,6 +10,7 @@ import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
 import type { HeirComposition, SpouseAcquisitionMode } from '../types';
 import { createDefaultComposition } from '../constants';
+import { CALCULATOR_CAUTIONS } from '../constants/cautionMessages';
 import { calculateDetailedInheritanceTax, calculateBracketAnalysis } from '../utils';
 
 export const CalculatorPage: React.FC = () => {
@@ -50,15 +51,7 @@ export const CalculatorPage: React.FC = () => {
               onChange={setSpouseMode}
               hasSpouse={composition.hasSpouse}
             />
-            <CautionBox
-              items={[
-                'この計算は概算です。実際の税額は個別の事情により異なります。',
-                '配偶者の税額軽減は、法定相続分または1億6,000万円のいずれか大きい額まで適用されます。',
-                '第3順位（兄弟姉妹）の相続人には2割加算が適用されます。',
-                '未成年者控除・障害者控除等の税額控除は考慮していません。',
-                '詳細は税理士にご相談ください。',
-              ]}
-            />
+            <CautionBox items={CALCULATOR_CAUTIONS} />
           </div>
         </div>
 

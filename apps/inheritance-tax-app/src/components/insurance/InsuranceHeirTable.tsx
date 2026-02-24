@@ -35,7 +35,7 @@ const ScenarioTable: React.FC<{
               <th className={TH}>保険料負担</th>
               <th className={TH}>受取保険金</th>
               <th className={TH}>納付税額</th>
-              <th className={TH}>手取り</th>
+              <th className={TH}>税引後</th>
             </tr>
           </thead>
           <tbody>
@@ -82,15 +82,17 @@ export const InsuranceHeirTable: React.FC<InsuranceHeirTableProps> = ({ result }
         <ScenarioTable scenario={proposed} headerBg="bg-green-600" />
       </div>
 
-      <HeirNetComparisonTable
-        heirCount={heirCount}
-        getLabel={i => current.heirBreakdowns[i]?.label || ''}
-        getCurrentNet={i => getHeirNetProceeds(current, i)}
-        getProposedNet={i => getHeirNetProceeds(proposed, i)}
-        totalCurrentNet={current.totalNetProceeds}
-        totalProposedNet={proposed.totalNetProceeds}
-        totalDiff={result.netProceedsDiff}
-      />
+      <div className="print-page-break">
+        <HeirNetComparisonTable
+          heirCount={heirCount}
+          getLabel={i => current.heirBreakdowns[i]?.label || ''}
+          getCurrentNet={i => getHeirNetProceeds(current, i)}
+          getProposedNet={i => getHeirNetProceeds(proposed, i)}
+          totalCurrentNet={current.totalNetProceeds}
+          totalProposedNet={proposed.totalNetProceeds}
+          totalDiff={result.netProceedsDiff}
+        />
+      </div>
     </div>
   );
 };

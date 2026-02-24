@@ -29,7 +29,7 @@ const RecipientDetailTable: React.FC<{ recipientResults: GiftRecipientResult[] }
               <th className={TH}>総贈与額</th>
               <th className={TH}>年間贈与税</th>
               <th className={TH}>総贈与税</th>
-              <th className={TH}>手取り贈与</th>
+              <th className={TH}>差引贈与</th>
             </tr>
           </thead>
           <tbody>
@@ -86,7 +86,7 @@ const ScenarioTable: React.FC<{
               <th className={TH}>贈与受取額</th>
               <th className={TH}>贈与税負担</th>
               <th className={TH}>納付相続税</th>
-              <th className={TH}>手取り</th>
+              <th className={TH}>税引後</th>
             </tr>
           </thead>
           <tbody>

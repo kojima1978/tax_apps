@@ -16,7 +16,7 @@ export type ComparisonRowDef<T> = {
 export type HighlightItem = {
   label: string;
   value: number;
-  format: 'saving' | 'gain';
+  format: 'saving' | 'gain' | 'ratio';
   footnote?: React.ReactNode;
 };
 
@@ -26,6 +26,7 @@ interface ScenarioComparisonCardProps<T> {
   rows: ComparisonRowDef<T>[];
   topSlot?: React.ReactNode;
   highlights: HighlightItem[];
+  bottomSlot?: React.ReactNode;
 }
 
 export function ScenarioComparisonCard<T>({
@@ -34,6 +35,7 @@ export function ScenarioComparisonCard<T>({
   rows,
   topSlot,
   highlights,
+  bottomSlot,
 }: ScenarioComparisonCardProps<T>) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -77,20 +79,24 @@ export function ScenarioComparisonCard<T>({
       </div>
 
       {/* 結果ハイライト */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${highlights.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {highlights.map(h => {
-          const isPositive = h.format === 'saving' ? h.value > 0 : h.value > 0;
+          const isRatio = h.format === 'ratio';
+          const isPositive = isRatio ? h.value >= 100 : h.value > 0;
           const isNegative = h.format === 'gain' && h.value < 0;
-          const formatted = h.format === 'saving' ? formatSavingArrow(h.value) : formatDeltaArrow(h.value);
+          const formatted = isRatio
+            ? (h.value >= 0 ? `${h.value}%` : '—')
+            : h.format === 'saving' ? formatSavingArrow(h.value) : formatDeltaArrow(h.value);
+          const bgClass = isRatio
+            ? (isPositive ? 'bg-blue-50 border-2 border-blue-300' : 'bg-amber-50 border-2 border-amber-300')
+            : (isPositive ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200');
+          const textClass = isRatio
+            ? (isPositive ? 'text-blue-700' : 'text-amber-700')
+            : (isPositive ? 'text-green-700' : isNegative ? 'text-red-600' : 'text-gray-600');
           return (
-            <div
-              key={h.label}
-              className={`rounded-lg p-4 text-center ${isPositive ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200'}`}
-            >
+            <div key={h.label} className={`rounded-lg p-4 text-center ${bgClass}`}>
               <p className="text-xs text-gray-500 mb-1">{h.label}</p>
-              <p className={`text-xl font-bold ${isPositive ? 'text-green-700' : isNegative ? 'text-red-600' : 'text-gray-600'}`}>
-                {formatted}
-              </p>
+              <p className={`text-xl font-bold ${textClass}`}>{formatted}</p>
               {h.footnote && (
                 <p className="text-xs text-gray-500 mt-1">{h.footnote}</p>
               )}
@@ -98,6 +104,8 @@ export function ScenarioComparisonCard<T>({
           );
         })}
       </div>
+
+      {bottomSlot && <div className="mt-4">{bottomSlot}</div>}
     </div>
   );
 }

@@ -50,14 +50,14 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
 
     type CompRow = { label: string; cur: number; prop: number; highlight?: boolean; displayPrefix?: string };
     const compData: CompRow[] = [
-      { label: '元の遺産額', cur: baseEstate, prop: baseEstate },
+      { label: '元の財産額', cur: baseEstate, prop: baseEstate },
       { label: '新規保険料', cur: 0, prop: newPremiumTotal, displayPrefix: 'ー' },
       { label: '受取保険金（全額）', cur: current.totalBenefit, prop: proposed.totalBenefit },
       { label: '非課税額', cur: current.nonTaxableAmount, prop: proposed.nonTaxableAmount },
       { label: '課税対象保険金', cur: current.taxableInsurance, prop: proposed.taxableInsurance },
       { label: '課税遺産額', cur: current.adjustedEstate, prop: proposed.adjustedEstate },
       { label: '相続税額', cur: current.taxResult.totalFinalTax, prop: proposed.taxResult.totalFinalTax },
-      { label: '手取り合計', cur: current.totalNetProceeds, prop: proposed.totalNetProceeds, highlight: true },
+      { label: '税引後財産額', cur: current.totalNetProceeds, prop: proposed.totalNetProceeds, highlight: true },
     ];
 
     compData.forEach(({ label, cur, prop, highlight, displayPrefix }) => {
@@ -76,7 +76,7 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
     // 結果ハイライト行
     addHighlightRows(worksheet, colCount, [
       ['節税効果', formatSavingArrow(taxSaving)],
-      ['手取り増減', formatDeltaArrow(netProceedsDiff)],
+      ['財産額の増減', formatDeltaArrow(netProceedsDiff)],
     ]);
 
     worksheet.addRow([]);
@@ -150,14 +150,14 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
       { width: 8 }, { width: 14 }, { width: 18 }, { width: 18 }, { width: 18 },
     ];
 
-    // === Sheet 3: 相続人別内訳（手取り列付き） ===
+    // === Sheet 3: 相続人別内訳（税引後列付き） ===
     const heirSheet = workbook.addWorksheet('相続人別内訳', {
       pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
     });
 
     heirSheet.mergeCells(1, 1, 1, 6);
     const heirTitle = heirSheet.getCell('A1');
-    heirTitle.value = '相続人別 保険内訳・手取り比較';
+    heirTitle.value = '相続人別 保険内訳・税引後比較';
     heirTitle.font = { size: 18, bold: true, color: { argb: 'FF16A34A' } };
     heirTitle.alignment = { vertical: 'middle', horizontal: 'center' };
     heirSheet.getRow(1).height = 30;
@@ -172,14 +172,14 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
       const secRowNum = heirSheet.rowCount + 1;
       heirSheet.mergeCells(secRowNum, 1, secRowNum, 6);
       const secCell = heirSheet.getCell(`A${secRowNum}`);
-      secCell.value = `${scenario.label}（税額: ${formatCurrency(scenario.taxResult.totalFinalTax)} / 手取り: ${formatCurrency(scenario.totalNetProceeds)}）`;
+      secCell.value = `${scenario.label}（税額: ${formatCurrency(scenario.taxResult.totalFinalTax)} / 税引後: ${formatCurrency(scenario.totalNetProceeds)}）`;
       secCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
       secCell.fill = headerFill;
       secCell.alignment = { vertical: 'middle', horizontal: 'left' };
       secCell.border = ALL_GREEN_BORDERS;
       heirSheet.getRow(secRowNum).height = 24;
 
-      const colHeaders = ['相続人', '遺産取得額', '保険料負担', '受取保険金', '納付税額', '手取り'];
+      const colHeaders = ['相続人', '遺産取得額', '保険料負担', '受取保険金', '納付税額', '税引後'];
       const hdr = heirSheet.addRow(colHeaders);
       hdr.eachCell((cell: any) => {
         cell.font = { bold: true, size: 10 };
@@ -227,7 +227,7 @@ export const InsuranceExcelExport: React.FC<InsuranceExcelExportProps> = memo(({
       heirSheet.addRow([]);
     });
 
-    // 手取り比較セクション
+    // 税引後比較セクション
     const heirCount = current.heirBreakdowns.length;
     addHeirComparisonSection(heirSheet, 6, {
       heirCount,

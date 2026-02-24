@@ -12,6 +12,7 @@ import { CautionBox } from '../components/CautionBox';
 import type { HeirComposition, TaxCalculationResult } from '../types';
 import type { BracketAnalysisRow } from '../utils';
 import { TABLE_CONFIG, createDefaultComposition, RANK_LABELS } from '../constants';
+import { TABLE_CAUTIONS } from '../constants/cautionMessages';
 import { calculateInheritanceTax, calculateBracketAnalysis, getHeirInfo } from '../utils';
 
 export const TablePage: React.FC = () => {
@@ -56,14 +57,7 @@ export const TablePage: React.FC = () => {
               maxValue={maxValue}
               onMaxValueChange={setMaxValue}
             />
-            <CautionBox
-              items={[
-                'この早見表は概算です。実際の税額は個別の事情により異なります。',
-                '配偶者控除は配偶者の法定相続分（最大1.6億円）まで非課税となります。',
-                '第3順位（兄弟姉妹）の相続人には2割加算が適用されます。',
-                '詳細は税理士にご相談ください。',
-              ]}
-            />
+            <CautionBox items={TABLE_CAUTIONS} />
           </div>
         </div>
 
