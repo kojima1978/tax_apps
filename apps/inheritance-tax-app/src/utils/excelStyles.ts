@@ -41,10 +41,14 @@ interface WorkbookSetupConfig {
     paperSize: number;
     orientation: 'portrait' | 'landscape';
   };
+  staffInfo?: { name: string; phone: string };
 }
 
-export function setupExcelWorkbook({ ExcelJS, sheetName, title, colCount, pageSetup }: WorkbookSetupConfig) {
-  const COMPANY_FULL = `${COMPANY_INFO.name}　${COMPANY_INFO.postalCode} ${COMPANY_INFO.address}　TEL: ${COMPANY_INFO.phone}`;
+export function setupExcelWorkbook({ ExcelJS, sheetName, title, colCount, pageSetup, staffInfo }: WorkbookSetupConfig) {
+  const staffPart = staffInfo && (staffInfo.name || staffInfo.phone)
+    ? `　${staffInfo.name ? `担当: ${staffInfo.name}` : ''}${staffInfo.name && staffInfo.phone ? '　' : ''}${staffInfo.phone ? `TEL: ${staffInfo.phone}` : ''}`
+    : '';
+  const COMPANY_FULL = `${COMPANY_INFO.name}　${COMPANY_INFO.postalCode} ${COMPANY_INFO.address}　TEL: ${COMPANY_INFO.phone}${staffPart}`;
   const COMPANY_FOOTER = `${COMPANY_INFO.name}　TEL: ${COMPANY_INFO.phone}`;
 
   const workbook = new ExcelJS.Workbook();

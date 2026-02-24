@@ -3,6 +3,7 @@ import type { CashGiftSimulationResult, GiftRecipient, HeirComposition } from '.
 import { formatCurrency, formatDelta, formatDeltaArrow, formatSavingArrow, getScenarioName, getGiftHeirNetProceeds } from '../../utils';
 import { FILLS, ALL_THIN_BORDERS, ALL_GREEN_BORDERS, solidFill, setupExcelWorkbook, addSectionHeader, addLabelValueRow, applyTableHeaderStyle, addHighlightRows, addHeirComparisonSection, saveWorkbook } from '../../utils/excelStyles';
 import { useExcelExport } from '../../hooks/useExcelExport';
+import { useStaffInfo } from '../../contexts/StaffContext';
 import { ExcelExportButton } from '../ExcelExportButton';
 
 interface CashGiftExcelExportProps {
@@ -18,6 +19,8 @@ export const CashGiftExcelExport: React.FC<CashGiftExcelExportProps> = memo(({
   estateValue,
   recipients,
 }) => {
+  const { staffName, staffPhone } = useStaffInfo();
+
   const exportFn = useCallback(async () => {
     const ExcelJS = await import('exceljs');
 
@@ -28,6 +31,7 @@ export const CashGiftExcelExport: React.FC<CashGiftExcelExportProps> = memo(({
       title: '現金贈与シミュレーション',
       colCount,
       pageSetup: { paperSize: 9, orientation: 'landscape' },
+      staffInfo: { name: staffName, phone: staffPhone },
     });
 
     // --- 入力条件 ---
@@ -237,7 +241,7 @@ export const CashGiftExcelExport: React.FC<CashGiftExcelExportProps> = memo(({
 
     // --- 保存 ---
     await saveWorkbook(workbook, `贈与シミュレーション_${getScenarioName(composition)}_${formatCurrency(estateValue)}.xlsx`);
-  }, [result, composition, estateValue, recipients]);
+  }, [result, composition, estateValue, recipients, staffName, staffPhone]);
 
   const { isExporting, error, handleExport } = useExcelExport(exportFn);
 

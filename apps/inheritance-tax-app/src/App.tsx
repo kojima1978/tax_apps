@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { StaffProvider } from './contexts/StaffContext';
 import { TablePage } from './pages/TablePage';
 import { CalculatorPage } from './pages/CalculatorPage';
 import { ComparisonPage } from './pages/ComparisonPage';
@@ -7,6 +8,7 @@ import { CashGiftPage } from './pages/CashGiftPage';
 
 function App() {
   return (
+    <StaffProvider>
     <div className="min-h-screen bg-gray-50">
       <Routes>
         <Route path="/" element={<TablePage />} />
@@ -22,6 +24,7 @@ function App() {
         </div>
       </footer>
     </div>
+    </StaffProvider>
   );
 }
 
