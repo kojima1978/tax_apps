@@ -1,56 +1,56 @@
 @echo off
 setlocal enabledelayedexpansion
 :: ============================================
-:: Tax Apps 個別コンテナ管理スクリプト
+:: Tax Apps ???R???e?i????X?N???v?g
 :: ============================================
 ::
 :: Usage:
-::   manage.bat start              全アプリを起動（ネットワーク自動作成）
-::   manage.bat start --prod       全アプリを本番モードで起動
-::   manage.bat stop               全アプリを停止
-::   manage.bat down               全アプリを停止してコンテナ削除
-::   manage.bat restart <app>      指定アプリのみ再起動
-::   manage.bat build <app>        指定アプリを再ビルドして起動
-::   manage.bat logs <app>         指定アプリのログ表示
-::   manage.bat status             全アプリの状態表示
-::   manage.bat backup             全データベース・データをバックアップ
-::   manage.bat restore [dir]      バックアップからリストア
-::   manage.bat clean              コンテナ・イメージのクリーンアップ
-::   manage.bat preflight          起動前環境チェック
+::   manage.bat start              ?S?A?v?????N???i?l?b?g???[?N???????j
+::   manage.bat start --prod       ?S?A?v????{????[?h??N??
+::   manage.bat stop               ?S?A?v?????~
+::   manage.bat down               ?S?A?v?????~????R???e?i??
+::   manage.bat restart <app>      ?w??A?v??????N??
+::   manage.bat build <app>        ?w??A?v??????r???h????N??
+::   manage.bat logs <app>         ?w??A?v??????O?\??
+::   manage.bat status             ?S?A?v??????\??
+::   manage.bat backup             ?S?f?[?^?x?[?X?E?f?[?^???o?b?N?A?b?v
+::   manage.bat restore [dir]      ?o?b?N?A?b?v?????X?g?A
+::   manage.bat clean              ?R???e?i?E?C???[?W??N???[???A?b?v
+::   manage.bat preflight          ?N???O????`?F?b?N
 ::
 :: ============================================
 
-:: プロジェクトルート（docker/scripts/ の2つ上）
+:: ?v???W?F?N?g???[?g?idocker/scripts/ ??2???j
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%\..\..\") do set "PROJECT_ROOT=%%~fI"
-:: 末尾の \ を除去
+:: ?????? \ ??????
 if "%PROJECT_ROOT:~-1%"=="\" set "PROJECT_ROOT=%PROJECT_ROOT:~0,-1%"
 
-:: 外部ネットワーク名
+:: ?O???l?b?g???[?N??
 set "NETWORK_NAME=tax-apps-network"
 
-:: バックアップディレクトリ
+:: ?o?b?N?A?b?v?f?B???N?g??
 set "BACKUP_BASE=%SCRIPT_DIR%..\backups"
 
 :: ------------------------------------
-:: アプリ一覧（起動順序を考慮）
-:: gateway は最初、DB依存アプリは DB→App の順
+:: ?A?v?????i?N?????????l???j
+:: gateway ????(upstream????O???????K?v)?ADB????A?v???? DB??App ???
 :: ------------------------------------
 set "APP_COUNT=11"
-set "APP_1=docker\gateway"
-set "APP_2=apps\inheritance-case-management"
-set "APP_3=apps\bank-analyzer-django"
-set "APP_4=apps\Required-documents-for-tax-return"
-set "APP_5=apps\medical-stock-valuation"
-set "APP_6=apps\shares-valuation"
-set "APP_7=apps\inheritance-tax-app"
-set "APP_8=apps\gift-tax-simulator"
-set "APP_9=apps\gift-tax-docs"
-set "APP_10=apps\inheritance-tax-docs"
-set "APP_11=apps\retirement-tax-calc"
+set "APP_1=apps\inheritance-case-management"
+set "APP_2=apps\bank-analyzer-django"
+set "APP_3=apps\Required-documents-for-tax-return"
+set "APP_4=apps\medical-stock-valuation"
+set "APP_5=apps\shares-valuation"
+set "APP_6=apps\inheritance-tax-app"
+set "APP_7=apps\gift-tax-simulator"
+set "APP_8=apps\gift-tax-docs"
+set "APP_9=apps\inheritance-tax-docs"
+set "APP_10=apps\retirement-tax-calc"
+set "APP_11=docker\gateway"
 
 :: ------------------------------------
-:: メイン
+:: ???C??
 :: ------------------------------------
 if /i "%~1"=="" goto :show_help
 if /i "%~1"=="--help" goto :show_help
@@ -69,7 +69,7 @@ if /i "%~1"=="preflight" goto :cmd_preflight
 goto :show_help
 
 :: ============================================================
-:: start - 全アプリを起動
+:: start - ?S?A?v?????N??
 :: ============================================================
 :cmd_start
 set "PROD_MODE=0"
@@ -84,47 +84,47 @@ if !ERRORLEVEL! neq 0 (
 call :ensure_network
 echo.
 if "!PROD_MODE!"=="1" (
-    echo [manage] 全アプリを本番モードで起動します...
+    echo [manage] ?S?A?v????{????[?h??N???????...
 ) else (
-    echo [manage] 全アプリを起動します...
+    echo [manage] ?S?A?v?????N???????...
 )
 echo.
 for /L %%I in (1,1,%APP_COUNT%) do call :do_start_app %%I
 echo.
-echo [manage] 全アプリの起動が完了しました
+echo [manage] ?S?A?v????N???????????????
 call :cmd_status_inner
 goto :end
 
 :: ============================================================
-:: stop - 全アプリを停止（逆順）
+:: stop - ?S?A?v?????~?i?t???j
 :: ============================================================
 :cmd_stop
 echo.
-echo [manage] 全アプリを停止します...
+echo [manage] ?S?A?v?????~?????...
 echo.
 for /L %%I in (%APP_COUNT%,-1,1) do call :do_stop_app %%I
 echo.
-echo [manage] 全アプリを停止しました
+echo [manage] ?S?A?v?????~???????
 goto :end
 
 :: ============================================================
-:: down - 全アプリを停止・削除（逆順）
+:: down - ?S?A?v?????~?E???i?t???j
 :: ============================================================
 :cmd_down
 echo.
-echo [manage] 全アプリを停止・削除します...
+echo [manage] ?S?A?v?????~?E???????...
 echo.
 for /L %%I in (%APP_COUNT%,-1,1) do call :do_down_app %%I
 echo.
-echo [manage] 全アプリを削除しました
+echo [manage] ?S?A?v?????????????
 goto :end
 
 :: ============================================================
-:: restart <app> - 指定アプリを再起動
+:: restart <app> - ?w??A?v??????N??
 :: ============================================================
 :cmd_restart
 if "%~2"=="" (
-    echo [ERROR] アプリ名を指定してください
+    echo [ERROR] ?A?v???????w???????????
     echo Usage: manage.bat restart ^<app-name^>
     call :show_apps
     goto :end
@@ -134,17 +134,17 @@ if "!RESOLVED_DIR!"=="" goto :end
 call :ensure_network
 for %%N in ("!RESOLVED_DIR!") do set "APP_NAME=%%~nxN"
 echo.
-echo [manage] !APP_NAME! を再起動します...
+echo [manage] !APP_NAME! ????N???????...
 docker compose -f "!RESOLVED_DIR!\docker-compose.yml" restart
-echo [manage] !APP_NAME! を再起動しました
+echo [manage] !APP_NAME! ????N?????????
 goto :end
 
 :: ============================================================
-:: build <app> - 指定アプリを再ビルドして起動
+:: build <app> - ?w??A?v??????r???h????N??
 :: ============================================================
 :cmd_build
 if "%~2"=="" (
-    echo [ERROR] アプリ名を指定してください
+    echo [ERROR] ?A?v???????w???????????
     echo Usage: manage.bat build ^<app-name^>
     call :show_apps
     goto :end
@@ -154,17 +154,17 @@ if "!RESOLVED_DIR!"=="" goto :end
 call :ensure_network
 for %%N in ("!RESOLVED_DIR!") do set "APP_NAME=%%~nxN"
 echo.
-echo [manage] !APP_NAME! を再ビルドして起動します...
+echo [manage] !APP_NAME! ????r???h????N???????...
 docker compose -f "!RESOLVED_DIR!\docker-compose.yml" up -d --build
-echo [manage] !APP_NAME! のビルドが完了しました
+echo [manage] !APP_NAME! ??r???h?????????????
 goto :end
 
 :: ============================================================
-:: logs <app> - 指定アプリのログ表示
+:: logs <app> - ?w??A?v??????O?\??
 :: ============================================================
 :cmd_logs
 if "%~2"=="" (
-    echo [ERROR] アプリ名を指定してください
+    echo [ERROR] ?A?v???????w???????????
     echo Usage: manage.bat logs ^<app-name^>
     call :show_apps
     goto :end
@@ -175,7 +175,7 @@ docker compose -f "!RESOLVED_DIR!\docker-compose.yml" logs -f
 goto :end
 
 :: ============================================================
-:: status - 全アプリの状態表示
+:: status - ?S?A?v??????\??
 :: ============================================================
 :cmd_status
 call :cmd_status_inner
@@ -184,7 +184,7 @@ goto :end
 :cmd_status_inner
 echo.
 echo ============================================================
-echo   Tax Apps コンテナ状態
+echo   Tax Apps ?R???e?i???
 echo ============================================================
 echo.
 for /L %%I in (1,1,%APP_COUNT%) do call :do_status_app %%I
@@ -193,7 +193,7 @@ echo ============================================================
 goto :eof
 
 :: ============================================================
-:: backup - 全データベース・データをバックアップ
+:: backup - ?S?f?[?^?x?[?X?E?f?[?^???o?b?N?A?b?v
 :: ============================================================
 :cmd_backup
 echo.
@@ -364,7 +364,7 @@ echo.
 goto :end
 
 :: ============================================================
-:: restore [dir] - バックアップからリストア
+:: restore [dir] - ?o?b?N?A?b?v?????X?g?A
 :: ============================================================
 :cmd_restore
 echo.
@@ -389,7 +389,7 @@ if not "%~2"=="" (
     echo.
 )
 
-:: バックアップ一覧を表示
+:: ?o?b?N?A?b?v????\??
 set "COUNT=0"
 for /f "delims=" %%D in ('dir /b /ad /o-n "%BACKUP_BASE%\" 2^>nul') do (
     set /a COUNT+=1
@@ -431,7 +431,7 @@ set "BACKUP_DIR=%BACKUP_BASE%\!BACKUP_%CHOICE_NUM%!"
 echo Restore from: !BACKUP_DIR!\
 echo.
 
-:: バックアップ内容を表示
+:: ?o?b?N?A?b?v???e??\??
 echo Contents:
 dir /b "!BACKUP_DIR!" 2>nul
 echo.
@@ -604,7 +604,7 @@ if !RESTORE_OK! gtr 0 (
 goto :end
 
 :: ============================================================
-:: clean - クリーンアップ
+:: clean - ?N???[???A?b?v
 :: ============================================================
 :cmd_clean
 echo.
@@ -615,59 +615,59 @@ echo.
 echo   * Backup recommendation: manage.bat backup
 echo.
 
-:: Step 1: コンテナ・イメージの削除
-echo [Step 1] コンテナ・イメージの削除
+:: Step 1: ?R???e?i?E?C???[?W???
+echo [Step 1] ?R???e?i?E?C???[?W???
 echo.
-echo   以下が削除されます:
-echo     - 全コンテナ（停止中を含む）
-echo     - ビルドされた Docker イメージ
+echo   ?????????????:
+echo     - ?S?R???e?i?i??~???????j
+echo     - ?r???h???? Docker ?C???[?W
 echo.
 
-set /p "CONFIRM1=  削除してよろしいですか？ (Y/N): "
+set /p "CONFIRM1=  ????????????????H (Y/N): "
 if /i not "!CONFIRM1!"=="Y" (
     echo.
-    echo キャンセルしました。
+    echo ?L?????Z??????????B
     goto :end
 )
 
 echo.
-echo コンテナを停止・削除しています...
+echo ?R???e?i???~?E??????????...
 
 for /L %%I in (%APP_COUNT%,-1,1) do call :do_clean_app %%I
 
 echo.
-echo [OK]    コンテナ・イメージを削除しました
+echo [OK]    ?R???e?i?E?C???[?W???????????
 
-:: ネットワークの削除
+:: ?l?b?g???[?N???
 docker network inspect %NETWORK_NAME% >nul 2>&1
 if !ERRORLEVEL! equ 0 (
     docker network rm %NETWORK_NAME% >nul 2>&1
-    echo [OK]    %NETWORK_NAME% を削除しました
+    echo [OK]    %NETWORK_NAME% ???????????
 )
 
-:: Step 2: データボリュームの削除（オプション）
+:: Step 2: ?f?[?^?{?????[??????i?I?v?V?????j
 echo.
-echo [Step 2] データボリュームの削除
+echo [Step 2] ?f?[?^?{?????[?????
 echo.
-echo   以下のデータが完全に削除されます（復元できません）:
+echo   ?????f?[?^?????S??????????i????????????j:
 echo.
 echo     inheritance-case-management_postgres_data   ITCM PostgreSQL
-echo     bank-analyzer-postgres                      銀行分析 PostgreSQL
-echo     bank-analyzer-sqlite                        銀行分析 SQLite
-echo     tax-docs-data                               確定申告書類 SQLite
-echo     medical-stock-valuation-data                医療法人株式 SQLite
+echo     bank-analyzer-postgres                      ??s???? PostgreSQL
+echo     bank-analyzer-sqlite                        ??s???? SQLite
+echo     tax-docs-data                               ?m??\?????? SQLite
+echo     medical-stock-valuation-data                ??O@?l???? SQLite
 echo.
 
-set /p "CONFIRM2=  本当に削除してよろしいですか？ (Y/N): "
+set /p "CONFIRM2=  ?{???????????????????H (Y/N): "
 if /i not "!CONFIRM2!"=="Y" (
     echo.
-    echo データの削除をスキップしました。
-    echo コンテナ・イメージのみ削除済みです。
+    echo ?f?[?^??????X?L?b?v????????B
+    echo ?R???e?i?E?C???[?W??????????B
     goto :clean_done
 )
 
 echo.
-echo データボリュームを削除しています...
+echo ?f?[?^?{?????[??????????????...
 
 call :do_clean_volume "inheritance-case-management_postgres_data"
 call :do_clean_volume "bank-analyzer-postgres"
@@ -676,7 +676,7 @@ call :do_clean_volume "tax-docs-data"
 call :do_clean_volume "medical-stock-valuation-data"
 
 echo.
-echo [OK]    データボリュームを削除しました
+echo [OK]    ?f?[?^?{?????[?????????????
 
 :clean_done
 echo.
@@ -684,12 +684,12 @@ echo ============================================================
 echo   Clean Up Complete
 echo ============================================================
 echo.
-echo   再セットアップ: manage.bat start
+echo   ??Z?b?g?A?b?v: manage.bat start
 echo.
 goto :end
 
 :: ============================================================
-:: preflight - 起動前環境チェック
+:: preflight - ?N???O????`?F?b?N
 :: ============================================================
 :cmd_preflight
 set "PF_OK=0"
@@ -806,63 +806,63 @@ echo.
 goto :end
 
 :: ============================================================
-:: for ループ用サブルーチン
+:: for ???[?v?p?T?u???[?`??
 :: ============================================================
 
-:: --- アプリ起動 ---
+:: --- ?A?v???N?? ---
 :do_start_app
 set "APP_PATH=!APP_%1!"
 set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
 if not exist "!COMPOSE_FILE!" (
-    for %%N in ("!APP_PATH!") do echo [WARN]    スキップ: %%~nxN
+    for %%N in ("!APP_PATH!") do echo [WARN]    ?X?L?b?v: %%~nxN
     goto :eof
 )
 for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-:: .env.example があり .env がない場合は自動作成
+:: .env.example ?????? .env ??????????????
 set "APP_DIR=%PROJECT_ROOT%\!APP_PATH!"
 if exist "!APP_DIR!\.env.example" (
     if not exist "!APP_DIR!\.env" (
         copy "!APP_DIR!\.env.example" "!APP_DIR!\.env" >nul
-        echo [manage]   .env を作成しました: !APP_NAME!
+        echo [manage]   .env ???????????: !APP_NAME!
     )
 )
 if "!PROD_MODE!"=="1" (
     set "PROD_COMPOSE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.prod.yml"
     if exist "!PROD_COMPOSE!" (
-        echo [manage]   起動[本番]: !APP_NAME!
+        echo [manage]   ?N??[?{??]: !APP_NAME!
         docker compose -f "!COMPOSE_FILE!" -f "!PROD_COMPOSE!" up -d --build
     ) else (
-        echo [manage]   起動[本番]: !APP_NAME!
+        echo [manage]   ?N??[?{??]: !APP_NAME!
         docker compose -f "!COMPOSE_FILE!" up -d --build
     )
 ) else (
-    echo [manage]   起動: !APP_NAME!
+    echo [manage]   ?N??: !APP_NAME!
     docker compose -f "!COMPOSE_FILE!" up -d
 )
-if !ERRORLEVEL! neq 0 echo [ERROR]   !APP_NAME! の起動に失敗しました
+if !ERRORLEVEL! neq 0 echo [ERROR]   !APP_NAME! ??N??????s???????
 goto :eof
 
-:: --- アプリ停止 ---
+:: --- ?A?v????~ ---
 :do_stop_app
 set "APP_PATH=!APP_%1!"
 set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
 if not exist "!COMPOSE_FILE!" goto :eof
 for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-echo [manage]   停止: !APP_NAME!
+echo [manage]   ??~: !APP_NAME!
 docker compose -f "!COMPOSE_FILE!" stop
 goto :eof
 
-:: --- アプリ停止・削除 ---
+:: --- ?A?v????~?E?? ---
 :do_down_app
 set "APP_PATH=!APP_%1!"
 set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
 if not exist "!COMPOSE_FILE!" goto :eof
 for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-echo [manage]   削除: !APP_NAME!
+echo [manage]   ??: !APP_NAME!
 docker compose -f "!COMPOSE_FILE!" down
 goto :eof
 
-:: --- アプリ状態表示 ---
+:: --- ?A?v?????\?? ---
 :do_status_app
 set "APP_PATH=!APP_%1!"
 set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
@@ -870,17 +870,17 @@ if not exist "!COMPOSE_FILE!" goto :eof
 for /f "tokens=*" %%L in ('docker compose -f "!COMPOSE_FILE!" ps --format "{{.Name}}	{{.Status}}	{{.Ports}}" 2^>nul') do echo   %%L
 goto :eof
 
-:: --- アプリクリーン ---
+:: --- ?A?v???N???[?? ---
 :do_clean_app
 set "APP_PATH=!APP_%1!"
 set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
 if not exist "!COMPOSE_FILE!" goto :eof
 for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
-echo   削除: !APP_NAME!
+echo   ??: !APP_NAME!
 docker compose -f "!COMPOSE_FILE!" down --rmi local --remove-orphans 2>nul
 goto :eof
 
-:: --- ボリューム削除 ---
+:: --- ?{?????[???? ---
 :do_clean_volume
 docker volume inspect %~1 >nul 2>&1
 if !ERRORLEVEL! neq 0 goto :eof
@@ -888,11 +888,11 @@ docker volume rm %~1 >nul 2>&1
 if !ERRORLEVEL! equ 0 (
     echo   [OK] %~1
 ) else (
-    echo   [ERROR] %~1 の削除に失敗しました
+    echo   [ERROR] %~1 ???????s???????
 )
 goto :eof
 
-:: --- SQLiteバックアップ ---
+:: --- SQLite?o?b?N?A?b?v ---
 :do_backup_sqlite
 :: %1 = volume name, %2 = backup filename (without .tar.gz)
 docker volume inspect %~1 >nul 2>&1
@@ -909,7 +909,7 @@ if !ERRORLEVEL! equ 0 (
 )
 goto :eof
 
-:: --- SQLiteリストア ---
+:: --- SQLite???X?g?A ---
 :do_restore_sqlite
 :: %1 = backup filename (with .tar.gz), %2 = volume name
 if not exist "!BACKUP_DIR!\%~1" goto :eof
@@ -923,7 +923,7 @@ if !ERRORLEVEL! equ 0 (
 )
 goto :eof
 
-:: --- Preflight: compose ファイルチェック ---
+:: --- Preflight: compose ?t?@?C???`?F?b?N ---
 :do_preflight_compose
 set "APP_PATH=!APP_%1!"
 if exist "%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml" (
@@ -935,7 +935,7 @@ if exist "%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml" (
 )
 goto :eof
 
-:: --- Preflight: nginx ファイルチェック ---
+:: --- Preflight: nginx ?t?@?C???`?F?b?N ---
 :do_preflight_nginx
 if not exist "%PROJECT_ROOT%\%~1" (
     echo [WARN]  Missing: %~1
@@ -944,45 +944,45 @@ if not exist "%PROJECT_ROOT%\%~1" (
 )
 goto :eof
 
-:: --- Preflight: ポートチェック ---
+:: --- Preflight: ?|?[?g?`?F?b?N ---
 :do_preflight_port
 echo [WARN]  Port %1 is already in use
 set "PORT_CONFLICT=1"
 set /a PF_WARN+=1
 goto :eof
 
-:: --- バックアップ一覧表示 ---
+:: --- ?o?b?N?A?b?v???\?? ---
 :do_show_backup
 set "BK_NAME=!BACKUP_%1!"
 for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$s = (Get-ChildItem -Path '%BACKUP_BASE%\!BK_NAME!' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s -gt 1MB) { '{0:N1} MB' -f ($s/1MB) } elseif ($s -gt 1KB) { '{0:N1} KB' -f ($s/1KB) } else { '{0} bytes' -f $s }"`) do echo   [%1] !BK_NAME!  (%%S)
 goto :eof
 
-:: --- アプリ名表示 ---
+:: --- ?A?v?????\?? ---
 :do_show_app
 set "APP_PATH=!APP_%1!"
 for %%N in ("!APP_PATH!") do echo   %%~nxN
 goto :eof
 
 :: ============================================================
-:: ユーティリティ関数
+:: ???[?e?B???e?B???
 :: ============================================================
 
-:: --- ネットワーク作成 ---
+:: --- ?l?b?g???[?N?? ---
 :ensure_network
 docker network inspect %NETWORK_NAME% >nul 2>&1
 if !ERRORLEVEL! neq 0 (
-    echo [manage] ネットワーク %NETWORK_NAME% を作成...
+    echo [manage] ?l?b?g???[?N %NETWORK_NAME% ????...
     docker network create %NETWORK_NAME% >nul 2>&1
 )
 goto :eof
 
-:: --- アプリ名からディレクトリを解決 ---
+:: --- ?A?v????????f?B???N?g???????? ---
 :resolve_app
 set "RESOLVED_DIR="
 set "SEARCH=%~1"
 for /L %%I in (1,1,%APP_COUNT%) do call :do_resolve_check %%I
 if "!RESOLVED_DIR!"=="" (
-    echo [ERROR] アプリが見つかりません: !SEARCH!
+    echo [ERROR] ?A?v???????????????: !SEARCH!
     call :show_apps
 )
 goto :eof
@@ -994,14 +994,14 @@ echo !APP_PATH! | findstr /i "!SEARCH!" >nul 2>&1
 if !ERRORLEVEL! equ 0 set "RESOLVED_DIR=%PROJECT_ROOT%\!APP_PATH!"
 goto :eof
 
-:: --- アプリ一覧表示 ---
+:: --- ?A?v?????\?? ---
 :show_apps
 echo.
 echo Available apps:
 for /L %%I in (1,1,%APP_COUNT%) do call :do_show_app %%I
 goto :eof
 
-:: --- 簡易 preflight（Docker起動チェックのみ） ---
+:: --- ??? preflight?iDocker?N???`?F?b?N???j ---
 :preflight_quick
 docker info >nul 2>&1
 if !ERRORLEVEL! neq 0 (
@@ -1011,7 +1011,7 @@ if !ERRORLEVEL! neq 0 (
 exit /b 0
 
 :: ============================================================
-:: ヘルプ表示
+:: ?w???v?\??
 :: ============================================================
 :show_help
 echo.
@@ -1022,20 +1022,20 @@ echo.
 echo Usage: manage.bat ^<command^> [app-name]
 echo.
 echo Commands:
-echo   start              全アプリを起動（ネットワーク自動作成）
-echo   start --prod       全アプリを本番モードで起動
-echo   stop               全アプリを停止
-echo   down               全アプリを停止してコンテナ削除
-echo   restart ^<app^>      指定アプリのみ再起動
-echo   build ^<app^>        指定アプリを再ビルドして起動
-echo   logs ^<app^>         指定アプリのログ表示
-echo   status             全アプリの状態表示
+echo   start              ?S?A?v?????N???i?l?b?g???[?N???????j
+echo   start --prod       ?S?A?v????{????[?h??N??
+echo   stop               ?S?A?v?????~
+echo   down               ?S?A?v?????~????R???e?i??
+echo   restart ^<app^>      ?w??A?v??????N??
+echo   build ^<app^>        ?w??A?v??????r???h????N??
+echo   logs ^<app^>         ?w??A?v??????O?\??
+echo   status             ?S?A?v??????\??
 echo.
 echo Operations:
-echo   backup             全データベース・データをバックアップ
-echo   restore [dir]      バックアップからリストア
-echo   clean              コンテナ・イメージのクリーンアップ
-echo   preflight          起動前環境チェック
+echo   backup             ?S?f?[?^?x?[?X?E?f?[?^???o?b?N?A?b?v
+echo   restore [dir]      ?o?b?N?A?b?v?????X?g?A
+echo   clean              ?R???e?i?E?C???[?W??N???[???A?b?v
+echo   preflight          ?N???O????`?F?b?N
 echo.
 echo Apps:
 for /L %%I in (1,1,%APP_COUNT%) do call :do_show_app %%I
@@ -1043,7 +1043,7 @@ echo.
 goto :end
 
 :: ============================================================
-:: 終了
+:: ?I??
 :: ============================================================
 :end
 endlocal
