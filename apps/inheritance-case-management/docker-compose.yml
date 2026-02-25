@@ -1,9 +1,9 @@
 # ============================================
-# 相続税案件管理 - Docker Compose (本番)
+# 相続税案件管理 - Docker Compose
 # ============================================
 # Usage:
-#   起動:   docker compose up -d
-#   再ビルド: docker compose up -d --build
+#   開発:   docker compose up -d
+#   本番:   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #   ログ:   docker compose logs -f
 #   停止:   docker compose down
 # ============================================
@@ -66,6 +66,7 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      target: dev
       args:
         NEXT_PUBLIC_API_URL: /itcm/api
     container_name: itcm-frontend
@@ -74,12 +75,19 @@ services:
     restart: unless-stopped
     environment:
       <<: *common-env
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
+    volumes:
+      # ソースコードをマウント（ホットリロード用）
+      - ./web/src:/app/src:ro
+      - ./web/public:/app/public:ro
     ports:
       - "3020:3020"
     depends_on:
       postgres:
         condition: service_healthy
+    init: true
     stop_grace_period: 15s
     logging: *default-logging
     healthcheck:
