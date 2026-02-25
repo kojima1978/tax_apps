@@ -97,7 +97,7 @@ manage.bat start
 |:-----|:-----|:-----|
 | 1 | Docker 起動確認 | Docker Desktop が起動しているか確認 |
 | 2 | ネットワーク作成 | `tax-apps-network` を自動作成（未作成時のみ） |
-| 3 | 順次起動 | Gateway → DB依存アプリ → フロントエンドアプリの順に起動 |
+| 3 | 順次起動 | DB依存アプリ → フロントエンドアプリ → Gateway の順に起動 |
 | 4 | 状態表示 | 全コンテナの状態を一覧表示 |
 
 > 初回はDockerイメージのビルドがあるため、5〜15分ほどかかります。
@@ -389,10 +389,12 @@ manage.bat status                         # 全体の状態確認
 
 ### 502 Bad Gateway
 
+対象アプリのコンテナが停止中または起動失敗しています。Gateway 自体は動的DNS解決を使用しているため、特定アプリが停止していてもクラッシュしません。
+
 ```bash
-manage.bat logs gateway                   # Gateway ログ確認
-manage.bat status                         # バックエンドの状態確認
-docker exec tax-apps-gateway nginx -s reload  # Nginx リロード
+manage.bat status                         # 全体の状態確認（停止中のアプリを特定）
+manage.bat logs <app-name>                # 問題のアプリのログ確認
+manage.bat build <app-name>               # 再ビルドして起動
 ```
 
 ### データベース接続エラー
@@ -466,17 +468,17 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 
 | # | アプリ | 備考 |
 |:--|:------|:-----|
-| 1 | gateway | Nginx + Portal |
-| 2 | inheritance-case-management | PostgreSQL + Next.js |
-| 3 | bank-analyzer-django | PostgreSQL + Django |
-| 4 | Required-documents-for-tax-return | SQLite + Express + Vite |
-| 5 | medical-stock-valuation | SQLite + Next.js |
-| 6 | shares-valuation | Next.js |
-| 7 | inheritance-tax-app | Vite |
-| 8 | gift-tax-simulator | Vite |
-| 9 | gift-tax-docs | Next.js |
-| 10 | inheritance-tax-docs | Next.js |
-| 11 | retirement-tax-calc | Vite |
+| 1 | inheritance-case-management | PostgreSQL + Next.js |
+| 2 | bank-analyzer-django | PostgreSQL + Django |
+| 3 | Required-documents-for-tax-return | SQLite + Express + Vite |
+| 4 | medical-stock-valuation | SQLite + Next.js |
+| 5 | shares-valuation | Next.js |
+| 6 | inheritance-tax-app | Vite |
+| 7 | gift-tax-simulator | Vite |
+| 8 | gift-tax-docs | Next.js |
+| 9 | inheritance-tax-docs | Next.js |
+| 10 | retirement-tax-calc | Vite |
+| 11 | gateway | Nginx + Portal（全アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -515,10 +517,10 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 
 | 機能 | 説明 |
 |:-----|:-----|
+| 動的DNS解決 | Docker DNS resolver + 変数で起動時のホスト名依存を排除。コンテナ未起動でも Gateway は起動し、該当サービスのみ 502 を返す |
 | Gzip圧縮 | CSS, JS, JSON等を自動圧縮 |
 | レート制限 | API 300req/s (burst=10), 一般 1000req/s (burst=200) |
 | セキュリティヘッダー | X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
-| Keep-Alive | コネクション再利用 |
 | ヘルスチェック | `/health` エンドポイント |
 
 ### Docker Compose 共通設定
@@ -599,7 +601,7 @@ tax_apps/
     ├── default.conf            # ルーティング設定
     ├── includes/               # 共通設定ファイル
     │   ├── proxy_params.conf       # プロキシ共通パラメータ
-    │   ├── upstreams.conf          # アップストリーム定義
+    │   ├── upstreams.conf          # アップストリーム参照情報
     │   ├── maps.conf               # Map定義
     │   ├── rate_limit_general.conf # 一般レート制限
     │   └── rate_limit_api.conf     # APIレート制限
