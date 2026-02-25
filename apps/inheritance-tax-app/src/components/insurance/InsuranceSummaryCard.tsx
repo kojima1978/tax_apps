@@ -1,6 +1,6 @@
 import React from 'react';
 import type { InsuranceSimulationResult } from '../../types';
-import { formatCurrency, formatDelta } from '../../utils';
+import { formatCurrency } from '../../utils';
 import { ScenarioComparisonCard, type ComparisonRowDef, type HighlightItem } from '../ScenarioComparisonCard';
 
 interface InsuranceSummaryCardProps {
