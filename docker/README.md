@@ -265,9 +265,7 @@ manage.bat start
 | Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
 | Bank Analyzer | `production` | Gunicorn | あり |
-| ITCM | `runner` | Node.js standalone | なし（常に本番） |
-
-> ITCM（案件管理）は `docker-compose.yml` にビルドターゲットの指定がないため、常に本番ステージ（`runner`）でビルドされます。
+| ITCM | `runner` | Node.js standalone + tini | あり |
 
 ### Dockerfile マルチステージ構成
 
@@ -518,7 +516,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 機能 | 説明 |
 |:-----|:-----|
 | Gzip圧縮 | CSS, JS, JSON等を自動圧縮 |
-| レート制限 | API 300req/s, 一般 1000req/s |
+| レート制限 | API 300req/s (burst=10), 一般 1000req/s (burst=200) |
 | セキュリティヘッダー | X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
 | Keep-Alive | コネクション再利用 |
 | ヘルスチェック | `/health` エンドポイント |
@@ -576,7 +574,8 @@ tax_apps/
 │   ├── inheritance-case-management/  # 案件管理
 │   │   ├── web/                #   Next.js + Prisma
 │   │   ├── .env                #   PostgreSQL認証情報
-│   │   └── docker-compose.yml  #   PostgreSQL + Web
+│   │   ├── docker-compose.yml  #   PostgreSQL + Web（dev）
+│   │   └── docker-compose.prod.yml  #   本番オーバーライド
 │   ├── medical-stock-valuation/ # 医療法人株式
 │   │   └── docker-compose.yml
 │   ├── shares-valuation/       # 非上場株式

@@ -33,7 +33,7 @@ FROM deps AS dev
 ENV NODE_ENV=development WATCHPACK_POLLING=true HOSTNAME=0.0.0.0 TZ=Asia/Tokyo
 RUN npx prisma generate
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 COPY . .
 EXPOSE 3020
 ENTRYPOINT ["/docker-entrypoint.sh"]
@@ -85,6 +85,7 @@ COPY --from=builder --chown=1001:1001 --link /app/.next/static ./.next/static
 COPY --from=builder --chown=1001:1001 --link /app/public ./public
 COPY --from=builder --chown=1001:1001 --link /app/prisma ./prisma
 COPY --from=builder --chown=1001:1001 --link /app/docker-entrypoint.sh /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 
 USER nextjs
 EXPOSE 3020

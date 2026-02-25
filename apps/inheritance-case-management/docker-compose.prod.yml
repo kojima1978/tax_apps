@@ -1,0 +1,24 @@
+# ============================================
+# 相続税案件管理 - Production Override
+# ============================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# ============================================
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 512M
+    reservations:
+      memory: 128M
+
+services:
+  web:
+    build:
+      target: runner
+    init: false
+    volumes: []
+    environment:
+      TZ: Asia/Tokyo
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
+    deploy: *prod-deploy
