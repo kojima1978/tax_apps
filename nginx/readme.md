@@ -22,7 +22,7 @@ nginx/
 │   └── 503.html    # メンテナンスページ
 ├── includes/       # 共通設定ディレクトリ
 │   ├── proxy_params.conf       # 共通プロキシヘッダー設定
-│   ├── upstreams.conf          # アップストリーム定義（12サービス）
+│   ├── upstreams.conf          # アップストリーム参照情報（ホスト名:ポート一覧）
 │   ├── maps.conf               # map定義（WebSocket Upgrade, Font Routing）
 │   ├── rate_limit_general.conf # 一般レート制限（burst=20）
 │   └── rate_limit_api.conf     # APIレート制限（burst=10）
@@ -35,7 +35,7 @@ nginx/
 ### パフォーマンス最適化
 
 - **Gzip圧縮**: テキスト、CSS、JS、JSON、WASMなどを自動圧縮
-- **Keep-Alive**: コネクション再利用で高速化（サービス種別に応じた keepalive 値）
+- **動的DNS解決**: Docker DNS resolver (`127.0.0.11`) + 変数ベースの `proxy_pass` で起動時のホスト名依存を排除。コンテナ未起動でも Gateway は起動し、該当サービスのみ 502 を返す
 - **静的ファイルキャッシュ**: Next.js/Vite のハッシュ付き静的ファイルは1年キャッシュ
 - **アップストリーム障害リトライ**: `proxy_next_upstream error timeout` による自動リカバリ（非冪等メソッドの二重送信防止のためHTTPステータスでのリトライは無効）
 
@@ -65,7 +65,7 @@ nginx/
 ### 構成のモジュール化
 
 - **共通プロキシ設定**: `includes/proxy_params.conf` に共通のヘッダー設定（Host, X-Real-IP, WebSocket Upgrade等）を集約
-- **アップストリーム定義**: `includes/upstreams.conf` に全サービスの upstream を分離
+- **アップストリーム参照**: `includes/upstreams.conf` に全サービスのホスト名:ポート一覧を記載（`upstream` ブロックは使用せず、`default.conf` 内で `set $upstream_xxx` 変数として定義）
 - **Map定義**: `includes/maps.conf` に WebSocket Upgrade と Next.js Font Routing の map を分離
 - **レート制限**: `includes/rate_limit_general.conf` / `rate_limit_api.conf` で burst 値を一元管理
 
@@ -110,7 +110,7 @@ manage.bat build gateway
 ### ネットワーク
 
 全アプリケーションは外部ネットワーク `tax-apps-network` を共有します。
-Gateway が各コンテナ名（= upstream 定義のサーバー名）で直接通信します。
+Gateway は Docker DNS resolver (`127.0.0.11`) を使用し、各コンテナ名でリクエスト時に動的に名前解決します。
 
 ```bash
 # ネットワーク作成（manage.bat start で自動実行）
@@ -118,7 +118,7 @@ docker network create tax-apps-network
 ```
 
 > **重要**: 各アプリの `docker-compose.yml` で定義される `container_name` は
-> `upstreams.conf` の `server` ディレクティブと一致している必要があります。
+> `default.conf` の `set $upstream_xxx` 変数値と一致している必要があります。
 
 ## 設定のカスタマイズ
 
@@ -148,29 +148,24 @@ proxy_read_timeout 60s;
 
 ### 新しいアプリの追加
 
-1. `includes/upstreams.conf` にアップストリーム追加:
-
-```nginx
-upstream new-app {
-    server new-app:3000;
-    keepalive 8;
-}
-```
-
-2. `default.conf` にロケーション追加:
+1. `default.conf` にロケーション追加（`set $upstream_xxx` + `proxy_pass` パターン）:
 
 ```nginx
 location /new-app/ {
     include /etc/nginx/includes/rate_limit_general.conf;
-    proxy_pass http://new-app;
+
+    set $upstream_new_app new-app:3000;
+    proxy_pass http://$upstream_new_app;
 }
 ```
 
-3. （フォント対応が必要な場合）`includes/maps.conf` の `$nextjs_font_backend` に追加:
+2. （フォント対応が必要な場合）`includes/maps.conf` の `$nextjs_font_backend` に追加:
 
 ```nginx
-~*/new-app/ new-app;
+~*/new-app/ new-app:3000;
 ```
+
+3. `includes/upstreams.conf` の参照一覧にホスト名:ポートを追記
 
 ## トラブルシューティング
 
@@ -221,7 +216,7 @@ curl -I http://localhost/itcm/
 
 | 症状 | 原因 | 対処 |
 |------|------|------|
-| 502 Bad Gateway | アップストリームが起動していない | `manage.bat status` で対象サービスの状態確認 |
+| 502 Bad Gateway | アップストリームが起動していない | `manage.bat status` で対象サービスの状態確認。動的DNS解決のため Gateway 自体はクラッシュせず、該当サービスのみ 502 を返す |
 | 504 Gateway Timeout | 処理時間超過 | `proxy_read_timeout` を延長 |
 | 429 Too Many Requests | レート制限超過 | rate 値または burst 値を調整 |
 | 413 Request Entity Too Large | アップロードサイズ超過 | `client_max_body_size` を調整 |
