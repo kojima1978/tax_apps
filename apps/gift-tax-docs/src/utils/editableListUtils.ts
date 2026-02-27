@@ -1,7 +1,13 @@
 import { giftData, type DocumentGroup, type EditableCategory, type EditableDocument, type EditableDocumentList } from '@/constants';
 
-// 一意のIDを生成
-const generateId = () => crypto.randomUUID();
+// 一意のIDを生成（HTTP環境でも動作するフォールバック付き）
+const generateId = (): string => {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c => {
+    const n = Number(c);
+    return (n ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (n / 4)))).toString(16);
+  });
+};
 
 // カテゴリを更新するヘルパー（list.map + id比較パターンの共通化）
 const updateCategory = (

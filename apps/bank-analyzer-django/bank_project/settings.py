@@ -182,6 +182,9 @@ if FORCE_SCRIPT_NAME:
     USE_X_FORWARDED_HOST = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# HTTP環境（社内LAN）ではCOOPヘッダーがブラウザ警告を出すため無効化
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

@@ -124,7 +124,7 @@ services:
       <<: *common-env
       DJANGO_DEBUG: "True"
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-not-for-production}
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0,bank-analyzer
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0,bank-analyzer,*
       DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
       # PostgreSQL接続設定
       DB_ENGINE: postgresql
