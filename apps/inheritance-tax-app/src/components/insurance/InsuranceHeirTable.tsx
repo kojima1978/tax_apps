@@ -35,7 +35,7 @@ const ScenarioTable: React.FC<{
               <th className={TH}>保険料負担</th>
               <th className={TH}>受取保険金</th>
               <th className={TH}>納付税額</th>
-              <th className={TH}>税引後</th>
+              <th className={TH}>納税後</th>
             </tr>
           </thead>
           <tbody>

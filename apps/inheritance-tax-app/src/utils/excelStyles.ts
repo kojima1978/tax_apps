@@ -159,7 +159,7 @@ export function addHighlightRows(worksheet: any, colCount: number, rows: [string
 }
 
 /**
- * 相続人別 税引後比較セクションを追加（シート3共通）
+ * 相続人別 納税後比較セクションを追加（シート3共通）
  */
 interface HeirComparisonConfig {
   heirCount: number;
@@ -181,7 +181,7 @@ export function addHeirComparisonSection(sheet: any, sheetColCount: number, conf
   const secRowNum = sheet.rowCount + 1;
   sheet.mergeCells(secRowNum, 1, secRowNum, sheetColCount);
   const secCell = sheet.getCell(`A${secRowNum}`);
-  secCell.value = '相続人別 税引後比較';
+  secCell.value = '相続人別 納税後比較';
   secCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
   secCell.fill = solidFill('FF166534');
   secCell.alignment = { vertical: 'middle', horizontal: 'left' };
@@ -189,7 +189,7 @@ export function addHeirComparisonSection(sheet: any, sheetColCount: number, conf
   sheet.getRow(secRowNum).height = 24;
 
   // カラムヘッダー
-  const compHdr = sheet.addRow(['相続人', '現状 税引後', '提案 税引後', '差額（Δ）']);
+  const compHdr = sheet.addRow(['相続人', '現状 納税後', '提案 納税後', '差額（Δ）']);
   compHdr.eachCell((cell: any) => {
     cell.font = { bold: true, size: 10 };
     cell.fill = solidFill('FFF3F4F6');

@@ -105,13 +105,15 @@ export const InsuranceContractList: React.FC<InsuranceContractListProps> = ({
                   </select>
                 </div>
 
-                {/* 支払保険料 */}
-                <CurrencyInput
-                  label="支払保険料"
-                  value={contract.premium}
-                  onChange={v => updateContract(contract.id, { premium: v })}
-                  placeholder="例: 800"
-                />
+                {/* 支払保険料（新規契約のみ） */}
+                {category === 'new' && (
+                  <CurrencyInput
+                    label="支払保険料"
+                    value={contract.premium}
+                    onChange={v => updateContract(contract.id, { premium: v })}
+                    placeholder="例: 800"
+                  />
+                )}
 
                 {/* 受取保険金額 */}
                 <CurrencyInput

@@ -53,7 +53,7 @@ export const InsuranceFlowSteps: React.FC<InsuranceFlowStepsProps> = ({ result }
       sign: '−',
     },
     {
-      title: '税引後財産額',
+      title: '納税後財産額',
       description: '遺産 + 保険金 − 税額',
       currentValue: current.totalNetProceeds,
       proposedValue: proposed.totalNetProceeds,
