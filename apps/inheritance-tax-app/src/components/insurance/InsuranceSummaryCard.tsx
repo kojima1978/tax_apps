@@ -8,14 +8,22 @@ interface InsuranceSummaryCardProps {
 }
 
 const ROWS: ComparisonRowDef<InsuranceSimulationResult>[] = [
-  { id: 'estate', label: '元の財産額', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate },
-  { id: 'premium', label: '新規保険料', getCurrent: () => 0, getProposed: r => r.newPremiumTotal, valuePrefix: 'ー' },
-  { id: 'benefit', label: '受取保険金（全額）', getCurrent: r => r.current.totalBenefit, getProposed: r => r.proposed.totalBenefit },
+  // ── 財産の構成 ──
+  { id: 'estate', label: '手元資産', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate - r.newPremiumTotal, sectionHeader: '財産の構成', sectionDescription: '保険料支払い後の手元財産' },
+  { id: 'premium', label: '新規保険料', getCurrent: () => 0, getProposed: r => r.newPremiumTotal },
+  { id: 'estate-total', label: '資産合計', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate, sectionEnd: true },
+  // ── 保険金の計算 ──
+  { id: 'benefit', label: '受取保険金（全額）', getCurrent: r => r.current.totalBenefit, getProposed: r => r.proposed.totalBenefit, sectionHeader: '保険金の計算', sectionDescription: '非課税枠を適用した課税対象額' },
   { id: 'exempt', label: '非課税額', getCurrent: r => r.current.nonTaxableAmount, getProposed: r => r.proposed.nonTaxableAmount },
-  { id: 'taxable-ins', label: '課税対象保険金', getCurrent: r => r.current.taxableInsurance, getProposed: r => r.proposed.taxableInsurance },
-  { id: 'adjusted', label: '課税遺産額（税計算用）', getCurrent: r => r.current.adjustedEstate, getProposed: r => r.proposed.adjustedEstate },
-  { id: 'tax', label: '相続税額', getCurrent: r => r.current.taxResult.totalFinalTax, getProposed: r => r.proposed.taxResult.totalFinalTax },
-  { id: 'net', label: '税引後財産額', getCurrent: r => r.current.totalNetProceeds, getProposed: r => r.proposed.totalNetProceeds, highlight: true },
+  { id: 'taxable-ins', label: '課税対象保険金', getCurrent: r => r.current.taxableInsurance, getProposed: r => r.proposed.taxableInsurance, sectionEnd: true },
+  // ── 税額計算 ──
+  { id: 'adjusted', label: '課税遺産額', getCurrent: r => r.current.adjustedEstate, getProposed: r => r.proposed.adjustedEstate, sectionHeader: '税額計算', sectionDescription: '課税遺産から算出した相続税' },
+  { id: 'tax', label: '相続税額', getCurrent: r => r.current.taxResult.totalFinalTax, getProposed: r => r.proposed.taxResult.totalFinalTax, sectionEnd: true },
+  // ── 結果 ──
+  { id: 'r-estate', label: '手許資産', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate - r.newPremiumTotal, sectionHeader: '結果', sectionDescription: '手許資産 ＋ 保険金 − 税額 ＝ 納税後財産額' },
+  { id: 'r-benefit', label: '受取保険金', getCurrent: r => r.current.totalBenefit, getProposed: r => r.proposed.totalBenefit },
+  { id: 'r-tax', label: '相続税額', getCurrent: r => r.current.taxResult.totalFinalTax, getProposed: r => r.proposed.taxResult.totalFinalTax, valuePrefix: '−' },
+  { id: 'net', label: '納税後財産額', getCurrent: r => r.current.totalNetProceeds, getProposed: r => r.proposed.totalNetProceeds, highlight: true },
 ];
 
 export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ result }) => {
@@ -25,18 +33,35 @@ export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ resu
   const tax = proposed.taxResult.totalFinalTax;
   const coverageRatio = tax > 0 ? Math.round(benefit / tax * 100) : -1;
 
+  const newBenefit = proposed.totalBenefit - current.totalBenefit;
+  const returnRatio = newPremiumTotal > 0 ? Math.round(newBenefit / newPremiumTotal * 100) : -1;
+
   const highlights: HighlightItem[] = [
-    { label: '節税効果', value: taxSaving, format: 'saving' },
+    // 新規契約がある場合のみ「保険料→保険金」カードを左端に表示
+    ...(newPremiumTotal > 0 ? [{
+      label: '保険料 → 保険金',
+      description: '支払った保険料に対する保険金の倍率',
+      value: returnRatio,
+      format: 'ratio' as const,
+      footnote: <>{formatCurrency(newPremiumTotal)}（保険料）→ {formatCurrency(newBenefit)}（保険金）</>,
+    }] : []),
     {
-      label: '財産額の増減',
-      value: netProceedsDiff,
-      format: 'gain',
-      footnote: newPremiumTotal > 0
-        ? <>保険料 {formatCurrency(newPremiumTotal)} → 節税 {formatCurrency(taxSaving)} / 保険金 {formatCurrency(proposed.totalBenefit - current.totalBenefit)}</>
-        : undefined,
+      label: '税金の増減',
+      description: '保険加入による税額の変化',
+      value: taxSaving,
+      format: 'saving',
+      footnote: <>{formatCurrency(current.taxResult.totalFinalTax)} → {formatCurrency(proposed.taxResult.totalFinalTax)}</>,
     },
     {
-      label: 'カバー率',
+      label: '納税後財産額の増減',
+      description: '保険加入後に残る財産の変化',
+      value: netProceedsDiff,
+      format: 'gain',
+      footnote: <>{formatCurrency(current.totalNetProceeds)} → {formatCurrency(proposed.totalNetProceeds)}</>,
+    },
+    {
+      label: '納税充当率',
+      description: '保険金で税金をどれだけ賄えるか',
       value: coverageRatio,
       format: 'ratio',
       footnote: <>{formatCurrency(benefit)}（受取保険金）/ {formatCurrency(tax)}（相続税額）</>,
@@ -49,22 +74,22 @@ export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ resu
       result={result}
       rows={ROWS}
       topSlot={
-        <div className="space-y-2">
+        <div className={`grid gap-3 ${newPremiumTotal > 0 ? 'grid-cols-1 md:grid-cols-3' : ''}`}>
           {newPremiumTotal > 0 && (
             <>
-              <div className="bg-green-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                <span className="text-sm text-gray-700 font-medium">支払保険料（新規契約）</span>
-                <span className="text-lg font-bold text-gray-900">{formatCurrency(newPremiumTotal)}</span>
+              <div className="bg-green-50 rounded-lg px-4 py-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">支払保険料（新規契約）</p>
+                <p className="text-lg font-bold text-gray-900">{formatCurrency(newPremiumTotal)}</p>
               </div>
-              <div className="bg-green-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                <span className="text-sm text-gray-700 font-medium">受取保険金（新規契約）</span>
-                <span className="text-lg font-bold text-gray-900">{formatCurrency(proposed.totalBenefit - current.totalBenefit)}</span>
+              <div className="bg-green-50 rounded-lg px-4 py-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">受取保険金（新規契約）</p>
+                <p className="text-lg font-bold text-gray-900">{formatCurrency(proposed.totalBenefit - current.totalBenefit)}</p>
               </div>
             </>
           )}
-          <div className="bg-green-50 rounded-lg px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-gray-700 font-medium">保険金の非課税限度額（500万円×{current.nonTaxableLimit / 500}人（相続人の数））</span>
-            <span className="text-lg font-bold text-gray-900">{formatCurrency(current.nonTaxableLimit)}</span>
+          <div className="bg-green-50 rounded-lg px-4 py-3 text-center">
+            <p className="text-xs text-gray-500 mb-1">非課税限度額（500万円×{current.nonTaxableLimit / 500}人）</p>
+            <p className="text-lg font-bold text-gray-900">{formatCurrency(current.nonTaxableLimit)}</p>
           </div>
         </div>
       }

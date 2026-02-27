@@ -9,14 +9,17 @@ export type ComparisonRowDef<T> = {
   getProposed: (r: T) => number;
   highlight?: boolean;
   sectionEnd?: boolean;
+  sectionHeader?: string;
+  sectionDescription?: string;
   valuePrefix?: string;
-  invertColor?: boolean;
+  rowSign?: string;
 };
 
 export type HighlightItem = {
   label: string;
   value: number;
   format: 'saving' | 'gain' | 'ratio';
+  description?: string;
   footnote?: React.ReactNode;
 };
 
@@ -59,19 +62,33 @@ export function ScenarioComparisonCard<T>({
               const currentVal = row.getCurrent(result);
               const proposedVal = row.getProposed(result);
               const diff = proposedVal - currentVal;
-              const isTaxRow = row.invertColor ?? (row.label.includes('税') || row.label.includes('保険料'));
               const borderClass = row.sectionEnd ? 'border-b-2 border-b-gray-400' : '';
               const pfx = row.valuePrefix || '';
               const fmtVal = (v: number) => v > 0 && pfx ? `${pfx}${formatCurrency(v)}` : formatCurrency(v);
               return (
-                <tr key={row.id} className={row.highlight ? 'bg-green-50 font-semibold' : 'hover:bg-gray-50'}>
-                  <td className={`${TD} text-left font-medium ${borderClass}`}>{row.label}</td>
-                  <td className={`${TD} ${borderClass}`}>{fmtVal(currentVal)}</td>
-                  <td className={`${TD} ${borderClass}`}>{fmtVal(proposedVal)}</td>
-                  <td className={`${TD} font-medium ${diff !== 0 ? deltaColor(diff, isTaxRow) : 'text-gray-400'} ${borderClass}`}>
-                    {diff !== 0 ? (pfx ? `${pfx}${formatCurrency(Math.abs(diff))}` : formatDelta(diff)) : '—'}
-                  </td>
-                </tr>
+                <React.Fragment key={row.id}>
+                  {row.sectionHeader && (
+                    <tr className="bg-gray-100">
+                      <td colSpan={4} className="px-3 py-1.5 text-xs font-bold text-gray-600 tracking-wide">
+                        {row.sectionHeader}
+                        {row.sectionDescription && (
+                          <span className="ml-2 font-normal text-gray-400">{row.sectionDescription}</span>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  <tr className={row.highlight ? 'bg-green-50 font-semibold' : 'hover:bg-gray-50'}>
+                    <td className={`${TD} text-left font-medium ${borderClass}`}>
+                      {row.rowSign && <span className="text-gray-400 mr-1">{row.rowSign}</span>}
+                      {row.label}
+                    </td>
+                    <td className={`${TD} ${borderClass}`}>{fmtVal(currentVal)}</td>
+                    <td className={`${TD} ${borderClass}`}>{fmtVal(proposedVal)}</td>
+                    <td className={`${TD} font-medium ${diff !== 0 ? deltaColor(diff) : 'text-gray-400'} ${borderClass}`}>
+                      {diff !== 0 ? formatDelta(diff) : '—'}
+                    </td>
+                  </tr>
+                </React.Fragment>
               );
             })}
           </tbody>
@@ -79,7 +96,7 @@ export function ScenarioComparisonCard<T>({
       </div>
 
       {/* 結果ハイライト */}
-      <div className={`grid grid-cols-1 gap-4 ${highlights.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+      <div className={`grid grid-cols-1 gap-4 ${highlights.length >= 4 ? 'md:grid-cols-4' : highlights.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {highlights.map(h => {
           const isRatio = h.format === 'ratio';
           const isPositive = isRatio ? h.value >= 100 : h.value > 0;
@@ -96,6 +113,9 @@ export function ScenarioComparisonCard<T>({
           return (
             <div key={h.label} className={`rounded-lg p-4 text-center ${bgClass}`}>
               <p className="text-xs text-gray-500 mb-1">{h.label}</p>
+              {h.description && (
+                <p className="text-[10px] text-gray-400 mb-1">{h.description}</p>
+              )}
               <p className={`text-xl font-bold ${textClass}`}>{formatted}</p>
               {h.footnote && (
                 <p className="text-xs text-gray-500 mt-1">{h.footnote}</p>
