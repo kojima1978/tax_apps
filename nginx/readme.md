@@ -212,6 +212,17 @@ curl -I http://localhost/bank-analyzer/
 curl -I http://localhost/itcm/
 ```
 
+### LAN経由アクセス
+
+社内LAN内の他PCから Gateway にアクセスする場合、Windowsファイアウォールでポート80を許可する必要があります:
+
+```powershell
+# 管理者権限のPowerShellで実行
+New-NetFirewallRule -DisplayName "Tax Apps Gateway (HTTP)" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+```
+
+設定後、`http://<ホストPCのIPアドレス>/` でアクセスできます。nginx側の設定変更は不要です（`proxy_set_header Host $host` によりどのIPでも正しく動作）。
+
 ### よくある問題
 
 | 症状 | 原因 | 対処 |
@@ -220,3 +231,4 @@ curl -I http://localhost/itcm/
 | 504 Gateway Timeout | 処理時間超過 | `proxy_read_timeout` を延長 |
 | 429 Too Many Requests | レート制限超過 | rate 値または burst 値を調整 |
 | 413 Request Entity Too Large | アップロードサイズ超過 | `client_max_body_size` を調整 |
+| Django 400 Bad Request | `ALLOWED_HOSTS` にアクセス元IPが未登録 | Django の `DJANGO_ALLOWED_HOSTS` に `*` またはIPを追加 |
