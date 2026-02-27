@@ -324,7 +324,7 @@ docker compose --profile production up -d bank-analyzer-prod
 |--------|------|------------|
 | `DJANGO_DEBUG` | デバッグモード | `True` |
 | `DJANGO_SECRET_KEY` | シークレットキー | 開発用キー |
-| `DJANGO_ALLOWED_HOSTS` | 許可ホスト（カンマ区切り） | `localhost,127.0.0.1` |
+| `DJANGO_ALLOWED_HOSTS` | 許可ホスト（カンマ区切り）。LAN経由アクセス時は `*` を含める | `localhost,127.0.0.1,*` |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | CSRF信頼オリジン（カンマ区切り） | `http://localhost,http://127.0.0.1` |
 | `DJANGO_FORCE_SCRIPT_NAME` | サブパス配下用スクリプト名 | なし |
 | `TZ` | タイムゾーン | `Asia/Tokyo` |
@@ -371,6 +371,14 @@ docker compose --profile production up -d bank-analyzer-prod
 - **リソース制限**: メモリ 1GB
 - **ログローテーション**: 10MB × 3ファイル
 - **セキュリティ**: `no-new-privileges`
+
+## LAN経由アクセス時の注意
+
+社内LAN IPアドレス（例: `http://192.168.x.x/bank-analyzer/`）からアクセスする場合:
+
+- **ALLOWED_HOSTS**: 開発モードでは `*`（ワイルドカード）を設定済み。IPアドレス変更時も対応不要
+- **COOPヘッダー**: HTTP環境ではブラウザ警告が出るため `SECURE_CROSS_ORIGIN_OPENER_POLICY = None` で無効化済み（`settings.py`）
+- **CSRF**: nginx gateway が `proxy_set_header Host $host` を付与するため、`DJANGO_CSRF_TRUSTED_ORIGINS` の追加設定は不要
 
 ## ライセンス
 

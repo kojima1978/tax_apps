@@ -113,6 +113,30 @@ docker\scripts\manage.bat start --prod
 
 > **注意**: 各アプリへはポータル経由またはゲートウェイURLでアクセスしてください。ポート番号を指定して直接アクセスすると、アプリケーション間リンクや静的ファイルの読み込みが正常に動作しない場合があります。
 
+### 社内LAN経由のアクセス
+
+同一LAN内の他PCからアクセスする場合:
+
+1. **ホストPCのIPアドレスを確認**:
+   ```bash
+   ipconfig
+   # 例: 192.168.100.129
+   ```
+
+2. **Windowsファイアウォールでポート80を許可**（管理者権限のPowerShellで実行）:
+   ```powershell
+   New-NetFirewallRule -DisplayName "Tax Apps Gateway (HTTP)" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+   ```
+
+3. **LAN内の他PCからアクセス**:
+   ```
+   http://<ホストPCのIPアドレス>/
+   http://<ホストPCのIPアドレス>/inheritance-tax-app/
+   http://<ホストPCのIPアドレス>/bank-analyzer/
+   ```
+
+> **注意**: ホストPCのIPアドレスが変わった場合は、ブラウザのURLを新しいIPに変更するだけで対応できます（Docker・nginx・アプリ側の設定変更は不要）。
+
 ### manage.bat コマンド一覧
 
 ```
@@ -242,6 +266,18 @@ Next.js 16 の Turbopack がコンパイル時にクラッシュする場合:
    volumes:
      - /app/.next
    ```
+
+### LAN経由アクセス時の注意（HTTP環境）
+
+LAN IPアドレス経由（例: `http://192.168.x.x/`）でアクセスする場合、ブラウザは「非セキュアコンテキスト」として扱います。以下の対応が済んでいます:
+
+| 問題 | 対応済み | 対象 |
+|------|---------|------|
+| `crypto.randomUUID()` が使えない | `crypto.getRandomValues()` ベースのフォールバック実装 | inheritance-tax-app, gift-tax-docs |
+| Django の `ALLOWED_HOSTS` エラー (400) | ワイルドカード `*` を許可（開発モード） | bank-analyzer-django |
+| Django の COOP ヘッダー警告 | `SECURE_CROSS_ORIGIN_OPENER_POLICY = None` で無効化 | bank-analyzer-django |
+
+> `localhost` からのアクセスではこれらの問題は発生しません。
 
 ## ライセンス
 
