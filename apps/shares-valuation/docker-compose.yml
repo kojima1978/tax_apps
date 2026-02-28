@@ -39,8 +39,14 @@ services:
   shares-valuation:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ../../docker/Dockerfile.vite-static
       target: dev
+      args:
+        APP_PORT: "3012"
+        APP_PATH: shares
+        APP_TITLE: "Shares Valuation"
+        APP_DESCRIPTION: "非上場株式評価システム"
+        NPM_CACHE_ID: npm-store-shares-valuation
     container_name: shares-valuation
     networks:
       - tax-apps-network

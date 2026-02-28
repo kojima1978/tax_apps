@@ -16,6 +16,5 @@ services:
     build:
       target: runner
     init: false
-    command: ["nginx", "-g", "daemon off;"]
     volumes: []
     deploy: *prod-deploy

@@ -123,16 +123,10 @@ goto :end
 :: restart <app> - ?w??A?v??????N??
 :: ============================================================
 :cmd_restart
-if "%~2"=="" (
-    echo [ERROR] ?A?v???????w???????????
-    echo Usage: manage.bat restart ^<app-name^>
-    call :show_apps
-    goto :end
-)
-call :resolve_app "%~2"
-if "!RESOLVED_DIR!"=="" goto :end
+set "APP_CMD_ARG=%~2"
+call :require_app_arg "restart"
+if !ERRORLEVEL! neq 0 goto :end
 call :ensure_network
-for %%N in ("!RESOLVED_DIR!") do set "APP_NAME=%%~nxN"
 echo.
 echo [manage] !APP_NAME! ????N???????...
 docker compose -f "!RESOLVED_DIR!\docker-compose.yml" restart
@@ -143,16 +137,10 @@ goto :end
 :: build <app> - ?w??A?v??????r???h????N??
 :: ============================================================
 :cmd_build
-if "%~2"=="" (
-    echo [ERROR] ?A?v???????w???????????
-    echo Usage: manage.bat build ^<app-name^>
-    call :show_apps
-    goto :end
-)
-call :resolve_app "%~2"
-if "!RESOLVED_DIR!"=="" goto :end
+set "APP_CMD_ARG=%~2"
+call :require_app_arg "build"
+if !ERRORLEVEL! neq 0 goto :end
 call :ensure_network
-for %%N in ("!RESOLVED_DIR!") do set "APP_NAME=%%~nxN"
 echo.
 echo [manage] !APP_NAME! ????r???h????N???????...
 docker compose -f "!RESOLVED_DIR!\docker-compose.yml" up -d --build
@@ -163,14 +151,9 @@ goto :end
 :: logs <app> - ?w??A?v??????O?\??
 :: ============================================================
 :cmd_logs
-if "%~2"=="" (
-    echo [ERROR] ?A?v???????w???????????
-    echo Usage: manage.bat logs ^<app-name^>
-    call :show_apps
-    goto :end
-)
-call :resolve_app "%~2"
-if "!RESOLVED_DIR!"=="" goto :end
+set "APP_CMD_ARG=%~2"
+call :require_app_arg "logs"
+if !ERRORLEVEL! neq 0 goto :end
 docker compose -f "!RESOLVED_DIR!\docker-compose.yml" logs -f
 goto :end
 
@@ -214,77 +197,8 @@ set "BACKUP_OK=0"
 set "BACKUP_FAIL=0"
 set "BACKUP_SKIP=0"
 
-:: --- 1/5 ITCM PostgreSQL (pg_dump) ---
-echo [1/5] ITCM PostgreSQL ...
-
-docker ps --filter "name=itcm-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "itcm-postgres" >nul 2>&1
-if !ERRORLEVEL! neq 0 goto :backup_itcm_volume
-
-docker exec itcm-postgres pg_dump -U postgres -d inheritance_tax_db > "%BACKUP_DIR%\itcm-postgres.sql" 2>nul
-if !ERRORLEVEL! equ 0 (
-    echo [OK]    itcm-postgres.sql
-    set /a BACKUP_OK+=1
-) else (
-    del "%BACKUP_DIR%\itcm-postgres.sql" 2>nul
-    echo [WARN]  pg_dump failed, trying volume backup...
-    goto :backup_itcm_volume
-)
-goto :backup_itcm_done
-
-:backup_itcm_volume
-docker volume inspect inheritance-case-management_postgres_data >nul 2>&1
-if !ERRORLEVEL! neq 0 (
-    echo [SKIP]  ITCM PostgreSQL volume not found
-    set /a BACKUP_SKIP+=1
-    goto :backup_itcm_done
-)
-echo [WARN]  Container stopped - backing up volume directly
-docker run --rm -v inheritance-case-management_postgres_data:/data -v "%BACKUP_DIR%":/backup alpine tar czf /backup/itcm-postgres-volume.tar.gz -C /data . >nul 2>&1
-if !ERRORLEVEL! equ 0 (
-    echo [OK]    itcm-postgres-volume.tar.gz
-    set /a BACKUP_OK+=1
-) else (
-    echo [ERROR] Volume backup failed
-    set /a BACKUP_FAIL+=1
-)
-
-:backup_itcm_done
-
-:: --- 2/5 Bank Analyzer PostgreSQL + pgvector (pg_dump) ---
-echo [2/5] Bank Analyzer PostgreSQL ...
-
-docker ps --filter "name=bank-analyzer-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "bank-analyzer-postgres" >nul 2>&1
-if !ERRORLEVEL! neq 0 goto :backup_bank_pg_volume
-
-docker exec bank-analyzer-postgres pg_dump -U bankuser -d bank_analyzer > "%BACKUP_DIR%\bank-analyzer-postgres.sql" 2>nul
-if !ERRORLEVEL! equ 0 (
-    echo [OK]    bank-analyzer-postgres.sql
-    set /a BACKUP_OK+=1
-) else (
-    del "%BACKUP_DIR%\bank-analyzer-postgres.sql" 2>nul
-    echo [WARN]  pg_dump failed, trying volume backup...
-    goto :backup_bank_pg_volume
-)
-goto :backup_bank_pg_done
-
-:backup_bank_pg_volume
-docker volume inspect bank-analyzer-postgres >nul 2>&1
-if !ERRORLEVEL! neq 0 (
-    echo [SKIP]  Bank Analyzer PostgreSQL volume not found
-    set /a BACKUP_SKIP+=1
-    goto :backup_bank_pg_done
-)
-echo [WARN]  Container stopped - backing up volume directly
-docker run --rm -v bank-analyzer-postgres:/data -v "%BACKUP_DIR%":/backup alpine tar czf /backup/bank-analyzer-postgres-volume.tar.gz -C /data . >nul 2>&1
-if !ERRORLEVEL! equ 0 (
-    echo [OK]    bank-analyzer-postgres-volume.tar.gz
-    set /a BACKUP_OK+=1
-) else (
-    echo [ERROR] Volume backup failed
-    set /a BACKUP_FAIL+=1
-)
-
-:backup_bank_pg_done
+call :do_backup_postgres "1/5" "itcm-postgres" "inheritance-case-management_postgres_data" "postgres" "inheritance_tax_db" "itcm-postgres"
+call :do_backup_postgres "2/5" "bank-analyzer-postgres" "bank-analyzer-postgres" "bankuser" "bank_analyzer" "bank-analyzer-postgres"
 
 :: --- 3/5 SQLite volumes ---
 echo [3/5] SQLite volumes ...
@@ -340,7 +254,8 @@ if exist "!ITCM_ENV!" (
 :: --- Summary ---
 echo.
 
-for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$s = (Get-ChildItem -Path '%BACKUP_DIR%' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s -gt 1MB) { '{0:N1} MB' -f ($s/1MB) } elseif ($s -gt 1KB) { '{0:N1} KB' -f ($s/1KB) } else { '{0} bytes' -f $s }"`) do set "TOTAL_SIZE=%%S"
+call :format_dir_size "!BACKUP_DIR!"
+set "TOTAL_SIZE=!DIR_SIZE_RESULT!"
 
 echo ============================================================
 if !BACKUP_FAIL! equ 0 (
@@ -449,89 +364,8 @@ set "RESTORE_OK=0"
 set "RESTORE_FAIL=0"
 set "RESTORE_SKIP=0"
 
-:: --- 1/5 ITCM PostgreSQL ---
-echo [1/5] ITCM PostgreSQL ...
-
-if exist "!BACKUP_DIR!\itcm-postgres.sql" (
-    docker ps --filter "name=itcm-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "itcm-postgres" >nul 2>&1
-    if !ERRORLEVEL! neq 0 (
-        echo [ERROR] itcm-postgres container is not running.
-        echo         Run: manage.bat restart inheritance-case-management
-        set /a RESTORE_FAIL+=1
-        goto :restore_itcm_done
-    )
-    docker exec itcm-postgres psql -U postgres -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='inheritance_tax_db' AND pid <> pg_backend_pid();" >nul 2>&1
-    docker exec itcm-postgres psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS inheritance_tax_db;" >nul 2>&1
-    docker exec itcm-postgres psql -U postgres -d postgres -c "CREATE DATABASE inheritance_tax_db;" >nul 2>&1
-    docker exec -i itcm-postgres psql -U postgres -d inheritance_tax_db < "!BACKUP_DIR!\itcm-postgres.sql" >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        echo [OK]    itcm-postgres.sql
-        set /a RESTORE_OK+=1
-    ) else (
-        echo [ERROR] ITCM PostgreSQL restore failed
-        set /a RESTORE_FAIL+=1
-    )
-) else if exist "!BACKUP_DIR!\itcm-postgres-volume.tar.gz" (
-    echo [WARN]  Volume restore - container must be stopped
-    docker volume inspect inheritance-case-management_postgres_data >nul 2>&1
-    if !ERRORLEVEL! neq 0 (
-        docker volume create inheritance-case-management_postgres_data >nul 2>&1
-    )
-    docker run --rm -v inheritance-case-management_postgres_data:/data -v "!BACKUP_DIR!":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/itcm-postgres-volume.tar.gz" >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        echo [OK]    itcm-postgres-volume.tar.gz
-        set /a RESTORE_OK+=1
-    ) else (
-        echo [ERROR] Volume restore failed
-        set /a RESTORE_FAIL+=1
-    )
-) else (
-    echo [SKIP]  Not in backup
-    set /a RESTORE_SKIP+=1
-)
-:restore_itcm_done
-
-:: --- 2/5 Bank Analyzer PostgreSQL ---
-echo [2/5] Bank Analyzer PostgreSQL ...
-
-if exist "!BACKUP_DIR!\bank-analyzer-postgres.sql" (
-    docker ps --filter "name=bank-analyzer-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "bank-analyzer-postgres" >nul 2>&1
-    if !ERRORLEVEL! neq 0 (
-        echo [ERROR] bank-analyzer-postgres container is not running.
-        echo         Run: manage.bat restart bank-analyzer-django
-        set /a RESTORE_FAIL+=1
-        goto :restore_bank_pg_done
-    )
-    docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='bank_analyzer' AND pid <> pg_backend_pid();" >nul 2>&1
-    docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "DROP DATABASE IF EXISTS bank_analyzer;" >nul 2>&1
-    docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "CREATE DATABASE bank_analyzer;" >nul 2>&1
-    docker exec -i bank-analyzer-postgres psql -U bankuser -d bank_analyzer < "!BACKUP_DIR!\bank-analyzer-postgres.sql" >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        echo [OK]    bank-analyzer-postgres.sql
-        set /a RESTORE_OK+=1
-    ) else (
-        echo [ERROR] Bank Analyzer PostgreSQL restore failed
-        set /a RESTORE_FAIL+=1
-    )
-) else if exist "!BACKUP_DIR!\bank-analyzer-postgres-volume.tar.gz" (
-    echo [WARN]  Volume restore - container must be stopped
-    docker volume inspect bank-analyzer-postgres >nul 2>&1
-    if !ERRORLEVEL! neq 0 (
-        docker volume create bank-analyzer-postgres >nul 2>&1
-    )
-    docker run --rm -v bank-analyzer-postgres:/data -v "!BACKUP_DIR!":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/bank-analyzer-postgres-volume.tar.gz" >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        echo [OK]    bank-analyzer-postgres-volume.tar.gz
-        set /a RESTORE_OK+=1
-    ) else (
-        echo [ERROR] Volume restore failed
-        set /a RESTORE_FAIL+=1
-    )
-) else (
-    echo [SKIP]  Not in backup
-    set /a RESTORE_SKIP+=1
-)
-:restore_bank_pg_done
+call :do_restore_postgres "1/5" "itcm-postgres" "inheritance-case-management_postgres_data" "postgres" "inheritance_tax_db" "itcm-postgres" "inheritance-case-management"
+call :do_restore_postgres "2/5" "bank-analyzer-postgres" "bank-analyzer-postgres" "bankuser" "bank_analyzer" "bank-analyzer-postgres" "bank-analyzer-django"
 
 :: --- 3/5 SQLite volumes ---
 echo [3/5] SQLite volumes ...
@@ -811,13 +645,11 @@ goto :end
 
 :: --- ?A?v???N?? ---
 :do_start_app
-set "APP_PATH=!APP_%1!"
-set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-if not exist "!COMPOSE_FILE!" (
+call :init_app_vars %1
+if !ERRORLEVEL! neq 0 (
     for %%N in ("!APP_PATH!") do echo [WARN]    ?X?L?b?v: %%~nxN
     goto :eof
 )
-for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
 :: .env.example ?????? .env ??????????????
 set "APP_DIR=%PROJECT_ROOT%\!APP_PATH!"
 if exist "!APP_DIR!\.env.example" (
@@ -844,40 +676,118 @@ goto :eof
 
 :: --- ?A?v????~ ---
 :do_stop_app
-set "APP_PATH=!APP_%1!"
-set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-if not exist "!COMPOSE_FILE!" goto :eof
-for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
+call :init_app_vars %1
+if !ERRORLEVEL! neq 0 goto :eof
 echo [manage]   ??~: !APP_NAME!
 docker compose -f "!COMPOSE_FILE!" stop
 goto :eof
 
 :: --- ?A?v????~?E?? ---
 :do_down_app
-set "APP_PATH=!APP_%1!"
-set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-if not exist "!COMPOSE_FILE!" goto :eof
-for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
+call :init_app_vars %1
+if !ERRORLEVEL! neq 0 goto :eof
 echo [manage]   ??: !APP_NAME!
 docker compose -f "!COMPOSE_FILE!" down
 goto :eof
 
 :: --- ?A?v?????\?? ---
 :do_status_app
-set "APP_PATH=!APP_%1!"
-set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-if not exist "!COMPOSE_FILE!" goto :eof
+call :init_app_vars %1
+if !ERRORLEVEL! neq 0 goto :eof
 for /f "tokens=*" %%L in ('docker compose -f "!COMPOSE_FILE!" ps --format "{{.Name}}	{{.Status}}	{{.Ports}}" 2^>nul') do echo   %%L
 goto :eof
 
 :: --- ?A?v???N???[?? ---
 :do_clean_app
-set "APP_PATH=!APP_%1!"
-set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
-if not exist "!COMPOSE_FILE!" goto :eof
-for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
+call :init_app_vars %1
+if !ERRORLEVEL! neq 0 goto :eof
 echo   ??: !APP_NAME!
 docker compose -f "!COMPOSE_FILE!" down --rmi local --remove-orphans 2>nul
+goto :eof
+
+:: --- PostgreSQL???X?g?A ---
+:do_restore_postgres
+:: %1=step %2=container %3=volume %4=user %5=db %6=backup_name %7=app_hint
+echo [%~1] %~6 PostgreSQL ...
+
+if exist "!BACKUP_DIR!\%~6.sql" goto :_pg_restore_sql
+if exist "!BACKUP_DIR!\%~6-volume.tar.gz" goto :_pg_restore_vol
+echo [SKIP]  Not in backup
+set /a RESTORE_SKIP+=1
+goto :eof
+
+:_pg_restore_sql
+docker ps --filter "name=%~2" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "%~2" >nul 2>&1
+if !ERRORLEVEL! neq 0 (
+    echo [ERROR] %~2 container is not running.
+    echo         Run: manage.bat restart %~7
+    set /a RESTORE_FAIL+=1
+    goto :eof
+)
+docker exec %~2 psql -U %~4 -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='%~5' AND pid <> pg_backend_pid();" >nul 2>&1
+docker exec %~2 psql -U %~4 -d postgres -c "DROP DATABASE IF EXISTS %~5;" >nul 2>&1
+docker exec %~2 psql -U %~4 -d postgres -c "CREATE DATABASE %~5;" >nul 2>&1
+docker exec -i %~2 psql -U %~4 -d %~5 < "!BACKUP_DIR!\%~6.sql" >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    echo [OK]    %~6.sql
+    set /a RESTORE_OK+=1
+) else (
+    echo [ERROR] %~6 PostgreSQL restore failed
+    set /a RESTORE_FAIL+=1
+)
+goto :eof
+
+:_pg_restore_vol
+echo [WARN]  Volume restore - container must be stopped
+docker volume inspect %~3 >nul 2>&1
+if !ERRORLEVEL! neq 0 docker volume create %~3 >nul 2>&1
+docker run --rm -v %~3:/data -v "!BACKUP_DIR!":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/%~6-volume.tar.gz" >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    echo [OK]    %~6-volume.tar.gz
+    set /a RESTORE_OK+=1
+) else (
+    echo [ERROR] Volume restore failed
+    set /a RESTORE_FAIL+=1
+)
+goto :eof
+
+:: --- PostgreSQL?o?b?N?A?b?v ---
+:do_backup_postgres
+:: %1=step %2=container %3=volume %4=user %5=db %6=backup_name
+echo [%~1] %~6 PostgreSQL ...
+set "_PG_DONE=0"
+
+docker ps --filter "name=%~2" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "%~2" >nul 2>&1
+if !ERRORLEVEL! neq 0 goto :_pg_backup_volume
+
+docker exec %~2 pg_dump -U %~4 -d %~5 > "!BACKUP_DIR!\%~6.sql" 2>nul
+if !ERRORLEVEL! equ 0 (
+    echo [OK]    %~6.sql
+    set /a BACKUP_OK+=1
+    set "_PG_DONE=1"
+)
+if "!_PG_DONE!"=="0" (
+    del "!BACKUP_DIR!\%~6.sql" 2>nul
+    echo [WARN]  pg_dump failed, trying volume backup...
+)
+
+:_pg_backup_volume
+if "!_PG_DONE!"=="1" goto :eof
+docker volume inspect %~3 >nul 2>&1
+if !ERRORLEVEL! neq 0 (
+    echo [SKIP]  %~6 PostgreSQL volume not found
+    set /a BACKUP_SKIP+=1
+    goto :eof
+)
+echo [WARN]  Container stopped - backing up volume directly
+docker run --rm -v %~3:/data -v "!BACKUP_DIR!":/backup alpine tar czf /backup/%~6-volume.tar.gz -C /data . >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    echo [OK]    %~6-volume.tar.gz
+    set /a BACKUP_OK+=1
+) else (
+    echo [ERROR] Volume backup failed
+    set /a BACKUP_FAIL+=1
+)
 goto :eof
 
 :: --- ?{?????[???? ---
@@ -954,7 +864,8 @@ goto :eof
 :: --- ?o?b?N?A?b?v???\?? ---
 :do_show_backup
 set "BK_NAME=!BACKUP_%1!"
-for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$s = (Get-ChildItem -Path '%BACKUP_BASE%\!BK_NAME!' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s -gt 1MB) { '{0:N1} MB' -f ($s/1MB) } elseif ($s -gt 1KB) { '{0:N1} KB' -f ($s/1KB) } else { '{0} bytes' -f $s }"`) do echo   [%1] !BK_NAME!  (%%S)
+call :format_dir_size "%BACKUP_BASE%\!BK_NAME!"
+echo   [%1] !BK_NAME!  (!DIR_SIZE_RESULT!)
 goto :eof
 
 :: --- ?A?v?????\?? ---
@@ -966,6 +877,35 @@ goto :eof
 :: ============================================================
 :: ???[?e?B???e?B???
 :: ============================================================
+
+:: --- ?P??A?v???R?}???h?v???A???u?? ---
+:require_app_arg
+:: %1=command_name  Validates APP_CMD_ARG, resolves app, sets RESOLVED_DIR and APP_NAME
+if "!APP_CMD_ARG!"=="" (
+    echo [ERROR] ?A?v???????w???????????
+    echo Usage: manage.bat %~1 ^<app-name^>
+    call :show_apps
+    exit /b 1
+)
+call :resolve_app "!APP_CMD_ARG!"
+if "!RESOLVED_DIR!"=="" exit /b 1
+for %%N in ("!RESOLVED_DIR!") do set "APP_NAME=%%~nxN"
+exit /b 0
+
+:: --- ?A?v???????????i?N?????j ---
+:init_app_vars
+:: %1=app_index  Sets: APP_PATH, COMPOSE_FILE, APP_NAME. Returns ERRORLEVEL 1 if compose not found.
+set "APP_PATH=!APP_%1!"
+set "COMPOSE_FILE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml"
+if not exist "!COMPOSE_FILE!" exit /b 1
+for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
+exit /b 0
+
+:: --- ?f?B???N?g???T?C?Y?t?H?[?}?b?g ---
+:format_dir_size
+:: %1=directory_path  Sets: DIR_SIZE_RESULT
+for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$s = (Get-ChildItem -Path '%~1' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s -gt 1MB) { '{0:N1} MB' -f ($s/1MB) } elseif ($s -gt 1KB) { '{0:N1} KB' -f ($s/1KB) } else { '{0} bytes' -f $s }"`) do set "DIR_SIZE_RESULT=%%S"
+goto :eof
 
 :: --- ?l?b?g???[?N?? ---
 :ensure_network
