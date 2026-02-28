@@ -1,4 +1,5 @@
 import { COMPANY_INFO } from '../constants';
+import { formatCurrency, formatDelta } from './formatters';
 
 /**
  * Excel スタイル定数（ExcelExport / CalculatorExcelExport 共通）
@@ -159,6 +160,56 @@ export function addHighlightRows(worksheet: any, colCount: number, rows: [string
 }
 
 /**
+ * シナリオ比較テーブル行データ
+ */
+export interface CompRow {
+  label: string;
+  cur: number;
+  prop: number;
+  highlight?: boolean;
+  sectionEnd?: boolean;
+  valuePrefix?: string;
+}
+
+/**
+ * シナリオ比較テーブルを追加（ヘッダー + データ行 + ハイライト + 列幅）
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function addComparisonTable(
+  worksheet: any,
+  colCount: number,
+  compData: CompRow[],
+  highlightRows: [string, string][],
+  columnWidths: number[],
+) {
+  const compHeaders = ['項目', '現状', '提案', '差額（Δ）'];
+  const compHeaderRow = worksheet.addRow(compHeaders);
+  applyTableHeaderStyle(compHeaderRow);
+
+  const SECTION_BORDER = { style: 'medium' as const, color: { argb: 'FF9CA3AF' } };
+  const fmtWithPrefix = (v: number, pfx?: string) => v > 0 && pfx ? `${pfx}${formatCurrency(v)}` : formatCurrency(v);
+
+  compData.forEach(({ label, cur, prop, highlight, sectionEnd, valuePrefix }) => {
+    const diff = prop - cur;
+    const fmtDiff = diff !== 0 ? (valuePrefix ? `${valuePrefix}${formatCurrency(Math.abs(diff))}` : formatDelta(diff)) : '—';
+    const row = worksheet.addRow([label, fmtWithPrefix(cur, valuePrefix), fmtWithPrefix(prop, valuePrefix), fmtDiff]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    row.eachCell((cell: any, colNumber: number) => {
+      cell.font = { size: 10, bold: colNumber === 1 || highlight || false };
+      cell.alignment = { vertical: 'middle', horizontal: colNumber === 1 ? 'left' : 'right' };
+      cell.border = sectionEnd
+        ? { ...ALL_THIN_BORDERS, bottom: SECTION_BORDER }
+        : ALL_THIN_BORDERS;
+      if (highlight) cell.fill = FILLS.highlight;
+    });
+  });
+
+  addHighlightRows(worksheet, colCount, highlightRows);
+  worksheet.addRow([]);
+  worksheet.columns = columnWidths.map(w => ({ width: w }));
+}
+
+/**
  * 相続人別 納税後比較セクションを追加（シート3共通）
  */
 interface HeirComparisonConfig {
@@ -219,6 +270,96 @@ export function addHeirComparisonSection(sheet: any, sheetColCount: number, conf
     cell.alignment = { vertical: 'middle', horizontal: col === 1 ? 'left' : 'right' };
     cell.border = ALL_THIN_BORDERS;
   });
+}
+
+/**
+ * 相続人別シナリオ内訳シートのシナリオ設定
+ */
+export interface HeirScenarioConfig {
+  label: string;
+  summaryText: string;
+  columnHeaders: string[];
+  heirCount: number;
+  getRowData: (i: number) => string[];
+  getTotalRow: () => string[];
+}
+
+/**
+ * 相続人別シナリオ内訳シートを追加（タイトル + シナリオ×2 + 比較セクション + 列幅）
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function addHeirScenarioSheet(
+  workbook: any,
+  title: string,
+  colCount: number,
+  scenarios: HeirScenarioConfig[],
+  comparisonConfig: HeirComparisonConfig,
+  columnWidths: number[],
+) {
+  const sheet = workbook.addWorksheet('相続人別内訳', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  });
+
+  // タイトル行
+  sheet.mergeCells(1, 1, 1, colCount);
+  const titleCell = sheet.getCell('A1');
+  titleCell.value = title;
+  titleCell.font = { size: 18, bold: true, color: { argb: 'FF16A34A' } };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  sheet.getRow(1).height = 30;
+  sheet.addRow([]);
+
+  // シナリオ別セクション
+  scenarios.forEach(({ label, summaryText, columnHeaders, heirCount, getRowData, getTotalRow }) => {
+    // セクションヘッダー
+    const secRowNum = sheet.rowCount + 1;
+    sheet.mergeCells(secRowNum, 1, secRowNum, colCount);
+    const secCell = sheet.getCell(`A${secRowNum}`);
+    secCell.value = `${label}（${summaryText}）`;
+    secCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+    secCell.fill = FILLS.mainHeader;
+    secCell.alignment = { vertical: 'middle', horizontal: 'left' };
+    secCell.border = ALL_GREEN_BORDERS;
+    sheet.getRow(secRowNum).height = 24;
+
+    // カラムヘッダー
+    const hdr = sheet.addRow(columnHeaders);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    hdr.eachCell((cell: any) => {
+      cell.font = { bold: true, size: 10 };
+      cell.fill = solidFill('FFF3F4F6');
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = ALL_THIN_BORDERS;
+    });
+
+    // データ行
+    for (let i = 0; i < heirCount; i++) {
+      const row = sheet.addRow(getRowData(i));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      row.eachCell((cell: any, col: number) => {
+        cell.font = { size: 10 };
+        cell.alignment = { vertical: 'middle', horizontal: col === 1 ? 'left' : 'right' };
+        cell.border = ALL_THIN_BORDERS;
+      });
+    }
+
+    // 合計行
+    const totalRow = sheet.addRow(getTotalRow());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    totalRow.eachCell((cell: any, col: number) => {
+      cell.font = { bold: true, size: 10 };
+      cell.fill = FILLS.totalRow;
+      cell.alignment = { vertical: 'middle', horizontal: col === 1 ? 'left' : 'right' };
+      cell.border = ALL_THIN_BORDERS;
+    });
+    sheet.addRow([]);
+  });
+
+  // 比較セクション
+  addHeirComparisonSection(sheet, colCount, comparisonConfig);
+
+  // 列幅
+  sheet.columns = columnWidths.map(w => ({ width: w }));
 }
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';

@@ -2,6 +2,7 @@ import React from 'react';
 import type { CashGiftSimulationResult, GiftScenarioResult, GiftRecipientResult } from '../../types';
 import { formatCurrency, getGiftHeirNetProceeds } from '../../utils';
 import { TH, TD } from '../tableStyles';
+import { HeirScenarioTable, type HeirColumn } from '../HeirScenarioTable';
 import { HeirNetComparisonTable } from '../HeirNetComparisonTable';
 
 interface CashGiftHeirTableProps {
@@ -59,73 +60,17 @@ const RecipientDetailTable: React.FC<{ recipientResults: GiftRecipientResult[] }
   );
 };
 
-/** シナリオ別テーブル（現状 or 提案） */
-const ScenarioTable: React.FC<{
-  scenario: GiftScenarioResult;
-  recipientResults: GiftRecipientResult[];
-  headerBg: string;
-}> = ({ scenario, recipientResults, headerBg }) => {
+function buildGiftColumns(scenario: GiftScenarioResult, rr: GiftRecipientResult[]): HeirColumn[] {
   const { taxResult } = scenario;
-  const heirCount = taxResult.heirBreakdowns.length;
-
-  return (
-    <div>
-      <h4 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-        <span className={`inline-block w-3 h-3 rounded-full bg-green-600`} />
-        {scenario.label}
-        <span className="text-sm font-normal text-gray-500">
-          （税額合計: {formatCurrency(taxResult.totalFinalTax)}）
-        </span>
-      </h4>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className={`${headerBg} text-white`}>
-              <th className={TH}>相続人</th>
-              <th className={TH}>遺産取得額</th>
-              <th className={TH}>贈与受取額</th>
-              <th className={TH}>贈与税負担</th>
-              <th className={TH}>納付相続税</th>
-              <th className={TH}>税引後</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: heirCount }, (_, i) => {
-              const taxEntry = taxResult.heirBreakdowns[i];
-              if (!taxEntry) return null;
-              const matching = recipientResults.filter(r => r.heirLabel === taxEntry.label);
-              const giftTotal = matching.reduce((s, r) => s + r.totalGift, 0);
-              const giftTaxTotal = matching.reduce((s, r) => s + r.totalGiftTax, 0);
-              const netProceeds = getGiftHeirNetProceeds(scenario, i, recipientResults);
-              return (
-                <tr key={taxEntry.label} className="hover:bg-green-50">
-                  <td className={`${TD} text-left font-medium`}>{taxEntry.label}</td>
-                  <td className={TD}>{formatCurrency(taxEntry.acquisitionAmount)}</td>
-                  <td className={TD}>{giftTotal > 0 ? formatCurrency(giftTotal) : '—'}</td>
-                  <td className={TD}>{giftTaxTotal > 0 ? formatCurrency(giftTaxTotal) : '—'}</td>
-                  <td className={TD}>{formatCurrency(taxEntry.finalTax)}</td>
-                  <td className={`${TD} font-bold`}>{formatCurrency(netProceeds)}</td>
-                </tr>
-              );
-            })}
-            <tr className="bg-gray-50 font-semibold">
-              <td className={`${TD} text-left`}>合計</td>
-              <td className={TD}>{formatCurrency(scenario.estateValue)}</td>
-              <td className={TD}>
-                {recipientResults.length > 0 ? formatCurrency(recipientResults.reduce((s, r) => s + r.totalGift, 0)) : '—'}
-              </td>
-              <td className={TD}>
-                {recipientResults.length > 0 ? formatCurrency(recipientResults.reduce((s, r) => s + r.totalGiftTax, 0)) : '—'}
-              </td>
-              <td className={TD}>{formatCurrency(taxResult.totalFinalTax)}</td>
-              <td className={`${TD} font-bold`}>{formatCurrency(scenario.totalNetProceeds)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
+  return [
+    { label: '相続人', align: 'left', getValue: i => taxResult.heirBreakdowns[i]?.label, getTotalValue: () => '合計' },
+    { label: '遺産取得額', getValue: i => formatCurrency(taxResult.heirBreakdowns[i]?.acquisitionAmount ?? 0), getTotalValue: () => formatCurrency(scenario.estateValue) },
+    { label: '贈与受取額', getValue: i => { const g = rr.filter(r => r.heirLabel === taxResult.heirBreakdowns[i]?.label).reduce((s, r) => s + r.totalGift, 0); return g > 0 ? formatCurrency(g) : '—'; }, getTotalValue: () => rr.length > 0 ? formatCurrency(rr.reduce((s, r) => s + r.totalGift, 0)) : '—' },
+    { label: '贈与税負担', getValue: i => { const t = rr.filter(r => r.heirLabel === taxResult.heirBreakdowns[i]?.label).reduce((s, r) => s + r.totalGiftTax, 0); return t > 0 ? formatCurrency(t) : '—'; }, getTotalValue: () => rr.length > 0 ? formatCurrency(rr.reduce((s, r) => s + r.totalGiftTax, 0)) : '—' },
+    { label: '納付相続税', getValue: i => formatCurrency(taxResult.heirBreakdowns[i]?.finalTax ?? 0), getTotalValue: () => formatCurrency(taxResult.totalFinalTax) },
+    { label: '税引後', bold: true, getValue: i => formatCurrency(getGiftHeirNetProceeds(scenario, i, rr)), getTotalValue: () => formatCurrency(scenario.totalNetProceeds) },
+  ];
+}
 
 export const CashGiftHeirTable: React.FC<CashGiftHeirTableProps> = ({ result }) => {
   const { current, proposed, recipientResults } = result;
@@ -141,8 +86,22 @@ export const CashGiftHeirTable: React.FC<CashGiftHeirTableProps> = ({ result }) 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <ScenarioTable scenario={current} recipientResults={[]} headerBg="bg-green-600" />
-        <ScenarioTable scenario={proposed} recipientResults={recipientResults} headerBg="bg-green-600" />
+        <HeirScenarioTable
+          label={current.label}
+          taxTotal={current.taxResult.totalFinalTax}
+          headerBg="bg-green-600"
+          heirCount={heirCount}
+          getHeirKey={i => current.taxResult.heirBreakdowns[i]?.label || String(i)}
+          columns={buildGiftColumns(current, [])}
+        />
+        <HeirScenarioTable
+          label={proposed.label}
+          taxTotal={proposed.taxResult.totalFinalTax}
+          headerBg="bg-green-600"
+          heirCount={heirCount}
+          getHeirKey={i => proposed.taxResult.heirBreakdowns[i]?.label || String(i)}
+          columns={buildGiftColumns(proposed, recipientResults)}
+        />
       </div>
 
       <HeirNetComparisonTable
