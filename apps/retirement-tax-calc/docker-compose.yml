@@ -39,8 +39,14 @@ services:
   retirement-tax-calc:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ../../docker/Dockerfile.vite-static
       target: dev
+      args:
+        APP_PORT: "3013"
+        APP_PATH: retirement-tax-calc
+        APP_TITLE: "Retirement Tax Calculator"
+        APP_DESCRIPTION: "退職金税額計算シミュレーター"
+        NPM_CACHE_ID: npm-store-retirement-tax-calc
     container_name: retirement-tax-calc
     networks:
       - tax-apps-network

@@ -38,8 +38,14 @@ services:
   gift-tax-docs:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ../../docker/Dockerfile.vite-static
       target: dev
+      args:
+        APP_PORT: "3002"
+        APP_PATH: gift-tax-docs
+        APP_TITLE: "Gift Tax Docs"
+        APP_DESCRIPTION: "贈与税申告 必要書類案内システム"
+        NPM_CACHE_ID: npm-store-gift-tax-docs
     container_name: gift-tax-docs
     networks:
       - tax-apps-network

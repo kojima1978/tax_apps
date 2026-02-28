@@ -39,8 +39,14 @@ services:
   inheritance-tax-docs:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ../../docker/Dockerfile.vite-static
       target: dev
+      args:
+        APP_PORT: "3003"
+        APP_PATH: inheritance-tax-docs
+        APP_TITLE: "Inheritance Tax Docs"
+        APP_DESCRIPTION: "相続税申告 資料準備ガイド"
+        NPM_CACHE_ID: npm-store-inheritance-tax-docs
     container_name: inheritance-tax-docs
     networks:
       - tax-apps-network

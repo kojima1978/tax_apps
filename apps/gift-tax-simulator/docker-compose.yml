@@ -39,8 +39,14 @@ services:
   gift-tax-simulator:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ../../docker/Dockerfile.vite-static
       target: dev
+      args:
+        APP_PORT: "3001"
+        APP_PATH: gift-tax-simulator
+        APP_TITLE: "Gift Tax Simulator"
+        APP_DESCRIPTION: "贈与税シミュレーション（税額計算・早見表・不動産取得税・登録免許税）"
+        NPM_CACHE_ID: npm-store-gift-tax-simulator
     container_name: gift-tax-simulator
     networks:
       - tax-apps-network

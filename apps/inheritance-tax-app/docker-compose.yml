@@ -40,8 +40,14 @@ services:
   inheritance-tax-app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ../../docker/Dockerfile.vite-static
       target: dev
+      args:
+        APP_PORT: "3004"
+        APP_PATH: inheritance-tax-app
+        APP_TITLE: "相続税シミュレーター"
+        APP_DESCRIPTION: "相続税額シミュレーション（早見表・計算・1次2次比較・保険金・現金贈与）"
+        NPM_CACHE_ID: npm-store-inheritance-tax-app
     container_name: inheritance-tax-app
     networks:
       - tax-apps-network
