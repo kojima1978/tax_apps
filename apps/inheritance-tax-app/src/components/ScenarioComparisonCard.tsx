@@ -20,6 +20,7 @@ export type HighlightItem = {
   value: number;
   format: 'saving' | 'gain' | 'ratio';
   description?: string;
+  valueSuffix?: React.ReactNode;
   footnote?: React.ReactNode;
 };
 
@@ -116,9 +117,12 @@ export function ScenarioComparisonCard<T>({
               {h.description && (
                 <p className="text-[10px] text-gray-400 mb-1">{h.description}</p>
               )}
-              <p className={`text-xl font-bold ${textClass}`}>{formatted}</p>
+              <p className={`text-xl font-bold ${textClass}`}>
+                {formatted}
+                {h.valueSuffix && <span className="text-sm">{h.valueSuffix}</span>}
+              </p>
               {h.footnote && (
-                <p className="text-xs text-gray-500 mt-1">{h.footnote}</p>
+                <p className="text-[10px] text-gray-500 mt-1 whitespace-nowrap">{h.footnote}</p>
               )}
             </div>
           );

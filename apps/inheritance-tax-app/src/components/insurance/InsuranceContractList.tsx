@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Plus from 'lucide-react/icons/plus';
 import Trash2 from 'lucide-react/icons/trash-2';
 import FileText from 'lucide-react/icons/file-text';
@@ -61,6 +61,31 @@ export const InsuranceContractList: React.FC<InsuranceContractListProps> = ({
     }));
   };
 
+  // ── 倍率 ⇔ 保険金 双方向同期 ──
+  const [stickyRatios, setStickyRatios] = useState<Record<string, number>>({});
+
+  const handlePremiumChange = (id: string, newPremium: number) => {
+    const ratio = stickyRatios[id];
+    if (ratio > 0) {
+      updateContract(id, { premium: newPremium, benefit: Math.round(newPremium * ratio / 100) });
+    } else {
+      updateContract(id, { premium: newPremium });
+    }
+  };
+
+  const handleRatioChange = (id: string, ratio: number, premium: number) => {
+    setStickyRatios(prev => ({ ...prev, [id]: ratio }));
+    updateContract(id, { benefit: Math.round(premium * ratio / 100) });
+  };
+
+  const handleBenefitChange = (id: string, benefit: number) => {
+    setStickyRatios(prev => ({ ...prev, [id]: 0 }));
+    updateContract(id, { benefit });
+  };
+
+  const computeRatio = (c: InsuranceContract) =>
+    c.premium > 0 && c.benefit > 0 ? Math.round(c.benefit / c.premium * 100) : 0;
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <SectionHeader icon={config.icon} title={config.title} />
@@ -110,16 +135,34 @@ export const InsuranceContractList: React.FC<InsuranceContractListProps> = ({
                   <CurrencyInput
                     label="支払保険料"
                     value={contract.premium}
-                    onChange={v => updateContract(contract.id, { premium: v })}
+                    onChange={v => handlePremiumChange(contract.id, v)}
                     placeholder="例: 800"
                   />
+                )}
+
+                {/* 倍率（新規契約 & 保険料入力済みの場合） */}
+                {category === 'new' && contract.premium > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700 whitespace-nowrap">倍率</label>
+                    <input
+                      type="number"
+                      value={computeRatio(contract) || ''}
+                      onChange={e => handleRatioChange(contract.id, Number(e.target.value) || 0, contract.premium)}
+                      onWheel={e => e.currentTarget.blur()}
+                      min={0}
+                      step={10}
+                      className="w-24 px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-right text-sm"
+                      placeholder="240"
+                    />
+                    <span className="text-sm text-gray-600">%</span>
+                  </div>
                 )}
 
                 {/* 受取保険金額 */}
                 <CurrencyInput
                   label="受取保険金額"
                   value={contract.benefit}
-                  onChange={v => updateContract(contract.id, { benefit: v })}
+                  onChange={v => category === 'new' ? handleBenefitChange(contract.id, v) : updateContract(contract.id, { benefit: v })}
                   placeholder="例: 1000"
                 />
               </div>

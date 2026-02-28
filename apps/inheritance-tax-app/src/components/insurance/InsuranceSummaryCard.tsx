@@ -35,6 +35,15 @@ export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ resu
 
   const newBenefit = proposed.totalBenefit - current.totalBenefit;
   const returnRatio = newPremiumTotal > 0 ? Math.round(newBenefit / newPremiumTotal * 100) : -1;
+  const insuranceNetGain = newBenefit - newPremiumTotal;
+
+  const netFootnote = newPremiumTotal > 0
+    ? taxSaving > 0
+      ? <>{formatCurrency(insuranceNetGain)}（保険増加分） ＋ {formatCurrency(taxSaving)}（税軽減分）</>
+      : taxSaving < 0
+        ? <>{formatCurrency(insuranceNetGain)}（保険増加分） − {formatCurrency(-taxSaving)}（税増加分）</>
+        : <>{formatCurrency(insuranceNetGain)}（保険増加分）</>
+    : <>{formatCurrency(current.totalNetProceeds)} → {formatCurrency(proposed.totalNetProceeds)}</>;
 
   const highlights: HighlightItem[] = [
     // 新規契約がある場合のみ「保険料→保険金」カードを左端に表示
@@ -43,6 +52,7 @@ export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ resu
       description: '支払った保険料に対する保険金の倍率',
       value: returnRatio,
       format: 'ratio' as const,
+      valueSuffix: <>（＋{formatCurrency(insuranceNetGain)}）</>,
       footnote: <>{formatCurrency(newPremiumTotal)}（保険料）→ {formatCurrency(newBenefit)}（保険金）</>,
     }] : []),
     {
@@ -50,14 +60,14 @@ export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ resu
       description: '保険加入による税額の変化',
       value: taxSaving,
       format: 'saving',
-      footnote: <>{formatCurrency(current.taxResult.totalFinalTax)} → {formatCurrency(proposed.taxResult.totalFinalTax)}</>,
+      footnote: <>{formatCurrency(current.taxResult.totalFinalTax)}（現状） → {formatCurrency(proposed.taxResult.totalFinalTax)}（提案）</>,
     },
     {
       label: '納税後財産額の増減',
       description: '保険加入後に残る財産の変化',
       value: netProceedsDiff,
       format: 'gain',
-      footnote: <>{formatCurrency(current.totalNetProceeds)} → {formatCurrency(proposed.totalNetProceeds)}</>,
+      footnote: netFootnote,
     },
     {
       label: '納税充当率',
