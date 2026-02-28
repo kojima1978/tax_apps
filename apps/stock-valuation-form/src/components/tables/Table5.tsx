@@ -1,21 +1,13 @@
 import { useState } from 'react';
 import {
-  DndContext,
-  closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { FormField } from '@/components/ui/FormField';
+import { arrayMove } from '@dnd-kit/sortable';
 import { NumberField } from '@/components/ui/NumberField';
+import { EditableTable, type ColumnDef, type Preset } from '@/components/ui/EditableTable';
 import type { TableId } from '@/types/form';
 
 /* ================================================
@@ -27,8 +19,6 @@ interface Props {
   updateField: (table: TableId, field: string, value: string) => void;
   onTabChange?: (tab: TableId) => void;
 }
-
-type Preset = { name: string; note?: string };
 
 /* ================================================
  * Constants
@@ -46,11 +36,26 @@ const bb = { borderBottom: '0.5px solid #000' } as const;
 const br = { borderRight: '0.5px solid #000' } as const;
 const bl = { borderLeft: '0.5px solid #000' } as const;
 const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500 };
-
-// Shared cell styles
 const flex: React.CSSProperties = { display: 'flex', alignItems: 'center' };
 const cellVal: React.CSSProperties = { flex: 1, ...br, padding: '0px 2px', ...flex };
-const cellName: React.CSSProperties = { width: '28%', ...br, padding: '0px 2px' };
+
+/* ---- Column Definitions ---- */
+
+const ASSET_COLUMNS: ColumnDef[] = [
+  { key: 'name', header: '科　目', width: '28%', type: 'text' },
+  { key: 'eval', header: '相続税評価額（千円）', type: 'number', autoSync: 'book' },
+  { key: 'book', header: '帳簿価額（千円）', type: 'number' },
+  { key: 'note', header: '備　考', width: '14%', type: 'select', options: NOTE_OPTIONS },
+];
+
+const LIABILITY_COLUMNS: ColumnDef[] = [
+  { key: 'name', header: '科　目', width: '28%', type: 'text' },
+  { key: 'eval', header: '相続税評価額（千円）', type: 'number', autoSync: 'book' },
+  { key: 'book', header: '帳簿価額（千円）', type: 'number' },
+  { key: 'note', header: '備　考', width: '14%', type: 'text' },
+];
+
+/* ---- Presets ---- */
 
 const ASSET_PRESETS: Preset[] = [
   { name: '現金預金' },
@@ -91,35 +96,8 @@ const LIABILITY_PRESETS: Preset[] = [
 ];
 
 /* ================================================
- * Sub-Components
+ * Sub-Components (Table5 specific)
  * ================================================ */
-
-function SortableRow({ id, rowIndex, onDelete, children }: { id: string; rowIndex: number; onDelete: () => void; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  return (
-    <div
-      ref={setNodeRef}
-      className="sortable-row"
-      style={{
-        ...flex, borderBottom: '0.5px solid #000', height: ROW_H,
-        transform: CSS.Transform.toString(transform), transition,
-        opacity: isDragging ? 0.5 : 1,
-        background: isDragging ? '#fff8e1' : undefined,
-      }}
-    >
-      <div
-        className="no-print row-num"
-        {...attributes}
-        {...listeners}
-        onDoubleClick={(e) => { e.preventDefault(); onDelete(); }}
-        style={{ width: 18, ...br, ...flex, justifyContent: 'center', fontSize: 6.5, color: '#999', cursor: 'grab' }}
-      >
-        {rowIndex + 1}
-      </div>
-      {children}
-    </div>
-  );
-}
 
 const Computed = ({ value, unit }: { value: number | null; unit?: string }) => (
   <span style={{ ...flex, width: '100%' }}>
@@ -144,45 +122,6 @@ const RowBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
   >{label}</button>
 );
 
-function SectionTitle({ label, side, showPreset, setShowPreset, onClear }: {
-  label: string; side: 'a' | 'l';
-  showPreset: 'a' | 'l' | null; setShowPreset: (v: 'a' | 'l' | null) => void;
-  onClear: () => void;
-}) {
-  return (
-    <div style={{ ...bb, ...hdr, textAlign: 'center', padding: '1px', letterSpacing: '0.5em', fontWeight: 700, height: ROW_H, ...flex, justifyContent: 'center', position: 'relative' }}>
-      {label}
-      <span className="no-print" style={{ position: 'absolute', right: 2, display: 'flex', gap: 2, letterSpacing: 0, fontSize: 7, fontWeight: 400 }}>
-        <button onClick={() => setShowPreset(showPreset === side ? null : side)} style={{ padding: '0 3px', border: '1px solid #aaa', borderRadius: 2, cursor: 'pointer', background: showPreset === side ? '#e3f2fd' : '#fff', fontSize: 7 }}>科目</button>
-        <button onClick={onClear} style={{ padding: '0 3px', border: '1px solid #aaa', borderRadius: 2, cursor: 'pointer', background: '#fff', fontSize: 7, color: '#c62828' }}>クリア</button>
-      </span>
-    </div>
-  );
-}
-
-function PresetPanel({ presets, onSelect, onSelectAll }: {
-  presets: Preset[]; onSelect: (p: Preset) => void; onSelectAll: () => void;
-}) {
-  return (
-    <div className="no-print" style={{ padding: '3px 4px', background: '#e3f2fd', ...bb, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-      {presets.map((p) => (
-        <button key={p.name} onClick={() => onSelect(p)} style={{ padding: '1px 4px', fontSize: 7, border: '1px solid #90caf9', borderRadius: 2, cursor: 'pointer', background: '#fff' }}>{p.name}</button>
-      ))}
-      <button onClick={onSelectAll} style={{ padding: '1px 4px', fontSize: 7, border: '1px solid #1565c0', borderRadius: 2, cursor: 'pointer', background: '#1565c0', color: '#fff' }}>全科目</button>
-    </div>
-  );
-}
-
-const ColumnHeaders = () => (
-  <div style={{ display: 'flex', ...bb, fontSize: 7, textAlign: 'center', height: ROW_H }}>
-    <div className="no-print" style={{ width: 18, ...br, ...hdr, ...flex, justifyContent: 'center', fontSize: 6 }}>No</div>
-    <div style={{ width: '28%', ...br, ...hdr, ...flex, justifyContent: 'center' }}>科　目</div>
-    <div style={{ flex: 1, ...br, ...hdr, ...flex, justifyContent: 'center' }}>相続税評価額（千円）</div>
-    <div style={{ flex: 1, ...br, ...hdr, ...flex, justifyContent: 'center' }}>帳簿価額（千円）</div>
-    <div style={{ width: '14%', ...hdr, ...flex, justifyContent: 'center' }}>備　考</div>
-  </div>
-);
-
 /* ================================================
  * Main Component
  * ================================================ */
@@ -193,8 +132,9 @@ export function Table5({ getField, updateField, onTabChange }: Props) {
 
   const [rows, setRows] = useState(DEFAULT_ROWS);
   const [showPreset, setShowPreset] = useState<'a' | 'l' | null>(null);
+  const [showInsCalc, setShowInsCalc] = useState(false);
 
-  /* ---- Actions ---- */
+  /* ---- Shared actions ---- */
   const applyPreset = (prefix: string, presets: Preset[]) => {
     let idx = 0;
     for (const p of presets) {
@@ -322,6 +262,93 @@ export function Table5({ getField, updateField, onTabChange }: Props) {
     );
   };
 
+  /* ---- Footers ---- */
+  const assetFooter = (
+    <>
+      {/* 合計 ①② */}
+      <div style={{ display: 'flex', ...bb, height: ROW_H, fontWeight: 700 }}>
+        <NoPrintSpacer />
+        <div style={{ width: '28%', ...br, ...hdr, textAlign: 'center', ...flex, justifyContent: 'center', letterSpacing: '0.5em' }}>合　計</div>
+        <div style={cellVal}><span style={{ marginRight: 2 }}>①</span><Computed value={aEvalSum} /></div>
+        <div style={cellVal}><span style={{ marginRight: 2 }}>②</span><Computed value={aBookSum} /></div>
+        <div style={{ width: '14%' }} />
+      </div>
+      {/* 株式等 イ・ロ */}
+      <div style={{ display: 'flex', ...bb, height: ROW_H, fontSize: 7 }}>
+        <NoPrintSpacer />
+        <div style={{ width: '28%', ...br, ...hdr, padding: '0px 2px', ...flex }}>株式等の価額の合計額</div>
+        <div style={cellVal}><span style={{ marginRight: 2 }}>イ</span><Computed value={stockEval} /></div>
+        <div style={cellVal}><span style={{ marginRight: 2 }}>ロ</span><Computed value={stockBook} /></div>
+        <div style={{ width: '14%' }} />
+      </div>
+      {/* 土地等 ハ */}
+      <div style={{ display: 'flex', ...bb, height: ROW_H, fontSize: 7 }}>
+        <NoPrintSpacer />
+        <div style={{ width: '28%', ...br, ...hdr, padding: '0px 2px', ...flex }}>土地等の価額の合計額</div>
+        <div style={cellVal}><span style={{ marginRight: 2 }}>ハ</span><Computed value={landEval} /></div>
+        <div style={{ flex: 1, ...br, padding: '0px 2px', ...flex, justifyContent: 'center' }}>
+          <span style={{ fontSize: 14, color: '#999' }}>／</span>
+        </div>
+        <div style={{ width: '14%' }} />
+      </div>
+      {/* 現物出資等 ニ・ホ */}
+      <div style={{ display: 'flex', height: ROW_H, fontSize: 7 }}>
+        <NoPrintSpacer />
+        <div style={{ width: '28%', ...br, ...hdr, padding: '0px 2px', fontSize: 6, ...flex, lineHeight: 1.1 }}>現物出資等受入れ<br />資産の価額の合計額</div>
+        <div style={cellVal}><span style={{ marginRight: 2 }}>ニ</span><NumberField value={g('genbutsu_eval')} onChange={(v) => u('genbutsu_eval', v)} /></div>
+        <div style={cellVal}><span style={{ marginRight: 2 }}>ホ</span><NumberField value={g('genbutsu_book')} onChange={(v) => u('genbutsu_book', v)} /></div>
+        <div style={{ width: '14%' }} />
+      </div>
+    </>
+  );
+
+  const liabilityFooter = (
+    <>
+      {/* 合計 ③④ */}
+      <div style={{ display: 'flex', ...bb, height: ROW_H, fontWeight: 700 }}>
+        <NoPrintSpacer />
+        <div style={{ width: '28%', ...br, ...hdr, textAlign: 'center', ...flex, justifyContent: 'center', letterSpacing: '0.5em' }}>合　計</div>
+        <div style={cellVal}><span style={{ marginRight: 2 }}>③</span><Computed value={lEvalSum} /></div>
+        <div style={cellVal}><span style={{ marginRight: 2 }}>④</span><Computed value={lBookSum} /></div>
+        <div style={{ width: '14%' }} />
+      </div>
+      {/* 保険差益に対する法人税等 計算 */}
+      <div className="no-print" style={{ ...bb, padding: '2px 4px', background: '#f5f5f5', fontSize: 7 }}>
+        <button
+          onClick={() => setShowInsCalc(!showInsCalc)}
+          style={{ padding: '1px 4px', fontSize: 7, border: '1px solid #aaa', borderRadius: 2, cursor: 'pointer', background: '#fff', color: '#555' }}
+        >{showInsCalc ? '▼' : '▶'} 保険差益に対する法人税等の計算</button>
+        {showInsCalc && (
+          <div style={{ marginTop: 2 }}>
+            <div style={{ ...flex, gap: 4 }}>
+              <span style={{ flexShrink: 0 }}>生命保険金請求権：</span>
+              <div style={{ width: 90, flexShrink: 0 }}><NumberField value={g('ins_claim')} onChange={(v) => u('ins_claim', v)} /></div>
+              <span style={{ flexShrink: 0 }}>（千円）</span>
+              <span style={{ flexShrink: 0 }}>退職金：</span>
+              <div style={{ width: 90, flexShrink: 0 }}><NumberField value={g('ins_retire')} onChange={(v) => u('ins_retire', v)} /></div>
+              <span style={{ flexShrink: 0 }}>（千円）</span>
+            </div>
+            <div style={{ ...flex, gap: 4, marginTop: 1 }}>
+              <span>（{insClaim.toLocaleString()} − {insRetire.toLocaleString()}）× 37% =</span>
+              <span style={{ fontWeight: 700, background: '#e8eaf6', padding: '1px 4px' }}>{insuranceTax.toLocaleString()}千円</span>
+            </div>
+            <div style={{ marginTop: 1 }}>
+              {insuranceTaxRowIdx >= 0 ? (
+                <button
+                  onClick={() => { const v = String(insuranceTax); u(`l_eval_${insuranceTaxRowIdx}`, v); u(`l_book_${insuranceTaxRowIdx}`, v); }}
+                  style={{ padding: '1px 6px', fontSize: 7, border: '1px solid #1565c0', borderRadius: 2, cursor: 'pointer', background: '#e3f2fd', color: '#1565c0' }}
+                >行{insuranceTaxRowIdx + 1}に反映</button>
+              ) : (
+                <span style={{ color: '#c62828', fontSize: 6.5 }}>※「保険差益に対する法人税等」行を追加で反映可</span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      <div style={{ flex: 1, background: '#fafafa' }} />
+    </>
+  );
+
   return (
     <div className="gov-form" style={{ fontSize: 8 }}>
 
@@ -346,141 +373,51 @@ export function Table5({ getField, updateField, onTabChange }: Props) {
       </div>
 
       <div style={{ display: 'flex', ...bb }}>
-
-        {/* Group 2-1: 資産の部 */}
+        {/* 資産の部 */}
         <div style={{ flex: 1, ...br, display: 'flex', flexDirection: 'column' }}>
-          <SectionTitle label="資　産　の　部" side="a" showPreset={showPreset} setShowPreset={setShowPreset}
-            onClear={() => { if (confirm('資産の部を全てクリアしますか？')) clearSection('a'); }} />
-          {showPreset === 'a' && (
-            <PresetPanel presets={ASSET_PRESETS} onSelect={(p) => applyPreset('a', [p])} onSelectAll={() => applyPreset('a', ASSET_PRESETS)} />
-          )}
-          <ColumnHeaders />
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReorder('a')}>
-            <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
-              {rowIds.map((id) => {
-                const i = Number(id);
-                return (
-                  <SortableRow key={id} id={id} rowIndex={i} onDelete={() => deleteRow('a', i)}>
-                    <div style={cellName}>
-                      <FormField value={g(`a_name_${i}`)} onChange={(v) => u(`a_name_${i}`, v)} />
-                    </div>
-                    <div style={cellVal}>
-                      <NumberField value={g(`a_eval_${i}`)} onChange={(v) => { const bk = g(`a_book_${i}`); u(`a_eval_${i}`, v); if (!bk || bk === g(`a_eval_${i}`)) u(`a_book_${i}`, v); }} />
-                    </div>
-                    <div style={cellVal}>
-                      <NumberField value={g(`a_book_${i}`)} onChange={(v) => u(`a_book_${i}`, v)} />
-                    </div>
-                    <div style={{ width: '14%', padding: '0px 1px' }}>
-                      <select value={g(`a_note_${i}`)} onChange={(e) => u(`a_note_${i}`, e.target.value)} className="gov-input" style={{ fontSize: 'inherit', padding: '1px 0' }}>
-                        {NOTE_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt || '—'}</option>)}
-                      </select>
-                    </div>
-                  </SortableRow>
-                );
-              })}
-            </SortableContext>
-          </DndContext>
-          {/* 合計 ①② */}
-          <div style={{ display: 'flex', ...bb, height: ROW_H, fontWeight: 700 }}>
-            <NoPrintSpacer />
-            <div style={{ width: '28%', ...br, ...hdr, textAlign: 'center', ...flex, justifyContent: 'center', letterSpacing: '0.5em' }}>合　計</div>
-            <div style={cellVal}><span style={{ marginRight: 2 }}>①</span><Computed value={aEvalSum} /></div>
-            <div style={cellVal}><span style={{ marginRight: 2 }}>②</span><Computed value={aBookSum} /></div>
-            <div style={{ width: '14%' }} />
-          </div>
-          {/* 株式等 イ・ロ */}
-          <div style={{ display: 'flex', ...bb, height: ROW_H, fontSize: 7 }}>
-            <NoPrintSpacer />
-            <div style={{ width: '28%', ...br, ...hdr, padding: '0px 2px', ...flex }}>株式等の価額の合計額</div>
-            <div style={cellVal}><span style={{ marginRight: 2 }}>イ</span><Computed value={stockEval} /></div>
-            <div style={cellVal}><span style={{ marginRight: 2 }}>ロ</span><Computed value={stockBook} /></div>
-            <div style={{ width: '14%' }} />
-          </div>
-          {/* 土地等 ハ */}
-          <div style={{ display: 'flex', ...bb, height: ROW_H, fontSize: 7 }}>
-            <NoPrintSpacer />
-            <div style={{ width: '28%', ...br, ...hdr, padding: '0px 2px', ...flex }}>土地等の価額の合計額</div>
-            <div style={cellVal}><span style={{ marginRight: 2 }}>ハ</span><Computed value={landEval} /></div>
-            <div style={{ flex: 1, ...br, padding: '0px 2px', ...flex, justifyContent: 'center' }}>
-              <span style={{ fontSize: 14, color: '#999' }}>／</span>
-            </div>
-            <div style={{ width: '14%' }} />
-          </div>
-          {/* 現物出資等 ニ・ホ */}
-          <div style={{ display: 'flex', height: ROW_H, fontSize: 7 }}>
-            <NoPrintSpacer />
-            <div style={{ width: '28%', ...br, ...hdr, padding: '0px 2px', fontSize: 6, ...flex, lineHeight: 1.1 }}>現物出資等受入れ<br />資産の価額の合計額</div>
-            <div style={cellVal}><span style={{ marginRight: 2 }}>ニ</span><NumberField value={g('genbutsu_eval')} onChange={(v) => u('genbutsu_eval', v)} /></div>
-            <div style={cellVal}><span style={{ marginRight: 2 }}>ホ</span><NumberField value={g('genbutsu_book')} onChange={(v) => u('genbutsu_book', v)} /></div>
-            <div style={{ width: '14%' }} />
-          </div>
+          <EditableTable
+            prefix="a"
+            label="資　産　の　部"
+            columns={ASSET_COLUMNS}
+            presets={ASSET_PRESETS}
+            rows={rows}
+            rowIds={rowIds}
+            g={g}
+            u={u}
+            showPreset={showPreset === 'a'}
+            onTogglePreset={() => setShowPreset(showPreset === 'a' ? null : 'a')}
+            onClear={() => { if (confirm('資産の部を全てクリアしますか？')) clearSection('a'); }}
+            sensors={sensors}
+            onDragEnd={handleReorder('a')}
+            onDeleteRow={(idx) => deleteRow('a', idx)}
+            onApplyPreset={(p) => applyPreset('a', [p])}
+            onApplyAllPresets={() => applyPreset('a', ASSET_PRESETS)}
+            footer={assetFooter}
+          />
         </div>
 
-        {/* Group 2-2: 負債の部 */}
+        {/* 負債の部 */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <SectionTitle label="負　債　の　部" side="l" showPreset={showPreset} setShowPreset={setShowPreset}
-            onClear={() => { if (confirm('負債の部を全てクリアしますか？')) clearSection('l'); }} />
-          {showPreset === 'l' && (
-            <PresetPanel presets={LIABILITY_PRESETS} onSelect={(p) => applyPreset('l', [p])} onSelectAll={() => applyPreset('l', LIABILITY_PRESETS)} />
-          )}
-          <ColumnHeaders />
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReorder('l')}>
-            <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
-              {rowIds.map((id) => {
-                const i = Number(id);
-                return (
-                  <SortableRow key={id} id={id} rowIndex={i} onDelete={() => deleteRow('l', i)}>
-                    <div style={cellName}>
-                      <FormField value={g(`l_name_${i}`)} onChange={(v) => u(`l_name_${i}`, v)} />
-                    </div>
-                    <div style={cellVal}>
-                      <NumberField value={g(`l_eval_${i}`)} onChange={(v) => { const bk = g(`l_book_${i}`); u(`l_eval_${i}`, v); if (!bk || bk === g(`l_eval_${i}`)) u(`l_book_${i}`, v); }} />
-                    </div>
-                    <div style={cellVal}>
-                      <NumberField value={g(`l_book_${i}`)} onChange={(v) => u(`l_book_${i}`, v)} />
-                    </div>
-                    <div style={{ width: '14%', padding: '0px 2px' }}>
-                      <FormField value={g(`l_note_${i}`)} onChange={(v) => u(`l_note_${i}`, v)} />
-                    </div>
-                  </SortableRow>
-                );
-              })}
-            </SortableContext>
-          </DndContext>
-          {/* 合計 ③④ */}
-          <div style={{ display: 'flex', ...bb, height: ROW_H, fontWeight: 700 }}>
-            <NoPrintSpacer />
-            <div style={{ width: '28%', ...br, ...hdr, textAlign: 'center', ...flex, justifyContent: 'center', letterSpacing: '0.5em' }}>合　計</div>
-            <div style={cellVal}><span style={{ marginRight: 2 }}>③</span><Computed value={lEvalSum} /></div>
-            <div style={cellVal}><span style={{ marginRight: 2 }}>④</span><Computed value={lBookSum} /></div>
-            <div style={{ width: '14%' }} />
-          </div>
-          {/* 保険差益に対する法人税等 計算 */}
-          <div className="no-print" style={{ ...bb, padding: '3px 4px', background: '#f5f5f5', fontSize: 7, lineHeight: 1.8 }}>
-            <div style={{ fontWeight: 700, marginBottom: 2 }}>▶ 保険差益に対する法人税等　（生命保険金請求権 − 退職金）× 37%</div>
-            <div style={{ ...flex, gap: 4 }}>
-              <span style={{ fontWeight: 500 }}>生命保険金請求権（千円）</span>
-              <div style={{ width: 100 }}><NumberField value={g('ins_claim')} onChange={(v) => u('ins_claim', v)} /></div>
-              <span>−</span>
-              <span style={{ fontWeight: 500 }}>退職金（千円）</span>
-              <div style={{ width: 100 }}><NumberField value={g('ins_retire')} onChange={(v) => u('ins_retire', v)} /></div>
-              <span>× 37% =</span>
-              <span style={{ fontWeight: 700, background: '#e8eaf6', padding: '1px 4px' }}>{insuranceTax.toLocaleString()}千円</span>
-              {insuranceTaxRowIdx >= 0 ? (
-                <button
-                  onClick={() => { const v = insuranceTax.toLocaleString(); u(`l_eval_${insuranceTaxRowIdx}`, v); u(`l_book_${insuranceTaxRowIdx}`, v); }}
-                  style={{ padding: '1px 6px', fontSize: 7, border: '1px solid #1565c0', borderRadius: 2, cursor: 'pointer', background: '#e3f2fd', color: '#1565c0' }}
-                >
-                  行{insuranceTaxRowIdx + 1}に反映
-                </button>
-              ) : (
-                <span style={{ color: '#c62828', fontSize: 6.5 }}>※「保険差益に対する法人税等」行を追加で反映可</span>
-              )}
-            </div>
-          </div>
-          <div style={{ flex: 1, background: '#fafafa' }} />
+          <EditableTable
+            prefix="l"
+            label="負　債　の　部"
+            columns={LIABILITY_COLUMNS}
+            presets={LIABILITY_PRESETS}
+            rows={rows}
+            rowIds={rowIds}
+            g={g}
+            u={u}
+            showPreset={showPreset === 'l'}
+            onTogglePreset={() => setShowPreset(showPreset === 'l' ? null : 'l')}
+            onClear={() => { if (confirm('負債の部を全てクリアしますか？')) clearSection('l'); }}
+            sensors={sensors}
+            onDragEnd={handleReorder('l')}
+            onDeleteRow={(idx) => deleteRow('l', idx)}
+            onApplyPreset={(p) => applyPreset('l', [p])}
+            onApplyAllPresets={() => applyPreset('l', LIABILITY_PRESETS)}
+            footer={liabilityFooter}
+          />
         </div>
-
       </div>
 
       {/* Group 3+4: ⑤-⑫ Grid */}
