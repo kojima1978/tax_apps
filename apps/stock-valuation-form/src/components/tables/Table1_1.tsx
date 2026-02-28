@@ -10,6 +10,9 @@ interface Props {
   updateField: (table: TableId, field: string, value: string) => void;
 }
 
+type GFn = (f: string) => string;
+type UFn = (f: string, v: string) => void;
+
 // ---- Constants ----
 const T: TableId = 'table1_1';
 const MIN_ROWS = 1;
@@ -51,20 +54,6 @@ const DEFINITIONS = [
   { term: '中心的な株主', desc: '課税時期において株主の1人及びその同族関係者の有する議決権の合計数がその会社の議決権総数の15%以上であるグループのうちに、いずれかのグループに単独でその会社の議決権総数の10%以上の議決権を有する株主がいる場合におけるその株主をいいます。' },
 ];
 
-// ---- Helper Components ----
-function ReadonlyCell({ n, value }: { n?: number; value: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      {n !== undefined && <CircledNumber n={n} />}
-      <span className="gov-input gov-input-number" style={roStyle}>{value}</span>
-    </div>
-  );
-}
-
-function SlashCell() {
-  return <td style={{ textAlign: 'center', color: '#666' }}>／</td>;
-}
-
 // ---- Utilities ----
 const formatWareki = (dateStr: string): string => {
   if (!dateStr) return '';
@@ -81,7 +70,352 @@ const pct = (a: number, b: number) => b > 0 ? Math.round((a / b) * 100) : null;
 const fmtNum = (n: number) => n > 0 ? n.toLocaleString() : '';
 const fmtPct = (n: number | null) => n !== null ? `${n}%` : '';
 
-// ---- Main Component ----
+// ---- Helper Components ----
+function ReadonlyCell({ n, value }: { n?: number; value: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      {n !== undefined && <CircledNumber n={n} />}
+      <span className="gov-input gov-input-number" style={roStyle}>{value}</span>
+    </div>
+  );
+}
+
+function SlashCell() {
+  return <td style={{ textAlign: 'center', color: '#666' }}>／</td>;
+}
+
+/* ================================================
+ * Extracted Sub-Components
+ * ================================================ */
+
+function CompanyHeader({ g, u }: { g: GFn; u: UFn }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '50% 50%', ...bb }}>
+      {/* 左ヘッダー */}
+      <div style={{ ...br }}>
+        <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 22 }}>
+          <span style={{ ...lbl, width: 60 }}>会 社 名</span>
+          <FormField value={g('companyName')} onChange={(v) => u('companyName', v)} className="flex-1 px-1" />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 24 }}>
+          <span style={{ ...lbl, width: 60 }}>代表者氏名</span>
+          <FormField value={g('representative')} onChange={(v) => u('representative', v)} className="flex-1 px-1" />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 24 }}>
+          <span style={{ ...lbl, width: 60 }}>課税時期</span>
+          <div style={{ flex: 1, padding: '1px 3px', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g('taxDate')} onChange={(e) => u('taxDate', e.target.value)} />
+            <span style={{ fontSize: 8, color: '#333' }}>{formatWareki(g('taxDate'))}</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', minHeight: 40 }}>
+          <span style={{ ...lbl, width: 60 }}>直 前 期</span>
+          <div style={{ flex: 1, padding: '2px 3px', fontSize: 8.5 }}>
+            {(['fiscalStart', 'fiscalEnd'] as const).map((key, idx) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, ...(idx === 0 ? { marginBottom: 2 } : {}) }}>
+                <span>{idx === 0 ? '自' : '至'}</span>
+                <input type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g(key)} onChange={(e) => u(key, e.target.value)} />
+                <span style={{ fontSize: 7.5, color: '#333' }}>{formatWareki(g(key))}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 右ヘッダー */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 22 }}>
+          <span style={{ ...lbl, width: 55, flexDirection: 'column', lineHeight: 1.2, fontSize: 8 }}>
+            <span>本 店 の</span><span>所 在 地</span>
+          </span>
+          <FormField value={g('address')} onChange={(v) => u('address', v)} className="flex-1 px-1" />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr' }}>
+          <div style={{ ...br, display: 'flex', alignItems: 'center', justifyContent: 'center', ...hdr, writingMode: 'vertical-rl', textOrientation: 'mixed', letterSpacing: '0.2em', fontSize: 8.5 }}>
+            事業内容
+          </div>
+          <div>
+            <div style={{ display: 'flex', ...bb }}>
+              <div style={{ flex: 1, ...br, ...hdr, padding: '1px 3px', fontSize: 7, whiteSpace: 'nowrap' }}>取扱品目及び製造、卸売、小売等の区分</div>
+              <div style={{ width: 50, ...br, ...hdr, padding: '1px 2px', fontSize: 7, textAlign: 'center', whiteSpace: 'nowrap' }}>業種目番号</div>
+              <div style={{ width: 65, ...hdr, padding: '1px 2px', fontSize: 7, textAlign: 'center', whiteSpace: 'nowrap' }}>取引金額の構成比</div>
+            </div>
+            {[0, 1, 2, 3].map((row) => (
+              <div key={row} style={{ display: 'flex', ...bb }}>
+                <div style={{ flex: 1, ...br, padding: '1px 3px' }}>
+                  <FormField value={g(`businessDesc_${row}`)} onChange={(v) => u(`businessDesc_${row}`, v)} />
+                </div>
+                <div style={{ width: 50, ...br, padding: '1px 2px' }}>
+                  <FormField value={g(`businessCode_${row}`)} onChange={(v) => u(`businessCode_${row}`, v)} textAlign="center" />
+                </div>
+                <div style={{ width: 65, padding: '1px 2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FormField value={g(`salesRatio_${row}`)} onChange={(v) => u(`salesRatio_${row}`, v)} className="w-10" textAlign="right" />
+                    <span style={{ marginLeft: 1 }}>%</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareholderRow({ index, g, u, totalVotesSum, rowCount, dragIdx, dropTarget, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd, onRemove }: {
+  index: number; g: GFn; u: UFn; totalVotesSum: number; rowCount: number;
+  dragIdx: number | null; dropTarget: number | null;
+  onDragStart: () => void; onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: () => void; onDrop: () => void; onDragEnd: () => void;
+  onRemove: () => void;
+}) {
+  const i = index;
+  return (
+    <tr
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      style={{
+        height: 18, cursor: 'grab',
+        opacity: dragIdx === i ? 0.4 : 1,
+        borderTop: dropTarget === i && dragIdx !== null && dragIdx !== i ? '2px solid #2e7d32' : undefined,
+      }}
+    >
+      <td style={{ border: 'none', padding: 0, textAlign: 'center' }}>
+        {rowCount > MIN_ROWS && (
+          <span onClick={onRemove} style={{ cursor: 'pointer', color: '#999', fontSize: 9, lineHeight: 1 }} title={`No.${i + 1} を削除`}>×</span>
+        )}
+      </td>
+      <td style={{ textAlign: 'center', fontSize: 8, color: '#666' }}>{i + 1}</td>
+      <td><FormField value={g(`sh_name_${i}`)} onChange={(v) => u(`sh_name_${i}`, v)} /></td>
+      <td style={{ textAlign: 'center' }}>
+        <input type="checkbox" checked={g(`sh_dozoku_${i}`) === '1'} onChange={(e) => u(`sh_dozoku_${i}`, e.target.checked ? '1' : '')} style={{ cursor: 'pointer' }} />
+      </td>
+      <td style={{ textAlign: 'center' }}>
+        <input type="checkbox" checked={g(`sh_hittou_${i}`) === '1'} onChange={(e) => { u(`sh_hittou_${i}`, e.target.checked ? '1' : ''); if (e.target.checked) u(`sh_dozoku_${i}`, '1'); }} style={{ cursor: 'pointer' }} />
+      </td>
+      <td><FormField value={g(`sh_rel_${i}`)} onChange={(v) => u(`sh_rel_${i}`, v)} textAlign="center" /></td>
+      <td><NumberField value={g(`sh_shares_${i}`)} onChange={(v) => { const votes = g(`sh_votes_${i}`); u(`sh_shares_${i}`, v); if (!votes || votes === g(`sh_shares_${i}`)) u(`sh_votes_${i}`, v); }} /></td>
+      <td style={parseNum(g(`sh_shares_${i}`)) > 0 && parseNum(g(`sh_votes_${i}`)) > parseNum(g(`sh_shares_${i}`)) ? { background: '#fff3e0' } : undefined}>
+        <NumberField value={g(`sh_votes_${i}`)} onChange={(v) => u(`sh_votes_${i}`, v)} />
+      </td>
+      <td>
+        <span className="gov-input gov-input-number" style={roStyle}>
+          {totalVotesSum > 0 && g(`sh_votes_${i}`) ? `${pct(parseNum(g(`sh_votes_${i}`)), totalVotesSum)}%` : ''}
+        </span>
+      </td>
+    </tr>
+  );
+}
+
+function SummaryRows({ g, u, dozokuVotesSum, hittouVotesSum, totalSharesSum, totalVotesSum, ratio5, ratio6 }: {
+  g: GFn; u: UFn; dozokuVotesSum: number; hittouVotesSum: number;
+  totalSharesSum: number; totalVotesSum: number;
+  ratio5: number | null; ratio6: number | null;
+}) {
+  return (
+    <>
+      <tr>
+        <td colSpan={6} className="gov-header text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>自己株式</td>
+        <td><NumberField value={g('treasury_shares')} onChange={(v) => u('treasury_shares', v)} /></td>
+        <SlashCell /><SlashCell />
+      </tr>
+      <tr>
+        <td colSpan={6} className="gov-header text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>
+          納税義務者の属する同族関係者グルー<br />プの議決権の合計数
+        </td>
+        <SlashCell />
+        <td><ReadonlyCell n={2} value={fmtNum(dozokuVotesSum)} /></td>
+        <td><ReadonlyCell n={5} value={fmtPct(ratio5)} /></td>
+      </tr>
+      <tr>
+        <td colSpan={6} className="gov-header text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>
+          筆頭株主グループの議決権の合計数
+        </td>
+        <SlashCell />
+        <td><ReadonlyCell n={3} value={fmtNum(hittouVotesSum)} /></td>
+        <td><ReadonlyCell n={6} value={fmtPct(ratio6)} /></td>
+      </tr>
+      <tr>
+        <td colSpan={6} className="gov-header text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>
+          評価会社の発行済株式又は議決権<br />の総数
+        </td>
+        <td><ReadonlyCell n={1} value={fmtNum(totalSharesSum)} /></td>
+        <td><ReadonlyCell n={4} value={fmtNum(totalVotesSum)} /></td>
+        <td><span className="gov-input gov-input-number" style={roStyle}>100%</span></td>
+      </tr>
+    </>
+  );
+}
+
+function JudgmentMatrix({ matrixRow, matrixCol, autoClass }: {
+  matrixRow: 'over50' | 'under50' | null;
+  matrixCol: 0 | 1 | 2 | null;
+  autoClass: '同族株主等' | '同族株主等以外' | null;
+}) {
+  return (
+    <>
+      {/* 判定基準ヘッダー */}
+      <div style={{ padding: '2px 4px', fontSize: 8, ...bb }}>
+        納税義務者の属する同族関係者グループの議決権割合
+        （<CircledNumber n={5} />の割合）を基として、区分します。
+      </div>
+
+      {/* 判定マトリクス */}
+      <div style={{ ...bb }}>
+        <table className="gov-table" style={{ fontSize: 8 }}>
+          <thead>
+            <tr>
+              <th rowSpan={2} style={{ width: '15%', fontSize: 7.5, lineHeight: 1.3 }}>
+                同族関係者<br />グループの<br />議決権割合<br />（<CircledNumber n={5} />の割合）
+              </th>
+              <th colSpan={3} style={{ fontSize: 7.5 }}>
+                筆頭株主グループの議決権割合（<CircledNumber n={6} />の割合）
+              </th>
+              <th rowSpan={2} style={{ width: '18%', fontSize: 7.5 }}>株主の区分</th>
+            </tr>
+            <tr>
+              <th style={{ fontSize: 7.5, width: '22%' }}>50%超の<br />場合</th>
+              <th style={{ fontSize: 7.5, width: '22%' }}>30%以上50%<br />以下の場合</th>
+              <th style={{ fontSize: 7.5, width: '22%' }}>30%未満の<br />場合</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MATRIX_ROWS.map(({ key, label, values, category, categoryStyle }) => (
+              <tr key={key}>
+                <td className="gov-header" style={matrixRow === key ? hl : undefined}>{label}</td>
+                {values.map((v, col) => (
+                  <td key={col} style={matrixRow === key && matrixCol === col ? hl : undefined}>{v}</td>
+                ))}
+                <td className="gov-header" style={{ ...categoryStyle, ...(matrixRow === key ? hl : {}) }}>{category}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 同族/配当還元 分類（自動判定） */}
+      <div style={{ display: 'flex', ...bb }}>
+        {([
+          { label: '同 族 株 主 等', sub: '（原則的評価方式等）', key: '同族株主等' as const },
+          { label: '同族株主等以外の株主', sub: '（配 当 還 元 方 式）', key: '同族株主等以外' as const },
+        ]).map(({ label, sub, key }, idx) => (
+          <div key={key} style={{ flex: 1, textAlign: 'center', padding: '3px 2px', fontSize: 8.5, ...(idx === 0 ? br : {}), ...(autoClass === key ? hl : {}) }}>
+            <div>{label}</div>
+            <div>{sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 注意文 */}
+      <div style={{ padding: '2px 4px', fontSize: 7.5, ...bb, lineHeight: 1.25 }}>
+        「同族株主等」に該当する納税義務者のうち、議決権割合（<CircledNumber n={5} />
+        の割合）が５％未満の者の評価方式は、「２．少数株式所有者の評価
+        方式の判定」欄により判定します。
+      </div>
+    </>
+  );
+}
+
+function MinoritySection({ g, u, minorityResult }: {
+  g: GFn; u: UFn;
+  minorityResult: '原則的評価方式等' | '配当還元方式' | null;
+}) {
+  return (
+    <>
+      <div style={{ padding: '2px 4px', fontWeight: 700, ...bb, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>２．少数株式所有者の評価方式の判定</span>
+        <span
+          className="no-print"
+          onClick={() => MINORITY_FIELDS.forEach((f) => u(f, ''))}
+          style={{ cursor: 'pointer', color: '#d32f2f', fontSize: 8, fontWeight: 400 }}
+        >
+          リセット
+        </span>
+      </div>
+
+      <table className="gov-table" style={{ fontSize: 8 }}>
+        <thead>
+          <tr>
+            <th style={{ width: '30%' }}>項　　目</th>
+            <th colSpan={2}>判　定　内　容</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style={{ height: 18 }}>
+            <td className="text-left" style={{ padding: '1px 3px' }}>氏　名</td>
+            <td colSpan={2}><FormField value={g('minority_name')} onChange={(v) => u('minority_name', v)} /></td>
+          </tr>
+          {MINORITY_ITEMS.map(({ field, label, yes, yesText, no, noText }) => (
+            <tr key={field} style={{ height: 20 }}>
+              <td className="text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>{label}</td>
+              <td style={choiceCell} className={`gov-choice${g(field) === yes ? ' selected' : ''}`} onClick={() => u(field, yes)}>
+                {yesText}
+              </td>
+              <td style={choiceCell} className={`gov-choice${g(field) === no ? ' selected' : ''}`} onClick={() => u(field, no)}>
+                {noText}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* 判定結果（自動反映） */}
+      <table className="gov-table" style={{ fontSize: 8 }}>
+        <tbody>
+          <tr style={{ height: 22 }}>
+            <td className="gov-header" style={{ width: '30%', fontWeight: 700, letterSpacing: '0.3em', textAlign: 'center' }}>判　定</td>
+            {([
+              { label: '原則的評価方式等', key: '原則的評価方式等' as const },
+              { label: '配当還元方式', key: '配当還元方式' as const },
+            ]).map(({ label, key }) => (
+              <td key={key} style={{ textAlign: 'center', padding: '1px 3px', ...(minorityResult === key ? hl : {}) }}>
+                {label}
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+function DefinitionsPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return (
+    <div className="no-print" style={{ ...bb }}>
+      <div
+        style={{ padding: '2px 4px', fontWeight: 700, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        onClick={onToggle}
+      >
+        <span>（参考）用語の定義</span>
+        <span style={{ fontSize: 9, fontWeight: 400 }}>{open ? '▲ 閉じる' : '▼ 開く'}</span>
+      </div>
+      {open && (
+        <div style={{ padding: '2px 4px', fontSize: 7.5, lineHeight: 1.5 }}>
+          <table className="gov-table" style={{ fontSize: 7.5 }}>
+            <tbody>
+              {DEFINITIONS.map(({ term, desc }) => (
+                <tr key={term}>
+                  <td className="gov-header" style={{ width: '15%', ...defTermStyle }}>{term}</td>
+                  <td style={{ padding: '1px 4px', textAlign: 'left' }}>{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================
+ * Main Component
+ * ================================================ */
+
 export function Table1_1({ getField, updateField }: Props) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
@@ -201,88 +535,18 @@ export function Table1_1({ getField, updateField }: Props) {
 
   return (
     <div className="gov-form">
-      {/* ========== グループ１: タイトル行 ========== */}
+      {/* タイトル行 */}
       <div style={{ padding: '3px 6px', fontWeight: 700, fontSize: 11, ...bb, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>第１表の１　評価上の株主の判定及び会社規模の判定の明細書</span>
         <span className="no-print" onClick={resetHeader} style={{ cursor: 'pointer', color: '#d32f2f', fontSize: 8, fontWeight: 400 }}>会社情報リセット</span>
       </div>
 
-      {/* ========== グループ２＋３: ヘッダー（会社情報）2列 ========== */}
-      <div style={{ display: 'grid', gridTemplateColumns: '50% 50%', ...bb }}>
-        {/* ---- グループ２: 左ヘッダー ---- */}
-        <div style={{ ...br }}>
-          <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 22 }}>
-            <span style={{ ...lbl, width: 60 }}>会 社 名</span>
-            <FormField value={g('companyName')} onChange={(v) => u('companyName', v)} className="flex-1 px-1" />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 24 }}>
-            <span style={{ ...lbl, width: 60 }}>代表者氏名</span>
-            <FormField value={g('representative')} onChange={(v) => u('representative', v)} className="flex-1 px-1" />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 24 }}>
-            <span style={{ ...lbl, width: 60 }}>課税時期</span>
-            <div style={{ flex: 1, padding: '1px 3px', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <input type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g('taxDate')} onChange={(e) => u('taxDate', e.target.value)} />
-              <span style={{ fontSize: 8, color: '#333' }}>{formatWareki(g('taxDate'))}</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', minHeight: 40 }}>
-            <span style={{ ...lbl, width: 60 }}>直 前 期</span>
-            <div style={{ flex: 1, padding: '2px 3px', fontSize: 8.5 }}>
-              {(['fiscalStart', 'fiscalEnd'] as const).map((key, idx) => (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, ...(idx === 0 ? { marginBottom: 2 } : {}) }}>
-                  <span>{idx === 0 ? '自' : '至'}</span>
-                  <input type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g(key)} onChange={(e) => u(key, e.target.value)} />
-                  <span style={{ fontSize: 7.5, color: '#333' }}>{formatWareki(g(key))}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* 会社情報ヘッダー */}
+      <CompanyHeader g={g} u={u} />
 
-        {/* ---- グループ３: 右ヘッダー ---- */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', ...bb, minHeight: 22 }}>
-            <span style={{ ...lbl, width: 55, flexDirection: 'column', lineHeight: 1.2, fontSize: 8 }}>
-              <span>本 店 の</span><span>所 在 地</span>
-            </span>
-            <FormField value={g('address')} onChange={(v) => u('address', v)} className="flex-1 px-1" />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr' }}>
-            <div style={{ ...br, display: 'flex', alignItems: 'center', justifyContent: 'center', ...hdr, writingMode: 'vertical-rl', textOrientation: 'mixed', letterSpacing: '0.2em', fontSize: 8.5 }}>
-              事業内容
-            </div>
-            <div>
-              <div style={{ display: 'flex', ...bb }}>
-                <div style={{ flex: 1, ...br, ...hdr, padding: '1px 3px', fontSize: 7, whiteSpace: 'nowrap' }}>取扱品目及び製造、卸売、小売等の区分</div>
-                <div style={{ width: 50, ...br, ...hdr, padding: '1px 2px', fontSize: 7, textAlign: 'center', whiteSpace: 'nowrap' }}>業種目番号</div>
-                <div style={{ width: 65, ...hdr, padding: '1px 2px', fontSize: 7, textAlign: 'center', whiteSpace: 'nowrap' }}>取引金額の構成比</div>
-              </div>
-              {[0, 1, 2, 3].map((row) => (
-                <div key={row} style={{ display: 'flex', ...bb }}>
-                  <div style={{ flex: 1, ...br, padding: '1px 3px' }}>
-                    <FormField value={g(`businessDesc_${row}`)} onChange={(v) => u(`businessDesc_${row}`, v)} />
-                  </div>
-                  <div style={{ width: 50, ...br, padding: '1px 2px' }}>
-                    <FormField value={g(`businessCode_${row}`)} onChange={(v) => u(`businessCode_${row}`, v)} textAlign="center" />
-                  </div>
-                  <div style={{ width: 65, padding: '1px 2px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <FormField value={g(`salesRatio_${row}`)} onChange={(v) => u(`salesRatio_${row}`, v)} className="w-10" textAlign="right" />
-                      <span style={{ marginLeft: 1 }}>%</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ========== グループ４＋５: メイン（株主判定 + 判定フロー）2列 ========== */}
+      {/* メイン2列: 株主判定 + 判定フロー */}
       <div style={{ display: 'grid', gridTemplateColumns: '50% 50%', flex: 1, minHeight: 0 }}>
-
-        {/* ---- グループ４: 株主テーブル ---- */}
+        {/* 左: 株主テーブル */}
         <div className="panel-left" style={{ ...br, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '2px 4px', fontWeight: 700, ...bb, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>１．株主及び評価方式の判定</span>
@@ -315,84 +579,36 @@ export function Table1_1({ getField, updateField }: Props) {
               </tr>
             </thead>
             <tbody>
-              {/* 株主行（動的） */}
               {indices.map((i) => (
-                <tr
+                <ShareholderRow
                   key={i}
-                  draggable
+                  index={i}
+                  g={g}
+                  u={u}
+                  totalVotesSum={totalVotesSum}
+                  rowCount={rowCount}
+                  dragIdx={dragIdx}
+                  dropTarget={dropTarget}
                   onDragStart={() => setDragIdx(i)}
                   onDragOver={(e) => { e.preventDefault(); setDropTarget(i); }}
                   onDragLeave={() => setDropTarget(null)}
                   onDrop={() => { if (dragIdx !== null) { reorderShareholders(dragIdx, i); setDragIdx(null); setDropTarget(null); } }}
                   onDragEnd={() => { setDragIdx(null); setDropTarget(null); }}
-                  style={{
-                    height: 18, cursor: 'grab',
-                    opacity: dragIdx === i ? 0.4 : 1,
-                    borderTop: dropTarget === i && dragIdx !== null && dragIdx !== i ? '2px solid #2e7d32' : undefined,
-                  }}
-                >
-                  <td style={{ border: 'none', padding: 0, textAlign: 'center' }}>
-                    {rowCount > MIN_ROWS && (
-                      <span onClick={() => removeRow(i)} style={{ cursor: 'pointer', color: '#999', fontSize: 9, lineHeight: 1 }} title={`No.${i + 1} を削除`}>×</span>
-                    )}
-                  </td>
-                  <td style={{ textAlign: 'center', fontSize: 8, color: '#666' }}>{i + 1}</td>
-                  <td><FormField value={g(`sh_name_${i}`)} onChange={(v) => u(`sh_name_${i}`, v)} /></td>
-                  <td style={{ textAlign: 'center' }}>
-                    <input type="checkbox" checked={g(`sh_dozoku_${i}`) === '1'} onChange={(e) => u(`sh_dozoku_${i}`, e.target.checked ? '1' : '')} style={{ cursor: 'pointer' }} />
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <input type="checkbox" checked={g(`sh_hittou_${i}`) === '1'} onChange={(e) => { u(`sh_hittou_${i}`, e.target.checked ? '1' : ''); if (e.target.checked) u(`sh_dozoku_${i}`, '1'); }} style={{ cursor: 'pointer' }} />
-                  </td>
-                  <td><FormField value={g(`sh_rel_${i}`)} onChange={(v) => u(`sh_rel_${i}`, v)} textAlign="center" /></td>
-                  <td><NumberField value={g(`sh_shares_${i}`)} onChange={(v) => { const votes = g(`sh_votes_${i}`); u(`sh_shares_${i}`, v); if (!votes || votes === g(`sh_shares_${i}`)) u(`sh_votes_${i}`, v); }} /></td>
-                  <td style={parseNum(g(`sh_shares_${i}`)) > 0 && parseNum(g(`sh_votes_${i}`)) > parseNum(g(`sh_shares_${i}`)) ? { background: '#fff3e0' } : undefined}>
-                    <NumberField value={g(`sh_votes_${i}`)} onChange={(v) => u(`sh_votes_${i}`, v)} />
-                  </td>
-                  <td>
-                    <span className="gov-input gov-input-number" style={roStyle}>
-                      {totalVotesSum > 0 && g(`sh_votes_${i}`) ? `${pct(parseNum(g(`sh_votes_${i}`)), totalVotesSum)}%` : ''}
-                    </span>
-                  </td>
-                </tr>
+                  onRemove={() => removeRow(i)}
+                />
               ))}
-
-              {/* 自己株式 */}
-              <tr>
-                <td colSpan={6} className="gov-header text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>自己株式</td>
-                <td><NumberField value={g('treasury_shares')} onChange={(v) => u('treasury_shares', v)} /></td>
-                <SlashCell /><SlashCell />
-              </tr>
-              {/* 同族関係者グループ */}
-              <tr>
-                <td colSpan={6} className="gov-header text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>
-                  納税義務者の属する同族関係者グルー<br />プの議決権の合計数
-                </td>
-                <SlashCell />
-                <td><ReadonlyCell n={2} value={fmtNum(dozokuVotesSum)} /></td>
-                <td><ReadonlyCell n={5} value={fmtPct(ratio5)} /></td>
-              </tr>
-              {/* 筆頭株主グループ */}
-              <tr>
-                <td colSpan={6} className="gov-header text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>
-                  筆頭株主グループの議決権の合計数
-                </td>
-                <SlashCell />
-                <td><ReadonlyCell n={3} value={fmtNum(hittouVotesSum)} /></td>
-                <td><ReadonlyCell n={6} value={fmtPct(ratio6)} /></td>
-              </tr>
-              {/* 発行済株式総数 */}
-              <tr>
-                <td colSpan={6} className="gov-header text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>
-                  評価会社の発行済株式又は議決権<br />の総数
-                </td>
-                <td><ReadonlyCell n={1} value={fmtNum(totalSharesSum)} /></td>
-                <td><ReadonlyCell n={4} value={fmtNum(totalVotesSum)} /></td>
-                <td><span className="gov-input gov-input-number" style={roStyle}>100%</span></td>
-              </tr>
+              <SummaryRows
+                g={g}
+                u={u}
+                dozokuVotesSum={dozokuVotesSum}
+                hittouVotesSum={hittouVotesSum}
+                totalSharesSum={totalSharesSum}
+                totalVotesSum={totalVotesSum}
+                ratio5={ratio5}
+                ratio6={ratio6}
+              />
             </tbody>
           </table>
-          {/* ---- 入力検証 ---- */}
           {hasAnyName && (!hasDozoku || !hasHittou) && (
             <div className="no-print" style={{ padding: '2px 6px', fontSize: 7.5, color: '#795548', background: '#fff3e0' }}>
               {!hasDozoku && <div>○ 同族関係者グループのチェックがありません</div>}
@@ -401,148 +617,15 @@ export function Table1_1({ getField, updateField }: Props) {
           )}
         </div>
 
-        {/* ---- グループ５: 判定フロー ---- */}
+        {/* 右: 判定フロー */}
         <div className="panel-right" style={{ display: 'flex', flexDirection: 'column' }}>
-          {/* 判定基準ヘッダー */}
-          <div style={{ padding: '2px 4px', fontSize: 8, ...bb }}>
-            納税義務者の属する同族関係者グループの議決権割合
-            （<CircledNumber n={5} />の割合）を基として、区分します。
-          </div>
-
-          {/* 判定マトリクス */}
-          <div style={{ ...bb }}>
-            <table className="gov-table" style={{ fontSize: 8 }}>
-              <thead>
-                <tr>
-                  <th rowSpan={2} style={{ width: '15%', fontSize: 7.5, lineHeight: 1.3 }}>
-                    同族関係者<br />グループの<br />議決権割合<br />（<CircledNumber n={5} />の割合）
-                  </th>
-                  <th colSpan={3} style={{ fontSize: 7.5 }}>
-                    筆頭株主グループの議決権割合（<CircledNumber n={6} />の割合）
-                  </th>
-                  <th rowSpan={2} style={{ width: '18%', fontSize: 7.5 }}>株主の区分</th>
-                </tr>
-                <tr>
-                  <th style={{ fontSize: 7.5, width: '22%' }}>50%超の<br />場合</th>
-                  <th style={{ fontSize: 7.5, width: '22%' }}>30%以上50%<br />以下の場合</th>
-                  <th style={{ fontSize: 7.5, width: '22%' }}>30%未満の<br />場合</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MATRIX_ROWS.map(({ key, label, values, category, categoryStyle }) => (
-                  <tr key={key}>
-                    <td className="gov-header" style={matrixRow === key ? hl : undefined}>{label}</td>
-                    {values.map((v, col) => (
-                      <td key={col} style={matrixRow === key && matrixCol === col ? hl : undefined}>{v}</td>
-                    ))}
-                    <td className="gov-header" style={{ ...categoryStyle, ...(matrixRow === key ? hl : {}) }}>{category}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* 同族/配当還元 分類（自動判定） */}
-          <div style={{ display: 'flex', ...bb }}>
-            {([
-              { label: '同 族 株 主 等', sub: '（原則的評価方式等）', key: '同族株主等' as const },
-              { label: '同族株主等以外の株主', sub: '（配 当 還 元 方 式）', key: '同族株主等以外' as const },
-            ]).map(({ label, sub, key }, idx) => (
-              <div key={key} style={{ flex: 1, textAlign: 'center', padding: '3px 2px', fontSize: 8.5, ...(idx === 0 ? br : {}), ...(autoClass === key ? hl : {}) }}>
-                <div>{label}</div>
-                <div>{sub}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* 注意文 */}
-          <div style={{ padding: '2px 4px', fontSize: 7.5, ...bb, lineHeight: 1.25 }}>
-            「同族株主等」に該当する納税義務者のうち、議決権割合（<CircledNumber n={5} />
-            の割合）が５％未満の者の評価方式は、「２．少数株式所有者の評価
-            方式の判定」欄により判定します。
-          </div>
-
-          {/* ---- 2. 少数株式所有者の評価方式の判定 ---- */}
-          <div style={{ padding: '2px 4px', fontWeight: 700, ...bb, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>２．少数株式所有者の評価方式の判定</span>
-            <span
-              className="no-print"
-              onClick={() => MINORITY_FIELDS.forEach((f) => u(f, ''))}
-              style={{ cursor: 'pointer', color: '#d32f2f', fontSize: 8, fontWeight: 400 }}
-            >
-              リセット
-            </span>
-          </div>
-
-          <table className="gov-table" style={{ fontSize: 8 }}>
-            <thead>
-              <tr>
-                <th style={{ width: '30%' }}>項　　目</th>
-                <th colSpan={2}>判　定　内　容</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style={{ height: 18 }}>
-                <td className="text-left" style={{ padding: '1px 3px' }}>氏　名</td>
-                <td colSpan={2}><FormField value={g('minority_name')} onChange={(v) => u('minority_name', v)} /></td>
-              </tr>
-              {MINORITY_ITEMS.map(({ field, label, yes, yesText, no, noText }) => (
-                <tr key={field} style={{ height: 20 }}>
-                  <td className="text-left" style={{ padding: '1px 3px', fontSize: 7.5 }}>{label}</td>
-                  <td style={choiceCell} className={`gov-choice${g(field) === yes ? ' selected' : ''}`} onClick={() => u(field, yes)}>
-                    {yesText}
-                  </td>
-                  <td style={choiceCell} className={`gov-choice${g(field) === no ? ' selected' : ''}`} onClick={() => u(field, no)}>
-                    {noText}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* 判定結果（自動反映） */}
-          <table className="gov-table" style={{ fontSize: 8 }}>
-            <tbody>
-              <tr style={{ height: 22 }}>
-                <td className="gov-header" style={{ width: '30%', fontWeight: 700, letterSpacing: '0.3em', textAlign: 'center' }}>判　定</td>
-                {([
-                  { label: '原則的評価方式等', key: '原則的評価方式等' as const },
-                  { label: '配当還元方式', key: '配当還元方式' as const },
-                ]).map(({ label, key }) => (
-                  <td key={key} style={{ textAlign: 'center', padding: '1px 3px', ...(minorityResult === key ? hl : {}) }}>
-                    {label}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
+          <JudgmentMatrix matrixRow={matrixRow} matrixCol={matrixCol} autoClass={autoClass} />
+          <MinoritySection g={g} u={u} minorityResult={minorityResult} />
         </div>
       </div>
 
-      {/* ========== グループ６: 用語の定義（折りたたみ・印刷非表示） ========== */}
-      <div className="no-print" style={{ ...bb }}>
-        <div
-          style={{ padding: '2px 4px', fontWeight: 700, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          onClick={() => setDefOpen((v) => !v)}
-        >
-          <span>（参考）用語の定義</span>
-          <span style={{ fontSize: 9, fontWeight: 400 }}>{defOpen ? '▲ 閉じる' : '▼ 開く'}</span>
-        </div>
-        {defOpen && (
-          <div style={{ padding: '2px 4px', fontSize: 7.5, lineHeight: 1.5 }}>
-            <table className="gov-table" style={{ fontSize: 7.5 }}>
-              <tbody>
-                {DEFINITIONS.map(({ term, desc }) => (
-                  <tr key={term}>
-                    <td className="gov-header" style={{ width: '15%', ...defTermStyle }}>{term}</td>
-                    <td style={{ padding: '1px 4px', textAlign: 'left' }}>{desc}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* 用語の定義 */}
+      <DefinitionsPanel open={defOpen} onToggle={() => setDefOpen((v) => !v)} />
     </div>
   );
 }
