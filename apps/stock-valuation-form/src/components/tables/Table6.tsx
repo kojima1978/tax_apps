@@ -1,35 +1,21 @@
-import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
 import { CircledNumber } from '@/components/ui/CircledNumber';
-import type { TableId } from '@/types/form';
+import { TableTitleBar } from './TableTitleBar';
+import { bb, br, hdr } from './shared';
+import type { TableProps } from '@/types/form';
 
-interface Props {
-  getField: (table: TableId, field: string) => string;
-  updateField: (table: TableId, field: string, value: string) => void;
-}
+const T = 'table6' as const;
 
-const T: TableId = 'table6';
-const bb = { borderBottom: '0.5px solid #000' } as const;
-const br = { borderRight: '0.5px solid #000' } as const;
-const bl = { borderLeft: '0.5px solid #000' } as const;
-const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500 };
-
-export function Table6({ getField, updateField }: Props) {
+export function Table6({ getField, updateField }: TableProps) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
   return (
     <div className="gov-form" style={{ fontSize: 8 }}>
-      {/* ===== タイトル行 ===== */}
-      <div style={{ display: 'flex', ...bb }}>
-        <div style={{ flex: 1, padding: '3px 6px', fontWeight: 700, fontSize: 9.5 }}>
-          第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', ...bl }}>
-          <span>会社名</span>
-          <FormField value={g('companyName')} onChange={(v) => u('companyName', v)} className="w-32" />
-        </div>
-      </div>
+      <TableTitleBar
+        title="第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書"
+        companyName={{ value: g('companyName'), onChange: (v) => u('companyName', v) }}
+      />
 
       {/* ===== 3カラム ===== */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -76,63 +62,22 @@ export function Table6({ getField, updateField }: Props) {
               </tr>
             </thead>
             <tbody>
-              {/* 比準要素数１の会社 */}
-              <tr>
-                <td className="gov-header">比準要素数１<br />の会社の株式</td>
-                <td className="text-left px-2" style={{ fontSize: 6.5 }}>
-                  <div>次のうちいずれか低い方の金額</div>
-                  <div className="ml-2">イ　<CircledNumber n={2} />の金額（<CircledNumber n={3} />の金額があるときは<CircledNumber n={3} />の金額）</div>
-                  <div className="ml-2">ロ （<CircledNumber n={1} />の金額 × 0.25）＋（イの金額 × 0.75）</div>
-                </td>
-                <td>
-                  <div><CircledNumber n={4} /></div>
-                  <NumberField value={g('hikijun1_price')} onChange={(v) => u('hikijun1_price', v)} unit="円" />
-                </td>
-              </tr>
-              {/* 株式等保有特定会社 */}
-              <tr>
-                <td className="gov-header">株式等保有特定<br />会社の株式</td>
-                <td className="text-left px-2" style={{ fontSize: 6.5 }}>
-                  （第８表の㉗の金額）
-                </td>
-                <td>
-                  <div><CircledNumber n={5} /></div>
-                  <NumberField value={g('stock_holding_price')} onChange={(v) => u('stock_holding_price', v)} unit="円" />
-                </td>
-              </tr>
-              {/* 土地保有特定会社 */}
-              <tr>
-                <td className="gov-header">土地保有特定<br />会社の株式</td>
-                <td className="text-left px-2" style={{ fontSize: 6.5 }}>
-                  （<CircledNumber n={2} />の金額（<CircledNumber n={3} />の金額があるときはその金額））
-                </td>
-                <td>
-                  <div><CircledNumber n={6} /></div>
-                  <NumberField value={g('land_holding_price')} onChange={(v) => u('land_holding_price', v)} unit="円" />
-                </td>
-              </tr>
-              {/* 開業後3年未満 */}
-              <tr>
-                <td className="gov-header">開業後３年未満の<br />会社等の株式</td>
-                <td className="text-left px-2" style={{ fontSize: 6.5 }}>
-                  （<CircledNumber n={2} />の金額（<CircledNumber n={3} />の金額があるときはその金額））
-                </td>
-                <td>
-                  <div><CircledNumber n={7} /></div>
-                  <NumberField value={g('startup_price')} onChange={(v) => u('startup_price', v)} unit="円" />
-                </td>
-              </tr>
-              {/* 開業前又は休業中 */}
-              <tr>
-                <td className="gov-header">開業前又は休業中の<br />会社の株式</td>
-                <td className="text-left px-2" style={{ fontSize: 6.5 }}>
-                  （<CircledNumber n={2} />の金額）
-                </td>
-                <td>
-                  <div><CircledNumber n={8} /></div>
-                  <NumberField value={g('dormant_price')} onChange={(v) => u('dormant_price', v)} unit="円" />
-                </td>
-              </tr>
+              {([
+                { title: <>比準要素数１<br />の会社の株式</>, desc: <><div>次のうちいずれか低い方の金額</div><div className="ml-2">イ　<CircledNumber n={2} />の金額（<CircledNumber n={3} />の金額があるときは<CircledNumber n={3} />の金額）</div><div className="ml-2">ロ （<CircledNumber n={1} />の金額 × 0.25）＋（イの金額 × 0.75）</div></>, n: 4, field: 'hikijun1_price' },
+                { title: <>株式等保有特定<br />会社の株式</>, desc: '（第８表の㉗の金額）', n: 5, field: 'stock_holding_price' },
+                { title: <>土地保有特定<br />会社の株式</>, desc: <>（<CircledNumber n={2} />の金額（<CircledNumber n={3} />の金額があるときはその金額））</>, n: 6, field: 'land_holding_price' },
+                { title: <>開業後３年未満の<br />会社等の株式</>, desc: <>（<CircledNumber n={2} />の金額（<CircledNumber n={3} />の金額があるときはその金額））</>, n: 7, field: 'startup_price' },
+                { title: <>開業前又は休業中の<br />会社の株式</>, desc: <>（<CircledNumber n={2} />の金額）</>, n: 8, field: 'dormant_price' },
+              ] as const).map((row) => (
+                <tr key={row.field}>
+                  <td className="gov-header">{row.title}</td>
+                  <td className="text-left px-2" style={{ fontSize: 6.5 }}>{row.desc}</td>
+                  <td>
+                    <div><CircledNumber n={row.n} /></div>
+                    <NumberField value={g(row.field)} onChange={(v) => u(row.field, v)} unit="円" />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
 

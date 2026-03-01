@@ -30,8 +30,7 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
               cursor: 'pointer',
               transition: 'all 0.15s',
             }}
-            onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#f0f0f0'; }}
-            onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+            className={isActive ? '' : 'hover:bg-[#f0f0f0]'}
           >
             <span style={{ whiteSpace: 'nowrap' }}>{tab.label}</span>
             <span style={{ fontSize: 9, opacity: 0.6 }}>{tab.subtitle}</span>

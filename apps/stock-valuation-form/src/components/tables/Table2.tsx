@@ -1,34 +1,38 @@
 import { NumberField } from '@/components/ui/NumberField';
 import { FormField } from '@/components/ui/FormField';
 import { CircledNumber } from '@/components/ui/CircledNumber';
-import type { TableId } from '@/types/form';
+import { TableTitleBar } from './TableTitleBar';
+import { bb, br } from './shared';
+import type { TableProps } from '@/types/form';
 
-interface Props {
-  getField: (table: TableId, field: string) => string;
-  updateField: (table: TableId, field: string, value: string) => void;
+const T = 'table2' as const;
+
+function JudgmentPanel({ criteria, judgmentText = '該 当　・　非 該 当' }: {
+  criteria: React.ReactNode;
+  judgmentText?: string;
+}) {
+  return (
+    <div style={{ width: 130, fontSize: 7, display: 'flex', flexDirection: 'column' }}>
+      {criteria}
+      <div style={{ padding: '2px 3px', textAlign: 'center' }}>
+        <span style={{ fontWeight: 500 }}>判定</span>
+        <span style={{ marginLeft: 4 }}>{judgmentText}</span>
+      </div>
+    </div>
+  );
 }
 
-const T: TableId = 'table2';
-const bb = { borderBottom: '0.5px solid #000' } as const;
-const br = { borderRight: '0.5px solid #000' } as const;
-const bl = { borderLeft: '0.5px solid #000' } as const;
-
-export function Table2({ getField, updateField }: Props) {
+export function Table2({ getField, updateField }: TableProps) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
   return (
     <div className="gov-form">
-      {/* ===== タイトル行 ===== */}
-      <div style={{ display: 'flex', ...bb }}>
-        <div style={{ flex: 1, padding: '3px 6px', fontWeight: 700, fontSize: 11 }}>
-          第２表　特定の評価会社の判定の明細書
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', ...bl }}>
-          <span>会社名</span>
-          <FormField value={g('companyName')} onChange={(v) => u('companyName', v)} className="w-32" />
-        </div>
-      </div>
+      <TableTitleBar
+        title="第２表　特定の評価会社の判定の明細書"
+        fontSize={11}
+        companyName={{ value: g('companyName'), onChange: (v) => u('companyName', v) }}
+      />
 
       {/* ===== メインボディ ===== */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -139,17 +143,13 @@ export function Table2({ getField, updateField }: Props) {
               </div>
             </div>
             {/* 右: 判定基準・判定 */}
-            <div style={{ width: 130, fontSize: 7, display: 'flex', flexDirection: 'column' }}>
+            <JudgmentPanel criteria={
               <div style={{ ...bb, padding: '2px 3px', flex: 1, lineHeight: 1.3 }}>
                 <div style={{ fontWeight: 500 }}>判定基準</div>
                 <div>①欄のいずれか２の判定要素が０であり、かつ、②欄のいずれか２以上の判定要素が０</div>
                 <div>である（該当）・でない（非該当）</div>
               </div>
-              <div style={{ padding: '2px 3px', textAlign: 'center' }}>
-                <span style={{ fontWeight: 500 }}>判定</span>
-                <span style={{ marginLeft: 6 }}>該 当　・　非 該 当</span>
-              </div>
-            </div>
+            } />
           </div>
 
           {/* =============== 2. 株式等保有特定会社 =============== */}
@@ -196,7 +196,7 @@ export function Table2({ getField, updateField }: Props) {
               </div>
             </div>
             {/* 右: 判定基準・判定 */}
-            <div style={{ width: 130, fontSize: 7, display: 'flex', flexDirection: 'column' }}>
+            <JudgmentPanel criteria={<>
               <div style={{ ...bb, padding: '2px 3px', lineHeight: 1.3, flex: 1 }}>
                 <div style={{ fontWeight: 500 }}>判定基準</div>
                 <div><CircledNumber n={3} />の割合が</div>
@@ -206,11 +206,7 @@ export function Table2({ getField, updateField }: Props) {
                 <div><CircledNumber n={3} />の割合が</div>
                 <div>50%未満である</div>
               </div>
-              <div style={{ padding: '2px 3px', textAlign: 'center' }}>
-                <span style={{ fontWeight: 500 }}>判定</span>
-                <span style={{ marginLeft: 4 }}>該 当　・　非 該 当</span>
-              </div>
-            </div>
+            </>} />
           </div>
 
           {/* =============== 3. 土地保有特定会社 =============== */}
@@ -371,18 +367,12 @@ export function Table2({ getField, updateField }: Props) {
                     </div>
                   </div>
                 </div>
-                <div style={{ width: 130 }}>
+                <JudgmentPanel criteria={
                   <div style={{ ...bb, padding: '1px 3px', fontSize: 6.5 }}>
                     <div style={{ fontWeight: 500 }}>判定基準</div>
                     <div>開業後３年未満である</div>
                   </div>
-                  <div style={{ ...bb, padding: '1px 3px', textAlign: 'center' }}>
-                    <span style={{ fontWeight: 500 }}>判 定</span>
-                  </div>
-                  <div style={{ padding: '1px 3px', textAlign: 'center' }}>
-                    該 当　・　非 該 当
-                  </div>
-                </div>
+                } />
               </div>
               {/* (2) 比準要素数０の会社 */}
               <div style={{ display: 'flex' }}>
@@ -423,16 +413,12 @@ export function Table2({ getField, updateField }: Props) {
                     </div>
                   </div>
                 </div>
-                <div style={{ width: 130 }}>
+                <JudgmentPanel criteria={
                   <div style={{ ...bb, padding: '1px 3px', fontSize: 6.5, lineHeight: 1.3 }}>
                     <div>直前期末を基とした判定要素がいずれも０</div>
                     <div>である（該当）・でない（非該当）</div>
                   </div>
-                  <div style={{ padding: '1px 3px', textAlign: 'center' }}>
-                    <span style={{ fontWeight: 500 }}>判定</span>
-                    <span style={{ marginLeft: 4 }}>該 当　・　非 該 当</span>
-                  </div>
-                </div>
+                } />
               </div>
             </div>
           </div>

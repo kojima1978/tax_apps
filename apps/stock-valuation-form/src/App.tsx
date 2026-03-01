@@ -10,9 +10,9 @@ import { Table5 } from '@/components/tables/Table5';
 import { Table6 } from '@/components/tables/Table6';
 import { Table7 } from '@/components/tables/Table7';
 import { Table8 } from '@/components/tables/Table8';
-import type { TableId } from '@/types/form';
+import type { TableId, TableProps } from '@/types/form';
 
-const TABLE_COMPONENTS: Record<TableId, React.ComponentType<{ getField: (table: TableId, field: string) => string; updateField: (table: TableId, field: string, value: string) => void; onTabChange?: (tab: TableId) => void }>> = {
+const TABLE_COMPONENTS: Record<TableId, React.ComponentType<TableProps>> = {
   table1_1: Table1_1,
   table1_2: Table1_2,
   table2: Table2,
@@ -29,12 +29,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { getField, updateField } = useFormData();
 
-  const tableProps = {
-    getField: (table: TableId, field: string) => getField(table, field),
-    updateField: (table: TableId, field: string, value: string) =>
-      updateField(table, field, value),
-    onTabChange: setActiveTab,
-  };
+  const tableProps: TableProps = { getField, updateField, onTabChange: setActiveTab };
 
   const ActiveTable = TABLE_COMPONENTS[activeTab];
 
