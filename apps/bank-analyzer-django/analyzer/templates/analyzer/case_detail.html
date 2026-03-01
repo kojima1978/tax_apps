@@ -33,6 +33,12 @@
                         <i class="bi bi-file-earmark me-2"></i>シンプル（単一ファイル）
                     </a>
                 </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'direct-input' case.pk %}">
+                        <i class="bi bi-pencil-square me-2"></i>直接入力（少数件）
+                    </a>
+                </li>
             </ul>
         </div>
         <a href="{% url 'analysis-dashboard' pk=case.pk %}" class="btn btn-secondary">
@@ -87,7 +93,7 @@
                 <tr>
                     <td colspan="8" class="text-center py-4 text-muted">
                         まだ取引データがありません。<br>
-                        CSVインポートを行ってください。
+                        CSVインポートまたは<a href="{% url 'direct-input' case.pk %}">直接入力</a>を行ってください。
                     </td>
                 </tr>
                 {% endfor %}

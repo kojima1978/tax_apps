@@ -20,7 +20,7 @@ from django.urls import reverse_lazy, reverse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 import pandas as pd
 
-from .models import Case
+from .models import Case, Transaction
 from .forms import CaseForm, ImportForm, SettingsForm
 from .lib import importer, config
 from .lib.exceptions import CsvImportError
@@ -603,6 +603,42 @@ def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
         form = ImportForm()
 
     return render(request, 'analyzer/import_form.html', {'case': case, 'form': form})
+
+
+def direct_input(request: HttpRequest, pk: int) -> HttpResponse:
+    """取引データの直接入力（少数件向け）"""
+    case = get_object_or_404(Case, pk=pk)
+
+    if request.method == 'POST':
+        filtered_data, _ = _extract_form_rows(request)
+        if not filtered_data:
+            messages.warning(request, "登録するデータがありません。")
+            return redirect('direct-input', pk=pk)
+
+        try:
+            count = TransactionService.commit_import(case, filtered_data)
+            messages.success(request, f"{count}件の取引を登録しました。")
+            return redirect('case-detail', pk=pk)
+        except Exception as e:
+            logger.exception(f"直接入力エラー: case_id={pk}, error={e}")
+            messages.error(request, safe_error_message(e, "取引登録"))
+
+    # 既存の口座情報を取得（ドロップダウン用）
+    existing_accounts = list(
+        Transaction.objects
+        .filter(case=case)
+        .values('bank_name', 'branch_name', 'account_type', 'account_id')
+        .distinct()
+        .order_by('bank_name', 'branch_name')
+    )
+
+    initial_rows = 5
+    return render(request, 'analyzer/direct_input.html', {
+        'case': case,
+        'initial_rows': initial_rows,
+        'initial_row_range': range(initial_rows),
+        'existing_accounts': existing_accounts,
+    })
 
 
 def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:

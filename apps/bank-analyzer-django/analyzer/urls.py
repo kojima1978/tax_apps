@@ -9,6 +9,7 @@ urlpatterns = [
     path('case/<int:pk>/', views.case_detail, name='case-detail'),
     path('case/<int:pk>/edit/', views.CaseUpdateView.as_view(), name='case-update'),
     path('case/<int:pk>/delete/', views.CaseDeleteView.as_view(), name='case-delete'),
+    path('case/<int:pk>/direct-input/', views.direct_input, name='direct-input'),
     path('case/<int:pk>/import/', views.transaction_import, name='transaction-import'),
     path('case/<int:pk>/import/preview/', views.transaction_preview, name='transaction-preview'),
     path('case/<int:pk>/import/wizard/', views.import_wizard, name='import-wizard'),
