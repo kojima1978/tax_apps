@@ -31,26 +31,6 @@ class CaseForm(forms.ModelForm):
         }
 
 
-class ImportForm(forms.Form):
-    """CSVインポートフォーム"""
-    csv_file = forms.FileField(
-        label="CSVファイル",
-        help_text="銀行からダウンロードした入出金明細（CSV）※最大10MB",
-        validators=[FileExtensionValidator(allowed_extensions=['csv'])],
-        widget=forms.FileInput(attrs={
-            "class": "form-control",
-            "accept": ".csv"
-        })
-    )
-
-    def clean_csv_file(self):
-        """ファイルサイズとタイプのバリデーション"""
-        file = self.cleaned_data.get('csv_file')
-        if file:
-            _validate_file_size(file)
-        return file
-
-
 class JsonImportForm(forms.Form):
     """JSONバックアップインポートフォーム"""
     json_file = forms.FileField(

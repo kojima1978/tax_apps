@@ -17,7 +17,7 @@
     <div class="d-flex gap-2">
         <div class="btn-group">
             <a href="{% url 'import-wizard' case.pk %}" class="btn btn-primary">
-                📥 CSVインポート
+                📥 取込・入力
             </a>
             <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
                 <span class="visually-hidden">メニュー</span>
@@ -25,12 +25,7 @@
             <ul class="dropdown-menu dropdown-menu-end">
                 <li>
                     <a class="dropdown-item" href="{% url 'import-wizard' case.pk %}">
-                        <i class="bi bi-files me-2"></i>複数ファイル対応（推奨）
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="{% url 'transaction-import' case.pk %}">
-                        <i class="bi bi-file-earmark me-2"></i>シンプル（単一ファイル）
+                        <i class="bi bi-file-earmark-arrow-up me-2"></i>CSVインポート
                     </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>

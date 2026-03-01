@@ -43,46 +43,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // ===== 和暦変換 =====
-    function toWareki(dateStr) {
-        if (!dateStr) return '';
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return '';
-
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-
-        let era, eraYear;
-        if (year > 2019 || (year === 2019 && (month > 5 || (month === 5 && day >= 1)))) {
-            era = 'R'; eraYear = year - 2018;
-        } else if (year > 1989 || (year === 1989 && (month > 1 || (month === 1 && day >= 8)))) {
-            era = 'H'; eraYear = year - 1988;
-        } else if (year > 1926 || (year === 1926 && month === 12 && day >= 25)) {
-            era = 'S'; eraYear = year - 1925;
-        } else if (year > 1912 || (year === 1912 && (month > 7 || (month === 7 && day >= 30)))) {
-            era = 'T'; eraYear = year - 1911;
-        } else {
-            era = 'M'; eraYear = year - 1867;
-        }
-        return era + eraYear + '.' + month + '.' + day;
-    }
-
-    function updateWarekiDisplay(dateInput) {
-        var warekiSpan = dateInput.closest('td').querySelector('.wareki-display');
-        if (warekiSpan) {
-            warekiSpan.textContent = toWareki(dateInput.value);
-        }
-    }
-
-    function initWarekiDisplays() {
-        document.querySelectorAll('.date-input').forEach(function (input) {
-            updateWarekiDisplay(input);
-            input.addEventListener('change', function () {
-                updateWarekiDisplay(this);
-            });
-        });
-    }
+    // 和暦関数は wareki.js から読み込み（toWareki, updateWarekiDisplay, initWarekiDisplays）
 
     // ===== 選択状態 =====
     function updateSelectedState() {

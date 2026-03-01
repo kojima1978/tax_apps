@@ -21,6 +21,41 @@ from ..lib.exceptions import CsvImportError
 
 logger = logging.getLogger(__name__)
 
+# ファイル名から銀行名を推測するためのパターン
+BANK_NAME_PATTERNS = [
+    (r'みずほ', 'みずほ銀行'),
+    (r'三井住友', '三井住友銀行'),
+    (r'三菱UFJ|MUFG', '三菱UFJ銀行'),
+    (r'りそな', 'りそな銀行'),
+    (r'ゆうちょ', 'ゆうちょ銀行'),
+    (r'楽天', '楽天銀行'),
+    (r'住信SBI|SBI', '住信SBIネット銀行'),
+    (r'PayPay', 'PayPay銀行'),
+]
+
+# CSV→検出結果のフィールドマッピング (CSVカラム名, 検出結果キー)
+_ACCOUNT_DETECT_FIELDS = [
+    ('bank_name', 'bank_name'),
+    ('branch_name', 'branch_name'),
+    ('account_type', 'account_type'),
+    ('account_number', 'account_id'),
+]
+
+# コミット時の口座情報→行のフィールドマッピング (account dict キー, row キー)
+_ACCOUNT_COMMIT_FIELDS = [
+    ('bank_name', 'bank_name'),
+    ('branch_name', 'branch_name'),
+    ('account_type', 'account_type'),
+]
+
+
+def _json_error(error: str, details: dict = None) -> JsonResponse:
+    """標準化されたエラーJSONレスポンスを生成"""
+    data = {'success': False, 'error': error}
+    if details:
+        data['error_details'] = details
+    return JsonResponse(data)
+
 
 def import_wizard(request: HttpRequest, pk: int) -> HttpResponse:
     """
@@ -83,30 +118,21 @@ def _handle_parse_files(request: HttpRequest, case: Case) -> JsonResponse:
                 files_data.extend(result)
 
             except CsvImportError as e:
-                return JsonResponse({
-                    'success': False,
-                    'error': f"ファイル '{csv_file.name}' のエラー: {e.message}"
-                })
+                return _json_error(
+                    f"ファイル '{csv_file.name}' のエラー: {e.message}",
+                    e.to_dict(),
+                )
 
             file_index += 1
 
         if not files_data:
-            return JsonResponse({
-                'success': False,
-                'error': 'ファイルが見つかりません'
-            })
+            return _json_error('ファイルが見つかりません')
 
-        return JsonResponse({
-            'success': True,
-            'files': files_data
-        })
+        return JsonResponse({'success': True, 'files': files_data})
 
     except Exception as e:
         logger.exception("ウィザード: ファイル解析エラー")
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        })
+        return _json_error(str(e))
 
 
 def _df_to_json_safe_rows(df: pd.DataFrame) -> list[dict]:
@@ -269,38 +295,18 @@ def _detect_account_from_csv(df: pd.DataFrame, filename: str) -> dict:
     Returns:
         {'bank_name': str, 'branch_name': str, 'account_type': str, 'account_id': str}
     """
-    detected = {
-        'bank_name': '',
-        'branch_name': '',
-        'account_type': '',
-        'account_id': ''
-    }
+    detected = {key: '' for _, key in _ACCOUNT_DETECT_FIELDS}
 
     # データフレームから抽出（最初の行から）
     if not df.empty:
         first_row = df.iloc[0]
-        if 'bank_name' in df.columns and pd.notna(first_row.get('bank_name')):
-            detected['bank_name'] = str(first_row['bank_name'])
-        if 'branch_name' in df.columns and pd.notna(first_row.get('branch_name')):
-            detected['branch_name'] = str(first_row['branch_name'])
-        if 'account_type' in df.columns and pd.notna(first_row.get('account_type')):
-            detected['account_type'] = str(first_row['account_type'])
-        if 'account_number' in df.columns and pd.notna(first_row.get('account_number')):
-            detected['account_id'] = str(first_row['account_number'])
+        for csv_col, detect_key in _ACCOUNT_DETECT_FIELDS:
+            if csv_col in df.columns and pd.notna(first_row.get(csv_col)):
+                detected[detect_key] = str(first_row[csv_col])
 
     # ファイル名からの推測（例: "みずほ銀行_1234567.csv"）
     if not detected['bank_name']:
-        bank_patterns = [
-            (r'みずほ', 'みずほ銀行'),
-            (r'三井住友', '三井住友銀行'),
-            (r'三菱UFJ|MUFG', '三菱UFJ銀行'),
-            (r'りそな', 'りそな銀行'),
-            (r'ゆうちょ', 'ゆうちょ銀行'),
-            (r'楽天', '楽天銀行'),
-            (r'住信SBI|SBI', '住信SBIネット銀行'),
-            (r'PayPay', 'PayPay銀行'),
-        ]
-        for pattern, bank_name in bank_patterns:
+        for pattern, bank_name in BANK_NAME_PATTERNS:
             if re.search(pattern, filename, re.IGNORECASE):
                 detected['bank_name'] = bank_name
                 break
@@ -339,9 +345,8 @@ def _handle_commit_wizard(request: HttpRequest, case: Case, pk: int) -> HttpResp
             # 口座情報を各行に設定し、最終的な口座番号で重複を再チェック
             filtered_rows = []
             for row in rows:
-                row['bank_name'] = account.get('bank_name', '')
-                row['branch_name'] = account.get('branch_name', '')
-                row['account_type'] = account.get('account_type', '')
+                for acct_key, row_key in _ACCOUNT_COMMIT_FIELDS:
+                    row[row_key] = account.get(acct_key, '')
                 row['account_number'] = final_account_id
 
                 # 最終口座番号で重複チェック
