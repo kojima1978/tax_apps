@@ -1,35 +1,21 @@
-import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
 import { CircledNumber } from '@/components/ui/CircledNumber';
-import type { TableId } from '@/types/form';
+import { TableTitleBar } from './TableTitleBar';
+import { bb, hdr } from './shared';
+import type { TableProps } from '@/types/form';
 
-interface Props {
-  getField: (table: TableId, field: string) => string;
-  updateField: (table: TableId, field: string, value: string) => void;
-}
+const T = 'table8' as const;
 
-const T: TableId = 'table8';
-const bb = { borderBottom: '0.5px solid #000' } as const;
-const br = { borderRight: '0.5px solid #000' } as const;
-const bl = { borderLeft: '0.5px solid #000' } as const;
-const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500 };
-
-export function Table8({ getField, updateField }: Props) {
+export function Table8({ getField, updateField }: TableProps) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
   return (
     <div className="gov-form" style={{ fontSize: 8 }}>
-      {/* ===== タイトル行 ===== */}
-      <div style={{ display: 'flex', ...bb }}>
-        <div style={{ flex: 1, padding: '3px 6px', fontWeight: 700, fontSize: 9.5 }}>
-          第８表　株式等保有特定会社の株式の価額の計算明細書（続）
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', ...bl }}>
-          <span>会社名</span>
-          <FormField value={g('companyName')} onChange={(v) => u('companyName', v)} className="w-32" />
-        </div>
-      </div>
+      <TableTitleBar
+        title="第８表　株式等保有特定会社の株式の価額の計算明細書（続）"
+        companyName={{ value: g('companyName'), onChange: (v) => u('companyName', v) }}
+      />
 
       {/* ===== 3カラム ===== */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>

@@ -7,36 +7,20 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { NumberField } from '@/components/ui/NumberField';
-import { EditableTable, type ColumnDef, type Preset } from '@/components/ui/EditableTable';
-import type { TableId } from '@/types/form';
-
-/* ================================================
- * Types
- * ================================================ */
-
-interface Props {
-  getField: (table: TableId, field: string) => string;
-  updateField: (table: TableId, field: string, value: string) => void;
-  onTabChange?: (tab: TableId) => void;
-}
+import { Computed } from '@/components/ui/Computed';
+import { EditableTable, NoPrintSpacer, type ColumnDef, type Preset } from '@/components/ui/EditableTable';
+import { TableTitleBar } from './TableTitleBar';
+import { bb, br, bl, hdr, flex, parseNum, ROW_H } from './shared';
+import type { TableProps } from '@/types/form';
 
 /* ================================================
  * Constants
  * ================================================ */
 
-const T: TableId = 'table5';
+const T = 'table5' as const;
 const DEFAULT_ROWS = 20;
-const ROW_H = 16;
 const NOTE_OPTIONS = ['', '株式等', '土地等'];
 const ROW_FIELDS = ['name', 'eval', 'book', 'note'];
-const parseNum = (v: string) => parseInt(v.replace(/,/g, ''), 10) || 0;
-
-// Border shorthands
-const bb = { borderBottom: '0.5px solid #000' } as const;
-const br = { borderRight: '0.5px solid #000' } as const;
-const bl = { borderLeft: '0.5px solid #000' } as const;
-const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500 };
-const flex: React.CSSProperties = { display: 'flex', alignItems: 'center' };
 const cellVal: React.CSSProperties = { flex: 1, ...br, padding: '0px 2px', ...flex };
 
 /* ---- Column Definitions ---- */
@@ -99,20 +83,9 @@ const LIABILITY_PRESETS: Preset[] = [
  * Sub-Components (Table5 specific)
  * ================================================ */
 
-const Computed = ({ value, unit }: { value: number | null; unit?: string }) => (
-  <span style={{ ...flex, width: '100%' }}>
-    <span style={{ flex: 1, textAlign: 'right', padding: '3px 2px' }}>
-      {value !== null && value !== undefined ? value.toLocaleString() : ''}
-    </span>
-    {unit && <span className="whitespace-nowrap ml-0.5">{unit}</span>}
-  </span>
-);
-
 const CalcResult = ({ children, active }: { children: React.ReactNode; active?: boolean }) => (
   <span style={{ fontWeight: 700, padding: '0 3px', background: active ? '#fff8e1' : '#e8eaf6' }}>{children}</span>
 );
-
-const NoPrintSpacer = () => <div className="no-print" style={{ width: 18, ...br }} />;
 
 const RowBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
   <button
@@ -126,7 +99,7 @@ const RowBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
  * Main Component
  * ================================================ */
 
-export function Table5({ getField, updateField, onTabChange }: Props) {
+export function Table5({ getField, updateField, onTabChange }: TableProps) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
@@ -353,15 +326,10 @@ export function Table5({ getField, updateField, onTabChange }: Props) {
     <div className="gov-form" style={{ fontSize: 8 }}>
 
       {/* Group 1: タイトル */}
-      <div style={{ ...flex, ...bb }}>
-        <div style={{ flex: 1, padding: '3px 6px', fontWeight: 700, fontSize: 9.5, whiteSpace: 'nowrap' }}>
-          第５表　１株当たりの純資産価額（相続税評価額）の計算明細書
-        </div>
-        <div style={{ ...flex, gap: 4, padding: '2px 6px', whiteSpace: 'nowrap', ...bl }}>
-          <span>会社名</span>
-          <span style={{ minWidth: 80 }}>{getField('table1_1', 'companyName')}</span>
-        </div>
-      </div>
+      <TableTitleBar
+        title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書"
+        companyNameReadonly={getField('table1_1', 'companyName')}
+      />
 
       {/* Group 2: 1. 資産及び負債の金額（課税時期現在） */}
       <div style={{ ...bb, padding: '2px 4px', fontWeight: 700, fontSize: 8, textAlign: 'center', letterSpacing: '0.3em', ...flex, justifyContent: 'center' }}>

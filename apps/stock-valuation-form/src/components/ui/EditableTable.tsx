@@ -13,6 +13,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
+import { ROW_H, bb, br, hdr, flex } from '@/components/tables/shared';
 
 /* ================================================
  * Types (exported)
@@ -51,16 +52,6 @@ export interface EditableTableProps {
   onApplyAllPresets: () => void;
   footer?: React.ReactNode;
 }
-
-/* ================================================
- * Style constants
- * ================================================ */
-
-const ROW_H = 16;
-const bb = { borderBottom: '0.5px solid #000' } as const;
-const br = { borderRight: '0.5px solid #000' } as const;
-const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500 };
-const flex: React.CSSProperties = { display: 'flex', alignItems: 'center' };
 
 /* ================================================
  * Internal Sub-Components
@@ -122,7 +113,7 @@ function PresetPanel({ presets, onSelect, onSelectAll }: {
   );
 }
 
-const NoPrintSpacer = () => <div className="no-print" style={{ width: 18, ...br }} />;
+export const NoPrintSpacer = () => <div className="no-print" style={{ width: 18, ...br }} />;
 
 /* ================================================
  * Cell renderer

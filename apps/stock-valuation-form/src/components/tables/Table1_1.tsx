@@ -1,29 +1,33 @@
 import { useState, useEffect } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
 import { CircledNumber } from '@/components/ui/CircledNumber';
-import type { TableId } from '@/types/form';
-
-// ---- Types ----
-interface Props {
-  getField: (table: TableId, field: string) => string;
-  updateField: (table: TableId, field: string, value: string) => void;
-}
-
-type GFn = (f: string) => string;
-type UFn = (f: string, v: string) => void;
+import { bb, br, hdr, parseNum, pct, fmtNum, fmtPct } from './shared';
+import type { TableProps } from '@/types/form';
+import type { GFn, UFn } from './shared';
 
 // ---- Constants ----
-const T: TableId = 'table1_1';
+const T = 'table1_1' as const;
 const MIN_ROWS = 1;
 const MAX_ROWS = 20;
 const DEFAULT_ROWS = 10;
 const SH_KEYS = ['sh_name', 'sh_dozoku', 'sh_hittou', 'sh_rel', 'sh_shares', 'sh_votes', 'sh_ratio'];
 
-// ---- Styles ----
-const bb = { borderBottom: '0.5px solid #000' } as const;
-const br = { borderRight: '0.5px solid #000' } as const;
-const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500 };
+// ---- Table1_1-specific Styles ----
 const lbl: React.CSSProperties = {
   ...hdr, padding: '1px 3px', whiteSpace: 'nowrap', borderRight: '0.5px solid #000',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -64,11 +68,6 @@ const formatWareki = (dateStr: string): string => {
   }).format(d);
   return `${wareki}（${d.getFullYear()}年）`;
 };
-
-const parseNum = (v: string) => parseInt(v, 10) || 0;
-const pct = (a: number, b: number) => b > 0 ? Math.round((a / b) * 100) : null;
-const fmtNum = (n: number) => n > 0 ? n.toLocaleString() : '';
-const fmtPct = (n: number | null) => n !== null ? `${n}%` : '';
 
 // ---- Helper Components ----
 function ReadonlyCell({ n, value }: { n?: number; value: string }) {
@@ -163,26 +162,21 @@ function CompanyHeader({ g, u }: { g: GFn; u: UFn }) {
   );
 }
 
-function ShareholderRow({ index, g, u, totalVotesSum, rowCount, dragIdx, dropTarget, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd, onRemove }: {
-  index: number; g: GFn; u: UFn; totalVotesSum: number; rowCount: number;
-  dragIdx: number | null; dropTarget: number | null;
-  onDragStart: () => void; onDragOver: (e: React.DragEvent) => void;
-  onDragLeave: () => void; onDrop: () => void; onDragEnd: () => void;
+function ShareholderRow({ id, index, g, u, totalVotesSum, rowCount, onRemove }: {
+  id: string; index: number; g: GFn; u: UFn; totalVotesSum: number; rowCount: number;
   onRemove: () => void;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const i = index;
   return (
     <tr
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-      onDragEnd={onDragEnd}
+      ref={setNodeRef}
       style={{
-        height: 18, cursor: 'grab',
-        opacity: dragIdx === i ? 0.4 : 1,
-        borderTop: dropTarget === i && dragIdx !== null && dragIdx !== i ? '2px solid #2e7d32' : undefined,
+        height: 18,
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        background: isDragging ? '#fff8e1' : undefined,
       }}
     >
       <td style={{ border: 'none', padding: 0, textAlign: 'center' }}>
@@ -190,7 +184,7 @@ function ShareholderRow({ index, g, u, totalVotesSum, rowCount, dragIdx, dropTar
           <span onClick={onRemove} style={{ cursor: 'pointer', color: '#999', fontSize: 9, lineHeight: 1 }} title={`No.${i + 1} を削除`}>×</span>
         )}
       </td>
-      <td style={{ textAlign: 'center', fontSize: 8, color: '#666' }}>{i + 1}</td>
+      <td style={{ textAlign: 'center', fontSize: 8, color: '#666', cursor: 'grab' }} {...attributes} {...listeners}>{i + 1}</td>
       <td><FormField value={g(`sh_name_${i}`)} onChange={(v) => u(`sh_name_${i}`, v)} /></td>
       <td style={{ textAlign: 'center' }}>
         <input type="checkbox" checked={g(`sh_dozoku_${i}`) === '1'} onChange={(e) => u(`sh_dozoku_${i}`, e.target.checked ? '1' : '')} style={{ cursor: 'pointer' }} />
@@ -416,12 +410,13 @@ function DefinitionsPanel({ open, onToggle }: { open: boolean; onToggle: () => v
  * Main Component
  * ================================================ */
 
-export function Table1_1({ getField, updateField }: Props) {
+export function Table1_1({ getField, updateField }: TableProps) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
-  const [dropTarget, setDropTarget] = useState<number | null>(null);
   const [defOpen, setDefOpen] = useState(false);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   // 株主行管理
   const rowCount = Math.max(parseNum(g('sh_count')) || DEFAULT_ROWS, DEFAULT_ROWS);
@@ -442,8 +437,13 @@ export function Table1_1({ getField, updateField }: Props) {
     u('sh_count', String(rowCount - 1));
   };
 
-  const reorderShareholders = (from: number, to: number) => {
-    if (from === to) return;
+  const rowIds = Array.from({ length: rowCount }, (_, i) => String(i));
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from = Number(active.id);
+    const to = Number(over.id);
     const rows = Array.from({ length: rowCount }, (_, i) =>
       SH_KEYS.map((k) => g(`${k}_${i}`))
     );
@@ -559,6 +559,8 @@ export function Table1_1({ getField, updateField }: Props) {
               <span onClick={resetShareholders} style={{ cursor: 'pointer', color: '#d32f2f', fontSize: 8, fontWeight: 400 }}>リセット</span>
             </span>
           </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
           <table className="gov-table" style={{ fontSize: 8.5, tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: 16 }} /><col style={{ width: 20 }} /><col />
@@ -582,18 +584,12 @@ export function Table1_1({ getField, updateField }: Props) {
               {indices.map((i) => (
                 <ShareholderRow
                   key={i}
+                  id={String(i)}
                   index={i}
                   g={g}
                   u={u}
                   totalVotesSum={totalVotesSum}
                   rowCount={rowCount}
-                  dragIdx={dragIdx}
-                  dropTarget={dropTarget}
-                  onDragStart={() => setDragIdx(i)}
-                  onDragOver={(e) => { e.preventDefault(); setDropTarget(i); }}
-                  onDragLeave={() => setDropTarget(null)}
-                  onDrop={() => { if (dragIdx !== null) { reorderShareholders(dragIdx, i); setDragIdx(null); setDropTarget(null); } }}
-                  onDragEnd={() => { setDragIdx(null); setDropTarget(null); }}
                   onRemove={() => removeRow(i)}
                 />
               ))}
@@ -609,6 +605,8 @@ export function Table1_1({ getField, updateField }: Props) {
               />
             </tbody>
           </table>
+          </SortableContext>
+          </DndContext>
           {hasAnyName && (!hasDozoku || !hasHittou) && (
             <div className="no-print" style={{ padding: '2px 6px', fontSize: 7.5, color: '#795548', background: '#fff3e0' }}>
               {!hasDozoku && <div>○ 同族関係者グループのチェックがありません</div>}

@@ -1,18 +1,9 @@
 import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
-import type { TableId } from '@/types/form';
-
-interface Props {
-  getField: (table: TableId, field: string) => string;
-  updateField: (table: TableId, field: string, value: string) => void;
-}
-
-const T: TableId = 'table4';
-const bb = { borderBottom: '0.5px solid #000' } as const;
-const br = { borderRight: '0.5px solid #000' } as const;
-const bl = { borderLeft: '0.5px solid #000' } as const;
-const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500 };
-const vt: React.CSSProperties = { writingMode: 'vertical-rl', textOrientation: 'mixed', letterSpacing: '0.12em' };
+import { Computed } from '@/components/ui/Computed';
+import { TableTitleBar } from './TableTitleBar';
+import { bb, br, hdr, vt, parseNum } from './shared';
+import type { TableProps } from '@/types/form';
 
 /* ---- 類似業種ブロック (共通レンダラー) ---- */
 function IndustryBlock({
@@ -174,7 +165,34 @@ function IndustryBlock({
   );
 }
 
-const parseNum = (v: string) => parseInt(v, 10) || 0;
+type CellDef =
+  | { type: 'input'; key: string; unit?: string }
+  | { type: 'computed'; value: number | null; unit?: string };
+
+function YearRow({ label, cells, labelStyle, noBorder, g, u }: {
+  label: React.ReactNode;
+  cells: CellDef[];
+  labelStyle?: React.CSSProperties;
+  noBorder?: boolean;
+  g: (f: string) => string;
+  u: (f: string, v: string) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', ...(noBorder ? {} : bb), fontSize: 6.5 }}>
+      <div style={{ width: 45, ...br, ...hdr, textAlign: 'center', padding: '1px', ...labelStyle }}>
+        {label}
+      </div>
+      {cells.map((cell, i) => (
+        <div key={i} style={{ flex: 1, ...(i < cells.length - 1 ? br : {}), padding: '1px 2px' }}>
+          {cell.type === 'computed'
+            ? <Computed value={cell.value} unit={cell.unit} />
+            : <NumberField value={g(cell.key)} onChange={(v) => u(cell.key, v)} unit={cell.unit} />
+          }
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // セクション1.1のフィールド
 const SEC1_FIELDS = ['capital', 'issued_shares', 'capital_per_share', 'shares_50yen'];
@@ -185,7 +203,7 @@ const SEC2_PROFIT_FIELDS = ['income_y1', 'extra_profit_y1', 'div_exclusion_y1', 
 // セクション2 純資産のフィールド
 const SEC2_ASSET_FIELDS = ['cap_y1', 'retained_y1', 'net_asset_y1', 'cap_y2', 'retained_y2', 'net_asset_y2'];
 
-export function Table4({ getField, updateField }: Props) {
+export function Table4({ getField, updateField }: TableProps) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
@@ -212,14 +230,6 @@ export function Table4({ getField, updateField }: Props) {
   const assetY1 = calcAsset('y1');
   const assetY2 = calcAsset('y2');
 
-  const fmt = (v: number | null) => v !== null ? v.toLocaleString() : '';
-
-  const Computed = ({ value, unit }: { value: number | null; unit?: string }) => (
-    <span style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-      <span style={{ flex: 1, textAlign: 'right', padding: '3px 2px' }}>{fmt(value)}</span>
-      {unit && <span className="whitespace-nowrap ml-0.5">{unit}</span>}
-    </span>
-  );
 
   // ---- リセット ----
   const resetAll = () => {
@@ -229,23 +239,21 @@ export function Table4({ getField, updateField }: Props) {
   return (
     <div className="gov-form" style={{ fontSize: 7 }}>
       {/* ===== タイトル行 ===== */}
-      <div style={{ display: 'flex', alignItems: 'center', ...bb }}>
-        <div style={{ flex: 1, padding: '3px 6px', fontWeight: 700, fontSize: 10, whiteSpace: 'nowrap' }}>
-          第４表　類似業種比準価額等の計算明細書
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', whiteSpace: 'nowrap', ...bl }}>
-          <span>会社名</span>
-          <span style={{ minWidth: 80 }}>{getField('table1_1', 'companyName')}</span>
-        </div>
-        <button
-          className="no-print"
-          onClick={resetAll}
-          style={{ padding: '2px 8px', fontSize: 7, background: '#f5f5f5', border: '1px solid #ccc', borderRadius: 2, cursor: 'pointer', whiteSpace: 'nowrap', marginRight: 4 }}
-          title="全フィールドをリセット"
-        >
-          リセット
-        </button>
-      </div>
+      <TableTitleBar
+        title="第４表　類似業種比準価額等の計算明細書"
+        fontSize={10}
+        companyNameReadonly={getField('table1_1', 'companyName')}
+        extra={
+          <button
+            className="no-print"
+            onClick={resetAll}
+            style={{ padding: '2px 8px', fontSize: 7, background: '#f5f5f5', border: '1px solid #ccc', borderRadius: 2, cursor: 'pointer', whiteSpace: 'nowrap', marginRight: 4 }}
+            title="全フィールドをリセット"
+          >
+            リセット
+          </button>
+        }
+      />
 
       {/* ===== コンテンツ ===== */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -381,72 +389,23 @@ export function Table4({ getField, updateField }: Props) {
                     <div style={{ flex: 1, ...br, ...hdr, padding: '1px', lineHeight: 1.2 }}>⑮繰越欠損金<br />控除額</div>
                     <div style={{ flex: 1, ...hdr, padding: '1px', lineHeight: 1.2 }}>利益金額<br />(⑪−⑫−⑬<br />+⑭+⑮)</div>
                   </div>
-                  {/* 直前期 */}
-                  <div style={{ display: 'flex', ...bb, fontSize: 6.5 }}>
-                    <div style={{ width: 45, ...br, ...hdr, textAlign: 'center', padding: '1px' }}>直 前 期</div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('income_y1')} onChange={(v) => u('income_y1', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('extra_profit_y1')} onChange={(v) => u('extra_profit_y1', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('div_exclusion_y1')} onChange={(v) => u('div_exclusion_y1', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('tax_y1')} onChange={(v) => u('tax_y1', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('loss_deduct_y1')} onChange={(v) => u('loss_deduct_y1', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, padding: '1px 2px' }}>
-                      <Computed value={profitY1} unit="千円" />
-                    </div>
-                  </div>
-                  {/* 直前々期 */}
-                  <div style={{ display: 'flex', ...bb, fontSize: 6.5 }}>
-                    <div style={{ width: 45, ...br, ...hdr, textAlign: 'center', padding: '1px' }}>直前々期</div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('income_y2')} onChange={(v) => u('income_y2', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('extra_profit_y2')} onChange={(v) => u('extra_profit_y2', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('div_exclusion_y2')} onChange={(v) => u('div_exclusion_y2', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('tax_y2')} onChange={(v) => u('tax_y2', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('loss_deduct_y2')} onChange={(v) => u('loss_deduct_y2', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, padding: '1px 2px' }}>
-                      <Computed value={profitY2} unit="千円" />
-                    </div>
-                  </div>
-                  {/* 直前々前期 */}
-                  <div style={{ display: 'flex', fontSize: 6.5 }}>
-                    <div style={{ width: 45, ...br, ...hdr, textAlign: 'center', padding: '1px', fontSize: 5.5 }}>直前々前期<br />の前期</div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('income_y3')} onChange={(v) => u('income_y3', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('extra_profit_y3')} onChange={(v) => u('extra_profit_y3', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('div_exclusion_y3')} onChange={(v) => u('div_exclusion_y3', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('tax_y3')} onChange={(v) => u('tax_y3', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('loss_deduct_y3')} onChange={(v) => u('loss_deduct_y3', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, padding: '1px 2px' }}>
-                      <Computed value={profitY3} unit="千円" />
-                    </div>
-                  </div>
+                  {/* 直前期 / 直前々期 / 直前々前期 */}
+                  {([
+                    { label: '直 前 期', suffix: 'y1', computed: profitY1 },
+                    { label: '直前々期', suffix: 'y2', computed: profitY2 },
+                    { label: <>直前々前期<br />の前期</>, suffix: 'y3', computed: profitY3, labelStyle: { fontSize: 5.5 } as React.CSSProperties },
+                  ] as const).map((yr, idx, arr) => (
+                    <YearRow key={idx} label={yr.label} labelStyle={'labelStyle' in yr ? yr.labelStyle : undefined} noBorder={idx === arr.length - 1} g={g} u={u}
+                      cells={[
+                        { type: 'input', key: `income_${yr.suffix}`, unit: '千円' },
+                        { type: 'input', key: `extra_profit_${yr.suffix}`, unit: '千円' },
+                        { type: 'input', key: `div_exclusion_${yr.suffix}`, unit: '千円' },
+                        { type: 'input', key: `tax_${yr.suffix}`, unit: '千円' },
+                        { type: 'input', key: `loss_deduct_${yr.suffix}`, unit: '千円' },
+                        { type: 'computed', value: yr.computed, unit: '千円' },
+                      ]}
+                    />
+                  ))}
                 </div>
               </div>
 
@@ -466,32 +425,19 @@ export function Table4({ getField, updateField }: Props) {
                     <div style={{ flex: 1, ...br, ...hdr, padding: '1px' }}>⑱ 利益積立金額</div>
                     <div style={{ flex: 1, ...hdr, padding: '1px', lineHeight: 1.2 }}>⑲ 純資産価額<br />（⑰＋⑱）</div>
                   </div>
-                  {/* 直前期 */}
-                  <div style={{ display: 'flex', ...bb, fontSize: 6.5 }}>
-                    <div style={{ width: 45, ...br, ...hdr, textAlign: 'center', padding: '1px' }}>直 前 期</div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('cap_y1')} onChange={(v) => u('cap_y1', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('retained_y1')} onChange={(v) => u('retained_y1', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, padding: '1px 2px' }}>
-                      <Computed value={assetY1} unit="千円" />
-                    </div>
-                  </div>
-                  {/* 直前々期 */}
-                  <div style={{ display: 'flex', fontSize: 6.5 }}>
-                    <div style={{ width: 45, ...br, ...hdr, textAlign: 'center', padding: '1px' }}>直前々期</div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('cap_y2')} onChange={(v) => u('cap_y2', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '1px 2px' }}>
-                      <NumberField value={g('retained_y2')} onChange={(v) => u('retained_y2', v)} unit="千円" />
-                    </div>
-                    <div style={{ flex: 1, padding: '1px 2px' }}>
-                      <Computed value={assetY2} unit="千円" />
-                    </div>
-                  </div>
+                  {/* 直前期 / 直前々期 */}
+                  {([
+                    { label: '直 前 期', suffix: 'y1', computed: assetY1 },
+                    { label: '直前々期', suffix: 'y2', computed: assetY2 },
+                  ]).map((yr, idx, arr) => (
+                    <YearRow key={idx} label={yr.label} noBorder={idx === arr.length - 1} g={g} u={u}
+                      cells={[
+                        { type: 'input', key: `cap_${yr.suffix}`, unit: '千円' },
+                        { type: 'input', key: `retained_${yr.suffix}`, unit: '千円' },
+                        { type: 'computed', value: yr.computed, unit: '千円' },
+                      ]}
+                    />
+                  ))}
                 </div>
               </div>
             </div>

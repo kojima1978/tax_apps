@@ -1,18 +1,11 @@
 import React, { useEffect } from 'react';
 import { NumberField } from '@/components/ui/NumberField';
 import { FormField } from '@/components/ui/FormField';
-import type { TableId } from '@/types/form';
+import { TableTitleBar } from './TableTitleBar';
+import { bb, br, parseNum } from './shared';
+import type { TableProps } from '@/types/form';
 
-interface Props {
-  getField: (table: TableId, field: string) => string;
-  updateField: (table: TableId, field: string, value: string) => void;
-}
-
-const T: TableId = 'table1_2';
-
-const bb = { borderBottom: '0.5px solid #000' } as const;
-const br = { borderRight: '0.5px solid #000' } as const;
-const bl = { borderLeft: '0.5px solid #000' } as const;
+const T = 'table1_2' as const;
 
 // 会社規模レベル: 4=大会社, 3=0.90, 2=0.75, 1=0.60, 0=小会社
 type SizeLevel = 0 | 1 | 2 | 3 | 4;
@@ -52,20 +45,20 @@ function classifyEmp(emp: number): SizeLevel {
   return 0;
 }
 
-export function Table1_2({ getField, updateField }: Props) {
+export function Table1_2({ getField, updateField }: TableProps) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
   // 従業員数の自動計算: 正社員 + 正社員以外 × 0.5
-  const regularEmp = parseInt(g('regular_emp'), 10) || 0;
-  const partEmp = parseInt(g('part_emp'), 10) || 0;
+  const regularEmp = parseNum(g('regular_emp'));
+  const partEmp = parseNum(g('part_emp'));
   const totalEmp = regularEmp + Math.floor(partEmp * 0.5);
   const totalEmpDisplay = (regularEmp > 0 || partEmp > 0) ? String(totalEmp) : '';
 
   // 自動判定ロジック
   const industryType = g('industry_type');
-  const totalAssets = parseInt(g('total_assets'), 10) || 0;
-  const transactionAmount = parseInt(g('transaction_amount'), 10) || 0;
+  const totalAssets = parseNum(g('total_assets'));
+  const transactionAmount = parseNum(g('transaction_amount'));
   const hasAllFields = !!(totalEmpDisplay && industryType && g('total_assets') && g('transaction_amount'));
   const is70Over = totalEmpDisplay !== '' && totalEmp >= 70;
 
@@ -108,15 +101,11 @@ export function Table1_2({ getField, updateField }: Props) {
     <div className="gov-form">
 
       {/* ========== グループ１: タイトル行 ========== */}
-      <div style={{ display: 'flex', alignItems: 'center', ...bb }}>
-        <div style={{ flex: 1, padding: '3px 6px', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap' }}>
-          第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', whiteSpace: 'nowrap', ...bl }}>
-          <span>会社名</span>
-          <span style={{ minWidth: 80 }}>{getField('table1_1', 'companyName')}</span>
-        </div>
-      </div>
+      <TableTitleBar
+        title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）"
+        fontSize={11}
+        companyNameReadonly={getField('table1_1', 'companyName')}
+      />
 
       {/* ---- セクション見出し ---- */}
       <div style={{ display: 'flex', alignItems: 'center', ...bb }}>
@@ -250,27 +239,16 @@ export function Table1_2({ getField, updateField }: Props) {
         </a>
       </div>
       <div style={{ display: 'flex', fontSize: 8.5, ...bb }}>
-        <div
-          className={`gov-choice${g('industry_type') === '卸売業' ? ' selected' : ''}`}
-          style={{ flex: 1, padding: '3px 4px', textAlign: 'center', cursor: 'pointer', ...br }}
-          onClick={() => u('industry_type', '卸売業')}
-        >
-          卸売業
-        </div>
-        <div
-          className={`gov-choice${g('industry_type') === '小売・サービス' ? ' selected' : ''}`}
-          style={{ flex: 1, padding: '3px 4px', textAlign: 'center', cursor: 'pointer', ...br }}
-          onClick={() => u('industry_type', '小売・サービス')}
-        >
-          小売・サービス
-        </div>
-        <div
-          className={`gov-choice${g('industry_type') === '卸売業、小売・サービス業以外' ? ' selected' : ''}`}
-          style={{ flex: 1, padding: '3px 4px', textAlign: 'center', cursor: 'pointer' }}
-          onClick={() => u('industry_type', '卸売業、小売・サービス業以外')}
-        >
-          卸売業、小売・サービス業以外
-        </div>
+        {(['卸売業', '小売・サービス', '卸売業、小売・サービス業以外'] as const).map((label, i, arr) => (
+          <div
+            key={label}
+            className={`gov-choice${g('industry_type') === label ? ' selected' : ''}`}
+            style={{ flex: 1, padding: '3px 4px', textAlign: 'center', cursor: 'pointer', ...(i < arr.length - 1 ? br : {}) }}
+            onClick={() => u('industry_type', label)}
+          >
+            {label}
+          </div>
+        ))}
       </div>
       <div style={{ ...bb }}>
         <table className="gov-table" style={{ fontSize: 7 }}>
@@ -421,21 +399,17 @@ export function Table1_2({ getField, updateField }: Props) {
               </td>
             </tr>
             <tr>
-              <td>
-                <span className={`gov-choice${g('size_result') === '大会社' ? ' selected' : ''}`} onClick={() => u('size_result', '大会社')}>１．００</span>
-              </td>
-              <td>
-                <span className={`gov-choice${g('size_result') === '中0.90' ? ' selected' : ''}`} onClick={() => u('size_result', '中0.90')}>０．９０</span>
-              </td>
-              <td>
-                <span className={`gov-choice${g('size_result') === '中0.75' ? ' selected' : ''}`} onClick={() => u('size_result', '中0.75')}>０．７５</span>
-              </td>
-              <td>
-                <span className={`gov-choice${g('size_result') === '中0.60' ? ' selected' : ''}`} onClick={() => u('size_result', '中0.60')}>０．６０</span>
-              </td>
-              <td>
-                <span className={`gov-choice${g('size_result') === '小会社' ? ' selected' : ''}`} onClick={() => u('size_result', '小会社')}>０．５０</span>
-              </td>
+              {([
+                { value: '大会社', display: '１．００' },
+                { value: '中0.90', display: '０．９０' },
+                { value: '中0.75', display: '０．７５' },
+                { value: '中0.60', display: '０．６０' },
+                { value: '小会社', display: '０．５０' },
+              ] as const).map(({ value, display }) => (
+                <td key={value}>
+                  <span className={`gov-choice${g('size_result') === value ? ' selected' : ''}`} onClick={() => u('size_result', value)}>{display}</span>
+                </td>
+              ))}
             </tr>
           </tbody>
         </table>

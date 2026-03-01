@@ -21,6 +21,12 @@ export interface FormData {
   table8: Record<string, string>;
 }
 
+export interface TableProps {
+  getField: (table: TableId, field: string) => string;
+  updateField: (table: TableId, field: string, value: string) => void;
+  onTabChange?: (tab: TableId) => void;
+}
+
 export const initialFormData: FormData = {
   table1_1: {},
   table1_2: {},

@@ -1,35 +1,45 @@
-import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
-import type { TableId } from '@/types/form';
+import { TableTitleBar } from './TableTitleBar';
+import { bb, br, hdr, vt } from './shared';
+import type { TableProps } from '@/types/form';
 
-interface Props {
-  getField: (table: TableId, field: string) => string;
-  updateField: (table: TableId, field: string, value: string) => void;
+const T = 'table3' as const;
+
+function CompanySizeRow({ sizeLabel, description, circleNum, fieldKey, g, u }: {
+  sizeLabel: React.ReactNode;
+  description: React.ReactNode;
+  circleNum: string;
+  fieldKey: string;
+  g: (f: string) => string;
+  u: (f: string, v: string) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', ...bb }}>
+      <div style={{ width: 65, ...br, ...hdr, padding: '3px', fontSize: 7.5, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', lineHeight: 1.4 }}>
+        {sizeLabel}
+      </div>
+      <div style={{ flex: 1, ...br, padding: '2px 4px', fontSize: 7, lineHeight: 1.4 }}>
+        {description}
+      </div>
+      <div style={{ width: 100, padding: '2px 4px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ fontSize: 8 }}>{circleNum}</div>
+        <NumberField value={g(fieldKey)} onChange={(v) => u(fieldKey, v)} unit="円" />
+      </div>
+    </div>
+  );
 }
 
-const T: TableId = 'table3';
-const bb = { borderBottom: '0.5px solid #000' } as const;
-const br = { borderRight: '0.5px solid #000' } as const;
-const bl = { borderLeft: '0.5px solid #000' } as const;
-const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500 };
-const vt: React.CSSProperties = { writingMode: 'vertical-rl', textOrientation: 'mixed', letterSpacing: '0.12em' };
-
-export function Table3({ getField, updateField }: Props) {
+export function Table3({ getField, updateField }: TableProps) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
   return (
     <div className="gov-form" style={{ fontSize: 8.5 }}>
-      {/* ===== タイトル行 ===== */}
-      <div style={{ display: 'flex', ...bb }}>
-        <div style={{ flex: 1, padding: '3px 6px', fontWeight: 700, fontSize: 10 }}>
-          第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', ...bl }}>
-          <span>会社名</span>
-          <FormField value={g('companyName')} onChange={(v) => u('companyName', v)} className="w-32" />
-        </div>
-      </div>
+      <TableTitleBar
+        title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書"
+        fontSize={10}
+        companyName={{ value: g('companyName'), onChange: (v) => u('companyName', v) }}
+      />
 
       {/* ===== 3カラム: 左サイドバー | 中央 | 右サイドバー ===== */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -95,55 +105,40 @@ export function Table3({ getField, updateField }: Props) {
                   </div>
 
                   {/* 大会社 */}
-                  <div style={{ display: 'flex', ...bb }}>
-                    <div style={{ width: 65, ...br, ...hdr, padding: '3px', fontSize: 7.5, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', lineHeight: 1.4 }}>
-                      大 会 社 の<br />株式の価額
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '2px 4px', fontSize: 7, lineHeight: 1.4 }}>
+                  <CompanySizeRow
+                    sizeLabel={<>大 会 社 の<br />株式の価額</>}
+                    description={<>
                       <div>次のうちいずれか低い方の金額（②の記載がないときは①の金額）</div>
                       <div style={{ paddingLeft: 8 }}>イ　①の金額</div>
                       <div style={{ paddingLeft: 8 }}>ロ　②の金額</div>
-                    </div>
-                    <div style={{ width: 100, padding: '2px 4px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                      <div style={{ fontSize: 8 }}>④</div>
-                      <NumberField value={g('large_price')} onChange={(v) => u('large_price', v)} unit="円" />
-                    </div>
-                  </div>
+                    </>}
+                    circleNum="④" fieldKey="large_price" g={g} u={u}
+                  />
 
                   {/* 中会社 */}
-                  <div style={{ display: 'flex', ...bb }}>
-                    <div style={{ width: 65, ...br, ...hdr, padding: '3px', fontSize: 7.5, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', lineHeight: 1.4 }}>
-                      中 会 社 の<br />株式の価額
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '2px 4px', fontSize: 7, lineHeight: 1.4 }}>
+                  <CompanySizeRow
+                    sizeLabel={<>中 会 社 の<br />株式の価額</>}
+                    description={<>
                       <div>（①と②とのいずれか低い方の金額 × Ｌの割合）＋（②の金額（③の金額が</div>
                       <div style={{ paddingLeft: 60 }}>あるときは③の金額）×（１－Ｌの割合））</div>
                       <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 80, marginTop: 1 }}>
                         <span>Ｌの割合</span>
                         <NumberField value={g('l_ratio')} onChange={(v) => u('l_ratio', v)} className="w-12" />
                       </div>
-                    </div>
-                    <div style={{ width: 100, padding: '2px 4px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                      <div style={{ fontSize: 8 }}>⑤</div>
-                      <NumberField value={g('medium_price')} onChange={(v) => u('medium_price', v)} unit="円" />
-                    </div>
-                  </div>
+                    </>}
+                    circleNum="⑤" fieldKey="medium_price" g={g} u={u}
+                  />
 
                   {/* 小会社 */}
-                  <div style={{ display: 'flex', ...bb }}>
-                    <div style={{ width: 65, ...br, ...hdr, padding: '3px', fontSize: 7.5, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', lineHeight: 1.4 }}>
-                      小 会 社 の<br />株式の価額
-                    </div>
-                    <div style={{ flex: 1, ...br, padding: '2px 4px', fontSize: 7, lineHeight: 1.4 }}>
+                  <CompanySizeRow
+                    sizeLabel={<>小 会 社 の<br />株式の価額</>}
+                    description={<>
                       <div>次のうちいずれか低い方の金額</div>
                       <div style={{ paddingLeft: 8 }}>イ　②の金額（③の金額があるときは③の金額）</div>
                       <div style={{ paddingLeft: 8 }}>ロ（①の金額 × 0.50）＋（イの金額 × 0.50）</div>
-                    </div>
-                    <div style={{ width: 100, padding: '2px 4px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                      <div style={{ fontSize: 8 }}>⑥</div>
-                      <NumberField value={g('small_price')} onChange={(v) => u('small_price', v)} unit="円" />
-                    </div>
-                  </div>
+                    </>}
+                    circleNum="⑥" fieldKey="small_price" g={g} u={u}
+                  />
 
                   {/* ⑦ 修正: 配当期待権 */}
                   <div style={{ display: 'flex', ...bb }}>
