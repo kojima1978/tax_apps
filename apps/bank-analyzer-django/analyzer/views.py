@@ -21,9 +21,8 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 import pandas as pd
 
 from .models import Case, Transaction
-from .forms import CaseForm, ImportForm, SettingsForm
-from .lib import importer, config
-from .lib.exceptions import CsvImportError
+from .forms import CaseForm, SettingsForm
+from .lib import config
 from .lib.constants import UNCATEGORIZED, sort_categories, sort_patterns_dict
 from .services import TransactionService, AnalysisService
 from .lib.text_utils import filter_by_keyword, matches_all_keywords, split_keywords
@@ -67,7 +66,6 @@ from .handlers import (
     api_delete_transaction,
     api_get_field_values,
 )
-from .handlers import build_existing_keys, mark_duplicates
 
 logger = logging.getLogger(__name__)
 
@@ -248,21 +246,34 @@ _EXPORT_TYPE_CONFIG = {
 }
 
 
-def _build_csv_response(df: pd.DataFrame, filename: str, include_memo: bool = False) -> HttpResponse:
-    """DataFrameからCSVレスポンスを生成する共通処理"""
+def _require_transactions(request: HttpRequest, transactions, pk: int, redirect_view: str = 'analysis-dashboard') -> Optional[HttpResponse]:
+    """取引データ存在確認。不在時はwarning付きリダイレクトを返す"""
+    if not transactions.exists():
+        messages.warning(request, "エクスポートするデータがありません。")
+        return redirect(redirect_view, pk=pk)
+    return None
+
+
+def _prepare_export_df(df: pd.DataFrame, include_memo: bool = False) -> tuple[pd.DataFrame, list[str]]:
+    """エクスポート用DataFrame準備: カラム選択 + 和暦変換 + ヘッダー日本語化"""
     export_columns = dict(FIELD_LABELS)
     if include_memo:
         export_columns['memo'] = 'メモ'
 
-    # 存在するカラムのみ抽出
     cols_to_export = [c for c in export_columns.keys() if c in df.columns]
     export_df = df[cols_to_export].copy()
 
-    # 日付を和暦に変換
     if 'date' in export_df.columns:
         export_df['date'] = export_df['date'].apply(lambda d: wareki(d, 'short'))
 
-    export_df.columns = [export_columns[c] for c in cols_to_export]
+    headers = [export_columns[c] for c in cols_to_export]
+    export_df.columns = headers
+    return export_df, headers
+
+
+def _build_csv_response(df: pd.DataFrame, filename: str, include_memo: bool = False) -> HttpResponse:
+    """DataFrameからCSVレスポンスを生成する共通処理"""
+    export_df, _ = _prepare_export_df(df, include_memo)
 
     # BOM付きUTF-8でCSVレスポンスを作成（Excelで文字化けしないように）
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
@@ -278,9 +289,9 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
     case = get_object_or_404(Case, pk=pk)
     transactions = case.transactions.all().order_by('date', 'id')
 
-    if not transactions.exists():
-        messages.warning(request, "エクスポートするデータがありません。")
-        return redirect('case-detail', pk=pk)
+    empty_redirect = _require_transactions(request, transactions, pk, 'case-detail')
+    if empty_redirect:
+        return empty_redirect
 
     totals = transactions.aggregate(total_in=Sum('amount_in'), total_out=Sum('amount_out'))
 
@@ -359,9 +370,9 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
     case = get_object_or_404(Case, pk=pk)
     transactions = case.transactions.all().order_by('date', 'id')
 
-    if not transactions.exists():
-        messages.warning(request, "エクスポートするデータがありません。")
-        return redirect('analysis-dashboard', pk=pk)
+    empty_redirect = _require_transactions(request, transactions, pk)
+    if empty_redirect:
+        return empty_redirect
 
     df = pd.DataFrame(list(transactions.values()))
 
@@ -395,9 +406,9 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
     amount_min = amount_min_val if amount_min_ok and amount_min_val else None
     amount_max = amount_max_val if amount_max_ok and amount_max_val else None
 
-    if not transactions.exists():
-        messages.warning(request, "エクスポートするデータがありません。")
-        return redirect('analysis-dashboard', pk=pk)
+    empty_redirect = _require_transactions(request, transactions, pk)
+    if empty_redirect:
+        return empty_redirect
 
     df = pd.DataFrame(list(transactions.values()))
 
@@ -424,20 +435,20 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
     case = get_object_or_404(Case, pk=pk)
     transactions = case.transactions.all().order_by('date', 'id')
 
-    if not transactions.exists():
-        messages.warning(request, "エクスポートするデータがありません。")
-        return redirect('analysis-dashboard', pk=pk)
+    empty_redirect = _require_transactions(request, transactions, pk)
+    if empty_redirect:
+        return empty_redirect
 
     df = pd.DataFrame(list(transactions.values()))
+
+    # 和暦変換（groupby前に実行）
+    if 'date' in df.columns:
+        df['date'] = df['date'].apply(lambda d: wareki(d, 'short'))
 
     export_columns = dict(FIELD_LABELS)
     export_columns['memo'] = 'メモ'
     cols_to_export = [c for c in export_columns.keys() if c in df.columns]
     headers = [export_columns[c] for c in cols_to_export]
-
-    # 日付を和暦に変換
-    if 'date' in df.columns:
-        df['date'] = df['date'].apply(lambda d: wareki(d, 'short'))
 
     # 分類ごとにグループ化し、sort_categories順にシート作成
     grouped = df.groupby('category')
@@ -566,45 +577,6 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
 # インポートビュー
 # =============================================================================
 
-def transaction_import(request: HttpRequest, pk: int) -> HttpResponse:
-    """取引データのインポート"""
-    case = get_object_or_404(Case, pk=pk)
-
-    if request.method == 'POST':
-        form = ImportForm(request.POST, request.FILES)
-        if form.is_valid():
-            csv_file = request.FILES['csv_file']
-            logger.info(f"ファイルインポート開始: case_id={pk}, filename={csv_file.name}, size={csv_file.size}")
-            try:
-                df = importer.load_csv(csv_file)
-                df = importer.validate_balance(df)
-
-                df['date'] = df['date'].dt.strftime('%Y-%m-%d').replace('NaT', None)
-                df = df.where(pd.notnull(df), None)
-
-                request.session['import_data'] = df.to_dict(orient='records')
-                request.session['import_case_id'] = case.id
-
-                return redirect('transaction-preview', pk=pk)
-
-            except CsvImportError as e:
-                logger.warning(f"インポートエラー: case_id={pk}, type={e.error_type.value}, error={e}")
-                return render(request, 'analyzer/import_form.html', {
-                    'case': case,
-                    'form': form,
-                    'import_error': e.to_dict(),
-                    'error_type': e.error_type.value
-                })
-
-            except Exception as e:
-                logger.exception(f"ファイルインポートエラー: case_id={pk}, error={e}")
-                messages.error(request, safe_error_message(e, "ファイルインポート"))
-    else:
-        form = ImportForm()
-
-    return render(request, 'analyzer/import_form.html', {'case': case, 'form': form})
-
-
 def direct_input(request: HttpRequest, pk: int) -> HttpResponse:
     """取引データの直接入力（少数件向け）"""
     case = get_object_or_404(Case, pk=pk)
@@ -641,51 +613,6 @@ def direct_input(request: HttpRequest, pk: int) -> HttpResponse:
     })
 
 
-def transaction_preview(request: HttpRequest, pk: int) -> HttpResponse:
-    """インポートプレビューと確定"""
-    case = get_object_or_404(Case, pk=pk)
-
-    if request.session.get('import_case_id') != case.id or 'import_data' not in request.session:
-        messages.error(request, "セッションが切れました。再度アップロードしてください。")
-        return redirect('transaction-import', pk=pk)
-
-    import_data = request.session['import_data']
-
-    if request.method == 'POST':
-        action = request.POST.get('action')
-
-        if action == 'commit':
-            try:
-                filtered_data, _ = _extract_form_rows(request)
-
-                if not filtered_data:
-                    messages.warning(request, "取り込むデータがありません。")
-                    return redirect('transaction-import', pk=pk)
-
-                count = TransactionService.commit_import(case, filtered_data)
-
-                del request.session['import_data']
-                del request.session['import_case_id']
-
-                messages.success(request, f"{count}件の取引を取り込みました。")
-                return redirect('case-detail', pk=pk)
-
-            except Exception as e:
-                logger.exception(f"取引インポートエラー: case_id={pk}, error={e}")
-                messages.error(request, safe_error_message(e, "取り込み"))
-
-    # 既存DBとの重複チェック
-    existing_keys = build_existing_keys(case)
-
-    duplicate_count = mark_duplicates(import_data, existing_keys)
-
-    return render(request, 'analyzer/import_confirm.html', {
-        'case': case,
-        'transactions': import_data,
-        'duplicate_count': duplicate_count,
-    })
-
-
 # =============================================================================
 # 分析ダッシュボード
 # =============================================================================
@@ -705,21 +632,17 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
 
     keyword = filter_state.get('keyword', '')
 
-    all_txs_queryset = analysis_data['all_txs']
-    if keyword:
-        all_txs_filtered = filter_by_keyword(all_txs_queryset, keyword)
-        all_txs_count = len(all_txs_filtered)
-        all_txs_page = _paginate(all_txs_filtered, request.GET.get('page', 1))
-    else:
-        all_txs_count = all_txs_queryset.count()
-        all_txs_page = _paginate(all_txs_queryset, request.GET.get('page', 1))
+    def _filter_and_paginate(queryset, page_param):
+        """キーワードフィルタ適用 + ページネーション"""
+        if keyword:
+            filtered = filter_by_keyword(queryset, keyword)
+            return len(filtered), _paginate(filtered, request.GET.get(page_param, 1))
+        return queryset.count(), _paginate(queryset, request.GET.get(page_param, 1))
+
+    all_txs_count, all_txs_page = _filter_and_paginate(analysis_data['all_txs'], 'page')
 
     unclassified_txs = case.transactions.filter(category=UNCATEGORIZED).order_by('-date', '-id')
-    if keyword:
-        unclassified_filtered = filter_by_keyword(unclassified_txs, keyword)
-        unclassified_page = _paginate(unclassified_filtered, request.GET.get('unclassified_page', 1))
-    else:
-        unclassified_page = _paginate(unclassified_txs, request.GET.get('unclassified_page', 1))
+    _, unclassified_page = _filter_and_paginate(unclassified_txs, 'unclassified_page')
 
     flagged_txs = filter_by_keyword(analysis_data['flagged_txs'], keyword)
 
@@ -748,38 +671,38 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     return render(request, 'analyzer/analysis.html', context)
 
 
+# 分析ダッシュボードのアクション → ハンドラー関数マッピング
+_ANALYSIS_ACTION_HANDLERS = {
+    'run_classifier': handle_run_classifier,
+    'apply_rules': handle_apply_rules,
+    'delete_account': handle_delete_account,
+    'update_category': handle_update_category,
+    'bulk_update_categories': handle_bulk_update_categories,
+    'bulk_update_transfer_categories': handle_bulk_update_categories_transfer,
+    'update_transaction': handle_update_transaction,
+    'delete_duplicates': handle_delete_duplicates,
+    'delete_by_range': handle_delete_by_range,
+    'toggle_flag': handle_toggle_flag,
+    'update_memo': handle_update_memo,
+    'bulk_replace_field': handle_bulk_replace_field,
+    'apply_ai_suggestion': handle_apply_ai_suggestion,
+    'bulk_apply_ai_suggestions': handle_bulk_apply_ai_suggestions,
+    'add_pattern': handle_add_pattern,
+    'delete_pattern': handle_delete_pattern,
+    'update_pattern': handle_update_pattern,
+    'move_pattern': handle_move_pattern,
+    'get_category_keywords': handle_get_category_keywords,
+    'bulk_pattern_changes': handle_bulk_pattern_changes,
+    'run_auto_classify': handle_run_auto_classify,
+}
+
+
 def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResponse:
     """分析ダッシュボードのPOSTリクエストを処理"""
     action = request.POST.get('action')
-
-    handlers = {
-        'run_classifier': handle_run_classifier,
-        'apply_rules': handle_apply_rules,
-        'delete_account': handle_delete_account,
-        'update_category': handle_update_category,
-        'bulk_update_categories': handle_bulk_update_categories,
-        'bulk_update_transfer_categories': handle_bulk_update_categories_transfer,
-        'update_transaction': handle_update_transaction,
-        'delete_duplicates': handle_delete_duplicates,
-        'delete_by_range': handle_delete_by_range,
-        'toggle_flag': handle_toggle_flag,
-        'update_memo': handle_update_memo,
-        'bulk_replace_field': handle_bulk_replace_field,
-        'apply_ai_suggestion': handle_apply_ai_suggestion,
-        'bulk_apply_ai_suggestions': handle_bulk_apply_ai_suggestions,
-        'add_pattern': handle_add_pattern,
-        'delete_pattern': handle_delete_pattern,
-        'update_pattern': handle_update_pattern,
-        'move_pattern': handle_move_pattern,
-        'get_category_keywords': handle_get_category_keywords,
-        'bulk_pattern_changes': handle_bulk_pattern_changes,
-        'run_auto_classify': handle_run_auto_classify,
-    }
-
-    handler = handlers.get(action)
+    handler = _ANALYSIS_ACTION_HANDLERS.get(action)
     if handler:
         return handler(request, case, pk)
-
     return redirect('analysis-dashboard', pk=pk)
 
 

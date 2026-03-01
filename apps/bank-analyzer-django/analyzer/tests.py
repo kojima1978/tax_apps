@@ -10,7 +10,7 @@ from django.urls import reverse, set_script_prefix
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from .models import Case, Transaction
-from .forms import CaseForm, ImportForm, SettingsForm
+from .forms import CaseForm, SettingsForm
 from .services import TransactionService, AnalysisService, parse_int_ids
 from .templatetags.japanese_date import wareki, wareki_short, wareki_year, get_japanese_era
 from .handlers import parse_amount
@@ -104,30 +104,6 @@ class CaseFormTest(TestCase):
         """重複する名前は無効"""
         Case.objects.create(name="既存案件")
         form = CaseForm(data={"name": "既存案件"})
-        self.assertFalse(form.is_valid())
-
-
-class ImportFormTest(TestCase):
-    """ImportFormのテスト"""
-
-    def test_valid_csv_file(self):
-        """有効なCSVファイル"""
-        csv_content = b"test,data\n1,2"
-        file = SimpleUploadedFile("test.csv", csv_content, content_type="text/csv")
-        form = ImportForm(files={"csv_file": file})
-        self.assertTrue(form.is_valid())
-
-    def test_empty_file(self):
-        """空のファイルは無効"""
-        file = SimpleUploadedFile("empty.csv", b"", content_type="text/csv")
-        form = ImportForm(files={"csv_file": file})
-        self.assertFalse(form.is_valid())
-        self.assertIn("csv_file", form.errors)
-
-    def test_invalid_extension(self):
-        """無効な拡張子は無効"""
-        file = SimpleUploadedFile("test.txt", b"test", content_type="text/plain")
-        form = ImportForm(files={"csv_file": file})
         self.assertFalse(form.is_valid())
 
 
@@ -364,11 +340,6 @@ class ViewsTest(TestCase):
             balance=90000,
         )
         response = self.client.get(reverse('analysis-dashboard', args=[self.case.pk]))
-        self.assertEqual(response.status_code, 200)
-
-    def test_transaction_import_view(self):
-        """インポートビュー GET"""
-        response = self.client.get(reverse('transaction-import', args=[self.case.pk]))
         self.assertEqual(response.status_code, 200)
 
     def test_export_csv_all(self):
