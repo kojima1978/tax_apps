@@ -27,7 +27,7 @@ export function NumberField({
   };
 
   return (
-    <span className={`flex items-center w-full ${className}`}>
+    <span className={`flex items-center ${className || 'w-full'}`}>
       <input
         type="text"
         inputMode="numeric"
