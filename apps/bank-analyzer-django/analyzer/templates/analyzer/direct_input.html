@@ -1,0 +1,182 @@
+{% extends 'analyzer/base.html' %}
+{% load static %}
+
+{% block title %}直接入力 - {{ case.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'case-list' %}" class="text-decoration-none text-muted">案件一覧</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'case-detail' case.pk %}" class="text-decoration-none text-muted">{{ case.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">直接入力</li>
+            </ol>
+        </nav>
+        <h2 class="mb-4">取引データの直接入力</h2>
+
+        <div class="alert alert-info glass-card border-0 mb-4">
+            <h4 class="alert-heading"><i class="bi bi-pencil-square"></i> 直接入力</h4>
+            <p class="mb-0">
+                CSVファイルを使わず、取引データを直接入力できます。<br>
+                口座情報を選択（または入力）してから、各行に取引を入力してください。
+            </p>
+        </div>
+
+        <style>
+            /* 和暦メイン表示: date inputのテキストを非表示、カレンダーアイコンのみ */
+            .wareki-picker {
+                width: 24px;
+                min-width: 0;
+                padding: 0 !important;
+                border: 0 !important;
+                background: transparent !important;
+                cursor: pointer;
+            }
+            .wareki-picker::-webkit-datetime-edit {
+                display: none;
+            }
+            .wareki-picker::-webkit-calendar-picker-indicator {
+                cursor: pointer;
+                margin: 0;
+                opacity: 0.5;
+            }
+            .wareki-picker::-webkit-calendar-picker-indicator:hover {
+                opacity: 1;
+            }
+        </style>
+
+        <form method="post" id="directInputForm">
+            {% csrf_token %}
+            <input type="hidden" name="total_rows" id="totalRows" value="{{ initial_rows }}">
+
+            {# ===== 口座情報ヘッダー ===== #}
+            <div class="glass-card p-3 mb-3">
+                <h5 class="mb-3"><i class="bi bi-bank"></i> 口座情報</h5>
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-bold">口座を選択</label>
+                        <select id="accountSelect" class="form-select form-select-sm">
+                            <option value="new">-- 新規入力 --</option>
+                            {% for acct in existing_accounts %}
+                            <option value="{{ forloop.counter0 }}"
+                                data-bank="{{ acct.bank_name|default:'' }}"
+                                data-branch="{{ acct.branch_name|default:'' }}"
+                                data-type="{{ acct.account_type|default:'' }}"
+                                data-id="{{ acct.account_id|default:'' }}">
+                                {{ acct.bank_name|default:"?" }} {{ acct.branch_name|default:"" }} {{ acct.account_type|default:"" }} {{ acct.account_id|default:"" }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-2 mt-1" id="accountFields">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">銀行名</label>
+                        <input type="text" id="headerBankName" class="form-control form-control-sm" placeholder="例: みずほ銀行">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">支店名</label>
+                        <input type="text" id="headerBranchName" class="form-control form-control-sm" placeholder="例: 東京中央支店">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">種別</label>
+                        <input type="text" id="headerAccountType" class="form-control form-control-sm" placeholder="例: 普通">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">口座番号</label>
+                        <input type="text" id="headerAccountId" class="form-control form-control-sm" placeholder="例: 1234567">
+                    </div>
+                </div>
+            </div>
+
+            {# ===== ツールバー ===== #}
+            <div class="d-flex justify-content-between mb-3">
+                <div class="d-flex align-items-center">
+                    <button type="button" id="deleteSelectedBtn" class="btn btn-outline-danger btn-sm" disabled>
+                        <i class="bi bi-trash"></i> 選択行を削除
+                    </button>
+                    <span id="selectedCount" class="ms-2 text-muted small"></span>
+                </div>
+                <div>
+                    <a href="{% url 'case-detail' case.pk %}" class="btn btn-outline-secondary btn-sm me-2">キャンセル</a>
+                    <button type="submit" class="btn btn-primary btn-sm btn-submit">
+                        <i class="bi bi-check-lg"></i> 登録実行
+                    </button>
+                </div>
+            </div>
+
+            {# ===== 入力テーブル ===== #}
+            <div class="glass-card p-0 overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle" id="inputTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" class="form-check-input" id="selectAllCheck" title="全選択">
+                                </th>
+                                <th style="width: 40px;"></th>
+                                <th style="min-width: 100px;">日付</th>
+                                <th style="min-width: 200px;">摘要</th>
+                                <th style="min-width: 110px;">払戻額（出金）</th>
+                                <th style="min-width: 110px;">お預り額（入金）</th>
+                                <th style="min-width: 110px;">残高</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            {% for i in initial_row_range %}
+                            <tr class="data-row" data-row-index="{{ i }}" style="transition: all 0.2s;">
+                                <td class="text-center">
+                                    <input class="form-check-input remove-row-check" type="checkbox"
+                                        name="form-{{ i }}-DELETE" id="del-{{ i }}" style="cursor: pointer;">
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary insert-row-btn p-0 px-1"
+                                        title="この下に行を挿入" data-index="{{ i }}">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <span class="wareki-display" style="white-space: nowrap;"></span>
+                                        <input type="date" name="form-{{ i }}-date" value=""
+                                            class="date-input wareki-picker ms-1">
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" name="form-{{ i }}-description" value=""
+                                        class="form-control form-control-sm border-0 bg-transparent"
+                                        placeholder="摘要を入力">
+                                </td>
+                                <td>
+                                    <input type="number" name="form-{{ i }}-amount_out" value=""
+                                        class="form-control form-control-sm border-0 bg-transparent text-end"
+                                        placeholder="0">
+                                </td>
+                                <td>
+                                    <input type="number" name="form-{{ i }}-amount_in" value=""
+                                        class="form-control form-control-sm border-0 bg-transparent text-end"
+                                        placeholder="0">
+                                </td>
+                                <td>
+                                    <input type="number" name="form-{{ i }}-balance" value=""
+                                        class="form-control form-control-sm border-0 bg-transparent text-end"
+                                        placeholder="残高">
+                                </td>
+                                {# 口座情報は hidden で各行に持たせる（submit前にJSで一括設定） #}
+                                <input type="hidden" name="form-{{ i }}-bank_name" value="">
+                                <input type="hidden" name="form-{{ i }}-branch_name" value="">
+                                <input type="hidden" name="form-{{ i }}-account_type" value="">
+                                <input type="hidden" name="form-{{ i }}-account_number" value="">
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'analyzer/js/direct_input.js' %}"></script>
+{% endblock %}
