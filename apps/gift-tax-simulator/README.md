@@ -121,7 +121,9 @@ npm run dev
 │   │       └── ImportButton.tsx        # 評価額引用ボタン
 │   ├── hooks/
 │   │   ├── useAcquisitionTaxForm.ts   # 不動産取得税フォーム
-│   │   └── useRegistrationTaxForm.ts  # 登録免許税フォーム
+│   │   ├── useFormattedInput.ts       # 数値入力フォーマット
+│   │   ├── useRegistrationTaxForm.ts  # 登録免許税フォーム
+│   │   └── useValuationImport.ts      # 評価額引用
 │   └── lib/
 │       ├── tax-calculation.ts    # 贈与税計算ロジック
 │       ├── real-estate-tax.ts    # 不動産税計算ロジック
@@ -130,10 +132,23 @@ npm run dev
 │       └── company.ts            # 会社情報
 ├── index.html                    # HTMLエントリー
 ├── vite.config.ts                # Vite設定
-├── Dockerfile
 ├── docker-compose.yml
+├── docker-compose.prod.yml
+├── vite.config.ts
 └── package.json
 ```
+
+### Dockerfile
+
+共通 `docker/Dockerfile.vite-static`（6アプリ共有）を使用しています。開発時は Vite ホットリロード、本番は nginx で静的ファイル配信。
+
+### 本番環境
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+`docker-compose.prod.yml` でビルドターゲットを `runner`（nginx）に切り替え、ボリュームマウントを無効化、メモリ制限を縮小します。
 
 ## 税額計算について
 

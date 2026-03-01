@@ -27,11 +27,13 @@
   - 重複データ検出・削除
   - ID範囲指定削除
   - フィールド値の一括置換（銀行名・支店名・口座番号の誤字修正）
+- **直接入力**: フォームから取引データを直接登録（5行一括入力対応）
 - **エクスポート**:
   - CSVエクスポート（全データ / 絞り込み結果 / Excel対応BOM付きUTF-8）
   - 分類別Excelエクスポート（分類ごとにシート分け、和暦変換済み）
   - JSONバックアップ（案件データの完全バックアップ・リストア）
 - **付箋機能**: 確認が必要な取引にマークを付けて管理
+- **お客様手紙**: 通帳のお預り依頼書の印刷テンプレート
 
 ## 技術スタック
 
@@ -96,10 +98,10 @@ bank-analyzer-django/
 │   │   ├── analysis.html      # 分析ダッシュボード
 │   │   ├── classify_preview.html  # 分類プレビュー
 │   │   ├── settings.html      # 設定画面
-│   │   ├── import_form.html   # CSVインポート
-│   │   ├── import_confirm.html # インポートプレビュー
-│   │   ├── import_wizard.html # 複数ファイルインポートウィザード
+│   │   ├── direct_input.html  # 取引直接入力
+│   │   ├── import_wizard.html # CSVインポートウィザード
 │   │   ├── json_import.html   # JSONインポート
+│   │   ├── customer_letter.html # お客様手紙（印刷用）
 │   │   └── partials/          # 再利用可能テンプレート部品
 │   │       ├── _tab_all.html          # 取引一覧タブ
 │   │       ├── _tab_large.html        # 多額取引タブ
@@ -134,7 +136,8 @@ bank-analyzer-django/
 ├── data/                      # ユーザー設定保存先
 ├── staticfiles/               # 収集済み静的ファイル
 ├── Dockerfile                 # マルチステージDockerビルド設定
-├── docker-compose.yml         # Docker Compose設定
+├── docker-compose.yml         # Docker Compose設定（開発）
+├── docker-compose.prod.yml    # 本番オーバーライド設定
 ├── docker-entrypoint.sh       # コンテナ起動スクリプト
 ├── .dockerignore              # Dockerビルド除外設定
 ├── .env.example               # 環境変数テンプレート
@@ -220,6 +223,13 @@ docker compose down
 ### 本番環境
 
 ```bash
+# manage.bat 経由（推奨）
+manage.bat start --prod
+
+# docker-compose.prod.yml オーバーライド
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+# profile 指定（スタンドアロン）
 docker compose --profile production up -d bank-analyzer-prod
 ```
 
@@ -231,8 +241,13 @@ docker compose --profile production up -d bank-analyzer-prod
 
 ### 案件詳細（/case/\<id\>/）
 - 取引履歴の一覧表示（ページネーション付き）
-- CSVインポート
+- CSVインポートウィザード
+- 直接入力
 - 分析ダッシュボードへの遷移
+
+### 直接入力（/case/\<id\>/direct-input/）
+- フォームから取引データを直接登録
+- 5行一括入力対応
 
 ### 分析ダッシュボード（/case/\<id\>/analysis/）
 
@@ -250,6 +265,9 @@ docker compose --profile production up -d bank-analyzer-prod
 ### 設定（/settings/）
 - 分析閾値設定（多額取引、資金移動検出）
 - グローバル分類キーワードの編集
+
+### お客様手紙（/customer-letter/）
+- 通帳のお預り依頼書の印刷テンプレート
 
 ## 分類カテゴリー
 
@@ -278,13 +296,14 @@ docker compose --profile production up -d bank-analyzer-prod
 | GET/POST | `/case/<id>/edit/` | 案件編集 |
 | POST | `/case/<id>/delete/` | 案件削除 |
 | GET/POST | `/case/<id>/` | 案件詳細 |
-| GET/POST | `/case/<id>/import/` | CSVインポート |
-| GET/POST | `/case/<id>/import/preview/` | インポートプレビュー |
-| GET/POST | `/case/<id>/import/wizard/` | 複数ファイルインポートウィザード |
+| GET/POST | `/case/<id>/direct-input/` | 取引の直接入力 |
+| GET/POST | `/case/<id>/import/wizard/` | CSVインポートウィザード |
 | GET/POST | `/case/<id>/analysis/` | 分析ダッシュボード |
 | GET/POST | `/case/<id>/analysis/classify-preview/` | 分類プレビュー |
 | GET/POST | `/settings/` | 設定 |
 | POST | `/import-json/` | JSONインポート |
+| GET | `/customer-letter/` | お客様手紙（印刷用） |
+| GET | `/health/` | ヘルスチェック（DB接続確認） |
 
 ### エクスポート
 

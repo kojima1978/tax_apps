@@ -45,7 +45,7 @@
         ▼                           ▼                           ▼
 ┌───────────────┐         ┌─────────────────┐         ┌───────────────────┐
 │  Portal App   │         │  Frontend Apps  │         │   Backend APIs    │
-│  (nginx:alpine│         │  (Next.js/Vite) │         │  (Hono/Express/   │
+│  (nginx:alpine│         │  (Next.js/Vite) │         │  (Express/        │
 │   Port 3000)  │         │                 │         │   Django)         │
 └───────────────┘         └─────────────────┘         └─────────┬─────────┘
                                                                 │
@@ -56,7 +56,7 @@
                                                        └─────────────────┘
 
 ※ 各ボックスはそれぞれ独立した docker-compose プロジェクト
-※ DB依存アプリ（ITCM, bank-analyzer, tax-docs）は同一プロジェクト内にDBを含む
+※ DB依存アプリ（ITCM, bank-analyzer, tax-docs, medical-stock）は同一プロジェクト内にDBを含む
 ```
 
 ---
@@ -264,6 +264,7 @@ manage.bat start
 | Shares Valuation | `runner` | nginx:1.27-alpine | あり |
 | Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
+| Stock Valuation Form | `runner` | nginx:1.27-alpine | なし（開発中） |
 | Bank Analyzer | `production` | Gunicorn | あり |
 | ITCM | `runner` | Node.js standalone + tini | あり |
 
@@ -442,16 +443,17 @@ docker network create tax-apps-network
 
 | アプリケーション | Gateway URL | Port | 技術 | 説明 |
 |:----------------|:------------|:-----|:-----|:-----|
-| Portal | http://localhost/ | 3000 | nginx | メインポータル |
+| Portal | http://localhost/ | 3000 | Next.js | メインポータル |
 | Tax Docs | http://localhost/tax-docs/ | 3005 | Vite + Express | 確定申告 必要書類 |
 | Gift Tax Simulator | http://localhost/gift-tax-simulator/ | 3001 | Vite | 贈与税計算シミュレーター |
-| Gift Tax Docs | http://localhost/gift-tax-docs/ | 3002 | Next.js | 贈与税 必要書類 |
-| Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | Next.js | 相続税 資料ガイド |
+| Gift Tax Docs | http://localhost/gift-tax-docs/ | 3002 | Vite | 贈与税 必要書類 |
+| Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | Vite | 相続税 資料ガイド |
 | Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | Vite | 相続税計算 |
 | Medical Stock | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人株式評価 |
-| Shares Valuation | http://localhost/shares/ | 3012 | Next.js | 非上場株式評価 |
+| Shares Valuation | http://localhost/shares/ | 3012 | Vite | 非上場株式評価 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
+| Stock Valuation Form | *(開発中)* | 3014 | Vite | 株式評価明細書 |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 銀行分析 |
 
 ### バックエンドサービス
@@ -472,12 +474,13 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 2 | bank-analyzer-django | PostgreSQL + Django |
 | 3 | Required-documents-for-tax-return | SQLite + Express + Vite |
 | 4 | medical-stock-valuation | SQLite + Next.js |
-| 5 | shares-valuation | Next.js |
+| 5 | shares-valuation | Vite |
 | 6 | inheritance-tax-app | Vite |
 | 7 | gift-tax-simulator | Vite |
-| 8 | gift-tax-docs | Next.js |
-| 9 | inheritance-tax-docs | Next.js |
+| 8 | gift-tax-docs | Vite |
+| 9 | inheritance-tax-docs | Vite |
 | 10 | retirement-tax-calc | Vite |
+| - | stock-valuation-form | Vite（開発中・manage.bat 未統合） |
 | 11 | gateway | Nginx + Portal（全アプリ起動後に起動） |
 
 ### ポートマップ
@@ -496,6 +499,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 3010 | Medical Stock Valuation | apps/medical-stock-valuation |
 | 3012 | Shares Valuation | apps/shares-valuation |
 | 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
+| 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3020 | ITCM Web | apps/inheritance-case-management |
 | 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
 
@@ -539,8 +543,9 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 |:-----|:-----|:-----|
 | Gateway | `curl --fail` | nginx Dockerfile に curl 追加 |
 | Portal (prod) | `wget --spider` | nginx:alpine 内蔵 |
-| Next.js / Hono / Express 系 (dev) | `node -e "fetch(...)"` | Node.js 内蔵 |
+| Next.js / Express 系 (dev) | `node -e "fetch(...)"` | Node.js 内蔵 |
 | Vite 系 (dev) | `wget --spider` | BusyBox 内蔵 |
+| Stock Valuation Form (dev) | `wget --spider` | BusyBox 内蔵 |
 | Django | `curl --fail` | Dockerfile に curl 追加 |
 | PostgreSQL | `pg_isready -U <user> -d <db>` | PostgreSQL 内蔵 |
 
@@ -549,7 +554,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | カテゴリ | 技術 |
 |:---------|:-----|
 | Frontend | Next.js 16, React 19, Vite 7 |
-| Backend | Hono, Express, Django 5.x |
+| Backend | Express, Django 5.x |
 | Database | PostgreSQL 16, SQLite |
 | Infrastructure | Docker, Nginx 1.27 |
 | Node.js | v22 LTS (Frontend) / v24 (Backend) |
@@ -584,15 +589,26 @@ tax_apps/
 │   │   └── docker-compose.yml
 │   ├── retirement-tax-calc/    # 退職金税額計算
 │   │   └── docker-compose.yml
+│   ├── stock-valuation-form/   # 株式評価明細書（開発中）
+│   │   └── docker-compose.yml
 │   └── bank-analyzer-django/   # 銀行分析
 │       ├── data/               #   アップロードデータ（バインドマウント）
 │       └── docker-compose.yml  #   PostgreSQL + Django + テスト
 ├── docker/                     # Docker 管理
+│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（6アプリ共有）
 │   ├── gateway/                # Gateway Compose プロジェクト
 │   │   └── docker-compose.yml  #   Nginx + Portal
 │   ├── scripts/                # 管理スクリプト
 │   │   ├── manage.bat          #   Windows 管理スクリプト
-│   │   └── manage.sh           #   Linux/Bash 管理スクリプト
+│   │   ├── manage.sh           #   Linux/Bash 管理スクリプト
+│   │   └── convert_encoding.ps1 #  エンコーディング変換スクリプト
+│   ├── data/                   # 永続データ（git管理外）
+│   │   ├── bank-analyzer/      #   銀行分析アップロードデータ
+│   │   ├── medical-stock/      #   医療法人 SQLite
+│   │   ├── postgres/           #   PostgreSQL データ
+│   │   └── tax-docs/           #   確定申告書類 SQLite
+│   ├── postgres/               # PostgreSQL 初期化
+│   │   └── init-pgvector.sql   #   pgvector拡張初期化
 │   ├── backups/                # バックアップ保存先（git管理外）
 │   └── README.md               # このファイル
 └── nginx/                      # Nginx 設定
@@ -606,6 +622,7 @@ tax_apps/
     │   ├── rate_limit_general.conf # 一般レート制限
     │   └── rate_limit_api.conf     # APIレート制限
     ├── html/                   # カスタムエラーページ
+    │   ├── 404.html            # ページ未検出
     │   ├── 429.html            # Rate Limit超過
     │   ├── 50x.html            # サーバーエラー
     │   └── 503.html            # メンテナンス

@@ -4,6 +4,10 @@
 
 ## 機能
 
+### 担当者情報
+- ヘッダーから担当者名・電話番号を入力可能
+- localStorageに保存し、印刷・Excel出力に反映
+
 ### 早見表モード（`/`）
 - 相続人構成の設定（配偶者、子、直系尊属、兄弟姉妹）
 - 代襲相続（孫、甥姪）のサポート
@@ -54,11 +58,12 @@
 ## 技術スタック
 
 - **フレームワーク**: React 19 + TypeScript 5
-- **ビルドツール**: Vite 7.3
+- **ビルドツール**: Vite 7
 - **ルーティング**: React Router DOM 7.6
 - **スタイリング**: Tailwind CSS v4 + PostCSS
 - **アイコン**: Lucide React（直接 icon import）
-- **Excel出力**: ExcelJS + FileSaver（lazy dynamic import）
+- **Excel出力**: ExcelJS + FileSaver
+- **Docker**: 共通 `docker/Dockerfile.vite-static`（6アプリ共有）
 - **Lint**: ESLint 9 + typescript-eslint
 
 ## プロジェクト構成
@@ -108,7 +113,7 @@ src/
 │   ├── ExcelExport.tsx             # 早見表Excel出力
 │   ├── ExcelExportButton.tsx       # Excel出力ボタン共通
 │   ├── FlowSteps.tsx               # 財産フロー共通コンポーネント
-│   ├── Header.tsx                  # ヘッダー（タブナビゲーション）
+│   ├── Header.tsx                  # ヘッダー（タブナビゲーション＋担当者入力）
 │   ├── HeirNetComparisonTable.tsx   # 相続人別手取り比較テーブル共通
 │   ├── HeirSettings.tsx            # 相続人設定メイン
 │   ├── PrintHeader.tsx             # 印刷専用ヘッダー
@@ -120,6 +125,8 @@ src/
 │   ├── TaxBracketTable.tsx          # 速算表テーブル
 │   ├── TaxTable.tsx                # 税額一覧テーブル
 │   └── tableStyles.ts              # テーブルスタイル定数
+├── contexts/
+│   └── StaffContext.tsx            # 担当者情報（localStorage連携）
 ├── hooks/
 │   ├── useCashGiftSimulation.ts    # 贈与シミュレーション状態管理hook
 │   ├── useCleanOptions.ts          # 選択肢変更時の無効値クリーンアップhook

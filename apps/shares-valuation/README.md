@@ -32,27 +32,31 @@
 
 ## 技術スタック
 
-- **Next.js** 16.0.7 (App Router)
-- **React** 19.2.0
-- **TypeScript** 5
+- **Vite** 6 + **React** 19 + **TypeScript** 5
+- **React Router DOM** 7 — クライアントサイドルーティング
 - **Tailwind CSS** v4 (`@tailwindcss/postcss`)
 - **react-number-format** — 数値入力フォーマット
 - **lucide-react** — アイコン
 - **class-variance-authority** / **clsx** / **tailwind-merge** — スタイルユーティリティ
+- **Docker**: 共通 `docker/Dockerfile.vite-static`（6アプリ共有）
 
 ## ディレクトリ構成
 
 ```
 src/
-├── app/
-│   ├── page.tsx                    # トップページ（入力方法選択）
-│   └── valuation/
-│       ├── step1/ ~ step10/        # ステップバイステップ入力
-│       └── bulk/                   # 一覧入力
+├── main.tsx                        # エントリポイント（BrowserRouter basename="/shares"）
+├── App.tsx                         # ルーティング定義（React Router DOM）
+├── globals.css                     # グローバルスタイル
+├── pages/
+│   ├── HomePage.tsx                # トップページ（入力方法選択）
+│   ├── Step1Page.tsx ~ Step10Page.tsx  # ステップバイステップ入力
+│   └── BulkPage.tsx                # 一覧入力
 ├── components/
 │   ├── ui/                         # 汎用UIコンポーネント
 │   │   ├── Button, Card, Input, Label
+│   │   ├── NumberInput             # 数値入力
 │   │   ├── NumberInputWithUnit     # 単位付き数値入力
+│   │   ├── PageLayout              # ページレイアウト共通
 │   │   ├── PeriodInputPair         # 期間別2列入力
 │   │   ├── ProfitMethodSelector    # 利益計算方法選択
 │   │   ├── IndustryTypeSelector    # 業種区分選択
@@ -64,17 +68,14 @@ src/
 │   │   └── Toast                   # トースト通知
 │   └── valuation/                  # 評価専用コンポーネント
 │       ├── *Form.tsx               # 各ステップのフォーム
+│       ├── CalculationProcessDisplay.tsx # 計算過程表示
 │       ├── ValuationResult.tsx     # 評価結果表示
 │       ├── ValuationSimulation.tsx # シミュレーション
 │       ├── ValuationSummary.tsx    # 比較表
 │       ├── ValuationBulkInput.tsx  # 一覧入力
 │       ├── ValuationResultCards.tsx # 結果カード共通
 │       ├── PrintAllSteps.tsx       # 印刷統合
-│       └── print/                  # 印刷用サブコンポーネント
-│           ├── PrintSection.tsx    # 共通ラッパー
-│           ├── PrintStep1~5*.tsx   # 各ステップ印刷
-│           ├── PrintComparisonTable.tsx
-│           └── PrintStyles.tsx
+│       └── PrintValuationStep.tsx  # 印刷用ステップ
 ├── hooks/
 │   └── useValuationData.ts         # sessionStorageロード+リダイレクト
 ├── lib/
@@ -91,9 +92,10 @@ src/
 ## 開発
 
 ```bash
-npm run dev     # 開発サーバー起動 (http://localhost:3000)
-npm run build   # プロダクションビルド
-npm run lint    # ESLint実行
+npm run dev       # Vite開発サーバー起動
+npm run build     # TypeScript型チェック + Viteビルド
+npm run preview   # ビルド成果物のプレビュー
+npm run lint      # ESLint実行
 ```
 
 ## Docker での起動
@@ -114,6 +116,17 @@ docker compose logs -f
 docker compose down
 ```
 
-ブラウザで http://localhost:3012 にアクセスします。
+アクセス: http://localhost:3012/shares/
 
-> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/shares/ からアクセスできます。
+> 事前に `docker network create tax-apps-network` でネットワークを作成しておく必要があります。
+
+### manage.bat 経由
+
+```bash
+manage.bat start                    # 全アプリ起動
+manage.bat restart shares-valuation # このアプリのみ再起動
+manage.bat build shares-valuation   # 再ビルド
+manage.bat logs shares-valuation    # ログ確認
+```
+
+Gateway 経由アクセス: http://localhost/shares/
