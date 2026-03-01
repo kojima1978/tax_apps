@@ -43,25 +43,31 @@ src/
 ├── main.tsx                 # エントリーポイント
 ├── main.css                 # Tailwind + 政府書式カスタムCSS
 ├── components/
-│   ├── FormHeader.tsx       # 共通ヘッダー（会社名・課税時期等）
 │   ├── Navigation.tsx       # サイドバーナビゲーション
 │   ├── tables/
+│   │   ├── shared.ts        # テーブル共通ユーティリティ
+│   │   ├── TableTitleBar.tsx # テーブルタイトルバー
 │   │   ├── Table1_1.tsx     # 第１表の１
 │   │   ├── Table1_2.tsx     # 第１表の２
 │   │   ├── Table2.tsx       # 第２表
 │   │   ├── Table3.tsx       # 第３表
-│   │   ├── Table4.tsx       # 第４表
-│   │   ├── Table5.tsx       # 第５表
+│   │   ├── Table4.tsx       # 第４表（メイン）
+│   │   ├── Table4Section1.tsx # 第４表 セクション１
+│   │   ├── Table4Section2.tsx # 第４表 セクション２
+│   │   ├── Table4Section3.tsx # 第４表 セクション３
+│   │   ├── Table5.tsx       # 第５表（メイン）
+│   │   ├── Table5CalcProcess.tsx # 第５表 計算過程
+│   │   ├── Table5Section1.tsx # 第５表 セクション１
+│   │   ├── Table5Section2.tsx # 第５表 セクション２
 │   │   ├── Table6.tsx       # 第６表
 │   │   ├── Table7.tsx       # 第７表
 │   │   └── Table8.tsx       # 第８表
 │   └── ui/
 │       ├── CircledNumber.tsx # 丸付き数字コンポーネント
+│       ├── Computed.tsx      # 自動計算表示フィールド
+│       ├── EditableTable.tsx # 編集可能テーブル（D&D対応）
 │       ├── FormField.tsx     # テキスト入力フィールド
-│       ├── FormRow.tsx       # フォーム行レイアウト
-│       ├── FormSection.tsx   # フォームセクション枠
-│       ├── NumberField.tsx   # 数値入力（カンマ区切り）
-│       └── VerticalText.tsx  # 縦書きテキスト
+│       └── NumberField.tsx   # 数値入力（カンマ区切り）
 ├── data/
 │   └── constants.ts         # タブ定義（TABS）
 ├── hooks/

@@ -66,6 +66,7 @@ erDiagram
         REAL profit_per_share "1株当たり利益"
         REAL net_asset_per_share "1株当たり純資産"
         REAL average_stock_price "平均株価"
+        INTEGER is_active "有効フラグ（1:有効, 0:無効）"
         DATETIME created_at "登録日時"
         DATETIME updated_at "更新日時"
     }
@@ -98,6 +99,7 @@ erDiagram
 
 **主な特徴:**
 - 事業年度ごとにユニークなデータを保持
+- 論理削除機能あり（`is_active`フィールド）
 - デフォルト値: 2024年度（令和6年度）のデータが初期登録済み
   - 1株当たり利益: 51
   - 1株当たり純資産: 395

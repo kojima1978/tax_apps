@@ -69,6 +69,14 @@ docker compose up -d --build
 
 http://localhost:3010 でアクセスできます。
 
+### 本番環境
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+`docker-compose.prod.yml` でビルドターゲットを `runner`（standalone）に切り替え、ボリュームマウントを無効化、メモリ制限を縮小します。
+
 ### ローカル開発
 
 ```bash
@@ -179,6 +187,8 @@ medical-stock-valuation/
 ├── scripts/
 │   └── add-is-active-to-similar-industry.ts # マイグレーション
 ├── Dockerfile                              # マルチステージビルド（dev/runner）
+├── docker-compose.yml                      # スタンドアロンDocker設定
+├── docker-compose.prod.yml                 # 本番オーバーライド
 ├── .dockerignore                           # ビルド除外
 ├── ER_DIAGRAM.md                           # データベースER図
 ├── next.config.ts                          # Next.js設定（standalone出力）

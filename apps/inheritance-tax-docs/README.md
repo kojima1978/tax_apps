@@ -114,11 +114,23 @@ inheritance-tax-docs/
 │       ├── helpers.ts                # isCustomDocument, formatDate, toCircledNumber等
 │       ├── iconMap.tsx               # アイコン名→Lucideコンポーネント変換
 │       └── jsonDataManager.ts        # JSON保存/読込/バリデーション
-├── Dockerfile                        # マルチステージビルド
 ├── docker-compose.yml                # スタンドアロンDocker設定
+├── docker-compose.prod.yml           # 本番オーバーライド（nginx静的配信）
 ├── vite.config.ts                    # Vite設定（basePath, エイリアス）
 └── package.json
 ```
+
+### Dockerfile
+
+共通 `docker/Dockerfile.vite-static`（6アプリ共有）を使用しています。開発時は Vite ホットリロード、本番は nginx で静的ファイル配信。
+
+### 本番環境
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+`docker-compose.prod.yml` でビルドターゲットを `runner`（nginx）に切り替え、ボリュームマウントを無効化、メモリ制限を縮小します。
 
 ## JSONデータ形式
 

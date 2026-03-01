@@ -24,10 +24,9 @@
 ## 技術スタック
 
 ### フロントエンド
-- Next.js 16（App Router / standalone出力）
-- React 19
-- TypeScript
-- Tailwind CSS v4
+- Vite + React 19 + TypeScript
+- React Router DOM 7（クライアントサイドルーティング）
+- Tailwind CSS v4 (`@tailwindcss/postcss`)
 - @dnd-kit（ドラッグ&ドロップ）
 - xlsx-js-style（Excel出力）
 - lucide-react（アイコン）
@@ -56,7 +55,7 @@ docker compose up -d --build
 ```
 
 - フロントエンド: http://localhost:3005/tax-docs/
-- バックエンドAPI: http://localhost:3006
+- バックエンドAPI: http://localhost:3006/api/
 
 ソースコードはボリュームマウントされており、変更時にホットリロードされます。
 
@@ -81,11 +80,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 本番ビルドでは `runner` ステージの軽量イメージが使用されます。
 
-`VITE_API_URL` を環境変数で上書きできます:
-
-```bash
-VITE_API_URL=https://api.example.com docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-```
+本番では `VITE_API_URL=/tax-docs-api`（相対パス）が自動設定されます。
 
 ### 方法2: ローカル開発（Docker不使用）
 
@@ -101,7 +96,7 @@ npm install
 npm run dev
 ```
 
-バックエンドAPIが http://localhost:3001 で起動します。
+バックエンドAPIが http://localhost:3006 で起動します。
 
 #### フロントエンド
 
@@ -111,7 +106,7 @@ npm install
 npm run dev
 ```
 
-フロントエンドが http://localhost:3000/tax-docs/ で起動します。
+フロントエンドが http://localhost:3005/tax-docs/ で起動します。
 
 ## 環境変数
 
@@ -119,15 +114,13 @@ npm run dev
 
 | 変数名 | デフォルト値 | 説明 |
 |--------|-------------|------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:3001` | バックエンドAPIのURL |
-| `NEXT_TELEMETRY_DISABLED` | `1` | Next.jsテレメトリの無効化 |
-| `WATCHPACK_POLLING` | `true` | Docker内でのファイル変更検知（開発時） |
+| `VITE_API_URL` | `http://localhost:3006` | バックエンドAPIのURL |
 
 ### バックエンド
 
 | 変数名 | デフォルト値 | 説明 |
 |--------|-------------|------|
-| `PORT` | `3001` | APIサーバーのポート番号 |
+| `PORT` | `3006` | APIサーバーのポート番号 |
 | `NODE_ENV` | - | `development` or `production` |
 | `TZ` | `Asia/Tokyo` | タイムゾーン |
 
@@ -135,29 +128,28 @@ npm run dev
 
 バックエンドは以下のオリジンからのリクエストを許可します:
 
-- `http://localhost:3000` — フロントエンド開発サーバー（ローカル）
-- `http://127.0.0.1:3000` — 同上（loopback）
 - `http://localhost:3005` — フロントエンド開発サーバー（Docker）
+- `http://127.0.0.1:3005` — 同上（loopback）
 
 ## ディレクトリ構成
 
 ```
 Required-documents-for-tax-return/
-├── frontend/                  # Next.jsフロントエンド
+├── frontend/                  # Viteフロントエンド
 │   ├── src/
-│   │   ├── app/               # ページ
-│   │   │   ├── page.tsx       # メインページ（メニュー＋書類編集）
-│   │   │   ├── layout.tsx     # ルートレイアウト
-│   │   │   ├── staff/         # 担当者管理
-│   │   │   │   ├── page.tsx           # 一覧
-│   │   │   │   ├── create/page.tsx    # 新規作成
-│   │   │   │   └── [id]/edit/page.tsx # 編集
-│   │   │   ├── customers/     # 顧客管理
-│   │   │   │   ├── page.tsx           # 一覧
-│   │   │   │   ├── create/page.tsx    # 新規作成
-│   │   │   │   └── [id]/edit/page.tsx # 編集
-│   │   │   └── data-management/
-│   │   │       └── page.tsx   # 保存データ管理画面
+│   │   ├── main.tsx           # エントリポイント
+│   │   ├── App.tsx            # ルーティング（React Router DOM）
+│   │   ├── app/
+│   │   │   └── globals.css    # グローバルスタイル
+│   │   ├── pages/             # ページコンポーネント
+│   │   │   ├── HomePage.tsx           # メインページ
+│   │   │   ├── StaffPage.tsx          # 担当者一覧
+│   │   │   ├── StaffCreatePage.tsx    # 担当者作成
+│   │   │   ├── StaffEditPage.tsx      # 担当者編集
+│   │   │   ├── CustomersPage.tsx      # 顧客一覧
+│   │   │   ├── CustomerCreatePage.tsx # 顧客作成
+│   │   │   ├── CustomerEditPage.tsx   # 顧客編集
+│   │   │   └── DataManagementPage.tsx # 保存データ管理
 │   │   ├── components/        # UIコンポーネント
 │   │   │   ├── MenuScreen.tsx           # トップ画面
 │   │   │   ├── DocumentListScreen.tsx   # 書類編集画面
@@ -225,7 +217,7 @@ Required-documents-for-tax-return/
 | `base` | 共通ベース | Node.js 22 Alpine |
 | `deps` | 依存関係インストール | BuildKit cache mount で高速化 |
 | `dev` | 開発サーバー | ホットリロード対応 |
-| `builder` | ビルド | Next.js standalone / TypeScript コンパイル |
+| `builder` | ビルド | Viteビルド / TypeScript コンパイル |
 | `prod-deps` | 本番依存関係 | devDependencies 除外（バックエンドのみ） |
 | `runner` | 本番実行 | tini + 非rootユーザー + ヘルスチェック |
 

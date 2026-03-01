@@ -8,8 +8,8 @@
 
 | レイヤー | 技術 |
 |---------|------|
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, TanStack Query |
-| Backend | Hono, TypeScript, Prisma ORM, Zod |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS v4, TanStack Query/Table |
+| Backend | Next.js API Routes, Prisma ORM 6, Zod |
 | Database | PostgreSQL 16 |
 | Infrastructure | Docker, Docker Compose |
 
@@ -24,19 +24,30 @@
 
 ```
 inheritance-case-management/
-├── api/                    # Hono API サーバー
+├── .env                    # PostgreSQL認証情報
+├── web/                    # Next.js（フロントエンド + API Routes）
 │   ├── src/
-│   │   ├── routes/         # API ルート
-│   │   ├── lib/            # Prisma, Logger
-│   │   └── middleware/     # エラーハンドリング
-│   └── prisma/             # データベーススキーマ
-├── web/                    # Next.js フロントエンド
-│   └── src/
-│       ├── app/            # ページコンポーネント
-│       ├── components/     # UI コンポーネント
-│       └── lib/            # API クライアント
-├── docker-compose.yml      # 本番用
-└── docker-compose.dev.yml  # 開発用
+│   │   ├── app/            # ページコンポーネント
+│   │   │   ├── page.tsx            # 案件一覧
+│   │   │   ├── [id]/               # 案件詳細
+│   │   │   ├── new/                # 案件作成
+│   │   │   ├── settings/           # マスタデータ管理
+│   │   │   ├── analytics/          # ダッシュボード
+│   │   │   └── api/                # API Routes（Next.js）
+│   │   │       ├── health/         # ヘルスチェック
+│   │   │       ├── cases/          # 案件CRUD
+│   │   │       ├── assignees/      # 担当者CRUD
+│   │   │       └── referrers/      # 紹介者CRUD
+│   │   ├── components/     # UI コンポーネント
+│   │   ├── hooks/          # カスタムフック
+│   │   ├── lib/            # Prisma, ユーティリティ, CRUDファクトリ
+│   │   └── types/          # Zodバリデーションスキーマ
+│   ├── prisma/             # データベーススキーマ
+│   ├── Dockerfile          # マルチステージビルド
+│   └── package.json
+├── docker-compose.yml      # 本番用（PostgreSQL + Web）
+├── docker-compose.dev.yml  # 開発用
+└── docker-compose.prod.yml # 本番オーバーライド
 ```
 
 ## クイックスタート
@@ -55,8 +66,7 @@ cp .env.example .env
 docker compose -f docker-compose.dev.yml up --build
 
 # 3. ブラウザでアクセス
-# Web: http://localhost:3020
-# API: http://localhost:3021
+# Web + API: http://localhost:3020
 ```
 
 ### 本番環境の起動
@@ -71,8 +81,7 @@ docker compose up --build -d
 
 | サービス | ポート | URL |
 |---------|--------|-----|
-| Web | 3020 | http://localhost:3020 |
-| API | 3021 | http://localhost:3021 |
+| Web + API | 3020 | http://localhost:3020 |
 | PostgreSQL | 3022 | localhost:3022 |
 
 ## API エンドポイント
@@ -132,14 +141,12 @@ erDiagram
 
 ```bash
 # コンテナに入ってコマンド実行
-docker exec -it itcm-dev-api sh
 docker exec -it itcm-dev-web sh
 
 # Prisma Studio（DB GUI）
-docker exec -it itcm-dev-api npx prisma studio
+docker exec -it itcm-dev-web npx prisma studio
 
 # ログ確認
-docker compose -f docker-compose.dev.yml logs -f api
 docker compose -f docker-compose.dev.yml logs -f web
 
 # コンテナ停止
@@ -148,13 +155,3 @@ docker compose -f docker-compose.dev.yml down
 # データも含めて削除
 docker compose -f docker-compose.dev.yml down -v
 ```
-
-## 共有パッケージ
-
-このプロジェクトは `tax_apps` モノレポの一部です。
-
-| パッケージ | 説明 |
-|-----------|------|
-| @tax-apps/shared | 型定義 (InheritanceCase, Assignee, Referrer) |
-| @tax-apps/validation | Zod バリデーションスキーマ |
-| @tax-apps/ui | 共通 UI コンポーネント |

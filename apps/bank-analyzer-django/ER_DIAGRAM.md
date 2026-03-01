@@ -9,6 +9,7 @@ erDiagram
     Case {
         integer id PK "自動増分ID"
         varchar(255) name UK "案件名 (Unique)"
+        json custom_patterns "カスタム分類パターン (Default: {})"
         datetime created_at "作成日時"
         datetime updated_at "更新日時"
     }
@@ -30,6 +31,7 @@ erDiagram
         boolean is_transfer "資金移動フラグ (Default: False)"
         varchar(255) transfer_to "資金移動先推定 (Nullable)"
         varchar(100) category "分類 (Default: 未分類)"
+        integer classification_score "分類信頼度 (Default: 0)"
         boolean is_flagged "要確認フラグ (Default: False)"
         text memo "メモ (Nullable)"
     }
@@ -44,6 +46,7 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | Integer | PK, Auto Increment | 主キー |
 | `name` | Varchar(255) | Unique, Not Null | 案件名（被相続人名など）。重複不可。 |
+| `custom_patterns` | JSON | Default {} | カスタム分類パターン。案件ごとの分類ルールを保存。 |
 | `created_at` | DateTime | Auto Now Add | 作成日時（自動設定） |
 | `updated_at` | DateTime | Auto Now | 更新日時（自動更新） |
 
@@ -68,6 +71,7 @@ erDiagram
 | `is_transfer` | Boolean | Default False | 資金移動判定フラグ（別口座への移動と推定される場合にTrue）。 |
 | `transfer_to` | Varchar(255) | Nullable | 移動先と推定される口座名などのメモ。 |
 | `category` | Varchar(100) | Default '未分類' | AIまたはルールベースで判定された費目分類（生活費、贈与など）。 |
+| `classification_score` | Integer | Default 0 | 分類の信頼度スコア。 |
 | `is_flagged` | Boolean | Default False | 要確認フラグ（付箋機能）。後で確認したい取引にマーク。 |
 | `memo` | Text | Nullable | メモ。取引に対する備考や確認事項を記録。 |
 

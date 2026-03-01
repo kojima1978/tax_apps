@@ -28,21 +28,22 @@
 
 ## 技術スタック
 
-- **Framework**: Next.js 16.1.2 (App Router)
-- **Language**: TypeScript 5.9.3
-- **Styling**: Tailwind CSS 4
-- **Runtime**: React 19.2.3
+- **ビルドツール**: Vite 6
+- **ランタイム**: React 19 + TypeScript 5
+- **スタイリング**: Tailwind CSS v4 (`@tailwindcss/postcss`)
+- **Docker**: 共通 `docker/Dockerfile.vite-static`（6アプリ共有）
 
 ## ディレクトリ構成
 
 ```
-retirement-tax-calc/
+src/
+├── main.tsx                   # エントリポイント
+├── App.tsx                    # メインコンポーネント（1画面完結）
 ├── app/
-│   ├── globals.css            # グローバルスタイル + 印刷スタイル
-│   ├── layout.tsx             # ルートレイアウト
-│   └── page.tsx               # メインページ（1画面完結）
+│   └── globals.css            # グローバルスタイル + 印刷スタイル
 ├── components/
 │   ├── CheckboxField.tsx      # チェックボックス共通コンポーネント
+│   ├── FormField.tsx          # フォームフィールド共通
 │   ├── Header.tsx             # アプリヘッダー + 印刷ボタン
 │   ├── InputWithUnit.tsx      # 入力欄+単位ラベル共通コンポーネント
 │   ├── OfficerLimitSection.tsx # 役員退職金限度額
@@ -53,33 +54,34 @@ retirement-tax-calc/
 │   └── ServiceYearsInput.tsx  # 勤続年数（直接入力/日付計算切替）
 ├── hooks/
 │   └── useRetirementTaxForm.ts # フォーム状態管理フック
-├── lib/
-│   ├── retirement-tax.ts      # 退職所得・税額計算ロジック
-│   ├── tax-rates.ts           # 年度別税率テーブル
-│   └── utils.ts               # フォーマットユーティリティ
-├── Dockerfile                 # マルチステージビルド（Port: 3013）
-├── next.config.ts             # basePath: /retirement-tax-calc, standalone
-└── package.json
+└── lib/
+    ├── retirement-tax.ts      # 退職所得・税額計算ロジック
+    ├── tax-rates.ts           # 年度別税率テーブル
+    ├── company.ts             # 会社情報
+    └── utils.ts               # フォーマットユーティリティ
 ```
 
 ## Docker
 
-### 開発環境（推奨）
+### 単体起動
 
 ```bash
-# 起動
-docker compose up -d
-
-# 再ビルド
-docker compose up -d --build
-
-# ログ確認
-docker compose logs -f
-
-# 停止
-docker compose down
+docker compose up -d             # 起動
+docker compose up -d --build     # 再ビルド
+docker compose logs -f           # ログ確認
+docker compose down              # 停止
 ```
 
 アクセス: http://localhost:3013/retirement-tax-calc/
 
-> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/retirement-tax-calc/ からアクセスできます。
+> 事前に `docker network create tax-apps-network` でネットワークを作成しておく必要があります。
+
+### manage.bat 経由
+
+```bash
+manage.bat start                       # 全アプリ起動
+manage.bat restart retirement-tax-calc # このアプリのみ再起動
+manage.bat build retirement            # 再ビルド（部分一致可）
+```
+
+Gateway 経由アクセス: http://localhost/retirement-tax-calc/

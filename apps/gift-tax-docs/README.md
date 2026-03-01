@@ -139,29 +139,37 @@ docker compose down
 
 アクセス: [http://localhost:3002/gift-tax-docs/](http://localhost:3002/gift-tax-docs/)
 
-> **Note**: `next.config.ts` で `basePath: '/gift-tax-docs'` が設定されているため、URLにはサブパスが必要です。
+> **Note**: `vite.config.ts` で `base: '/gift-tax-docs/'` が設定されているため、URLにはサブパスが必要です。
 
 > **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/gift-tax-docs/ からアクセスできます。
 
-### Dockerfile（マルチステージビルド）
+### Dockerfile
+
+共通 `docker/Dockerfile.vite-static`（6アプリ共有）を使用しています。
 
 | ステージ | 親ステージ | 用途 |
 |---------|-----------|------|
-| **base** | `node:22-alpine` | セキュリティ更新・WORKDIR・テレメトリ無効化 |
+| **base** | `node:22-alpine` | セキュリティ更新・WORKDIR |
 | **deps** | base | `npm ci` で依存関係インストール（BuildKit cache mount） |
-| **dev** | base | 開発用（ホットリロード、ポート3002） |
-| **builder** | base | 本番ビルド（standalone出力、`.next/cache` mount） |
-| **runner** | base | 本番実行用（非rootユーザー、tini、ヘルスチェック、ポート3002） |
+| **dev** | base | 開発用（Viteホットリロード、ポート3002） |
+| **builder** | base | Viteビルド（静的ファイル出力） |
+| **runner** | `nginx:1.27-alpine` | 本番実行用（静的ファイル配信） |
 
-全ステージで `COPY --link` を使用し、BuildKit のレイヤーキャッシュを最大化しています。
+### 本番環境
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+`docker-compose.prod.yml` でビルドターゲットを `runner`（nginx）に切り替え、ボリュームマウントを無効化、メモリ制限を縮小します。
 
 ## Scripts
 
 | コマンド | 説明 |
 |---------|------|
-| `npm run dev` | 開発サーバーを起動 |
-| `npm run build` | 本番用にビルド |
-| `npm run start` | ビルドされたアプリケーションを実行 |
+| `npm run dev` | Vite開発サーバーを起動 |
+| `npm run build` | TypeScript型チェック + Viteビルド |
+| `npm run preview` | ビルド成果物のプレビュー |
 | `npm run lint` | ESLint によるコードチェック |
 
 ## ライセンス
