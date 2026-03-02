@@ -17,10 +17,11 @@ const RANK_OPTIONS = [
 interface HeirSettingsProps {
   composition: HeirComposition;
   onChange: (composition: HeirComposition) => void;
+  hasError?: boolean;
 }
 
-export const HeirSettings: React.FC<HeirSettingsProps> = memo(({ composition, onChange }) => (
-  <div className="bg-white rounded-lg shadow-md p-6 no-print">
+export const HeirSettings: React.FC<HeirSettingsProps> = memo(({ composition, onChange, hasError }) => (
+  <div className={`bg-white rounded-lg shadow-md p-6 no-print ${hasError ? 'ring-2 ring-red-400' : ''}`}>
     <SectionHeader icon={Users} title="相続人の構成" />
 
     <SpouseSettings composition={composition} onChange={onChange} />

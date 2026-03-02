@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/inheritance-tax-app/',
+  base: process.env.VITE_BASE_PATH ?? '/inheritance-tax-app/',
   resolve: {
     alias: {
       'lucide-react/icons': fileURLToPath(

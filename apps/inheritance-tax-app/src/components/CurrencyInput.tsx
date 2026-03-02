@@ -7,9 +7,10 @@ interface CurrencyInputProps {
   value: number;
   onChange: (value: number) => void;
   placeholder?: string;
+  hasError?: boolean;
 }
 
-export const CurrencyInput: React.FC<CurrencyInputProps> = ({ id, label, value, onChange, placeholder = '例: 10000' }) => {
+export const CurrencyInput: React.FC<CurrencyInputProps> = ({ id, label, value, onChange, placeholder = '例: 10000', hasError }) => {
   return (
     <div>
       {label && (
@@ -26,7 +27,8 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({ id, label, value, 
           onWheel={(e) => e.currentTarget.blur()}
           min={0}
           step={100}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right text-lg"
+          inputMode="numeric"
+          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right text-lg ${hasError ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
           placeholder={placeholder}
         />
         <span className="text-gray-600 whitespace-nowrap font-medium">万円</span>

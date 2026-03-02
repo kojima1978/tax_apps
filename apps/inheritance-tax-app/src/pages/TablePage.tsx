@@ -5,7 +5,6 @@ import { RangeSettings } from '../components/RangeSettings';
 import { TaxTable } from '../components/TaxTable';
 import { BracketRateTable } from '../components/BracketRateTable';
 import { TaxBracketTable } from '../components/TaxBracketTable';
-import { ExcelExport } from '../components/ExcelExport';
 import { CalculateButton } from '../components/CalculateButton';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
@@ -39,13 +38,7 @@ export const TablePage: React.FC = () => {
 
   return (
     <>
-      <Header
-        actions={
-          tableData.length > 0
-            ? <ExcelExport data={tableData} composition={composition} />
-            : undefined
-        }
-      />
+      <Header />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
