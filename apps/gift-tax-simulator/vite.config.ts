@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/gift-tax-simulator/',
+  base: process.env.VITE_BASE_PATH ?? '/gift-tax-simulator/',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
