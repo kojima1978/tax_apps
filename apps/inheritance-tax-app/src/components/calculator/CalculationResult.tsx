@@ -26,7 +26,7 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result, we
         <PrintHeader title="相続税計算結果" />
 
         {/* サマリーカード */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
           <h3 className="text-lg font-bold text-gray-800 mb-4">計算結果</h3>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -38,7 +38,7 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result, we
             ))}
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-green-50 rounded-lg border-2 border-green-200">
               <p className="text-sm text-green-600 mb-1">納付税額合計</p>
               <p className="text-2xl font-bold text-green-800">{formatCurrency(result.totalFinalTax)}</p>

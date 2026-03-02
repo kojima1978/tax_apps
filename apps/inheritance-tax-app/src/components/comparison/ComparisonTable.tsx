@@ -49,11 +49,13 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 overflow-x-auto" role="region" aria-label="1次2次比較表">
-      <h2 className="text-xl font-bold text-gray-800 mb-4" id="comparison-heading">
+    <div className="bg-white rounded-lg shadow-md p-4 md:p-6" role="region" aria-label="1次2次比較表">
+      <h2 className="text-xl font-bold text-gray-800 mb-2 md:mb-4" id="comparison-heading">
         配偶者取得割合別 税額比較
       </h2>
 
+      <p className="text-xs text-gray-400 mb-2 md:hidden">← 横にスクロールできます</p>
+      <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm" aria-labelledby="comparison-heading">
         <thead>
           <tr className="bg-green-600 text-white">
@@ -113,6 +115,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
           })}
         </tbody>
       </table>
+      </div>
 
       {data.length > 0 && (
         <p className="mt-3 text-xs text-green-700">

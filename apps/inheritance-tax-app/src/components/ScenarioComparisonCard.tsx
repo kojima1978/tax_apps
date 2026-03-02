@@ -42,12 +42,13 @@ export function ScenarioComparisonCard<T>({
   bottomSlot,
 }: ScenarioComparisonCardProps<T>) {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
       <h3 className="text-lg font-bold text-gray-800 mb-2">{title}</h3>
 
       {topSlot && <div className="mb-6">{topSlot}</div>}
 
       {/* 比較テーブル */}
+      <p className="text-xs text-gray-400 mb-1 md:hidden">← 横にスクロールできます</p>
       <div className="overflow-x-auto mb-6">
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -122,7 +123,7 @@ export function ScenarioComparisonCard<T>({
                 {h.valueSuffix && <span className="text-sm">{h.valueSuffix}</span>}
               </p>
               {h.footnote && (
-                <p className="text-[10px] text-gray-500 mt-1 whitespace-nowrap">{h.footnote}</p>
+                <p className="text-[10px] text-gray-500 mt-1 md:whitespace-nowrap">{h.footnote}</p>
               )}
             </div>
           );

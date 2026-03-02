@@ -1,3 +1,4 @@
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { Header } from '../components/Header';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
@@ -6,8 +7,8 @@ import { InsuranceContractList } from '../components/insurance/InsuranceContract
 import { InsuranceSummaryCard } from '../components/insurance/InsuranceSummaryCard';
 import { InsuranceFlowSteps } from '../components/insurance/InsuranceFlowSteps';
 import { InsuranceHeirTable } from '../components/insurance/InsuranceHeirTable';
-import { InsuranceExcelExport } from '../components/insurance/InsuranceExcelExport';
 import { CalculateButton } from '../components/CalculateButton';
+import { ValidationErrorPanel } from '../components/ValidationErrorPanel';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
@@ -24,16 +25,38 @@ export const InsurancePage: React.FC = () => {
     beneficiaryOptions,
     cleanedExisting, cleanedNew,
     result,
-    handleCalculate,
+    handleCalculate: executeCalculate,
   } = useInsuranceSimulation();
 
-  const excelAction = result
-    ? <InsuranceExcelExport result={result} composition={composition} estateValue={estateValue} existingContracts={cleanedExisting} newContracts={cleanedNew} />
-    : undefined;
+  const [hasAttempted, setHasAttempted] = useState(false);
+  const estateRef = useRef<HTMLDivElement>(null);
+  const contractsRef = useRef<HTMLDivElement>(null);
+
+  const noContracts = cleanedExisting.length === 0 && cleanedNew.length === 0;
+
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+    if (estateValue <= 0) errors.push('遺産総額を入力してください');
+    if (noContracts) errors.push('保険契約を1件以上追加してください');
+    return errors;
+  }, [estateValue, noContracts]);
+
+  const handleCalculate = useCallback(() => {
+    setHasAttempted(true);
+    if (estateValue <= 0) {
+      estateRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (noContracts) {
+      contractsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    executeCalculate();
+  }, [estateValue, noContracts, executeCalculate]);
 
   return (
     <>
-      <Header actions={excelAction} />
+      <Header />
       <main className="max-w-7xl mx-auto px-4 py-8 insurance-print">
         {/* 入力エリア */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
@@ -41,12 +64,15 @@ export const InsurancePage: React.FC = () => {
             <HeirSettings composition={composition} onChange={setComposition} />
           </div>
           <div className="space-y-6">
-            <EstateInput
-              value={estateValue}
-              onChange={setEstateValue}
-              label="遺産総額（保険金を含まない元の財産額）"
-              placeholder="例: 20000"
-            />
+            <div ref={estateRef}>
+              <EstateInput
+                value={estateValue}
+                onChange={setEstateValue}
+                label="遺産総額（保険金を含まない元の財産額）"
+                placeholder="例: 20000"
+                hasError={hasAttempted && estateValue <= 0}
+              />
+            </div>
             <SpouseAcquisitionSettings
               value={spouseMode}
               onChange={setSpouseMode}
@@ -57,7 +83,10 @@ export const InsurancePage: React.FC = () => {
         </div>
 
         {/* 保険契約入力 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
+        <div
+          ref={contractsRef}
+          className={`grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print ${hasAttempted && noContracts ? 'ring-2 ring-red-400 rounded-lg p-1' : ''}`}
+        >
           <InsuranceContractList
             contracts={existingContracts}
             category="existing"
@@ -73,6 +102,7 @@ export const InsurancePage: React.FC = () => {
         </div>
 
         <div className="mb-8 no-print">
+          <ValidationErrorPanel show={hasAttempted} errors={validationErrors} />
           <CalculateButton onClick={handleCalculate} />
         </div>
 
@@ -93,7 +123,7 @@ export const InsurancePage: React.FC = () => {
         )}
 
         {/* 未入力ガイド */}
-        {!result && estateValue > 0 && (
+        {!result && estateValue > 0 && !hasAttempted && (
           <StatusCard
             variant="success"
             title="保険契約を追加してください"
