@@ -6,7 +6,7 @@ import RegistrationTaxPage from './pages/RegistrationTaxPage'
 
 export default function App() {
   return (
-    <BrowserRouter basename="/gift-tax-simulator">
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/" element={<GiftTaxPage />} />
         <Route path="/table" element={<TablePage />} />
