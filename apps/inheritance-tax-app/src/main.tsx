@@ -6,7 +6,7 @@ import App from './App'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter basename="/inheritance-tax-app">
+    <BrowserRouter basename={import.meta.env.VITE_BASE_PATH ?? '/inheritance-tax-app'}>
       <App />
     </BrowserRouter>
   </StrictMode>,
