@@ -63,6 +63,49 @@ export const calcTaxOneTime = (amount: number, type: GiftType): number => {
     return Math.floor(taxable * bracket.rate) - bracket.deduction;
 };
 
+export type YearComparisonResult = {
+    years: number;
+    oneTimeAmount: number;
+    oneTimeTax: number;
+    totalTax: number;
+    effectiveRate: number;
+    taxFree: boolean;
+    optimal: boolean;
+};
+
+const MAX_YEARS = 20;
+
+/**
+ * 分割年数ごとの税額を一覧で取得（1〜20年）
+ */
+export const calculateYearComparison = (amount: number, type: GiftType): YearComparisonResult[] => {
+    const rows: YearComparisonResult[] = [];
+    let minTax = Infinity;
+    let minIdx = 0;
+
+    for (let years = 1; years <= MAX_YEARS; years++) {
+        const oneTimeAmount = Math.floor(amount / years);
+        const oneTimeTax = calcTaxOneTime(oneTimeAmount, type);
+        const totalTax = oneTimeTax * years;
+        rows.push({
+            years,
+            oneTimeAmount,
+            oneTimeTax,
+            totalTax,
+            effectiveRate: amount > 0 ? totalTax / amount : 0,
+            taxFree: oneTimeTax === 0,
+            optimal: false,
+        });
+        if (totalTax < minTax) {
+            minTax = totalTax;
+            minIdx = rows.length - 1;
+        }
+    }
+
+    rows[minIdx].optimal = true;
+    return rows;
+};
+
 /**
  * 全パターンの計算結果を取得
  */
