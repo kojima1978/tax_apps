@@ -1,40 +1,40 @@
 @echo off
 setlocal enabledelayedexpansion
 :: ============================================
-:: Tax Apps ???R???e?i????X?N???v?g
+:: Tax Apps 個別コンテナ管理スクリプト
 :: ============================================
 ::
 :: Usage:
-::   manage.bat start              ?S?A?v?????N???i?l?b?g???[?N???????j
-::   manage.bat start --prod       ?S?A?v????{????[?h??N??
-::   manage.bat stop               ?S?A?v?????~
-::   manage.bat down               ?S?A?v?????~????R???e?i??
-::   manage.bat restart <app>      ?w??A?v??????N??
-::   manage.bat build <app>        ?w??A?v??????r???h????N??
-::   manage.bat logs <app>         ?w??A?v??????O?\??
-::   manage.bat status             ?S?A?v??????\??
-::   manage.bat backup             ?S?f?[?^?x?[?X?E?f?[?^???o?b?N?A?b?v
-::   manage.bat restore [dir]      ?o?b?N?A?b?v?????X?g?A
-::   manage.bat clean              ?R???e?i?E?C???[?W??N???[???A?b?v
-::   manage.bat preflight          ?N???O????`?F?b?N
+::   manage.bat start              全アプリを起動（ネットワーク自動作成）
+::   manage.bat start --prod       全アプリを本番モードで起動
+::   manage.bat stop               全アプリを停止
+::   manage.bat down               全アプリを停止してコンテナ削除
+::   manage.bat restart <app>      指定アプリのみ再起動
+::   manage.bat build <app>        指定アプリを再ビルドして起動
+::   manage.bat logs <app>         指定アプリのログ表示
+::   manage.bat status             全アプリの状態表示
+::   manage.bat backup             全データベース・データをバックアップ
+::   manage.bat restore [dir]      バックアップからリストア
+::   manage.bat clean              コンテナ・イメージのクリーンアップ
+::   manage.bat preflight          起動前環境チェック
 ::
 :: ============================================
 
-:: ?v???W?F?N?g???[?g?idocker/scripts/ ??2???j
+:: プロジェクトルート（docker/scripts/ の2つ上）
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%\..\..\") do set "PROJECT_ROOT=%%~fI"
-:: ?????? \ ??????
+:: 末尾の \ を除去
 if "%PROJECT_ROOT:~-1%"=="\" set "PROJECT_ROOT=%PROJECT_ROOT:~0,-1%"
 
-:: ?O???l?b?g???[?N??
+:: 外部ネットワーク名
 set "NETWORK_NAME=tax-apps-network"
 
-:: ?o?b?N?A?b?v?f?B???N?g??
+:: バックアップディレクトリ
 set "BACKUP_BASE=%SCRIPT_DIR%..\backups"
 
 :: ------------------------------------
-:: ?A?v?????i?N?????????l???j
-:: gateway ????(upstream????O???????K?v)?ADB????A?v???? DB??App ???
+:: アプリ一覧（起動順序を考慮）
+:: gateway は最後（upstreamから始める必要がある）、DBなしアプリ→ DB+App の順
 :: ------------------------------------
 set "APP_COUNT=11"
 set "APP_1=apps\inheritance-case-management"
@@ -50,7 +50,7 @@ set "APP_10=apps\retirement-tax-calc"
 set "APP_11=docker\gateway"
 
 :: ------------------------------------
-:: ???C??
+:: メイン
 :: ------------------------------------
 if /i "%~1"=="" goto :show_help
 if /i "%~1"=="--help" goto :show_help
@@ -69,7 +69,7 @@ if /i "%~1"=="preflight" goto :cmd_preflight
 goto :show_help
 
 :: ============================================================
-:: start - ?S?A?v?????N??
+:: start - 全アプリを起動
 :: ============================================================
 :cmd_start
 set "PROD_MODE=0"
@@ -84,43 +84,43 @@ if !ERRORLEVEL! neq 0 (
 call :ensure_network
 echo.
 if "!PROD_MODE!"=="1" (
-    echo [manage] ?S?A?v????{????[?h??N???????...
+    echo [manage] 全アプリを本番モードで起動します...
 ) else (
-    echo [manage] ?S?A?v?????N???????...
+    echo [manage] 全アプリを起動します...
 )
 echo.
 for /L %%I in (1,1,%APP_COUNT%) do call :do_start_app %%I
 echo.
-echo [manage] ?S?A?v????N???????????????
+echo [manage] 全アプリの起動が完了しました
 call :cmd_status_inner
 goto :end
 
 :: ============================================================
-:: stop - ?S?A?v?????~?i?t???j
+:: stop - 全アプリを停止（逆順）
 :: ============================================================
 :cmd_stop
 echo.
-echo [manage] ?S?A?v?????~?????...
+echo [manage] 全アプリを停止します...
 echo.
 for /L %%I in (%APP_COUNT%,-1,1) do call :do_stop_app %%I
 echo.
-echo [manage] ?S?A?v?????~???????
+echo [manage] 全アプリを停止しました
 goto :end
 
 :: ============================================================
-:: down - ?S?A?v?????~?E???i?t???j
+:: down - 全アプリを停止・削除（逆順）
 :: ============================================================
 :cmd_down
 echo.
-echo [manage] ?S?A?v?????~?E???????...
+echo [manage] 全アプリを停止・削除します...
 echo.
 for /L %%I in (%APP_COUNT%,-1,1) do call :do_down_app %%I
 echo.
-echo [manage] ?S?A?v?????????????
+echo [manage] 全アプリを削除しました
 goto :end
 
 :: ============================================================
-:: restart <app> - ?w??A?v??????N??
+:: restart <app> - 指定アプリを再起動
 :: ============================================================
 :cmd_restart
 set "APP_CMD_ARG=%~2"
@@ -128,13 +128,13 @@ call :require_app_arg "restart"
 if !ERRORLEVEL! neq 0 goto :end
 call :ensure_network
 echo.
-echo [manage] !APP_NAME! ????N???????...
+echo [manage] !APP_NAME! を再起動します...
 docker compose -f "!RESOLVED_DIR!\docker-compose.yml" restart
-echo [manage] !APP_NAME! ????N?????????
+echo [manage] !APP_NAME! を再起動しました
 goto :end
 
 :: ============================================================
-:: build <app> - ?w??A?v??????r???h????N??
+:: build <app> - 指定アプリを再ビルドして起動
 :: ============================================================
 :cmd_build
 set "APP_CMD_ARG=%~2"
@@ -142,13 +142,13 @@ call :require_app_arg "build"
 if !ERRORLEVEL! neq 0 goto :end
 call :ensure_network
 echo.
-echo [manage] !APP_NAME! ????r???h????N???????...
+echo [manage] !APP_NAME! を再ビルドして起動します...
 docker compose -f "!RESOLVED_DIR!\docker-compose.yml" up -d --build
-echo [manage] !APP_NAME! ??r???h?????????????
+echo [manage] !APP_NAME! のビルドが完了しました
 goto :end
 
 :: ============================================================
-:: logs <app> - ?w??A?v??????O?\??
+:: logs <app> - 指定アプリのログ表示
 :: ============================================================
 :cmd_logs
 set "APP_CMD_ARG=%~2"
@@ -158,7 +158,7 @@ docker compose -f "!RESOLVED_DIR!\docker-compose.yml" logs -f
 goto :end
 
 :: ============================================================
-:: status - ?S?A?v??????\??
+:: status - 全アプリの状態表示
 :: ============================================================
 :cmd_status
 call :cmd_status_inner
@@ -167,7 +167,7 @@ goto :end
 :cmd_status_inner
 echo.
 echo ============================================================
-echo   Tax Apps ?R???e?i???
+echo   Tax Apps コンテナ状態
 echo ============================================================
 echo.
 for /L %%I in (1,1,%APP_COUNT%) do call :do_status_app %%I
@@ -176,7 +176,7 @@ echo ============================================================
 goto :eof
 
 :: ============================================================
-:: backup - ?S?f?[?^?x?[?X?E?f?[?^???o?b?N?A?b?v
+:: backup - 全データベース・データをバックアップ
 :: ============================================================
 :cmd_backup
 echo.
@@ -197,8 +197,77 @@ set "BACKUP_OK=0"
 set "BACKUP_FAIL=0"
 set "BACKUP_SKIP=0"
 
-call :do_backup_postgres "1/5" "itcm-postgres" "inheritance-case-management_postgres_data" "postgres" "inheritance_tax_db" "itcm-postgres"
-call :do_backup_postgres "2/5" "bank-analyzer-postgres" "bank-analyzer-postgres" "bankuser" "bank_analyzer" "bank-analyzer-postgres"
+:: --- 1/5 ITCM PostgreSQL (pg_dump) ---
+echo [1/5] ITCM PostgreSQL ...
+
+docker ps --filter "name=itcm-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "itcm-postgres" >nul 2>&1
+if !ERRORLEVEL! neq 0 goto :backup_itcm_volume
+
+docker exec itcm-postgres pg_dump -U postgres -d inheritance_tax_db > "%BACKUP_DIR%\itcm-postgres.sql" 2>nul
+if !ERRORLEVEL! equ 0 (
+    echo [OK]    itcm-postgres.sql
+    set /a BACKUP_OK+=1
+) else (
+    del "%BACKUP_DIR%\itcm-postgres.sql" 2>nul
+    echo [WARN]  pg_dump failed, trying volume backup...
+    goto :backup_itcm_volume
+)
+goto :backup_itcm_done
+
+:backup_itcm_volume
+docker volume inspect inheritance-case-management_postgres_data >nul 2>&1
+if !ERRORLEVEL! neq 0 (
+    echo [SKIP]  ITCM PostgreSQL volume not found
+    set /a BACKUP_SKIP+=1
+    goto :backup_itcm_done
+)
+echo [WARN]  Container stopped - backing up volume directly
+docker run --rm -v inheritance-case-management_postgres_data:/data -v "%BACKUP_DIR%":/backup alpine tar czf /backup/itcm-postgres-volume.tar.gz -C /data . >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    echo [OK]    itcm-postgres-volume.tar.gz
+    set /a BACKUP_OK+=1
+) else (
+    echo [ERROR] Volume backup failed
+    set /a BACKUP_FAIL+=1
+)
+
+:backup_itcm_done
+
+:: --- 2/5 Bank Analyzer PostgreSQL + pgvector (pg_dump) ---
+echo [2/5] Bank Analyzer PostgreSQL ...
+
+docker ps --filter "name=bank-analyzer-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "bank-analyzer-postgres" >nul 2>&1
+if !ERRORLEVEL! neq 0 goto :backup_bank_pg_volume
+
+docker exec bank-analyzer-postgres pg_dump -U bankuser -d bank_analyzer > "%BACKUP_DIR%\bank-analyzer-postgres.sql" 2>nul
+if !ERRORLEVEL! equ 0 (
+    echo [OK]    bank-analyzer-postgres.sql
+    set /a BACKUP_OK+=1
+) else (
+    del "%BACKUP_DIR%\bank-analyzer-postgres.sql" 2>nul
+    echo [WARN]  pg_dump failed, trying volume backup...
+    goto :backup_bank_pg_volume
+)
+goto :backup_bank_pg_done
+
+:backup_bank_pg_volume
+docker volume inspect bank-analyzer-postgres >nul 2>&1
+if !ERRORLEVEL! neq 0 (
+    echo [SKIP]  Bank Analyzer PostgreSQL volume not found
+    set /a BACKUP_SKIP+=1
+    goto :backup_bank_pg_done
+)
+echo [WARN]  Container stopped - backing up volume directly
+docker run --rm -v bank-analyzer-postgres:/data -v "%BACKUP_DIR%":/backup alpine tar czf /backup/bank-analyzer-postgres-volume.tar.gz -C /data . >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    echo [OK]    bank-analyzer-postgres-volume.tar.gz
+    set /a BACKUP_OK+=1
+) else (
+    echo [ERROR] Volume backup failed
+    set /a BACKUP_FAIL+=1
+)
+
+:backup_bank_pg_done
 
 :: --- 3/5 SQLite volumes ---
 echo [3/5] SQLite volumes ...
@@ -279,7 +348,7 @@ echo.
 goto :end
 
 :: ============================================================
-:: restore [dir] - ?o?b?N?A?b?v?????X?g?A
+:: restore [dir] - バックアップからリストア
 :: ============================================================
 :cmd_restore
 echo.
@@ -304,7 +373,7 @@ if not "%~2"=="" (
     echo.
 )
 
-:: ?o?b?N?A?b?v????\??
+:: バックアップ一覧を表示
 set "COUNT=0"
 for /f "delims=" %%D in ('dir /b /ad /o-n "%BACKUP_BASE%\" 2^>nul') do (
     set /a COUNT+=1
@@ -346,7 +415,7 @@ set "BACKUP_DIR=%BACKUP_BASE%\!BACKUP_%CHOICE_NUM%!"
 echo Restore from: !BACKUP_DIR!\
 echo.
 
-:: ?o?b?N?A?b?v???e??\??
+:: バックアップ内容を表示
 echo Contents:
 dir /b "!BACKUP_DIR!" 2>nul
 echo.
@@ -364,8 +433,89 @@ set "RESTORE_OK=0"
 set "RESTORE_FAIL=0"
 set "RESTORE_SKIP=0"
 
-call :do_restore_postgres "1/5" "itcm-postgres" "inheritance-case-management_postgres_data" "postgres" "inheritance_tax_db" "itcm-postgres" "inheritance-case-management"
-call :do_restore_postgres "2/5" "bank-analyzer-postgres" "bank-analyzer-postgres" "bankuser" "bank_analyzer" "bank-analyzer-postgres" "bank-analyzer-django"
+:: --- 1/5 ITCM PostgreSQL ---
+echo [1/5] ITCM PostgreSQL ...
+
+if exist "!BACKUP_DIR!\itcm-postgres.sql" (
+    docker ps --filter "name=itcm-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "itcm-postgres" >nul 2>&1
+    if !ERRORLEVEL! neq 0 (
+        echo [ERROR] itcm-postgres container is not running.
+        echo         Run: manage.bat restart inheritance-case-management
+        set /a RESTORE_FAIL+=1
+        goto :restore_itcm_done
+    )
+    docker exec itcm-postgres psql -U postgres -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='inheritance_tax_db' AND pid <> pg_backend_pid();" >nul 2>&1
+    docker exec itcm-postgres psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS inheritance_tax_db;" >nul 2>&1
+    docker exec itcm-postgres psql -U postgres -d postgres -c "CREATE DATABASE inheritance_tax_db;" >nul 2>&1
+    docker exec -i itcm-postgres psql -U postgres -d inheritance_tax_db < "!BACKUP_DIR!\itcm-postgres.sql" >nul 2>&1
+    if !ERRORLEVEL! equ 0 (
+        echo [OK]    itcm-postgres.sql
+        set /a RESTORE_OK+=1
+    ) else (
+        echo [ERROR] ITCM PostgreSQL restore failed
+        set /a RESTORE_FAIL+=1
+    )
+) else if exist "!BACKUP_DIR!\itcm-postgres-volume.tar.gz" (
+    echo [WARN]  Volume restore - container must be stopped
+    docker volume inspect inheritance-case-management_postgres_data >nul 2>&1
+    if !ERRORLEVEL! neq 0 (
+        docker volume create inheritance-case-management_postgres_data >nul 2>&1
+    )
+    docker run --rm -v inheritance-case-management_postgres_data:/data -v "!BACKUP_DIR!":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/itcm-postgres-volume.tar.gz" >nul 2>&1
+    if !ERRORLEVEL! equ 0 (
+        echo [OK]    itcm-postgres-volume.tar.gz
+        set /a RESTORE_OK+=1
+    ) else (
+        echo [ERROR] Volume restore failed
+        set /a RESTORE_FAIL+=1
+    )
+) else (
+    echo [SKIP]  Not in backup
+    set /a RESTORE_SKIP+=1
+)
+:restore_itcm_done
+
+:: --- 2/5 Bank Analyzer PostgreSQL ---
+echo [2/5] Bank Analyzer PostgreSQL ...
+
+if exist "!BACKUP_DIR!\bank-analyzer-postgres.sql" (
+    docker ps --filter "name=bank-analyzer-postgres" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "bank-analyzer-postgres" >nul 2>&1
+    if !ERRORLEVEL! neq 0 (
+        echo [ERROR] bank-analyzer-postgres container is not running.
+        echo         Run: manage.bat restart bank-analyzer-django
+        set /a RESTORE_FAIL+=1
+        goto :restore_bank_pg_done
+    )
+    docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='bank_analyzer' AND pid <> pg_backend_pid();" >nul 2>&1
+    docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "DROP DATABASE IF EXISTS bank_analyzer;" >nul 2>&1
+    docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "CREATE DATABASE bank_analyzer;" >nul 2>&1
+    docker exec -i bank-analyzer-postgres psql -U bankuser -d bank_analyzer < "!BACKUP_DIR!\bank-analyzer-postgres.sql" >nul 2>&1
+    if !ERRORLEVEL! equ 0 (
+        echo [OK]    bank-analyzer-postgres.sql
+        set /a RESTORE_OK+=1
+    ) else (
+        echo [ERROR] Bank Analyzer PostgreSQL restore failed
+        set /a RESTORE_FAIL+=1
+    )
+) else if exist "!BACKUP_DIR!\bank-analyzer-postgres-volume.tar.gz" (
+    echo [WARN]  Volume restore - container must be stopped
+    docker volume inspect bank-analyzer-postgres >nul 2>&1
+    if !ERRORLEVEL! neq 0 (
+        docker volume create bank-analyzer-postgres >nul 2>&1
+    )
+    docker run --rm -v bank-analyzer-postgres:/data -v "!BACKUP_DIR!":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/bank-analyzer-postgres-volume.tar.gz" >nul 2>&1
+    if !ERRORLEVEL! equ 0 (
+        echo [OK]    bank-analyzer-postgres-volume.tar.gz
+        set /a RESTORE_OK+=1
+    ) else (
+        echo [ERROR] Volume restore failed
+        set /a RESTORE_FAIL+=1
+    )
+) else (
+    echo [SKIP]  Not in backup
+    set /a RESTORE_SKIP+=1
+)
+:restore_bank_pg_done
 
 :: --- 3/5 SQLite volumes ---
 echo [3/5] SQLite volumes ...
@@ -438,7 +588,7 @@ if !RESTORE_OK! gtr 0 (
 goto :end
 
 :: ============================================================
-:: clean - ?N???[???A?b?v
+:: clean - クリーンアップ
 :: ============================================================
 :cmd_clean
 echo.
@@ -449,59 +599,59 @@ echo.
 echo   * Backup recommendation: manage.bat backup
 echo.
 
-:: Step 1: ?R???e?i?E?C???[?W???
-echo [Step 1] ?R???e?i?E?C???[?W???
+:: Step 1: コンテナ・イメージの削除
+echo [Step 1] コンテナ・イメージの削除
 echo.
-echo   ?????????????:
-echo     - ?S?R???e?i?i??~???????j
-echo     - ?r???h???? Docker ?C???[?W
+echo   以下が削除されます:
+echo     - 全コンテナ（停止中を含む）
+echo     - ビルドされた Docker イメージ
 echo.
 
-set /p "CONFIRM1=  ????????????????H (Y/N): "
+set /p "CONFIRM1=  削除してよろしいですか？ (Y/N): "
 if /i not "!CONFIRM1!"=="Y" (
     echo.
-    echo ?L?????Z??????????B
+    echo キャンセルしました。
     goto :end
 )
 
 echo.
-echo ?R???e?i???~?E??????????...
+echo コンテナを停止・削除しています...
 
 for /L %%I in (%APP_COUNT%,-1,1) do call :do_clean_app %%I
 
 echo.
-echo [OK]    ?R???e?i?E?C???[?W???????????
+echo [OK]    コンテナ・イメージを削除しました
 
-:: ?l?b?g???[?N???
+:: ネットワークの削除
 docker network inspect %NETWORK_NAME% >nul 2>&1
 if !ERRORLEVEL! equ 0 (
     docker network rm %NETWORK_NAME% >nul 2>&1
-    echo [OK]    %NETWORK_NAME% ???????????
+    echo [OK]    %NETWORK_NAME% を削除しました
 )
 
-:: Step 2: ?f?[?^?{?????[??????i?I?v?V?????j
+:: Step 2: データボリュームの削除（オプション）
 echo.
-echo [Step 2] ?f?[?^?{?????[?????
+echo [Step 2] データボリュームの削除
 echo.
-echo   ?????f?[?^?????S??????????i????????????j:
+echo   以下のデータが完全に削除されます（復元できません）:
 echo.
 echo     inheritance-case-management_postgres_data   ITCM PostgreSQL
-echo     bank-analyzer-postgres                      ??s???? PostgreSQL
-echo     bank-analyzer-sqlite                        ??s???? SQLite
-echo     tax-docs-data                               ?m??\?????? SQLite
-echo     medical-stock-valuation-data                ??O@?l???? SQLite
+echo     bank-analyzer-postgres                      銀行分析 PostgreSQL
+echo     bank-analyzer-sqlite                        銀行分析 SQLite
+echo     tax-docs-data                               確定申告書類 SQLite
+echo     medical-stock-valuation-data                医療法人株式 SQLite
 echo.
 
-set /p "CONFIRM2=  ?{???????????????????H (Y/N): "
+set /p "CONFIRM2=  本当に削除してよろしいですか？ (Y/N): "
 if /i not "!CONFIRM2!"=="Y" (
     echo.
-    echo ?f?[?^??????X?L?b?v????????B
-    echo ?R???e?i?E?C???[?W??????????B
+    echo データの削除をスキップしました。
+    echo コンテナ・イメージのみ削除済みです。
     goto :clean_done
 )
 
 echo.
-echo ?f?[?^?{?????[??????????????...
+echo データボリュームを削除しています...
 
 call :do_clean_volume "inheritance-case-management_postgres_data"
 call :do_clean_volume "bank-analyzer-postgres"
@@ -510,7 +660,7 @@ call :do_clean_volume "tax-docs-data"
 call :do_clean_volume "medical-stock-valuation-data"
 
 echo.
-echo [OK]    ?f?[?^?{?????[?????????????
+echo [OK]    データボリュームを削除しました
 
 :clean_done
 echo.
@@ -518,12 +668,12 @@ echo ============================================================
 echo   Clean Up Complete
 echo ============================================================
 echo.
-echo   ??Z?b?g?A?b?v: manage.bat start
+echo   再セットアップ: manage.bat start
 echo.
 goto :end
 
 :: ============================================================
-:: preflight - ?N???O????`?F?b?N
+:: preflight - 起動前環境チェック
 :: ============================================================
 :cmd_preflight
 set "PF_OK=0"
@@ -640,157 +790,72 @@ echo.
 goto :end
 
 :: ============================================================
-:: for ???[?v?p?T?u???[?`??
+:: for ループ用サブルーチン
 :: ============================================================
 
-:: --- ?A?v???N?? ---
+:: --- アプリ起動 ---
 :do_start_app
 call :init_app_vars %1
 if !ERRORLEVEL! neq 0 (
-    for %%N in ("!APP_PATH!") do echo [WARN]    ?X?L?b?v: %%~nxN
+    for %%N in ("!APP_PATH!") do echo [WARN]    スキップ: %%~nxN
     goto :eof
 )
-:: .env.example ?????? .env ??????????????
+:: .env.example があり .env がない場合は自動作成
 set "APP_DIR=%PROJECT_ROOT%\!APP_PATH!"
 if exist "!APP_DIR!\.env.example" (
     if not exist "!APP_DIR!\.env" (
         copy "!APP_DIR!\.env.example" "!APP_DIR!\.env" >nul
-        echo [manage]   .env ???????????: !APP_NAME!
+        echo [manage]   .env を作成しました: !APP_NAME!
     )
 )
 if "!PROD_MODE!"=="1" (
     set "PROD_COMPOSE=%PROJECT_ROOT%\!APP_PATH!\docker-compose.prod.yml"
     if exist "!PROD_COMPOSE!" (
-        echo [manage]   ?N??[?{??]: !APP_NAME!
+        echo [manage]   起動[本番]: !APP_NAME!
         docker compose -f "!COMPOSE_FILE!" -f "!PROD_COMPOSE!" up -d --build
     ) else (
-        echo [manage]   ?N??[?{??]: !APP_NAME!
+        echo [manage]   起動[本番]: !APP_NAME!
         docker compose -f "!COMPOSE_FILE!" up -d --build
     )
 ) else (
-    echo [manage]   ?N??: !APP_NAME!
+    echo [manage]   起動: !APP_NAME!
     docker compose -f "!COMPOSE_FILE!" up -d
 )
-if !ERRORLEVEL! neq 0 echo [ERROR]   !APP_NAME! ??N??????s???????
+if !ERRORLEVEL! neq 0 echo [ERROR]   !APP_NAME! の起動に失敗しました
 goto :eof
 
-:: --- ?A?v????~ ---
+:: --- アプリ停止 ---
 :do_stop_app
 call :init_app_vars %1
 if !ERRORLEVEL! neq 0 goto :eof
-echo [manage]   ??~: !APP_NAME!
+echo [manage]   停止: !APP_NAME!
 docker compose -f "!COMPOSE_FILE!" stop
 goto :eof
 
-:: --- ?A?v????~?E?? ---
+:: --- アプリ停止・削除 ---
 :do_down_app
 call :init_app_vars %1
 if !ERRORLEVEL! neq 0 goto :eof
-echo [manage]   ??: !APP_NAME!
+echo [manage]   削除: !APP_NAME!
 docker compose -f "!COMPOSE_FILE!" down
 goto :eof
 
-:: --- ?A?v?????\?? ---
+:: --- アプリ状態表示 ---
 :do_status_app
 call :init_app_vars %1
 if !ERRORLEVEL! neq 0 goto :eof
 for /f "tokens=*" %%L in ('docker compose -f "!COMPOSE_FILE!" ps --format "{{.Name}}	{{.Status}}	{{.Ports}}" 2^>nul') do echo   %%L
 goto :eof
 
-:: --- ?A?v???N???[?? ---
+:: --- アプリクリーン ---
 :do_clean_app
 call :init_app_vars %1
 if !ERRORLEVEL! neq 0 goto :eof
-echo   ??: !APP_NAME!
+echo   削除: !APP_NAME!
 docker compose -f "!COMPOSE_FILE!" down --rmi local --remove-orphans 2>nul
 goto :eof
 
-:: --- PostgreSQL???X?g?A ---
-:do_restore_postgres
-:: %1=step %2=container %3=volume %4=user %5=db %6=backup_name %7=app_hint
-echo [%~1] %~6 PostgreSQL ...
-
-if exist "!BACKUP_DIR!\%~6.sql" goto :_pg_restore_sql
-if exist "!BACKUP_DIR!\%~6-volume.tar.gz" goto :_pg_restore_vol
-echo [SKIP]  Not in backup
-set /a RESTORE_SKIP+=1
-goto :eof
-
-:_pg_restore_sql
-docker ps --filter "name=%~2" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "%~2" >nul 2>&1
-if !ERRORLEVEL! neq 0 (
-    echo [ERROR] %~2 container is not running.
-    echo         Run: manage.bat restart %~7
-    set /a RESTORE_FAIL+=1
-    goto :eof
-)
-docker exec %~2 psql -U %~4 -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='%~5' AND pid <> pg_backend_pid();" >nul 2>&1
-docker exec %~2 psql -U %~4 -d postgres -c "DROP DATABASE IF EXISTS %~5;" >nul 2>&1
-docker exec %~2 psql -U %~4 -d postgres -c "CREATE DATABASE %~5;" >nul 2>&1
-docker exec -i %~2 psql -U %~4 -d %~5 < "!BACKUP_DIR!\%~6.sql" >nul 2>&1
-if !ERRORLEVEL! equ 0 (
-    echo [OK]    %~6.sql
-    set /a RESTORE_OK+=1
-) else (
-    echo [ERROR] %~6 PostgreSQL restore failed
-    set /a RESTORE_FAIL+=1
-)
-goto :eof
-
-:_pg_restore_vol
-echo [WARN]  Volume restore - container must be stopped
-docker volume inspect %~3 >nul 2>&1
-if !ERRORLEVEL! neq 0 docker volume create %~3 >nul 2>&1
-docker run --rm -v %~3:/data -v "!BACKUP_DIR!":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/%~6-volume.tar.gz" >nul 2>&1
-if !ERRORLEVEL! equ 0 (
-    echo [OK]    %~6-volume.tar.gz
-    set /a RESTORE_OK+=1
-) else (
-    echo [ERROR] Volume restore failed
-    set /a RESTORE_FAIL+=1
-)
-goto :eof
-
-:: --- PostgreSQL?o?b?N?A?b?v ---
-:do_backup_postgres
-:: %1=step %2=container %3=volume %4=user %5=db %6=backup_name
-echo [%~1] %~6 PostgreSQL ...
-set "_PG_DONE=0"
-
-docker ps --filter "name=%~2" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "%~2" >nul 2>&1
-if !ERRORLEVEL! neq 0 goto :_pg_backup_volume
-
-docker exec %~2 pg_dump -U %~4 -d %~5 > "!BACKUP_DIR!\%~6.sql" 2>nul
-if !ERRORLEVEL! equ 0 (
-    echo [OK]    %~6.sql
-    set /a BACKUP_OK+=1
-    set "_PG_DONE=1"
-)
-if "!_PG_DONE!"=="0" (
-    del "!BACKUP_DIR!\%~6.sql" 2>nul
-    echo [WARN]  pg_dump failed, trying volume backup...
-)
-
-:_pg_backup_volume
-if "!_PG_DONE!"=="1" goto :eof
-docker volume inspect %~3 >nul 2>&1
-if !ERRORLEVEL! neq 0 (
-    echo [SKIP]  %~6 PostgreSQL volume not found
-    set /a BACKUP_SKIP+=1
-    goto :eof
-)
-echo [WARN]  Container stopped - backing up volume directly
-docker run --rm -v %~3:/data -v "!BACKUP_DIR!":/backup alpine tar czf /backup/%~6-volume.tar.gz -C /data . >nul 2>&1
-if !ERRORLEVEL! equ 0 (
-    echo [OK]    %~6-volume.tar.gz
-    set /a BACKUP_OK+=1
-) else (
-    echo [ERROR] Volume backup failed
-    set /a BACKUP_FAIL+=1
-)
-goto :eof
-
-:: --- ?{?????[???? ---
+:: --- ボリューム削除 ---
 :do_clean_volume
 docker volume inspect %~1 >nul 2>&1
 if !ERRORLEVEL! neq 0 goto :eof
@@ -798,11 +863,11 @@ docker volume rm %~1 >nul 2>&1
 if !ERRORLEVEL! equ 0 (
     echo   [OK] %~1
 ) else (
-    echo   [ERROR] %~1 ???????s???????
+    echo   [ERROR] %~1 の削除に失敗しました
 )
 goto :eof
 
-:: --- SQLite?o?b?N?A?b?v ---
+:: --- SQLiteバックアップ ---
 :do_backup_sqlite
 :: %1 = volume name, %2 = backup filename (without .tar.gz)
 docker volume inspect %~1 >nul 2>&1
@@ -819,7 +884,7 @@ if !ERRORLEVEL! equ 0 (
 )
 goto :eof
 
-:: --- SQLite???X?g?A ---
+:: --- SQLiteリストア ---
 :do_restore_sqlite
 :: %1 = backup filename (with .tar.gz), %2 = volume name
 if not exist "!BACKUP_DIR!\%~1" goto :eof
@@ -833,7 +898,7 @@ if !ERRORLEVEL! equ 0 (
 )
 goto :eof
 
-:: --- Preflight: compose ?t?@?C???`?F?b?N ---
+:: --- Preflight: compose ファイルチェック ---
 :do_preflight_compose
 set "APP_PATH=!APP_%1!"
 if exist "%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml" (
@@ -845,7 +910,7 @@ if exist "%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml" (
 )
 goto :eof
 
-:: --- Preflight: nginx ?t?@?C???`?F?b?N ---
+:: --- Preflight: nginx ファイルチェック ---
 :do_preflight_nginx
 if not exist "%PROJECT_ROOT%\%~1" (
     echo [WARN]  Missing: %~1
@@ -854,35 +919,35 @@ if not exist "%PROJECT_ROOT%\%~1" (
 )
 goto :eof
 
-:: --- Preflight: ?|?[?g?`?F?b?N ---
+:: --- Preflight: ポートチェック ---
 :do_preflight_port
 echo [WARN]  Port %1 is already in use
 set "PORT_CONFLICT=1"
 set /a PF_WARN+=1
 goto :eof
 
-:: --- ?o?b?N?A?b?v???\?? ---
+:: --- バックアップ一覧表示 ---
 :do_show_backup
 set "BK_NAME=!BACKUP_%1!"
 call :format_dir_size "%BACKUP_BASE%\!BK_NAME!"
 echo   [%1] !BK_NAME!  (!DIR_SIZE_RESULT!)
 goto :eof
 
-:: --- ?A?v?????\?? ---
+:: --- アプリ名表示 ---
 :do_show_app
 set "APP_PATH=!APP_%1!"
 for %%N in ("!APP_PATH!") do echo   %%~nxN
 goto :eof
 
 :: ============================================================
-:: ???[?e?B???e?B???
+:: ユーティリティ関数
 :: ============================================================
 
-:: --- ?P??A?v???R?}???h?v???A???u?? ---
+:: --- 単一アプリコマンド前処理 ---
 :require_app_arg
 :: %1=command_name  Validates APP_CMD_ARG, resolves app, sets RESOLVED_DIR and APP_NAME
 if "!APP_CMD_ARG!"=="" (
-    echo [ERROR] ?A?v???????w???????????
+    echo [ERROR] アプリを指定してください
     echo Usage: manage.bat %~1 ^<app-name^>
     call :show_apps
     exit /b 1
@@ -892,7 +957,7 @@ if "!RESOLVED_DIR!"=="" exit /b 1
 for %%N in ("!RESOLVED_DIR!") do set "APP_NAME=%%~nxN"
 exit /b 0
 
-:: --- ?A?v???????????i?N?????j ---
+:: --- アプリ変数初期化 ---
 :init_app_vars
 :: %1=app_index  Sets: APP_PATH, COMPOSE_FILE, APP_NAME. Returns ERRORLEVEL 1 if compose not found.
 set "APP_PATH=!APP_%1!"
@@ -901,28 +966,28 @@ if not exist "!COMPOSE_FILE!" exit /b 1
 for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
 exit /b 0
 
-:: --- ?f?B???N?g???T?C?Y?t?H?[?}?b?g ---
+:: --- ディレクトリサイズフォーマット ---
 :format_dir_size
 :: %1=directory_path  Sets: DIR_SIZE_RESULT
 for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$s = (Get-ChildItem -Path '%~1' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s -gt 1MB) { '{0:N1} MB' -f ($s/1MB) } elseif ($s -gt 1KB) { '{0:N1} KB' -f ($s/1KB) } else { '{0} bytes' -f $s }"`) do set "DIR_SIZE_RESULT=%%S"
 goto :eof
 
-:: --- ?l?b?g???[?N?? ---
+:: --- ネットワーク作成 ---
 :ensure_network
 docker network inspect %NETWORK_NAME% >nul 2>&1
 if !ERRORLEVEL! neq 0 (
-    echo [manage] ?l?b?g???[?N %NETWORK_NAME% ????...
+    echo [manage] ネットワーク %NETWORK_NAME% を作成...
     docker network create %NETWORK_NAME% >nul 2>&1
 )
 goto :eof
 
-:: --- ?A?v????????f?B???N?g???????? ---
+:: --- アプリ名からディレクトリを解決 ---
 :resolve_app
 set "RESOLVED_DIR="
 set "SEARCH=%~1"
 for /L %%I in (1,1,%APP_COUNT%) do call :do_resolve_check %%I
 if "!RESOLVED_DIR!"=="" (
-    echo [ERROR] ?A?v???????????????: !SEARCH!
+    echo [ERROR] アプリが見つかりません: !SEARCH!
     call :show_apps
 )
 goto :eof
@@ -934,14 +999,14 @@ echo !APP_PATH! | findstr /i "!SEARCH!" >nul 2>&1
 if !ERRORLEVEL! equ 0 set "RESOLVED_DIR=%PROJECT_ROOT%\!APP_PATH!"
 goto :eof
 
-:: --- ?A?v?????\?? ---
+:: --- アプリ一覧表示 ---
 :show_apps
 echo.
 echo Available apps:
 for /L %%I in (1,1,%APP_COUNT%) do call :do_show_app %%I
 goto :eof
 
-:: --- ??? preflight?iDocker?N???`?F?b?N???j ---
+:: --- 簡易 preflight（Docker起動チェックのみ） ---
 :preflight_quick
 docker info >nul 2>&1
 if !ERRORLEVEL! neq 0 (
@@ -951,7 +1016,7 @@ if !ERRORLEVEL! neq 0 (
 exit /b 0
 
 :: ============================================================
-:: ?w???v?\??
+:: ヘルプ表示
 :: ============================================================
 :show_help
 echo.
@@ -962,20 +1027,20 @@ echo.
 echo Usage: manage.bat ^<command^> [app-name]
 echo.
 echo Commands:
-echo   start              ?S?A?v?????N???i?l?b?g???[?N???????j
-echo   start --prod       ?S?A?v????{????[?h??N??
-echo   stop               ?S?A?v?????~
-echo   down               ?S?A?v?????~????R???e?i??
-echo   restart ^<app^>      ?w??A?v??????N??
-echo   build ^<app^>        ?w??A?v??????r???h????N??
-echo   logs ^<app^>         ?w??A?v??????O?\??
-echo   status             ?S?A?v??????\??
+echo   start              全アプリを起動（ネットワーク自動作成）
+echo   start --prod       全アプリを本番モードで起動
+echo   stop               全アプリを停止
+echo   down               全アプリを停止してコンテナ削除
+echo   restart ^<app^>      指定アプリのみ再起動
+echo   build ^<app^>        指定アプリを再ビルドして起動
+echo   logs ^<app^>         指定アプリのログ表示
+echo   status             全アプリの状態表示
 echo.
 echo Operations:
-echo   backup             ?S?f?[?^?x?[?X?E?f?[?^???o?b?N?A?b?v
-echo   restore [dir]      ?o?b?N?A?b?v?????X?g?A
-echo   clean              ?R???e?i?E?C???[?W??N???[???A?b?v
-echo   preflight          ?N???O????`?F?b?N
+echo   backup             全データベース・データをバックアップ
+echo   restore [dir]      バックアップからリストア
+echo   clean              コンテナ・イメージのクリーンアップ
+echo   preflight          起動前環境チェック
 echo.
 echo Apps:
 for /L %%I in (1,1,%APP_COUNT%) do call :do_show_app %%I
@@ -983,7 +1048,7 @@ echo.
 goto :end
 
 :: ============================================================
-:: ?I??
+:: 終了
 :: ============================================================
 :end
 endlocal
