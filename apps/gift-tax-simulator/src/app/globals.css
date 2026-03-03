@@ -326,6 +326,38 @@ tr:hover {
   color: #999;
 }
 
+.row-optimal {
+  background-color: #dcfce7 !important;
+}
+
+.row-optimal td {
+  font-weight: bold;
+}
+
+.badge-optimal {
+  display: inline-block;
+  background-color: var(--primary-dark);
+  color: var(--white);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+.badge-tax-free {
+  display: inline-block;
+  background-color: #64748b;
+  color: var(--white);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
 /* 早見表テーブル */
 .tax-table-section {
   margin-bottom: 2rem;

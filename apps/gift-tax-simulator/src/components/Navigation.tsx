@@ -4,12 +4,14 @@ import Gift from 'lucide-react/icons/gift';
 import Table from 'lucide-react/icons/table';
 import Building from 'lucide-react/icons/building';
 import FileText from 'lucide-react/icons/file-text';
+import BarChart3 from 'lucide-react/icons/bar-chart-3';
 import Printer from 'lucide-react/icons/printer';
 import { COMPANY_INFO } from '@/lib/company';
 
 const NAV_ITEMS = [
     { to: '/', label: '贈与税', icon: Gift, pageTitle: '贈与税シミュレーター' },
     { to: '/table', label: '早見表', icon: Table, pageTitle: '贈与税 早見表' },
+    { to: '/year-comparison', label: '年数比較', icon: BarChart3, pageTitle: '分割年数別 税額比較' },
     { to: '/acquisition-tax', label: '不動産取得税', icon: Building, pageTitle: '不動産取得税シミュレーター' },
     { to: '/registration-tax', label: '登録免許税', icon: FileText, pageTitle: '登録免許税シミュレーター' },
 ] as const;
