@@ -56,7 +56,7 @@ const Navigation = () => {
             </div>
             <button className="btn-print" onClick={() => window.print()}>
                 <Printer size={16} />
-                印刷
+                <span className="print-label">印刷</span>
             </button>
         </nav>
     </header>

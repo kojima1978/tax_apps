@@ -784,6 +784,58 @@ tr:hover {
   margin: 10mm;
 }
 
+/* スマホ対応 */
+@media (max-width: 768px) {
+  .header-top {
+    padding: 0.75rem 1rem;
+  }
+
+  .header-custom h1 {
+    font-size: 1.25rem;
+  }
+
+  .header-subtitle {
+    display: none;
+  }
+
+  .header-company {
+    display: none;
+  }
+
+  .header-nav {
+    padding: 0 0.5rem;
+  }
+
+  .nav-tabs {
+    overflow-x: auto;
+    flex: 1;
+    scrollbar-width: none;
+  }
+
+  .nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-tab {
+    white-space: nowrap;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .print-label {
+    display: none;
+  }
+
+  .chart-container-custom {
+    height: 200px;
+  }
+
+  .print-footer-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
 /* 印刷用スタイル */
 @media print {
   @page {
