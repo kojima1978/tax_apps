@@ -60,7 +60,7 @@ export const calcTaxOneTime = (amount: number, type: GiftType): number => {
     const bracket = rates.find((r) => taxable <= r.limit);
 
     if (!bracket) return 0;
-    return Math.floor(taxable * bracket.rate) - bracket.deduction;
+    return Math.max(0, Math.floor(taxable * bracket.rate) - bracket.deduction);
 };
 
 export type YearComparisonResult = {
