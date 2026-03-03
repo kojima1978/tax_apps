@@ -51,6 +51,7 @@ export const useAcquisitionTaxForm = () => {
     // 結果
     const [showDetails, setShowDetails] = useState(false);
     const [results, setResults] = useState<AcquisitionResults | null>(null);
+    const [errorMsg, setErrorMsg] = useState('');
 
     const handleFormattedInput = useFormattedInput();
 
@@ -89,10 +90,25 @@ export const useAcquisitionTaxForm = () => {
     }, [buildingDate, transactionType, isResidential]);
 
     const calculateTax = useCallback(() => {
+        setErrorMsg('');
         const resVal = parseFormattedNumber(resLandValuation);
         const otherVal = parseFormattedNumber(otherLandValuation);
         const bldgVal = parseFormattedNumber(buildingValuation);
         const bArea = parseFormattedNumber(buildingArea);
+
+        const hasLandInput = includeLand && (resVal > 0 || otherVal > 0);
+        const hasBuildingInput = includeBuilding && bldgVal > 0;
+        if (!hasLandInput && !hasBuildingInput) {
+            setErrorMsg('※土地または建物を選択し、固定資産税評価額を入力してください。');
+            setResults(null);
+            return;
+        }
+        const MAX_VALUATION = 10_000_000_000;
+        if (resVal > MAX_VALUATION || otherVal > MAX_VALUATION || bldgVal > MAX_VALUATION) {
+            setErrorMsg('※評価額は100億円以下で入力してください。');
+            setResults(null);
+            return;
+        }
 
         // 宅地の計算
         const resResult = (includeLand && resVal > 0) ? calculateRealEstateTax({
@@ -155,14 +171,20 @@ export const useAcquisitionTaxForm = () => {
             landAcqProcess.push(...otherResult.process.landAcq);
         }
 
+        const total = resLandAcq + otherLandAcq + bldgAcq;
+        if (!isFinite(total) || isNaN(total) || total < 0) {
+            setErrorMsg('※計算結果に異常が発生しました。入力値を確認してください。');
+            setResults(null);
+            return;
+        }
         setResults({
             landAcq: resLandAcq + otherLandAcq,
             bldgAcq,
             landReg: 0,
             bldgReg: 0,
-            totalAcq: resLandAcq + otherLandAcq + bldgAcq,
+            totalAcq: total,
             totalReg: 0,
-            total: resLandAcq + otherLandAcq + bldgAcq,
+            total,
             process: {
                 landAcq: landAcqProcess,
                 bldgAcq: bldgResult?.process.bldgAcq ?? [],
@@ -198,6 +220,7 @@ export const useAcquisitionTaxForm = () => {
         deductionMessage,
         yearOptions,
         results, showDetails, setShowDetails, calculateTax,
+        errorMsg,
         importLandValuation, importBuildingValuation,
     };
 };

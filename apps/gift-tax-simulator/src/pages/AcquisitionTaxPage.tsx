@@ -79,6 +79,7 @@ export default function AcquisitionTaxPage() {
             </div>
 
             <button className="btn-calc" onClick={form.calculateTax}>計算する</button>
+            {form.errorMsg && <div className="error-msg">{form.errorMsg}</div>}
 
             {form.results !== null && (
                 <div className="result-section">

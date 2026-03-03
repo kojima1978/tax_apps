@@ -22,8 +22,19 @@ export default function GiftTaxPage() {
       setResults(null);
       return;
     }
+    if (amountVal > 1_000_000_000) {
+      setErrorMsg('※贈与金額は10億円以下で入力してください。');
+      setResults(null);
+      return;
+    }
 
-    setResults(calculateAllPatterns(amountVal, giftType));
+    const patterns = calculateAllPatterns(amountVal, giftType);
+    if (patterns.some(r => !isFinite(r.totalTax) || isNaN(r.totalTax))) {
+      setErrorMsg('※計算結果に異常が発生しました。入力値を確認してください。');
+      setResults(null);
+      return;
+    }
+    setResults(patterns);
   }, [amount, giftType]);
 
   return (

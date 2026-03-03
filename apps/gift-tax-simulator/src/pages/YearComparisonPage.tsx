@@ -25,9 +25,20 @@ export default function YearComparisonPage() {
             setResults(null);
             return;
         }
+        if (amountVal > 1_000_000_000) {
+            setErrorMsg('※贈与金額は10億円以下で入力してください。');
+            setResults(null);
+            return;
+        }
 
+        const rows = calculateYearComparison(amountVal, giftType);
+        if (rows.some(r => !isFinite(r.totalTax) || isNaN(r.totalTax))) {
+            setErrorMsg('※計算結果に異常が発生しました。入力値を確認してください。');
+            setResults(null);
+            return;
+        }
         setTotalAmount(amountVal);
-        setResults(calculateYearComparison(amountVal, giftType));
+        setResults(rows);
     }, [amount, giftType]);
 
     return (
