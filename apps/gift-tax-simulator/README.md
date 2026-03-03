@@ -31,12 +31,17 @@
 - 住宅用家屋証明書による軽減税率に対応
 - 計算過程の詳細表示
 
+### 分割年数別 税額比較
+- 1〜20年分割した場合の合計税額を一覧・グラフで比較
+- 最適な分割年数をハイライト表示
+- 一般贈与・特例贈与の切り替え対応
+
 ### 共通機能
 - 取得税⇔登録免許税間の評価額引用（localStorage経由）
 - 印刷時にページタイトル（税目名）をヘッダーに表示
 - 印刷用フッター（会社情報・担当者・作成日）
-- タブ形式ナビゲーション（4ページ切替）
-- レスポンシブデザイン
+- タブ形式ナビゲーション（5ページ切替）
+- レスポンシブデザイン（モバイル対応）
 
 ## 技術スタック
 
@@ -85,6 +90,7 @@ npm run dev
 |--------|-----|
 | 贈与税シミュレーター | http://localhost:3001/gift-tax-simulator/ |
 | 早見表 | http://localhost:3001/gift-tax-simulator/table |
+| 分割年数比較 | http://localhost:3001/gift-tax-simulator/year-comparison |
 | 不動産取得税 | http://localhost:3001/gift-tax-simulator/acquisition-tax |
 | 登録免許税 | http://localhost:3001/gift-tax-simulator/registration-tax |
 
@@ -101,15 +107,18 @@ npm run dev
 │   ├── pages/
 │   │   ├── GiftTaxPage.tsx       # 贈与税シミュレーター
 │   │   ├── TablePage.tsx         # 早見表
+│   │   ├── YearComparisonPage.tsx # 分割年数別 税額比較
 │   │   ├── AcquisitionTaxPage.tsx # 不動産取得税
 │   │   └── RegistrationTaxPage.tsx # 登録免許税
 │   ├── components/
-│   │   ├── Navigation.tsx        # ナビゲーション（タブ形式・4ページ切替）
+│   │   ├── Navigation.tsx        # ナビゲーション（タブ形式・5ページ切替）
 │   │   ├── InputSection.tsx      # 贈与税入力フォーム
 │   │   ├── ResultSection.tsx     # 贈与税結果表示
 │   │   ├── TaxTable.tsx          # シミュレーター用テーブル
 │   │   ├── TaxChart.tsx          # 棒グラフ
 │   │   ├── QuickRefTable.tsx     # 早見表用テーブル
+│   │   ├── YearComparisonTable.tsx # 年数比較テーブル
+│   │   ├── YearComparisonChart.tsx # 年数比較棒グラフ
 │   │   ├── PrintFooter.tsx       # 印刷用フッター
 │   │   ├── acquisition-tax/
 │   │   │   ├── LandInput.tsx     # 土地入力（宅地・その他 分離入力）
@@ -125,7 +134,7 @@ npm run dev
 │   │   ├── useRegistrationTaxForm.ts  # 登録免許税フォーム
 │   │   └── useValuationImport.ts      # 評価額引用
 │   └── lib/
-│       ├── tax-calculation.ts    # 贈与税計算ロジック
+│       ├── tax-calculation.ts    # 贈与税計算ロジック（年数比較含む）
 │       ├── real-estate-tax.ts    # 不動産税計算ロジック
 │       ├── utils.ts              # ユーティリティ関数
 │       ├── valuation-storage.ts  # 評価額のlocalStorage管理
@@ -134,7 +143,6 @@ npm run dev
 ├── vite.config.ts                # Vite設定
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
-├── vite.config.ts
 └── package.json
 ```
 
