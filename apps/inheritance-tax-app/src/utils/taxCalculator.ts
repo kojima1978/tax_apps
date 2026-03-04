@@ -288,7 +288,10 @@ export function calculateDetailedInheritanceTax(
     } else if (spouseMode.mode === 'limit160m') {
       spouseAcquisitionAmount = Math.min(estateValue, SPOUSE_DEDUCTION_LIMIT);
     } else {
-      spouseAcquisitionAmount = Math.min(spouseMode.value, estateValue);
+      const customAmount = spouseMode.unit === 'percent'
+        ? Math.floor(estateValue * spouseMode.value / 100)
+        : spouseMode.value;
+      spouseAcquisitionAmount = Math.min(customAmount, estateValue);
     }
 
     breakdowns[spouseIdx].acquisitionAmount = spouseAcquisitionAmount;

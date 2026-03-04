@@ -52,7 +52,10 @@ export function reapportionTax(
     } else if (spouseMode.mode === 'limit160m') {
       spouseBase = Math.min(baseEstate, SPOUSE_DEDUCTION_LIMIT);
     } else {
-      spouseBase = Math.min(spouseMode.value, baseEstate);
+      const customAmount = spouseMode.unit === 'percent'
+        ? Math.floor(baseEstate * spouseMode.value / 100)
+        : spouseMode.value;
+      spouseBase = Math.min(customAmount, baseEstate);
     }
     breakdowns[spouseIdx].acquisitionAmount = spouseBase;
 

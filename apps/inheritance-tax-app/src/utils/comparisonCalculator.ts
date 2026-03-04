@@ -28,7 +28,7 @@ export function calculateComparisonTable(
     const first = calculateDetailedInheritanceTax(
       estateValue,
       composition,
-      { mode: 'custom', value: spouseAcquisition },
+      { mode: 'custom', value: spouseAcquisition, unit: 'amount' },
     );
 
     // 2次相続: 配偶者固有財産 + 1次相続取得額
