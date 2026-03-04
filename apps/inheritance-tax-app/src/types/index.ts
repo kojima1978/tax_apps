@@ -40,7 +40,7 @@ export interface TaxCalculationResult {
 export type SpouseAcquisitionMode =
   | { mode: 'legal' }
   | { mode: 'limit160m' }
-  | { mode: 'custom'; value: number };
+  | { mode: 'custom'; value: number; unit: 'amount' | 'percent' };
 
 // 個別相続人の税額内訳
 export interface HeirTaxBreakdown {

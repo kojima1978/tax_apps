@@ -17,10 +17,19 @@ const MODE_OPTIONS = [
   },
   {
     mode: 'custom' as const,
-    label: '任意の金額を入力',
-    description: '配偶者の取得額を直接指定',
+    label: '任意の値を入力',
+    description: '配偶者の取得額を金額または割合で指定',
   },
 ] as const;
+
+const UNIT_OPTIONS = [
+  { unit: 'amount' as const, label: '万円' },
+  { unit: 'percent' as const, label: '％' },
+] as const;
+
+const UNIT_BTN_BASE = 'px-3 py-1 text-sm font-medium rounded-md transition-colors';
+const UNIT_BTN_ACTIVE = `${UNIT_BTN_BASE} bg-green-600 text-white`;
+const UNIT_BTN_INACTIVE = `${UNIT_BTN_BASE} bg-gray-100 text-gray-600 hover:bg-gray-200`;
 
 interface SpouseAcquisitionSettingsProps {
   value: SpouseAcquisitionMode;
@@ -34,6 +43,8 @@ export const SpouseAcquisitionSettings: React.FC<SpouseAcquisitionSettingsProps>
   hasSpouse,
 }) => {
   if (!hasSpouse) return null;
+
+  const currentUnit = value.mode === 'custom' ? value.unit : 'amount';
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -49,7 +60,7 @@ export const SpouseAcquisitionSettings: React.FC<SpouseAcquisitionSettingsProps>
               checked={value.mode === opt.mode}
               onChange={() => {
                 if (opt.mode === 'custom') {
-                  onChange({ mode: 'custom', value: 0 });
+                  onChange({ mode: 'custom', value: 0, unit: currentUnit });
                 } else {
                   onChange({ mode: opt.mode });
                 }
@@ -66,22 +77,37 @@ export const SpouseAcquisitionSettings: React.FC<SpouseAcquisitionSettingsProps>
 
       {value.mode === 'custom' && (
         <div className="mt-4 ml-6">
+          <div className="flex items-center gap-2 mb-3">
+            {UNIT_OPTIONS.map(({ unit, label }) => (
+              <button
+                key={unit}
+                type="button"
+                onClick={() => onChange({ mode: 'custom', value: 0, unit })}
+                className={value.unit === unit ? UNIT_BTN_ACTIVE : UNIT_BTN_INACTIVE}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-3">
             <input
               type="number"
               value={value.value || ''}
               onChange={(e) =>
-                onChange({ mode: 'custom', value: Number(e.target.value) || 0 })
+                onChange({ mode: 'custom', value: Number(e.target.value) || 0, unit: value.unit })
               }
               min={0}
-              step={100}
+              max={value.unit === 'percent' ? 100 : undefined}
+              step={value.unit === 'percent' ? 1 : 100}
               onWheel={e => e.currentTarget.blur()}
               className="w-48 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right"
-              placeholder="金額を入力"
+              placeholder={value.unit === 'percent' ? '割合を入力' : '金額を入力'}
             />
-            <span className="text-gray-600 text-sm">万円</span>
+            <span className="text-gray-600 text-sm">
+              {value.unit === 'percent' ? '％' : '万円'}
+            </span>
           </div>
-          {value.value > 0 && (
+          {value.value > 0 && value.unit === 'amount' && (
             <p className="mt-1 text-xs text-green-700">
               {formatCurrency(value.value)}
             </p>
