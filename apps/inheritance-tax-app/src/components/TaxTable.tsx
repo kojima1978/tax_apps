@@ -17,18 +17,18 @@ type SubColumn = {
 
 const SPOUSE_COLUMNS: SubColumn[] = [
   { label: '相続税額', getValue: r => formatCurrency(r.totalTax) },
-  { label: '実効税率', getValue: r => formatPercent(r.effectiveTaxRate) },
+  { label: '負担率', getValue: r => formatPercent(r.effectiveTaxRate) },
   { label: '配偶者控除後', getValue: r => formatCurrency(r.taxAfterSpouseDeduction) },
 ];
 
 const MAIN_COLUMNS_WITH_SPOUSE: SubColumn[] = [
   { label: '相続税額', getValue: r => formatCurrency(r.taxAfterSpouseDeduction) },
-  { label: '実効税率', getValue: r => formatPercent(r.effectiveTaxRateAfterSpouse) },
+  { label: '負担率', getValue: r => formatPercent(r.effectiveTaxRateAfterSpouse) },
 ];
 
 const MAIN_COLUMNS_NO_SPOUSE: SubColumn[] = [
   { label: '相続税額', getValue: r => formatCurrency(r.totalTax) },
-  { label: '実効税率', getValue: r => formatPercent(r.effectiveTaxRate) },
+  { label: '負担率', getValue: r => formatPercent(r.effectiveTaxRate) },
 ];
 
 export const TaxTable: React.FC<TaxTableProps> = memo(({ data, hasSpouse }) => {

@@ -32,8 +32,8 @@ export interface TaxCalculationResult {
   taxableAmount: number; // 課税遺産総額
   totalTax: number; // 総相続税額
   taxAfterSpouseDeduction: number; // 配偶者控除後の税額
-  effectiveTaxRate: number; // 実効税率（%）
-  effectiveTaxRateAfterSpouse: number; // 配偶者控除後の実効税率（%）
+  effectiveTaxRate: number; // 相続税負担率（%）= 総額÷遺産
+  effectiveTaxRateAfterSpouse: number; // 配偶者控除後の負担率（%）
 }
 
 // 配偶者の取得割合モード

@@ -130,7 +130,7 @@ export function reapportionTax(
   }
 
   const totalFinalTax = breakdowns.reduce((sum, b) => sum + b.finalTax, 0);
-  const effectiveTaxRate = denominator > 0 ? (totalFinalTax / denominator) * 100 : 0;
+  const effectiveTaxRate = denominator > 0 ? (taxResult.totalTax / denominator) * 100 : 0;
 
   return {
     ...taxResult,
