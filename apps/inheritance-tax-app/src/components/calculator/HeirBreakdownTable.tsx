@@ -52,14 +52,12 @@ export const HeirBreakdownTable: React.FC<HeirBreakdownTableProps> = ({
                 </tr>
               );
             })}
-          </tbody>
-          <tfoot>
             <tr className="bg-green-50 font-bold">
               <td className="px-3 py-2">合計</td>
               <td className="px-3 py-2" colSpan={4} />
               <td className="px-3 py-2 text-right text-green-800">{formatCurrency(totalFinalTax)}</td>
             </tr>
-          </tfoot>
+          </tbody>
         </table>
       </div>
     </div>
