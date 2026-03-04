@@ -53,14 +53,14 @@ cd apps/<app-name> && docker compose up -d
 |-------|------|--------|---------|
 | portal | `/` | 3000 | Next.js (静的エクスポート→nginx) |
 | inheritance-tax-app | `/inheritance-tax-app/` | 3004 | Vite/React |
-| gift-tax-simulator | `/gift-tax-simulator/` | 3001 | Next.js + Chart.js |
-| gift-tax-docs | `/gift-tax-docs/` | 3002 | Vite/React + @dnd-kit + xlsx-js-style |
-| inheritance-tax-docs | `/inheritance-tax-docs/` | 3003 | Vite/React + @dnd-kit + xlsx-js-style |
-| tax-docs (frontend) | `/tax-docs/` | 3005 | Next.js + @dnd-kit + xlsx-js-style |
+| gift-tax-simulator | `/gift-tax-simulator/` | 3001 | Vite/React + Chart.js |
+| gift-tax-docs | `/gift-tax-docs/` | 3002 | Next.js + @dnd-kit + xlsx-js-style |
+| inheritance-tax-docs | `/inheritance-tax-docs/` | 3003 | Next.js + @dnd-kit + xlsx-js-style |
+| tax-docs (frontend) | `/tax-docs/` | 3005 | Vite/React + @dnd-kit + xlsx-js-style |
 | tax-docs (backend) | `/tax-docs-api/` | 3006 | Express + better-sqlite3 |
 | medical-stock-valuation | `/medical/` | 3010 | Next.js + SQLite (Prisma) |
 | shares-valuation | `/shares/` | 3012 | Next.js + react-number-format |
-| retirement-tax-calc | `/retirement-tax-calc/` | 3013 | Next.js |
+| retirement-tax-calc | `/retirement-tax-calc/` | 3013 | Vite/React |
 | inheritance-case-management (web) | `/itcm/` | 3020 | Next.js + React Query + React Table |
 | inheritance-case-management (api) | `/itcm-api/` | 3021 | Hono + Prisma + PostgreSQL |
 | bank-analyzer-django | `/bank-analyzer/` | 3007 | Django + pandas + Bootstrap |
