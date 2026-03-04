@@ -11,8 +11,8 @@ function App() {
     <StaffProvider>
     <div className="min-h-screen bg-gray-50">
       <Routes>
-        <Route path="/" element={<TablePage />} />
-        <Route path="/calculator" element={<CalculatorPage />} />
+        <Route path="/" element={<CalculatorPage />} />
+        <Route path="/table" element={<TablePage />} />
         <Route path="/comparison" element={<ComparisonPage />} />
         <Route path="/insurance" element={<InsurancePage />} />
         <Route path="/cash-gift" element={<CashGiftPage />} />

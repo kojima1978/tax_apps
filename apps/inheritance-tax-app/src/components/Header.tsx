@@ -11,11 +11,11 @@ import { COMPANY_INFO } from '../constants';
 import { useStaffInfo } from '../contexts/StaffContext';
 
 const NAV_ITEMS = [
-  { to: '/calculator', label: '相続税計算', icon: Calculator },
+  { to: '/', label: '相続税計算', icon: Calculator },
   { to: '/comparison', label: '1次2次比較', icon: Scale },
   { to: '/insurance', label: '保険金', icon: Shield },
   { to: '/cash-gift', label: '現金贈与', icon: Gift },
-  { to: '/', label: '早見表', icon: Table },
+  { to: '/table', label: '早見表', icon: Table },
 ] as const;
 
 interface HeaderProps {
