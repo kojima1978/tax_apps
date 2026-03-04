@@ -8,6 +8,7 @@ import { CurrencyInput } from '../CurrencyInput';
 import type { InsuranceContract, BeneficiaryOption } from '../../types';
 import { generateId } from '../../utils';
 import { useUniqueOptions } from '../../hooks/useUniqueOptions';
+import { CARD, INPUT_FOCUS } from '../tableStyles';
 
 interface InsuranceContractListProps {
   contracts: InsuranceContract[];
@@ -87,7 +88,7 @@ export const InsuranceContractList: React.FC<InsuranceContractListProps> = ({
     c.premium > 0 && c.benefit > 0 ? Math.round(c.benefit / c.premium * 100) : 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={CARD}>
       <SectionHeader icon={config.icon} title={config.title} />
 
       {contracts.length === 0 ? (
@@ -122,7 +123,7 @@ export const InsuranceContractList: React.FC<InsuranceContractListProps> = ({
                   <select
                     value={contract.beneficiaryId}
                     onChange={e => updateContract(contract.id, { beneficiaryId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${INPUT_FOCUS} text-sm`}
                   >
                     {availableOptions.map(opt => (
                       <option key={opt.id} value={opt.id}>{opt.label}</option>

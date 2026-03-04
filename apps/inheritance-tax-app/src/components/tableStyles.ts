@@ -1,3 +1,9 @@
+/** Common card wrapper */
+export const CARD = 'bg-white rounded-lg shadow-md p-6';
+
+/** Focus ring for inputs */
+export const INPUT_FOCUS = 'focus:ring-2 focus:ring-green-500 focus:border-green-500';
+
 /** Compact table cells (px-3 py-2) — used by summary, heir, year-comparison tables */
 export const TH = 'border border-gray-300 px-3 py-2 text-center font-semibold text-sm';
 export const TD = 'border border-gray-300 px-3 py-2 text-right text-sm';

@@ -3,6 +3,7 @@ import Heart from 'lucide-react/icons/heart';
 import type { SpouseAcquisitionMode } from '../../types';
 import { formatCurrency } from '../../utils';
 import { SectionHeader } from '../SectionHeader';
+import { CARD, INPUT_FOCUS } from '../tableStyles';
 
 const MODE_OPTIONS = [
   {
@@ -47,7 +48,7 @@ export const SpouseAcquisitionSettings: React.FC<SpouseAcquisitionSettingsProps>
   const currentUnit = value.mode === 'custom' ? value.unit : 'amount';
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={CARD}>
       <SectionHeader icon={Heart} title="配偶者の取得割合" />
 
       <fieldset className="space-y-3 border-0">
@@ -100,7 +101,7 @@ export const SpouseAcquisitionSettings: React.FC<SpouseAcquisitionSettingsProps>
               max={value.unit === 'percent' ? 100 : undefined}
               step={value.unit === 'percent' ? 1 : 100}
               onWheel={e => e.currentTarget.blur()}
-              className="w-48 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right"
+              className={`w-48 px-3 py-1.5 border border-gray-300 rounded-lg ${INPUT_FOCUS} text-right`}
               placeholder={value.unit === 'percent' ? '割合を入力' : '金額を入力'}
             />
             <span className="text-gray-600 text-sm">

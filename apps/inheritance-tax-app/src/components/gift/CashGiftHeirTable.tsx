@@ -1,7 +1,7 @@
 import React from 'react';
 import type { CashGiftSimulationResult, GiftScenarioResult, GiftRecipientResult } from '../../types';
 import { formatCurrency, getGiftHeirNetProceeds } from '../../utils';
-import { TH, TD } from '../tableStyles';
+import { CARD, TH, TD } from '../tableStyles';
 import { HeirScenarioTable, type HeirColumn } from '../HeirScenarioTable';
 import { HeirNetComparisonTable } from '../HeirNetComparisonTable';
 
@@ -78,7 +78,7 @@ export const CashGiftHeirTable: React.FC<CashGiftHeirTableProps> = ({ result }) 
   const emptyResults: GiftRecipientResult[] = [];
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={CARD}>
       <h3 className="text-lg font-bold text-gray-800 mb-4">相続人別内訳</h3>
 
       <div className="mb-6">

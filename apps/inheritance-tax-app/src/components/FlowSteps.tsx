@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatCurrency, formatDeltaArrow } from '../utils';
+import { CARD } from './tableStyles';
 
 export interface FlowStep {
   title: string;
@@ -19,7 +20,7 @@ export const FlowSteps: React.FC<FlowStepsProps> = ({ steps }) => {
   const diff = lastStep ? lastStep.proposedValue - lastStep.currentValue : 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={CARD}>
       <h3 className="text-lg font-bold text-gray-800 mb-6">財産フロー</h3>
       <div className="space-y-0">
         {steps.map((step, index) => {

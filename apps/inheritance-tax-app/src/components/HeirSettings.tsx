@@ -6,6 +6,7 @@ import { RadioGroup } from './RadioGroup';
 import { SpouseSettings } from './heirs/SpouseSettings';
 import { Rank2Settings } from './heirs/Rank2Settings';
 import { RankHeirSettings, RANK1_CONFIG, RANK3_CONFIG } from './heirs/RankHeirSettings';
+import { CARD } from './tableStyles';
 
 const RANK_OPTIONS = [
   { value: 'none' as const, id: 'rank-none-desc', label: '選択なし（配偶者のみ）' },
@@ -21,7 +22,7 @@ interface HeirSettingsProps {
 }
 
 export const HeirSettings: React.FC<HeirSettingsProps> = memo(({ composition, onChange, hasError }) => (
-  <div className={`bg-white rounded-lg shadow-md p-6 no-print ${hasError ? 'ring-2 ring-red-400' : ''}`}>
+  <div className={`${CARD} no-print ${hasError ? 'ring-2 ring-red-400' : ''}`}>
     <SectionHeader icon={Users} title="相続人の構成" />
 
     <SpouseSettings composition={composition} onChange={onChange} />

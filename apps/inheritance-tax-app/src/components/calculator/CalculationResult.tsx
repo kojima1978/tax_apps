@@ -1,6 +1,7 @@
 import React from 'react';
 import type { DetailedTaxCalculationResult } from '../../types';
 import { formatCurrency, formatPercent } from '../../utils';
+import { CARD } from '../tableStyles';
 import { PrintHeader } from '../PrintHeader';
 import { CalculationSteps } from './CalculationSteps';
 import { ProgressiveTaxBreakdown } from './ProgressiveTaxBreakdown';
@@ -26,7 +27,7 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result, we
         <PrintHeader title="相続税計算結果" />
 
         {/* サマリーカード */}
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+        <div className={CARD}>
           <h3 className="text-lg font-bold text-gray-800 mb-4">計算結果</h3>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">

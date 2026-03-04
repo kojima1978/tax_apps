@@ -1,6 +1,7 @@
 import React from 'react';
 import type { HeirTaxBreakdown } from '../../types';
 import { formatCurrency, formatFraction } from '../../utils';
+import { CARD } from '../tableStyles';
 
 interface HeirBreakdownTableProps {
   breakdowns: HeirTaxBreakdown[];
@@ -14,7 +15,7 @@ export const HeirBreakdownTable: React.FC<HeirBreakdownTableProps> = ({
   if (breakdowns.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={`${CARD} heir-breakdown-card`}>
       <h3 className="text-lg font-bold text-gray-800 mb-4">相続人別 税額内訳</h3>
 
       <div className="overflow-x-auto">

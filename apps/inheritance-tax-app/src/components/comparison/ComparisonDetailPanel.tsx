@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import type { ComparisonRow, HeirTaxBreakdown } from '../../types';
 import { formatCurrency } from '../../utils';
-import { TH_MID, TD_MID } from '../tableStyles';
+import { CARD, TH_MID, TD_MID } from '../tableStyles';
 
 interface ComparisonDetailPanelProps {
   row: ComparisonRow;
@@ -45,7 +45,7 @@ const HeirTable: React.FC<{
 
 export const ComparisonDetailPanel: React.FC<ComparisonDetailPanelProps> = memo(({ row, spouseOwnEstate, onClose, optimalLabel }) => {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mt-4 border-2 border-green-200 comparison-detail-print">
+    <div className={`${CARD} mt-4 border-2 border-green-200 comparison-detail-print`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-gray-800">
           配偶者取得割合 {row.ratio}% の相続人別内訳

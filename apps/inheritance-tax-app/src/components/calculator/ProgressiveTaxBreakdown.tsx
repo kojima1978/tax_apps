@@ -2,7 +2,7 @@ import React, { memo, useMemo } from 'react';
 import type { HeirTaxBreakdown } from '../../types';
 import { TAX_BRACKETS } from '../../constants';
 import { formatCurrency } from '../../utils';
-import { TH, TD } from '../tableStyles';
+import { CARD, TH, TD } from '../tableStyles';
 
 interface ProgressiveTaxBreakdownProps {
   breakdowns: HeirTaxBreakdown[];
@@ -83,7 +83,7 @@ export const ProgressiveTaxBreakdown: React.FC<ProgressiveTaxBreakdownProps> = m
   if (groups.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={CARD}>
       <h3 className="text-lg font-bold text-gray-800 mb-1">累進税額の内訳</h3>
       <p className="text-sm text-gray-500 mb-4">
         法定取得額が各ブラケットでどのように課税されるかの詳細です。

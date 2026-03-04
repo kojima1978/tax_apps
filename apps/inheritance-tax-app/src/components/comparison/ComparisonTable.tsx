@@ -3,7 +3,7 @@ import type { ComparisonRow } from '../../types';
 import { formatCurrency } from '../../utils';
 import { useColumnHover } from '../../hooks/useColumnHover';
 import { ComparisonDetailPanel } from './ComparisonDetailPanel';
-import { TH_WIDE, TD_WIDE } from '../tableStyles';
+import { CARD, TH_WIDE, TD_WIDE } from '../tableStyles';
 
 interface ComparisonTableProps {
   data: ComparisonRow[];
@@ -49,7 +49,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 md:p-6" role="region" aria-label="1次2次比較表">
+    <div className={CARD} role="region" aria-label="1次2次比較表">
       <h2 className="text-xl font-bold text-gray-800 mb-2 md:mb-4" id="comparison-heading">
         配偶者取得割合別 税額比較
       </h2>
