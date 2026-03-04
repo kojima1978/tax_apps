@@ -3,6 +3,7 @@ import type { InsuranceSimulationResult, InsuranceScenarioResult } from '../../t
 import { formatCurrency, getHeirBaseAcquisition, getHeirNetProceeds } from '../../utils';
 import { HeirScenarioTable, type HeirColumn } from '../HeirScenarioTable';
 import { HeirNetComparisonTable } from '../HeirNetComparisonTable';
+import { CARD } from '../tableStyles';
 
 interface InsuranceHeirTableProps {
   result: InsuranceSimulationResult;
@@ -28,7 +29,7 @@ export const InsuranceHeirTable: React.FC<InsuranceHeirTableProps> = ({ result }
   const heirCount = current.heirBreakdowns.length;
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={CARD}>
       <h3 className="text-lg font-bold text-gray-800 mb-4">相続人別内訳</h3>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

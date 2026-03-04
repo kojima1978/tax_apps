@@ -7,6 +7,7 @@ import { CurrencyInput } from '../CurrencyInput';
 import type { GiftRecipient } from '../../types';
 import { generateId, formatCurrency, calculateGiftTaxPerYear } from '../../utils';
 import { useUniqueOptions } from '../../hooks/useUniqueOptions';
+import { CARD, INPUT_FOCUS } from '../tableStyles';
 
 interface CashGiftRecipientListProps {
   recipients: GiftRecipient[];
@@ -51,7 +52,7 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={CARD}>
       <SectionHeader icon={Gift} title="贈与受取人" />
 
       {recipients.length === 0 ? (
@@ -90,7 +91,7 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                     <select
                       value={recipient.heirId}
                       onChange={e => updateRecipient(recipient.id, { heirId: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right text-lg"
+                      className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${INPUT_FOCUS} text-right text-lg`}
                     >
                       {availableOptions.map(opt => (
                         <option key={opt.id} value={opt.id}>{opt.label}</option>
@@ -119,7 +120,7 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                         onChange={e => updateRecipient(recipient.id, { years: Math.min(30, Math.max(0, parseInt(e.target.value) || 0)) })}
                         onWheel={e => e.currentTarget.blur()}
                         placeholder="例: 10"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right text-lg"
+                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${INPUT_FOCUS} text-right text-lg`}
                       />
                       <span className="text-gray-600 whitespace-nowrap font-medium">年</span>
                     </div>

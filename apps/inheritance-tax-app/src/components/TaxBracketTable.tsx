@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { TAX_BRACKETS } from '../constants';
 import { formatCurrency } from '../utils';
-import { TH, TD } from './tableStyles';
+import { CARD, TH, TD } from './tableStyles';
 
 const formatThreshold = (value: number, index: number): string => {
   if (index === TAX_BRACKETS.length - 1) {
@@ -52,7 +52,7 @@ export const TaxBracketTable: React.FC<TaxBracketTableProps> = memo(({ compact }
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 overflow-x-auto" role="region" aria-label="相続税の速算表">
+    <div className={`${CARD} overflow-x-auto`} role="region" aria-label="相続税の速算表">
       {content}
     </div>
   );

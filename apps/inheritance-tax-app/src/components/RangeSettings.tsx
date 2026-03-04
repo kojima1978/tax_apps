@@ -3,6 +3,7 @@ import SettingsIcon from 'lucide-react/icons/settings';
 import { TABLE_CONFIG } from '../constants';
 import { formatCurrency } from '../utils';
 import { SectionHeader } from './SectionHeader';
+import { CARD, INPUT_FOCUS } from './tableStyles';
 
 interface RangeSettingsProps {
   maxValue: number;
@@ -32,7 +33,7 @@ export const RangeSettings: React.FC<RangeSettingsProps> = memo(({
   onMaxValueChange,
 }) => {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 no-print">
+    <div className={`${CARD} no-print`}>
       <SectionHeader icon={SettingsIcon} title="シミュレーション設定" />
 
       <div className="space-y-4">
@@ -58,7 +59,7 @@ export const RangeSettings: React.FC<RangeSettingsProps> = memo(({
             id="max-value-select"
             value={maxValue}
             onChange={(e) => onMaxValueChange(Number(e.target.value))}
-            className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            className={`w-full px-4 py-2 border border-gray-300 rounded ${INPUT_FOCUS}`}
             aria-describedby="step-description"
           >
             {MAX_VALUE_OPTIONS.map((option) => (

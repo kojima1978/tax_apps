@@ -178,6 +178,39 @@
     break-after: avoid;
   }
 
+  /* 計算過程: 印刷時2列レイアウト */
+  .calculator-print .calc-steps-grid {
+    columns: 2;
+    column-gap: 24px;
+  }
+
+  .calculator-print .calc-steps-grid > * + * {
+    margin-top: 0 !important;
+  }
+
+  .calculator-print .calc-step-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 10px !important;
+    margin-top: 0 !important;
+  }
+
+  .calculator-print .calc-bracket-table {
+    border-top: none !important;
+    padding-top: 0 !important;
+    margin-top: 4px !important;
+  }
+
+  .calculator-print .calc-steps-grid .text-lg {
+    font-size: 14px !important;
+  }
+
+  /* 相続人別税額内訳: テーブルごと1ページに収める */
+  .calculator-print .heir-breakdown-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   /* 保険ページ */
   .insurance-print {
     padding: 0 !important;

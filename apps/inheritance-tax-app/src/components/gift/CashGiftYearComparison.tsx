@@ -3,7 +3,7 @@ import TrendingUp from 'lucide-react/icons/trending-up';
 import { SectionHeader } from '../SectionHeader';
 import type { HeirComposition, SpouseAcquisitionMode, GiftRecipient } from '../../types';
 import { optimizeGiftAmounts, calculateCashGiftSimulation, formatCurrency, formatDelta } from '../../utils';
-import { TH, TD } from '../tableStyles';
+import { CARD, TH, TD } from '../tableStyles';
 
 interface CashGiftYearComparisonProps {
   estateValue: number;
@@ -59,7 +59,7 @@ export const CashGiftYearComparison: React.FC<CashGiftYearComparisonProps> = ({
   );
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={CARD}>
       <SectionHeader icon={TrendingUp} title="年数別 最適贈与比較" />
       <p className="text-sm text-gray-500 mb-4">
         受取人{recipients.length}人 × 各贈与年数での最適な年間贈与額と税引後の比較

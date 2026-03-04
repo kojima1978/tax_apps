@@ -3,6 +3,7 @@ import type { DetailedTaxCalculationResult, HeirTaxBreakdown } from '../../types
 import { formatCurrency, formatFraction } from '../../utils';
 import { BASIC_DEDUCTION, TAX_BRACKETS } from '../../constants';
 import { TaxBracketTable } from '../TaxBracketTable';
+import { CARD } from '../tableStyles';
 
 interface CalculationStepsProps {
   result: DetailedTaxCalculationResult;
@@ -36,10 +37,9 @@ const BreakdownList: React.FC<{
   </div>
 );
 
-export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) => {
+function buildSteps(result: DetailedTaxCalculationResult): Step[] {
   const { heirBreakdowns, spouseDeductionDetail } = result;
   const heirCount = heirBreakdowns.length;
-  const hasRank3 = heirBreakdowns.some(b => b.surchargeAmount > 0);
 
   const steps: Step[] = [
     {
@@ -109,24 +109,39 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
 
   // 配偶者の税額軽減（該当時）
   if (spouseDeductionDetail) {
+    const d = spouseDeductionDetail;
+    const withinLimit = d.acquisitionAmount <= d.deductionLimit;
+
     steps.push({
       title: '配偶者の税額軽減',
       content: (
-        <div className="bg-green-50 rounded-lg p-3">
-          <div className="space-y-1 text-sm text-gray-700">
-            <p>配偶者の取得額: {formatCurrency(spouseDeductionDetail.acquisitionAmount)}</p>
-            <p>法定相続分相当額: {formatCurrency(spouseDeductionDetail.legalShareAmount)}</p>
-            <p>控除限度額: max({formatCurrency(spouseDeductionDetail.legalShareAmount)}, {formatCurrency(spouseDeductionDetail.limit160m)}) = <span className="font-medium">{formatCurrency(spouseDeductionDetail.deductionLimit)}</span></p>
-            <p className="text-green-700 font-bold">控除額: {formatCurrency(spouseDeductionDetail.actualDeduction)}</p>
-          </div>
+        <div className="space-y-2">
+          <FormulaResult
+            formula={<>控除限度額: max({formatCurrency(d.legalShareAmount)}, {formatCurrency(d.limit160m)})</>}
+            result={formatCurrency(d.deductionLimit)}
+          />
+          <p className="text-sm text-gray-600">
+            配偶者の取得額 {formatCurrency(d.acquisitionAmount)} {withinLimit ? '≦' : '＞'} 控除限度額 {formatCurrency(d.deductionLimit)}
+          </p>
+          {withinLimit ? (
+            <FormulaResult
+              formula={<>取得額が限度額以下 → 配偶者の按分税額 {formatCurrency(d.taxBeforeDeduction)} を全額控除</>}
+              result={<span className="text-green-700">控除額: {formatCurrency(d.actualDeduction)}</span>}
+            />
+          ) : (
+            <FormulaResult
+              formula={<>{formatCurrency(result.totalTax)} × ({formatCurrency(d.deductionLimit)} / {formatCurrency(result.estateValue)})</>}
+              result={<span className="text-green-700">控除額: {formatCurrency(d.actualDeduction)}</span>}
+            />
+          )}
         </div>
       ),
     });
   }
 
   // 2割加算（該当時）
-  if (hasRank3) {
-    const rank3Heirs = heirBreakdowns.filter(b => b.surchargeAmount > 0);
+  const rank3Heirs = heirBreakdowns.filter(b => b.surchargeAmount > 0);
+  if (rank3Heirs.length > 0) {
     steps.push({
       title: '2割加算',
       content: (
@@ -160,12 +175,18 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
     ),
   });
 
+  return steps;
+}
+
+export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) => {
+  const steps = buildSteps(result);
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={CARD}>
       <h3 className="text-lg font-bold text-gray-800 mb-6">計算過程</h3>
-      <div className="space-y-6">
+      <div className="calc-steps-grid space-y-6">
         {steps.map((step, index) => (
-          <div key={index} className="flex gap-4">
+          <div key={index} className="flex gap-4 calc-step-item">
             <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
               {index + 1}
             </div>
@@ -175,10 +196,9 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="mt-8 border-t pt-6">
-        <TaxBracketTable compact />
+        <div className="calc-step-item calc-bracket-table mt-8 border-t pt-6">
+          <TaxBracketTable compact />
+        </div>
       </div>
     </div>
   );

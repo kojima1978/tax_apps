@@ -14,6 +14,7 @@ import type { HeirComposition } from '../types';
 import { createDefaultComposition } from '../constants';
 import { COMPARISON_CAUTIONS } from '../constants/cautionMessages';
 import { calculateComparisonTable } from '../utils';
+import { CARD } from '../components/tableStyles';
 
 export const ComparisonPage: React.FC = () => {
   const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
@@ -65,7 +66,7 @@ export const ComparisonPage: React.FC = () => {
             {/* 相続財産入力 */}
             <div
               ref={estateRef}
-              className={`bg-white rounded-lg shadow-md p-6 ${hasAttempted && estateValue <= 0 ? 'ring-2 ring-red-400' : ''}`}
+              className={`${CARD} ${hasAttempted && estateValue <= 0 ? 'ring-2 ring-red-400' : ''}`}
             >
               <SectionHeader icon={Landmark} title="相続財産" />
               <div className="space-y-4">
