@@ -196,9 +196,9 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
             </div>
           </div>
         ))}
-        <div className="calc-step-item calc-bracket-table mt-8 border-t pt-6">
-          <TaxBracketTable compact />
-        </div>
+      </div>
+      <div className="calc-bracket-table mt-8 border-t pt-6">
+        <TaxBracketTable compact />
       </div>
     </div>
   );
