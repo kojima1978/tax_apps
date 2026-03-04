@@ -126,7 +126,7 @@ export function calculateInheritanceTax(
     taxAfterSpouseDeduction = Math.max(0, totalTax - reductionAmount);
   }
 
-  // 7. 実効税率
+  // 7. 相続税負担率
   const effectiveTaxRate = estateValue > 0 ? (totalTax / estateValue) * 100 : 0;
   const effectiveTaxRateAfterSpouse = estateValue > 0 ? (taxAfterSpouseDeduction / estateValue) * 100 : 0;
 
@@ -370,7 +370,7 @@ export function calculateDetailedInheritanceTax(
 
   const totalFinalTax = breakdowns.reduce((sum, b) => sum + b.finalTax, 0);
   const effectiveTaxRate = estateValue > 0
-    ? (totalFinalTax / estateValue) * 100 : 0;
+    ? (totalTax / estateValue) * 100 : 0;
 
   return {
     estateValue,

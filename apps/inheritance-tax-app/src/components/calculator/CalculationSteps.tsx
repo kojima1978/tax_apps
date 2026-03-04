@@ -18,10 +18,7 @@ const FormulaResult: React.FC<{
   formula: React.ReactNode;
   result: React.ReactNode;
 }> = ({ formula, result }) => (
-  <div>
-    <p className="text-sm text-gray-600 mb-1">{formula}</p>
-    <p className="text-lg font-bold text-green-800">= {result}</p>
-  </div>
+  <p className="text-sm text-gray-800">{formula} ＝ <span className="font-bold">{result}</span></p>
 );
 
 const BreakdownList: React.FC<{
@@ -44,7 +41,7 @@ function buildSteps(result: DetailedTaxCalculationResult): Step[] {
   const steps: Step[] = [
     {
       title: '遺産総額',
-      content: <p className="text-lg font-bold text-green-800">{formatCurrency(result.estateValue)}</p>,
+      content: <p className="text-sm font-bold text-gray-800">{formatCurrency(result.estateValue)}</p>,
     },
     {
       title: '基礎控除額',
@@ -115,23 +112,22 @@ function buildSteps(result: DetailedTaxCalculationResult): Step[] {
     steps.push({
       title: '配偶者の税額軽減',
       content: (
-        <div className="space-y-2">
+        <div className="space-y-1">
           <FormulaResult
             formula={<>控除限度額: max({formatCurrency(d.legalShareAmount)}, {formatCurrency(d.limit160m)})</>}
             result={formatCurrency(d.deductionLimit)}
           />
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-800">
             配偶者の取得額 {formatCurrency(d.acquisitionAmount)} {withinLimit ? '≦' : '＞'} 控除限度額 {formatCurrency(d.deductionLimit)}
           </p>
           {withinLimit ? (
-            <FormulaResult
-              formula={<>取得額が限度額以下 → 配偶者の按分税額 {formatCurrency(d.taxBeforeDeduction)} を全額控除</>}
-              result={<span className="text-green-700">控除額: {formatCurrency(d.actualDeduction)}</span>}
-            />
+            <p className="text-sm text-gray-800">
+              取得額が限度額以下 → 按分税額 {formatCurrency(d.taxBeforeDeduction)} を全額控除 ＝ <span className="font-bold">控除額: {formatCurrency(d.actualDeduction)}</span>
+            </p>
           ) : (
             <FormulaResult
               formula={<>{formatCurrency(result.totalTax)} × ({formatCurrency(d.deductionLimit)} / {formatCurrency(result.estateValue)})</>}
-              result={<span className="text-green-700">控除額: {formatCurrency(d.actualDeduction)}</span>}
+              result={<>控除額: {formatCurrency(d.actualDeduction)}</>}
             />
           )}
         </div>
@@ -168,7 +164,7 @@ function buildSteps(result: DetailedTaxCalculationResult): Step[] {
             <span className="font-bold">{formatCurrency(b.finalTax)}</span>
           )} />
         </div>
-        <p className="text-xl font-bold text-green-800 border-t pt-2">
+        <p className="text-lg font-bold text-gray-800 border-t pt-2">
           合計: {formatCurrency(result.totalFinalTax)}
         </p>
       </div>
