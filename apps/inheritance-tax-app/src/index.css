@@ -209,6 +209,40 @@
   .calculator-print .heir-breakdown-card {
     break-inside: avoid;
     page-break-inside: avoid;
+    overflow: visible !important;
+  }
+
+  .calculator-print .heir-breakdown-card .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .calculator-print .heir-breakdown-card table {
+    width: 100% !important;
+    table-layout: fixed;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .calculator-print .heir-breakdown-card table th,
+  .calculator-print .heir-breakdown-card table td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* 列幅: 相続人・法定相続分は狭め、金額列は広めに */
+  .calculator-print .heir-breakdown-card table th:first-child,
+  .calculator-print .heir-breakdown-card table td:first-child {
+    width: 14%;
+  }
+
+  .calculator-print .heir-breakdown-card table th:nth-child(2),
+  .calculator-print .heir-breakdown-card table td:nth-child(2) {
+    width: 14%;
+  }
+
+  .calculator-print .heir-breakdown-card table th:nth-child(n+3),
+  .calculator-print .heir-breakdown-card table td:nth-child(n+3) {
+    width: 18%;
   }
 
   /* 保険ページ */
