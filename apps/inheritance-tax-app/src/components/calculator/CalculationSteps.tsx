@@ -1,7 +1,8 @@
 import React from 'react';
 import type { DetailedTaxCalculationResult, HeirTaxBreakdown } from '../../types';
 import { formatCurrency, formatFraction } from '../../utils';
-import { BASIC_DEDUCTION } from '../../constants';
+import { BASIC_DEDUCTION, TAX_BRACKETS } from '../../constants';
+import { TaxBracketTable } from '../TaxBracketTable';
 
 interface CalculationStepsProps {
   result: DetailedTaxCalculationResult;
@@ -74,9 +75,17 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
     {
       title: '各取得金額に対する税額（速算表適用）',
       content: (
-        <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
-          <span className="font-medium">{formatCurrency(b.taxOnShare)}</span>
-        )} />
+        <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => {
+          const bracket = TAX_BRACKETS.find(br => b.legalShareAmount <= br.threshold)
+            || TAX_BRACKETS[TAX_BRACKETS.length - 1];
+          return (
+            <>
+              {formatCurrency(b.legalShareAmount)} × {bracket.rate}%
+              {bracket.deduction > 0 && <> − {formatCurrency(bracket.deduction)}</>}
+              {' '}= <span className="font-medium">{formatCurrency(b.taxOnShare)}</span>
+            </>
+          );
+        }} />
       ),
     },
     {
@@ -166,6 +175,10 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-8 border-t pt-6">
+        <TaxBracketTable compact />
       </div>
     </div>
   );
