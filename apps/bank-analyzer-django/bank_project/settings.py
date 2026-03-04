@@ -44,7 +44,16 @@ if not DEBUG:
 
 # CSRF設定
 # Nginx経由でのアクセスを許可
-CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1').split(',')
+_csrf_env = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '')
+if _csrf_env:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(',') if o.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = ['http://localhost', 'http://127.0.0.1']
+    if DEBUG:
+        # 開発環境: ALLOWED_HOSTS のホストをCSRF信頼オリジンに追加
+        for host in ALLOWED_HOSTS:
+            if host and host != '*':
+                CSRF_TRUSTED_ORIGINS.append(f'http://{host}')
 
 
 # Application definition
@@ -67,6 +76,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'bank_project.middleware.DevCsrfTrustedOriginMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
