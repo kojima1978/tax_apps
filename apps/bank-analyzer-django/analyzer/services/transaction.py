@@ -11,7 +11,7 @@ from django.db import transaction as db_transaction, IntegrityError
 from django.db.models import Count
 
 from ..models import Case, Transaction
-from ..lib import analyzer, llm_classifier, config
+from ..lib import analyzer, config, llm_classifier
 from ..lib.constants import UNCATEGORIZED
 from .utils import parse_date_value, parse_int_ids, get_transaction
 from .classification import (
@@ -191,32 +191,7 @@ class TransactionService:
         Returns:
             更新された取引数
         """
-        fuzzy_config = config.get_fuzzy_config()
-        case_patterns = case.custom_patterns or {}
-        global_patterns = config.get_classification_patterns()
-
-        txs = case.transactions.filter(category=UNCATEGORIZED)
-        if not txs.exists():
-            return 0
-
-        updates = []
-        for tx in txs:
-            if not tx.description:
-                continue
-
-            category, score = llm_classifier.classify_by_rules(
-                tx.description,
-                tx.amount_out or 0,
-                tx.amount_in or 0,
-                case_patterns=case_patterns,
-                global_patterns=global_patterns,
-                fuzzy_config=fuzzy_config
-            )
-
-            if score >= min_score and category != UNCATEGORIZED:
-                tx.category = category
-                tx.classification_score = score
-                updates.append(tx)
+        updates = classify_unclassified_transactions(case, use_fuzzy=True, min_score=min_score)
 
         if updates:
             Transaction.objects.bulk_update(updates, ['category', 'classification_score'])
@@ -512,10 +487,6 @@ class TransactionService:
             for item in qs
             if item[field_name]  # 空値は除外
         ]
-
-    # =========================================================================
-    # その他
-    # =========================================================================
 
     # =========================================================================
     # インポート

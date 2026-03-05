@@ -91,7 +91,8 @@ def calculate_match_score(match_type: str, keyword: str, description: str) -> in
 
 def classify_unclassified_transactions(
     case: Case,
-    use_fuzzy: bool = True
+    use_fuzzy: bool = True,
+    min_score: int = 0
 ) -> list[Transaction]:
     """
     未分類取引に対して分類を実行（bulk_update用のリストを返す）
@@ -99,6 +100,7 @@ def classify_unclassified_transactions(
     Args:
         case: 対象の案件
         use_fuzzy: ファジーマッチングを使用するか
+        min_score: 最小信頼度スコア（use_fuzzy=Trueの場合のみ有効、0で全マッチ）
 
     Returns:
         更新が必要なTransactionオブジェクトのリスト
@@ -127,7 +129,7 @@ def classify_unclassified_transactions(
                 fuzzy_config=fuzzy_config
             )
 
-            if category != UNCATEGORIZED:
+            if category != UNCATEGORIZED and score >= min_score:
                 tx.category = category
                 tx.classification_score = score
                 updates.append(tx)

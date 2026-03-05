@@ -8,6 +8,7 @@ import json
 import logging
 import re
 from datetime import datetime
+from io import BytesIO
 from typing import Optional
 from urllib.parse import quote
 
@@ -19,9 +20,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 import pandas as pd
+from openpyxl import Workbook
 
 from .models import Case, Transaction
-from .forms import CaseForm, SettingsForm
+from .forms import CaseForm, JsonImportForm, SettingsForm
 from .lib import config
 from .lib.constants import UNCATEGORIZED, sort_categories, sort_patterns_dict
 from .services import TransactionService, AnalysisService
@@ -336,8 +338,6 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
 
 def import_json(request: HttpRequest) -> HttpResponse:
     """JSONバックアップから新規案件を復元"""
-    from .forms import JsonImportForm
-
     if request.method == 'POST':
         form = JsonImportForm(request.POST, request.FILES)
         if form.is_valid():
@@ -429,9 +429,6 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
 
 def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
     """分類別にシート分けしたExcelファイルをエクスポート"""
-    from io import BytesIO
-    from openpyxl import Workbook
-
     case = get_object_or_404(Case, pk=pk)
     transactions = case.transactions.all().order_by('date', 'id')
 
@@ -547,18 +544,10 @@ def case_detail(request: HttpRequest, pk: int) -> HttpResponse:
     transactions_list = case.transactions.all().order_by('date', 'id')
     transactions = _paginate(transactions_list, request.GET.get('page', 1))
 
-    field_values = case.transactions.values_list('bank_name', 'branch_name', 'account_id')
-    banks_set, branches_set, accounts_set = set(), set(), set()
-    for bank, branch, account in field_values:
-        if bank:
-            banks_set.add(bank)
-        if branch:
-            branches_set.add(branch)
-        if account:
-            accounts_set.add(account)
-    banks = sorted(banks_set)
-    branches = sorted(branches_set)
-    accounts = sorted(accounts_set)
+    _qs = case.transactions.order_by()
+    banks = sorted(_qs.values_list('bank_name', flat=True).exclude(bank_name='').exclude(bank_name__isnull=True).distinct())
+    branches = sorted(_qs.values_list('branch_name', flat=True).exclude(branch_name='').exclude(branch_name__isnull=True).distinct())
+    accounts = sorted(_qs.values_list('account_id', flat=True).exclude(account_id='').exclude(account_id__isnull=True).distinct())
     categories = AnalysisService.STANDARD_CATEGORIES
 
     context = {

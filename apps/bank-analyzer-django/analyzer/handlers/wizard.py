@@ -18,6 +18,7 @@ from ..models import Case, Transaction
 from ..services import TransactionService
 from ..lib import importer
 from ..lib.exceptions import CsvImportError
+from .base import json_error
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +48,6 @@ _ACCOUNT_COMMIT_FIELDS = [
     ('branch_name', 'branch_name'),
     ('account_type', 'account_type'),
 ]
-
-
-def _json_error(error: str, details: dict = None) -> JsonResponse:
-    """標準化されたエラーJSONレスポンスを生成"""
-    data = {'success': False, 'error': error}
-    if details:
-        data['error_details'] = details
-    return JsonResponse(data)
 
 
 def import_wizard(request: HttpRequest, pk: int) -> HttpResponse:
@@ -118,21 +111,21 @@ def _handle_parse_files(request: HttpRequest, case: Case) -> JsonResponse:
                 files_data.extend(result)
 
             except CsvImportError as e:
-                return _json_error(
+                return json_error(
                     f"ファイル '{csv_file.name}' のエラー: {e.message}",
-                    e.to_dict(),
+                    details=e.to_dict(),
                 )
 
             file_index += 1
 
         if not files_data:
-            return _json_error('ファイルが見つかりません')
+            return json_error('ファイルが見つかりません')
 
         return JsonResponse({'success': True, 'files': files_data})
 
     except Exception as e:
         logger.exception("ウィザード: ファイル解析エラー")
-        return _json_error(str(e))
+        return json_error(str(e))
 
 
 def _df_to_json_safe_rows(df: pd.DataFrame) -> list[dict]:

@@ -989,26 +989,10 @@ const AISuggestions = {
 
         showToast('一括適用中...', 'info');
 
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(response => {
-            if (response.redirected) {
-                window.location.href = response.url;
-            } else {
-                return response.json();
-            }
-        })
-        .then(data => {
-            if (data && data.success) {
+        postJson(window.location.href, formData, {
+            onSuccess: function() {
                 window.location.reload();
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('エラーが発生しました', 'danger');
         });
     },
 

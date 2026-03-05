@@ -15,9 +15,18 @@ from django.shortcuts import redirect
 logger = logging.getLogger(__name__)
 
 
-def json_error(message: str, status: int = 400) -> JsonResponse:
+def json_error(message: str, status: int = 400, details: dict = None) -> JsonResponse:
     """JSON APIのエラーレスポンスを生成"""
-    return JsonResponse({'success': False, 'error': message}, status=status)
+    data = {'success': False, 'error': message}
+    if details:
+        data['error_details'] = details
+    return JsonResponse(data, status=status)
+
+
+def json_api_error(e: Exception, error_context: str) -> JsonResponse:
+    """JSON APIの例外エラーレスポンスを生成（ログ出力付き）"""
+    logger.exception(f"{error_context}: error={e}")
+    return json_error(safe_error_message(e), status=500)
 
 
 def safe_error_message(e: Exception, context: str = "") -> str:

@@ -155,7 +155,7 @@
                         <i class="bi bi-check-lg"></i> 分類を一括保存
                     </button>
                     {% endif %}
-                    <a href="{% url 'export-csv-filtered' case.pk %}?{% for b in filter_state.bank %}bank={{ b }}&{% endfor %}{% for a in filter_state.account %}account={{ a }}&{% endfor %}{% for c in filter_state.category %}category={{ c }}&{% endfor %}{% if filter_state.category_mode %}category_mode={{ filter_state.category_mode }}&{% endif %}{% if filter_state.keyword %}keyword={{ filter_state.keyword }}&{% endif %}{% if filter_state.amount_min %}amount_min={{ filter_state.amount_min }}&{% endif %}{% if filter_state.amount_max %}amount_max={{ filter_state.amount_max }}&{% endif %}{% if filter_state.amount_type %}amount_type={{ filter_state.amount_type }}{% endif %}"
+                    <a href="{% url 'export-csv-filtered' case.pk %}?{% for b in filter_state.bank %}bank={{ b|urlencode }}&{% endfor %}{% for a in filter_state.account %}account={{ a|urlencode }}&{% endfor %}{% for c in filter_state.category %}category={{ c|urlencode }}&{% endfor %}{% if filter_state.category_mode %}category_mode={{ filter_state.category_mode|urlencode }}&{% endif %}{% if filter_state.keyword %}keyword={{ filter_state.keyword|urlencode }}&{% endif %}{% if filter_state.amount_min %}amount_min={{ filter_state.amount_min }}&{% endif %}{% if filter_state.amount_max %}amount_max={{ filter_state.amount_max }}&{% endif %}{% if filter_state.amount_type %}amount_type={{ filter_state.amount_type }}{% endif %}"
                        class="btn btn-success btn-sm" title="現在の絞り込み結果をCSV出力（{{ all_txs_count }}件）">
                         <i class="bi bi-download"></i> 絞込結果CSV
                     </a>
