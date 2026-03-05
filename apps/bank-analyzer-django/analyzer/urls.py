@@ -6,7 +6,6 @@ urlpatterns = [
     path('new/', views.CaseCreateView.as_view(), name='case-create'),
     path('settings/', views.settings_view, name='settings'),
     path('import-json/', views.import_json, name='import-json'),
-    path('case/<int:pk>/', views.case_detail, name='case-detail'),
     path('case/<int:pk>/edit/', views.CaseUpdateView.as_view(), name='case-update'),
     path('case/<int:pk>/delete/', views.CaseDeleteView.as_view(), name='case-delete'),
     path('case/<int:pk>/direct-input/', views.direct_input, name='direct-input'),

@@ -9,7 +9,7 @@
         <nav aria-label="breadcrumb" class="mb-3">
             <ol class="breadcrumb mb-0">
                 <li class="breadcrumb-item"><a href="{% url 'case-list' %}" class="text-decoration-none text-muted">案件一覧</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'case-detail' case.pk %}" class="text-decoration-none text-muted">{{ case.name }}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'analysis-dashboard' case.pk %}" class="text-decoration-none text-muted">{{ case.name }}</a></li>
                 <li class="breadcrumb-item active" aria-current="page">直接入力</li>
             </ol>
         </nav>
@@ -99,7 +99,7 @@
                     <span id="selectedCount" class="ms-2 text-muted small"></span>
                 </div>
                 <div>
-                    <a href="{% url 'case-detail' case.pk %}" class="btn btn-outline-secondary btn-sm me-2">キャンセル</a>
+                    <a href="{% url 'analysis-dashboard' case.pk %}" class="btn btn-outline-secondary btn-sm me-2">キャンセル</a>
                     <button type="submit" class="btn btn-primary btn-sm btn-submit">
                         <i class="bi bi-check-lg"></i> 登録実行
                     </button>

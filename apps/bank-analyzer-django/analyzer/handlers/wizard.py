@@ -368,7 +368,7 @@ def _handle_commit_wizard(request: HttpRequest, case: Case, pk: int) -> HttpResp
             messages.success(request, f'{total_imported}件の取引を取り込みました（{total_skipped}件の重複をスキップ）')
         else:
             messages.success(request, f'{total_imported}件の取引を取り込みました')
-        return redirect('case-detail', pk=pk)
+        return redirect('analysis-dashboard', pk=pk)
 
     except Exception as e:
         logger.exception(f"ウィザードインポートエラー: case_id={pk}")

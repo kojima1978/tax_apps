@@ -1,3 +1,4 @@
+{% load humanize %}
 <!-- AI分類タブ -->
 <div class="tab-pane fade" id="ai" role="tabpanel" aria-labelledby="ai-tab">
     <!-- 自動分類実行通知 -->
@@ -14,72 +15,161 @@
     </div>
     {% endif %}
 
-    <div class="card">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">🤖 AI分類提案</h5>
-        </div>
-        <div class="card-body">
-            {% if ai_suggestions %}
-                <!-- ファジーマッチング閾値調整 -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label for="fuzzyThresholdSlider" class="form-label">
-                            ファジーマッチング閾値: <strong id="fuzzyThresholdValue">{{ fuzzy_threshold }}%</strong>
-                        </label>
+    <div class="glass-card p-4">
+        {% if ai_suggestions %}
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0"><i class="bi bi-robot me-2"></i>AI分類提案</h5>
+                <span class="text-muted" id="aiSuggestionCount">{{ ai_groups|length }}グループ / {{ ai_suggestions|length }}件</span>
+            </div>
+
+            <!-- コントロールパネル -->
+            <div class="ai-control-panel mb-4">
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <!-- 閾値スライダー -->
+                    <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 360px;">
+                        <label for="fuzzyThresholdSlider" class="form-label mb-0 text-nowrap small">閾値</label>
                         <input type="range" class="form-range" id="fuzzyThresholdSlider"
                             min="70" max="100" step="5" value="{{ fuzzy_threshold }}"
                             onchange="AISuggestions.updateFuzzyThreshold(this.value)">
-                        <small class="text-muted">
-                            高い閾値（95%以上）: 高精度だが候補が少ない<br>
-                            低い閾値（70-80%）: 候補が多いが精度が下がる
-                        </small>
+                        <strong id="fuzzyThresholdValue" class="text-nowrap" style="min-width: 40px;">{{ fuzzy_threshold }}%</strong>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="AISuggestions.regenerate()" title="再生成">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
                     </div>
-                    <div class="col-md-6 text-end">
-                        <button type="button" class="btn btn-outline-primary" onclick="AISuggestions.regenerate()">
-                            <i class="bi bi-arrow-clockwise"></i> 提案を再生成
+                    <!-- ビュー切替 + 一括適用 -->
+                    <div class="d-flex gap-2 ms-auto">
+                        <div class="btn-group btn-group-sm" id="aiViewToggle">
+                            <button type="button" class="btn btn-outline-primary active" data-view="grouped" title="グループ表示">
+                                <i class="bi bi-collection"></i> グループ
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" data-view="flat" title="一覧表示">
+                                <i class="bi bi-list-ul"></i> 一覧
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm" onclick="AISuggestions.bulkApply(95)">
+                            <i class="bi bi-check-all"></i> 95%以上を一括適用
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="AISuggestions.bulkApply(85)">
+                            <i class="bi bi-check-circle"></i> 85%以上
                         </button>
                     </div>
                 </div>
+            </div>
 
-                <!-- 一括適用ボタン -->
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-success" onclick="AISuggestions.bulkApply(95)">
-                                <i class="bi bi-check-all"></i> 高信頼度を一括適用 (95%以上)
-                            </button>
-                            <button type="button" class="btn btn-warning" onclick="AISuggestions.bulkApply(85)">
-                                <i class="bi bi-check-circle"></i> 全て一括適用 (85%以上)
-                            </button>
-                        </div>
-                        <small class="text-muted ms-3">
-                            対象: {{ ai_suggestions|length }}件の未分類取引
-                        </small>
-                    </div>
-                </div>
-
-                <!-- AI提案テーブル -->
+            <!-- ===== グループ表示 ===== -->
+            <div id="aiGroupedView">
                 <div class="table-responsive">
                     <table class="table table-hover table-sm">
                         <thead class="table-light">
                             <tr>
-                                <th style="width: 5%;">ID</th>
-                                <th style="width: 8%;">取引日</th>
-                                <th style="width: 25%;">摘要</th>
-                                <th style="width: 10%;" class="text-end">出金</th>
-                                <th style="width: 10%;" class="text-end">入金</th>
-                                <th style="width: 14%;">AI提案</th>
-                                <th style="width: 10%;" class="text-center">信頼度</th>
+                                <th style="width: 30%;">摘要</th>
+                                <th style="width: 8%;" class="text-center">件数</th>
+                                <th style="width: 12%;" class="text-end">出金合計</th>
+                                <th style="width: 12%;" class="text-end">入金合計</th>
+                                <th style="width: 15%;">AI提案</th>
+                                <th style="width: 5%;" class="text-center">信頼度</th>
+                                <th style="width: 18%;" class="text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for group in ai_groups %}
+                            <tr class="ai-group-row"
+                                data-description="{{ group.description }}"
+                                data-category="{{ group.suggested_category }}"
+                                data-tx-ids="{{ group.tx_ids|join:',' }}"
+                                data-count="{{ group.count }}"
+                                data-score="{{ group.score }}">
+                                <td>
+                                    <span class="text-truncate d-inline-block" style="max-width: 260px;" title="{{ group.description }}">
+                                        {{ group.description }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary rounded-pill">{{ group.count }}</span>
+                                </td>
+                                <td class="text-end">
+                                    {% if group.total_out > 0 %}
+                                    <span class="text-danger">¥{{ group.total_out|intcomma }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if group.total_in > 0 %}
+                                    <span class="text-success">¥{{ group.total_in|intcomma }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info text-dark">{{ group.suggested_category }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="ai-confidence-bar" title="{{ group.score }}%">
+                                        <div class="ai-confidence-fill {% if group.score >= 95 %}bg-success{% elif group.score >= 85 %}bg-primary{% else %}bg-warning{% endif %}" style="width: {{ group.score }}%;"></div>
+                                        <span class="ai-confidence-label">{{ group.score }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        {% if group.score >= 95 %}
+                                        <!-- 95%以上: ワンクリック適用 -->
+                                        <button type="button" class="btn btn-success ai-apply-group-btn" title="ワンクリック適用（{{ group.count }}件）">
+                                            <i class="bi bi-check-lg"></i> 適用
+                                        </button>
+                                        {% else %}
+                                        <!-- 95%未満: 確認付き適用 -->
+                                        <button type="button" class="btn btn-outline-success ai-apply-group-confirm-btn" title="確認して適用（{{ group.count }}件）">
+                                            <i class="bi bi-check"></i> 適用
+                                        </button>
+                                        {% endif %}
+                                        <button type="button" class="btn btn-outline-primary ai-apply-pattern-btn dropdown-toggle dropdown-toggle-split"
+                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span class="visually-hidden">パターン追加</span>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item ai-pattern-global" href="#">
+                                                    <i class="bi bi-globe"></i> 適用＋グローバルに追加
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item ai-pattern-case" href="#">
+                                                    <i class="bi bi-folder"></i> 適用＋この案件に追加
+                                                </a>
+                                            </li>
+                                        </ul>
+                                        <button type="button" class="btn btn-outline-secondary ai-dismiss-group-btn" title="却下">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ===== フラット表示 ===== -->
+            <div id="aiFlatView" style="display: none;">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm ai-suggestion-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 9%;">取引日</th>
+                                <th style="width: 28%;">摘要</th>
+                                <th style="width: 11%;" class="text-end">出金</th>
+                                <th style="width: 11%;" class="text-end">入金</th>
+                                <th style="width: 18%;">AI提案</th>
+                                <th style="width: 5%;" class="text-center">信頼度</th>
                                 <th style="width: 18%;" class="text-center">操作</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for suggestion in ai_suggestions %}
-                                <tr id="ai-row-{{ suggestion.tx_id }}">
-                                    <td><small class="text-muted">#{{ suggestion.tx_id }}</small></td>
-                                    <td>{{ suggestion.date|date:"Y/m/d" }}</td>
+                                <tr id="ai-row-{{ suggestion.tx_id }}" class="ai-flat-row"
+                                    data-description="{{ suggestion.description }}"
+                                    data-score="{{ suggestion.score }}">
+                                    <td><small>{{ suggestion.date|date:"Y/m/d" }}</small></td>
                                     <td>
-                                        <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ suggestion.description }}">
+                                        <span class="text-truncate d-inline-block" style="max-width: 240px;" title="{{ suggestion.description }}">
                                             {{ suggestion.description }}
                                         </span>
                                     </td>
@@ -108,21 +198,26 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        {% if suggestion.score >= 95 %}
-                                            <span class="badge bg-success">{{ suggestion.score }}%</span>
-                                        {% elif suggestion.score >= 85 %}
-                                            <span class="badge bg-primary">{{ suggestion.score }}%</span>
-                                        {% else %}
-                                            <span class="badge bg-warning text-dark">{{ suggestion.score }}%</span>
-                                        {% endif %}
+                                        <div class="ai-confidence-bar" title="{{ suggestion.score }}%">
+                                            <div class="ai-confidence-fill {% if suggestion.score >= 95 %}bg-success{% elif suggestion.score >= 85 %}bg-primary{% else %}bg-warning{% endif %}" style="width: {{ suggestion.score }}%;"></div>
+                                            <span class="ai-confidence-label">{{ suggestion.score }}</span>
+                                        </div>
                                     </td>
                                     <td class="text-center">
+                                        {% if suggestion.score >= 95 %}
+                                        <!-- 95%以上: ワンクリック適用 -->
+                                        <button type="button" class="btn btn-success btn-sm ai-apply-flat-btn"
+                                            data-tx-id="{{ suggestion.tx_id }}" data-category="{{ suggestion.suggested_category }}">
+                                            <i class="bi bi-check-lg"></i> 適用
+                                        </button>
+                                        {% else %}
+                                        <!-- 95%未満: 確認付き -->
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <button type="button" class="btn btn-success"
+                                            <button type="button" class="btn btn-outline-success"
                                                 onclick="AISuggestions.apply({{ suggestion.tx_id }}, '{{ suggestion.suggested_category }}')">
                                                 <i class="bi bi-check"></i> 適用
                                             </button>
-                                            <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split"
+                                            <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
                                                 data-bs-toggle="dropdown" aria-expanded="false">
                                                 <span class="visually-hidden">その他</span>
                                             </button>
@@ -145,34 +240,36 @@
                                                 <i class="bi bi-x"></i>
                                             </button>
                                         </div>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+            </div>
 
-                <!-- ページネーション（100件以上の場合） -->
-                {% if ai_suggestions|length >= 100 %}
-                    <div class="alert alert-info mt-3">
-                        <i class="bi bi-info-circle"></i>
-                        表示は最新100件までです。残りの未分類取引は一括適用機能をご利用ください。
-                    </div>
-                {% endif %}
-
-            {% else %}
-                <!-- 提案なし -->
-                <div class="alert alert-success">
-                    <h5 class="alert-heading">
-                        <i class="bi bi-check-circle"></i> すべての取引が分類されています
-                    </h5>
-                    <p class="mb-0">
-                        AI分類が必要な未分類の取引はありません。
-                        新しい取引をインポートすると、自動的にこのタブに提案が表示されます。
-                    </p>
+            <!-- ページネーション（100件以上の場合） -->
+            {% if ai_suggestions|length >= 100 %}
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-info-circle"></i>
+                    表示は最新100件までです。残りの未分類取引は一括適用機能をご利用ください。
                 </div>
             {% endif %}
-        </div>
+
+            <!-- パターンプロンプト表示用 -->
+            <div id="aiPatternPromptArea"></div>
+
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-check-circle display-1 text-success mb-3"></i>
+                <h5>すべての取引が分類されています</h5>
+                <p class="text-muted mb-0">
+                    AI分類が必要な未分類の取引はありません。
+                    新しい取引をインポートすると、自動的にこのタブに提案が表示されます。
+                </p>
+            </div>
+        {% endif %}
     </div>
 
     <!-- パターン管理セクション -->

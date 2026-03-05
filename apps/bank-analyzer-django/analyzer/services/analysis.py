@@ -243,7 +243,7 @@ class AnalysisService:
 
     @staticmethod
     def _get_duplicate_transactions(df: pd.DataFrame) -> list:
-        """重複取引を検出してリストで返す"""
+        """重複取引を検出してリストで返す（グループインデックス付き）"""
         dup_cols = ['date', 'amount_out', 'amount_in', 'description', 'account_id']
         if not all(col in df.columns for col in dup_cols):
             return []
@@ -252,6 +252,12 @@ class AnalysisService:
         dup_df = convert_amounts_to_int(
             df[duplicates_mask].sort_values(by=dup_cols).copy()
         )
+        # Assign alternating group index for visual grouping
+        if not dup_df.empty:
+            dup_df['_dup_key'] = dup_df[dup_cols].astype(str).agg('|'.join, axis=1)
+            group_map = {k: i % 2 for i, k in enumerate(dup_df['_dup_key'].unique())}
+            dup_df['dup_group_idx'] = dup_df['_dup_key'].map(group_map)
+            dup_df = dup_df.drop(columns=['_dup_key'])
         return dup_df.to_dict(orient='records')
 
     @staticmethod
@@ -378,8 +384,39 @@ class AnalysisService:
                     'alternative_suggestions': alternative_suggestions,
                 })
 
+        # グルーピング: 同じ(description, suggested_category)をまとめる
+        from collections import OrderedDict
+        grouped = OrderedDict()
+        for s in suggestions:
+            key = (s['description'], s['suggested_category'])
+            if key not in grouped:
+                grouped[key] = {
+                    'description': s['description'],
+                    'suggested_category': s['suggested_category'],
+                    'score': s['score'],
+                    'alternative_suggestions': s['alternative_suggestions'],
+                    'tx_ids': [],
+                    'total_out': 0,
+                    'total_in': 0,
+                    'count': 0,
+                    'sample_date': s['date'],
+                }
+            g = grouped[key]
+            g['tx_ids'].append(s['tx_id'])
+            g['total_out'] += s['amount_out']
+            g['total_in'] += s['amount_in']
+            g['count'] += 1
+            # Keep highest score
+            if s['score'] > g['score']:
+                g['score'] = s['score']
+
+        ai_groups = list(grouped.values())
+        # Sort by count descending, then score descending
+        ai_groups.sort(key=lambda g: (-g['count'], -g['score']))
+
         return {
             'ai_suggestions': suggestions,
+            'ai_groups': ai_groups,
             'suggestions_count': len(suggestions),
             'unclassified_count': unclassified_count,
             'fuzzy_threshold': fuzzy_threshold,

@@ -89,3 +89,26 @@ class SettingsForm(forms.Form):
         help_text="出金額と入金額の差がこの範囲内であれば資金移動として判定します",
         widget=forms.NumberInput(attrs={"class": "form-control"})
     )
+    gift_threshold = forms.IntegerField(
+        label="贈与判定の閾値（円）",
+        min_value=0,
+        max_value=1_000_000_000,
+        initial=1_000_000,
+        help_text="この金額以上の振込を「贈与」候補として自動分類します",
+        widget=forms.NumberInput(attrs={"class": "form-control"})
+    )
+    fuzzy_enabled = forms.BooleanField(
+        label="ファジーマッチングを有効にする",
+        required=False,
+        initial=True,
+        help_text="類似キーワードによる自動分類を有効にします",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+    )
+    fuzzy_threshold = forms.IntegerField(
+        label="ファジーマッチング 類似度閾値",
+        min_value=0,
+        max_value=100,
+        initial=90,
+        help_text="0〜100。高いほど厳密に一致する必要があります（推奨: 80〜95）",
+        widget=forms.NumberInput(attrs={"class": "form-control"})
+    )

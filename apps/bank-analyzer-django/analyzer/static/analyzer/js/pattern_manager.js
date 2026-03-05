@@ -241,40 +241,39 @@ const PatternManager = {
     },
 
     addPatternPrompt: function(category, scope) {
+        const self = this;
         const scopeLabel = scope === 'case' ? '案件固有' : 'グローバル';
-        const keyword = prompt(
-            `「${category}」に追加するキーワードを入力してください：\n\n` +
-            `適用範囲: ${scopeLabel}\n\n` +
-            `（このキーワードを含む取引が自動的に「${category}」に分類されます）`
-        );
-
-        if (!keyword || !keyword.trim()) {
-            return;
-        }
-
-        this.stageAddPattern(category, keyword.trim(), scope);
+        ConfirmModal.prompt({
+            title: 'キーワード追加',
+            message: `「${category}」に追加するキーワードを入力してください：\n適用範囲: ${scopeLabel}`,
+            placeholder: 'キーワードを入力',
+            confirmText: '追加',
+            onConfirm: (keyword) => {
+                self.stageAddPattern(category, keyword, scope);
+            }
+        });
     },
 
     addNewCategoryPattern: function(scope) {
+        const self = this;
         const scopeLabel = scope === 'case' ? '案件固有' : 'グローバル';
-        const category = prompt(
-            `新しいカテゴリー名を入力してください：\n\n適用範囲: ${scopeLabel}`
-        );
-
-        if (!category || !category.trim()) {
-            return;
-        }
-
-        const keyword = prompt(
-            `「${category}」に追加する最初のキーワードを入力してください：\n\n` +
-            `（このキーワードを含む取引が自動的に「${category}」に分類されます）`
-        );
-
-        if (!keyword || !keyword.trim()) {
-            return;
-        }
-
-        this.stageAddPattern(category.trim(), keyword.trim(), scope);
+        ConfirmModal.prompt({
+            title: '新規カテゴリー作成',
+            message: `新しいカテゴリー名を入力してください：\n適用範囲: ${scopeLabel}`,
+            placeholder: 'カテゴリー名',
+            confirmText: '次へ',
+            onConfirm: (category) => {
+                ConfirmModal.prompt({
+                    title: 'キーワード追加',
+                    message: `「${category}」に追加する最初のキーワードを入力してください：`,
+                    placeholder: 'キーワードを入力',
+                    confirmText: '追加',
+                    onConfirm: (keyword) => {
+                        self.stageAddPattern(category, keyword, scope);
+                    }
+                });
+            }
+        });
     },
 
     // ===== Save/Discard Functions =====
@@ -285,10 +284,16 @@ const PatternManager = {
             return;
         }
 
-        if (!confirm(`${this.pendingChanges.length}件の変更を保存しますか？`)) {
-            return;
-        }
+        const self = this;
+        ConfirmModal.show({
+            title: '変更の保存',
+            message: `${this.pendingChanges.length}件の変更を保存しますか？`,
+            confirmText: '保存',
+            onConfirm: () => { self._doSaveAllChanges(); }
+        });
+    },
 
+    _doSaveAllChanges: function() {
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
         const formData = new FormData();
         formData.append('csrfmiddlewaretoken', csrfToken);
@@ -331,13 +336,18 @@ const PatternManager = {
             return;
         }
 
-        if (!confirm(`${this.pendingChanges.length}件の未保存の変更を破棄しますか？`)) {
-            return;
-        }
-
-        this.pendingChanges = [];
-        this.showToast('変更を破棄しました', 'info');
-        window.location.reload();
+        const self = this;
+        ConfirmModal.show({
+            title: '変更の破棄',
+            message: `${this.pendingChanges.length}件の未保存の変更を破棄しますか？`,
+            confirmText: '破棄',
+            confirmClass: 'btn-danger',
+            onConfirm: () => {
+                self.pendingChanges = [];
+                self.showToast('変更を破棄しました', 'info');
+                window.location.reload();
+            }
+        });
     },
 
     // ===== Drag & Drop Functions =====

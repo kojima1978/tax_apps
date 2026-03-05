@@ -308,12 +308,6 @@ class ViewsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "テスト案件")
 
-    def test_case_detail_view(self):
-        """案件詳細ビュー"""
-        response = self.client.get(reverse('case-detail', args=[self.case.pk]))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "テスト案件")
-
     def test_case_create_view(self):
         """案件作成ビュー GET"""
         response = self.client.get(reverse('case-create'))

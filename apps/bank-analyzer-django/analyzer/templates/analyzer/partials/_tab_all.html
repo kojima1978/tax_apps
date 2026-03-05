@@ -4,121 +4,128 @@
 
 <div class="tab-pane fade show active" id="all" role="tabpanel" aria-labelledby="all-tab">
     <div class="glass-card p-4">
-        <!-- Filters -->
-        <form method="get" class="row g-3 mb-4">
-            <input type="hidden" name="tab" value="all">
-            <div class="col-md-2">
-                <label class="form-label">日付範囲</label>
-                <div class="d-flex align-items-center gap-1 mb-1">
-                    <span class="small text-muted" style="width: 45px;">開始日</span>
-                    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filter_state.date_from|default:'' }}">
-                </div>
-                <div class="d-flex align-items-center gap-1">
-                    <span class="small text-muted" style="width: 45px;">終了日</span>
-                    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filter_state.date_to|default:'' }}">
-                </div>
+        <!-- クイックフィルター＋チップ（常時表示） -->
+        <div class="d-flex align-items-center flex-wrap gap-2 mb-2" id="quickFilters" data-case-pk="{{ case.pk }}">
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary" data-quick="outOnly">出金のみ</button>
+                <button type="button" class="btn btn-outline-secondary" data-quick="inOnly">入金のみ</button>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">銀行名</label>
-                <select name="bank" class="form-select filter-control" multiple size="3">
-                    {% for bank in banks %}
-                    <option value="{{ bank }}" {% if bank in filter_state.bank %}selected{% endif %}>{{ bank }}
-                    </option>
-                    {% endfor %}
-                </select>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary" data-quick="over300k">30万以上</button>
+                <button type="button" class="btn btn-outline-secondary" data-quick="over500k">50万以上</button>
+                <button type="button" class="btn btn-outline-secondary" data-quick="over1m">100万以上</button>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">口座</label>
-                <select name="account" class="form-select filter-control" multiple size="3">
-                    {% for acc in accounts %}
-                    <option value="{{ acc }}" {% if acc in filter_state.account %}selected{% endif %}>{{ acc }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">分類</label>
-                <select name="category" class="form-select filter-control" multiple size="3">
-                    {% for cat in categories %}
-                    <option value="{{ cat }}" {% if cat in filter_state.category %}selected{% endif %}>{{ cat }}
-                    </option>
-                    {% endfor %}
-                </select>
-                <div class="d-flex gap-2 mt-1">
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="category_mode" id="cat_mode_include" value="include" {% if filter_state.category_mode != 'exclude' %}checked{% endif %}>
-                        <label class="form-check-label small" for="cat_mode_include">含む</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="category_mode" id="cat_mode_exclude" value="exclude" {% if filter_state.category_mode == 'exclude' %}checked{% endif %}>
-                        <label class="form-check-label small" for="cat_mode_exclude">以外</label>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">キーワード検索</label>
-                <input type="text" name="keyword" class="form-control filter-control" value="{{ filter_state.keyword }}"
-                    placeholder="摘要を検索...">
-            </div>
-            <div class="col-md-2 d-flex align-items-start gap-1 pt-4">
-                <button class="btn btn-sm btn-outline-secondary" type="submit">
-                    <i class="bi bi-search"></i> 絞り込み
-                </button>
-                <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-x-lg"></i> クリア
-                </a>
-            </div>
-        </form>
-
-        <!-- 金額フィルター（折りたたみ式） -->
-        <div class="mb-4">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#amountFilterCollapse" aria-expanded="{% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' %}true{% else %}false{% endif %}">
-                <i class="bi bi-funnel"></i> 金額で絞り込み
-                {% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' %}
-                <span class="badge bg-primary ms-1">適用中</span>
-                {% endif %}
+            <div class="vr mx-1"></div>
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="false" id="filterPanelToggle">
+                <i class="bi bi-funnel"></i> 詳細フィルター
             </button>
-            <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-sm btn-outline-secondary ms-2">
-                <i class="bi bi-x-lg"></i> フィルタークリア
+            <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-sm btn-outline-secondary" id="filterClearBtn" style="display:none;">
+                <i class="bi bi-x-lg"></i> クリア
             </a>
-            <div class="collapse {% if filter_state.amount_min or filter_state.amount_max or filter_state.amount_type != 'both' %}show{% endif %}" id="amountFilterCollapse">
-                <form method="get" class="row g-3 mt-2 p-3 bg-light rounded">
-                    <!-- タブ状態を保持 -->
-                    <input type="hidden" name="tab" value="all">
-                    <!-- 既存フィルターを隠しフィールドで保持 -->
-                    {% for b in filter_state.bank %}<input type="hidden" name="bank" value="{{ b }}">{% endfor %}
-                    {% for a in filter_state.account %}<input type="hidden" name="account" value="{{ a }}">{% endfor %}
-                    {% for c in filter_state.category %}<input type="hidden" name="category" value="{{ c }}">{% endfor %}
-                    {% if filter_state.category_mode %}<input type="hidden" name="category_mode" value="{{ filter_state.category_mode }}">{% endif %}
-                    {% if filter_state.keyword %}<input type="hidden" name="keyword" value="{{ filter_state.keyword }}">{% endif %}
-                    {% if filter_state.date_from %}<input type="hidden" name="date_from" value="{{ filter_state.date_from }}">{% endif %}
-                    {% if filter_state.date_to %}<input type="hidden" name="date_to" value="{{ filter_state.date_to }}">{% endif %}
+        </div>
 
-                    <div class="col-md-2">
-                        <label class="form-label small">取引種別</label>
+        <!-- アクティブフィルター・チップ -->
+        <div id="activeFilterChips" class="mb-2 d-flex flex-wrap gap-1"></div>
+
+        <!-- 詳細フィルターパネル（折りたたみ） -->
+        <div class="collapse mb-3" id="filterPanel">
+            <form method="get" class="filter-panel-body" id="filterForm">
+                <input type="hidden" name="tab" value="all">
+                <!-- ローディングオーバーレイ -->
+                <div class="filter-loading-overlay" id="filterLoadingOverlay">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">読み込み中...</span>
+                    </div>
+                </div>
+                <!-- 1段目: チェックボックス系 -->
+                <div class="row g-3 mb-2">
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm fw-semibold"><i class="bi bi-bank2 me-1"></i>銀行名</label>
+                        <div class="checkbox-filter-list">
+                            {% for bank in banks %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="bank" value="{{ bank }}" id="bank_{{ forloop.counter }}" {% if bank in filter_state.bank %}checked{% endif %}>
+                                <label class="form-check-label small" for="bank_{{ forloop.counter }}">{{ bank }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm fw-semibold"><i class="bi bi-wallet2 me-1"></i>口座</label>
+                        <div class="checkbox-filter-list">
+                            {% for acc in accounts %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="account" value="{{ acc }}" id="acc_{{ forloop.counter }}" {% if acc in filter_state.account %}checked{% endif %}>
+                                <label class="form-check-label small" for="acc_{{ forloop.counter }}">{{ acc }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm fw-semibold"><i class="bi bi-tag me-1"></i>分類</label>
+                        <div class="checkbox-filter-list">
+                            {% for cat in categories %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="category" value="{{ cat }}" id="cat_{{ forloop.counter }}" {% if cat in filter_state.category %}checked{% endif %}>
+                                <label class="form-check-label small" for="cat_{{ forloop.counter }}">{{ cat }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex gap-2 mt-1">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="category_mode" id="cat_mode_include" value="include" {% if filter_state.category_mode != 'exclude' %}checked{% endif %}>
+                                <label class="form-check-label small" for="cat_mode_include">含む</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="category_mode" id="cat_mode_exclude" value="exclude" {% if filter_state.category_mode == 'exclude' %}checked{% endif %}>
+                                <label class="form-check-label small" for="cat_mode_exclude">以外</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm fw-semibold"><i class="bi bi-search me-1"></i>キーワード</label>
+                        <input type="text" name="keyword" class="form-control form-control-sm" value="{{ filter_state.keyword }}"
+                            placeholder="摘要を検索...">
+                        <div class="mt-3">
+                            <label class="form-label form-label-sm fw-semibold"><i class="bi bi-calendar3 me-1"></i>日付範囲</label>
+                            <div class="d-flex align-items-center gap-1 mb-1">
+                                <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filter_state.date_from|default:'' }}">
+                                <span class="text-muted small">〜</span>
+                                <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filter_state.date_to|default:'' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 2段目: 金額フィルター + noscriptボタン -->
+                <div class="d-flex align-items-end gap-3 pt-2 border-top">
+                    <div>
+                        <label class="form-label form-label-sm fw-semibold mb-1"><i class="bi bi-currency-yen me-1"></i>取引種別</label>
                         <select name="amount_type" class="form-select form-select-sm">
-                            <option value="both" {% if filter_state.amount_type == 'both' %}selected{% endif %}>出金・入金両方</option>
+                            <option value="both" {% if filter_state.amount_type == 'both' %}selected{% endif %}>両方</option>
                             <option value="out" {% if filter_state.amount_type == 'out' %}selected{% endif %}>出金のみ</option>
                             <option value="in" {% if filter_state.amount_type == 'in' %}selected{% endif %}>入金のみ</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">最小金額</label>
-                        <input type="text" name="amount_min" class="form-control form-control-sm"
-                            value="{{ filter_state.amount_min }}" placeholder="例: 100000">
+                    <div>
+                        <label class="form-label form-label-sm fw-semibold mb-1">金額範囲</label>
+                        <div class="d-flex align-items-center gap-1">
+                            <input type="text" name="amount_min" class="form-control form-control-sm" style="width: 110px;"
+                                value="{{ filter_state.amount_min }}" placeholder="最小" inputmode="numeric">
+                            <span class="text-muted">〜</span>
+                            <input type="text" name="amount_max" class="form-control form-control-sm" style="width: 110px;"
+                                value="{{ filter_state.amount_max }}" placeholder="最大" inputmode="numeric">
+                        </div>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">最大金額</label>
-                        <input type="text" name="amount_max" class="form-control form-control-sm"
-                            value="{{ filter_state.amount_max }}" placeholder="例: 500000">
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary btn-sm w-100" type="submit">
-                            <i class="bi bi-filter"></i> 金額フィルター適用
+                    <noscript>
+                        <button class="btn btn-sm btn-primary" type="submit">
+                            <i class="bi bi-search"></i> 絞り込み
                         </button>
-                    </div>
-                </form>
-            </div>
+                    </noscript>
+                    <span class="small text-muted auto-filter-hint">
+                        <i class="bi bi-lightning-fill"></i> 選択すると自動で絞り込みます
+                    </span>
+                </div>
+            </form>
         </div>
 
         <!-- 分類編集フォーム -->
@@ -144,30 +151,49 @@
             {% endif %}
 
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">検索結果: {{ all_txs_count }}件
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul me-1 text-primary"></i>検索結果: <strong>{{ all_txs_count }}</strong>件
                     {% if all_txs.paginator.num_pages > 1 %}
-                    <small class="text-muted">({{ all_txs.number }} / {{ all_txs.paginator.num_pages }}ページ)</small>
+                    <small class="text-muted fw-normal">({{ all_txs.number }} / {{ all_txs.paginator.num_pages }}ページ)</small>
                     {% endif %}
                 </h5>
                 <div class="d-flex align-items-center gap-1">
+                    <button type="button" class="btn btn-success btn-sm" id="addTxTopBtn" title="取引を追加">
+                        <i class="bi bi-plus-lg me-1"></i>取引追加
+                    </button>
                     {% if all_txs %}
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="bi bi-check-lg"></i> 分類を一括保存
+                    <button type="submit" class="btn btn-outline-secondary btn-sm" title="カテゴリー変更は自動保存されます">
+                        <i class="bi bi-check-lg"></i> 一括保存
                     </button>
                     {% endif %}
-                    <a href="{% url 'export-csv-filtered' case.pk %}?{% for b in filter_state.bank %}bank={{ b|urlencode }}&{% endfor %}{% for a in filter_state.account %}account={{ a|urlencode }}&{% endfor %}{% for c in filter_state.category %}category={{ c|urlencode }}&{% endfor %}{% if filter_state.category_mode %}category_mode={{ filter_state.category_mode|urlencode }}&{% endif %}{% if filter_state.keyword %}keyword={{ filter_state.keyword|urlencode }}&{% endif %}{% if filter_state.amount_min %}amount_min={{ filter_state.amount_min }}&{% endif %}{% if filter_state.amount_max %}amount_max={{ filter_state.amount_max }}&{% endif %}{% if filter_state.amount_type %}amount_type={{ filter_state.amount_type }}{% endif %}"
-                       class="btn btn-success btn-sm" title="現在の絞り込み結果をCSV出力（{{ all_txs_count }}件）">
-                        <i class="bi bi-download"></i> 絞込結果CSV
-                    </a>
-                    <a href="{% url 'export-csv' case.pk 'all' %}" class="btn btn-outline-success btn-sm" title="全データをCSV出力">
-                        <i class="bi bi-download"></i> 全データCSV
-                    </a>
-                    <a href="{% url 'export-xlsx-by-category' case.pk %}" class="btn btn-outline-success btn-sm" title="分類ごとにシート分けしたExcelファイルを出力">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> 分類別Excel
-                    </a>
-                    <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-primary btn-sm" title="JSONバックアップをダウンロード">
-                        <i class="bi bi-box-arrow-down"></i> JSON
-                    </a>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-download"></i> エクスポート
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'export-csv-filtered' case.pk %}?{% for b in filter_state.bank %}bank={{ b|urlencode }}&{% endfor %}{% for a in filter_state.account %}account={{ a|urlencode }}&{% endfor %}{% for c in filter_state.category %}category={{ c|urlencode }}&{% endfor %}{% if filter_state.category_mode %}category_mode={{ filter_state.category_mode|urlencode }}&{% endif %}{% if filter_state.keyword %}keyword={{ filter_state.keyword|urlencode }}&{% endif %}{% if filter_state.amount_min %}amount_min={{ filter_state.amount_min }}&{% endif %}{% if filter_state.amount_max %}amount_max={{ filter_state.amount_max }}&{% endif %}{% if filter_state.amount_type %}amount_type={{ filter_state.amount_type }}{% endif %}">
+                                    <i class="bi bi-funnel me-2"></i>絞込結果CSV（{{ all_txs_count }}件）
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'export-csv' case.pk 'all' %}">
+                                    <i class="bi bi-file-earmark-text me-2"></i>全データCSV
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'export-xlsx-by-category' case.pk %}">
+                                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>分類別Excel
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'export-json' case.pk %}">
+                                    <i class="bi bi-box-arrow-down me-2"></i>JSONバックアップ
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 

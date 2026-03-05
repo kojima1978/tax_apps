@@ -135,9 +135,6 @@ services:
       DB_PORT: "5432"
       # レガシーSQLite設定（移行時の参照用）
       SQLITE_PATH: /app/db/db.sqlite3
-      # ファジーマッチング設定
-      FUZZY_THRESHOLD: ${FUZZY_THRESHOLD:-90}
-      FUZZY_ENABLED: ${FUZZY_ENABLED:-true}
     networks:
       - tax-apps-network
     restart: unless-stopped
@@ -232,9 +229,6 @@ services:
       # Gunicorn設定
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-300}
-      # ファジーマッチング設定
-      FUZZY_THRESHOLD: ${FUZZY_THRESHOLD:-90}
-      FUZZY_ENABLED: ${FUZZY_ENABLED:-true}
     networks:
       - tax-apps-network
     restart: unless-stopped
