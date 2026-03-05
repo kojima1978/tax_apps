@@ -93,7 +93,7 @@ export default function DocumentListScreen({
   const INFO_BAR_ITEMS = [
     { label: '対象年度', value: reiwaYearStr + '分', className: 'text-sm' },
     { label: 'お客様', value: customerName, className: 'text-lg' },
-    { label: '担当者', value: staffName, className: 'text-sm' },
+    { label: '担当者', value: staffName || '未設定', className: 'text-sm' },
   ];
 
   // カテゴリの並び替え

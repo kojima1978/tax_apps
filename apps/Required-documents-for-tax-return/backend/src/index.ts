@@ -6,8 +6,11 @@ import {
   getOrCreateCustomer,
   saveDocumentRecord,
   getDocumentRecordByCustomerInfo,
+  getDocumentRecordByCustomerId,
   copyToNextYear,
   getAllCustomers,
+  getCustomerById,
+  getAllCustomersWithYears,
   getCustomerYears,
   searchCustomers,
   getDistinctCustomerNames,
@@ -65,7 +68,7 @@ function handleCreateError(res: express.Response, e: unknown, duplicateMessage: 
 // ミドルウェア
 app.use(
   cors({
-    origin: ['http://localhost:3005', 'http://127.0.0.1:3005'],
+    origin: ['http://localhost:3005', 'http://127.0.0.1:3005', 'http://localhost', 'http://127.0.0.1'],
     credentials: true,
   })
 );
@@ -79,38 +82,56 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+// お客様＋保存済み年度一覧（ダッシュボード用）
+app.get('/api/customers-with-years', (_req, res) => {
+  const customers = getAllCustomersWithYears();
+  res.json({ customers });
+});
+
+// 単一お客様取得
+app.get('/api/customers/:id', (req, res) => {
+  const id = parseId(req, res);
+  if (id === null) return;
+
+  const customer = getCustomerById(id);
+  if (!customer) {
+    return res.status(404).json({ error: 'Customer not found' });
+  }
+  res.json({ customer });
+});
+
 // [NEW] Customer Management API
 
-// Create customer
+// Create customer（staffIdは任意）
 app.post('/api/customers', (req, res) => {
   const { staffId } = req.body;
   const trimmedName = requireTrimmedString(req.body.customerName);
-  if (!trimmedName || !staffId) {
-    return res.status(400).json({ error: 'Valid customerName and staffId are required' });
+  if (!trimmedName) {
+    return res.status(400).json({ error: 'Valid customerName is required' });
   }
 
   try {
-    const customer = createCustomer(trimmedName, Number(staffId));
+    const customer = createCustomer(trimmedName, staffId ? Number(staffId) : null);
     res.json({ customer });
   } catch (e: unknown) {
-    handleCreateError(res, e, 'この担当者に同名のお客様が既に登録されています');
+    handleCreateError(res, e, 'お客様の登録に失敗しました');
   }
 });
 
-// Update customer
+// Update customer（staffIdは任意）
 app.put('/api/customers/:id', (req, res) => {
   const id = parseId(req, res);
   if (id === null) return;
   const { staffId } = req.body;
   const trimmedName = requireTrimmedString(req.body.customerName);
 
-  if (!trimmedName || !staffId) {
-    return res.status(400).json({ error: 'Valid customerName and staffId are required' });
+  if (!trimmedName) {
+    return res.status(400).json({ error: 'Valid customerName is required' });
   }
 
-  const success = updateCustomer(id, trimmedName, Number(staffId));
+  const success = updateCustomer(id, trimmedName, staffId ? Number(staffId) : null);
   if (!success) {
-    return res.status(404).json({ error: 'Customer not found or duplicate name' });
+    return res.status(404).json({ error: 'Customer not found' });
   }
 
   res.json({ success: true });
@@ -295,6 +316,58 @@ app.post('/api/documents', (req, res) => {
   }
 
   saveDocumentRecord(customerId, year, documentGroups);
+  res.json({
+    success: true,
+    message: `${formatReiwaYear(year)}のデータを保存しました`,
+  });
+});
+
+// 書類データを取得（customer_idベース）
+app.get('/api/customers/:id/documents/:year', (req, res) => {
+  const id = parseId(req, res);
+  if (id === null) return;
+  const year = parseInt(req.params.year, 10);
+  if (isNaN(year)) {
+    return res.status(400).json({ error: 'Invalid year' });
+  }
+
+  const documentGroups = getDocumentRecordByCustomerId(id, year);
+  res.json({
+    documentGroups: documentGroups ?? null,
+    found: documentGroups !== null,
+  });
+});
+
+// 書類データを保存（customer_idベース）
+app.post('/api/customers/:id/documents/:year', (req, res) => {
+  const id = parseId(req, res);
+  if (id === null) return;
+  const year = parseInt(req.params.year, 10);
+  if (isNaN(year)) {
+    return res.status(400).json({ error: 'Invalid year' });
+  }
+
+  const { documentGroups, action } = req.body;
+
+  // 翌年度更新
+  if (action === 'copyToNextYear') {
+    const success = copyToNextYear(id, year);
+    if (!success) {
+      return res.status(404).json({ error: '現在の年度のデータが見つかりません' });
+    }
+    return res.json({
+      success: true,
+      message: `${formatReiwaYear(year)}のデータを${formatReiwaYear(year + 1)}にコピーしました`,
+      nextYear: year + 1,
+    });
+  }
+
+  // 通常の保存
+  if (!documentGroups) {
+    return res.status(400).json({ error: 'documentGroups is required' });
+  }
+
+  saveDocumentRecord(id, year, documentGroups);
   res.json({
     success: true,
     message: `${formatReiwaYear(year)}のデータを保存しました`,

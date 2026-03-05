@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import HomePage from './pages/HomePage'
+import CustomerDashboardPage from './pages/CustomerDashboardPage'
+import CustomerDetailPage from './pages/CustomerDetailPage'
+import DocumentEditorPage from './pages/DocumentEditorPage'
 import CustomersPage from './pages/CustomersPage'
 import CustomerCreatePage from './pages/CustomerCreatePage'
 import CustomerEditPage from './pages/CustomerEditPage'
@@ -14,10 +16,12 @@ export default function App() {
     <BrowserRouter basename="/tax-docs">
       <ErrorBoundary>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<CustomerDashboardPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/create" element={<CustomerCreatePage />} />
           <Route path="/customers/:id/edit" element={<CustomerEditPage />} />
+          <Route path="/customers/:id/years/:year" element={<DocumentEditorPage />} />
+          <Route path="/customers/:id" element={<CustomerDetailPage />} />
           <Route path="/staff" element={<StaffPage />} />
           <Route path="/staff/create" element={<StaffCreatePage />} />
           <Route path="/staff/:id/edit" element={<StaffEditPage />} />

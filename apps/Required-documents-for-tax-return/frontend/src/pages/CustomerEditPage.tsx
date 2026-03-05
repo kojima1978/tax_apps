@@ -54,13 +54,13 @@ export default function EditCustomerPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim() || !staffId) return;
+        if (!name.trim()) return;
 
         setIsSubmitting(true);
         setError(null);
         try {
-            await updateCustomerName(id, name, Number(staffId));
-            navigate('/customers');
+            await updateCustomerName(id, name, staffId || null);
+            navigate(`/customers/${id}`);
         } catch (e: unknown) {
             setError(translateCustomerError(e, '更新に失敗しました'));
             setIsSubmitting(false);
@@ -73,7 +73,7 @@ export default function EditCustomerPage() {
         <div className="min-h-screen bg-slate-50 p-8">
             <div className="max-w-xl mx-auto">
                 <header className="mb-8 flex items-center">
-                    <Link to="/customers" className="mr-4 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all">
+                    <Link to={`/customers/${id}`} className="mr-4 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all">
                         <ChevronLeft className="w-5 h-5" />
                     </Link>
                     <h1 className="text-2xl font-bold text-slate-800">お客様 編集</h1>
@@ -97,14 +97,14 @@ export default function EditCustomerPage() {
 
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-slate-700 mb-2">
-                                担当者
+                                担当者 <span className="ml-2 text-xs font-normal text-slate-400">任意</span>
                             </label>
                             <select
                                 value={staffId}
                                 onChange={(e) => setStaffId(e.target.value ? Number(e.target.value) : '')}
                                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
                             >
-                                <option value="">選択してください</option>
+                                <option value="">未設定</option>
                                 {staffList.map((staff) => (
                                     <option key={staff.id} value={staff.id}>
                                         {staff.staff_name}
@@ -115,7 +115,7 @@ export default function EditCustomerPage() {
 
                         <SubmitButton
                             isSubmitting={isSubmitting}
-                            disabled={isSubmitting || !name.trim() || !staffId}
+                            disabled={isSubmitting || !name.trim()}
                             submitLabel="変更を保存"
                             submittingLabel="保存中..."
                             className="w-full py-3.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center"

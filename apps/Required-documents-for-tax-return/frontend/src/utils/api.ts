@@ -137,6 +137,65 @@ export async function fetchAvailableYears(customerName?: string, staffName?: str
   return data.years || [];
 }
 
+// Customer Dashboard APIs
+
+export interface CustomerWithYears extends Customer {
+  years: number[];
+  latest_updated_at: string | null;
+}
+
+export async function fetchCustomersWithYears(): Promise<CustomerWithYears[]> {
+  const response = await fetch(`${API_BASE_URL}/api/customers-with-years`);
+  if (!response.ok) return [];
+  const data: { customers: CustomerWithYears[] } = await response.json();
+  return data.customers || [];
+}
+
+export async function fetchCustomerById(id: number): Promise<Customer> {
+  const response = await fetch(`${API_BASE_URL}/api/customers/${id}`);
+  await throwIfNotOk(response, 'お客様情報の取得に失敗しました');
+  const data: { customer: Customer } = await response.json();
+  return data.customer;
+}
+
+// Customer ID-based Document APIs
+
+export async function fetchDocumentsByCustomerId(
+  customerId: number,
+  year: number
+): Promise<DocumentsResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}/documents/${year}`);
+  await throwIfNotOk(response, '書類データの取得に失敗しました');
+  return response.json();
+}
+
+export async function saveDocumentsByCustomerId(
+  customerId: number,
+  year: number,
+  documentGroups: CategoryGroup[]
+): Promise<SaveResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}/documents/${year}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ documentGroups }),
+  });
+  await throwIfNotOk(response, '保存に失敗しました');
+  return response.json();
+}
+
+export async function copyToNextYearByCustomerId(
+  customerId: number,
+  year: number
+): Promise<SaveResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}/documents/${year}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'copyToNextYear' }),
+  });
+  await throwIfNotOk(response, '翌年度更新に失敗しました');
+  return response.json();
+}
+
 // Customer Management APIs
 
 export async function fetchCustomers(): Promise<Customer[]> {
@@ -146,22 +205,22 @@ export async function fetchCustomers(): Promise<Customer[]> {
   return data.customers || [];
 }
 
-export async function addCustomer(customerName: string, staffId: number): Promise<Customer> {
+export async function addCustomer(customerName: string, staffId?: number | null): Promise<Customer> {
   const response = await fetch(`${API_BASE_URL}/api/customers`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customerName, staffId }),
+    body: JSON.stringify({ customerName, ...(staffId ? { staffId } : {}) }),
   });
   await throwIfNotOk(response, 'お客様の登録に失敗しました');
   const data: { customer: Customer } = await response.json();
   return data.customer;
 }
 
-export async function updateCustomerName(id: number, customerName: string, staffId: number): Promise<void> {
+export async function updateCustomerName(id: number, customerName: string, staffId?: number | null): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/customers/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customerName, staffId }),
+    body: JSON.stringify({ customerName, ...(staffId ? { staffId } : {}) }),
   });
   await throwIfNotOk(response, 'お客様情報の更新に失敗しました');
 }
