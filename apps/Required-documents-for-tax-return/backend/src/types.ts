@@ -27,6 +27,7 @@ export interface DocumentRecord {
 
 export interface CustomerWithYears extends Customer {
     years: number[];
+    latest_updated_at: string | null;
 }
 
 export interface DocumentRecordWithCustomer {
