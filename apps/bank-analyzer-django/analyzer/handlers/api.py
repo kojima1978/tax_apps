@@ -13,15 +13,9 @@ from django.views.decorators.http import require_POST
 from ..models import Case, Transaction
 from ..services import TransactionService
 from ..lib.constants import UNCATEGORIZED
-from .base import json_error, parse_amount, safe_error_message
+from .base import json_error, json_api_error, parse_amount
 
 logger = logging.getLogger(__name__)
-
-
-def _json_api_error(e: Exception, error_context: str) -> JsonResponse:
-    """JSON APIの例外エラーレスポンスを生成（ログ出力付き）"""
-    logger.exception(f"{error_context}: error={e}")
-    return json_error(safe_error_message(e), status=500)
 
 
 @require_POST
@@ -43,7 +37,7 @@ def api_toggle_flag(request: HttpRequest, pk: int) -> JsonResponse:
             'message': '付箋を追加しました' if new_state else '付箋を外しました'
         })
     except Exception as e:
-        return _json_api_error(e, f"フラグ更新APIエラー: tx_id={tx_id}")
+        return json_api_error(e, f"フラグ更新APIエラー: tx_id={tx_id}")
 
 
 @require_POST
@@ -102,7 +96,7 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
             'message': '取引を追加しました'
         })
     except Exception as e:
-        return _json_api_error(e, f"取引作成APIエラー: case_id={pk}")
+        return json_api_error(e, f"取引作成APIエラー: case_id={pk}")
 
 
 @require_POST
@@ -126,7 +120,7 @@ def api_delete_transaction(request: HttpRequest, pk: int) -> JsonResponse:
     except Transaction.DoesNotExist:
         return json_error('取引が見つかりません', status=404)
     except Exception as e:
-        return _json_api_error(e, f"取引削除APIエラー: tx_id={tx_id}")
+        return json_api_error(e, f"取引削除APIエラー: tx_id={tx_id}")
 
 
 def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
@@ -144,4 +138,4 @@ def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
             'values': values
         })
     except Exception as e:
-        return _json_api_error(e, f"フィールド値取得APIエラー: field_name={field_name}")
+        return json_api_error(e, f"フィールド値取得APIエラー: field_name={field_name}")
