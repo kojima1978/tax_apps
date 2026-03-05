@@ -41,6 +41,17 @@ APPS=(
   "apps/retirement-tax-calc"
 )
 
+check_dependencies() {
+  if ! command -v docker >/dev/null 2>&1; then
+    err "docker がインストールされていません。"
+    exit 1
+  fi
+  if ! command -v docker-compose >/dev/null 2>&1; then
+    err "docker-compose がインストールされていません。"
+    exit 1
+  fi
+}
+
 # ------------------------------------
 # ユーティリティ
 # ------------------------------------
@@ -56,15 +67,14 @@ ensure_network() {
 
 resolve_app_dir() {
   local name="$1"
-  # フルパスで指定された場合
   for app in "${APPS[@]}"; do
-    if [[ "$app" == *"$name"* ]]; then
+    if [[ "$(basename "$app")" == "$name" ]]; then
       echo "$PROJECT_ROOT/$app"
       return 0
     fi
   done
   err "アプリが見つかりません: $name"
-  err "利用可能: ${APPS[*]}"
+  err "利用可能: $(printf '%s ' "${APPS[@]}" | sed 's|docker/||g; s|apps/||g')"
   return 1
 }
 
@@ -152,6 +162,13 @@ cmd_status() {
   echo "========================================"
   echo " Tax Apps コンテナ状態"
   echo "========================================"
+  echo "ネットワーク: $NETWORK_NAME"
+  if docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+    echo "  状態: 存在"
+  else
+    echo "  状態: 存在しない"
+  fi
+  echo ""
   printf "%-35s %-15s %-10s\n" "CONTAINER" "STATUS" "PORTS"
   echo "----------------------------------------"
   for app in "${APPS[@]}"; do
@@ -171,6 +188,8 @@ cmd_status() {
 # ------------------------------------
 # メイン
 # ------------------------------------
+check_dependencies
+
 case "${1:-help}" in
   start)   cmd_start ;;
   stop)    cmd_stop ;;
