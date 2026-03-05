@@ -15,7 +15,8 @@
             <!-- 分析パラメータ設定 -->
             <div class="glass-card p-4 mb-4">
                 <h4 class="mb-3">🔍 分析パラメータ設定</h4>
-                <div class="row">
+                <h6 class="text-muted mb-2"><i class="bi bi-cash-stack me-1"></i>多額取引・資金移動</h6>
+                <div class="row mb-3">
                     <div class="col-md-4">
                         {{ form.large_amount_threshold|as_crispy_field }}
                     </div>
@@ -26,6 +27,30 @@
                         {{ form.transfer_amount_tolerance|as_crispy_field }}
                     </div>
                 </div>
+
+                <hr class="my-3">
+                <h6 class="text-muted mb-2"><i class="bi bi-gift me-1"></i>贈与判定</h6>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        {{ form.gift_threshold|as_crispy_field }}
+                    </div>
+                </div>
+
+                <hr class="my-3">
+                <h6 class="text-muted mb-2"><i class="bi bi-search me-1"></i>ファジーマッチング</h6>
+                <div class="row mb-3">
+                    <div class="col-md-4 d-flex align-items-center">
+                        <div class="form-check form-switch">
+                            {{ form.fuzzy_enabled }}
+                            <label class="form-check-label" for="id_fuzzy_enabled">{{ form.fuzzy_enabled.label }}</label>
+                            <div class="form-text">{{ form.fuzzy_enabled.help_text }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.fuzzy_threshold|as_crispy_field }}
+                    </div>
+                </div>
+
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
                     <button type="submit" class="btn btn-primary px-4">
                         <i class="bi bi-save"></i> 分析パラメータを保存

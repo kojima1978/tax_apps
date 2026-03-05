@@ -62,7 +62,14 @@ bank-analyzer-django/
 │   └── asgi.py                # ASGI設定
 ├── analyzer/                  # アプリケーション本体
 │   ├── models.py              # データベース定義（Case, Transaction）
-│   ├── views.py               # 画面ロジック（CBV/FBV）
+│   ├── views/                 # 画面ロジック（責務別モジュール分割）
+│   │   ├── __init__.py        # 再エクスポート（urls.pyとの後方互換）
+│   │   ├── _helpers.py        # 共通ユーティリティ（ページネーション、フィルター等）
+│   │   ├── case.py            # 案件CRUD（CaseListView等）
+│   │   ├── dashboard.py       # 分析ダッシュボード、分類プレビュー
+│   │   ├── export.py          # CSV/Excel/JSONエクスポート
+│   │   ├── import_views.py    # JSONインポート、直接入力
+│   │   └── settings.py        # 設定画面
 │   ├── forms.py               # フォーム定義
 │   ├── urls.py                # URLルーティング
 │   ├── admin.py               # Django Admin設定
@@ -94,7 +101,6 @@ bank-analyzer-django/
 │   │   ├── case_list.html     # 案件一覧
 │   │   ├── case_form.html     # 案件作成・編集
 │   │   ├── case_confirm_delete.html  # 案件削除確認
-│   │   ├── case_detail.html   # 案件詳細
 │   │   ├── analysis.html      # 分析ダッシュボード
 │   │   ├── classify_preview.html  # 分類プレビュー
 │   │   ├── settings.html      # 設定画面
@@ -152,7 +158,7 @@ bank-analyzer-django/
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      Views (views.py)                    │
+│                      Views (views/)                      │
 │         画面レンダリング、フォーム処理、ルーティング         │
 └───────────────────────────┬─────────────────────────────┘
                             │
@@ -237,13 +243,8 @@ docker compose --profile production up -d bank-analyzer-prod
 
 ### 案件一覧（/）
 - 案件の作成・編集・削除
-- JSONインポート
-
-### 案件詳細（/case/\<id\>/）
-- 取引履歴の一覧表示（ページネーション付き）
-- CSVインポートウィザード
-- 直接入力
-- 分析ダッシュボードへの遷移
+- 各案件カードからCSVインポート・分析ダッシュボードへ直接遷移
+- JSONバックアップからの復元
 
 ### 直接入力（/case/\<id\>/direct-input/）
 - フォームから取引データを直接登録
@@ -263,7 +264,9 @@ docker compose --profile production up -d bank-analyzer-prod
 | パターン管理 | 分類キーワードの追加・編集・削除・移動（グローバル/案件固有） |
 
 ### 設定（/settings/）
-- 分析閾値設定（多額取引、資金移動検出）
+- 分析パラメータ設定（多額取引閾値、資金移動検出期間・許容誤差）
+- 贈与判定の閾値設定
+- ファジーマッチング設定（有効/無効、類似度閾値）
 - グローバル分類キーワードの編集
 
 ### お客様手紙（/customer-letter/）
@@ -295,7 +298,6 @@ docker compose --profile production up -d bank-analyzer-prod
 | GET/POST | `/new/` | 案件作成 |
 | GET/POST | `/case/<id>/edit/` | 案件編集 |
 | POST | `/case/<id>/delete/` | 案件削除 |
-| GET/POST | `/case/<id>/` | 案件詳細 |
 | GET/POST | `/case/<id>/direct-input/` | 取引の直接入力 |
 | GET/POST | `/case/<id>/import/wizard/` | CSVインポートウィザード |
 | GET/POST | `/case/<id>/analysis/` | 分析ダッシュボード |
@@ -355,9 +357,6 @@ docker compose --profile production up -d bank-analyzer-prod
 | `DB_HOST` | PostgreSQLホスト名 | `bank-analyzer-db` |
 | `DB_PORT` | PostgreSQLポート | `5432` |
 | `SQLITE_PATH` | SQLiteデータベースパス（レガシー） | `/app/db/db.sqlite3` |
-| **AI分類設定** | | |
-| `FUZZY_THRESHOLD` | ファジーマッチング閾値（0-100） | `90` |
-| `FUZZY_ENABLED` | ファジーマッチング有効化 | `true` |
 | **Gunicorn設定** | | |
 | `GUNICORN_WORKERS` | ワーカー数 | `2` |
 | `GUNICORN_TIMEOUT` | タイムアウト（秒） | `300` |

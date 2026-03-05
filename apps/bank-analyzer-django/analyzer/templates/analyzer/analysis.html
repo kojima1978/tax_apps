@@ -11,16 +11,12 @@
         <h1 class="h2">📊 編集・分析: {{ case.name }}</h1>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'customer-letter' %}" target="_blank" class="btn btn-outline-secondary me-2">
+        <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-success me-2">
+            <i class="bi bi-box-arrow-down"></i> JSONバックアップ
+        </a>
+        <a href="{% url 'customer-letter' %}" target="_blank" class="btn btn-outline-secondary">
             <i class="bi bi-envelope-paper"></i> お客様配布用文書
         </a>
-        <form method="post" class="d-inline">
-            {% csrf_token %}
-            <button type="submit" name="action" value="run_classifier" class="btn btn-primary"
-                onclick="return confirm('パターンマッチングで未分類の取引を自動分類しますか？')">
-                <i class="bi bi-robot"></i> 自動分類実行
-            </button>
-        </form>
     </div>
 </div>
 
@@ -36,12 +32,13 @@
                     <p class="card-text text-muted mb-2">名義: {{ acc.holder }}</p>
                     <div class="d-flex justify-content-between align-items-end">
                         <small>取引件数: {{ acc.count }}件<br>最終取引: {{ acc.last_date|wareki_short }}</small>
-                        <form method="post" class="d-inline">
+                        <form method="post" class="d-inline delete-account-form">
                             {% csrf_token %}
                             <input type="hidden" name="account_id" value="{{ acc.account_id }}">
-                            <button type="submit" name="action" value="delete_account"
-                                class="btn btn-sm btn-outline-danger"
-                                onclick="return confirm('口座「{{ acc.account_id }}」のデータを全ての削除しますか？この操作は取り消せません。')">
+                            <input type="hidden" name="action" value="delete_account">
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                data-account-id="{{ acc.account_id }}"
+                                onclick="ConfirmModal.show({title:'口座データの削除',message:'口座「'+this.dataset.accountId+'」のデータを全て削除しますか？この操作は取り消せません。',confirmText:'削除',confirmClass:'btn-danger',onConfirm:()=>this.closest('form').submit()})">
                                 <i class="bi bi-trash"></i> 削除
                             </button>
                         </form>
@@ -52,6 +49,14 @@
         {% endfor %}
     </div>
 </div>
+
+<!-- サマリーチャート -->
+{% if chart_categories_json %}
+<div class="glass-card p-4 mb-4">
+    <h4 class="mb-3"><i class="bi bi-bar-chart-line"></i> サマリー</h4>
+    <div id="monthlyBarChart" style="height: 320px;"></div>
+</div>
+{% endif %}
 
 <!-- タブ -->
 <ul class="nav nav-tabs mb-4" id="analysisTabs" role="tablist">
@@ -80,12 +85,6 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="large-tab" data-bs-toggle="tab" data-bs-target="#large" type="button" role="tab"
-            aria-controls="large" aria-selected="false">
-            💰 多額出金・入金
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
         <button class="nav-link" id="transfers-tab" data-bs-toggle="tab" data-bs-target="#transfers"
             type="button" role="tab" aria-controls="transfers" aria-selected="false">
             🔄 資金移動フロー
@@ -109,7 +108,6 @@
     {% include 'analyzer/partials/_tab_all.html' %}
     {% include 'analyzer/partials/_tab_unclassified.html' %}
     {% include 'analyzer/partials/_tab_ai.html' %}
-    {% include 'analyzer/partials/_tab_large.html' %}
     {% include 'analyzer/partials/_tab_transfers.html' %}
     {% include 'analyzer/partials/_tab_cleanup.html' %}
     {% include 'analyzer/partials/_tab_flagged.html' %}
@@ -147,19 +145,85 @@
 
 <!-- 取引追加モーダル -->
 <div class="modal fade" id="addTxModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content glass-card">
-            <div class="modal-header border-bottom-0">
-                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> 取引を追加</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header border-bottom-0 py-2">
+                <h6 class="modal-title mb-0"><i class="bi bi-plus-circle me-1"></i>取引を追加</h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                {% include "analyzer/partials/_tx_form_fields.html" with id_prefix="add" show_name=False desc_placeholder="取引内容を入力" memo_rows=2 %}
+            <div class="modal-body py-2">
+                {# コンパクトレイアウト: 口座情報 + 日付を1行に #}
+                <div class="row g-2 mb-2">
+                    <div class="col-3">
+                        <label class="form-label small mb-0">銀行名</label>
+                        <select class="form-select form-select-sm" id="addTxBankName">
+                            <option value="">--</option>
+                            {% for bank in banks %}<option value="{{ bank }}">{{ bank }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label small mb-0">支店名</label>
+                        <select class="form-select form-select-sm" id="addTxBranchName">
+                            <option value="">--</option>
+                            {% for branch in branches %}<option value="{{ branch }}">{{ branch }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-2">
+                        <label class="form-label small mb-0">種別</label>
+                        <input type="text" id="addTxAccountType" class="form-control form-control-sm" placeholder="普通">
+                    </div>
+                    <div class="col-2">
+                        <label class="form-label small mb-0">口座番号</label>
+                        <select class="form-select form-select-sm" id="addTxAccountId">
+                            <option value="">--</option>
+                            {% for acc in accounts %}<option value="{{ acc }}">{{ acc }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-2">
+                        <label class="form-label small mb-0">日付</label>
+                        <input type="date" id="addTxDate" class="form-control form-control-sm" required>
+                    </div>
+                </div>
+                {# 摘要 + 金額を1行に #}
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label small mb-0">摘要</label>
+                        <input type="text" id="addTxDescription" class="form-control form-control-sm" placeholder="取引内容を入力">
+                    </div>
+                    <div class="col-2">
+                        <label class="form-label small mb-0">出金</label>
+                        <input type="number" id="addTxAmountOut" class="form-control form-control-sm" value="0">
+                    </div>
+                    <div class="col-2">
+                        <label class="form-label small mb-0">入金</label>
+                        <input type="number" id="addTxAmountIn" class="form-control form-control-sm" value="0">
+                    </div>
+                    <div class="col-2">
+                        <label class="form-label small mb-0">残高</label>
+                        <input type="number" id="addTxBalance" class="form-control form-control-sm">
+                    </div>
+                </div>
+                {# 分類 + メモを1行に #}
+                <div class="row g-2">
+                    <div class="col-4">
+                        <label class="form-label small mb-0">分類</label>
+                        <select class="form-select form-select-sm" id="addTxCategory">
+                            {% for cat in categories %}<option value="{{ cat }}" {% if cat == '未分類' %}selected{% endif %}>{{ cat }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-8">
+                        <label class="form-label small mb-0">メモ</label>
+                        <input type="text" id="addTxMemo" class="form-control form-control-sm" placeholder="メモ（任意）">
+                    </div>
+                </div>
             </div>
-            <div class="modal-footer border-top-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                <button type="button" class="btn btn-success" id="addTxSubmitBtn">
-                    <i class="bi bi-plus-lg"></i> 追加
+            <div class="modal-footer border-top-0 py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-outline-success btn-sm" id="addTxContinueBtn" title="追加して続けて入力">
+                    <i class="bi bi-plus-circle me-1"></i>続けて追加
+                </button>
+                <button type="button" class="btn btn-success btn-sm" id="addTxSubmitBtn">
+                    <i class="bi bi-plus-lg me-1"></i>追加
                 </button>
             </div>
         </div>
@@ -253,6 +317,40 @@
     </div>
 </div>
 
+<!-- Context Menu -->
+<div id="contextMenu" class="dropdown-menu shadow" style="display: none; position: fixed; z-index: 1200;">
+    <h6 class="dropdown-header" id="contextMenuTitle"></h6>
+    <li><a class="dropdown-item" href="#" data-action="edit"><i class="bi bi-pencil me-2"></i>編集</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="#" data-action="flag"><i class="bi bi-bookmark me-2"></i>付箋を付ける/外す</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="#" data-action="pattern"><i class="bi bi-bookmark-plus me-2"></i>パターン追加</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li>
+        <a class="dropdown-item" href="#" data-action="category-submenu">
+            <i class="bi bi-tag me-2"></i>分類変更 <i class="bi bi-chevron-right float-end"></i>
+        </a>
+    </li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item text-danger" href="#" data-action="delete"><i class="bi bi-trash me-2"></i>削除</a></li>
+</div>
+<div id="categorySubmenu" class="dropdown-menu shadow" style="display: none; position: fixed; z-index: 1201;">
+    {% for cat in categories %}
+    <a class="dropdown-item category-submenu-item" href="#" data-category="{{ cat }}">{{ cat }}</a>
+    {% endfor %}
+</div>
+
+<!-- Floating status indicator -->
+<div id="floatingStatusBar" class="position-fixed bottom-0 start-50 translate-middle-x mb-4" style="z-index: 1050; display: none;">
+    <div class="glass-card shadow-lg px-4 py-2 d-flex align-items-center gap-3">
+        <span id="statusIcon"></span>
+        <span id="statusText" class="small"></span>
+        <button type="button" class="btn btn-sm btn-outline-danger" id="statusRetryBtn" style="display: none;">
+            <i class="bi bi-arrow-clockwise"></i> 再試行
+        </button>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -261,5 +359,50 @@
 
 <!-- トースト通知 -->
 <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
+
+{% if chart_categories_json %}
+<script>
+(function() {
+    var catData = {{ chart_categories_json|safe }};
+    var monthData = {{ chart_monthly_json|safe }};
+    var plotlyLayout = {
+        font: { family: '"Noto Sans JP", sans-serif', size: 12 },
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        margin: { t: 40, b: 40, l: 50, r: 20 },
+    };
+
+    // 月次入出金推移
+    if (monthData.months.length > 0) {
+        Plotly.newPlot('monthlyBarChart', [
+            {
+                type: 'bar',
+                name: '出金',
+                x: monthData.months,
+                y: monthData.out,
+                marker: { color: '#dc2626', opacity: 0.8 },
+            },
+            {
+                type: 'bar',
+                name: '入金',
+                x: monthData.months,
+                y: monthData['in'],
+                marker: { color: '#2563eb', opacity: 0.8 },
+            }
+        ], {
+            ...plotlyLayout,
+            title: { text: '月次入出金推移', font: { size: 14 } },
+            barmode: 'group',
+            xaxis: { tickangle: -45 },
+            yaxis: {
+                tickformat: ',d',
+                title: { text: '円', standoff: 5 }
+            },
+            legend: { orientation: 'h', y: 1.12, x: 0.5, xanchor: 'center' },
+        }, { responsive: true, displayModeBar: false });
+    }
+})();
+</script>
+{% endif %}
 
 {% endblock %}

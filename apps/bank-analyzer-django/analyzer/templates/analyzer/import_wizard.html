@@ -213,7 +213,7 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-3">
                 <li class="breadcrumb-item"><a href="{% url 'case-list' %}" class="text-decoration-none">案件一覧</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'case-detail' case.pk %}" class="text-decoration-none">{{ case.name }}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'analysis-dashboard' case.pk %}" class="text-decoration-none">{{ case.name }}</a></li>
                 <li class="breadcrumb-item active" aria-current="page">CSVインポート</li>
             </ol>
         </nav>
@@ -1000,26 +1000,32 @@ document.getElementById('deleteSelectedBtn').addEventListener('click', function(
     const checkedRows = document.querySelectorAll('.row-select:checked');
     if (checkedRows.length === 0) return;
 
-    if (!confirm(`${checkedRows.length}件の行を削除しますか？`)) return;
+    ConfirmModal.show({
+        title: '行の削除',
+        message: `${checkedRows.length}件の行を削除しますか？`,
+        confirmText: '削除',
+        confirmClass: 'btn-danger',
+        onConfirm: () => {
+            checkedRows.forEach(cb => {
+                const row = cb.closest('tr');
+                if (row) {
+                    row.classList.add('deleted');
+                    cb.checked = false;
 
-    checkedRows.forEach(cb => {
-        const row = cb.closest('tr');
-        if (row) {
-            row.classList.add('deleted');
-            cb.checked = false;
+                    // Stateにも反映
+                    const fileIndex = parseInt(row.dataset.fileIndex);
+                    const rowIndex = parseInt(row.dataset.rowIndex);
+                    if (wizardState.parsedData[fileIndex]?.rows[rowIndex]) {
+                        wizardState.parsedData[fileIndex].rows[rowIndex].deleted = true;
+                    }
+                }
+            });
 
-            // Stateにも反映
-            const fileIndex = parseInt(row.dataset.fileIndex);
-            const rowIndex = parseInt(row.dataset.rowIndex);
-            if (wizardState.parsedData[fileIndex]?.rows[rowIndex]) {
-                wizardState.parsedData[fileIndex].rows[rowIndex].deleted = true;
-            }
+            updateSelectedState();
+            updateSummary();
+            recalculateAllBalances();
         }
     });
-
-    updateSelectedState();
-    updateSummary();
-    recalculateAllBalances();
 });
 
 // ===== 残高再計算 =====

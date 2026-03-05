@@ -23,6 +23,7 @@ from .pattern import (
     handle_move_pattern,
     handle_get_category_keywords,
     handle_bulk_pattern_changes,
+    handle_classify_and_register_pattern,
 )
 
 from .ai import (
@@ -81,6 +82,7 @@ __all__ = [
     'handle_move_pattern',
     'handle_get_category_keywords',
     'handle_bulk_pattern_changes',
+    'handle_classify_and_register_pattern',
 
     # AI handlers
     'handle_run_classifier',

@@ -65,6 +65,19 @@ editModal.addEventListener('show.bs.modal', function (event) {
     });
 });
 
+// ダブルクリックで編集モーダルを開く
+document.addEventListener('dblclick', function(e) {
+    const row = e.target.closest('tr[data-tx-id]');
+    if (!row) return;
+    // テキスト選択やフォーム要素のダブルクリックは無視
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'A') return;
+
+    const editBtn = row.querySelector('[data-bs-toggle="modal"][data-bs-target="#editModal"]');
+    if (editBtn) {
+        editBtn.click();
+    }
+});
+
 // Select All Duplicates
 const selectAllDup = document.getElementById('selectAllDup');
 if (selectAllDup) {
@@ -160,14 +173,15 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
     });
 });
 
-// 付箋タブクリック時にページリロード（最新データ取得）
-const flaggedTab = document.getElementById('flagged-tab');
-if (flaggedTab) {
-    flaggedTab.addEventListener('click', function(e) {
-        e.preventDefault();
-        window.location.href = window.location.pathname + '?tab=flagged';
+// タブ切替時にURLパラメータを更新（状態保持）
+document.querySelectorAll('#analysisTabs .nav-link').forEach(tab => {
+    tab.addEventListener('shown.bs.tab', function() {
+        const tabName = this.id.replace('-tab', '');
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabName);
+        history.replaceState(null, '', url);
     });
-}
+});
 
 // ===== 一括選択機能 =====
 const selectAllTx = document.getElementById('selectAllTx');
@@ -237,7 +251,7 @@ if (applyBulkCategoryBtn) {
             return;
         }
 
-        // 選択された行のセレクトボックスを変更
+        // 選択された行のセレクトボックスを変更（自動保存がトリガーされる）
         var changedCount = 0;
         checkedBoxes.forEach(cb => {
             const txId = cb.value;
@@ -245,11 +259,12 @@ if (applyBulkCategoryBtn) {
             const categorySelect = row ? row.querySelector('select[name^="cat-"]') : null;
             if (categorySelect) {
                 categorySelect.value = selectedCategory;
+                categorySelect.dispatchEvent(new Event('change', { bubbles: true }));
                 changedCount++;
             }
         });
 
-        showToast(`${checkedBoxes.length}件の分類を「${selectedCategory}」に変更しました（保存ボタンを押してください）`, 'info');
+        showToast(`${checkedBoxes.length}件の分類を「${selectedCategory}」に変更しました`, 'success');
     });
 }
 
@@ -259,6 +274,7 @@ updateSelectionUI();
 // ===== 取引追加・削除機能 =====
 const addTxModal = document.getElementById('addTxModal');
 const addTxSubmitBtn = document.getElementById('addTxSubmitBtn');
+const addTxContinueBtn = document.getElementById('addTxContinueBtn');
 
 // Add transaction field mapping: [elementId, formKey, data-attribute (for reset), resetDefault, readDefault]
 const ADD_TX_FIELDS = [
@@ -275,68 +291,167 @@ const ADD_TX_FIELDS = [
     ['addTxMemo',        'memo',          null,                   ''],
 ];
 
-// 追加ボタンクリック時 - モーダルを開く
-document.querySelectorAll('.insert-tx-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        ADD_TX_FIELDS.forEach(([id, , attr, resetDefault]) => {
-            document.getElementById(id).value = (attr ? this.getAttribute(attr) : null) || resetDefault;
-        });
+// 口座情報フィールド (続けて追加時に保持)
+const ACCOUNT_FIELDS = ['addTxBankName', 'addTxBranchName', 'addTxAccountType', 'addTxAccountId', 'addTxDate'];
 
+// 和暦短縮変換 (JS版)
+function toWarekiShort(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr + 'T00:00:00');
+    const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+    if (y >= 2019) return 'R' + (y - 2018) + '.' + m + '.' + day;
+    if (y >= 1989) return 'H' + (y - 1988) + '.' + m + '.' + day;
+    return y + '/' + m + '/' + day;
+}
+
+// カテゴリ選択肢をDOMから取得
+function getCategoryOptions() {
+    const sel = document.querySelector('select[name^="cat-"]');
+    if (!sel) return '';
+    return Array.from(sel.options).map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+}
+
+// 新しい行をテーブルに挿入
+function insertTxRow(tx) {
+    const tbody = document.querySelector('#allTxForm table tbody');
+    if (!tbody) return;
+    const catOptions = getCategoryOptions();
+    const amtOut = tx.amount_out > 0 ? Number(tx.amount_out).toLocaleString() : '';
+    const amtIn = tx.amount_in > 0 ? Number(tx.amount_in).toLocaleString() : '';
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-tx-id', tx.id);
+    tr.style.opacity = '0';
+    tr.innerHTML = `
+        <td><input type="checkbox" value="${tx.id}" class="form-check-input tx-select-check"></td>
+        <td class="text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-success p-0 px-1 insert-tx-btn"
+                data-tx-id="${tx.id}" data-tx-date="${tx.date || ''}"
+                data-tx-bank="${tx.bank_name || ''}" data-tx-branch="${tx.branch_name || ''}"
+                data-tx-account-type="${tx.account_type || ''}" data-tx-account="${tx.account_id || ''}"
+                title="この下に追加"><i class="bi bi-plus"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-danger p-0 px-1 delete-tx-btn"
+                data-tx-id="${tx.id}" title="削除"><i class="bi bi-trash"></i></button>
+        </td>
+        <td>${toWarekiShort(tx.date)}</td>
+        <td>${tx.bank_name || '-'}</td>
+        <td>${tx.branch_name || '-'}</td>
+        <td>${tx.account_type || '-'}</td>
+        <td>${tx.account_id || '-'}</td>
+        <td style="max-width:200px;" class="text-truncate" title="${tx.description || ''}">${tx.description || ''}</td>
+        <td class="text-end">${amtOut}</td>
+        <td class="text-end">${amtIn}</td>
+        <td><select name="cat-${tx.id}" class="form-select form-select-sm" data-last-saved="${tx.category || '未分類'}">${catOptions.replace(`value="${tx.category || '未分類'}"`, `value="${tx.category || '未分類'}" selected`)}</select></td>
+        <td><button type="button" class="btn btn-sm btn-outline-info"
+            data-bs-toggle="modal" data-bs-target="#editModal"
+            data-tx-id="${tx.id}" data-tx-date="${tx.date || ''}"
+            data-tx-desc="${tx.description || ''}" data-tx-amount-out="${tx.amount_out}"
+            data-tx-amount-in="${tx.amount_in}" data-tx-balance="${tx.balance || ''}"
+            data-tx-cat="${tx.category || ''}" data-tx-memo="${tx.memo || ''}"
+            data-tx-bank="${tx.bank_name || ''}" data-tx-branch="${tx.branch_name || ''}"
+            data-tx-account-type="${tx.account_type || ''}" data-tx-account="${tx.account_id || ''}">詳細</button></td>
+        <td><button type="button" class="btn btn-sm btn-outline-secondary flag-btn"
+            data-tx-id="${tx.id}" data-source-tab="all" title="付箋を付ける">📌</button></td>
+    `;
+    // 先頭に挿入
+    tbody.insertBefore(tr, tbody.firstChild);
+    // 新しいボタンにイベントリスナーを付与
+    tr.querySelector('.insert-tx-btn').addEventListener('click', handleInsertBtnClick);
+    tr.querySelector('.delete-tx-btn').addEventListener('click', handleDeleteBtnClick);
+    // フェードイン
+    requestAnimationFrame(() => { tr.style.transition = 'opacity 0.3s'; tr.style.opacity = '1'; });
+}
+
+// 追加ボタンクリック時 - モーダルを開く
+function handleInsertBtnClick() {
+    ADD_TX_FIELDS.forEach(([id, , attr, resetDefault]) => {
+        document.getElementById(id).value = (attr ? this.getAttribute(attr) : null) || resetDefault;
+    });
+    const modal = new bootstrap.Modal(addTxModal);
+    modal.show();
+}
+document.querySelectorAll('.insert-tx-btn').forEach(btn => {
+    btn.addEventListener('click', handleInsertBtnClick);
+});
+
+// ヘッダーの追加ボタン
+const addTxTopBtn = document.getElementById('addTxTopBtn');
+if (addTxTopBtn) {
+    addTxTopBtn.addEventListener('click', function() {
+        ADD_TX_FIELDS.forEach(([id, , , resetDefault]) => {
+            document.getElementById(id).value = resetDefault;
+        });
         const modal = new bootstrap.Modal(addTxModal);
         modal.show();
     });
-});
+}
 
-// 追加ボタン（モーダル内）クリック時 - APIに送信
-if (addTxSubmitBtn) {
-    addTxSubmitBtn.addEventListener('click', function() {
-        const data = {};
-        ADD_TX_FIELDS.forEach(([id, key, , , readDefault]) => {
-            data[key] = document.getElementById(id).value || readDefault || '';
-        });
-        const formData = createFormData(data);
+// 取引追加の共通送信処理
+function submitAddTx(triggerBtn, keepOpen) {
+    const data = {};
+    ADD_TX_FIELDS.forEach(([id, key, , , readDefault]) => {
+        data[key] = document.getElementById(id).value || readDefault || '';
+    });
+    const formData = createFormData(data);
+    setButtonLoading(triggerBtn, '追加中...');
 
-        setButtonLoading(addTxSubmitBtn, '追加中...');
-
-        const apiUrl = getApiUrl('create-transaction');
-
-        postJson(apiUrl, formData, {
-            onSuccess: () => {
-                showToast('取引を追加しました', 'success');
+    const apiUrl = getApiUrl('create-transaction');
+    postJson(apiUrl, formData, {
+        onSuccess: (resp) => {
+            showToast('取引を追加しました', 'success');
+            if (resp && resp.transaction) insertTxRow(resp.transaction);
+            if (keepOpen) {
+                // 口座情報・日付は保持、摘要・金額・残高・分類・メモをリセット
+                ['addTxDescription', 'addTxMemo'].forEach(id => { document.getElementById(id).value = ''; });
+                document.getElementById('addTxAmountOut').value = '0';
+                document.getElementById('addTxAmountIn').value = '0';
+                document.getElementById('addTxBalance').value = '';
+                document.getElementById('addTxCategory').value = '未分類';
+                document.getElementById('addTxDescription').focus();
+            } else {
                 const modal = bootstrap.Modal.getInstance(addTxModal);
                 modal.hide();
-                window.location.reload();
-            },
-            onFinally: () => resetButton(addTxSubmitBtn),
-        });
+            }
+        },
+        onFinally: () => resetButton(triggerBtn),
     });
 }
 
+// 追加ボタン（モーダル内）クリック時
+if (addTxSubmitBtn) {
+    addTxSubmitBtn.addEventListener('click', function() { submitAddTx(this, false); });
+}
+// 続けて追加ボタン
+if (addTxContinueBtn) {
+    addTxContinueBtn.addEventListener('click', function() { submitAddTx(this, true); });
+}
+
 // 削除ボタンクリック時
-document.querySelectorAll('.delete-tx-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const txId = this.getAttribute('data-tx-id');
-        const row = this.closest('tr');
+function handleDeleteBtnClick() {
+    const txId = this.getAttribute('data-tx-id');
+    const row = this.closest('tr');
+    const button = this;
 
-        if (!confirm('この取引を削除しますか？')) {
-            return;
+    ConfirmModal.show({
+        title: '取引の削除',
+        message: 'この取引を削除しますか？',
+        confirmText: '削除',
+        confirmClass: 'btn-danger',
+        onConfirm: () => {
+            const formData = createFormData({ tx_id: txId });
+            disableButton(button);
+            const apiUrl = getApiUrl('delete-transaction');
+            postJson(apiUrl, formData, {
+                onSuccess: () => {
+                    fadeOutRow(row, () => updateSelectionUI());
+                    showToast('取引を削除しました', 'success');
+                },
+                onError: () => enableButton(button),
+            });
         }
-
-        const formData = createFormData({ tx_id: txId });
-        const button = this;
-
-        disableButton(button);
-
-        const apiUrl = getApiUrl('delete-transaction');
-
-        postJson(apiUrl, formData, {
-            onSuccess: () => {
-                fadeOutRow(row, () => updateSelectionUI());
-                showToast('取引を削除しました', 'success');
-            },
-            onError: () => enableButton(button),
-        });
     });
+}
+document.querySelectorAll('.delete-tx-btn').forEach(btn => {
+    btn.addEventListener('click', handleDeleteBtnClick);
 });
 
 // ===== フィールド一括置換機能 =====
@@ -499,14 +614,17 @@ if (replaceFieldSelect) {
             return;
         }
 
-        const confirmMsg = `${fieldLabel}「${oldValue}」を「${newValue}」に置換します。\n\n対象: ${count}件\n\nこの操作は取り消せません。実行しますか？`;
-        if (!confirm(confirmMsg)) {
-            e.preventDefault();
-            return;
-        }
-
-        // 送信中の表示
-        setButtonLoading(bulkReplaceSubmitBtn, '処理中...');
+        e.preventDefault();
+        ConfirmModal.show({
+            title: 'フィールド一括置換',
+            message: `${fieldLabel}「${oldValue}」を「${newValue}」に置換します。\n\n対象: ${count}件\n\nこの操作は取り消せません。実行しますか？`,
+            confirmText: '置換実行',
+            confirmClass: 'btn-danger',
+            onConfirm: () => {
+                setButtonLoading(bulkReplaceSubmitBtn, '処理中...');
+                bulkReplaceForm.submit();
+            }
+        });
     });
 }
 
@@ -807,10 +925,55 @@ const UnclassifiedTab = {
             const select = row.querySelector('select[name^="uncat-"]');
             if (select) {
                 select.value = category;
+                // 自動保存をトリガー
+                select.dispatchEvent(new Event('change', { bubbles: true }));
             }
         });
 
-        showToast(`${checked.length}件の分類を「${category}」に変更しました（保存ボタンで確定）`, 'info');
+        showToast(`${checked.length}件の分類を「${category}」に変更しました`, 'success');
+
+        // インラインパターン追加セクションを表示
+        this._showInlinePatternSection(category, checked);
+    },
+
+    // インラインパターンセクションを表示
+    _showInlinePatternSection: function(category, checkedBoxes) {
+        var section = document.getElementById('inlinePatternSection');
+        if (!section) return;
+
+        section.style.display = 'block';
+        section.dataset.category = category;
+
+        // 最初の選択項目から摘要を取得してキーワード候補生成
+        if (checkedBoxes.length > 0) {
+            var firstRow = checkedBoxes[0].closest('tr');
+            var desc = firstRow ? firstRow.dataset.description : '';
+            this._populateInlineKeywordCandidates(desc);
+        }
+    },
+
+    // キーワード候補を生成
+    _populateInlineKeywordCandidates: function(description) {
+        var container = document.getElementById('inlineKeywordCandidates');
+        var input = document.getElementById('inlinePatternKeyword');
+        if (!container || !input) return;
+
+        container.innerHTML = '';
+        var candidates = extractMultipleKeywords(description);
+        candidates.slice(0, 5).forEach(function(kw, i) {
+            var badge = document.createElement('span');
+            badge.className = i === 0
+                ? 'badge bg-primary text-white p-2'
+                : 'badge bg-light text-dark border p-2';
+            badge.textContent = kw;
+            badge.onclick = function() { input.value = kw; };
+            container.appendChild(badge);
+        });
+
+        // 最初の候補を自動入力
+        if (candidates.length > 0) {
+            input.value = candidates[0];
+        }
     },
 
     // パターンを追加
@@ -834,28 +997,27 @@ const UnclassifiedTab = {
         const defaultKeyword = extractKeywordFromDescription(description);
 
         const scopeLabel = scope === 'case' ? 'この案件' : '全案件（グローバル）';
-        const keyword = prompt(
-            `「${category}」のパターンに追加するキーワードを入力してください：\n\n` +
-            `摘要例: ${description}\n` +
-            `適用範囲: ${scopeLabel}\n\n` +
-            `（このキーワードを含む取引が自動的に「${category}」に分類されます）`,
-            defaultKeyword
-        );
+        ConfirmModal.prompt({
+            title: 'パターン追加',
+            message: `「${category}」のパターンに追加するキーワードを入力してください：\n摘要例: ${description}\n適用範囲: ${scopeLabel}`,
+            defaultValue: defaultKeyword,
+            placeholder: 'キーワードを入力',
+            confirmText: '追加',
+            onConfirm: (keyword) => {
+                const formData = createFormData({
+                    action: 'add_pattern',
+                    category: category,
+                    keyword: keyword,
+                    scope: scope
+                });
 
-        if (!keyword) return;
-
-        const formData = createFormData({
-            action: 'add_pattern',
-            category: category,
-            keyword: keyword,
-            scope: scope
-        });
-
-        postJson(window.location.href, formData, {
-            onSuccess: () => {
-                const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
-                showToast(`キーワード「${keyword}」を「${category}」に追加しました${scopeMsg}`, 'success');
-            },
+                postJson(window.location.href, formData, {
+                    onSuccess: () => {
+                        const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
+                        showToast(`キーワード「${keyword}」を「${category}」に追加しました${scopeMsg}`, 'success');
+                    },
+                });
+            }
         });
     },
 
@@ -913,14 +1075,57 @@ const UnclassifiedTab = {
                 checkboxes.forEach(cb => cb.checked = false);
                 if (selectAllCheckbox) selectAllCheckbox.checked = false;
                 self.updateSelectionUI();
+                // インラインパターンセクションを非表示
+                var section = document.getElementById('inlinePatternSection');
+                if (section) section.style.display = 'none';
             });
         }
+
+        // インラインパターン追加ボタン
+        var inlineAddBtn = document.getElementById('inlinePatternAddBtn');
+        if (inlineAddBtn) {
+            inlineAddBtn.addEventListener('click', function() {
+                var keyword = document.getElementById('inlinePatternKeyword').value.trim();
+                var section = document.getElementById('inlinePatternSection');
+                var category = section ? section.dataset.category : '';
+                var scopeBtn = document.querySelector('#inlinePatternSection .btn-group .btn.active');
+                var scope = scopeBtn ? scopeBtn.dataset.scope : 'global';
+
+                if (!keyword) { showToast('キーワードを入力してください', 'warning'); return; }
+                if (!category) { showToast('カテゴリーが指定されていません', 'warning'); return; }
+
+                var formData = createFormData({
+                    action: 'add_pattern',
+                    category: category,
+                    keyword: keyword,
+                    scope: scope,
+                });
+
+                postJson(window.location.href, formData, {
+                    onSuccess: function() {
+                        var scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
+                        showToast('「' + keyword + '」を「' + category + '」に追加しました' + scopeMsg, 'success');
+                        section.style.display = 'none';
+                    },
+                });
+            });
+        }
+
+        // インラインスコープ切替
+        document.querySelectorAll('#inlinePatternSection .btn-group .btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                this.parentElement.querySelectorAll('.btn').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+            });
+        });
     }
 };
 
 // ===== AI分類タブ =====
 
 const AISuggestions = {
+    _pendingApplies: 0,
+
     // ファジー閾値の更新
     updateFuzzyThreshold: function(value) {
         const el = document.getElementById('fuzzyThresholdValue');
@@ -931,7 +1136,6 @@ const AISuggestions = {
     regenerate: function() {
         const slider = document.getElementById('fuzzyThresholdSlider');
         if (!slider) return;
-
         const threshold = slider.value;
         const currentUrl = new URL(window.location.href);
         currentUrl.searchParams.set('fuzzy_threshold', threshold);
@@ -939,25 +1143,109 @@ const AISuggestions = {
         window.location.href = currentUrl.toString();
     },
 
-    // AI提案の適用
+    // 単一取引の適用（確認あり — 85%未満用）
     apply: function(txId, category) {
-        if (!confirm(`「${category}」に分類しますか？`)) {
-            return;
-        }
+        const self = this;
+        ConfirmModal.show({
+            title: 'AI分類の適用',
+            message: `「${category}」に分類しますか？`,
+            confirmText: '適用',
+            onConfirm: () => self._applyOne(txId, category),
+        });
+    },
 
+    // 単一取引の即時適用（95%以上用、確認なし）
+    applyDirect: function(txId, category) {
+        this._applyOne(txId, category);
+    },
+
+    _applyOne: function(txId, category) {
+        const self = this;
         const formData = createFormData({
             action: 'apply_ai_suggestion',
             tx_id: txId,
-            category: category
+            category: category,
         });
-
-        const self = this;
-
         postJson(window.location.href, formData, {
             onSuccess: () => {
                 self.removeRow(txId);
                 self.updateBadgeCount(-1);
                 showToast(`「${category}」に分類しました`, 'success');
+            },
+        });
+    },
+
+    // グループ一括適用 (apply_all を使って同摘要をまとめて適用)
+    applyGroup: function(row) {
+        const self = this;
+        const txIds = row.dataset.txIds.split(',').map(Number);
+        const category = row.dataset.category;
+        const description = row.dataset.description;
+        const count = parseInt(row.dataset.count);
+
+        // apply_all で同摘要を一括更新
+        const formData = createFormData({
+            action: 'update_category',
+            tx_id: txIds[0],
+            category: category,
+            apply_all: 'true',
+        });
+
+        row.style.opacity = '0.5';
+        row.style.pointerEvents = 'none';
+
+        postJson(window.location.href, formData, {
+            onSuccess: () => {
+                self.updateBadgeCount(-count);
+                highlightAndRemoveRow(row);
+                // フラットビューからも同摘要の行を消す
+                self._removeFlatRowsByDescription(description);
+                showToast(`「${category}」に${count}件分類しました`, 'success');
+            },
+            onError: () => {
+                row.style.opacity = '';
+                row.style.pointerEvents = '';
+            },
+        });
+    },
+
+    // グループのパターン追加付き適用
+    applyGroupWithPattern: function(row, scope) {
+        const self = this;
+        const txIds = row.dataset.txIds.split(',').map(Number);
+        const category = row.dataset.category;
+        const description = row.dataset.description;
+        const count = parseInt(row.dataset.count);
+        const scopeLabel = scope === 'case' ? 'この案件' : '全案件（グローバル）';
+        const defaultKeyword = extractKeywordFromDescription(description);
+
+        ConfirmModal.prompt({
+            title: 'パターン追加',
+            message: `「${category}」のパターンに追加するキーワード：\n摘要: ${description}\n適用範囲: ${scopeLabel}\n対象: ${count}件`,
+            defaultValue: defaultKeyword,
+            placeholder: 'キーワードを入力',
+            confirmText: '適用＆追加',
+            onConfirm: (keyword) => {
+                // classify_and_register_pattern で一括適用＋パターン登録
+                const formData = createFormData({
+                    action: 'classify_and_register_pattern',
+                    category: category,
+                    keyword: keyword,
+                    scope: scope,
+                    description: description,
+                });
+                postJson(window.location.href, formData, {
+                    onSuccess: (data) => {
+                        const appliedCount = data.count || count;
+                        self.updateBadgeCount(-appliedCount);
+                        highlightAndRemoveRow(row);
+                        self._removeFlatRowsByDescription(description);
+                        // 他グループ行からも同摘要を含むものを消す
+                        self._removeGroupRowsByDescription(description);
+                        const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
+                        showToast(`${appliedCount}件を「${category}」に分類し、キーワード「${keyword}」を追加しました${scopeMsg}`, 'success');
+                    },
+                });
             },
         });
     },
@@ -969,73 +1257,109 @@ const AISuggestions = {
         showToast('提案を却下しました', 'info');
     },
 
+    // グループ却下
+    dismissGroup: function(row) {
+        const count = parseInt(row.dataset.count);
+        const description = row.dataset.description;
+        this.updateBadgeCount(-count);
+        highlightAndRemoveRow(row);
+        this._removeFlatRowsByDescription(description);
+        showToast(`${count}件の提案を却下しました`, 'info');
+    },
+
     // 行をフェードアウトして削除
     removeRow: function(txId) {
         highlightAndRemoveRow(document.getElementById(`ai-row-${txId}`));
     },
 
-    // 一括適用
-    bulkApply: function(minScore) {
-        const scoreText = minScore === 95 ? '95%以上' : '85%以上';
-
-        if (!confirm(`信頼度${scoreText}のAI提案を一括適用しますか？`)) {
-            return;
-        }
-
-        const formData = createFormData({
-            action: 'bulk_apply_ai_suggestions',
-            min_score: minScore
-        });
-
-        showToast('一括適用中...', 'info');
-
-        postJson(window.location.href, formData, {
-            onSuccess: function() {
-                window.location.reload();
+    // フラットビューの同摘要行を全て消す (D: パターン追加後の自動消去)
+    _removeFlatRowsByDescription: function(description) {
+        document.querySelectorAll('#aiFlatView .ai-flat-row').forEach(row => {
+            if (row.dataset.description === description) {
+                highlightAndRemoveRow(row);
             }
         });
     },
 
-    // 適用してパターンに追加
+    // グループビューの同摘要行を全て消す
+    _removeGroupRowsByDescription: function(description) {
+        document.querySelectorAll('#aiGroupedView .ai-group-row').forEach(row => {
+            if (row.dataset.description === description) {
+                highlightAndRemoveRow(row);
+            }
+        });
+    },
+
+    // 一括適用 (C: リロードせずフェードアウト＋サマリー)
+    bulkApply: function(minScore) {
+        const scoreText = minScore === 95 ? '95%以上' : '85%以上';
+
+        ConfirmModal.show({
+            title: 'AI提案の一括適用',
+            message: `信頼度${scoreText}のAI提案を一括適用しますか？`,
+            confirmText: '一括適用',
+            onConfirm: () => {
+                const formData = createFormData({
+                    action: 'bulk_apply_ai_suggestions',
+                    min_score: minScore,
+                });
+                showToast('一括適用中...', 'info');
+                const self = this;
+                postJson(window.location.href, formData, {
+                    onSuccess: function(data) {
+                        // フェードアウトで該当行を消す
+                        let removedCount = 0;
+                        // グループ行
+                        document.querySelectorAll('#aiGroupedView .ai-group-row').forEach(row => {
+                            if (parseInt(row.dataset.score) >= minScore) {
+                                removedCount += parseInt(row.dataset.count);
+                                highlightAndRemoveRow(row);
+                            }
+                        });
+                        // フラット行
+                        document.querySelectorAll('#aiFlatView .ai-flat-row').forEach(row => {
+                            if (parseInt(row.dataset.score) >= minScore) {
+                                highlightAndRemoveRow(row);
+                            }
+                        });
+                        self.updateBadgeCount(-removedCount);
+                        const appliedCount = data.count || removedCount;
+                        showToast(`${appliedCount}件を一括適用しました（信頼度${scoreText}）`, 'success');
+                    },
+                });
+            },
+        });
+    },
+
+    // 適用してパターンに追加 (フラットビュー用)
     applyAndAddPattern: function(txId, category, description, scope) {
         const scopeLabel = scope === 'case' ? 'この案件' : '全案件（グローバル）';
         const defaultKeyword = extractKeywordFromDescription(description);
-        const keyword = prompt(
-            `「${category}」のパターンに追加するキーワードを入力してください：\n\n` +
-            `摘要: ${description}\n` +
-            `適用範囲: ${scopeLabel}\n\n` +
-            `（このキーワードを含む取引が自動的に「${category}」に分類されます）`,
-            defaultKeyword
-        );
-
-        if (!keyword) {
-            return;
-        }
-
         const self = this;
 
-        // 1. まずAI提案を適用
-        const applyFormData = createFormData({
-            action: 'apply_ai_suggestion',
-            tx_id: txId,
-            category: category
-        });
-
-        postJson(window.location.href, applyFormData, {
-            onSuccess: () => {
-                // 2. パターンに追加
-                const patternFormData = createFormData({
-                    action: 'add_pattern',
+        ConfirmModal.prompt({
+            title: 'パターン追加',
+            message: `「${category}」のパターンに追加するキーワードを入力してください：\n摘要: ${description}\n適用範囲: ${scopeLabel}`,
+            defaultValue: defaultKeyword,
+            placeholder: 'キーワードを入力',
+            confirmText: '適用＆追加',
+            onConfirm: (keyword) => {
+                const formData = createFormData({
+                    action: 'classify_and_register_pattern',
                     category: category,
                     keyword: keyword,
-                    scope: scope
+                    scope: scope,
+                    description: description,
                 });
-
-                postJson(window.location.href, patternFormData, {
-                    onSuccess: () => {
-                        self.removeRow(txId);
+                postJson(window.location.href, formData, {
+                    onSuccess: (data) => {
+                        const appliedCount = data.count || 1;
+                        self.updateBadgeCount(-appliedCount);
+                        // (D) 同摘要の行を全て消す
+                        self._removeFlatRowsByDescription(description);
+                        self._removeGroupRowsByDescription(description);
                         const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
-                        showToast(`「${category}」に分類し、キーワード「${keyword}」を追加しました${scopeMsg}`, 'success');
+                        showToast(`${appliedCount}件を「${category}」に分類し、キーワード「${keyword}」を追加しました${scopeMsg}`, 'success');
                     },
                 });
             },
@@ -1053,6 +1377,94 @@ const AISuggestions = {
                 badge.remove();
             }
         }
+        // ProgressBar更新（未分類タブにある場合）
+        if (typeof ProgressBar !== 'undefined' && ProgressBar.update) {
+            ProgressBar.update(-delta);
+        }
+    },
+
+    // ビュー切替
+    _initViewToggle: function() {
+        const toggle = document.getElementById('aiViewToggle');
+        if (!toggle) return;
+        const groupedView = document.getElementById('aiGroupedView');
+        const flatView = document.getElementById('aiFlatView');
+        if (!groupedView || !flatView) return;
+
+        toggle.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                toggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const view = this.dataset.view;
+                groupedView.style.display = view === 'grouped' ? '' : 'none';
+                flatView.style.display = view === 'flat' ? '' : 'none';
+            });
+        });
+    },
+
+    // グループ行のイベントバインド
+    _initGroupActions: function() {
+        const self = this;
+
+        // ワンクリック適用 (95%以上)
+        document.querySelectorAll('.ai-apply-group-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('.ai-group-row');
+                self.applyGroup(row);
+            });
+        });
+
+        // 確認付き適用 (95%未満)
+        document.querySelectorAll('.ai-apply-group-confirm-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('.ai-group-row');
+                const category = row.dataset.category;
+                const count = row.dataset.count;
+                ConfirmModal.show({
+                    title: 'AI分類の適用',
+                    message: `「${category}」に${count}件分類しますか？`,
+                    confirmText: '適用',
+                    onConfirm: () => self.applyGroup(row),
+                });
+            });
+        });
+
+        // パターン追加 (グローバル/案件)
+        document.querySelectorAll('.ai-pattern-global').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const row = this.closest('.ai-group-row');
+                self.applyGroupWithPattern(row, 'global');
+            });
+        });
+
+        document.querySelectorAll('.ai-pattern-case').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const row = this.closest('.ai-group-row');
+                self.applyGroupWithPattern(row, 'case');
+            });
+        });
+
+        // グループ却下
+        document.querySelectorAll('.ai-dismiss-group-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('.ai-group-row');
+                self.dismissGroup(row);
+            });
+        });
+    },
+
+    // フラットビューのワンクリック適用ボタン
+    _initFlatOneClick: function() {
+        const self = this;
+        document.querySelectorAll('.ai-apply-flat-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const txId = parseInt(this.dataset.txId);
+                const category = this.dataset.category;
+                self.applyDirect(txId, category);
+            });
+        });
     },
 
     // 初期化
@@ -1062,5 +1474,1089 @@ const AISuggestions = {
         popoverTriggerList.map(function (popoverTriggerEl) {
             return new bootstrap.Popover(popoverTriggerEl);
         });
+
+        this._initViewToggle();
+        this._initGroupActions();
+        this._initFlatOneClick();
+    },
+};
+
+// ===== フローティングステータスインジケーター =====
+
+const StatusIndicator = {
+    _bar: null,
+    _icon: null,
+    _text: null,
+    _retryBtn: null,
+    _hideTimeout: null,
+    _pendingCount: 0,
+
+    init: function() {
+        this._bar = document.getElementById('floatingStatusBar');
+        this._icon = document.getElementById('statusIcon');
+        this._text = document.getElementById('statusText');
+        this._retryBtn = document.getElementById('statusRetryBtn');
+    },
+
+    show: function(state, message) {
+        if (!this._bar) return;
+        clearTimeout(this._hideTimeout);
+        this._bar.style.display = 'block';
+        this._retryBtn.style.display = 'none';
+
+        switch (state) {
+            case 'saving':
+                this._icon.innerHTML = '<span class="spinner-border spinner-border-sm text-primary"></span>';
+                this._text.textContent = message || '保存中...';
+                break;
+            case 'success':
+                this._icon.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+                this._text.textContent = message || '保存完了';
+                this._hideTimeout = setTimeout(function() { StatusIndicator.hide(); }, 2000);
+                break;
+            case 'error':
+                this._icon.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger"></i>';
+                this._text.textContent = message || '保存に失敗しました';
+                this._retryBtn.style.display = 'inline-block';
+                break;
+        }
+    },
+
+    hide: function() {
+        if (this._bar) this._bar.style.display = 'none';
+    },
+
+    saving: function() {
+        this._pendingCount++;
+        this.show('saving', '保存中... (' + this._pendingCount + '件)');
+    },
+
+    saved: function() {
+        this._pendingCount = Math.max(0, this._pendingCount - 1);
+        if (this._pendingCount === 0) this.show('success');
+        else this.show('saving', '保存中... (' + this._pendingCount + '件)');
+    },
+
+    failed: function() {
+        this._pendingCount = Math.max(0, this._pendingCount - 1);
+        this.show('error');
     }
 };
+
+// ===== インライン分類の即時保存 =====
+
+document.addEventListener('change', function(e) {
+    var select = e.target;
+    if (!select.matches('select[name^="cat-"], select[name^="uncat-"]')) return;
+
+    var name = select.name;
+    var txId = name.replace(/^(cat|uncat)-/, '');
+    var newCategory = select.value;
+    var lastSaved = select.dataset.lastSaved || '';
+
+    // 同じ値なら何もしない
+    if (newCategory === lastSaved) return;
+
+    // 元の値を保存（ロールバック用）
+    var originalValue = lastSaved;
+    var row = select.closest('tr');
+
+    select.disabled = true;
+    StatusIndicator.saving();
+
+    var formData = createFormData({
+        action: 'update_category',
+        tx_id: txId,
+        new_category: newCategory,
+    });
+
+    postJson(window.location.href, formData, {
+        onSuccess: function() {
+            select.dataset.lastSaved = newCategory;
+            if (row) {
+                row.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
+                setTimeout(function() { row.style.backgroundColor = ''; }, 800);
+            }
+            StatusIndicator.saved();
+        },
+        onError: function() {
+            select.value = originalValue;
+            StatusIndicator.failed();
+        },
+        onFinally: function() {
+            select.disabled = false;
+        },
+    });
+});
+
+// ===== キーボードショートカット =====
+
+const KeyboardShortcuts = {
+    _focusedRowIndex: -1,
+
+    _getVisibleRows: function() {
+        var activePane = document.querySelector('.tab-pane.active');
+        if (!activePane) return [];
+        return Array.from(activePane.querySelectorAll('tbody tr[data-tx-id]'));
+    },
+
+    _setFocusedRow: function(index) {
+        var rows = this._getVisibleRows();
+        document.querySelectorAll('.row-focused').forEach(function(r) { r.classList.remove('row-focused'); });
+        if (index < 0 || index >= rows.length) return;
+        this._focusedRowIndex = index;
+        rows[index].classList.add('row-focused');
+        rows[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    },
+
+    _isInputFocused: function() {
+        var el = document.activeElement;
+        if (!el) return false;
+        var tag = el.tagName;
+        return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el.isContentEditable;
+    },
+
+    init: function() {
+        var self = this;
+
+        document.addEventListener('keydown', function(e) {
+            if (self._isInputFocused()) return;
+            if (document.querySelector('.modal.show')) return;
+
+            var rows = self._getVisibleRows();
+            var key = e.key;
+
+            switch (key) {
+                case 'j':
+                case 'ArrowDown':
+                    e.preventDefault();
+                    self._setFocusedRow(Math.min(self._focusedRowIndex + 1, rows.length - 1));
+                    break;
+
+                case 'k':
+                case 'ArrowUp':
+                    e.preventDefault();
+                    self._setFocusedRow(Math.max(self._focusedRowIndex - 1, 0));
+                    break;
+
+                case ' ':
+                    if (self._focusedRowIndex >= 0 && rows[self._focusedRowIndex]) {
+                        e.preventDefault();
+                        var cb = rows[self._focusedRowIndex].querySelector('input[type="checkbox"]');
+                        if (cb) {
+                            cb.checked = !cb.checked;
+                            cb.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                    break;
+
+                case 'e':
+                    if (self._focusedRowIndex >= 0 && rows[self._focusedRowIndex]) {
+                        e.preventDefault();
+                        var editBtn = rows[self._focusedRowIndex].querySelector('[data-bs-toggle="modal"][data-bs-target="#editModal"]');
+                        if (editBtn) editBtn.click();
+                    }
+                    break;
+
+                case 'f':
+                    if (self._focusedRowIndex >= 0 && rows[self._focusedRowIndex]) {
+                        e.preventDefault();
+                        var flagBtn = rows[self._focusedRowIndex].querySelector('.flag-btn');
+                        if (flagBtn) flagBtn.click();
+                    }
+                    break;
+
+                case 'Escape':
+                    document.querySelectorAll('.row-focused').forEach(function(r) { r.classList.remove('row-focused'); });
+                    self._focusedRowIndex = -1;
+                    var clearBtn = document.getElementById('clearSelectionBtn') || document.getElementById('clearUnclassifiedSelectionBtn');
+                    if (clearBtn) clearBtn.click();
+                    break;
+
+                case '?':
+                    e.preventDefault();
+                    self._showHelp();
+                    break;
+
+                case '1': case '2': case '3': case '4': case '5':
+                case '6': case '7': case '8': case '9':
+                    if (self._focusedRowIndex >= 0 && rows[self._focusedRowIndex]) {
+                        e.preventDefault();
+                        var catSelect = rows[self._focusedRowIndex].querySelector('select[name^="cat-"], select[name^="uncat-"]');
+                        if (catSelect) {
+                            var optIndex = parseInt(key);
+                            if (catSelect.options[optIndex]) {
+                                catSelect.value = catSelect.options[optIndex].value;
+                                catSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                    }
+                    break;
+            }
+
+            // Ctrl+S / Cmd+S
+            if ((e.ctrlKey || e.metaKey) && key === 's') {
+                e.preventDefault();
+                var activePane = document.querySelector('.tab-pane.active');
+                if (activePane) {
+                    var form = activePane.querySelector('form[method="post"]');
+                    if (form) form.submit();
+                }
+            }
+        });
+    },
+
+    _showHelp: function() {
+        ConfirmModal.show({
+            title: 'キーボードショートカット',
+            message: [
+                'j / ↓ : 次の行に移動',
+                'k / ↑ : 前の行に移動',
+                'Space : チェックボックスのON/OFF',
+                'e : 編集モーダルを開く',
+                'f : 付箋のON/OFF',
+                '1-9 : 分類を即時変更（上から順）',
+                'Ctrl+S : 一括保存',
+                'Esc : 選択解除',
+                '? : このヘルプを表示',
+            ].join('\n'),
+            confirmText: '閉じる',
+        });
+    }
+};
+
+// ===== 右クリックコンテキストメニュー =====
+
+const ContextMenu = {
+    _targetRow: null,
+
+    init: function() {
+        var self = this;
+        var menu = document.getElementById('contextMenu');
+        var catSubmenu = document.getElementById('categorySubmenu');
+        if (!menu) return;
+
+        // 右クリックでメニュー表示
+        document.addEventListener('contextmenu', function(e) {
+            var row = e.target.closest('tr[data-tx-id]');
+            if (!row) return;
+
+            e.preventDefault();
+            self._targetRow = row;
+
+            // 位置調整（画面外にはみ出さない）
+            var x = Math.min(e.clientX, window.innerWidth - 200);
+            var y = Math.min(e.clientY, window.innerHeight - 300);
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            menu.style.display = 'block';
+
+            // タイトル設定
+            var descCell = row.querySelector('td[title]');
+            var title = menu.querySelector('#contextMenuTitle');
+            if (title && descCell) {
+                var desc = descCell.title || '';
+                title.textContent = desc.length > 20 ? desc.substring(0, 20) + '...' : desc;
+            }
+
+            catSubmenu.style.display = 'none';
+        });
+
+        // メニュー外クリックで閉じる
+        document.addEventListener('click', function(e) {
+            if (!menu.contains(e.target) && !catSubmenu.contains(e.target)) {
+                menu.style.display = 'none';
+                catSubmenu.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                menu.style.display = 'none';
+                catSubmenu.style.display = 'none';
+            }
+        });
+
+        // メニュー項目クリック
+        menu.addEventListener('click', function(e) {
+            var item = e.target.closest('[data-action]');
+            if (!item) return;
+            e.preventDefault();
+
+            var action = item.dataset.action;
+            var row = self._targetRow;
+            menu.style.display = 'none';
+
+            switch (action) {
+                case 'edit':
+                    var editBtn = row.querySelector('[data-bs-toggle="modal"][data-bs-target="#editModal"]');
+                    if (editBtn) editBtn.click();
+                    break;
+
+                case 'flag':
+                    var flagBtn = row.querySelector('.flag-btn');
+                    if (flagBtn) flagBtn.click();
+                    break;
+
+                case 'delete':
+                    var deleteBtn = row.querySelector('.delete-tx-btn');
+                    if (deleteBtn) deleteBtn.click();
+                    break;
+
+                case 'pattern':
+                    var catSelect = row.querySelector('select[name^="cat-"], select[name^="uncat-"]');
+                    var category = catSelect ? catSelect.value : '';
+                    var description = (row.querySelector('td[title]') || {}).title || '';
+                    if (category && category !== '未分類') {
+                        openPatternAddModal(category, description);
+                    } else {
+                        showToast('先に分類を選択してください', 'warning');
+                    }
+                    break;
+
+                case 'category-submenu':
+                    var rect = menu.getBoundingClientRect();
+                    var subX = Math.min(rect.right - 5, window.innerWidth - 200);
+                    catSubmenu.style.left = subX + 'px';
+                    catSubmenu.style.top = rect.top + 'px';
+                    catSubmenu.style.display = 'block';
+                    break;
+            }
+        });
+
+        // カテゴリーサブメニュークリック
+        if (catSubmenu) {
+            catSubmenu.addEventListener('click', function(e) {
+                var item = e.target.closest('.category-submenu-item');
+                if (!item) return;
+                e.preventDefault();
+
+                var newCategory = item.dataset.category;
+                var row = self._targetRow;
+                var catSelect = row.querySelector('select[name^="cat-"], select[name^="uncat-"]');
+
+                if (catSelect) {
+                    catSelect.value = newCategory;
+                    catSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                catSubmenu.style.display = 'none';
+                menu.style.display = 'none';
+            });
+        }
+    }
+};
+
+// ===== クイックフィルター =====
+
+const QuickFilters = {
+    _container: null,
+
+    init: function() {
+        this._container = document.getElementById('quickFilters');
+        if (!this._container) return;
+
+        var self = this;
+        var params = new URLSearchParams(window.location.search);
+
+        // アクティブ状態を反映
+        this._updateActiveStates(params);
+
+        this._container.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-quick]');
+            if (!btn) return;
+            self._handleClick(btn.dataset.quick);
+        });
+    },
+
+    _updateActiveStates: function(params) {
+        var amountType = params.get('amount_type') || 'both';
+        var amountMin = params.get('amount_min') || '';
+
+        var buttons = this._container.querySelectorAll('[data-quick]');
+        buttons.forEach(function(btn) {
+            var isActive = false;
+            switch (btn.dataset.quick) {
+                case 'outOnly': isActive = amountType === 'out'; break;
+                case 'inOnly': isActive = amountType === 'in'; break;
+                case 'over300k': isActive = amountMin === '300000'; break;
+                case 'over500k': isActive = amountMin === '500000'; break;
+                case 'over1m': isActive = amountMin === '1000000'; break;
+            }
+            btn.classList.toggle('btn-primary', isActive);
+            btn.classList.toggle('btn-outline-secondary', !isActive);
+        });
+    },
+
+    _handleClick: function(action) {
+        var params = new URLSearchParams(window.location.search);
+        params.set('tab', 'all');
+
+        switch (action) {
+            case 'outOnly':
+                if (params.get('amount_type') === 'out') params.delete('amount_type');
+                else params.set('amount_type', 'out');
+                break;
+            case 'inOnly':
+                if (params.get('amount_type') === 'in') params.delete('amount_type');
+                else params.set('amount_type', 'in');
+                break;
+            case 'over300k':
+                if (params.get('amount_min') === '300000') params.delete('amount_min');
+                else params.set('amount_min', '300000');
+                break;
+            case 'over500k':
+                if (params.get('amount_min') === '500000') params.delete('amount_min');
+                else params.set('amount_min', '500000');
+                break;
+            case 'over1m':
+                if (params.get('amount_min') === '1000000') params.delete('amount_min');
+                else params.set('amount_min', '1000000');
+                break;
+        }
+
+        window.location.search = params.toString();
+    }
+};
+
+// ===== アクティブフィルター・チップ =====
+
+const FilterChips = {
+    _container: null,
+
+    _FILTER_LABELS: {
+        date_from: '開始日',
+        date_to: '終了日',
+        bank: '銀行',
+        account: '口座',
+        category: '分類',
+        category_mode: '分類モード',
+        keyword: 'キーワード',
+        amount_type: '取引種別',
+        amount_min: '最小金額',
+        amount_max: '最大金額',
+    },
+
+    _AMOUNT_TYPE_LABELS: { out: '出金のみ', 'in': '入金のみ' },
+
+    _SKIP_PARAMS: ['tab', 'page', 'all_page', 'unclassified_page'],
+
+    init: function() {
+        this._container = document.getElementById('activeFilterChips');
+        if (!this._container) return;
+        this._render();
+    },
+
+    _render: function() {
+        var params = new URLSearchParams(window.location.search);
+        var chips = [];
+        var self = this;
+
+        for (var pair of params.entries()) {
+            var key = pair[0];
+            var value = pair[1];
+
+            if (self._SKIP_PARAMS.indexOf(key) >= 0) continue;
+            if (!value || value === 'both' || value === 'include') continue;
+
+            var label = self._FILTER_LABELS[key] || key;
+            var displayValue = value;
+
+            if (key === 'amount_type') displayValue = self._AMOUNT_TYPE_LABELS[value] || value;
+            else if (key === 'category_mode') { if (value === 'exclude') displayValue = '以外'; else continue; }
+            else if (key === 'amount_min' || key === 'amount_max') displayValue = Number(value).toLocaleString() + '円';
+
+            chips.push({ key: key, value: value, label: label, displayValue: displayValue });
+        }
+
+        if (chips.length === 0) {
+            this._container.style.display = 'none';
+            return;
+        }
+
+        this._container.style.display = 'flex';
+        this._container.innerHTML = '<span class="small text-muted me-1"><i class="bi bi-funnel-fill"></i> 適用中:</span>';
+
+        chips.forEach(function(chip) {
+            var el = document.createElement('span');
+            el.className = 'filter-chip';
+            el.innerHTML = '<strong>' + chip.label + '</strong>: ' + chip.displayValue +
+                ' <button type="button" class="btn-close" aria-label="削除" data-filter-key="' + chip.key + '" data-filter-value="' + chip.value + '"></button>';
+            self._container.appendChild(el);
+        });
+
+        // ×ボタンクリック
+        this._container.addEventListener('click', function(e) {
+            var closeBtn = e.target.closest('.btn-close[data-filter-key]');
+            if (!closeBtn) return;
+
+            var key = closeBtn.dataset.filterKey;
+            var value = closeBtn.dataset.filterValue;
+            var newParams = new URLSearchParams(window.location.search);
+
+            // multi-value パラメータ（bank, account, category）
+            var allValues = newParams.getAll(key);
+            if (allValues.length > 1) {
+                newParams.delete(key);
+                allValues.forEach(function(v) { if (v !== value) newParams.append(key, v); });
+            } else {
+                newParams.delete(key);
+            }
+
+            // category_mode は category がなくなったら削除
+            if (key === 'category' && newParams.getAll('category').length === 0) {
+                newParams.delete('category_mode');
+            }
+
+            window.location.search = newParams.toString();
+        });
+    }
+};
+
+// ===== フィルター・プリセット =====
+
+const FilterPresets = {
+    _storageKey: null,
+    _dropdown: null,
+
+    init: function() {
+        var quickFilters = document.getElementById('quickFilters');
+        if (!quickFilters) return;
+
+        var casePk = quickFilters.dataset.casePk;
+        if (!casePk) return;
+        this._storageKey = 'filterPresets_' + casePk;
+
+        this._buildUI(quickFilters);
+        this._renderPresets();
+    },
+
+    _buildUI: function(container) {
+        var self = this;
+
+        // 保存ボタン
+        var saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'btn btn-outline-secondary btn-sm ms-2';
+        saveBtn.innerHTML = '<i class="bi bi-bookmark-plus"></i> 条件を保存';
+        saveBtn.addEventListener('click', function() { self._savePreset(); });
+        container.appendChild(saveBtn);
+
+        // プリセットドロップダウン
+        var wrapper = document.createElement('div');
+        wrapper.className = 'dropdown d-inline-block ms-1';
+        wrapper.innerHTML =
+            '<button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" id="presetDropdownBtn">' +
+            '<i class="bi bi-bookmarks"></i> プリセット</button>' +
+            '<ul class="dropdown-menu" id="presetDropdownMenu"></ul>';
+        container.appendChild(wrapper);
+
+        this._dropdown = wrapper.querySelector('#presetDropdownMenu');
+    },
+
+    _getPresets: function() {
+        try { return JSON.parse(localStorage.getItem(this._storageKey) || '[]'); }
+        catch (e) { return []; }
+    },
+
+    _setPresets: function(presets) {
+        localStorage.setItem(this._storageKey, JSON.stringify(presets));
+    },
+
+    _savePreset: function() {
+        var name = window.prompt('プリセット名を入力してください:');
+        if (!name) return;
+
+        var params = new URLSearchParams(window.location.search);
+        params.delete('tab');
+        params.delete('page');
+        params.delete('all_page');
+
+        var presets = this._getPresets();
+        presets.push({ name: name, params: params.toString() });
+        this._setPresets(presets);
+        this._renderPresets();
+        showToast('プリセット「' + name + '」を保存しました', 'success');
+    },
+
+    _renderPresets: function() {
+        if (!this._dropdown) return;
+        var presets = this._getPresets();
+        var self = this;
+
+        if (presets.length === 0) {
+            this._dropdown.innerHTML = '<li><span class="dropdown-item text-muted small">保存済みプリセットなし</span></li>';
+            return;
+        }
+
+        this._dropdown.innerHTML = '';
+        presets.forEach(function(preset, index) {
+            var li = document.createElement('li');
+            li.innerHTML =
+                '<a class="dropdown-item d-flex justify-content-between align-items-center" href="?tab=all&' + preset.params + '">' +
+                '<span>' + preset.name + '</span>' +
+                '<button type="button" class="btn-close ms-2" style="font-size:0.5rem;" data-preset-index="' + index + '"></button>' +
+                '</a>';
+            self._dropdown.appendChild(li);
+        });
+
+        // 削除ボタン
+        this._dropdown.addEventListener('click', function(e) {
+            var closeBtn = e.target.closest('[data-preset-index]');
+            if (!closeBtn) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            var idx = parseInt(closeBtn.dataset.presetIndex);
+            var presets = self._getPresets();
+            presets.splice(idx, 1);
+            self._setPresets(presets);
+            self._renderPresets();
+            showToast('プリセットを削除しました', 'info');
+        });
+    }
+};
+
+// ===== フィルター自動適用 =====
+
+const AutoFilter = {
+    _form: null,
+    _overlay: null,
+    _debounceTimer: null,
+    _DEBOUNCE_MS: 600,
+
+    init: function() {
+        this._form = document.getElementById('filterForm');
+        if (!this._form) return;
+        this._overlay = document.getElementById('filterLoadingOverlay');
+
+        var self = this;
+
+        // チェックボックス・ラジオ・セレクト・日付 → 即時送信
+        this._form.addEventListener('change', function(e) {
+            var tag = e.target.tagName.toLowerCase();
+            var type = (e.target.type || '').toLowerCase();
+            if (tag === 'select' || type === 'checkbox' || type === 'radio' || type === 'date') {
+                self._submit();
+            }
+        });
+
+        // テキスト入力 → デバウンス送信
+        var textInputs = this._form.querySelectorAll('input[type="text"]');
+        textInputs.forEach(function(input) {
+            input.addEventListener('input', function() {
+                self._debounceSubmit();
+            });
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    clearTimeout(self._debounceTimer);
+                    self._submit();
+                }
+            });
+        });
+    },
+
+    _debounceSubmit: function() {
+        var self = this;
+        clearTimeout(this._debounceTimer);
+        this._debounceTimer = setTimeout(function() {
+            self._submit();
+        }, this._DEBOUNCE_MS);
+    },
+
+    _submit: function() {
+        if (!this._form) return;
+        if (this._overlay) this._overlay.classList.add('active');
+        this._form.submit();
+    }
+};
+
+// ===== フィルターパネル制御 =====
+
+const FilterPanel = {
+    _DETAIL_PARAMS: ['bank', 'account', 'category', 'category_mode', 'keyword', 'amount_type', 'amount_min', 'amount_max', 'date_from', 'date_to'],
+
+    init: function() {
+        var panel = document.getElementById('filterPanel');
+        var clearBtn = document.getElementById('filterClearBtn');
+        if (!panel) return;
+
+        var params = new URLSearchParams(window.location.search);
+        var hasDetailFilter = this._hasDetailFilters(params);
+
+        // フィルターがアクティブなら自動展開
+        if (hasDetailFilter) {
+            panel.classList.add('show');
+        }
+
+        // クリアボタン表示制御
+        if (clearBtn && hasDetailFilter) {
+            clearBtn.style.display = '';
+        }
+    },
+
+    _hasDetailFilters: function(params) {
+        for (var i = 0; i < this._DETAIL_PARAMS.length; i++) {
+            var key = this._DETAIL_PARAMS[i];
+            var val = params.get(key);
+            if (val && val !== 'both' && val !== 'include') return true;
+        }
+        return false;
+    }
+};
+
+// ===== 進捗バー =====
+
+const ProgressBar = {
+    _bar: null,
+    _countEl: null,
+    _pctEl: null,
+    _totalEl: null,
+    _classified: 0,
+    _total: 0,
+
+    init: function() {
+        this._bar = document.getElementById('classifiedProgressBar');
+        this._countEl = document.getElementById('classifiedCount');
+        this._pctEl = document.getElementById('classifiedPct');
+        this._totalEl = document.getElementById('totalTxCount');
+        if (this._countEl) this._classified = parseInt(this._countEl.textContent) || 0;
+        if (this._totalEl) this._total = parseInt(this._totalEl.textContent) || 0;
+    },
+
+    update: function(delta) {
+        if (!this._bar || !this._total) return;
+        this._classified += delta;
+        var pct = Math.round(this._classified / this._total * 10) / 10;
+        if (pct > 100) pct = 100;
+
+        this._bar.style.width = pct + '%';
+        this._bar.setAttribute('aria-valuenow', pct);
+        if (this._countEl) this._countEl.textContent = this._classified;
+        if (this._pctEl) {
+            this._pctEl.textContent = pct + '%';
+            this._pctEl.style.color = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+        }
+
+        // バークラス更新
+        this._bar.className = 'progress-bar ' + (pct >= 80 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-danger');
+    }
+};
+
+// ===== グループ表示 =====
+
+const GroupedView = {
+    _suggestions: {},
+
+    init: function() {
+        var self = this;
+
+        // サジェストデータ読み込み
+        var dataEl = document.getElementById('groupSuggestionsData');
+        if (dataEl) {
+            try { this._suggestions = JSON.parse(dataEl.textContent); } catch(e) {}
+        }
+
+        // サジェストバッジを注入
+        this._injectSuggestionBadges();
+
+        // ビュー切替
+        var toggleBtns = document.querySelectorAll('#viewToggle [data-view]');
+        toggleBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                toggleBtns.forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                var view = this.dataset.view;
+                var grouped = document.getElementById('groupedView');
+                var flat = document.getElementById('flatView');
+                if (grouped) grouped.style.display = view === 'grouped' ? '' : 'none';
+                if (flat) flat.style.display = view === 'flat' ? '' : 'none';
+            });
+        });
+
+        // グループ行のセレクト変更
+        document.querySelectorAll('.group-category-select').forEach(function(select) {
+            select.addEventListener('change', function() {
+                var row = this.closest('tr');
+                var category = this.value;
+                if (!category || !row) return;
+                self._classifyGroup(row, category, this);
+            });
+        });
+    },
+
+    _injectSuggestionBadges: function() {
+        var self = this;
+        document.querySelectorAll('#groupedTable tbody tr[data-group-desc]').forEach(function(row) {
+            var desc = row.dataset.groupDesc;
+            var suggestion = self._suggestions[desc];
+            if (!suggestion) return;
+
+            var cell = row.querySelector('td:first-child .d-flex');
+            if (!cell) return;
+
+            var badge = document.createElement('button');
+            badge.type = 'button';
+            badge.className = 'suggestion-badge';
+            badge.title = 'クリックで「' + suggestion.category + '」に分類';
+            badge.innerHTML = '<i class="bi bi-lightbulb"></i> ' + suggestion.category + ' <small>' + suggestion.score + '%</small>';
+            badge.addEventListener('click', function() {
+                self._applySuggestion(row, suggestion.category);
+            });
+            cell.appendChild(badge);
+        });
+    },
+
+    _applySuggestion: function(row, category) {
+        var select = row.querySelector('.group-category-select');
+        if (select) select.value = category;
+        this._classifyGroup(row, category, select);
+    },
+
+    _updateTxTotal: function(delta) {
+        var el = document.getElementById('unclassifiedTxTotal');
+        if (el) {
+            var current = parseInt(el.textContent) || 0;
+            el.textContent = Math.max(0, current - delta);
+        }
+        // タブバッジも更新
+        var badge = document.querySelector('#unclassified-tab .badge');
+        if (badge) {
+            var count = parseInt(badge.textContent) || 0;
+            count = Math.max(0, count - delta);
+            if (count > 0) { badge.textContent = count; }
+            else { badge.remove(); }
+        }
+    },
+
+    _classifyGroup: function(row, category, select) {
+        var self = this;
+        var txIds = JSON.parse(row.dataset.txIds || '[]');
+        var firstTxId = row.dataset.firstTxId;
+        var desc = row.dataset.groupDesc;
+        var count = txIds.length;
+
+        if (select) select.disabled = true;
+        StatusIndicator.saving();
+
+        var formData = createFormData({
+            action: 'update_category',
+            tx_id: firstTxId,
+            new_category: category,
+            apply_all: 'true',
+        });
+
+        postJson(window.location.href, formData, {
+            onSuccess: function() {
+                StatusIndicator.saved();
+                ProgressBar.update(count);
+                self._updateTxTotal(count);
+
+                // 行をフェードアウト
+                row.style.transition = 'opacity 0.4s, background-color 0.4s';
+                row.style.backgroundColor = 'rgba(25, 135, 84, 0.15)';
+                setTimeout(function() {
+                    row.style.opacity = '0';
+                    setTimeout(function() { row.remove(); }, 400);
+                }, 600);
+
+                showToast('「' + desc + '」' + count + '件を「' + category + '」に分類しました', 'success');
+
+                // パターンプロンプト表示
+                PatternPrompt.show(row, category, desc, count);
+            },
+            onError: function() {
+                if (select) { select.disabled = false; select.value = ''; }
+                StatusIndicator.failed();
+            },
+        });
+    }
+};
+
+// ===== パターンプロンプト =====
+
+const PatternPrompt = {
+    _el: null,
+    _timeout: null,
+
+    show: function(anchorRow, category, description, count) {
+        this.hide();
+
+        var keyword = extractKeywordFromDescription(description);
+        if (!keyword) return;
+
+        var self = this;
+        var div = document.createElement('div');
+        div.className = 'pattern-prompt glass-card p-2 mb-2';
+        div.innerHTML =
+            '<div class="d-flex align-items-center gap-2 flex-wrap">' +
+            '<small class="text-muted"><i class="bi bi-bookmark-plus"></i></small>' +
+            '<span class="small">「<strong>' + keyword + '</strong>」→「<strong>' + category + '</strong>」を常に適用しますか？</span>' +
+            '<button type="button" class="btn btn-success btn-sm pattern-prompt-global"><i class="bi bi-globe"></i> 全案件</button>' +
+            '<button type="button" class="btn btn-outline-success btn-sm pattern-prompt-case"><i class="bi bi-folder"></i> この案件</button>' +
+            '<button type="button" class="btn btn-outline-secondary btn-sm pattern-prompt-dismiss"><i class="bi bi-x"></i></button>' +
+            '</div>';
+
+        // テーブルの前に挿入
+        var table = document.getElementById('groupedTable');
+        if (table && table.parentElement) {
+            table.parentElement.insertBefore(div, table);
+        }
+        this._el = div;
+
+        div.querySelector('.pattern-prompt-global').addEventListener('click', function() {
+            self._register(category, keyword, 'global', description);
+        });
+        div.querySelector('.pattern-prompt-case').addEventListener('click', function() {
+            self._register(category, keyword, 'case', description);
+        });
+        div.querySelector('.pattern-prompt-dismiss').addEventListener('click', function() {
+            self.hide();
+        });
+
+        // 10秒後自動消去
+        this._timeout = setTimeout(function() { self.hide(); }, 10000);
+    },
+
+    _register: function(category, keyword, scope, description) {
+        var self = this;
+        var formData = createFormData({
+            action: 'classify_and_register_pattern',
+            category: category,
+            keyword: keyword,
+            scope: scope,
+            description: description,
+        });
+
+        postJson(window.location.href, formData, {
+            onSuccess: function(data) {
+                var scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
+                var extra = data.count ? '（追加で' + data.count + '件分類）' : '';
+                showToast('パターン「' + keyword + '」→「' + category + '」を登録しました' + scopeMsg + extra, 'success');
+                if (data.count > 0) {
+                    ProgressBar.update(data.count);
+                    GroupedView._updateTxTotal(data.count);
+                    // 同じ摘要の行を削除
+                    self._removeMatchingRows(keyword);
+                }
+                self.hide();
+            },
+        });
+    },
+
+    _removeMatchingRows: function(keyword) {
+        document.querySelectorAll('#groupedTable tbody tr[data-group-desc]').forEach(function(row) {
+            var desc = row.dataset.groupDesc || '';
+            if (desc.toLowerCase().indexOf(keyword.toLowerCase()) !== -1) {
+                row.style.transition = 'opacity 0.3s';
+                row.style.opacity = '0';
+                setTimeout(function() { row.remove(); }, 300);
+            }
+        });
+    },
+
+    hide: function() {
+        clearTimeout(this._timeout);
+        if (this._el) {
+            this._el.remove();
+            this._el = null;
+        }
+    }
+};
+
+// ===== 資金移動タブ =====
+
+const TransferView = {
+    init: function() {
+        var self = this;
+
+        // ビュー切替
+        var toggleBtns = document.querySelectorAll('#transferViewToggle [data-view]');
+        toggleBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                toggleBtns.forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                var view = this.dataset.view;
+                var cardView = document.getElementById('transferCardView');
+                var tableView = document.getElementById('transferTableView');
+                if (cardView) cardView.style.display = view === 'card' ? '' : 'none';
+                if (tableView) tableView.style.display = view === 'table' ? '' : 'none';
+            });
+        });
+
+        // 全て「振替」に分類ボタン
+        var classifyAllBtn = document.getElementById('classifyAllTransfersBtn');
+        if (classifyAllBtn) {
+            classifyAllBtn.addEventListener('click', function() {
+                self._classifyAllAsTransfer();
+            });
+        }
+    },
+
+    _classifyAllAsTransfer: function() {
+        // カード内の全selectを「振替」に変更
+        var selects = document.querySelectorAll('#transferCardView select[name^="transfer-"]');
+        var count = 0;
+        selects.forEach(function(select) {
+            // 「振替」オプションを探す
+            for (var i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === '振替') {
+                    if (select.value !== '振替') {
+                        select.value = '振替';
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                        count++;
+                    }
+                    break;
+                }
+            }
+        });
+
+        if (count > 0) {
+            showToast(count + '件の取引を「振替」に分類しました', 'success');
+        } else {
+            showToast('全て分類済みです', 'info');
+        }
+    }
+};
+
+// ===== クレンジングタブ改善 =====
+
+const CleanupView = {
+    init: function() {
+        const startId = document.getElementById('start_id');
+        const endId = document.getElementById('end_id');
+        const preview = document.getElementById('rangeDeletePreview');
+
+        if (startId && endId && preview) {
+            const updatePreview = () => {
+                const s = parseInt(startId.value);
+                const e = parseInt(endId.value);
+                if (!isNaN(s) && !isNaN(e) && e >= s) {
+                    const count = e - s + 1;
+                    preview.textContent = count + '件が対象';
+                    preview.style.display = '';
+                } else {
+                    preview.style.display = 'none';
+                }
+            };
+            startId.addEventListener('input', updatePreview);
+            endId.addEventListener('input', updatePreview);
+        }
+    }
+};
+
+// ===== 全モジュール初期化 =====
+
+StatusIndicator.init();
+KeyboardShortcuts.init();
+ContextMenu.init();
+QuickFilters.init();
+FilterChips.init();
+FilterPresets.init();
+AutoFilter.init();
+FilterPanel.init();
+ProgressBar.init();
+GroupedView.init();
+TransferView.init();
+CleanupView.init();

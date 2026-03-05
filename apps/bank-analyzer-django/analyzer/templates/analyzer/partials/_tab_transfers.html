@@ -3,114 +3,293 @@
 
 <div class="tab-pane fade" id="transfers" role="tabpanel" aria-labelledby="transfers-tab">
     <div class="glass-card p-4">
-        <!-- キーワード検索 -->
-        <form method="get" class="row g-2 mb-3">
-            <input type="hidden" name="tab" value="transfers">
-            {% for c in filter_state.transfer_category %}<input type="hidden" name="transfer_category" value="{{ c }}">{% endfor %}
-            {% if filter_state.transfer_category_mode != 'include' %}<input type="hidden" name="transfer_category_mode" value="{{ filter_state.transfer_category_mode }}">{% endif %}
+
+        <!-- サマリー統計 -->
+        {% if transfer_summary %}
+        <div class="row g-3 mb-4">
             <div class="col-md-4">
-                <div class="input-group input-group-sm">
-                    <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}" placeholder="摘要をキーワード検索（半角/全角カタカナ対応）">
-                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
-                    {% if filter_state.keyword %}
-                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=transfers" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
-                    {% endif %}
+                <div class="transfer-stat-card">
+                    <div class="transfer-stat-icon text-primary"><i class="bi bi-arrow-left-right"></i></div>
+                    <div>
+                        <div class="transfer-stat-value">{{ transfer_summary.pair_count }}</div>
+                        <div class="transfer-stat-label">検出ペア数</div>
+                    </div>
                 </div>
             </div>
-        </form>
+            <div class="col-md-4">
+                <div class="transfer-stat-card">
+                    <div class="transfer-stat-icon text-danger"><i class="bi bi-cash-stack"></i></div>
+                    <div>
+                        <div class="transfer-stat-value">{{ transfer_summary.total_amount|intcomma }}</div>
+                        <div class="transfer-stat-label">総振替額</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="transfer-stat-card">
+                    <div class="transfer-stat-icon text-warning"><i class="bi bi-question-circle"></i></div>
+                    <div>
+                        <div class="transfer-stat-value" id="transferUnclassifiedCount">{{ transfer_summary.unclassified_count }}</div>
+                        <div class="transfer-stat-label">未分類ペア</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
-        {% with tab_name="transfers" filter_prefix="transfer" selected_categories=filter_state.transfer_category selected_mode=filter_state.transfer_category_mode label_note="出金元/移動先いずれか" %}
-        {% include "analyzer/partials/_category_filter.html" %}
-        {% endwith %}
+        <!-- 統合フィルターバー -->
+        <form method="get" class="transfer-filter-bar mb-4" id="transferFilterForm">
+            <input type="hidden" name="tab" value="transfers">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <!-- キーワード検索 -->
+                <div class="input-group input-group-sm" style="max-width: 300px;">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}" placeholder="摘要をキーワード検索...">
+                    {% if filter_state.keyword %}
+                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=transfers" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></a>
+                    {% endif %}
+                </div>
 
-        <form method="post" id="transferForm">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="bulk_update_transfer_categories">
-            <input type="hidden" name="source_tab" value="transfers">
+                <!-- 分類フィルター（ドロップダウン） -->
+                <div class="dropdown">
+                    <button class="btn btn-sm {% if filter_state.transfer_category %}btn-primary{% else %}btn-outline-secondary{% endif %} dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="transferCatFilterBtn">
+                        <i class="bi bi-funnel me-1"></i>
+                        {% if filter_state.transfer_category %}
+                            分類: {{ filter_state.transfer_category|length }}件選択中
+                        {% else %}
+                            分類で絞込み
+                        {% endif %}
+                    </button>
+                    <div class="dropdown-menu p-3 transfer-filter-dropdown">
+                        <div class="mb-2">
+                            <span class="small fw-bold text-muted">分類 <small>(出金元/移動先いずれか)</small></span>
+                        </div>
+                        <div class="transfer-filter-cat-list mb-2">
+                            {% for cat in categories %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="transfer_category" value="{{ cat }}" id="tf_cat_{{ forloop.counter }}" {% if cat in filter_state.transfer_category %}checked{% endif %}>
+                                <label class="form-check-label small" for="tf_cat_{{ forloop.counter }}">{{ cat }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex gap-2 mb-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="transfer_category_mode" id="tf_mode_inc" value="include" {% if filter_state.transfer_category_mode != 'exclude' %}checked{% endif %}>
+                                <label class="form-check-label small" for="tf_mode_inc">含む</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="transfer_category_mode" id="tf_mode_exc" value="exclude" {% if filter_state.transfer_category_mode == 'exclude' %}checked{% endif %}>
+                                <label class="form-check-label small" for="tf_mode_exc">除外</label>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                                <i class="bi bi-check"></i> 適用
+                            </button>
+                            <a href="{% url 'analysis-dashboard' case.pk %}?tab=transfers" class="btn btn-outline-secondary btn-sm">クリア</a>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="mb-0">🔄 検出された資金移動リスト ({{ transfer_pairs|length }}件)
-                    {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
-                    {% if filter_state.transfer_category %}<small class="text-muted">(フィルター適用中)</small>{% endif %}
-                </h4>
-                <div>
+                <!-- アクティブフィルターのチップ表示 -->
+                {% if filter_state.transfer_category %}
+                    {% for c in filter_state.transfer_category %}
+                    <span class="filter-chip">
+                        {% if filter_state.transfer_category_mode == 'exclude' %}<i class="bi bi-dash-circle text-danger"></i>{% endif %}
+                        {{ c }}
+                    </span>
+                    {% endfor %}
+                {% endif %}
+
+                <!-- 右寄せアクション -->
+                <div class="d-flex gap-2 ms-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-search"></i> 検索
+                    </button>
                     {% if transfer_pairs %}
-                    <button type="submit" class="btn btn-primary btn-sm me-2">
-                        <i class="bi bi-check-lg"></i> 分類を一括保存
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="classifyAllTransfersBtn">
+                        <i class="bi bi-check-all"></i> 全て「振替」に分類
                     </button>
                     <a href="{% url 'export-csv' case.pk 'transfers' %}" class="btn btn-outline-success btn-sm">
-                        <i class="bi bi-download"></i> CSV出力
+                        <i class="bi bi-download"></i> CSV
                     </a>
                     {% endif %}
                 </div>
             </div>
-            {% if transfer_pairs %}
-            <div class="table-responsive">
-                <table class="table table-sm table-hover">
-                    <thead>
-                        <tr class="table-secondary">
-                            <th colspan="7" class="text-center bg-danger bg-opacity-10">【出金元】</th>
-                            <th colspan="7" class="text-center bg-success bg-opacity-10">【移動先】</th>
-                        </tr>
-                        <tr>
-                            <th>日付</th>
-                            <th>銀行</th>
-                            <th>支店</th>
-                            <th>口座番号</th>
-                            <th class="text-end">金額</th>
-                            <th>摘要</th>
-                            <th style="min-width: 110px;">分類</th>
-                            <th>日付</th>
-                            <th>銀行</th>
-                            <th>支店</th>
-                            <th>口座番号</th>
-                            <th class="text-end">金額</th>
-                            <th>摘要</th>
-                            <th style="min-width: 110px;">分類</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for pair in transfer_pairs %}
-                        <tr>
-                            <!-- 出金元 -->
-                            <td>{{ pair.source.date|wareki_short }}</td>
-                            <td>{{ pair.source.bank_name|default:"-" }}</td>
-                            <td>{{ pair.source.branch_name|default:"-" }}</td>
-                            <td>{{ pair.source.account_id|default:"-" }}</td>
-                            <td class="text-end text-danger fw-bold">{{ pair.source.amount|intcomma }}</td>
-                            <td class="text-truncate" style="max-width: 120px;" title="{{ pair.source.description }}">{{ pair.source.description|default:"-" }}</td>
-                            <td>
+        </form>
+
+        {% if transfer_pairs %}
+
+        <!-- ビュー切替 -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+                <i class="bi bi-arrow-left-right me-1"></i>
+                検出された資金移動 ({{ transfer_pairs|length }}件)
+                {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
+            </h5>
+            <div class="btn-group btn-group-sm" id="transferViewToggle">
+                <button type="button" class="btn btn-outline-primary active" data-view="card" title="カード表示">
+                    <i class="bi bi-card-list"></i> カード
+                </button>
+                <button type="button" class="btn btn-outline-primary" data-view="table" title="テーブル表示">
+                    <i class="bi bi-table"></i> テーブル
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== カード表示 ===== -->
+        <div id="transferCardView">
+            {% for pair in transfer_pairs %}
+            <div class="transfer-pair-card mb-3"
+                 data-src-id="{{ pair.source.id }}"
+                 {% if pair.destination %}data-dest-id="{{ pair.destination.id }}"{% endif %}>
+                <div class="row g-0">
+                    <!-- 出金元 -->
+                    <div class="col-md-5">
+                        <div class="transfer-side transfer-side-out">
+                            <div class="transfer-side-header">
+                                <span class="transfer-side-label transfer-label-out"><i class="bi bi-box-arrow-up-right"></i> 出金</span>
+                                <span class="transfer-date">{{ pair.source.date|wareki_short }}</span>
+                            </div>
+                            <div class="transfer-side-body">
+                                <div class="transfer-amount text-danger">-{{ pair.source.amount|intcomma }}円</div>
+                                <div class="transfer-account">
+                                    <small class="text-muted">{{ pair.source.bank_name|default:"-" }} {{ pair.source.branch_name|default:"" }}</small>
+                                    <small class="text-muted">{{ pair.source.account_id|default:"" }}</small>
+                                </div>
+                                <div class="transfer-desc text-truncate" title="{{ pair.source.description }}">{{ pair.source.description|default:"-" }}</div>
+                            </div>
+                            <div class="transfer-side-footer">
                                 {% with tx=pair.source name_prefix="transfer-src-" %}
                                 {% include "analyzer/partials/_category_select.html" %}
                                 {% endwith %}
-                            </td>
-                            <!-- 移動先 -->
-                            {% if pair.destination %}
-                            <td>{{ pair.destination.date|wareki_short }}</td>
-                            <td>{{ pair.destination.bank_name|default:"-" }}</td>
-                            <td>{{ pair.destination.branch_name|default:"-" }}</td>
-                            <td>{{ pair.destination.account_id|default:"-" }}</td>
-                            <td class="text-end text-success fw-bold">{{ pair.destination.amount|intcomma }}</td>
-                            <td class="text-truncate" style="max-width: 120px;" title="{{ pair.destination.description }}">{{ pair.destination.description|default:"-" }}</td>
-                            <td>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 矢印 + 金額差 -->
+                    <div class="col-md-2 d-flex flex-column align-items-center justify-content-center transfer-arrow-col">
+                        <i class="bi bi-arrow-right-circle-fill text-primary fs-4"></i>
+                        {% if pair.destination %}
+                            {% if pair.amount_diff and pair.amount_diff > 0 %}
+                            <small class="transfer-diff mt-1">
+                                差額: {{ pair.amount_diff|intcomma }}円
+                            </small>
+                            {% else %}
+                            <small class="text-success mt-1"><i class="bi bi-check-circle"></i> 同額</small>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    <!-- 移動先 -->
+                    <div class="col-md-5">
+                        {% if pair.destination %}
+                        <div class="transfer-side transfer-side-in">
+                            <div class="transfer-side-header">
+                                <span class="transfer-side-label transfer-label-in"><i class="bi bi-box-arrow-in-down-left"></i> 入金</span>
+                                <span class="transfer-date">{{ pair.destination.date|wareki_short }}</span>
+                            </div>
+                            <div class="transfer-side-body">
+                                <div class="transfer-amount text-success">+{{ pair.destination.amount|intcomma }}円</div>
+                                <div class="transfer-account">
+                                    <small class="text-muted">{{ pair.destination.bank_name|default:"-" }} {{ pair.destination.branch_name|default:"" }}</small>
+                                    <small class="text-muted">{{ pair.destination.account_id|default:"" }}</small>
+                                </div>
+                                <div class="transfer-desc text-truncate" title="{{ pair.destination.description }}">{{ pair.destination.description|default:"-" }}</div>
+                            </div>
+                            <div class="transfer-side-footer">
                                 {% with tx=pair.destination name_prefix="transfer-dest-" %}
                                 {% include "analyzer/partials/_category_select.html" %}
                                 {% endwith %}
-                            </td>
-                            {% else %}
-                            <td colspan="7" class="text-center text-muted">（対応する入金データなし）</td>
-                            {% endif %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="transfer-side transfer-side-missing">
+                            <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                                <i class="bi bi-question-circle me-2"></i> 対応する入金データなし
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-            <p class="text-muted small mt-2">
-                <i class="bi bi-info-circle"></i> 同一金額（±1,000円）で3日以内に異なる口座間で発生した出金・入金をペアとして検出しています。出金元と移動先は別々の分類を設定できます。
-            </p>
-            {% else %}
-            <div class="alert alert-info">資金移動は検出されませんでした。</div>
-            {% endif %}
-        </form>
+            {% endfor %}
+        </div>
+
+        <!-- ===== テーブル表示（既存） ===== -->
+        <div id="transferTableView" style="display: none;">
+            <form method="post" id="transferForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="bulk_update_transfer_categories">
+                <input type="hidden" name="source_tab" value="transfers">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr class="table-secondary">
+                                <th colspan="7" class="text-center bg-danger bg-opacity-10">【出金元】</th>
+                                <th colspan="7" class="text-center bg-success bg-opacity-10">【移動先】</th>
+                            </tr>
+                            <tr>
+                                <th>日付</th>
+                                <th>銀行</th>
+                                <th>支店</th>
+                                <th>口座番号</th>
+                                <th class="text-end">金額</th>
+                                <th>摘要</th>
+                                <th style="min-width: 110px;">分類</th>
+                                <th>日付</th>
+                                <th>銀行</th>
+                                <th>支店</th>
+                                <th>口座番号</th>
+                                <th class="text-end">金額</th>
+                                <th>摘要</th>
+                                <th style="min-width: 110px;">分類</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pair in transfer_pairs %}
+                            <tr>
+                                <td>{{ pair.source.date|wareki_short }}</td>
+                                <td>{{ pair.source.bank_name|default:"-" }}</td>
+                                <td>{{ pair.source.branch_name|default:"-" }}</td>
+                                <td>{{ pair.source.account_id|default:"-" }}</td>
+                                <td class="text-end text-danger fw-bold">{{ pair.source.amount|intcomma }}</td>
+                                <td class="text-truncate" style="max-width: 120px;" title="{{ pair.source.description }}">{{ pair.source.description|default:"-" }}</td>
+                                <td>
+                                    {% with tx=pair.source name_prefix="transfer-src-tbl-" %}
+                                    {% include "analyzer/partials/_category_select.html" %}
+                                    {% endwith %}
+                                </td>
+                                {% if pair.destination %}
+                                <td>{{ pair.destination.date|wareki_short }}</td>
+                                <td>{{ pair.destination.bank_name|default:"-" }}</td>
+                                <td>{{ pair.destination.branch_name|default:"-" }}</td>
+                                <td>{{ pair.destination.account_id|default:"-" }}</td>
+                                <td class="text-end text-success fw-bold">{{ pair.destination.amount|intcomma }}</td>
+                                <td class="text-truncate" style="max-width: 120px;" title="{{ pair.destination.description }}">{{ pair.destination.description|default:"-" }}</td>
+                                <td>
+                                    {% with tx=pair.destination name_prefix="transfer-dest-tbl-" %}
+                                    {% include "analyzer/partials/_category_select.html" %}
+                                    {% endwith %}
+                                </td>
+                                {% else %}
+                                <td colspan="7" class="text-center text-muted">（対応する入金データなし）</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+
+        <p class="text-muted small mt-2">
+            <i class="bi bi-info-circle"></i> 同一金額（±1,000円）で3日以内に異なる口座間で発生した出金・入金をペアとして検出しています。
+        </p>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-arrow-left-right display-1 text-muted mb-3"></i>
+            <h5>資金移動は検出されませんでした</h5>
+            <p class="text-muted mb-0">同一金額の口座間移動パターンが見つかりません。</p>
+        </div>
+        {% endif %}
     </div>
 </div>

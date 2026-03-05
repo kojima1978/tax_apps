@@ -1,4 +1,4 @@
-<select name="{{ name_prefix }}{{ tx.id }}" class="form-select form-select-sm">
+<select name="{{ name_prefix }}{{ tx.id }}" class="form-select form-select-sm" data-last-saved="{{ tx.category }}">
     {% for cat in categories %}
     <option value="{{ cat }}" {% if tx.category == cat %}selected{% endif %}>{{ cat }}</option>
     {% endfor %}

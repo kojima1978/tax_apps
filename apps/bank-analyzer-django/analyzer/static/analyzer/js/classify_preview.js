@@ -171,12 +171,17 @@ const ClassifyPreview = {
         const count = document.querySelectorAll('.row-checkbox:checked').length;
         if (count === 0) {
             e.preventDefault();
-            alert('適用する取引を選択してください。');
+            showToast('適用する取引を選択してください。', 'warning');
             return;
         }
-        if (!confirm(`${count}件の取引に分類を適用しますか？`)) {
-            e.preventDefault();
-        }
+        e.preventDefault();
+        const form = document.getElementById('applyForm');
+        ConfirmModal.show({
+            title: '分類の適用',
+            message: `${count}件の取引に分類を適用しますか？`,
+            confirmText: '適用',
+            onConfirm: () => { form.submit(); }
+        });
     }
 };
 

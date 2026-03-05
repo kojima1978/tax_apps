@@ -206,6 +206,38 @@ def handle_bulk_pattern_changes(request: HttpRequest, case, pk: int) -> JsonResp
         return json_error(str(e))
 
 
+@require_params('category', 'keyword')
+def handle_classify_and_register_pattern(
+    request: HttpRequest, case, pk: int, category: str, keyword: str
+) -> HttpResponse:
+    """パターン登録 + 同一キーワードの未分類取引を一括分類"""
+    from ..lib.constants import UNCATEGORIZED
+
+    scope = request.POST.get('scope', 'global')
+    description = request.POST.get('description', '')
+
+    try:
+        # 1. パターン追加
+        if scope == 'case':
+            config.add_case_pattern_keyword(case, category, keyword)
+        else:
+            config.add_pattern_keyword(category, keyword)
+
+        # 2. キーワードに一致する未分類取引を一括更新
+        qs = case.transactions.filter(category=UNCATEGORIZED, description__icontains=keyword)
+        count = qs.update(category=category)
+
+        return JsonResponse({
+            'success': True,
+            'count': count,
+            'category': category,
+            'keyword': keyword,
+            'scope': scope,
+        })
+    except Exception as e:
+        return handle_ajax_error(request, pk, e, "分類+パターン登録エラー")
+
+
 def _apply_single_change(case, action: str, category: str, keyword: str, scope: str, change: dict) -> bool:
     """単一のパターン変更を適用"""
     if action == 'add':

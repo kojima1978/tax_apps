@@ -180,16 +180,23 @@ document.addEventListener('DOMContentLoaded', function () {
         deleteBtn.addEventListener('click', function () {
             var checkedBoxes = document.querySelectorAll('.remove-row-check:checked');
             if (checkedBoxes.length === 0) return;
-            if (!confirm(checkedBoxes.length + '件の行を削除しますか？')) return;
 
-            checkedBoxes.forEach(function (cb) {
-                var row = cb.closest('tr');
-                if (row) {
-                    row.style.display = 'none';
-                    cb.checked = true;
+            ConfirmModal.show({
+                title: '行の削除',
+                message: checkedBoxes.length + '件の行を削除しますか？',
+                confirmText: '削除',
+                confirmClass: 'btn-danger',
+                onConfirm: function() {
+                    checkedBoxes.forEach(function (cb) {
+                        var row = cb.closest('tr');
+                        if (row) {
+                            row.style.display = 'none';
+                            cb.checked = true;
+                        }
+                    });
+                    updateSelectedState();
                 }
             });
-            updateSelectedState();
         });
     }
 
