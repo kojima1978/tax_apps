@@ -461,6 +461,7 @@ clearFilesBtn.addEventListener('click', () => {
 });
 
 function handleFiles(filesList) {
+    hideErrorDetails();
     const csvFiles = Array.from(filesList).filter(f => f.name.toLowerCase().endsWith('.csv'));
 
     if (csvFiles.length === 0) {
@@ -1281,9 +1282,10 @@ function showErrorDetails(message, details) {
     };
     const t = typeMap[details.type] || { cls: 'alert-secondary', icon: 'bi-x-circle text-secondary', title: 'エラー' };
 
-    let html = `<div class="alert ${t.cls} mb-0"><div class="d-flex align-items-start">`;
+    let html = `<div class="alert ${t.cls} alert-dismissible mb-0"><div class="d-flex align-items-start">`;
     html += `<div class="me-3 fs-4"><i class="bi ${t.icon}"></i></div>`;
     html += `<div class="flex-grow-1">`;
+    html += `<button type="button" class="btn-close" onclick="hideErrorDetails()" aria-label="閉じる"></button>`;
     html += `<h5 class="alert-heading mb-2">${details.type_label || t.title}</h5>`;
     html += `<p class="mb-2 fw-bold">${escapeHtml(details.message)}</p>`;
 
