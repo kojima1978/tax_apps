@@ -11,6 +11,9 @@
         <h1 class="h2">📊 編集・分析: {{ case.name }}</h1>
     </div>
     <div class="col-md-4 text-end">
+        <a href="{% url 'import-wizard' case.pk %}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-file-earmark-arrow-up"></i> CSV追加取込
+        </a>
         <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-success me-2">
             <i class="bi bi-box-arrow-down"></i> JSONバックアップ
         </a>
