@@ -7,17 +7,19 @@ export default function InheritanceTaxDocGuide() {
     // state
     expandedCategories, customDocuments, documentOrder,
     editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
+    checkedDates, documentMemos, excludedDocuments, disabledCategories,
     deleteConfirmation,
     clientName, deceasedName, deadline, personInCharge, personInChargeContact, stats,
     // モーダル
     editingDocId, editingDocData, isModalOpen, modalVariant,
     // handlers
     setClientName, setDeceasedName, setDeadline, setPersonInCharge, setPersonInChargeContact,
-    toggleExpanded,
+    toggleExpanded, expandAll, collapseAll,
     reorderDocuments,
     toggleCanDelegate,
-    addSpecificName, editSpecificName, removeSpecificName,
+    addSpecificName, editSpecificName, removeSpecificName, reorderSpecificNames,
     toggleDocumentCheck, toggleAllInCategory,
+    setDocumentMemo, toggleExcluded, toggleCategoryDisabled,
     requestDelete, requestDeleteCategory, confirmDelete, cancelDelete,
     resetToDefault,
     exportToJson, importFromJson, getSelectedDocuments,
@@ -40,6 +42,10 @@ export default function InheritanceTaxDocGuide() {
         canDelegateOverrides={canDelegateOverrides}
         specificDocNames={specificDocNames}
         checkedDocuments={checkedDocuments}
+        checkedDates={checkedDates}
+        documentMemos={documentMemos}
+        excludedDocuments={excludedDocuments}
+        disabledCategories={disabledCategories}
         deleteConfirmation={deleteConfirmation}
         stats={stats}
         onClientNameChange={setClientName}
@@ -48,13 +54,19 @@ export default function InheritanceTaxDocGuide() {
         onPersonInChargeChange={setPersonInCharge}
         onPersonInChargeContactChange={setPersonInChargeContact}
         onToggleExpanded={toggleExpanded}
+        onExpandAll={expandAll}
+        onCollapseAll={collapseAll}
         onReorderDocuments={reorderDocuments}
         onToggleCanDelegate={toggleCanDelegate}
         onAddSpecificName={addSpecificName}
         onEditSpecificName={editSpecificName}
         onRemoveSpecificName={removeSpecificName}
+        onReorderSpecificNames={reorderSpecificNames}
         onToggleDocumentCheck={toggleDocumentCheck}
         onToggleAllInCategory={toggleAllInCategory}
+        onSetDocumentMemo={setDocumentMemo}
+        onToggleExcluded={toggleExcluded}
+        onToggleCategoryDisabled={toggleCategoryDisabled}
         onRemoveDocument={requestDelete}
         onRemoveCategory={requestDeleteCategory}
         onConfirmDelete={confirmDelete}

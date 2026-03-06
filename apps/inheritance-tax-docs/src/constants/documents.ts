@@ -48,6 +48,7 @@ export interface Stats {
   totalCount: number;
   customCount: number;
   checkedCount: number;
+  excludedCount: number;
   hasCustomizations: boolean;
 }
 

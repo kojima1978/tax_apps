@@ -19,6 +19,10 @@ export interface ExportData {
     canDelegateOverrides: Record<string, boolean>;
     specificDocNames?: Record<string, string[]>;
     checkedDocuments?: Record<string, boolean>;
+    checkedDates?: Record<string, string>;
+    documentMemos?: Record<string, string>;
+    excludedDocuments?: Record<string, boolean>;
+    disabledCategories?: Record<string, boolean>;
     // 後方互換（旧データ読込用）
     strikethroughSpecificNames?: Record<string, boolean[]>;
     strikethroughDocuments?: Record<string, boolean>;
@@ -45,6 +49,10 @@ export function createExportData(params: {
   canDelegateOverrides: Record<string, boolean>;
   specificDocNames: Record<string, string[]>;
   checkedDocuments: Record<string, boolean>;
+  checkedDates: Record<string, string>;
+  documentMemos: Record<string, string>;
+  excludedDocuments: Record<string, boolean>;
+  disabledCategories: Record<string, boolean>;
   personInCharge: string;
   personInChargeContact: string;
 }): ExportData {
@@ -62,6 +70,10 @@ export function createExportData(params: {
       canDelegateOverrides: params.canDelegateOverrides,
       specificDocNames: params.specificDocNames,
       checkedDocuments: params.checkedDocuments,
+      checkedDates: params.checkedDates,
+      documentMemos: params.documentMemos,
+      excludedDocuments: params.excludedDocuments,
+      disabledCategories: params.disabledCategories,
       personInCharge: params.personInCharge,
       personInChargeContact: params.personInChargeContact,
     },
@@ -115,6 +127,10 @@ export function validateImportData(data: unknown): ValidationResult {
     ['deletedDocuments', 'object', '削除済み書類データが不正です。', false],
     ['specificDocNames', 'object', '具体的書類名データが不正です。', false],
     ['checkedDocuments', 'object', '提出済みデータが不正です。', false],
+    ['checkedDates', 'object', '提出日データが不正です。', false],
+    ['documentMemos', 'object', 'メモデータが不正です。', false],
+    ['excludedDocuments', 'object', '対象外データが不正です。', false],
+    ['disabledCategories', 'object', 'カテゴリ無効データが不正です。', false],
     ['strikethroughSpecificNames', 'object', '取消線データが不正です。', false],
     ['strikethroughDocuments', 'object', '書類取消線データが不正です。', false],
     ['strikethroughCategories', 'object', 'カテゴリ取消線データが不正です。', false],

@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FileSpreadsheet,
   FileDown,
@@ -10,6 +10,11 @@ import {
   Home,
   Eye,
   EyeOff,
+  ChevronsDown,
+  ChevronsUp,
+  Search,
+  Filter,
+  X,
 } from 'lucide-react';
 import { CATEGORIES, type CategoryDocuments, type CustomDocumentItem, type DocChanges, type Stats } from '../constants/documents';
 import { COMPANY_INFO, getFullAddress, getContactLine } from '../utils/company';
@@ -24,6 +29,13 @@ import { EditableCategoryTable } from './ui/EditableCategoryTable';
 const TOOLBAR_BTN = 'flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm';
 const FORM_INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
 
+export interface FilterCriteria {
+  searchQuery: string;
+  showOnlyUnchecked: boolean;
+  showOnlyDelegatable: boolean;
+  hideExcluded: boolean;
+}
+
 interface UnifiedDocumentViewProps {
   clientName: string;
   deceasedName: string;
@@ -37,6 +49,10 @@ interface UnifiedDocumentViewProps {
   canDelegateOverrides: Record<string, boolean>;
   specificDocNames: Record<string, string[]>;
   checkedDocuments: Record<string, boolean>;
+  checkedDates: Record<string, string>;
+  documentMemos: Record<string, string>;
+  excludedDocuments: Record<string, boolean>;
+  disabledCategories: Record<string, boolean>;
   deleteConfirmation: { type: 'document' | 'category'; name: string } | null;
   stats: Stats;
   onClientNameChange: (value: string) => void;
@@ -45,13 +61,19 @@ interface UnifiedDocumentViewProps {
   onPersonInChargeChange: (value: string) => void;
   onPersonInChargeContactChange: (value: string) => void;
   onToggleExpanded: (categoryId: string) => void;
+  onExpandAll: () => void;
+  onCollapseAll: () => void;
   onReorderDocuments: (categoryId: string, newOrder: string[]) => void;
   onToggleCanDelegate: (docId: string, originalCanDelegate: boolean) => void;
   onAddSpecificName: (docId: string, name: string) => void;
   onEditSpecificName: (docId: string, index: number, name: string) => void;
   onRemoveSpecificName: (docId: string, index: number) => void;
+  onReorderSpecificNames: (docId: string, newNames: string[]) => void;
   onToggleDocumentCheck: (docId: string) => void;
   onToggleAllInCategory: (categoryId: string, checked: boolean) => void;
+  onSetDocumentMemo: (docId: string, memo: string) => void;
+  onToggleExcluded: (docId: string) => void;
+  onToggleCategoryDisabled: (categoryId: string) => void;
   onRemoveDocument: (docId: string, categoryId: string, name: string) => void;
   onRemoveCategory: (categoryId: string, name: string) => void;
   onConfirmDelete: () => void;
@@ -77,6 +99,10 @@ function UnifiedDocumentViewComponent({
   canDelegateOverrides,
   specificDocNames,
   checkedDocuments,
+  checkedDates,
+  documentMemos,
+  excludedDocuments,
+  disabledCategories,
   deleteConfirmation,
   stats,
   onClientNameChange,
@@ -85,13 +111,19 @@ function UnifiedDocumentViewComponent({
   onPersonInChargeChange,
   onPersonInChargeContactChange,
   onToggleExpanded,
+  onExpandAll,
+  onCollapseAll,
   onReorderDocuments,
   onToggleCanDelegate,
   onAddSpecificName,
   onEditSpecificName,
   onRemoveSpecificName,
+  onReorderSpecificNames,
   onToggleDocumentCheck,
   onToggleAllInCategory,
+  onSetDocumentMemo,
+  onToggleExcluded,
+  onToggleCategoryDisabled,
   onRemoveDocument,
   onRemoveCategory,
   onConfirmDelete,
@@ -109,7 +141,39 @@ function UnifiedDocumentViewComponent({
   const { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess } = useJsonImport(onImportJson);
   const [hideSubmittedInPrint, setHideSubmittedInPrint] = useState(false);
   const [currentDate, setCurrentDate] = useState('');
+
+  // B2: フィルター状態
+  const [showOnlyUnchecked, setShowOnlyUnchecked] = useState(false);
+  const [showOnlyDelegatable, setShowOnlyDelegatable] = useState(false);
+  const [hideExcluded, setHideExcluded] = useState(false);
+  // B3: 検索状態
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
   useEffect(() => { setCurrentDate(formatDate(new Date())); }, []);
+
+  const filterCriteria = useMemo((): FilterCriteria => ({
+    searchQuery,
+    showOnlyUnchecked,
+    showOnlyDelegatable,
+    hideExcluded,
+  }), [searchQuery, showOnlyUnchecked, showOnlyDelegatable, hideExcluded]);
+
+  const hasActiveFilters = showOnlyUnchecked || showOnlyDelegatable || hideExcluded || searchQuery !== '';
+
+  // B4: キーボードショートカット
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 's') {
+          e.preventDefault();
+          onExportJson();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onExportJson]);
 
   const printInfoFields: { label: string; value: string; format?: (v: string) => string }[] = [
     { label: 'お客様名', value: clientName, format: v => `${v} 様` },
@@ -131,7 +195,7 @@ function UnifiedDocumentViewComponent({
     ]},
   ];
 
-  const handleExcelExport = async () => {
+  const handleExcelExport = useCallback(async () => {
     setIsExporting(true);
     setExportError(null);
     try {
@@ -143,14 +207,17 @@ function UnifiedDocumentViewComponent({
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [getSelectedDocuments, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, personInCharge, personInChargeContact]);
+
+  // A1: 進捗率の計算
+  const progressPercent = stats.totalCount > 0 ? Math.round((stats.checkedCount / stats.totalCount) * 100) : 0;
 
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-8 animate-fade-in">
       <div className="bg-white rounded-xl shadow-lg overflow-hidden print-compact">
 
-        {/* ヘッダー + ツールバー（スクリーン用） */}
-        <header className="bg-blue-800 p-6 text-white no-print">
+        {/* A3: ヘッダー + ツールバー（グラデーション） */}
+        <header className="header-gradient p-6 text-white no-print">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
               <a href="/" title="ポータルに戻る" aria-label="ポータルに戻る" className="opacity-70 hover:opacity-100 transition-opacity">
@@ -166,14 +233,14 @@ function UnifiedDocumentViewComponent({
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={onExportJson}
-                className={`${TOOLBAR_BTN} bg-indigo-600 hover:bg-indigo-700`}
-                title="設定をJSONファイルとして保存"
+                className={`${TOOLBAR_BTN} bg-white/15 hover:bg-white/25 backdrop-blur-sm`}
+                title="設定をJSONファイルとして保存 (Ctrl+S)"
               >
                 <Download className="w-4 h-4 mr-1" /> 保存
               </button>
               <label
                 className={`${TOOLBAR_BTN} cursor-pointer ${
-                  isImporting ? 'bg-slate-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
+                  isImporting ? 'bg-slate-400 cursor-not-allowed' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm'
                 }`}
                 title="JSONファイルから設定を読み込み"
               >
@@ -183,7 +250,7 @@ function UnifiedDocumentViewComponent({
               <button
                 onClick={handleExcelExport}
                 disabled={isExporting}
-                className={`${TOOLBAR_BTN} bg-emerald-600 hover:bg-emerald-700 ${
+                className={`${TOOLBAR_BTN} bg-emerald-500/80 hover:bg-emerald-500 ${
                   isExporting ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
@@ -191,7 +258,7 @@ function UnifiedDocumentViewComponent({
               </button>
               <button
                 onClick={() => window.print()}
-                className={`${TOOLBAR_BTN} bg-blue-600 hover:bg-blue-700`}
+                className={`${TOOLBAR_BTN} bg-white/15 hover:bg-white/25 backdrop-blur-sm`}
               >
                 <FileDown className="w-4 h-4 mr-1" /> 印刷
               </button>
@@ -199,7 +266,7 @@ function UnifiedDocumentViewComponent({
                 onClick={() => setShowResetConfirm(true)}
                 disabled={!stats.hasCustomizations}
                 className={`${TOOLBAR_BTN} ${
-                  stats.hasCustomizations ? 'bg-slate-600 hover:bg-slate-700' : 'bg-slate-400 cursor-not-allowed opacity-50'
+                  stats.hasCustomizations ? 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' : 'bg-white/5 cursor-not-allowed opacity-50'
                 }`}
                 title="書類のカスタマイズをすべて初期状態に戻す"
               >
@@ -254,6 +321,7 @@ function UnifiedDocumentViewComponent({
               <li>名称・説明の変更</li>
               <li>代行可否の変更</li>
               <li>具体的な書類名</li>
+              <li>メモ・対象外設定</li>
             </ul>
             <p className="text-xs text-slate-400 mb-4">
               ※ お客様名・被相続人名・期限・担当者情報は保持されます。
@@ -299,33 +367,136 @@ function UnifiedDocumentViewComponent({
           ))}
         </div>
 
-        {/* 統計バー（スクリーン用） */}
-        <div className="px-6 py-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 no-print">
-          <div className="text-sm text-slate-600 flex items-center gap-4">
-            <span className="bg-emerald-100 text-emerald-700 px-3 py-0.5 rounded-full font-medium">
-              {stats.checkedCount} / {stats.totalCount} 提出済み
-            </span>
-            {stats.customCount > 0 && (
-              <span className="text-slate-400">
-                追加: <span className="text-emerald-600">{stats.customCount}</span>件
+        {/* A1: 進捗バー + 統計バー */}
+        <div className="no-print">
+          {/* プログレスバー */}
+          <div className="px-6 pt-4 pb-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm font-medium text-slate-700">
+                全体の進捗
               </span>
+              <span className="text-sm font-bold text-emerald-600">
+                {progressPercent}%
+              </span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+              <div
+                className="progress-bar-fill h-full rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-1.5 text-xs text-slate-500">
+              <span>{stats.checkedCount} / {stats.totalCount} 提出済み</span>
+              {stats.excludedCount > 0 && (
+                <span>対象外: {stats.excludedCount}件</span>
+              )}
+              {stats.customCount > 0 && (
+                <span>追加: {stats.customCount}件</span>
+              )}
+            </div>
+          </div>
+
+          {/* B1/B2/B3: ツールバー（展開/折りたたみ、フィルター、検索） */}
+          <div className="px-6 py-3 bg-slate-100 border-y border-slate-200 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                {/* B1: すべて展開/折りたたみ */}
+                <button
+                  onClick={onExpandAll}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
+                  title="すべて展開"
+                >
+                  <ChevronsDown className="w-3.5 h-3.5" /> 全展開
+                </button>
+                <button
+                  onClick={onCollapseAll}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
+                  title="すべて折りたたみ"
+                >
+                  <ChevronsUp className="w-3.5 h-3.5" /> 全折りたたみ
+                </button>
+
+                {/* B2: フィルター切替 */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    hasActiveFilters
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  }`}
+                  title="フィルター"
+                >
+                  <Filter className="w-3.5 h-3.5" /> フィルター
+                  {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setHideSubmittedInPrint(!hideSubmittedInPrint)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    hideSubmittedInPrint
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  }`}
+                  title={hideSubmittedInPrint ? '提出済みを印刷に含める' : '提出済みを印刷で非表示'}
+                >
+                  {hideSubmittedInPrint ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  提出済みを印刷で非表示
+                </button>
+              </div>
+            </div>
+
+            {/* B2+B3: フィルター/検索パネル */}
+            {showFilters && (
+              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-200">
+                {/* B3: 検索 */}
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="書類名を検索..."
+                    className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* B2: フィルタートグル */}
+                {([
+                  { checked: showOnlyUnchecked, toggle: () => setShowOnlyUnchecked(!showOnlyUnchecked), label: '未提出のみ' },
+                  { checked: showOnlyDelegatable, toggle: () => setShowOnlyDelegatable(!showOnlyDelegatable), label: '代行可のみ' },
+                  { checked: hideExcluded, toggle: () => setHideExcluded(!hideExcluded), label: '対象外を非表示' },
+                ] as const).map(({ checked, toggle, label }) => (
+                  <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={toggle}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-slate-600">{label}</span>
+                  </label>
+                ))}
+                {hasActiveFilters && (
+                  <button
+                    onClick={() => { setSearchQuery(''); setShowOnlyUnchecked(false); setShowOnlyDelegatable(false); setHideExcluded(false); }}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
             )}
           </div>
-          <button
-            onClick={() => setHideSubmittedInPrint(!hideSubmittedInPrint)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              hideSubmittedInPrint
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-            }`}
-            title={hideSubmittedInPrint ? '提出済みを印刷に含める' : '提出済みを印刷で非表示'}
-          >
-            {hideSubmittedInPrint
-              ? <EyeOff className="w-4 h-4" />
-              : <Eye className="w-4 h-4" />
-            }
-            提出済みを印刷で非表示
-          </button>
         </div>
 
         {/* 注意事項 */}
@@ -357,6 +528,7 @@ function UnifiedDocumentViewComponent({
               category={category}
               categoryIndex={index + 1}
               isExpanded={expandedCategories[category.id] ?? false}
+              isDisabled={disabledCategories[category.id] ?? false}
               customDocuments={customDocuments}
               documentOrder={documentOrder[category.id] || []}
               editedDocuments={editedDocuments}
@@ -368,12 +540,20 @@ function UnifiedDocumentViewComponent({
               onAddSpecificName={onAddSpecificName}
               onEditSpecificName={onEditSpecificName}
               onRemoveSpecificName={onRemoveSpecificName}
+              onReorderSpecificNames={onReorderSpecificNames}
               checkedDocuments={checkedDocuments}
+              checkedDates={checkedDates}
+              documentMemos={documentMemos}
+              excludedDocuments={excludedDocuments}
               onToggleDocumentCheck={onToggleDocumentCheck}
               onToggleAllInCategory={onToggleAllInCategory}
+              onSetDocumentMemo={onSetDocumentMemo}
+              onToggleExcluded={onToggleExcluded}
+              onToggleCategoryDisabled={onToggleCategoryDisabled}
               onRemoveDocument={onRemoveDocument}
               onRemoveCategory={onRemoveCategory}
               hideSubmittedInPrint={hideSubmittedInPrint}
+              filterCriteria={filterCriteria}
               onOpenAddModal={onOpenAddModal}
               onStartEdit={onStartEdit}
             />
