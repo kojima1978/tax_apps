@@ -358,6 +358,7 @@
 
 {% block extra_js %}
 <script src="{% static 'analyzer/js/utils.js' %}"></script>
+<script>window.BANK_TO_ACCOUNTS = {{ bank_to_accounts_json|safe }};</script>
 <script src="{% static 'analyzer/js/analysis_dashboard.js' %}"></script>
 
 <!-- トースト通知 -->
