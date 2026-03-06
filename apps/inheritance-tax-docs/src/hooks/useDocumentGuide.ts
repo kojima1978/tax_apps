@@ -38,6 +38,10 @@ export function useDocumentGuide() {
   const [canDelegateOverrides, setCanDelegateOverrides] = useState<Record<string, boolean>>({});
   const [specificDocNames, setSpecificDocNames] = useState<Record<string, string[]>>({});
   const [checkedDocuments, setCheckedDocuments] = useState<Record<string, boolean>>({});
+  const [checkedDates, setCheckedDates] = useState<Record<string, string>>({});
+  const [documentMemos, setDocumentMemos] = useState<Record<string, string>>({});
+  const [excludedDocuments, setExcludedDocuments] = useState<Record<string, boolean>>({});
+  const [disabledCategories, setDisabledCategories] = useState<Record<string, boolean>>({});
   const [deleteConfirmation, setDeleteConfirmation] = useState<
     | { type: 'document'; docId: string; categoryId: string; name: string }
     | { type: 'category'; categoryId: string; name: string }
@@ -51,6 +55,22 @@ export function useDocumentGuide() {
 
   const toggleExpanded = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => ({ ...prev, [categoryId]: !prev[categoryId] }));
+  }, []);
+
+  const expandAll = useCallback(() => {
+    setExpandedCategories(() => {
+      const expanded: Record<string, boolean> = {};
+      CATEGORIES.forEach((category) => { expanded[category.id] = true; });
+      return expanded;
+    });
+  }, []);
+
+  const collapseAll = useCallback(() => {
+    setExpandedCategories(() => {
+      const collapsed: Record<string, boolean> = {};
+      CATEGORIES.forEach((category) => { collapsed[category.id] = false; });
+      return collapsed;
+    });
   }, []);
 
   const addCustomDocument = useCallback((categoryId: string, name: string, description: string, howToGet: string) => {
@@ -122,11 +142,29 @@ export function useDocumentGuide() {
     });
   }, []);
 
-  // 提出済みチェック切替
+  // 具体名の並び替え
+  const reorderSpecificNames = useCallback((docId: string, newNames: string[]) => {
+    setSpecificDocNames((prev) => {
+      const newState = { ...prev };
+      if (newNames.length === 0) { delete newState[docId]; } else { newState[docId] = newNames; }
+      return newState;
+    });
+  }, []);
+
+  // 提出済みチェック切替（日付自動記録）
   const toggleDocumentCheck = useCallback((docId: string) => {
     setCheckedDocuments((prev) => {
       const newState = { ...prev };
       if (prev[docId]) { delete newState[docId]; } else { newState[docId] = true; }
+      return newState;
+    });
+    setCheckedDates((prev) => {
+      const newState = { ...prev };
+      if (prev[docId]) {
+        delete newState[docId];
+      } else {
+        newState[docId] = new Date().toISOString().split('T')[0];
+      }
       return newState;
     });
   }, []);
@@ -134,12 +172,48 @@ export function useDocumentGuide() {
   // カテゴリ内全書類の一括チェック切替
   const toggleAllInCategory = useCallback((categoryId: string, checked: boolean) => {
     const order = documentOrder[categoryId] || [];
+    const today = new Date().toISOString().split('T')[0];
     setCheckedDocuments((prev) => {
       const newState = { ...prev };
       order.forEach(id => { if (checked) { newState[id] = true; } else { delete newState[id]; } });
       return newState;
     });
+    setCheckedDates((prev) => {
+      const newState = { ...prev };
+      order.forEach(id => {
+        if (checked) { if (!newState[id]) newState[id] = today; }
+        else { delete newState[id]; }
+      });
+      return newState;
+    });
   }, [documentOrder]);
+
+  // メモの設定
+  const setDocumentMemo = useCallback((docId: string, memo: string) => {
+    setDocumentMemos((prev) => {
+      const newState = { ...prev };
+      if (memo.trim() === '') { delete newState[docId]; } else { newState[docId] = memo; }
+      return newState;
+    });
+  }, []);
+
+  // 対象外の切替
+  const toggleExcluded = useCallback((docId: string) => {
+    setExcludedDocuments((prev) => {
+      const newState = { ...prev };
+      if (prev[docId]) { delete newState[docId]; } else { newState[docId] = true; }
+      return newState;
+    });
+  }, []);
+
+  // カテゴリON/OFFの切替
+  const toggleCategoryDisabled = useCallback((categoryId: string) => {
+    setDisabledCategories((prev) => {
+      const newState = { ...prev };
+      if (prev[categoryId]) { delete newState[categoryId]; } else { newState[categoryId] = true; }
+      return newState;
+    });
+  }, []);
 
   /** 指定キーに紐づく関連 state をクリーンアップ */
   const cleanupDocState = useCallback((keys: string[]) => {
@@ -147,6 +221,9 @@ export function useDocumentGuide() {
     setCanDelegateOverrides((prev) => deleteKeys(prev, keys));
     setSpecificDocNames((prev) => deleteKeys(prev, keys));
     setCheckedDocuments((prev) => deleteKeys(prev, keys));
+    setCheckedDates((prev) => deleteKeys(prev, keys));
+    setDocumentMemos((prev) => deleteKeys(prev, keys));
+    setExcludedDocuments((prev) => deleteKeys(prev, keys));
   }, []);
 
   // 書類の永久削除
@@ -191,10 +268,11 @@ export function useDocumentGuide() {
       clientName, deceasedName, deadline,
       customDocuments, documentOrder,
       editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
+      checkedDates, documentMemos, excludedDocuments, disabledCategories,
       personInCharge, personInChargeContact,
     });
     downloadAsJson(exportData);
-  }, [clientName, deceasedName, deadline, customDocuments, documentOrder, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, personInCharge, personInChargeContact]);
+  }, [clientName, deceasedName, deadline, customDocuments, documentOrder, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, checkedDates, documentMemos, excludedDocuments, disabledCategories, personInCharge, personInChargeContact]);
 
   const importFromJson = useCallback((data: ExportData) => {
     setClientName(data.data.clientName);
@@ -207,6 +285,10 @@ export function useDocumentGuide() {
     setSpecificDocNames(data.data.specificDocNames ?? {});
     // 後方互換: 旧 strikethroughDocuments → checkedDocuments に移行
     setCheckedDocuments(data.data.checkedDocuments ?? data.data.strikethroughDocuments ?? {});
+    setCheckedDates(data.data.checkedDates ?? {});
+    setDocumentMemos(data.data.documentMemos ?? {});
+    setExcludedDocuments(data.data.excludedDocuments ?? {});
+    setDisabledCategories(data.data.disabledCategories ?? {});
     setPersonInCharge(data.data.personInCharge ?? '');
     setPersonInChargeContact(data.data.personInChargeContact ?? '');
   }, []);
@@ -251,6 +333,10 @@ export function useDocumentGuide() {
     setCanDelegateOverrides({});
     setSpecificDocNames({});
     setCheckedDocuments({});
+    setCheckedDates({});
+    setDocumentMemos({});
+    setExcludedDocuments({});
+    setDisabledCategories({});
   }, []);
 
   const stats = useMemo((): Stats => {
@@ -260,26 +346,31 @@ export function useDocumentGuide() {
     const overrideCount = Object.keys(canDelegateOverrides).length;
     const specificCount = Object.keys(specificDocNames).length;
     const checkedCount = Object.keys(checkedDocuments).length;
+    const excludedCount = Object.keys(excludedDocuments).length;
+    const disabledCount = Object.keys(disabledCategories).length;
+    const memoCount = Object.keys(documentMemos).length;
     const initialBuiltInCount = CATEGORIES.reduce((acc, cat) => acc + cat.documents.length, 0);
     const hasDeletedDocs = totalCount - customCount < initialBuiltInCount;
-    const hasCustomizations = customCount > 0 || editedCount > 0 || overrideCount > 0 || specificCount > 0 || checkedCount > 0 || hasDeletedDocs;
-    return { totalCount, customCount, checkedCount, hasCustomizations };
-  }, [documentOrder, customDocuments, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments]);
+    const hasCustomizations = customCount > 0 || editedCount > 0 || overrideCount > 0 || specificCount > 0 || checkedCount > 0 || hasDeletedDocs || excludedCount > 0 || disabledCount > 0 || memoCount > 0;
+    return { totalCount, customCount, checkedCount, excludedCount, hasCustomizations };
+  }, [documentOrder, customDocuments, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, excludedDocuments, disabledCategories, documentMemos]);
 
   return {
     // state
     expandedCategories, customDocuments, documentOrder,
     editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
+    checkedDates, documentMemos, excludedDocuments, disabledCategories,
     deleteConfirmation,
     clientName, deceasedName, deadline, personInCharge, personInChargeContact, stats,
     // モーダル
     ...modal,
     // handlers
     setClientName, setDeceasedName, setDeadline, setPersonInCharge, setPersonInChargeContact,
-    toggleExpanded,
+    toggleExpanded, expandAll, collapseAll,
     reorderDocuments, toggleCanDelegate,
-    addSpecificName, editSpecificName, removeSpecificName,
+    addSpecificName, editSpecificName, removeSpecificName, reorderSpecificNames,
     toggleDocumentCheck, toggleAllInCategory,
+    setDocumentMemo, toggleExcluded, toggleCategoryDisabled,
     requestDelete, requestDeleteCategory, confirmDelete, cancelDelete,
     resetToDefault,
     exportToJson, importFromJson, getSelectedDocuments,

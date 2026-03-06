@@ -21,6 +21,21 @@ export function toCircledNumber(n: number): string {
   return `(${n})`;
 }
 
+/** カテゴリカラー → 左ボーダーアクセントのマッピング */
+export const COLOR_ACCENT_MAP: Record<string, string> = {
+  'text-blue-700': 'border-l-blue-400',
+  'text-emerald-700': 'border-l-emerald-400',
+  'text-amber-700': 'border-l-amber-400',
+  'text-green-700': 'border-l-green-400',
+  'text-purple-700': 'border-l-purple-400',
+  'text-rose-700': 'border-l-rose-400',
+  'text-red-700': 'border-l-red-400',
+  'text-indigo-700': 'border-l-indigo-400',
+  'text-slate-700': 'border-l-slate-400',
+  'text-pink-700': 'border-l-pink-400',
+  'text-gray-700': 'border-l-gray-400',
+};
+
 /** 期限日を日本語形式でフォーマット（YYYY年M月D日） */
 export function formatDeadline(deadline: string): string {
   return new Date(deadline).toLocaleDateString('ja-JP', {

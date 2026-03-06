@@ -16,6 +16,21 @@ body {
   font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
 }
 
+/* A3: ヘッダーグラデーション */
+.header-gradient {
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 50%, #2563eb 100%);
+}
+
+/* A1: プログレスバー */
+.progress-bar-fill {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+/* D2: カテゴリカラーアクセント（左ボーダー） */
+.border-l-3 {
+  border-left-width: 3px;
+}
+
 /* アニメーション */
 .animate-fade-in {
   animation: fadeIn 0.3s ease-in-out;
@@ -76,6 +91,11 @@ body {
 
   .bg-slate-50 {
     background-color: white !important;
+  }
+
+  /* D2: 印刷時は左ボーダー非表示 */
+  .border-l-3 {
+    border-left-width: 0 !important;
   }
 
   /* テーブルのページ分割対応 */
