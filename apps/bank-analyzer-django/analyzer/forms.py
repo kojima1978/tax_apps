@@ -89,6 +89,16 @@ class SettingsForm(forms.Form):
         help_text="出金額と入金額の差がこの範囲内であれば資金移動として判定します",
         widget=forms.NumberInput(attrs={"class": "form-control"})
     )
+    transfer_date_mode = forms.ChoiceField(
+        label="資金移動 日付マッチング",
+        choices=[
+            ("after_only", "出金日以降の入金のみ（推奨）"),
+            ("both", "出金日の前後を検索"),
+        ],
+        initial="after_only",
+        help_text="「出金日以降」は出金日〜+N日の入金のみマッチ。「前後」は±N日の入金をマッチ",
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
     gift_threshold = forms.IntegerField(
         label="贈与判定の閾値（円）",
         min_value=0,

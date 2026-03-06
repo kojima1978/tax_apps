@@ -33,6 +33,7 @@ def settings_view(request: HttpRequest) -> HttpResponse:
                 "LARGE_AMOUNT_THRESHOLD": form.cleaned_data['large_amount_threshold'],
                 "TRANSFER_DAYS_WINDOW": form.cleaned_data['transfer_days_window'],
                 "TRANSFER_AMOUNT_TOLERANCE": form.cleaned_data['transfer_amount_tolerance'],
+                "TRANSFER_DATE_MODE": form.cleaned_data['transfer_date_mode'],
                 "GIFT_THRESHOLD": form.cleaned_data['gift_threshold'],
                 "FUZZY_MATCHING": {
                     "enabled": form.cleaned_data['fuzzy_enabled'],
@@ -52,6 +53,7 @@ def settings_view(request: HttpRequest) -> HttpResponse:
             'large_amount_threshold': current_settings.get("LARGE_AMOUNT_THRESHOLD", 500000),
             'transfer_days_window': current_settings.get("TRANSFER_DAYS_WINDOW", 3),
             'transfer_amount_tolerance': current_settings.get("TRANSFER_AMOUNT_TOLERANCE", 1000),
+            'transfer_date_mode': current_settings.get("TRANSFER_DATE_MODE", "after_only"),
             'gift_threshold': current_settings.get("GIFT_THRESHOLD", 1_000_000),
             'fuzzy_enabled': fuzzy_config.get("enabled", True),
             'fuzzy_threshold': fuzzy_config.get("threshold", 90),

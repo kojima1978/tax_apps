@@ -282,7 +282,7 @@
         </div>
 
         <p class="text-muted small mt-2">
-            <i class="bi bi-info-circle"></i> 同一金額（±1,000円）で3日以内に異なる口座間で発生した出金・入金をペアとして検出しています。
+            <i class="bi bi-info-circle"></i> 設定された許容誤差・期間内で異なる口座間の出金・入金をペアとして検出しています。検出条件は<a href="{% url 'settings' %}">設定画面</a>で変更できます。
         </p>
         {% else %}
         <div class="text-center py-5">
