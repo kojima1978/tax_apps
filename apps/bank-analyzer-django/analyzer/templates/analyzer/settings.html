@@ -17,14 +17,17 @@
                 <h4 class="mb-3">🔍 分析パラメータ設定</h4>
                 <h6 class="text-muted mb-2"><i class="bi bi-cash-stack me-1"></i>多額取引・資金移動</h6>
                 <div class="row mb-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         {{ form.large_amount_threshold|as_crispy_field }}
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         {{ form.transfer_days_window|as_crispy_field }}
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         {{ form.transfer_amount_tolerance|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.transfer_date_mode|as_crispy_field }}
                     </div>
                 </div>
 

@@ -46,10 +46,15 @@ def _load_analysis_settings(settings: dict | None = None) -> dict:
     tolerance = _validate_positive(int(settings.get("TRANSFER_AMOUNT_TOLERANCE", 1000)), "TRANSFER_AMOUNT_TOLERANCE", 1000)
     days_window = _validate_positive(int(settings.get("TRANSFER_DAYS_WINDOW", 3)), "TRANSFER_DAYS_WINDOW", 3)
 
+    date_mode = settings.get("TRANSFER_DATE_MODE", "after_only")
+    if date_mode not in ("after_only", "both"):
+        date_mode = "after_only"
+
     return {
         "threshold": threshold,
         "tolerance": tolerance,
         "days_window": days_window,
+        "date_mode": date_mode,
     }
 
 
@@ -100,6 +105,7 @@ def analyze_transfers(df: pd.DataFrame, *, settings: dict | None = None) -> pd.D
     analyzed = _load_analysis_settings(settings)
     tolerance = analyzed["tolerance"]
     days_window = analyzed["days_window"]
+    date_mode = analyzed["date_mode"]
 
     # 日付型に変換（DBから読み込むと文字列の可能性）
     if not pd.api.types.is_datetime64_any_dtype(df["date"]):
@@ -123,13 +129,20 @@ def analyze_transfers(df: pd.DataFrame, *, settings: dict | None = None) -> pd.D
         target_date = row_out["date"]
         source_account = row_out["account_id"]
 
-        # 候補検索: 口座が異なり、金額が近似、日付が近い、未マッチ
+        # 日付条件: after_only=出金日以降〜+N日, both=±N日
+        date_diff = df["date"] - target_date
+        if date_mode == "after_only":
+            date_condition = (date_diff.dt.days >= 0) & (date_diff.dt.days <= days_window)
+        else:
+            date_condition = date_diff.abs().dt.days <= days_window
+
+        # 候補検索: 口座が異なり、金額が近似、日付条件、未マッチ
         candidates_mask = (
             in_mask &
             (df["account_id"] != source_account) &
             (df["amount_in"] >= target_amount - tolerance) &
             (df["amount_in"] <= target_amount + tolerance) &
-            ((df["date"] - target_date).abs().dt.days <= days_window) &
+            date_condition &
             (~df.index.isin(matched_in_indices))
         )
 
@@ -152,5 +165,5 @@ def analyze_transfers(df: pd.DataFrame, *, settings: dict | None = None) -> pd.D
             matched_in_indices.add(idx_in)
 
     transfer_count = df["is_transfer"].sum()
-    logger.debug("資金移動検出: 許容誤差=%d, 期間=%d日, 検出数=%d", tolerance, days_window, transfer_count)
+    logger.debug("資金移動検出: 許容誤差=%d, 期間=%d日, モード=%s, 検出数=%d", tolerance, days_window, date_mode, transfer_count)
     return df
