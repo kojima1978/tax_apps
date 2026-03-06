@@ -164,6 +164,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'branches': analysis_data['branches'],
         'accounts': analysis_data['accounts'],
         'categories': analysis_data['categories'],
+        'bank_to_accounts_json': json.dumps(analysis_data.get('bank_to_accounts', {}), ensure_ascii=False),
         'filter_state': filter_state,
         'fuzzy_threshold': analysis_data.get('fuzzy_threshold', 90),
         'unclassified_count': analysis_data.get('unclassified_count', 0),

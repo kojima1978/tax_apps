@@ -219,6 +219,17 @@ class AnalysisService:
         banks = sorted([b for b in df['bank_name'].dropna().unique() if b])
         branches = sorted([b for b in df['branch_name'].dropna().unique() if b])
         accounts = sorted([a for a in df['account_id'].dropna().unique() if a])
+
+        # 銀行→口座マッピング（フィルター連動用）
+        bank_to_accounts = {}
+        valid = df[['bank_name', 'account_id']].dropna()
+        for bank, acc in valid.drop_duplicates().values:
+            if bank and acc:
+                bank_to_accounts.setdefault(bank, [])
+                if acc not in bank_to_accounts[bank]:
+                    bank_to_accounts[bank].append(acc)
+        for bank in bank_to_accounts:
+            bank_to_accounts[bank].sort()
         existing_categories = df['category'].dropna().unique().tolist()
 
         # 標準カテゴリー + パターンのカテゴリーを結合
@@ -235,6 +246,7 @@ class AnalysisService:
             'branches': branches,
             'accounts': accounts,
             'categories': categories,
+            'bank_to_accounts': bank_to_accounts,
         }
 
     # =========================================================================

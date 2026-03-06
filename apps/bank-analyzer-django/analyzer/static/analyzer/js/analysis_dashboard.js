@@ -2117,6 +2117,58 @@ const FilterPresets = {
     }
 };
 
+// ===== 銀行→口座 連動フィルター =====
+
+const BankAccountFilter = {
+    _bankToAccounts: {},
+    _bankCheckboxes: [],
+    _accountItems: [],
+
+    init: function() {
+        this._bankToAccounts = window.BANK_TO_ACCOUNTS || {};
+        this._bankCheckboxes = Array.from(document.querySelectorAll('input[name="bank"]'));
+        this._accountItems = Array.from(document.querySelectorAll('#accountFilterList .account-filter-item'));
+        if (!this._bankCheckboxes.length || !this._accountItems.length) return;
+
+        var self = this;
+        this._bankCheckboxes.forEach(function(cb) {
+            cb.addEventListener('change', function() { self._filter(); });
+        });
+        // 初期表示時にも適用
+        this._filter();
+    },
+
+    _filter: function() {
+        var selectedBanks = this._bankCheckboxes
+            .filter(function(cb) { return cb.checked; })
+            .map(function(cb) { return cb.value; });
+
+        // 銀行未選択なら全口座を表示
+        if (selectedBanks.length === 0) {
+            this._accountItems.forEach(function(item) { item.style.display = ''; });
+            return;
+        }
+
+        // 選択された銀行に属する口座のセットを構築
+        var allowedAccounts = new Set();
+        var map = this._bankToAccounts;
+        selectedBanks.forEach(function(bank) {
+            (map[bank] || []).forEach(function(acc) { allowedAccounts.add(acc); });
+        });
+
+        this._accountItems.forEach(function(item) {
+            var cb = item.querySelector('input[name="account"]');
+            if (!cb) return;
+            if (allowedAccounts.has(cb.value)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+                cb.checked = false; // 非表示の口座は選択解除
+            }
+        });
+    }
+};
+
 // ===== フィルター自動適用 =====
 
 const AutoFilter = {
@@ -2554,6 +2606,7 @@ ContextMenu.init();
 QuickFilters.init();
 FilterChips.init();
 FilterPresets.init();
+BankAccountFilter.init();
 AutoFilter.init();
 FilterPanel.init();
 ProgressBar.init();
