@@ -49,6 +49,7 @@ export interface Stats {
   customCount: number;
   checkedCount: number;
   excludedCount: number;
+  urgentCount: number;
   hasCustomizations: boolean;
 }
 

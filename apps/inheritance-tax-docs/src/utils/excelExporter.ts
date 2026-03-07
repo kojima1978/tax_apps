@@ -9,6 +9,7 @@ interface ExcelExportParams {
   deadline: string;
   specificDocNames: Record<string, string[]>;
   checkedDocuments: Record<string, boolean>;
+  urgentDocuments: Record<string, boolean>;
   personInCharge: string;
   personInChargeContact: string;
 }
@@ -83,6 +84,18 @@ const styles = {
     alignment: { horizontal: 'center', vertical: 'center' },
     border: CELL_BORDER,
   },
+  urgentCell: {
+    font: { ...CELL_FONT, color: { rgb: 'B91C1C' } },
+    fill: { fgColor: { rgb: 'FEE2E2' } },
+    alignment: CELL_ALIGN,
+    border: CELL_BORDER,
+  },
+  urgentBadge: {
+    font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+    fill: { fgColor: { rgb: 'DC2626' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: allBorders('DC2626'),
+  },
   delegateBadge: {
     font: { sz: 9, color: { rgb: 'B45309' } },
     fill: { fgColor: { rgb: 'FEF3C7' } },
@@ -117,7 +130,7 @@ function pushEmptyRow(wsData: object[][]): void {
  */
 export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   const XLSX = (await import('xlsx-js-style')).default;
-  const { results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, personInCharge, personInChargeContact } = params;
+  const { results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact } = params;
   const exportDate = formatDate(new Date());
 
   const wb = XLSX.utils.book_new();
@@ -161,19 +174,21 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
 
   // 書類行を追加するヘルパー
   function pushDocRow(doc: DocumentItem | CustomDocumentItem, index: number): void {
-    const cellStyle = index % 2 === 0 ? styles.documentCell : styles.documentCellAlt;
+    const isUrgent = urgentDocuments[doc.id] ?? false;
+    const cellStyle = isUrgent ? styles.urgentCell : (index % 2 === 0 ? styles.documentCell : styles.documentCellAlt);
     const isCustom = isCustomDocument(doc);
     const canDelegate = doc.canDelegate ?? false;
     const isChecked = checkedDocuments[doc.id] ?? false;
     const baseName = isCustom ? `${doc.name} [追加]` : doc.name;
+    const urgentPrefix = isUrgent ? '【急】' : '';
     const docNumber = `${index + 1}`;
-    const nameWithStatus = isChecked ? `[済] ${docNumber} ${baseName}` : `${docNumber} ${baseName}`;
+    const nameWithStatus = isChecked ? `[済] ${docNumber} ${urgentPrefix}${baseName}` : `${docNumber} ${urgentPrefix}${baseName}`;
     const names = specificDocNames[doc.id];
     const docName = names && names.length > 0
       ? nameWithStatus + '\n' + names.map((n, i) => `(${i + 1}) ${n}`).join('\n')
       : nameWithStatus;
     wsData.push([
-      { v: isChecked ? '☑' : '☐', s: styles.checkCell },
+      { v: isChecked ? '☑' : '☐', s: isUrgent ? styles.urgentBadge : styles.checkCell },
       { v: docName, s: cellStyle },
       { v: doc.description, s: cellStyle },
       { v: doc.howToGet || '-', s: cellStyle },

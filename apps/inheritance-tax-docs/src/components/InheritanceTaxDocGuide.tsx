@@ -7,7 +7,7 @@ export default function InheritanceTaxDocGuide() {
     // state
     expandedCategories, customDocuments, documentOrder,
     editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
-    checkedDates, documentMemos, excludedDocuments, disabledCategories,
+    checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories,
     deleteConfirmation,
     clientName, deceasedName, deadline, personInCharge, personInChargeContact, stats,
     // モーダル
@@ -19,7 +19,7 @@ export default function InheritanceTaxDocGuide() {
     toggleCanDelegate,
     addSpecificName, editSpecificName, removeSpecificName, reorderSpecificNames,
     toggleDocumentCheck, toggleAllInCategory,
-    setDocumentMemo, toggleExcluded, toggleCategoryDisabled,
+    setDocumentMemo, toggleExcluded, toggleUrgent, toggleCategoryDisabled,
     requestDelete, requestDeleteCategory, confirmDelete, cancelDelete,
     resetToDefault,
     exportToJson, importFromJson, getSelectedDocuments,
@@ -45,6 +45,7 @@ export default function InheritanceTaxDocGuide() {
         checkedDates={checkedDates}
         documentMemos={documentMemos}
         excludedDocuments={excludedDocuments}
+        urgentDocuments={urgentDocuments}
         disabledCategories={disabledCategories}
         deleteConfirmation={deleteConfirmation}
         stats={stats}
@@ -66,6 +67,7 @@ export default function InheritanceTaxDocGuide() {
         onToggleAllInCategory={toggleAllInCategory}
         onSetDocumentMemo={setDocumentMemo}
         onToggleExcluded={toggleExcluded}
+        onToggleUrgent={toggleUrgent}
         onToggleCategoryDisabled={toggleCategoryDisabled}
         onRemoveDocument={requestDelete}
         onRemoveCategory={requestDeleteCategory}

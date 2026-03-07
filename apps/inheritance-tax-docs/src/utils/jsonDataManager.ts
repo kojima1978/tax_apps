@@ -22,6 +22,7 @@ export interface ExportData {
     checkedDates?: Record<string, string>;
     documentMemos?: Record<string, string>;
     excludedDocuments?: Record<string, boolean>;
+    urgentDocuments?: Record<string, boolean>;
     disabledCategories?: Record<string, boolean>;
     // 後方互換（旧データ読込用）
     strikethroughSpecificNames?: Record<string, boolean[]>;
@@ -52,6 +53,7 @@ export function createExportData(params: {
   checkedDates: Record<string, string>;
   documentMemos: Record<string, string>;
   excludedDocuments: Record<string, boolean>;
+  urgentDocuments: Record<string, boolean>;
   disabledCategories: Record<string, boolean>;
   personInCharge: string;
   personInChargeContact: string;
@@ -73,6 +75,7 @@ export function createExportData(params: {
       checkedDates: params.checkedDates,
       documentMemos: params.documentMemos,
       excludedDocuments: params.excludedDocuments,
+      urgentDocuments: params.urgentDocuments,
       disabledCategories: params.disabledCategories,
       personInCharge: params.personInCharge,
       personInChargeContact: params.personInChargeContact,
@@ -130,6 +133,7 @@ export function validateImportData(data: unknown): ValidationResult {
     ['checkedDates', 'object', '提出日データが不正です。', false],
     ['documentMemos', 'object', 'メモデータが不正です。', false],
     ['excludedDocuments', 'object', '対象外データが不正です。', false],
+    ['urgentDocuments', 'object', '緊急フラグデータが不正です。', false],
     ['disabledCategories', 'object', 'カテゴリ無効データが不正です。', false],
     ['strikethroughSpecificNames', 'object', '取消線データが不正です。', false],
     ['strikethroughDocuments', 'object', '書類取消線データが不正です。', false],
