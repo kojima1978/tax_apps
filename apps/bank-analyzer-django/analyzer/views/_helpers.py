@@ -14,6 +14,16 @@ from ..services import TransactionService
 from ..templatetags.japanese_date import wareki
 
 ITEMS_PER_PAGE = 100
+PER_PAGE_OPTIONS = [50, 100, 200, 500]
+
+
+def get_per_page(request: HttpRequest) -> int:
+    """GETパラメータからper_pageを取得（バリデーション付き）"""
+    try:
+        val = int(request.GET.get('per_page', ITEMS_PER_PAGE))
+    except (ValueError, TypeError):
+        return ITEMS_PER_PAGE
+    return val if val in PER_PAGE_OPTIONS else ITEMS_PER_PAGE
 
 
 def paginate(queryset, page, per_page=ITEMS_PER_PAGE):
@@ -55,6 +65,46 @@ def handle_post_action(request, action_fn, error_context: str, **log_params) -> 
         return False
 
 
+VALID_SORT_FIELDS = {
+    'date': ['date', 'id'],
+    'amount_out': ['amount_out', 'id'],
+    'amount_in': ['amount_in', 'id'],
+}
+
+
+def parse_sort(sort_param: str, default: str = 'date_asc') -> tuple[str, str]:
+    """ソートパラメータを(フィールド, 方向)に分解する"""
+    sort_param = sort_param or default
+    parts = sort_param.rsplit('_', 1)
+    if len(parts) == 2 and parts[1] in ('asc', 'desc'):
+        field, direction = parts
+        if field in VALID_SORT_FIELDS:
+            return field, direction
+    return 'date', 'asc'
+
+
+def get_sort_order_by(sort_param: str, default: str = 'date_asc') -> list[str]:
+    """ソートパラメータからDjango order_byリストを返す"""
+    field, direction = parse_sort(sort_param, default)
+    prefix = '-' if direction == 'desc' else ''
+    return [f'{prefix}{f}' for f in VALID_SORT_FIELDS[field]]
+
+
+def _get_attr(item, key):
+    """dict/Modelどちらからでも属性を取得する"""
+    if isinstance(item, dict):
+        return item.get(key)
+    return getattr(item, key, None)
+
+
+def sort_dict_list(data: list, sort_param: str, default: str = 'date_asc') -> list:
+    """辞書/Modelリストをソートパラメータで並び替える"""
+    field, direction = parse_sort(sort_param, default)
+    reverse = direction == 'desc'
+    sort_key = VALID_SORT_FIELDS[field][0]
+    return sorted(data, key=lambda x: (_get_attr(x, sort_key) is None, _get_attr(x, sort_key) or 0), reverse=reverse)
+
+
 def build_filter_state(request: HttpRequest, include_tab_filters: bool = False) -> dict:
     """GETパラメータからフィルター条件辞書を構築する共通処理"""
     state = {
@@ -68,6 +118,8 @@ def build_filter_state(request: HttpRequest, include_tab_filters: bool = False) 
         'amount_type': request.GET.get('amount_type', 'both'),
         'date_from': request.GET.get('date_from', ''),
         'date_to': request.GET.get('date_to', ''),
+        'sort': request.GET.get('sort', ''),
+        'per_page': str(get_per_page(request)),
     }
     if include_tab_filters:
         state.update({

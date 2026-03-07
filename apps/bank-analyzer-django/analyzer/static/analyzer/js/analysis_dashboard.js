@@ -1496,6 +1496,14 @@ const StatusIndicator = {
         this._icon = document.getElementById('statusIcon');
         this._text = document.getElementById('statusText');
         this._retryBtn = document.getElementById('statusRetryBtn');
+
+        // 再試行ボタンのクリックハンドラー
+        if (this._retryBtn) {
+            var self = this;
+            this._retryBtn.addEventListener('click', function() {
+                SaveQueue.retryFailed();
+            });
+        }
     },
 
     show: function(state, message) {
@@ -1543,14 +1551,16 @@ const StatusIndicator = {
     }
 };
 
-// ===== インライン分類の即時保存 =====
+// ===== インライン分類の即時保存（SaveQueue使用） =====
+
+var _categorySelectPattern = /^(cat|uncat|transfer-src-|transfer-dest-|transfer-src-tbl-|transfer-dest-tbl-)/;
 
 document.addEventListener('change', function(e) {
     var select = e.target;
-    if (!select.matches('select[name^="cat-"], select[name^="uncat-"]')) return;
+    if (!select.matches('select') || !_categorySelectPattern.test(select.name)) return;
 
     var name = select.name;
-    var txId = name.replace(/^(cat|uncat)-/, '');
+    var txId = name.replace(_categorySelectPattern, '');
     var newCategory = select.value;
     var lastSaved = select.dataset.lastSaved || '';
 
@@ -1559,10 +1569,9 @@ document.addEventListener('change', function(e) {
 
     // 元の値を保存（ロールバック用）
     var originalValue = lastSaved;
-    var row = select.closest('tr');
+    var row = select.closest('tr') || select.closest('.transfer-side');
 
     select.disabled = true;
-    StatusIndicator.saving();
 
     var formData = createFormData({
         action: 'update_category',
@@ -1570,21 +1579,17 @@ document.addEventListener('change', function(e) {
         new_category: newCategory,
     });
 
-    postJson(window.location.href, formData, {
+    SaveQueue.enqueue({
+        url: window.location.href,
+        formData: formData,
+        select: select,
+        originalValue: originalValue,
+        intendedValue: newCategory,
         onSuccess: function() {
-            select.dataset.lastSaved = newCategory;
             if (row) {
                 row.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
                 setTimeout(function() { row.style.backgroundColor = ''; }, 800);
             }
-            StatusIndicator.saved();
-        },
-        onError: function() {
-            select.value = originalValue;
-            StatusIndicator.failed();
-        },
-        onFinally: function() {
-            select.disabled = false;
         },
     });
 });

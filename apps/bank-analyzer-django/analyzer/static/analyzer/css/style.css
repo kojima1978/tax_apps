@@ -387,6 +387,33 @@ h1, h2, h3, h4 {
     display: flex;
 }
 
+/* ===== Sort Loading Overlay ===== */
+
+.sort-loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+.sort-loading-overlay.active {
+    display: flex;
+}
+
+.sort-loading-box {
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
 /* Filter panel toggle active state */
 #filterPanelToggle[aria-expanded="true"] {
     background-color: var(--primary-gradient);

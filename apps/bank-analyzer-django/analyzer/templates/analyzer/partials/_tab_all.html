@@ -31,6 +31,8 @@
         <div class="collapse mb-3" id="filterPanel">
             <form method="get" class="filter-panel-body" id="filterForm">
                 <input type="hidden" name="tab" value="all">
+                {% if filter_state.sort %}<input type="hidden" name="sort" value="{{ filter_state.sort }}">{% endif %}
+                {% if filter_state.per_page != '100' %}<input type="hidden" name="per_page" value="{{ filter_state.per_page }}">{% endif %}
                 <!-- ローディングオーバーレイ -->
                 <div class="filter-loading-overlay" id="filterLoadingOverlay">
                     <div class="spinner-border spinner-border-sm text-primary" role="status">
@@ -226,14 +228,14 @@
                                 <input type="checkbox" class="form-check-input" id="selectAllTx" title="全選択">
                             </th>
                             <th style="width: 60px;">+/-</th>
-                            <th>日付</th>
+                            <th>{% sort_header "all" "date" "日付" filter_state %}</th>
                             <th>銀行名</th>
                             <th>支店名</th>
                             <th>種別</th>
                             <th>口座番号</th>
                             <th>摘要</th>
-                            <th>払戻</th>
-                            <th>お預り</th>
+                            <th>{% sort_header "all" "amount_out" "払戻" filter_state %}</th>
+                            <th>{% sort_header "all" "amount_in" "お預り" filter_state %}</th>
                             <th style="min-width: 130px;">分類</th>
                             <th>操作</th>
                             <th>📌</th>
@@ -293,41 +295,44 @@
             </div>
         </form>
 
-            <!-- ページネーション -->
-            {% if all_txs.paginator.num_pages > 1 %}
-            <nav aria-label="取引一覧ページネーション" class="mt-3">
-                <ul class="pagination justify-content-center mb-0">
-                    {% if all_txs.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="{% pagination_url 'all' 1 filter_state %}">
-                            &laquo; 最初
-                        </a>
-                    </li>
-                    <li class="page-item">
-                        <a class="page-link" href="{% pagination_url 'all' all_txs.previous_page_number filter_state %}">
-                            前へ
-                        </a>
-                    </li>
-                    {% endif %}
+            <!-- ページネーション + 表示件数 -->
+            <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+                {% per_page_selector "all" filter_state %}
+                {% if all_txs.paginator.num_pages > 1 %}
+                <nav aria-label="取引一覧ページネーション">
+                    <ul class="pagination mb-0">
+                        {% if all_txs.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="{% pagination_url 'all' 1 filter_state %}">
+                                &laquo; 最初
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="{% pagination_url 'all' all_txs.previous_page_number filter_state %}">
+                                前へ
+                            </a>
+                        </li>
+                        {% endif %}
 
-                    <li class="page-item disabled">
-                        <span class="page-link">{{ all_txs.number }} / {{ all_txs.paginator.num_pages }}</span>
-                    </li>
+                        <li class="page-item disabled">
+                            <span class="page-link">{{ all_txs.number }} / {{ all_txs.paginator.num_pages }}</span>
+                        </li>
 
-                    {% if all_txs.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="{% pagination_url 'all' all_txs.next_page_number filter_state %}">
-                            次へ
-                        </a>
-                    </li>
-                    <li class="page-item">
-                        <a class="page-link" href="{% pagination_url 'all' all_txs.paginator.num_pages filter_state %}">
-                            最後 &raquo;
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
+                        {% if all_txs.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{% pagination_url 'all' all_txs.next_page_number filter_state %}">
+                                次へ
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="{% pagination_url 'all' all_txs.paginator.num_pages filter_state %}">
+                                最後 &raquo;
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
     </div>
 </div>

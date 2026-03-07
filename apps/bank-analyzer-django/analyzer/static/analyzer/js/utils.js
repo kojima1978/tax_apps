@@ -187,6 +187,135 @@ function postJson(url, formData, { onSuccess, onError, onFinally } = {}) {
     });
 }
 
+// ===== Save Queue (sequential request processing with retry) =====
+
+/**
+ * Sequential request queue to ensure all saves complete reliably.
+ * Prevents data loss from rapid concurrent requests.
+ */
+var SaveQueue = {
+    _queue: [],
+    _processing: false,
+    _maxRetries: 3,
+    _failedItems: [],
+
+    /**
+     * Add a save task to the queue
+     * @param {Object} task - { url, formData, select, originalValue, onSuccess, onError }
+     */
+    enqueue: function(task) {
+        task._retryCount = 0;
+        this._queue.push(task);
+        this._updateStatus();
+        this._processNext();
+    },
+
+    /**
+     * Get total pending count (queue + currently processing)
+     */
+    pendingCount: function() {
+        return this._queue.length + (this._processing ? 1 : 0);
+    },
+
+    _updateStatus: function() {
+        var total = this._queue.length + (this._processing ? 1 : 0);
+        if (total > 0) {
+            StatusIndicator.show('saving', '保存中... (残り' + total + '件)');
+        }
+    },
+
+    _processNext: function() {
+        if (this._processing || this._queue.length === 0) {
+            if (!this._processing && this._queue.length === 0) {
+                if (this._failedItems.length > 0) {
+                    StatusIndicator.show('error', this._failedItems.length + '件の保存に失敗しました');
+                } else {
+                    StatusIndicator.show('success');
+                }
+            }
+            return;
+        }
+
+        this._processing = true;
+        var self = this;
+        var task = this._queue.shift();
+
+        this._updateStatus();
+
+        fetch(task.url, {
+            method: 'POST',
+            body: task.formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success) {
+                if (task.select) {
+                    task.select.dataset.lastSaved = task.select.value;
+                }
+                if (task.onSuccess) task.onSuccess(data);
+            } else {
+                throw new Error(data.error || data.message || 'サーバーエラー');
+            }
+        })
+        .catch(function(error) {
+            console.error('Save error:', error);
+            task._retryCount++;
+            if (task._retryCount < self._maxRetries) {
+                // Retry: re-add to front of queue
+                self._queue.unshift(task);
+            } else {
+                // Max retries exceeded: rollback
+                if (task.select && task.originalValue !== undefined) {
+                    task.select.value = task.originalValue;
+                }
+                self._failedItems.push(task);
+                if (task.onError) task.onError(error);
+                showToast('保存に失敗しました（3回リトライ済み）', 'danger');
+            }
+        })
+        .finally(function() {
+            if (task.select) task.select.disabled = false;
+            self._processing = false;
+            self._processNext();
+        });
+    },
+
+    /**
+     * Retry all failed items
+     */
+    retryFailed: function() {
+        if (this._failedItems.length === 0) return;
+        var items = this._failedItems.slice();
+        this._failedItems = [];
+        var self = this;
+        items.forEach(function(task) {
+            task._retryCount = 0;
+            // Re-set the select to the intended value
+            if (task.select && task.intendedValue !== undefined) {
+                task.select.value = task.intendedValue;
+                task.select.disabled = true;
+            }
+            self.enqueue(task);
+        });
+    },
+
+    /**
+     * Check if there are unsaved changes
+     */
+    hasPending: function() {
+        return this._queue.length > 0 || this._processing || this._failedItems.length > 0;
+    }
+};
+
+// ページ離脱時の未保存警告
+window.addEventListener('beforeunload', function(e) {
+    if (SaveQueue.hasPending()) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
 // ===== Button State Utilities =====
 
 /**
