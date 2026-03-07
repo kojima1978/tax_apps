@@ -39,7 +39,7 @@ from ..handlers import (
     handle_bulk_pattern_changes,
     handle_run_auto_classify,
 )
-from ._helpers import paginate, build_filter_state
+from ._helpers import paginate, build_filter_state, get_sort_order_by, sort_dict_list, get_per_page
 
 logger = logging.getLogger(__name__)
 
@@ -93,20 +93,25 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         return render(request, 'analyzer/analysis.html', {'case': case, 'no_data': True})
 
     keyword = filter_state.get('keyword', '')
+    per_page = get_per_page(request)
 
     def _filter_and_paginate(queryset, page_param):
         """キーワードフィルタ適用 + ページネーション"""
         if keyword:
             filtered = filter_by_keyword(queryset, keyword)
-            return len(filtered), paginate(filtered, request.GET.get(page_param, 1))
-        return queryset.count(), paginate(queryset, request.GET.get(page_param, 1))
+            return len(filtered), paginate(filtered, request.GET.get(page_param, 1), per_page)
+        return queryset.count(), paginate(queryset, request.GET.get(page_param, 1), per_page)
 
     all_txs_count, all_txs_page = _filter_and_paginate(analysis_data['all_txs'], 'page')
 
-    unclassified_txs = case.transactions.filter(category=UNCATEGORIZED).order_by('-date', '-id')
+    sort_param = filter_state.get('sort', '')
+    sort_order = get_sort_order_by(sort_param, default='date_desc')
+    unclassified_txs = case.transactions.filter(category=UNCATEGORIZED).order_by(*sort_order)
     _, unclassified_page = _filter_and_paginate(unclassified_txs, 'unclassified_page')
 
-    flagged_txs = filter_by_keyword(analysis_data['flagged_txs'], keyword)
+    flagged_txs = sort_dict_list(
+        filter_by_keyword(analysis_data['flagged_txs'], keyword), sort_param
+    )
 
     # チャート用データ: カテゴリー別集計
     all_txs_qs = case.transactions.all()
@@ -208,7 +213,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     if request.GET.get('tab') == 'unclassified':
         from ..lib.llm_classifier import get_fuzzy_suggestions
 
-        unclassified_qs = case.transactions.filter(category=UNCATEGORIZED).order_by('-date', '-id')
+        unclassified_qs = case.transactions.filter(category=UNCATEGORIZED).order_by(*sort_order)
         if keyword:
             unclassified_qs = filter_by_keyword(unclassified_qs, keyword)
 

@@ -162,10 +162,16 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
     if 'date' in df.columns:
         df['date'] = df['date'].apply(lambda d: wareki(d, 'short'))
 
-    export_columns = dict(FIELD_LABELS)
-    export_columns['memo'] = 'メモ'
+    # 分類別シート用: 残高・メモを除外
+    export_columns = {k: v for k, v in FIELD_LABELS.items() if k != 'balance'}
     cols_to_export = [c for c in export_columns.keys() if c in df.columns]
     headers = [export_columns[c] for c in cols_to_export]
+
+    # 付箋シート用: メモ列を追加
+    flagged_columns = dict(export_columns)
+    flagged_columns['memo'] = 'メモ'
+    flagged_cols = [c for c in flagged_columns.keys() if c in df.columns]
+    flagged_headers = [flagged_columns[c] for c in flagged_cols]
 
     grouped = df.groupby('category')
     sorted_cats = sort_categories(grouped.groups.keys())
@@ -179,6 +185,15 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
         ws.append(headers)
         for _, row in cat_df[cols_to_export].iterrows():
             ws.append([row[c] for c in cols_to_export])
+
+    # 付箋付き取引シートを末尾に追加
+    flagged_df = df[df['is_flagged'] == True]  # noqa: E712
+    if not flagged_df.empty:
+        ws = wb.create_sheet(title='付箋付き')
+        ws.sheet_properties.tabColor = 'FF8C00'
+        ws.append(flagged_headers)
+        for _, row in flagged_df[flagged_cols].iterrows():
+            ws.append([row[c] for c in flagged_cols])
 
     buf = BytesIO()
     wb.save(buf)

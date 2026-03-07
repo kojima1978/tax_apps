@@ -1,10 +1,13 @@
 {% load humanize %}
 {% load japanese_date %}
+{% load pagination_tags %}
 
 <div class="tab-pane fade" id="large" role="tabpanel" aria-labelledby="large-tab">
     <div class="glass-card p-4">
         <form method="get" class="row g-3 mb-4">
             <input type="hidden" name="tab" value="large">
+            {% if filter_state.sort %}<input type="hidden" name="sort" value="{{ filter_state.sort }}">{% endif %}
+            {% if filter_state.per_page != '100' %}<input type="hidden" name="per_page" value="{{ filter_state.per_page }}">{% endif %}
             {% for c in filter_state.large_category %}<input type="hidden" name="large_category" value="{{ c }}">{% endfor %}
             {% if filter_state.large_category_mode %}<input type="hidden" name="large_category_mode" value="{{ filter_state.large_category_mode }}">{% endif %}
             <div class="col-md-3">
@@ -63,14 +66,14 @@
                 <table class="table table-hover align-middle">
                     <thead>
                         <tr>
-                            <th>日付</th>
+                            <th>{% sort_header "large" "date" "日付" filter_state %}</th>
                             <th>銀行名</th>
                             <th>支店名</th>
                             <th>種別</th>
                             <th>口座番号</th>
                             <th>摘要</th>
-                            <th>払戻</th>
-                            <th>お預り</th>
+                            <th>{% sort_header "large" "amount_out" "払戻" filter_state %}</th>
+                            <th>{% sort_header "large" "amount_in" "お預り" filter_state %}</th>
                             <th style="min-width: 130px;">分類</th>
                             <th>操作</th>
                             <th>📌</th>

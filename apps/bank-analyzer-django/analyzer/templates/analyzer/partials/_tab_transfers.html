@@ -1,5 +1,6 @@
 {% load humanize %}
 {% load japanese_date %}
+{% load pagination_tags %}
 
 <div class="tab-pane fade" id="transfers" role="tabpanel" aria-labelledby="transfers-tab">
     <div class="glass-card p-4">
@@ -40,6 +41,8 @@
         <!-- 統合フィルターバー -->
         <form method="get" class="transfer-filter-bar mb-4" id="transferFilterForm">
             <input type="hidden" name="tab" value="transfers">
+            {% if filter_state.sort %}<input type="hidden" name="sort" value="{{ filter_state.sort }}">{% endif %}
+            {% if filter_state.per_page != '100' %}<input type="hidden" name="per_page" value="{{ filter_state.per_page }}">{% endif %}
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <!-- キーワード検索 -->
                 <div class="input-group input-group-sm" style="max-width: 300px;">
@@ -228,11 +231,11 @@
                                 <th colspan="7" class="text-center bg-success bg-opacity-10">【移動先】</th>
                             </tr>
                             <tr>
-                                <th>日付</th>
+                                <th>{% sort_header "transfers" "date" "日付" filter_state %}</th>
                                 <th>銀行</th>
                                 <th>支店</th>
                                 <th>口座番号</th>
-                                <th class="text-end">金額</th>
+                                <th class="text-end">{% sort_header "transfers" "amount_out" "金額" filter_state %}</th>
                                 <th>摘要</th>
                                 <th style="min-width: 110px;">分類</th>
                                 <th>日付</th>

@@ -354,12 +354,29 @@
     </div>
 </div>
 
+<!-- ソート切替ローディングオーバーレイ -->
+<div class="sort-loading-overlay" id="sortLoadingOverlay">
+    <div class="sort-loading-box">
+        <div class="spinner-border spinner-border-sm" role="status"></div>
+        並べ替え中...
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'analyzer/js/utils.js' %}"></script>
 <script>window.BANK_TO_ACCOUNTS = {{ bank_to_accounts_json|safe }};</script>
 <script src="{% static 'analyzer/js/analysis_dashboard.js' %}"></script>
+<script>
+document.addEventListener('click', function(e) {
+    var link = e.target.closest('th a[href*="sort="]');
+    if (link) {
+        var overlay = document.getElementById('sortLoadingOverlay');
+        if (overlay) overlay.classList.add('active');
+    }
+});
+</script>
 
 <!-- トースト通知 -->
 <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>

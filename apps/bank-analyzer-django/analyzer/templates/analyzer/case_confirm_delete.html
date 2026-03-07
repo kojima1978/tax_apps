@@ -21,7 +21,7 @@
                 <form method="post">
                     {% csrf_token %}
                     <div class="d-grid gap-2 d-md-block">
-                        <a href="{% url 'case-list' %}" class="btn btn-outline-light px-4">キャンセル</a>
+                        <a href="{% url 'case-list' %}" class="btn btn-secondary px-4">キャンセル</a>
                         <button type="submit" class="btn btn-danger px-4">削除する</button>
                     </div>
                 </form>

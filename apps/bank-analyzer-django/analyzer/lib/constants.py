@@ -25,7 +25,7 @@ ERA_MAP = {abbr: year for _, _, abbr, year in ERA_DATA}
 UNCATEGORIZED = "未分類"
 
 STANDARD_CATEGORIES = [
-    "生活費", "給与", "贈与", "事業・不動産", "関連会社",
+    "生活費", "給与", "年金", "贈与", "事業・不動産", "関連会社",
     "銀行", "証券・株式", "保険会社", "通帳間移動", "その他", UNCATEGORIZED,
 ]
 

@@ -116,7 +116,11 @@ class AnalysisService:
         Returns:
             分析データの辞書
         """
-        transactions = case.transactions.all().order_by('date', 'id')
+        from ..views._helpers import get_sort_order_by, sort_dict_list
+
+        sort_param = filter_state.get('sort', '')
+        sort_order = get_sort_order_by(sort_param)
+        transactions = case.transactions.all().order_by(*sort_order)
 
         if not transactions.exists():
             return {'no_data': True}
@@ -128,11 +132,13 @@ class AnalysisService:
 
         return {
             'account_summary': AnalysisService._build_account_summary(df),
-            'transfer_pairs': AnalysisService._build_transfer_data(df, filter_state),
-            'large_txs': AnalysisService._build_large_txs(df, filter_state),
+            'transfer_pairs': AnalysisService._build_transfer_data(df, filter_state, sort_param),
+            'large_txs': sort_dict_list(
+                AnalysisService._build_large_txs(df, filter_state), sort_param
+            ),
             'all_txs': AnalysisService.apply_filters(transactions, filter_state),
             'duplicate_txs': AnalysisService._get_duplicate_transactions(df),
-            'flagged_txs': transactions.filter(is_flagged=True),
+            'flagged_txs': transactions.filter(is_flagged=True).order_by(*sort_order),
             **AnalysisService._build_filter_options(df, case),
             **ai_data,
         }
@@ -151,7 +157,7 @@ class AnalysisService:
         return account_summary.to_dict(orient='records')
 
     @staticmethod
-    def _build_transfer_data(df: pd.DataFrame, filter_state: dict) -> list:
+    def _build_transfer_data(df: pd.DataFrame, filter_state: dict, sort_param: str = '') -> list:
         """資金移動ペアデータを生成（フィルター適用含む）"""
         analyzed_df = analyzer.analyze_transfers(df.copy())
         transfers_df = convert_amounts_to_int(
@@ -187,6 +193,18 @@ class AnalysisService:
                     for kw in kws
                 )
             ]
+
+        # ソート（sourceの値を基準に並び替え）
+        if sort_param:
+            from ..views._helpers import parse_sort
+            field, direction = parse_sort(sort_param)
+            # transfer pairsは amount_out/amount_in ではなく amount キーを使用
+            sort_key = 'amount' if field in ('amount_out', 'amount_in') else field
+            reverse = direction == 'desc'
+            transfer_pairs.sort(
+                key=lambda p: (p['source'].get(sort_key) is None, p['source'].get(sort_key, 0)),
+                reverse=reverse,
+            )
 
         return transfer_pairs
 
