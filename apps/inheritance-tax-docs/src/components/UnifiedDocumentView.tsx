@@ -33,6 +33,7 @@ export interface FilterCriteria {
   searchQuery: string;
   showOnlyUnchecked: boolean;
   showOnlyDelegatable: boolean;
+  showOnlyUrgent: boolean;
   hideExcluded: boolean;
 }
 
@@ -52,6 +53,7 @@ interface UnifiedDocumentViewProps {
   checkedDates: Record<string, string>;
   documentMemos: Record<string, string>;
   excludedDocuments: Record<string, boolean>;
+  urgentDocuments: Record<string, boolean>;
   disabledCategories: Record<string, boolean>;
   deleteConfirmation: { type: 'document' | 'category'; name: string } | null;
   stats: Stats;
@@ -73,6 +75,7 @@ interface UnifiedDocumentViewProps {
   onToggleAllInCategory: (categoryId: string, checked: boolean) => void;
   onSetDocumentMemo: (docId: string, memo: string) => void;
   onToggleExcluded: (docId: string) => void;
+  onToggleUrgent: (docId: string) => void;
   onToggleCategoryDisabled: (categoryId: string) => void;
   onRemoveDocument: (docId: string, categoryId: string, name: string) => void;
   onRemoveCategory: (categoryId: string, name: string) => void;
@@ -102,6 +105,7 @@ function UnifiedDocumentViewComponent({
   checkedDates,
   documentMemos,
   excludedDocuments,
+  urgentDocuments,
   disabledCategories,
   deleteConfirmation,
   stats,
@@ -123,6 +127,7 @@ function UnifiedDocumentViewComponent({
   onToggleAllInCategory,
   onSetDocumentMemo,
   onToggleExcluded,
+  onToggleUrgent,
   onToggleCategoryDisabled,
   onRemoveDocument,
   onRemoveCategory,
@@ -145,6 +150,7 @@ function UnifiedDocumentViewComponent({
   // B2: フィルター状態
   const [showOnlyUnchecked, setShowOnlyUnchecked] = useState(false);
   const [showOnlyDelegatable, setShowOnlyDelegatable] = useState(false);
+  const [showOnlyUrgent, setShowOnlyUrgent] = useState(false);
   const [hideExcluded, setHideExcluded] = useState(false);
   // B3: 検索状態
   const [searchQuery, setSearchQuery] = useState('');
@@ -156,10 +162,11 @@ function UnifiedDocumentViewComponent({
     searchQuery,
     showOnlyUnchecked,
     showOnlyDelegatable,
+    showOnlyUrgent,
     hideExcluded,
-  }), [searchQuery, showOnlyUnchecked, showOnlyDelegatable, hideExcluded]);
+  }), [searchQuery, showOnlyUnchecked, showOnlyDelegatable, showOnlyUrgent, hideExcluded]);
 
-  const hasActiveFilters = showOnlyUnchecked || showOnlyDelegatable || hideExcluded || searchQuery !== '';
+  const hasActiveFilters = showOnlyUnchecked || showOnlyDelegatable || showOnlyUrgent || hideExcluded || searchQuery !== '';
 
   // B4: キーボードショートカット
   useEffect(() => {
@@ -200,14 +207,14 @@ function UnifiedDocumentViewComponent({
     setExportError(null);
     try {
       const results = getSelectedDocuments();
-      exportToExcel({ results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, personInCharge, personInChargeContact });
+      exportToExcel({ results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact });
     } catch (error) {
       console.error('Excel export failed:', error);
       setExportError('Excelファイルの出力に失敗しました。もう一度お試しください。');
     } finally {
       setIsExporting(false);
     }
-  }, [getSelectedDocuments, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, personInCharge, personInChargeContact]);
+  }, [getSelectedDocuments, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact]);
 
   // A1: 進捗率の計算
   const progressPercent = stats.totalCount > 0 ? Math.round((stats.checkedCount / stats.totalCount) * 100) : 0;
@@ -387,6 +394,9 @@ function UnifiedDocumentViewComponent({
             </div>
             <div className="flex items-center justify-between mt-1.5 text-xs text-slate-500">
               <span>{stats.checkedCount} / {stats.totalCount} 提出済み</span>
+              {stats.urgentCount > 0 && (
+                <span className="text-red-600 font-medium">緊急: {stats.urgentCount}件</span>
+              )}
               {stats.excludedCount > 0 && (
                 <span>対象外: {stats.excludedCount}件</span>
               )}
@@ -474,6 +484,7 @@ function UnifiedDocumentViewComponent({
                 {([
                   { checked: showOnlyUnchecked, toggle: () => setShowOnlyUnchecked(!showOnlyUnchecked), label: '未提出のみ' },
                   { checked: showOnlyDelegatable, toggle: () => setShowOnlyDelegatable(!showOnlyDelegatable), label: '代行可のみ' },
+                  { checked: showOnlyUrgent, toggle: () => setShowOnlyUrgent(!showOnlyUrgent), label: '緊急のみ' },
                   { checked: hideExcluded, toggle: () => setHideExcluded(!hideExcluded), label: '対象外を非表示' },
                 ] as const).map(({ checked, toggle, label }) => (
                   <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
@@ -488,7 +499,7 @@ function UnifiedDocumentViewComponent({
                 ))}
                 {hasActiveFilters && (
                   <button
-                    onClick={() => { setSearchQuery(''); setShowOnlyUnchecked(false); setShowOnlyDelegatable(false); setHideExcluded(false); }}
+                    onClick={() => { setSearchQuery(''); setShowOnlyUnchecked(false); setShowOnlyDelegatable(false); setShowOnlyUrgent(false); setHideExcluded(false); }}
                     className="text-xs text-blue-600 hover:text-blue-800 underline"
                   >
                     クリア
@@ -545,10 +556,12 @@ function UnifiedDocumentViewComponent({
               checkedDates={checkedDates}
               documentMemos={documentMemos}
               excludedDocuments={excludedDocuments}
+              urgentDocuments={urgentDocuments}
               onToggleDocumentCheck={onToggleDocumentCheck}
               onToggleAllInCategory={onToggleAllInCategory}
               onSetDocumentMemo={onSetDocumentMemo}
               onToggleExcluded={onToggleExcluded}
+              onToggleUrgent={onToggleUrgent}
               onToggleCategoryDisabled={onToggleCategoryDisabled}
               onRemoveDocument={onRemoveDocument}
               onRemoveCategory={onRemoveCategory}

@@ -25,12 +25,12 @@ import { SpecificNamesTableRows } from './SpecificNamesList';
 /** カテゴリヘッダー（展開/折りたたみ、進捗、操作ボタン） */
 const CategoryHeader = memo(function CategoryHeader({
   category, categoryIndex, isExpanded, allChecked, someChecked,
-  checkedCount, totalCount, categoryProgress,
+  checkedCount, totalCount, urgentCount, categoryProgress,
   onToggleExpanded, onToggleCategoryDisabled, onRemoveCategory, onToggleAllInCategory,
 }: {
   category: CategoryData; categoryIndex: number; isExpanded: boolean;
   allChecked: boolean; someChecked: boolean;
-  checkedCount: number; totalCount: number; categoryProgress: number;
+  checkedCount: number; totalCount: number; urgentCount: number; categoryProgress: number;
   onToggleExpanded: (categoryId: string) => void;
   onToggleCategoryDisabled: (categoryId: string) => void;
   onRemoveCategory: (categoryId: string, name: string) => void;
@@ -61,6 +61,11 @@ const CategoryHeader = memo(function CategoryHeader({
             <span className={`text-sm font-medium print:text-sm ${allChecked ? 'text-emerald-600' : 'text-slate-500'}`}>
               {checkedCount}/{totalCount}
             </span>
+            {urgentCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 font-bold rounded">
+                急 {urgentCount}
+              </span>
+            )}
           </div>
           {!isExpanded && totalCount > 0 && (
             <div className="w-24 bg-slate-200/60 rounded-full h-1.5 mt-1 print:hidden">
@@ -126,10 +131,12 @@ interface EditableCategoryTableProps {
   checkedDates: Record<string, string>;
   documentMemos: Record<string, string>;
   excludedDocuments: Record<string, boolean>;
+  urgentDocuments: Record<string, boolean>;
   onToggleDocumentCheck: (docId: string) => void;
   onToggleAllInCategory: (categoryId: string, checked: boolean) => void;
   onSetDocumentMemo: (docId: string, memo: string) => void;
   onToggleExcluded: (docId: string) => void;
+  onToggleUrgent: (docId: string) => void;
   onToggleCategoryDisabled: (categoryId: string) => void;
   onRemoveDocument: (docId: string, categoryId: string, name: string) => void;
   onRemoveCategory: (categoryId: string, name: string) => void;
@@ -160,10 +167,12 @@ function EditableCategoryTableComponent({
   checkedDates,
   documentMemos,
   excludedDocuments,
+  urgentDocuments,
   onToggleDocumentCheck,
   onToggleAllInCategory,
   onSetDocumentMemo,
   onToggleExcluded,
+  onToggleUrgent,
   onToggleCategoryDisabled,
   onRemoveDocument,
   onRemoveCategory,
@@ -204,6 +213,7 @@ function EditableCategoryTableComponent({
   }, [documentOrder, docMap]);
 
   const checkedCount = orderedDocs.filter(doc => checkedDocuments[doc.id]).length;
+  const urgentCount = orderedDocs.filter(doc => urgentDocuments[doc.id]).length;
   const allChecked = orderedDocs.length > 0 && checkedCount === orderedDocs.length;
   const someChecked = checkedCount > 0 && !allChecked;
   const totalCount = orderedDocs.length;
@@ -213,7 +223,7 @@ function EditableCategoryTableComponent({
 
   // フィルタリングされた表示用ドキュメント（DnDの順序には影響しない）
   const filteredDocIds = useMemo(() => {
-    const { searchQuery, showOnlyUnchecked, showOnlyDelegatable, hideExcluded: filterHideExcluded } = filterCriteria;
+    const { searchQuery, showOnlyUnchecked, showOnlyDelegatable, showOnlyUrgent, hideExcluded: filterHideExcluded } = filterCriteria;
     const ids = new Set<string>();
     orderedDocs.forEach(doc => {
       const docIsCustom = isCustomDocument(doc);
@@ -222,13 +232,14 @@ function EditableCategoryTableComponent({
       const displayName = editedDocuments[doc.id]?.name ?? doc.name;
 
       if (showOnlyUnchecked && checkedDocuments[doc.id]) return;
+      if (showOnlyUrgent && !urgentDocuments[doc.id]) return;
       if (showOnlyDelegatable && !canDelegate) return;
       if (filterHideExcluded && excludedDocuments[doc.id]) return;
       if (searchQuery && !displayName.toLowerCase().includes(searchQuery.toLowerCase())) return;
       ids.add(doc.id);
     });
     return ids;
-  }, [orderedDocs, filterCriteria, checkedDocuments, canDelegateOverrides, editedDocuments, excludedDocuments]);
+  }, [orderedDocs, filterCriteria, checkedDocuments, canDelegateOverrides, editedDocuments, excludedDocuments, urgentDocuments]);
 
   const hasVisibleDocs = filteredDocIds.size > 0;
 
@@ -287,9 +298,11 @@ function EditableCategoryTableComponent({
       checkedDate: checkedDates[doc.id],
       memo: documentMemos[doc.id] ?? '',
       isExcluded: excludedDocuments[doc.id] ?? false,
+      isUrgent: urgentDocuments[doc.id] ?? false,
       onToggleCheck: onToggleDocumentCheck,
       onSetMemo: onSetDocumentMemo,
       onToggleExcluded: onToggleExcluded,
+      onToggleUrgent: onToggleUrgent,
       onRemoveDocument,
       hideSubmittedInPrint,
       isVisible: filteredDocIds.has(doc.id),
@@ -330,7 +343,7 @@ function EditableCategoryTableComponent({
   }
 
   // フィルターで全ドキュメントが非表示の場合、カテゴリ自体を非表示（print時は常に表示）
-  const hasActiveFilter = filterCriteria.searchQuery !== '' || filterCriteria.showOnlyUnchecked || filterCriteria.showOnlyDelegatable || filterCriteria.hideExcluded;
+  const hasActiveFilter = filterCriteria.searchQuery !== '' || filterCriteria.showOnlyUnchecked || filterCriteria.showOnlyDelegatable || filterCriteria.showOnlyUrgent || filterCriteria.hideExcluded;
 
   return (
     <div className={`print-compact-section ${allChecked && hideSubmittedInPrint ? 'print:hidden' : ''} ${hasActiveFilter && !hasVisibleDocs ? 'hidden print:block' : ''}`}>
@@ -342,6 +355,7 @@ function EditableCategoryTableComponent({
         someChecked={someChecked}
         checkedCount={checkedCount}
         totalCount={totalCount}
+        urgentCount={urgentCount}
         categoryProgress={categoryProgress}
         onToggleExpanded={onToggleExpanded}
         onToggleCategoryDisabled={onToggleCategoryDisabled}

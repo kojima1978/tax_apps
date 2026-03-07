@@ -1,7 +1,7 @@
 import { memo, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Pencil, Trash2, Check, MessageSquare, Ban, Calendar } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, Check, MessageSquare, Ban, Calendar, AlertTriangle } from 'lucide-react';
 import type { DocumentItem, CustomDocumentItem, DocChanges } from '../../constants/documents';
 import { COLOR_ACCENT_MAP } from '../../utils/helpers';
 
@@ -45,9 +45,11 @@ export interface EditableDocumentRowProps {
   checkedDate?: string;
   memo: string;
   isExcluded: boolean;
+  isUrgent: boolean;
   onToggleCheck: (docId: string) => void;
   onSetMemo: (docId: string, memo: string) => void;
   onToggleExcluded: (docId: string) => void;
+  onToggleUrgent: (docId: string) => void;
   onRemoveDocument: (docId: string, categoryId: string, name: string) => void;
   hideSubmittedInPrint: boolean;
   isVisible: boolean;
@@ -76,9 +78,11 @@ const RowContent = memo(function RowContent({
   checkedDate,
   memo: docMemo,
   isExcluded,
+  isUrgent,
   onToggleCheck,
   onSetMemo,
   onToggleExcluded,
+  onToggleUrgent,
   onRemoveDocument,
   hideSubmittedInPrint,
   isVisible,
@@ -113,7 +117,7 @@ const RowContent = memo(function RowContent({
     <tr
       ref={containerRef}
       style={containerStyle}
-      className={`${rowBg} ${hiddenClass} ${isChecked && hideSubmittedInPrint ? 'print:hidden' : ''} ${isDragging ? 'shadow-lg z-10 opacity-70' : ''} border-b border-slate-100 last:border-b-0 border-l-3 ${colorAccent} ${excludedClass}`}
+      className={`${rowBg} ${hiddenClass} ${isChecked && hideSubmittedInPrint ? 'print:hidden' : ''} ${isDragging ? 'shadow-lg z-10 opacity-70' : ''} border-b border-slate-100 last:border-b-0 border-l-3 ${isUrgent && !isExcluded ? 'border-l-red-500' : colorAccent} ${excludedClass}`}
     >
       {/* 列1: DnDハンドル + チェックボックス / 印刷チェック */}
       <td className="w-10 px-1 py-2 text-center align-top print:py-1">
@@ -154,6 +158,12 @@ const RowContent = memo(function RowContent({
           <span className={`font-medium doc-name ${isChecked ? checkedClass : isExcluded ? 'text-slate-400' : 'text-slate-800'}`}>
             {displayName}
           </span>
+          {/* 緊急バッジ */}
+          {isUrgent && !isExcluded && (
+            <span className="px-1.5 py-0.5 text-xs bg-red-100 text-red-700 font-bold rounded print:border print:border-red-700 print:px-1 print:py-0 print:text-xs">
+              急
+            </span>
+          )}
           {/* 具体名カウントバッジ */}
           {specificNames.length > 0 && !isExcluded && (
             <span className="px-1.5 py-0.5 text-[10px] bg-blue-50 text-blue-600 rounded-full font-medium print:hidden">
@@ -276,6 +286,19 @@ const RowContent = memo(function RowContent({
             aria-label="メモ"
           >
             <MessageSquare className="w-4 h-4" />
+          </button>
+          {/* 緊急フラグボタン */}
+          <button
+            onClick={() => onToggleUrgent(doc.id)}
+            className={`p-1.5 rounded transition-colors ${
+              isUrgent
+                ? 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+            }`}
+            title={isUrgent ? '緊急を解除' : '緊急に設定'}
+            aria-label="緊急"
+          >
+            <AlertTriangle className="w-4 h-4" />
           </button>
           {/* C3: 対象外ボタン */}
           <button
