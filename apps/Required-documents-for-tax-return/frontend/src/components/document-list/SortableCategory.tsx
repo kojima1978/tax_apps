@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { DndContext, DragEndEvent, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -38,6 +39,8 @@ interface SortableCategoryProps {
     group: CategoryGroup;
     isExpanded: boolean;
     onToggleExpand: () => void;
+    onToggleCheckAll: () => void;
+    searchQuery?: string;
     categoryHandlers: CategoryEditHandlers;
     docHandlers: DocHandlers;
     subItemHandlers: SubItemHandlers;
@@ -47,6 +50,8 @@ export function SortableCategory({
     group,
     isExpanded,
     onToggleExpand,
+    onToggleCheckAll,
+    searchQuery = '',
     categoryHandlers,
     docHandlers,
     subItemHandlers,
@@ -93,13 +98,19 @@ export function SortableCategory({
     };
 
     // 書類とサブアイテムの合計チェック数を計算
-    const totalItems = group.documents.reduce((acc, doc) => {
-        return acc + 1 + (doc.subItems?.length || 0);
-    }, 0);
-    const checkedItems = group.documents.reduce((acc, doc) => {
-        const subChecked = doc.subItems?.filter((s) => s.checked).length || 0;
-        return acc + (doc.checked ? 1 : 0) + subChecked;
-    }, 0);
+    const { totalItems, checkedItems, allChecked } = useMemo(() => {
+        let total = 0;
+        let checked = 0;
+        group.documents.forEach((doc) => {
+            total += 1 + (doc.subItems?.length || 0);
+            checked += (doc.checked ? 1 : 0) + (doc.subItems?.filter((s) => s.checked).length || 0);
+        });
+        return {
+            totalItems: total,
+            checkedItems: checked,
+            allChecked: total > 0 && checked === total,
+        };
+    }, [group.documents]);
 
     return (
         <div
@@ -156,6 +167,18 @@ export function SortableCategory({
                         )}
                     </div>
                     <div className="flex items-center space-x-2 no-print">
+                        {/* 一括チェック */}
+                        <button
+                            onClick={onToggleCheckAll}
+                            className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                                allChecked
+                                    ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200'
+                                    : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'
+                            }`}
+                            title={allChecked ? 'すべてのチェックを外す' : 'すべてチェック'}
+                        >
+                            {allChecked ? '✓ 全解除' : '全チェック'}
+                        </button>
                         <span className="text-sm text-slate-500">
                             {checkedItems}/{totalItems}
                         </span>
@@ -211,6 +234,7 @@ export function SortableCategory({
                                         onToggleCheck={() => onToggleDocumentCheck(group.id, doc.id)}
                                         onDelete={() => onDeleteDocument(group.id, doc.id)}
                                         subItemHandlers={subItemHandlers}
+                                        searchQuery={searchQuery}
                                     />
                                 ))}
                             </ul>

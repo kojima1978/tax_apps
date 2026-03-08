@@ -119,6 +119,51 @@ export function useDocumentListEditing({
     [documentGroups, onDocumentGroupsChange]
   );
 
+  const expandAll = useCallback(() => {
+    setExpandedGroups((prev) => {
+      const next = { ...prev };
+      documentGroups.forEach((g) => { next[g.id] = true; });
+      return next;
+    });
+  }, [documentGroups]);
+
+  const collapseAll = useCallback(() => {
+    setExpandedGroups((prev) => {
+      const next = { ...prev };
+      documentGroups.forEach((g) => { next[g.id] = false; });
+      return next;
+    });
+  }, [documentGroups]);
+
+  const toggleCategoryCheckAll = useCallback(
+    (groupId: string) => {
+      const group = documentGroups.find((g) => g.id === groupId);
+      if (!group) return;
+
+      // 全アイテム（書類+サブ）がチェック済みかどうか
+      const allChecked = group.documents.every(
+        (doc) => doc.checked && (!doc.subItems || doc.subItems.every((s) => s.checked))
+      );
+      const newChecked = !allChecked;
+
+      updateGroups((groups) =>
+        groups.map((g) =>
+          g.id === groupId
+            ? {
+                ...g,
+                documents: g.documents.map((doc) => ({
+                  ...doc,
+                  checked: newChecked,
+                  subItems: doc.subItems?.map((s) => ({ ...s, checked: newChecked })),
+                })),
+              }
+            : g
+        )
+      );
+    },
+    [documentGroups, updateGroups]
+  );
+
   // --- 書類操作 ---
   const toggleDocumentCheck = useCallback(
     (groupId: string, docId: string) => {
@@ -365,6 +410,9 @@ export function useDocumentListEditing({
 
     // カテゴリ操作
     toggleGroup,
+    expandAll,
+    collapseAll,
+    toggleCategoryCheckAll,
     startEditCategory,
     saveEditCategory,
     cancelEditCategory,

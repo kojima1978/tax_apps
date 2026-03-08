@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import DocumentListScreen from '@/components/DocumentListScreen';
@@ -12,6 +12,11 @@ import {
 } from '@/utils/api';
 import { getErrorMessage } from '@/utils/error';
 import { formatReiwaYear } from '@/utils/date';
+import { ToastContainer } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
+import { useAutoSave } from '@/hooks/useAutoSave';
+import { useBeforeUnloadWarning } from '@/hooks/useBeforeUnloadWarning';
+import { useCtrlSave } from '@/hooks/useCtrlSave';
 
 export default function DocumentEditorPage() {
   const { id, year: yearParam } = useParams<{ id: string; year: string }>();
@@ -27,6 +32,16 @@ export default function DocumentEditorPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const { messages, toast, dismiss } = useToast();
+  const isSavingRef = useRef(false);
+  isSavingRef.current = isSaving;
+
+  const handleDocumentGroupsChange = useCallback((groups: CategoryGroup[]) => {
+    setDocumentGroups(groups);
+    setIsDirty(true);
+  }, []);
 
   // 初期データ読み込み
   useEffect(() => {
@@ -56,6 +71,7 @@ export default function DocumentEditorPage() {
       } finally {
         if (!cancelled) {
           setIsInitialLoading(false);
+          setIsDirty(false);
         }
       }
     };
@@ -64,7 +80,9 @@ export default function DocumentEditorPage() {
     return () => { cancelled = true; };
   }, [customerId, year]);
 
-  const handleSave = useCallback(async () => {
+  // 保存処理（共通）
+  const performSave = useCallback(async (silent = false): Promise<boolean> => {
+    if (isSavingRef.current) return false;
     setIsSaving(true);
     setSaveError(null);
 
@@ -72,12 +90,32 @@ export default function DocumentEditorPage() {
       await saveDocumentsByCustomerId(customerId, year, documentGroups);
       setIsSaving(false);
       setLastSaved(new Date());
-      alert('データを保存しました');
+      setIsDirty(false);
+      if (!silent) toast('データを保存しました', 'success');
+      return true;
     } catch (error) {
       setIsSaving(false);
       setSaveError(getErrorMessage(error, '保存に失敗しました'));
+      if (!silent) toast('保存に失敗しました', 'error');
+      return false;
     }
-  }, [customerId, year, documentGroups]);
+  }, [customerId, year, documentGroups, toast]);
+
+  const handleSave = useCallback(() => performSave(false), [performSave]);
+
+  // 自動保存・Ctrl+S・beforeunload
+  useAutoSave({
+    isDirty,
+    isReady: !isInitialLoading,
+    isSavingRef,
+    onSave: () => performSave(true),
+    onSuccess: () => toast('自動保存しました', 'success'),
+    deps: [documentGroups, performSave, toast],
+  });
+  useCtrlSave(useCallback(() => {
+    if (!isSavingRef.current) performSave(false);
+  }, [performSave]));
+  useBeforeUnloadWarning(isDirty);
 
   const handleLoad = useCallback(async () => {
     setIsLoading(true);
@@ -85,29 +123,22 @@ export default function DocumentEditorPage() {
       const data = await fetchDocumentsByCustomerId(customerId, year);
       if (data.found && data.documentGroups) {
         setDocumentGroups(data.documentGroups);
-        alert('データを読み込みました');
+        setIsDirty(false);
+        toast('データを読み込みました', 'success');
       } else {
-        alert('保存されたデータが見つかりませんでした');
+        toast('保存されたデータが見つかりませんでした', 'warning');
       }
     } catch {
-      alert('データの読み込みに失敗しました');
+      toast('データの読み込みに失敗しました', 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [customerId, year]);
+  }, [customerId, year, toast]);
 
   const handleCopyToNextYear = useCallback(async () => {
-    // まず保存
-    setIsSaving(true);
-    setSaveError(null);
-    try {
-      await saveDocumentsByCustomerId(customerId, year, documentGroups);
-      setIsSaving(false);
-      setLastSaved(new Date());
-    } catch (error) {
-      setIsSaving(false);
-      setSaveError(getErrorMessage(error, '保存に失敗しました'));
-      alert('保存に失敗したため、翌年度更新を中止しました');
+    const saved = await performSave(true);
+    if (!saved) {
+      toast('保存に失敗したため、翌年度更新を中止しました', 'error');
       return;
     }
 
@@ -122,12 +153,12 @@ export default function DocumentEditorPage() {
           navigate(`/customers/${customerId}/years/${nextYear}`);
         }
       } else {
-        alert('翌年度更新に失敗しました');
+        toast('翌年度更新に失敗しました', 'error');
       }
     } catch {
-      alert('翌年度更新に失敗しました');
+      toast('翌年度更新に失敗しました', 'error');
     }
-  }, [customerId, year, documentGroups, navigate]);
+  }, [customerId, year, performSave, navigate, toast]);
 
   if (isInitialLoading) {
     return (
@@ -138,20 +169,26 @@ export default function DocumentEditorPage() {
   }
 
   return (
-    <DocumentListScreen
-      year={year}
-      documentGroups={documentGroups}
-      onDocumentGroupsChange={setDocumentGroups}
-      onBack={() => navigate(`/customers/${customerId}`)}
-      customerName={customerName}
-      staffName={staffName}
-      onSave={handleSave}
-      onLoad={handleLoad}
-      onCopyToNextYear={handleCopyToNextYear}
-      isSaving={isSaving}
-      isLoading={isLoading}
-      lastSaved={lastSaved}
-      saveError={saveError}
-    />
+    <>
+      <DocumentListScreen
+        year={year}
+        documentGroups={documentGroups}
+        onDocumentGroupsChange={handleDocumentGroupsChange}
+        onBack={() => {
+          if (isDirty && !confirm('未保存の変更があります。破棄してよろしいですか？')) return;
+          navigate(`/customers/${customerId}`);
+        }}
+        customerName={customerName}
+        staffName={staffName}
+        onSave={handleSave}
+        onLoad={handleLoad}
+        onCopyToNextYear={handleCopyToNextYear}
+        isSaving={isSaving}
+        isLoading={isLoading}
+        lastSaved={lastSaved}
+        saveError={saveError}
+      />
+      <ToastContainer messages={messages} onDismiss={dismiss} />
+    </>
   );
 }

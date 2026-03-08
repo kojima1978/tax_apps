@@ -4,6 +4,7 @@ import { Check, Edit2, GripVertical, Plus, Trash2, X } from 'lucide-react';
 import { DocumentItem } from '@/types';
 import { handleInlineKeyDown } from '@/utils/keyboard';
 import { SubItemComponent } from './SubItemComponent';
+import { HighlightText } from './HighlightText';
 
 export interface SubItemHandlers {
     editingSubItemId: string | null;
@@ -35,6 +36,7 @@ interface SortableDocumentItemProps {
     onToggleCheck: () => void;
     onDelete: () => void;
     subItemHandlers: SubItemHandlers;
+    searchQuery?: string;
 }
 
 export function SortableDocumentItem({
@@ -50,6 +52,7 @@ export function SortableDocumentItem({
     onToggleCheck,
     onDelete,
     subItemHandlers,
+    searchQuery = '',
 }: SortableDocumentItemProps) {
     const {
         editingSubItemId, editSubItemText, onEditSubItemTextChange,
@@ -76,7 +79,7 @@ export function SortableDocumentItem({
     const hasSubItems = doc.subItems && doc.subItems.length > 0;
 
     return (
-        <li ref={setNodeRef} style={style} className="bg-white">
+        <li ref={setNodeRef} style={style} className={`bg-white ${doc.checked ? 'opacity-60' : ''}`}>
             <div className="flex items-center py-2 border-b border-dashed border-slate-100 print:py-0.5">
                 {isEditing ? (
                     <div className="flex items-center flex-1 ml-6">
@@ -114,7 +117,7 @@ export function SortableDocumentItem({
                                 className="w-4 h-4 mr-3 accent-emerald-600 print:w-3 print:h-3 print:mr-1"
                             />
                             <span className={`whitespace-pre-line ${doc.checked ? 'line-through text-slate-400' : 'text-slate-700'} print:text-xs`}>
-                                {doc.text}
+                                <HighlightText text={doc.text} query={searchQuery} />
                             </span>
                         </label>
                         <div className="flex items-center space-x-1 no-print">
@@ -152,6 +155,7 @@ export function SortableDocumentItem({
                             onStartEdit={() => onStartEditSubItem(subItem.id, subItem.text)}
                             onToggleCheck={() => onToggleSubItemCheck(groupId, doc.id, subItem.id)}
                             onDelete={() => onDeleteSubItem(groupId, doc.id, subItem.id)}
+                            searchQuery={searchQuery}
                         />
                     ))}
                 </ul>

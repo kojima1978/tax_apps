@@ -1,19 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Loader2, Search, Download, Upload, Settings, UserPlus, Users, Edit2, X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Home, Loader2, Search, X, Plus, Users } from 'lucide-react';
 import { taxReturnData } from '@/data/taxReturnData';
-import { formatReiwaYear, formatDateTime } from '@/utils/date';
 import { fetchCustomersWithYears, fetchStaff, CustomerWithYears } from '@/utils/api';
-import { getErrorMessage } from '@/utils/error';
-import { exportFullBackup, importFullBackup, readJsonFile, validateFullBackupImport, FullBackupExport } from '@/utils/jsonExportImport';
 import { Staff } from '@/types';
-
-const ADMIN_LINKS = [
-  { href: '/staff/create', icon: UserPlus, label: '担当者登録' },
-  { href: '/staff', icon: Edit2, label: '担当者一覧・編集' },
-  { href: '/customers', icon: Users, label: 'お客様一覧・編集' },
-  { href: '/data-management', icon: Settings, label: '保存データ管理' },
-] as const;
+import { CustomerCard } from '@/components/CustomerCard';
+import { AdminMenu } from '@/components/AdminMenu';
 
 export default function CustomerDashboardPage() {
   const navigate = useNavigate();
@@ -22,7 +14,6 @@ export default function CustomerDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [staffFilter, setStaffFilter] = useState('');
-  const [showAdmin, setShowAdmin] = useState(false);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -57,48 +48,6 @@ export default function CustomerDashboardPage() {
   }, [customers, searchText, staffFilter]);
 
   const hasFilter = searchText.trim() || staffFilter;
-
-  // バックアップ/復元
-  const backupFileInputRef = useRef<HTMLInputElement>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-
-  const handleFullExport = async () => {
-    setIsExporting(true);
-    try {
-      await exportFullBackup();
-    } catch (error) {
-      alert('バックアップのエクスポートに失敗しました: ' + getErrorMessage(error, ''));
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleFullImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsImporting(true);
-    try {
-      const rawData = await readJsonFile(file);
-      const validation = validateFullBackupImport(rawData);
-      if (!validation.isValid) {
-        alert(validation.error);
-        return;
-      }
-
-      if (!confirm('既存のデータと重複する場合は上書きされます。復元を実行しますか？')) return;
-
-      const result = await importFullBackup(rawData as FullBackupExport);
-      alert(`復元が完了しました。\n担当者: ${result.staffCount}件\nお客様: ${result.customerCount}件\n書類データ: ${result.recordCount}件`);
-      loadData();
-    } catch (error) {
-      alert('バックアップの復元に失敗しました: ' + getErrorMessage(error, ''));
-    } finally {
-      setIsImporting(false);
-      if (backupFileInputRef.current) backupFileInputRef.current.value = '';
-    }
-  };
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 font-sans">
@@ -190,101 +139,16 @@ export default function CustomerDashboardPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredCustomers.map(customer => (
-                  <button
+                  <CustomerCard
                     key={customer.id}
+                    customer={customer}
                     onClick={() => navigate(`/customers/${customer.id}`)}
-                    className="text-left bg-white border border-slate-200 rounded-xl p-5 hover:border-emerald-300 hover:shadow-md transition-all group"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-lg font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">
-                        {customer.customer_name}
-                      </h3>
-                    </div>
-                    <p className="text-sm text-slate-500 mb-3">
-                      担当: {customer.staff_name || <span className="text-slate-400">未設定</span>}
-                    </p>
-                    {customer.years.length > 0 ? (
-                      <>
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {customer.years.map(year => (
-                            <span
-                              key={year}
-                              className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full"
-                            >
-                              {formatReiwaYear(year)}
-                            </span>
-                          ))}
-                        </div>
-                        {customer.latest_updated_at && (
-                          <p className="text-xs text-slate-400">
-                            最終更新: {formatDateTime(customer.latest_updated_at)}
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-xs text-slate-400">書類データなし</p>
-                    )}
-                  </button>
+                  />
                 ))}
               </div>
             )}
 
-            {/* 管理メニュー（折りたたみ） */}
-            <div className="mt-10 border-t border-slate-200 pt-6">
-              <button
-                onClick={() => setShowAdmin(!showAdmin)}
-                className="w-full flex items-center justify-center gap-2 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
-              >
-                <Settings className="w-4 h-4" />
-                管理メニュー
-                {showAdmin ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-
-              {showAdmin && (
-                <div className="mt-4 space-y-4 animate-fade-in">
-                  {/* 管理リンク */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {ADMIN_LINKS.map(({ href, icon: Icon, label }) => (
-                      <Link
-                        key={href}
-                        to={href}
-                        className="flex flex-col items-center gap-2 p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all text-slate-600 hover:text-emerald-700 group"
-                      >
-                        <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                        <span className="text-xs font-medium text-center">{label}</span>
-                      </Link>
-                    ))}
-                  </div>
-
-                  {/* バックアップ・復元 */}
-                  <div className="flex items-center justify-center gap-3 pt-2">
-                    <button
-                      onClick={handleFullExport}
-                      disabled={isExporting}
-                      className="inline-flex items-center px-4 py-2 text-sm text-slate-600 hover:text-emerald-700 bg-white border border-slate-200 rounded-lg hover:border-emerald-300 hover:bg-emerald-50 transition-colors disabled:opacity-50"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      {isExporting ? 'エクスポート中...' : '全データバックアップ'}
-                    </button>
-                    <button
-                      onClick={() => backupFileInputRef.current?.click()}
-                      disabled={isImporting}
-                      className="inline-flex items-center px-4 py-2 text-sm text-slate-600 hover:text-amber-700 bg-white border border-slate-200 rounded-lg hover:border-amber-300 hover:bg-amber-50 transition-colors disabled:opacity-50"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      {isImporting ? '復元中...' : 'バックアップから復元'}
-                    </button>
-                    <input
-                      ref={backupFileInputRef}
-                      type="file"
-                      accept=".json"
-                      onChange={handleFullImport}
-                      className="hidden"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+            <AdminMenu onDataRestored={loadData} />
 
             {/* フッター */}
             <div className="mt-8 pt-6 text-center text-xs text-slate-400">

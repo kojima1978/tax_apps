@@ -1,6 +1,7 @@
 import { Check, Edit2, Trash2, X } from 'lucide-react';
 import { SubItem } from '@/types';
 import { handleInlineKeyDown } from '@/utils/keyboard';
+import { HighlightText } from './HighlightText';
 
 interface SubItemComponentProps {
     subItem: SubItem;
@@ -13,6 +14,7 @@ interface SubItemComponentProps {
     onStartEdit: () => void;
     onToggleCheck: () => void;
     onDelete: () => void;
+    searchQuery?: string;
 }
 
 export function SubItemComponent({
@@ -26,9 +28,10 @@ export function SubItemComponent({
     onStartEdit,
     onToggleCheck,
     onDelete,
+    searchQuery = '',
 }: SubItemComponentProps) {
     return (
-        <li className="flex items-center py-1.5 pl-12 print:pl-2 print:py-0.5 border-b border-dotted border-slate-100 last:border-0 bg-slate-50">
+        <li className={`flex items-center py-1.5 pl-12 print:pl-2 print:py-0.5 border-b border-dotted border-slate-100 last:border-0 bg-slate-50 ${subItem.checked ? 'opacity-60' : ''}`}>
             {isEditing ? (
                 <div className="flex items-center flex-1">
                     <span className="w-6 text-center text-xs text-slate-500 mr-2">{subIndex})</span>
@@ -58,7 +61,7 @@ export function SubItemComponent({
                             className="w-3 h-3 mr-2 accent-emerald-600"
                         />
                         <span className={`text-sm ${subItem.checked ? 'line-through text-slate-400' : 'text-slate-600'}`}>
-                            {subItem.text}
+                            <HighlightText text={subItem.text} query={searchQuery} />
                         </span>
                     </label>
                     <div className="flex items-center space-x-1 no-print">

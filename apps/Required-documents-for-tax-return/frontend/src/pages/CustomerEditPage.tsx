@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { fetchStaff, fetchCustomers, updateCustomerName } from '@/utils/api';
 import { translateCustomerError } from '@/utils/error';
 import { Staff } from '@/types';
-import { ChevronLeft } from 'lucide-react';
-import FormErrorDisplay from '@/components/FormErrorDisplay';
 import SubmitButton from '@/components/SubmitButton';
 import FullScreenLoader from '@/components/FullScreenLoader';
+import { FormPageLayout } from '@/components/FormPageLayout';
 
 export default function EditCustomerPage() {
     const navigate = useNavigate();
@@ -45,7 +44,7 @@ export default function EditCustomerPage() {
             } else {
                 setError('お客様が見つかりませんでした');
             }
-        } catch (e) {
+        } catch {
             setError('データの取得に失敗しました');
         } finally {
             setIsLoading(false);
@@ -70,59 +69,50 @@ export default function EditCustomerPage() {
     if (isLoading) return <FullScreenLoader />;
 
     return (
-        <div className="min-h-screen bg-slate-50 p-8">
-            <div className="max-w-xl mx-auto">
-                <header className="mb-8 flex items-center">
-                    <Link to={`/customers/${id}`} className="mr-4 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all">
-                        <ChevronLeft className="w-5 h-5" />
-                    </Link>
-                    <h1 className="text-2xl font-bold text-slate-800">お客様 編集</h1>
-                </header>
-
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-                    <FormErrorDisplay error={error} />
-
-                    <form onSubmit={handleSubmit}>
-                        <div className="mb-6">
-                            <label className="block text-sm font-bold text-slate-700 mb-2">
-                                お客様名
-                            </label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                            />
-                        </div>
-
-                        <div className="mb-8">
-                            <label className="block text-sm font-bold text-slate-700 mb-2">
-                                担当者 <span className="ml-2 text-xs font-normal text-slate-400">任意</span>
-                            </label>
-                            <select
-                                value={staffId}
-                                onChange={(e) => setStaffId(e.target.value ? Number(e.target.value) : '')}
-                                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
-                            >
-                                <option value="">未設定</option>
-                                {staffList.map((staff) => (
-                                    <option key={staff.id} value={staff.id}>
-                                        {staff.staff_name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <SubmitButton
-                            isSubmitting={isSubmitting}
-                            disabled={isSubmitting || !name.trim()}
-                            submitLabel="変更を保存"
-                            submittingLabel="保存中..."
-                            className="w-full py-3.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center"
-                        />
-                    </form>
+        <FormPageLayout
+            backTo={`/customers/${id}`}
+            title="お客様 編集"
+            error={error}
+        >
+            <form onSubmit={handleSubmit}>
+                <div className="mb-6">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                        お客様名
+                    </label>
+                    <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    />
                 </div>
-            </div>
-        </div>
+
+                <div className="mb-8">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                        担当者 <span className="ml-2 text-xs font-normal text-slate-400">任意</span>
+                    </label>
+                    <select
+                        value={staffId}
+                        onChange={(e) => setStaffId(e.target.value ? Number(e.target.value) : '')}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
+                    >
+                        <option value="">未設定</option>
+                        {staffList.map((staff) => (
+                            <option key={staff.id} value={staff.id}>
+                                {staff.staff_name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <SubmitButton
+                    isSubmitting={isSubmitting}
+                    disabled={isSubmitting || !name.trim()}
+                    submitLabel="変更を保存"
+                    submittingLabel="保存中..."
+                    className="w-full py-3.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center"
+                />
+            </form>
+        </FormPageLayout>
     );
 }
