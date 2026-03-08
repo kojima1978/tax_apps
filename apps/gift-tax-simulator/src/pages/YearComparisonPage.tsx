@@ -1,63 +1,32 @@
-import { useState, useCallback, lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import BarChart3 from 'lucide-react/icons/bar-chart-3';
 import Navigation from '@/components/Navigation';
 import InputSection from '@/components/InputSection';
 import PrintFooter from '@/components/PrintFooter';
 import YearComparisonTable from '@/components/YearComparisonTable';
-import { calculateYearComparison, type GiftType, type YearComparisonResult } from '@/lib/tax-calculation';
-import { normalizeNumberString } from '@/lib/utils';
+import { useYearComparisonForm } from '@/hooks/useYearComparisonForm';
 
 const YearComparisonChart = lazy(() => import('@/components/YearComparisonChart'));
 
 export default function YearComparisonPage() {
-    const [amount, setAmount] = useState('');
-    const [giftType, setGiftType] = useState<GiftType>('special');
-    const [results, setResults] = useState<YearComparisonResult[] | null>(null);
-    const [totalAmount, setTotalAmount] = useState(0);
-    const [errorMsg, setErrorMsg] = useState('');
-
-    const handleCalculate = useCallback(() => {
-        setErrorMsg('');
-        const rawAmount = normalizeNumberString(amount);
-        const amountVal = parseInt(rawAmount, 10);
-
-        if (!amountVal || amountVal <= 0) {
-            setErrorMsg('※贈与金額を正しく入力してください。');
-            setResults(null);
-            return;
-        }
-        if (amountVal > 1_000_000_000) {
-            setErrorMsg('※贈与金額は10億円以下で入力してください。');
-            setResults(null);
-            return;
-        }
-
-        const rows = calculateYearComparison(amountVal, giftType);
-        if (rows.some(r => !isFinite(r.totalTax) || isNaN(r.totalTax))) {
-            setErrorMsg('※計算結果に異常が発生しました。入力値を確認してください。');
-            setResults(null);
-            return;
-        }
-        setTotalAmount(amountVal);
-        setResults(rows);
-    }, [amount, giftType]);
+    const form = useYearComparisonForm();
 
     return (
         <div className="container-custom">
             <Navigation />
             <InputSection
-                amount={amount}
-                setAmount={setAmount}
-                giftType={giftType}
-                setGiftType={setGiftType}
-                onCalculate={handleCalculate}
-                errorMsg={errorMsg}
+                amount={form.amount}
+                setAmount={form.setAmount}
+                giftType={form.giftType}
+                setGiftType={form.setGiftType}
+                onCalculate={form.handleCalculate}
+                errorMsg={form.errorMsg}
             />
-            {results ? (
+            {form.results ? (
                 <div className="result-section">
-                    <YearComparisonTable results={results} totalAmount={totalAmount} />
+                    <YearComparisonTable results={form.results} totalAmount={form.totalAmount} />
                     <Suspense fallback={null}>
-                        <YearComparisonChart results={results} />
+                        <YearComparisonChart results={form.results} />
                     </Suspense>
                     <p className="disclaimer-right">
                         ※基礎控除110万円を含んで計算しています。<br />

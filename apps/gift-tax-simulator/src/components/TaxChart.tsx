@@ -1,43 +1,14 @@
 import { useMemo } from 'react';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Tooltip,
-    Legend,
-    type TooltipItem,
-} from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { type CalculationResult } from '@/lib/tax-calculation';
-import { formatCurrency } from '@/lib/utils';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+import { BASE_CHART_OPTIONS, formatTooltipYen } from '@/lib/chart-config';
 
 const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
+    ...BASE_CHART_OPTIONS,
     plugins: {
-        legend: { display: false },
-        tooltip: {
-            callbacks: {
-                label: (context: TooltipItem<'bar'>) => {
-                    const label = context.dataset.label || '';
-                    const value = context.parsed.y;
-                    return value !== null ? `${label}: ${formatCurrency(value)} 円` : label;
-                }
-            }
-        }
+        ...BASE_CHART_OPTIONS.plugins,
+        tooltip: { callbacks: { label: formatTooltipYen } },
     },
-    scales: {
-        y: {
-            beginAtZero: true,
-            ticks: {
-                callback: (value: number | string) =>
-                    typeof value === 'number' ? formatCurrency(value) : value
-            }
-        }
-    }
 } as const;
 
 type Props = {
