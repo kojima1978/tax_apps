@@ -28,8 +28,14 @@ services:
   depreciation-calc:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ../../docker/Dockerfile.vite-static
       target: dev
+      args:
+        APP_PORT: "3015"
+        APP_PATH: depreciation-calc
+        APP_TITLE: "Depreciation Calculator"
+        APP_DESCRIPTION: "減価償却計算ツール"
+        NPM_CACHE_ID: npm-store-depreciation-calc
     container_name: depreciation-calc
     networks:
       - tax-apps-network
@@ -41,7 +47,6 @@ services:
     environment:
       <<: *common-env
       NODE_ENV: development
-    command: npm run dev -- --host --port 3015
     init: true
     restart: unless-stopped
     logging: *default-logging
