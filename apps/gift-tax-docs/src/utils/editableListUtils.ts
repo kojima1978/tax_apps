@@ -28,8 +28,8 @@ const updateDocument = (
 }));
 
 // 書類文字列配列を EditableDocument[] に変換
-const toEditableDocuments = (docs: string[], checked: boolean): EditableDocument[] =>
-  docs.map(doc => ({ id: generateId(), text: doc, checked, subItems: [] }));
+const toEditableDocuments = (docs: string[]): EditableDocument[] =>
+  docs.map(doc => ({ id: generateId(), text: doc, checked: false, subItems: [] }));
 
 // giftDataから編集可能なリストを初期化
 export const initializeEditableList = (): EditableDocumentList => [
@@ -37,7 +37,7 @@ export const initializeEditableList = (): EditableDocumentList => [
   ...giftData.baseRequired.map((base): EditableCategory => ({
     id: generateId(),
     name: base.category,
-    documents: toEditableDocuments(base.documents, false),
+    documents: toEditableDocuments(base.documents),
     isExpanded: true,
     isSpecial: false,
   })),
@@ -45,7 +45,7 @@ export const initializeEditableList = (): EditableDocumentList => [
   ...giftData.options.map((opt): EditableCategory => ({
     id: opt.id,
     name: opt.label.replace('をもらいましたか？', ''),
-    documents: toEditableDocuments(opt.documents, false),
+    documents: toEditableDocuments(opt.documents),
     isExpanded: true,
     isSpecial: false,
   })),
@@ -53,7 +53,7 @@ export const initializeEditableList = (): EditableDocumentList => [
   ...giftData.specials.map((sp): EditableCategory => ({
     id: sp.id,
     name: sp.label.replace('を選択しますか？', '').replace('を適用しますか？', '').replace('（婚姻期間20年以上）', ''),
-    documents: toEditableDocuments(sp.documents, false),
+    documents: toEditableDocuments(sp.documents),
     note: sp.note,
     isExpanded: true,
     isSpecial: true,
@@ -99,6 +99,17 @@ export const toggleDocumentCheck = (
 ): EditableDocumentList =>
   updateDocument(list, categoryId, documentId, doc => ({ ...doc, checked: !doc.checked }));
 
+// カテゴリ内の全書類をチェック/アンチェック
+export const toggleAllInCategory = (
+  list: EditableDocumentList,
+  categoryId: string,
+  checked: boolean
+): EditableDocumentList =>
+  updateCategory(list, categoryId, cat => ({
+    ...cat,
+    documents: cat.documents.map(doc => ({ ...doc, checked })),
+  }));
+
 // 中項目を追加
 export const addSubItem = (
   list: EditableDocumentList,
@@ -142,17 +153,6 @@ export const toggleCategoryExpand = (
   categoryId: string
 ): EditableDocumentList =>
   updateCategory(list, categoryId, cat => ({ ...cat, isExpanded: !cat.isExpanded }));
-
-// カテゴリ内の全書類をチェック/アンチェック
-export const toggleAllInCategory = (
-  list: EditableDocumentList,
-  categoryId: string,
-  checked: boolean
-): EditableDocumentList =>
-  updateCategory(list, categoryId, cat => ({
-    ...cat,
-    documents: cat.documents.map(doc => ({ ...doc, checked })),
-  }));
 
 // 全カテゴリを展開/折りたたみ
 export const expandAllCategories = (

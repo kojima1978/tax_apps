@@ -33,44 +33,13 @@ type CategoryHandlers = {
   toggleAll: (id: string, checked: boolean) => void;
 };
 
-// ─── プログレスバー ───
+// ─── カテゴリ名表示（カード・オーバーレイ共通） ───
 
-const ProgressBar = ({ checked, total, isSpecial }: { checked: number; total: number; isSpecial: boolean }) => {
-  if (total === 0) return null;
-  const pct = Math.round((checked / total) * 100);
-  return (
-    <div className="h-1 w-full bg-slate-200 dark:bg-slate-700">
-      <div
-        className={`h-full progress-bar rounded-r ${
-          pct === 100
-            ? 'bg-emerald-500'
-            : isSpecial
-            ? 'bg-purple-400'
-            : 'bg-emerald-400'
-        }`}
-        style={{ width: `${pct}%` }}
-        role="progressbar"
-        aria-valuenow={pct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`提出進捗 ${pct}%`}
-      />
-    </div>
-  );
-};
-
-// ─── カテゴリ名 + カウンター表示（カード・オーバーレイ共通） ───
-
-const CategoryNameDisplay = ({ category, checkedCount }: { category: EditableCategory; checkedCount: number }) => (
-  <>
-    <h3 className="font-bold text-slate-800 dark:text-slate-100">
-      {category.isSpecial && <span className="text-purple-600 dark:text-purple-400">【特例】</span>}
-      {category.name}
-    </h3>
-    <span className="px-2 py-0.5 bg-white dark:bg-slate-700 rounded text-sm text-slate-600 dark:text-slate-300 tabular-nums">
-      {checkedCount}/{category.documents.length}
-    </span>
-  </>
+const CategoryNameDisplay = ({ category }: { category: EditableCategory }) => (
+  <h3 className="font-bold text-slate-800 dark:text-slate-100">
+    {category.isSpecial && <span className="text-purple-600 dark:text-purple-400">【特例】</span>}
+    {category.name}
+  </h3>
 );
 
 // ─── カテゴリ用ソート可能フック ───
@@ -191,7 +160,7 @@ export const SortableCategoryCard = ({
               </button>
             </div>
           ) : (
-            <CategoryNameDisplay category={category} checkedCount={checkedCount} />
+            <CategoryNameDisplay category={category} />
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -261,9 +230,6 @@ export const SortableCategoryCard = ({
         </div>
       </div>
 
-      {/* プログレスバー */}
-      <ProgressBar checked={checkedCount} total={category.documents.length} isSpecial={category.isSpecial} />
-
       {/* カテゴリコンテンツ */}
       {category.isExpanded && children}
     </div>
@@ -272,20 +238,17 @@ export const SortableCategoryCard = ({
 
 // ─── カテゴリドラッグオーバーレイ ───
 
-export const CategoryDragOverlay = ({ category }: { category: EditableCategory }) => {
-  const checkedCount = category.documents.filter((d) => d.checked).length;
-  return (
-    <div
-      className={`rounded-xl shadow-2xl overflow-hidden ${
-        category.isSpecial
-          ? 'bg-purple-50 dark:bg-purple-950 border-l-4 border-purple-500'
-          : 'bg-emerald-50 dark:bg-emerald-950 border-l-4 border-emerald-500'
-      }`}
-    >
-      <div className="flex items-center gap-3 p-4">
-        <GripVertical className="w-5 h-5 text-slate-400" aria-hidden="true" />
-        <CategoryNameDisplay category={category} checkedCount={checkedCount} />
-      </div>
+export const CategoryDragOverlay = ({ category }: { category: EditableCategory }) => (
+  <div
+    className={`rounded-xl shadow-2xl overflow-hidden ${
+      category.isSpecial
+        ? 'bg-purple-50 dark:bg-purple-950 border-l-4 border-purple-500'
+        : 'bg-emerald-50 dark:bg-emerald-950 border-l-4 border-emerald-500'
+    }`}
+  >
+    <div className="flex items-center gap-3 p-4">
+      <GripVertical className="w-5 h-5 text-slate-400" aria-hidden="true" />
+      <CategoryNameDisplay category={category} />
     </div>
-  );
-};
+  </div>
+);

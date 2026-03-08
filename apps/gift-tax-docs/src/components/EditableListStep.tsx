@@ -128,11 +128,9 @@ export const EditableListStep = () => {
   const displayList = isSearching ? filteredList : documentList;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
+    <div className="w-full p-4 md:px-8 md:py-6 animate-fade-in">
       {/* ヘッダーツールバー */}
       <EditToolbar
-        checkedCount={editing.checkedCount}
-        totalCount={editing.totalCount}
         onExpandAll={editing.handleExpandAll}
         onShowResetDialog={() => editing.setShowResetDialog(true)}
         onJsonExport={handleJsonExportWithToast}
