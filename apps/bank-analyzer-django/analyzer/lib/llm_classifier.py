@@ -8,6 +8,11 @@ from .constants import UNCATEGORIZED
 
 logger = logging.getLogger(__name__)
 
+# ファジーマッチング定数
+_EARLY_EXIT_SCORE = 95  # この信頼度以上なら即座に確定（最適化）
+_SUGGESTION_THRESHOLD_OFFSET = 10  # 候補表示時の閾値引き下げ幅
+_SUGGESTION_THRESHOLD_MIN = 70  # 候補表示時の閾値下限
+
 # 贈与は閾値チェック付きの専用ロジックで処理するため除外
 _FUZZY_EXCLUDE_CATEGORIES = ["その他", UNCATEGORIZED, "贈与"]
 
@@ -140,7 +145,7 @@ def _fuzzy_match_category(
                 logger.debug(f"Fuzzy match ({scope_name}): '{text}' -> {category} (score={result[1]})")
 
                 # 完全一致に近い場合は即座に返す（最適化）
-                if best_score >= 95:
+                if best_score >= _EARLY_EXIT_SCORE:
                     return True  # 早期終了
 
         return False  # 続行
@@ -323,7 +328,10 @@ def get_fuzzy_suggestions(
     if not text or not fuzzy_config.get("enabled", False):
         return []
 
-    threshold = max(fuzzy_config.get("threshold", 90) - 10, 70)  # 候補は閾値-10%
+    threshold = max(
+        fuzzy_config.get("threshold", 90) - _SUGGESTION_THRESHOLD_OFFSET,
+        _SUGGESTION_THRESHOLD_MIN,
+    )
     use_token_set = fuzzy_config.get("use_token_set_ratio", True)
 
     # カテゴリーごとの最高スコアを記録

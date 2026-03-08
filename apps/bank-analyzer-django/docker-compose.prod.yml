@@ -16,8 +16,8 @@ services:
     build:
       target: production
     volumes:
-      - bank_analyzer_data:/app/db
       - ./data:/app/data
     environment:
       DJANGO_DEBUG: "False"
+      DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
     deploy: *prod-deploy

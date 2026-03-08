@@ -15,6 +15,13 @@ from .base import handle_ajax_error, is_ajax, json_error, require_params
 logger = logging.getLogger(__name__)
 
 
+def _scoped_config_call(scope: str, case, *, case_func, global_func, args: tuple = ()) -> bool:
+    """scope に応じて案件固有 or グローバルの config 関数を呼び分ける"""
+    if scope == 'case':
+        return case_func(case, *args)
+    return global_func(*args)
+
+
 def _pattern_response(
     request: HttpRequest,
     pk: int,
@@ -46,11 +53,12 @@ def handle_add_pattern(request: HttpRequest, case, pk: int, category: str, keywo
     scope = request.POST.get('scope', 'global')
 
     try:
-        if scope == 'case':
-            success = config.add_case_pattern_keyword(case, category, keyword)
-        else:
-            success = config.add_pattern_keyword(category, keyword)
-
+        success = _scoped_config_call(
+            scope, case,
+            case_func=config.add_case_pattern_keyword,
+            global_func=config.add_pattern_keyword,
+            args=(category, keyword),
+        )
         scope_label = _get_scope_label(scope, case)
         return _pattern_response(
             request, pk, success,
@@ -68,11 +76,12 @@ def handle_delete_pattern(request: HttpRequest, case, pk: int, category: str, ke
     scope = request.POST.get('scope', 'global')
 
     try:
-        if scope == 'case':
-            success = config.delete_case_pattern_keyword(case, category, keyword)
-        else:
-            success = config.delete_pattern_keyword(category, keyword)
-
+        success = _scoped_config_call(
+            scope, case,
+            case_func=config.delete_case_pattern_keyword,
+            global_func=config.delete_pattern_keyword,
+            args=(category, keyword),
+        )
         scope_label = _get_scope_label(scope, case)
         return _pattern_response(
             request, pk, success,
@@ -93,11 +102,12 @@ def handle_update_pattern(
     scope = request.POST.get('scope', 'global')
 
     try:
-        if scope == 'case':
-            success = config.update_case_pattern_keyword(case, category, old_keyword, new_keyword)
-        else:
-            success = config.update_pattern_keyword(category, old_keyword, new_keyword)
-
+        success = _scoped_config_call(
+            scope, case,
+            case_func=config.update_case_pattern_keyword,
+            global_func=config.update_pattern_keyword,
+            args=(category, old_keyword, new_keyword),
+        )
         scope_label = _get_scope_label(scope, case)
         return _pattern_response(
             request, pk, success,
@@ -218,10 +228,12 @@ def handle_classify_and_register_pattern(
 
     try:
         # 1. パターン追加
-        if scope == 'case':
-            config.add_case_pattern_keyword(case, category, keyword)
-        else:
-            config.add_pattern_keyword(category, keyword)
+        _scoped_config_call(
+            scope, case,
+            case_func=config.add_case_pattern_keyword,
+            global_func=config.add_pattern_keyword,
+            args=(category, keyword),
+        )
 
         # 2. キーワードに一致する未分類取引を一括更新
         qs = case.transactions.filter(category=UNCATEGORIZED, description__icontains=keyword)
@@ -238,27 +250,26 @@ def handle_classify_and_register_pattern(
         return handle_ajax_error(request, pk, e, "分類+パターン登録エラー")
 
 
+_ACTION_CONFIG_MAP = {
+    'add': (config.add_case_pattern_keyword, config.add_pattern_keyword),
+    'delete': (config.delete_case_pattern_keyword, config.delete_pattern_keyword),
+}
+
+
 def _apply_single_change(case, action: str, category: str, keyword: str, scope: str, change: dict) -> bool:
     """単一のパターン変更を適用"""
-    if action == 'add':
-        if scope == 'case':
-            return config.add_case_pattern_keyword(case, category, keyword)
-        else:
-            return config.add_pattern_keyword(category, keyword)
+    if action in _ACTION_CONFIG_MAP:
+        case_func, global_func = _ACTION_CONFIG_MAP[action]
+        return _scoped_config_call(
+            scope, case, case_func=case_func, global_func=global_func, args=(category, keyword)
+        )
 
-    elif action == 'delete':
-        if scope == 'case':
-            return config.delete_case_pattern_keyword(case, category, keyword)
-        else:
-            return config.delete_pattern_keyword(category, keyword)
-
-    elif action == 'move':
+    if action == 'move':
         from_scope = change.get('fromScope')
         to_scope = change.get('toScope')
         if from_scope == 'global' and to_scope == 'case':
             return config.move_pattern_to_case(case, category, keyword)
         elif from_scope == 'case' and to_scope == 'global':
             return config.move_pattern_to_global(case, category, keyword)
-        return False
 
     return False

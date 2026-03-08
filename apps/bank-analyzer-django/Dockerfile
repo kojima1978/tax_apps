@@ -4,6 +4,9 @@
 # Bank Analyzer Django - Dockerfile
 # ============================================
 #
+# Stack: Django 6.0 / Python 3.12 / PostgreSQL 16
+#        pandas / RapidFuzz / Bootstrap 5 / Plotly
+#
 # Multi-stage build with the following stages:
 #   1. builder    - Compile dependencies into wheels
 #   2. production - Minimal runtime image with Gunicorn
@@ -113,8 +116,8 @@ COPY --link --chown=1001:1001 . .
 
 # Create runtime directories and fix /app ownership for bytecode compilation
 # WORKDIR /app is root-owned; appuser needs write access for __pycache__
-RUN mkdir -p data staticfiles db && \
-    chown appuser:appgroup /app data staticfiles db
+RUN mkdir -p data staticfiles && \
+    chown appuser:appgroup /app data staticfiles
 
 EXPOSE 3007
 

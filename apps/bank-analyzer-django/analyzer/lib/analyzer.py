@@ -149,17 +149,25 @@ def analyze_transfers(df: pd.DataFrame, *, settings: dict | None = None) -> pd.D
         candidate_indices = df[candidates_mask].index
 
         if len(candidate_indices) > 0:
-            # マッチした相手（最初の1件を採用）
-            idx_in = candidate_indices[0]
+            # 最適候補を選択: 金額差最小 → 日付差最小
+            candidates = df.loc[candidate_indices].copy()
+            candidates["_amount_diff"] = (candidates["amount_in"] - target_amount).abs()
+            candidates["_date_diff"] = (candidates["date"] - target_date).abs().dt.days
+            candidates = candidates.sort_values(["_amount_diff", "_date_diff"])
+            idx_in = candidates.index[0]
             match = df.loc[idx_in]
+
+            # 振込手数料の算出（出金額 > 入金額の場合）
+            fee = int(target_amount - match["amount_in"])
+            fee_info = f" 手数料{fee:,}円" if fee > 0 else ""
 
             # 出金側にフラグをセット
             df.loc[idx_out, "is_transfer"] = True
-            df.loc[idx_out, "transfer_to"] = f"{match['account_id']} ({match['date'].date()})"
+            df.loc[idx_out, "transfer_to"] = f"{match['account_id']} ({match['date'].date()}){fee_info}"
 
             # 入金側にもフラグをセット
             df.loc[idx_in, "is_transfer"] = True
-            df.loc[idx_in, "transfer_to"] = f"{source_account} ({target_date.date()})"
+            df.loc[idx_in, "transfer_to"] = f"{source_account} ({target_date.date()}){fee_info}"
 
             # マッチ済みとして記録
             matched_in_indices.add(idx_in)
