@@ -220,7 +220,7 @@ function SpecificNamesTableRowsComponent({
   const printHiddenClass = isChecked && hideSubmittedInPrint ? 'print:hidden' : '';
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} accessibility={{ container: document.body }}>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         {names.map((name, i) => (
           editingIndex === i ? (

@@ -372,7 +372,7 @@ function EditableCategoryTableComponent({
             });
 
           return isExpanded && isMounted ? (
-            <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} accessibility={{ container: document.body }}>
               <table className="w-full text-sm print-compact-table">
                 {tableHead}
                 <tbody>
