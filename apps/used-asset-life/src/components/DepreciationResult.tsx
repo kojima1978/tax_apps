@@ -1,6 +1,11 @@
 import { type DepreciationResult } from "@/lib/depreciation";
 import { formatCurrency } from "@/lib/utils";
 import DepreciationScheduleTable from "@/components/DepreciationScheduleTable";
+import DirtyWarning from "@/components/ui/DirtyWarning";
+import ConditionTags from "@/components/ui/ConditionTags";
+import EmptyState from "@/components/ui/EmptyState";
+import HighlightCard from "@/components/ui/HighlightCard";
+import Disclaimer from "@/components/ui/Disclaimer";
 
 type DepreciationResultProps = {
     result: DepreciationResult | null;
@@ -13,14 +18,7 @@ const DepreciationResultSection = ({ result, isDirty, onCarryOverFiveYear }: Dep
         return (
             <section className="p-4 sm:p-6">
                 <h2 className="text-lg sm:text-xl font-bold text-green-800 mb-4">償却スケジュール</h2>
-                <div className="flex items-center justify-center py-8">
-                    <div className="text-center text-gray-400">
-                        <div className="text-5xl mb-2">📊</div>
-                        <p className="text-sm my-1">取得価額・耐用年数・取得日・事業供用日を入力し</p>
-                        <p className="text-sm my-1">「計算する」ボタンを押してください</p>
-                        <p className="text-xs text-gray-300 mt-2">Ctrl+Enter でも計算できます</p>
-                    </div>
-                </div>
+                <EmptyState icon="📊" lines={['取得価額・耐用年数・取得日・事業供用日を入力し', '「計算する」ボタンを押してください']} />
             </section>
         );
     }
@@ -31,19 +29,15 @@ const DepreciationResultSection = ({ result, isDirty, onCarryOverFiveYear }: Dep
         <section className="p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-green-800 mb-4">償却スケジュール</h2>
 
-            {isDirty && (
-                <div className="p-3 bg-orange-50 border border-orange-500 rounded text-orange-600 text-sm font-semibold mb-4 no-print">
-                    入力値が変更されています。再計算してください。
-                </div>
-            )}
+            <DirtyWarning isDirty={isDirty} />
 
             {/* 条件タグ */}
-            <div className="flex flex-wrap gap-2 mb-4">
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">{methodLabel}</span>
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">耐用年数: {input.usefulLife}年</span>
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">取得価額: {formatCurrency(input.acquisitionCost)}円</span>
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">決算月: {input.fiscalYearEndMonth}月</span>
-            </div>
+            <ConditionTags tags={[
+                methodLabel,
+                `耐用年数: ${input.usefulLife}年`,
+                `取得価額: ${formatCurrency(input.acquisitionCost)}円`,
+                `決算月: ${input.fiscalYearEndMonth}月`,
+            ]} />
 
             {/* 適用率サマリー */}
             <div className="p-4 bg-green-50 border border-green-200 rounded-md mb-4">
@@ -70,17 +64,12 @@ const DepreciationResultSection = ({ result, isDirty, onCarryOverFiveYear }: Dep
 
             {/* 基準日の簿価ハイライト */}
             {bookValueAtTarget !== undefined && input.targetDate && (
-                <div className="p-5 bg-green-50 border-2 border-green-700 rounded-lg text-center mb-4">
-                    <p className="text-sm text-green-900 font-semibold mb-1 m-0">
-                        {input.targetDate} 時点の残存簿価
-                    </p>
-                    {targetPeriodLabel && (
-                        <p className="text-xs text-green-700 mb-2 m-0">（{targetPeriodLabel} 期末時点）</p>
-                    )}
-                    <p className="text-4xl sm:text-5xl font-bold text-green-800 font-mono-num m-0">
-                        {formatCurrency(bookValueAtTarget)}<span className="text-2xl sm:text-3xl">円</span>
-                    </p>
-                </div>
+                <HighlightCard
+                    label={`${input.targetDate} 時点の残存簿価`}
+                    sublabel={targetPeriodLabel ? `（${targetPeriodLabel} 期末時点）` : undefined}
+                    value={formatCurrency(bookValueAtTarget)}
+                    unit="円"
+                />
             )}
 
             {/* 償却スケジュール表 */}
@@ -100,9 +89,7 @@ const DepreciationResultSection = ({ result, isDirty, onCarryOverFiveYear }: Dep
             )}
 
             {/* 免責事項 */}
-            <p className="text-center text-xs text-gray-500 mt-3">
-                ※ 本計算は概算です。実際の適用にあたっては税理士にご相談ください。
-            </p>
+            <Disclaimer />
         </section>
     );
 };

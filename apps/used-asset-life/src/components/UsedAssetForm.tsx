@@ -1,6 +1,8 @@
 import { useId } from "react";
 import FormField from "@/components/FormField";
 import InputWithUnit from "@/components/InputWithUnit";
+import ActionButtons from "@/components/ui/ActionButtons";
+import PresetButtons from "@/components/ui/PresetButtons";
 import { ASSET_TYPES, STATUTORY_LIFE_PRESETS, type AssetType } from "@/lib/used-asset-life";
 
 type UsedAssetFormProps = {
@@ -79,22 +81,11 @@ const UsedAssetForm = ({
                         max="100"
                     />
                     {STATUTORY_LIFE_PRESETS[assetType].length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                            {STATUTORY_LIFE_PRESETS[assetType].map((p) => (
-                                <button
-                                    key={p.label}
-                                    type="button"
-                                    onClick={() => onStatutoryLifeChange(String(p.years))}
-                                    className={`px-2 py-0.5 rounded-full text-xs border transition-colors cursor-pointer ${
-                                        statutoryLife === String(p.years)
-                                            ? 'bg-green-700 text-white border-green-700'
-                                            : 'bg-white text-green-800 border-green-300 hover:bg-green-50 hover:border-green-500'
-                                    }`}
-                                >
-                                    {p.label} {p.years}年
-                                </button>
-                            ))}
-                        </div>
+                        <PresetButtons
+                            items={STATUTORY_LIFE_PRESETS[assetType].map((p) => ({ label: `${p.label} ${p.years}年`, value: String(p.years) }))}
+                            current={statutoryLife}
+                            onChange={onStatutoryLifeChange}
+                        />
                     )}
                 </FormField>
             </div>
@@ -188,22 +179,7 @@ const UsedAssetForm = ({
             </div>
 
             {/* ボタン */}
-            <div className="flex gap-3 no-print">
-                <button
-                    className="flex-1 bg-green-800 text-white border-none py-3 px-6 rounded text-lg font-bold cursor-pointer transition-colors hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    onClick={onCalculate}
-                    disabled={!canCalculate}
-                >
-                    計算する
-                    <span className="text-xs font-normal opacity-70 ml-2 hidden sm:inline">(Ctrl+Enter)</span>
-                </button>
-                <button
-                    className="bg-white text-gray-500 border border-gray-300 py-3 px-4 rounded font-semibold cursor-pointer whitespace-nowrap transition-colors hover:bg-gray-100 hover:border-gray-400 hover:text-gray-800"
-                    onClick={onClear}
-                >
-                    クリア
-                </button>
-            </div>
+            <ActionButtons canCalculate={canCalculate} onCalculate={onCalculate} onClear={onClear} />
         </section>
     );
 };

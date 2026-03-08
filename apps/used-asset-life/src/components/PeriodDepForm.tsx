@@ -1,6 +1,7 @@
 import { useId } from "react";
 import FormField from "@/components/FormField";
 import InputWithUnit from "@/components/InputWithUnit";
+import PresetButtons from "@/components/ui/PresetButtons";
 import BaseDepreciationForm, { type BaseDepreciationFormProps } from "@/components/BaseDepreciationForm";
 
 type PeriodDepFormProps = BaseDepreciationFormProps & {
@@ -52,22 +53,11 @@ const PeriodDepForm = ({
                             min="1"
                             max="100"
                         />
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                            {[3, 5, 10, 20].map((n) => (
-                                <button
-                                    key={n}
-                                    type="button"
-                                    onClick={() => onDisplayYearsChange(String(n))}
-                                    className={`px-2 py-0.5 rounded-full text-xs border transition-colors cursor-pointer ${
-                                        displayYears === String(n)
-                                            ? 'bg-green-700 text-white border-green-700'
-                                            : 'bg-white text-green-800 border-green-300 hover:bg-green-50 hover:border-green-500'
-                                    }`}
-                                >
-                                    {n}年
-                                </button>
-                            ))}
-                        </div>
+                        <PresetButtons
+                            items={[3, 5, 10, 20].map((n) => ({ label: `${n}年`, value: String(n) }))}
+                            current={displayYears}
+                            onChange={onDisplayYearsChange}
+                        />
                     </FormField>
                 </div>
             }
