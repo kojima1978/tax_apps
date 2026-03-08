@@ -91,7 +91,7 @@ export default function App() {
 
             {/* 印刷用ヘッダー */}
             <div className="hidden print-only px-4 pt-4 pb-2 border-b border-gray-300">
-                <h1 className="text-lg font-bold text-green-800 m-0">中古資産の耐用年数・簿価計算 — {activeTabLabel}</h1>
+                <h1 className="text-lg font-bold text-green-800 m-0">減価償却ツール — {activeTabLabel}</h1>
             </div>
 
             {/* タブ切替 */}

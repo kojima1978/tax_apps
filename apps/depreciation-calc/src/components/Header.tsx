@@ -21,7 +21,7 @@ const Header = ({ onPrint }: HeaderProps) => {
                 >
                     <HomeIcon />
                 </a>
-                <h1 className="text-base sm:text-xl lg:text-2xl font-bold m-0">中古資産の耐用年数・簿価計算</h1>
+                <h1 className="text-base sm:text-xl lg:text-2xl font-bold m-0">減価償却ツール</h1>
             </div>
             <button
                 className="bg-white/20 border border-white/40 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded cursor-pointer text-sm hover:bg-white/30 transition-colors"
