@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useState, useCallback, useMemo } from 'react';
 import { CATEGORIES, type CategoryDocuments, type DocumentItem, type CustomDocumentItem, type DocChanges, type Stats } from '../constants/documents';
 import { createExportData, downloadAsJson, type ExportData } from '../utils/jsonDataManager';
@@ -28,6 +29,17 @@ function deleteKeys<T>(record: Record<string, T>, keys: string[]): Record<string
   const result = { ...record };
   keys.forEach(key => delete result[key]);
   return result;
+}
+
+/** boolean Record の指定キーをトグルする汎用 setState ハンドラを生成 */
+function createBooleanToggle(setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>) {
+  return (key: string) => {
+    setter((prev) => {
+      const newState = { ...prev };
+      if (prev[key]) { delete newState[key]; } else { newState[key] = true; }
+      return newState;
+    });
+  };
 }
 
 export function useDocumentGuide() {
@@ -198,43 +210,15 @@ export function useDocumentGuide() {
     });
   }, []);
 
-  // 対象外の切替
-  const toggleExcluded = useCallback((docId: string) => {
-    setExcludedDocuments((prev) => {
-      const newState = { ...prev };
-      if (prev[docId]) { delete newState[docId]; } else { newState[docId] = true; }
-      return newState;
-    });
-  }, []);
-
-  // 緊急フラグの切替
-  const toggleUrgent = useCallback((docId: string) => {
-    setUrgentDocuments((prev) => {
-      const newState = { ...prev };
-      if (prev[docId]) { delete newState[docId]; } else { newState[docId] = true; }
-      return newState;
-    });
-  }, []);
-
-  // カテゴリON/OFFの切替
-  const toggleCategoryDisabled = useCallback((categoryId: string) => {
-    setDisabledCategories((prev) => {
-      const newState = { ...prev };
-      if (prev[categoryId]) { delete newState[categoryId]; } else { newState[categoryId] = true; }
-      return newState;
-    });
-  }, []);
+  // 対象外・緊急・カテゴリON/OFFの切替
+  const toggleExcluded = useCallback(createBooleanToggle(setExcludedDocuments), []);
+  const toggleUrgent = useCallback(createBooleanToggle(setUrgentDocuments), []);
+  const toggleCategoryDisabled = useCallback(createBooleanToggle(setDisabledCategories), []);
 
   /** 指定キーに紐づく関連 state をクリーンアップ */
+  const docStateSetters = [setEditedDocuments, setCanDelegateOverrides, setSpecificDocNames, setCheckedDocuments, setCheckedDates, setDocumentMemos, setExcludedDocuments, setUrgentDocuments] as const;
   const cleanupDocState = useCallback((keys: string[]) => {
-    setEditedDocuments((prev) => deleteKeys(prev, keys));
-    setCanDelegateOverrides((prev) => deleteKeys(prev, keys));
-    setSpecificDocNames((prev) => deleteKeys(prev, keys));
-    setCheckedDocuments((prev) => deleteKeys(prev, keys));
-    setCheckedDates((prev) => deleteKeys(prev, keys));
-    setDocumentMemos((prev) => deleteKeys(prev, keys));
-    setExcludedDocuments((prev) => deleteKeys(prev, keys));
-    setUrgentDocuments((prev) => deleteKeys(prev, keys));
+    docStateSetters.forEach(setter => setter((prev: Record<string, unknown>) => deleteKeys(prev, keys)));
   }, []);
 
   // 書類の永久削除

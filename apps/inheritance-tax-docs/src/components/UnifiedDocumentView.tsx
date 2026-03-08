@@ -238,13 +238,16 @@ function UnifiedDocumentViewComponent({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                onClick={onExportJson}
-                className={`${TOOLBAR_BTN} bg-white/15 hover:bg-white/25 backdrop-blur-sm`}
-                title="設定をJSONファイルとして保存 (Ctrl+S)"
-              >
-                <Download className="w-4 h-4 mr-1" /> 保存
-              </button>
+              {([
+                { id: 'save', icon: Download, label: '保存', onClick: onExportJson, title: '設定をJSONファイルとして保存 (Ctrl+S)', bg: 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
+                { id: 'excel', icon: FileSpreadsheet, label: isExporting ? '出力中...' : 'Excel', onClick: handleExcelExport, disabled: isExporting, bg: `bg-emerald-500/80 hover:bg-emerald-500 ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}` },
+                { id: 'print', icon: FileDown, label: '印刷', onClick: () => window.print(), bg: 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
+                { id: 'reset', icon: RotateCcw, label: '初期化', onClick: () => setShowResetConfirm(true), disabled: !stats.hasCustomizations, title: '書類のカスタマイズをすべて初期状態に戻す', bg: stats.hasCustomizations ? 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' : 'bg-white/5 cursor-not-allowed opacity-50' },
+              ] as const).map(({ id, icon: Icon, label, onClick, disabled, title, bg }) => (
+                <button key={id} onClick={onClick} disabled={disabled} title={title} className={`${TOOLBAR_BTN} ${bg}`}>
+                  <Icon className="w-4 h-4 mr-1" /> {label}
+                </button>
+              ))}
               <label
                 className={`${TOOLBAR_BTN} cursor-pointer ${
                   isImporting ? 'bg-slate-400 cursor-not-allowed' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm'
@@ -254,31 +257,6 @@ function UnifiedDocumentViewComponent({
                 <Upload className="w-4 h-4 mr-1" /> 読込
                 <input type="file" accept=".json" onChange={handleJsonImport} disabled={isImporting} className="hidden" />
               </label>
-              <button
-                onClick={handleExcelExport}
-                disabled={isExporting}
-                className={`${TOOLBAR_BTN} bg-emerald-500/80 hover:bg-emerald-500 ${
-                  isExporting ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                <FileSpreadsheet className="w-4 h-4 mr-1" /> {isExporting ? '出力中...' : 'Excel'}
-              </button>
-              <button
-                onClick={() => window.print()}
-                className={`${TOOLBAR_BTN} bg-white/15 hover:bg-white/25 backdrop-blur-sm`}
-              >
-                <FileDown className="w-4 h-4 mr-1" /> 印刷
-              </button>
-              <button
-                onClick={() => setShowResetConfirm(true)}
-                disabled={!stats.hasCustomizations}
-                className={`${TOOLBAR_BTN} ${
-                  stats.hasCustomizations ? 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' : 'bg-white/5 cursor-not-allowed opacity-50'
-                }`}
-                title="書類のカスタマイズをすべて初期状態に戻す"
-              >
-                <RotateCcw className="w-4 h-4 mr-1" /> 初期化
-              </button>
             </div>
           </div>
         </header>
