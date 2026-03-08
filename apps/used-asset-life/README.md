@@ -1,0 +1,124 @@
+# 中古資産の耐用年数・簿価計算
+
+中古資産を取得した際の耐用年数計算、減価償却スケジュール、期間償却額を計算するWebツールです。
+国税庁 No.5404「中古資産の耐用年数」および減価償却関連通達に基づいています。
+
+## 機能
+
+### タブ1: 期間償却（デフォルト）
+- 任意の期間（3/5/10/20年等）の**償却スケジュールを表示**
+- 開始年度・表示年数を指定可能
+- サマリーカード（合計償却額・開始時簿価・期間後簿価）
+- 簿価計算タブからの条件連携に対応
+
+### タブ2: （中古）耐用年数計算
+- **簡便法による耐用年数計算**（経過年数が法定耐用年数以内 / 超過の2パターン）
+- **50%ルール判定**（改修費が取得価額の50%超の場合、法定耐用年数を適用）
+- **日付からの経過年数自動計算**（新築・製造日と取得日から自動算出）
+- **計算過程の詳細表示**（算式 + ステップごとの計算 + 端数処理の注記）
+- 計算結果を簿価計算タブへ連携可能
+
+### タブ3: 簿価計算
+- **減価償却スケジュール**を年次テーブルで表示
+- **4種の償却方法**: 定額法, 定率法, 旧定額法, 旧定率法
+- 取得日に基づく**推奨方法の自動判定**（H19.4 / H24.4 境界）
+- **簿価算出基準日**指定で特定時点の残存簿価をハイライト表示
+- 改定償却率・償却保証額の自動適用（定率法）
+- 計算結果を期間償却タブへ連携可能
+
+### 共通機能
+- **印刷対応**（印刷用ヘッダー・備考列の全表示・ページ分割最適化）
+- **Ctrl+Enter ショートカット**
+- **スマートフォン対応**（レスポンシブデザイン・横スクロールヒント）
+- **スティッキーテーブルヘッダー**（スクロール時にヘッダー固定）
+- **参照リンク集**（国税庁ページ・耐用年数表・減価償却関連）
+
+## 技術スタック
+
+| 項目 | バージョン |
+|------|----------|
+| Vite | 7.3.x |
+| React | 19.2.x |
+| TypeScript | 5.9.x |
+| Tailwind CSS | v4 |
+
+## ポート・パス
+
+| 環境 | URL |
+|------|-----|
+| 開発 | `http://localhost:3015/used-asset-life/` |
+| 本番 | `/used-asset-life/` (nginx経由) |
+| Vercel | `/` |
+
+## 起動方法
+
+### Docker（推奨）
+
+```bash
+# 開発モード
+docker compose up -d --build
+
+# 本番モード
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+# ログ確認
+docker compose logs -f
+
+# 停止
+docker compose down
+```
+
+### Vercel
+
+```bash
+vercel
+```
+
+## ディレクトリ構成
+
+```
+src/
+├── main.tsx                # エントリーポイント
+├── App.tsx                 # ルートコンポーネント（3タブ管理）
+├── app/globals.css         # グローバルCSS（印刷・スティッキーヘッダー）
+├── components/
+│   ├── Header.tsx          # ヘッダー（ホーム・印刷ボタン）
+│   ├── UsedAssetForm.tsx   # 耐用年数計算フォーム
+│   ├── ResultSection.tsx   # 耐用年数計算結果
+│   ├── DepreciationForm.tsx    # 簿価計算フォーム
+│   ├── DepreciationResult.tsx  # 償却スケジュール表示
+│   ├── FiveYearForm.tsx    # 期間償却フォーム
+│   ├── FiveYearResult.tsx  # 期間償却スケジュール表示
+│   ├── ReferenceLinks.tsx  # 参照リンク集
+│   ├── FormField.tsx       # ラベル+入力ラッパー
+│   ├── InputWithUnit.tsx   # 単位付き入力
+│   └── PrintFooter.tsx     # 印刷フッター（担当者・作成日）
+├── hooks/
+│   ├── useUsedAssetForm.ts     # 耐用年数フォーム状態管理
+│   ├── useDepreciationForm.ts  # 簿価計算フォーム状態管理
+│   └── useFiveYearForm.ts     # 期間償却フォーム状態管理
+└── lib/
+    ├── used-asset-life.ts  # 耐用年数コア計算ロジック
+    ├── depreciation.ts     # 減価償却計算ロジック（償却率テーブル含む）
+    ├── utils.ts            # ユーティリティ関数
+    └── company.ts          # 会社情報
+```
+
+## タブ間の連携フロー
+
+```
+耐用年数計算 ──[この結果で簿価計算へ]──→ 簿価計算 ──[この条件で期間償却へ]──→ 期間償却
+```
+
+各タブの入力状態はタブ切替時も保持されます。
+
+## 参照
+
+- [国税庁 No.5404 中古資産の耐用年数](https://www.nta.go.jp/taxes/shiraberu/taxanswer/hojin/5404.htm)
+- [国税庁 No.5404 中古資産の耐用年数（Q&A）](https://www.nta.go.jp/taxes/shiraberu/taxanswer/hojin/5404_qa.htm)
+- [国税庁 No.2100 減価償却のあらまし](https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2100.htm)
+- [国税庁 No.2106 定額法と定率法](https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2106.htm)
+
+## ステータス
+
+本アプリは現在開発中のため、Gateway（nginx）のルーティングには未登録です。

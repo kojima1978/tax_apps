@@ -1,0 +1,67 @@
+const NTA_LINKS = [
+    { label: '国税庁 No.5404 中古資産の耐用年数', url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/hojin/5404.htm' },
+    { label: '国税庁 No.5404 中古資産の耐用年数（Q&A）', url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/hojin/5404_qa.htm' },
+];
+
+const USEFUL_LIFE_TABLE_LINKS = [
+    { label: '建物', url: 'https://www.keisan.nta.go.jp/r7yokuaru/aoiroshinkoku/hitsuyokeihi/genkashokyakuhi/taiyonensutatemono.html' },
+    { label: '構築物', url: 'https://www.keisan.nta.go.jp/r7yokuaru/aoiroshinkoku/hitsuyokeihi/genkashokyakuhi/taiyonensukochiku.html' },
+    { label: '車両運搬具', url: 'https://www.keisan.nta.go.jp/r7yokuaru/aoiroshinkoku/hitsuyokeihi/genkashokyakuhi/taiyonensusharyo.html' },
+    { label: '器具備品(1)', url: 'https://www.keisan.nta.go.jp/r7yokuaru/aoiroshinkoku/hitsuyokeihi/genkashokyakuhi/taiyonensukigu1.html' },
+    { label: '器具備品(2)', url: 'https://www.keisan.nta.go.jp/r7yokuaru/aoiroshinkoku/hitsuyokeihi/genkashokyakuhi/taiyonensukigu2.html' },
+    { label: '機械装置', url: 'https://www.keisan.nta.go.jp/r7yokuaru/aoiroshinkoku/hitsuyokeihi/genkashokyakuhi/taiyonensukikai.html' },
+];
+
+const DEPRECIATION_LINKS = [
+    { label: '国税庁 No.2100 減価償却のあらまし', url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2100.htm' },
+    { label: '国税庁 No.2105 旧定額法と旧定率法', url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2105.htm' },
+    { label: '国税庁 No.2106 定額法と定率法', url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2106.htm' },
+    { label: '償却率等表(PDF)', url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/pdf/2100_02.pdf' },
+];
+
+const ReferenceLinks = () => {
+    return (
+        <div className="p-4 sm:p-6 border-t border-gray-200">
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
+                <h3 className="text-sm font-bold text-green-800 mb-2 m-0">参照（中古耐用年数）</h3>
+                <ul className="list-none p-0 m-0">
+                    {NTA_LINKS.map((link) => (
+                        <li key={link.url} className="py-1">
+                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline text-sm hover:text-green-700">
+                                {link.label}
+                            </a>
+                        </li>
+                    ))}
+                </ul>
+
+                <h3 className="text-sm font-bold text-green-800 mt-3 mb-2 m-0">主な耐用年数表</h3>
+                <div className="flex flex-wrap gap-2">
+                    {USEFUL_LIFE_TABLE_LINKS.map((link) => (
+                        <a
+                            key={link.url}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1 bg-green-50 border border-green-200 rounded-full text-xs text-green-800 hover:bg-green-100 hover:border-green-400 transition-colors"
+                        >
+                            {link.label}
+                        </a>
+                    ))}
+                </div>
+
+                <h3 className="text-sm font-bold text-green-800 mt-3 mb-2 m-0">参照（減価償却）</h3>
+                <ul className="list-none p-0 m-0">
+                    {DEPRECIATION_LINKS.map((link) => (
+                        <li key={link.url} className="py-1">
+                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline text-sm hover:text-green-700">
+                                {link.label}
+                            </a>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        </div>
+    );
+};
+
+export default ReferenceLinks;
