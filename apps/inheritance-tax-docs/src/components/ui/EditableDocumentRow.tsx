@@ -158,35 +158,16 @@ const RowContent = memo(function RowContent({
           <span className={`font-medium doc-name ${isChecked ? checkedClass : isExcluded ? 'text-slate-400' : 'text-slate-800'}`}>
             {displayName}
           </span>
-          {/* 緊急バッジ */}
-          {isUrgent && !isExcluded && (
-            <span className="px-1.5 py-0.5 text-xs bg-red-100 text-red-700 font-bold rounded print:border print:border-red-700 print:px-1 print:py-0 print:text-xs">
-              急
-            </span>
-          )}
-          {/* 具体名カウントバッジ */}
-          {specificNames.length > 0 && !isExcluded && (
-            <span className="px-1.5 py-0.5 text-[10px] bg-blue-50 text-blue-600 rounded-full font-medium print:hidden">
-              具体名 {specificNames.length}件
-            </span>
-          )}
-          {/* C3: 対象外バッジ */}
-          {isExcluded && (
-            <span className="px-1.5 py-0.5 text-xs bg-slate-200 text-slate-500 rounded print:border print:border-slate-500 print:px-1 print:py-0">
-              対象外
-            </span>
-          )}
-          {isCustom && (
-            <span className="px-1.5 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded print:border print:border-emerald-700 print:px-1 print:py-0 print:text-xs">
-              追加
-            </span>
-          )}
-          {editedValues && (
-            <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded print:hidden">
-              編集済
-            </span>
-          )}
-          {/* C1: 提出日表示 */}
+          {/* バッジ群 */}
+          {([
+            { show: isUrgent && !isExcluded, text: '急', className: 'text-xs bg-red-100 text-red-700 font-bold rounded print:border print:border-red-700 print:px-1 print:py-0 print:text-xs' },
+            { show: specificNames.length > 0 && !isExcluded, text: `具体名 ${specificNames.length}件`, className: 'text-[10px] bg-blue-100 text-blue-600 rounded-full font-medium print:hidden' },
+            { show: isExcluded, text: '対象外', className: 'text-xs bg-slate-200 text-slate-500 rounded print:border print:border-slate-500 print:px-1 print:py-0' },
+            { show: isCustom, text: '追加', className: 'text-xs bg-emerald-100 text-emerald-700 rounded print:border print:border-emerald-700 print:px-1 print:py-0 print:text-xs' },
+            { show: !!editedValues, text: '編集済', className: 'text-xs bg-blue-100 text-blue-700 rounded print:hidden' },
+          ] as const).filter(b => b.show).map(({ text, className }) => (
+            <span key={text} className={`px-1.5 py-0.5 ${className}`}>{text}</span>
+          ))}
           {isChecked && checkedDate && (
             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs text-emerald-600 print:hidden" title={`提出日: ${checkedDate}`}>
               <Calendar className="w-3 h-3" />

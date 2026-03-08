@@ -32,14 +32,20 @@ function deleteKeys<T>(record: Record<string, T>, keys: string[]): Record<string
 }
 
 /** boolean Record の指定キーをトグルする汎用 setState ハンドラを生成 */
-function createBooleanToggle(setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>) {
+function createBooleanToggle(setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>, onChange?: () => void) {
   return (key: string) => {
     setter((prev) => {
       const newState = { ...prev };
       if (prev[key]) { delete newState[key]; } else { newState[key] = true; }
       return newState;
     });
+    onChange?.();
   };
+}
+
+/** 現在時刻を HH:MM 形式で返す */
+function formatTimeNow(): string {
+  return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 }
 
 export function useDocumentGuide() {
@@ -66,25 +72,25 @@ export function useDocumentGuide() {
   const [personInCharge, setPersonInCharge] = useState('');
   const [personInChargeContact, setPersonInChargeContact] = useState('');
 
+  // 未保存変更の追跡
+  const [isDirty, setIsDirty] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const markDirty = useCallback(() => setIsDirty(true), []);
+  const markClean = useCallback(() => { setIsDirty(false); setLastSavedAt(formatTimeNow()); }, []);
+
   const toggleExpanded = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => ({ ...prev, [categoryId]: !prev[categoryId] }));
   }, []);
 
-  const expandAll = useCallback(() => {
+  const setAllExpanded = useCallback((value: boolean) => {
     setExpandedCategories(() => {
-      const expanded: Record<string, boolean> = {};
-      CATEGORIES.forEach((category) => { expanded[category.id] = true; });
-      return expanded;
+      const result: Record<string, boolean> = {};
+      CATEGORIES.forEach((category) => { result[category.id] = value; });
+      return result;
     });
   }, []);
-
-  const collapseAll = useCallback(() => {
-    setExpandedCategories(() => {
-      const collapsed: Record<string, boolean> = {};
-      CATEGORIES.forEach((category) => { collapsed[category.id] = false; });
-      return collapsed;
-    });
-  }, []);
+  const expandAll = useCallback(() => setAllExpanded(true), [setAllExpanded]);
+  const collapseAll = useCallback(() => setAllExpanded(false), [setAllExpanded]);
 
   const addCustomDocument = useCallback((categoryId: string, name: string, description: string, howToGet: string) => {
     const newDoc: CustomDocumentItem = {
@@ -95,11 +101,13 @@ export function useDocumentGuide() {
       ...prev,
       [categoryId]: [...(prev[categoryId] || []), newDoc.id],
     }));
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const reorderDocuments = useCallback((categoryId: string, newOrder: string[]) => {
     setDocumentOrder((prev) => ({ ...prev, [categoryId]: newOrder }));
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const editDocument = useCallback((docId: string, changes: DocChanges) => {
     setEditedDocuments((prev) => ({ ...prev, [docId]: { ...prev[docId], ...changes } }));
@@ -115,7 +123,8 @@ export function useDocumentGuide() {
           : doc
       )
     );
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   // モーダル
   const modal = useDocumentModal({ editedDocuments, customDocuments, editDocument, addCustomDocument });
@@ -131,11 +140,13 @@ export function useDocumentGuide() {
       }
       return { ...prev, [docId]: newValue };
     });
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const addSpecificName = useCallback((docId: string, name: string) => {
     setSpecificDocNames((prev) => ({ ...prev, [docId]: [...(prev[docId] || []), name] }));
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const editSpecificName = useCallback((docId: string, index: number, name: string) => {
     setSpecificDocNames((prev) => {
@@ -143,7 +154,8 @@ export function useDocumentGuide() {
       names[index] = name;
       return { ...prev, [docId]: names };
     });
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const removeSpecificName = useCallback((docId: string, index: number) => {
     setSpecificDocNames((prev) => {
@@ -153,7 +165,8 @@ export function useDocumentGuide() {
       if (names.length === 0) { delete newState[docId]; } else { newState[docId] = names; }
       return newState;
     });
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   // 具体名の並び替え
   const reorderSpecificNames = useCallback((docId: string, newNames: string[]) => {
@@ -162,7 +175,8 @@ export function useDocumentGuide() {
       if (newNames.length === 0) { delete newState[docId]; } else { newState[docId] = newNames; }
       return newState;
     });
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   // 提出済みチェック切替（日付自動記録）
   const toggleDocumentCheck = useCallback((docId: string) => {
@@ -180,7 +194,8 @@ export function useDocumentGuide() {
       }
       return newState;
     });
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   // カテゴリ内全書類の一括チェック切替
   const toggleAllInCategory = useCallback((categoryId: string, checked: boolean) => {
@@ -199,7 +214,8 @@ export function useDocumentGuide() {
       });
       return newState;
     });
-  }, [documentOrder]);
+    markDirty();
+  }, [documentOrder, markDirty]);
 
   // メモの設定
   const setDocumentMemo = useCallback((docId: string, memo: string) => {
@@ -208,12 +224,13 @@ export function useDocumentGuide() {
       if (memo.trim() === '') { delete newState[docId]; } else { newState[docId] = memo; }
       return newState;
     });
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   // 対象外・緊急・カテゴリON/OFFの切替
-  const toggleExcluded = useCallback(createBooleanToggle(setExcludedDocuments), []);
-  const toggleUrgent = useCallback(createBooleanToggle(setUrgentDocuments), []);
-  const toggleCategoryDisabled = useCallback(createBooleanToggle(setDisabledCategories), []);
+  const toggleExcluded = useCallback(createBooleanToggle(setExcludedDocuments, markDirty), [markDirty]);
+  const toggleUrgent = useCallback(createBooleanToggle(setUrgentDocuments, markDirty), [markDirty]);
+  const toggleCategoryDisabled = useCallback(createBooleanToggle(setDisabledCategories, markDirty), [markDirty]);
 
   /** 指定キーに紐づく関連 state をクリーンアップ */
   const docStateSetters = [setEditedDocuments, setCanDelegateOverrides, setSpecificDocNames, setCheckedDocuments, setCheckedDates, setDocumentMemos, setExcludedDocuments, setUrgentDocuments] as const;
@@ -229,7 +246,8 @@ export function useDocumentGuide() {
     }));
     setCustomDocuments((prev) => prev.filter((doc) => doc.id !== docId));
     cleanupDocState([docId]);
-  }, [cleanupDocState]);
+    markDirty();
+  }, [cleanupDocState, markDirty]);
 
   // 削除確認ダイアログ
   const requestDelete = useCallback((docId: string, categoryId: string, name: string) => {
@@ -245,7 +263,8 @@ export function useDocumentGuide() {
     setDocumentOrder((prev) => ({ ...prev, [categoryId]: [] }));
     setCustomDocuments((prev) => prev.filter((doc) => doc.categoryId !== categoryId));
     cleanupDocState(docIds);
-  }, [documentOrder, cleanupDocState]);
+    markDirty();
+  }, [documentOrder, cleanupDocState, markDirty]);
 
   const confirmDelete = useCallback(() => {
     if (!deleteConfirmation) return;
@@ -267,7 +286,8 @@ export function useDocumentGuide() {
       personInCharge, personInChargeContact,
     });
     downloadAsJson(exportData);
-  }, [clientName, deceasedName, deadline, customDocuments, documentOrder, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories, personInCharge, personInChargeContact]);
+    markClean();
+  }, [clientName, deceasedName, deadline, customDocuments, documentOrder, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories, personInCharge, personInChargeContact, markClean]);
 
   const importFromJson = useCallback((data: ExportData) => {
     setClientName(data.data.clientName);
@@ -287,7 +307,8 @@ export function useDocumentGuide() {
     setDisabledCategories(data.data.disabledCategories ?? {});
     setPersonInCharge(data.data.personInCharge ?? '');
     setPersonInChargeContact(data.data.personInChargeContact ?? '');
-  }, []);
+    markClean();
+  }, [markClean]);
 
   const getSelectedDocuments = useCallback((): CategoryDocuments[] => {
     const result: CategoryDocuments[] = [];
@@ -334,6 +355,8 @@ export function useDocumentGuide() {
     setExcludedDocuments({});
     setUrgentDocuments({});
     setDisabledCategories({});
+    setIsDirty(false);
+    setLastSavedAt(null);
   }, []);
 
   const stats = useMemo((): Stats => {
@@ -353,8 +376,20 @@ export function useDocumentGuide() {
     return { totalCount, customCount, checkedCount, excludedCount, urgentCount, hasCustomizations };
   }, [documentOrder, customDocuments, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, excludedDocuments, urgentDocuments, disabledCategories, documentMemos]);
 
+  // 文字列state変更時にも dirty マーク（ファクトリ）
+  const withDirty = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<string>>) => (v: string) => { setter(v); markDirty(); },
+    [markDirty]
+  );
+  const setClientNameDirty = useMemo(() => withDirty(setClientName), [withDirty]);
+  const setDeceasedNameDirty = useMemo(() => withDirty(setDeceasedName), [withDirty]);
+  const setDeadlineDirty = useMemo(() => withDirty(setDeadline), [withDirty]);
+  const setPersonInChargeDirty = useMemo(() => withDirty(setPersonInCharge), [withDirty]);
+  const setPersonInChargeContactDirty = useMemo(() => withDirty(setPersonInChargeContact), [withDirty]);
+
   return {
     // state
+    isDirty, lastSavedAt,
     expandedCategories, customDocuments, documentOrder,
     editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
     checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories,
@@ -363,7 +398,9 @@ export function useDocumentGuide() {
     // モーダル
     ...modal,
     // handlers
-    setClientName, setDeceasedName, setDeadline, setPersonInCharge, setPersonInChargeContact,
+    setClientName: setClientNameDirty, setDeceasedName: setDeceasedNameDirty,
+    setDeadline: setDeadlineDirty, setPersonInCharge: setPersonInChargeDirty,
+    setPersonInChargeContact: setPersonInChargeContactDirty,
     toggleExpanded, expandAll, collapseAll,
     reorderDocuments, toggleCanDelegate,
     addSpecificName, editSpecificName, removeSpecificName, reorderSpecificNames,

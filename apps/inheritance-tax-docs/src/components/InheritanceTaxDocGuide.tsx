@@ -5,6 +5,7 @@ import { DocumentFormModal } from './ui/DocumentFormModal';
 export default function InheritanceTaxDocGuide() {
   const {
     // state
+    isDirty, lastSavedAt,
     expandedCategories, customDocuments, documentOrder,
     editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
     checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories,
@@ -30,6 +31,8 @@ export default function InheritanceTaxDocGuide() {
   return (
     <>
       <UnifiedDocumentView
+        isDirty={isDirty}
+        lastSavedAt={lastSavedAt}
         clientName={clientName}
         deceasedName={deceasedName}
         deadline={deadline}
