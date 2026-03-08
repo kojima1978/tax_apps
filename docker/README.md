@@ -147,7 +147,7 @@ rd /s /q tax_apps
 | スクリプト | 環境 | 説明 |
 |-----------|------|------|
 | `manage.bat` | Windows (CMD) | 全機能搭載 |
-| `manage.sh` | Linux / Git Bash | 基本コマンドのみ（`--prod` 未対応） |
+| `manage.sh` | Linux / Git Bash | 全機能搭載（manage.bat と同等） |
 
 ### コマンド一覧
 
@@ -176,6 +176,8 @@ manage.bat restart bank-analyzer          # 部分一致
 manage.bat logs gift-tax-sim              # 部分一致
 manage.bat build retirement               # 部分一致
 ```
+
+> **曖昧性警告**: 複数のアプリが一致する場合（例: `tax` → tax-docs, retirement-tax-calc 等）、エラーメッセージと候補一覧が表示されます。より具体的な名前を指定してください。
 
 ### 使用例
 
@@ -264,7 +266,7 @@ manage.bat start
 | Shares Valuation | `runner` | nginx:1.27-alpine | あり |
 | Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
-| Stock Valuation Form | `runner` | nginx:1.27-alpine | なし（開発中） |
+| Stock Valuation Form | `runner` | nginx:1.27-alpine | あり（開発中・`--prod` でスキップ） |
 | Bank Analyzer | `production` | Gunicorn | あり |
 | ITCM | `runner` | Node.js standalone + tini | あり |
 
@@ -357,7 +359,7 @@ manage.bat backup
 |:--|:------|:-----|:-----|
 | 1 | ITCM PostgreSQL | `pg_dump`（SQLダンプ） | コンテナ停止中はボリューム tar バックアップ |
 | 2 | Bank Analyzer PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
-| 3 | SQLite ボリューム（3つ） | `docker run alpine tar` | bank-analyzer-sqlite, tax-docs-data, medical-stock-data |
+| 3 | SQLite ボリューム（3つ） | `docker run alpine tar` | bank-analyzer-sqlite, tax-docs-data, medical-stock-valuation-data |
 | 4 | アップロードデータ | `robocopy` | bank-analyzer/data/ |
 | 5 | 設定ファイル | `copy` | ITCM .env |
 
@@ -453,7 +455,7 @@ docker network create tax-apps-network
 | Shares Valuation | http://localhost/shares/ | 3012 | Vite | 非上場株式評価 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
-| Stock Valuation Form | *(開発中)* | 3014 | Vite | 株式評価明細書 |
+| Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書（開発中） |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 銀行分析 |
 
 ### バックエンドサービス
@@ -480,8 +482,8 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 8 | gift-tax-docs | Vite |
 | 9 | inheritance-tax-docs | Vite |
 | 10 | retirement-tax-calc | Vite |
-| - | stock-valuation-form | Vite（開発中・manage.bat 未統合） |
-| 11 | gateway | Nginx + Portal（全アプリ起動後に起動） |
+| 11 | stock-valuation-form | Vite（開発中・`--prod` でスキップ） |
+| 12 | gateway | Nginx + Portal（全アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -511,10 +513,10 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | docker-compose.yml ファイル存在確認（11個） | OK / WARN |
+| 3 | docker-compose.yml ファイル存在確認（12個） | OK / WARN |
 | 4 | Nginx 設定ファイル存在確認 | OK / WARN |
 | 5 | ITCM `.env` ファイル存在確認 | OK / WARN |
-| 6 | ポート競合検出（15ポート） | OK / WARN |
+| 6 | ポート競合検出（16ポート） | OK / WARN |
 | 7 | ディスク空き容量（5GB未満で警告） | OK / WARN |
 
 ### Gateway 機能
@@ -590,14 +592,16 @@ tax_apps/
 │   ├── retirement-tax-calc/    # 退職金税額計算
 │   │   └── docker-compose.yml
 │   ├── stock-valuation-form/   # 株式評価明細書（開発中）
-│   │   └── docker-compose.yml
+│   │   ├── docker-compose.yml
+│   │   └── docker-compose.prod.yml
 │   └── bank-analyzer-django/   # 銀行分析
 │       ├── data/               #   アップロードデータ（バインドマウント）
 │       └── docker-compose.yml  #   PostgreSQL + Django + テスト
 ├── docker/                     # Docker 管理
 │   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（6アプリ共有）
 │   ├── gateway/                # Gateway Compose プロジェクト
-│   │   └── docker-compose.yml  #   Nginx + Portal
+│   │   ├── docker-compose.yml  #   Nginx + Portal
+│   │   └── docker-compose.prod.yml  #   本番オーバーライド
 │   ├── scripts/                # 管理スクリプト
 │   │   ├── manage.bat          #   Windows 管理スクリプト
 │   │   ├── manage.sh           #   Linux/Bash 管理スクリプト
