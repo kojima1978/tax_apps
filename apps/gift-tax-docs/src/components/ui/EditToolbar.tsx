@@ -63,8 +63,6 @@ const ToolbarButton = ({ onClick, className, title, ariaLabel, icon, label, asLa
 // ─── ツールバー Props ───
 
 type EditToolbarProps = {
-  checkedCount: number;
-  totalCount: number;
   onExpandAll: (expand: boolean) => void;
   onShowResetDialog: () => void;
   onJsonExport: () => void;
@@ -85,8 +83,6 @@ type EditToolbarProps = {
 // ─── ツールバーコンポーネント ───
 
 export const EditToolbar = ({
-  checkedCount,
-  totalCount,
   onExpandAll,
   onShowResetDialog,
   onJsonExport,
@@ -123,8 +119,6 @@ export const EditToolbar = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showMobileMenu]);
 
-  const pct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
-
   const btnBase = 'px-3 py-2 text-sm rounded-lg';
   const btnSlate = `${btnBase} bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200`;
 
@@ -137,12 +131,6 @@ export const EditToolbar = ({
             <Home className="w-5 h-5" aria-hidden="true" />
           </a>
           <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 truncate">{giftData.title}</h1>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 rounded-full text-sm font-medium tabular-nums" aria-live="polite">
-              {checkedCount}/{totalCount}
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">{pct}%</span>
-          </div>
         </div>
 
         <div className="flex items-center gap-2">

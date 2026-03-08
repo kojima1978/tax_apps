@@ -47,11 +47,6 @@ body.dark {
   }
 }
 
-/* プログレスバー */
-.progress-bar {
-  transition: width 0.4s ease-in-out;
-}
-
 /* アニメーション軽減 */
 @media (prefers-reduced-motion: reduce) {
   *,

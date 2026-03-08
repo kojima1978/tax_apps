@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import type { EditableDocumentList } from '@/constants';
 import { initializeEditableList } from '@/utils/editableListUtils';
 import { useDocumentEditing } from './useDocumentEditing';
@@ -76,15 +76,6 @@ export const useEditableListEditing = ({
     setShowResetDialog(false);
   }, [setDocumentList]);
 
-  // === 集計値（メモ化） ===
-  const { checkedCount, totalCount } = useMemo(() => ({
-    checkedCount: documentList.reduce(
-      (acc, cat) => acc + cat.documents.filter((d) => d.checked).length,
-      0
-    ),
-    totalCount: documentList.reduce((acc, cat) => acc + cat.documents.length, 0),
-  }), [documentList]);
-
   return {
     // 書類編集
     ...docEditing,
@@ -104,8 +95,5 @@ export const useEditableListEditing = ({
     showResetDialog,
     setShowResetDialog,
     handleResetToDefault,
-    // 集計値
-    checkedCount,
-    totalCount,
   };
 };
