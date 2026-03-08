@@ -136,16 +136,21 @@ npm run dev
 │   │       ├── CalculationDetails.tsx  # 計算過程の詳細（トグル表示）
 │   │       └── ImportButton.tsx        # 評価額引用ボタン
 │   ├── hooks/
+│   │   ├── useGiftTaxForm.ts          # 贈与税シミュレーターフォーム状態管理
+│   │   ├── useYearComparisonForm.ts   # 年数比較フォーム状態管理
 │   │   ├── useAcquisitionTaxForm.ts   # 不動産取得税フォーム状態管理
-│   │   ├── useFormattedInput.ts       # 数値入力フォーマット
 │   │   ├── useRegistrationTaxForm.ts  # 登録免許税フォーム状態管理
+│   │   ├── useFormattedInput.ts       # 数値入力フォーマット
 │   │   └── useValuationImport.ts      # 評価額引用（localStorage）
 │   └── lib/
-│       ├── tax-calculation.ts    # 贈与税計算ロジック（速算表・年数比較・パターン比較）
-│       ├── real-estate-tax.ts    # 不動産税計算ロジック（取得税・登録免許税）
-│       ├── utils.ts              # ユーティリティ（formatCurrency, formatYen, normalizeNumberString等）
-│       ├── valuation-storage.ts  # 評価額のlocalStorage管理
-│       └── company.ts            # 会社情報定数
+│       ├── tax-calculation.ts         # 贈与税計算ロジック（速算表・年数比較・パターン比較）
+│       ├── real-estate-tax.ts         # 不動産税計算ロジック（取得税・登録免許税）
+│       ├── chart-config.ts            # Chart.js共通設定（登録・オプション・ツールチップ）
+│       ├── validate-gift-amount.ts    # 贈与金額バリデーション
+│       ├── validate-real-estate.ts    # 不動産評価額バリデーション
+│       ├── utils.ts                   # ユーティリティ（formatCurrency, formatYen, normalizeNumberString等）
+│       ├── valuation-storage.ts       # 評価額のlocalStorage管理
+│       └── company.ts                 # 会社情報定数
 ├── index.html                    # HTMLエントリー（Google Fonts: Noto Sans JP, Roboto Mono）
 ├── vite.config.ts                # Vite設定（base, @alias, lucide-react alias, manualChunks）
 ├── docker-compose.yml            # 開発用（Vite dev server, port 3001）

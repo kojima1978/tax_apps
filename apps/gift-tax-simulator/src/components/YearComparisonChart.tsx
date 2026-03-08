@@ -1,40 +1,13 @@
 import { useMemo } from 'react';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Tooltip,
-    type TooltipItem,
-} from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { type YearComparisonResult } from '@/lib/tax-calculation';
-import { formatCurrency } from '@/lib/utils';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
+import { BASE_CHART_OPTIONS, formatTooltipYen } from '@/lib/chart-config';
 
 const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
+    ...BASE_CHART_OPTIONS,
     plugins: {
-        legend: { display: false },
-        tooltip: {
-            callbacks: {
-                label: (context: TooltipItem<'bar'>) => {
-                    const value = context.parsed.y;
-                    return `合計税額: ${formatCurrency(value)} 円`;
-                },
-            },
-        },
-    },
-    scales: {
-        y: {
-            beginAtZero: true,
-            ticks: {
-                callback: (value: number | string) =>
-                    typeof value === 'number' ? formatCurrency(value) : value,
-            },
-        },
+        ...BASE_CHART_OPTIONS.plugins,
+        tooltip: { callbacks: { label: formatTooltipYen } },
     },
 } as const;
 

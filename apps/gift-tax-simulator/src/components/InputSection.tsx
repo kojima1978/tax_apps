@@ -1,10 +1,9 @@
 import { useCallback, type ChangeEvent, type KeyboardEvent } from 'react';
 import { type GiftType } from '@/lib/tax-calculation';
-import { normalizeNumberString } from '@/lib/utils';
 
 type Props = {
     amount: string;
-    setAmount: (val: string) => void;
+    setAmount: (e: ChangeEvent<HTMLInputElement>) => void;
     giftType: GiftType;
     setGiftType: (val: GiftType) => void;
     onCalculate: () => void;
@@ -19,11 +18,6 @@ const InputSection = ({
     onCalculate,
     errorMsg
 }: Props) => {
-    const handleAmountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-        const normalized = normalizeNumberString(e.target.value);
-        setAmount(normalized ? Number(normalized).toLocaleString() : '');
-    }, [setAmount]);
-
     const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             onCalculate();
@@ -48,7 +42,7 @@ const InputSection = ({
                         autoComplete="off"
                         inputMode="numeric"
                         value={amount}
-                        onChange={handleAmountChange}
+                        onChange={setAmount}
                         onKeyDown={handleKeyDown}
                     />
                 </div>

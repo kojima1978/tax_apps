@@ -6,6 +6,7 @@ import {
     type TransactionType,
 } from '@/lib/real-estate-tax';
 import { formatInputValue, parseFormattedNumber, formatYen } from '@/lib/utils';
+import { validateRealEstateInput, validateResult } from '@/lib/validate-real-estate';
 import { saveValuations } from '@/lib/valuation-storage';
 import { useFormattedInput } from './useFormattedInput';
 import { useValuationImport } from './useValuationImport';
@@ -96,16 +97,13 @@ export const useAcquisitionTaxForm = () => {
         const bldgVal = parseFormattedNumber(buildingValuation);
         const bArea = parseFormattedNumber(buildingArea);
 
-        const hasLandInput = includeLand && (resVal > 0 || otherVal > 0);
-        const hasBuildingInput = includeBuilding && bldgVal > 0;
-        if (!hasLandInput && !hasBuildingInput) {
-            setErrorMsg('※土地または建物を選択し、固定資産税評価額を入力してください。');
-            setResults(null);
-            return;
-        }
-        const MAX_VALUATION = 10_000_000_000;
-        if (resVal > MAX_VALUATION || otherVal > MAX_VALUATION || bldgVal > MAX_VALUATION) {
-            setErrorMsg('※評価額は100億円以下で入力してください。');
+        const validation = validateRealEstateInput(
+            includeLand && (resVal > 0 || otherVal > 0),
+            includeBuilding && bldgVal > 0,
+            [resVal, otherVal, bldgVal],
+        );
+        if (!validation.ok) {
+            setErrorMsg(validation.error);
             setResults(null);
             return;
         }
@@ -172,8 +170,9 @@ export const useAcquisitionTaxForm = () => {
         }
 
         const total = resLandAcq + otherLandAcq + bldgAcq;
-        if (!isFinite(total) || isNaN(total) || total < 0) {
-            setErrorMsg('※計算結果に異常が発生しました。入力値を確認してください。');
+        const resultError = validateResult(total);
+        if (resultError) {
+            setErrorMsg(resultError);
             setResults(null);
             return;
         }

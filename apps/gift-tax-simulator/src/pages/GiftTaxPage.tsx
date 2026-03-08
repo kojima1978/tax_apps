@@ -1,54 +1,24 @@
-import { useState, useCallback } from 'react';
 import Navigation from '@/components/Navigation';
 import InputSection from '@/components/InputSection';
 import ResultSection from '@/components/ResultSection';
 import PrintFooter from '@/components/PrintFooter';
-import { calculateAllPatterns, type GiftType, type CalculationResult } from '@/lib/tax-calculation';
-import { normalizeNumberString } from '@/lib/utils';
+import { useGiftTaxForm } from '@/hooks/useGiftTaxForm';
 
 export default function GiftTaxPage() {
-  const [amount, setAmount] = useState('');
-  const [giftType, setGiftType] = useState<GiftType>('special');
-  const [results, setResults] = useState<CalculationResult[] | null>(null);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  const handleCalculate = useCallback(() => {
-    setErrorMsg('');
-    const rawAmount = normalizeNumberString(amount);
-    const amountVal = parseInt(rawAmount, 10);
-
-    if (!amountVal || amountVal <= 0) {
-      setErrorMsg('※贈与金額を正しく入力してください。');
-      setResults(null);
-      return;
-    }
-    if (amountVal > 1_000_000_000) {
-      setErrorMsg('※贈与金額は10億円以下で入力してください。');
-      setResults(null);
-      return;
-    }
-
-    const patterns = calculateAllPatterns(amountVal, giftType);
-    if (patterns.some(r => !isFinite(r.totalTax) || isNaN(r.totalTax))) {
-      setErrorMsg('※計算結果に異常が発生しました。入力値を確認してください。');
-      setResults(null);
-      return;
-    }
-    setResults(patterns);
-  }, [amount, giftType]);
+  const form = useGiftTaxForm();
 
   return (
     <div className="container-custom">
       <Navigation />
       <InputSection
-        amount={amount}
-        setAmount={setAmount}
-        giftType={giftType}
-        setGiftType={setGiftType}
-        onCalculate={handleCalculate}
-        errorMsg={errorMsg}
+        amount={form.amount}
+        setAmount={form.setAmount}
+        giftType={form.giftType}
+        setGiftType={form.setGiftType}
+        onCalculate={form.handleCalculate}
+        errorMsg={form.errorMsg}
       />
-      <ResultSection results={results} />
+      <ResultSection results={form.results} />
       <PrintFooter />
     </div>
   );
