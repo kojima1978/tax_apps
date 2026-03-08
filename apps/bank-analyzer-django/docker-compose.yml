@@ -7,13 +7,17 @@
 #   再ビルド:     docker compose up -d --build
 #   ログ確認:     docker compose logs -f
 #   停止:         docker compose down
-#   テスト実行:   docker compose run --rm test
-#   本番ビルド:   docker compose build --build-arg APP_VERSION=1.0.0 bank-analyzer-django
+#   テスト実行:   docker compose --profile test run --rm test
+#   本番起動:     docker compose --profile production up -d bank-analyzer-prod
 #
 # Services:
-#   - bank-analyzer-db:     PostgreSQL + pgvector
-#   - bank-analyzer-django: Django application (dev mode)
-#   - test:                 Test runner (on-demand)
+#   - bank-analyzer-db:      PostgreSQL 16 + pgvector
+#   - bank-analyzer-django:  Django 6.0 (dev mode, runserver)
+#   - test:                  pytest テストランナー (--profile test)
+#   - bank-analyzer-prod:    Gunicorn 本番サービス (--profile production)
+#
+# Stack: Django 6.0 / Python 3.12 / PostgreSQL 16
+#        pandas / RapidFuzz / Bootstrap 5 / Plotly
 #
 # ============================================
 
@@ -84,17 +88,18 @@ services:
   # ===========================================
   # 銀行取引分析ツール（Django - 開発モード）
   # ===========================================
-  # Port: 3007
+  # Port: 3007 | Path: /bank-analyzer/
   #
   # 機能:
-  #   - 銀行取引CSVの読込・分析
-  #   - 相続税申告向け取引分類
-  #   - RapidFuzzによるファジーマッチング分類
+  #   - 銀行取引CSV/Excelの読込・分析
+  #   - 相続税申告向け取引分類（ルールベース + RapidFuzzファジーマッチング）
+  #   - 資金移動検出（最適マッチング + 振込手数料推定）
+  #   - 分類別Excelエクスポート
   #   - PostgreSQLによるデータ永続化
   #
-  # ビルドターゲット:
-  #   - dev: Django runserver（ホットリロード対応）
-  #   - production: Gunicorn（本番用）
+  # アクセス:
+  #   - Nginx経由: http://localhost/bank-analyzer/
+  #   - 直接:      http://localhost:3007/bank-analyzer/
   # ===========================================
   bank-analyzer-django:
     build:
@@ -116,9 +121,7 @@ services:
       # ソースコードをマウント（ホットリロード用）
       - ./analyzer:/app/analyzer:ro
       - ./bank_project:/app/bank_project:ro
-      # データ永続化（SQLiteレガシー用）
-      - bank_analyzer_data:/app/db
-      # ユーザー設定
+      # ユーザー設定（分類パターン等）
       - ./data:/app/data
     environment:
       <<: *common-env
@@ -133,8 +136,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-dev-password-change-in-production}
       DB_HOST: bank-analyzer-db
       DB_PORT: "5432"
-      # レガシーSQLite設定（移行時の参照用）
-      SQLITE_PATH: /app/db/db.sqlite3
     networks:
       - tax-apps-network
     restart: unless-stopped
@@ -210,12 +211,12 @@ services:
     ports:
       - "3007:3007"
     volumes:
-      # データ永続化のみ（ソースコードはイメージ内）
-      - bank_analyzer_data:/app/db
+      # ユーザー設定のみ（ソースコードはイメージ内）
       - ./data:/app/data
     environment:
       <<: *common-env
       DJANGO_DEBUG: "False"
+      DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
       # 本番環境では必ず .env で設定すること
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-CHANGE_THIS_IN_PRODUCTION}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost}
@@ -257,7 +258,5 @@ networks:
 # ボリューム定義
 # ------------------------------------------
 volumes:
-  bank_analyzer_data:
-    name: bank-analyzer-sqlite
   bank_analyzer_pgdata:
     name: bank-analyzer-postgres

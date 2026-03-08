@@ -60,10 +60,13 @@ htmlcov/
 .tox/
 .nox/
 
-# Documentation
+# Documentation (README.mdのみイメージに含める)
 docs/
 *.md
 !README.md
+
+# Scripts（マイグレーションスクリプト等はイメージ不要）
+scripts/
 
 # Data files (should be mounted as volumes)
 data/

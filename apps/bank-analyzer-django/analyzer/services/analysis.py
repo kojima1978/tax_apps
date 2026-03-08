@@ -3,7 +3,9 @@
 
 分析ダッシュボード用のデータ生成ビジネスロジックを提供する。
 """
+import json
 import logging
+from collections import defaultdict, OrderedDict
 
 import pandas as pd
 from django.db.models import Q
@@ -451,3 +453,81 @@ class AnalysisService:
             'unclassified_count': unclassified_count,
             'fuzzy_threshold': fuzzy_threshold,
         }
+
+    # =========================================================================
+    # 未分類グルーピング
+    # =========================================================================
+
+    @staticmethod
+    def build_unclassified_groups(transactions, keyword: str = '') -> dict:
+        """
+        未分類取引を摘要でグルーピングし、各グループのサジェストを生成
+
+        Args:
+            transactions: 未分類取引のQuerySet or list
+            keyword: キーワードフィルタ
+
+        Returns:
+            groups, tx_total, max_group_count, suggestions_json を含む辞書
+        """
+        if keyword:
+            transactions = filter_by_keyword(transactions, keyword)
+
+        group_map = defaultdict(lambda: {'count': 0, 'total_out': 0, 'total_in': 0, 'tx_ids': []})
+        iterable = transactions if isinstance(transactions, list) else transactions.iterator()
+        for tx in iterable:
+            desc = tx.description or '（摘要なし）'
+            g = group_map[desc]
+            g['count'] += 1
+            g['total_out'] += tx.amount_out or 0
+            g['total_in'] += tx.amount_in or 0
+            g['tx_ids'].append(tx.id)
+
+        groups = []
+        for desc, data in group_map.items():
+            groups.append({
+                'description': desc,
+                'count': data['count'],
+                'total_out': data['total_out'],
+                'total_in': data['total_in'],
+                'tx_ids_json': json.dumps(data['tx_ids']),
+                'first_tx_id': data['tx_ids'][0] if data['tx_ids'] else None,
+            })
+        groups.sort(key=lambda g: g['count'], reverse=True)
+
+        return {
+            'groups': groups,
+            'tx_total': sum(g['count'] for g in groups),
+            'max_group_count': groups[0]['count'] if groups else 1,
+        }
+
+    @staticmethod
+    def build_group_suggestions(groups_page, case) -> str:
+        """
+        グループページの各摘要に対するファジーサジェストを生成
+
+        Args:
+            groups_page: ページネーション済みのグループリスト
+            case: 案件
+
+        Returns:
+            JSON文字列（{description: {category, score}}）
+        """
+        global_patterns = config.get_classification_patterns()
+        case_patterns = case.custom_patterns or {}
+        fuzzy_config = config.get_fuzzy_config()
+
+        suggestions = {}
+        for g in groups_page:
+            result = llm_classifier.get_fuzzy_suggestions(
+                g['description'],
+                case_patterns=case_patterns,
+                global_patterns=global_patterns,
+                fuzzy_config=fuzzy_config,
+                top_n=1,
+            )
+            if result:
+                cat, score = result[0]
+                suggestions[g['description']] = {'category': cat, 'score': score}
+
+        return json.dumps(suggestions, ensure_ascii=False)

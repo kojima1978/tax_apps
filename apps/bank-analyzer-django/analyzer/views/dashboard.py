@@ -1,7 +1,6 @@
 """分析ダッシュボードビュー"""
 import json
 import logging
-from collections import defaultdict
 
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -211,35 +210,9 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
 
     # 未分類タブ: 摘要グルーピング + サジェスト
     if request.GET.get('tab') == 'unclassified':
-        from ..lib.llm_classifier import get_fuzzy_suggestions
-
         unclassified_qs = case.transactions.filter(category=UNCATEGORIZED).order_by(*sort_order)
-        if keyword:
-            unclassified_qs = filter_by_keyword(unclassified_qs, keyword)
-
-        group_map = defaultdict(lambda: {'count': 0, 'total_out': 0, 'total_in': 0, 'tx_ids': []})
-        iterable = unclassified_qs if isinstance(unclassified_qs, list) else unclassified_qs.iterator()
-        for tx in iterable:
-            desc = tx.description or '（摘要なし）'
-            g = group_map[desc]
-            g['count'] += 1
-            g['total_out'] += tx.amount_out or 0
-            g['total_in'] += tx.amount_in or 0
-            g['tx_ids'].append(tx.id)
-
-        groups = []
-        for desc, data in group_map.items():
-            groups.append({
-                'description': desc,
-                'count': data['count'],
-                'total_out': data['total_out'],
-                'total_in': data['total_in'],
-                'tx_ids_json': json.dumps(data['tx_ids']),
-                'first_tx_id': data['tx_ids'][0] if data['tx_ids'] else None,
-            })
-        groups.sort(key=lambda g: g['count'], reverse=True)
-        unclassified_tx_total = sum(g['count'] for g in groups)
-        max_group_count = groups[0]['count'] if groups else 1
+        group_data = AnalysisService.build_unclassified_groups(unclassified_qs, keyword)
+        groups = group_data['groups']
 
         group_page_num = request.GET.get('group_page', 1)
         group_paginator = Paginator(groups, 50)
@@ -248,27 +221,11 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         except (PageNotAnInteger, EmptyPage):
             group_page = group_paginator.page(1)
 
-        global_patterns = config.get_classification_patterns()
-        case_patterns = case.custom_patterns or {}
-        fuzzy_config = config.get_fuzzy_config()
-        suggestions = {}
-        for g in group_page:
-            result = get_fuzzy_suggestions(
-                g['description'],
-                case_patterns=case_patterns,
-                global_patterns=global_patterns,
-                fuzzy_config=fuzzy_config,
-                top_n=1,
-            )
-            if result:
-                cat, score = result[0]
-                suggestions[g['description']] = {'category': cat, 'score': score}
-
         context['unclassified_groups'] = group_page
         context['unclassified_group_count'] = len(groups)
-        context['unclassified_tx_total'] = unclassified_tx_total
-        context['max_group_count'] = max_group_count
-        context['group_suggestions_json'] = json.dumps(suggestions, ensure_ascii=False)
+        context['unclassified_tx_total'] = group_data['tx_total']
+        context['max_group_count'] = group_data['max_group_count']
+        context['group_suggestions_json'] = AnalysisService.build_group_suggestions(group_page, case)
 
     return render(request, 'analyzer/analysis.html', context)
 

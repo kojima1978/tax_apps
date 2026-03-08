@@ -29,7 +29,7 @@ erDiagram
         varchar(50) account_type "種別 (Nullable)"
         boolean is_large "多額取引フラグ (Default: False)"
         boolean is_transfer "資金移動フラグ (Default: False)"
-        varchar(255) transfer_to "資金移動先推定 (Nullable)"
+        varchar(255) transfer_to "資金移動先推定+手数料 (Nullable)"
         varchar(100) category "分類 (Default: 未分類)"
         integer classification_score "分類信頼度 (Default: 0)"
         boolean is_flagged "要確認フラグ (Default: False)"
@@ -69,7 +69,7 @@ erDiagram
 | `account_type` | Varchar(50) | Nullable | 口座種別（普通預金等）。 |
 | `is_large` | Boolean | Default False | 多額取引判定フラグ（設定閾値を超えた場合にTrue）。 |
 | `is_transfer` | Boolean | Default False | 資金移動判定フラグ（別口座への移動と推定される場合にTrue）。 |
-| `transfer_to` | Varchar(255) | Nullable | 移動先と推定される口座名などのメモ。 |
+| `transfer_to` | Varchar(255) | Nullable | 移動先と推定される口座名・日付。振込手数料がある場合は「手数料XXX円」を付記（例: `7654321 (2025-01-11) 手数料550円`）。 |
 | `category` | Varchar(100) | Default '未分類' | AIまたはルールベースで判定された費目分類（生活費、贈与など）。 |
 | `classification_score` | Integer | Default 0 | 分類の信頼度スコア。 |
 | `is_flagged` | Boolean | Default False | 要確認フラグ（付箋機能）。後で確認したい取引にマーク。 |
@@ -84,3 +84,22 @@ erDiagram
 - `(case_id, category)`: 案件×分類の集計・フィルタ用
 - `(case_id, is_large)`: 案件×多額取引の絞り込み用
 - `(case_id, is_transfer)`: 案件×資金移動の絞り込み用
+
+## 資金移動検出アルゴリズム
+
+`analyze_transfers`（`analyzer/lib/analyzer.py`）で実行される。
+
+### 判定条件
+1. **異なる口座間**の取引であること
+2. **金額が許容誤差内**で一致（デフォルト: 1,000円）
+3. **日付が指定日数以内**（デフォルト: 3日以内）
+   - `after_only`モード: 出金日 ≦ 入金日 ≦ 出金日+N日
+   - `both`モード: |出金日 - 入金日| ≦ N日
+
+### マッチング優先順位
+複数の候補がある場合、以下の順で最適候補を選択:
+1. **金額差が最小**のもの
+2. **日付差が最小**のもの
+
+### 振込手数料の推定
+出金額 > 入金額の場合、差額を振込手数料として`transfer_to`フィールドに付記する。
