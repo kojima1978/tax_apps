@@ -47,7 +47,7 @@ set "APP_7=apps\gift-tax-simulator"
 set "APP_8=apps\gift-tax-docs"
 set "APP_9=apps\inheritance-tax-docs"
 set "APP_10=apps\retirement-tax-calc"
-set "APP_11=apps\used-asset-life"
+set "APP_11=apps\depreciation-calc"
 set "APP_12=apps\stock-valuation-form"
 set "APP_13=docker\gateway"
 
@@ -722,6 +722,15 @@ docker volume inspect %~1 >nul 2>&1
 if !ERRORLEVEL! neq 0 (
     set /a SQLITE_SKIP+=1
     goto :eof
+)
+docker run --rm -v %~1:/data -v "!BACKUP_DIR!":/backup alpine tar czf /backup/%~2.tar.gz -C /data . >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    set /a SQLITE_OK+=1
+) else (
+    echo [ERROR] %~1 backup failed
+    set /a BACKUP_FAIL+=1
+)
+goto :eof
 
 :: --- PostgreSQL?o?b?N?A?b?v ---
 :do_backup_postgres
@@ -754,15 +763,6 @@ if !ERRORLEVEL! equ 0 (
     set /a BACKUP_OK+=1
 ) else (
     echo [ERROR] Volume backup failed
-    set /a BACKUP_FAIL+=1
-)
-goto :eof
-)
-docker run --rm -v %~1:/data -v "!BACKUP_DIR!":/backup alpine tar czf /backup/%~2.tar.gz -C /data . >nul 2>&1
-if !ERRORLEVEL! equ 0 (
-    set /a SQLITE_OK+=1
-) else (
-    echo [ERROR] %~1 backup failed
     set /a BACKUP_FAIL+=1
 )
 goto :eof

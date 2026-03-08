@@ -1,3 +1,5 @@
+import { formatElapsed } from "@/lib/utils";
+
 export const ASSET_TYPES = [
     { value: 'building', label: '建物' },
     { value: 'building_equipment', label: '建物附属設備' },
@@ -175,8 +177,3 @@ export function calcUsedAssetLife(input: UsedAssetInput): UsedAssetResult {
     };
 }
 
-function formatElapsed(years: number, months: number): string {
-    if (months === 0) return `${years}年`;
-    if (years === 0) return `${months}ヶ月`;
-    return `${years}年${months}ヶ月`;
-}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
     type DepreciationMethod,
     type DepreciationYearRow,
@@ -7,6 +7,8 @@ import {
 import { type AssetType } from "@/lib/used-asset-life";
 import { formatInputValue, parseFormattedNumber, parseIntInput } from "@/lib/utils";
 import { useMethodSuggestion } from "@/hooks/useMethodSuggestion";
+import { useCanCalculate } from "@/hooks/useCanCalculate";
+import { useDirtyFlag } from "@/hooks/useDirtyFlag";
 
 export type PeriodDepResult = {
     rows: DepreciationYearRow[];
@@ -41,8 +43,8 @@ export const usePeriodDepForm = () => {
     const [startYear, setStartYear] = useState('');
     const [displayYears, setDisplayYears] = useState('5');
     const [result, setResult] = useState<PeriodDepResult | null>(null);
-    const [isDirty, setIsDirty] = useState(false);
     const [carriedOver, setCarriedOver] = useState(false);
+    const { isDirty, setIsDirty, markDirty, clearDirty } = useDirtyFlag(result);
 
     const { availableMethods, suggestedLabel, isMethodSuggested } = useMethodSuggestion(acquisitionDate, method, setMethod);
 
@@ -54,15 +56,7 @@ export const usePeriodDepForm = () => {
         }
     }, [serviceStartDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const canCalculate = useMemo(() => {
-        const cost = parseFormattedNumber(acquisitionCost);
-        const life = parseIntInput(usefulLife);
-        return cost > 0 && life >= 2 && !!acquisitionDate && !!serviceStartDate;
-    }, [acquisitionCost, usefulLife, acquisitionDate, serviceStartDate]);
-
-    const markDirty = useCallback(() => {
-        if (result) setIsDirty(true);
-    }, [result]);
+    const canCalculate = useCanCalculate(acquisitionCost, usefulLife, acquisitionDate, serviceStartDate);
 
     const handleAssetType = useCallback((val: AssetType) => { setAssetType(val); markDirty(); }, [markDirty]);
     const handleAcquisitionCost = useCallback((val: string) => { setAcquisitionCost(formatInputValue(val)); markDirty(); }, [markDirty]);
@@ -119,8 +113,8 @@ export const usePeriodDepForm = () => {
             displayYears: numYears,
             startYearIndex: startIdx,
         });
-        setIsDirty(false);
-    }, [canCalculate, acquisitionCost, usefulLife, method, acquisitionDate, serviceStartDate, fiscalYearEndMonth, startYear, displayYears]);
+        clearDirty();
+    }, [canCalculate, acquisitionCost, usefulLife, method, acquisitionDate, serviceStartDate, fiscalYearEndMonth, startYear, displayYears, clearDirty]);
 
     const handleClear = useCallback(() => {
         setAssetType('building');
@@ -133,9 +127,9 @@ export const usePeriodDepForm = () => {
         setStartYear('');
         setDisplayYears('5');
         setResult(null);
-        setIsDirty(false);
+        clearDirty();
         setCarriedOver(false);
-    }, []);
+    }, [clearDirty]);
 
     const applyCarryOver = useCallback((values: PeriodDepCarryOverValues) => {
         setUsefulLife(String(values.usefulLife));

@@ -6,19 +6,14 @@ type DepreciationScheduleTableProps = {
     rows: DepreciationYearRow[];
 };
 
-const getRowMemo = (memo: string, endingBookValue: number): string => {
-    if (memo.includes('改定')) return '改定償却率切替';
-    if (memo.includes('限度額')) return '95%限度額到達';
-    if (endingBookValue === 1) return '備忘価額1円';
-    return '';
-};
+const ROW_HIGHLIGHTS = [
+    { match: (memo: string) => memo.includes('改定'), bg: 'bg-blue-50', border: 'border-blue-200', label: '改定償却率切替' },
+    { match: (memo: string) => memo.includes('限度額'), bg: 'bg-orange-50', border: 'border-orange-200', label: '95%限度額到達' },
+    { match: (_memo: string, bv: number) => bv === 1, bg: 'bg-green-50', border: 'border-green-200', label: '備忘価額1円' },
+] as const;
 
-const getRowClassName = (memo: string, endingBookValue: number): string => {
-    if (memo.includes('改定')) return 'bg-blue-50';
-    if (memo.includes('限度額')) return 'bg-orange-50';
-    if (endingBookValue === 1) return 'bg-green-50';
-    return '';
-};
+const getRowHighlight = (memo: string, endingBookValue: number) =>
+    ROW_HIGHLIGHTS.find(h => h.match(memo, endingBookValue));
 
 const DepreciationScheduleTable = ({ rows }: DepreciationScheduleTableProps) => {
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -56,12 +51,12 @@ const DepreciationScheduleTable = ({ rows }: DepreciationScheduleTableProps) => 
                     </thead>
                     <tbody>
                         {rows.map((row) => {
-                            const tooltip = getRowMemo(row.memo, row.endingBookValue);
+                            const highlight = getRowHighlight(row.memo, row.endingBookValue);
                             return (
                                 <tr
                                     key={row.year}
-                                    className={`border-b border-gray-100 ${getRowClassName(row.memo, row.endingBookValue)}`}
-                                    title={tooltip || undefined}
+                                    className={`border-b border-gray-100 ${highlight?.bg ?? ''}`}
+                                    title={highlight?.label}
                                 >
                                     <td className="px-2 py-1.5 text-center font-mono-num">{row.year}</td>
                                     <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap">{row.periodLabel}</td>
@@ -78,9 +73,9 @@ const DepreciationScheduleTable = ({ rows }: DepreciationScheduleTableProps) => 
 
             {/* モバイル: 備考が非表示の場合の凡例 */}
             <div className="flex flex-wrap gap-2 mb-4 sm:hidden text-xs">
-                <span className="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded">改定償却率切替</span>
-                <span className="px-2 py-0.5 bg-orange-50 border border-orange-200 rounded">95%限度額到達</span>
-                <span className="px-2 py-0.5 bg-green-50 border border-green-200 rounded">備忘価額1円</span>
+                {ROW_HIGHLIGHTS.map(({ bg, border, label }) => (
+                    <span key={label} className={`px-2 py-0.5 ${bg} border ${border} rounded`}>{label}</span>
+                ))}
             </div>
         </>
     );

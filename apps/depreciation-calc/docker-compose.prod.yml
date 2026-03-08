@@ -12,7 +12,7 @@ x-prod-deploy: &prod-deploy
       memory: 64M
 
 services:
-  used-asset-life:
+  depreciation-calc:
     build:
       target: runner
     init: false

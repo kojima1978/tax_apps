@@ -46,7 +46,7 @@ APPS=(
   "apps/gift-tax-docs"
   "apps/inheritance-tax-docs"
   "apps/retirement-tax-calc"
-  "apps/used-asset-life"
+  "apps/depreciation-calc"
   "apps/stock-valuation-form"
   "docker/gateway"
 )
@@ -78,6 +78,14 @@ log() { echo -e "\033[1;36m[manage]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
 err() { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
 ok() { echo -e "\033[1;32m[OK]\033[0m    $*"; }
+
+print_banner() {
+  echo ""
+  echo "========================================"
+  echo "  $*"
+  echo "========================================"
+  echo ""
+}
 
 ensure_network() {
   if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
@@ -317,19 +325,15 @@ restore_sqlite_volumes() {
   fi
 }
 
-# print_summary_banner <title> <result_var_prefix>
+# print_summary_banner <title> <fail_count>
 # バックアップ/リストアのサマリーバナー表示
 print_summary_banner() {
-  local title="$1" ok_count="$2" skip_count="$3" fail_count="$4"
-  echo ""
-  echo "========================================"
-  if [[ $fail_count -eq 0 ]]; then
-    echo "  $title"
+  local title="$1" fail_count="$2"
+  if [[ $fail_count -gt 0 ]]; then
+    print_banner "$title (with errors)"
   else
-    echo "  $title (with errors)"
+    print_banner "$title"
   fi
-  echo "========================================"
-  echo ""
 }
 
 # ------------------------------------
@@ -419,10 +423,7 @@ cmd_logs() {
 }
 
 cmd_status() {
-  echo ""
-  echo "========================================"
-  echo " Tax Apps コンテナ状態"
-  echo "========================================"
+  print_banner "Tax Apps コンテナ状態"
   echo "ネットワーク: $NETWORK_NAME"
   if docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
     echo "  状態: 存在"
@@ -450,11 +451,7 @@ cmd_status() {
 # backup - 全データベース・データをバックアップ
 # ------------------------------------
 cmd_backup() {
-  echo ""
-  echo "========================================"
-  echo "  Tax Apps - Backup"
-  echo "========================================"
-  echo ""
+  print_banner "Tax Apps - Backup"
 
   local timestamp
   timestamp=$(date +"%Y-%m-%d_%H%M%S")
@@ -512,7 +509,7 @@ cmd_backup() {
   fi
 
   # --- Summary ---
-  print_summary_banner "Backup Complete" "$backup_ok" "$backup_skip" "$backup_fail"
+  print_summary_banner "Backup Complete" "$backup_fail"
   echo "  Destination: $backup_dir/"
   echo "  Size: $(format_size "$(dir_size "$backup_dir")")"
   echo "  OK: $backup_ok  Skipped: $backup_skip  Failed: $backup_fail"
@@ -530,11 +527,7 @@ cmd_backup() {
 # restore - バックアップからリストア
 # ------------------------------------
 cmd_restore() {
-  echo ""
-  echo "========================================"
-  echo "  Tax Apps - Restore"
-  echo "========================================"
-  echo ""
+  print_banner "Tax Apps - Restore"
 
   if [[ ! -d "$BACKUP_BASE" ]]; then
     err "backups/ not found. Run: ./manage.sh backup"
@@ -653,7 +646,7 @@ cmd_restore() {
   fi
 
   # --- Summary ---
-  print_summary_banner "Restore Complete" "$restore_ok" "$restore_skip" "$restore_fail"
+  print_summary_banner "Restore Complete" "$restore_fail"
   echo "  Source: $backup_dir/"
   echo "  OK: $restore_ok  Skipped: $restore_skip  Failed: $restore_fail"
   echo ""
@@ -676,21 +669,13 @@ _do_clean_app() {
 }
 
 _print_clean_done() {
-  echo ""
-  echo "========================================"
-  echo "  Clean Up Complete"
-  echo "========================================"
-  echo ""
+  print_banner "Clean Up Complete"
   echo "  リセットアップ: ./manage.sh start"
   echo ""
 }
 
 cmd_clean() {
-  echo ""
-  echo "========================================"
-  echo "  Tax Apps - Clean Up"
-  echo "========================================"
-  echo ""
+  print_banner "Tax Apps - Clean Up"
   echo "  * Backup recommendation: ./manage.sh backup"
   echo ""
 
@@ -764,11 +749,7 @@ cmd_clean() {
 cmd_preflight() {
   local pf_ok=0 pf_warn=0 pf_err=0
 
-  echo ""
-  echo "========================================"
-  echo "  Tax Apps - Preflight Check"
-  echo "========================================"
-  echo ""
+  print_banner "Tax Apps - Preflight Check"
 
   # 1. Docker Desktop
   if ! docker info >/dev/null 2>&1; then
@@ -776,11 +757,7 @@ cmd_preflight() {
     echo "  Please start Docker Desktop and try again."
     (( pf_err++ ))
     # Summary (early exit)
-    echo ""
-    echo "========================================"
-    echo "  Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
-    echo "========================================"
-    echo ""
+    print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
     echo "Errors detected. Please fix them before starting."
     echo ""
     return 1
@@ -874,10 +851,7 @@ cmd_preflight() {
   fi
 
   # Summary
-  echo ""
-  echo "========================================"
-  echo "  Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
-  echo "========================================"
+  print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
 
   if [[ $pf_err -gt 0 ]]; then
     echo ""

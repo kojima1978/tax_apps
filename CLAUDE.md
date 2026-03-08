@@ -63,7 +63,7 @@ cd apps/<app-name> && docker compose up -d
 | retirement-tax-calc | `/retirement-tax-calc/` | 3013 | Vite/React |
 | inheritance-case-management (web) | `/itcm/` | 3020 | Next.js + React Query + React Table |
 | inheritance-case-management (api) | `/itcm-api/` | 3021 | Hono + Prisma + PostgreSQL |
-| used-asset-life | `/used-asset-life/` | 3015 | Vite/React |
+| depreciation-calc | `/depreciation-calc/` | 3015 | Vite/React |
 | bank-analyzer-django | `/bank-analyzer/` | 3007 | Django + pandas + Bootstrap |
 
 ### ディレクトリ構成

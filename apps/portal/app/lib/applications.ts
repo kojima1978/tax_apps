@@ -22,7 +22,7 @@ export const applications: Application[] = [
   { title: '医療法人株式評価', description: '医療法人の株式評価システム', url: '/medical/', icon: Activity },
   { title: '非上場株式評価', description: '非上場株式の評価システム', url: '/shares/', icon: TrendingUp },
   { title: '退職金税額計算', description: '退職金の所得税・住民税を計算', url: '/retirement-tax-calc/', icon: CreditCard },
-  { title: '中古資産 耐用年数', description: '中古資産の耐用年数・簿価計算', url: '/used-asset-life/', icon: Clock },
+  { title: '中古資産 耐用年数', description: '中古資産の耐用年数・簿価計算', url: '/depreciation-calc/', icon: Clock },
   // 分析・管理
   { title: '預貯金分析', description: '預金移動の分析ツール', url: '/bank-analyzer/', icon: Building },
   { title: '案件管理', description: '相続税案件の進捗管理', url: '/itcm/', icon: Briefcase },

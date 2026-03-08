@@ -1,4 +1,5 @@
 import { type UsedAssetResult, getAssetTypeLabel } from "@/lib/used-asset-life";
+import { formatElapsed } from "@/lib/utils";
 import DirtyWarning from "@/components/ui/DirtyWarning";
 import ConditionTags from "@/components/ui/ConditionTags";
 import EmptyState from "@/components/ui/EmptyState";
@@ -24,12 +25,6 @@ const ResultSection = ({ result, isDirty, onCarryOver }: ResultSectionProps) => 
 
     const { input, is50PercentRule, renovationRatio, formulaUsed, calculationSteps, usedAssetLife } = result;
 
-    const formatElapsed = () => {
-        if (input.elapsedMonths === 0) return `${input.elapsedYears}年`;
-        if (input.elapsedYears === 0) return `${input.elapsedMonths}ヶ月`;
-        return `${input.elapsedYears}年${input.elapsedMonths}ヶ月`;
-    };
-
     const formulaLabel = () => {
         switch (formulaUsed) {
             case 'statutory': return '法定耐用年数（50%ルール適用）';
@@ -48,7 +43,7 @@ const ResultSection = ({ result, isDirty, onCarryOver }: ResultSectionProps) => 
             <ConditionTags tags={[
                 getAssetTypeLabel(input.assetType),
                 `法定耐用年数: ${input.statutoryLife}年`,
-                `経過: ${formatElapsed()}`,
+                `経過: ${formatElapsed(input.elapsedYears, input.elapsedMonths)}`,
                 formulaLabel(),
             ]} />
 

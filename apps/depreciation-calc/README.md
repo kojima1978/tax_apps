@@ -1,4 +1,4 @@
-# 中古資産の耐用年数・簿価計算
+# 減価償却計算 (depreciation-calc)
 
 中古資産を取得した際の耐用年数計算、減価償却スケジュール、期間償却額を計算するWebツールです。
 国税庁 No.5404「中古資産の耐用年数」および減価償却関連通達に基づいています。
@@ -46,8 +46,8 @@
 
 | 環境 | URL |
 |------|-----|
-| 開発 | `http://localhost:3015/used-asset-life/` |
-| 本番 | `/used-asset-life/` (nginx経由) |
+| 開発 | `http://localhost:3015/depreciation-calc/` |
+| 本番 | `/depreciation-calc/` (nginx経由) |
 | Vercel | `/` |
 
 ## 起動方法
