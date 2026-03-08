@@ -76,10 +76,11 @@ export default function AcquisitionTaxPage() {
                         onDeductionChange={(e) => form.handleFormattedInput(e, form.setAcquisitionDeduction)}
                     />
                 </div>
+                <div className="calc-action-bar">
+                    <button className="btn-calc" onClick={form.calculateTax}>計算する</button>
+                    {form.errorMsg && <div className="error-msg">{form.errorMsg}</div>}
+                </div>
             </div>
-
-            <button className="btn-calc" onClick={form.calculateTax}>計算する</button>
-            {form.errorMsg && <div className="error-msg">{form.errorMsg}</div>}
 
             {form.results !== null && (
                 <div className="result-section">

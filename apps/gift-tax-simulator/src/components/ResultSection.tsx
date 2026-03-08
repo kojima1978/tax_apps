@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import Calculator from 'lucide-react/icons/calculator';
 import TaxTable from './TaxTable';
 import { type CalculationResult } from '@/lib/tax-calculation';
 
@@ -10,7 +11,12 @@ type Props = {
 
 const ResultSection = ({ results }: Props) => {
     if (!results) {
-        return null;
+        return (
+            <div className="empty-state">
+                <Calculator size={48} strokeWidth={1.2} />
+                <p className="empty-state-text">贈与金額を入力して「計算する」を押すと、分割パターンごとの税額比較が表示されます。</p>
+            </div>
+        );
     }
 
     return (
