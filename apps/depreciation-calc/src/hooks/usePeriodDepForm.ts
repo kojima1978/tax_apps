@@ -90,7 +90,8 @@ export const usePeriodDepForm = () => {
         if (sy > 0 && schedule.length > 0) {
             const found = schedule.findIndex(row => {
                 const yearMatch = row.periodLabel.match(/^(\d{4})\//);
-                return yearMatch?.[1] && parseInt(yearMatch[1]) >= sy;
+                const y = yearMatch?.[1];
+                return y != null && parseInt(y) >= sy;
             });
             if (found >= 0) startIdx = found;
         }
