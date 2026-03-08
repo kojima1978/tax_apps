@@ -89,6 +89,7 @@ nginx/
 | `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター |
 | `/gift-tax-docs/` | `gift-tax-docs:3002` | 贈与税 必要書類 |
 | `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 |
+| `/used-asset-life/` | `used-asset-life:3015` | 中古資産の耐用年数計算 (Vite) |
 | `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Django + PostgreSQL) |
 | `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API |
 | `/bank-analyzer/static/` | `bank-analyzer:3007` | 銀行分析 静的ファイル |
