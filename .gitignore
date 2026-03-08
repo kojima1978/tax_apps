@@ -40,6 +40,13 @@ yarn-error.log*
 # Testing
 coverage/
 .nyc_output/
+.coverage
+htmlcov/
+playwright-report/
+test-results/
+
+# Playwright CLI (browser automation artifacts)
+.playwright-cli/
 
 # Python (bank-analyzer)
 __pycache__/
@@ -52,6 +59,10 @@ venv/
 ENV/
 env/
 .pytest_cache/
+.tox/
+.nox/
+*.egg-info/
+wheels/
 
 # Django
 *.sqlite3
@@ -62,6 +73,7 @@ user_settings.json
 # Temporary files
 *.tmp
 *.temp
+*.bak
 .cache/
 
 # Vercel
