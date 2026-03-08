@@ -250,9 +250,9 @@ function UnifiedDocumentViewComponent({
             </div>
             <div className="flex flex-wrap gap-2">
               {([
-                { id: 'save', icon: Download, label: lastSavedAt ? `保存 (${lastSavedAt})` : '保存', badge: isDirty ? '未保存' : null, onClick: onExportJson, title: '設定をJSONファイルとして保存 (Ctrl+S)', bg: isDirty ? 'bg-amber-500/80 hover:bg-amber-500' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
+                { id: 'save', icon: Download, label: lastSavedAt ? `保存 (${lastSavedAt})` : '保存', badge: isDirty ? '未保存' : null, onClick: onExportJson, disabled: false, title: '設定をJSONファイルとして保存 (Ctrl+S)', bg: isDirty ? 'bg-amber-500/80 hover:bg-amber-500' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
                 { id: 'excel', icon: FileSpreadsheet, label: isExporting ? '出力中...' : 'Excel', badge: null, onClick: handleExcelExport, disabled: isExporting, title: 'Excelファイルに出力 (Ctrl+E)', bg: `bg-emerald-500/80 hover:bg-emerald-500 ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}` },
-                { id: 'print', icon: FileDown, label: '印刷', badge: null, onClick: () => window.print(), title: '印刷', bg: 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
+                { id: 'print', icon: FileDown, label: '印刷', badge: null, onClick: () => window.print(), disabled: false, title: '印刷', bg: 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
                 { id: 'reset', icon: RotateCcw, label: '初期化', badge: null, onClick: () => setShowResetConfirm(true), disabled: !stats.hasCustomizations, title: '書類のカスタマイズをすべて初期状態に戻す', bg: stats.hasCustomizations ? 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' : 'bg-white/5 cursor-not-allowed opacity-50' },
               ] as const).map(({ id, icon: Icon, label, badge, onClick, disabled, title, bg }) => (
                 <button key={id} onClick={onClick} disabled={disabled} title={title} className={`${TOOLBAR_BTN} ${bg}`}>
@@ -385,9 +385,9 @@ function UnifiedDocumentViewComponent({
             <div className="flex items-center justify-between mt-1.5 text-xs text-slate-500">
               <span>{stats.checkedCount} / {stats.totalCount} 提出済み</span>
               {([
-                { show: stats.urgentCount > 0, text: `緊急: ${stats.urgentCount}件`, className: 'text-red-600 font-medium' },
-                { show: stats.excludedCount > 0, text: `対象外: ${stats.excludedCount}件` },
-                { show: stats.customCount > 0, text: `追加: ${stats.customCount}件` },
+                { show: stats.urgentCount > 0, text: `緊急: ${stats.urgentCount}件`, className: 'text-red-600 font-medium' as string | undefined },
+                { show: stats.excludedCount > 0, text: `対象外: ${stats.excludedCount}件`, className: undefined as string | undefined },
+                { show: stats.customCount > 0, text: `追加: ${stats.customCount}件`, className: undefined as string | undefined },
               ] as const).filter(s => s.show).map(({ text, className }) => (
                 <span key={text} className={className}>{text}</span>
               ))}
