@@ -101,7 +101,7 @@ export default function DocumentEditorPage() {
     }
   }, [customerId, year, documentGroups, toast]);
 
-  const handleSave = useCallback(() => performSave(false), [performSave]);
+  const handleSave = useCallback(async () => { await performSave(false); }, [performSave]);
 
   // 自動保存・Ctrl+S・beforeunload
   useAutoSave({
