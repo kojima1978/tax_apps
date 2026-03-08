@@ -233,9 +233,17 @@ export function useDocumentGuide() {
   const toggleCategoryDisabled = useCallback(createBooleanToggle(setDisabledCategories, markDirty), [markDirty]);
 
   /** 指定キーに紐づく関連 state をクリーンアップ */
-  const docStateSetters = [setEditedDocuments, setCanDelegateOverrides, setSpecificDocNames, setCheckedDocuments, setCheckedDates, setDocumentMemos, setExcludedDocuments, setUrgentDocuments] as const;
   const cleanupDocState = useCallback((keys: string[]) => {
-    docStateSetters.forEach(setter => setter((prev: Record<string, unknown>) => deleteKeys(prev, keys)));
+    const cleanup = <T,>(setter: React.Dispatch<React.SetStateAction<Record<string, T>>>) =>
+      setter((prev) => deleteKeys(prev, keys));
+    cleanup(setEditedDocuments);
+    cleanup(setCanDelegateOverrides);
+    cleanup(setSpecificDocNames);
+    cleanup(setCheckedDocuments);
+    cleanup(setCheckedDates);
+    cleanup(setDocumentMemos);
+    cleanup(setExcludedDocuments);
+    cleanup(setUrgentDocuments);
   }, []);
 
   // 書類の永久削除
