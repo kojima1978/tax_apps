@@ -39,7 +39,7 @@ const PLACEHOLDER_MAP: Record<string, string> = {
   other: '例: 具体的な書類名を入力',
 };
 
-const INPUT_CLASS = 'flex-1 px-2 py-0.5 border border-blue-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400';
+const INPUT_CLASS = 'flex-1 px-2 py-0.5 border border-emerald-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-emerald-400';
 
 /** 具体名の入力行（追加・編集共通） */
 function NameInputRow({
@@ -95,7 +95,7 @@ function SortableNameRow({
     <tr
       ref={setNodeRef}
       style={style}
-      className={`bg-blue-50/30 border-b border-slate-100 border-l-3 ${colorAccent} ${isDragging ? 'opacity-50 shadow-sm z-10' : ''}`}
+      className={`bg-emerald-50/30 border-b border-slate-100 border-l-3 ${colorAccent} ${isDragging ? 'opacity-50 shadow-sm z-10' : ''}`}
     >
       {/* 列1: ドラッグハンドル + 番号 */}
       <td className="w-10 px-1 py-1 text-center align-middle print:py-0.5">
@@ -115,7 +115,7 @@ function SortableNameRow({
         <div className="flex items-center gap-1">
           <span className="text-slate-400 font-mono text-[10px] flex-shrink-0 print:text-xs print:font-bold">{parentNumber}-{index + 1}</span>
           <span
-            className="flex-1 text-xs text-slate-600 cursor-pointer hover:text-blue-600 hover:underline transition-colors print:cursor-default print:hover:text-slate-600 print:no-underline print:text-sm"
+            className="flex-1 text-xs text-slate-600 cursor-pointer hover:text-emerald-600 hover:underline transition-colors print:cursor-default print:hover:text-slate-600 print:no-underline print:text-sm"
             onClick={() => onStartEdit(index)}
             title="クリックで編集"
           >
@@ -124,7 +124,7 @@ function SortableNameRow({
           <span className="print:hidden flex items-center gap-0.5 flex-shrink-0">
             <button
               onClick={() => onStartEdit(index)}
-              className="p-0.5 text-slate-400 hover:text-blue-500 transition-colors"
+              className="p-0.5 text-slate-400 hover:text-emerald-500 transition-colors"
               title="編集"
               aria-label="編集"
             >
@@ -233,7 +233,7 @@ function SpecificNamesTableRowsComponent({
               onCancel={cancelEdit}
               placeholder={placeholder}
               colorAccent={`${colorAccent} ${hiddenClass} ${printHiddenClass}`}
-              className="bg-blue-50/30"
+              className="bg-emerald-50/30"
               label={`${docNumber}-${i + 1}`}
               autoFocus
             />
@@ -261,7 +261,7 @@ function SpecificNamesTableRowsComponent({
           onCancel={closeAdd}
           placeholder={placeholder}
           colorAccent={`${colorAccent} print:hidden`}
-          className="bg-blue-50/20"
+          className="bg-emerald-50/20"
           inputRef={addInputRef}
         />
       ) : (
@@ -270,7 +270,7 @@ function SpecificNamesTableRowsComponent({
           <td colSpan={3} className="px-3 py-0.5">
             <button
               onClick={() => setAddingName(true)}
-              className="flex items-center gap-0.5 text-xs text-blue-500 hover:text-blue-700 transition-colors"
+              className="flex items-center gap-0.5 text-xs text-emerald-500 hover:text-emerald-700 transition-colors"
             >
               <Plus className="w-3 h-3" />
               具体名追加
