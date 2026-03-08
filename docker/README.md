@@ -265,6 +265,7 @@ manage.bat start
 | Tax Docs (backend) | `runner` | Node.js + tini | あり |
 | Shares Valuation | `runner` | nginx:1.27-alpine | あり |
 | Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
+| Used Asset Life | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
 | Stock Valuation Form | `runner` | nginx:1.27-alpine | あり（開発中・`--prod` でスキップ） |
 | Bank Analyzer | `production` | Gunicorn | あり |
@@ -454,6 +455,7 @@ docker network create tax-apps-network
 | Medical Stock | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人株式評価 |
 | Shares Valuation | http://localhost/shares/ | 3012 | Vite | 非上場株式評価 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
+| Used Asset Life | http://localhost/used-asset-life/ | 3015 | Vite | 中古資産の耐用年数計算 |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
 | Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書（開発中） |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 銀行分析 |
@@ -482,8 +484,9 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 8 | gift-tax-docs | Vite |
 | 9 | inheritance-tax-docs | Vite |
 | 10 | retirement-tax-calc | Vite |
-| 11 | stock-valuation-form | Vite（開発中・`--prod` でスキップ） |
-| 12 | gateway | Nginx + Portal（全アプリ起動後に起動） |
+| 11 | used-asset-life | Vite |
+| 12 | stock-valuation-form | Vite（開発中・`--prod` でスキップ） |
+| 13 | gateway | Nginx + Portal（全アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -502,6 +505,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 3012 | Shares Valuation | apps/shares-valuation |
 | 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
+| 3015 | Used Asset Life | apps/used-asset-life |
 | 3020 | ITCM Web | apps/inheritance-case-management |
 | 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
 
@@ -513,7 +517,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | docker-compose.yml ファイル存在確認（12個） | OK / WARN |
+| 3 | docker-compose.yml ファイル存在確認（13個） | OK / WARN |
 | 4 | Nginx 設定ファイル存在確認 | OK / WARN |
 | 5 | ITCM `.env` ファイル存在確認 | OK / WARN |
 | 6 | ポート競合検出（16ポート） | OK / WARN |
@@ -590,6 +594,8 @@ tax_apps/
 │   ├── shares-valuation/       # 非上場株式
 │   │   └── docker-compose.yml
 │   ├── retirement-tax-calc/    # 退職金税額計算
+│   │   └── docker-compose.yml
+│   ├── used-asset-life/        # 中古資産の耐用年数計算
 │   │   └── docker-compose.yml
 │   ├── stock-valuation-form/   # 株式評価明細書（開発中）
 │   │   ├── docker-compose.yml

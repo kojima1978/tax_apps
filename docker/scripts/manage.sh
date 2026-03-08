@@ -46,6 +46,7 @@ APPS=(
   "apps/gift-tax-docs"
   "apps/inheritance-tax-docs"
   "apps/retirement-tax-calc"
+  "apps/used-asset-life"
   "apps/stock-valuation-form"
   "docker/gateway"
 )
