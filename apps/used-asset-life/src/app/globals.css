@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* ベース */
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background-color: #fff;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* 数値フィールド用モノスペース */
+.font-mono-num {
+  font-family: 'Roboto Mono', monospace;
+}
+
+/* 印刷用スタイル */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 8mm;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 11pt;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* 償却表の印刷対応 */
+  table thead {
+    display: table-header-group;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  table tr {
+    page-break-inside: avoid;
+  }
+
+  /* テーブル: 全列表示（備考列含む） */
+  table th.hidden,
+  table td.hidden {
+    display: table-cell !important;
+  }
+
+  /* スティッキーヘッダー無効化（印刷時） */
+  .table-scroll-wrapper table thead th {
+    position: static;
+  }
+
+  .table-scroll-wrapper::after {
+    display: none;
+  }
+
+  /* セクション間のページ分割 */
+  section {
+    page-break-before: auto;
+    page-break-inside: avoid;
+  }
+
+  /* 結果ハイライトカードのページ分割防止 */
+  .grid {
+    page-break-inside: avoid;
+  }
+
+  /* フッターは最後に */
+  footer {
+    page-break-before: auto;
+    page-break-inside: avoid;
+  }
+
+  /* 参照リンクは印刷しない */
+  footer + div {
+    page-break-before: auto;
+  }
+}
+
+/* スティッキーテーブルヘッダー */
+.table-scroll-wrapper {
+  position: relative;
+}
+
+.table-scroll-wrapper table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* 横スクロールヒント（右端シャドウ） */
+.table-scroll-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(to left, rgba(0,0,0,0.06), transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.table-scroll-wrapper.has-scroll::after {
+  opacity: 1;
+}
+
+/* アニメーション軽減 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
