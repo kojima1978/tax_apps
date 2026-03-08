@@ -38,6 +38,8 @@ export interface FilterCriteria {
 }
 
 interface UnifiedDocumentViewProps {
+  isDirty: boolean;
+  lastSavedAt: string | null;
   clientName: string;
   deceasedName: string;
   deadline: string;
@@ -90,6 +92,8 @@ interface UnifiedDocumentViewProps {
 }
 
 function UnifiedDocumentViewComponent({
+  isDirty,
+  lastSavedAt,
   clientName,
   deceasedName,
   deadline,
@@ -168,19 +172,14 @@ function UnifiedDocumentViewComponent({
 
   const hasActiveFilters = showOnlyUnchecked || showOnlyDelegatable || showOnlyUrgent || hideExcluded || searchQuery !== '';
 
-  // B4: キーボードショートカット
+  // 未保存変更の離脱警告
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 's') {
-          e.preventDefault();
-          onExportJson();
-        }
-      }
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) { e.preventDefault(); }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onExportJson]);
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const printInfoFields: { label: string; value: string; format?: (v: string) => string }[] = [
     { label: 'お客様名', value: clientName, format: v => `${v} 様` },
@@ -216,6 +215,18 @@ function UnifiedDocumentViewComponent({
     }
   }, [getSelectedDocuments, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact]);
 
+  // B4: キーボードショートカット
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 's') { e.preventDefault(); onExportJson(); }
+        if (e.key === 'e') { e.preventDefault(); handleExcelExport(); }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onExportJson, handleExcelExport]);
+
   // A1: 進捗率の計算
   const progressPercent = stats.totalCount > 0 ? Math.round((stats.checkedCount / stats.totalCount) * 100) : 0;
 
@@ -239,13 +250,14 @@ function UnifiedDocumentViewComponent({
             </div>
             <div className="flex flex-wrap gap-2">
               {([
-                { id: 'save', icon: Download, label: '保存', onClick: onExportJson, title: '設定をJSONファイルとして保存 (Ctrl+S)', bg: 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
-                { id: 'excel', icon: FileSpreadsheet, label: isExporting ? '出力中...' : 'Excel', onClick: handleExcelExport, disabled: isExporting, bg: `bg-emerald-500/80 hover:bg-emerald-500 ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}` },
-                { id: 'print', icon: FileDown, label: '印刷', onClick: () => window.print(), bg: 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
-                { id: 'reset', icon: RotateCcw, label: '初期化', onClick: () => setShowResetConfirm(true), disabled: !stats.hasCustomizations, title: '書類のカスタマイズをすべて初期状態に戻す', bg: stats.hasCustomizations ? 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' : 'bg-white/5 cursor-not-allowed opacity-50' },
-              ] as const).map(({ id, icon: Icon, label, onClick, disabled, title, bg }) => (
+                { id: 'save', icon: Download, label: lastSavedAt ? `保存 (${lastSavedAt})` : '保存', badge: isDirty ? '未保存' : null, onClick: onExportJson, title: '設定をJSONファイルとして保存 (Ctrl+S)', bg: isDirty ? 'bg-amber-500/80 hover:bg-amber-500' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
+                { id: 'excel', icon: FileSpreadsheet, label: isExporting ? '出力中...' : 'Excel', badge: null, onClick: handleExcelExport, disabled: isExporting, title: 'Excelファイルに出力 (Ctrl+E)', bg: `bg-emerald-500/80 hover:bg-emerald-500 ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}` },
+                { id: 'print', icon: FileDown, label: '印刷', badge: null, onClick: () => window.print(), title: '印刷', bg: 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
+                { id: 'reset', icon: RotateCcw, label: '初期化', badge: null, onClick: () => setShowResetConfirm(true), disabled: !stats.hasCustomizations, title: '書類のカスタマイズをすべて初期状態に戻す', bg: stats.hasCustomizations ? 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' : 'bg-white/5 cursor-not-allowed opacity-50' },
+              ] as const).map(({ id, icon: Icon, label, badge, onClick, disabled, title, bg }) => (
                 <button key={id} onClick={onClick} disabled={disabled} title={title} className={`${TOOLBAR_BTN} ${bg}`}>
                   <Icon className="w-4 h-4 mr-1" /> {label}
+                  {badge && <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-bold">{badge}</span>}
                 </button>
               ))}
               <label
@@ -372,15 +384,13 @@ function UnifiedDocumentViewComponent({
             </div>
             <div className="flex items-center justify-between mt-1.5 text-xs text-slate-500">
               <span>{stats.checkedCount} / {stats.totalCount} 提出済み</span>
-              {stats.urgentCount > 0 && (
-                <span className="text-red-600 font-medium">緊急: {stats.urgentCount}件</span>
-              )}
-              {stats.excludedCount > 0 && (
-                <span>対象外: {stats.excludedCount}件</span>
-              )}
-              {stats.customCount > 0 && (
-                <span>追加: {stats.customCount}件</span>
-              )}
+              {([
+                { show: stats.urgentCount > 0, text: `緊急: ${stats.urgentCount}件`, className: 'text-red-600 font-medium' },
+                { show: stats.excludedCount > 0, text: `対象外: ${stats.excludedCount}件` },
+                { show: stats.customCount > 0, text: `追加: ${stats.customCount}件` },
+              ] as const).filter(s => s.show).map(({ text, className }) => (
+                <span key={text} className={className}>{text}</span>
+              ))}
             </div>
           </div>
 
@@ -389,20 +399,14 @@ function UnifiedDocumentViewComponent({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 {/* B1: すべて展開/折りたたみ */}
-                <button
-                  onClick={onExpandAll}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
-                  title="すべて展開"
-                >
-                  <ChevronsDown className="w-3.5 h-3.5" /> 全展開
-                </button>
-                <button
-                  onClick={onCollapseAll}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
-                  title="すべて折りたたみ"
-                >
-                  <ChevronsUp className="w-3.5 h-3.5" /> 全折りたたみ
-                </button>
+                {([
+                  { icon: ChevronsDown, label: '全展開', onClick: onExpandAll, title: 'すべて展開' },
+                  { icon: ChevronsUp, label: '全折りたたみ', onClick: onCollapseAll, title: 'すべて折りたたみ' },
+                ] as const).map(({ icon: Icon, label, onClick, title }) => (
+                  <button key={label} onClick={onClick} title={title} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors">
+                    <Icon className="w-3.5 h-3.5" /> {label}
+                  </button>
+                ))}
 
                 {/* B2: フィルター切替 */}
                 <button

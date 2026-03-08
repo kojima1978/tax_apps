@@ -22,7 +22,7 @@ export function DocumentFormModal({ isOpen, variant, initialValues, onSubmit, on
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
       onKeyDown={handleOverlayKeyDown}
       role="dialog"

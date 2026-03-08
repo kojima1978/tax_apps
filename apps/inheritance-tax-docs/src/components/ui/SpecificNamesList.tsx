@@ -41,6 +41,45 @@ const PLACEHOLDER_MAP: Record<string, string> = {
 
 const INPUT_CLASS = 'flex-1 px-2 py-0.5 border border-blue-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400';
 
+/** 具体名の入力行（追加・編集共通） */
+function NameInputRow({
+  value, onChange, onKeyDown, onSubmit, onCancel, placeholder, colorAccent, className, label, inputRef, autoFocus,
+}: {
+  value: string; onChange: (v: string) => void; onKeyDown: (e: React.KeyboardEvent) => void;
+  onSubmit: () => void; onCancel: () => void; placeholder: string;
+  colorAccent: string; className?: string; label?: string;
+  inputRef?: React.RefObject<HTMLInputElement | null>; autoFocus?: boolean;
+}) {
+  return (
+    <tr className={`border-b border-slate-100 border-l-3 ${colorAccent} ${className ?? ''}`}>
+      <td className="w-10 px-1 py-1" />
+      <td colSpan={3} className="px-3 py-1">
+        <div className="flex items-center gap-1">
+          {label && <span className="text-slate-400 font-mono text-[10px] flex-shrink-0">{label}</span>}
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={placeholder}
+            autoFocus={autoFocus}
+            className={INPUT_CLASS}
+          />
+          <button onClick={onSubmit} className="p-0.5 text-slate-400 hover:text-emerald-600 transition-colors" title="保存" aria-label="保存">
+            <Check className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={onCancel} className="p-0.5 text-slate-400 hover:text-red-500 transition-colors" title="キャンセル" aria-label="キャンセル">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </td>
+      <td className="w-16 px-2 py-1" />
+      <td className="w-20 px-1 py-1 print:hidden" />
+    </tr>
+  );
+}
+
 /** ソート可能なテーブルサブ行 */
 function SortableNameRow({
   name, index, parentNumber, colorAccent, onStartEdit, onRemove,
@@ -185,31 +224,19 @@ function SpecificNamesTableRowsComponent({
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         {names.map((name, i) => (
           editingIndex === i ? (
-            <tr key={i} className={`bg-blue-50/30 border-b border-slate-100 border-l-3 ${colorAccent} ${hiddenClass} ${printHiddenClass}`}>
-              <td className="w-10 px-1 py-1" />
-              <td colSpan={3} className="px-3 py-1">
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-400 font-mono text-[10px] flex-shrink-0">{docNumber}-{i + 1}</span>
-                  <input
-                    type="text"
-                    value={editingValue}
-                    onChange={(e) => setEditingValue(e.target.value)}
-                    onKeyDown={handleEditKeyDown}
-                    placeholder={placeholder}
-                    autoFocus
-                    className={INPUT_CLASS}
-                  />
-                  <button onClick={submitEdit} className="p-0.5 text-slate-400 hover:text-emerald-600 transition-colors" title="保存" aria-label="保存">
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={cancelEdit} className="p-0.5 text-slate-400 hover:text-red-500 transition-colors" title="キャンセル" aria-label="キャンセル">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </td>
-              <td className="w-16 px-2 py-1" />
-              <td className="w-20 px-1 py-1 print:hidden" />
-            </tr>
+            <NameInputRow
+              key={i}
+              value={editingValue}
+              onChange={setEditingValue}
+              onKeyDown={handleEditKeyDown}
+              onSubmit={submitEdit}
+              onCancel={cancelEdit}
+              placeholder={placeholder}
+              colorAccent={`${colorAccent} ${hiddenClass} ${printHiddenClass}`}
+              className="bg-blue-50/30"
+              label={`${docNumber}-${i + 1}`}
+              autoFocus
+            />
           ) : (
             <SortableNameRow
               key={i}
@@ -226,30 +253,17 @@ function SpecificNamesTableRowsComponent({
 
       {/* 具体名追加行 */}
       {addingName ? (
-        <tr className={`bg-blue-50/20 border-b border-slate-100 border-l-3 ${colorAccent} print:hidden`}>
-          <td className="w-10 px-1 py-1" />
-          <td colSpan={3} className="px-3 py-1">
-            <div className="flex items-center gap-1">
-              <input
-                ref={addInputRef}
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={handleAddKeyDown}
-                placeholder={placeholder}
-                className={INPUT_CLASS}
-              />
-              <button onClick={submitAdd} className="p-0.5 text-slate-400 hover:text-emerald-600 transition-colors" title="登録" aria-label="登録">
-                <Check className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={closeAdd} className="p-0.5 text-slate-400 hover:text-red-500 transition-colors" title="完了" aria-label="完了">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </td>
-          <td className="w-16 px-2 py-1" />
-          <td className="w-20 px-1 py-1 print:hidden" />
-        </tr>
+        <NameInputRow
+          value={newName}
+          onChange={setNewName}
+          onKeyDown={handleAddKeyDown}
+          onSubmit={submitAdd}
+          onCancel={closeAdd}
+          placeholder={placeholder}
+          colorAccent={`${colorAccent} print:hidden`}
+          className="bg-blue-50/20"
+          inputRef={addInputRef}
+        />
       ) : (
         <tr className={`border-b border-slate-100 border-l-3 ${colorAccent} print:hidden ${hiddenClass}`}>
           <td className="w-10 px-1 py-0.5" />
