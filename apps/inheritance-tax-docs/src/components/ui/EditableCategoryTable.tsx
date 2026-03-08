@@ -365,80 +365,51 @@ function EditableCategoryTableComponent({
 
       {/* テーブル本体（折りたたみ時は print のみ表示） */}
       <div className={`border border-t-0 border-slate-200 rounded-b-lg overflow-hidden print:border-t print:rounded-sm ${isExpanded ? '' : 'hidden print:block'}`}>
-        {isExpanded && isMounted ? (
-          <DndContext
-            id={dndId}
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
+        {(() => {
+          const renderDocRows = (RowComponent: typeof SortableDocumentRow | typeof StaticDocumentRow) =>
+            orderedDocs.map((doc, i) => {
+              const docIsExcluded = excludedDocuments[doc.id] ?? false;
+              return (
+                <React.Fragment key={doc.id}>
+                  <RowComponent {...getRowProps(doc, i)} />
+                  {!docIsExcluded && (
+                    <SpecificNamesTableRows
+                      docId={doc.id}
+                      categoryId={category.id}
+                      docNumber={`${i + 1}`}
+                      names={specificDocNames[doc.id] || []}
+                      colorAccent={colorAccent}
+                      isVisible={filteredDocIds.has(doc.id)}
+                      hideSubmittedInPrint={hideSubmittedInPrint}
+                      isChecked={checkedDocuments[doc.id] ?? false}
+                      onAdd={onAddSpecificName}
+                      onEdit={onEditSpecificName}
+                      onRemove={onRemoveSpecificName}
+                      onReorder={onReorderSpecificNames}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            });
+
+          return isExpanded && isMounted ? (
+            <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <table className="w-full text-sm print-compact-table">
+                {tableHead}
+                <tbody>
+                  <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+                    {renderDocRows(SortableDocumentRow)}
+                  </SortableContext>
+                </tbody>
+              </table>
+            </DndContext>
+          ) : (
             <table className="w-full text-sm print-compact-table">
               {tableHead}
-              <tbody>
-                <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-                  {orderedDocs.map((doc, i) => {
-                    const names = specificDocNames[doc.id] || [];
-                    const docIsExcluded = excludedDocuments[doc.id] ?? false;
-                    const docIsChecked = checkedDocuments[doc.id] ?? false;
-                    return (
-                      <React.Fragment key={doc.id}>
-                        <SortableDocumentRow {...getRowProps(doc, i)} />
-                        {!docIsExcluded && (
-                          <SpecificNamesTableRows
-                            docId={doc.id}
-                            categoryId={category.id}
-                            docNumber={`${i + 1}`}
-                            names={names}
-                            colorAccent={colorAccent}
-                            isVisible={filteredDocIds.has(doc.id)}
-                            hideSubmittedInPrint={hideSubmittedInPrint}
-                            isChecked={docIsChecked}
-                            onAdd={onAddSpecificName}
-                            onEdit={onEditSpecificName}
-                            onRemove={onRemoveSpecificName}
-                            onReorder={onReorderSpecificNames}
-                          />
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </SortableContext>
-              </tbody>
+              <tbody>{renderDocRows(StaticDocumentRow)}</tbody>
             </table>
-          </DndContext>
-        ) : (
-          <table className="w-full text-sm print-compact-table">
-            {tableHead}
-            <tbody>
-              {orderedDocs.map((doc, i) => {
-                const names = specificDocNames[doc.id] || [];
-                const docIsExcluded = excludedDocuments[doc.id] ?? false;
-                const docIsChecked = checkedDocuments[doc.id] ?? false;
-                return (
-                  <React.Fragment key={doc.id}>
-                    <StaticDocumentRow {...getRowProps(doc, i)} />
-                    {!docIsExcluded && (
-                      <SpecificNamesTableRows
-                        docId={doc.id}
-                        categoryId={category.id}
-                        docNumber={`${i + 1}`}
-                        names={names}
-                        colorAccent={colorAccent}
-                        isVisible={filteredDocIds.has(doc.id)}
-                        hideSubmittedInPrint={hideSubmittedInPrint}
-                        isChecked={docIsChecked}
-                        onAdd={onAddSpecificName}
-                        onEdit={onEditSpecificName}
-                        onRemove={onRemoveSpecificName}
-                        onReorder={onReorderSpecificNames}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+          );
+        })()}
         {/* 書類追加ボタン */}
         <button
           onClick={() => onOpenAddModal(category.id)}
