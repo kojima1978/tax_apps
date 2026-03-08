@@ -55,7 +55,7 @@ cd apps/<app-name> && docker compose up -d
 | inheritance-tax-app | `/inheritance-tax-app/` | 3004 | Vite/React |
 | gift-tax-simulator | `/gift-tax-simulator/` | 3001 | Vite/React + Chart.js |
 | gift-tax-docs | `/gift-tax-docs/` | 3002 | Next.js + @dnd-kit + xlsx-js-style |
-| inheritance-tax-docs | `/inheritance-tax-docs/` | 3003 | Next.js + @dnd-kit + xlsx-js-style |
+| inheritance-tax-docs | `/inheritance-tax-docs/` | 3003 | Vite/React + @dnd-kit + xlsx-js-style |
 | tax-docs (frontend) | `/tax-docs/` | 3005 | Vite/React + @dnd-kit + xlsx-js-style |
 | tax-docs (backend) | `/tax-docs-api/` | 3006 | Express + better-sqlite3 |
 | medical-stock-valuation | `/medical/` | 3010 | Next.js + SQLite (Prisma) |
