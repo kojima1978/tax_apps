@@ -7,20 +7,22 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useId } from 'react';
-import { Plus, Info } from 'lucide-react';
+import { useId, useState, useMemo, useCallback, useEffect } from 'react';
+import { Plus, Info, FileText, Search } from 'lucide-react';
 import { InlineAddInput } from '@/components/ui/EditableInput';
 import { useGiftTaxGuide } from '@/hooks/useGiftTaxGuide';
 import { useEditableListEditing } from '@/hooks/useEditableListEditing';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
+import { useToast } from '@/hooks/useToast';
 import { ResetConfirmDialog, ImportConfirmDialog, DeleteConfirmDialog, ImportErrorDialog } from '@/components/ui/ConfirmDialog';
 import { SortableDocumentItem, DragOverlayItem } from '@/components/ui/SortableDocumentItem';
 import { SortableCategoryCard, CategoryDragOverlay } from '@/components/ui/SortableCategoryCard';
 import { EditToolbar } from '@/components/ui/EditToolbar';
 import { AddCategoryForm } from '@/components/ui/AddCategoryForm';
 import { PrintSection } from '@/components/ui/PrintSection';
+import { ToastContainer } from '@/components/ui/Toast';
 
-const infoBarInputClass = 'px-3 py-1.5 rounded border border-slate-300 focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-sm text-slate-800 placeholder-slate-400';
+const infoBarInputClass = 'px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 bg-white dark:bg-slate-800 transition-colors';
 
 const INFO_BAR_FIELDS = [
   { id: 'customerName', label: 'お客様名:', type: 'text', placeholder: '例：山田 太郎 様' },
@@ -28,6 +30,8 @@ const INFO_BAR_FIELDS = [
   { id: 'staffName', label: '担当者名:', type: 'text', placeholder: '例：鈴木 一郎' },
   { id: 'staffPhone', label: '担当者携帯:', type: 'tel', placeholder: '例：090-1234-5678' },
 ] as const;
+
+const DARK_STORAGE_KEY = 'gift_tax_dark_mode';
 
 export const EditableListStep = () => {
   const {
@@ -51,6 +55,8 @@ export const EditableListStep = () => {
     setDocumentList,
   } = useGiftTaxGuide();
 
+  const { toasts, addToast, removeToast } = useToast();
+
   const editing = useEditableListEditing({
     documentList,
     setDocumentList,
@@ -67,8 +73,72 @@ export const EditableListStep = () => {
   const dnd = useDragAndDrop(documentList, setDocumentList);
   const dndId = useId();
 
+  // ─── ダークモード ───
+  const [isDark, setIsDark] = useState(() => {
+    try {
+      return localStorage.getItem(DARK_STORAGE_KEY) === 'true';
+    } catch { return false; }
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+    try { localStorage.setItem(DARK_STORAGE_KEY, String(isDark)); } catch { /* ignore */ }
+  }, [isDark]);
+
+  const toggleDark = useCallback(() => setIsDark(prev => !prev), []);
+
+  // ─── 検索 ───
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredList = useMemo(() => {
+    if (!searchQuery.trim()) return documentList;
+    const q = searchQuery.trim().toLowerCase();
+    return documentList
+      .map(cat => ({
+        ...cat,
+        documents: cat.documents.filter(
+          doc => doc.text.toLowerCase().includes(q) ||
+                 doc.subItems.some(s => s.text.toLowerCase().includes(q))
+        ),
+      }))
+      .filter(cat => cat.documents.length > 0 || cat.name.toLowerCase().includes(q));
+  }, [documentList, searchQuery]);
+
+  // ─── ローディング ───
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExcelExportWithLoading = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      await Promise.resolve(handleExcelExport());
+      addToast('Excelファイルを出力しました', 'success');
+    } catch {
+      addToast('Excel出力に失敗しました', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [handleExcelExport, addToast]);
+
+  const handleJsonExportWithToast = useCallback(() => {
+    editing.handleJsonExport();
+    addToast('JSONファイルを出力しました', 'success');
+  }, [editing.handleJsonExport, addToast]);
+
+  const handleResetWithToast = useCallback(() => {
+    editing.handleResetToDefault();
+    addToast('初期状態にリセットしました', 'info');
+  }, [editing.handleResetToDefault, addToast]);
+
+  const handleImportWithToast = useCallback(() => {
+    editing.confirmImport();
+    addToast('データを取り込みました', 'success');
+  }, [editing.confirmImport, addToast]);
+
   const valueMap = { customerName, staffName, staffPhone, deadline } as const;
   const setterMap = { customerName: setCustomerName, staffName: setStaffName, staffPhone: setStaffPhone, deadline: setDeadline } as const;
+
+  const isSearching = searchQuery.trim() !== '';
+  const displayList = isSearching ? filteredList : documentList;
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
@@ -78,21 +148,26 @@ export const EditableListStep = () => {
         totalCount={editing.totalCount}
         onExpandAll={editing.handleExpandAll}
         onShowResetDialog={() => editing.setShowResetDialog(true)}
-        onJsonExport={editing.handleJsonExport}
+        onJsonExport={handleJsonExportWithToast}
         onFileSelect={editing.handleFileSelect}
         onPrint={handlePrint}
-        onExcelExport={handleExcelExport}
+        onExcelExport={handleExcelExportWithLoading}
         isTwoColumnPrint={isTwoColumnPrint}
         togglePrintColumn={togglePrintColumn}
         hideSubmittedInPrint={hideSubmittedInPrint}
         toggleHideSubmitted={toggleHideSubmitted}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        isDark={isDark}
+        toggleDark={toggleDark}
+        isExporting={isExporting}
       />
 
       {/* 入力バー */}
-      <div className="no-print bg-white rounded-xl shadow p-4 mb-6 flex flex-wrap items-center gap-4">
+      <div className="no-print bg-white dark:bg-slate-800 rounded-xl shadow dark:shadow-slate-900/50 p-4 mb-6 flex flex-wrap items-center gap-4 transition-colors">
         {INFO_BAR_FIELDS.map((field) => (
           <div key={field.id} className="flex items-center gap-2">
-            <label htmlFor={field.id} className="text-sm font-medium text-slate-600 whitespace-nowrap">{field.label}</label>
+            <label htmlFor={field.id} className="text-sm font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{field.label}</label>
             <input
               type={field.type}
               id={field.id}
@@ -107,115 +182,156 @@ export const EditableListStep = () => {
 
       {/* カテゴリリスト（画面表示のみ、印刷非表示） */}
       <div className="no-print">
-        <DndContext
-          id={dndId}
-          sensors={dnd.sensors}
-          collisionDetection={closestCenter}
-          onDragStart={dnd.handleDragStart}
-          onDragEnd={dnd.handleDragEnd}
-        >
-          <SortableContext
-            items={documentList.map((c) => `category-${c.id}`)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="space-y-4">
-              {documentList.map((category) => (
-                  <SortableCategoryCard
-                    key={category.id}
-                    category={category}
-                    editState={editing.categoryEditState}
-                    handlers={editing.categoryHandlers}
-                  >
-                    <div className="p-4">
-                      {/* 注記 */}
-                      {category.note && (
-                        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start text-sm text-amber-800" role="note">
-                          <Info className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                          {category.note}
-                        </div>
-                      )}
+        {/* 検索結果カウント */}
+        {isSearching && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <Search className="w-4 h-4" aria-hidden="true" />
+            <span>「{searchQuery}」の検索結果: {filteredList.reduce((acc, c) => acc + c.documents.length, 0)} 件</span>
+          </div>
+        )}
 
-                      {/* 書類リスト */}
-                      <SortableContext
-                        items={category.documents.map((d) => d.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <ul className="space-y-2">
-                          {category.documents.map((doc) => (
-                            <SortableDocumentItem
-                              key={doc.id}
-                              doc={doc}
-                              categoryId={category.id}
-                              isEditing={editing.editingDoc?.categoryId === category.id && editing.editingDoc?.docId === doc.id}
-                              editText={editing.editText}
-                              setEditText={editing.setEditText}
-                              onConfirmEdit={editing.confirmEdit}
-                              onCancelEdit={editing.cancelEdit}
-                              docHandlers={editing.docHandlers}
-                              editingSubItem={editing.editingSubItem}
-                              editSubItemText={editing.editSubItemText}
-                              setEditSubItemText={editing.setEditSubItemText}
-                              addingSubItemTo={editing.addingSubItemTo}
-                              newSubItemText={editing.newSubItemText}
-                              setNewSubItemText={editing.setNewSubItemText}
-                              subItemHandlers={editing.subItemHandlers}
-                            />
-                          ))}
-                        </ul>
-                      </SortableContext>
-
-                      {/* 書類追加 */}
-                      {editing.addingToCategory === category.id ? (
-                        <div className="mt-3 flex items-center gap-2">
-                          <InlineAddInput
-                            value={editing.newDocText}
-                            onChange={editing.setNewDocText}
-                            onConfirm={() => editing.handleAddDocument(category.id)}
-                            onCancel={editing.cancelAddDocument}
-                            placeholder="書類名を入力..."
-                            ariaLabel="新しい書類名を入力"
-                          />
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => editing.setAddingToCategory(category.id)}
-                          className="mt-3 flex items-center px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50 rounded-lg border border-dashed border-emerald-300 transition-colors w-full justify-center"
-                          aria-label={`${category.name}に書類を追加`}
-                        >
-                          <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
-                          書類を追加
-                        </button>
-                      )}
-                    </div>
-                  </SortableCategoryCard>
-              ))}
-
-              {/* カテゴリ追加 */}
-              <AddCategoryForm
-                isAdding={editing.isAddingCategory}
-                setIsAdding={editing.setIsAddingCategory}
-                name={editing.newCategoryName}
-                setName={editing.setNewCategoryName}
-                isSpecial={editing.newCategoryIsSpecial}
-                setIsSpecial={editing.setNewCategoryIsSpecial}
-                onAdd={editing.handleAddCategory}
-                onCancel={editing.cancelAddCategory}
-              />
+        {/* 空状態 */}
+        {displayList.length === 0 ? (
+          <div className="text-center py-16 animate-fade-in">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full mb-6">
+              {isSearching
+                ? <Search className="w-10 h-10 text-slate-400" />
+                : <FileText className="w-10 h-10 text-slate-400" />
+              }
             </div>
-          </SortableContext>
+            <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mb-2">
+              {isSearching ? '該当する書類が見つかりません' : '書類がありません'}
+            </h3>
+            <p className="text-sm text-slate-400 dark:text-slate-500 mb-6">
+              {isSearching
+                ? '検索条件を変更してお試しください'
+                : '下のボタンからカテゴリを追加してください'
+              }
+            </p>
+            {isSearching && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+              >
+                検索をクリア
+              </button>
+            )}
+          </div>
+        ) : (
+          <DndContext
+            id={dndId}
+            sensors={dnd.sensors}
+            collisionDetection={closestCenter}
+            onDragStart={dnd.handleDragStart}
+            onDragEnd={dnd.handleDragEnd}
+          >
+            <SortableContext
+              items={documentList.map((c) => `category-${c.id}`)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {displayList.map((category) => (
+                    <SortableCategoryCard
+                      key={category.id}
+                      category={category}
+                      editState={editing.categoryEditState}
+                      handlers={editing.categoryHandlers}
+                    >
+                      <div className="p-4">
+                        {/* 注記 */}
+                        {category.note && (
+                          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start text-sm text-amber-800 dark:text-amber-300" role="note">
+                            <Info className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                            {category.note}
+                          </div>
+                        )}
 
-          {/* ドラッグオーバーレイ */}
-          <DragOverlay>
-            {dnd.isDraggingCategory && dnd.activeId && dnd.activeCategory ? (
-              <CategoryDragOverlay category={dnd.activeCategory} />
-            ) : dnd.activeId && dnd.activeDocument ? (
-              <DragOverlayItem doc={dnd.activeDocument} />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+                        {/* 書類リスト */}
+                        <SortableContext
+                          items={category.documents.map((d) => d.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <ul className="space-y-2">
+                            {category.documents.map((doc) => (
+                              <SortableDocumentItem
+                                key={doc.id}
+                                doc={doc}
+                                categoryId={category.id}
+                                isEditing={editing.editingDoc?.categoryId === category.id && editing.editingDoc?.docId === doc.id}
+                                editText={editing.editText}
+                                setEditText={editing.setEditText}
+                                onConfirmEdit={editing.confirmEdit}
+                                onCancelEdit={editing.cancelEdit}
+                                docHandlers={editing.docHandlers}
+                                editingSubItem={editing.editingSubItem}
+                                editSubItemText={editing.editSubItemText}
+                                setEditSubItemText={editing.setEditSubItemText}
+                                addingSubItemTo={editing.addingSubItemTo}
+                                newSubItemText={editing.newSubItemText}
+                                setNewSubItemText={editing.setNewSubItemText}
+                                subItemHandlers={editing.subItemHandlers}
+                              />
+                            ))}
+                          </ul>
+                        </SortableContext>
+
+                        {/* 書類追加 */}
+                        {!isSearching && (
+                          editing.addingToCategory === category.id ? (
+                            <div className="mt-3 flex items-center gap-2">
+                              <InlineAddInput
+                                value={editing.newDocText}
+                                onChange={editing.setNewDocText}
+                                onConfirm={() => editing.handleAddDocument(category.id)}
+                                onCancel={editing.cancelAddDocument}
+                                placeholder="書類名を入力..."
+                                ariaLabel="新しい書類名を入力"
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => editing.setAddingToCategory(category.id)}
+                              className="mt-3 flex items-center px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg border border-dashed border-emerald-300 dark:border-emerald-700 transition-colors w-full justify-center"
+                              aria-label={`${category.name}に書類を追加`}
+                            >
+                              <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
+                              書類を追加
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </SortableCategoryCard>
+                ))}
+
+                {/* カテゴリ追加（検索中は非表示） */}
+                {!isSearching && (
+                  <AddCategoryForm
+                    isAdding={editing.isAddingCategory}
+                    setIsAdding={editing.setIsAddingCategory}
+                    name={editing.newCategoryName}
+                    setName={editing.setNewCategoryName}
+                    isSpecial={editing.newCategoryIsSpecial}
+                    setIsSpecial={editing.setNewCategoryIsSpecial}
+                    onAdd={editing.handleAddCategory}
+                    onCancel={editing.cancelAddCategory}
+                  />
+                )}
+              </div>
+            </SortableContext>
+
+            {/* ドラッグオーバーレイ */}
+            <DragOverlay>
+              {dnd.isDraggingCategory && dnd.activeId && dnd.activeCategory ? (
+                <CategoryDragOverlay category={dnd.activeCategory} />
+              ) : dnd.activeId && dnd.activeDocument ? (
+                <DragOverlayItem doc={dnd.activeDocument} />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
 
         {/* フッター */}
-        <div className="mt-8 text-center text-sm text-slate-400">
+        <div className="mt-8 text-center text-sm text-slate-400 dark:text-slate-500">
           ※チェックを入れると提出済み（取り消し線）になります
         </div>
       </div>
@@ -234,7 +350,7 @@ export const EditableListStep = () => {
       {/* リセット確認ダイアログ */}
       {editing.showResetDialog && (
         <ResetConfirmDialog
-          onConfirm={editing.handleResetToDefault}
+          onConfirm={handleResetWithToast}
           onCancel={() => editing.setShowResetDialog(false)}
         />
       )}
@@ -243,7 +359,7 @@ export const EditableListStep = () => {
       {editing.showImportDialog && editing.importPreview && (
         <ImportConfirmDialog
           preview={editing.importPreview}
-          onConfirm={editing.confirmImport}
+          onConfirm={handleImportWithToast}
           onCancel={editing.cancelImport}
         />
       )}
@@ -262,6 +378,9 @@ export const EditableListStep = () => {
       {editing.importError && (
         <ImportErrorDialog onDismiss={editing.dismissImportError} />
       )}
+
+      {/* トースト通知 */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };

@@ -1,9 +1,18 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
   background: #ffffff;
   color: #171717;
   font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.dark body,
+body.dark {
+  background: #0f172a;
+  color: #e2e8f0;
 }
 
 /* アニメーション */
@@ -20,6 +29,27 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* トースト通知アニメーション */
+.animate-toast-in {
+  animation: toastIn 0.3s ease-out;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* プログレスバー */
+.progress-bar {
+  transition: width 0.4s ease-in-out;
 }
 
 /* アニメーション軽減 */
@@ -42,6 +72,7 @@ body {
 
   body {
     background: white;
+    color: #171717;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

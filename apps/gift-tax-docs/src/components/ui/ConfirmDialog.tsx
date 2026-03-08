@@ -20,7 +20,7 @@ const DialogOverlay = ({ labelledBy, onClose, role = 'dialog', maxWidth = 'max-w
     onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
     onClick={onClose}
   >
-    <div className={`bg-white rounded-xl shadow-2xl p-6 ${maxWidth} mx-4`} onClick={(e) => e.stopPropagation()}>
+    <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 ${maxWidth} mx-4`} onClick={(e) => e.stopPropagation()}>
       {children}
     </div>
   </div>
@@ -40,13 +40,13 @@ const DialogHeader = ({ titleId, title, icon, iconBgClass }: DialogHeaderProps) 
     <div className={`w-12 h-12 ${iconBgClass} rounded-full flex items-center justify-center`}>
       {icon}
     </div>
-    <h3 id={titleId} className="text-xl font-bold text-slate-800">{title}</h3>
+    <h3 id={titleId} className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h3>
   </div>
 );
 
 // ─── 共通ダイアログボタン ───
 
-const cancelBtnClass = 'px-5 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium';
+const cancelBtnClass = 'px-5 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium';
 
 type DialogButtonsProps = {
   onCancel: () => void;
@@ -81,10 +81,10 @@ export const DeleteConfirmDialog = ({ message, subMessage, onConfirm, onCancel }
       titleId="delete-dialog-title"
       title={message}
       icon={<Trash2 className="w-6 h-6 text-red-600" aria-hidden="true" />}
-      iconBgClass="bg-red-100"
+      iconBgClass="bg-red-100 dark:bg-red-900/50"
     />
     {subMessage && (
-      <p className="mb-6 pl-15 text-sm text-slate-500">{subMessage}</p>
+      <p className="mb-6 pl-15 text-sm text-slate-500 dark:text-slate-400">{subMessage}</p>
     )}
     <DialogButtons onCancel={onCancel} onConfirm={onConfirm} confirmLabel="削除" confirmClass="bg-red-500 hover:bg-red-600" />
   </DialogOverlay>
@@ -103,11 +103,11 @@ export const ResetConfirmDialog = ({ onConfirm, onCancel }: ResetConfirmDialogPr
       titleId="reset-dialog-title"
       title="編集内容をリセットしますか？"
       icon={<AlertTriangle className="w-6 h-6 text-amber-600" aria-hidden="true" />}
-      iconBgClass="bg-amber-100"
+      iconBgClass="bg-amber-100 dark:bg-amber-900/50"
     />
     <div className="mb-6 pl-15">
-      <p className="text-slate-600 mb-3">以下の内容が初期状態に戻ります：</p>
-      <ul className="text-sm text-slate-500 space-y-1">
+      <p className="text-slate-600 dark:text-slate-300 mb-3">以下の内容が初期状態に戻ります：</p>
+      <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
         {['チェック状態', '追加したカテゴリ・書類', '中項目', '並び順'].map((item) => (
           <li key={item} className="flex items-center">
             <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" aria-hidden="true" />
@@ -134,40 +134,40 @@ export const ImportConfirmDialog = ({ preview, onConfirm, onCancel }: ImportConf
       titleId="import-dialog-title"
       title="データを取り込みますか？"
       icon={<Upload className="w-6 h-6 text-violet-600" aria-hidden="true" />}
-      iconBgClass="bg-violet-100"
+      iconBgClass="bg-violet-100 dark:bg-violet-900/50"
     />
     <div className="mb-6">
-      <p className="text-slate-600 mb-3">以下のデータが読み込まれます：</p>
-      <div className="bg-slate-50 p-4 rounded-lg space-y-2 text-sm">
+      <p className="text-slate-600 dark:text-slate-300 mb-3">以下のデータが読み込まれます：</p>
+      <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg space-y-2 text-sm">
         {preview.customerName && (
-          <p><span className="text-slate-500">お客様名:</span> <span className="font-medium">{preview.customerName}</span></p>
+          <p><span className="text-slate-500 dark:text-slate-400">お客様名:</span> <span className="font-medium dark:text-slate-200">{preview.customerName}</span></p>
         )}
         {preview.staffName && (
-          <p><span className="text-slate-500">担当者:</span> <span className="font-medium">{preview.staffName}</span></p>
+          <p><span className="text-slate-500 dark:text-slate-400">担当者:</span> <span className="font-medium dark:text-slate-200">{preview.staffName}</span></p>
         )}
         {preview.staffPhone && (
-          <p><span className="text-slate-500">担当者携帯:</span> <span className="font-medium">{preview.staffPhone}</span></p>
+          <p><span className="text-slate-500 dark:text-slate-400">担当者携帯:</span> <span className="font-medium dark:text-slate-200">{preview.staffPhone}</span></p>
         )}
         <p>
-          <span className="text-slate-500">カテゴリ数:</span>{' '}
-          <span className="font-medium">{preview.documentList.length}</span>
+          <span className="text-slate-500 dark:text-slate-400">カテゴリ数:</span>{' '}
+          <span className="font-medium dark:text-slate-200">{preview.documentList.length}</span>
         </p>
         <p>
-          <span className="text-slate-500">書類数:</span>{' '}
-          <span className="font-medium">
+          <span className="text-slate-500 dark:text-slate-400">書類数:</span>{' '}
+          <span className="font-medium dark:text-slate-200">
             {preview.documentList.reduce((acc, cat) => acc + cat.documents.length, 0)}
           </span>
         </p>
         {preview.exportedAt && (
           <p>
-            <span className="text-slate-500">エクスポート日時:</span>{' '}
-            <span className="font-medium">
+            <span className="text-slate-500 dark:text-slate-400">エクスポート日時:</span>{' '}
+            <span className="font-medium dark:text-slate-200">
               {new Date(preview.exportedAt).toLocaleString('ja-JP')}
             </span>
           </p>
         )}
       </div>
-      <p className="mt-3 text-sm text-amber-600">
+      <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
         ※現在の編集内容は上書きされます
       </p>
     </div>
@@ -187,9 +187,9 @@ export const ImportErrorDialog = ({ onDismiss }: ImportErrorDialogProps) => (
       titleId="import-error-dialog-title"
       title="読み込みに失敗しました"
       icon={<XCircle className="w-6 h-6 text-red-600" aria-hidden="true" />}
-      iconBgClass="bg-red-100"
+      iconBgClass="bg-red-100 dark:bg-red-900/50"
     />
-    <p className="mb-6 pl-15 text-sm text-slate-500">
+    <p className="mb-6 pl-15 text-sm text-slate-500 dark:text-slate-400">
       JSONファイルの形式を確認してください。
     </p>
     <div className="flex justify-end">

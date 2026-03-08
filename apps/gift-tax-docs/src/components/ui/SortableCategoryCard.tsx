@@ -33,15 +33,41 @@ type CategoryHandlers = {
   toggleAll: (id: string, checked: boolean) => void;
 };
 
+// ─── プログレスバー ───
+
+const ProgressBar = ({ checked, total, isSpecial }: { checked: number; total: number; isSpecial: boolean }) => {
+  if (total === 0) return null;
+  const pct = Math.round((checked / total) * 100);
+  return (
+    <div className="h-1 w-full bg-slate-200 dark:bg-slate-700">
+      <div
+        className={`h-full progress-bar rounded-r ${
+          pct === 100
+            ? 'bg-emerald-500'
+            : isSpecial
+            ? 'bg-purple-400'
+            : 'bg-emerald-400'
+        }`}
+        style={{ width: `${pct}%` }}
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`提出進捗 ${pct}%`}
+      />
+    </div>
+  );
+};
+
 // ─── カテゴリ名 + カウンター表示（カード・オーバーレイ共通） ───
 
 const CategoryNameDisplay = ({ category, checkedCount }: { category: EditableCategory; checkedCount: number }) => (
   <>
-    <h3 className="font-bold text-slate-800">
-      {category.isSpecial && <span className="text-purple-600">【特例】</span>}
+    <h3 className="font-bold text-slate-800 dark:text-slate-100">
+      {category.isSpecial && <span className="text-purple-600 dark:text-purple-400">【特例】</span>}
       {category.name}
     </h3>
-    <span className="px-2 py-0.5 bg-white rounded text-sm text-slate-600">
+    <span className="px-2 py-0.5 bg-white dark:bg-slate-700 rounded text-sm text-slate-600 dark:text-slate-300 tabular-nums">
       {checkedCount}/{category.documents.length}
     </span>
   </>
@@ -94,7 +120,7 @@ export const SortableCategoryCard = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white rounded-xl shadow-lg overflow-hidden ${isDragging ? 'opacity-50 ring-2 ring-emerald-400' : ''}`}
+      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg dark:shadow-slate-900/50 overflow-hidden transition-shadow hover:shadow-xl ${isDragging ? 'opacity-50 ring-2 ring-emerald-400' : ''}`}
       role="region"
       aria-label={`カテゴリ: ${category.name}`}
     >
@@ -102,15 +128,15 @@ export const SortableCategoryCard = ({
       <div
         className={`flex items-center justify-between p-4 transition-colors ${
           category.isSpecial
-            ? 'bg-purple-50 hover:bg-purple-100 border-l-4 border-purple-500'
-            : 'bg-emerald-50 hover:bg-emerald-100 border-l-4 border-emerald-500'
+            ? 'bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/50 border-l-4 border-purple-500'
+            : 'bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border-l-4 border-emerald-500'
         }`}
       >
-        {/* ドラッグハンドル */}
+        {/* ドラッグハンドル（タッチターゲット拡大） */}
         <button
           {...dragHandleProps.attributes}
           {...dragHandleProps.listeners}
-          className="flex-shrink-0 p-1 mr-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing touch-none"
+          className="flex-shrink-0 p-2 mr-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing touch-none rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
           title="ドラッグして並び替え"
           aria-label={`${category.name}カテゴリを並び替え`}
           aria-roledescription="ドラッグ可能なカテゴリ"
@@ -134,9 +160,9 @@ export const SortableCategoryCard = ({
           aria-label={`${category.name}を${category.isExpanded ? '折りたたむ' : '展開する'}`}
         >
           {category.isExpanded ? (
-            <ChevronDown className="w-5 h-5 text-slate-500" aria-hidden="true" />
+            <ChevronDown className="w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform" aria-hidden="true" />
           ) : (
-            <ChevronRight className="w-5 h-5 text-slate-500" aria-hidden="true" />
+            <ChevronRight className="w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform" aria-hidden="true" />
           )}
           {editState.editingId === category.id ? (
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -144,21 +170,21 @@ export const SortableCategoryCard = ({
                 type="text"
                 value={editState.editName}
                 onChange={(e) => editState.setEditName(e.target.value)}
-                className="px-3 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                className="px-3 py-1 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold dark:bg-slate-800 dark:text-slate-200"
                 autoFocus
                 aria-label="カテゴリ名を編集"
                 onKeyDown={(e) => handleInlineKeyDown(e, editState.confirm, editState.cancel)}
               />
               <button
                 onClick={editState.confirm}
-                className="p-1 text-emerald-600 hover:bg-emerald-100 rounded"
+                className="p-1 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900 rounded"
                 aria-label="編集を確定"
               >
                 <Check className="w-5 h-5" />
               </button>
               <button
                 onClick={editState.cancel}
-                className="p-1 text-slate-400 hover:bg-slate-200 rounded"
+                className="p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
                 aria-label="編集をキャンセル"
               >
                 <X className="w-5 h-5" />
@@ -178,8 +204,8 @@ export const SortableCategoryCard = ({
                 }}
                 className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                   category.isSpecial
-                    ? 'bg-purple-200 text-purple-700 hover:bg-purple-300'
-                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                    ? 'bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
                 }`}
                 title="特例切り替え"
                 aria-label={`${category.name}の特例を${category.isSpecial ? '解除' : '設定'}`}
@@ -192,7 +218,7 @@ export const SortableCategoryCard = ({
                   e.stopPropagation();
                   handlers.startEdit(category.id, category.name);
                 }}
-                className="p-1.5 text-slate-500 hover:bg-white/50 rounded transition-colors"
+                className="p-1.5 text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 rounded transition-colors"
                 title="カテゴリ名を編集"
                 aria-label={`${category.name}の名前を編集`}
               >
@@ -203,7 +229,7 @@ export const SortableCategoryCard = ({
                   e.stopPropagation();
                   handlers.remove(category.id);
                 }}
-                className="p-1.5 text-red-500 hover:bg-red-100/50 rounded transition-colors"
+                className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-100/50 dark:hover:bg-red-900/30 rounded transition-colors"
                 title="カテゴリを削除"
                 aria-label={`${category.name}を削除`}
               >
@@ -221,8 +247,8 @@ export const SortableCategoryCard = ({
               allChecked
                 ? 'bg-emerald-600 text-white'
                 : someChecked
-                ? 'bg-emerald-200 text-emerald-800'
-                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                ? 'bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
             }`}
             aria-label={allChecked ? `${category.name}の全済みを解除` : `${category.name}を全て提出済みにする`}
           >
@@ -234,6 +260,9 @@ export const SortableCategoryCard = ({
           </button>
         </div>
       </div>
+
+      {/* プログレスバー */}
+      <ProgressBar checked={checkedCount} total={category.documents.length} isSpecial={category.isSpecial} />
 
       {/* カテゴリコンテンツ */}
       {category.isExpanded && children}
@@ -249,8 +278,8 @@ export const CategoryDragOverlay = ({ category }: { category: EditableCategory }
     <div
       className={`rounded-xl shadow-2xl overflow-hidden ${
         category.isSpecial
-          ? 'bg-purple-50 border-l-4 border-purple-500'
-          : 'bg-emerald-50 border-l-4 border-emerald-500'
+          ? 'bg-purple-50 dark:bg-purple-950 border-l-4 border-purple-500'
+          : 'bg-emerald-50 dark:bg-emerald-950 border-l-4 border-emerald-500'
       }`}
     >
       <div className="flex items-center gap-3 p-4">
