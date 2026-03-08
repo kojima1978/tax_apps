@@ -471,11 +471,15 @@ export function searchCustomers(query: string): CustomerWithYears[] {
       .all(searchPattern, searchPattern, searchPattern) as Customer[];
 
     return customers.map((customer) => {
-      const years = db
-        .prepare('SELECT year FROM document_records WHERE customer_id = ? ORDER BY year DESC')
-        .all(customer.id) as { year: number }[];
+      const records = db
+        .prepare('SELECT year, updated_at FROM document_records WHERE customer_id = ? ORDER BY year DESC')
+        .all(customer.id) as { year: number; updated_at: string }[];
 
-      return { ...customer, years: years.map((y) => y.year) };
+      return {
+        ...customer,
+        years: records.map((r) => r.year),
+        latest_updated_at: records.length > 0 ? records[0].updated_at : null,
+      };
     });
   });
 }
