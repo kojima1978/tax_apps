@@ -88,10 +88,10 @@ src/
 │   ├── BaseDepreciationForm.tsx    # 簿価・期間償却 共通フォームUI
 │   ├── DepreciationForm.tsx        # 簿価計算フォーム
 │   ├── DepreciationResult.tsx      # 償却スケジュール表示
-│   ├── DepreciationScheduleTable.tsx # 償却スケジュールテーブル（共通）
+│   ├── DepreciationScheduleTable.tsx # 償却スケジュールテーブル（ROW_HIGHLIGHTS定数+.map()）
 │   ├── PeriodDepForm.tsx       # 期間償却フォーム
-│   ├── PeriodDepResult.tsx     # 期間償却スケジュール表示
-│   ├── ReferenceLinks.tsx      # 参照リンク集
+│   ├── PeriodDepResult.tsx     # 期間償却サマリー（SummaryCard使用）
+│   ├── ReferenceLinks.tsx      # 参照リンク集（SECTIONS定数+LinkList/PillLinksサブコンポーネント）
 │   ├── FormField.tsx           # ラベル+入力ラッパー
 │   ├── InputWithUnit.tsx       # 単位付き入力
 │   ├── PrintFooter.tsx         # 印刷フッター（担当者・作成日）
@@ -102,18 +102,21 @@ src/
 │       ├── Disclaimer.tsx      # 免責注記フッター（共通）
 │       ├── EmptyState.tsx      # 空状態プレースホルダー（共通）
 │       ├── HighlightCard.tsx   # 結果ハイライトカード（共通）
-│       └── PresetButtons.tsx   # プリセット選択ピル（共通）
+│       ├── PresetButtons.tsx   # プリセット選択ピル（共通）
+│       └── SummaryCard.tsx     # サマリーカード（primary/secondary variant）
 ├── hooks/
 │   ├── useUsedAssetForm.ts     # 耐用年数フォーム状態管理
 │   ├── useDepreciationForm.ts  # 簿価計算フォーム状態管理
 │   ├── useMethodSuggestion.ts  # 償却方法の自動推奨ロジック
-│   └── usePeriodDepForm.ts     # 期間償却フォーム状態管理
+│   ├── usePeriodDepForm.ts     # 期間償却フォーム状態管理
+│   ├── useCanCalculate.ts      # 計算可否判定（共通）
+│   └── useDirtyFlag.ts        # 入力変更フラグ管理（共通）
 └── lib/
     ├── used-asset-life.ts      # 耐用年数コア計算ロジック
     ├── depreciation.ts         # 減価償却計算エントリー（スケジュール組立）
     ├── depreciation-builders.ts # 4種の償却方法ビルダー関数
     ├── depreciation-rates.ts   # 償却率テーブル（法定耐用年数→各種率）
-    ├── utils.ts                # ユーティリティ関数
+    ├── utils.ts                # ユーティリティ関数（formatElapsed等）
     └── company.ts              # 会社情報
 ```
 
