@@ -13,6 +13,7 @@ import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
 import { useInsuranceSimulation } from '../hooks/useInsuranceSimulation';
+import { useScrollToResult } from '../hooks/useScrollToResult';
 import { INSURANCE_CAUTIONS } from '../constants/cautionMessages';
 
 export const InsurancePage: React.FC = () => {
@@ -31,6 +32,7 @@ export const InsurancePage: React.FC = () => {
   const [hasAttempted, setHasAttempted] = useState(false);
   const estateRef = useRef<HTMLDivElement>(null);
   const contractsRef = useRef<HTMLDivElement>(null);
+  const resultRef = useScrollToResult(!!result);
 
   const noContracts = cleanedExisting.length === 0 && cleanedNew.length === 0;
 
@@ -107,20 +109,22 @@ export const InsurancePage: React.FC = () => {
         </div>
 
         {/* 結果表示 */}
-        {result && (
-          <>
-            <PrintHeader title="保険金シミュレーション" />
-            <div className="space-y-6">
-              <InsuranceSummaryCard result={result} />
-              <div className="print-page-break">
-                <InsuranceFlowSteps result={result} />
-              </div>
-              <div className="print-page-break">
-                <InsuranceHeirTable result={result} />
+        <div ref={resultRef}>
+          {result && (
+            <div className="result-fade-in">
+              <PrintHeader title="保険金シミュレーション" />
+              <div className="space-y-6">
+                <InsuranceSummaryCard result={result} />
+                <div className="print-page-break">
+                  <InsuranceFlowSteps result={result} />
+                </div>
+                <div className="print-page-break">
+                  <InsuranceHeirTable result={result} />
+                </div>
               </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
 
         {/* 未入力ガイド */}
         {!result && estateValue > 0 && !hasAttempted && (
