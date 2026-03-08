@@ -7,13 +7,14 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useId, useState, useMemo, useCallback, useEffect } from 'react';
-import { Plus, Info, FileText, Search } from 'lucide-react';
+import { useId, useState, useMemo, useCallback } from 'react';
+import { Plus, Info, Search } from 'lucide-react';
 import { InlineAddInput } from '@/components/ui/EditableInput';
 import { useGiftTaxGuide } from '@/hooks/useGiftTaxGuide';
 import { useEditableListEditing } from '@/hooks/useEditableListEditing';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { useToast } from '@/hooks/useToast';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import { ResetConfirmDialog, ImportConfirmDialog, DeleteConfirmDialog, ImportErrorDialog } from '@/components/ui/ConfirmDialog';
 import { SortableDocumentItem, DragOverlayItem } from '@/components/ui/SortableDocumentItem';
 import { SortableCategoryCard, CategoryDragOverlay } from '@/components/ui/SortableCategoryCard';
@@ -21,6 +22,7 @@ import { EditToolbar } from '@/components/ui/EditToolbar';
 import { AddCategoryForm } from '@/components/ui/AddCategoryForm';
 import { PrintSection } from '@/components/ui/PrintSection';
 import { ToastContainer } from '@/components/ui/Toast';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 const infoBarInputClass = 'px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 bg-white dark:bg-slate-800 transition-colors';
 
@@ -30,8 +32,6 @@ const INFO_BAR_FIELDS = [
   { id: 'staffName', label: '担当者名:', type: 'text', placeholder: '例：鈴木 一郎' },
   { id: 'staffPhone', label: '担当者携帯:', type: 'tel', placeholder: '例：090-1234-5678' },
 ] as const;
-
-const DARK_STORAGE_KEY = 'gift_tax_dark_mode';
 
 export const EditableListStep = () => {
   const {
@@ -72,20 +72,7 @@ export const EditableListStep = () => {
 
   const dnd = useDragAndDrop(documentList, setDocumentList);
   const dndId = useId();
-
-  // ─── ダークモード ───
-  const [isDark, setIsDark] = useState(() => {
-    try {
-      return localStorage.getItem(DARK_STORAGE_KEY) === 'true';
-    } catch { return false; }
-  });
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDark);
-    try { localStorage.setItem(DARK_STORAGE_KEY, String(isDark)); } catch { /* ignore */ }
-  }, [isDark]);
-
-  const toggleDark = useCallback(() => setIsDark(prev => !prev), []);
+  const { isDark, toggleDark } = useDarkMode();
 
   // ─── 検索 ───
   const [searchQuery, setSearchQuery] = useState('');
@@ -192,31 +179,7 @@ export const EditableListStep = () => {
 
         {/* 空状態 */}
         {displayList.length === 0 ? (
-          <div className="text-center py-16 animate-fade-in">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full mb-6">
-              {isSearching
-                ? <Search className="w-10 h-10 text-slate-400" />
-                : <FileText className="w-10 h-10 text-slate-400" />
-              }
-            </div>
-            <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mb-2">
-              {isSearching ? '該当する書類が見つかりません' : '書類がありません'}
-            </h3>
-            <p className="text-sm text-slate-400 dark:text-slate-500 mb-6">
-              {isSearching
-                ? '検索条件を変更してお試しください'
-                : '下のボタンからカテゴリを追加してください'
-              }
-            </p>
-            {isSearching && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
-              >
-                検索をクリア
-              </button>
-            )}
-          </div>
+          <EmptyState isSearching={isSearching} onClearSearch={() => setSearchQuery('')} />
         ) : (
           <DndContext
             id={dndId}
