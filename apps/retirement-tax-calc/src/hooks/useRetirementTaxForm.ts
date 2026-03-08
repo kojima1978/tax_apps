@@ -62,6 +62,17 @@ export const useRetirementTaxForm = () => {
     const handleDisabilityChange = withDirty(setIsDisability);
     const handleTaxYearChange = withDirty(setTaxYear);
 
+    const handleClear = useCallback(() => {
+        setAmounts(["", "", ""]);
+        setServiceYears(0);
+        setRetirementType("general");
+        setIsDisability(false);
+        setTaxYear(DEFAULT_YEAR);
+        setResults([null, null, null]);
+        setIsDirty(false);
+        hasCalculated.current = false;
+    }, []);
+
     return {
         formProps: {
             amounts,
@@ -77,6 +88,7 @@ export const useRetirementTaxForm = () => {
             onTaxYearChange: handleTaxYearChange,
             canCalculate,
             onCalculate: handleCalculate,
+            onClear: handleClear,
         },
         results,
         isDirty,

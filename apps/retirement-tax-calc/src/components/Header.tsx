@@ -1,5 +1,6 @@
 type HeaderProps = {
     onPrint: () => void;
+    onPdf: () => void;
 };
 
 const HomeIcon = () => (
@@ -9,7 +10,15 @@ const HomeIcon = () => (
     </svg>
 );
 
-const Header = ({ onPrint }: HeaderProps) => {
+const DownloadIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+);
+
+const Header = ({ onPrint, onPdf }: HeaderProps) => {
     return (
         <header className="header-custom">
             <div className="header-left">
@@ -18,9 +27,15 @@ const Header = ({ onPrint }: HeaderProps) => {
                 </a>
                 <h1>退職金 税額計算シミュレーター</h1>
             </div>
-            <button className="btn-print" onClick={onPrint}>
-                印刷
-            </button>
+            <div className="header-buttons">
+                <button className="btn-pdf" onClick={onPdf} title="PDFダウンロード">
+                    <DownloadIcon />
+                    PDF
+                </button>
+                <button className="btn-print" onClick={onPrint}>
+                    印刷
+                </button>
+            </div>
         </header>
     );
 };

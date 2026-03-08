@@ -22,6 +22,7 @@ type RetirementFormProps = {
     onTaxYearChange: (year: string) => void;
     canCalculate: boolean;
     onCalculate: () => void;
+    onClear: () => void;
 };
 
 const RetirementForm = ({
@@ -38,6 +39,7 @@ const RetirementForm = ({
     onTaxYearChange,
     canCalculate,
     onCalculate,
+    onClear,
 }: RetirementFormProps) => {
     const [isOfficer, setIsOfficer] = useState(false);
     const yearId = useId();
@@ -133,15 +135,25 @@ const RetirementForm = ({
                 </FormField>
             </div>
 
-            {/* 計算ボタン */}
-            <button
-                type="button"
-                className="btn-calc"
-                disabled={!canCalculate}
-                onClick={onCalculate}
-            >
-                計算する
-            </button>
+            {/* ボタン行 */}
+            <div className="form-buttons">
+                <button
+                    type="button"
+                    className="btn-calc"
+                    disabled={!canCalculate}
+                    onClick={onCalculate}
+                >
+                    計算する
+                    <span className="btn-shortcut">Ctrl+Enter</span>
+                </button>
+                <button
+                    type="button"
+                    className="btn-clear"
+                    onClick={onClear}
+                >
+                    クリア
+                </button>
+            </div>
         </div>
     );
 };

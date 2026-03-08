@@ -12,7 +12,12 @@
 - **限度額超過警告**: 支給額が限度額を超えた場合に警告表示
 - **税率年度選択**: 令和6年・令和7年の税率テーブルに対応
 - **参照表**: 退職所得控除額表・速算表（該当行ハイライト、国税庁出典リンク）
-- **印刷対応**: A4印刷レイアウト
+- **印刷対応**: A4印刷レイアウト（会社情報・担当者・作成日フッター付き）
+- **PDFダウンロード**: ワンクリックでPDFファイルを生成・保存
+- **フォームクリア**: 全入力と結果を一括リセット
+- **キーボードショートカット**: Ctrl+Enter で計算実行
+- **入力補助**: フォーカス時の全選択、自動カンマ挿入、全角数字対応
+- **自動スクロール**: 計算後に結果セクションへスムーズスクロール
 
 ## 税額計算ロジック
 
@@ -31,6 +36,7 @@
 - **ビルドツール**: Vite 6
 - **ランタイム**: React 19 + TypeScript 5
 - **スタイリング**: Tailwind CSS v4 (`@tailwindcss/postcss`)
+- **PDF生成**: html2pdf.js（html2canvas + jsPDF）
 - **Docker**: 共通 `docker/Dockerfile.vite-static`（6アプリ共有）
 
 ## ディレクトリ構成
@@ -39,18 +45,19 @@
 src/
 ├── main.tsx                   # エントリポイント
 ├── App.tsx                    # メインコンポーネント（1画面完結）
+├── html2pdf.d.ts              # html2pdf.js 型定義
 ├── app/
-│   └── globals.css            # グローバルスタイル + 印刷スタイル
+│   └── globals.css            # グローバルスタイル + 印刷 + PDF生成スタイル
 ├── components/
 │   ├── CheckboxField.tsx      # チェックボックス共通コンポーネント
 │   ├── FormField.tsx          # フォームフィールド共通
-│   ├── Header.tsx             # アプリヘッダー + 印刷ボタン
-│   ├── InputWithUnit.tsx      # 入力欄+単位ラベル共通コンポーネント
+│   ├── Header.tsx             # アプリヘッダー + 印刷/PDFボタン
+│   ├── InputWithUnit.tsx      # 入力欄+単位ラベル（フォーカス時全選択）
 │   ├── OfficerLimitSection.tsx # 役員退職金限度額
 │   ├── PrintFooter.tsx        # 印刷用フッター
 │   ├── ReferenceTables.tsx    # 参照表（控除額・速算表）
 │   ├── ResultSection.tsx      # 計算結果テーブル
-│   ├── RetirementForm.tsx     # 入力フォーム
+│   ├── RetirementForm.tsx     # 入力フォーム + 計算/クリアボタン
 │   └── ServiceYearsInput.tsx  # 勤続年数（直接入力/日付計算切替）
 ├── hooks/
 │   └── useRetirementTaxForm.ts # フォーム状態管理フック
