@@ -16,7 +16,7 @@ import {
   Filter,
   X,
 } from 'lucide-react';
-import { CATEGORIES, type CategoryDocuments, type CustomDocumentItem, type DocChanges, type Stats } from '../constants/documents';
+import { CATEGORIES, type CategoryDocuments, type CustomDocumentItem, type DocChanges } from '../constants/documents';
 import { COMPANY_INFO, getFullAddress, getContactLine } from '../utils/company';
 import { exportToExcel } from '../utils/excelExporter';
 import { type ExportData } from '../utils/jsonDataManager';
@@ -58,7 +58,7 @@ interface UnifiedDocumentViewProps {
   urgentDocuments: Record<string, boolean>;
   disabledCategories: Record<string, boolean>;
   deleteConfirmation: { type: 'document' | 'category'; name: string } | null;
-  stats: Stats;
+  hasCustomizations: boolean;
   onClientNameChange: (value: string) => void;
   onDeceasedNameChange: (value: string) => void;
   onDeadlineChange: (value: string) => void;
@@ -112,7 +112,7 @@ function UnifiedDocumentViewComponent({
   urgentDocuments,
   disabledCategories,
   deleteConfirmation,
-  stats,
+  hasCustomizations,
   onClientNameChange,
   onDeceasedNameChange,
   onDeadlineChange,
@@ -227,9 +227,6 @@ function UnifiedDocumentViewComponent({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onExportJson, handleExcelExport]);
 
-  // A1: 進捗率の計算
-  const progressPercent = stats.totalCount > 0 ? Math.round((stats.checkedCount / stats.totalCount) * 100) : 0;
-
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-8 animate-fade-in">
       <div className="bg-white rounded-xl shadow-lg overflow-hidden print-compact">
@@ -253,7 +250,7 @@ function UnifiedDocumentViewComponent({
                 { id: 'save', icon: Download, label: lastSavedAt ? `保存 (${lastSavedAt})` : '保存', badge: isDirty ? '未保存' : null, onClick: onExportJson, disabled: false, title: '設定をJSONファイルとして保存 (Ctrl+S)', bg: isDirty ? 'bg-amber-500/80 hover:bg-amber-500' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
                 { id: 'excel', icon: FileSpreadsheet, label: isExporting ? '出力中...' : 'Excel', badge: null, onClick: handleExcelExport, disabled: isExporting, title: 'Excelファイルに出力 (Ctrl+E)', bg: `bg-emerald-500/80 hover:bg-emerald-500 ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}` },
                 { id: 'print', icon: FileDown, label: '印刷', badge: null, onClick: () => window.print(), disabled: false, title: '印刷', bg: 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
-                { id: 'reset', icon: RotateCcw, label: '初期化', badge: null, onClick: () => setShowResetConfirm(true), disabled: !stats.hasCustomizations, title: '書類のカスタマイズをすべて初期状態に戻す', bg: stats.hasCustomizations ? 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' : 'bg-white/5 cursor-not-allowed opacity-50' },
+                { id: 'reset', icon: RotateCcw, label: '初期化', badge: null, onClick: () => setShowResetConfirm(true), disabled: !hasCustomizations, title: '書類のカスタマイズをすべて初期状態に戻す', bg: hasCustomizations ? 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' : 'bg-white/5 cursor-not-allowed opacity-50' },
               ] as const).map(({ id, icon: Icon, label, badge, onClick, disabled, title, bg }) => (
                 <button key={id} onClick={onClick} disabled={disabled} title={title} className={`${TOOLBAR_BTN} ${bg}`}>
                   <Icon className="w-4 h-4 mr-1" /> {label}
@@ -364,37 +361,8 @@ function UnifiedDocumentViewComponent({
           ))}
         </div>
 
-        {/* A1: 進捗バー + 統計バー */}
+        {/* B1/B2/B3: ツールバー（展開/折りたたみ、フィルター、検索） */}
         <div className="no-print">
-          {/* プログレスバー */}
-          <div className="px-6 pt-4 pb-2">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-sm font-medium text-slate-700">
-                全体の進捗
-              </span>
-              <span className="text-sm font-bold text-emerald-600">
-                {progressPercent}%
-              </span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-              <div
-                className="progress-bar-fill h-full rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between mt-1.5 text-xs text-slate-500">
-              <span>{stats.checkedCount} / {stats.totalCount} 提出済み</span>
-              {([
-                { show: stats.urgentCount > 0, text: `緊急: ${stats.urgentCount}件`, className: 'text-red-600 font-medium' as string | undefined },
-                { show: stats.excludedCount > 0, text: `対象外: ${stats.excludedCount}件`, className: undefined as string | undefined },
-                { show: stats.customCount > 0, text: `追加: ${stats.customCount}件`, className: undefined as string | undefined },
-              ] as const).filter(s => s.show).map(({ text, className }) => (
-                <span key={text} className={className}>{text}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* B1/B2/B3: ツールバー（展開/折りたたみ、フィルター、検索） */}
           <div className="px-6 py-3 bg-slate-100 border-y border-slate-200 space-y-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">

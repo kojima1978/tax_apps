@@ -22,15 +22,15 @@ import { getIcon } from '../../utils/iconMap';
 import { SortableDocumentRow, StaticDocumentRow, type EditableDocumentRowProps } from './EditableDocumentRow';
 import { SpecificNamesTableRows } from './SpecificNamesList';
 
-/** カテゴリヘッダー（展開/折りたたみ、進捗、操作ボタン） */
+/** カテゴリヘッダー（展開/折りたたみ、操作ボタン） */
 const CategoryHeader = memo(function CategoryHeader({
   category, categoryIndex, isExpanded, allChecked, someChecked,
-  checkedCount, totalCount, urgentCount, categoryProgress,
+  urgentCount,
   onToggleExpanded, onToggleCategoryDisabled, onRemoveCategory, onToggleAllInCategory,
 }: {
   category: CategoryData; categoryIndex: number; isExpanded: boolean;
   allChecked: boolean; someChecked: boolean;
-  checkedCount: number; totalCount: number; urgentCount: number; categoryProgress: number;
+  urgentCount: number;
   onToggleExpanded: (categoryId: string) => void;
   onToggleCategoryDisabled: (categoryId: string) => void;
   onRemoveCategory: (categoryId: string, name: string) => void;
@@ -53,29 +53,14 @@ const CategoryHeader = memo(function CategoryHeader({
         <span className={`print:mr-1 ${allChecked ? 'text-emerald-600' : category.color}`}>
           {allChecked ? <CheckCircle2 className="w-6 h-6" /> : getIcon(category.iconName, 'w-6 h-6')}
         </span>
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className={`font-bold text-lg print:text-sm ${allChecked ? 'text-emerald-700' : category.color}`}>
-              {toCircledNumber(categoryIndex)} {category.name}
-            </span>
-            <span className={`text-sm font-medium print:text-sm ${allChecked ? 'text-emerald-600' : 'text-slate-500'}`}>
-              {checkedCount}/{totalCount}
-            </span>
-            {urgentCount > 0 && (
-              <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 font-bold rounded">
-                急 {urgentCount}
-              </span>
-            )}
-          </div>
-          {!isExpanded && totalCount > 0 && (
-            <div className="w-24 bg-slate-200/60 rounded-full h-1.5 mt-1 print:hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${allChecked ? 'bg-emerald-500' : 'bg-blue-400'}`}
-                style={{ width: `${categoryProgress}%` }}
-              />
-            </div>
-          )}
-        </div>
+        <span className={`font-bold text-lg print:text-sm ${allChecked ? 'text-emerald-700' : category.color}`}>
+          {toCircledNumber(categoryIndex)} {category.name}
+        </span>
+        {urgentCount > 0 && (
+          <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 font-bold rounded">
+            急 {urgentCount}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-1.5 print:hidden">
         <button
@@ -218,9 +203,6 @@ function EditableCategoryTableComponent({
   const someChecked = checkedCount > 0 && !allChecked;
   const totalCount = orderedDocs.length;
 
-  // A2: カテゴリ別進捗率
-  const categoryProgress = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
-
   // フィルタリングされた表示用ドキュメント（DnDの順序には影響しない）
   const filteredDocIds = useMemo(() => {
     const { searchQuery, showOnlyUnchecked, showOnlyDelegatable, showOnlyUrgent, hideExcluded: filterHideExcluded } = filterCriteria;
@@ -353,10 +335,7 @@ function EditableCategoryTableComponent({
         isExpanded={isExpanded}
         allChecked={allChecked}
         someChecked={someChecked}
-        checkedCount={checkedCount}
-        totalCount={totalCount}
         urgentCount={urgentCount}
-        categoryProgress={categoryProgress}
         onToggleExpanded={onToggleExpanded}
         onToggleCategoryDisabled={onToggleCategoryDisabled}
         onRemoveCategory={onRemoveCategory}
