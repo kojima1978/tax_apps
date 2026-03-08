@@ -161,10 +161,10 @@ const RowContent = memo(function RowContent({
           {/* バッジ群 */}
           {([
             { show: isUrgent && !isExcluded, text: '急', className: 'text-xs bg-red-100 text-red-700 font-bold rounded print:border print:border-red-700 print:px-1 print:py-0 print:text-xs' },
-            { show: specificNames.length > 0 && !isExcluded, text: `具体名 ${specificNames.length}件`, className: 'text-[10px] bg-blue-100 text-blue-600 rounded-full font-medium print:hidden' },
+            { show: specificNames.length > 0 && !isExcluded, text: `具体名 ${specificNames.length}件`, className: 'text-[10px] bg-emerald-100 text-emerald-600 rounded-full font-medium print:hidden' },
             { show: isExcluded, text: '対象外', className: 'text-xs bg-slate-200 text-slate-500 rounded print:border print:border-slate-500 print:px-1 print:py-0' },
             { show: isCustom, text: '追加', className: 'text-xs bg-emerald-100 text-emerald-700 rounded print:border print:border-emerald-700 print:px-1 print:py-0 print:text-xs' },
-            { show: !!editedValues, text: '編集済', className: 'text-xs bg-blue-100 text-blue-700 rounded print:hidden' },
+            { show: !!editedValues, text: '編集済', className: 'text-xs bg-emerald-100 text-emerald-700 rounded print:hidden' },
           ] as const).filter(b => b.show).map(({ text, className }) => (
             <span key={text} className={`px-1.5 py-0.5 ${className}`}>{text}</span>
           ))}
@@ -175,19 +175,11 @@ const RowContent = memo(function RowContent({
             </span>
           )}
         </div>
-        {/* モバイル: description + howToGet inline */}
-        {!isExcluded && (
-          <>
-            <p className="text-xs text-slate-500 mt-1 md:hidden print:hidden doc-desc">{displayDescription}</p>
-            {displayHowToGet && (
-              <p className="text-xs text-slate-400 mt-0.5 lg:hidden print:hidden doc-how">{displayHowToGet}</p>
-            )}
-          </>
-        )}
+        {/* モバイル: description + howToGet inline（常時非表示: 列3・4で表示） */}
         {/* C2: メモ表示 */}
         {docMemo && !memo.showInput && (
           <div
-            className="mt-1 flex items-start gap-1 text-xs text-blue-600 cursor-pointer hover:text-blue-800 print:hidden"
+            className="mt-1 flex items-start gap-1 text-xs text-emerald-600 cursor-pointer hover:text-emerald-800 print:hidden"
             onClick={memo.open}
             title="メモを編集"
           >
@@ -196,7 +188,7 @@ const RowContent = memo(function RowContent({
           </div>
         )}
         {docMemo && (
-          <div className="hidden print:block mt-0.5 text-xs text-blue-600">
+          <div className="hidden print:block mt-0.5 text-xs text-emerald-600">
             <span>memo: {docMemo}</span>
           </div>
         )}
@@ -209,22 +201,22 @@ const RowContent = memo(function RowContent({
               onChange={(e) => memo.setValue(e.target.value)}
               onKeyDown={memo.onKeyDown}
               placeholder="メモを入力..."
-              className="flex-1 px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="flex-1 px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
               autoFocus
             />
-            <button onClick={memo.save} className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">保存</button>
+            <button onClick={memo.save} className="px-2 py-1 text-xs bg-emerald-500 text-white rounded hover:bg-emerald-600">保存</button>
             <button onClick={memo.close} className="px-2 py-1 text-xs bg-slate-200 text-slate-600 rounded hover:bg-slate-300">取消</button>
           </div>
         )}
       </td>
 
       {/* 列3: 内容説明 */}
-      <td className={`px-3 py-2 text-sm text-slate-600 hidden md:table-cell print:table-cell align-top print:px-2 print:py-1 doc-desc ${checkedClass} ${isExcluded ? 'text-slate-400' : ''}`}>
+      <td className={`px-3 py-2 text-sm text-slate-600 align-top print:px-2 print:py-1 doc-desc ${checkedClass} ${isExcluded ? 'text-slate-400' : ''}`}>
         {isExcluded ? '-' : displayDescription}
       </td>
 
       {/* 列4: 取得方法 */}
-      <td className={`px-3 py-2 text-xs text-slate-500 hidden lg:table-cell print:table-cell align-top print:px-2 print:py-1 doc-how ${checkedClass} ${isExcluded ? 'text-slate-400' : ''}`}>
+      <td className={`px-3 py-2 text-xs text-slate-500 align-top print:px-2 print:py-1 doc-how ${checkedClass} ${isExcluded ? 'text-slate-400' : ''}`}>
         {isExcluded ? '-' : (displayHowToGet || '-')}
       </td>
 
@@ -256,10 +248,10 @@ const RowContent = memo(function RowContent({
       <td className="w-20 px-1 py-2 text-center align-top print:hidden">
         <div className="flex items-center justify-center gap-0.5">
           {([
-            { icon: MessageSquare, onClick: memo.toggle, label: 'メモ', title: docMemo ? 'メモを編集' : 'メモを追加', active: !!docMemo, activeClass: 'text-blue-500 hover:text-blue-700 hover:bg-blue-50', inactiveClass: 'text-slate-400 hover:text-blue-500 hover:bg-blue-50' },
+            { icon: MessageSquare, onClick: memo.toggle, label: 'メモ', title: docMemo ? 'メモを編集' : 'メモを追加', active: !!docMemo, activeClass: 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50', inactiveClass: 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50' },
             { icon: AlertTriangle, onClick: () => onToggleUrgent(doc.id), label: '緊急', title: isUrgent ? '緊急を解除' : '緊急に設定', active: isUrgent, activeClass: 'text-red-500 hover:text-red-700 hover:bg-red-50', inactiveClass: 'text-slate-400 hover:text-red-500 hover:bg-red-50' },
             { icon: Ban, onClick: () => onToggleExcluded(doc.id), label: '対象外', title: isExcluded ? '対象外を解除' : '対象外にする', active: isExcluded, activeClass: 'text-slate-600 hover:text-slate-800 hover:bg-slate-200', inactiveClass: 'text-slate-400 hover:text-slate-600 hover:bg-slate-100' },
-            ...(!isChecked && !isExcluded ? [{ icon: Pencil, onClick: () => onStartEdit(doc.id), label: '編集', title: '編集', active: false, activeClass: '', inactiveClass: 'text-slate-400 hover:text-blue-500 hover:bg-blue-50' }] : []),
+            ...(!isChecked && !isExcluded ? [{ icon: Pencil, onClick: () => onStartEdit(doc.id), label: '編集', title: '編集', active: false, activeClass: '', inactiveClass: 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50' }] : []),
             { icon: Trash2, onClick: () => onRemoveDocument(doc.id, categoryId, displayName), label: '削除', title: '削除', active: false, activeClass: '', inactiveClass: 'text-slate-400 hover:text-red-500 hover:bg-red-50' },
           ] as const).map(({ icon: Icon, onClick, label, title, active, activeClass, inactiveClass }) => (
             <button key={label} onClick={onClick} className={`p-1.5 rounded transition-colors ${active ? activeClass : inactiveClass}`} title={title} aria-label={label}>

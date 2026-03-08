@@ -14,9 +14,9 @@ const VARIANT_CONFIG = {
     },
   },
   edit: {
-    container: 'p-4 bg-blue-50 border border-blue-200 rounded-lg',
-    ring: 'focus:ring-blue-500',
-    submitBtn: 'bg-blue-600 hover:bg-blue-700',
+    container: 'p-4 bg-emerald-50 border border-emerald-200 rounded-lg',
+    ring: 'focus:ring-emerald-500',
+    submitBtn: 'bg-emerald-600 hover:bg-emerald-700',
     submitText: '保存',
     placeholders: {
       name: undefined,

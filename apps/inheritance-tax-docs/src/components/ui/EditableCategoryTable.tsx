@@ -249,10 +249,10 @@ function EditableCategoryTableComponent({
           <span className="hidden print:inline">✓</span>
         </th>
         <th className="px-3 py-2 text-left font-bold text-slate-700">必要書類名</th>
-        <th className="px-3 py-2 text-left font-bold text-slate-700 hidden md:table-cell print:table-cell">
+        <th className="px-3 py-2 text-left font-bold text-slate-700">
           内容説明
         </th>
-        <th className="px-3 py-2 text-left font-bold text-slate-700 hidden lg:table-cell print:table-cell">
+        <th className="px-3 py-2 text-left font-bold text-slate-700">
           取得方法
         </th>
         <th className="w-16 px-2 py-2 text-center font-bold text-slate-700 print:w-12">代行</th>

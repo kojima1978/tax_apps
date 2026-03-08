@@ -27,7 +27,7 @@ import { ConfirmDialog } from './ui/ConfirmDialog';
 import { EditableCategoryTable } from './ui/EditableCategoryTable';
 
 const TOOLBAR_BTN = 'flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm';
-const FORM_INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
+const FORM_INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500';
 
 export interface FilterCriteria {
   searchQuery: string;
@@ -228,19 +228,19 @@ function UnifiedDocumentViewComponent({
   }, [onExportJson, handleExcelExport]);
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8 animate-fade-in">
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden print-compact">
+    <div className="animate-fade-in">
+      <div className="bg-white overflow-hidden print-compact">
 
         {/* A3: ヘッダー + ツールバー（グラデーション） */}
-        <header className="header-gradient p-6 text-white no-print">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <header className="header-gradient text-white no-print">
+          <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
               <a href="/" title="ポータルに戻る" aria-label="ポータルに戻る" className="opacity-70 hover:opacity-100 transition-opacity">
                 <Home className="w-6 h-6" aria-hidden="true" />
               </a>
               <div>
                 <h1 className="text-2xl font-bold mb-1">相続税申告 資料準備ガイド</h1>
-                <p className="text-blue-200 text-sm">
+                <p className="text-emerald-200 text-sm">
                   テーブル上で直接 編集・削除・並べ替え・代行切替ができます
                 </p>
               </div>
@@ -271,7 +271,7 @@ function UnifiedDocumentViewComponent({
         </header>
 
         {/* 印刷用ヘッダー */}
-        <div className="hidden print:block print-compact-header border-b-2 border-blue-800 pb-4 mb-4 px-6 pt-4">
+        <div className="hidden print:block print-compact-header border-b-2 border-emerald-800 pb-4 mb-4 px-4 md:px-8 pt-4 max-w-7xl mx-auto">
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold text-slate-900 mb-2 print-compact-title">
@@ -287,7 +287,7 @@ function UnifiedDocumentViewComponent({
             </div>
           </div>
           {printInfoFields.some(f => f.value) && (
-            <div className="mt-4 p-4 bg-white border border-blue-200 rounded-lg grid grid-cols-3 gap-4 print-compact-info">
+            <div className="mt-4 p-4 bg-white border border-emerald-200 rounded-lg grid grid-cols-3 gap-4 print-compact-info">
               {printInfoFields.filter(f => f.value).map(({ label, value, format }) => (
                 <div key={label}>
                   <span className="text-xs text-slate-500 print:text-xs">{label}</span>
@@ -342,7 +342,8 @@ function UnifiedDocumentViewComponent({
         <DismissibleBanner message={importSuccess ? 'データを読み込みました。' : null} onDismiss={clearImportSuccess} variant="success" />
 
         {/* 基本情報入力（スクリーン用） */}
-        <div className="p-6 bg-blue-50 border-b border-blue-100 no-print">
+        <div className="bg-emerald-50 border-b border-emerald-100 no-print">
+          <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
           {inputRows.map(({ cols, fields }, ri) => (
             <div key={ri} className={`grid ${cols} gap-4${ri > 0 ? ' mt-4' : ''}`}>
               {fields.map(({ label, value, onChange, type, placeholder }) => (
@@ -359,11 +360,13 @@ function UnifiedDocumentViewComponent({
               ))}
             </div>
           ))}
+          </div>
         </div>
 
         {/* B1/B2/B3: ツールバー（展開/折りたたみ、フィルター、検索） */}
         <div className="no-print">
-          <div className="px-6 py-3 bg-slate-100 border-y border-slate-200 space-y-2">
+          <div className="bg-slate-100 border-y border-slate-200">
+            <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 space-y-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 {/* B1: すべて展開/折りたたみ */}
@@ -381,13 +384,13 @@ function UnifiedDocumentViewComponent({
                   onClick={() => setShowFilters(!showFilters)}
                   className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     hasActiveFilters
-                      ? 'bg-blue-100 text-blue-700'
+                      ? 'bg-emerald-100 text-emerald-700'
                       : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                   }`}
                   title="フィルター"
                 >
                   <Filter className="w-3.5 h-3.5" /> フィルター
-                  {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                  {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                 </button>
               </div>
 
@@ -418,7 +421,7 @@ function UnifiedDocumentViewComponent({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="書類名を検索..."
-                    className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                   {searchQuery && (
                     <button
@@ -442,7 +445,7 @@ function UnifiedDocumentViewComponent({
                       type="checkbox"
                       checked={checked}
                       onChange={toggle}
-                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                     />
                     <span className="text-slate-600">{label}</span>
                   </label>
@@ -450,18 +453,19 @@ function UnifiedDocumentViewComponent({
                 {hasActiveFilters && (
                   <button
                     onClick={() => { setSearchQuery(''); setShowOnlyUnchecked(false); setShowOnlyDelegatable(false); setShowOnlyUrgent(false); setHideExcluded(false); }}
-                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    className="text-xs text-emerald-600 hover:text-emerald-800 underline"
                   >
                     クリア
                   </button>
                 )}
               </div>
             )}
+            </div>
           </div>
         </div>
 
         {/* 注意事項 */}
-        <div className="mx-6 mt-6 mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg print-compact-notice print:mx-2 print:mt-2 print:mb-2">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 mt-6 mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg print-compact-notice print:mx-2 print:mt-2 print:mb-2">
           <div className="flex items-start">
             <Info className="w-5 h-5 text-amber-600 mr-2 mt-0.5 flex-shrink-0 print:w-4 print:h-4" />
             <div className="text-sm text-amber-800">
@@ -482,7 +486,7 @@ function UnifiedDocumentViewComponent({
         </div>
 
         {/* カテゴリテーブル群 */}
-        <div className="p-6 space-y-4 print:space-y-1 print:p-2">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-4 print:space-y-1 print:p-2">
           {CATEGORIES.filter((category) => (documentOrder[category.id] || []).length > 0).map((category, index) => (
             <EditableCategoryTable
               key={category.id}
@@ -524,7 +528,7 @@ function UnifiedDocumentViewComponent({
         </div>
 
         {/* 留意事項 + フッター */}
-        <div className="mx-6 mb-6 mt-4 pt-6 border-t border-slate-300 print-compact-footer print:mx-2 print:mb-2 print:mt-2">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 mb-6 mt-4 pt-6 border-t border-slate-300 print-compact-footer print:mx-2 print:mb-2 print:mt-2">
           <div className="flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 print-compact-footer-box">
             <AlertCircle className="w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0 print:w-4 print:h-4" />
             <div className="text-sm text-slate-600 space-y-1 print:space-y-0">
