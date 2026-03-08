@@ -82,26 +82,39 @@ src/
 ├── App.tsx                 # ルートコンポーネント（3タブ管理）
 ├── app/globals.css         # グローバルCSS（印刷・スティッキーヘッダー）
 ├── components/
-│   ├── Header.tsx          # ヘッダー（ホーム・印刷ボタン）
-│   ├── UsedAssetForm.tsx   # 耐用年数計算フォーム
-│   ├── ResultSection.tsx   # 耐用年数計算結果
-│   ├── DepreciationForm.tsx    # 簿価計算フォーム
-│   ├── DepreciationResult.tsx  # 償却スケジュール表示
-│   ├── FiveYearForm.tsx    # 期間償却フォーム
-│   ├── FiveYearResult.tsx  # 期間償却スケジュール表示
-│   ├── ReferenceLinks.tsx  # 参照リンク集
-│   ├── FormField.tsx       # ラベル+入力ラッパー
-│   ├── InputWithUnit.tsx   # 単位付き入力
-│   └── PrintFooter.tsx     # 印刷フッター（担当者・作成日）
+│   ├── Header.tsx              # ヘッダー（ホーム・印刷ボタン）
+│   ├── UsedAssetForm.tsx       # 耐用年数計算フォーム
+│   ├── ResultSection.tsx       # 耐用年数計算結果
+│   ├── BaseDepreciationForm.tsx    # 簿価・期間償却 共通フォームUI
+│   ├── DepreciationForm.tsx        # 簿価計算フォーム
+│   ├── DepreciationResult.tsx      # 償却スケジュール表示
+│   ├── DepreciationScheduleTable.tsx # 償却スケジュールテーブル（共通）
+│   ├── PeriodDepForm.tsx       # 期間償却フォーム
+│   ├── PeriodDepResult.tsx     # 期間償却スケジュール表示
+│   ├── ReferenceLinks.tsx      # 参照リンク集
+│   ├── FormField.tsx           # ラベル+入力ラッパー
+│   ├── InputWithUnit.tsx       # 単位付き入力
+│   ├── PrintFooter.tsx         # 印刷フッター（担当者・作成日）
+│   └── ui/
+│       ├── ActionButtons.tsx   # 計算・クリアボタン（共通）
+│       ├── ConditionTags.tsx   # 条件タグバッジ（共通）
+│       ├── DirtyWarning.tsx    # 入力変更警告バナー（共通）
+│       ├── Disclaimer.tsx      # 免責注記フッター（共通）
+│       ├── EmptyState.tsx      # 空状態プレースホルダー（共通）
+│       ├── HighlightCard.tsx   # 結果ハイライトカード（共通）
+│       └── PresetButtons.tsx   # プリセット選択ピル（共通）
 ├── hooks/
 │   ├── useUsedAssetForm.ts     # 耐用年数フォーム状態管理
 │   ├── useDepreciationForm.ts  # 簿価計算フォーム状態管理
-│   └── useFiveYearForm.ts     # 期間償却フォーム状態管理
+│   ├── useMethodSuggestion.ts  # 償却方法の自動推奨ロジック
+│   └── usePeriodDepForm.ts     # 期間償却フォーム状態管理
 └── lib/
-    ├── used-asset-life.ts  # 耐用年数コア計算ロジック
-    ├── depreciation.ts     # 減価償却計算ロジック（償却率テーブル含む）
-    ├── utils.ts            # ユーティリティ関数
-    └── company.ts          # 会社情報
+    ├── used-asset-life.ts      # 耐用年数コア計算ロジック
+    ├── depreciation.ts         # 減価償却計算エントリー（スケジュール組立）
+    ├── depreciation-builders.ts # 4種の償却方法ビルダー関数
+    ├── depreciation-rates.ts   # 償却率テーブル（法定耐用年数→各種率）
+    ├── utils.ts                # ユーティリティ関数
+    └── company.ts              # 会社情報
 ```
 
 ## タブ間の連携フロー
@@ -121,4 +134,4 @@ src/
 
 ## ステータス
 
-本アプリは現在開発中のため、Gateway（nginx）のルーティングには未登録です。
+Gateway（nginx）登録済み。ポータルサイトからアクセス可能。

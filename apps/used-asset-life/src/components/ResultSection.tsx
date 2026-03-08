@@ -1,4 +1,9 @@
 import { type UsedAssetResult, getAssetTypeLabel } from "@/lib/used-asset-life";
+import DirtyWarning from "@/components/ui/DirtyWarning";
+import ConditionTags from "@/components/ui/ConditionTags";
+import EmptyState from "@/components/ui/EmptyState";
+import HighlightCard from "@/components/ui/HighlightCard";
+import Disclaimer from "@/components/ui/Disclaimer";
 
 type ResultSectionProps = {
     result: UsedAssetResult | null;
@@ -12,14 +17,7 @@ const ResultSection = ({ result, isDirty, onCarryOver }: ResultSectionProps) => 
         return (
             <section className="p-4 sm:p-6">
                 <h2 className="text-lg sm:text-xl font-bold text-green-800 mb-4">計算結果</h2>
-                <div className="flex items-center justify-center py-8">
-                    <div className="text-center text-gray-400">
-                        <div className="text-5xl mb-2">🏗️</div>
-                        <p className="text-sm my-1">法定耐用年数と経過年数を入力し</p>
-                        <p className="text-sm my-1">「計算する」ボタンを押してください</p>
-                        <p className="text-xs text-gray-300 mt-2">Ctrl+Enter でも計算できます</p>
-                    </div>
-                </div>
+                <EmptyState icon="🏗️" lines={['法定耐用年数と経過年数を入力し', '「計算する」ボタンを押してください']} />
             </section>
         );
     }
@@ -44,19 +42,15 @@ const ResultSection = ({ result, isDirty, onCarryOver }: ResultSectionProps) => 
         <section className="p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-green-800 mb-4">計算結果</h2>
 
-            {isDirty && (
-                <div className="p-3 bg-orange-50 border border-orange-500 rounded text-orange-600 text-sm font-semibold mb-4 no-print">
-                    入力値が変更されています。再計算してください。
-                </div>
-            )}
+            <DirtyWarning isDirty={isDirty} />
 
             {/* 条件タグ */}
-            <div className="flex flex-wrap gap-2 mb-4">
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">{getAssetTypeLabel(input.assetType)}</span>
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">法定耐用年数: {input.statutoryLife}年</span>
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">経過: {formatElapsed()}</span>
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">{formulaLabel()}</span>
-            </div>
+            <ConditionTags tags={[
+                getAssetTypeLabel(input.assetType),
+                `法定耐用年数: ${input.statutoryLife}年`,
+                `経過: ${formatElapsed()}`,
+                formulaLabel(),
+            ]} />
 
             {/* 50%判定 */}
             {input.acquisitionCost > 0 && (
@@ -104,11 +98,7 @@ const ResultSection = ({ result, isDirty, onCarryOver }: ResultSectionProps) => 
             </div>
 
             {/* 結果ハイライト */}
-            <div className="p-5 bg-green-50 border-2 border-green-700 rounded-lg text-center mb-4">
-                <p className="text-sm text-green-900 font-semibold mb-2 m-0">中古耐用年数</p>
-                <p className="text-4xl sm:text-5xl font-bold text-green-800 font-mono-num m-0">
-                    {usedAssetLife}<span className="text-2xl sm:text-3xl">年</span>
-                </p>
+            <HighlightCard label="中古耐用年数" value={String(usedAssetLife)} unit="年">
                 {onCarryOver && (
                     <button
                         type="button"
@@ -118,12 +108,10 @@ const ResultSection = ({ result, isDirty, onCarryOver }: ResultSectionProps) => 
                         この結果で簿価計算へ →
                     </button>
                 )}
-            </div>
+            </HighlightCard>
 
             {/* 免責事項 */}
-            <p className="text-center text-xs text-gray-500 mt-3">
-                ※ 本計算は概算です。実際の適用にあたっては税理士にご相談ください。
-            </p>
+            <Disclaimer />
         </section>
     );
 };

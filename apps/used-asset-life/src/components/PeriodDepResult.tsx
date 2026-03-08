@@ -1,6 +1,10 @@
 import { type PeriodDepResult } from "@/hooks/usePeriodDepForm";
 import { formatCurrency } from "@/lib/utils";
 import DepreciationScheduleTable from "@/components/DepreciationScheduleTable";
+import DirtyWarning from "@/components/ui/DirtyWarning";
+import ConditionTags from "@/components/ui/ConditionTags";
+import EmptyState from "@/components/ui/EmptyState";
+import Disclaimer from "@/components/ui/Disclaimer";
 
 type PeriodDepResultProps = {
     result: PeriodDepResult | null;
@@ -12,14 +16,7 @@ const PeriodDepResultSection = ({ result, isDirty }: PeriodDepResultProps) => {
         return (
             <section className="p-4 sm:p-6">
                 <h2 className="text-lg sm:text-xl font-bold text-green-800 mb-4">期間償却スケジュール</h2>
-                <div className="flex items-center justify-center py-8">
-                    <div className="text-center text-gray-400">
-                        <div className="text-5xl mb-2">📅</div>
-                        <p className="text-sm my-1">取得価額・耐用年数・取得日・事業供用日を入力し</p>
-                        <p className="text-sm my-1">「計算する」ボタンを押してください</p>
-                        <p className="text-xs text-gray-300 mt-2">Ctrl+Enter でも計算できます</p>
-                    </div>
-                </div>
+                <EmptyState icon="📅" lines={['取得価額・耐用年数・取得日・事業供用日を入力し', '「計算する」ボタンを押してください']} />
             </section>
         );
     }
@@ -30,19 +27,15 @@ const PeriodDepResultSection = ({ result, isDirty }: PeriodDepResultProps) => {
         <section className="p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-green-800 mb-4">{displayYears}年間償却スケジュール</h2>
 
-            {isDirty && (
-                <div className="p-3 bg-orange-50 border border-orange-500 rounded text-orange-600 text-sm font-semibold mb-4 no-print">
-                    入力値が変更されています。再計算してください。
-                </div>
-            )}
+            <DirtyWarning isDirty={isDirty} />
 
             {/* 条件タグ */}
-            <div className="flex flex-wrap gap-2 mb-4">
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">{methodLabel}</span>
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">耐用年数: {result.usefulLife}年</span>
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">取得価額: {formatCurrency(result.acquisitionCost)}円</span>
-                <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-600">償却率: {appliedRate}</span>
-            </div>
+            <ConditionTags tags={[
+                methodLabel,
+                `耐用年数: ${result.usefulLife}年`,
+                `取得価額: ${formatCurrency(result.acquisitionCost)}円`,
+                `償却率: ${appliedRate}`,
+            ]} />
 
             {/* サマリーカード */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -76,9 +69,7 @@ const PeriodDepResultSection = ({ result, isDirty }: PeriodDepResultProps) => {
             )}
 
             {/* 免責事項 */}
-            <p className="text-center text-xs text-gray-500 mt-3">
-                ※ 本計算は概算です。実際の適用にあたっては税理士にご相談ください。
-            </p>
+            <Disclaimer />
         </section>
     );
 };

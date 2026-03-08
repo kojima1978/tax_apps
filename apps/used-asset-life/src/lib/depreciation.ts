@@ -3,6 +3,12 @@
  * 国税庁 No.2100, 2105, 2106 に基づく
  */
 import { getDepreciationRates } from './depreciation-rates';
+import {
+    buildStraightLine,
+    buildDecliningBalance,
+    buildOldStraightLine,
+    buildOldDecliningBalance,
+} from './depreciation-builders';
 
 export type DepreciationMethod = 'straight_line' | 'declining_balance' | 'old_straight_line' | 'old_declining_balance';
 
@@ -66,18 +72,6 @@ export function determineAcquisitionPeriod(acquisitionDate: string): Acquisition
     return 'after_h24';
 }
 
-export function getAvailableMethods(period: AcquisitionPeriod): { value: DepreciationMethod; label: string }[] {
-    return DEPRECIATION_METHODS
-        .filter(m => m.period.includes(period))
-        .map(m => {
-            if (m.value === 'declining_balance') {
-                const suffix = period === 'after_h24' ? '（200%）' : '（250%）';
-                return { value: m.value, label: `${m.label}${suffix}` };
-            }
-            return { value: m.value, label: m.label };
-        });
-}
-
 export type MethodWithSuggestion = {
     value: DepreciationMethod;
     label: string;
@@ -129,7 +123,7 @@ function calcFirstYearMonths(serviceStartDate: string, fiscalYearEndMonth: numbe
 /**
  * 事業年度のラベルを生成する
  */
-function makePeriodLabel(yearIndex: number, serviceStartDate: string, fiscalYearEndMonth: number, firstYearMonths: number): string {
+function makePeriodLabel(yearIndex: number, serviceStartDate: string, fiscalYearEndMonth: number): string {
     const d = new Date(serviceStartDate);
     const serviceYear = d.getFullYear();
     const serviceMonth = d.getMonth() + 1;
@@ -146,23 +140,16 @@ function makePeriodLabel(yearIndex: number, serviceStartDate: string, fiscalYear
         return `${startY}/${String(startM).padStart(2, '0')}〜${endY}/${String(endM).padStart(2, '0')}`;
     }
 
-    // 2年目以降: 決算月翌月〜決算月
-    const firstYearEndMonth = fiscalYearEndMonth;
     let firstYearEndYear = serviceYear;
-    if (firstYearEndMonth < serviceMonth) {
+    if (fiscalYearEndMonth < serviceMonth) {
         firstYearEndYear = serviceYear + 1;
     }
 
-    const periodStartYear = firstYearEndYear + (yearIndex - 1);
-    const periodStartMonth = fiscalYearEndMonth === 12 ? 1 : fiscalYearEndMonth + 1;
-    const periodEndYear = periodStartYear + (periodStartMonth > fiscalYearEndMonth ? 1 : 0);
-    // Actually fix: period start = previous end + 1 month
-    const sYear = periodStartYear;
-    const sMonth = periodStartMonth;
+    const sYear = firstYearEndYear + (yearIndex - 1);
+    const sMonth = fiscalYearEndMonth === 12 ? 1 : fiscalYearEndMonth + 1;
     const eYear = sYear + (sMonth > fiscalYearEndMonth ? 1 : 0);
-    const eMonth = fiscalYearEndMonth;
 
-    return `${sYear}/${String(sMonth).padStart(2, '0')}〜${eYear}/${String(eMonth).padStart(2, '0')}`;
+    return `${sYear}/${String(sMonth).padStart(2, '0')}〜${eYear}/${String(fiscalYearEndMonth).padStart(2, '0')}`;
 }
 
 /**
@@ -188,12 +175,9 @@ function findTargetPeriodIndex(
 
     if (target <= firstEndDate) return 0;
 
-    // 2年目以降
-    let periodEnd = firstEndDate;
     let idx = 1;
     while (idx < 200) {
-        const nextEndYear = firstEndYear + idx;
-        const nextEndDate = new Date(nextEndYear, fiscalYearEndMonth, 0);
+        const nextEndDate = new Date(firstEndYear + idx, fiscalYearEndMonth, 0);
         if (target <= nextEndDate) return idx;
         idx++;
     }
@@ -214,10 +198,19 @@ export function calcDepreciationSchedule(input: DepreciationInput): Depreciation
     let revisedRate: number | undefined;
     let guaranteeAmount: number | undefined;
 
+    const baseParams = {
+        cost: acquisitionCost,
+        rate: 0,
+        firstMonths: firstYearMonths,
+        serviceStartDate,
+        fiscalYearEndMonth,
+        makePeriodLabel: (yearIndex: number) => makePeriodLabel(yearIndex, serviceStartDate, fiscalYearEndMonth),
+    };
+
     switch (method) {
         case 'straight_line':
             appliedRate = rates.straightLine;
-            buildStraightLine(schedule, acquisitionCost, appliedRate, firstYearMonths, serviceStartDate, fiscalYearEndMonth);
+            buildStraightLine(schedule, { ...baseParams, rate: appliedRate });
             break;
         case 'declining_balance': {
             const is200 = period === 'after_h24';
@@ -225,16 +218,16 @@ export function calcDepreciationSchedule(input: DepreciationInput): Depreciation
             revisedRate = is200 ? rates.db200Revised : rates.db250Revised;
             const guaranteeRate = is200 ? rates.db200Guarantee : rates.db250Guarantee;
             guaranteeAmount = Math.floor(acquisitionCost * guaranteeRate);
-            buildDecliningBalance(schedule, acquisitionCost, appliedRate, revisedRate, guaranteeAmount, firstYearMonths, serviceStartDate, fiscalYearEndMonth);
+            buildDecliningBalance(schedule, { ...baseParams, rate: appliedRate, revisedRate, guaranteeAmount });
             break;
         }
         case 'old_straight_line':
             appliedRate = rates.oldStraightLine;
-            buildOldStraightLine(schedule, acquisitionCost, appliedRate, firstYearMonths, serviceStartDate, fiscalYearEndMonth);
+            buildOldStraightLine(schedule, { ...baseParams, rate: appliedRate });
             break;
         case 'old_declining_balance':
             appliedRate = rates.oldDeclining;
-            buildOldDecliningBalance(schedule, acquisitionCost, appliedRate, firstYearMonths, serviceStartDate, fiscalYearEndMonth);
+            buildOldDecliningBalance(schedule, { ...baseParams, rate: appliedRate });
             break;
     }
 
@@ -265,285 +258,3 @@ export function calcDepreciationSchedule(input: DepreciationInput): Depreciation
     };
 }
 
-// ===== 定額法 (H19以後) =====
-function buildStraightLine(
-    schedule: DepreciationYearRow[],
-    cost: number,
-    rate: number,
-    firstMonths: number,
-    serviceStartDate: string,
-    fiscalYearEndMonth: number,
-) {
-    const annualDep = Math.floor(cost * rate);
-    let bookValue = cost;
-    let year = 0;
-
-    while (bookValue > 1) {
-        const months = year === 0 ? firstMonths : 12;
-        let dep: number;
-
-        if (year === 0) {
-            dep = Math.floor(annualDep * months / 12);
-        } else {
-            dep = annualDep;
-        }
-
-        // 最終年: 簿価1円を残す
-        if (bookValue - dep <= 1) {
-            dep = bookValue - 1;
-        }
-
-        if (dep <= 0 && bookValue <= 1) break;
-        if (dep <= 0) dep = 1;
-
-        const endBV = bookValue - dep;
-        const label = makePeriodLabel(year, serviceStartDate, fiscalYearEndMonth, firstMonths);
-
-        schedule.push({
-            year: year + 1,
-            periodLabel: label,
-            beginningBookValue: bookValue,
-            depreciationBase: cost,
-            rate,
-            months,
-            depreciation: dep,
-            endingBookValue: endBV,
-            memo: year === 0 && months < 12 ? `月割 ${months}/12` : endBV === 1 ? '備忘価額1円' : '',
-        });
-
-        bookValue = endBV;
-        year++;
-        if (year > 150) break;
-    }
-}
-
-// ===== 定率法 (H19以後) =====
-function buildDecliningBalance(
-    schedule: DepreciationYearRow[],
-    cost: number,
-    rate: number,
-    revisedRate: number,
-    guaranteeAmount: number,
-    firstMonths: number,
-    serviceStartDate: string,
-    fiscalYearEndMonth: number,
-) {
-    let bookValue = cost;
-    let year = 0;
-    let switched = false;
-    let revisedBase = 0; // 改定取得価額
-
-    while (bookValue > 1) {
-        const months = year === 0 ? firstMonths : 12;
-        let dep: number;
-        let currentRate: number;
-        let base: number;
-        let memo = '';
-
-        if (!switched) {
-            base = bookValue;
-            currentRate = rate;
-            let rawDep = Math.floor(base * currentRate);
-            if (year === 0) {
-                rawDep = Math.floor(rawDep * months / 12);
-            }
-
-            // 償却保証額チェック（初年度以降、年額ベースで判定）
-            const annualDep = Math.floor(bookValue * rate);
-            if (year > 0 && annualDep < guaranteeAmount) {
-                // 改定償却率に切替
-                switched = true;
-                revisedBase = bookValue;
-                currentRate = revisedRate;
-                dep = Math.floor(revisedBase * revisedRate);
-                memo = '改定償却率に切替';
-            } else {
-                dep = rawDep;
-            }
-        } else {
-            base = revisedBase;
-            currentRate = revisedRate;
-            dep = Math.floor(revisedBase * revisedRate);
-        }
-
-        // 最終年: 簿価1円を残す
-        if (bookValue - dep <= 1) {
-            dep = bookValue - 1;
-            memo = memo || '備忘価額1円';
-        }
-
-        if (dep <= 0 && bookValue <= 1) break;
-        if (dep <= 0) dep = 1;
-
-        const endBV = bookValue - dep;
-        const label = makePeriodLabel(year, serviceStartDate, fiscalYearEndMonth, firstMonths);
-
-        if (year === 0 && months < 12 && !memo) {
-            memo = `月割 ${months}/12`;
-        }
-
-        schedule.push({
-            year: year + 1,
-            periodLabel: label,
-            beginningBookValue: bookValue,
-            depreciationBase: switched ? revisedBase : bookValue,
-            rate: currentRate,
-            months,
-            depreciation: dep,
-            endingBookValue: endBV,
-            memo,
-        });
-
-        bookValue = endBV;
-        year++;
-        if (year > 150) break;
-    }
-}
-
-// ===== 旧定額法 (H19以前) =====
-function buildOldStraightLine(
-    schedule: DepreciationYearRow[],
-    cost: number,
-    rate: number,
-    firstMonths: number,
-    serviceStartDate: string,
-    fiscalYearEndMonth: number,
-) {
-    const residualValue = Math.floor(cost * 0.1); // 残存価額 = 取得価額の10%
-    const depBase = cost - residualValue;
-    const annualDep = Math.floor(depBase * rate);
-    const limit95 = Math.floor(cost * 0.95); // 償却可能限度額
-    let bookValue = cost;
-    let totalDep = 0;
-    let year = 0;
-    let equalPhase = false;
-    let equalAmount = 0;
-    let equalYearsLeft = 0;
-
-    while (bookValue > 1) {
-        const months = year === 0 ? firstMonths : 12;
-        let dep: number;
-        let memo = '';
-
-        if (equalPhase) {
-            dep = equalAmount;
-            if (bookValue - dep <= 1) {
-                dep = bookValue - 1;
-                memo = '備忘価額1円';
-            }
-            equalYearsLeft--;
-        } else {
-            if (year === 0) {
-                dep = Math.floor(annualDep * months / 12);
-                memo = months < 12 ? `月割 ${months}/12` : '';
-            } else {
-                dep = annualDep;
-            }
-
-            // 95%限度チェック
-            if (totalDep + dep >= limit95) {
-                dep = limit95 - totalDep;
-                if (dep < 0) dep = 0;
-                memo = '償却可能限度額到達';
-                // 次年度から5年均等償却
-                equalPhase = true;
-                const remaining = bookValue - dep - 1; // 1円まで
-                equalAmount = Math.floor(remaining / 5);
-                equalYearsLeft = 5;
-            }
-        }
-
-        if (dep <= 0 && bookValue <= 1) break;
-        if (dep <= 0) dep = 1;
-
-        totalDep += dep;
-        const endBV = bookValue - dep;
-        const label = makePeriodLabel(year, serviceStartDate, fiscalYearEndMonth, firstMonths);
-
-        schedule.push({
-            year: year + 1,
-            periodLabel: label,
-            beginningBookValue: bookValue,
-            depreciationBase: equalPhase ? bookValue : depBase,
-            rate: equalPhase ? 0 : rate,
-            months,
-            depreciation: dep,
-            endingBookValue: endBV,
-            memo: memo || (equalPhase ? '均等償却' : ''),
-        });
-
-        bookValue = endBV;
-        year++;
-        if (year > 150) break;
-    }
-}
-
-// ===== 旧定率法 (H19以前) =====
-function buildOldDecliningBalance(
-    schedule: DepreciationYearRow[],
-    cost: number,
-    rate: number,
-    firstMonths: number,
-    serviceStartDate: string,
-    fiscalYearEndMonth: number,
-) {
-    const limit95 = Math.floor(cost * 0.95);
-    let bookValue = cost;
-    let totalDep = 0;
-    let year = 0;
-    let equalPhase = false;
-    let equalAmount = 0;
-
-    while (bookValue > 1) {
-        const months = year === 0 ? firstMonths : 12;
-        let dep: number;
-        let memo = '';
-
-        if (equalPhase) {
-            dep = equalAmount;
-            if (bookValue - dep <= 1) {
-                dep = bookValue - 1;
-                memo = '備忘価額1円';
-            }
-        } else {
-            dep = Math.floor(bookValue * rate);
-            if (year === 0) {
-                dep = Math.floor(dep * months / 12);
-                memo = months < 12 ? `月割 ${months}/12` : '';
-            }
-
-            // 95%限度チェック
-            if (totalDep + dep >= limit95) {
-                dep = limit95 - totalDep;
-                if (dep < 0) dep = 0;
-                memo = '償却可能限度額到達';
-                equalPhase = true;
-                const remaining = bookValue - dep - 1;
-                equalAmount = Math.floor(remaining / 5);
-            }
-        }
-
-        if (dep <= 0 && bookValue <= 1) break;
-        if (dep <= 0) dep = 1;
-
-        totalDep += dep;
-        const endBV = bookValue - dep;
-        const label = makePeriodLabel(year, serviceStartDate, fiscalYearEndMonth, firstMonths);
-
-        schedule.push({
-            year: year + 1,
-            periodLabel: label,
-            beginningBookValue: bookValue,
-            depreciationBase: bookValue,
-            rate: equalPhase ? 0 : rate,
-            months,
-            depreciation: dep,
-            endingBookValue: endBV,
-            memo: memo || (equalPhase ? '均等償却' : ''),
-        });
-
-        bookValue = endBV;
-        year++;
-        if (year > 150) break;
-    }
-}
