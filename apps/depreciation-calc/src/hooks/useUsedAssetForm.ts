@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { type AssetType, type UsedAssetResult, calcUsedAssetLife } from "@/lib/used-asset-life";
 import { formatInputValue, parseFormattedNumber, parseIntInput } from "@/lib/utils";
+import { useDirtyFlag } from "@/hooks/useDirtyFlag";
 
 /**
  * 2つの日付間の経過年数・月数を計算する
@@ -36,7 +37,7 @@ export const useUsedAssetForm = () => {
     const [acquisitionCost, setAcquisitionCost] = useState('');
     const [renovationCost, setRenovationCost] = useState('');
     const [result, setResult] = useState<UsedAssetResult | null>(null);
-    const [isDirty, setIsDirty] = useState(false);
+    const { isDirty, markDirty, clearDirty } = useDirtyFlag(result);
 
     // 日付から経過年数を自動計算
     useEffect(() => {
@@ -45,7 +46,7 @@ export const useUsedAssetForm = () => {
             setElapsedYears(String(elapsed.years));
             setElapsedMonths(String(elapsed.months));
             setAutoCalcEnabled(true);
-            if (result) setIsDirty(true);
+            markDirty();
         } else {
             if (autoCalcEnabled && !newDate && !acquisitionDate) {
                 setAutoCalcEnabled(false);
@@ -59,10 +60,6 @@ export const useUsedAssetForm = () => {
         const months = parseIntInput(elapsedMonths);
         return life > 0 && (years > 0 || months > 0);
     }, [statutoryLife, elapsedYears, elapsedMonths]);
-
-    const markDirty = useCallback(() => {
-        if (result) setIsDirty(true);
-    }, [result]);
 
     const handleStatutoryLife = useCallback((val: string) => {
         setStatutoryLife(val);
@@ -124,8 +121,8 @@ export const useUsedAssetForm = () => {
         });
 
         setResult(calcResult);
-        setIsDirty(false);
-    }, [canCalculate, assetType, statutoryLife, elapsedYears, elapsedMonths, acquisitionCost, renovationCost]);
+        clearDirty();
+    }, [canCalculate, assetType, statutoryLife, elapsedYears, elapsedMonths, acquisitionCost, renovationCost, clearDirty]);
 
     const handleClear = useCallback(() => {
         setAssetType('building');
@@ -138,8 +135,8 @@ export const useUsedAssetForm = () => {
         setAcquisitionCost('');
         setRenovationCost('');
         setResult(null);
-        setIsDirty(false);
-    }, []);
+        clearDirty();
+    }, [clearDirty]);
 
     return {
         formProps: {

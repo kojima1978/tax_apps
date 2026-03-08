@@ -47,3 +47,9 @@ export const parseIntInput = (val: string): number => Math.max(0, parseInt(val) 
  */
 export const formatJapaneseDate = (date: Date): string =>
     `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+
+export const formatElapsed = (years: number, months: number): string => {
+    if (months === 0) return `${years}年`;
+    if (years === 0) return `${months}ヶ月`;
+    return `${years}年${months}ヶ月`;
+};

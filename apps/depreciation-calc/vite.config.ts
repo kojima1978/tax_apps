@@ -4,7 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.VERCEL ? '/' : '/used-asset-life/',
+  base: process.env.VERCEL ? '/' : '/depreciation-calc/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import {
     type DepreciationMethod,
     type DepreciationResult,
@@ -7,6 +7,8 @@ import {
 import { type AssetType } from "@/lib/used-asset-life";
 import { formatInputValue, parseFormattedNumber, parseIntInput } from "@/lib/utils";
 import { useMethodSuggestion } from "@/hooks/useMethodSuggestion";
+import { useCanCalculate } from "@/hooks/useCanCalculate";
+import { useDirtyFlag } from "@/hooks/useDirtyFlag";
 
 export type CarryOverValues = {
     usefulLife: number;
@@ -24,20 +26,12 @@ export const useDepreciationForm = () => {
     const [fiscalYearEndMonth, setFiscalYearEndMonth] = useState('3');
     const [targetDate, setTargetDate] = useState('');
     const [result, setResult] = useState<DepreciationResult | null>(null);
-    const [isDirty, setIsDirty] = useState(false);
     const [carriedOver, setCarriedOver] = useState(false);
+    const { isDirty, setIsDirty, markDirty, clearDirty } = useDirtyFlag(result);
 
     const { availableMethods, suggestedLabel, isMethodSuggested } = useMethodSuggestion(acquisitionDate, method, setMethod);
 
-    const canCalculate = useMemo(() => {
-        const cost = parseFormattedNumber(acquisitionCost);
-        const life = parseIntInput(usefulLife);
-        return cost > 0 && life >= 2 && !!acquisitionDate && !!serviceStartDate;
-    }, [acquisitionCost, usefulLife, acquisitionDate, serviceStartDate]);
-
-    const markDirty = useCallback(() => {
-        if (result) setIsDirty(true);
-    }, [result]);
+    const canCalculate = useCanCalculate(acquisitionCost, usefulLife, acquisitionDate, serviceStartDate);
 
     const handleAssetType = useCallback((val: AssetType) => {
         setAssetType(val);
@@ -96,8 +90,8 @@ export const useDepreciationForm = () => {
         });
 
         setResult(calcResult);
-        setIsDirty(false);
-    }, [canCalculate, acquisitionCost, usefulLife, method, acquisitionDate, serviceStartDate, fiscalYearEndMonth, targetDate]);
+        clearDirty();
+    }, [canCalculate, acquisitionCost, usefulLife, method, acquisitionDate, serviceStartDate, fiscalYearEndMonth, targetDate, clearDirty]);
 
     const handleClear = useCallback(() => {
         setAssetType('building');
@@ -109,9 +103,9 @@ export const useDepreciationForm = () => {
         setFiscalYearEndMonth('3');
         setTargetDate('');
         setResult(null);
-        setIsDirty(false);
+        clearDirty();
         setCarriedOver(false);
-    }, []);
+    }, [clearDirty]);
 
     const applyCarryOver = useCallback((values: CarryOverValues) => {
         setUsefulLife(String(values.usefulLife));

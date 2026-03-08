@@ -4,6 +4,7 @@ import DepreciationScheduleTable from "@/components/DepreciationScheduleTable";
 import DirtyWarning from "@/components/ui/DirtyWarning";
 import ConditionTags from "@/components/ui/ConditionTags";
 import EmptyState from "@/components/ui/EmptyState";
+import SummaryCard from "@/components/ui/SummaryCard";
 import Disclaimer from "@/components/ui/Disclaimer";
 
 type PeriodDepResultProps = {
@@ -39,24 +40,9 @@ const PeriodDepResultSection = ({ result, isDirty }: PeriodDepResultProps) => {
 
             {/* サマリーカード */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                <div className="p-4 bg-green-50 border-2 border-green-700 rounded-lg text-center">
-                    <p className="text-xs text-green-900 font-semibold mb-1 m-0">{displayYears}年間合計償却額</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-green-800 font-mono-num m-0">
-                        {formatCurrency(totalDepreciation)}<span className="text-base">円</span>
-                    </p>
-                </div>
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                    <p className="text-xs text-gray-600 font-semibold mb-1 m-0">開始時簿価</p>
-                    <p className="text-xl sm:text-2xl font-bold text-gray-800 font-mono-num m-0">
-                        {formatCurrency(startBookValue)}<span className="text-sm">円</span>
-                    </p>
-                </div>
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                    <p className="text-xs text-gray-600 font-semibold mb-1 m-0">{displayYears}年後簿価</p>
-                    <p className="text-xl sm:text-2xl font-bold text-gray-800 font-mono-num m-0">
-                        {formatCurrency(endBookValue)}<span className="text-sm">円</span>
-                    </p>
-                </div>
+                <SummaryCard label={`${displayYears}年間合計償却額`} value={formatCurrency(totalDepreciation)} unit="円" variant="primary" />
+                <SummaryCard label="開始時簿価" value={formatCurrency(startBookValue)} unit="円" />
+                <SummaryCard label={`${displayYears}年後簿価`} value={formatCurrency(endBookValue)} unit="円" />
             </div>
 
             {/* 償却スケジュール表 */}

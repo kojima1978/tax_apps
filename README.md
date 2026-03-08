@@ -23,7 +23,7 @@
 | 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3005/3006 | Vite + React + Express | 確定申告書類管理 |
 | 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人の株式評価 |
 | 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3021 | Next.js + Hono + PostgreSQL | 相続税案件管理 |
-| 中古資産耐用年数 | `/used-asset-life/` | http://localhost/used-asset-life/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
+| 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
 | 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 預金移動分析 |
 
 ### 本番モード イメージサイズ
@@ -49,7 +49,7 @@ tax_apps/
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
 │   ├── shares-valuation/              # 非上場株式評価 (Vite)
 │   ├── Required-documents-for-tax-return/ # 確定申告必要書類 (Vite + Express)
-│   ├── used-asset-life/               # 中古資産の耐用年数計算 (Vite)
+│   ├── depreciation-calc/             # 減価償却計算 (Vite)
 │   ├── medical-stock-valuation/       # 医療法人株式評価 (Next.js + SQLite)
 │   ├── inheritance-case-management/   # 案件管理 (Next.js + Hono + Prisma)
 │   └── bank-analyzer-django/          # 銀行分析 (Django)
