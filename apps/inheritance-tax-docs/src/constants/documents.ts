@@ -43,16 +43,6 @@ export interface CategoryDocuments {
   documents: (DocumentItem | CustomDocumentItem)[];
 }
 
-/** 統計情報（useDocumentGuide → UnifiedDocumentView） */
-export interface Stats {
-  totalCount: number;
-  customCount: number;
-  checkedCount: number;
-  excludedCount: number;
-  urgentCount: number;
-  hasCustomizations: boolean;
-}
-
 export const CATEGORIES: CategoryData[] = [
   {
     id: 'identity',

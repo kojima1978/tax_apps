@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useState, useCallback, useMemo } from 'react';
-import { CATEGORIES, type CategoryDocuments, type DocumentItem, type CustomDocumentItem, type DocChanges, type Stats } from '../constants/documents';
+import { CATEGORIES, type CategoryDocuments, type DocumentItem, type CustomDocumentItem, type DocChanges } from '../constants/documents';
 import { createExportData, downloadAsJson, type ExportData } from '../utils/jsonDataManager';
 import { useDocumentModal } from './useDocumentModal';
 
@@ -367,21 +367,16 @@ export function useDocumentGuide() {
     setLastSavedAt(null);
   }, []);
 
-  const stats = useMemo((): Stats => {
+  const hasCustomizations = useMemo((): boolean => {
     const totalCount = Object.values(documentOrder).reduce((acc, ids) => acc + ids.length, 0);
     const customCount = customDocuments.length;
-    const editedCount = Object.keys(editedDocuments).length;
-    const overrideCount = Object.keys(canDelegateOverrides).length;
-    const specificCount = Object.keys(specificDocNames).length;
-    const checkedCount = Object.keys(checkedDocuments).length;
-    const excludedCount = Object.keys(excludedDocuments).length;
-    const urgentCount = Object.keys(urgentDocuments).length;
-    const disabledCount = Object.keys(disabledCategories).length;
-    const memoCount = Object.keys(documentMemos).length;
     const initialBuiltInCount = CATEGORIES.reduce((acc, cat) => acc + cat.documents.length, 0);
     const hasDeletedDocs = totalCount - customCount < initialBuiltInCount;
-    const hasCustomizations = customCount > 0 || editedCount > 0 || overrideCount > 0 || specificCount > 0 || checkedCount > 0 || hasDeletedDocs || excludedCount > 0 || urgentCount > 0 || disabledCount > 0 || memoCount > 0;
-    return { totalCount, customCount, checkedCount, excludedCount, urgentCount, hasCustomizations };
+    const nonEmpty = (...records: Record<string, unknown>[]) => records.some(r => Object.keys(r).length > 0);
+    return customCount > 0 || hasDeletedDocs || nonEmpty(
+      editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
+      excludedDocuments, urgentDocuments, disabledCategories, documentMemos,
+    );
   }, [documentOrder, customDocuments, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, excludedDocuments, urgentDocuments, disabledCategories, documentMemos]);
 
   // 文字列state変更時にも dirty マーク（ファクトリ）
@@ -402,7 +397,7 @@ export function useDocumentGuide() {
     editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
     checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories,
     deleteConfirmation,
-    clientName, deceasedName, deadline, personInCharge, personInChargeContact, stats,
+    clientName, deceasedName, deadline, personInCharge, personInChargeContact, hasCustomizations,
     // モーダル
     ...modal,
     // handlers

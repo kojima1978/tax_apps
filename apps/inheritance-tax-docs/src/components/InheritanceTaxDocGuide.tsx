@@ -10,7 +10,7 @@ export default function InheritanceTaxDocGuide() {
     editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
     checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories,
     deleteConfirmation,
-    clientName, deceasedName, deadline, personInCharge, personInChargeContact, stats,
+    clientName, deceasedName, deadline, personInCharge, personInChargeContact, hasCustomizations,
     // モーダル
     editingDocId, editingDocData, isModalOpen, modalVariant,
     // handlers
@@ -51,7 +51,7 @@ export default function InheritanceTaxDocGuide() {
         urgentDocuments={urgentDocuments}
         disabledCategories={disabledCategories}
         deleteConfirmation={deleteConfirmation}
-        stats={stats}
+        hasCustomizations={hasCustomizations}
         onClientNameChange={setClientName}
         onDeceasedNameChange={setDeceasedName}
         onDeadlineChange={setDeadline}
