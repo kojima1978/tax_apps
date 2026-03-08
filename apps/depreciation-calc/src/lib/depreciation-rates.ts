@@ -144,17 +144,17 @@ export function getDepreciationRates(usefulLife: number): DepreciationRates {
     }
 
     if (usefulLife <= 50) {
-        const row = RATE_TABLE[usefulLife - 2];
+        const [sl, db200, db200r, db200g, db250, db250r, db250g, oldSl, oldDb] = RATE_TABLE[usefulLife - 2]!;
         return {
-            straightLine: row[0],
-            db200: row[1],
-            db200Revised: row[2],
-            db200Guarantee: row[3],
-            db250: row[4],
-            db250Revised: row[5],
-            db250Guarantee: row[6],
-            oldStraightLine: row[7],
-            oldDeclining: row[8],
+            straightLine: sl!,
+            db200: db200!,
+            db200Revised: db200r!,
+            db200Guarantee: db200g!,
+            db250: db250!,
+            db250Revised: db250r!,
+            db250Guarantee: db250g!,
+            oldStraightLine: oldSl!,
+            oldDeclining: oldDb!,
         };
     }
 

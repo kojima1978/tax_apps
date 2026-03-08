@@ -90,7 +90,7 @@ export const usePeriodDepForm = () => {
         if (sy > 0 && schedule.length > 0) {
             const found = schedule.findIndex(row => {
                 const yearMatch = row.periodLabel.match(/^(\d{4})\//);
-                return yearMatch && parseInt(yearMatch[1]) >= sy;
+                return yearMatch?.[1] && parseInt(yearMatch[1]) >= sy;
             });
             if (found >= 0) startIdx = found;
         }
@@ -98,8 +98,10 @@ export const usePeriodDepForm = () => {
         const numYears = parseIntInput(displayYears) || 5;
         const sliced = schedule.slice(startIdx, startIdx + numYears);
         const totalDep = sliced.reduce((sum, r) => sum + r.depreciation, 0);
-        const startBV = sliced.length > 0 ? sliced[0].beginningBookValue : 0;
-        const endBV = sliced.length > 0 ? sliced[sliced.length - 1].endingBookValue : 0;
+        const firstRow = sliced[0];
+        const lastRow = sliced[sliced.length - 1];
+        const startBV = firstRow ? firstRow.beginningBookValue : 0;
+        const endBV = lastRow ? lastRow.endingBookValue : 0;
 
         setResult({
             rows: sliced,
