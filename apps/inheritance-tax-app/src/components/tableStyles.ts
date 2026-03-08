@@ -1,5 +1,5 @@
 /** Common card wrapper */
-export const CARD = 'bg-white rounded-lg shadow-md p-6';
+export const CARD = 'bg-white rounded-xl shadow-md border border-gray-100 p-6';
 
 /** Focus ring for inputs */
 export const INPUT_FOCUS = 'focus:ring-2 focus:ring-green-500 focus:border-green-500';

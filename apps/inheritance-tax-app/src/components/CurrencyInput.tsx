@@ -29,7 +29,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({ id, label, value, 
           min={0}
           step={100}
           inputMode="numeric"
-          className={`w-full px-4 py-2 border rounded-lg ${INPUT_FOCUS} text-right text-lg ${hasError ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+          className={`w-full px-4 py-2.5 border rounded-lg transition-all duration-200 ${INPUT_FOCUS} focus:shadow-md focus:shadow-green-500/10 text-right text-lg ${hasError ? 'border-red-400 bg-red-50' : 'border-gray-300 hover:border-green-400'}`}
           placeholder={placeholder}
         />
         <span className="text-gray-600 whitespace-nowrap font-medium">万円</span>

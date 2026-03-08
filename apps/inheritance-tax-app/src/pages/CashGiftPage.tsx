@@ -14,6 +14,7 @@ import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
 import { useCashGiftSimulation } from '../hooks/useCashGiftSimulation';
+import { useScrollToResult } from '../hooks/useScrollToResult';
 import { formatCurrency } from '../utils';
 import { CASH_GIFT_CAUTIONS } from '../constants/cautionMessages';
 
@@ -35,6 +36,7 @@ export const CashGiftPage: React.FC = () => {
   const [hasAttempted, setHasAttempted] = useState(false);
   const estateRef = useRef<HTMLDivElement>(null);
   const recipientsRef = useRef<HTMLDivElement>(null);
+  const resultRef = useScrollToResult(!!result);
 
   const recipientsInvalid = !noEligibleRecipients && (
     cleanedRecipients.length === 0 ||
@@ -130,24 +132,26 @@ export const CashGiftPage: React.FC = () => {
         )}
 
         {/* 結果表示 */}
-        {result && (
-          <>
-            <PrintHeader title="現金贈与シミュレーション" />
-            <div className="space-y-6">
-              <CashGiftSummaryCard result={result} />
-              <CashGiftFlowSteps result={result} />
-              <CashGiftHeirTable result={result} />
-              {calcInputs && (
-                <CashGiftYearComparison
-                  estateValue={calcInputs.estateValue}
-                  composition={calcInputs.composition}
-                  recipients={calcInputs.recipients}
-                  spouseMode={calcInputs.spouseMode}
-                />
-              )}
+        <div ref={resultRef}>
+          {result && (
+            <div className="result-fade-in">
+              <PrintHeader title="現金贈与シミュレーション" />
+              <div className="space-y-6">
+                <CashGiftSummaryCard result={result} />
+                <CashGiftFlowSteps result={result} />
+                <CashGiftHeirTable result={result} />
+                {calcInputs && (
+                  <CashGiftYearComparison
+                    estateValue={calcInputs.estateValue}
+                    composition={calcInputs.composition}
+                    recipients={calcInputs.recipients}
+                    spouseMode={calcInputs.spouseMode}
+                  />
+                )}
+              </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
 
         {/* 未入力ガイド */}
         {!result && estateValue > 0 && !noEligibleRecipients && !hasAttempted && (

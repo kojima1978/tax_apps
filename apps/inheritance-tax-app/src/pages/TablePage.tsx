@@ -8,6 +8,7 @@ import { TaxBracketTable } from '../components/TaxBracketTable';
 import { CalculateButton } from '../components/CalculateButton';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
+import { useScrollToResult } from '../hooks/useScrollToResult';
 import type { HeirComposition, TaxCalculationResult } from '../types';
 import type { BracketAnalysisRow } from '../utils';
 import { TABLE_CONFIG, createDefaultComposition, RANK_LABELS } from '../constants';
@@ -35,6 +36,8 @@ export const TablePage: React.FC = () => {
 
   const { rank } = getHeirInfo(composition);
   const heirLabel = RANK_LABELS[rank] || '子';
+  const hasData = tableData.length > 0;
+  const resultRef = useScrollToResult(hasData);
 
   return (
     <>
@@ -58,17 +61,19 @@ export const TablePage: React.FC = () => {
           <CalculateButton onClick={handleCalculate} />
         </div>
 
-        {tableData.length > 0 && (
-          <>
-            <PrintHeader title="相続税早見表" />
-            <TaxTable data={tableData} hasSpouse={composition.hasSpouse} />
+        <div ref={resultRef}>
+          {hasData && (
+            <div className="result-fade-in">
+              <PrintHeader title="相続税早見表" />
+              <TaxTable data={tableData} hasSpouse={composition.hasSpouse} />
 
-            <div className="mt-6 print-page-break">
-              <PrintHeader title="加重平均適用税率表" />
-              <BracketRateTable data={bracketData} hasSpouse={composition.hasSpouse} heirLabel={heirLabel} />
+              <div className="mt-6 print-page-break">
+                <PrintHeader title="加重平均適用税率表" />
+                <BracketRateTable data={bracketData} hasSpouse={composition.hasSpouse} heirLabel={heirLabel} />
+              </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
 
         <div className="mt-6 print-page-break">
           <PrintHeader title="相続税の速算表" />

@@ -6,6 +6,41 @@
   body {
     @apply bg-gray-50;
   }
+
+  /* number input spinnerを非表示 */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+/* 結果表示フェードインアニメーション */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.result-fade-in {
+  animation: fadeSlideIn 0.5s ease-out;
+}
+
+/* モバイルナビのスクロールバー非表示 */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 .print-only,
@@ -16,6 +51,10 @@
 @media print {
   .no-print {
     display: none !important;
+  }
+
+  .result-fade-in {
+    animation: none !important;
   }
 
   .print-only {
@@ -128,6 +167,10 @@
   }
 
   .calculator-print .p-4 {
+    padding: 8px 12px !important;
+  }
+
+  .calculator-print .p-5 {
     padding: 8px 12px !important;
   }
 

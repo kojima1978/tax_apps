@@ -8,6 +8,7 @@ import { CalculateButton } from '../components/CalculateButton';
 import { ValidationErrorPanel } from '../components/ValidationErrorPanel';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
+import { useScrollToResult } from '../hooks/useScrollToResult';
 import type { HeirComposition, SpouseAcquisitionMode } from '../types';
 import { createDefaultComposition } from '../constants';
 import { CALCULATOR_CAUTIONS } from '../constants/cautionMessages';
@@ -25,6 +26,7 @@ export const CalculatorPage: React.FC = () => {
 
   const heirRef = useRef<HTMLDivElement>(null);
   const estateRef = useRef<HTMLDivElement>(null);
+  const resultRef = useScrollToResult(!!result);
 
   const noHeirs = !composition.hasSpouse && composition.selectedRank === 'none';
 
@@ -83,17 +85,23 @@ export const CalculatorPage: React.FC = () => {
           <CalculateButton onClick={handleCalculate} />
         </div>
 
-        {result && result.taxableAmount > 0 && (
-          <CalculationResult result={result} weightedRate={weightedRate} />
-        )}
+        <div ref={resultRef}>
+          {result && result.taxableAmount > 0 && (
+            <div className="result-fade-in">
+              <CalculationResult result={result} weightedRate={weightedRate} />
+            </div>
+          )}
 
-        {result && result.taxableAmount === 0 && estateValue > 0 && (
-          <StatusCard
-            variant="success"
-            title="相続税はかかりません"
-            description={`遺産総額（${result.estateValue.toLocaleString()}万円）が基礎控除額（${result.basicDeduction.toLocaleString()}万円）以下のため、課税されません。`}
-          />
-        )}
+          {result && result.taxableAmount === 0 && estateValue > 0 && (
+            <div className="result-fade-in">
+              <StatusCard
+                variant="success"
+                title="相続税はかかりません"
+                description={`遺産総額（${result.estateValue.toLocaleString()}万円）が基礎控除額（${result.basicDeduction.toLocaleString()}万円）以下のため、課税されません。`}
+              />
+            </div>
+          )}
+        </div>
       </main>
     </>
   );

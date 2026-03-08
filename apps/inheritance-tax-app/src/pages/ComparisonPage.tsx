@@ -10,6 +10,7 @@ import { ValidationErrorPanel } from '../components/ValidationErrorPanel';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
+import { useScrollToResult } from '../hooks/useScrollToResult';
 import type { HeirComposition } from '../types';
 import { createDefaultComposition } from '../constants';
 import { COMPARISON_CAUTIONS } from '../constants/cautionMessages';
@@ -48,6 +49,7 @@ export const ComparisonPage: React.FC = () => {
   }, [estateValue, spouseOwnEstate, composition]);
 
   const hasData = comparisonData.length > 0;
+  const resultRef = useScrollToResult(hasData);
 
   return (
     <>
@@ -106,12 +108,14 @@ export const ComparisonPage: React.FC = () => {
           />
         )}
 
-        {hasData && (
-          <>
-            <PrintHeader title="1次相続・2次相続 配偶者取得割合別比較" />
-            <ComparisonTable data={comparisonData} spouseOwnEstate={spouseOwnEstate} />
-          </>
-        )}
+        <div ref={resultRef}>
+          {hasData && (
+            <div className="result-fade-in">
+              <PrintHeader title="1次相続・2次相続 配偶者取得割合別比較" />
+              <ComparisonTable data={comparisonData} spouseOwnEstate={spouseOwnEstate} />
+            </div>
+          )}
+        </div>
       </main>
     </>
   );

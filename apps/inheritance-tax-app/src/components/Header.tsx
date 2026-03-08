@@ -72,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({ actions }) => {
       </div>
 
       <nav className="max-w-7xl mx-auto px-4 md:px-8 pb-0 flex items-end gap-2">
-        <div className="overflow-x-auto flex-1">
+        <div className="overflow-x-auto flex-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="flex gap-1">
             {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
               <NavLink
@@ -80,10 +80,10 @@ export const Header: React.FC<HeaderProps> = ({ actions }) => {
                 to={to}
                 end={to === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-t-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  `flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-t-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     isActive
-                      ? 'bg-white text-green-700'
-                      : 'text-green-100 hover:bg-green-700'
+                      ? 'bg-white text-green-700 shadow-sm'
+                      : 'text-green-100 hover:bg-green-700/60 hover:text-white'
                   }`
                 }
               >
