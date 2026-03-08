@@ -237,11 +237,11 @@ export function calcDepreciationSchedule(input: DepreciationInput): Depreciation
     if (targetDate) {
         const targetIdx = findTargetPeriodIndex(targetDate, serviceStartDate, fiscalYearEndMonth);
         if (targetIdx < schedule.length) {
-            bookValueAtTarget = schedule[targetIdx].endingBookValue;
-            targetPeriodLabel = schedule[targetIdx].periodLabel;
+            bookValueAtTarget = schedule[targetIdx]!.endingBookValue;
+            targetPeriodLabel = schedule[targetIdx]!.periodLabel;
         } else if (schedule.length > 0) {
-            bookValueAtTarget = schedule[schedule.length - 1].endingBookValue;
-            targetPeriodLabel = schedule[schedule.length - 1].periodLabel;
+            bookValueAtTarget = schedule[schedule.length - 1]!.endingBookValue;
+            targetPeriodLabel = schedule[schedule.length - 1]!.periodLabel;
         }
     }
 
