@@ -116,6 +116,14 @@ resolve_app_dir() {
   return 0
 }
 
+# require_app_arg <command_name> <app_name>
+# resolve_app_dir + ensure_network を一括実行。RESOLVED_DIR を設定。
+require_app_arg() {
+  local cmd_name="$1"
+  local app_name="${2:?アプリ名を指定してください}"
+  RESOLVED_DIR=$(resolve_app_dir "$app_name")
+}
+
 format_size() {
   local bytes="$1"
   if [[ $bytes -gt $((1024*1024)) ]]; then
@@ -136,126 +144,277 @@ dir_size() {
   fi
 }
 
+# 本番モードで除外するアプリ（開発中）
+PROD_SKIP_APPS=("stock-valuation-form")
+
+is_prod_skip() {
+  local name="$1"
+  for skip_app in "${PROD_SKIP_APPS[@]}"; do
+    [[ "$name" == "$skip_app" ]] && return 0
+  done
+  return 1
+}
+
+# for_each_app <callback> [args...]
+# 全APPSを順方向で反復し、callback(app_dir, app_name, args...) を呼ぶ
+for_each_app() {
+  local callback="$1"; shift
+  for app in "${APPS[@]}"; do
+    local dir="$PROJECT_ROOT/$app"
+    local name; name=$(basename "$app")
+    if [[ -f "$dir/docker-compose.yml" ]]; then
+      "$callback" "$dir" "$name" "$@"
+    fi
+  done
+}
+
+# for_each_app_reverse <callback> [args...]
+# 全APPSを逆順で反復
+for_each_app_reverse() {
+  local callback="$1"; shift
+  for (( i=${#APPS[@]}-1; i>=0; i-- )); do
+    local app="${APPS[$i]}"
+    local dir="$PROJECT_ROOT/$app"
+    local name; name=$(basename "$app")
+    if [[ -f "$dir/docker-compose.yml" ]]; then
+      "$callback" "$dir" "$name" "$@"
+    fi
+  done
+}
+
+# is_container_running <container_name>
+is_container_running() {
+  docker ps --filter "name=$1" --filter "status=running" --format "{{.Names}}" 2>/dev/null | grep -q "$1"
+}
+
+# backup_postgres <label> <container> <pg_user> <db_name> <volume_name> <dump_file>
+# PostgreSQL のバックアップ（pg_dump → volume fallback）
+backup_postgres() {
+  local label="$1" container="$2" pg_user="$3" db_name="$4" volume="$5" dump_file="$6"
+  echo "$label"
+
+  if is_container_running "$container"; then
+    if docker exec "$container" pg_dump -U "$pg_user" -d "$db_name" > "$backup_dir/$dump_file.sql" 2>/dev/null; then
+      ok "$dump_file.sql"
+      (( backup_ok++ ))
+      return
+    fi
+    rm -f "$backup_dir/$dump_file.sql"
+    warn "pg_dump failed, trying volume backup..."
+  else
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+      warn "Container stopped - backing up volume directly"
+    fi
+  fi
+
+  # volume fallback
+  if docker volume inspect "$volume" >/dev/null 2>&1; then
+    if docker run --rm -v "$volume":/data -v "$backup_dir":/backup alpine tar czf "/backup/$dump_file-volume.tar.gz" -C /data . >/dev/null 2>&1; then
+      ok "$dump_file-volume.tar.gz"
+      (( backup_ok++ ))
+    else
+      err "Volume backup failed"
+      (( backup_fail++ ))
+    fi
+  else
+    warn "$label volume not found"
+    (( backup_skip++ ))
+  fi
+}
+
+# restore_postgres <label> <container> <pg_user> <db_name> <volume_name> <dump_file> <restart_hint>
+# PostgreSQL のリストア（SQL → volume fallback）
+restore_postgres() {
+  local label="$1" container="$2" pg_user="$3" db_name="$4" volume="$5" dump_file="$6" restart_hint="$7"
+  echo "$label"
+
+  if [[ -f "$backup_dir/$dump_file.sql" ]]; then
+    if ! is_container_running "$container"; then
+      err "$container container is not running."
+      echo "  Run: ./manage.sh restart $restart_hint"
+      (( restore_fail++ ))
+      return
+    fi
+    docker exec "$container" psql -U "$pg_user" -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$db_name' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
+    docker exec "$container" psql -U "$pg_user" -d postgres -c "DROP DATABASE IF EXISTS $db_name;" >/dev/null 2>&1
+    docker exec "$container" psql -U "$pg_user" -d postgres -c "CREATE DATABASE $db_name;" >/dev/null 2>&1
+    if docker exec -i "$container" psql -U "$pg_user" -d "$db_name" < "$backup_dir/$dump_file.sql" >/dev/null 2>&1; then
+      ok "$dump_file.sql"
+      (( restore_ok++ ))
+    else
+      err "$label restore failed"
+      (( restore_fail++ ))
+    fi
+  elif [[ -f "$backup_dir/$dump_file-volume.tar.gz" ]]; then
+    warn "Volume restore - container must be stopped"
+    docker volume inspect "$volume" >/dev/null 2>&1 || docker volume create "$volume" >/dev/null 2>&1
+    if docker run --rm -v "$volume":/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$dump_file-volume.tar.gz" >/dev/null 2>&1; then
+      ok "$dump_file-volume.tar.gz"
+      (( restore_ok++ ))
+    else
+      err "Volume restore failed"
+      (( restore_fail++ ))
+    fi
+  else
+    warn "Not in backup"
+    (( restore_skip++ ))
+  fi
+}
+
+# backup_sqlite_volumes <pair1> <pair2> ...
+# SQLite ボリュームのバックアップ（"volume:filename" 形式）
+backup_sqlite_volumes() {
+  echo "[3/5] SQLite volumes ..."
+  local sqlite_ok=0 sqlite_skip=0
+  for pair in "$@"; do
+    local vol="${pair%%:*}"
+    local fname="${pair##*:}"
+    if docker volume inspect "$vol" >/dev/null 2>&1; then
+      if docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine tar czf "/backup/${fname}.tar.gz" -C /data . >/dev/null 2>&1; then
+        (( sqlite_ok++ ))
+      else
+        err "$vol backup failed"
+        (( backup_fail++ ))
+      fi
+    else
+      (( sqlite_skip++ ))
+    fi
+  done
+  if [[ $sqlite_ok -gt 0 ]]; then
+    ok "SQLite $sqlite_ok volumes"
+    (( backup_ok += sqlite_ok ))
+  fi
+  if [[ $sqlite_ok -eq 0 && $sqlite_skip -eq $# ]]; then
+    warn "No SQLite volumes found"
+    (( backup_skip++ ))
+  fi
+}
+
+# restore_sqlite_volumes <pair1> <pair2> ...
+# SQLite ボリュームのリストア（"filename.tar.gz:volume" 形式）
+restore_sqlite_volumes() {
+  echo "[3/5] SQLite volumes ..."
+  local sqlite_ok=0
+  for pair in "$@"; do
+    local fname="${pair%%:*}"
+    local vol="${pair##*:}"
+    if [[ -f "$backup_dir/$fname" ]]; then
+      docker volume inspect "$vol" >/dev/null 2>&1 || docker volume create "$vol" >/dev/null 2>&1
+      if docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$fname" >/dev/null 2>&1; then
+        (( sqlite_ok++ ))
+      else
+        (( restore_fail++ ))
+      fi
+    fi
+  done
+  if [[ $sqlite_ok -gt 0 ]]; then
+    ok "SQLite $sqlite_ok volumes"
+    (( restore_ok += sqlite_ok ))
+  else
+    warn "No SQLite backups found"
+    (( restore_skip++ ))
+  fi
+}
+
+# print_summary_banner <title> <result_var_prefix>
+# バックアップ/リストアのサマリーバナー表示
+print_summary_banner() {
+  local title="$1" ok_count="$2" skip_count="$3" fail_count="$4"
+  echo ""
+  echo "========================================"
+  if [[ $fail_count -eq 0 ]]; then
+    echo "  $title"
+  else
+    echo "  $title (with errors)"
+  fi
+  echo "========================================"
+  echo ""
+}
+
 # ------------------------------------
 # コマンド
 # ------------------------------------
+
+# --- start用コールバック ---
+_do_start() {
+  local dir="$1" name="$2" prod_mode="$3"
+  # 本番モード時に開発中アプリをスキップ
+  if [[ $prod_mode -eq 1 ]] && is_prod_skip "$name"; then
+    warn "スキップ（開発中）: $name"
+    return
+  fi
+  # .env.example → .env 自動生成
+  if [[ -f "$dir/.env.example" && ! -f "$dir/.env" ]]; then
+    cp "$dir/.env.example" "$dir/.env"
+    log "  .env を作成しました: $name"
+  fi
+  if [[ $prod_mode -eq 1 ]]; then
+    local prod_compose="$dir/docker-compose.prod.yml"
+    if [[ -f "$prod_compose" ]]; then
+      log "  起動[本番]: $name"
+      docker compose -f "$dir/docker-compose.yml" -f "$prod_compose" up -d --build
+    else
+      log "  起動[本番]: $name"
+      docker compose -f "$dir/docker-compose.yml" up -d --build
+    fi
+  else
+    log "  起動: $name"
+    docker compose -f "$dir/docker-compose.yml" up -d
+  fi
+}
+
+# --- stop/down用コールバック ---
+_do_compose_action() {
+  local dir="$1" name="$2" action="$3" label="$4"
+  log "  $label: $name"
+  docker compose -f "$dir/docker-compose.yml" $action
+}
+
 cmd_start() {
   local prod_mode=0
-  if [[ "${1:-}" == "--prod" ]]; then
-    prod_mode=1
-  fi
-
+  [[ "${1:-}" == "--prod" ]] && prod_mode=1
   ensure_network
-
   if [[ $prod_mode -eq 1 ]]; then
     log "全アプリを本番モードで起動します..."
   else
     log "全アプリを起動します..."
   fi
-
-  # 本番モードで除外するアプリ（開発中）
-  local -a PROD_SKIP_APPS=("stock-valuation-form")
-
-  for app in "${APPS[@]}"; do
-    local dir="$PROJECT_ROOT/$app"
-    local name
-    name=$(basename "$app")
-    if [[ ! -f "$dir/docker-compose.yml" ]]; then
-      warn "スキップ（docker-compose.yml なし）: $name"
-      continue
-    fi
-    # 本番モード時に開発中アプリをスキップ
-    if [[ $prod_mode -eq 1 ]]; then
-      local skip=0
-      for skip_app in "${PROD_SKIP_APPS[@]}"; do
-        if [[ "$name" == "$skip_app" ]]; then
-          skip=1
-          break
-        fi
-      done
-      if [[ $skip -eq 1 ]]; then
-        warn "スキップ（開発中）: $name"
-        continue
-      fi
-    fi
-    # .env.example → .env 自動生成
-    if [[ -f "$dir/.env.example" && ! -f "$dir/.env" ]]; then
-      cp "$dir/.env.example" "$dir/.env"
-      log "  .env を作成しました: $name"
-    fi
-    if [[ $prod_mode -eq 1 ]]; then
-      local prod_compose="$dir/docker-compose.prod.yml"
-      if [[ -f "$prod_compose" ]]; then
-        log "  起動[本番]: $name"
-        docker compose -f "$dir/docker-compose.yml" -f "$prod_compose" up -d --build
-      else
-        log "  起動[本番]: $name"
-        docker compose -f "$dir/docker-compose.yml" up -d --build
-      fi
-    else
-      log "  起動: $name"
-      docker compose -f "$dir/docker-compose.yml" up -d
-    fi
-  done
+  for_each_app _do_start "$prod_mode"
   log "全アプリの起動が完了しました"
   cmd_status
 }
 
 cmd_stop() {
   log "全アプリを停止します..."
-  for (( i=${#APPS[@]}-1; i>=0; i-- )); do
-    local app="${APPS[$i]}"
-    local dir="$PROJECT_ROOT/$app"
-    local name
-    name=$(basename "$app")
-    if [[ -f "$dir/docker-compose.yml" ]]; then
-      log "  停止: $name"
-      docker compose -f "$dir/docker-compose.yml" stop
-    fi
-  done
+  for_each_app_reverse _do_compose_action "stop" "停止"
   log "全アプリを停止しました"
 }
 
 cmd_down() {
   log "全アプリを停止・削除します..."
-  for (( i=${#APPS[@]}-1; i>=0; i-- )); do
-    local app="${APPS[$i]}"
-    local dir="$PROJECT_ROOT/$app"
-    local name
-    name=$(basename "$app")
-    if [[ -f "$dir/docker-compose.yml" ]]; then
-      log "  削除: $name"
-      docker compose -f "$dir/docker-compose.yml" down
-    fi
-  done
+  for_each_app_reverse _do_compose_action "down" "削除"
   log "全アプリを削除しました"
 }
 
 cmd_restart() {
-  local name="${1:?アプリ名を指定してください}"
-  local dir
-  dir=$(resolve_app_dir "$name")
+  require_app_arg "restart" "${1:-}"
   ensure_network
-  log "$name を再起動します..."
-  docker compose -f "$dir/docker-compose.yml" restart
-  log "$name を再起動しました"
+  log "$(basename "$RESOLVED_DIR") を再起動します..."
+  docker compose -f "$RESOLVED_DIR/docker-compose.yml" restart
+  log "$(basename "$RESOLVED_DIR") を再起動しました"
 }
 
 cmd_build() {
-  local name="${1:?アプリ名を指定してください}"
-  local dir
-  dir=$(resolve_app_dir "$name")
+  require_app_arg "build" "${1:-}"
   ensure_network
-  log "$name を再ビルドして起動します..."
-  docker compose -f "$dir/docker-compose.yml" up -d --build
-  log "$name のビルドが完了しました"
+  log "$(basename "$RESOLVED_DIR") を再ビルドして起動します..."
+  docker compose -f "$RESOLVED_DIR/docker-compose.yml" up -d --build
+  log "$(basename "$RESOLVED_DIR") のビルドが完了しました"
 }
 
 cmd_logs() {
-  local name="${1:?アプリ名を指定してください}"
-  local dir
-  dir=$(resolve_app_dir "$name")
-  docker compose -f "$dir/docker-compose.yml" logs -f
+  require_app_arg "logs" "${1:-}"
+  docker compose -f "$RESOLVED_DIR/docker-compose.yml" logs -f
 }
 
 cmd_status() {
@@ -307,102 +466,20 @@ cmd_backup() {
   local backup_ok=0 backup_fail=0 backup_skip=0
 
   # --- 1/5 ITCM PostgreSQL ---
-  echo "[1/5] ITCM PostgreSQL ..."
-  if docker ps --filter "name=itcm-postgres" --filter "status=running" --format "{{.Names}}" 2>/dev/null | grep -q "itcm-postgres"; then
-    if docker exec itcm-postgres pg_dump -U postgres -d inheritance_tax_db > "$backup_dir/itcm-postgres.sql" 2>/dev/null; then
-      ok "itcm-postgres.sql"
-      (( backup_ok++ ))
-    else
-      rm -f "$backup_dir/itcm-postgres.sql"
-      warn "pg_dump failed, trying volume backup..."
-      if docker volume inspect inheritance-case-management_postgres_data >/dev/null 2>&1; then
-        if docker run --rm -v inheritance-case-management_postgres_data:/data -v "$backup_dir":/backup alpine tar czf /backup/itcm-postgres-volume.tar.gz -C /data . >/dev/null 2>&1; then
-          ok "itcm-postgres-volume.tar.gz"
-          (( backup_ok++ ))
-        else
-          err "Volume backup failed"
-          (( backup_fail++ ))
-        fi
-      else
-        warn "ITCM PostgreSQL volume not found"
-        (( backup_skip++ ))
-      fi
-    fi
-  elif docker volume inspect inheritance-case-management_postgres_data >/dev/null 2>&1; then
-    warn "Container stopped - backing up volume directly"
-    if docker run --rm -v inheritance-case-management_postgres_data:/data -v "$backup_dir":/backup alpine tar czf /backup/itcm-postgres-volume.tar.gz -C /data . >/dev/null 2>&1; then
-      ok "itcm-postgres-volume.tar.gz"
-      (( backup_ok++ ))
-    else
-      err "Volume backup failed"
-      (( backup_fail++ ))
-    fi
-  else
-    warn "ITCM PostgreSQL volume not found"
-    (( backup_skip++ ))
-  fi
+  backup_postgres "[1/5] ITCM PostgreSQL ..." \
+    "itcm-postgres" "postgres" "inheritance_tax_db" \
+    "inheritance-case-management_postgres_data" "itcm-postgres"
 
   # --- 2/5 Bank Analyzer PostgreSQL ---
-  echo "[2/5] Bank Analyzer PostgreSQL ..."
-  if docker ps --filter "name=bank-analyzer-postgres" --filter "status=running" --format "{{.Names}}" 2>/dev/null | grep -q "bank-analyzer-postgres"; then
-    if docker exec bank-analyzer-postgres pg_dump -U bankuser -d bank_analyzer > "$backup_dir/bank-analyzer-postgres.sql" 2>/dev/null; then
-      ok "bank-analyzer-postgres.sql"
-      (( backup_ok++ ))
-    else
-      rm -f "$backup_dir/bank-analyzer-postgres.sql"
-      warn "pg_dump failed, trying volume backup..."
-      if docker volume inspect bank-analyzer-postgres >/dev/null 2>&1; then
-        if docker run --rm -v bank-analyzer-postgres:/data -v "$backup_dir":/backup alpine tar czf /backup/bank-analyzer-postgres-volume.tar.gz -C /data . >/dev/null 2>&1; then
-          ok "bank-analyzer-postgres-volume.tar.gz"
-          (( backup_ok++ ))
-        else
-          err "Volume backup failed"
-          (( backup_fail++ ))
-        fi
-      else
-        warn "Bank Analyzer PostgreSQL volume not found"
-        (( backup_skip++ ))
-      fi
-    fi
-  elif docker volume inspect bank-analyzer-postgres >/dev/null 2>&1; then
-    warn "Container stopped - backing up volume directly"
-    if docker run --rm -v bank-analyzer-postgres:/data -v "$backup_dir":/backup alpine tar czf /backup/bank-analyzer-postgres-volume.tar.gz -C /data . >/dev/null 2>&1; then
-      ok "bank-analyzer-postgres-volume.tar.gz"
-      (( backup_ok++ ))
-    else
-      err "Volume backup failed"
-      (( backup_fail++ ))
-    fi
-  else
-    warn "Bank Analyzer PostgreSQL volume not found"
-    (( backup_skip++ ))
-  fi
+  backup_postgres "[2/5] Bank Analyzer PostgreSQL ..." \
+    "bank-analyzer-postgres" "bankuser" "bank_analyzer" \
+    "bank-analyzer-postgres" "bank-analyzer-postgres"
 
   # --- 3/5 SQLite volumes ---
-  echo "[3/5] SQLite volumes ..."
-  local sqlite_ok=0 sqlite_skip=0
-  for pair in "bank-analyzer-sqlite:bank-analyzer-sqlite" "tax-docs-data:tax-docs-data" "medical-stock-valuation-data:medical-stock-valuation-data"; do
-    local vol="${pair%%:*}"
-    local fname="${pair##*:}"
-    if docker volume inspect "$vol" >/dev/null 2>&1; then
-      if docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine tar czf "/backup/${fname}.tar.gz" -C /data . >/dev/null 2>&1; then
-        (( sqlite_ok++ ))
-      else
-        err "$vol backup failed"
-        (( backup_fail++ ))
-      fi
-    else
-      (( sqlite_skip++ ))
-    fi
-  done
-  if [[ $sqlite_ok -gt 0 ]]; then
-    ok "SQLite $sqlite_ok volumes"
-    (( backup_ok += sqlite_ok ))
-  fi
-  if [[ $sqlite_ok -eq 0 && $sqlite_skip -eq 3 ]]; then
-    warn "No SQLite volumes found"
-    (( backup_skip++ ))
-  fi
+  backup_sqlite_volumes \
+    "bank-analyzer-sqlite:bank-analyzer-sqlite" \
+    "tax-docs-data:tax-docs-data" \
+    "medical-stock-valuation-data:medical-stock-valuation-data"
 
   # --- 4/5 Upload data (bind mount) ---
   echo "[4/5] Upload data ..."
@@ -434,19 +511,9 @@ cmd_backup() {
   fi
 
   # --- Summary ---
-  echo ""
-  local total_size
-  total_size=$(format_size "$(dir_size "$backup_dir")")
-  echo "========================================"
-  if [[ $backup_fail -eq 0 ]]; then
-    echo "  Backup Complete"
-  else
-    echo "  Backup Complete (with errors)"
-  fi
-  echo "========================================"
-  echo ""
+  print_summary_banner "Backup Complete" "$backup_ok" "$backup_skip" "$backup_fail"
   echo "  Destination: $backup_dir/"
-  echo "  Size: $total_size"
+  echo "  Size: $(format_size "$(dir_size "$backup_dir")")"
   echo "  OK: $backup_ok  Skipped: $backup_skip  Failed: $backup_fail"
   echo ""
   if [[ $backup_ok -eq 0 ]]; then
@@ -539,95 +606,22 @@ cmd_restore() {
   local restore_ok=0 restore_fail=0 restore_skip=0
 
   # --- 1/5 ITCM PostgreSQL ---
-  echo "[1/5] ITCM PostgreSQL ..."
-  if [[ -f "$backup_dir/itcm-postgres.sql" ]]; then
-    if docker ps --filter "name=itcm-postgres" --filter "status=running" --format "{{.Names}}" 2>/dev/null | grep -q "itcm-postgres"; then
-      docker exec itcm-postgres psql -U postgres -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='inheritance_tax_db' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
-      docker exec itcm-postgres psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS inheritance_tax_db;" >/dev/null 2>&1
-      docker exec itcm-postgres psql -U postgres -d postgres -c "CREATE DATABASE inheritance_tax_db;" >/dev/null 2>&1
-      if docker exec -i itcm-postgres psql -U postgres -d inheritance_tax_db < "$backup_dir/itcm-postgres.sql" >/dev/null 2>&1; then
-        ok "itcm-postgres.sql"
-        (( restore_ok++ ))
-      else
-        err "ITCM PostgreSQL restore failed"
-        (( restore_fail++ ))
-      fi
-    else
-      err "itcm-postgres container is not running."
-      echo "  Run: ./manage.sh restart inheritance-case-management"
-      (( restore_fail++ ))
-    fi
-  elif [[ -f "$backup_dir/itcm-postgres-volume.tar.gz" ]]; then
-    warn "Volume restore - container must be stopped"
-    docker volume inspect inheritance-case-management_postgres_data >/dev/null 2>&1 || docker volume create inheritance-case-management_postgres_data >/dev/null 2>&1
-    if docker run --rm -v inheritance-case-management_postgres_data:/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/itcm-postgres-volume.tar.gz" >/dev/null 2>&1; then
-      ok "itcm-postgres-volume.tar.gz"
-      (( restore_ok++ ))
-    else
-      err "Volume restore failed"
-      (( restore_fail++ ))
-    fi
-  else
-    warn "Not in backup"
-    (( restore_skip++ ))
-  fi
+  restore_postgres "[1/5] ITCM PostgreSQL ..." \
+    "itcm-postgres" "postgres" "inheritance_tax_db" \
+    "inheritance-case-management_postgres_data" "itcm-postgres" \
+    "inheritance-case-management"
 
   # --- 2/5 Bank Analyzer PostgreSQL ---
-  echo "[2/5] Bank Analyzer PostgreSQL ..."
-  if [[ -f "$backup_dir/bank-analyzer-postgres.sql" ]]; then
-    if docker ps --filter "name=bank-analyzer-postgres" --filter "status=running" --format "{{.Names}}" 2>/dev/null | grep -q "bank-analyzer-postgres"; then
-      docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='bank_analyzer' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
-      docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "DROP DATABASE IF EXISTS bank_analyzer;" >/dev/null 2>&1
-      docker exec bank-analyzer-postgres psql -U bankuser -d postgres -c "CREATE DATABASE bank_analyzer;" >/dev/null 2>&1
-      if docker exec -i bank-analyzer-postgres psql -U bankuser -d bank_analyzer < "$backup_dir/bank-analyzer-postgres.sql" >/dev/null 2>&1; then
-        ok "bank-analyzer-postgres.sql"
-        (( restore_ok++ ))
-      else
-        err "Bank Analyzer PostgreSQL restore failed"
-        (( restore_fail++ ))
-      fi
-    else
-      err "bank-analyzer-postgres container is not running."
-      echo "  Run: ./manage.sh restart bank-analyzer-django"
-      (( restore_fail++ ))
-    fi
-  elif [[ -f "$backup_dir/bank-analyzer-postgres-volume.tar.gz" ]]; then
-    warn "Volume restore - container must be stopped"
-    docker volume inspect bank-analyzer-postgres >/dev/null 2>&1 || docker volume create bank-analyzer-postgres >/dev/null 2>&1
-    if docker run --rm -v bank-analyzer-postgres:/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/bank-analyzer-postgres-volume.tar.gz" >/dev/null 2>&1; then
-      ok "bank-analyzer-postgres-volume.tar.gz"
-      (( restore_ok++ ))
-    else
-      err "Volume restore failed"
-      (( restore_fail++ ))
-    fi
-  else
-    warn "Not in backup"
-    (( restore_skip++ ))
-  fi
+  restore_postgres "[2/5] Bank Analyzer PostgreSQL ..." \
+    "bank-analyzer-postgres" "bankuser" "bank_analyzer" \
+    "bank-analyzer-postgres" "bank-analyzer-postgres" \
+    "bank-analyzer-django"
 
   # --- 3/5 SQLite volumes ---
-  echo "[3/5] SQLite volumes ..."
-  local sqlite_ok=0
-  for pair in "bank-analyzer-sqlite.tar.gz:bank-analyzer-sqlite" "tax-docs-data.tar.gz:tax-docs-data" "medical-stock-valuation-data.tar.gz:medical-stock-valuation-data"; do
-    local fname="${pair%%:*}"
-    local vol="${pair##*:}"
-    if [[ -f "$backup_dir/$fname" ]]; then
-      docker volume inspect "$vol" >/dev/null 2>&1 || docker volume create "$vol" >/dev/null 2>&1
-      if docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$fname" >/dev/null 2>&1; then
-        (( sqlite_ok++ ))
-      else
-        (( restore_fail++ ))
-      fi
-    fi
-  done
-  if [[ $sqlite_ok -gt 0 ]]; then
-    ok "SQLite $sqlite_ok volumes"
-    (( restore_ok += sqlite_ok ))
-  else
-    warn "No SQLite backups found"
-    (( restore_skip++ ))
-  fi
+  restore_sqlite_volumes \
+    "bank-analyzer-sqlite.tar.gz:bank-analyzer-sqlite" \
+    "tax-docs-data.tar.gz:tax-docs-data" \
+    "medical-stock-valuation-data.tar.gz:medical-stock-valuation-data"
 
   # --- 4/5 Upload data ---
   echo "[4/5] Upload data ..."
@@ -658,15 +652,7 @@ cmd_restore() {
   fi
 
   # --- Summary ---
-  echo ""
-  echo "========================================"
-  if [[ $restore_fail -eq 0 ]]; then
-    echo "  Restore Complete"
-  else
-    echo "  Restore Complete (with errors)"
-  fi
-  echo "========================================"
-  echo ""
+  print_summary_banner "Restore Complete" "$restore_ok" "$restore_skip" "$restore_fail"
   echo "  Source: $backup_dir/"
   echo "  OK: $restore_ok  Skipped: $restore_skip  Failed: $restore_fail"
   echo ""
@@ -681,6 +667,23 @@ cmd_restore() {
 # ------------------------------------
 # clean - クリーンアップ
 # ------------------------------------
+
+_do_clean_app() {
+  local dir="$1" name="$2"
+  echo "  削除: $name"
+  docker compose -f "$dir/docker-compose.yml" down --rmi local --remove-orphans 2>/dev/null || true
+}
+
+_print_clean_done() {
+  echo ""
+  echo "========================================"
+  echo "  Clean Up Complete"
+  echo "========================================"
+  echo ""
+  echo "  リセットアップ: ./manage.sh start"
+  echo ""
+}
+
 cmd_clean() {
   echo ""
   echo "========================================"
@@ -707,16 +710,7 @@ cmd_clean() {
 
   echo ""
   echo "コンテナを停止・削除しています..."
-  for (( i=${#APPS[@]}-1; i>=0; i-- )); do
-    local app="${APPS[$i]}"
-    local dir="$PROJECT_ROOT/$app"
-    if [[ -f "$dir/docker-compose.yml" ]]; then
-      local name
-      name=$(basename "$app")
-      echo "  削除: $name"
-      docker compose -f "$dir/docker-compose.yml" down --rmi local --remove-orphans 2>/dev/null || true
-    fi
-  done
+  for_each_app_reverse _do_clean_app
   echo ""
   ok "コンテナ・イメージを削除しました"
 
@@ -742,13 +736,7 @@ cmd_clean() {
     echo ""
     echo "データの削除をスキップしました。"
     echo "コンテナ・イメージのみ削除済みです。"
-    echo ""
-    echo "========================================"
-    echo "  Clean Up Complete"
-    echo "========================================"
-    echo ""
-    echo "  リセットアップ: ./manage.sh start"
-    echo ""
+    _print_clean_done
     return 0
   fi
 
@@ -766,13 +754,7 @@ cmd_clean() {
 
   echo ""
   ok "データボリュームを削除しました"
-  echo ""
-  echo "========================================"
-  echo "  Clean Up Complete"
-  echo "========================================"
-  echo ""
-  echo "  リセットアップ: ./manage.sh start"
-  echo ""
+  _print_clean_done
 }
 
 # ------------------------------------
