@@ -15,7 +15,7 @@ build/
 # Environment files
 .env
 .env.*
-!.env.example
+!**/.env.example
 
 # IDE
 .idea/
@@ -76,15 +76,7 @@ user_settings.json
 *.bak
 .cache/
 
-# Vercel
-.vercel
-
-# Prisma
-apps/*/prisma/migrations/
-
 # Docker volumes data
-ollama_data/
-itcm_postgres_data/
 docker/backups/
 
 # Data directories (keep structure, ignore contents)
@@ -92,5 +84,4 @@ apps/*/data/*
 !apps/*/data/.gitkeep
 
 # Generated files
-apps/*/app/generated/
 next-env.d.ts
