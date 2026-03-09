@@ -7,15 +7,17 @@ import { useCases } from "@/hooks/use-cases"
 import { useExportCSV } from "@/hooks/use-export-csv"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { getAllCases } from "@/lib/api/cases"
-import type { InheritanceCase } from "@/types/shared"
+import type { InheritanceCase, Assignee } from "@/types/shared"
+import { getAssignees } from "@/lib/api/assignees"
 import { Button } from "@/components/ui/Button"
-import { RefreshCw, Download } from "lucide-react"
+import { RefreshCw, Download, Upload } from "lucide-react"
 import { TableSkeleton } from "@/components/ui/Skeleton"
 import { ErrorDisplay } from "@/components/ui/ErrorDisplay"
 import { parseError } from "@/hooks/use-error-handler"
 import { KPICards } from "./KPICards"
 import { FilterBar } from "./FilterBar"
 import { Pagination } from "./Pagination"
+import { ImportCSVModal } from "@/components/ImportCSVModal"
 
 export default function InheritanceMockupPage() {
     const [queryParams, setQueryParams] = useState<CasesQueryParams>({
@@ -26,13 +28,16 @@ export default function InheritanceMockupPage() {
 
     const { data, isLoading, isError, error, refetch, isFetching } = useCases(queryParams)
     const { exportCSV, isExporting } = useExportCSV()
+    const [showImportModal, setShowImportModal] = useState(false)
     const cases = data?.data ?? []
     const pagination = data?.pagination
 
-    // KPI data
+    // KPI data & assignees
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
+    const [assignees, setAssignees] = useState<Assignee[]>([])
     useEffect(() => {
         getAllCases().then(setAllCases).catch(() => {})
+        getAssignees().then(setAssignees).catch(() => {})
     }, [])
 
     const kpiData = useMemo(() => {
@@ -76,7 +81,7 @@ export default function InheritanceMockupPage() {
         setSearchInput("")
     }
 
-    const hasFilters = !!(queryParams.search || queryParams.status || queryParams.acceptanceStatus || queryParams.fiscalYear)
+    const hasFilters = !!(queryParams.search || queryParams.status || queryParams.acceptanceStatus || queryParams.fiscalYear || queryParams.assignee)
 
     return (
         <div className="container mx-auto py-10 px-4">
@@ -90,6 +95,13 @@ export default function InheritanceMockupPage() {
                         disabled={isFetching}
                     >
                         <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowImportModal(true)}
+                    >
+                        <Upload className="mr-2 h-4 w-4" />
+                        CSV取込
                     </Button>
                     <Button
                         variant="outline"
@@ -112,6 +124,8 @@ export default function InheritanceMockupPage() {
                 onFilterChange={handleFilterChange}
                 onSortChange={handleSortChange}
                 onClearAll={handleClearAll}
+                assignees={assignees}
+                totalCount={pagination?.total}
             />
 
             {isLoading ? (
@@ -146,6 +160,15 @@ export default function InheritanceMockupPage() {
                     )}
                 </div>
             )}
+
+            <ImportCSVModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                onImportComplete={() => {
+                    refetch()
+                    getAllCases().then(setAllCases).catch(() => {})
+                }}
+            />
         </div>
     )
 }

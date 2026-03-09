@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import type { ProgressStep } from "@/types/shared"
+import { addVisitStep, removeVisitStep, shouldShowAddVisit } from "@/lib/progress-utils"
 
 interface ProgressEditorProps {
     progress: ProgressStep[]
@@ -21,49 +22,9 @@ export function ProgressEditor({ progress, onChange }: ProgressEditorProps) {
         onChange(newProgress)
     }
 
-    const handleAddVisit = (index: number) => {
-        const newProgress = [...progress]
-        let visitCount = 2
-        newProgress.forEach(p => {
-            const match = p.name.match(/(\d+)回目訪問/)
-            if (match) {
-                const num = parseInt(match[1])
-                if (num > visitCount) visitCount = num
-            }
-        })
-
-        const newStep: ProgressStep = {
-            id: `step-visit-${Date.now()}`,
-            name: `${visitCount + 1}回目訪問`,
-            date: null,
-            isDynamic: true
-        }
-
-        newProgress.splice(index + 1, 0, newStep)
-        onChange(newProgress)
-    }
-
     const handleDeleteStep = (index: number) => {
         if (!confirm("この訪問日時を削除してもよろしいですか？")) return
-
-        const newProgress = [...progress]
-        newProgress.splice(index, 1)
-
-        let visitIndex = 0
-        newProgress.forEach((p) => {
-            if (p.name.includes("回目訪問")) {
-                visitIndex++
-                p.name = `${visitIndex + 1}回目訪問`
-            }
-        })
-
-        onChange(newProgress)
-    }
-
-    const showAddVisitButton = (step: ProgressStep, index: number) => {
-        if (!step.name.includes("回目訪問")) return false
-        const nextStep = progress[index + 1]
-        return nextStep && !nextStep.name.includes("回目訪問")
+        onChange(removeVisitStep(progress, index))
     }
 
     return (
@@ -88,13 +49,13 @@ export function ProgressEditor({ progress, onChange }: ProgressEditorProps) {
                                 onChange={(e) => handleStepChange(index, "memo", e.target.value)}
                             />
                         </div>
-                        {showAddVisitButton(step, index) && (
+                        {shouldShowAddVisit(progress, step, index) && (
                             <div className="col-span-12 pt-2 text-center">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleAddVisit(index)}
+                                    onClick={() => onChange(addVisitStep(progress, index))}
                                 >
                                     + 訪問日を追加
                                 </Button>

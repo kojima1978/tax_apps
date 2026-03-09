@@ -89,6 +89,7 @@ export const listQuerySchema = z.object({
   acceptanceStatus: acceptanceStatusSchema.optional(),
   fiscalYear: z.coerce.number().int().optional(),
   search: z.string().optional(),
+  assignee: z.string().optional(),
   sortBy: sortFieldSchema.optional().default('createdAt'),
   sortOrder: sortOrderSchema.optional().default('desc'),
 });
