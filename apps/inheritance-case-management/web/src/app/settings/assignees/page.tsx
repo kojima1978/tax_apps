@@ -179,6 +179,7 @@ function AssigneeSettingsContent() {
             returnTo={masterList.returnTo}
             isDirty={masterList.isDirty}
             isSaving={masterList.isSaving}
+            isLoading={masterList.isLoading}
             items={masterList.items}
             filteredItems={masterList.filteredAndSortedItems}
             showInactive={masterList.showInactive}

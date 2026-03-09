@@ -3,8 +3,8 @@
 import { EditCaseForm } from "../[id]/edit-case-form"
 import { Suspense } from "react"
 import type { InheritanceCase } from "@/types/shared"
-import { Button } from "@/components/ui/Button"
 import Link from "next/link"
+import { ChevronRight } from "lucide-react"
 
 const emptyCase: InheritanceCase = {
     id: "", // Will be generated
@@ -33,14 +33,12 @@ const emptyCase: InheritanceCase = {
 
 export default function NewCasePage() {
     return (
-        <div className="container mx-auto py-10 max-w-5xl">
-            <div className="mb-6">
-                <Link href="/">
-                    <Button variant="outline">
-                        一覧に戻る
-                    </Button>
-                </Link>
-            </div>
+        <div className="container mx-auto py-10 max-w-5xl px-4">
+            <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-6">
+                <Link href="/" className="hover:text-foreground transition-colors">案件一覧</Link>
+                <ChevronRight className="h-3.5 w-3.5" />
+                <span className="text-foreground font-medium">新規案件登録</span>
+            </nav>
 
             <h1 className="text-2xl font-bold mb-6">新規案件登録</h1>
 

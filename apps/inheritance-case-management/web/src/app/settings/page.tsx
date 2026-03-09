@@ -1,7 +1,6 @@
 
 "use client"
 
-import { Button } from "@/components/ui/Button"
 import Link from "next/link"
 import { Users, UserPlus } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -25,15 +24,7 @@ const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; 
 
 export default function SettingsMenuPage() {
     return (
-        <div className="container mx-auto py-10 max-w-2xl">
-            <div className="mb-6">
-                <Link href="/">
-                    <Button variant="outline">
-                        案件一覧に戻る
-                    </Button>
-                </Link>
-            </div>
-
+        <div className="container mx-auto py-10 max-w-2xl px-4">
             <h1 className="text-2xl font-bold mb-6">設定</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
