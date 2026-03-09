@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Search, X, Filter } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
@@ -52,9 +51,17 @@ export function FilterBar({
         queryParams.assignee,
     ].filter(Boolean).length
 
+    const activeFilters = [
+        queryParams.search && { key: 'search' as const, label: `検索: ${queryParams.search}` },
+        queryParams.status && { key: 'status' as keyof CasesQueryParams, label: `ステータス: ${queryParams.status}` },
+        queryParams.acceptanceStatus && { key: 'acceptanceStatus' as keyof CasesQueryParams, label: `受託: ${queryParams.acceptanceStatus}` },
+        queryParams.fiscalYear && { key: 'fiscalYear' as keyof CasesQueryParams, label: `年度: ${queryParams.fiscalYear}年度` },
+        queryParams.assignee && { key: 'assignee' as keyof CasesQueryParams, label: `担当: ${queryParams.assignee}` },
+    ].filter((f): f is { key: string; label: string } => !!f)
+
     return (
         <div className="space-y-3 mb-4">
-            {/* Row 1: 検索 + フィルターバッジ */}
+            {/* Row 1: 検索 + 件数表示 */}
             <div className="flex items-center gap-3 flex-wrap">
                 <div className="relative flex-1 min-w-48 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -74,22 +81,33 @@ export function FilterBar({
                     )}
                 </div>
 
-                {hasFilters && (
-                    <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">
-                            <Filter className="h-3 w-3" />
-                            {activeFilterCount}件の絞り込み
-                            {totalCount !== undefined && (
-                                <span className="text-primary/70">({totalCount}件表示)</span>
-                            )}
-                        </span>
-                        <Button variant="ghost" size="sm" onClick={onClearAll} className="h-7 px-2 text-xs">
-                            <X className="h-3 w-3 mr-1" />
-                            クリア
-                        </Button>
-                    </div>
+                {hasFilters && totalCount !== undefined && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">
+                        <Filter className="h-3 w-3" />
+                        {totalCount}件表示
+                    </span>
                 )}
             </div>
+
+            {/* フィルターチップ */}
+            {activeFilters.length > 0 && (
+                <div className="flex gap-2 flex-wrap items-center">
+                    {activeFilters.map(f => (
+                        <span key={f.key} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs pl-2.5 pr-1 py-1 rounded-full font-medium">
+                            {f.label}
+                            <button
+                                onClick={() => f.key === 'search' ? setSearchInput('') : onFilterChange(f.key as keyof CasesQueryParams, undefined)}
+                                className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </span>
+                    ))}
+                    <button onClick={onClearAll} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                        すべてクリア
+                    </button>
+                </div>
+            )}
 
             {/* Row 2: フィルター + ソート */}
             <div className="flex gap-2 flex-wrap">

@@ -1,5 +1,20 @@
 import type { CaseStatus, AcceptanceStatus } from "./shared"
 
+// Badge styles for status display
+export const STATUS_STYLES: Record<CaseStatus, { dot: string; bg: string; text: string }> = {
+    '未着手': { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' },
+    '進行中': { dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
+    '完了': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
+    '請求済': { dot: 'bg-purple-500', bg: 'bg-purple-50', text: 'text-purple-700' },
+}
+
+export const ACCEPTANCE_STYLES: Record<AcceptanceStatus, { dot: string; bg: string; text: string }> = {
+    '受託可': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
+    '受託不可': { dot: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700' },
+    '未判定': { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' },
+    '保留': { dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700' },
+}
+
 // Status options for filters and selects
 export const CASE_STATUS_OPTIONS: readonly CaseStatus[] = ["未着手", "進行中", "完了", "請求済"] as const
 export const ACCEPTANCE_STATUS_OPTIONS: readonly AcceptanceStatus[] = ["受託可", "受託不可", "未判定", "保留"] as const

@@ -1,8 +1,9 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import type { InheritanceCase } from "@/types/shared"
+import type { InheritanceCase, CaseStatus, AcceptanceStatus } from "@/types/shared"
 import { formatCurrency } from "@/lib/analytics-utils"
+import { STATUS_STYLES, ACCEPTANCE_STYLES } from "@/types/constants"
 import { SortableHeader } from "@/components/ui/SortableHeader"
 import Link from "next/link"
 import { ProgressModalButton } from "./ProgressModal"
@@ -46,16 +47,30 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     {
         accessorKey: "acceptanceStatus",
         header: ({ column }) => <SortableHeader column={column}>受託</SortableHeader>,
-        cell: ({ row }) => (
-            <div className="capitalize">{row.getValue("acceptanceStatus") || "未判定"}</div>
-        ),
+        cell: ({ row }) => {
+            const acceptance = (row.getValue("acceptanceStatus") || "未判定") as AcceptanceStatus
+            const style = ACCEPTANCE_STYLES[acceptance]
+            return (
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+                    {acceptance}
+                </span>
+            )
+        },
     },
     {
         accessorKey: "status",
         header: ({ column }) => <SortableHeader column={column}>進行</SortableHeader>,
-        cell: ({ row }) => (
-            <div className="capitalize">{row.getValue("status")}</div>
-        ),
+        cell: ({ row }) => {
+            const status = row.getValue("status") as CaseStatus
+            const style = STATUS_STYLES[status]
+            return (
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+                    {status}
+                </span>
+            )
+        },
     },
     {
         accessorKey: "assignee",
@@ -87,6 +102,30 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     {
         id: "actions",
         header: "進捗",
-        cell: ({ row }) => <ProgressModalButton caseData={row.original} />,
+        cell: ({ row }) => {
+            const progress = row.original.progress ?? []
+            const total = progress.length
+            const completed = progress.filter(s => s.date).length
+            const percent = total > 0 ? (completed / total) * 100 : 0
+
+            return (
+                <div className="flex items-center gap-2">
+                    {total > 0 && (
+                        <div className="flex items-center gap-1.5 min-w-[80px]">
+                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full transition-all ${percent === 100 ? 'bg-green-500' : 'bg-primary'}`}
+                                    style={{ width: `${percent}%` }}
+                                />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                {completed}/{total}
+                            </span>
+                        </div>
+                    )}
+                    <ProgressModalButton caseData={row.original} />
+                </div>
+            )
+        },
     },
 ]
