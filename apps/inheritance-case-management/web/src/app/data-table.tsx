@@ -135,14 +135,6 @@ export function DataTable<TData, TValue>({
                     </TableBody>
                 </Table>
             </div>
-            <div className="flex items-center justify-end py-2">
-                <div className="text-xs text-muted-foreground/60 hidden md:flex gap-2">
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↑↓</kbd>
-                    <span>行選択</span>
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Enter</kbd>
-                    <span>詳細へ</span>
-                </div>
-            </div>
         </div>
     )
 }

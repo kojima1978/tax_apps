@@ -8,7 +8,7 @@ import { createCaseSchema, listQuerySchema } from '@/types/validation';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const { page, pageSize, status, acceptanceStatus, fiscalYear, search, sortBy, sortOrder } =
+    const { page, pageSize, status, acceptanceStatus, fiscalYear, search, assignee, sortBy, sortOrder } =
       listQuerySchema.parse(searchParams);
 
     // Build where clause for filtering
@@ -25,6 +25,9 @@ export async function GET(request: NextRequest) {
     }
     if (search) {
       where.deceasedName = { contains: search, mode: 'insensitive' };
+    }
+    if (assignee) {
+      where.assignee = assignee;
     }
 
     // ページネーション用のカウントとデータ取得を並列実行

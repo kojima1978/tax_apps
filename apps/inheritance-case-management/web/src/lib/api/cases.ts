@@ -13,6 +13,7 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.acceptanceStatus) searchParams.set('acceptanceStatus', params.acceptanceStatus);
   if (params?.fiscalYear) searchParams.set('fiscalYear', String(params.fiscalYear));
   if (params?.search) searchParams.set('search', params.search);
+  if (params?.assignee) searchParams.set('assignee', params.assignee);
   if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
 
