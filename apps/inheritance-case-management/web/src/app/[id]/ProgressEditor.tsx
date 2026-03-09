@@ -67,10 +67,7 @@ export function ProgressEditor({ progress, onChange }: ProgressEditorProps) {
     }
 
     return (
-        <div className="space-y-4 col-span-2 border-t pt-6">
-            <div className="flex items-center justify-between">
-                <Label className="text-lg font-semibold">進捗管理</Label>
-            </div>
+        <div className="space-y-4">
             <div className="space-y-4">
                 {progress.map((step, index) => (
                     <div key={step.id} className="grid grid-cols-12 gap-4 items-center p-4 border rounded-lg bg-card/50">

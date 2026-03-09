@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/Label"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
-import { Trash2, Plus, Pencil, Check, X, ArrowUpDown, Ban, RotateCcw } from "lucide-react"
+import { Trash2, Plus, Pencil, Check, X, ArrowUpDown, Ban, RotateCcw, ChevronRight } from "lucide-react"
 
 const ICON_BTN_MUTED = "h-8 w-8 text-muted-foreground hover:text-foreground"
 const ICON_BTN_GREEN = "h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
@@ -26,6 +26,7 @@ interface MasterListPageProps<T extends { id: string; active: boolean }> {
     returnTo: string | null
     isDirty: boolean
     isSaving: boolean
+    isLoading: boolean
     items: T[]
     filteredItems: T[]
     showInactive: boolean
@@ -53,6 +54,7 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
     returnTo,
     isDirty,
     isSaving,
+    isLoading,
     items,
     filteredItems,
     showInactive,
@@ -71,17 +73,28 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
     onSort,
 }: MasterListPageProps<T>) {
     return (
-        <div className="container mx-auto py-10 max-w-2xl relative pb-24">
-            <div className="mb-6">
-                <Link href={returnTo || "/settings"}>
-                    <Button variant="outline">
-                        {returnTo ? "前の画面に戻る" : "設定一覧に戻る"}
-                    </Button>
-                </Link>
-                {isDirty && <span className="ml-4 text-sm text-amber-600 font-bold">※ 保存されていない変更があります</span>}
-            </div>
+        <div className="container mx-auto py-10 max-w-2xl relative pb-24 px-4">
+            <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
+                <Link href="/" className="hover:text-foreground transition-colors">案件一覧</Link>
+                <ChevronRight className="h-3.5 w-3.5" />
+                {returnTo ? (
+                    <>
+                        <Link href={returnTo} className="hover:text-foreground transition-colors">前の画面</Link>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                    </>
+                ) : (
+                    <>
+                        <Link href="/settings" className="hover:text-foreground transition-colors">設定</Link>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                    </>
+                )}
+                <span className="text-foreground font-medium">{title}</span>
+            </nav>
 
-            <h1 className="text-2xl font-bold mb-6">{title}</h1>
+            <div className="flex items-center gap-4 mb-6">
+                <h1 className="text-2xl font-bold">{title}</h1>
+                {isDirty && <span className="text-sm text-amber-600 font-bold">※ 未保存の変更あり</span>}
+            </div>
 
             <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-6 space-y-6">
                 <div className="flex items-end gap-2">
@@ -99,7 +112,9 @@ export function MasterListPage<T extends { id: string; active: boolean }>({
                             {showInactive ? "有効のみ表示" : "すべて表示"}
                         </Button>
                     </div>
-                    {items.length === 0 ? (
+                    {isLoading ? (
+                        <p className="text-muted-foreground text-sm">読み込み中...</p>
+                    ) : items.length === 0 ? (
                         <p className="text-muted-foreground text-sm">{entityLabel}が登録されていません。</p>
                     ) : (
                         <div className="border rounded-md">

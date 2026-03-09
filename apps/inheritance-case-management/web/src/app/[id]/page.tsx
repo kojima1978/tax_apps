@@ -8,7 +8,7 @@ import Link from "next/link"
 import { EditCaseForm } from "./edit-case-form"
 import { getCase, deleteCase } from "@/lib/api/cases"
 import { useToast } from "@/components/ui/Toast"
-import { Trash2 } from "lucide-react"
+import { Trash2, ChevronRight } from "lucide-react"
 
 export default function InheritanceCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
@@ -61,13 +61,13 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
     }
 
     return (
-        <div className="container mx-auto py-10 max-w-5xl">
-            <div className="mb-6 flex justify-between items-center">
-                <Link href="/">
-                    <Button variant="outline">
-                        一覧に戻る
-                    </Button>
-                </Link>
+        <div className="container mx-auto py-10 max-w-5xl px-4">
+            <div className="mb-6 flex justify-between items-center flex-wrap gap-2">
+                <nav className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Link href="/" className="hover:text-foreground transition-colors">案件一覧</Link>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                    <span className="text-foreground font-medium">{caseItem.deceasedName || "案件詳細"}</span>
+                </nav>
                 <Button
                     variant="outline"
                     onClick={handleDelete}

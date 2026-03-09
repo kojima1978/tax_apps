@@ -44,6 +44,7 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
 
     const [isSaving, setIsSaving] = useState(false)
     const [isDirty, setIsDirty] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
         const load = async () => {
@@ -53,6 +54,8 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
                 setItems(data)
             } catch (e) {
                 console.error(e)
+            } finally {
+                setIsLoading(false)
             }
         }
         load()
@@ -206,6 +209,7 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
         filteredAndSortedItems,
         isDirty,
         isSaving,
+        isLoading,
         showInactive,
         handleToggleShowInactive,
         editingId,

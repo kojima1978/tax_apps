@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
 import { ToastProvider, useToast } from "./ui/Toast";
+import { AppHeader } from "./AppHeader";
 
 function QueryClientWrapper({ children }: { children: React.ReactNode }) {
   const toast = useToast();
@@ -40,7 +41,10 @@ function QueryClientWrapper({ children }: { children: React.ReactNode }) {
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
-      <QueryClientWrapper>{children}</QueryClientWrapper>
+      <QueryClientWrapper>
+        <AppHeader />
+        <main>{children}</main>
+      </QueryClientWrapper>
     </ToastProvider>
   );
 }

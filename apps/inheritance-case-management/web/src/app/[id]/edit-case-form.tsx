@@ -3,10 +3,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/Button"
-import { Input } from "@/components/ui/Input"
-import { Label } from "@/components/ui/Label"
-import { SelectField } from "@/components/ui/SelectField"
-import { CurrencyField } from "@/components/ui/CurrencyField"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
@@ -15,7 +11,10 @@ import { getReferrers } from "@/lib/api/referrers"
 import { useToast } from "@/components/ui/Toast"
 import { ProgressEditor } from "./ProgressEditor"
 import { ContactListEditor } from "./ContactListEditor"
-import { formatCurrency } from "@/lib/analytics-utils"
+import { BasicInfoSection } from "./BasicInfoSection"
+import { FinancialSection } from "./FinancialSection"
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
+import { ListChecks, Phone } from "lucide-react"
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -96,202 +95,40 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     )
 
     return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-6">
-                {!isCreateMode && (
-                    <div className="space-y-2">
-                        <Label htmlFor="id">案件ID (変更不可)</Label>
-                        <Input id="id" value={formData.id} disabled className="bg-muted" />
-                    </div>
-                )}
+        <div className="space-y-4">
+            <BasicInfoSection
+                formData={formData}
+                isCreateMode={isCreateMode}
+                assignees={assignees}
+                referrers={referrers}
+                returnToPath={returnToPath}
+                handleChange={handleChange}
+                setFormData={setFormData}
+            />
 
-                <div className="space-y-2">
-                    <Label htmlFor="deceasedName">被相続人氏名</Label>
-                    <Input id="deceasedName" name="deceasedName" value={formData.deceasedName} onChange={handleChange} />
-                </div>
+            <FinancialSection
+                formData={formData}
+                netRevenue={netRevenue}
+                estimateNetRevenue={estimateNetRevenue}
+                currencyChange={currencyChange}
+                setFormData={setFormData}
+            />
 
-                <div className="space-y-2">
-                    <Label htmlFor="fiscalYear">年度</Label>
-                    <SelectField id="fiscalYear" name="fiscalYear" value={formData.fiscalYear} onChange={handleChange}>
-                        {Array.from({ length: 21 }, (_, i) => 2015 + i).map(year => (
-                            <option key={year} value={year}>{year}年度</option>
-                        ))}
-                    </SelectField>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="dateOfDeath">相続開始日</Label>
-                    <Input id="dateOfDeath" name="dateOfDeath" type="date" value={formData.dateOfDeath} onChange={handleChange} />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="acceptanceStatus">受託</Label>
-                    <SelectField
-                        id="acceptanceStatus"
-                        name="acceptanceStatus"
-                        value={formData.acceptanceStatus || "未判定"}
-                        onChange={(e) => {
-                            const val = e.target.value as "受託可" | "受託不可" | "未判定" | undefined
-                            setFormData(prev => {
-                                let newStatus = prev.status
-                                if (val === "未判定") newStatus = "未着手"
-                                else if (val === "受託不可") newStatus = "完了"
-                                return { ...prev, acceptanceStatus: val, status: newStatus }
-                            })
-                        }}
-                    >
-                        <option value="未判定">未判定</option>
-                        <option value="受託可">受託可</option>
-                        <option value="受託不可">受託不可</option>
-                    </SelectField>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="status">進行</Label>
-                    <SelectField id="status" name="status" value={formData.status} onChange={handleChange}>
-                        <option value="未着手" disabled={formData.acceptanceStatus === "受託不可"}>未着手</option>
-                        <option value="進行中" disabled={formData.acceptanceStatus === "未判定" || formData.acceptanceStatus === "受託不可"}>進行中</option>
-                        <option value="完了" disabled={formData.acceptanceStatus === "未判定"}>完了</option>
-                    </SelectField>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="assignee">担当者</Label>
-                    <SelectField id="assignee" name="assignee" value={formData.assignee} onChange={handleChange}>
-                        <option value="">担当者を選択</option>
-                        {assignees.filter(a => a.active !== false).map((a) => (
-                            <option key={a.id} value={a.name}>
-                                {a.department ? `${a.department} / ${a.name}` : a.name}
-                            </option>
-                        ))}
-                    </SelectField>
-                    <div className="text-right text-xs">
-                        <a href={`/settings/assignees?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
-                            担当者を追加・編集
-                        </a>
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="referrer">紹介者</Label>
-                    <SelectField id="referrer" name="referrer" value={formData.referrer || ""} onChange={handleChange}>
-                        <option value="">紹介者を選択</option>
-                        {referrers.filter(r => r.active !== false).map((r) => {
-                            const val = `${r.company} / ${r.name}`
-                            const display = r.department ? `${r.company} / ${r.department} / ${r.name}` : `${r.company} / ${r.name}`
-                            return <option key={r.id} value={val}>{display}</option>
-                        })}
-                    </SelectField>
-                    <div className="text-right text-xs">
-                        <a href={`/settings/referrers?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
-                            紹介者を追加・編集
-                        </a>
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="propertyValue">取得財産の価格</Label>
-                    <CurrencyField
-                        id="propertyValue"
-                        name="propertyValue"
-                        value={formData.propertyValue}
-                        onValueChange={currencyChange("propertyValue")}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="taxAmount">申告納税額</Label>
-                    <CurrencyField
-                        id="taxAmount"
-                        name="taxAmount"
-                        value={formData.taxAmount}
-                        onValueChange={currencyChange("taxAmount")}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="estimateAmount">見積額（税抜）</Label>
-                    <CurrencyField
-                        id="estimateAmount"
-                        name="estimateAmount"
-                        value={formData.estimateAmount}
-                        onValueChange={currencyChange("estimateAmount")}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="feeAmount">報酬額（税抜）</Label>
-                    <CurrencyField
-                        id="feeAmount"
-                        name="feeAmount"
-                        value={formData.feeAmount}
-                        onValueChange={(value) => {
-                            const newFee = value ? Number(value) : 0
-                            const rate = formData.referralFeeRate || 0
-                            const newReferralAmount = Math.floor(newFee * (rate / 100))
-                            setFormData((prev) => ({ ...prev, feeAmount: newFee, referralFeeAmount: newReferralAmount }))
-                        }}
-                    />
-                </div>
-
-                <div className="space-y-4 col-span-2 border rounded-lg p-4 bg-muted/30">
-                    <Label className="text-base font-semibold">紹介料・担当者売上計算</Label>
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="referralFeeRate">紹介料率 (%)</Label>
-                            <Input
-                                id="referralFeeRate"
-                                name="referralFeeRate"
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.1"
-                                value={formData.referralFeeRate?.toString() ?? ""}
-                                onChange={(e) => {
-                                    const val = e.target.value
-                                    const rate = val === "" ? undefined : Number(val)
-                                    const currentFee = formData.feeAmount || 0
-                                    const newReferralAmount = rate !== undefined ? Math.floor(currentFee * (rate / 100)) : 0
-                                    setFormData((prev) => ({ ...prev, referralFeeRate: rate, referralFeeAmount: newReferralAmount }))
-                                }}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="referralFeeAmount">紹介料額</Label>
-                            <CurrencyField
-                                id="referralFeeAmount"
-                                name="referralFeeAmount"
-                                value={formData.referralFeeAmount || 0}
-                                onValueChange={currencyChange("referralFeeAmount")}
-                            />
-                        </div>
-                    </div>
-                    <div className="pt-2 border-t mt-2 space-y-2">
-                        <div className="flex justify-between items-end">
-                            <Label className="text-base">担当者売上（手取り）</Label>
-                            <div className="text-xl font-bold">{formatCurrency(netRevenue)}</div>
-                        </div>
-                        <p className="text-xs text-muted-foreground text-right">※ 報酬額（税抜） - 紹介料額</p>
-                        <div className="flex justify-between items-end pt-2 border-t border-dashed">
-                            <Label className="text-sm text-muted-foreground">（参考）見積ベースの手取り予測</Label>
-                            <div className="text-lg font-semibold text-muted-foreground">{formatCurrency(estimateNetRevenue)}</div>
-                        </div>
-                        <p className="text-xs text-muted-foreground text-right">※ 見積額 × (1 - 紹介料率)</p>
-                    </div>
-                </div>
-
-                {formData.progress && (
+            {formData.progress && (
+                <CollapsibleSection title="進捗管理" icon={ListChecks} defaultOpen badge={`${formData.progress.filter(s => s.date).length}/${formData.progress.length}`}>
                     <ProgressEditor
                         progress={formData.progress}
                         onChange={(progress) => setFormData(prev => ({ ...prev, progress }))}
                     />
-                )}
+                </CollapsibleSection>
+            )}
 
+            <CollapsibleSection title="連絡先" icon={Phone} defaultOpen={false} badge={`${(formData.contacts || []).length}件`}>
                 <ContactListEditor
                     contacts={formData.contacts || []}
                     onChange={(contacts) => setFormData(prev => ({ ...prev, contacts }))}
                 />
-            </div>
+            </CollapsibleSection>
 
             <StickyActionBar>
                 <Button onClick={handleSave} disabled={isSaving} variant="outline" className="min-w-[120px] font-bold shadow-sm">

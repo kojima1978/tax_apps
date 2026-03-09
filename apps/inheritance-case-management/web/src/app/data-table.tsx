@@ -18,19 +18,25 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/EmptyState"
+import { Search, FolderOpen } from "lucide-react"
+import { useKeyboardNavigation } from "@/hooks/use-keyboard-navigation"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
+    hasFilters?: boolean
+    onClearFilters?: () => void
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
+    hasFilters,
+    onClearFilters,
 }: DataTableProps<TData, TValue>) {
     const router = useRouter()
     const tableRef = React.useRef<HTMLDivElement>(null)
-    const [focusedRowIndex, setFocusedRowIndex] = React.useState<number>(-1)
 
     const table = useReactTable({
         data,
@@ -40,55 +46,15 @@ export function DataTable<TData, TValue>({
 
     const rows = table.getRowModel().rows
 
-    // Keyboard navigation handler
-    const handleKeyDown = React.useCallback(
-        (e: React.KeyboardEvent) => {
-            const rowCount = rows.length
-            if (rowCount === 0) return
-
-            switch (e.key) {
-                case "ArrowDown":
-                case "j":
-                    e.preventDefault()
-                    setFocusedRowIndex((prev) => Math.min(prev + 1, rowCount - 1))
-                    break
-                case "ArrowUp":
-                case "k":
-                    e.preventDefault()
-                    setFocusedRowIndex((prev) => Math.max(prev - 1, 0))
-                    break
-                case "Enter":
-                    e.preventDefault()
-                    if (focusedRowIndex >= 0 && focusedRowIndex < rowCount) {
-                        const row = rows[focusedRowIndex]
-                        const caseData = row.original as { id?: string }
-                        if (caseData.id) {
-                            router.push(`/${caseData.id}`)
-                        }
-                    }
-                    break
-                case "Home":
-                    e.preventDefault()
-                    setFocusedRowIndex(0)
-                    break
-                case "End":
-                    e.preventDefault()
-                    setFocusedRowIndex(rowCount - 1)
-                    break
-                case "Escape":
-                    e.preventDefault()
-                    setFocusedRowIndex(-1)
-                    tableRef.current?.blur()
-                    break
-            }
+    const { focusedRowIndex, setFocusedRowIndex, handleKeyDown, handleFocus } = useKeyboardNavigation({
+        rowCount: rows.length,
+        onEnter: (index) => {
+            const caseData = rows[index].original as { id?: string }
+            if (caseData.id) router.push(`/${caseData.id}`)
         },
-        [rows, focusedRowIndex, router]
-    )
-
-    // Reset focused row when data changes
-    React.useEffect(() => {
-        setFocusedRowIndex(-1)
-    }, [data])
+        onEscape: () => tableRef.current?.blur(),
+        resetDeps: [data],
+    })
 
     return (
         <div
@@ -96,29 +62,23 @@ export function DataTable<TData, TValue>({
             className="w-full outline-none"
             tabIndex={0}
             onKeyDown={handleKeyDown}
-            onFocus={() => {
-                if (focusedRowIndex === -1 && rows.length > 0) {
-                    setFocusedRowIndex(0)
-                }
-            }}
+            onFocus={handleFocus}
         >
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => {
-                                    return (
-                                        <TableHead key={header.id} className="px-2 py-1 h-8 text-xs">
-                                            {header.isPlaceholder
-                                                ? null
-                                                : flexRender(
-                                                    header.column.columnDef.header,
-                                                    header.getContext()
-                                                )}
-                                        </TableHead>
-                                    )
-                                })}
+                                {headerGroup.headers.map((header) => (
+                                    <TableHead key={header.id} className="px-2 py-1 h-8 text-xs">
+                                        {header.isPlaceholder
+                                            ? null
+                                            : flexRender(
+                                                header.column.columnDef.header,
+                                                header.getContext()
+                                            )}
+                                    </TableHead>
+                                ))}
                             </TableRow>
                         ))}
                     </TableHeader>
@@ -134,9 +94,7 @@ export function DataTable<TData, TValue>({
                                     )}
                                     onClick={() => {
                                         const caseData = row.original as { id?: string }
-                                        if (caseData.id) {
-                                            router.push(`/${caseData.id}`)
-                                        }
+                                        if (caseData.id) router.push(`/${caseData.id}`)
                                     }}
                                     onMouseEnter={() => setFocusedRowIndex(index)}
                                 >
@@ -154,9 +112,23 @@ export function DataTable<TData, TValue>({
                             <TableRow>
                                 <TableCell
                                     colSpan={columns.length}
-                                    className="h-24 text-center"
+                                    className="h-48"
                                 >
-                                    結果がありません。
+                                    {hasFilters ? (
+                                        <EmptyState
+                                            icon={Search}
+                                            title="条件に一致する案件がありません"
+                                            description="検索条件やフィルタを変更してください"
+                                            action={onClearFilters ? { label: "フィルタをクリア", onClick: onClearFilters } : undefined}
+                                        />
+                                    ) : (
+                                        <EmptyState
+                                            icon={FolderOpen}
+                                            title="案件が登録されていません"
+                                            description="新規案件を登録してください"
+                                            action={{ label: "新規案件登録", href: "/new" }}
+                                        />
+                                    )}
                                 </TableCell>
                             </TableRow>
                         )}

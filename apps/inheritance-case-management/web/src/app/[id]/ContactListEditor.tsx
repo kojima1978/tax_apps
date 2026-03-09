@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
+import { EmptyState } from "@/components/ui/EmptyState"
+import { UserPlus } from "lucide-react"
 import type { Contact } from "@/types/shared"
 
 interface ContactListEditorProps {
@@ -27,15 +29,14 @@ export function ContactListEditor({ contacts, onChange }: ContactListEditorProps
     }
 
     return (
-        <div className="space-y-4 col-span-2 border-t pt-6">
-            <div className="flex items-center justify-between">
-                <Label className="text-lg font-semibold">連絡先</Label>
+        <div className="space-y-4">
+            <div className="flex items-center justify-end">
                 <Button type="button" variant="outline" size="sm" onClick={handleAdd}>
                     + 追加
                 </Button>
             </div>
             {contacts.map((contact, index) => (
-                <div key={index} className="grid grid-cols-3 gap-4 p-4 border rounded-lg relative">
+                <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg relative">
                     <div className="space-y-2">
                         <Label>氏名</Label>
                         <Input
@@ -61,7 +62,7 @@ export function ContactListEditor({ contacts, onChange }: ContactListEditorProps
                         />
                     </div>
                     {contacts.length > 1 && (
-                        <div className="col-span-3 flex justify-end -mt-2">
+                        <div className="col-span-1 md:col-span-3 flex justify-end -mt-2">
                             <Button
                                 type="button"
                                 variant="ghost"
@@ -76,7 +77,12 @@ export function ContactListEditor({ contacts, onChange }: ContactListEditorProps
                 </div>
             ))}
             {contacts.length === 0 && (
-                <div className="text-sm text-muted-foreground">連絡先が登録されていません。</div>
+                <EmptyState
+                    icon={UserPlus}
+                    title="連絡先が登録されていません"
+                    description="「+ 追加」ボタンで連絡先を追加できます"
+                    action={{ label: "+ 追加", onClick: handleAdd }}
+                />
             )}
         </div>
     )
