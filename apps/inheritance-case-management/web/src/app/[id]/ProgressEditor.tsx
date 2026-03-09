@@ -28,55 +28,69 @@ export function ProgressEditor({ progress, onChange }: ProgressEditorProps) {
     }
 
     return (
-        <div className="space-y-4">
-            <div className="space-y-4">
-                {progress.map((step, index) => (
-                    <div key={step.id} className="grid grid-cols-12 gap-4 items-center p-4 border rounded-lg bg-card/50">
-                        <div className="col-span-3">
-                            <Label className="font-medium">{step.name}</Label>
-                        </div>
-                        <div className="col-span-3">
-                            <Input
-                                type="date"
-                                value={step.date || ""}
-                                onChange={(e) => handleStepChange(index, "date", e.target.value)}
-                            />
-                        </div>
-                        <div className="col-span-6">
-                            <Input
-                                placeholder="備考（場所、結果など）"
-                                value={step.memo || ""}
-                                onChange={(e) => handleStepChange(index, "memo", e.target.value)}
-                            />
-                        </div>
-                        {shouldShowAddVisit(progress, step, index) && (
-                            <div className="col-span-12 pt-2 text-center">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => onChange(addVisitStep(progress, index))}
-                                >
-                                    + 訪問日を追加
-                                </Button>
-                            </div>
+        <div className="relative">
+            {progress.map((step, index) => {
+                const isCompleted = !!step.date
+                const isLast = index === progress.length - 1
+
+                return (
+                    <div key={step.id} className="relative pl-8">
+                        {/* 縦線 */}
+                        {!isLast && (
+                            <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-border" />
                         )}
-                        {step.isDynamic && (
-                            <div className="col-span-12 flex justify-end -mt-2 mb-2">
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-red-500 hover:text-red-700 h-8 px-2"
-                                    onClick={() => handleDeleteStep(index)}
-                                >
-                                    削除
-                                </Button>
+                        {/* ドット */}
+                        <div className={`absolute left-1 top-[18px] h-3 w-3 rounded-full border-2 transition-colors ${
+                            isCompleted
+                                ? 'bg-green-500 border-green-500'
+                                : 'bg-background border-muted-foreground/40'
+                        }`} />
+                        {/* カード */}
+                        <div className="pb-5">
+                            <div className="p-3 border rounded-lg bg-card/50">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <Label className="font-medium text-sm">{step.name}</Label>
+                                    {step.isDynamic && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-red-500 hover:text-red-700 h-6 px-1.5 text-xs"
+                                            onClick={() => handleDeleteStep(index)}
+                                        >
+                                            削除
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Input
+                                        type="date"
+                                        value={step.date || ""}
+                                        onChange={(e) => handleStepChange(index, "date", e.target.value)}
+                                    />
+                                    <Input
+                                        placeholder="備考（場所、結果など）"
+                                        value={step.memo || ""}
+                                        onChange={(e) => handleStepChange(index, "memo", e.target.value)}
+                                    />
+                                </div>
                             </div>
-                        )}
+                            {shouldShowAddVisit(progress, step, index) && (
+                                <div className="pt-2 pl-4">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => onChange(addVisitStep(progress, index))}
+                                    >
+                                        + 訪問日を追加
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                ))}
-            </div>
+                )
+            })}
         </div>
     )
 }
