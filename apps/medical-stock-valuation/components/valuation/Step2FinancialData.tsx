@@ -38,8 +38,8 @@ function InfoPopup({ id, activePopup, setActivePopup, children }: {
 
 function DisabledCell() {
     return (
-        <td className="text-right bg-gray-100">
-            <input type="number" className="w-full px-3 py-2 bg-gray-100 text-gray-400 cursor-not-allowed rounded-lg" disabled />
+        <td className="text-center bg-gray-50 cursor-default" title="この項目は入力不要です">
+            <span className="text-gray-300">―</span>
         </td>
     );
 }

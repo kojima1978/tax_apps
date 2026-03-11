@@ -4,6 +4,7 @@ import { File, Building2, CalendarDays, UserPen } from 'lucide-react';
 import { toWareki, generateYearRange } from '@/lib/date-utils';
 import { BTN } from '@/lib/button-styles';
 import { UserOption, CompanyOption } from '@/lib/types';
+import { fetchList } from '@/lib/utils';
 
 type Props = {
     fiscalYear: string;
@@ -45,15 +46,6 @@ export default function Step0BasicInfo({
 
     const yearOptions = generateYearRange();
 
-    const fetchList = async <T,>(endpoint: string, setter: (data: T) => void) => {
-        try {
-            const response = await fetch(endpoint);
-            if (response.ok) setter(await response.json());
-        } catch (error) {
-            console.error(`${endpoint}の取得に失敗:`, error);
-        }
-    };
-
     // 選択された年度のデータを取得
     const fetchYearData = async (year: string) => {
         if (!year) {
@@ -82,9 +74,15 @@ export default function Step0BasicInfo({
     useEffect(() => {
         fetchList<UserOption[]>('/medical/api/users', setUsers);
         fetchList<CompanyOption[]>('/medical/api/companies', setCompanies);
-        fetchList('/medical/api/similar-industry', (data: { fiscal_year: string }[]) =>
-            setRegisteredYears(data.map((item) => item.fiscal_year))
-        );
+        fetchList('/medical/api/similar-industry', (data: { fiscal_year: string }[]) => {
+            const years = data.map((item) => item.fiscal_year);
+            setRegisteredYears(years);
+            // 年度が未選択の場合、登録済み最新年度をデフォルト選択
+            if (!fiscalYear && years.length > 0) {
+                const latest = years.sort((a, b) => Number(b) - Number(a))[0];
+                setFiscalYear(latest);
+            }
+        });
     }, []);
 
     useEffect(() => {
@@ -111,7 +109,7 @@ export default function Step0BasicInfo({
                         <th className="text-left">入力</th>
                     </tr>
                     <tr>
-                        <td>会社名</td>
+                        <td>医療法人名</td>
                         <td>
                             <div className="flex gap-2 items-center justify-between">
                                 <select

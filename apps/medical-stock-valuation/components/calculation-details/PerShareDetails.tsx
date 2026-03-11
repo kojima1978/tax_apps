@@ -1,4 +1,5 @@
 import { CalculationResult } from '@/lib/types';
+import { formatYen } from '@/lib/utils';
 import { DetailTable, DetailRow, ResultBox } from './helpers';
 
 interface PerShareDetailsProps {
@@ -16,21 +17,21 @@ export default function PerShareDetails({ result }: PerShareDetailsProps) {
     {
       match: evaluationMethod === '類似業種比準方式',
       formula: '1口あたりの評価額 = 類似業種比準価額',
-      rows: [{ label: '類似業種比準価額 (S)', value: `${S.toLocaleString()}円` }],
+      rows: [{ label: '類似業種比準価額 (S)', value: formatYen(S) }],
       resultText: `1口あたりの評価額 = `,
     },
     {
       match: evaluationMethod === '純資産価額方式',
       formula: '1口あたりの評価額 = 純資産価額',
-      rows: [{ label: '純資産価額 (N)', value: `${N.toLocaleString()}円` }],
+      rows: [{ label: '純資産価額 (N)', value: formatYen(N) }],
       resultText: `1口あたりの評価額 = `,
     },
     {
       match: evaluationMethod.includes('併用方式'),
       formula: '1口あたりの評価額 = S × L + N × (1 - L)',
       rows: [
-        { label: 'S：類似業種比準価額', value: `${S.toLocaleString()}円` },
-        { label: 'N：純資産価額', value: `${N.toLocaleString()}円` },
+        { label: 'S：類似業種比準価額', value: formatYen(S) },
+        { label: 'N：純資産価額', value: formatYen(N) },
         { label: 'L：L値（併用割合）', value: L.toFixed(2) },
       ],
       resultText: `${S.toLocaleString()} × ${L.toFixed(2)} + ${N.toLocaleString()} × ${(1 - L).toFixed(2)} = `,
@@ -56,7 +57,7 @@ export default function PerShareDetails({ result }: PerShareDetailsProps) {
           </DetailTable>
           <ResultBox>
             <p className="font-mono text-lg">
-              {active.resultText}<span className="font-bold">{perShareValue.toLocaleString()}円</span>
+              {active.resultText}<span className="font-bold">{formatYen(perShareValue)}</span>
             </p>
           </ResultBox>
         </div>

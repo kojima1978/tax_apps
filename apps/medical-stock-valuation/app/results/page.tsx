@@ -6,7 +6,7 @@ import { ArrowLeft, Save, FileText, Calculator, FileJson, Printer } from 'lucide
 import { FormData, CalculationResult } from '@/lib/types';
 import { calculateEvaluation } from '@/lib/calculations';
 import { useSaveValuation } from '@/hooks/useSaveValuation';
-import { validateBasicInfo, formatSen } from '@/lib/utils';
+import { validateBasicInfo, formatSen, formatYen } from '@/lib/utils';
 import { toWareki } from '@/lib/date-utils';
 import { BTN, INLINE_BTN } from '@/lib/button-styles';
 import CalculationDetailsModal from '@/components/CalculationDetailsModal';
@@ -222,7 +222,7 @@ export default function Results() {
           </thead>
           <tbody>
             <tr>
-              <td>会社規模</td>
+              <td>医療法人規模</td>
               <td className="text-right">{result.companySize}</td>
             </tr>
             <tr>
@@ -250,7 +250,7 @@ export default function Results() {
                 <span>1口あたりの類似業種比準価額方式による評価額</span>
                 <CalculationProcessButton onClick={() => setModalOpen('similar')} />
               </td>
-              <td className="text-right">{result.perShareSimilarIndustryValue.toLocaleString('ja-JP')}円</td>
+              <td className="text-right">{formatYen(result.perShareSimilarIndustryValue)}</td>
             </tr>
             <tr>
               <td className="pl-6">類似業種の{formData?.fiscalYear ? `${toWareki(formData.fiscalYear)}年度` : '令和6年度'}平均株価</td>
@@ -275,7 +275,7 @@ export default function Results() {
                 <span>1口あたりの純資産価額方式による評価額</span>
                 <CalculationProcessButton onClick={() => setModalOpen('netAsset')} />
               </td>
-              <td className="text-right">{result.perShareNetAssetValue.toLocaleString('ja-JP')}円</td>
+              <td className="text-right">{formatYen(result.perShareNetAssetValue)}</td>
             </tr>
             <tr>
               <td>L値（併用割合）</td>
@@ -290,7 +290,7 @@ export default function Results() {
                 <span>1口あたりの評価額</span>
                 <CalculationProcessButton onClick={() => setModalOpen('perShare')} />
               </td>
-              <td className="text-right">{result.perShareValue.toLocaleString('ja-JP')}円</td>
+              <td className="text-right">{formatYen(result.perShareValue)}</td>
             </tr>
           </tbody>
         </table>

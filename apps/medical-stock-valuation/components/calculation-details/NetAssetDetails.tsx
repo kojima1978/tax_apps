@@ -1,4 +1,5 @@
 import { FormData } from '@/lib/types';
+import { formatYen } from '@/lib/utils';
 import { calculatePerShareValue } from '@/lib/calculations';
 import { CORPORATE_TAX_RATE } from '@/lib/constants';
 import { DetailTable, DetailRow, ResultBox } from './helpers';
@@ -32,18 +33,18 @@ export default function NetAssetDetails({ formData, totalShares }: NetAssetDetai
       <div>
         <h4 className="font-bold mb-2">【純資産の計算】</h4>
         <DetailTable>
-          <DetailRow label="①相続税評価額による純資産" value={`${netAssetInheritance.toLocaleString()}円`} />
-          <DetailRow label="②帳簿価額による純資産（直前期）" value={`${netAssetBook.toLocaleString()}円`} />
-          <DetailRow label="③評価差額（①-②）" value={`${evalDiff.toLocaleString()}円`} highlight />
+          <DetailRow label="①相続税評価額による純資産" value={formatYen(netAssetInheritance)} />
+          <DetailRow label="②帳簿価額による純資産（直前期）" value={formatYen(netAssetBook)} />
+          <DetailRow label="③評価差額（①-②）" value={formatYen(evalDiff)} highlight />
         </DetailTable>
       </div>
 
       <div>
         <h4 className="font-bold mb-2">【法人税等相当額の計算】</h4>
         <DetailTable>
-          <DetailRow label="評価差額" value={`${evalDiff.toLocaleString()}円`} />
+          <DetailRow label="評価差額" value={formatYen(evalDiff)} />
           <DetailRow label="法人税等の実効税率" value={`${Math.round(CORPORATE_TAX_RATE * 100)}%`} />
-          <DetailRow label="法人税等相当額" value={`${tax.toLocaleString()}円`} highlight />
+          <DetailRow label="法人税等相当額" value={formatYen(tax)} highlight />
         </DetailTable>
         <p className="text-xs text-gray-600 mt-2">
           ※評価差額がマイナスの場合、法人税等相当額は0円となります
@@ -53,23 +54,23 @@ export default function NetAssetDetails({ formData, totalShares }: NetAssetDetai
       <div>
         <h4 className="font-bold mb-2">【調整後純資産額】</h4>
         <DetailTable>
-          <DetailRow label="相続税評価額による純資産" value={`${netAssetInheritance.toLocaleString()}円`} />
-          <DetailRow label="法人税等相当額" value={`-${tax.toLocaleString()}円`} />
-          <DetailRow label="調整後純資産額" value={`${netAssetAdjusted.toLocaleString()}円`} highlight />
+          <DetailRow label="相続税評価額による純資産" value={formatYen(netAssetInheritance)} />
+          <DetailRow label="法人税等相当額" value={`-${formatYen(tax)}`} />
+          <DetailRow label="調整後純資産額" value={formatYen(netAssetAdjusted)} highlight />
         </DetailTable>
       </div>
 
       <div>
         <h4 className="font-bold mb-2">【1口あたりの純資産価額】</h4>
         <DetailTable>
-          <DetailRow label="調整後純資産額" value={`${netAssetAdjusted.toLocaleString()}円`} />
-          <DetailRow label="総出資口数" value={`${totalShares.toLocaleString()}口`} />
+          <DetailRow label="調整後純資産額" value={formatYen(netAssetAdjusted)} />
+          <DetailRow label="総出資口数" value={`${totalShares.toLocaleString('ja-JP')}口`} />
         </DetailTable>
       </div>
 
       <ResultBox>
         <p className="font-mono text-lg">
-          {netAssetAdjusted.toLocaleString()} ÷ {totalShares.toLocaleString()} = <span className="font-bold">{N.toLocaleString()}円</span>
+          {netAssetAdjusted.toLocaleString()} ÷ {totalShares.toLocaleString()} = <span className="font-bold">{formatYen(N)}</span>
         </p>
       </ResultBox>
     </div>

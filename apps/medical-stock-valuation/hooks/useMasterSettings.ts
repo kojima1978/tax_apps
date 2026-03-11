@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useToast } from '@/components/Toast';
 import { handleFormSubmit } from '@/lib/form-utils';
 import { executeRecordAction } from '@/lib/record-actions';
+import { fetchList } from '@/lib/utils';
 
 type PendingAction = {
   id: string;
@@ -26,18 +27,10 @@ export function useMasterSettings<T extends { id: string }>(apiEndpoint: string)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   const loadData = async () => {
-    try {
-      setLoading(true);
-      const url = showInactive ? `${apiEndpoint}?showInactive=true` : apiEndpoint;
-      const response = await fetch(url);
-      if (response.ok) {
-        setData(await response.json());
-      }
-    } catch (error) {
-      console.error('読み込みエラー:', error);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const url = showInactive ? `${apiEndpoint}?showInactive=true` : apiEndpoint;
+    await fetchList<T[]>(url, setData);
+    setLoading(false);
   };
 
   useEffect(() => {

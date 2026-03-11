@@ -3,7 +3,7 @@
 import { useCallback } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { FormData, CalculationResult } from '@/lib/types';
-import { formatSen } from '@/lib/utils';
+import { formatSen, formatYen } from '@/lib/utils';
 import { toWareki } from '@/lib/date-utils';
 import { setupExcelWorkbook, applyHeaderStyle, FILLS, ALL_THIN_BORDERS, COMPANY_INFO } from '@/lib/excel-styles';
 import { useExcelExport } from '@/hooks/useExcelExport';
@@ -55,7 +55,7 @@ export default function ResultsExcelExport({ formData, result }: Props) {
     addrCell.alignment = { vertical: 'middle', horizontal: 'center' };
     worksheet.getRow(3).height = 20;
 
-    // Row 4: 評価対象（会社名 + 年度）
+    // Row 4: 評価対象（医療法人名 + 年度）
     const evalRow = worksheet.addRow([`${formData.companyName || ''}　${reiwa}`]);
     worksheet.mergeCells(evalRow.number, 1, evalRow.number, colCount);
     evalRow.getCell(1).font = { size: 11, bold: true, color: { argb: 'FF111827' } };
@@ -86,18 +86,26 @@ export default function ResultsExcelExport({ formData, result }: Props) {
       [1, 3].forEach(c => { row.getCell(c).border = ALL_THIN_BORDERS; });
     };
 
+    const BASIC_INFO_ROWS: [string, string][] = [
+      ['医療法人名', formData.companyName || ''],
+      ['年度', reiwa],
+      ['医療法人規模', result.companySize],
+      ['評価方式', result.evaluationMethod],
+    ];
+
+    const EVALUATION_ROWS: [string, string][] = [
+      ['当初出資額', formatSen(result.totalCapital)],
+      ['出資持分評価額', formatSen(result.totalEvaluationValue)],
+      ['みなし贈与税額', formatSen(result.deemedGiftTax)],
+    ];
+
     addSectionHeader('基本情報');
-    addLabelValueRow('会社名', formData.companyName || '');
-    addLabelValueRow('年度', reiwa);
-    addLabelValueRow('会社規模', result.companySize);
-    addLabelValueRow('評価方式', result.evaluationMethod);
+    BASIC_INFO_ROWS.forEach(([label, value]) => addLabelValueRow(label, value));
     worksheet.addRow([]);
 
     // --- セクション2: 出資持分評価額 ---
     addSectionHeader('出資持分評価額');
-    addLabelValueRow('当初出資額', formatSen(result.totalCapital));
-    addLabelValueRow('出資持分評価額', formatSen(result.totalEvaluationValue));
-    addLabelValueRow('みなし贈与税額', formatSen(result.deemedGiftTax));
+    EVALUATION_ROWS.forEach(([label, value]) => addLabelValueRow(label, value));
     worksheet.addRow([]);
 
     // --- セクション3: 各出資者の出資持分評価額 ---
@@ -161,17 +169,20 @@ export default function ResultsExcelExport({ formData, result }: Props) {
       row.eachCell((cell: Cell) => { cell.border = ALL_THIN_BORDERS; });
     };
 
-    addRefRow('会社規模', result.companySize);
-    addRefRow('特定の評価会社の該当判定', result.specialCompanyType);
-    addRefRow('出資金額総額', formatSen(result.totalCapital));
-    addRefRow('総出資口数（1口50円と仮定）', `${result.totalShares.toLocaleString('ja-JP')}口`);
-    addRefRow('出資持分の相続税評価額', formatSen(result.inheritanceTaxValue));
-    addRefRow('みなし贈与税額', formatSen(result.deemedGiftTax));
-    addRefRow('1口あたり 類似業種比準価額方式', `${result.perShareSimilarIndustryValue.toLocaleString('ja-JP')}円`);
-    addRefRow('1口あたり 純資産価額方式', `${result.perShareNetAssetValue.toLocaleString('ja-JP')}円`);
-    addRefRow('L値（併用割合）', result.lRatio.toFixed(2));
-    addRefRow('評価方式', result.evaluationMethod);
-    addRefRow('1口あたりの評価額', `${result.perShareValue.toLocaleString('ja-JP')}円`);
+    const REF_ROWS: [string, string][] = [
+      ['医療法人規模', result.companySize],
+      ['特定の評価会社の該当判定', result.specialCompanyType],
+      ['出資金額総額', formatSen(result.totalCapital)],
+      ['総出資口数（1口50円と仮定）', `${result.totalShares.toLocaleString('ja-JP')}口`],
+      ['出資持分の相続税評価額', formatSen(result.inheritanceTaxValue)],
+      ['みなし贈与税額', formatSen(result.deemedGiftTax)],
+      ['1口あたり 類似業種比準価額方式', formatYen(result.perShareSimilarIndustryValue)],
+      ['1口あたり 純資産価額方式', formatYen(result.perShareNetAssetValue)],
+      ['L値（併用割合）', result.lRatio.toFixed(2)],
+      ['評価方式', result.evaluationMethod],
+      ['1口あたりの評価額', formatYen(result.perShareValue)],
+    ];
+    REF_ROWS.forEach(([label, value]) => addRefRow(label, value));
 
     // ファイル保存
     const buffer = await workbook.xlsx.writeBuffer();
