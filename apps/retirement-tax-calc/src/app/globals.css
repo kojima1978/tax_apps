@@ -1267,8 +1267,9 @@ tr:nth-child(even) {
     padding: 4px 6px !important;
   }
 
-  /* 結果セクション */
+  /* 結果セクション — 2ページ目から開始 */
   .result-section {
+    break-before: page;
     padding: 8px 0 !important;
   }
 

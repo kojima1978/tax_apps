@@ -1,33 +1,27 @@
-import { type RetirementTaxResult, RETIREMENT_TYPE_LABELS, PATTERN_LABELS, calcEffectiveTaxRate } from "@/lib/retirement-tax";
+import { type RetirementTaxResult, RETIREMENT_TYPE_LABELS } from "@/lib/retirement-tax";
 import { TAX_RATES } from "@/lib/tax-rates";
-import { formatYen } from "@/lib/utils";
+import SummaryPatterns from "./SummaryPatterns";
+import ComparisonTable from "./ComparisonTable";
 import ReferenceTables from "./ReferenceTables";
-
-const SUMMARY_ITEMS: { label: string; getValue: (r: RetirementTaxResult) => string }[] = [
-    { label: "手取額", getValue: (r) => formatYen(r.netAmount) },
-    { label: "税額合計", getValue: (r) => formatYen(r.totalTax) },
-    { label: "実効税率", getValue: (r) => `${calcEffectiveTaxRate(r.amount, r.totalTax)}%` },
-];
 
 type ResultSectionProps = {
     results: (RetirementTaxResult | null)[];
     isDirty: boolean;
 };
 
-type ComparisonRow = {
-    label: string;
-    values: (string | null)[];
-    note?: string;
-    highlight?: boolean;
-};
+const buildConditionTags = (r: RetirementTaxResult) => [
+    { label: RETIREMENT_TYPE_LABELS[r.retirementType] },
+    { label: `勤続${r.serviceYears}年` },
+    { label: TAX_RATES[r.taxYear].label },
+    ...(r.isDisability ? [{ label: "障害者退職", className: "disability" }] : []),
+];
 
 const ResultSection = ({ results, isDirty }: ResultSectionProps) => {
-    const activeResults = results.filter((r): r is RetirementTaxResult => r !== null);
-    const activeIndices = results
-        .map((r, i) => (r !== null ? i : -1))
-        .filter((i) => i >= 0);
+    const activeIndices = results.reduce<number[]>(
+        (acc, r, i) => (r !== null ? [...acc, i] : acc), [],
+    );
 
-    if (activeResults.length === 0) {
+    if (activeIndices.length === 0) {
         return (
             <div className="result-section result-empty">
                 <div className="empty-state">
@@ -40,60 +34,8 @@ const ResultSection = ({ results, isDirty }: ResultSectionProps) => {
         );
     }
 
-    const first = activeResults[0];
-
-    const yenValues = (getter: (r: RetirementTaxResult) => number) =>
-        results.map((r) => (r ? formatYen(getter(r)) : null));
-
-    const rows: ComparisonRow[] = [
-        {
-            label: "退職金支給額",
-            values: yenValues((r) => r.amount),
-        },
-        {
-            label: "退職所得控除額",
-            values: yenValues((r) => r.deduction),
-            note: first.isDisability ? "（障害者加算100万円含む）" : undefined,
-        },
-        {
-            label: "課税退職所得金額",
-            values: yenValues((r) => r.taxableIncome),
-            note: "（1,000円未満切捨て）",
-        },
-        {
-            label: "所得税額",
-            values: yenValues((r) => r.incomeTax),
-            note: "（100円未満切捨て）",
-        },
-        {
-            label: "復興特別所得税額",
-            values: yenValues((r) => r.reconstructionTax),
-            note: "（所得税 × 2.1%）",
-        },
-        {
-            label: "住民税額",
-            values: yenValues((r) => r.residentTax),
-            note: activeResults.length === 1
-                ? `（市民税 ${formatYen(first.municipalTax)} + 県民税 ${formatYen(first.prefecturalTax)}）`
-                : undefined,
-        },
-        {
-            label: "税額合計",
-            values: yenValues((r) => r.totalTax),
-            highlight: true,
-        },
-        {
-            label: "手取額",
-            values: yenValues((r) => r.netAmount),
-            highlight: true,
-        },
-        {
-            label: "実効税率",
-            values: results.map((r) =>
-                r ? `${calcEffectiveTaxRate(r.amount, r.totalTax)}%` : null,
-            ),
-        },
-    ];
+    const first = results[activeIndices[0]]!;
+    const conditionTags = buildConditionTags(first);
 
     return (
         <div className="result-section">
@@ -105,66 +47,17 @@ const ResultSection = ({ results, isDirty }: ResultSectionProps) => {
                 </div>
             )}
 
-            {/* 条件タグ */}
             <div className="result-conditions">
-                <span className="condition-tag">{RETIREMENT_TYPE_LABELS[first.retirementType]}</span>
-                <span className="condition-tag">勤続{first.serviceYears}年</span>
-                <span className="condition-tag">{TAX_RATES[first.taxYear].label}</span>
-                {first.isDisability && <span className="condition-tag disability">障害者退職</span>}
+                {conditionTags.map((tag) => (
+                    <span key={tag.label} className={`condition-tag ${tag.className ?? ""}`}>
+                        {tag.label}
+                    </span>
+                ))}
             </div>
 
-            {/* サマリーカード（パターン別） */}
-            <div className="summary-patterns">
-                {activeIndices.map((i) => {
-                    const r = results[i]!;
-                    return (
-                        <div key={i} className={`summary-pattern pattern-bg-${i}`}>
-                            <span className="pattern-header">{PATTERN_LABELS[i]}</span>
-                            <div className="pattern-summary-row">
-                                {SUMMARY_ITEMS.map((item) => (
-                                    <div key={item.label} className="pattern-summary-item">
-                                        <span className="ps-label">{item.label}</span>
-                                        <span className="ps-value">{item.getValue(r)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+            <SummaryPatterns results={results} activeIndices={activeIndices} />
+            <ComparisonTable results={results} activeIndices={activeIndices} />
 
-            {/* 比較テーブル */}
-            <div className="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th className="label-col">項目</th>
-                            {activeIndices.map((i) => (
-                                <th key={i} className={`value-col pattern-th-${i}`}>
-                                    {PATTERN_LABELS[i]}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((row) => (
-                            <tr key={row.label} className={row.highlight ? "highlight-row" : ""}>
-                                <td>
-                                    {row.label}
-                                    {row.note && <small className="row-note">{row.note}</small>}
-                                </td>
-                                {activeIndices.map((i) => (
-                                    <td key={i} className="value-cell">
-                                        {row.values[i] ?? "—"}
-                                    </td>
-                                ))}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* 参照表 */}
             <ReferenceTables
                 serviceYears={first.serviceYears}
                 taxableIncome={first.taxableIncome}
