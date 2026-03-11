@@ -93,10 +93,10 @@ export default function SavedDataPage() {
                 </select>
               </div>
               <div>
-                <label className={`${LABEL_CLASS} text-gray-700`}>会社名</label>
+                <label className={`${LABEL_CLASS} text-gray-700`}>医療法人名</label>
                 <input
                   type="text"
-                  placeholder="会社名で検索"
+                  placeholder="医療法人名で検索"
                   value={sd.filterCompanyName}
                   onChange={(e) => sd.setFilterCompanyName(e.target.value)}
                 />
@@ -128,7 +128,7 @@ export default function SavedDataPage() {
             <table>
               <thead>
                 <tr>
-                  <th className="text-left">会社名</th>
+                  <th className="text-left">医療法人名</th>
                   <th className="text-center cursor-pointer hover:bg-gray-200" onClick={() => sd.handleSort('fiscal_year')}>
                     年度{sd.getSortIndicator('fiscal_year')}
                   </th>

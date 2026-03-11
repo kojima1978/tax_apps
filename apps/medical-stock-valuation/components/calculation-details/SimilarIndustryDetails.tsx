@@ -1,5 +1,6 @@
 import { FormData } from '@/lib/types';
 import { toWareki } from '@/lib/date-utils';
+import { formatYen } from '@/lib/utils';
 import { calculatePerShareValue, calculateComparisonRatio, calculateAverageRatio } from '@/lib/calculations';
 import { DetailTable, DetailRow, ResultBox } from './helpers';
 
@@ -49,19 +50,19 @@ export default function SimilarIndustryDetails({ formData, totalShares, sizeMult
       <div>
         <h4 className="font-bold mb-2">【類似業種の数値】</h4>
         <DetailTable>
-          <DetailRow label={`A：類似業種の${formData?.fiscalYear ? `${toWareki(formData.fiscalYear)}年度` : '令和6年度'}平均株価`} value={`${A.toLocaleString()}円`} />
-          <DetailRow label="C：類似業種の1口あたり利益" value={`${C.toLocaleString()}円`} />
-          <DetailRow label="D：類似業種の1口あたり純資産" value={`${D.toLocaleString()}円`} />
+          <DetailRow label={`A：類似業種の${formData?.fiscalYear ? `${toWareki(formData.fiscalYear)}年度` : '令和6年度'}平均株価`} value={formatYen(A)} />
+          <DetailRow label="C：類似業種の1口あたり利益" value={formatYen(C)} />
+          <DetailRow label="D：類似業種の1口あたり純資産" value={formatYen(D)} />
         </DetailTable>
       </div>
 
       <div>
         <h4 className="font-bold mb-2">【評価会社の数値（1口50円あたり）】</h4>
         <DetailTable>
-          <DetailRow label="c：評価会社の1口あたり利益" value={`${c.toLocaleString()}円`} />
-          <DetailRow label="直前期の利益" value={`${profitPrevPerShare.toLocaleString()}円`} sub />
-          <DetailRow label="直前期と直前々期の平均" value={`${profitAvgPerShare12.toLocaleString()}円`} sub border />
-          <DetailRow label="d：評価会社の1口あたり純資産（相続税評価額）" value={`${d.toLocaleString()}円`} />
+          <DetailRow label="c：評価会社の1口あたり利益" value={formatYen(c)} />
+          <DetailRow label="直前期の利益" value={formatYen(profitPrevPerShare)} sub />
+          <DetailRow label="直前期と直前々期の平均" value={formatYen(profitAvgPerShare12)} sub border />
+          <DetailRow label="d：評価会社の1口あたり純資産（相続税評価額）" value={formatYen(d)} />
         </DetailTable>
       </div>
 
@@ -79,12 +80,12 @@ export default function SimilarIndustryDetails({ formData, totalShares, sizeMult
 
       <div>
         <h4 className="font-bold mb-2">【斟酌率】</h4>
-        <p className="text-sm">会社規模による斟酌率: {sizeMultiplier}</p>
+        <p className="text-sm">医療法人規模による斟酌率: {sizeMultiplier}</p>
       </div>
 
       <ResultBox>
         <p className="font-mono text-lg">
-          {A.toLocaleString()} × {avgRatio.toFixed(2)} × {sizeMultiplier} = <span className="font-bold">{S_50.toLocaleString()}円</span>
+          {A.toLocaleString()} × {avgRatio.toFixed(2)} × {sizeMultiplier} = <span className="font-bold">{formatYen(S_50)}</span>
         </p>
       </ResultBox>
     </div>

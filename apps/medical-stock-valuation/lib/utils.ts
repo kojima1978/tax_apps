@@ -6,6 +6,25 @@ export function formatSen(num: number): string {
 }
 
 /**
+ * 円単位のフォーマット
+ */
+export function formatYen(num: number): string {
+  return `${num.toLocaleString('ja-JP')}円`;
+}
+
+/**
+ * 汎用のリスト取得ユーティリティ（クライアントサイド）
+ */
+export async function fetchList<T>(endpoint: string, setter: (data: T) => void): Promise<void> {
+  try {
+    const response = await fetch(endpoint);
+    if (response.ok) setter(await response.json());
+  } catch (error) {
+    console.error(`${endpoint}の取得に失敗:`, error);
+  }
+}
+
+/**
  * IDを生成するユーティリティ関数
  * @param prefix IDのプレフィックス (例: "val", "user", "company")
  * @param length ランダム部分の長さ (デフォルト: 11)
