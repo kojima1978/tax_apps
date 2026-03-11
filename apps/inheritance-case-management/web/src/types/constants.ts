@@ -44,5 +44,6 @@ export const FISCAL_YEAR_START = 2015
 export const FISCAL_YEAR_COUNT = 21
 export const FISCAL_YEARS = Array.from({ length: FISCAL_YEAR_COUNT }, (_, i) => FISCAL_YEAR_START + i)
 
-// Filter year options (recent years for filter dropdown)
-export const FILTER_YEAR_OPTIONS = [2025, 2024, 2023, 2022] as const
+// Filter year options (recent years for filter dropdown, current year + 3 years back)
+const currentYear = new Date().getFullYear()
+export const FILTER_YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => currentYear - i)
