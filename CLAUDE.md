@@ -64,6 +64,7 @@ cd apps/<app-name> && docker compose up -d
 | inheritance-case-management (web) | `/itcm/` | 3020 | Next.js + React Query + React Table |
 | inheritance-case-management (api) | `/itcm-api/` | 3021 | Hono + Prisma + PostgreSQL |
 | depreciation-calc | `/depreciation-calc/` | 3015 | Vite/React |
+| salary-calc | `/salary-calc/` | 3016 | Vite/React + lucide-react |
 | bank-analyzer-django | `/bank-analyzer/` | 3007 | Django + pandas + Bootstrap |
 
 ### ディレクトリ構成
