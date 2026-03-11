@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
+import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { getAssignees } from "@/lib/api/assignees"
 import { getReferrers } from "@/lib/api/referrers"
 import { useToast } from "@/components/ui/Toast"
@@ -18,6 +20,7 @@ import { ListChecks, Phone } from "lucide-react"
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
+    const queryClient = useQueryClient()
     const toast = useToast()
     const searchParams = useSearchParams()
     const [formData, setFormData] = useState<InheritanceCase>(initialData)
@@ -67,6 +70,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         try {
             if (isCreateMode) {
                 await createCase({ ...formData, acceptanceStatus: formData.acceptanceStatus || "未判定" })
+                queryClient.removeQueries({ queryKey: CASES_QUERY_KEY })
                 toast.success("新規登録しました")
                 router.push("/")
             } else {
@@ -110,12 +114,13 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 formData={formData}
                 netRevenue={netRevenue}
                 estimateNetRevenue={estimateNetRevenue}
+                defaultOpen={!isCreateMode}
                 currencyChange={currencyChange}
                 setFormData={setFormData}
             />
 
             {formData.progress && (
-                <CollapsibleSection title="進捗管理" icon={ListChecks} defaultOpen badge={`${formData.progress.filter(s => s.date).length}/${formData.progress.length}`}>
+                <CollapsibleSection title="進捗管理" icon={ListChecks} defaultOpen={!isCreateMode} badge={`${formData.progress.filter(s => s.date).length}/${formData.progress.length}`}>
                     <ProgressEditor
                         progress={formData.progress}
                         onChange={(progress) => setFormData(prev => ({ ...prev, progress }))}
@@ -131,6 +136,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             </CollapsibleSection>
 
             <StickyActionBar>
+                <Button onClick={() => router.push("/")} variant="ghost" className="min-w-[100px]" disabled={isSaving}>
+                    キャンセル
+                </Button>
                 <Button onClick={handleSave} disabled={isSaving} variant="outline" className="min-w-[120px] font-bold shadow-sm">
                     {isSaving ? "処理中..." : isCreateMode ? "新規登録" : "変更を保存"}
                 </Button>

@@ -2,17 +2,20 @@
 
 import { useEffect, useState, use, Suspense } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import type { InheritanceCase } from "@/types/shared"
 import { Button } from "@/components/ui/Button"
 import Link from "next/link"
 import { EditCaseForm } from "./edit-case-form"
 import { getCase, deleteCase } from "@/lib/api/cases"
+import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { useToast } from "@/components/ui/Toast"
 import { Trash2, ChevronRight } from "lucide-react"
 
 export default function InheritanceCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
     const router = useRouter()
+    const queryClient = useQueryClient()
     const toast = useToast()
     const [caseItem, setCaseItem] = useState<InheritanceCase | undefined>(undefined)
     const [isLoading, setIsLoading] = useState(true)
@@ -42,6 +45,7 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
         setIsDeleting(true)
         try {
             await deleteCase(id)
+            queryClient.removeQueries({ queryKey: CASES_QUERY_KEY })
             toast.success("案件を削除しました")
             router.push("/")
         } catch (e) {

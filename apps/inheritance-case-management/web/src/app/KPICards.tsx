@@ -1,12 +1,6 @@
 import { FileText, Clock, AlertTriangle, CheckCircle } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-
-interface KPIData {
-    total: number
-    ongoing: number
-    deadlineSoon: number
-    completedThisMonth: number
-}
+import type { KPIData } from "@/lib/kpi-utils"
 
 const KPI_CARD_DEFS: readonly { key: keyof KPIData; label: string; icon: LucideIcon; color: string }[] = [
     { key: "total", label: "総案件数", icon: FileText, color: "text-gray-600 bg-gray-100" },

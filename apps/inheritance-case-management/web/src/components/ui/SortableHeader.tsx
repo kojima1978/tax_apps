@@ -20,7 +20,7 @@ export function SortableHeader<T>({ column, children, className }: SortableHeade
         <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-8 text-xs px-2"
+            className="h-8 text-xs -ml-2 px-2"
         >
             {children}
             <SortIcon column={column} />

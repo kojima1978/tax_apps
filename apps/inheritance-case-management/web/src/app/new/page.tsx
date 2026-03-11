@@ -40,9 +40,12 @@ export default function NewCasePage() {
                 <span className="text-foreground font-medium">新規案件登録</span>
             </nav>
 
-            <h1 className="text-2xl font-bold mb-6">新規案件登録</h1>
+            <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-6">
+                <div className="mb-8 border-b pb-4">
+                    <h1 className="text-2xl font-bold tracking-tight">新規案件登録</h1>
+                    <p className="text-muted-foreground">基本情報を入力して案件を登録します</p>
+                </div>
 
-            <div className="p-6">
                 <Suspense fallback={<div>Loading...</div>}>
                     <EditCaseForm initialData={emptyCase} isCreateMode={true} />
                 </Suspense>

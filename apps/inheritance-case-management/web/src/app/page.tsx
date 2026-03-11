@@ -9,6 +9,7 @@ import type { CasesQueryParams } from "@/lib/api/cases"
 import { getAllCases } from "@/lib/api/cases"
 import type { InheritanceCase, Assignee } from "@/types/shared"
 import { getAssignees } from "@/lib/api/assignees"
+import { computeKPI } from "@/lib/kpi-utils"
 import { Button } from "@/components/ui/Button"
 import { RefreshCw, Download, Upload } from "lucide-react"
 import { TableSkeleton } from "@/components/ui/Skeleton"
@@ -35,34 +36,13 @@ export default function InheritanceMockupPage() {
     // KPI data & assignees
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
     const [assignees, setAssignees] = useState<Assignee[]>([])
+    const dataVersion = data?.pagination?.total
     useEffect(() => {
         getAllCases().then(setAllCases).catch(() => {})
         getAssignees().then(setAssignees).catch(() => {})
-    }, [])
+    }, [dataVersion])
 
-    const kpiData = useMemo(() => {
-        const now = new Date()
-        const thisMonth = now.getMonth()
-        const thisYear = now.getFullYear()
-        const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-
-        const accepted = allCases.filter(c => c.acceptanceStatus === "受託可")
-        const ongoing = accepted.filter(c => c.status === "進行中")
-        const deadlineSoon = accepted.filter(c => {
-            if (c.status === "完了") return false
-            const death = new Date(c.dateOfDeath)
-            const deadline = new Date(death)
-            deadline.setMonth(deadline.getMonth() + 10)
-            return deadline <= in30Days && deadline >= now
-        })
-        const completedThisMonth = accepted.filter(c => {
-            if (c.status !== "完了") return false
-            const updated = c.updatedAt ? new Date(c.updatedAt) : null
-            return updated && updated.getMonth() === thisMonth && updated.getFullYear() === thisYear
-        })
-
-        return { total: allCases.length, ongoing: ongoing.length, deadlineSoon: deadlineSoon.length, completedThisMonth: completedThisMonth.length }
-    }, [allCases])
+    const kpiData = useMemo(() => computeKPI(allCases), [allCases])
 
     const handleSearch = () => {
         setQueryParams(prev => ({ ...prev, search: searchInput, page: 1 }))
@@ -126,6 +106,7 @@ export default function InheritanceMockupPage() {
                 onClearAll={handleClearAll}
                 assignees={assignees}
                 totalCount={pagination?.total}
+                hasFilters={hasFilters}
             />
 
             {isLoading ? (

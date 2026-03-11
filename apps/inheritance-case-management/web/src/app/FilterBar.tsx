@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/Input"
 import { Search, X, Filter } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { CASE_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, SORT_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
-import type { CaseStatus, AcceptanceStatus, Assignee } from "@/types/shared"
+import type { Assignee } from "@/types/shared"
 
-const SELECT_CLASS = "border rounded px-3 py-2 text-sm bg-background"
+const SELECT_CLASS = "h-10 rounded-xl border-2 border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 
 type SortField = 'deceasedName' | 'dateOfDeath' | 'fiscalYear' | 'status' | 'taxAmount' | 'feeAmount' | 'createdAt' | 'updatedAt'
 type SortOrder = 'asc' | 'desc'
@@ -22,12 +22,18 @@ interface FilterBarProps {
     onClearAll: () => void
     assignees: Assignee[]
     totalCount?: number
+    hasFilters: boolean
 }
 
+// Data-driven filter definitions for status/acceptance selects
+const FILTER_DEFS = [
+    { key: "status" as const, placeholder: "ステータス", options: CASE_STATUS_FILTER_OPTIONS },
+    { key: "acceptanceStatus" as const, placeholder: "受託状況", options: ACCEPTANCE_STATUS_FILTER_OPTIONS },
+] as const
+
 export function FilterBar({
-    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onSortChange, onClearAll, assignees, totalCount,
+    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onSortChange, onClearAll, assignees, totalCount, hasFilters,
 }: FilterBarProps) {
-    const hasFilters = !!(queryParams.search || queryParams.status || queryParams.acceptanceStatus || queryParams.fiscalYear || queryParams.assignee)
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 
     // 即時検索（デバウンス300ms）
@@ -42,14 +48,6 @@ export function FilterBar({
     // searchInput変更時のみ発火
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchInput])
-
-    const activeFilterCount = [
-        queryParams.search,
-        queryParams.status,
-        queryParams.acceptanceStatus,
-        queryParams.fiscalYear,
-        queryParams.assignee,
-    ].filter(Boolean).length
 
     const activeFilters = [
         queryParams.search && { key: 'search' as const, label: `検索: ${queryParams.search}` },
@@ -111,26 +109,19 @@ export function FilterBar({
 
             {/* Row 2: フィルター + ソート */}
             <div className="flex gap-2 flex-wrap">
-                <select
-                    className={SELECT_CLASS}
-                    value={queryParams.status || ""}
-                    onChange={(e) => onFilterChange("status", e.target.value as CaseStatus)}
-                >
-                    <option value="">ステータス</option>
-                    {CASE_STATUS_FILTER_OPTIONS.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                    ))}
-                </select>
-                <select
-                    className={SELECT_CLASS}
-                    value={queryParams.acceptanceStatus || ""}
-                    onChange={(e) => onFilterChange("acceptanceStatus", e.target.value as AcceptanceStatus)}
-                >
-                    <option value="">受託状況</option>
-                    {ACCEPTANCE_STATUS_FILTER_OPTIONS.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                    ))}
-                </select>
+                {FILTER_DEFS.map(({ key, placeholder, options }) => (
+                    <select
+                        key={key}
+                        className={SELECT_CLASS}
+                        value={queryParams[key] || ""}
+                        onChange={(e) => onFilterChange(key, e.target.value || undefined)}
+                    >
+                        <option value="">{placeholder}</option>
+                        {options.map(({ value, label }) => (
+                            <option key={value} value={value}>{label}</option>
+                        ))}
+                    </select>
+                ))}
                 <select
                     className={SELECT_CLASS}
                     value={queryParams.fiscalYear || ""}

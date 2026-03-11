@@ -2,9 +2,14 @@ import { Label } from "@/components/ui/Label"
 import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
-import { User } from "lucide-react"
+import { User, Info } from "lucide-react"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
 import { FISCAL_YEARS } from "@/types/constants"
+
+const STATUS_HINTS: Record<string, string> = {
+    "未判定": "「進行中」「完了」を選択するには、受託を「受託可」または「受託不可」に変更してください",
+    "受託不可": "受託不可のため「進行」は自動的に「完了」に設定されます",
+}
 
 interface BasicInfoSectionProps {
     formData: InheritanceCase
@@ -30,8 +35,8 @@ export function BasicInfoSection({
                 )}
 
                 <div className="space-y-2">
-                    <Label htmlFor="deceasedName">被相続人氏名</Label>
-                    <Input id="deceasedName" name="deceasedName" value={formData.deceasedName} onChange={handleChange} />
+                    <Label htmlFor="deceasedName">被相続人氏名 <span className="text-red-500">*</span></Label>
+                    <Input id="deceasedName" name="deceasedName" value={formData.deceasedName} onChange={handleChange} placeholder="例：山田 太郎" />
                 </div>
 
                 <div className="space-y-2">
@@ -72,11 +77,23 @@ export function BasicInfoSection({
 
                 <div className="space-y-2">
                     <Label htmlFor="status">進行</Label>
-                    <SelectField id="status" name="status" value={formData.status} onChange={handleChange}>
+                    <SelectField
+                        id="status"
+                        name="status"
+                        value={formData.status}
+                        onChange={handleChange}
+                        disabled={formData.acceptanceStatus === "受託不可"}
+                    >
                         <option value="未着手" disabled={formData.acceptanceStatus === "受託不可"}>未着手</option>
                         <option value="進行中" disabled={formData.acceptanceStatus === "未判定" || formData.acceptanceStatus === "受託不可"}>進行中</option>
                         <option value="完了" disabled={formData.acceptanceStatus === "未判定"}>完了</option>
                     </SelectField>
+                    {STATUS_HINTS[formData.acceptanceStatus || ""] && (
+                        <p className="flex items-start gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            {STATUS_HINTS[formData.acceptanceStatus || ""]}
+                        </p>
+                    )}
                 </div>
 
                 <MasterSelect

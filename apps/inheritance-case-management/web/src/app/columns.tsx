@@ -4,7 +4,9 @@ import { ColumnDef } from "@tanstack/react-table"
 import type { InheritanceCase, CaseStatus, AcceptanceStatus } from "@/types/shared"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { STATUS_STYLES, ACCEPTANCE_STYLES } from "@/types/constants"
+import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SortableHeader } from "@/components/ui/SortableHeader"
+import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
 import Link from "next/link"
 import { ProgressModalButton } from "./ProgressModal"
 
@@ -22,26 +24,39 @@ export const columns: ColumnDef<InheritanceCase>[] = [
         accessorKey: "fiscalYear",
         filterFn: "equals",
         header: ({ column }) => <SortableHeader column={column}>年度</SortableHeader>,
-        cell: ({ row }) => {
-            return <div className="text-center font-medium">{row.getValue("fiscalYear")}年度</div>
-        },
+        cell: ({ row }) => (
+            <div className="text-center font-medium">{row.getValue("fiscalYear")}年度</div>
+        ),
     },
     {
         accessorKey: "dateOfDeath",
         header: ({ column }) => <SortableHeader column={column}>相続開始日</SortableHeader>,
-        cell: ({ row }) => {
-            const date = new Date(row.getValue("dateOfDeath"))
-            return <div>{date.toLocaleDateString("ja-JP")}</div>
-        },
+        cell: ({ row }) => (
+            <div>{new Date(row.getValue("dateOfDeath")).toLocaleDateString("ja-JP")}</div>
+        ),
     },
     {
         id: "declarationDeadline",
-        header: "申告期限",
+        header: () => <span className="inline-flex items-center h-8">申告期限</span>,
         cell: ({ row }) => {
-            const deathDate = new Date(row.getValue("dateOfDeath"))
-            const deadline = new Date(deathDate)
-            deadline.setMonth(deadline.getMonth() + 10)
-            return <div>{deadline.toLocaleDateString("ja-JP")}</div>
+            const deadline = getDeadlineDate(row.getValue("dateOfDeath"))
+            const dateStr = deadline.toLocaleDateString("ja-JP")
+
+            if (row.original.status === "完了") {
+                return <div className="text-muted-foreground">{dateStr}</div>
+            }
+
+            const status = getDeadlineStatus(deadline)
+            return (
+                <div className={status?.className ?? ""}>
+                    {dateStr}
+                    {status && (
+                        <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${status.badgeClassName}`}>
+                            {status.badge}
+                        </span>
+                    )}
+                </div>
+            )
         },
     },
     {
@@ -49,13 +64,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
         header: ({ column }) => <SortableHeader column={column}>受託</SortableHeader>,
         cell: ({ row }) => {
             const acceptance = (row.getValue("acceptanceStatus") || "未判定") as AcceptanceStatus
-            const style = ACCEPTANCE_STYLES[acceptance]
-            return (
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-                    {acceptance}
-                </span>
-            )
+            return <StatusBadge label={acceptance} style={ACCEPTANCE_STYLES[acceptance]} />
         },
     },
     {
@@ -63,13 +72,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
         header: ({ column }) => <SortableHeader column={column}>進行</SortableHeader>,
         cell: ({ row }) => {
             const status = row.getValue("status") as CaseStatus
-            const style = STATUS_STYLES[status]
-            return (
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-                    {status}
-                </span>
-            )
+            return <StatusBadge label={status} style={STATUS_STYLES[status]} />
         },
     },
     {
@@ -84,7 +87,6 @@ export const columns: ColumnDef<InheritanceCase>[] = [
             const amount = parseFloat(row.getValue("estimateAmount") || "0")
             const referralFeeRate = row.original.referralFeeRate || 0
             const netAmount = amount * (1 - referralFeeRate / 100)
-
             return <div className="text-right font-medium">{formatCurrency(netAmount)}</div>
         },
     },
@@ -95,13 +97,12 @@ export const columns: ColumnDef<InheritanceCase>[] = [
             const amount = parseFloat(row.getValue("feeAmount") || "0")
             const referralFee = row.original.referralFeeAmount || 0
             const netAmount = amount - referralFee
-
             return <div className="text-right font-medium">{formatCurrency(netAmount)}</div>
         },
     },
     {
         id: "actions",
-        header: "進捗",
+        header: () => <span className="inline-flex items-center justify-center h-8 w-full">進捗</span>,
         cell: ({ row }) => {
             const progress = row.original.progress ?? []
             const total = progress.length
@@ -109,7 +110,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
             const percent = total > 0 ? (completed / total) * 100 : 0
 
             return (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center gap-2">
                     {total > 0 && (
                         <div className="flex items-center gap-1.5 min-w-[80px]">
                             <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
