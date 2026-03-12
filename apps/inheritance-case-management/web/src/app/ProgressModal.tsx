@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal"
 import type { InheritanceCase, ProgressStep } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
 import { addVisitStep, shouldShowAddVisit } from "@/lib/progress-utils"
+import { toProgressSteps, toProgressItems } from "@/lib/case-converters"
 import Link from "next/link"
 
 export function ProgressModalButton({ caseData }: { caseData: InheritanceCase }) {
@@ -16,7 +17,7 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
     const [saved, setSaved] = useState(false)
 
     const openModal = () => {
-        setSteps(caseData.progress ? caseData.progress.map((s) => ({ ...s })) : [])
+        setSteps(caseData.progress ? toProgressSteps(caseData.progress) : [])
         setSaved(false)
         setShowModal(true)
     }
@@ -32,7 +33,8 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
         setIsSaving(true)
         try {
             await updateCase(caseData.id, { progress: steps })
-            caseData.progress = steps
+            // Update caseData with normalized shape
+            caseData.progress = toProgressItems(steps)
             setSaved(true)
         } catch {
             // エラー時は何もしない（モーダルは開いたまま）
@@ -41,7 +43,9 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
         }
     }
 
-    const hasChanges = JSON.stringify(steps) !== JSON.stringify(caseData.progress ?? [])
+    // Compare using stepId-based shape for both sides
+    const currentSteps = toProgressSteps(caseData.progress ?? [])
+    const hasChanges = JSON.stringify(steps) !== JSON.stringify(currentSteps)
 
     return (
         <>
