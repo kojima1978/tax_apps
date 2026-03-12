@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import type { InheritanceCase, CaseStatus, AcceptanceStatus } from "@/types/shared"
-import { formatCurrency } from "@/lib/analytics-utils"
+import { formatCurrency, calcNet } from "@/lib/analytics-utils"
 import { STATUS_STYLES, ACCEPTANCE_STYLES } from "@/types/constants"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SortableHeader } from "@/components/ui/SortableHeader"
@@ -76,9 +76,9 @@ export const columns: ColumnDef<InheritanceCase>[] = [
         },
     },
     {
-        accessorKey: "assignee",
+        id: "assignee",
         header: ({ column }) => <SortableHeader column={column}>担当者</SortableHeader>,
-        cell: ({ row }) => <div>{row.getValue("assignee")}</div>,
+        cell: ({ row }) => <div>{row.original.assignee?.name || ""}</div>,
     },
     {
         accessorKey: "estimateAmount",
@@ -93,12 +93,9 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     {
         accessorKey: "feeAmount",
         header: ({ column }) => <SortableHeader column={column} className="text-right">報酬額</SortableHeader>,
-        cell: ({ row }) => {
-            const amount = parseFloat(row.getValue("feeAmount") || "0")
-            const referralFee = row.original.referralFeeAmount || 0
-            const netAmount = amount - referralFee
-            return <div className="text-right font-medium">{formatCurrency(netAmount)}</div>
-        },
+        cell: ({ row }) => (
+            <div className="text-right font-medium">{formatCurrency(calcNet(row.original, "fee"))}</div>
+        ),
     },
     {
         id: "actions",

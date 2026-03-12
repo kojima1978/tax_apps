@@ -2,12 +2,13 @@
 
 import { useEffect, useRef } from "react"
 import { Input } from "@/components/ui/Input"
+import { SelectField } from "@/components/ui/SelectField"
 import { Search, X, Filter } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { CASE_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, SORT_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
 import type { Assignee } from "@/types/shared"
 
-const SELECT_CLASS = "h-10 rounded-xl border-2 border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+const FILTER_SELECT_WRAPPER = "h-10 w-auto"
 
 type SortField = 'deceasedName' | 'dateOfDeath' | 'fiscalYear' | 'status' | 'taxAmount' | 'feeAmount' | 'createdAt' | 'updatedAt'
 type SortOrder = 'asc' | 'desc'
@@ -54,7 +55,7 @@ export function FilterBar({
         queryParams.status && { key: 'status' as keyof CasesQueryParams, label: `ステータス: ${queryParams.status}` },
         queryParams.acceptanceStatus && { key: 'acceptanceStatus' as keyof CasesQueryParams, label: `受託: ${queryParams.acceptanceStatus}` },
         queryParams.fiscalYear && { key: 'fiscalYear' as keyof CasesQueryParams, label: `年度: ${queryParams.fiscalYear}年度` },
-        queryParams.assignee && { key: 'assignee' as keyof CasesQueryParams, label: `担当: ${queryParams.assignee}` },
+        queryParams.assigneeId && { key: 'assigneeId' as keyof CasesQueryParams, label: `担当: ${assignees.find(a => a.id === queryParams.assigneeId)?.name || queryParams.assigneeId}` },
     ].filter((f): f is { key: string; label: string } => !!f)
 
     return (
@@ -110,9 +111,9 @@ export function FilterBar({
             {/* Row 2: フィルター + ソート */}
             <div className="flex gap-2 flex-wrap">
                 {FILTER_DEFS.map(({ key, placeholder, options }) => (
-                    <select
+                    <SelectField
                         key={key}
-                        className={SELECT_CLASS}
+                        wrapperClassName={FILTER_SELECT_WRAPPER}
                         value={queryParams[key] || ""}
                         onChange={(e) => onFilterChange(key, e.target.value || undefined)}
                     >
@@ -120,10 +121,10 @@ export function FilterBar({
                         {options.map(({ value, label }) => (
                             <option key={value} value={value}>{label}</option>
                         ))}
-                    </select>
+                    </SelectField>
                 ))}
-                <select
-                    className={SELECT_CLASS}
+                <SelectField
+                    wrapperClassName={FILTER_SELECT_WRAPPER}
                     value={queryParams.fiscalYear || ""}
                     onChange={(e) => onFilterChange("fiscalYear", e.target.value)}
                 >
@@ -131,19 +132,19 @@ export function FilterBar({
                     {FILTER_YEAR_OPTIONS.map(year => (
                         <option key={year} value={year}>{year}年度</option>
                     ))}
-                </select>
-                <select
-                    className={SELECT_CLASS}
-                    value={queryParams.assignee || ""}
-                    onChange={(e) => onFilterChange("assignee", e.target.value)}
+                </SelectField>
+                <SelectField
+                    wrapperClassName={FILTER_SELECT_WRAPPER}
+                    value={queryParams.assigneeId || ""}
+                    onChange={(e) => onFilterChange("assigneeId", e.target.value)}
                 >
                     <option value="">担当者</option>
                     {assignees.filter(a => a.active).map(a => (
-                        <option key={a.id} value={a.name}>{a.name}</option>
+                        <option key={a.id} value={a.id}>{a.name}</option>
                     ))}
-                </select>
-                <select
-                    className={SELECT_CLASS}
+                </SelectField>
+                <SelectField
+                    wrapperClassName={FILTER_SELECT_WRAPPER}
                     value={`${queryParams.sortBy || 'createdAt'}_${queryParams.sortOrder || 'desc'}`}
                     onChange={(e) => {
                         const [field, order] = e.target.value.split('_') as [SortField, SortOrder]
@@ -153,7 +154,7 @@ export function FilterBar({
                     {SORT_OPTIONS.map(({ value, label }) => (
                         <option key={value} value={value}>{label}</option>
                     ))}
-                </select>
+                </SelectField>
             </div>
         </div>
     )

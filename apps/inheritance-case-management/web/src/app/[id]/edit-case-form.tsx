@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
+import { toProgressSteps, toProgressItems, toContacts, toContactItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { getAssignees } from "@/lib/api/assignees"
 import { getReferrers } from "@/lib/api/referrers"
@@ -54,10 +55,37 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
+        const numericFields = ["taxAmount", "feeAmount", "fiscalYear"]
+        const fkFields = ["assigneeId", "referrerId"]
         setFormData((prev) => ({
             ...prev,
-            [name]: ["taxAmount", "feeAmount", "fiscalYear"].includes(name) ? Number(value) : value,
+            [name]: numericFields.includes(name) ? Number(value)
+                : fkFields.includes(name) ? (value ? Number(value) : null)
+                : value,
         }))
+    }
+
+    // Convert normalized DB shapes to API input shapes
+    const toApiPayload = () => {
+        const contacts = formData.contacts ? toContacts(formData.contacts) : undefined
+        const progress = formData.progress ? toProgressSteps(formData.progress) : undefined
+        return {
+            deceasedName: formData.deceasedName,
+            dateOfDeath: formData.dateOfDeath,
+            fiscalYear: formData.fiscalYear,
+            status: formData.status,
+            acceptanceStatus: formData.acceptanceStatus || "未判定",
+            taxAmount: formData.taxAmount,
+            feeAmount: formData.feeAmount,
+            estimateAmount: formData.estimateAmount,
+            propertyValue: formData.propertyValue,
+            referralFeeRate: formData.referralFeeRate,
+            referralFeeAmount: formData.referralFeeAmount,
+            assigneeId: formData.assigneeId || null,
+            referrerId: formData.referrerId || null,
+            contacts,
+            progress,
+        }
     }
 
     const handleSave = async () => {
@@ -68,13 +96,14 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
         setIsSaving(true)
         try {
+            const payload = toApiPayload()
             if (isCreateMode) {
-                await createCase({ ...formData, acceptanceStatus: formData.acceptanceStatus || "未判定" })
+                await createCase(payload)
                 queryClient.removeQueries({ queryKey: CASES_QUERY_KEY })
                 toast.success("新規登録しました")
                 router.push("/")
             } else {
-                await updateCase(formData.id, formData)
+                await updateCase(formData.id, payload)
                 toast.success("保存しました")
                 router.refresh()
             }
@@ -122,16 +151,16 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             {formData.progress && (
                 <CollapsibleSection title="進捗管理" icon={ListChecks} defaultOpen={!isCreateMode} badge={`${formData.progress.filter(s => s.date).length}/${formData.progress.length}`}>
                     <ProgressEditor
-                        progress={formData.progress}
-                        onChange={(progress) => setFormData(prev => ({ ...prev, progress }))}
+                        progress={toProgressSteps(formData.progress)}
+                        onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
                     />
                 </CollapsibleSection>
             )}
 
             <CollapsibleSection title="連絡先" icon={Phone} defaultOpen={false} badge={`${(formData.contacts || []).length}件`}>
                 <ContactListEditor
-                    contacts={formData.contacts || []}
-                    onChange={(contacts) => setFormData(prev => ({ ...prev, contacts }))}
+                    contacts={toContacts(formData.contacts || [])}
+                    onChange={(contacts) => setFormData(prev => ({ ...prev, contacts: toContactItems(contacts) }))}
                 />
             </CollapsibleSection>
 

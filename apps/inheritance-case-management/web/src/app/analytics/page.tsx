@@ -5,13 +5,12 @@ import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
 import type { InheritanceCase } from "@/types/shared"
 import { calcNet, aggregateCases } from "@/lib/analytics-utils"
+import { SelectField } from "@/components/ui/SelectField"
 import { OverviewTab } from "./OverviewTab"
 import { BreakdownTab } from "./BreakdownTab"
 import { ReferrerTab } from "./ReferrerTab"
 
 type TabId = "overview" | "breakdown" | "referrer"
-
-const YEAR_SELECT_CLASS = "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 
 const TABS: { id: TabId; label: string }[] = [
     { id: "overview", label: "経営概況" },
@@ -96,14 +95,14 @@ export default function AnalyticsPage() {
                 <h1 className="text-2xl md:text-3xl font-bold">経営分析ダッシュボード</h1>
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">表示年度:</span>
-                    <select
-                        className={YEAR_SELECT_CLASS}
+                    <SelectField
+                        wrapperClassName="h-10 w-auto"
                         value={selectedYear}
                         onChange={(e) => setSelectedYear(e.target.value)}
                     >
                         <option value="all">全期間</option>
                         {years.map(y => <option key={y} value={y}>{y}年度</option>)}
-                    </select>
+                    </SelectField>
                 </div>
             </div>
 

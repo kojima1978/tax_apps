@@ -3,12 +3,13 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { createCaseSchema, listQuerySchema } from '@/types/validation';
+import { CASE_INCLUDE, toContactCreateData, toProgressCreateData } from '@/lib/prisma-includes';
 
 // GET /api/cases - List cases with pagination, filtering, and sorting
 export async function GET(request: NextRequest) {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const { page, pageSize, status, acceptanceStatus, fiscalYear, search, assignee, sortBy, sortOrder } =
+    const { page, pageSize, status, acceptanceStatus, fiscalYear, search, assigneeId, sortBy, sortOrder } =
       listQuerySchema.parse(searchParams);
 
     // Build where clause for filtering
@@ -26,8 +27,8 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.deceasedName = { contains: search, mode: 'insensitive' };
     }
-    if (assignee) {
-      where.assignee = assignee;
+    if (assigneeId) {
+      where.assigneeId = assigneeId;
     }
 
     // ページネーション用のカウントとデータ取得を並列実行
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
       prisma.inheritanceCase.count({ where }),
       prisma.inheritanceCase.findMany({
         where,
+        include: CASE_INCLUDE,
         orderBy: { [sortBy]: sortOrder },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -69,16 +71,17 @@ export async function POST(request: NextRequest) {
         status: data.status ?? '未着手',
         acceptanceStatus: data.acceptanceStatus ?? '未判定',
         taxAmount: data.taxAmount ?? 0,
-        assignee: data.assignee,
         feeAmount: data.feeAmount ?? 0,
-        referrer: data.referrer,
         estimateAmount: data.estimateAmount ?? 0,
         propertyValue: data.propertyValue ?? 0,
         referralFeeRate: data.referralFeeRate,
         referralFeeAmount: data.referralFeeAmount,
-        contacts: data.contacts ?? [],
-        progress: data.progress ?? [],
+        assigneeId: data.assigneeId || null,
+        referrerId: data.referrerId || null,
+        contacts: { create: toContactCreateData(data.contacts ?? []) },
+        progress: { create: toProgressCreateData(data.progress ?? []) },
       },
+      include: CASE_INCLUDE,
     });
 
     return NextResponse.json(newCase, { status: 201 });
