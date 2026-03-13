@@ -26,11 +26,12 @@ interface FilterBarProps {
     hasFilters: boolean
 }
 
-// Data-driven filter definitions for status/acceptance selects
-const FILTER_DEFS = [
-    { key: "status" as const, placeholder: "ステータス", options: CASE_STATUS_FILTER_OPTIONS },
-    { key: "acceptanceStatus" as const, placeholder: "受託状況", options: ACCEPTANCE_STATUS_FILTER_OPTIONS },
-] as const
+// Data-driven filter definitions
+const FILTER_DEFS: { key: keyof CasesQueryParams; placeholder: string; options: readonly { value: string | number; label: string }[] }[] = [
+    { key: "status", placeholder: "ステータス", options: CASE_STATUS_FILTER_OPTIONS },
+    { key: "acceptanceStatus", placeholder: "受託状況", options: ACCEPTANCE_STATUS_FILTER_OPTIONS },
+    { key: "fiscalYear", placeholder: "年度", options: FILTER_YEAR_OPTIONS.map(y => ({ value: y, label: `${y}年度` })) },
+]
 
 export function FilterBar({
     queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onSortChange, onClearAll, assignees, totalCount, hasFilters,
@@ -119,20 +120,10 @@ export function FilterBar({
                     >
                         <option value="">{placeholder}</option>
                         {options.map(({ value, label }) => (
-                            <option key={value} value={value}>{label}</option>
+                            <option key={String(value)} value={value}>{label}</option>
                         ))}
                     </SelectField>
                 ))}
-                <SelectField
-                    wrapperClassName={FILTER_SELECT_WRAPPER}
-                    value={queryParams.fiscalYear || ""}
-                    onChange={(e) => onFilterChange("fiscalYear", e.target.value)}
-                >
-                    <option value="">年度</option>
-                    {FILTER_YEAR_OPTIONS.map(year => (
-                        <option key={year} value={year}>{year}年度</option>
-                    ))}
-                </SelectField>
                 <SelectField
                     wrapperClassName={FILTER_SELECT_WRAPPER}
                     value={queryParams.assigneeId || ""}

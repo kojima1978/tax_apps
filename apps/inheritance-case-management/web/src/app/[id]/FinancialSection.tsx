@@ -6,6 +6,12 @@ import { Banknote } from "lucide-react"
 import { formatCurrency } from "@/lib/analytics-utils"
 import type { InheritanceCase } from "@/types/shared"
 
+const SIMPLE_CURRENCY_FIELDS: { key: keyof InheritanceCase; label: string }[] = [
+    { key: "propertyValue", label: "取得財産の価格" },
+    { key: "taxAmount", label: "申告納税額" },
+    { key: "estimateAmount", label: "見積額（税抜）" },
+]
+
 interface FinancialSectionProps {
     formData: InheritanceCase
     netRevenue: number
@@ -21,35 +27,17 @@ export function FinancialSection({
     return (
         <CollapsibleSection title="金額情報" icon={Banknote} defaultOpen={defaultOpen}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <Label htmlFor="propertyValue">取得財産の価格</Label>
-                    <CurrencyField
-                        id="propertyValue"
-                        name="propertyValue"
-                        value={formData.propertyValue}
-                        onValueChange={currencyChange("propertyValue")}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="taxAmount">申告納税額</Label>
-                    <CurrencyField
-                        id="taxAmount"
-                        name="taxAmount"
-                        value={formData.taxAmount}
-                        onValueChange={currencyChange("taxAmount")}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="estimateAmount">見積額（税抜）</Label>
-                    <CurrencyField
-                        id="estimateAmount"
-                        name="estimateAmount"
-                        value={formData.estimateAmount}
-                        onValueChange={currencyChange("estimateAmount")}
-                    />
-                </div>
+                {SIMPLE_CURRENCY_FIELDS.map(({ key, label }) => (
+                    <div key={key} className="space-y-2">
+                        <Label htmlFor={key}>{label}</Label>
+                        <CurrencyField
+                            id={key}
+                            name={key}
+                            value={formData[key] as number | undefined}
+                            onValueChange={currencyChange(key)}
+                        />
+                    </div>
+                ))}
 
                 <div className="space-y-2">
                     <Label htmlFor="feeAmount">報酬額（税抜）</Label>

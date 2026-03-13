@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/Label"
 import type { Referrer } from "@/types/shared"
 import { getReferrers, createReferrer, updateReferrer, deleteReferrer } from "@/lib/api/referrers"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
-import { MasterListPage, type ColumnDef } from "@/components/MasterListPage"
+import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 
 const columns: ColumnDef<Referrer>[] = [
     { key: "company", label: "会社名" },
@@ -112,26 +112,13 @@ function ReferrerSettingsContent() {
         <MasterListPage<Referrer>
             title="紹介者管理"
             entityLabel="紹介者"
-            returnTo={masterList.returnTo}
-            isDirty={masterList.isDirty}
-            isSaving={masterList.isSaving}
-            isLoading={masterList.isLoading}
-            items={masterList.items}
-            filteredItems={masterList.filteredAndSortedItems}
-            showInactive={masterList.showInactive}
-            onToggleShowInactive={masterList.handleToggleShowInactive}
-            editingId={masterList.editingId}
+            {...getMasterListPageProps(masterList)}
             columns={columns}
             newItemForm={newItemForm}
             onAdd={handleAdd}
             renderEditCell={renderEditCell}
             onStartEdit={(r) => masterList.handleStartEdit(r, { company: r.company, department: r.department || "", name: r.name })}
             onSaveEdit={handleSaveEdit}
-            onCancelEdit={masterList.handleCancelEdit}
-            onToggleActive={masterList.handleToggleActive}
-            onPermanentDelete={masterList.handlePermanentDelete}
-            onSave={masterList.handleSave}
-            onSort={masterList.handleSort}
         />
     )
 }

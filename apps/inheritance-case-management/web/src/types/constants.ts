@@ -19,6 +19,31 @@ export const ACCEPTANCE_STYLES: Record<AcceptanceStatus, { dot: string; bg: stri
 export const CASE_STATUS_OPTIONS: readonly CaseStatus[] = ["未着手", "進行中", "完了", "請求済"] as const
 export const ACCEPTANCE_STATUS_OPTIONS: readonly AcceptanceStatus[] = ["受託可", "受託不可", "未判定", "保留"] as const
 
+// Form-specific ordering (default value first)
+export const ACCEPTANCE_FORM_OPTIONS: readonly AcceptanceStatus[] = ["未判定", "受託可", "受託不可", "保留"] as const
+
+// Which acceptance statuses enable each case status in the form
+export const STATUS_ENABLED_WHEN: Record<CaseStatus, readonly AcceptanceStatus[]> = {
+    '未着手': ['未判定', '受託可', '保留'],
+    '進行中': ['受託可'],
+    '完了': ['受託可', '受託不可'],
+    '請求済': ['受託可'],
+}
+
+// Auto-set status when acceptance status changes
+export const ACCEPTANCE_AUTO_STATUS: Partial<Record<AcceptanceStatus, CaseStatus>> = {
+    '未判定': '未着手',
+    '保留': '未着手',
+    '受託不可': '完了',
+}
+
+// Hint messages for restricted status options
+export const ACCEPTANCE_HINTS: Partial<Record<AcceptanceStatus, string>> = {
+    '未判定': '「進行中」「完了」を選択するには、受託を「受託可」または「受託不可」に変更してください',
+    '受託不可': '受託不可のため「進行」は自動的に「完了」に設定されます',
+    '保留': '保留中のため「進行中」「完了」「請求済」を選択するには、受託を変更してください',
+}
+
 // Filter-specific labels
 export const CASE_STATUS_FILTER_OPTIONS = CASE_STATUS_OPTIONS.map(s => ({ value: s, label: s }))
 export const ACCEPTANCE_STATUS_FILTER_OPTIONS = ACCEPTANCE_STATUS_OPTIONS.map(s => ({ value: s, label: s }))

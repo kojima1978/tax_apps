@@ -48,6 +48,47 @@ interface MasterListPageProps<T extends { id: number; active: boolean }> {
     onSort: (field: string) => void
 }
 
+/** useMasterList の返り値から MasterListPage の共通 props を抽出するヘルパー */
+export function getMasterListPageProps<T extends { id: number; active: boolean }>(
+    ml: {
+        returnTo: string | null
+        isDirty: boolean
+        isSaving: boolean
+        isLoading: boolean
+        items: T[]
+        filteredAndSortedItems: T[]
+        showInactive: boolean
+        handleToggleShowInactive: () => void
+        editingId: number | null
+        handleCancelEdit: () => void
+        handleToggleActive: (id: number) => void
+        handlePermanentDelete: (id: number) => void
+        handleSave: () => void
+        handleSort: (field: string) => void
+    }
+): Pick<MasterListPageProps<T>,
+    'returnTo' | 'isDirty' | 'isSaving' | 'isLoading' | 'items' | 'filteredItems' |
+    'showInactive' | 'onToggleShowInactive' | 'editingId' | 'onCancelEdit' |
+    'onToggleActive' | 'onPermanentDelete' | 'onSave' | 'onSort'
+> {
+    return {
+        returnTo: ml.returnTo,
+        isDirty: ml.isDirty,
+        isSaving: ml.isSaving,
+        isLoading: ml.isLoading,
+        items: ml.items,
+        filteredItems: ml.filteredAndSortedItems,
+        showInactive: ml.showInactive,
+        onToggleShowInactive: ml.handleToggleShowInactive,
+        editingId: ml.editingId,
+        onCancelEdit: ml.handleCancelEdit,
+        onToggleActive: ml.handleToggleActive,
+        onPermanentDelete: ml.handlePermanentDelete,
+        onSave: ml.handleSave,
+        onSort: ml.handleSort,
+    }
+}
+
 export function MasterListPage<T extends { id: number; active: boolean }>({
     title,
     entityLabel,
