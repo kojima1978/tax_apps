@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import type { Referrer } from "@/types/shared"
 import { getReferrers, createReferrer, updateReferrer, deleteReferrer } from "@/lib/api/referrers"
-import { useMasterList } from "@/hooks/use-master-list"
+import { useMasterList, nextTempId } from "@/hooks/use-master-list"
 import { MasterListPage, type ColumnDef } from "@/components/MasterListPage"
 
 const columns: ColumnDef<Referrer>[] = [
@@ -47,7 +47,7 @@ function ReferrerSettingsContent() {
 
         setNewCompanyError(""); setNewNameError("")
         masterList.handleAdd({
-            id: `temp_${Date.now()}`,
+            id: nextTempId(),
             company: newCompany.trim(),
             department: newDept.trim(),
             name: newName.trim(),

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/Label"
 import { SelectField } from "@/components/ui/SelectField"
 import { DEPARTMENTS, type Assignee } from "@/types/shared"
 import { getAssignees, createAssignee, updateAssignee, deleteAssignee } from "@/lib/api/assignees"
-import { useMasterList } from "@/hooks/use-master-list"
+import { useMasterList, nextTempId } from "@/hooks/use-master-list"
 import { MasterListPage, type ColumnDef } from "@/components/MasterListPage"
 import { useToast } from "@/components/ui/Toast"
 
@@ -63,7 +63,7 @@ function AssigneeSettingsContent() {
 
         setNewIdError(""); setNewNameError(""); setNewDeptError("")
         masterList.handleAdd({
-            id: `temp_${Date.now()}`,
+            id: nextTempId(),
             name: newName.trim(),
             employeeId: newId.trim() ? formatEmployeeId(newId.trim()) : undefined,
             department: newDept.trim(),

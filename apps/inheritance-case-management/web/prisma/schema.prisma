@@ -9,7 +9,7 @@ datasource db {
 }
 
 model InheritanceCase {
-  id                String   @id @default(uuid())
+  id                Int      @id @default(autoincrement())
   deceasedName      String
   dateOfDeath       String
   status            String   @default("未着手") // "未着手" | "進行中" | "完了" | "請求済"
@@ -21,12 +21,16 @@ model InheritanceCase {
   propertyValue     Int?     @default(0)
   referralFeeRate   Float?
   referralFeeAmount Int?
-  contacts          Json?    // Contact[]
-  progress          Json?    // ProgressStep[]
 
-  // Legacy string fields (kept for backward compatibility)
-  assignee          String?
-  referrer          String?
+  // Normalized FK references
+  assigneeId        Int?
+  assignee          Assignee?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  referrerId        Int?
+  referrer          Referrer?      @relation(fields: [referrerId], references: [id], onDelete: SetNull)
+
+  // Normalized child tables
+  contacts          CaseContact[]
+  progress          CaseProgress[]
 
   // Audit fields
   createdBy         String?
@@ -39,14 +43,17 @@ model InheritanceCase {
   @@index([fiscalYear])
   @@index([acceptanceStatus])
   @@index([createdAt])
+  @@index([assigneeId])
+  @@index([referrerId])
 }
 
 model Assignee {
-  id         String   @id @default(uuid())
+  id         Int      @id @default(autoincrement())
   name       String
   employeeId String?
   department String?
   active     Boolean  @default(true)
+  cases      InheritanceCase[]
 
   // Audit fields
   createdAt  DateTime @default(now())
@@ -57,11 +64,12 @@ model Assignee {
 }
 
 model Referrer {
-  id         String   @id @default(uuid())
+  id         Int      @id @default(autoincrement())
   company    String
   name       String
   department String?
   active     Boolean  @default(true)
+  cases      InheritanceCase[]
 
   // Audit fields
   createdAt  DateTime @default(now())
@@ -69,4 +77,31 @@ model Referrer {
 
   @@index([active])
   @@index([company])
+}
+
+model CaseContact {
+  id        Int             @id @default(autoincrement())
+  caseId    Int
+  case      InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sortOrder Int             @default(0)
+  name      String
+  phone     String          @default("")
+  email     String          @default("")
+
+  @@index([caseId])
+}
+
+model CaseProgress {
+  id        Int             @id @default(autoincrement())
+  caseId    Int
+  case      InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  stepId    String
+  name      String
+  sortOrder Int             @default(0)
+  date      String?
+  memo      String?
+  isDynamic Boolean         @default(false)
+
+  @@index([caseId])
+  @@index([caseId, sortOrder])
 }

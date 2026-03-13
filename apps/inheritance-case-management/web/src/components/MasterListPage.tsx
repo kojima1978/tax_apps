@@ -20,7 +20,7 @@ export interface ColumnDef<T> {
     renderCell?: (item: T) => ReactNode
 }
 
-interface MasterListPageProps<T extends { id: string; active: boolean }> {
+interface MasterListPageProps<T extends { id: number; active: boolean }> {
     title: string
     entityLabel: string
     returnTo: string | null
@@ -31,7 +31,7 @@ interface MasterListPageProps<T extends { id: string; active: boolean }> {
     filteredItems: T[]
     showInactive: boolean
     onToggleShowInactive: () => void
-    editingId: string | null
+    editingId: number | null
     columns: ColumnDef<T>[]
     // New item form
     newItemForm: ReactNode
@@ -42,13 +42,13 @@ interface MasterListPageProps<T extends { id: string; active: boolean }> {
     onStartEdit: (item: T) => void
     onSaveEdit: () => void
     onCancelEdit: () => void
-    onToggleActive: (id: string) => void
-    onPermanentDelete: (id: string) => void
+    onToggleActive: (id: number) => void
+    onPermanentDelete: (id: number) => void
     onSave: () => void
     onSort: (field: string) => void
 }
 
-export function MasterListPage<T extends { id: string; active: boolean }>({
+export function MasterListPage<T extends { id: number; active: boolean }>({
     title,
     entityLabel,
     returnTo,

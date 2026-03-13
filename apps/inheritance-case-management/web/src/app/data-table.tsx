@@ -49,7 +49,7 @@ export function DataTable<TData, TValue>({
     const { focusedRowIndex, setFocusedRowIndex, handleKeyDown, handleFocus } = useKeyboardNavigation({
         rowCount: rows.length,
         onEnter: (index) => {
-            const caseData = rows[index].original as { id?: string }
+            const caseData = rows[index].original as { id?: number }
             if (caseData.id) router.push(`/${caseData.id}`)
         },
         onEscape: () => tableRef.current?.blur(),
@@ -93,7 +93,7 @@ export function DataTable<TData, TValue>({
                                         focusedRowIndex === index && "bg-muted/50 ring-2 ring-inset ring-primary/20"
                                     )}
                                     onClick={() => {
-                                        const caseData = row.original as { id?: string }
+                                        const caseData = row.original as { id?: number }
                                         if (caseData.id) router.push(`/${caseData.id}`)
                                     }}
                                     onMouseEnter={() => setFocusedRowIndex(index)}

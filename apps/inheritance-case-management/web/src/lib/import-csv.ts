@@ -1,6 +1,6 @@
 import { createCaseSchema } from '@/types/validation';
 import type { CreateCaseInput } from '@/types/validation';
-import type { CaseStatus, AcceptanceStatus } from '@/types/shared';
+import type { CaseStatus, AcceptanceStatus, Assignee, Referrer } from '@/types/shared';
 
 // 既存CSV出力(export-csv.ts)の日本語ヘッダー → フィールド名マッピング
 const CSV_HEADER_MAP: Record<string, string> = {
@@ -9,8 +9,8 @@ const CSV_HEADER_MAP: Record<string, string> = {
   '年度': 'fiscalYear',
   'ステータス': 'status',
   '受託状況': 'acceptanceStatus',
-  '担当者': 'assignee',
-  '紹介者': 'referrer',
+  '担当者': 'assigneeName',
+  '紹介者': 'referrerName',
   '財産評価額': 'propertyValue',
   '相続税額': 'taxAmount',
   '見積額': 'estimateAmount',
@@ -138,12 +138,33 @@ function parseOptionalFloat(value: string): number | undefined {
   return n;
 }
 
+/** Name→ID resolve maps */
+export interface ResolverMaps {
+  assigneeNameToId: Map<string, number>;
+  referrerNameToId: Map<string, number>;
+}
+
+/** Build resolve maps from master data */
+export function buildResolverMaps(assignees: Assignee[], referrers: Referrer[]): ResolverMaps {
+  const assigneeNameToId = new Map<string, number>();
+  assignees.forEach(a => assigneeNameToId.set(a.name, a.id));
+
+  const referrerNameToId = new Map<string, number>();
+  referrers.forEach(r => {
+    referrerNameToId.set(`${r.company} / ${r.name}`, r.id);
+    referrerNameToId.set(r.company, r.id);
+  });
+
+  return { assigneeNameToId, referrerNameToId };
+}
+
 /**
  * CSV行をCreateCaseInput形式に変換
  */
 function rowToInput(
   row: string[],
-  columnMap: Map<number, string>
+  columnMap: Map<number, string>,
+  resolvers?: ResolverMaps
 ): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
 
@@ -168,9 +189,15 @@ function rowToInput(
           ? value
           : undefined;
         break;
-      case 'assignee':
-      case 'referrer':
-        obj[fieldName] = value || undefined;
+      case 'assigneeName':
+        if (value && resolvers) {
+          obj.assigneeId = resolvers.assigneeNameToId.get(value) || null;
+        }
+        break;
+      case 'referrerName':
+        if (value && resolvers) {
+          obj.referrerId = resolvers.referrerNameToId.get(value) || null;
+        }
         break;
       case 'propertyValue':
       case 'taxAmount':
@@ -195,7 +222,7 @@ function rowToInput(
 /**
  * CSVテキストをパース・バリデーションし、取り込み可能なデータを返す
  */
-export function parseAndValidateCSV(text: string): ImportParseResult {
+export function parseAndValidateCSV(text: string, resolvers?: ResolverMaps): ImportParseResult {
   const rows = parseCSVText(text);
 
   if (rows.length === 0) {
@@ -230,7 +257,7 @@ export function parseAndValidateCSV(text: string): ImportParseResult {
 
   for (let i = 0; i < dataRows.length; i++) {
     const csvRowNum = i + 2; // 1-based, ヘッダーが1行目
-    const raw = rowToInput(dataRows[i], columnMap);
+    const raw = rowToInput(dataRows[i], columnMap, resolvers);
     const result = createCaseSchema.safeParse(raw);
 
     if (result.success) {

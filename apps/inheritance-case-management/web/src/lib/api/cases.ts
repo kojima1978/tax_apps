@@ -13,7 +13,7 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.acceptanceStatus) searchParams.set('acceptanceStatus', params.acceptanceStatus);
   if (params?.fiscalYear) searchParams.set('fiscalYear', String(params.fiscalYear));
   if (params?.search) searchParams.set('search', params.search);
-  if (params?.assignee) searchParams.set('assignee', params.assignee);
+  if (params?.assigneeId) searchParams.set('assigneeId', String(params.assigneeId));
   if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
 
@@ -23,7 +23,7 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   return apiClient<PaginatedResponse<InheritanceCase>>(url);
 }
 
-export async function getCase(id: string): Promise<InheritanceCase | null> {
+export async function getCase(id: number): Promise<InheritanceCase | null> {
   try {
     return await apiClient<InheritanceCase>(`/cases/${id}`);
   } catch (error) {
@@ -41,14 +41,14 @@ export async function createCase(data: CreateCaseInput): Promise<InheritanceCase
   });
 }
 
-export async function updateCase(id: string, data: UpdateCaseInput): Promise<InheritanceCase> {
+export async function updateCase(id: number, data: UpdateCaseInput): Promise<InheritanceCase> {
   return apiClient<InheritanceCase>(`/cases/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteCase(id: string): Promise<void> {
+export async function deleteCase(id: number): Promise<void> {
   await apiClient<void>(`/cases/${id}`, { method: 'DELETE' });
 }
 

@@ -4,6 +4,7 @@ import { SelectField } from "@/components/ui/SelectField"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { User, Info } from "lucide-react"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
+import { formatId } from "@/types/shared"
 import { FISCAL_YEARS } from "@/types/constants"
 
 const STATUS_HINTS: Record<string, string> = {
@@ -30,7 +31,7 @@ export function BasicInfoSection({
                 {!isCreateMode && (
                     <div className="space-y-2">
                         <Label htmlFor="id">案件ID (変更不可)</Label>
-                        <Input id="id" value={formData.id} disabled className="bg-muted" />
+                        <Input id="id" value={formatId(formData.id)} disabled className="bg-muted" />
                     </div>
                 )}
 
@@ -97,30 +98,30 @@ export function BasicInfoSection({
                 </div>
 
                 <MasterSelect
-                    id="assignee"
+                    id="assigneeId"
                     label="担当者"
-                    value={formData.assignee}
+                    value={formData.assigneeId || ""}
                     items={assignees}
                     placeholder="担当者を選択"
                     editHref={`/settings/assignees?returnTo=${returnToPath}`}
                     editLabel="担当者を追加・編集"
                     renderOption={(a) => ({
-                        value: a.name,
+                        value: a.id,
                         label: a.department ? `${a.department} / ${a.name}` : a.name,
                     })}
                     onChange={handleChange}
                 />
 
                 <MasterSelect
-                    id="referrer"
+                    id="referrerId"
                     label="紹介者"
-                    value={formData.referrer || ""}
+                    value={formData.referrerId || ""}
                     items={referrers}
                     placeholder="紹介者を選択"
                     editHref={`/settings/referrers?returnTo=${returnToPath}`}
                     editLabel="紹介者を追加・編集"
                     renderOption={(r) => ({
-                        value: `${r.company} / ${r.name}`,
+                        value: r.id,
                         label: r.department ? `${r.company} / ${r.department} / ${r.name}` : `${r.company} / ${r.name}`,
                     })}
                     onChange={handleChange}
@@ -131,7 +132,7 @@ export function BasicInfoSection({
 }
 
 // Generic MasterSelect for assignee/referrer dropdowns
-interface MasterSelectProps<T extends { id: string; active: boolean }> {
+interface MasterSelectProps<T extends { id: number; active: boolean }> {
     id: string
     label: string
     value: string
@@ -143,7 +144,7 @@ interface MasterSelectProps<T extends { id: string; active: boolean }> {
     onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
 }
 
-function MasterSelect<T extends { id: string; active: boolean }>({
+function MasterSelect<T extends { id: number; active: boolean }>({
     id, label, value, items, placeholder, editHref, editLabel, renderOption, onChange,
 }: MasterSelectProps<T>) {
     return (
