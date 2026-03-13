@@ -230,15 +230,15 @@ Required-documents-for-tax-return/
 
 詳細は [docs/ER図.md](docs/ER図.md) を参照してください。
 
-### テーブル構成
+### テーブル構成（第3正規形）
 - **staff**: 担当者情報（名前、携帯電話番号）
-- **customers**: 顧客情報（お客様名、担当者ID）
+- **customers**: 顧客情報（お客様名、担当者ID → staff外部キー）
 - **document_records**: 年度別書類データ（JSON形式で保存）
 
 ### リレーション
-- staff 1 → N customers（担当者 → 顧客）
-- customers 1 → N document_records（顧客 → 年度別書類データ）
-- customers 削除時、document_records は CASCADE 削除
+- staff 1 → N customers（担当者 → 顧客、ON DELETE SET NULL）
+- customers 1 → N document_records（顧客 → 年度別書類データ、ON DELETE CASCADE）
+- 担当者名はJOINで取得（`LEFT JOIN staff ON customers.staff_id = staff.id`）
 
 ## Docker 構成
 
@@ -277,7 +277,7 @@ Required-documents-for-tax-return/
 | POST | /api/staff | 担当者作成 |
 | PUT | /api/staff/:id | 担当者更新 |
 | DELETE | /api/staff/:id | 担当者削除 |
-| GET | /api/staff-names | 担当者名一覧 |
+
 
 ### 顧客
 
@@ -294,8 +294,10 @@ Required-documents-for-tax-return/
 
 | メソッド | エンドポイント | 説明 |
 |---------|---------------|------|
-| GET | /api/documents | 書類データ取得 |
-| POST | /api/documents | 書類データ保存 / 翌年度コピー |
+| GET | /api/customers/:id/documents/:year | 書類データ取得（IDベース） |
+| POST | /api/customers/:id/documents/:year | 書類データ保存 / 翌年度コピー（IDベース） |
+| GET | /api/documents | 書類データ取得（レガシー: staffName指定） |
+| POST | /api/documents | 書類データ保存 / 翌年度コピー（レガシー） |
 | DELETE | /api/documents/:id | 書類データ削除 |
 | GET | /api/records | 保存データ一覧（管理画面用） |
 | GET | /api/years | 顧客の年度一覧 |

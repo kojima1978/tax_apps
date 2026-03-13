@@ -51,14 +51,19 @@ function getOrCreateStaff(db: Database.Database, staffName: string, mobileNumber
   return info.lastInsertRowid as number;
 }
 
+/** カラムが存在するかチェック */
+function hasColumn(db: Database.Database, table: string, column: string): boolean {
+  const columns = db.pragma(`table_info(${table})`) as { name: string }[];
+  return columns.some(col => col.name === column);
+}
+
 /** カラムが存在しない場合に追加するマイグレーションヘルパー */
 function addColumnIfMissing(
   db: Database.Database, table: string, column: string,
   alterSql: string, onAdded?: (db: Database.Database) => void
 ): void {
   try {
-    const columns = db.pragma(`table_info(${table})`) as { name: string }[];
-    if (columns.some(col => col.name === column)) return;
+    if (hasColumn(db, table, column)) return;
     console.log(`Migrating: Adding ${column} to ${table} table...`);
     db.exec(alterSql);
     onAdded?.(db);
@@ -66,6 +71,13 @@ function addColumnIfMissing(
     console.error(`Migration for ${column} failed:`, e);
   }
 }
+
+// --- 顧客クエリの共通SELECT句 ---
+const CUSTOMER_SELECT = `
+  SELECT c.id, c.customer_name, COALESCE(s.staff_name, '') as staff_name, c.staff_id, c.created_at, c.updated_at
+  FROM customers c
+  LEFT JOIN staff s ON c.staff_id = s.id
+`;
 
 // データベース初期化
 export function initializeDb(): void {
@@ -84,36 +96,33 @@ export function initializeDb(): void {
     // Migration: Add mobile_number if not exists
     addColumnIfMissing(db, 'staff', 'mobile_number', 'ALTER TABLE staff ADD COLUMN mobile_number TEXT');
 
-    // Customers table (ensure generic structure)
+    // Customers table (正規化済み: staff_nameカラムなし)
     db.exec(`
       CREATE TABLE IF NOT EXISTS customers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         customer_name TEXT NOT NULL,
-        staff_name TEXT NOT NULL, -- Keep for legacy/fallback
         staff_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL,
-        UNIQUE(customer_name, staff_name)
+        FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
       )
     `);
 
-    // Add staff_id column if not exists (Migration)
+    // Migration: Add staff_id column if not exists (旧スキーマからの移行)
     addColumnIfMissing(
       db, 'customers', 'staff_id',
       'ALTER TABLE customers ADD COLUMN staff_id INTEGER REFERENCES staff(id) ON DELETE SET NULL',
       (db) => {
-        // Migrate existing staff names to staff table
+        if (!hasColumn(db, 'customers', 'staff_name')) return;
         const customers = db.prepare('SELECT id, staff_name FROM customers WHERE staff_id IS NULL').all() as { id: number, staff_name: string }[];
         const updateCustomer = db.prepare('UPDATE customers SET staff_id = ? WHERE id = ?');
-
         db.transaction(() => {
           for (const customer of customers) {
             const staffId = getOrCreateStaff(db, customer.staff_name);
             updateCustomer.run(staffId, customer.id);
           }
         })();
-        console.log('Migration completed.');
+        console.log('Migration completed: staff_name → staff_id.');
       }
     );
 
@@ -133,45 +142,34 @@ export function initializeDb(): void {
     // インデックス作成
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_customers_staff_id ON customers(staff_id);
-      CREATE INDEX IF NOT EXISTS idx_customers_staff_name ON customers(staff_name);
       CREATE INDEX IF NOT EXISTS idx_document_records_customer_id ON document_records(customer_id);
       CREATE INDEX IF NOT EXISTS idx_document_records_year ON document_records(year);
     `);
 
-    // Migration: UNIQUE(customer_name, staff_name) を削除し staff_name を任意に
-    // SQLiteではALTER TABLE制約削除不可のためテーブル再作成
-    try {
-      const hasUniqueConstraint = (db.prepare(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='customers'"
-      ).get() as { sql: string } | undefined)?.sql?.includes('UNIQUE(customer_name, staff_name)');
-
-      if (hasUniqueConstraint) {
-        console.log('Migrating: Removing UNIQUE(customer_name, staff_name) constraint...');
-        db.pragma('foreign_keys = OFF');
-        db.transaction(() => {
-          db.exec(`
-            CREATE TABLE customers_new (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              customer_name TEXT NOT NULL,
-              staff_name TEXT NOT NULL DEFAULT '',
-              staff_id INTEGER,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-              FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
-            );
-            INSERT INTO customers_new (id, customer_name, staff_name, staff_id, created_at, updated_at)
-              SELECT id, customer_name, staff_name, staff_id, created_at, updated_at FROM customers;
-            DROP TABLE customers;
-            ALTER TABLE customers_new RENAME TO customers;
-            CREATE INDEX idx_customers_staff_id ON customers(staff_id);
-            CREATE INDEX idx_customers_staff_name ON customers(staff_name);
-          `);
-        })();
-        db.pragma('foreign_keys = ON');
-        console.log('Migration completed: UNIQUE constraint removed.');
-      }
-    } catch (e: unknown) {
-      console.error('Migration (remove UNIQUE) failed:', e);
+    // Migration: staff_name カラムを削除（3NF正規化）
+    // SQLiteではALTER TABLE DROP COLUMN不可のためテーブル再作成
+    if (hasColumn(db, 'customers', 'staff_name')) {
+      console.log('Migrating: Removing staff_name from customers table (3NF normalization)...');
+      db.pragma('foreign_keys = OFF');
+      db.transaction(() => {
+        db.exec(`
+          CREATE TABLE customers_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_name TEXT NOT NULL,
+            staff_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
+          );
+          INSERT INTO customers_new (id, customer_name, staff_id, created_at, updated_at)
+            SELECT id, customer_name, staff_id, created_at, updated_at FROM customers;
+          DROP TABLE customers;
+          ALTER TABLE customers_new RENAME TO customers;
+          CREATE INDEX idx_customers_staff_id ON customers(staff_id);
+        `);
+      })();
+      db.pragma('foreign_keys = ON');
+      console.log('Migration completed: staff_name column removed.');
     }
   });
   console.log('Database initialized at:', dbPath);
@@ -201,17 +199,12 @@ export function createStaff(staffName: string, mobileNumber?: string): Staff {
 export function updateStaff(id: number, staffName: string, mobileNumber?: string): boolean {
   return withDb((db) => {
     const info = db.prepare('UPDATE staff SET staff_name = ?, mobile_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(staffName, mobileNumber || null, id);
-    // Also update denormalized staff_name in customers for backward compatibility
-    if (info.changes > 0) {
-      db.prepare('UPDATE customers SET staff_name = ? WHERE staff_id = ?').run(staffName, id);
-    }
     return info.changes > 0;
   });
 }
 
 export function deleteStaff(id: number): boolean {
   return withDb((db) => {
-    // Check if used
     const used = db.prepare('SELECT COUNT(*) as count FROM customers WHERE staff_id = ?').get(id) as { count: number };
     if (used.count > 0) {
       throw new Error('この担当者はお客様に紐づいているため削除できません。');
@@ -221,16 +214,13 @@ export function deleteStaff(id: number): boolean {
   });
 }
 
+// --- CUSTOMER OPERATIONS ---
+
 // 顧客をIDで取得
 export function getCustomerById(id: number): Customer | null {
   return withDb((db) => {
     const customer = db
-      .prepare(`
-        SELECT c.id, c.customer_name, IFNULL(s.staff_name, c.staff_name) as staff_name, c.staff_id, c.created_at, c.updated_at
-        FROM customers c
-        LEFT JOIN staff s ON c.staff_id = s.id
-        WHERE c.id = ?
-      `)
+      .prepare(`${CUSTOMER_SELECT} WHERE c.id = ?`)
       .get(id) as Customer | undefined;
     return customer ?? null;
   });
@@ -240,21 +230,12 @@ export function getCustomerById(id: number): Customer | null {
 export function getAllCustomersWithYears(): CustomerWithYears[] {
   return withDb((db) => {
     const customers = db
-      .prepare(`
-        SELECT c.id, c.customer_name, IFNULL(s.staff_name, c.staff_name) as staff_name, c.staff_id, c.created_at, c.updated_at
-        FROM customers c
-        LEFT JOIN staff s ON c.staff_id = s.id
-        ORDER BY c.updated_at DESC
-      `)
+      .prepare(`${CUSTOMER_SELECT} ORDER BY c.updated_at DESC`)
       .all() as Customer[];
 
     return customers.map((customer) => {
       const records = db
-        .prepare(`
-          SELECT year, updated_at FROM document_records
-          WHERE customer_id = ?
-          ORDER BY year DESC
-        `)
+        .prepare('SELECT year, updated_at FROM document_records WHERE customer_id = ? ORDER BY year DESC')
         .all(customer.id) as { year: number; updated_at: string }[];
 
       return {
@@ -266,32 +247,24 @@ export function getAllCustomersWithYears(): CustomerWithYears[] {
   });
 }
 
-// --- CUSTOMER OPERATIONS ---
-
 // 顧客を作成（staffIdは任意）
 export function createCustomer(customerName: string, staffId?: number | null): Customer {
   return withDb((db) => {
-    let staffName = '';
     const resolvedStaffId = staffId ?? null;
 
     if (resolvedStaffId) {
-      const staff = db.prepare('SELECT staff_name FROM staff WHERE id = ?').get(resolvedStaffId) as { staff_name: string } | undefined;
+      const staff = db.prepare('SELECT id FROM staff WHERE id = ?').get(resolvedStaffId);
       if (!staff) throw new Error('Staff not found');
-      staffName = staff.staff_name;
     }
 
     const info = db
-      .prepare('INSERT INTO customers (customer_name, staff_name, staff_id) VALUES (?, ?, ?)')
-      .run(customerName, staffName, resolvedStaffId);
+      .prepare('INSERT INTO customers (customer_name, staff_id) VALUES (?, ?)')
+      .run(customerName, resolvedStaffId);
 
-    return {
-      id: info.lastInsertRowid as number,
-      customer_name: customerName,
-      staff_name: staffName,
-      staff_id: resolvedStaffId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    // JOINで担当者名を取得して返す
+    return db
+      .prepare(`${CUSTOMER_SELECT} WHERE c.id = ?`)
+      .get(info.lastInsertRowid) as Customer;
   });
 }
 
@@ -306,17 +279,15 @@ export function updateCustomer(
     if (!existing) return false;
 
     const resolvedStaffId = staffId ?? null;
-    let staffName = '';
 
     if (resolvedStaffId) {
-      const staff = db.prepare('SELECT staff_name FROM staff WHERE id = ?').get(resolvedStaffId) as { staff_name: string } | undefined;
+      const staff = db.prepare('SELECT id FROM staff WHERE id = ?').get(resolvedStaffId);
       if (!staff) return false;
-      staffName = staff.staff_name;
     }
 
     db.prepare(
-      'UPDATE customers SET customer_name = ?, staff_name = ?, staff_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).run(customerName, staffName, resolvedStaffId, id);
+      'UPDATE customers SET customer_name = ?, staff_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).run(customerName, resolvedStaffId, id);
 
     return true;
   });
@@ -325,14 +296,12 @@ export function updateCustomer(
 // 顧客を削除
 export function deleteCustomer(id: number): boolean {
   return withDb((db) => {
-    // Note: cascade delete is enabled for document_records via foreign key in schema, 
-    // but better to be explicit or safe. The schema at line 91 has ON DELETE CASCADE.
     const result = db.prepare('DELETE FROM customers WHERE id = ?').run(id);
     return result.changes > 0;
   });
 }
 
-// 顧客を作成または取得 (Legacy/Find-first style)
+// 顧客を作成または取得 (Legacy API用: staffName文字列ベース)
 export function getOrCreateCustomer(customerName: string, staffName: string): number {
   return withDb((db) => {
     // 1. Ensure staff exists
@@ -343,14 +312,12 @@ export function getOrCreateCustomer(customerName: string, staffName: string): nu
       .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id = ?')
       .get(customerName, staffId) as { id: number } | undefined;
 
-    if (existing) {
-      return existing.id;
-    }
+    if (existing) return existing.id;
 
     // 3. Insert new customer
     const result = db
-      .prepare('INSERT INTO customers (customer_name, staff_name, staff_id) VALUES (?, ?, ?)')
-      .run(customerName, staffName, staffId);
+      .prepare('INSERT INTO customers (customer_name, staff_id) VALUES (?, ?)')
+      .run(customerName, staffId);
 
     return result.lastInsertRowid as number;
   });
@@ -373,29 +340,21 @@ export function getDocumentRecordByCustomerId(customerId: number, year: number):
   });
 }
 
-// 顧客情報で書類データを取得（レガシー）
+// 顧客情報で書類データを取得（レガシーAPI用: staffName文字列ベース）
 export function getDocumentRecordByCustomerInfo(
   customerName: string,
   staffName: string,
   year: number
 ): unknown | null {
   return withDb((db) => {
-    // Try to find customer by name + staff_name (legacy compatible) or staff_id via name lookup
     const staff = db.prepare('SELECT id FROM staff WHERE staff_name = ?').get(staffName) as { id: number } | undefined;
+    if (!staff) return null;
 
-    let query = 'SELECT id FROM customers WHERE customer_name = ? AND staff_name = ?';
-    let params: (string | number)[] = [customerName, staffName];
+    const customer = db
+      .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id = ?')
+      .get(customerName, staff.id) as { id: number } | undefined;
 
-    if (staff) {
-      query = 'SELECT id FROM customers WHERE customer_name = ? AND (staff_id = ? OR staff_name = ?)';
-      params = [customerName, staff.id, staffName];
-    }
-
-    const customer = db.prepare(query).get(...params) as { id: number } | undefined;
-
-    if (!customer) {
-      return null;
-    }
+    if (!customer) return null;
 
     const record = db
       .prepare('SELECT document_groups FROM document_records WHERE customer_id = ? AND year = ?')
@@ -413,13 +372,9 @@ export function copyToNextYear(customerId: number, currentYear: number): boolean
         .prepare('SELECT document_groups FROM document_records WHERE customer_id = ? AND year = ?')
         .get(customerId, currentYear) as { document_groups: string } | undefined;
 
-      if (!currentRecord) {
-        return false;
-      }
+      if (!currentRecord) return false;
 
-      const nextYear = currentYear + 1;
-      upsertDocumentRecord(db, customerId, nextYear, currentRecord.document_groups);
-
+      upsertDocumentRecord(db, customerId, currentYear + 1, currentRecord.document_groups);
       return true;
     });
 
@@ -427,16 +382,11 @@ export function copyToNextYear(customerId: number, currentYear: number): boolean
   });
 }
 
-// 顧客一覧を取得 (Updated join)
+// 顧客一覧を取得
 export function getAllCustomers(): Customer[] {
   return withDb((db) => {
     return db
-      .prepare(`
-        SELECT c.id, c.customer_name, c.staff_name, c.staff_id, c.created_at, c.updated_at
-        FROM customers c
-        LEFT JOIN staff s ON c.staff_id = s.id
-        ORDER BY c.updated_at DESC
-      `)
+      .prepare(`${CUSTOMER_SELECT} ORDER BY c.updated_at DESC`)
       .all() as Customer[];
   });
 }
@@ -452,23 +402,21 @@ export function getCustomerYears(customerId: number): number[] {
   });
 }
 
-// 顧客を検索 (Updated)
+// 顧客を検索
 export function searchCustomers(query: string): CustomerWithYears[] {
   return withDb((db) => {
     const searchPattern = `%${query}%`;
     const customers = db
-      .prepare(
-        `
-        SELECT DISTINCT c.id, c.customer_name, c.staff_name, c.staff_id
+      .prepare(`
+        SELECT DISTINCT c.id, c.customer_name, COALESCE(s.staff_name, '') as staff_name, c.staff_id
         FROM customers c
         LEFT JOIN staff s ON c.staff_id = s.id
         INNER JOIN document_records d ON c.id = d.customer_id
-        WHERE c.customer_name LIKE ? OR c.staff_name LIKE ? OR s.staff_name LIKE ?
+        WHERE c.customer_name LIKE ? OR s.staff_name LIKE ?
         ORDER BY c.updated_at DESC
         LIMIT 20
-      `
-      )
-      .all(searchPattern, searchPattern, searchPattern) as Customer[];
+      `)
+      .all(searchPattern, searchPattern) as Customer[];
 
     return customers.map((customer) => {
       const records = db
@@ -488,13 +436,7 @@ export function searchCustomers(query: string): CustomerWithYears[] {
 export function getDistinctCustomerNames(): string[] {
   return withDb((db) => {
     const customers = db
-      .prepare(
-        `
-        SELECT DISTINCT c.customer_name
-        FROM customers c
-        ORDER BY c.customer_name
-      `
-      )
+      .prepare('SELECT DISTINCT customer_name FROM customers ORDER BY customer_name')
       .all() as { customer_name: string }[];
 
     return customers.map((c) => c.customer_name);
@@ -512,20 +454,18 @@ export function getDistinctYears(): number[] {
   });
 }
 
-// 担当者名でフィルタしたお客様名一覧を取得 (Updated logic)
+// 担当者名でフィルタしたお客様名一覧を取得
 export function getCustomerNamesByStaff(staffName: string): string[] {
   return withDb((db) => {
     const customers = db
-      .prepare(
-        `
+      .prepare(`
         SELECT DISTINCT c.customer_name
         FROM customers c
-        LEFT JOIN staff s ON c.staff_id = s.id
-        WHERE c.staff_name = ? OR s.staff_name = ?
+        INNER JOIN staff s ON c.staff_id = s.id
+        WHERE s.staff_name = ?
         ORDER BY c.customer_name
-      `
-      )
-      .all(staffName, staffName) as { customer_name: string }[];
+      `)
+      .all(staffName) as { customer_name: string }[];
 
     return customers.map((c) => c.customer_name);
   });
@@ -535,17 +475,15 @@ export function getCustomerNamesByStaff(staffName: string): string[] {
 export function getYearsByCustomerAndStaff(customerName: string, staffName: string): number[] {
   return withDb((db) => {
     const years = db
-      .prepare(
-        `
+      .prepare(`
         SELECT DISTINCT d.year
         FROM document_records d
         INNER JOIN customers c ON d.customer_id = c.id
-        LEFT JOIN staff s ON c.staff_id = s.id
-        WHERE c.customer_name = ? AND (c.staff_name = ? OR s.staff_name = ?)
+        INNER JOIN staff s ON c.staff_id = s.id
+        WHERE c.customer_name = ? AND s.staff_name = ?
         ORDER BY d.year DESC
-      `
-      )
-      .all(customerName, staffName, staffName) as { year: number }[];
+      `)
+      .all(customerName, staffName) as { year: number }[];
 
     return years.map((y) => y.year);
   });
@@ -555,15 +493,13 @@ export function getYearsByCustomerAndStaff(customerName: string, staffName: stri
 export function getAllDocumentRecords(): DocumentRecordWithCustomer[] {
   return withDb((db) => {
     return db
-      .prepare(
-        `
-        SELECT d.id, c.customer_name, IFNULL(s.staff_name, c.staff_name) as staff_name, d.year, d.updated_at, c.id as customer_id, c.staff_id
+      .prepare(`
+        SELECT d.id, c.customer_name, COALESCE(s.staff_name, '') as staff_name, d.year, d.updated_at, c.id as customer_id, c.staff_id
         FROM document_records d
         INNER JOIN customers c ON d.customer_id = c.id
         LEFT JOIN staff s ON c.staff_id = s.id
         ORDER BY d.updated_at DESC
-      `
-      )
+      `)
       .all() as DocumentRecordWithCustomer[];
   });
 }
@@ -593,12 +529,12 @@ export function getFullBackupData(): {
       .all() as Array<{ staff_name: string; mobile_number: string | null }>;
 
     const customers = db
-      .prepare(
-        `SELECT c.id, c.customer_name, IFNULL(s.staff_name, c.staff_name) as staff_name
-         FROM customers c
-         LEFT JOIN staff s ON c.staff_id = s.id
-         ORDER BY c.customer_name`
-      )
+      .prepare(`
+        SELECT c.id, c.customer_name, COALESCE(s.staff_name, '') as staff_name
+        FROM customers c
+        LEFT JOIN staff s ON c.staff_id = s.id
+        ORDER BY c.customer_name
+      `)
       .all() as Array<{ id: number; customer_name: string; staff_name: string }>;
 
     const customersWithRecords = customers.map((customer) => {
@@ -643,16 +579,25 @@ export function restoreFullBackup(data: {
 
       // 2. 顧客と書類データの upsert
       for (const c of data.customers) {
-        const staffId = getOrCreateStaff(db, c.staff_name);
+        const staffId = c.staff_name ? getOrCreateStaff(db, c.staff_name) : null;
 
         let customer = db
-          .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_name = ?')
-          .get(c.customer_name, c.staff_name) as { id: number } | undefined;
+          .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id = ?')
+          .get(c.customer_name, staffId) as { id: number } | undefined;
+
+        if (!customer) {
+          // staff_id IS NULL の場合も検索
+          if (!staffId) {
+            customer = db
+              .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id IS NULL')
+              .get(c.customer_name) as { id: number } | undefined;
+          }
+        }
 
         if (!customer) {
           const info = db
-            .prepare('INSERT INTO customers (customer_name, staff_name, staff_id) VALUES (?, ?, ?)')
-            .run(c.customer_name, c.staff_name, staffId);
+            .prepare('INSERT INTO customers (customer_name, staff_id) VALUES (?, ?)')
+            .run(c.customer_name, staffId);
           customer = { id: info.lastInsertRowid as number };
         }
         customerCount++;

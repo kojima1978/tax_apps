@@ -1,9 +1,8 @@
 export interface Customer {
     id: number;
     customer_name: string;
-    staff_name: string; // Deprecated, kept for backward compatibility during migration
-    staff_id?: number | null;
-    staff?: Staff;
+    staff_name: string; // JOINで取得（customersテーブルには存在しない）
+    staff_id: number | null;
     created_at?: string;
     updated_at?: string;
 }
