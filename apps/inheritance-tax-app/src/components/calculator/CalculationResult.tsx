@@ -6,6 +6,7 @@ import { PrintHeader } from '../PrintHeader';
 import { CalculationSteps } from './CalculationSteps';
 import { ProgressiveTaxBreakdown } from './ProgressiveTaxBreakdown';
 import { HeirBreakdownTable } from './HeirBreakdownTable';
+import { TaxBracketTable } from '../TaxBracketTable';
 
 interface CalculationResultProps {
   result: DetailedTaxCalculationResult;
@@ -59,14 +60,7 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result, we
         <CalculationSteps result={result} />
       </div>
 
-      {/* Page 2: 累進税額の内訳 */}
-      <div className="mt-6 space-y-6 print-page-break">
-        <PrintHeader title="累進税額の内訳" />
-
-        <ProgressiveTaxBreakdown breakdowns={result.heirBreakdowns} />
-      </div>
-
-      {/* Page 3: 相続人別内訳 */}
+      {/* Page 2: 相続人別内訳 */}
       <div className="mt-6 print-page-break">
         <PrintHeader title="相続人別 税額内訳" />
 
@@ -74,6 +68,20 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result, we
           breakdowns={result.heirBreakdowns}
           totalFinalTax={result.totalFinalTax}
         />
+      </div>
+
+      {/* Page 3: 累進税額の内訳 */}
+      <div className="mt-6 space-y-6 print-page-break">
+        <PrintHeader title="累進税額の内訳" />
+
+        <ProgressiveTaxBreakdown breakdowns={result.heirBreakdowns} />
+      </div>
+
+      {/* Page 4: 相続税の速算表 */}
+      <div className="mt-6 print-page-break">
+        <PrintHeader title="相続税の速算表" />
+
+        <TaxBracketTable />
       </div>
     </>
   );
