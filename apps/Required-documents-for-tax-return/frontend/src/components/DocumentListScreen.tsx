@@ -28,6 +28,7 @@ import { AddCategorySection } from './document-list/AddCategorySection';
 import { buildCategoryHandlers, buildDocHandlers, buildSubItemHandlers } from './document-list/buildHandlers';
 
 interface DocumentListScreenProps {
+  customerId: number;
   year: number;
   documentGroups: CategoryGroup[];
   onDocumentGroupsChange: (groups: CategoryGroup[]) => void;
@@ -44,6 +45,7 @@ interface DocumentListScreenProps {
 }
 
 export default function DocumentListScreen({
+  customerId,
   year,
   documentGroups,
   onDocumentGroupsChange,
@@ -144,6 +146,7 @@ export default function DocumentListScreen({
   return (
     <div className="bg-slate-50 min-h-screen">
       <EditorToolbar
+        customerId={customerId}
         year={year}
         customerName={customerName}
         staffName={staffName}

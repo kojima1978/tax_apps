@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { addCustomer, fetchStaff } from '@/utils/api';
 import { translateCustomerError } from '@/utils/error';
@@ -7,6 +7,8 @@ import { Users, UserPlus } from 'lucide-react';
 import SearchableSelect from '@/components/SearchableSelect';
 import SubmitButton from '@/components/SubmitButton';
 import { FormPageLayout } from '@/components/FormPageLayout';
+import { useInlineStaffCreation } from '@/hooks/useInlineStaffCreation';
+import { InlineStaffToggle, InlineStaffForm } from '@/components/InlineStaffForm';
 
 export default function CreateCustomerPage() {
     const navigate = useNavigate();
@@ -19,6 +21,12 @@ export default function CreateCustomerPage() {
     const [error, setError] = useState<string | null>(null);
 
     const [touched, setTouched] = useState({ name: false });
+
+    const handleStaffCreated = useCallback((staff: Staff) => {
+        setStaffList(prev => [...prev, staff].sort((a, b) => a.staff_name.localeCompare(b.staff_name)));
+        setStaffId(staff.id);
+    }, []);
+    const inlineStaff = useInlineStaffCreation({ onCreated: handleStaffCreated });
 
     useEffect(() => {
         loadStaff();
@@ -103,7 +111,7 @@ export default function CreateCustomerPage() {
                     {isLoadingStaff ? (
                         <div className="h-12 w-full bg-slate-100 rounded-xl animate-pulse" />
                     ) : (
-                        <div className="relative">
+                        <>
                             <SearchableSelect
                                 options={staffList.map(staff => ({ value: staff.id, label: staff.staff_name }))}
                                 value={staffId}
@@ -114,8 +122,10 @@ export default function CreateCustomerPage() {
                                 error={false}
                                 disabled={isLoadingStaff}
                             />
-                        </div>
+                            <InlineStaffToggle staff={inlineStaff} />
+                        </>
                     )}
+                    <InlineStaffForm staff={inlineStaff} />
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">

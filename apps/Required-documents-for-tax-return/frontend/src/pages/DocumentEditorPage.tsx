@@ -171,6 +171,7 @@ export default function DocumentEditorPage() {
   return (
     <>
       <DocumentListScreen
+        customerId={customerId}
         year={year}
         documentGroups={documentGroups}
         onDocumentGroupsChange={handleDocumentGroupsChange}

@@ -1,16 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { fetchStaff, fetchCustomers, updateCustomerName } from '@/utils/api';
 import { translateCustomerError } from '@/utils/error';
 import { Staff } from '@/types';
 import SubmitButton from '@/components/SubmitButton';
 import FullScreenLoader from '@/components/FullScreenLoader';
 import { FormPageLayout } from '@/components/FormPageLayout';
+import { useInlineStaffCreation } from '@/hooks/useInlineStaffCreation';
+import { InlineStaffToggle, InlineStaffForm } from '@/components/InlineStaffForm';
 
 export default function EditCustomerPage() {
     const navigate = useNavigate();
     const params = useParams();
+    const [searchParams] = useSearchParams();
     const id = Number(params.id);
+    const returnTo = searchParams.get('returnTo');
 
     const [name, setName] = useState('');
     const [staffId, setStaffId] = useState<number | ''>('');
@@ -18,6 +22,12 @@ export default function EditCustomerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const handleStaffCreated = useCallback((staff: Staff) => {
+        setStaffList(prev => [...prev, staff].sort((a, b) => a.staff_name.localeCompare(b.staff_name)));
+        setStaffId(staff.id);
+    }, []);
+    const inlineStaff = useInlineStaffCreation({ onCreated: handleStaffCreated });
 
     useEffect(() => {
         loadData();
@@ -37,9 +47,6 @@ export default function EditCustomerPage() {
                 setName(target.customer_name);
                 if (target.staff_id) {
                     setStaffId(target.staff_id);
-                } else {
-                    const staff = staffData.find(s => s.staff_name === target.staff_name);
-                    if (staff) setStaffId(staff.id);
                 }
             } else {
                 setError('お客様が見つかりませんでした');
@@ -59,7 +66,7 @@ export default function EditCustomerPage() {
         setError(null);
         try {
             await updateCustomerName(id, name, staffId || null);
-            navigate(`/customers/${id}`);
+            navigate(returnTo || `/customers/${id}`);
         } catch (e: unknown) {
             setError(translateCustomerError(e, '更新に失敗しました'));
             setIsSubmitting(false);
@@ -70,7 +77,7 @@ export default function EditCustomerPage() {
 
     return (
         <FormPageLayout
-            backTo={`/customers/${id}`}
+            backTo={returnTo || `/customers/${id}`}
             title="お客様 編集"
             error={error}
         >
@@ -103,6 +110,9 @@ export default function EditCustomerPage() {
                             </option>
                         ))}
                     </select>
+
+                    <InlineStaffToggle staff={inlineStaff} />
+                    <InlineStaffForm staff={inlineStaff} />
                 </div>
 
                 <SubmitButton

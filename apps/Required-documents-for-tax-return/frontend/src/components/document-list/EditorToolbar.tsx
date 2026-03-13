@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { ArrowLeft, Home, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, RefreshCcw, Search, X, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
+import { ArrowLeft, Home, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, RefreshCcw, Search, X, ChevronsUpDown, ChevronsDownUp, Pencil } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { formatReiwaYear } from '@/utils/date';
 import { getErrorMessage } from '@/utils/error';
 import { exportCustomerJson, readJsonFile, validateCustomerImport, CustomerExport } from '@/utils/jsonExportImport';
@@ -17,6 +18,7 @@ interface InfoBarItem {
 }
 
 interface EditorToolbarProps {
+  customerId: number;
   year: number;
   customerName: string;
   staffName: string;
@@ -41,6 +43,7 @@ interface EditorToolbarProps {
 }
 
 export function EditorToolbar({
+  customerId,
   year,
   customerName,
   staffName,
@@ -71,7 +74,6 @@ export function EditorToolbar({
   const INFO_BAR_ITEMS: InfoBarItem[] = [
     { label: '対象年度', value: reiwaYearStr + '分', className: 'text-sm' },
     { label: 'お客様', value: customerName, className: 'text-lg' },
-    { label: '担当者', value: staffName || '未設定', className: 'text-sm' },
   ];
 
   const handlePrint = () => window.print();
@@ -112,7 +114,7 @@ export function EditorToolbar({
   };
 
   const TOOLBAR_ACTIONS = [
-    { onClick: onCopyToNextYear, disabled: isSaving || !customerName || !staffName, colorClass: 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-50', title: '現在の内容を翌年度にコピーします', icon: Copy, label: '翌年度へコピー' },
+    { onClick: onCopyToNextYear, disabled: isSaving || !customerName, colorClass: 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-50', title: '現在の内容を翌年度にコピーします', icon: Copy, label: '翌年度へコピー' },
     { onClick: handlePrint, colorClass: 'bg-slate-700 text-white hover:bg-slate-800', icon: Printer, label: '印刷' },
     { onClick: onExportExcel, colorClass: 'bg-[#217346] text-white hover:bg-[#1e6b41]', icon: FileSpreadsheet, label: 'Excel出力' },
     { onClick: handleExportJson, colorClass: 'bg-amber-600 text-white hover:bg-amber-700', title: 'JSONファイルとしてエクスポート', icon: FileJson, label: 'JSON出力' },
@@ -188,6 +190,26 @@ export function EditorToolbar({
                 <span className={`${className} font-bold text-slate-800`}>{value}</span>
               </div>
             ))}
+            <div className="flex items-center">
+              <span className="text-xs font-bold text-slate-500 mr-2">担当者:</span>
+              {staffName ? (
+                <span className="text-sm font-bold text-slate-800">{staffName}</span>
+              ) : (
+                <Link
+                  to={`/customers/${customerId}/edit?returnTo=${encodeURIComponent(`/customers/${customerId}/years/${year}`)}`}
+                  className="text-sm font-bold text-amber-600 hover:text-amber-700 underline underline-offset-2"
+                >
+                  未設定
+                </Link>
+              )}
+              <Link
+                to={`/customers/${customerId}/edit?returnTo=${encodeURIComponent(`/customers/${customerId}/years/${year}`)}`}
+                className="ml-1.5 text-slate-400 hover:text-emerald-600"
+                title="お客様情報を編集"
+              >
+                <Pencil className="w-3 h-3" />
+              </Link>
+            </div>
           </div>
         </div>
 
