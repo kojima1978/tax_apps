@@ -6,8 +6,8 @@
 
 ```mermaid
 erDiagram
-    staff ||--o{ customers : "manages"
-    customers ||--o{ document_records : "has"
+    staff ||--o{ customers : "担当"
+    customers ||--o{ document_records : "保有"
 
     staff {
         INTEGER id PK "主キー（自動採番）"
@@ -20,7 +20,6 @@ erDiagram
     customers {
         INTEGER id PK "主キー（自動採番）"
         TEXT customer_name "お客様名"
-        TEXT staff_name "担当者名（レガシー互換）"
         INTEGER staff_id FK "担当者ID"
         DATETIME created_at "作成日時"
         DATETIME updated_at "更新日時"
@@ -54,12 +53,10 @@ erDiagram
 |---------|-----|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主キー |
 | customer_name | TEXT | NOT NULL | お客様名 |
-| staff_name | TEXT | NOT NULL | 担当者名（レガシー互換用） |
-| staff_id | INTEGER | FK → staff(id) | 担当者ID |
+| staff_id | INTEGER | FK → staff(id) ON DELETE SET NULL | 担当者ID |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 作成日時 |
 | updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 更新日時 |
 
-**ユニーク制約**: `UNIQUE(customer_name, staff_name)`
 **外部キー**: `staff_id` → `staff(id)` (ON DELETE SET NULL)
 
 ### document_records（書類データテーブル）
@@ -90,9 +87,14 @@ staff (1) ──────< (N) customers (1) ──────< (N) document
 | インデックス名 | テーブル | カラム | 用途 |
 |---------------|---------|--------|------|
 | idx_customers_staff_id | customers | staff_id | 担当者による顧客フィルタ |
-| idx_customers_staff_name | customers | staff_name | レガシー互換の担当者名検索 |
 | idx_document_records_customer_id | document_records | customer_id | 顧客の書類データ取得 |
 | idx_document_records_year | document_records | year | 年度による書類データ検索 |
+
+## 正規化
+
+- **第3正規形 (3NF)** を満たす設計
+- 担当者名はJOIN（`LEFT JOIN staff ON customers.staff_id = staff.id`）で取得
+- `document_groups` はJSON形式だが、柔軟な階層チェックリストとして実用的な設計判断
 
 ## document_groups JSONの構造
 
