@@ -3,8 +3,20 @@
 import { useRef, useState, type DragEvent } from "react";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
-import { Upload, AlertTriangle, CheckCircle2, XCircle, FileText } from "lucide-react";
+import {
+  Upload,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  RefreshCw,
+  Square,
+  Download,
+  Info,
+} from "lucide-react";
 import { useImportCSV } from "@/hooks/use-import-csv";
+import { downloadCSVTemplate } from "@/lib/export-csv";
+import { DEFAULTABLE_FIELDS } from "@/lib/import-csv";
 
 interface ImportCSVModalProps {
   isOpen: boolean;
@@ -13,14 +25,18 @@ interface ImportCSVModalProps {
 }
 
 const PREVIEW_COLUMNS = [
+  { key: "mode", label: "モード" },
   { key: "deceasedName", label: "被相続人氏名" },
   { key: "dateOfDeath", label: "死亡日" },
   { key: "fiscalYear", label: "年度" },
   { key: "status", label: "ステータス" },
-  { key: "acceptanceStatus", label: "受託状況" },
 ] as const;
 
-export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVModalProps) {
+export function ImportCSVModal({
+  isOpen,
+  onClose,
+  onImportComplete,
+}: ImportCSVModalProps) {
   const {
     step,
     parseResult,
@@ -29,6 +45,7 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
     progress,
     handleFileSelect,
     executeImport,
+    abortImport,
     reset,
   } = useImportCSV();
 
@@ -46,7 +63,6 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFileSelect(file);
-    // input をリセットして同じファイル再選択可能に
     e.target.value = "";
   };
 
@@ -66,6 +82,11 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
     e.preventDefault();
     setIsDragging(false);
   };
+
+  const newCount =
+    parseResult?.validRows.filter((r) => r.mode === "create").length ?? 0;
+  const updateCount =
+    parseResult?.validRows.filter((r) => r.mode === "update").length ?? 0;
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="CSV取り込み">
@@ -90,6 +111,9 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
             <p className="text-xs text-muted-foreground mt-1">
               CSV出力と同じ形式 / 最大5MB
             </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              ID列あり→既存案件を更新 / ID列なし→新規作成
+            </p>
           </div>
           <input
             ref={fileInputRef}
@@ -98,6 +122,19 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
             onChange={onFileChange}
             className="hidden"
           />
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadCSVTemplate();
+              }}
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+            >
+              <Download className="h-3 w-3" />
+              テンプレートCSVをダウンロード
+            </button>
+          </div>
           {fileError && (
             <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
               <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -110,32 +147,67 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
       {/* Step 2: プレビュー */}
       {step === "preview" && parseResult && (
         <div className="space-y-4">
-          {/* サマリー */}
-          <div className="flex gap-3 text-sm">
-            <div className="flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg">
-              <CheckCircle2 className="h-4 w-4" />
-              取り込み可能: {parseResult.validRows.length}件
-            </div>
+          {/* サマリーバッジ */}
+          <div className="flex flex-wrap gap-2 text-sm">
+            {newCount > 0 && (
+              <div className="flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg">
+                <CheckCircle2 className="h-4 w-4" />
+                新規作成: {newCount}件
+              </div>
+            )}
+            {updateCount > 0 && (
+              <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg">
+                <RefreshCw className="h-4 w-4" />
+                更新: {updateCount}件
+              </div>
+            )}
             {parseResult.errors.length > 0 && (
               <div className="flex items-center gap-1.5 bg-red-50 text-red-700 px-3 py-1.5 rounded-lg">
                 <XCircle className="h-4 w-4" />
                 エラー: {parseResult.errors.length}件
               </div>
             )}
+            {parseResult.warnings.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg">
+                <AlertTriangle className="h-4 w-4" />
+                警告: {parseResult.warnings.length}件
+              </div>
+            )}
           </div>
+
+          {/* デフォルト値通知 */}
+          {parseResult.validRows.some((r) => r.defaultedFields.length > 0) && (
+            <div className="flex items-start gap-2 text-xs bg-sky-50 text-sky-700 border border-sky-200 p-2.5 rounded-lg">
+              <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">空欄の項目にデフォルト値が適用されます:</p>
+                <p className="mt-0.5">
+                  {[...new Set(
+                    parseResult.validRows.flatMap((r) =>
+                      r.defaultedFields.map((f) => DEFAULTABLE_FIELDS[f])
+                    )
+                  )].join("、")}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* データプレビュー */}
           {parseResult.validRows.length > 0 && (
             <div>
               <h3 className="text-sm font-medium mb-2">
-                プレビュー（先頭{Math.min(5, parseResult.validRows.length)}件）
+                プレビュー（先頭
+                {Math.min(5, parseResult.validRows.length)}件）
               </h3>
               <div className="overflow-x-auto border rounded-lg">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-muted/50">
                       {PREVIEW_COLUMNS.map((col) => (
-                        <th key={col.key} className="px-2 py-1.5 text-left font-medium whitespace-nowrap">
+                        <th
+                          key={col.key}
+                          className="px-2 py-1.5 text-left font-medium whitespace-nowrap"
+                        >
                           {col.label}
                         </th>
                       ))}
@@ -145,8 +217,27 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
                     {parseResult.validRows.slice(0, 5).map((row, i) => (
                       <tr key={i} className="border-t">
                         {PREVIEW_COLUMNS.map((col) => (
-                          <td key={col.key} className="px-2 py-1.5 whitespace-nowrap">
-                            {String(row[col.key] ?? "")}
+                          <td
+                            key={col.key}
+                            className="px-2 py-1.5 whitespace-nowrap"
+                          >
+                            {col.key === "mode" ? (
+                              row.mode === "update" ? (
+                                <span className="text-blue-600 font-medium">
+                                  更新
+                                </span>
+                              ) : (
+                                <span className="text-green-600 font-medium">
+                                  新規
+                                </span>
+                              )
+                            ) : (
+                              String(
+                                (row.data as Record<string, unknown>)[
+                                  col.key
+                                ] ?? ""
+                              )
+                            )}
                           </td>
                         ))}
                       </tr>
@@ -157,10 +248,27 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
             </div>
           )}
 
+          {/* 警告 */}
+          {parseResult.warnings.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium mb-2 text-amber-700">警告</h3>
+              <div className="max-h-32 overflow-y-auto border border-amber-200 rounded-lg bg-amber-50 p-2 space-y-1">
+                {parseResult.warnings.map((w, i) => (
+                  <p key={i} className="text-xs text-amber-700">
+                    {w.row > 0 ? `${w.row}行目: ` : ""}
+                    {w.message}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* エラー詳細 */}
           {parseResult.errors.length > 0 && (
             <div>
-              <h3 className="text-sm font-medium mb-2 text-red-700">エラー行</h3>
+              <h3 className="text-sm font-medium mb-2 text-red-700">
+                エラー行
+              </h3>
               <div className="max-h-32 overflow-y-auto border border-red-200 rounded-lg bg-red-50 p-2 space-y-1">
                 {parseResult.errors.map((err, i) => (
                   <p key={i} className="text-xs text-red-700">
@@ -203,6 +311,12 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
               }}
             />
           </div>
+          <div className="flex justify-center">
+            <Button variant="outline" size="sm" onClick={abortImport}>
+              <Square className="mr-1.5 h-3 w-3" />
+              中止
+            </Button>
+          </div>
         </div>
       )}
 
@@ -210,20 +324,36 @@ export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVM
       {step === "done" && importResult && (
         <div className="space-y-4">
           <div className="text-center py-2">
-            {importResult.failed === 0 ? (
+            {importResult.failed === 0 && importResult.skipped === 0 ? (
               <CheckCircle2 className="h-10 w-10 mx-auto text-green-600 mb-2" />
             ) : (
               <AlertTriangle className="h-10 w-10 mx-auto text-amber-500 mb-2" />
             )}
             <p className="text-sm font-medium">
-              取り込み完了
+              {importResult.skipped > 0 ? "取り込み中止" : "取り込み完了"}
             </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              成功: {importResult.success}件
-              {importResult.failed > 0 && (
-                <span className="text-red-600"> / 失敗: {importResult.failed}件</span>
+            <div className="text-sm text-muted-foreground mt-1 flex flex-wrap justify-center gap-x-3">
+              {importResult.createdCount > 0 && (
+                <span className="text-green-600">
+                  新規: {importResult.createdCount}件
+                </span>
               )}
-            </p>
+              {importResult.updatedCount > 0 && (
+                <span className="text-blue-600">
+                  更新: {importResult.updatedCount}件
+                </span>
+              )}
+              {importResult.failed > 0 && (
+                <span className="text-red-600">
+                  失敗: {importResult.failed}件
+                </span>
+              )}
+              {importResult.skipped > 0 && (
+                <span className="text-gray-500">
+                  スキップ: {importResult.skipped}件
+                </span>
+              )}
+            </div>
           </div>
 
           {importResult.failedRows.length > 0 && (

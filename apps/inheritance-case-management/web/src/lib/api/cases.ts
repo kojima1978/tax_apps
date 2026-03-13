@@ -53,13 +53,16 @@ export async function deleteCase(id: number): Promise<void> {
 }
 
 // Fetch all cases (for analytics and export)
-export async function getAllCases(): Promise<InheritanceCase[]> {
+// Optional filters allow exporting only filtered results
+export async function getAllCases(
+  filters?: Omit<CasesQueryParams, 'page' | 'pageSize'>
+): Promise<InheritanceCase[]> {
   const allCases: InheritanceCase[] = [];
   let page = 1;
   const pageSize = 100;
 
   while (true) {
-    const response = await getCases({ page, pageSize });
+    const response = await getCases({ ...filters, page, pageSize });
     allCases.push(...response.data);
 
     if (page >= response.pagination.totalPages) {
