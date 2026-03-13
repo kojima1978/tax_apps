@@ -83,12 +83,9 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     {
         accessorKey: "estimateAmount",
         header: ({ column }) => <SortableHeader column={column} className="text-right">見積額</SortableHeader>,
-        cell: ({ row }) => {
-            const amount = parseFloat(row.getValue("estimateAmount") || "0")
-            const referralFeeRate = row.original.referralFeeRate || 0
-            const netAmount = amount * (1 - referralFeeRate / 100)
-            return <div className="text-right font-medium">{formatCurrency(netAmount)}</div>
-        },
+        cell: ({ row }) => (
+            <div className="text-right font-medium">{formatCurrency(calcNet(row.original, "estimate"))}</div>
+        ),
     },
     {
         accessorKey: "feeAmount",

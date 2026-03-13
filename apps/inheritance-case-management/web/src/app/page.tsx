@@ -24,6 +24,7 @@ export default function InheritanceMockupPage() {
     const [queryParams, setQueryParams] = useState<CasesQueryParams>({
         page: 1,
         pageSize: 30,
+        fiscalYear: new Date().getFullYear(),
     })
     const [searchInput, setSearchInput] = useState("")
 

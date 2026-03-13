@@ -7,6 +7,12 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { UserPlus } from "lucide-react"
 import type { Contact } from "@/types/shared"
 
+const CONTACT_FIELDS: { key: keyof Contact; label: string; placeholder: string }[] = [
+    { key: "name", label: "氏名", placeholder: "氏名" },
+    { key: "phone", label: "電話番号", placeholder: "090-0000-0000" },
+    { key: "email", label: "メールアドレス", placeholder: "example@email.com" },
+]
+
 interface ContactListEditorProps {
     contacts: Contact[]
     onChange: (contacts: Contact[]) => void
@@ -37,30 +43,16 @@ export function ContactListEditor({ contacts, onChange }: ContactListEditorProps
             </div>
             {contacts.map((contact, index) => (
                 <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg relative">
-                    <div className="space-y-2">
-                        <Label>氏名</Label>
-                        <Input
-                            value={contact.name}
-                            onChange={(e) => handleFieldChange(index, "name", e.target.value)}
-                            placeholder="氏名"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>電話番号</Label>
-                        <Input
-                            value={contact.phone}
-                            onChange={(e) => handleFieldChange(index, "phone", e.target.value)}
-                            placeholder="090-0000-0000"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>メールアドレス</Label>
-                        <Input
-                            value={contact.email}
-                            onChange={(e) => handleFieldChange(index, "email", e.target.value)}
-                            placeholder="example@email.com"
-                        />
-                    </div>
+                    {CONTACT_FIELDS.map(({ key, label, placeholder }) => (
+                        <div key={key} className="space-y-2">
+                            <Label>{label}</Label>
+                            <Input
+                                value={contact[key]}
+                                onChange={(e) => handleFieldChange(index, key, e.target.value)}
+                                placeholder={placeholder}
+                            />
+                        </div>
+                    ))}
                     {contacts.length > 1 && (
                         <div className="col-span-1 md:col-span-3 flex justify-end -mt-2">
                             <Button

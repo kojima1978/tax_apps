@@ -24,6 +24,25 @@ interface ImportCSVModalProps {
   onImportComplete: () => void;
 }
 
+const FIELD_GUIDE = {
+  required: [
+    { name: "被相続人氏名", note: "必須" },
+    { name: "死亡日", note: "必須 / YYYY-MM-DD形式" },
+    { name: "年度", note: "必須 / 2000〜2100" },
+  ],
+  withDefaults: [
+    { name: "ステータス", note: "未着手 / 進行中 / 完了 / 請求済" },
+    { name: "受託状況", note: "受託可 / 受託不可 / 未判定 / 保留" },
+    { name: "財産評価額・相続税額・見積額・報酬額", note: "0以上の整数" },
+  ],
+  optional: [
+    { name: "担当者・紹介者", note: "マスタ登録名と一致で自動紐付け" },
+    { name: "紹介料率(%)・紹介料", note: "任意" },
+    { name: "連絡先N_氏名/電話/メール", note: "最大5件" },
+    { name: "ID", note: "既存案件の更新時のみ" },
+  ],
+} as const;
+
 const PREVIEW_COLUMNS = [
   { key: "mode", label: "モード" },
   { key: "deceasedName", label: "被相続人氏名" },
@@ -135,6 +154,40 @@ export function ImportCSVModal({
               テンプレートCSVをダウンロード
             </button>
           </div>
+          <details className="text-xs border rounded-lg">
+            <summary className="px-3 py-2 cursor-pointer font-medium text-muted-foreground hover:text-foreground select-none">
+              項目ガイド（必須・任意の一覧）
+            </summary>
+            <div className="px-3 pb-3 space-y-2">
+              <div>
+                <p className="font-medium text-red-600 mb-0.5">必須項目（最低限これだけでOK）</p>
+                {FIELD_GUIDE.required.map((f) => (
+                  <div key={f.name} className="flex justify-between gap-2 text-muted-foreground">
+                    <span>{f.name}</span>
+                    <span className="text-red-600 shrink-0">{f.note}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="font-medium text-sky-600 mb-0.5">任意（空欄ならデフォルト値）</p>
+                {FIELD_GUIDE.withDefaults.map((f) => (
+                  <div key={f.name} className="flex justify-between gap-2 text-muted-foreground">
+                    <span>{f.name}</span>
+                    <span className="shrink-0">{f.note}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground mb-0.5">任意</p>
+                {FIELD_GUIDE.optional.map((f) => (
+                  <div key={f.name} className="flex justify-between gap-2 text-muted-foreground">
+                    <span>{f.name}</span>
+                    <span className="shrink-0">{f.note}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </details>
           {fileError && (
             <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
               <AlertTriangle className="h-4 w-4 shrink-0" />

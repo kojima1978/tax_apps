@@ -2,15 +2,14 @@ import { Label } from "@/components/ui/Label"
 import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
+import { MasterSelect } from "@/components/ui/MasterSelect"
 import { User, Info } from "lucide-react"
-import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
+import type { InheritanceCase, Assignee, Referrer, AcceptanceStatus } from "@/types/shared"
 import { formatId } from "@/types/shared"
-import { FISCAL_YEARS } from "@/types/constants"
-
-const STATUS_HINTS: Record<string, string> = {
-    "未判定": "「進行中」「完了」を選択するには、受託を「受託可」または「受託不可」に変更してください",
-    "受託不可": "受託不可のため「進行」は自動的に「完了」に設定されます",
-}
+import {
+    FISCAL_YEARS, CASE_STATUS_OPTIONS, ACCEPTANCE_FORM_OPTIONS,
+    STATUS_ENABLED_WHEN, ACCEPTANCE_AUTO_STATUS, ACCEPTANCE_HINTS,
+} from "@/types/constants"
 
 interface BasicInfoSectionProps {
     formData: InheritanceCase
@@ -25,6 +24,9 @@ interface BasicInfoSectionProps {
 export function BasicInfoSection({
     formData, isCreateMode, assignees, referrers, returnToPath, handleChange, setFormData
 }: BasicInfoSectionProps) {
+    const acceptance = formData.acceptanceStatus || "未判定"
+    const hint = ACCEPTANCE_HINTS[acceptance]
+
     return (
         <CollapsibleSection title="基本情報" icon={User} defaultOpen>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -59,20 +61,19 @@ export function BasicInfoSection({
                     <SelectField
                         id="acceptanceStatus"
                         name="acceptanceStatus"
-                        value={formData.acceptanceStatus || "未判定"}
+                        value={acceptance}
                         onChange={(e) => {
-                            const val = e.target.value as "受託可" | "受託不可" | "未判定" | undefined
-                            setFormData(prev => {
-                                let newStatus = prev.status
-                                if (val === "未判定") newStatus = "未着手"
-                                else if (val === "受託不可") newStatus = "完了"
-                                return { ...prev, acceptanceStatus: val, status: newStatus }
-                            })
+                            const val = e.target.value as AcceptanceStatus
+                            setFormData(prev => ({
+                                ...prev,
+                                acceptanceStatus: val,
+                                status: ACCEPTANCE_AUTO_STATUS[val] ?? prev.status,
+                            }))
                         }}
                     >
-                        <option value="未判定">未判定</option>
-                        <option value="受託可">受託可</option>
-                        <option value="受託不可">受託不可</option>
+                        {ACCEPTANCE_FORM_OPTIONS.map(s => (
+                            <option key={s} value={s}>{s}</option>
+                        ))}
                     </SelectField>
                 </div>
 
@@ -83,16 +84,18 @@ export function BasicInfoSection({
                         name="status"
                         value={formData.status}
                         onChange={handleChange}
-                        disabled={formData.acceptanceStatus === "受託不可"}
+                        disabled={acceptance === "受託不可"}
                     >
-                        <option value="未着手" disabled={formData.acceptanceStatus === "受託不可"}>未着手</option>
-                        <option value="進行中" disabled={formData.acceptanceStatus === "未判定" || formData.acceptanceStatus === "受託不可"}>進行中</option>
-                        <option value="完了" disabled={formData.acceptanceStatus === "未判定"}>完了</option>
+                        {CASE_STATUS_OPTIONS.map(s => (
+                            <option key={s} value={s} disabled={!STATUS_ENABLED_WHEN[s].includes(acceptance)}>
+                                {s}
+                            </option>
+                        ))}
                     </SelectField>
-                    {STATUS_HINTS[formData.acceptanceStatus || ""] && (
+                    {hint && (
                         <p className="flex items-start gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            {STATUS_HINTS[formData.acceptanceStatus || ""]}
+                            {hint}
                         </p>
                     )}
                 </div>
@@ -128,40 +131,5 @@ export function BasicInfoSection({
                 />
             </div>
         </CollapsibleSection>
-    )
-}
-
-// Generic MasterSelect for assignee/referrer dropdowns
-interface MasterSelectProps<T extends { id: number; active: boolean }> {
-    id: string
-    label: string
-    value: string
-    items: T[]
-    placeholder: string
-    editHref: string
-    editLabel: string
-    renderOption: (item: T) => { value: string; label: string }
-    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
-}
-
-function MasterSelect<T extends { id: number; active: boolean }>({
-    id, label, value, items, placeholder, editHref, editLabel, renderOption, onChange,
-}: MasterSelectProps<T>) {
-    return (
-        <div className="space-y-2">
-            <Label htmlFor={id}>{label}</Label>
-            <SelectField id={id} name={id} value={value} onChange={onChange}>
-                <option value="">{placeholder}</option>
-                {items.filter(item => item.active !== false).map((item) => {
-                    const opt = renderOption(item)
-                    return <option key={item.id} value={opt.value}>{opt.label}</option>
-                })}
-            </SelectField>
-            <div className="text-right text-xs">
-                <a href={editHref} className="text-muted-foreground hover:underline hover:text-primary">
-                    {editLabel}
-                </a>
-            </div>
-        </div>
     )
 }

@@ -7,7 +7,7 @@ import { SelectField } from "@/components/ui/SelectField"
 import { DEPARTMENTS, type Assignee } from "@/types/shared"
 import { getAssignees, createAssignee, updateAssignee, deleteAssignee } from "@/lib/api/assignees"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
-import { MasterListPage, type ColumnDef } from "@/components/MasterListPage"
+import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 import { useToast } from "@/components/ui/Toast"
 
 const formatEmployeeId = (val: string) => {
@@ -176,26 +176,13 @@ function AssigneeSettingsContent() {
         <MasterListPage<Assignee>
             title="担当者管理"
             entityLabel="担当者"
-            returnTo={masterList.returnTo}
-            isDirty={masterList.isDirty}
-            isSaving={masterList.isSaving}
-            isLoading={masterList.isLoading}
-            items={masterList.items}
-            filteredItems={masterList.filteredAndSortedItems}
-            showInactive={masterList.showInactive}
-            onToggleShowInactive={masterList.handleToggleShowInactive}
-            editingId={masterList.editingId}
+            {...getMasterListPageProps(masterList)}
             columns={columns}
             newItemForm={newItemForm}
             onAdd={handleAdd}
             renderEditCell={renderEditCell}
             onStartEdit={(a) => masterList.handleStartEdit(a, { name: a.name, employeeId: a.employeeId || "", department: a.department || "" })}
             onSaveEdit={handleSaveEdit}
-            onCancelEdit={masterList.handleCancelEdit}
-            onToggleActive={masterList.handleToggleActive}
-            onPermanentDelete={masterList.handlePermanentDelete}
-            onSave={masterList.handleSave}
-            onSort={masterList.handleSort}
         />
     )
 }
