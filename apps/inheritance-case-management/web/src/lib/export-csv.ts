@@ -1,4 +1,5 @@
 import type { InheritanceCase } from "@/types/shared";
+import { formatId } from "@/types/shared";
 
 export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
   // CSVヘッダー
@@ -23,14 +24,14 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
 
   // CSVデータ行
   const rows = cases.map((c) => [
-    c.id,
+    formatId(c.id),
     c.deceasedName,
     c.dateOfDeath,
     c.fiscalYear,
     c.status,
     c.acceptanceStatus || "",
-    c.assignee || "",
-    c.referrer || "",
+    c.assignee?.name || "",
+    c.referrer ? `${c.referrer.company} / ${c.referrer.name}` : "",
     c.propertyValue || 0,
     c.taxAmount || 0,
     c.estimateAmount || 0,

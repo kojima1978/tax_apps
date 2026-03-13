@@ -49,7 +49,8 @@ export default function InheritanceMockupPage() {
     }
 
     const handleFilterChange = (key: keyof CasesQueryParams, value: string | undefined) => {
-        setQueryParams(prev => ({ ...prev, [key]: value || undefined, page: 1 }))
+        const parsed = key === 'assigneeId' && value ? Number(value) : (value || undefined)
+        setQueryParams(prev => ({ ...prev, [key]: parsed, page: 1 }))
     }
 
     const handleSortChange = (sortBy: string, sortOrder: string) => {
@@ -61,7 +62,7 @@ export default function InheritanceMockupPage() {
         setSearchInput("")
     }
 
-    const hasFilters = !!(queryParams.search || queryParams.status || queryParams.acceptanceStatus || queryParams.fiscalYear || queryParams.assignee)
+    const hasFilters = !!(queryParams.search || queryParams.status || queryParams.acceptanceStatus || queryParams.fiscalYear || queryParams.assigneeId)
 
     return (
         <div className="container mx-auto py-10 px-4">

@@ -2,7 +2,7 @@
 export type CaseStatus = '未着手' | '進行中' | '完了' | '請求済';
 export type AcceptanceStatus = '受託可' | '受託不可' | '未判定' | '保留';
 
-// Progress Step
+// Progress Step (input shape for API — used by editors)
 export interface ProgressStep {
   id: string;
   name: string;
@@ -11,38 +11,62 @@ export interface ProgressStep {
   isDynamic?: boolean;
 }
 
-// Contact
+// Contact (input shape for API — used by editors)
 export interface Contact {
   name: string;
   phone: string;
   email: string;
 }
 
+// Normalized DB entities
+export interface CaseContact {
+  id: number;
+  sortOrder: number;
+  name: string;
+  phone: string;
+  email: string;
+}
+
+export interface CaseProgressItem {
+  id: number;
+  stepId: string;
+  name: string;
+  sortOrder: number;
+  date: string | null;
+  memo?: string;
+  isDynamic?: boolean;
+}
+
 // Main Case Entity
 export interface InheritanceCase {
-  id: string;
+  id: number;
   deceasedName: string;
   dateOfDeath: string;
   status: CaseStatus;
   acceptanceStatus?: AcceptanceStatus;
   taxAmount: number;
-  assignee: string;
   feeAmount: number;
   fiscalYear: number;
-  referrer?: string;
   estimateAmount: number;
   propertyValue: number;
   referralFeeRate?: number;
   referralFeeAmount?: number;
-  progress?: ProgressStep[];
-  contacts?: Contact[];
+  // Normalized FK references
+  assigneeId?: number | null;
+  referrerId?: number | null;
+  // Included relations (from Prisma include)
+  assignee?: Assignee | null;
+  referrer?: Referrer | null;
+  // Normalized child records
+  progress?: CaseProgressItem[];
+  contacts?: CaseContact[];
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 // Assignee Entity
 export interface Assignee {
-  id: string;
+  id: number;
   name: string;
   employeeId?: string;
   department?: string;
@@ -53,7 +77,7 @@ export interface Assignee {
 
 // Referrer Entity
 export interface Referrer {
-  id: string;
+  id: number;
   company: string;
   name: string;
   department?: string;
@@ -73,6 +97,11 @@ interface Pagination {
 export interface PaginatedResponse<T> {
   data: T[];
   pagination: Pagination;
+}
+
+// Format ID as 4-digit padded string for display
+export function formatId(id: number): string {
+  return String(id).padStart(4, '0');
 }
 
 // Constants

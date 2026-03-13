@@ -28,9 +28,9 @@ export const createCaseSchema = z.object({
   status: caseStatusSchema.optional().default('未着手'),
   acceptanceStatus: acceptanceStatusSchema.optional().default('未判定'),
   taxAmount: z.number().int().min(0, '税額は0以上を入力してください').optional().default(0),
-  assignee: z.string().optional(),
+  assigneeId: z.number().int().nullable().optional(),
   feeAmount: z.number().int().min(0, '報酬は0以上を入力してください').optional().default(0),
-  referrer: z.string().optional(),
+  referrerId: z.number().int().nullable().optional(),
   estimateAmount: z.number().int().min(0, '見積額は0以上を入力してください').optional().default(0),
   propertyValue: z.number().int().min(0, '財産評価額は0以上を入力してください').optional().default(0),
   referralFeeRate: z.number().min(0, '紹介料率は0%以上を入力してください').max(100, '紹介料率は100%以下を入力してください').nullable().optional(),
@@ -42,7 +42,7 @@ export const createCaseSchema = z.object({
 export const updateCaseSchema = createCaseSchema.partial();
 
 export const caseIdParamSchema = z.object({
-  id: z.string().uuid('無効なID形式です'),
+  id: z.coerce.number().int('無効なID形式です'),
 });
 
 // Assignee Schemas
@@ -89,7 +89,7 @@ export const listQuerySchema = z.object({
   acceptanceStatus: acceptanceStatusSchema.optional(),
   fiscalYear: z.coerce.number().int().optional(),
   search: z.string().optional(),
-  assignee: z.string().optional(),
+  assigneeId: z.coerce.number().int().optional(),
   sortBy: sortFieldSchema.optional().default('createdAt'),
   sortOrder: sortOrderSchema.optional().default('desc'),
 });

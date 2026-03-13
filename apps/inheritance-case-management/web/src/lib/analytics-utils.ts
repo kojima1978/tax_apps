@@ -81,7 +81,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         else annual.acceptanceCounts.undecided++
 
         // Assignee ranking
-        const assignee = c.assignee || "未設定"
+        const assignee = c.assignee?.name || "未設定"
         if (!assigneeMap.has(assignee)) {
             assigneeMap.set(assignee, { name: assignee, feeTotal: 0, count: 0 })
         }
@@ -98,7 +98,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         aData.count++
 
         // Referrer
-        const referrer = c.referrer || "なし"
+        const referrer = c.referrer ? `${c.referrer.company} / ${c.referrer.name}` : "なし"
         if (!referrerMap.has(referrer)) {
             referrerMap.set(referrer, { name: referrer, feeTotal: 0, count: 0 })
         }
@@ -107,7 +107,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         rData.count++
 
         // Department
-        const dept = deptMap.get(c.assignee || "") || "未設定"
+        const dept = deptMap.get(c.assignee?.name || "") || "未設定"
         if (!deptRankingMap.has(dept)) {
             deptRankingMap.set(dept, { name: dept, feeTotal: 0, count: 0 })
         }

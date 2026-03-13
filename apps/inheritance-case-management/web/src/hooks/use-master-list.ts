@@ -6,11 +6,11 @@ import { useToast } from "@/components/ui/Toast"
 
 type SortOrder = "asc" | "desc"
 
-export interface MasterListConfig<T extends { id: string; active: boolean }, C, U> {
+export interface MasterListConfig<T extends { id: number; active: boolean }, C, U> {
     fetchAll: () => Promise<T[]>
     create: (data: C) => Promise<T>
-    update: (id: string, data: U) => Promise<T>
-    remove: (id: string) => Promise<void>
+    update: (id: number, data: U) => Promise<T>
+    remove: (id: number) => Promise<void>
     getCreatePayload: (item: T) => C
     getUpdatePayload: (item: T) => U
     entityLabel: string
@@ -20,7 +20,16 @@ export interface MasterListConfig<T extends { id: string; active: boolean }, C, 
     getDeleteLabel: (item: T) => string
 }
 
-export function useMasterList<T extends { id: string; active: boolean }, C, U>(
+// Counter for temporary IDs (negative numbers indicate unsaved items)
+let tempIdCounter = 0;
+export function nextTempId(): number {
+    return --tempIdCounter;
+}
+export function isTempId(id: number): boolean {
+    return id < 0;
+}
+
+export function useMasterList<T extends { id: number; active: boolean }, C, U>(
     config: MasterListConfig<T, C, U>
 ) {
     const router = useRouter()
@@ -33,13 +42,13 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
 
     const [originalItems, setOriginalItems] = useState<T[]>([])
     const [items, setItems] = useState<T[]>([])
-    const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+    const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set())
 
     const [sortField, setSortField] = useState<string | null>(null)
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
     const [showInactive, setShowInactive] = useState(true)
 
-    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editingId, setEditingId] = useState<number | null>(null)
     const [editingFields, setEditingFields] = useState<Record<string, string>>({})
 
     const [isSaving, setIsSaving] = useState(false)
@@ -82,13 +91,13 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
             const promises: Promise<unknown>[] = []
 
             for (const id of deletedIds) {
-                if (!id.startsWith("temp_")) {
+                if (!isTempId(id)) {
                     promises.push(cfg.remove(id))
                 }
             }
 
             for (const item of items) {
-                if (item.id.startsWith("temp_")) {
+                if (isTempId(item.id)) {
                     promises.push(cfg.create(cfg.getCreatePayload(item)))
                 } else {
                     const original = originalItems.find(o => o.id === item.id)
@@ -124,17 +133,17 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
         setItems(prev => [...prev, newItem])
     }, [])
 
-    const handleToggleActive = useCallback((id: string) => {
+    const handleToggleActive = useCallback((id: number) => {
         setItems(prev => prev.map(item =>
             item.id === id ? { ...item, active: !item.active } : item
         ))
     }, [])
 
-    const handlePermanentDelete = useCallback((id: string) => {
+    const handlePermanentDelete = useCallback((id: number) => {
         const item = items.find(i => i.id === id)
         if (!item) return
 
-        if (!id.startsWith("temp_") && item.active !== false) {
+        if (!isTempId(id) && item.active !== false) {
             toast.warning("完全削除するには、まず無効化してください。")
             return
         }
@@ -144,7 +153,7 @@ export function useMasterList<T extends { id: string; active: boolean }, C, U>(
         }
 
         setItems(prev => prev.filter(i => i.id !== id))
-        if (!id.startsWith("temp_")) {
+        if (!isTempId(id)) {
             setDeletedIds(prev => {
                 const next = new Set(prev)
                 next.add(id)

@@ -17,7 +17,7 @@ const PREVIEW_COLUMNS = [
   { key: "dateOfDeath", label: "死亡日" },
   { key: "fiscalYear", label: "年度" },
   { key: "status", label: "ステータス" },
-  { key: "assignee", label: "担当者" },
+  { key: "acceptanceStatus", label: "受託状況" },
 ] as const;
 
 export function ImportCSVModal({ isOpen, onClose, onImportComplete }: ImportCSVModalProps) {

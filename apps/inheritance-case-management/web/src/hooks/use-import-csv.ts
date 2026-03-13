@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react';
-import { parseAndValidateCSV, MAX_IMPORT_FILE_SIZE } from '@/lib/import-csv';
-import type { ImportParseResult } from '@/lib/import-csv';
+import { useState, useCallback, useEffect } from 'react';
+import { parseAndValidateCSV, buildResolverMaps, MAX_IMPORT_FILE_SIZE } from '@/lib/import-csv';
+import type { ImportParseResult, ResolverMaps } from '@/lib/import-csv';
 import { createCase } from '@/lib/api/cases';
+import { getAssignees } from '@/lib/api/assignees';
+import { getReferrers } from '@/lib/api/referrers';
 
 export type ImportStep = 'select' | 'preview' | 'importing' | 'done';
 
@@ -17,6 +19,14 @@ export function useImportCSV() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState(0);
+  const [resolvers, setResolvers] = useState<ResolverMaps | null>(null);
+
+  // Load master data for name→ID resolution
+  useEffect(() => {
+    Promise.all([getAssignees(), getReferrers()])
+      .then(([assignees, referrers]) => setResolvers(buildResolverMaps(assignees, referrers)))
+      .catch(() => {});
+  }, []);
 
   const handleFileSelect = useCallback(async (file: File) => {
     setFileError(null);
@@ -39,13 +49,13 @@ export function useImportCSV() {
 
     try {
       const text = await file.text();
-      const result = parseAndValidateCSV(text);
+      const result = parseAndValidateCSV(text, resolvers ?? undefined);
       setParseResult(result);
       setStep('preview');
     } catch {
       setFileError('ファイルの読み込みに失敗しました');
     }
-  }, []);
+  }, [resolvers]);
 
   const executeImport = useCallback(async () => {
     if (!parseResult || parseResult.validRows.length === 0) return;

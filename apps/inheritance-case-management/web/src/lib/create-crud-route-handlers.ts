@@ -59,7 +59,8 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
   const byId = {
     async GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
       try {
-        const { id } = await params;
+        const { id: rawId } = await params;
+        const id = Number(rawId);
         const item = await delegate.findUnique({ where: { id } });
         if (!item) {
           return NextResponse.json({ error: `${entityLabel}が見つかりません`, code: 'NOT_FOUND' }, { status: 404 });
@@ -72,7 +73,8 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
 
     async PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
       try {
-        const { id } = await params;
+        const { id: rawId } = await params;
+        const id = Number(rawId);
         const body = await request.json();
         const data = updateSchema.parse(body);
         const updated = await delegate.update({ where: { id }, data });
@@ -84,7 +86,8 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
 
     async DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
       try {
-        const { id } = await params;
+        const { id: rawId } = await params;
+        const id = Number(rawId);
         await delegate.delete({ where: { id } });
         return new NextResponse(null, { status: 204 });
       } catch (e) {
