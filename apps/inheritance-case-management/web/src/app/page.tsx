@@ -86,11 +86,11 @@ export default function InheritanceMockupPage() {
                     </Button>
                     <Button
                         variant="outline"
-                        onClick={exportCSV}
+                        onClick={() => exportCSV(hasFilters ? queryParams : undefined)}
                         disabled={isExporting}
                     >
                         <Download className={`mr-2 h-4 w-4 ${isExporting ? 'animate-pulse' : ''}`} />
-                        {isExporting ? 'エクスポート中...' : 'CSV出力'}
+                        {isExporting ? 'エクスポート中...' : hasFilters ? 'CSV出力(絞り込み)' : 'CSV出力'}
                     </Button>
                 </div>
             </div>
