@@ -1,6 +1,17 @@
 from django.db import models
+from django.db.models import F
 
 from .lib.constants import UNCATEGORIZED
+
+
+# Transaction.objects.with_account_info() で口座フィールドをアノテーションするための定義
+ACCOUNT_ANNOTATIONS = {
+    'bank_name': F('account__bank_name'),
+    'branch_name': F('account__branch_name'),
+    'account_number': F('account__account_number'),
+    'account_type': F('account__account_type'),
+    'holder': F('account__holder'),
+}
 
 
 class Case(models.Model):
@@ -26,6 +37,41 @@ class Case(models.Model):
         ordering = ["-created_at"]
 
 
+class Account(models.Model):
+    """口座モデル - 銀行口座情報を管理"""
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name="accounts",
+        verbose_name="案件"
+    )
+    account_number = models.CharField(max_length=255, verbose_name="口座番号")
+    bank_name = models.CharField(max_length=255, null=True, blank=True, verbose_name="銀行名")
+    branch_name = models.CharField(max_length=255, null=True, blank=True, verbose_name="支店名")
+    account_type = models.CharField(max_length=50, null=True, blank=True, verbose_name="種別")
+    holder = models.CharField(max_length=255, null=True, blank=True, verbose_name="名義人")
+
+    def __str__(self):
+        parts = [self.bank_name or '', self.branch_name or '', self.account_number]
+        return ' '.join(p for p in parts if p)
+
+    class Meta:
+        verbose_name = "口座"
+        verbose_name_plural = "口座一覧"
+        constraints = [
+            models.UniqueConstraint(fields=['case', 'account_number'], name='unique_case_account'),
+        ]
+        ordering = ['bank_name', 'branch_name']
+
+
+class TransactionQuerySet(models.QuerySet):
+    """口座情報をアノテーションするカスタムQuerySet"""
+
+    def with_account_info(self):
+        """口座フィールドをアノテーションして返す（DataFrame用）"""
+        return self.select_related('account').annotate(**ACCOUNT_ANNOTATIONS)
+
+
 class Transaction(models.Model):
     """取引モデル - 銀行取引明細を管理"""
     case = models.ForeignKey(
@@ -34,16 +80,19 @@ class Transaction(models.Model):
         related_name="transactions",
         verbose_name="案件"
     )
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.CASCADE,
+        related_name="transactions",
+        verbose_name="口座",
+        null=True,
+        blank=True,
+    )
     date = models.DateField(null=True, blank=True, verbose_name="取引日")
     description = models.CharField(max_length=255, null=True, blank=True, verbose_name="摘要")
     amount_out = models.IntegerField(default=0, verbose_name="出金")
     amount_in = models.IntegerField(default=0, verbose_name="入金")
     balance = models.IntegerField(null=True, blank=True, verbose_name="残高")
-    account_id = models.CharField(max_length=255, null=True, blank=True, verbose_name="口座ID")
-    holder = models.CharField(max_length=255, null=True, blank=True, verbose_name="名義人")
-    bank_name = models.CharField(max_length=255, null=True, blank=True, verbose_name="銀行名")
-    branch_name = models.CharField(max_length=255, null=True, blank=True, verbose_name="支店名")
-    account_type = models.CharField(max_length=50, null=True, blank=True, verbose_name="種別")
 
     # 分析結果フラグ
     is_large = models.BooleanField(default=False, verbose_name="多額取引")
@@ -62,6 +111,8 @@ class Transaction(models.Model):
     is_flagged = models.BooleanField(default=False, verbose_name="要確認フラグ")
     memo = models.TextField(null=True, blank=True, verbose_name="メモ")
 
+    objects = TransactionQuerySet.as_manager()
+
     def __str__(self):
         return f"{self.date} - {self.description}"
 
@@ -71,7 +122,7 @@ class Transaction(models.Model):
         ordering = ["date", "id"]
         indexes = [
             models.Index(fields=["case", "date"]),
-            models.Index(fields=["case", "account_id"]),
+            models.Index(fields=["case", "account"]),
             models.Index(fields=["category"]),
             models.Index(fields=["case", "is_flagged"]),
             models.Index(fields=["case", "category"]),

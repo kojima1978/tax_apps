@@ -26,7 +26,7 @@
     </div>
     <div class="col-3">
         <label class="form-label">口座番号</label>
-        <select {% if show_name %}name="account_id"{% endif %} class="form-select form-select-sm" id="{{ id_prefix }}TxAccountId">
+        <select {% if show_name %}name="account_number"{% endif %} class="form-select form-select-sm" id="{{ id_prefix }}TxAccountNumber">
             <option value="">-- 選択 --</option>
             {% for acc in accounts %}
             <option value="{{ acc }}">{{ acc }}</option>

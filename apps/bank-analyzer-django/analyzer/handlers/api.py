@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from ..models import Case, Transaction
 from ..services import TransactionService
+from ..services.transaction import get_or_create_account
 from ..lib.constants import UNCATEGORIZED
 from .base import json_error, json_api_error, parse_amount
 
@@ -61,17 +62,23 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
         if balance_str:
             balance_val, _ = parse_amount(balance_str)
 
+        # 口座を取得または作成
+        account = get_or_create_account(
+            case=case,
+            account_number=request.POST.get('account_number', '') or 'unknown',
+            bank_name=request.POST.get('bank_name', ''),
+            branch_name=request.POST.get('branch_name', ''),
+            account_type=request.POST.get('account_type', ''),
+        )
+
         tx = Transaction.objects.create(
             case=case,
+            account=account,
             date=date_val,
             description=request.POST.get('description', ''),
             amount_out=amount_out,
             amount_in=amount_in,
             balance=balance_val,
-            bank_name=request.POST.get('bank_name', ''),
-            branch_name=request.POST.get('branch_name', ''),
-            account_id=request.POST.get('account_id', ''),
-            account_type=request.POST.get('account_type', ''),
             category=request.POST.get('category', UNCATEGORIZED),
             memo=request.POST.get('memo', ''),
         )
@@ -86,10 +93,10 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
                 'amount_out': tx.amount_out,
                 'amount_in': tx.amount_in,
                 'balance': tx.balance,
-                'bank_name': tx.bank_name,
-                'branch_name': tx.branch_name,
-                'account_id': tx.account_id,
-                'account_type': tx.account_type,
+                'bank_name': account.bank_name,
+                'branch_name': account.branch_name,
+                'account_number': account.account_number,
+                'account_type': account.account_type,
                 'category': tx.category,
                 'memo': tx.memo,
             },

@@ -31,17 +31,17 @@
         <div class="col-md-6 col-lg-4">
             <div class="card bg-white border-light shadow-sm h-100">
                 <div class="card-body">
-                    <h5 class="card-title text-truncate" title="{{ acc.account_id }}">{{ acc.account_id }}</h5>
+                    <h5 class="card-title text-truncate" title="{{ acc.account_number }}">{{ acc.account_number }}</h5>
                     <p class="card-text text-muted mb-2">名義: {{ acc.holder }}</p>
                     <div class="d-flex justify-content-between align-items-end">
                         <small>取引件数: {{ acc.count }}件<br>最終取引: {{ acc.last_date|wareki_short }}</small>
                         <form method="post" class="d-inline delete-account-form">
                             {% csrf_token %}
-                            <input type="hidden" name="account_id" value="{{ acc.account_id }}">
+                            <input type="hidden" name="account_number" value="{{ acc.account_number }}">
                             <input type="hidden" name="action" value="delete_account">
                             <button type="button" class="btn btn-sm btn-outline-danger"
-                                data-account-id="{{ acc.account_id }}"
-                                onclick="ConfirmModal.show({title:'口座データの削除',message:'口座「'+this.dataset.accountId+'」のデータを全て削除しますか？この操作は取り消せません。',confirmText:'削除',confirmClass:'btn-danger',onConfirm:()=>this.closest('form').submit()})">
+                                data-account-number="{{ acc.account_number }}"
+                                onclick="ConfirmModal.show({title:'口座データの削除',message:'口座「'+this.dataset.accountNumber+'」のデータを全て削除しますか？この操作は取り消せません。',confirmText:'削除',confirmClass:'btn-danger',onConfirm:()=>this.closest('form').submit()})">
                                 <i class="bi bi-trash"></i> 削除
                             </button>
                         </form>
@@ -177,7 +177,7 @@
                     </div>
                     <div class="col-2">
                         <label class="form-label small mb-0">口座番号</label>
-                        <select class="form-select form-select-sm" id="addTxAccountId">
+                        <select class="form-select form-select-sm" id="addTxAccountNumber">
                             <option value="">--</option>
                             {% for acc in accounts %}<option value="{{ acc }}">{{ acc }}</option>{% endfor %}
                         </select>

@@ -86,7 +86,7 @@
                             <td>{{ tx.bank_name|default:"-" }}</td>
                             <td>{{ tx.branch_name|default:"-" }}</td>
                             <td>{{ tx.account_type|default:"-" }}</td>
-                            <td>{{ tx.account_id|default:"-" }}</td>
+                            <td>{{ tx.account_number|default:"-" }}</td>
                             <td>{{ tx.description }}</td>
                             <td class="text-end text-danger fw-bold">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
                             <td class="text-end text-success fw-bold">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>

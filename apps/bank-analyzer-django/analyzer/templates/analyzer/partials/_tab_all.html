@@ -254,7 +254,7 @@
                                     data-tx-bank="{{ tx.bank_name|default:'' }}"
                                     data-tx-branch="{{ tx.branch_name|default:'' }}"
                                     data-tx-account-type="{{ tx.account_type|default:'' }}"
-                                    data-tx-account="{{ tx.account_id|default:'' }}"
+                                    data-tx-account="{{ tx.account_number|default:'' }}"
                                     title="この下に追加">
                                     <i class="bi bi-plus"></i>
                                 </button>
@@ -267,7 +267,7 @@
                             <td>{{ tx.bank_name|default:"-" }}</td>
                             <td>{{ tx.branch_name|default:"-" }}</td>
                             <td>{{ tx.account_type|default:"-" }}</td>
-                            <td>{{ tx.account_id|default:"-" }}</td>
+                            <td>{{ tx.account_number|default:"-" }}</td>
                             <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
                             <td class="text-end">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
                             <td class="text-end">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>

@@ -158,7 +158,7 @@
                                 <div class="transfer-amount text-danger">-{{ pair.source.amount|intcomma }}円</div>
                                 <div class="transfer-account">
                                     <small class="text-muted">{{ pair.source.bank_name|default:"-" }} {{ pair.source.branch_name|default:"" }}</small>
-                                    <small class="text-muted">{{ pair.source.account_id|default:"" }}</small>
+                                    <small class="text-muted">{{ pair.source.account_number|default:"" }}</small>
                                 </div>
                                 <div class="transfer-desc text-truncate" title="{{ pair.source.description }}">{{ pair.source.description|default:"-" }}</div>
                             </div>
@@ -194,7 +194,7 @@
                                 <div class="transfer-amount text-success">+{{ pair.destination.amount|intcomma }}円</div>
                                 <div class="transfer-account">
                                     <small class="text-muted">{{ pair.destination.bank_name|default:"-" }} {{ pair.destination.branch_name|default:"" }}</small>
-                                    <small class="text-muted">{{ pair.destination.account_id|default:"" }}</small>
+                                    <small class="text-muted">{{ pair.destination.account_number|default:"" }}</small>
                                 </div>
                                 <div class="transfer-desc text-truncate" title="{{ pair.destination.description }}">{{ pair.destination.description|default:"-" }}</div>
                             </div>
@@ -253,7 +253,7 @@
                                 <td>{{ pair.source.date|wareki_short }}</td>
                                 <td>{{ pair.source.bank_name|default:"-" }}</td>
                                 <td>{{ pair.source.branch_name|default:"-" }}</td>
-                                <td>{{ pair.source.account_id|default:"-" }}</td>
+                                <td>{{ pair.source.account_number|default:"-" }}</td>
                                 <td class="text-end text-danger fw-bold">{{ pair.source.amount|intcomma }}</td>
                                 <td class="text-truncate" style="max-width: 120px;" title="{{ pair.source.description }}">{{ pair.source.description|default:"-" }}</td>
                                 <td>
@@ -265,7 +265,7 @@
                                 <td>{{ pair.destination.date|wareki_short }}</td>
                                 <td>{{ pair.destination.bank_name|default:"-" }}</td>
                                 <td>{{ pair.destination.branch_name|default:"-" }}</td>
-                                <td>{{ pair.destination.account_id|default:"-" }}</td>
+                                <td>{{ pair.destination.account_number|default:"-" }}</td>
                                 <td class="text-end text-success fw-bold">{{ pair.destination.amount|intcomma }}</td>
                                 <td class="text-truncate" style="max-width: 120px;" title="{{ pair.destination.description }}">{{ pair.destination.description|default:"-" }}</td>
                                 <td>

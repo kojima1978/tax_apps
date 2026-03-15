@@ -139,7 +139,7 @@ def build_transaction_data(request: HttpRequest) -> dict:
         'memo': request.POST.get('memo'),
         'bank_name': request.POST.get('bank_name'),
         'branch_name': request.POST.get('branch_name'),
-        'account_id': request.POST.get('account_id'),
+        'account_number': request.POST.get('account_number'),
         'account_type': request.POST.get('account_type'),
         'balance': balance_val,
     }

@@ -105,7 +105,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
 
     sort_param = filter_state.get('sort', '')
     sort_order = get_sort_order_by(sort_param, default='date_desc')
-    unclassified_txs = case.transactions.filter(category=UNCATEGORIZED).order_by(*sort_order)
+    unclassified_txs = case.transactions.with_account_info().filter(category=UNCATEGORIZED).order_by(*sort_order)
     _, unclassified_page = _filter_and_paginate(unclassified_txs, 'unclassified_page')
 
     flagged_txs = sort_dict_list(
@@ -210,7 +210,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
 
     # 未分類タブ: 摘要グルーピング + サジェスト
     if request.GET.get('tab') == 'unclassified':
-        unclassified_qs = case.transactions.filter(category=UNCATEGORIZED).order_by(*sort_order)
+        unclassified_qs = case.transactions.with_account_info().filter(category=UNCATEGORIZED).order_by(*sort_order)
         group_data = AnalysisService.build_unclassified_groups(unclassified_qs, keyword)
         groups = group_data['groups']
 

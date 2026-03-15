@@ -100,7 +100,7 @@ def analyze_transfers(df: pd.DataFrame, *, settings: dict | None = None) -> pd.D
     Returns:
         is_transfer, transfer_to カラムが追加されたDataFrame
     """
-    _validate_columns(df, ["date", "amount_out", "amount_in", "account_id"], "analyze_transfers")
+    _validate_columns(df, ["date", "amount_out", "amount_in", "account_number"], "analyze_transfers")
 
     analyzed = _load_analysis_settings(settings)
     tolerance = analyzed["tolerance"]
@@ -127,7 +127,7 @@ def analyze_transfers(df: pd.DataFrame, *, settings: dict | None = None) -> pd.D
         row_out = df.loc[idx_out]
         target_amount = row_out["amount_out"]
         target_date = row_out["date"]
-        source_account = row_out["account_id"]
+        source_account = row_out["account_number"]
 
         # 日付条件: after_only=出金日以降〜+N日, both=±N日
         date_diff = df["date"] - target_date
@@ -139,7 +139,7 @@ def analyze_transfers(df: pd.DataFrame, *, settings: dict | None = None) -> pd.D
         # 候補検索: 口座が異なり、金額が近似、日付条件、未マッチ
         candidates_mask = (
             in_mask &
-            (df["account_id"] != source_account) &
+            (df["account_number"] != source_account) &
             (df["amount_in"] >= target_amount - tolerance) &
             (df["amount_in"] <= target_amount + tolerance) &
             date_condition &
@@ -163,7 +163,7 @@ def analyze_transfers(df: pd.DataFrame, *, settings: dict | None = None) -> pd.D
 
             # 出金側にフラグをセット
             df.loc[idx_out, "is_transfer"] = True
-            df.loc[idx_out, "transfer_to"] = f"{match['account_id']} ({match['date'].date()}){fee_info}"
+            df.loc[idx_out, "transfer_to"] = f"{match['account_number']} ({match['date'].date()}){fee_info}"
 
             # 入金側にもフラグをセット
             df.loc[idx_in, "is_transfer"] = True

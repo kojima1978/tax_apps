@@ -8,7 +8,7 @@ from datetime import date, timedelta
 
 from django.core.management.base import BaseCommand
 
-from analyzer.models import Case, Transaction
+from analyzer.models import Account, Case, Transaction
 from analyzer.lib.constants import UNCATEGORIZED
 
 
@@ -18,21 +18,21 @@ ACCOUNTS = [
         'bank_name': 'みずほ銀行',
         'branch_name': '新宿支店',
         'account_type': '普通',
-        'account_id': '1234567',
+        'account_number': '1234567',
         'initial_balance': 8_500_000,
     },
     {
         'bank_name': '三菱UFJ銀行',
         'branch_name': '渋谷支店',
         'account_type': '普通',
-        'account_id': '7654321',
+        'account_number': '7654321',
         'initial_balance': 15_200_000,
     },
     {
         'bank_name': 'ゆうちょ銀行',
         'branch_name': '〇一八店',
         'account_type': '通常貯金',
-        'account_id': '10234567',
+        'account_number': '10234567',
         'initial_balance': 3_800_000,
     },
 ]
@@ -175,15 +175,18 @@ class Command(BaseCommand):
 
         total_count = 0
 
-        for account in ACCOUNTS:
+        for acct_def in ACCOUNTS:
+            # Account レコードを作成
+            account = Account.objects.create(
+                case=case,
+                account_number=acct_def['account_number'],
+                bank_name=acct_def['bank_name'],
+                branch_name=acct_def['branch_name'],
+                account_type=acct_def['account_type'],
+            )
+
             transactions = []
-            balance = account['initial_balance']
-            account_info = {
-                'bank_name': account['bank_name'],
-                'branch_name': account['branch_name'],
-                'account_type': account['account_type'],
-                'account_id': account['account_id'],
-            }
+            balance = acct_def['initial_balance']
 
             # 定期取引を生成
             for desc, out_range, in_range, category, weight in RECURRING_TRANSACTIONS:
@@ -204,7 +207,6 @@ class Command(BaseCommand):
                         'balance': balance,
                         'category': category,
                         'is_large': (amount_out >= 1_000_000 or amount_in >= 1_000_000),
-                        **account_info,
                     })
 
             # 通帳間移動
@@ -225,8 +227,7 @@ class Command(BaseCommand):
                         'balance': balance,
                         'category': '通帳間移動',
                         'is_transfer': True,
-                        'transfer_to': random.choice([a['account_id'] for a in ACCOUNTS if a['account_id'] != account['account_id']]),
-                        **account_info,
+                        'transfer_to': random.choice([a['account_number'] for a in ACCOUNTS if a['account_number'] != acct_def['account_number']]),
                     })
                 else:
                     balance += amount
@@ -238,7 +239,6 @@ class Command(BaseCommand):
                         'balance': balance,
                         'category': '通帳間移動',
                         'is_transfer': True,
-                        **account_info,
                     })
 
             # 未分類取引
@@ -257,12 +257,11 @@ class Command(BaseCommand):
                     'amount_in': amount_in,
                     'balance': balance,
                     'category': UNCATEGORIZED,
-                    **account_info,
                 })
 
             # 日付順にソートして残高を再計算
             transactions.sort(key=lambda t: t['date'])
-            running_balance = account['initial_balance']
+            running_balance = acct_def['initial_balance']
             for tx in transactions:
                 running_balance += tx['amount_in'] - tx['amount_out']
                 tx['balance'] = running_balance
@@ -286,15 +285,12 @@ class Command(BaseCommand):
             tx_objects = [
                 Transaction(
                     case=case,
+                    account=account,
                     date=tx['date'],
                     description=tx['description'],
                     amount_out=tx['amount_out'],
                     amount_in=tx['amount_in'],
                     balance=tx['balance'],
-                    bank_name=tx['bank_name'],
-                    branch_name=tx['branch_name'],
-                    account_type=tx['account_type'],
-                    account_id=tx['account_id'],
                     category=tx.get('category', UNCATEGORIZED),
                     is_large=tx.get('is_large', False),
                     is_transfer=tx.get('is_transfer', False),
@@ -308,8 +304,8 @@ class Command(BaseCommand):
             Transaction.objects.bulk_create(tx_objects)
 
             self.stdout.write(
-                f'  {account["bank_name"]} {account["branch_name"]} '
-                f'({account["account_id"]}): {len(tx_objects)}件'
+                f'  {acct_def["bank_name"]} {acct_def["branch_name"]} '
+                f'({acct_def["account_number"]}): {len(tx_objects)}件'
             )
             total_count += len(tx_objects)
 

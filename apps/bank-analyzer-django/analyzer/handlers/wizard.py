@@ -39,7 +39,7 @@ _ACCOUNT_DETECT_FIELDS = [
     ('bank_name', 'bank_name'),
     ('branch_name', 'branch_name'),
     ('account_type', 'account_type'),
-    ('account_number', 'account_id'),
+    ('account_number', 'account_number'),
 ]
 
 # コミット時の口座情報→行のフィールドマッピング (account dict キー, row キー)
@@ -61,15 +61,11 @@ def import_wizard(request: HttpRequest, pk: int) -> HttpResponse:
     """
     case = get_object_or_404(Case, pk=pk)
 
-    # 既存口座の一覧を取得
-    # order_by(): Meta.ordering (date, id) を除去し DISTINCT を正しく機能させる
-    existing_accounts = (
-        case.transactions
-        .exclude(account_id__isnull=True)
-        .exclude(account_id='')
-        .values('bank_name', 'branch_name', 'account_type', 'account_id')
-        .order_by('bank_name', 'branch_name', 'account_type', 'account_id')
-        .distinct()
+    # 既存口座の一覧を Account テーブルから取得
+    existing_accounts = list(
+        case.accounts
+        .values('bank_name', 'branch_name', 'account_type', 'account_number')
+        .order_by('bank_name', 'branch_name', 'account_type', 'account_number')
     )
 
     if request.method == 'POST':
@@ -85,7 +81,7 @@ def import_wizard(request: HttpRequest, pk: int) -> HttpResponse:
 
     return render(request, 'analyzer/import_wizard.html', {
         'case': case,
-        'existing_accounts': list(existing_accounts),
+        'existing_accounts': existing_accounts,
     })
 
 
@@ -138,10 +134,10 @@ def _df_to_json_safe_rows(df: pd.DataFrame) -> list[dict]:
     return rows
 
 
-def make_dedup_key(account_id, date, amount_out, amount_in) -> tuple:
+def make_dedup_key(account_number, date, amount_out, amount_in) -> tuple:
     """重複チェック用のキータプルを構築"""
     return (
-        account_id or '',
+        account_number or '',
         str(date) if date else '',
         int(amount_out or 0),
         int(amount_in or 0),
@@ -151,20 +147,21 @@ def make_dedup_key(account_id, date, amount_out, amount_in) -> tuple:
 def build_existing_keys(case: Case) -> set:
     """既存取引の重複チェック用キーセットを構築"""
     existing_keys = set()
-    for acct_id, dt, amt_out, amt_in in (
+    for acct_num, dt, amt_out, amt_in in (
         Transaction.objects.filter(case=case)
-        .values_list('account_id', 'date', 'amount_out', 'amount_in')
+        .select_related('account')
+        .values_list('account__account_number', 'date', 'amount_out', 'amount_in')
     ):
-        existing_keys.add(make_dedup_key(acct_id, dt, amt_out, amt_in))
+        existing_keys.add(make_dedup_key(acct_num, dt, amt_out, amt_in))
     return existing_keys
 
 
-def mark_duplicates(rows: list[dict], existing_keys: set, default_account_id: str = '') -> int:
+def mark_duplicates(rows: list[dict], existing_keys: set, default_account_number: str = '') -> int:
     """行に is_duplicate フラグを付与し、重複件数を返す"""
     duplicate_count = 0
     for row in rows:
-        row_account_id = row.get('account_number') or default_account_id
-        key = make_dedup_key(row_account_id, row.get('date', ''), row.get('amount_out'), row.get('amount_in'))
+        row_account_number = row.get('account_number') or default_account_number
+        key = make_dedup_key(row_account_number, row.get('date', ''), row.get('amount_out'), row.get('amount_in'))
         is_dup = key in existing_keys
         row['is_duplicate'] = is_dup
         if is_dup:
@@ -210,7 +207,7 @@ def _group_rows_by_account(rows: list[dict]) -> dict:
                 'bank_name': bank_name,
                 'branch_name': branch_name,
                 'account_type': account_type,
-                'account_id': account_number,
+                'account_number': account_number,
                 'rows': []
             }
 
@@ -222,9 +219,9 @@ def _group_rows_by_account(rows: list[dict]) -> dict:
 def _process_single_account_file(filename: str, df: pd.DataFrame, rows: list[dict], existing_keys: set) -> list[dict]:
     """単一口座のCSVファイルを処理"""
     detected_account = _detect_account_from_csv(df, filename)
-    detected_account_id = detected_account.get('account_id', '')
+    detected_account_number = detected_account.get('account_number', '')
 
-    duplicate_count = mark_duplicates(rows, existing_keys, detected_account_id)
+    duplicate_count = mark_duplicates(rows, existing_keys, detected_account_number)
 
     return [{
         'filename': filename,
@@ -242,7 +239,7 @@ def _process_multi_account_file(filename: str, account_groups: dict, existing_ke
     files_data = []
     for group_key, group_data in account_groups.items():
         group_rows = group_data['rows']
-        account_id = group_data['account_id']
+        account_number = group_data['account_number']
 
         # 口座グループごとに残高検証を再計算
         if len(group_rows) > 0:
@@ -256,12 +253,12 @@ def _process_multi_account_file(filename: str, account_groups: dict, existing_ke
             group_rows = _df_to_json_safe_rows(group_df)
 
         # 重複チェック
-        duplicate_count = mark_duplicates(group_rows, existing_keys, account_id)
+        duplicate_count = mark_duplicates(group_rows, existing_keys, account_number)
 
         # 口座名を生成
         display_name = group_data['bank_name'] or '不明'
-        if account_id:
-            display_name += f" ({account_id})"
+        if account_number:
+            display_name += f" ({account_number})"
 
         files_data.append({
             'filename': f"{filename} - {display_name}",
@@ -272,7 +269,7 @@ def _process_multi_account_file(filename: str, account_groups: dict, existing_ke
                 'bank_name': group_data['bank_name'],
                 'branch_name': group_data['branch_name'],
                 'account_type': group_data['account_type'],
-                'account_id': account_id,
+                'account_number': account_number,
             },
             'rows': group_rows,
             'is_split': True,  # 分割されたことを示すフラグ
@@ -286,7 +283,7 @@ def _detect_account_from_csv(df: pd.DataFrame, filename: str) -> dict:
     CSVデータやファイル名から口座情報を推測
 
     Returns:
-        {'bank_name': str, 'branch_name': str, 'account_type': str, 'account_id': str}
+        {'bank_name': str, 'branch_name': str, 'account_type': str, 'account_number': str}
     """
     detected = {key: '' for _, key in _ACCOUNT_DETECT_FIELDS}
 
@@ -305,10 +302,10 @@ def _detect_account_from_csv(df: pd.DataFrame, filename: str) -> dict:
                 break
 
     # ファイル名から口座番号を推測（7-8桁の数字）
-    if not detected['account_id']:
+    if not detected['account_number']:
         account_match = re.search(r'(\d{7,8})', filename)
         if account_match:
-            detected['account_id'] = account_match.group(1)
+            detected['account_number'] = account_match.group(1)
 
     return detected
 
@@ -333,17 +330,17 @@ def _handle_commit_wizard(request: HttpRequest, case: Case, pk: int) -> HttpResp
         for file_data in files:
             account = file_data.get('account', {})
             rows = file_data.get('rows', [])
-            final_account_id = account.get('account_id', '')
+            final_account_number = account.get('account_number', '')
 
             # 口座情報を各行に設定し、最終的な口座番号で重複を再チェック
             filtered_rows = []
             for row in rows:
                 for acct_key, row_key in _ACCOUNT_COMMIT_FIELDS:
                     row[row_key] = account.get(acct_key, '')
-                row['account_number'] = final_account_id
+                row['account_number'] = final_account_number
 
                 # 最終口座番号で重複チェック
-                key = make_dedup_key(final_account_id, row.get('date', ''), row.get('amount_out'), row.get('amount_in'))
+                key = make_dedup_key(final_account_number, row.get('date', ''), row.get('amount_out'), row.get('amount_in'))
                 is_duplicate = key in existing_keys
 
                 if duplicate_action == 'skip' and is_duplicate:
