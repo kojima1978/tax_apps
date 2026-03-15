@@ -51,6 +51,8 @@ export interface InheritanceCase {
   propertyValue: number;
   referralFeeRate?: number;
   referralFeeAmount?: number;
+  summary?: string;
+  memo?: string;
   // Normalized FK references
   assigneeId?: number | null;
   referrerId?: number | null;

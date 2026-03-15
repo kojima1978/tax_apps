@@ -17,7 +17,7 @@ import { ContactListEditor } from "./ContactListEditor"
 import { BasicInfoSection } from "./BasicInfoSection"
 import { FinancialSection } from "./FinancialSection"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
-import { ListChecks, Phone } from "lucide-react"
+import { ListChecks, Phone, StickyNote } from "lucide-react"
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -81,6 +81,8 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             propertyValue: formData.propertyValue,
             referralFeeRate: formData.referralFeeRate,
             referralFeeAmount: formData.referralFeeAmount,
+            summary: formData.summary || null,
+            memo: formData.memo || null,
             assigneeId: formData.assigneeId || null,
             referrerId: formData.referrerId || null,
             contacts,
@@ -161,6 +163,16 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 <ContactListEditor
                     contacts={toContacts(formData.contacts || [])}
                     onChange={(contacts) => setFormData(prev => ({ ...prev, contacts: toContactItems(contacts) }))}
+                />
+            </CollapsibleSection>
+
+            <CollapsibleSection title="メモ" icon={StickyNote} defaultOpen={!!formData.memo}>
+                <textarea
+                    value={formData.memo || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
+                    placeholder="自由にメモを記載できます"
+                    rows={4}
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px]"
                 />
             </CollapsibleSection>
 

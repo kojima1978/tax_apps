@@ -100,6 +100,23 @@ export function BasicInfoSection({
                     )}
                 </div>
 
+                <div className="space-y-2">
+                    <Label htmlFor="summary">特記事項</Label>
+                    <div className="relative">
+                        <Input
+                            id="summary"
+                            name="summary"
+                            value={formData.summary || ""}
+                            onChange={handleChange}
+                            placeholder="特記事項を入力（10文字以内）"
+                            maxLength={10}
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                            {(formData.summary || "").length}/10
+                        </span>
+                    </div>
+                </div>
+
                 <MasterSelect
                     id="assigneeId"
                     label="担当者"

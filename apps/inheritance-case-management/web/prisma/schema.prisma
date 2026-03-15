@@ -21,6 +21,8 @@ model InheritanceCase {
   propertyValue     Int?     @default(0)
   referralFeeRate   Float?
   referralFeeAmount Int?
+  summary           String?  @db.VarChar(10) // 特記事項（短い概要、最大10文字）
+  memo              String?  @db.Text        // メモ（フリーテキスト）
 
   // Normalized FK references
   assigneeId        Int?

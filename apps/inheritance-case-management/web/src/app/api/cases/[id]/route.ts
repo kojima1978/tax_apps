@@ -49,7 +49,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       const scalarFields = [
         'deceasedName', 'dateOfDeath', 'fiscalYear', 'status', 'acceptanceStatus',
         'taxAmount', 'feeAmount', 'estimateAmount', 'propertyValue',
-        'referralFeeRate', 'referralFeeAmount',
+        'referralFeeRate', 'referralFeeAmount', 'summary', 'memo',
       ] as const;
 
       for (const field of scalarFields) {
