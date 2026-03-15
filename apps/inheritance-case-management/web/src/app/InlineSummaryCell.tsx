@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import type { InheritanceCase } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
+import { MAX_SUMMARY_LENGTH } from "@/types/constants"
 
 export function InlineSummaryCell({ caseData }: { caseData: InheritanceCase }) {
     const [isEditing, setIsEditing] = useState(false)
@@ -44,7 +45,7 @@ export function InlineSummaryCell({ caseData }: { caseData: InheritanceCase }) {
                     ref={inputRef}
                     type="text"
                     value={value}
-                    maxLength={10}
+                    maxLength={MAX_SUMMARY_LENGTH}
                     onChange={(e) => setValue(e.target.value)}
                     onBlur={() => save(value)}
                     onKeyDown={(e) => {
@@ -58,7 +59,7 @@ export function InlineSummaryCell({ caseData }: { caseData: InheritanceCase }) {
                     disabled={isSaving}
                 />
                 <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground">
-                    {value.length}/10
+                    {value.length}/{MAX_SUMMARY_LENGTH}
                 </span>
             </div>
         )

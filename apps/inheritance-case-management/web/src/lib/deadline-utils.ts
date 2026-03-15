@@ -1,8 +1,15 @@
+/** 申告期限 = 相続開始日 + N ヶ月 */
+const DECLARATION_DEADLINE_MONTHS = 10
+/** 赤色警告の閾値（日） */
+const DEADLINE_URGENT_DAYS = 30
+/** 黄色警告の閾値（日） */
+const DEADLINE_WARNING_DAYS = 90
+
 /** 相続開始日から申告期限（10ヶ月後）を計算 */
 export function getDeadlineDate(dateOfDeath: string | Date): Date {
     const death = new Date(dateOfDeath)
     const deadline = new Date(death)
-    deadline.setMonth(deadline.getMonth() + 10)
+    deadline.setMonth(deadline.getMonth() + DECLARATION_DEADLINE_MONTHS)
     return deadline
 }
 
@@ -18,14 +25,14 @@ export function getDeadlineStatus(deadline: Date): { className: string; badge: s
             badgeClassName: "bg-red-100 text-red-700",
         }
     }
-    if (daysLeft <= 30) {
+    if (daysLeft <= DEADLINE_URGENT_DAYS) {
         return {
             className: "text-red-600 font-semibold",
             badge: `残${daysLeft}日`,
             badgeClassName: "bg-red-50 text-red-600",
         }
     }
-    if (daysLeft <= 90) {
+    if (daysLeft <= DEADLINE_WARNING_DAYS) {
         return {
             className: "text-amber-600 font-medium",
             badge: `残${daysLeft}日`,
