@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import type { InheritanceCase, CaseStatus, AcceptanceStatus } from "@/types/shared"
 import { formatCurrency, calcNet } from "@/lib/analytics-utils"
-import { STATUS_STYLES, ACCEPTANCE_STYLES } from "@/types/constants"
+import { STATUS_STYLES, ACCEPTANCE_STYLES, MAX_SUMMARY_LENGTH } from "@/types/constants"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SortableHeader } from "@/components/ui/SortableHeader"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
@@ -115,7 +115,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     },
     {
         accessorKey: "summary",
-        header: () => <span className="inline-flex items-center h-8">特記事項（10文字まで）</span>,
+        header: () => <span className="inline-flex items-center h-8">特記事項（{MAX_SUMMARY_LENGTH}文字まで）</span>,
         cell: ({ row }) => <InlineSummaryCell caseData={row.original} />,
     },
 ]

@@ -9,6 +9,7 @@ import { formatId } from "@/types/shared"
 import {
     FISCAL_YEARS, CASE_STATUS_OPTIONS, ACCEPTANCE_FORM_OPTIONS,
     STATUS_ENABLED_WHEN, ACCEPTANCE_AUTO_STATUS, ACCEPTANCE_HINTS,
+    MAX_SUMMARY_LENGTH,
 } from "@/types/constants"
 
 interface BasicInfoSectionProps {
@@ -101,18 +102,18 @@ export function BasicInfoSection({
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="summary">特記事項（10文字まで）</Label>
+                    <Label htmlFor="summary">特記事項（{MAX_SUMMARY_LENGTH}文字まで）</Label>
                     <div className="relative">
                         <Input
                             id="summary"
                             name="summary"
                             value={formData.summary || ""}
                             onChange={handleChange}
-                            placeholder="特記事項を入力（10文字以内）"
-                            maxLength={10}
+                            placeholder={`特記事項を入力（${MAX_SUMMARY_LENGTH}文字以内）`}
+                            maxLength={MAX_SUMMARY_LENGTH}
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
-                            {(formData.summary || "").length}/10
+                            {(formData.summary || "").length}/{MAX_SUMMARY_LENGTH}
                         </span>
                     </div>
                 </div>

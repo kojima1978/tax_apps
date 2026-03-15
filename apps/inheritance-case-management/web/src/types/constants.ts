@@ -1,5 +1,8 @@
 import type { CaseStatus, AcceptanceStatus } from "./shared"
 
+// Field length limits
+export const MAX_SUMMARY_LENGTH = 10
+
 // Badge styles for status display
 export const STATUS_STYLES: Record<CaseStatus, { dot: string; bg: string; text: string }> = {
     '未着手': { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' },

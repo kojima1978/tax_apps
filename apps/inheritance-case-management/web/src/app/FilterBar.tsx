@@ -51,13 +51,16 @@ export function FilterBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchInput])
 
-    const activeFilters = [
-        queryParams.search && { key: 'search' as const, label: `検索: ${queryParams.search}` },
-        queryParams.status && { key: 'status' as keyof CasesQueryParams, label: `ステータス: ${queryParams.status}` },
-        queryParams.acceptanceStatus && { key: 'acceptanceStatus' as keyof CasesQueryParams, label: `受託: ${queryParams.acceptanceStatus}` },
-        queryParams.fiscalYear && { key: 'fiscalYear' as keyof CasesQueryParams, label: `年度: ${queryParams.fiscalYear}年度` },
-        queryParams.assigneeId && { key: 'assigneeId' as keyof CasesQueryParams, label: `担当: ${assignees.find(a => a.id === queryParams.assigneeId)?.name || queryParams.assigneeId}` },
-    ].filter((f): f is { key: string; label: string } => !!f)
+    const ACTIVE_FILTER_DEFS: { key: keyof CasesQueryParams; label: (v: string | number) => string }[] = [
+        { key: 'search', label: (v) => `検索: ${v}` },
+        { key: 'status', label: (v) => `ステータス: ${v}` },
+        { key: 'acceptanceStatus', label: (v) => `受託: ${v}` },
+        { key: 'fiscalYear', label: (v) => `年度: ${v}年度` },
+        { key: 'assigneeId', label: (v) => `担当: ${assignees.find(a => a.id === v)?.name || v}` },
+    ]
+    const activeFilters = ACTIVE_FILTER_DEFS
+        .filter(({ key }) => queryParams[key])
+        .map(({ key, label }) => ({ key, label: label(queryParams[key] as string | number) }))
 
     return (
         <div className="space-y-3 mb-4">
