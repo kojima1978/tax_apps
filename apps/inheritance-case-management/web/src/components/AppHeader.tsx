@@ -6,7 +6,6 @@ import { Home, List, BarChart3, Settings, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const NAV_LINKS = [
-    { href: "/", label: "案件一覧", icon: List },
     { href: "/analytics", label: "経営分析", icon: BarChart3 },
     { href: "/settings", label: "設定", icon: Settings },
 ] as const
@@ -27,7 +26,18 @@ export function AppHeader() {
                     <a href="/" title="ポータルに戻る" className="text-muted-foreground hover:text-primary transition-colors">
                         <Home className="h-5 w-5" />
                     </a>
-                    <span className="font-bold text-base hidden sm:inline">案件管理</span>
+                    <Link
+                        href="/"
+                        className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                            isActive("/")
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                    >
+                        <List className="h-4 w-4" />
+                        <span className="hidden md:inline">案件一覧</span>
+                    </Link>
                 </div>
 
                 {/* Center: Navigation Links */}

@@ -7,6 +7,8 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { UserPlus } from "lucide-react"
 import type { Contact } from "@/types/shared"
 
+const MAX_CONTACTS = 10
+
 const CONTACT_FIELDS: { key: keyof Contact; label: string; placeholder: string }[] = [
     { key: "name", label: "氏名", placeholder: "氏名" },
     { key: "phone", label: "電話番号", placeholder: "090-0000-0000" },
@@ -37,8 +39,8 @@ export function ContactListEditor({ contacts, onChange }: ContactListEditorProps
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-end">
-                <Button type="button" variant="outline" size="sm" onClick={handleAdd}>
-                    + 追加
+                <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={contacts.length >= MAX_CONTACTS}>
+                    + 追加{contacts.length >= MAX_CONTACTS && `（最大${MAX_CONTACTS}件）`}
                 </Button>
             </div>
             {contacts.map((contact, index) => (
