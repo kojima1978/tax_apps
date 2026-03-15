@@ -167,12 +167,13 @@ Required-documents-for-tax-return/
 │   │   │   ├── AdminMenu.tsx              # 管理メニュー
 │   │   │   ├── CustomerCard.tsx           # 顧客カード
 │   │   │   ├── FormPageLayout.tsx         # フォームページ共通レイアウト
+│   │   │   ├── PageShell.tsx              # ページ共通ラッパー（max-w-7xl）
 │   │   │   ├── Toast.tsx                  # Toast通知
 │   │   │   ├── ListPage.tsx               # 汎用一覧ページ
 │   │   │   ├── FormErrorDisplay.tsx       # フォームエラー表示
 │   │   │   ├── SearchableSelect.tsx       # 検索可能セレクト
 │   │   │   ├── SelectField.tsx            # セレクトフィールド
-│   │   │   ├── SubmitButton.tsx           # 送信ボタン
+│   │   │   ├── SubmitButton.tsx           # 送信ボタン（デフォルトスタイル付き）
 │   │   │   ├── FullScreenLoader.tsx       # 全画面ローダー
 │   │   │   ├── ErrorBoundary.tsx          # エラーハンドリング
 │   │   │   └── document-list/             # 書類リスト関連
