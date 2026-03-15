@@ -14,7 +14,7 @@ const STATUS_TABLES: StatusTableConfig[] = [
         getValues: (d) => [d.acceptanceCounts.accepted, d.acceptanceCounts.rejected, d.acceptanceCounts.undecided],
     },
     {
-        title: "年度別 進行ステータス内訳",
+        title: "年度別 ステータス内訳",
         columns: [{ label: "申告済", highlight: true }, { label: "手続中" }, { label: "未着手" }],
         getValues: (d) => [d.statusCounts.completed, d.statusCounts.ongoing, d.statusCounts.notStarted],
     },

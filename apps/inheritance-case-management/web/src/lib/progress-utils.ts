@@ -1,11 +1,21 @@
-import type { ProgressStep } from '@/types/shared';
+import type { ProgressStep, CaseStatus } from '@/types/shared';
 
-/** 進捗ステップ名定数（ProgressModal, analytics-utils で参照） */
+/** 進捗ステップ名定数（ProgressModal, analytics-utils, edit-case-form で参照） */
 export const STEP_NAMES = {
-  FILING: '申告（済）',
-  BILLING: '請求（済）',
-  PAYMENT: '入金（済）',
+  FILING: '申告済',
+  BILLING: '請求済',
+  PAYMENT: '入金済',
 } as const;
+
+/** ステータスと進捗ステップの対応マッピング（整合性チェック・自動変更提案で使用） */
+export const STATUS_STEP_MAP: { status: CaseStatus; stepName: string }[] = [
+  { status: '申告済', stepName: STEP_NAMES.FILING },
+  { status: '請求済', stepName: STEP_NAMES.BILLING },
+  { status: '入金済', stepName: STEP_NAMES.PAYMENT },
+];
+
+/** ステータスの進行順（整合性チェックで使用） */
+export const STATUS_ORDER: readonly CaseStatus[] = ['未着手', '手続中', '申告済', '請求済', '入金済'] as const;
 
 /** 新規案件の初期進捗ステップ */
 export const DEFAULT_PROGRESS_STEPS: readonly ProgressStep[] = [
