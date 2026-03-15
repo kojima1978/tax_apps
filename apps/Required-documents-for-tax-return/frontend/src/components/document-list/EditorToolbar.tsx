@@ -123,7 +123,7 @@ export function EditorToolbar({
 
   return (
     <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm no-print">
-      <div className="max-w-4xl mx-auto px-4 py-3">
+      <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center">
             <a

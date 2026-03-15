@@ -62,7 +62,7 @@ export default function ListPage<T extends { id: number }>({
 
     return (
         <div className="min-h-screen bg-slate-50 p-8">
-            <div className="max-w-2xl mx-auto">
+            <div className="max-w-7xl mx-auto">
                 <header className="mb-8 flex items-center justify-between">
                     <div className="flex items-center">
                         <Link to={backHref} className="mr-4 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all">
