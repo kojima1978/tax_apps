@@ -25,7 +25,7 @@ export function FormPageLayout({
 }: FormPageLayoutProps) {
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 transition-colors">
-      <div className="max-w-xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <div className="flex items-center mb-2">
             <Link to={backTo} className="mr-3 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all group">

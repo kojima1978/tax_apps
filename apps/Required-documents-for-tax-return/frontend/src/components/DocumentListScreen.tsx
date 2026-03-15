@@ -177,7 +177,7 @@ export default function DocumentListScreen({
         staffMobile={currentStaffMobile}
       />
 
-      <div className="max-w-4xl mx-auto px-4 py-8 pb-32 print:p-0 print:pb-0">
+      <div className="max-w-7xl mx-auto px-4 py-8 pb-32 print:p-0 print:pb-0">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
