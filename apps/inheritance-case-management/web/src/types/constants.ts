@@ -6,8 +6,9 @@ export const MAX_SUMMARY_LENGTH = 10
 // Badge styles for status display
 export const STATUS_STYLES: Record<CaseStatus, { dot: string; bg: string; text: string }> = {
     '未着手': { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' },
-    '進行中': { dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
-    '完了（税務申告済）': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
+    '手続中': { dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
+    '申告済': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
+    '請求済': { dot: 'bg-orange-500', bg: 'bg-orange-50', text: 'text-orange-700' },
     '入金済': { dot: 'bg-purple-500', bg: 'bg-purple-50', text: 'text-purple-700' },
     '対応終了': { dot: 'bg-red-400', bg: 'bg-red-50', text: 'text-red-600' },
 }
@@ -20,7 +21,7 @@ export const ACCEPTANCE_STYLES: Record<AcceptanceStatus, { dot: string; bg: stri
 }
 
 // Status options for filters and selects
-export const CASE_STATUS_OPTIONS: readonly CaseStatus[] = ["未着手", "進行中", "完了（税務申告済）", "入金済", "対応終了"] as const
+export const CASE_STATUS_OPTIONS: readonly CaseStatus[] = ["未着手", "手続中", "申告済", "請求済", "入金済", "対応終了"] as const
 export const ACCEPTANCE_STATUS_OPTIONS: readonly AcceptanceStatus[] = ["受託可", "受託不可", "未判定", "保留"] as const
 
 // Form-specific ordering (default value first)
@@ -29,8 +30,9 @@ export const ACCEPTANCE_FORM_OPTIONS: readonly AcceptanceStatus[] = ["未判定"
 // Which acceptance statuses enable each case status in the form
 export const STATUS_ENABLED_WHEN: Record<CaseStatus, readonly AcceptanceStatus[]> = {
     '未着手': ['未判定', '受託可', '保留'],
-    '進行中': ['受託可'],
-    '完了（税務申告済）': ['受託可'],
+    '手続中': ['受託可'],
+    '申告済': ['受託可'],
+    '請求済': ['受託可'],
     '入金済': ['受託可'],
     '対応終了': ['受託不可'],
 }
@@ -44,14 +46,14 @@ export const ACCEPTANCE_AUTO_STATUS: Partial<Record<AcceptanceStatus, CaseStatus
 
 // Hint messages for restricted status options
 export const ACCEPTANCE_HINTS: Partial<Record<AcceptanceStatus, string>> = {
-    '未判定': '「進行中」「完了（税務申告済）」を選択するには、受託を「受託可」または「受託不可」に変更してください',
-    '受託不可': '受託不可のため「進行」は自動的に「対応終了」に設定されます',
-    '保留': '保留中のため「進行中」「完了（税務申告済）」「入金済」を選択するには、受託を変更してください',
+    '未判定': '「手続中」「申告済」を選択するには、受託を「受託可」または「受託不可」に変更してください',
+    '受託不可': '受託不可のため自動的に「対応終了」に設定されます',
+    '保留': '保留中のため「手続中」「申告済」「入金済」を選択するには、受託を変更してください',
 }
 
 // Status category helpers — used by KPI, analytics, deadline, columns
 /** 申告完了済みステータス（期限チェック不要・売上確定） */
-export const COMPLETED_STATUSES: readonly CaseStatus[] = ['完了（税務申告済）', '入金済'] as const
+export const COMPLETED_STATUSES: readonly CaseStatus[] = ['申告済', '請求済', '入金済'] as const
 /** 期限チェック対象外ステータス（完了系 + 対応終了） */
 export const DEADLINE_SKIP_STATUSES: readonly CaseStatus[] = [...COMPLETED_STATUSES, '対応終了'] as const
 /** ステータス判定ヘルパー */

@@ -4,16 +4,20 @@ import { useEffect, useState, useMemo } from "react"
 import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
 import type { InheritanceCase } from "@/types/shared"
-import { calcNet, aggregateCases } from "@/lib/analytics-utils"
+import { calcNet, aggregateCases, computeRollingAnnual } from "@/lib/analytics-utils"
+import { isCompleted } from "@/types/constants"
 import { SelectField } from "@/components/ui/SelectField"
 import { OverviewTab } from "./OverviewTab"
 import { BreakdownTab } from "./BreakdownTab"
 import { ReferrerTab } from "./ReferrerTab"
+import dynamic from "next/dynamic"
+const AnnualTrendTab = dynamic(() => import("./AnnualTrendTab").then(m => m.AnnualTrendTab), { ssr: false })
 
-type TabId = "overview" | "breakdown" | "referrer"
+type TabId = "overview" | "trend" | "breakdown" | "referrer"
 
 const TABS: { id: TabId; label: string }[] = [
-    { id: "overview", label: "経営概況" },
+    { id: "overview", label: "売上・件数" },
+    { id: "trend", label: "年計表" },
     { id: "breakdown", label: "部門・担当者" },
     { id: "referrer", label: "紹介者" },
 ]
@@ -21,7 +25,7 @@ const TABS: { id: TabId; label: string }[] = [
 export default function AnalyticsPage() {
     const [data, setData] = useState<InheritanceCase[]>([])
     const [deptMap, setDeptMap] = useState<Map<string, string>>(new Map())
-    const [selectedYear, setSelectedYear] = useState<string>("all")
+    const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
     const [activeTab, setActiveTab] = useState<TabId>("overview")
     const [years, setYears] = useState<number[]>([])
     const [referrerSort, setReferrerSort] = useState<{ col: "feeTotal" | "count" | "name"; desc: boolean }>({ col: "count", desc: true })
@@ -37,7 +41,7 @@ export default function AnalyticsPage() {
                 assignees.forEach(a => map.set(a.name, a.department || ""))
                 setDeptMap(map)
 
-                const uniqueYears = Array.from(new Set(cases.map(c => c.fiscalYear))).sort((a, b) => a - b)
+                const uniqueYears = Array.from(new Set(cases.map(c => c.fiscalYear))).sort((a, b) => b - a)
                 setYears(uniqueYears)
             } catch (error) {
                 console.error("Failed to load analytics data:", error)
@@ -56,10 +60,12 @@ export default function AnalyticsPage() {
         [filteredData, deptMap]
     )
 
+    const rollingAnnualData = useMemo(() => computeRollingAnnual(data), [data])
+
     const summaryTotals = useMemo(() => {
         const acceptedCases = filteredData.filter(c => c.acceptanceStatus === "受託可")
-        const completedCases = acceptedCases.filter(c => c.status === "完了（税務申告済）")
-        const ongoingCases = acceptedCases.filter(c => c.status === "進行中")
+        const completedCases = acceptedCases.filter(c => isCompleted(c.status))
+        const ongoingCases = acceptedCases.filter(c => c.status === "手続中")
 
         const salesTotalNet = completedCases.reduce((sum, c) => sum + calcNet(c, "fee"), 0)
         const salesTotalGross = completedCases.reduce((sum, c) => sum + (c.feeAmount || 0), 0)
@@ -141,6 +147,10 @@ export default function AnalyticsPage() {
                     annualData={aggregation.annualData}
                     selectedYear={selectedYear}
                 />
+            )}
+
+            {activeTab === "trend" && (
+                <AnnualTrendTab data={rollingAnnualData} />
             )}
 
             {activeTab === "breakdown" && (

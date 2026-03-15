@@ -15,7 +15,7 @@ const STATUS_TABLES: StatusTableConfig[] = [
     },
     {
         title: "年度別 進行ステータス内訳",
-        columns: [{ label: "完了（税務申告済）", highlight: true }, { label: "手続中" }, { label: "未着手" }],
+        columns: [{ label: "申告済", highlight: true }, { label: "手続中" }, { label: "未着手" }],
         getValues: (d) => [d.statusCounts.completed, d.statusCounts.ongoing, d.statusCounts.notStarted],
     },
 ]
@@ -31,9 +31,9 @@ interface SummaryCardDef {
 }
 
 const SUMMARY_CARDS: SummaryCardDef[] = [
-    { title: "事業総額 (売上 + 見込)", badge: "手取り実額", badgeClass: "bg-primary/10 text-primary", cardClass: "bg-white border-2 border-primary/20", valueClass: "text-3xl font-bold text-primary", hasIcon: true, footnote: "※請求総額" },
-    { title: "売上実績 (完了案件)", badge: "手取り実額", badgeClass: "bg-muted text-foreground", cardClass: "bg-card border", valueClass: "text-2xl font-bold", hasIcon: false, footnote: "※請求総額" },
-    { title: "見込額 (進行中のみ)", badge: "予測実額", badgeClass: "bg-muted text-foreground", cardClass: "bg-card border", valueClass: "text-2xl font-bold", hasIcon: false, footnote: "※見積総額" },
+    { title: "売上（確定＋見積）", badge: "", badgeClass: "", cardClass: "bg-white border-2 border-primary/20", valueClass: "text-3xl font-bold text-primary", hasIcon: true, footnote: "※請求総額" },
+    { title: "売上（確定）", badge: "", badgeClass: "", cardClass: "bg-card border", valueClass: "text-2xl font-bold", hasIcon: false, footnote: "※請求総額" },
+    { title: "売上（見積）", badge: "", badgeClass: "", cardClass: "bg-card border", valueClass: "text-2xl font-bold", hasIcon: false, footnote: "※見積総額" },
 ]
 
 interface SummaryTotals {
@@ -51,10 +51,10 @@ interface OverviewTabProps {
 export function OverviewTab({ summaryTotals, annualData, selectedYear }: OverviewTabProps) {
     const { grandTotalNet, grandTotalGross, grandCount, salesTotalNet, salesTotalGross, salesCount, estimateTotalNet, estimateTotalGross, estimateCount } = summaryTotals
 
-    const cardData: { net: number; count: number; gross: number }[] = [
-        { net: grandTotalNet, count: grandCount, gross: grandTotalGross },
-        { net: salesTotalNet, count: salesCount, gross: salesTotalGross },
-        { net: estimateTotalNet, count: estimateCount, gross: estimateTotalGross },
+    const cardData: { net: number; count: number; gross: number; referralFee: number }[] = [
+        { net: grandTotalNet, count: grandCount, gross: grandTotalGross, referralFee: grandTotalGross - grandTotalNet },
+        { net: salesTotalNet, count: salesCount, gross: salesTotalGross, referralFee: salesTotalGross - salesTotalNet },
+        { net: estimateTotalNet, count: estimateCount, gross: estimateTotalGross, referralFee: estimateTotalGross - estimateTotalNet },
     ]
 
     return (
@@ -68,12 +68,14 @@ export function OverviewTab({ summaryTotals, annualData, selectedYear }: Overvie
                                 <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
                             </div>
                         )}
-                        <div className="text-sm font-medium text-muted-foreground mb-2">{card.title} <span className={`text-xs ${card.badgeClass} px-1 rounded`}>{card.badge}</span></div>
+                        <div className="text-sm font-medium text-muted-foreground mb-2">{card.title}{card.badge && <span className={`ml-1 text-xs ${card.badgeClass} px-1 rounded`}>{card.badge}</span>}</div>
                         <div className="flex items-baseline gap-2">
                             <div className={card.valueClass}>{formatCurrency(cardData[i].net)}</div>
                             <div className="text-sm text-muted-foreground">/ {cardData[i].count} 件</div>
                         </div>
-                        <div className="mt-2 text-xs text-muted-foreground">{card.footnote}: {formatCurrency(cardData[i].gross)}</div>
+                        <div className="mt-2 text-xs text-muted-foreground">
+                            {card.footnote}: {formatCurrency(cardData[i].gross)} − 紹介手数料 {formatCurrency(cardData[i].referralFee)}
+                        </div>
                     </div>
                 ))}
             </div>
@@ -88,9 +90,10 @@ export function OverviewTab({ summaryTotals, annualData, selectedYear }: Overvie
                         <thead className="bg-muted text-muted-foreground font-medium">
                             <tr>
                                 <th className="p-3 w-32">年度</th>
-                                <th className="p-3 text-right">売上実績 (手取り実額)</th>
-                                <th className="p-3 text-right">見込額 (手取り実額)</th>
-                                <th className="p-3 text-center">件数（完了＋手続中）</th>
+                                <th className="p-3 text-right">売上（確定＋見積）</th>
+                                <th className="p-3 text-right">売上（確定）</th>
+                                <th className="p-3 text-right">売上（見積）</th>
+                                <th className="p-3 text-center">件数（売上＋見積）</th>
                                 <th className="p-3 text-right">平均単価</th>
                             </tr>
                         </thead>
@@ -98,7 +101,8 @@ export function OverviewTab({ summaryTotals, annualData, selectedYear }: Overvie
                             {annualData.map(d => (
                                 <tr key={d.year}>
                                     <td className="p-3 font-medium">{d.year}年度</td>
-                                    <td className="p-3 text-right font-bold text-base">{formatCurrency(d.feeTotal)}</td>
+                                    <td className="p-3 text-right font-bold text-base">{formatCurrency(d.feeTotal + d.estimateTotal)}</td>
+                                    <td className="p-3 text-right">{formatCurrency(d.feeTotal)}</td>
                                     <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.estimateTotal)}</td>
                                     <td className="p-3 text-center">{d.count}件</td>
                                     <td className="p-3 text-right">{formatCurrency(d.count > 0 ? (d.feeTotal + d.estimateTotal) / d.count : 0)}</td>

@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
-import { Search, X, Filter } from "lucide-react"
+import { Search, X, Filter, ChevronDown } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { CASE_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, SORT_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
 import type { Assignee } from "@/types/shared"
@@ -11,7 +11,7 @@ import { DEPARTMENTS } from "@/types/shared"
 
 const FILTER_SELECT_WRAPPER = "h-10 w-auto"
 
-type FilterDef = { key: keyof CasesQueryParams; placeholder: string; options: readonly { value: string | number; label: string }[] }
+type FilterDef = { key: keyof CasesQueryParams; placeholder: string; options: readonly { value: string | number; label: string }[]; multiSelect?: boolean }
 type SortField = 'deceasedName' | 'dateOfDeath' | 'fiscalYear' | 'status' | 'taxAmount' | 'feeAmount' | 'createdAt' | 'updatedAt'
 type SortOrder = 'asc' | 'desc'
 
@@ -31,10 +31,82 @@ interface FilterBarProps {
 // Static filter definitions
 const STATIC_FILTER_DEFS: FilterDef[] = [
     { key: "fiscalYear", placeholder: "年度", options: FILTER_YEAR_OPTIONS.map(y => ({ value: y, label: `${y}年度` })) },
-    { key: "acceptanceStatus", placeholder: "受託状況", options: ACCEPTANCE_STATUS_FILTER_OPTIONS },
-    { key: "status", placeholder: "進行", options: CASE_STATUS_FILTER_OPTIONS },
+    { key: "acceptanceStatus", placeholder: "受託状況", options: ACCEPTANCE_STATUS_FILTER_OPTIONS, multiSelect: true },
+    { key: "status", placeholder: "ステータス", options: CASE_STATUS_FILTER_OPTIONS, multiSelect: true },
     { key: "department", placeholder: "部門", options: DEPARTMENTS.map(d => ({ value: d, label: d })) },
 ]
+
+/** チェックボックス式の複数選択ドロップダウン */
+function MultiSelectDropdown({ placeholder, options, selected, onChange }: {
+    placeholder: string
+    options: readonly { value: string | number; label: string }[]
+    selected: Set<string>
+    onChange: (values: Set<string>) => void
+}) {
+    const [open, setOpen] = useState(false)
+    const ref = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+        }
+        document.addEventListener("mousedown", handler)
+        return () => document.removeEventListener("mousedown", handler)
+    }, [])
+
+    const toggle = (val: string) => {
+        const next = new Set(selected)
+        if (next.has(val)) next.delete(val); else next.add(val)
+        onChange(next)
+    }
+
+    const label = selected.size === 0
+        ? placeholder
+        : selected.size === 1
+            ? options.find(o => selected.has(String(o.value)))?.label || placeholder
+            : `${placeholder}(${selected.size})`
+
+    return (
+        <div ref={ref} className="relative">
+            <button
+                type="button"
+                onClick={() => setOpen(!open)}
+                className={`h-10 px-3 text-sm border rounded-md bg-background flex items-center gap-1.5 min-w-[100px] ${selected.size > 0 ? "border-primary text-foreground" : "text-muted-foreground"}`}
+            >
+                <span className="truncate">{label}</span>
+                <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+            </button>
+            {open && (
+                <div className="absolute z-50 mt-1 bg-white border rounded-md shadow-md py-1 min-w-[180px]">
+                    {options.map(({ value, label: optLabel }) => {
+                        const val = String(value)
+                        const checked = selected.has(val)
+                        return (
+                            <label key={val} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggle(val)}
+                                    className="h-4 w-4 rounded border-2 border-gray-400 accent-primary bg-white appearance-auto"
+                                />
+                                {optLabel}
+                            </label>
+                        )
+                    })}
+                    {selected.size > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => onChange(new Set())}
+                            className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 border-t"
+                        >
+                            クリア
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
+    )
+}
 
 export function FilterBar({
     queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onSortChange, onClearAll, assignees, totalCount, hasFilters,
@@ -61,7 +133,7 @@ export function FilterBar({
 
     const CHIP_LABELS: Record<string, (v: string | number) => string> = {
         search: (v) => `検索: ${v}`,
-        status: (v) => `進行: ${v}`,
+        status: (v) => `ステータス: ${v}`,
         acceptanceStatus: (v) => `受託: ${v}`,
         fiscalYear: (v) => `年度: ${v}年度`,
         department: (v) => `部門: ${v}`,
@@ -122,20 +194,35 @@ export function FilterBar({
             )}
 
             {/* Row 2: フィルター + ソート */}
-            <div className="flex gap-2 flex-wrap">
-                {filterDefs.map(({ key, placeholder, options }) => (
-                    <SelectField
-                        key={key}
-                        wrapperClassName={FILTER_SELECT_WRAPPER}
-                        value={queryParams[key] || ""}
-                        onChange={(e) => onFilterChange(key, e.target.value || undefined)}
-                    >
-                        <option value="">{placeholder}</option>
-                        {options.map(({ value, label }) => (
-                            <option key={String(value)} value={value}>{label}</option>
-                        ))}
-                    </SelectField>
-                ))}
+            <div className="flex gap-2 flex-wrap items-center">
+                {filterDefs.map(({ key, placeholder, options, multiSelect }) => {
+                    if (multiSelect) {
+                        const raw = queryParams[key] as string | undefined
+                        const selected = new Set(raw ? raw.split(',') : [])
+                        return (
+                            <MultiSelectDropdown
+                                key={key}
+                                placeholder={placeholder}
+                                options={options}
+                                selected={selected}
+                                onChange={(vals) => onFilterChange(key, vals.size > 0 ? Array.from(vals).join(',') : undefined)}
+                            />
+                        )
+                    }
+                    return (
+                        <SelectField
+                            key={key}
+                            wrapperClassName={FILTER_SELECT_WRAPPER}
+                            value={queryParams[key] || ""}
+                            onChange={(e) => onFilterChange(key, e.target.value || undefined)}
+                        >
+                            <option value="">{placeholder}</option>
+                            {options.map(({ value, label }) => (
+                                <option key={String(value)} value={value}>{label}</option>
+                            ))}
+                        </SelectField>
+                    )
+                })}
                 <SelectField
                     wrapperClassName={FILTER_SELECT_WRAPPER}
                     value={`${queryParams.sortBy || 'createdAt'}_${queryParams.sortOrder || 'desc'}`}

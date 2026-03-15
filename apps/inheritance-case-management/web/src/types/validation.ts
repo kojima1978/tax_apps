@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { MAX_SUMMARY_LENGTH } from './constants';
 
 // Status Schemas (internal - used by createCaseSchema/listQuerySchema)
-const caseStatusSchema = z.enum(['未着手', '進行中', '完了（税務申告済）', '入金済', '対応終了']);
+const caseStatusSchema = z.enum(['未着手', '手続中', '申告済', '請求済', '入金済', '対応終了']);
 const acceptanceStatusSchema = z.enum(['受託可', '受託不可', '未判定', '保留']);
 
 // Contact Schema (internal - used by createCaseSchema)
@@ -88,8 +88,8 @@ const sortOrderSchema = z.enum(['asc', 'desc']);
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(30),
-  status: caseStatusSchema.optional(),
-  acceptanceStatus: acceptanceStatusSchema.optional(),
+  status: z.string().optional(),
+  acceptanceStatus: z.string().optional(),
   fiscalYear: z.coerce.number().int().optional(),
   search: z.string().optional(),
   assigneeId: z.coerce.number().int().optional(),

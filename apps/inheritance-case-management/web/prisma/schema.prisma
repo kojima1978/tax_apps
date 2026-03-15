@@ -12,7 +12,7 @@ model InheritanceCase {
   id                Int      @id @default(autoincrement())
   deceasedName      String
   dateOfDeath       String
-  status            String   @default("未着手") // "未着手" | "進行中" | "完了（税務申告済）" | "入金済" | "対応終了"
+  status            String   @default("未着手") // "未着手" | "進行中" | "申告済" | "入金済" | "対応終了"
   acceptanceStatus  String?  @default("未判定") // "受託可" | "受託不可" | "未判定" | "保留"
   taxAmount         Int?     @default(0)
   feeAmount         Int?     @default(0)

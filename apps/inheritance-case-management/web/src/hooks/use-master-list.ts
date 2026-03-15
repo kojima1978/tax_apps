@@ -213,9 +213,15 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
         })
     }, [items, sortField, sortOrder, showInactive])
 
+    /** 指定IDのアイテムを一括更新する（会社名一括変更等） */
+    const updateItems = useCallback((updater: (items: T[]) => T[]) => {
+        setItems(updater)
+    }, [])
+
     return {
         items,
         filteredAndSortedItems,
+        updateItems,
         isDirty,
         isSaving,
         isLoading,

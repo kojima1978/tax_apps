@@ -1,5 +1,12 @@
 import type { ProgressStep } from '@/types/shared';
 
+/** 進捗ステップ名定数（ProgressModal, analytics-utils で参照） */
+export const STEP_NAMES = {
+  FILING: '申告（済）',
+  BILLING: '請求（済）',
+  PAYMENT: '入金（済）',
+} as const;
+
 /** 新規案件の初期進捗ステップ */
 export const DEFAULT_PROGRESS_STEPS: readonly ProgressStep[] = [
   { id: "step-1", name: "初回連絡", date: null },
@@ -7,9 +14,9 @@ export const DEFAULT_PROGRESS_STEPS: readonly ProgressStep[] = [
   { id: "step-3", name: "2回目訪問", date: null },
   { id: "step-8", name: "最終チェック完了", date: null },
   { id: "step-4", name: "遺産分割（済）", date: null },
-  { id: "step-5", name: "申告（済）", date: null },
-  { id: "step-6", name: "請求（済）", date: null },
-  { id: "step-7", name: "入金確認", date: null },
+  { id: "step-5", name: STEP_NAMES.FILING, date: null },
+  { id: "step-6", name: STEP_NAMES.BILLING, date: null },
+  { id: "step-7", name: STEP_NAMES.PAYMENT, date: null },
 ] as const;
 
 /**

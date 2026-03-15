@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
     const where: Prisma.InheritanceCaseWhereInput = {};
 
     if (status) {
-      where.status = status;
+      where.status = status.includes(',') ? { in: status.split(',') } : status;
     }
     if (acceptanceStatus) {
-      where.acceptanceStatus = acceptanceStatus;
+      where.acceptanceStatus = acceptanceStatus.includes(',') ? { in: acceptanceStatus.split(',') } : acceptanceStatus;
     }
     if (fiscalYear) {
       where.fiscalYear = fiscalYear;

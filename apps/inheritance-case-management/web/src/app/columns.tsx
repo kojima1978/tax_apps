@@ -78,7 +78,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     },
     {
         accessorKey: "status",
-        header: ({ column }) => <SortableHeader column={column}>進行</SortableHeader>,
+        header: ({ column }) => <SortableHeader column={column}>ステータス</SortableHeader>,
         cell: ({ row }) => {
             const status = row.getValue("status") as CaseStatus
             return <StatusBadge label={status} style={STATUS_STYLES[status]} />
