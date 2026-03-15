@@ -9,7 +9,7 @@ import { CASE_INCLUDE, toContactCreateData, toProgressCreateData } from '@/lib/p
 export async function GET(request: NextRequest) {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const { page, pageSize, status, acceptanceStatus, fiscalYear, search, assigneeId, sortBy, sortOrder } =
+    const { page, pageSize, status, acceptanceStatus, fiscalYear, search, assigneeId, department, sortBy, sortOrder } =
       listQuerySchema.parse(searchParams);
 
     // Build where clause for filtering
@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
     }
     if (assigneeId) {
       where.assigneeId = assigneeId;
+    }
+    if (department) {
+      where.assignee = { department };
     }
 
     // ページネーション用のカウントとデータ取得を並列実行

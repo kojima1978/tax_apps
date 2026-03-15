@@ -15,7 +15,7 @@ const STATUS_TABLES: StatusTableConfig[] = [
     },
     {
         title: "年度別 進行ステータス内訳",
-        columns: [{ label: "完了", highlight: true }, { label: "手続中" }, { label: "未着手" }],
+        columns: [{ label: "完了（税務申告済）", highlight: true }, { label: "手続中" }, { label: "未着手" }],
         getValues: (d) => [d.statusCounts.completed, d.statusCounts.ongoing, d.statusCounts.notStarted],
     },
 ]

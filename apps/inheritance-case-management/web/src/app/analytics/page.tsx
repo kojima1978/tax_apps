@@ -25,6 +25,7 @@ export default function AnalyticsPage() {
     const [activeTab, setActiveTab] = useState<TabId>("overview")
     const [years, setYears] = useState<number[]>([])
     const [referrerSort, setReferrerSort] = useState<{ col: "feeTotal" | "count" | "name"; desc: boolean }>({ col: "count", desc: true })
+    const [companySort, setCompanySort] = useState<{ col: "feeTotal" | "count" | "name"; desc: boolean }>({ col: "count", desc: true })
 
     useEffect(() => {
         const load = async () => {
@@ -57,7 +58,7 @@ export default function AnalyticsPage() {
 
     const summaryTotals = useMemo(() => {
         const acceptedCases = filteredData.filter(c => c.acceptanceStatus === "受託可")
-        const completedCases = acceptedCases.filter(c => c.status === "完了")
+        const completedCases = acceptedCases.filter(c => c.status === "完了（税務申告済）")
         const ongoingCases = acceptedCases.filter(c => c.status === "進行中")
 
         const salesTotalNet = completedCases.reduce((sum, c) => sum + calcNet(c, "fee"), 0)
@@ -82,8 +83,23 @@ export default function AnalyticsPage() {
         })
     }, [aggregation.referrerRanking, referrerSort])
 
+    const sortedCompanyRanking = useMemo(() => {
+        return [...aggregation.companyRanking].sort((a, b) => {
+            const { col, desc } = companySort
+            const res = col === "name" ? a.name.localeCompare(b.name, "ja") : a[col] - b[col]
+            return desc ? -res : res
+        })
+    }, [aggregation.companyRanking, companySort])
+
     const handleReferrerSort = (col: string) => {
         setReferrerSort(prev => ({
+            col: col as "feeTotal" | "count" | "name",
+            desc: prev.col === col ? !prev.desc : true,
+        }))
+    }
+
+    const handleCompanySort = (col: string) => {
+        setCompanySort(prev => ({
             col: col as "feeTotal" | "count" | "name",
             desc: prev.col === col ? !prev.desc : true,
         }))
@@ -139,6 +155,9 @@ export default function AnalyticsPage() {
                     sortedReferrerRanking={sortedReferrerRanking}
                     referrerSort={referrerSort}
                     onSort={handleReferrerSort}
+                    sortedCompanyRanking={sortedCompanyRanking}
+                    companySort={companySort}
+                    onCompanySort={handleCompanySort}
                 />
             )}
         </div>

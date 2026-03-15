@@ -10,6 +10,7 @@ import { getAllCases } from "@/lib/api/cases"
 import type { InheritanceCase, Assignee } from "@/types/shared"
 import { getAssignees } from "@/lib/api/assignees"
 import { computeKPI } from "@/lib/kpi-utils"
+import { FILTER_KEYS } from "@/types/constants"
 import { Button } from "@/components/ui/Button"
 import { RefreshCw, Download, Upload } from "lucide-react"
 import { TableSkeleton } from "@/components/ui/Skeleton"
@@ -38,10 +39,14 @@ export default function InheritanceMockupPage() {
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
     const [assignees, setAssignees] = useState<Assignee[]>([])
     const dataVersion = data?.pagination?.total
+    const kpiFilters = Object.fromEntries(FILTER_KEYS.filter(k => queryParams[k]).map(k => [k, queryParams[k]]))
+    const kpiDepsKey = JSON.stringify(kpiFilters)
+    const refreshKPI = () => getAllCases(Object.keys(kpiFilters).length > 0 ? kpiFilters : undefined).then(setAllCases).catch(() => {})
     useEffect(() => {
-        getAllCases().then(setAllCases).catch(() => {})
+        refreshKPI()
         getAssignees().then(setAssignees).catch(() => {})
-    }, [dataVersion])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataVersion, kpiDepsKey])
 
     const kpiData = useMemo(() => computeKPI(allCases), [allCases])
 
@@ -63,7 +68,7 @@ export default function InheritanceMockupPage() {
         setSearchInput("")
     }
 
-    const hasFilters = !!(queryParams.search || queryParams.status || queryParams.acceptanceStatus || queryParams.fiscalYear || queryParams.assigneeId)
+    const hasFilters = FILTER_KEYS.some(k => queryParams[k])
 
     return (
         <div className="container mx-auto py-10 px-4">
@@ -149,7 +154,7 @@ export default function InheritanceMockupPage() {
                 onClose={() => setShowImportModal(false)}
                 onImportComplete={() => {
                     refetch()
-                    getAllCases().then(setAllCases).catch(() => {})
+                    refreshKPI()
                 }}
             />
         </div>

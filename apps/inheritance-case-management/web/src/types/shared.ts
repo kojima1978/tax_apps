@@ -1,5 +1,5 @@
 // Case Status Types
-export type CaseStatus = '未着手' | '進行中' | '完了' | '請求済';
+export type CaseStatus = '未着手' | '進行中' | '完了（税務申告済）' | '入金済' | '対応終了';
 export type AcceptanceStatus = '受託可' | '受託不可' | '未判定' | '保留';
 
 // Progress Step (input shape for API — used by editors)

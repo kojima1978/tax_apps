@@ -1,4 +1,5 @@
 import type { InheritanceCase } from "@/types/shared"
+import { isCompleted } from "@/types/constants"
 
 export type AnnualData = {
     year: number
@@ -20,6 +21,7 @@ export type AggregationResult = {
     assigneeRanking: RankingData[]
     departmentTotals: RankingData[]
     referrerRanking: RankingData[]
+    companyRanking: RankingData[]
 }
 
 export function calcNet(c: InheritanceCase, baseType: "fee" | "estimate"): number {
@@ -39,11 +41,19 @@ export function formatCurrency(amount: number): string {
     return currencyFormatter.format(amount)
 }
 
+function accumulateRanking(map: Map<string, RankingData>, key: string, fee: number) {
+    if (!map.has(key)) map.set(key, { name: key, feeTotal: 0, count: 0 })
+    const d = map.get(key)!
+    d.feeTotal += fee
+    d.count++
+}
+
 export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, string>): AggregationResult {
     const annualMap = new Map<number, AnnualData>()
     const assigneeMap = new Map<string, RankingData>()
     const deptRankingMap = new Map<string, RankingData>()
     const referrerMap = new Map<string, RankingData>()
+    const companyMap = new Map<string, RankingData>()
 
     cases.forEach(c => {
         const year = c.fiscalYear
@@ -60,7 +70,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         const annual = annualMap.get(year)!
 
         if (c.acceptanceStatus === "受託可") {
-            if (c.status === "完了") {
+            if (isCompleted(c.status)) {
                 annual.feeTotal += calcNet(c, "fee")
                 annual.count++
             } else if (c.status === "進行中") {
@@ -70,7 +80,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         }
 
         if (c.acceptanceStatus === "受託可") {
-            if (c.status === "完了") annual.statusCounts.completed++
+            if (isCompleted(c.status)) annual.statusCounts.completed++
             else if (c.status === "進行中") annual.statusCounts.ongoing++
             else if (c.status === "未着手") annual.statusCounts.notStarted++
         }
@@ -80,40 +90,19 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         else if (acceptance === "受託不可") annual.acceptanceCounts.rejected++
         else annual.acceptanceCounts.undecided++
 
-        // Assignee ranking
-        const assignee = c.assignee?.name || "未設定"
-        if (!assigneeMap.has(assignee)) {
-            assigneeMap.set(assignee, { name: assignee, feeTotal: 0, count: 0 })
-        }
-        const aData = assigneeMap.get(assignee)!
-
+        // Net amount for rankings
         let netAmount = 0
-        if (c.status === "完了") {
+        if (isCompleted(c.status)) {
             netAmount = calcNet(c, "fee")
         } else if (c.status === "進行中" && c.acceptanceStatus === "受託可") {
             netAmount = calcNet(c, "estimate")
         }
 
-        aData.feeTotal += netAmount
-        aData.count++
-
-        // Referrer
-        const referrer = c.referrer ? `${c.referrer.company} / ${c.referrer.name}` : "なし"
-        if (!referrerMap.has(referrer)) {
-            referrerMap.set(referrer, { name: referrer, feeTotal: 0, count: 0 })
-        }
-        const rData = referrerMap.get(referrer)!
-        rData.feeTotal += (c.referralFeeAmount || 0)
-        rData.count++
-
-        // Department
-        const dept = deptMap.get(c.assignee?.name || "") || "未設定"
-        if (!deptRankingMap.has(dept)) {
-            deptRankingMap.set(dept, { name: dept, feeTotal: 0, count: 0 })
-        }
-        const dData = deptRankingMap.get(dept)!
-        dData.feeTotal += netAmount
-        dData.count++
+        // Rankings
+        accumulateRanking(assigneeMap, c.assignee?.name || "未設定", netAmount)
+        accumulateRanking(referrerMap, c.referrer ? `${c.referrer.company} / ${c.referrer.name}` : "なし", c.referralFeeAmount || 0)
+        accumulateRanking(companyMap, c.referrer?.company || "なし", c.referralFeeAmount || 0)
+        accumulateRanking(deptRankingMap, deptMap.get(c.assignee?.name || "") || "未設定", netAmount)
     })
 
     return {
@@ -121,5 +110,6 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         assigneeRanking: Array.from(assigneeMap.values()).sort((a, b) => b.feeTotal - a.feeTotal),
         departmentTotals: Array.from(deptRankingMap.values()).sort((a, b) => b.feeTotal - a.feeTotal),
         referrerRanking: Array.from(referrerMap.values()).sort((a, b) => b.feeTotal - a.feeTotal),
+        companyRanking: Array.from(companyMap.values()).sort((a, b) => b.feeTotal - a.feeTotal),
     }
 }
