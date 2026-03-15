@@ -9,7 +9,7 @@
 | レイヤー | 技術 |
 |---------|------|
 | Frontend | Next.js 16.1.1, React 19.2.3, TypeScript 5.9.3, Tailwind CSS v4 |
-| Data | TanStack Query 5.64, TanStack Table 8.21, react-currency-input-field |
+| Data | TanStack Query 5.64, TanStack Table 8.21, react-currency-input-field, @dnd-kit |
 | Backend | Next.js API Routes, Prisma 6.2, Zod 3.24 |
 | Database | PostgreSQL 16 |
 | Other | @react-pdf/renderer, lucide-react, @radix-ui/react-label |
@@ -28,6 +28,7 @@
   - 受託可 → 全ステータス（未着手/進行中/完了/請求済）を選択可
 - 担当者・紹介者のリレーション（FK）
 - 報酬・見積・財産評価額・紹介料（率/額）の管理
+- 特記事項（10文字以内の短い概要）・メモ（フリーテキスト）の管理
 - 申告期限の自動計算（死亡日 + 10ヶ月）
 
 ### 進捗管理
@@ -35,7 +36,10 @@
 - 8段階の進捗ステップをタイムラインUIで管理
 - 各ステップに完了日・メモを記録
 - 訪問ステップの動的追加・削除・再番号付け（isDynamic）
+- ドラッグ&ドロップで工程の並べ替え（@dnd-kit）
+- チェックボックスで複数工程を選択し、今日の日付を一括設定
 - 一覧画面からモーダルで進捗日付をクイック編集
+- 一覧画面の進捗列に最終完了工程名を表示
 
 ### 連絡先管理
 
@@ -69,6 +73,7 @@
 - **ステータスバッジ**: 案件ステータス（灰/青/緑/紫）、受託状況（緑/赤/灰/琥珀）を色付きバッジで表示
 - **期限インジケーター**: 期限切れ（赤）/ 期限間近（琥珀）を視覚的に警告
 - **進捗タイムライン**: 縦タイムラインUI（完了=緑ドット、未完了=グレードット）
+- **インライン編集**: 一覧画面で特記事項をクリックして即時編集・保存
 - **フィルターチップ**: 適用中のフィルターをチップ表示し、個別に解除可能
 - **キーボードナビゲーション**: テーブル行の矢印キー移動・Enterで詳細遷移
 - **スティッキーアクションバー**: 保存/キャンセル/削除ボタンがスクロール時も表示
@@ -114,14 +119,15 @@ inheritance-case-management/
         │   ├── FilterBar.tsx           # フィルターUI
         │   ├── KPICards.tsx            # KPI指標カード
         │   ├── Pagination.tsx          # ページネーション
-        │   ├── ProgressModal.tsx       # 進捗クイック編集モーダル
+        │   ├── InlineSummaryCell.tsx    # 特記事項インライン編集セル
+        │   ├── ProgressModal.tsx       # 進捗クイック編集モーダル（D&D対応）
         │   ├── new/page.tsx            # 新規案件登録
         │   ├── [id]/                   # 案件詳細
         │   │   ├── page.tsx
         │   │   ├── edit-case-form.tsx  # メインフォーム
         │   │   ├── BasicInfoSection.tsx
         │   │   ├── FinancialSection.tsx
-        │   │   ├── ProgressEditor.tsx  # タイムライン進捗UI
+        │   │   ├── ProgressEditor.tsx  # タイムライン進捗UI（D&D対応）
         │   │   └── ContactListEditor.tsx
         │   ├── settings/               # マスタ管理
         │   │   ├── page.tsx
@@ -163,12 +169,14 @@ inheritance-case-management/
         │       ├── Skeleton.tsx
         │       ├── SortableHeader.tsx
         │       ├── StatusBadge.tsx
+        │       ├── SetTodayButton.tsx
         │       ├── StickyActionBar.tsx
         │       ├── Toast.tsx
         │       └── table.tsx           # TanStack Table ラッパー
         ├── hooks/
         │   ├── use-cases.ts            # 案件一覧クエリ（TanStack Query）
         │   ├── use-master-list.ts      # マスタ編集ステート管理
+        │   ├── use-progress-steps.ts   # 進捗チェック・D&D・一括日付設定
         │   ├── use-export-csv.ts       # CSVエクスポート
         │   ├── use-import-csv.ts       # CSVインポート
         │   ├── use-keyboard-navigation.ts
@@ -271,6 +279,8 @@ erDiagram
         int propertyValue "財産評価額"
         float referralFeeRate "紹介料率（%）"
         int referralFeeAmount "紹介料額"
+        string summary "特記事項（最大10文字）"
+        string memo "メモ（フリーテキスト）"
         int assigneeId FK "担当者"
         int referrerId FK "紹介者"
         string createdBy "作成者"
