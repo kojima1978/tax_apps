@@ -196,6 +196,13 @@ export async function copyToNextYearByCustomerId(
   return response.json();
 }
 
+export async function deleteDocumentByCustomerAndYear(customerId: number, year: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}/documents/${year}`, {
+    method: 'DELETE',
+  });
+  await throwIfNotOk(response, '書類データの削除に失敗しました');
+}
+
 // Customer Management APIs
 
 export async function fetchCustomers(): Promise<Customer[]> {

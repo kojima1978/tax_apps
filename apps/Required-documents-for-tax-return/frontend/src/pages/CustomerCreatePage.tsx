@@ -80,6 +80,8 @@ export default function CreateCustomerPage() {
             withAccent
         >
             <form onSubmit={handleSubmit} className="space-y-8">
+                <CodeInput id="code-input" label="お客様コード" value={customerCode} onChange={setCustomerCode} maxLength={4} placeholder="例：0001" />
+
                 <div>
                     <label htmlFor="name-input" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
                         <Users className="w-4 h-4 mr-2 text-emerald-600" />
@@ -96,7 +98,6 @@ export default function CreateCustomerPage() {
                             ${touched.name && !isNameValid
                                 ? 'border-red-300 bg-red-50 focus:border-red-500'
                                 : 'border-slate-200 focus:border-emerald-500'}`}
-                        autoFocus
                     />
                     {touched.name && !isNameValid && (
                         <p className="mt-2 text-sm text-red-500 animate-in slide-in-from-top-1">
@@ -104,8 +105,6 @@ export default function CreateCustomerPage() {
                         </p>
                     )}
                 </div>
-
-                <CodeInput id="code-input" label="お客様コード" value={customerCode} onChange={setCustomerCode} maxLength={4} placeholder="例：0001" />
 
                 <div>
                     <label htmlFor="staff-select" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">

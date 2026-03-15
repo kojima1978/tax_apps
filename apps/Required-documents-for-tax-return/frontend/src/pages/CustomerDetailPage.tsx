@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, LayoutDashboard, Loader2, ChevronRight, Edit2, Calendar } from 'lucide-react';
-import { fetchCustomerById, fetchAvailableYears } from '@/utils/api';
+import { ChevronLeft, LayoutDashboard, Loader2, ChevronRight, Edit2, Calendar, Trash2 } from 'lucide-react';
+import { fetchCustomerById, fetchAvailableYears, deleteDocumentByCustomerAndYear } from '@/utils/api';
 import { formatReiwaYear, getDefaultYear } from '@/utils/date';
 import { Customer } from '@/types';
 import PageShell from '@/components/PageShell';
@@ -121,22 +121,44 @@ export default function CustomerDetailPage() {
               {savedYears.length > 0 ? (
                 <div className="space-y-2">
                   {savedYears.map(year => (
-                    <Link
+                    <div
                       key={year}
-                      to={`/customers/${customerId}/years/${year}`}
                       className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl hover:border-emerald-300 hover:shadow-sm transition-all group"
                     >
-                      <div className="flex items-center">
+                      <Link
+                        to={`/customers/${customerId}/years/${year}`}
+                        className="flex-1 flex items-center"
+                      >
                         <span className="px-3 py-1 text-sm font-bold bg-emerald-100 text-emerald-700 rounded-full mr-3">
                           {formatReiwaYear(year)}
                         </span>
                         <span className="text-sm text-slate-500">{year}年分</span>
+                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={`/customers/${customerId}/years/${year}`}
+                          className="text-emerald-600 font-medium text-sm group-hover:text-emerald-700 flex items-center"
+                        >
+                          編集する
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Link>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`${formatReiwaYear(year)}（${year}年分）のデータを削除してもよろしいですか？\nこの操作は取り消せません。`)) return;
+                            try {
+                              await deleteDocumentByCustomerAndYear(customerId, year);
+                              setSavedYears(prev => prev.filter(y => y !== year));
+                            } catch {
+                              alert('削除に失敗しました');
+                            }
+                          }}
+                          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="この年度のデータを削除"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      <div className="flex items-center text-emerald-600 font-medium text-sm group-hover:text-emerald-700">
-                        編集する
-                        <ChevronRight className="w-4 h-4 ml-1" />
-                      </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               ) : (

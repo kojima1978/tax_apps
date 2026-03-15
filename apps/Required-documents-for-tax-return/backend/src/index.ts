@@ -19,6 +19,7 @@ import {
   getYearsByCustomerAndStaff,
   getAllDocumentRecords,
   deleteDocumentRecord,
+  deleteDocumentByCustomerAndYear,
   updateCustomer,
   createCustomer,
   deleteCustomer,
@@ -380,7 +381,24 @@ app.get('/api/records', (_req, res) => {
   res.json({ records });
 });
 
-// 書類データを削除
+// 書類データを削除（顧客ID+年度ベース）
+app.delete('/api/customers/:id/documents/:year', (req, res) => {
+  const id = parseId(req, res);
+  if (id === null) return;
+  const year = parseInt(req.params.year, 10);
+  if (isNaN(year)) {
+    return res.status(400).json({ error: 'Invalid year' });
+  }
+
+  const success = deleteDocumentByCustomerAndYear(id, year);
+  if (!success) {
+    return res.status(404).json({ error: 'データが見つかりません' });
+  }
+
+  res.json({ success: true, message: 'データを削除しました' });
+});
+
+// 書類データを削除（レコードIDベース）
 app.delete('/api/documents/:id', (req, res) => {
   const id = parseId(req, res);
   if (id === null) return;
