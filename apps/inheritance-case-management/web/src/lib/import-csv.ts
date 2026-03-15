@@ -25,6 +25,8 @@ const CSV_HEADER_MAP: Record<string, string> = {
   '報酬額': 'feeAmount',
   '紹介料率(%)': 'referralFeeRate',
   '紹介料': 'referralFeeAmount',
+  '特記事項': 'summary',
+  'メモ': 'memo',
 };
 
 const IGNORED_HEADERS = new Set(['作成日', '更新日']);
@@ -310,6 +312,12 @@ function rowToInput(
         if (n !== undefined) obj[fieldName] = n;
         break;
       }
+      case 'summary':
+        if (value) obj[fieldName] = value.slice(0, 10);
+        break;
+      case 'memo':
+        if (value) obj[fieldName] = value;
+        break;
     }
   }
 

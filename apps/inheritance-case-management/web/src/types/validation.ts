@@ -35,6 +35,8 @@ export const createCaseSchema = z.object({
   propertyValue: z.number().int().min(0, '財産評価額は0以上を入力してください').optional().default(0),
   referralFeeRate: z.number().min(0, '紹介料率は0%以上を入力してください').max(100, '紹介料率は100%以下を入力してください').nullable().optional(),
   referralFeeAmount: z.number().int().min(0, '紹介料は0以上を入力してください').nullable().optional(),
+  summary: z.string().max(10, '特記事項は10文字以内で入力してください').nullable().optional(),
+  memo: z.string().nullable().optional(),
   contacts: z.array(contactSchema).optional(),
   progress: z.array(progressStepSchema).optional(),
 });

@@ -17,6 +17,8 @@ const TEMPLATE_HEADERS = [
   "報酬額",
   "紹介料率(%)",
   "紹介料",
+  "特記事項",
+  "メモ",
   "連絡先1_氏名",
   "連絡先1_電話",
   "連絡先1_メール",
@@ -29,6 +31,8 @@ const TEMPLATE_SAMPLE_ROW = [
   "2025",
   "未着手",
   "未判定",
+  "",
+  "",
   "",
   "",
   "",
@@ -97,6 +101,8 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
     "報酬額",
     "紹介料率(%)",
     "紹介料",
+    "特記事項",
+    "メモ",
   ];
 
   for (let i = 1; i <= maxContacts; i++) {
@@ -126,6 +132,8 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
       c.feeAmount || 0,
       c.referralFeeRate ?? "",
       c.referralFeeAmount ?? "",
+      c.summary || "",
+      c.memo || "",
     ];
 
     // Contact columns

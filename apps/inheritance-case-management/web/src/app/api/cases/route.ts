@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
         propertyValue: data.propertyValue ?? 0,
         referralFeeRate: data.referralFeeRate,
         referralFeeAmount: data.referralFeeAmount,
+        summary: data.summary || null,
+        memo: data.memo || null,
         assigneeId: data.assigneeId || null,
         referrerId: data.referrerId || null,
         contacts: { create: toContactCreateData(data.contacts ?? []) },

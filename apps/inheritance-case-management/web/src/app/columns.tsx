@@ -9,6 +9,7 @@ import { SortableHeader } from "@/components/ui/SortableHeader"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
 import Link from "next/link"
 import { ProgressModalButton } from "./ProgressModal"
+import { InlineSummaryCell } from "./InlineSummaryCell"
 
 export const columns: ColumnDef<InheritanceCase>[] = [
     {
@@ -99,28 +100,22 @@ export const columns: ColumnDef<InheritanceCase>[] = [
         header: () => <span className="inline-flex items-center justify-center h-8 w-full">進捗</span>,
         cell: ({ row }) => {
             const progress = row.original.progress ?? []
-            const total = progress.length
-            const completed = progress.filter(s => s.date).length
-            const percent = total > 0 ? (completed / total) * 100 : 0
-
+            const lastCompleted = [...progress].reverse().find(s => s.date)
             return (
-                <div className="flex items-center justify-center gap-2">
-                    {total > 0 && (
-                        <div className="flex items-center gap-1.5 min-w-[80px]">
-                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div
-                                    className={`h-full rounded-full transition-all ${percent === 100 ? 'bg-green-500' : 'bg-primary'}`}
-                                    style={{ width: `${percent}%` }}
-                                />
-                            </div>
-                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                {completed}/{total}
-                            </span>
-                        </div>
+                <div className="flex items-center justify-center gap-1.5">
+                    {lastCompleted && (
+                        <span className="text-[10px] text-muted-foreground truncate max-w-[60px]">
+                            {lastCompleted.name}
+                        </span>
                     )}
                     <ProgressModalButton caseData={row.original} />
                 </div>
             )
         },
+    },
+    {
+        accessorKey: "summary",
+        header: () => <span className="inline-flex items-center h-8">特記事項</span>,
+        cell: ({ row }) => <InlineSummaryCell caseData={row.original} />,
     },
 ]
