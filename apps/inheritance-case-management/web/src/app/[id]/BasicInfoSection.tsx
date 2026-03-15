@@ -79,7 +79,7 @@ export function BasicInfoSection({
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="status">進行</Label>
+                    <Label htmlFor="status">ステータス</Label>
                     <SelectField
                         id="status"
                         name="status"

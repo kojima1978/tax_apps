@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
-import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
+import type { InheritanceCase, Assignee, Referrer, CaseStatus } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
 import { toProgressSteps, toProgressItems, toContacts, toContactItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
@@ -18,6 +18,7 @@ import { BasicInfoSection } from "./BasicInfoSection"
 import { FinancialSection } from "./FinancialSection"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { ListChecks, Phone, StickyNote } from "lucide-react"
+import { STATUS_STEP_MAP, STATUS_ORDER } from "@/lib/progress-utils"
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -90,10 +91,57 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         }
     }
 
+    /** ステータスと進捗ステップの整合性チェック */
+    const checkStatusProgressConsistency = (): { warnings: string[]; suggestion?: { status: CaseStatus; message: string } } => {
+        const progress = formData.progress ? toProgressSteps(formData.progress) : []
+        const status = formData.status
+        const warnings: string[] = []
+
+        // ステータスに対して期待される進捗ステップに日付があるか
+        for (const { status: expectedStatus, stepName } of STATUS_STEP_MAP) {
+            const step = progress.find(s => s.name === stepName)
+            if (status === expectedStatus && !step?.date) {
+                warnings.push(`ステータスが「${expectedStatus}」ですが、進捗の「${stepName}」に日付が入力されていません。`)
+            }
+        }
+
+        // 逆方向: 進捗に日付があるのにステータスが手前のまま
+        const currentIdx = STATUS_ORDER.indexOf(status as CaseStatus)
+        if (currentIdx >= 0) {
+            for (let i = STATUS_STEP_MAP.length - 1; i >= 0; i--) {
+                const { status: suggestedStatus, stepName } = STATUS_STEP_MAP[i]
+                const suggestedIdx = STATUS_ORDER.indexOf(suggestedStatus)
+                const step = progress.find(s => s.name === stepName)
+                if (step?.date && suggestedIdx > currentIdx) {
+                    return {
+                        warnings,
+                        suggestion: {
+                            status: suggestedStatus,
+                            message: `進捗の「${stepName}」に日付が入力されています。\nステータスを「${suggestedStatus}」に変更しますか？`,
+                        },
+                    }
+                }
+            }
+        }
+
+        return { warnings }
+    }
+
     const handleSave = async () => {
         if (!formData.deceasedName || formData.deceasedName.trim() === "") {
             toast.warning("被相続人氏名を入力してください")
             return
+        }
+
+        // 整合性チェック
+        const { warnings, suggestion } = checkStatusProgressConsistency()
+        for (const w of warnings) {
+            toast.warning(w)
+        }
+        if (suggestion && window.confirm(suggestion.message)) {
+            setFormData(prev => ({ ...prev, status: suggestion.status }))
+            // formDataを直接変更してpayloadに反映
+            formData.status = suggestion.status
         }
 
         setIsSaving(true)

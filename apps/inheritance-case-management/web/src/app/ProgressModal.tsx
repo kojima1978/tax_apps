@@ -7,7 +7,7 @@ import { Modal } from "@/components/ui/Modal"
 import { SetTodayButton } from "@/components/ui/SetTodayButton"
 import type { InheritanceCase, CaseStatus, ProgressStep } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
-import { addVisitStep, shouldShowAddVisit, STEP_NAMES } from "@/lib/progress-utils"
+import { addVisitStep, shouldShowAddVisit, STATUS_STEP_MAP } from "@/lib/progress-utils"
 import { toProgressSteps, toProgressItems } from "@/lib/case-converters"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
 import Link from "next/link"
@@ -63,18 +63,15 @@ function SortableRow({
     )
 }
 
-/** 進捗ステップの日付入力に応じてステータス変更を提案するルール（優先度順） */
-const STATUS_PROMPT_RULES: { stepName: string; status: CaseStatus; excludeStatuses: CaseStatus[]; message: string }[] = [
-    { stepName: STEP_NAMES.PAYMENT, status: "入金済", excludeStatuses: ["入金済"], message: `「${STEP_NAMES.PAYMENT}」に日付が入力されました。\nステータスを「入金済」に変更しますか？` },
-    { stepName: STEP_NAMES.BILLING, status: "請求済", excludeStatuses: ["請求済", "入金済"], message: `「${STEP_NAMES.BILLING}」に日付が入力されました。\nステータスを「請求済」に変更しますか？` },
-    { stepName: STEP_NAMES.FILING, status: "申告済", excludeStatuses: ["申告済", "請求済", "入金済"], message: `「${STEP_NAMES.FILING}」に日付が入力されました。\nステータスを「申告済」に変更しますか？` },
-]
-
+/** 進捗ステップの日付入力に応じてステータス変更を提案（STATUS_STEP_MAPから自動生成、優先度: 後ろのステップが優先） */
 function detectStatusPrompt(steps: ProgressStep[], currentStatus: CaseStatus) {
-    for (const rule of STATUS_PROMPT_RULES) {
-        const step = steps.find(s => s.name === rule.stepName)
-        if (step?.date && !rule.excludeStatuses.includes(currentStatus)) {
-            return { status: rule.status, message: rule.message }
+    for (let i = STATUS_STEP_MAP.length - 1; i >= 0; i--) {
+        const { status, stepName } = STATUS_STEP_MAP[i]
+        const step = steps.find(s => s.name === stepName)
+        // このステータス以上なら提案不要
+        const atOrBeyond = STATUS_STEP_MAP.slice(i).some(m => m.status === currentStatus)
+        if (step?.date && !atOrBeyond) {
+            return { status, message: `「${stepName}」に日付が入力されました。\nステータスを「${status}」に変更しますか？` }
         }
     }
     return null
