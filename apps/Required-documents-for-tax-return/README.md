@@ -298,9 +298,10 @@ Required-documents-for-tax-return/
 |---------|---------------|------|
 | GET | /api/customers/:id/documents/:year | 書類データ取得（IDベース） |
 | POST | /api/customers/:id/documents/:year | 書類データ保存 / 翌年度コピー（IDベース） |
+| DELETE | /api/customers/:id/documents/:year | 書類データ削除（顧客ID+年度） |
 | GET | /api/documents | 書類データ取得（レガシー: staffName指定） |
 | POST | /api/documents | 書類データ保存 / 翌年度コピー（レガシー） |
-| DELETE | /api/documents/:id | 書類データ削除 |
+| DELETE | /api/documents/:id | 書類データ削除（レコードID） |
 | GET | /api/records | 保存データ一覧（管理画面用） |
 | GET | /api/years | 顧客の年度一覧 |
 | GET | /api/available-years | 年度一覧（フィルタ可） |
@@ -317,13 +318,15 @@ Required-documents-for-tax-return/
 全ページ共通で `max-w-7xl`（1280px）のワイドレイアウトを採用。
 
 ### 1. 顧客ダッシュボード（/）
-- 顧客カード一覧（年度バッジ、担当者、最終更新日表示）
+- カード表示 / リスト（テーブル）表示の切替
 - お客様名・お客様コード検索、担当者ドロップダウンフィルタ
+- ソート（名前順・コード順・更新日順）
+- ページネーション（20件/ページ）
 - お客様登録リンク
 - 折りたたみ式管理メニュー（担当者・顧客・データ管理・バックアップ・復元）
 
 ### 2. 顧客詳細（/customers/:id）
-- 保存済み年度の一覧
+- 保存済み年度の一覧（年度ごとの編集・削除）
 - 年度を選択して書類編集を開始
 
 ### 3. 書類編集画面（/customers/:id/years/:year）

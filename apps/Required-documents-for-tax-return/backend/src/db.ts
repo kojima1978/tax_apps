@@ -521,6 +521,14 @@ export function deleteDocumentRecord(id: number): boolean {
   });
 }
 
+// 顧客ID+年度で書類データを削除
+export function deleteDocumentByCustomerAndYear(customerId: number, year: number): boolean {
+  return withDb((db) => {
+    const result = db.prepare('DELETE FROM document_records WHERE customer_id = ? AND year = ?').run(customerId, year);
+    return result.changes > 0;
+  });
+}
+
 // --- バックアップ/復元 ---
 
 // 全データをエクスポート用に取得

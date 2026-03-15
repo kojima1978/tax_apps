@@ -1,12 +1,36 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Loader2, Search, X, Plus, Users, ChevronDown } from 'lucide-react';
+import { Home, Loader2, Search, X, Plus, Users, ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, List, ArrowUpDown } from 'lucide-react';
 import { taxReturnData } from '@/data/taxReturnData';
 import { fetchCustomersWithYears, fetchStaff, CustomerWithYears } from '@/utils/api';
 import { Staff } from '@/types';
 import { CustomerCard } from '@/components/CustomerCard';
 import { AdminMenu } from '@/components/AdminMenu';
 import PageShell from '@/components/PageShell';
+import { formatReiwaYear, formatDateTime } from '@/utils/date';
+
+type SortKey = 'name' | 'code' | 'updated';
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'name', label: '名前順' },
+  { key: 'code', label: 'コード順' },
+  { key: 'updated', label: '更新日順' },
+];
+
+const ITEMS_PER_PAGE = 20;
+
+function sortCustomers(customers: CustomerWithYears[], sortKey: SortKey): CustomerWithYears[] {
+  return [...customers].sort((a, b) => {
+    switch (sortKey) {
+      case 'name':
+        return a.customer_name.localeCompare(b.customer_name, 'ja');
+      case 'code':
+        return (a.customer_code || '').localeCompare(b.customer_code || '');
+      case 'updated':
+        return (b.latest_updated_at || '').localeCompare(a.latest_updated_at || '');
+    }
+  });
+}
 
 export default function CustomerDashboardPage() {
   const navigate = useNavigate();
@@ -15,6 +39,9 @@ export default function CustomerDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [staffFilter, setStaffFilter] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('updated');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -48,8 +75,19 @@ export default function CustomerDashboardPage() {
     if (staffFilter) {
       result = result.filter(c => c.staff_name === staffFilter);
     }
-    return result;
-  }, [customers, searchText, staffFilter]);
+    return sortCustomers(result, sortKey);
+  }, [customers, searchText, staffFilter, sortKey]);
+
+  // フィルタ・検索変更時にページをリセット
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, staffFilter, sortKey]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE));
+  const paginatedCustomers = filteredCustomers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const hasFilter = searchText.trim() || staffFilter;
 
@@ -74,7 +112,7 @@ export default function CustomerDashboardPage() {
                   type="text"
                   value={searchText}
                   onChange={e => setSearchText(e.target.value)}
-                  placeholder="お客様名で検索..."
+                  placeholder="お客様名・コードで検索..."
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
                 />
               </div>
@@ -96,35 +134,73 @@ export default function CustomerDashboardPage() {
               </Link>
             </div>
 
-            {/* 担当者フィルタ（ドロップダウン + 選択チップ） */}
-            {staffList.length > 0 && (
-              <div className="mb-6 flex items-center gap-3">
-                <div className="relative">
-                  <select
-                    value=""
-                    onChange={e => { if (e.target.value) setStaffFilter(e.target.value); }}
-                    className="appearance-none pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
-                  >
-                    <option value="">担当者で絞り込み</option>
-                    {staffList.map(s => (
-                      <option key={s.id} value={s.staff_name}>
-                        {s.staff_code ? `${s.staff_name} (${s.staff_code})` : s.staff_name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                </div>
-                {staffFilter && (
-                  <button
-                    onClick={() => setStaffFilter('')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors"
-                  >
-                    {staffFilter}
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+            {/* 担当者フィルタ + ソート + 表示切替 */}
+            <div className="mb-6 flex items-center gap-3 flex-wrap">
+              {/* 担当者フィルタ */}
+              {staffList.length > 0 && (
+                <>
+                  <div className="relative">
+                    <select
+                      value=""
+                      onChange={e => { if (e.target.value) setStaffFilter(e.target.value); }}
+                      className="appearance-none pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                    >
+                      <option value="">担当者で絞り込み</option>
+                      {staffList.map(s => (
+                        <option key={s.id} value={s.staff_name}>
+                          {s.staff_code ? `${s.staff_name} (${s.staff_code})` : s.staff_name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+                  {staffFilter && (
+                    <button
+                      onClick={() => setStaffFilter('')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors"
+                    >
+                      {staffFilter}
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </>
+              )}
+
+              <div className="flex-1" />
+
+              {/* ソート */}
+              <div className="relative">
+                <ArrowUpDown className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                <select
+                  value={sortKey}
+                  onChange={e => setSortKey(e.target.value as SortKey)}
+                  className="appearance-none pl-8 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                >
+                  {SORT_OPTIONS.map(o => (
+                    <option key={o.key} value={o.key}>{o.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
-            )}
+
+              {/* 表示切替 */}
+              <div className="flex border border-slate-200 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setViewMode('card')}
+                  className={`p-2 transition-colors ${viewMode === 'card' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 hover:text-slate-600'}`}
+                  title="カード表示"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 hover:text-slate-600'}`}
+                  title="リスト表示"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
 
             {/* 件数表示 */}
             {!isLoading && customers.length > 0 && (
@@ -134,10 +210,13 @@ export default function CustomerDashboardPage() {
                 ) : (
                   <span>{customers.length} 件のお客様</span>
                 )}
+                {filteredCustomers.length > ITEMS_PER_PAGE && (
+                  <span className="ml-2">（{(currentPage - 1) * ITEMS_PER_PAGE + 1}〜{Math.min(currentPage * ITEMS_PER_PAGE, filteredCustomers.length)}件を表示）</span>
+                )}
               </div>
             )}
 
-            {/* お客様カード一覧 */}
+            {/* お客様一覧 */}
             {isLoading ? (
               <div className="flex justify-center py-16">
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -159,15 +238,86 @@ export default function CustomerDashboardPage() {
                   <p className="text-slate-500 text-lg">検索条件に一致するお客様が見つかりません</p>
                 )}
               </div>
-            ) : (
+            ) : viewMode === 'card' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredCustomers.map(customer => (
+                {paginatedCustomers.map(customer => (
                   <CustomerCard
                     key={customer.id}
                     customer={customer}
                     onClick={() => navigate(`/customers/${customer.id}`)}
                   />
                 ))}
+              </div>
+            ) : (
+              /* リスト表示 */
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">コード</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">お客様名</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">担当者</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">年度</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">最終更新</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedCustomers.map(customer => (
+                      <tr
+                        key={customer.id}
+                        onClick={() => navigate(`/customers/${customer.id}`)}
+                        className="hover:bg-emerald-50 cursor-pointer transition-colors"
+                      >
+                        <td className="px-4 py-3 text-sm text-slate-400 font-mono">
+                          {customer.customer_code ? `#${customer.customer_code}` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-slate-800">
+                          {customer.customer_name}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-500">
+                          {customer.staff_name || <span className="text-slate-400">未設定</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {customer.years.length > 0 ? customer.years.map(year => (
+                              <span key={year} className="px-1.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 rounded">
+                                {formatReiwaYear(year)}
+                              </span>
+                            )) : (
+                              <span className="text-xs text-slate-400">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-400 tabular-nums">
+                          {customer.latest_updated_at ? formatDateTime(customer.latest_updated_at) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* ページネーション */}
+            {!isLoading && filteredCustomers.length > ITEMS_PER_PAGE && (
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-sm font-medium text-slate-700">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             )}
 

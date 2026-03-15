@@ -67,6 +67,10 @@ export default function EditStaffPage() {
         >
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
+                    <CodeInput label="担当者コード" value={staffCode} onChange={setStaffCode} maxLength={3} placeholder="例：001" variant="compact" />
+                </div>
+
+                <div className="mb-4">
                     <label className="block text-sm font-bold text-slate-700 mb-2">
                         担当者名
                     </label>
@@ -76,10 +80,6 @@ export default function EditStaffPage() {
                         onChange={(e) => setName(e.target.value)}
                         className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                     />
-                </div>
-
-                <div className="mb-4">
-                    <CodeInput label="担当者コード" value={staffCode} onChange={setStaffCode} maxLength={3} placeholder="例：001" variant="compact" />
                 </div>
 
                 <div className="mb-8">

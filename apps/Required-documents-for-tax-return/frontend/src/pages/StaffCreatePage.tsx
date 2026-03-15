@@ -58,6 +58,8 @@ export default function CreateStaffPage() {
             withAccent
         >
             <form onSubmit={handleSubmit} className="space-y-8">
+                <CodeInput id="code-input" label="担当者コード" value={staffCode} onChange={setStaffCode} maxLength={3} placeholder="例：001" />
+
                 <div>
                     <label htmlFor="name-input" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
                         <User className="w-4 h-4 mr-2 text-emerald-600" />
@@ -74,7 +76,6 @@ export default function CreateStaffPage() {
                             ${touched.name && !isNameValid
                                 ? 'border-red-300 bg-red-50 focus:border-red-500'
                                 : 'border-slate-200 focus:border-emerald-500'}`}
-                        autoFocus
                     />
                     {touched.name && !isNameValid && (
                         <p className="mt-2 text-sm text-red-500 animate-in slide-in-from-top-1">
@@ -82,8 +83,6 @@ export default function CreateStaffPage() {
                         </p>
                     )}
                 </div>
-
-                <CodeInput id="code-input" label="担当者コード" value={staffCode} onChange={setStaffCode} maxLength={3} placeholder="例：001" />
 
                 <div>
                     <label htmlFor="mobile-input" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
