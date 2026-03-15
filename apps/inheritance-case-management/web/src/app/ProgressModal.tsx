@@ -7,7 +7,7 @@ import { Modal } from "@/components/ui/Modal"
 import { SetTodayButton } from "@/components/ui/SetTodayButton"
 import type { InheritanceCase, CaseStatus, ProgressStep } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
-import { addVisitStep, shouldShowAddVisit } from "@/lib/progress-utils"
+import { addVisitStep, shouldShowAddVisit, STEP_NAMES } from "@/lib/progress-utils"
 import { toProgressSteps, toProgressItems } from "@/lib/case-converters"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
 import Link from "next/link"
@@ -65,8 +65,9 @@ function SortableRow({
 
 /** 進捗ステップの日付入力に応じてステータス変更を提案するルール（優先度順） */
 const STATUS_PROMPT_RULES: { stepName: string; status: CaseStatus; excludeStatuses: CaseStatus[]; message: string }[] = [
-    { stepName: "入金確認", status: "入金済", excludeStatuses: ["入金済"], message: "「入金確認」に日付が入力されました。\nステータスを「入金済」に変更しますか？" },
-    { stepName: "申告（済）", status: "完了（税務申告済）", excludeStatuses: ["完了（税務申告済）", "入金済"], message: "「申告（済）」に日付が入力されました。\nステータスを「完了（税務申告済）」に変更しますか？" },
+    { stepName: STEP_NAMES.PAYMENT, status: "入金済", excludeStatuses: ["入金済"], message: `「${STEP_NAMES.PAYMENT}」に日付が入力されました。\nステータスを「入金済」に変更しますか？` },
+    { stepName: STEP_NAMES.BILLING, status: "請求済", excludeStatuses: ["請求済", "入金済"], message: `「${STEP_NAMES.BILLING}」に日付が入力されました。\nステータスを「請求済」に変更しますか？` },
+    { stepName: STEP_NAMES.FILING, status: "申告済", excludeStatuses: ["申告済", "請求済", "入金済"], message: `「${STEP_NAMES.FILING}」に日付が入力されました。\nステータスを「申告済」に変更しますか？` },
 ]
 
 function detectStatusPrompt(steps: ProgressStep[], currentStatus: CaseStatus) {

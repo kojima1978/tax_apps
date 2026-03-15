@@ -1,14 +1,13 @@
 import { createCaseSchema } from '@/types/validation';
 import type { CreateCaseInput } from '@/types/validation';
 import type {
-  CaseStatus,
-  AcceptanceStatus,
   Assignee,
   Referrer,
   InheritanceCase,
   Contact,
   ProgressStep,
 } from '@/types/shared';
+import { CASE_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from '@/types/constants';
 
 // ── Header → field mapping ──────────────────────────────────
 const CSV_HEADER_MAP: Record<string, string> = {
@@ -31,8 +30,8 @@ const CSV_HEADER_MAP: Record<string, string> = {
 
 const IGNORED_HEADERS = new Set(['作成日', '更新日']);
 
-const VALID_STATUSES: CaseStatus[] = ['未着手', '進行中', '完了（税務申告済）', '入金済', '対応終了'];
-const VALID_ACCEPTANCE: AcceptanceStatus[] = ['受託可', '受託不可', '未判定', '保留'];
+const VALID_STATUSES = CASE_STATUS_OPTIONS as readonly string[];
+const VALID_ACCEPTANCE = ACCEPTANCE_STATUS_OPTIONS as readonly string[];
 
 export const MAX_CONTACT_COLUMNS = 10;
 export const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;

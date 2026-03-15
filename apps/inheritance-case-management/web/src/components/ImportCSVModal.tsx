@@ -17,6 +17,7 @@ import {
 import { useImportCSV } from "@/hooks/use-import-csv";
 import { downloadCSVTemplate } from "@/lib/export-csv";
 import { DEFAULTABLE_FIELDS } from "@/lib/import-csv";
+import { CASE_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from "@/types/constants";
 
 interface ImportCSVModalProps {
   isOpen: boolean;
@@ -31,8 +32,8 @@ const FIELD_GUIDE = {
     { name: "年度", note: "必須 / 2000〜2100" },
   ],
   withDefaults: [
-    { name: "ステータス", note: "未着手 / 進行中 / 完了（税務申告済） / 入金済 / 対応終了" },
-    { name: "受託状況", note: "受託可 / 受託不可 / 未判定 / 保留" },
+    { name: "ステータス", note: CASE_STATUS_OPTIONS.join(" / ") },
+    { name: "受託状況", note: ACCEPTANCE_STATUS_OPTIONS.join(" / ") },
     { name: "財産評価額・相続税額・見積額・報酬額", note: "0以上の整数" },
   ],
   optional: [

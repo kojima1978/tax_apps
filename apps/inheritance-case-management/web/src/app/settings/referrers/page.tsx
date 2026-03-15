@@ -1,12 +1,64 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, useMemo, useRef, useEffect, Suspense } from "react"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import type { Referrer } from "@/types/shared"
 import { getReferrers, createReferrer, updateReferrer, deleteReferrer } from "@/lib/api/referrers"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
+
+/** 会社名サジェスト付きInput */
+function CompanySuggestInput({ value, onChange, suggestions, placeholder, className, onKeyDown }: {
+    value: string
+    onChange: (val: string) => void
+    suggestions: string[]
+    placeholder?: string
+    className?: string
+    onKeyDown?: (e: React.KeyboardEvent) => void
+}) {
+    const [open, setOpen] = useState(false)
+    const ref = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+        }
+        document.addEventListener("mousedown", handler)
+        return () => document.removeEventListener("mousedown", handler)
+    }, [])
+
+    const filtered = value.trim()
+        ? suggestions.filter(s => s !== value && s.includes(value.trim()))
+        : []
+
+    return (
+        <div ref={ref} className="relative">
+            <Input
+                placeholder={placeholder}
+                value={value}
+                onChange={(e) => { onChange(e.target.value); setOpen(true) }}
+                onFocus={() => setOpen(true)}
+                onKeyDown={onKeyDown}
+                className={className}
+            />
+            {open && filtered.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white border rounded-md shadow-md py-1 max-h-40 overflow-y-auto">
+                    {filtered.map(s => (
+                        <button
+                            key={s}
+                            type="button"
+                            className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted"
+                            onClick={() => { onChange(s); setOpen(false) }}
+                        >
+                            {s}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
 
 const columns: ColumnDef<Referrer>[] = [
     { key: "company", label: "会社名" },
@@ -39,6 +91,12 @@ function ReferrerSettingsContent() {
         getDeleteLabel: (r) => `${r.company} / ${r.name}`,
     })
 
+    // 既存の会社名一覧（重複排除・サジェスト用）
+    const companySuggestions = useMemo(() => {
+        const names = new Set(masterList.items.map((r: Referrer) => r.company))
+        return Array.from(names).sort((a, b) => a.localeCompare(b, "ja"))
+    }, [masterList.items])
+
     const handleAdd = () => {
         let hasError = false
         if (!newCompany.trim()) { setNewCompanyError("会社名を入力してください"); hasError = true }
@@ -57,25 +115,42 @@ function ReferrerSettingsContent() {
     }
 
     const handleSaveEdit = () => {
+        const newCompanyName = masterList.editingFields.company?.trim()
+        const editingItem = masterList.items.find((r: Referrer) => r.id === masterList.editingId)
+        const oldCompanyName = editingItem?.company
+
         masterList.handleSaveEdit(
-            () => !!(masterList.editingFields.company?.trim() && masterList.editingFields.name?.trim()),
+            () => !!(newCompanyName && masterList.editingFields.name?.trim()),
             (item) => ({
                 ...item,
-                company: masterList.editingFields.company.trim(),
+                company: newCompanyName!,
                 department: masterList.editingFields.department?.trim() || "",
                 name: masterList.editingFields.name.trim(),
             })
         )
+
+        // 会社名が変更された場合、同じ旧会社名を持つ他の紹介者にも一括反映
+        if (oldCompanyName && newCompanyName && oldCompanyName !== newCompanyName) {
+            const othersCount = masterList.items.filter((r: Referrer) => r.id !== editingItem!.id && r.company === oldCompanyName).length
+            if (othersCount > 0 && window.confirm(
+                `「${oldCompanyName}」→「${newCompanyName}」に変更しました。\n同じ会社名の他${othersCount}名の紹介者にも反映しますか？`
+            )) {
+                masterList.updateItems(prev => prev.map(r =>
+                    r.company === oldCompanyName ? { ...r, company: newCompanyName } : r
+                ))
+            }
+        }
     }
 
     const newItemForm = (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
             <div className="grid gap-1.5">
                 <Label>会社名 (必須)</Label>
-                <Input
+                <CompanySuggestInput
                     placeholder="会社名"
                     value={newCompany}
-                    onChange={(e) => { setNewCompany(e.target.value); if (newCompanyError) setNewCompanyError("") }}
+                    onChange={(val) => { setNewCompany(val); if (newCompanyError) setNewCompanyError("") }}
+                    suggestions={companySuggestions}
                     className={newCompanyError ? "border-red-500" : ""}
                 />
                 {newCompanyError && <p className="text-xs text-red-500">{newCompanyError}</p>}
@@ -98,15 +173,28 @@ function ReferrerSettingsContent() {
         </div>
     )
 
-    const renderEditCell = (col: ColumnDef<Referrer>) => (
-        <Input
-            value={masterList.editingFields[col.key] || ""}
-            onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, [col.key]: e.target.value }))}
-            placeholder={col.label}
-            className="h-9"
-            autoFocus={col.key === "name"}
-        />
-    )
+    const renderEditCell = (col: ColumnDef<Referrer>) => {
+        if (col.key === "company") {
+            return (
+                <CompanySuggestInput
+                    value={masterList.editingFields.company || ""}
+                    onChange={(val) => masterList.setEditingFields(prev => ({ ...prev, company: val }))}
+                    suggestions={companySuggestions}
+                    placeholder="会社名"
+                    className="h-9"
+                />
+            )
+        }
+        return (
+            <Input
+                value={masterList.editingFields[col.key] || ""}
+                onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, [col.key]: e.target.value }))}
+                placeholder={col.label}
+                className="h-9"
+                autoFocus={col.key === "name"}
+            />
+        )
+    }
 
     return (
         <MasterListPage<Referrer>
