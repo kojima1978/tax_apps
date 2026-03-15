@@ -4,11 +4,13 @@ import { addStaff } from '@/utils/api';
 import { getErrorMessage } from '@/utils/error';
 import { Loader2, User, Phone, UserPlus } from 'lucide-react';
 import SubmitButton from '@/components/SubmitButton';
+import CodeInput from '@/components/CodeInput';
 import { FormPageLayout } from '@/components/FormPageLayout';
 
 export default function CreateStaffPage() {
     const navigate = useNavigate();
     const [name, setName] = useState('');
+    const [staffCode, setStaffCode] = useState('');
     const [mobileNumber, setMobileNumber] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export default function CreateStaffPage() {
         setIsSubmitting(true);
         setError(null);
         try {
-            const staff = await addStaff(name, mobileNumber);
+            const staff = await addStaff(name, mobileNumber, staffCode.trim() || undefined);
             if (redirectTo === 'customer') {
                 navigate(`/customers/create?staffId=${staff.id}`);
             } else {
@@ -80,6 +82,8 @@ export default function CreateStaffPage() {
                         </p>
                     )}
                 </div>
+
+                <CodeInput id="code-input" label="担当者コード" value={staffCode} onChange={setStaffCode} maxLength={3} placeholder="例：001" />
 
                 <div>
                     <label htmlFor="mobile-input" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">

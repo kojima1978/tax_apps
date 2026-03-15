@@ -15,6 +15,9 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
       <div className="flex items-start justify-between mb-2">
         <h3 className="text-lg font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">
           {customer.customer_name}
+          {customer.customer_code && (
+            <span className="ml-2 text-xs text-slate-400 font-mono font-normal">#{customer.customer_code}</span>
+          )}
         </h3>
       </div>
       <p className="text-sm text-slate-500 mb-3">

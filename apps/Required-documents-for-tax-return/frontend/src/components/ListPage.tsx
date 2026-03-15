@@ -1,5 +1,5 @@
 import { useState, useEffect, ReactNode } from 'react';
-import { Plus, Trash2, Edit2, Loader2, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, Edit2, Loader2, ChevronLeft, LayoutDashboard } from 'lucide-react';
 import { getErrorMessage } from '@/utils/error';
 import { Link } from 'react-router-dom';
 
@@ -65,6 +65,9 @@ export default function ListPage<T extends { id: number }>({
             <div className="max-w-7xl mx-auto">
                 <header className="mb-8 flex items-center justify-between">
                     <div className="flex items-center">
+                        <Link to="/" className="mr-1 p-2 bg-white rounded-full text-slate-400 hover:text-emerald-600 shadow-sm hover:shadow transition-all" title="TOPへ戻る">
+                            <LayoutDashboard className="w-5 h-5" />
+                        </Link>
                         <Link to={backHref} className="mr-4 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all">
                             <ChevronLeft className="w-5 h-5" />
                         </Link>

@@ -12,6 +12,7 @@ erDiagram
     staff {
         INTEGER id PK "主キー（自動採番）"
         TEXT staff_name UK "担当者名（ユニーク）"
+        TEXT staff_code "担当者コード（最大3桁）"
         TEXT mobile_number "携帯電話番号"
         DATETIME created_at "作成日時"
         DATETIME updated_at "更新日時"
@@ -20,6 +21,7 @@ erDiagram
     customers {
         INTEGER id PK "主キー（自動採番）"
         TEXT customer_name "お客様名"
+        TEXT customer_code "お客様コード（最大4桁）"
         INTEGER staff_id FK "担当者ID"
         DATETIME created_at "作成日時"
         DATETIME updated_at "更新日時"
@@ -43,6 +45,7 @@ erDiagram
 |---------|-----|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主キー |
 | staff_name | TEXT | NOT NULL, UNIQUE | 担当者名 |
+| staff_code | TEXT | | 担当者コード（最大3桁） |
 | mobile_number | TEXT | | 携帯電話番号 |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 作成日時 |
 | updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 更新日時 |
@@ -53,6 +56,7 @@ erDiagram
 |---------|-----|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 主キー |
 | customer_name | TEXT | NOT NULL | お客様名 |
+| customer_code | TEXT | | お客様コード（最大4桁） |
 | staff_id | INTEGER | FK → staff(id) ON DELETE SET NULL | 担当者ID |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 作成日時 |
 | updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 更新日時 |

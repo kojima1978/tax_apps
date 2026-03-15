@@ -14,6 +14,7 @@ export interface DocumentItem {
 export interface Staff {
     id: number;
     staff_name: string;
+    staff_code?: string | null;
     mobile_number?: string | null;
     created_at?: string;
     updated_at?: string;
@@ -29,6 +30,7 @@ export interface CategoryGroup {
 export interface Customer {
     id: number;
     customer_name: string;
+    customer_code?: string | null;
     staff_name: string;
     staff_id?: number;
     created_at?: string;

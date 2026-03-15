@@ -10,6 +10,7 @@ erDiagram
     staff {
         INTEGER id PK "PRIMARY KEY AUTOINCREMENT"
         TEXT staff_name UK "NOT NULL UNIQUE"
+        TEXT staff_code "担当者コード（最大3桁）"
         TEXT mobile_number "NULLABLE"
         DATETIME created_at "DEFAULT CURRENT_TIMESTAMP"
         DATETIME updated_at "DEFAULT CURRENT_TIMESTAMP"
@@ -18,6 +19,7 @@ erDiagram
     customers {
         INTEGER id PK "PRIMARY KEY AUTOINCREMENT"
         TEXT customer_name "NOT NULL"
+        TEXT customer_code "お客様コード（最大4桁）"
         INTEGER staff_id FK "REFERENCES staff(id) ON DELETE SET NULL"
         DATETIME created_at "DEFAULT CURRENT_TIMESTAMP"
         DATETIME updated_at "DEFAULT CURRENT_TIMESTAMP"
@@ -41,6 +43,7 @@ erDiagram
 |---------|-----|------|------|
 | id | INTEGER | PRIMARY KEY, AUTOINCREMENT | |
 | staff_name | TEXT | NOT NULL, UNIQUE | |
+| staff_code | TEXT | | 担当者コード（最大3桁） |
 | mobile_number | TEXT | | |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | |
 | updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | |
@@ -51,6 +54,7 @@ erDiagram
 |---------|-----|------|------|
 | id | INTEGER | PRIMARY KEY, AUTOINCREMENT | |
 | customer_name | TEXT | NOT NULL | |
+| customer_code | TEXT | | お客様コード（最大4桁） |
 | staff_id | INTEGER | FK → staff(id) ON DELETE SET NULL | 担当者への外部キー |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | |
 | updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | |
@@ -136,5 +140,7 @@ erDiagram
 起動時に `initializeDb()` が自動実行し、以下のマイグレーションを冪等に適用:
 
 1. **staff.mobile_number 追加** — 携帯電話番号カラム（既存テーブルへのALTER TABLE）
-2. **customers.staff_id 追加** — 担当者テーブルへの外部キー（既存の `staff_name` からIDを自動解決）
-3. **customers.staff_name 削除** — 3NF正規化（テーブル再作成による冗長カラム除去）
+2. **staff.staff_code 追加** — 担当者コードカラム
+3. **customers.staff_id 追加** — 担当者テーブルへの外部キー（既存の `staff_name` からIDを自動解決）
+4. **customers.customer_code 追加** — お客様コードカラム
+5. **customers.staff_name 削除** — 3NF正規化（テーブル再作成による冗長カラム除去）

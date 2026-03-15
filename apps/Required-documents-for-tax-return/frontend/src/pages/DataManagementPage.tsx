@@ -1,4 +1,4 @@
-import { ArrowLeft, Trash2, Edit2, Check, X, Search, Loader2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, Edit2, Check, X, Search, Loader2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, LayoutDashboard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatDateTime, formatReiwaYear } from '@/utils/date';
 import { useDataManagement, SortKey } from '@/hooks/useDataManagement';
@@ -53,7 +53,7 @@ export default function DataManagementPage() {
             to="/"
             className="flex items-center bg-white px-4 py-2 rounded-lg shadow text-slate-600 hover:text-slate-900 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <LayoutDashboard className="w-4 h-4 mr-2" />
             TOPへ戻る
           </Link>
           <h1 className="text-xl font-bold text-slate-800">保存データ管理</h1>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Home, Loader2, ChevronRight, Edit2, Calendar } from 'lucide-react';
+import { ChevronLeft, LayoutDashboard, Loader2, ChevronRight, Edit2, Calendar } from 'lucide-react';
 import { fetchCustomerById, fetchAvailableYears } from '@/utils/api';
 import { formatReiwaYear, getDefaultYear } from '@/utils/date';
 import { Customer } from '@/types';
@@ -89,19 +89,19 @@ export default function CustomerDetailPage() {
           {/* ヘッダー */}
           <div className="bg-emerald-600 p-6 text-white">
             <div className="flex items-center mb-4">
-              <a
-                href="/tax-docs/"
-                className="mr-2 p-1.5 rounded-full hover:bg-emerald-500 transition-colors opacity-80 hover:opacity-100"
-                title="トップページ"
+              <Link
+                to="/"
+                className="mr-1 p-1.5 rounded-full hover:bg-emerald-500 transition-colors opacity-80 hover:opacity-100"
+                title="TOPへ戻る"
               >
-                <Home className="w-5 h-5" />
-              </a>
+                <LayoutDashboard className="w-5 h-5" />
+              </Link>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate(-1)}
                 className="mr-3 p-1.5 rounded-full hover:bg-emerald-500 transition-colors opacity-80 hover:opacity-100"
-                aria-label="お客様一覧に戻る"
+                aria-label="前のページに戻る"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
               <div>
                 <h1 className="text-2xl font-bold">{customer.customer_name} 様</h1>

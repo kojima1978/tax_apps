@@ -104,14 +104,14 @@ app.get('/api/customers/:id', (req, res) => {
 
 // Create customer（staffIdは任意）
 app.post('/api/customers', (req, res) => {
-  const { staffId } = req.body;
+  const { staffId, customerCode } = req.body;
   const trimmedName = requireTrimmedString(req.body.customerName);
   if (!trimmedName) {
     return res.status(400).json({ error: 'Valid customerName is required' });
   }
 
   try {
-    const customer = createCustomer(trimmedName, staffId ? Number(staffId) : null);
+    const customer = createCustomer(trimmedName, staffId ? Number(staffId) : null, customerCode);
     res.json({ customer });
   } catch (e: unknown) {
     handleCreateError(res, e, 'お客様の登録に失敗しました');
@@ -122,14 +122,14 @@ app.post('/api/customers', (req, res) => {
 app.put('/api/customers/:id', (req, res) => {
   const id = parseId(req, res);
   if (id === null) return;
-  const { staffId } = req.body;
+  const { staffId, customerCode } = req.body;
   const trimmedName = requireTrimmedString(req.body.customerName);
 
   if (!trimmedName) {
     return res.status(400).json({ error: 'Valid customerName is required' });
   }
 
-  const success = updateCustomer(id, trimmedName, staffId ? Number(staffId) : null);
+  const success = updateCustomer(id, trimmedName, staffId ? Number(staffId) : null, customerCode);
   if (!success) {
     return res.status(404).json({ error: 'Customer not found' });
   }
@@ -177,13 +177,13 @@ app.get('/api/staff', (_req, res) => {
 
 // Create staff
 app.post('/api/staff', (req, res) => {
-  const { mobileNumber } = req.body;
+  const { mobileNumber, staffCode } = req.body;
   const trimmedName = requireTrimmedString(req.body.staffName);
   if (!trimmedName) {
     return res.status(400).json({ error: 'Valid staffName is required' });
   }
   try {
-    const staff = createStaff(trimmedName, mobileNumber);
+    const staff = createStaff(trimmedName, mobileNumber, staffCode);
     res.json({ staff });
   } catch (e: unknown) {
     handleCreateError(res, e, 'この担当者名は既に登録されています');
@@ -194,14 +194,14 @@ app.post('/api/staff', (req, res) => {
 app.put('/api/staff/:id', (req, res) => {
   const id = parseId(req, res);
   if (id === null) return;
-  const { mobileNumber } = req.body;
+  const { mobileNumber, staffCode } = req.body;
   const trimmedName = requireTrimmedString(req.body.staffName);
 
   if (!trimmedName) {
     return res.status(400).json({ error: 'Valid staffName is required' });
   }
 
-  const success = updateStaff(id, trimmedName, mobileNumber);
+  const success = updateStaff(id, trimmedName, mobileNumber, staffCode);
   if (!success) {
     return res.status(404).json({ error: 'Staff not found' });
   }

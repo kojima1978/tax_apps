@@ -74,7 +74,7 @@ function addColumnIfMissing(
 
 // --- 顧客クエリの共通SELECT句 ---
 const CUSTOMER_SELECT = `
-  SELECT c.id, c.customer_name, COALESCE(s.staff_name, '') as staff_name, c.staff_id, c.created_at, c.updated_at
+  SELECT c.id, c.customer_name, c.customer_code, COALESCE(s.staff_name, '') as staff_name, c.staff_id, c.created_at, c.updated_at
   FROM customers c
   LEFT JOIN staff s ON c.staff_id = s.id
 `;
@@ -95,6 +95,9 @@ export function initializeDb(): void {
 
     // Migration: Add mobile_number if not exists
     addColumnIfMissing(db, 'staff', 'mobile_number', 'ALTER TABLE staff ADD COLUMN mobile_number TEXT');
+
+    // Migration: Add staff_code if not exists
+    addColumnIfMissing(db, 'staff', 'staff_code', 'ALTER TABLE staff ADD COLUMN staff_code TEXT');
 
     // Customers table (正規化済み: staff_nameカラムなし)
     db.exec(`
@@ -139,6 +142,9 @@ export function initializeDb(): void {
       )
     `);
 
+    // Migration: Add customer_code if not exists
+    addColumnIfMissing(db, 'customers', 'customer_code', 'ALTER TABLE customers ADD COLUMN customer_code TEXT');
+
     // インデックス作成
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_customers_staff_id ON customers(staff_id);
@@ -156,13 +162,14 @@ export function initializeDb(): void {
           CREATE TABLE customers_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             customer_name TEXT NOT NULL,
+            customer_code TEXT,
             staff_id INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
           );
-          INSERT INTO customers_new (id, customer_name, staff_id, created_at, updated_at)
-            SELECT id, customer_name, staff_id, created_at, updated_at FROM customers;
+          INSERT INTO customers_new (id, customer_name, customer_code, staff_id, created_at, updated_at)
+            SELECT id, customer_name, customer_code, staff_id, created_at, updated_at FROM customers;
           DROP TABLE customers;
           ALTER TABLE customers_new RENAME TO customers;
           CREATE INDEX idx_customers_staff_id ON customers(staff_id);
@@ -183,12 +190,13 @@ export function getAllStaff(): Staff[] {
   });
 }
 
-export function createStaff(staffName: string, mobileNumber?: string): Staff {
+export function createStaff(staffName: string, mobileNumber?: string, staffCode?: string): Staff {
   return withDb((db) => {
-    const info = db.prepare('INSERT INTO staff (staff_name, mobile_number) VALUES (?, ?)').run(staffName, mobileNumber || null);
+    const info = db.prepare('INSERT INTO staff (staff_name, mobile_number, staff_code) VALUES (?, ?, ?)').run(staffName, mobileNumber || null, staffCode || null);
     return {
       id: info.lastInsertRowid as number,
       staff_name: staffName,
+      staff_code: staffCode || null,
       mobile_number: mobileNumber || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -196,9 +204,9 @@ export function createStaff(staffName: string, mobileNumber?: string): Staff {
   });
 }
 
-export function updateStaff(id: number, staffName: string, mobileNumber?: string): boolean {
+export function updateStaff(id: number, staffName: string, mobileNumber?: string, staffCode?: string): boolean {
   return withDb((db) => {
-    const info = db.prepare('UPDATE staff SET staff_name = ?, mobile_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(staffName, mobileNumber || null, id);
+    const info = db.prepare('UPDATE staff SET staff_name = ?, mobile_number = ?, staff_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(staffName, mobileNumber || null, staffCode || null, id);
     return info.changes > 0;
   });
 }
@@ -248,7 +256,7 @@ export function getAllCustomersWithYears(): CustomerWithYears[] {
 }
 
 // 顧客を作成（staffIdは任意）
-export function createCustomer(customerName: string, staffId?: number | null): Customer {
+export function createCustomer(customerName: string, staffId?: number | null, customerCode?: string): Customer {
   return withDb((db) => {
     const resolvedStaffId = staffId ?? null;
 
@@ -258,8 +266,8 @@ export function createCustomer(customerName: string, staffId?: number | null): C
     }
 
     const info = db
-      .prepare('INSERT INTO customers (customer_name, staff_id) VALUES (?, ?)')
-      .run(customerName, resolvedStaffId);
+      .prepare('INSERT INTO customers (customer_name, staff_id, customer_code) VALUES (?, ?, ?)')
+      .run(customerName, resolvedStaffId, customerCode || null);
 
     // JOINで担当者名を取得して返す
     return db
@@ -272,7 +280,8 @@ export function createCustomer(customerName: string, staffId?: number | null): C
 export function updateCustomer(
   id: number,
   customerName: string,
-  staffId?: number | null
+  staffId?: number | null,
+  customerCode?: string
 ): boolean {
   return withDb((db) => {
     const existing = db.prepare('SELECT id FROM customers WHERE id = ?').get(id);
@@ -286,8 +295,8 @@ export function updateCustomer(
     }
 
     db.prepare(
-      'UPDATE customers SET customer_name = ?, staff_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).run(customerName, resolvedStaffId, id);
+      'UPDATE customers SET customer_name = ?, staff_id = ?, customer_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).run(customerName, resolvedStaffId, customerCode || null, id);
 
     return true;
   });
@@ -516,26 +525,27 @@ export function deleteDocumentRecord(id: number): boolean {
 
 // 全データをエクスポート用に取得
 export function getFullBackupData(): {
-  staff: Array<{ staff_name: string; mobile_number: string | null }>;
+  staff: Array<{ staff_name: string; staff_code: string | null; mobile_number: string | null }>;
   customers: Array<{
     customer_name: string;
+    customer_code: string | null;
     staff_name: string;
     records: Array<{ year: number; document_groups: unknown }>;
   }>;
 } {
   return withDb((db) => {
     const staff = db
-      .prepare('SELECT staff_name, mobile_number FROM staff ORDER BY staff_name')
-      .all() as Array<{ staff_name: string; mobile_number: string | null }>;
+      .prepare('SELECT staff_name, staff_code, mobile_number FROM staff ORDER BY staff_name')
+      .all() as Array<{ staff_name: string; staff_code: string | null; mobile_number: string | null }>;
 
     const customers = db
       .prepare(`
-        SELECT c.id, c.customer_name, COALESCE(s.staff_name, '') as staff_name
+        SELECT c.id, c.customer_name, c.customer_code, COALESCE(s.staff_name, '') as staff_name
         FROM customers c
         LEFT JOIN staff s ON c.staff_id = s.id
         ORDER BY c.customer_name
       `)
-      .all() as Array<{ id: number; customer_name: string; staff_name: string }>;
+      .all() as Array<{ id: number; customer_name: string; customer_code: string | null; staff_name: string }>;
 
     const customersWithRecords = customers.map((customer) => {
       const records = db
@@ -544,6 +554,7 @@ export function getFullBackupData(): {
 
       return {
         customer_name: customer.customer_name,
+        customer_code: customer.customer_code,
         staff_name: customer.staff_name,
         records: records.map((r) => ({
           year: r.year,
@@ -558,9 +569,10 @@ export function getFullBackupData(): {
 
 // バックアップデータから復元
 export function restoreFullBackup(data: {
-  staff: Array<{ staff_name: string; mobile_number: string | null }>;
+  staff: Array<{ staff_name: string; staff_code?: string | null; mobile_number: string | null }>;
   customers: Array<{
     customer_name: string;
+    customer_code?: string | null;
     staff_name: string;
     records: Array<{ year: number; document_groups: unknown }>;
   }>;

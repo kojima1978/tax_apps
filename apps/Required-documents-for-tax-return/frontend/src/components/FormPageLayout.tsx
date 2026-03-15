@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, LayoutDashboard } from 'lucide-react';
 import FormErrorDisplay from './FormErrorDisplay';
 
 interface FormPageLayoutProps {
@@ -28,6 +28,9 @@ export function FormPageLayout({
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <div className="flex items-center mb-2">
+            <Link to="/" className="mr-1 p-2 bg-white rounded-full text-slate-400 hover:text-emerald-600 shadow-sm hover:shadow transition-all" title="TOPへ戻る">
+              <LayoutDashboard className="w-5 h-5" />
+            </Link>
             <Link to={backTo} className="mr-3 p-2 bg-white rounded-full text-slate-500 hover:text-emerald-600 shadow-sm hover:shadow transition-all group">
               <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
             </Link>

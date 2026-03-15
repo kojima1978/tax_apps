@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowLeft, Home, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, RefreshCcw, Search, X, ChevronsUpDown, ChevronsDownUp, Pencil } from 'lucide-react';
+import { ChevronLeft, LayoutDashboard, Printer, Save, Copy, Loader2, FileSpreadsheet, FileJson, Upload, Check, RotateCcw, RefreshCcw, Search, X, ChevronsUpDown, ChevronsDownUp, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatReiwaYear } from '@/utils/date';
 import { getErrorMessage } from '@/utils/error';
@@ -126,19 +126,19 @@ export function EditorToolbar({
       <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center">
-            <a
-              href="/"
-              title="ポータルに戻る"
+            <Link
+              to="/"
+              title="TOPへ戻る"
               className="mr-1 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-emerald-600 transition-colors"
             >
-              <Home className="w-5 h-5" />
-            </a>
+              <LayoutDashboard className="w-5 h-5" />
+            </Link>
             <button
               onClick={onBack}
               className="mr-3 p-2 rounded-full hover:bg-slate-100 text-slate-500"
-              aria-label="メニューに戻る"
+              aria-label="前のページに戻る"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
             <h1 className="text-xl font-bold text-slate-800">必要書類リスト作成</h1>
           </div>
