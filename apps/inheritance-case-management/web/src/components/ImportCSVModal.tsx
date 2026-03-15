@@ -38,7 +38,7 @@ const FIELD_GUIDE = {
   optional: [
     { name: "担当者・紹介者", note: "マスタ登録名と一致で自動紐付け" },
     { name: "紹介料率(%)・紹介料", note: "任意" },
-    { name: "連絡先N_氏名/電話/メール", note: "最大5件" },
+    { name: "連絡先N_氏名/電話/メール", note: "最大10件" },
     { name: "ID", note: "既存案件の更新時のみ" },
   ],
 } as const;

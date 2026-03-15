@@ -34,7 +34,7 @@ const IGNORED_HEADERS = new Set(['作成日', '更新日']);
 const VALID_STATUSES: CaseStatus[] = ['未着手', '進行中', '完了', '請求済'];
 const VALID_ACCEPTANCE: AcceptanceStatus[] = ['受託可', '受託不可', '未判定', '保留'];
 
-export const MAX_CONTACT_COLUMNS = 5;
+export const MAX_CONTACT_COLUMNS = 10;
 export const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 
 // ── Contact column detection ──────────────────────────────────

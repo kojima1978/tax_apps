@@ -43,7 +43,7 @@
 
 ### 連絡先管理
 
-- 案件ごとに複数の連絡先（氏名・電話番号・メール）を管理
+- 案件ごとに最大10件の連絡先（氏名・電話番号・メール）を管理
 - 並び順の保持（sortOrder）
 
 ### マスタ管理
@@ -261,7 +261,7 @@ inheritance-case-management/
 
 ```mermaid
 erDiagram
-    InheritanceCase ||--o{ CaseContact : "has many"
+    InheritanceCase ||--o{ CaseContact : "has many (max 10)"
     InheritanceCase ||--o{ CaseProgress : "has many"
     InheritanceCase }o--|| Assignee : "belongs to"
     InheritanceCase }o--|| Referrer : "belongs to"

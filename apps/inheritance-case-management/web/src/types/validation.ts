@@ -37,7 +37,7 @@ export const createCaseSchema = z.object({
   referralFeeAmount: z.number().int().min(0, '紹介料は0以上を入力してください').nullable().optional(),
   summary: z.string().max(10, '特記事項は10文字以内で入力してください').nullable().optional(),
   memo: z.string().nullable().optional(),
-  contacts: z.array(contactSchema).optional(),
+  contacts: z.array(contactSchema).max(10, '連絡先は最大10件までです').optional(),
   progress: z.array(progressStepSchema).optional(),
 });
 

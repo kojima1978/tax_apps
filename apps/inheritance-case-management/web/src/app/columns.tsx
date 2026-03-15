@@ -115,7 +115,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     },
     {
         accessorKey: "summary",
-        header: () => <span className="inline-flex items-center h-8">特記事項</span>,
+        header: () => <span className="inline-flex items-center h-8">特記事項（10文字まで）</span>,
         cell: ({ row }) => <InlineSummaryCell caseData={row.original} />,
     },
 ]

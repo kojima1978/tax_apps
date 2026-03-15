@@ -101,7 +101,7 @@ export function BasicInfoSection({
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="summary">特記事項</Label>
+                    <Label htmlFor="summary">特記事項（10文字まで）</Label>
                     <div className="relative">
                         <Input
                             id="summary"
