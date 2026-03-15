@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import type { InheritanceCase, CaseStatus, AcceptanceStatus } from "@/types/shared"
 import { formatCurrency, calcNet } from "@/lib/analytics-utils"
-import { STATUS_STYLES, ACCEPTANCE_STYLES, MAX_SUMMARY_LENGTH } from "@/types/constants"
+import { STATUS_STYLES, ACCEPTANCE_STYLES, MAX_SUMMARY_LENGTH, isCompleted } from "@/types/constants"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SortableHeader } from "@/components/ui/SortableHeader"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
@@ -43,8 +43,16 @@ export const columns: ColumnDef<InheritanceCase>[] = [
             const deadline = getDeadlineDate(row.getValue("dateOfDeath"))
             const dateStr = deadline.toLocaleDateString("ja-JP")
 
-            if (row.original.status === "完了") {
-                return <div className="text-muted-foreground">{dateStr}</div>
+            if (row.original.status === "対応終了") {
+                return <div className="text-muted-foreground line-through">{dateStr}</div>
+            }
+            if (isCompleted(row.original.status)) {
+                return (
+                    <div className="text-muted-foreground">
+                        {dateStr}
+                        <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">申告済</span>
+                    </div>
+                )
             }
 
             const status = getDeadlineStatus(deadline)
@@ -82,18 +90,21 @@ export const columns: ColumnDef<InheritanceCase>[] = [
         cell: ({ row }) => <div>{row.original.assignee?.name || ""}</div>,
     },
     {
-        accessorKey: "estimateAmount",
-        header: ({ column }) => <SortableHeader column={column} className="text-right">見積額</SortableHeader>,
-        cell: ({ row }) => (
-            <div className="text-right font-medium">{formatCurrency(calcNet(row.original, "estimate"))}</div>
-        ),
-    },
-    {
-        accessorKey: "feeAmount",
-        header: ({ column }) => <SortableHeader column={column} className="text-right">報酬額</SortableHeader>,
-        cell: ({ row }) => (
-            <div className="text-right font-medium">{formatCurrency(calcNet(row.original, "fee"))}</div>
-        ),
+        id: "amount",
+        header: () => <span className="inline-flex items-center justify-end h-8 w-full">金額</span>,
+        cell: ({ row }) => {
+            const c = row.original
+            const hasFee = (c.feeAmount || 0) > 0
+            const amount = hasFee ? calcNet(c, "fee") : calcNet(c, "estimate")
+            return (
+                <div className="text-right font-medium">
+                    {formatCurrency(amount)}
+                    <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${hasFee ? "bg-green-50 text-green-700" : "bg-blue-50 text-blue-700"}`}>
+                        {hasFee ? "確定" : "見込"}
+                    </span>
+                </div>
+            )
+        },
     },
     {
         id: "actions",

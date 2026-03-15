@@ -119,6 +119,7 @@ function ReferrerSettingsContent() {
             renderEditCell={renderEditCell}
             onStartEdit={(r) => masterList.handleStartEdit(r, { company: r.company, department: r.department || "", name: r.name })}
             onSaveEdit={handleSaveEdit}
+            groupBy={(r) => r.company}
         />
     )
 }

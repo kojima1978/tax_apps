@@ -1,15 +1,17 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
 import { Search, X, Filter } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { CASE_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, SORT_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
 import type { Assignee } from "@/types/shared"
+import { DEPARTMENTS } from "@/types/shared"
 
 const FILTER_SELECT_WRAPPER = "h-10 w-auto"
 
+type FilterDef = { key: keyof CasesQueryParams; placeholder: string; options: readonly { value: string | number; label: string }[] }
 type SortField = 'deceasedName' | 'dateOfDeath' | 'fiscalYear' | 'status' | 'taxAmount' | 'feeAmount' | 'createdAt' | 'updatedAt'
 type SortOrder = 'asc' | 'desc'
 
@@ -26,16 +28,22 @@ interface FilterBarProps {
     hasFilters: boolean
 }
 
-// Data-driven filter definitions
-const FILTER_DEFS: { key: keyof CasesQueryParams; placeholder: string; options: readonly { value: string | number; label: string }[] }[] = [
-    { key: "status", placeholder: "ステータス", options: CASE_STATUS_FILTER_OPTIONS },
-    { key: "acceptanceStatus", placeholder: "受託状況", options: ACCEPTANCE_STATUS_FILTER_OPTIONS },
+// Static filter definitions
+const STATIC_FILTER_DEFS: FilterDef[] = [
     { key: "fiscalYear", placeholder: "年度", options: FILTER_YEAR_OPTIONS.map(y => ({ value: y, label: `${y}年度` })) },
+    { key: "acceptanceStatus", placeholder: "受託状況", options: ACCEPTANCE_STATUS_FILTER_OPTIONS },
+    { key: "status", placeholder: "進行", options: CASE_STATUS_FILTER_OPTIONS },
+    { key: "department", placeholder: "部門", options: DEPARTMENTS.map(d => ({ value: d, label: d })) },
 ]
 
 export function FilterBar({
     queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onSortChange, onClearAll, assignees, totalCount, hasFilters,
 }: FilterBarProps) {
+    const filterDefs: FilterDef[] = useMemo(() => [
+        ...STATIC_FILTER_DEFS,
+        { key: "assigneeId" as const, placeholder: "担当者", options: assignees.filter(a => a.active).map(a => ({ value: a.id, label: a.name })) },
+    ], [assignees])
+
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 
     // 即時検索（デバウンス300ms）
@@ -51,16 +59,17 @@ export function FilterBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchInput])
 
-    const ACTIVE_FILTER_DEFS: { key: keyof CasesQueryParams; label: (v: string | number) => string }[] = [
-        { key: 'search', label: (v) => `検索: ${v}` },
-        { key: 'status', label: (v) => `ステータス: ${v}` },
-        { key: 'acceptanceStatus', label: (v) => `受託: ${v}` },
-        { key: 'fiscalYear', label: (v) => `年度: ${v}年度` },
-        { key: 'assigneeId', label: (v) => `担当: ${assignees.find(a => a.id === v)?.name || v}` },
-    ]
-    const activeFilters = ACTIVE_FILTER_DEFS
-        .filter(({ key }) => queryParams[key])
-        .map(({ key, label }) => ({ key, label: label(queryParams[key] as string | number) }))
+    const CHIP_LABELS: Record<string, (v: string | number) => string> = {
+        search: (v) => `検索: ${v}`,
+        status: (v) => `進行: ${v}`,
+        acceptanceStatus: (v) => `受託: ${v}`,
+        fiscalYear: (v) => `年度: ${v}年度`,
+        department: (v) => `部門: ${v}`,
+        assigneeId: (v) => `担当: ${assignees.find(a => a.id === v)?.name || v}`,
+    }
+    const activeFilters = Object.entries(CHIP_LABELS)
+        .filter(([key]) => queryParams[key as keyof CasesQueryParams])
+        .map(([key, label]) => ({ key, label: label(queryParams[key as keyof CasesQueryParams] as string | number) }))
 
     return (
         <div className="space-y-3 mb-4">
@@ -114,7 +123,7 @@ export function FilterBar({
 
             {/* Row 2: フィルター + ソート */}
             <div className="flex gap-2 flex-wrap">
-                {FILTER_DEFS.map(({ key, placeholder, options }) => (
+                {filterDefs.map(({ key, placeholder, options }) => (
                     <SelectField
                         key={key}
                         wrapperClassName={FILTER_SELECT_WRAPPER}
@@ -127,16 +136,6 @@ export function FilterBar({
                         ))}
                     </SelectField>
                 ))}
-                <SelectField
-                    wrapperClassName={FILTER_SELECT_WRAPPER}
-                    value={queryParams.assigneeId || ""}
-                    onChange={(e) => onFilterChange("assigneeId", e.target.value)}
-                >
-                    <option value="">担当者</option>
-                    {assignees.filter(a => a.active).map(a => (
-                        <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
-                </SelectField>
                 <SelectField
                     wrapperClassName={FILTER_SELECT_WRAPPER}
                     value={`${queryParams.sortBy || 'createdAt'}_${queryParams.sortOrder || 'desc'}`}

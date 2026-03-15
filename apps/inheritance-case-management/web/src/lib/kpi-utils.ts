@@ -1,4 +1,5 @@
 import type { InheritanceCase } from "@/types/shared"
+import { isCompleted, isDeadlineSkip } from "@/types/constants"
 import { getDeadlineDate } from "./deadline-utils"
 
 export interface KPIData {
@@ -19,13 +20,13 @@ export function computeKPI(allCases: InheritanceCase[]): KPIData {
     const ongoing = accepted.filter(c => c.status === "進行中").length
 
     const deadlineSoon = accepted.filter(c => {
-        if (c.status === "完了") return false
+        if (isDeadlineSkip(c.status)) return false
         const deadline = getDeadlineDate(c.dateOfDeath)
         return deadline <= in30Days && deadline >= now
     }).length
 
     const completedThisMonth = accepted.filter(c => {
-        if (c.status !== "完了") return false
+        if (!isCompleted(c.status)) return false
         const updated = c.updatedAt ? new Date(c.updatedAt) : null
         return updated && updated.getMonth() === thisMonth && updated.getFullYear() === thisYear
     }).length

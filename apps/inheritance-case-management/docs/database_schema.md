@@ -13,7 +13,7 @@ erDiagram
         int id PK "SERIAL"
         string deceasedName "被相続人氏名"
         string dateOfDeath "相続開始日"
-        string status "未着手|進行中|完了|請求済"
+        string status "未着手|進行中|完了（税務申告済）|入金済|対応終了"
         string acceptanceStatus "受託可|受託不可|未判定|保留"
         int taxAmount "相続税額（default: 0）"
         int feeAmount "報酬額（default: 0）"
@@ -82,7 +82,7 @@ erDiagram
 | id | Int | PK | autoincrement | 自動採番（表示時は4桁ゼロ埋め） |
 | deceasedName | String | Yes | - | 被相続人氏名 |
 | dateOfDeath | String | Yes | - | 相続開始日（YYYY-MM-DD） |
-| status | String | Yes | "未着手" | 未着手 / 進行中 / 完了 / 請求済 |
+| status | String | Yes | "未着手" | 未着手 / 進行中 / 完了（税務申告済） / 入金済 / 対応終了 |
 | acceptanceStatus | String | No | "未判定" | 受託可 / 受託不可 / 未判定 / 保留 |
 | taxAmount | Int | No | 0 | 相続税額（円） |
 | feeAmount | Int | No | 0 | 報酬額（円） |

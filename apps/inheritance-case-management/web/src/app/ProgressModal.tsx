@@ -5,7 +5,7 @@ import { MoreHorizontal, Save, Check, Plus, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Modal } from "@/components/ui/Modal"
 import { SetTodayButton } from "@/components/ui/SetTodayButton"
-import type { InheritanceCase, ProgressStep } from "@/types/shared"
+import type { InheritanceCase, CaseStatus, ProgressStep } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
 import { addVisitStep, shouldShowAddVisit } from "@/lib/progress-utils"
 import { toProgressSteps, toProgressItems } from "@/lib/case-converters"
@@ -63,6 +63,22 @@ function SortableRow({
     )
 }
 
+/** 進捗ステップの日付入力に応じてステータス変更を提案するルール（優先度順） */
+const STATUS_PROMPT_RULES: { stepName: string; status: CaseStatus; excludeStatuses: CaseStatus[]; message: string }[] = [
+    { stepName: "入金確認", status: "入金済", excludeStatuses: ["入金済"], message: "「入金確認」に日付が入力されました。\nステータスを「入金済」に変更しますか？" },
+    { stepName: "申告（済）", status: "完了（税務申告済）", excludeStatuses: ["完了（税務申告済）", "入金済"], message: "「申告（済）」に日付が入力されました。\nステータスを「完了（税務申告済）」に変更しますか？" },
+]
+
+function detectStatusPrompt(steps: ProgressStep[], currentStatus: CaseStatus) {
+    for (const rule of STATUS_PROMPT_RULES) {
+        const step = steps.find(s => s.name === rule.stepName)
+        if (step?.date && !rule.excludeStatuses.includes(currentStatus)) {
+            return { status: rule.status, message: rule.message }
+        }
+    }
+    return null
+}
+
 export function ProgressModalButton({ caseData }: { caseData: InheritanceCase }) {
     const [showModal, setShowModal] = useState(false)
     const [steps, setSteps] = useState<ProgressStep[]>([])
@@ -89,7 +105,14 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
     const handleSave = async () => {
         setIsSaving(true)
         try {
-            await updateCase(caseData.id, { progress: steps })
+            const statusPrompt = detectStatusPrompt(steps, caseData.status)
+            let newStatus: CaseStatus | undefined
+            if (statusPrompt && window.confirm(statusPrompt.message)) {
+                newStatus = statusPrompt.status
+            }
+
+            await updateCase(caseData.id, { progress: steps, ...(newStatus && { status: newStatus }) })
+            if (newStatus) caseData.status = newStatus
             caseData.progress = toProgressItems(steps)
             setSaved(true)
         } catch {

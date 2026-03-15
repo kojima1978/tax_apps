@@ -46,6 +46,8 @@ interface MasterListPageProps<T extends { id: number; active: boolean }> {
     onPermanentDelete: (id: number) => void
     onSave: () => void
     onSort: (field: string) => void
+    /** Optional: key extractor for grouping rows. When provided, a group header row is inserted when the value changes. */
+    groupBy?: (item: T) => string
 }
 
 /** useMasterList の返り値から MasterListPage の共通 props を抽出するヘルパー */
@@ -112,6 +114,7 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
     onPermanentDelete,
     onSave,
     onSort,
+    groupBy,
 }: MasterListPageProps<T>) {
     return (
         <div className="container mx-auto py-10 max-w-2xl relative pb-24 px-4">
@@ -177,8 +180,19 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredItems.map((item) => (
-                                        <TableRow key={item.id} className={item.active === false ? "bg-muted/50" : ""}>
+                                    {filteredItems.map((item, idx) => {
+                                        const groupLabel = groupBy?.(item)
+                                        const prevGroupLabel = idx > 0 ? groupBy?.(filteredItems[idx - 1]) : undefined
+                                        const showGroupHeader = groupBy && groupLabel !== prevGroupLabel
+                                        return (<React.Fragment key={item.id}>
+                                        {showGroupHeader && (
+                                            <TableRow className="bg-muted/30">
+                                                <TableCell colSpan={columns.length + 1} className="py-1.5 px-3 text-xs font-semibold text-muted-foreground tracking-wide">
+                                                    {groupLabel}
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                        <TableRow className={item.active === false ? "bg-muted/50" : ""}>
                                             {editingId === item.id ? (
                                                 <>
                                                     {columns.map(col => (
@@ -261,7 +275,8 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                                                 </>
                                             )}
                                         </TableRow>
-                                    ))}
+                                        </React.Fragment>)
+                                    })}
                                 </TableBody>
                             </Table>
                         </div>

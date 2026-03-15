@@ -31,7 +31,7 @@ const CSV_HEADER_MAP: Record<string, string> = {
 
 const IGNORED_HEADERS = new Set(['作成日', '更新日']);
 
-const VALID_STATUSES: CaseStatus[] = ['未着手', '進行中', '完了', '請求済'];
+const VALID_STATUSES: CaseStatus[] = ['未着手', '進行中', '完了（税務申告済）', '入金済', '対応終了'];
 const VALID_ACCEPTANCE: AcceptanceStatus[] = ['受託可', '受託不可', '未判定', '保留'];
 
 export const MAX_CONTACT_COLUMNS = 10;
