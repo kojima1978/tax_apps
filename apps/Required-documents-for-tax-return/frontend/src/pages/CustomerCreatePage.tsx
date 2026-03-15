@@ -6,6 +6,7 @@ import { Staff } from '@/types';
 import { Users, UserPlus } from 'lucide-react';
 import SearchableSelect from '@/components/SearchableSelect';
 import SubmitButton from '@/components/SubmitButton';
+import CodeInput from '@/components/CodeInput';
 import { FormPageLayout } from '@/components/FormPageLayout';
 import { useInlineStaffCreation } from '@/hooks/useInlineStaffCreation';
 import { InlineStaffToggle, InlineStaffForm } from '@/components/InlineStaffForm';
@@ -14,6 +15,7 @@ export default function CreateCustomerPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [name, setName] = useState('');
+    const [customerCode, setCustomerCode] = useState('');
     const [staffId, setStaffId] = useState<number | ''>('');
     const [staffList, setStaffList] = useState<Staff[]>([]);
     const [isLoadingStaff, setIsLoadingStaff] = useState(true);
@@ -59,7 +61,7 @@ export default function CreateCustomerPage() {
         setIsSubmitting(true);
         setError(null);
         try {
-            const customer = await addCustomer(name, staffId || null);
+            const customer = await addCustomer(name, staffId || null, customerCode.trim() || undefined);
             navigate(`/customers/${customer.id}`);
         } catch (e: unknown) {
             setError(translateCustomerError(e, '登録に失敗しました'));
@@ -102,6 +104,8 @@ export default function CreateCustomerPage() {
                         </p>
                     )}
                 </div>
+
+                <CodeInput id="code-input" label="お客様コード" value={customerCode} onChange={setCustomerCode} maxLength={4} placeholder="例：0001" />
 
                 <div>
                     <label htmlFor="staff-select" className="block text-sm font-bold text-slate-700 mb-2 flex items-center">

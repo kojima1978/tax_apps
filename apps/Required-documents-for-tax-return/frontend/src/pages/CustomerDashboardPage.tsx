@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Loader2, Search, X, Plus, Users } from 'lucide-react';
+import { Home, Loader2, Search, X, Plus, Users, ChevronDown } from 'lucide-react';
 import { taxReturnData } from '@/data/taxReturnData';
 import { fetchCustomersWithYears, fetchStaff, CustomerWithYears } from '@/utils/api';
 import { Staff } from '@/types';
@@ -40,7 +40,10 @@ export default function CustomerDashboardPage() {
     let result = customers;
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase();
-      result = result.filter(c => c.customer_name.toLowerCase().includes(q));
+      result = result.filter(c =>
+        c.customer_name.toLowerCase().includes(q) ||
+        (c.customer_code && c.customer_code.includes(q))
+      );
     }
     if (staffFilter) {
       result = result.filter(c => c.staff_name === staffFilter);
@@ -63,8 +66,8 @@ export default function CustomerDashboardPage() {
           </header>
 
           <div className="p-8">
-            {/* 検索・フィルタ + お客様登録ボタン */}
-            <div className="mb-6 flex gap-3 flex-wrap">
+            {/* 検索 + お客様登録ボタン */}
+            <div className="mb-4 flex gap-3 flex-wrap">
               <div className="flex-1 min-w-[200px] relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
@@ -75,16 +78,6 @@ export default function CustomerDashboardPage() {
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
                 />
               </div>
-              <select
-                value={staffFilter}
-                onChange={e => setStaffFilter(e.target.value)}
-                className="px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white min-w-[140px]"
-              >
-                <option value="">全担当者</option>
-                {staffList.map(s => (
-                  <option key={s.id} value={s.staff_name}>{s.staff_name}</option>
-                ))}
-              </select>
               {hasFilter && (
                 <button
                   onClick={() => { setSearchText(''); setStaffFilter(''); }}
@@ -102,6 +95,36 @@ export default function CustomerDashboardPage() {
                 お客様登録
               </Link>
             </div>
+
+            {/* 担当者フィルタ（ドロップダウン + 選択チップ） */}
+            {staffList.length > 0 && (
+              <div className="mb-6 flex items-center gap-3">
+                <div className="relative">
+                  <select
+                    value=""
+                    onChange={e => { if (e.target.value) setStaffFilter(e.target.value); }}
+                    className="appearance-none pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                  >
+                    <option value="">担当者で絞り込み</option>
+                    {staffList.map(s => (
+                      <option key={s.id} value={s.staff_name}>
+                        {s.staff_code ? `${s.staff_name} (${s.staff_code})` : s.staff_name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+                {staffFilter && (
+                  <button
+                    onClick={() => setStaffFilter('')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors"
+                  >
+                    {staffFilter}
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* 件数表示 */}
             {!isLoading && customers.length > 0 && (

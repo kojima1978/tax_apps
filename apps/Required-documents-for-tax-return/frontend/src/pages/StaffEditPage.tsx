@@ -4,6 +4,7 @@ import { fetchStaff, updateStaffName } from '@/utils/api';
 import { getErrorMessage } from '@/utils/error';
 import FullScreenLoader from '@/components/FullScreenLoader';
 import SubmitButton from '@/components/SubmitButton';
+import CodeInput from '@/components/CodeInput';
 import { FormPageLayout } from '@/components/FormPageLayout';
 
 export default function EditStaffPage() {
@@ -12,6 +13,7 @@ export default function EditStaffPage() {
     const id = Number(params.id);
 
     const [name, setName] = useState('');
+    const [staffCode, setStaffCode] = useState('');
     const [mobileNumber, setMobileNumber] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,6 +30,7 @@ export default function EditStaffPage() {
             const target = staffList.find(s => s.id === id);
             if (target) {
                 setName(target.staff_name);
+                setStaffCode(target.staff_code || '');
                 setMobileNumber(target.mobile_number || '');
             } else {
                 setError('担当者が見つかりませんでした');
@@ -46,7 +49,7 @@ export default function EditStaffPage() {
         setIsSubmitting(true);
         setError(null);
         try {
-            await updateStaffName(id, name, mobileNumber);
+            await updateStaffName(id, name, mobileNumber, staffCode.trim() || undefined);
             navigate('/staff');
         } catch (e: unknown) {
             setError(getErrorMessage(e, '更新に失敗しました'));
@@ -73,6 +76,10 @@ export default function EditStaffPage() {
                         onChange={(e) => setName(e.target.value)}
                         className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                     />
+                </div>
+
+                <div className="mb-4">
+                    <CodeInput label="担当者コード" value={staffCode} onChange={setStaffCode} maxLength={3} placeholder="例：001" variant="compact" />
                 </div>
 
                 <div className="mb-8">

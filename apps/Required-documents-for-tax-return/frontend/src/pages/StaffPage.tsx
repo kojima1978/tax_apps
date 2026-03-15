@@ -22,6 +22,9 @@ export default function StaffListPage() {
                     </div>
                     <div>
                         <span className="font-bold text-slate-700">{staff.staff_name}</span>
+                        {staff.staff_code && (
+                            <span className="ml-2 text-xs text-slate-400 font-mono">#{staff.staff_code}</span>
+                        )}
                         {staff.mobile_number && (
                             <span className="ml-3 text-xs text-slate-400 inline-flex items-center">
                                 <Phone className="w-3 h-3 mr-1" />

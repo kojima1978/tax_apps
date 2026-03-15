@@ -16,7 +16,12 @@ export default function CustomerListPage() {
             onDelete={deleteCustomer}
             renderItem={(customer) => (
                 <div>
-                    <div className="font-bold text-slate-700">{customer.customer_name}</div>
+                    <div className="font-bold text-slate-700">
+                        {customer.customer_name}
+                        {customer.customer_code && (
+                            <span className="ml-2 text-xs text-slate-400 font-mono">#{customer.customer_code}</span>
+                        )}
+                    </div>
                     <div className="text-xs text-slate-500">担当: {customer.staff_name || '未設定'}</div>
                 </div>
             )}

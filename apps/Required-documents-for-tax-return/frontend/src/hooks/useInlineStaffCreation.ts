@@ -10,6 +10,7 @@ interface UseInlineStaffCreationOptions {
 export function useInlineStaffCreation({ onCreated }: UseInlineStaffCreationOptions) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
+  const [code, setCode] = useState('');
   const [mobile, setMobile] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +21,7 @@ export function useInlineStaffCreation({ onCreated }: UseInlineStaffCreationOpti
     setShowForm(false);
     setError(null);
     setName('');
+    setCode('');
     setMobile('');
   }, []);
 
@@ -28,7 +30,7 @@ export function useInlineStaffCreation({ onCreated }: UseInlineStaffCreationOpti
     setIsCreating(true);
     setError(null);
     try {
-      const staff = await addStaff(name.trim(), mobile.trim() || undefined);
+      const staff = await addStaff(name.trim(), mobile.trim() || undefined, code.trim() || undefined);
       onCreated(staff);
       close();
     } catch (e: unknown) {
@@ -36,7 +38,7 @@ export function useInlineStaffCreation({ onCreated }: UseInlineStaffCreationOpti
     } finally {
       setIsCreating(false);
     }
-  }, [name, mobile, onCreated, close]);
+  }, [name, code, mobile, onCreated, close]);
 
-  return { showForm, name, setName, mobile, setMobile, isCreating, error, open, close, submit };
+  return { showForm, name, setName, code, setCode, mobile, setMobile, isCreating, error, open, close, submit };
 }

@@ -205,22 +205,22 @@ export async function fetchCustomers(): Promise<Customer[]> {
   return data.customers || [];
 }
 
-export async function addCustomer(customerName: string, staffId?: number | null): Promise<Customer> {
+export async function addCustomer(customerName: string, staffId?: number | null, customerCode?: string): Promise<Customer> {
   const response = await fetch(`${API_BASE_URL}/api/customers`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customerName, ...(staffId ? { staffId } : {}) }),
+    body: JSON.stringify({ customerName, ...(staffId ? { staffId } : {}), customerCode }),
   });
   await throwIfNotOk(response, 'お客様の登録に失敗しました');
   const data: { customer: Customer } = await response.json();
   return data.customer;
 }
 
-export async function updateCustomerName(id: number, customerName: string, staffId?: number | null): Promise<void> {
+export async function updateCustomerName(id: number, customerName: string, staffId?: number | null, customerCode?: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/customers/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customerName, ...(staffId ? { staffId } : {}) }),
+    body: JSON.stringify({ customerName, ...(staffId ? { staffId } : {}), customerCode }),
   });
   await throwIfNotOk(response, 'お客様情報の更新に失敗しました');
 }
@@ -241,22 +241,22 @@ export async function fetchStaff(): Promise<Staff[]> {
   return data.staff || [];
 }
 
-export async function addStaff(staffName: string, mobileNumber?: string): Promise<Staff> {
+export async function addStaff(staffName: string, mobileNumber?: string, staffCode?: string): Promise<Staff> {
   const response = await fetch(`${API_BASE_URL}/api/staff`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ staffName, mobileNumber }),
+    body: JSON.stringify({ staffName, mobileNumber, staffCode }),
   });
   await throwIfNotOk(response, '担当者の登録に失敗しました');
   const data: { staff: Staff } = await response.json();
   return data.staff;
 }
 
-export async function updateStaffName(id: number, staffName: string, mobileNumber?: string): Promise<void> {
+export async function updateStaffName(id: number, staffName: string, mobileNumber?: string, staffCode?: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/staff/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ staffName, mobileNumber }),
+    body: JSON.stringify({ staffName, mobileNumber, staffCode }),
   });
   await throwIfNotOk(response, '担当者情報の更新に失敗しました');
 }

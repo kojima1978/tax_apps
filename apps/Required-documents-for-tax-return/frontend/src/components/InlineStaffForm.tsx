@@ -45,6 +45,16 @@ export function InlineStaffForm({ staff }: InlineStaffFormProps) {
       />
       <input
         type="text"
+        inputMode="numeric"
+        maxLength={3}
+        value={staff.code}
+        onChange={(e) => staff.setCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
+        placeholder="担当者コード（任意・例：001）"
+        className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+      />
+
+      <input
+        type="text"
         value={staff.mobile}
         onChange={(e) => staff.setMobile(e.target.value)}
         placeholder="携帯電話番号（任意）"
