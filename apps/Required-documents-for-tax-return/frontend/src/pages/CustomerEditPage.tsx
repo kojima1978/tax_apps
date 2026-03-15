@@ -120,7 +120,6 @@ export default function EditCustomerPage() {
                     disabled={isSubmitting || !name.trim()}
                     submitLabel="変更を保存"
                     submittingLabel="保存中..."
-                    className="w-full py-3.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center"
                 />
             </form>
         </FormPageLayout>

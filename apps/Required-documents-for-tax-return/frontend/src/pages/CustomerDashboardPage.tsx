@@ -6,6 +6,7 @@ import { fetchCustomersWithYears, fetchStaff, CustomerWithYears } from '@/utils/
 import { Staff } from '@/types';
 import { CustomerCard } from '@/components/CustomerCard';
 import { AdminMenu } from '@/components/AdminMenu';
+import PageShell from '@/components/PageShell';
 
 export default function CustomerDashboardPage() {
   const navigate = useNavigate();
@@ -50,8 +51,7 @@ export default function CustomerDashboardPage() {
   const hasFilter = searchText.trim() || staffFilter;
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-800 font-sans">
-      <div className="max-w-7xl mx-auto p-4 md:p-8">
+    <PageShell>
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden animate-fade-in">
           {/* ヘッダー */}
           <header className="bg-emerald-600 p-8 text-center text-white relative">
@@ -157,7 +157,6 @@ export default function CustomerDashboardPage() {
             </div>
           </div>
         </div>
-      </div>
-    </main>
+    </PageShell>
   );
 }

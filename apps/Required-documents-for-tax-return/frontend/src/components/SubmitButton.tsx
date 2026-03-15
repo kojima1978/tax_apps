@@ -1,5 +1,8 @@
 import { Loader2, Save } from 'lucide-react';
 
+const DEFAULT_CLASS =
+  'w-full py-3.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center';
+
 interface SubmitButtonProps {
   isSubmitting: boolean;
   disabled?: boolean;
@@ -13,7 +16,7 @@ export default function SubmitButton({
   disabled,
   submitLabel,
   submittingLabel,
-  className,
+  className = DEFAULT_CLASS,
 }: SubmitButtonProps) {
   return (
     <button type="submit" disabled={disabled} className={className}>
