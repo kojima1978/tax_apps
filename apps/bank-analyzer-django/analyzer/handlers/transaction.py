@@ -16,7 +16,7 @@ FIELD_LABELS = {
     'bank_name': '銀行名',
     'branch_name': '支店名',
     'account_type': '種別',
-    'account_id': '口座番号',
+    'account_number': '口座番号',
     'description': '摘要',
     'amount_out': '払戻',
     'amount_in': 'お預り',
@@ -51,11 +51,11 @@ def _extract_filters(request: HttpRequest) -> dict:
 
 def handle_delete_account(request: HttpRequest, case, pk: int) -> HttpResponse:
     """口座の全取引を削除"""
-    account_id = request.POST.get('account_id')
-    if account_id:
+    account_number = request.POST.get('account_number')
+    if account_number:
         try:
-            count = TransactionService.delete_account_transactions(case, account_id)
-            messages.success(request, f"口座ID: {account_id} のデータ（{count}件）を削除しました。")
+            count = TransactionService.delete_account_transactions(case, account_number)
+            messages.success(request, f"口座番号: {account_number} のデータ（{count}件）を削除しました。")
         except Exception as e:
             return handle_ajax_error(request, pk, e, "口座削除エラー")
 

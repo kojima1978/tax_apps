@@ -63,7 +63,7 @@ bank-analyzer-django/
 │   ├── wsgi.py                # WSGI設定
 │   └── asgi.py                # ASGI設定
 ├── analyzer/                  # アプリケーション本体
-│   ├── models.py              # データベース定義（Case, Transaction）
+│   ├── models.py              # データベース定義（Case, Account, Transaction）
 │   ├── views/                 # 画面ロジック（責務別モジュール分割）
 │   │   ├── __init__.py        # 再エクスポート（urls.pyとの後方互換）
 │   │   ├── _helpers.py        # 共通ユーティリティ（ページネーション、フィルター等）
@@ -186,7 +186,7 @@ bank-analyzer-django/
                             │
 ┌───────────────────────────┴─────────────────────────────┐
 │                   Models (models.py)                     │
-│              Case, Transaction データモデル              │
+│         Case, Account, Transaction データモデル          │
 └─────────────────────────────────────────────────────────┘
 ```
 

@@ -13,7 +13,7 @@ const MODAL_FIELDS = [
     ['modalTxBankName',    'data-tx-bank',           ''],
     ['modalTxBranchName',  'data-tx-branch',         ''],
     ['modalTxAccountType', 'data-tx-account-type',   ''],
-    ['modalTxAccountId',   'data-tx-account',        ''],
+    ['modalTxAccountNumber',   'data-tx-account',        ''],
 ];
 
 // Modal Logic
@@ -286,13 +286,13 @@ const ADD_TX_FIELDS = [
     ['addTxBankName',    'bank_name',    'data-tx-bank',          ''],
     ['addTxBranchName',  'branch_name',  'data-tx-branch',        ''],
     ['addTxAccountType', 'account_type', 'data-tx-account-type',  ''],
-    ['addTxAccountId',   'account_id',   'data-tx-account',       ''],
+    ['addTxAccountNumber',   'account_number',   'data-tx-account',       ''],
     ['addTxCategory',    'category',      null,                   '未分類'],
     ['addTxMemo',        'memo',          null,                   ''],
 ];
 
 // 口座情報フィールド (続けて追加時に保持)
-const ACCOUNT_FIELDS = ['addTxBankName', 'addTxBranchName', 'addTxAccountType', 'addTxAccountId', 'addTxDate'];
+const ACCOUNT_FIELDS = ['addTxBankName', 'addTxBranchName', 'addTxAccountType', 'addTxAccountNumber', 'addTxDate'];
 
 // 和暦短縮変換 (JS版)
 function toWarekiShort(dateStr) {
@@ -327,7 +327,7 @@ function insertTxRow(tx) {
             <button type="button" class="btn btn-sm btn-outline-success p-0 px-1 insert-tx-btn"
                 data-tx-id="${tx.id}" data-tx-date="${tx.date || ''}"
                 data-tx-bank="${tx.bank_name || ''}" data-tx-branch="${tx.branch_name || ''}"
-                data-tx-account-type="${tx.account_type || ''}" data-tx-account="${tx.account_id || ''}"
+                data-tx-account-type="${tx.account_type || ''}" data-tx-account="${tx.account_number || ''}"
                 title="この下に追加"><i class="bi bi-plus"></i></button>
             <button type="button" class="btn btn-sm btn-outline-danger p-0 px-1 delete-tx-btn"
                 data-tx-id="${tx.id}" title="削除"><i class="bi bi-trash"></i></button>
@@ -336,7 +336,7 @@ function insertTxRow(tx) {
         <td>${tx.bank_name || '-'}</td>
         <td>${tx.branch_name || '-'}</td>
         <td>${tx.account_type || '-'}</td>
-        <td>${tx.account_id || '-'}</td>
+        <td>${tx.account_number || '-'}</td>
         <td style="max-width:200px;" class="text-truncate" title="${tx.description || ''}">${tx.description || ''}</td>
         <td class="text-end">${amtOut}</td>
         <td class="text-end">${amtIn}</td>
@@ -348,7 +348,7 @@ function insertTxRow(tx) {
             data-tx-amount-in="${tx.amount_in}" data-tx-balance="${tx.balance || ''}"
             data-tx-cat="${tx.category || ''}" data-tx-memo="${tx.memo || ''}"
             data-tx-bank="${tx.bank_name || ''}" data-tx-branch="${tx.branch_name || ''}"
-            data-tx-account-type="${tx.account_type || ''}" data-tx-account="${tx.account_id || ''}">詳細</button></td>
+            data-tx-account-type="${tx.account_type || ''}" data-tx-account="${tx.account_number || ''}">詳細</button></td>
         <td><button type="button" class="btn btn-sm btn-outline-secondary flag-btn"
             data-tx-id="${tx.id}" data-source-tab="all" title="付箋を付ける">📌</button></td>
     `;
@@ -470,7 +470,7 @@ const bulkReplaceForm = document.getElementById('bulkReplaceForm');
 const fieldLabels = {
     'bank_name': '銀行名',
     'branch_name': '支店名',
-    'account_id': '口座番号'
+    'account_number': '口座番号'
 };
 
 // 置換フォームの状態を更新

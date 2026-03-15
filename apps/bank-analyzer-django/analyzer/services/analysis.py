@@ -80,9 +80,9 @@ class AnalysisService:
             フィルター適用後のQuerySet
         """
         if filter_state.get('bank'):
-            queryset = queryset.filter(bank_name__in=filter_state['bank'])
+            queryset = queryset.filter(account__bank_name__in=filter_state['bank'])
         if filter_state.get('account'):
-            queryset = queryset.filter(account_id__in=filter_state['account'])
+            queryset = queryset.filter(account__account_number__in=filter_state['account'])
         if filter_state.get('category'):
             if filter_state.get('category_mode') == 'exclude':
                 queryset = queryset.exclude(category__in=filter_state['category'])
@@ -122,7 +122,7 @@ class AnalysisService:
 
         sort_param = filter_state.get('sort', '')
         sort_order = get_sort_order_by(sort_param)
-        transactions = case.transactions.all().order_by(*sort_order)
+        transactions = case.transactions.with_account_info().order_by(*sort_order)
 
         if not transactions.exists():
             return {'no_data': True}
@@ -133,12 +133,14 @@ class AnalysisService:
         ai_data = AnalysisService._build_ai_suggestions(case, filter_state)
 
         return {
-            'account_summary': AnalysisService._build_account_summary(df),
+            'account_summary': AnalysisService._build_account_summary(case),
             'transfer_pairs': AnalysisService._build_transfer_data(df, filter_state, sort_param),
             'large_txs': sort_dict_list(
                 AnalysisService._build_large_txs(df, filter_state), sort_param
             ),
-            'all_txs': AnalysisService.apply_filters(transactions, filter_state),
+            'all_txs': AnalysisService.apply_filters(
+                transactions, filter_state
+            ),
             'duplicate_txs': AnalysisService._get_duplicate_transactions(df),
             'flagged_txs': transactions.filter(is_flagged=True).order_by(*sort_order),
             **AnalysisService._build_filter_options(df, case),
@@ -150,13 +152,18 @@ class AnalysisService:
     # =========================================================================
 
     @staticmethod
-    def _build_account_summary(df: pd.DataFrame) -> list:
-        """口座サマリーデータを生成"""
-        account_summary = df.groupby(['account_id', 'holder']).agg({
-            'id': 'count',
-            'date': 'max'
-        }).reset_index().rename(columns={'id': 'count', 'date': 'last_date'})
-        return account_summary.to_dict(orient='records')
+    def _build_account_summary(case: Case) -> list:
+        """口座サマリーデータを生成（Account テーブルから直接取得）"""
+        from django.db.models import Count, Max
+        accounts = (
+            case.accounts
+            .annotate(
+                count=Count('transactions'),
+                last_date=Max('transactions__date'),
+            )
+            .values('account_number', 'holder', 'bank_name', 'branch_name', 'count', 'last_date')
+        )
+        return list(accounts)
 
     @staticmethod
     def _build_transfer_data(df: pd.DataFrame, filter_state: dict, sort_param: str = '') -> list:
@@ -238,11 +245,11 @@ class AnalysisService:
         """フィルタードロップダウン用のユニークリストを取得"""
         banks = sorted([b for b in df['bank_name'].dropna().unique() if b])
         branches = sorted([b for b in df['branch_name'].dropna().unique() if b])
-        accounts = sorted([a for a in df['account_id'].dropna().unique() if a])
+        accounts = sorted([a for a in df['account_number'].dropna().unique() if a])
 
         # 銀行→口座マッピング（フィルター連動用）
         bank_to_accounts = {}
-        valid = df[['bank_name', 'account_id']].dropna()
+        valid = df[['bank_name', 'account_number']].dropna()
         for bank, acc in valid.drop_duplicates().values:
             if bank and acc:
                 bank_to_accounts.setdefault(bank, [])
@@ -276,7 +283,7 @@ class AnalysisService:
     @staticmethod
     def _get_duplicate_transactions(df: pd.DataFrame) -> list:
         """重複取引を検出してリストで返す（グループインデックス付き）"""
-        dup_cols = ['date', 'amount_out', 'amount_in', 'description', 'account_id']
+        dup_cols = ['date', 'amount_out', 'amount_in', 'description', 'account_number']
         if not all(col in df.columns for col in dup_cols):
             return []
 
@@ -300,7 +307,7 @@ class AnalysisService:
             'date': row['date'],
             'bank_name': row.get('bank_name', ''),
             'branch_name': row.get('branch_name', ''),
-            'account_id': row.get('account_id', ''),
+            'account_number': row.get('account_number', ''),
             'amount': row[amount_field],
             'description': row.get('description', ''),
             'category': row.get('category', UNCATEGORIZED),
@@ -321,13 +328,13 @@ class AnalysisService:
 
         for _, out_row in out_txs.iterrows():
             transfer_to = out_row.get('transfer_to', '')
-            # transfer_toから口座IDと日付を抽出: "1234567 (2024-01-15)"
-            dest_account_id = transfer_to.split(' ')[0] if transfer_to else None
+            # transfer_toから口座番号と日付を抽出: "1234567 (2024-01-15)"
+            dest_account_number = transfer_to.split(' ')[0] if transfer_to else None
 
             # 対応する入金側を探す
             dest_row = None
-            if dest_account_id:
-                matching = in_txs[in_txs['account_id'] == dest_account_id]
+            if dest_account_number:
+                matching = in_txs[in_txs['account_number'] == dest_account_number]
                 if not matching.empty:
                     # 金額が近いものを探す
                     for _, candidate in matching.iterrows():

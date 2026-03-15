@@ -47,14 +47,16 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
 
     totals = transactions.aggregate(total_in=Sum('amount_in'), total_out=Sum('amount_out'))
 
+    # 口座情報をアノテーションして取得
+    transactions_with_account = transactions.with_account_info()
     export_fields = [
-        'date', 'bank_name', 'branch_name', 'account_type', 'account_id',
+        'date', 'bank_name', 'branch_name', 'account_type', 'account_number',
         'description', 'amount_out', 'amount_in', 'balance',
         'category', 'holder', 'is_large', 'is_transfer', 'transfer_to',
         'is_flagged', 'memo',
     ]
     transactions_data = []
-    for tx_dict in transactions.values(*export_fields):
+    for tx_dict in transactions_with_account.values(*export_fields):
         if tx_dict['date']:
             tx_dict['date'] = tx_dict['date'].isoformat()
         transactions_data.append(tx_dict)
@@ -96,7 +98,7 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
     if empty_redirect:
         return empty_redirect
 
-    df = pd.DataFrame(list(transactions.values()))
+    df = pd.DataFrame(list(transactions.with_account_info().values()))
 
     config_entry = _EXPORT_TYPE_CONFIG.get(export_type)
     if config_entry:
@@ -120,7 +122,7 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
     case = get_object_or_404(Case, pk=pk)
 
     filter_state = build_filter_state(request)
-    transactions = case.transactions.all().order_by('date', 'id')
+    transactions = case.transactions.with_account_info().order_by('date', 'id')
     transactions = AnalysisService.apply_filters(transactions, filter_state)
 
     amount_min_val, amount_min_ok = parse_amount(filter_state['amount_min']) if filter_state['amount_min'] else (None, True)
@@ -157,7 +159,7 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
     if empty_redirect:
         return empty_redirect
 
-    df = pd.DataFrame(list(transactions.values()))
+    df = pd.DataFrame(list(transactions.with_account_info().values()))
 
     if 'date' in df.columns:
         df['date'] = df['date'].apply(lambda d: wareki(d, 'short'))

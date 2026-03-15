@@ -57,7 +57,7 @@
                                 <option value="">-- 選択 --</option>
                                 <option value="bank_name">銀行名</option>
                                 <option value="branch_name">支店名</option>
-                                <option value="account_id">口座番号</option>
+                                <option value="account_number">口座番号</option>
                             </select>
                         </div>
                         <div class="col-auto">
@@ -136,7 +136,7 @@
                             <td>{{ tx.date|wareki_short }}</td>
                             <td>{{ tx.bank_name|default:"-" }}</td>
                             <td>{{ tx.branch_name|default:"-" }}</td>
-                            <td>{{ tx.account_id|default:"-" }}</td>
+                            <td>{{ tx.account_number|default:"-" }}</td>
                             <td class="text-truncate" style="max-width: 180px;" title="{{ tx.description }}">{{ tx.description }}</td>
                             <td class="text-end">{% if tx.amount_out %}{{ tx.amount_out|intcomma }}{% endif %}</td>
                             <td class="text-end">{% if tx.amount_in %}{{ tx.amount_in|intcomma }}{% endif %}</td>

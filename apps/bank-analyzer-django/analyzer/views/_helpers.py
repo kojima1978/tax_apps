@@ -221,6 +221,7 @@ def extract_form_rows(request: HttpRequest, validate: bool = False) -> tuple[lis
             'bank_name': request.POST.get(f'form-{i}-bank_name', ''),
             'branch_name': request.POST.get(f'form-{i}-branch_name', ''),
             'account_type': request.POST.get(f'form-{i}-account_type', ''),
+            # フォームからは account_number で送信される
             'account_number': request.POST.get(f'form-{i}-account_number', ''),
         }
 

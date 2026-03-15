@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
-from ..models import Case, Transaction
+from ..models import Case
 from ..forms import JsonImportForm
 from ..handlers import safe_error_message
 from ..services import TransactionService
@@ -62,10 +62,8 @@ def direct_input(request: HttpRequest, pk: int) -> HttpResponse:
             messages.error(request, safe_error_message(e, "取引登録"))
 
     existing_accounts = list(
-        Transaction.objects
-        .filter(case=case)
-        .values('bank_name', 'branch_name', 'account_type', 'account_id')
-        .distinct()
+        case.accounts
+        .values('bank_name', 'branch_name', 'account_type', 'account_number')
         .order_by('bank_name', 'branch_name')
     )
 

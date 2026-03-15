@@ -268,7 +268,7 @@
                                 <td>{{ tx.bank_name|default:"-" }}</td>
                                 <td>{{ tx.branch_name|default:"-" }}</td>
                                 <td>{{ tx.account_type|default:"-" }}</td>
-                                <td>{{ tx.account_id|default:"-" }}</td>
+                                <td>{{ tx.account_number|default:"-" }}</td>
                                 <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
                                 <td class="text-end">
                                     {% if tx.amount_out > 0 %}

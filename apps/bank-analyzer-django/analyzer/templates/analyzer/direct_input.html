@@ -63,8 +63,8 @@
                                 data-bank="{{ acct.bank_name|default:'' }}"
                                 data-branch="{{ acct.branch_name|default:'' }}"
                                 data-type="{{ acct.account_type|default:'' }}"
-                                data-id="{{ acct.account_id|default:'' }}">
-                                {{ acct.bank_name|default:"?" }} {{ acct.branch_name|default:"" }} {{ acct.account_type|default:"" }} {{ acct.account_id|default:"" }}
+                                data-id="{{ acct.account_number|default:'' }}">
+                                {{ acct.bank_name|default:"?" }} {{ acct.branch_name|default:"" }} {{ acct.account_type|default:"" }} {{ acct.account_number|default:"" }}
                             </option>
                             {% endfor %}
                         </select>

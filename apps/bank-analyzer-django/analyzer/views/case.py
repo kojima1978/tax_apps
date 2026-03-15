@@ -31,7 +31,7 @@ class CaseListView(ListView):
                     filter=Q(transactions__category=UNCATEGORIZED),
                 ),
                 account_count=Count(
-                    'transactions__account_id',
+                    'accounts',
                     distinct=True,
                 ),
             )

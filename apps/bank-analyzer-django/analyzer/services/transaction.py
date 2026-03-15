@@ -10,7 +10,7 @@ import pandas as pd
 from django.db import transaction as db_transaction, IntegrityError
 from django.db.models import Count
 
-from ..models import Case, Transaction
+from ..models import Account, Case, Transaction
 from ..lib import analyzer, config, llm_classifier
 from ..lib.constants import UNCATEGORIZED
 from .utils import parse_date_value, parse_int_ids, get_transaction
@@ -23,16 +23,58 @@ from .classification import (
 logger = logging.getLogger(__name__)
 
 
+def get_or_create_account(
+    case: Case,
+    account_number: str,
+    bank_name: str = None,
+    branch_name: str = None,
+    account_type: str = None,
+    holder: str = None,
+) -> Account:
+    """口座を取得または作成する"""
+    account_number = account_number or 'unknown'
+    account, created = Account.objects.get_or_create(
+        case=case,
+        account_number=account_number,
+        defaults={
+            'bank_name': bank_name,
+            'branch_name': branch_name,
+            'account_type': account_type,
+            'holder': holder,
+        },
+    )
+    if not created and any([bank_name, branch_name, account_type, holder]):
+        # 既存の口座で空フィールドがあれば補完
+        updated = False
+        if bank_name and not account.bank_name:
+            account.bank_name = bank_name
+            updated = True
+        if branch_name and not account.branch_name:
+            account.branch_name = branch_name
+            updated = True
+        if account_type and not account.account_type:
+            account.account_type = account_type
+            updated = True
+        if holder and not account.holder:
+            account.holder = holder
+            updated = True
+        if updated:
+            account.save()
+    return account
+
+
 class TransactionService:
     """取引データに関するビジネスロジック"""
 
-    # 一括置換が許可されるフィールド
-    REPLACEABLE_FIELDS = {'bank_name', 'branch_name', 'account_id'}
+    # 一括置換が許可されるフィールド（Account モデルのフィールド）
+    REPLACEABLE_FIELDS = {'bank_name', 'branch_name', 'account_number'}
 
     # update_transactionで直接代入するフィールド
     _DIRECT_FIELDS = ('description', 'amount_out', 'amount_in', 'category')
-    # update_transactionでstrip()してから代入するフィールド
-    _STRIP_FIELDS = ('memo', 'bank_name', 'branch_name', 'account_id', 'account_type')
+    # update_transactionでstrip()してから代入するフィールド（Transactionのフィールドのみ）
+    _STRIP_FIELDS = ('memo',)
+    # 口座フィールド（Account モデルに委譲）
+    _ACCOUNT_FIELDS = ('bank_name', 'branch_name', 'account_number', 'account_type')
 
     # =========================================================================
     # 分類関連
@@ -310,6 +352,23 @@ class TransactionService:
         if 'balance' in data and data['balance'] is not None:
             tx.balance = data['balance']
 
+        # 口座フィールドの更新（Account モデルに委譲）
+        account_data = {}
+        for field in TransactionService._ACCOUNT_FIELDS:
+            value = data.get(field)
+            if value is not None:
+                account_data[field] = value.strip() if value else None
+
+        if account_data and tx.account:
+            account = tx.account
+            changed = False
+            for field, value in account_data.items():
+                if getattr(account, field) != value:
+                    setattr(account, field, value)
+                    changed = True
+            if changed:
+                account.save()
+
         tx.save()
         logger.info(f"取引更新: case_id={case.id}, tx_id={tx_id}")
         return True
@@ -362,19 +421,25 @@ class TransactionService:
     # =========================================================================
 
     @staticmethod
-    def delete_account_transactions(case: Case, account_id: str) -> int:
+    def delete_account_transactions(case: Case, account_number: str) -> int:
         """
         指定口座の取引を削除
 
         Args:
             case: 対象の案件
-            account_id: 削除対象の口座ID
+            account_number: 削除対象の口座番号
 
         Returns:
             削除された取引数
         """
-        count, _ = case.transactions.filter(account_id=account_id).delete()
-        logger.info(f"口座データ削除: case_id={case.id}, account_id={account_id}, count={count}")
+        account = case.accounts.filter(account_number=account_number).first()
+        if not account:
+            return 0
+        count, _ = account.transactions.all().delete()
+        # 取引がなくなった口座も削除
+        if not account.transactions.exists():
+            account.delete()
+        logger.info(f"口座データ削除: case_id={case.id}, account_number={account_number}, count={count}")
         return count
 
     @staticmethod
@@ -433,7 +498,7 @@ class TransactionService:
         new_value: str
     ) -> int:
         """
-        指定フィールドの値を一括置換
+        指定フィールドの値を一括置換（Account モデルのフィールドを更新）
 
         Args:
             case: 対象の案件
@@ -442,7 +507,7 @@ class TransactionService:
             new_value: 置換後の値
 
         Returns:
-            更新された取引数
+            影響を受けた口座数
         """
         if field_name not in TransactionService.REPLACEABLE_FIELDS:
             logger.warning(f"不正なフィールド名: {field_name}")
@@ -452,7 +517,7 @@ class TransactionService:
             return 0
 
         filter_kwargs = {field_name: old_value}
-        count = case.transactions.filter(**filter_kwargs).update(**{field_name: new_value})
+        count = case.accounts.filter(**filter_kwargs).update(**{field_name: new_value})
 
         logger.info(
             f"一括置換完了: case_id={case.id}, field={field_name}, "
@@ -463,7 +528,7 @@ class TransactionService:
     @staticmethod
     def get_unique_field_values(case: Case, field_name: str) -> list[dict]:
         """
-        指定フィールドのユニーク値と件数を取得
+        指定フィールドのユニーク値と件数を取得（Account モデルから）
 
         Args:
             case: 対象の案件
@@ -476,7 +541,7 @@ class TransactionService:
             return []
 
         qs = (
-            case.transactions
+            case.accounts
             .values(field_name)
             .annotate(count=Count('id'))
             .order_by('-count')
@@ -534,21 +599,34 @@ class TransactionService:
             transactions_data = data.get('transactions', [])
             new_transactions = []
 
+            # 口座キャッシュ
+            account_cache = {}
+
             for tx_data in transactions_data:
                 date_val = parse_date_value(tx_data.get('date'))
 
+                # 口座を取得または作成
+                # JSON v1.0 では account_id フィールドに口座番号が入っている
+                acct_number = tx_data.get('account_number') or tx_data.get('account_id') or 'unknown'
+                cache_key = acct_number
+                if cache_key not in account_cache:
+                    account_cache[cache_key] = get_or_create_account(
+                        case=new_case,
+                        account_number=acct_number,
+                        bank_name=tx_data.get('bank_name'),
+                        branch_name=tx_data.get('branch_name'),
+                        account_type=tx_data.get('account_type'),
+                        holder=tx_data.get('holder'),
+                    )
+
                 new_transactions.append(Transaction(
                     case=new_case,
+                    account=account_cache[cache_key],
                     date=date_val,
                     description=tx_data.get('description'),
                     amount_out=tx_data.get('amount_out', 0),
                     amount_in=tx_data.get('amount_in', 0),
                     balance=tx_data.get('balance'),
-                    account_id=tx_data.get('account_id'),
-                    holder=tx_data.get('holder'),
-                    bank_name=tx_data.get('bank_name'),
-                    branch_name=tx_data.get('branch_name'),
-                    account_type=tx_data.get('account_type'),
                     is_large=tx_data.get('is_large', False),
                     is_transfer=tx_data.get('is_transfer', False),
                     transfer_to=tx_data.get('transfer_to'),
@@ -593,29 +671,40 @@ class TransactionService:
         df = analyzer.analyze_large_amounts(df)
 
         with db_transaction.atomic():
+            # 口座キャッシュ
+            account_cache = {}
+
             new_transactions = []
             for _, row in df.iterrows():
                 dt = parse_date_value(row['date'])
 
+                # 口座を取得または作成
+                acct_number = str(row.get('account_number', 'unknown'))
+                if acct_number not in account_cache:
+                    account_cache[acct_number] = get_or_create_account(
+                        case=case,
+                        account_number=acct_number,
+                        bank_name=row.get('bank_name'),
+                        branch_name=row.get('branch_name'),
+                        account_type=row.get('account_type'),
+                    )
+
                 new_transactions.append(Transaction(
                     case=case,
+                    account=account_cache[acct_number],
                     date=dt,
                     description=row['description'],
                     amount_out=row.get('amount_out', 0),
                     amount_in=row.get('amount_in', 0),
                     balance=row.get('balance', 0) if pd.notna(row['balance']) else None,
-                    account_id=str(row.get('account_number', 'unknown')),
                     is_large=row.get('is_large', False),
                     category=row.get('category') if pd.notna(row.get('category')) else UNCATEGORIZED,
-                    branch_name=row.get('branch_name'),
-                    bank_name=row.get('bank_name'),
-                    account_type=row.get('account_type'),
                 ))
 
             Transaction.objects.bulk_create(new_transactions)
 
             # 資金移動の再分析
-            all_tx = pd.DataFrame(list(case.transactions.all().values()))
+            all_tx = pd.DataFrame(list(case.transactions.with_account_info().values()))
             if not all_tx.empty:
                 analyzed_df = analyzer.analyze_transfers(all_tx)
                 updates = []

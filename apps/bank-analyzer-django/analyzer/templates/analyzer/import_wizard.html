@@ -305,8 +305,8 @@
                         data-bank="{{ acc.bank_name }}"
                         data-branch="{{ acc.branch_name }}"
                         data-type="{{ acc.account_type }}"
-                        data-id="{{ acc.account_id }}">
-                        {{ acc.bank_name }} {{ acc.branch_name }} {{ acc.account_id }}
+                        data-id="{{ acc.account_number }}">
+                        {{ acc.bank_name }} {{ acc.branch_name }} {{ acc.account_number }}
                     </button>
                     {% empty %}
                     <span class="text-muted small">まだ口座が登録されていません</span>
@@ -594,7 +594,7 @@ backToStep1Btn.addEventListener('click', () => goToStep(1));
 function renderAccountAssignments() {
     accountAssignments.innerHTML = wizardState.parsedData.map((fileData, index) => {
         const detected = fileData.detected_account || {};
-        const hasDetection = detected.bank_name || detected.account_id;
+        const hasDetection = detected.bank_name || detected.account_number;
         const isSplit = fileData.is_split || false;
 
         // 分割されたファイルは特別なスタイルで表示
@@ -644,8 +644,8 @@ function renderAccountAssignments() {
                     <div class="col-md-3">
                         <label class="form-label small">口座番号 <span class="text-danger">*</span></label>
                         <input type="text" class="form-control form-control-sm account-input"
-                            data-field="account_id" data-index="${index}"
-                            value="${detected.account_id || ''}" placeholder="例: 1234567" required>
+                            data-field="account_number" data-index="${index}"
+                            value="${detected.account_number || ''}" placeholder="例: 1234567" required>
                     </div>
                 </div>
             </div>
@@ -662,7 +662,7 @@ function renderAccountAssignments() {
                 document.querySelector(`[data-field="bank_name"][data-index="${index}"]`).value = btn.dataset.bank;
                 document.querySelector(`[data-field="branch_name"][data-index="${index}"]`).value = btn.dataset.branch;
                 document.querySelector(`[data-field="account_type"][data-index="${index}"]`).value = btn.dataset.type;
-                document.querySelector(`[data-field="account_id"][data-index="${index}"]`).value = btn.dataset.id;
+                document.querySelector(`[data-field="account_number"][data-index="${index}"]`).value = btn.dataset.id;
             }
         });
     });
@@ -674,18 +674,18 @@ toPreviewBtn.addEventListener('click', () => {
     let hasError = false;
 
     wizardState.parsedData.forEach((fileData, index) => {
-        const accountId = document.querySelector(`[data-field="account_id"][data-index="${index}"]`).value.trim();
+        const accountId = document.querySelector(`[data-field="account_number"][data-index="${index}"]`).value.trim();
 
         if (!accountId) {
             hasError = true;
-            document.querySelector(`[data-field="account_id"][data-index="${index}"]`).classList.add('is-invalid');
+            document.querySelector(`[data-field="account_number"][data-index="${index}"]`).classList.add('is-invalid');
         } else {
             assignments.push({
                 fileIndex: index,
                 bank_name: document.querySelector(`[data-field="bank_name"][data-index="${index}"]`).value.trim(),
                 branch_name: document.querySelector(`[data-field="branch_name"][data-index="${index}"]`).value.trim(),
                 account_type: document.querySelector(`[data-field="account_type"][data-index="${index}"]`).value.trim(),
-                account_id: accountId
+                account_number: accountId
             });
         }
     });
@@ -801,7 +801,7 @@ function renderPreview() {
                         <div class="p-2 bg-light border-bottom small">
                             <i class="bi bi-bank me-1"></i>
                             <strong>${assignment.bank_name || '-'}</strong>
-                            ${assignment.branch_name || ''} ${assignment.account_type || ''} ${assignment.account_id}
+                            ${assignment.branch_name || ''} ${assignment.account_type || ''} ${assignment.account_number}
                         </div>
                         <div class="table-responsive" style="max-height: 400px;">
                             <table class="table table-sm table-hover mb-0 editable-table">
@@ -977,7 +977,7 @@ function insertNewRow(fileIndex, afterRowIndex) {
         bank_name: assignment.bank_name,
         branch_name: assignment.branch_name,
         account_type: assignment.account_type,
-        account_number: assignment.account_id
+        account_number: assignment.account_number
     };
     wizardState.parsedData[fileIndex].rows.splice(afterRowIndex + 1, 0, newRowData);
 
