@@ -50,6 +50,7 @@
 ### インフラ
 - Docker（マルチステージビルド / BuildKit）
 - Docker Compose（開発 / 本番オーバーライド）
+- 共有 `docker/Dockerfile.vite-static`（フロントエンド用）
 
 ## セットアップ
 
@@ -207,7 +208,6 @@ Required-documents-for-tax-return/
 │   │       ├── exportExcel.ts        # Excel出力
 │   │       ├── jsonExportImport.ts   # JSONバックアップ・復元
 │   │       └── keyboard.ts           # キーボードイベント
-│   ├── Dockerfile
 │   ├── .dockerignore
 │   └── package.json
 ├── backend/                   # Expressバックエンド
@@ -216,7 +216,7 @@ Required-documents-for-tax-return/
 │   │   ├── db.ts              # データベース操作
 │   │   └── types.ts           # 型定義
 │   ├── data/                  # SQLiteデータベース格納
-│   ├── Dockerfile
+│   ├── Dockerfile             # バックエンド専用マルチステージビルド
 │   ├── .dockerignore
 │   ├── ER図.md                # データベース設計
 │   └── package.json
@@ -244,17 +244,35 @@ Required-documents-for-tax-return/
 
 ## Docker 構成
 
+### Dockerfile
+
+| 対象 | ファイル | 備考 |
+|------|---------|------|
+| フロントエンド | `../../docker/Dockerfile.vite-static`（共有） | 全Viteアプリ共通 |
+| バックエンド | `backend/Dockerfile`（専用） | better-sqlite3ネイティブビルド対応 |
+
 ### マルチステージビルド
 
-両Dockerfileは用途別のステージを持ちます:
+#### フロントエンド（共有 `Dockerfile.vite-static`）
 
 | ステージ | 用途 | 備考 |
 |---------|------|------|
 | `base` | 共通ベース | Node.js 22 Alpine |
 | `deps` | 依存関係インストール | BuildKit cache mount で高速化 |
+| `dev` | 開発サーバー | Vite HMR対応 |
+| `builder` | 本番ビルド | `VITE_API_URL` をビルド時に注入 |
+| `runner` | 本番配信 | nginx:1.27-alpine、非rootユーザー |
+
+#### バックエンド（専用 `Dockerfile`）
+
+| ステージ | 用途 | 備考 |
+|---------|------|------|
+| `base` | 共通ベース | Node.js 22 Alpine |
+| `native-build` | ネイティブビルド環境 | python3 / make / g++（better-sqlite3用） |
+| `deps` | 依存関係インストール | BuildKit cache mount で高速化 |
 | `dev` | 開発サーバー | ホットリロード対応 |
-| `builder` | ビルド | Viteビルド / TypeScript コンパイル |
-| `prod-deps` | 本番依存関係 | devDependencies 除外（バックエンドのみ） |
+| `builder` | TypeScriptコンパイル | `.d.ts` / `.map` を削除して軽量化 |
+| `prod-deps` | 本番依存関係 | devDependencies 除外 |
 | `runner` | 本番実行 | tini + 非rootユーザー + ヘルスチェック |
 
 ### ボリューム

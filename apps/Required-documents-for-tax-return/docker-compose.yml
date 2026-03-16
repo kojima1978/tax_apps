@@ -84,8 +84,14 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: ../../docker/Dockerfile.vite-static
       target: dev
+      args:
+        APP_PORT: "3005"
+        APP_PATH: tax-docs
+        APP_TITLE: "Tax Documents Frontend"
+        APP_DESCRIPTION: "確定申告 必要書類管理システム フロントエンド"
+        NPM_CACHE_ID: npm-store-tax-docs-frontend
     <<: *security-opts
     container_name: tax-docs-frontend
     networks:
@@ -98,8 +104,6 @@ services:
     environment:
       <<: *common-env
       NODE_ENV: development
-      VITE_API_URL: http://localhost:3006
-    command: npm run dev -- --host --port 3005
     depends_on:
       backend:
         condition: service_healthy
