@@ -256,6 +256,7 @@
                                 <th>{% sort_header "unclassified" "amount_in" "お預り" filter_state %}</th>
                                 <th style="min-width: 130px;">分類</th>
                                 <th>操作</th>
+                                <th>📌</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -287,6 +288,11 @@
                                 </td>
                                 <td>
                                     {% include "analyzer/partials/_edit_button.html" %}
+                                </td>
+                                <td>
+                                    {% with source_tab="unclassified" %}
+                                    {% include "analyzer/partials/_flag_button.html" %}
+                                    {% endwith %}
                                 </td>
                             </tr>
                             {% endfor %}

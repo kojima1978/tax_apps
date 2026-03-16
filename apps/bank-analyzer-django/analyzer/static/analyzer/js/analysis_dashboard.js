@@ -1,6 +1,38 @@
 // ===== Analysis Dashboard Module =====
 // Requires: utils.js (createFormData, getApiUrl, showToast, postJson, fadeOutRow, highlightAndRemoveRow, extractKeywordFromDescription, disableButton, enableButton, setButtonLoading, resetButton)
 
+// ===== ユーティリティ =====
+
+// ビュー切替の共通初期化（グループ/フラット/カード切替など）
+// toggleSelector: トグルボタンの親セレクタ, viewIdMap: { viewName: elementId }
+function initViewToggle(toggleSelector, viewIdMap) {
+    var btns = document.querySelectorAll(toggleSelector + ' [data-view]');
+    if (!btns.length) return;
+    btns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            btns.forEach(function(b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            var view = this.dataset.view;
+            Object.keys(viewIdMap).forEach(function(name) {
+                var el = document.getElementById(viewIdMap[name]);
+                if (el) el.style.display = view === name ? '' : 'none';
+            });
+        });
+    });
+}
+
+// 未分類件数（ヘッダー合計 + タブバッジ）を delta 分減らす
+function updateUnclassifiedCount(delta) {
+    var countEl = document.getElementById('unclassifiedTxTotal');
+    if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent) || 0) - delta);
+    var badge = document.querySelector('#unclassified-tab .badge');
+    if (badge) {
+        var count = Math.max(0, (parseInt(badge.textContent) || 0) - delta);
+        if (count > 0) badge.textContent = count;
+        else badge.remove();
+    }
+}
+
 // Modal field mapping: [modalElementId, data-attribute, fallback]
 const MODAL_FIELDS = [
     ['modalTxId',          'data-tx-id'],
@@ -252,15 +284,12 @@ if (applyBulkCategoryBtn) {
         }
 
         // 選択された行のセレクトボックスを変更（自動保存がトリガーされる）
-        var changedCount = 0;
         checkedBoxes.forEach(cb => {
-            const txId = cb.value;
             const row = cb.closest('tr');
             const categorySelect = row ? row.querySelector('select[name^="cat-"]') : null;
             if (categorySelect) {
                 categorySelect.value = selectedCategory;
                 categorySelect.dispatchEvent(new Event('change', { bubbles: true }));
-                changedCount++;
             }
         });
 
@@ -738,11 +767,7 @@ function fetchExistingKeywords(category) {
 
     container.innerHTML = '<span class="text-muted small">読み込み中...</span>';
 
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const formData = new FormData();
-    formData.append('csrfmiddlewaretoken', csrfToken);
-    formData.append('action', 'get_category_keywords');
-    formData.append('category', category);
+    const formData = createFormData({ action: 'get_category_keywords', category });
 
     fetch(window.location.href, {
         method: 'POST',
@@ -802,13 +827,7 @@ function submitPatternAdd() {
     const submitBtn = document.getElementById('patternAddSubmitBtn');
     setButtonLoading(submitBtn, '追加中...');
 
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const formData = new FormData();
-    formData.append('csrfmiddlewaretoken', csrfToken);
-    formData.append('action', 'add_pattern');
-    formData.append('category', category);
-    formData.append('keyword', keyword);
-    formData.append('scope', scope);
+    const formData = createFormData({ action: 'add_pattern', category, keyword, scope });
 
     fetch(window.location.href, {
         method: 'POST',
@@ -1212,7 +1231,6 @@ const AISuggestions = {
     // グループのパターン追加付き適用
     applyGroupWithPattern: function(row, scope) {
         const self = this;
-        const txIds = row.dataset.txIds.split(',').map(Number);
         const category = row.dataset.category;
         const description = row.dataset.description;
         const count = parseInt(row.dataset.count);
@@ -1385,21 +1403,7 @@ const AISuggestions = {
 
     // ビュー切替
     _initViewToggle: function() {
-        const toggle = document.getElementById('aiViewToggle');
-        if (!toggle) return;
-        const groupedView = document.getElementById('aiGroupedView');
-        const flatView = document.getElementById('aiFlatView');
-        if (!groupedView || !flatView) return;
-
-        toggle.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', function() {
-                toggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                const view = this.dataset.view;
-                groupedView.style.display = view === 'grouped' ? '' : 'none';
-                flatView.style.display = view === 'flat' ? '' : 'none';
-            });
-        });
+        initViewToggle('#aiViewToggle', { grouped: 'aiGroupedView', flat: 'aiFlatView' });
     },
 
     // グループ行のイベントバインド
@@ -1499,7 +1503,6 @@ const StatusIndicator = {
 
         // 再試行ボタンのクリックハンドラー
         if (this._retryBtn) {
-            var self = this;
             this._retryBtn.addEventListener('click', function() {
                 SaveQueue.retryFailed();
             });
@@ -1553,7 +1556,7 @@ const StatusIndicator = {
 
 // ===== インライン分類の即時保存（SaveQueue使用） =====
 
-var _categorySelectPattern = /^(cat|uncat|transfer-src-|transfer-dest-|transfer-src-tbl-|transfer-dest-tbl-)/;
+var _categorySelectPattern = /^(cat-|uncat-|transfer-src-|transfer-dest-|transfer-src-tbl-|transfer-dest-tbl-)/;
 
 document.addEventListener('change', function(e) {
     var select = e.target;
@@ -1579,6 +1582,8 @@ document.addEventListener('change', function(e) {
         new_category: newCategory,
     });
 
+    var isUnclassifiedRow = name.startsWith('uncat-');
+
     SaveQueue.enqueue({
         url: window.location.href,
         formData: formData,
@@ -1586,7 +1591,11 @@ document.addEventListener('change', function(e) {
         originalValue: originalValue,
         intendedValue: newCategory,
         onSuccess: function() {
-            if (row) {
+            if (isUnclassifiedRow && row) {
+                ProgressBar.update(1);
+                updateUnclassifiedCount(1);
+                fadeOutRow(row);
+            } else if (row) {
                 row.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
                 setTimeout(function() { row.style.backgroundColor = ''; }, 800);
             }
@@ -2319,18 +2328,7 @@ const GroupedView = {
         this._injectSuggestionBadges();
 
         // ビュー切替
-        var toggleBtns = document.querySelectorAll('#viewToggle [data-view]');
-        toggleBtns.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                toggleBtns.forEach(function(b) { b.classList.remove('active'); });
-                this.classList.add('active');
-                var view = this.dataset.view;
-                var grouped = document.getElementById('groupedView');
-                var flat = document.getElementById('flatView');
-                if (grouped) grouped.style.display = view === 'grouped' ? '' : 'none';
-                if (flat) flat.style.display = view === 'flat' ? '' : 'none';
-            });
-        });
+        initViewToggle('#viewToggle', { grouped: 'groupedView', flat: 'flatView' });
 
         // グループ行のセレクト変更
         document.querySelectorAll('.group-category-select').forEach(function(select) {
@@ -2372,19 +2370,7 @@ const GroupedView = {
     },
 
     _updateTxTotal: function(delta) {
-        var el = document.getElementById('unclassifiedTxTotal');
-        if (el) {
-            var current = parseInt(el.textContent) || 0;
-            el.textContent = Math.max(0, current - delta);
-        }
-        // タブバッジも更新
-        var badge = document.querySelector('#unclassified-tab .badge');
-        if (badge) {
-            var count = parseInt(badge.textContent) || 0;
-            count = Math.max(0, count - delta);
-            if (count > 0) { badge.textContent = count; }
-            else { badge.remove(); }
-        }
+        updateUnclassifiedCount(delta);
     },
 
     _classifyGroup: function(row, category, select) {
@@ -2421,7 +2407,7 @@ const GroupedView = {
                 showToast('「' + desc + '」' + count + '件を「' + category + '」に分類しました', 'success');
 
                 // パターンプロンプト表示
-                PatternPrompt.show(row, category, desc, count);
+                PatternPrompt.show(category, desc);
             },
             onError: function() {
                 if (select) { select.disabled = false; select.value = ''; }
@@ -2437,7 +2423,7 @@ const PatternPrompt = {
     _el: null,
     _timeout: null,
 
-    show: function(anchorRow, category, description, count) {
+    show: function(category, description) {
         this.hide();
 
         var keyword = extractKeywordFromDescription(description);
@@ -2529,18 +2515,7 @@ const TransferView = {
         var self = this;
 
         // ビュー切替
-        var toggleBtns = document.querySelectorAll('#transferViewToggle [data-view]');
-        toggleBtns.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                toggleBtns.forEach(function(b) { b.classList.remove('active'); });
-                this.classList.add('active');
-                var view = this.dataset.view;
-                var cardView = document.getElementById('transferCardView');
-                var tableView = document.getElementById('transferTableView');
-                if (cardView) cardView.style.display = view === 'card' ? '' : 'none';
-                if (tableView) tableView.style.display = view === 'table' ? '' : 'none';
-            });
-        });
+        initViewToggle('#transferViewToggle', { card: 'transferCardView', table: 'transferTableView' });
 
         // 全て「振替」に分類ボタン
         var classifyAllBtn = document.getElementById('classifyAllTransfersBtn');
