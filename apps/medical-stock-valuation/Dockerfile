@@ -73,12 +73,13 @@ LABEL org.opencontainers.image.title="Medical Stock Valuation" \
 WORKDIR /app
 
 ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
     PORT=3010 \
     HOSTNAME=0.0.0.0 \
     TZ=Asia/Tokyo
 
 RUN apk upgrade --no-cache && \
-    apk add --no-cache tini tzdata && \
+    apk add --no-cache libc6-compat tini tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \
     apk del tzdata && \
