@@ -265,7 +265,7 @@ manage.bat start
 | Tax Docs (backend) | `runner` | Node.js + tini | あり |
 | Shares Valuation | `runner` | nginx:1.27-alpine | あり |
 | Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
-| Used Asset Life | `runner` | nginx:1.27-alpine | あり |
+| Depreciation Calc | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
 | Stock Valuation Form | `runner` | nginx:1.27-alpine | あり（開発中・`--prod` でスキップ） |
 | Bank Analyzer | `production` | Gunicorn | あり |
@@ -456,6 +456,7 @@ docker network create tax-apps-network
 | Shares Valuation | http://localhost/shares/ | 3012 | Vite | 非上場株式評価 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
+| Salary Calc | http://localhost/salary-calc/ | 3016 | Vite | 給与・賞与 手取り計算 |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
 | Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書（開発中） |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 銀行分析 |
@@ -506,6 +507,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3015 | Depreciation Calc | apps/depreciation-calc |
+| 3016 | Salary Calc | apps/salary-calc |
 | 3020 | ITCM Web | apps/inheritance-case-management |
 | 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
 
@@ -596,6 +598,8 @@ tax_apps/
 │   ├── retirement-tax-calc/    # 退職金税額計算
 │   │   └── docker-compose.yml
 │   ├── depreciation-calc/      # 減価償却計算
+│   │   └── docker-compose.yml
+│   ├── salary-calc/            # 給与・賞与 手取り計算
 │   │   └── docker-compose.yml
 │   ├── stock-valuation-form/   # 株式評価明細書（開発中）
 │   │   ├── docker-compose.yml
