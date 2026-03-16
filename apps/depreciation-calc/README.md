@@ -50,15 +50,26 @@
 | 本番 | `/depreciation-calc/` (nginx経由) |
 | Vercel | `/` |
 
+## インフラ
+
+| ファイル | 用途 |
+|---------|------|
+| `docker-compose.yml` | 開発用（ホットリロード、ソースマウント） |
+| `docker-compose.prod.yml` | 本番オーバーライド（nginx静的配信） |
+| `../../docker/Dockerfile.vite-static` | 共有Dockerfile（dev / builder / runner ステージ） |
+
+> ローカルの `Dockerfile` / `nginx.conf` は不要のため削除済み。
+> ビルド設定（nginx設定含む）は共有Dockerfileで管理。
+
 ## 起動方法
 
 ### Docker（推奨）
 
 ```bash
-# 開発モード
+# 開発モード（ホットリロード）
 docker compose up -d --build
 
-# 本番モード
+# 本番モード（nginx静的配信）
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # ログ確認
