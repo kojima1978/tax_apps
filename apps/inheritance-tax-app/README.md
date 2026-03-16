@@ -216,9 +216,10 @@ Gateway 経由: http://localhost/inheritance-tax-app/
 | 変更内容 | 開発モード | 本番モード |
 |:---------|:----------|:----------|
 | `src/` 内のコード | 自動反映（Vite HMR） | 再ビルド必要 |
+| `index.html` | 自動反映 | 再ビルド必要 |
+| `public/` 内のファイル | 再ビルド必要 | 再ビルド必要 |
 | `package.json` | 再ビルド必要 | 再ビルド必要 |
 | `Dockerfile`, nginx設定 | 再ビルド必要 | 再ビルド必要 |
-| `index.html` | 自動反映 | 再ビルド必要 |
 
 本番モード:
 ```bash
