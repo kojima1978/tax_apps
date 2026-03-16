@@ -60,8 +60,9 @@ services:
       <<: *common-env
       NODE_ENV: development
       WATCHPACK_POLLING: "true"
-    command: npm run dev -- -p 3010
+      PORT: "3010"
     init: true
+    stop_grace_period: 15s
     restart: unless-stopped
     logging: *default-logging
     healthcheck:

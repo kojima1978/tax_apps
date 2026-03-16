@@ -75,16 +75,7 @@ http://localhost:3010 でアクセスできます。
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-`docker-compose.prod.yml` でビルドターゲットを `runner`（standalone）に切り替え、ボリュームマウントを無効化、メモリ制限を縮小します。
-
-### ローカル開発
-
-```bash
-npm install
-npm run dev
-```
-
-http://localhost:3000 でアクセスできます。
+`docker-compose.prod.yml` でビルドターゲットを `runner`（standalone）に切り替え、ソースバインドマウントをデータ永続化ボリュームのみに絞り込みます。
 
 ## データベース
 
@@ -104,7 +95,7 @@ http://localhost:3000 でアクセスできます。
 ### データベースファイル
 
 - **パス**: `data/doctor.db`（アプリ起動時に自動作成）
-- **Docker**: `docker/data/medical-stock/` にバインドマウント
+- **Docker volume**: `medical-stock-valuation-data`（named volume でデータ永続化）
 
 ## 技術スタック
 
@@ -183,15 +174,21 @@ medical-stock-valuation/
 │   ├── api-utils.ts                        # API共通処理（createMasterRouteHandlers）
 │   └── company.ts                          # 会社情報定数
 ├── data/
-│   └── doctor.db                           # SQLiteデータベース
+│   └── doctor.db                           # SQLiteデータベース（自動作成）
+├── docs/
+│   └── er-diagram.md                       # データベースER図（詳細）
+├── public/
+│   ├── hospital.svg / hospital2.svg        # 病院アイコン
+│   ├── doctor.svg / clinic.svg / seminar.svg / calculator.svg
 ├── scripts/
-│   └── add-is-active-to-similar-industry.ts # マイグレーション
-├── Dockerfile                              # マルチステージビルド（dev/runner）
-├── docker-compose.yml                      # スタンドアロンDocker設定
-├── docker-compose.prod.yml                 # 本番オーバーライド
+│   └── add-is-active-to-similar-industry.ts # マイグレーション（is_activeカラム追加）
+├── Dockerfile                              # マルチステージビルド（deps/dev/builder/runner）
+├── docker-compose.yml                      # スタンドアロンDocker設定（PORT=3010環境変数）
+├── docker-compose.prod.yml                 # 本番オーバーライド（runner target + データvolume）
 ├── .dockerignore                           # ビルド除外
-├── ER_DIAGRAM.md                           # データベースER図
-├── next.config.ts                          # Next.js設定（standalone出力）
+├── ER_DIAGRAM.md                           # データベースER図（概要）
+├── next.config.ts                          # Next.js設定（standalone出力・basePath=/medical）
+├── tailwind.config.ts                      # Tailwind設定
 └── package.json
 ```
 
