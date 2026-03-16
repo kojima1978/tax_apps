@@ -82,6 +82,7 @@ services:
       # ソースコードをマウント（ホットリロード用）
       - ./web/src:/app/src:ro
       - ./web/public:/app/public:ro
+      - ./web/prisma:/app/prisma:ro
     ports:
       - "3020:3020"
     depends_on:

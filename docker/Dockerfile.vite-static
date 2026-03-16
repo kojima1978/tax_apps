@@ -12,6 +12,9 @@
 #   APP_DESCRIPTION - OCI image description label
 #   NPM_CACHE_ID   - Unique npm cache mount ID
 #
+# Optional build args:
+#   VITE_API_URL    - Backend API URL for apps that call a separate API (default: "")
+#
 # Usage in docker-compose.yml:
 #   build:
 #     context: .
@@ -59,7 +62,8 @@ CMD npm run dev -- --host --port ${APP_PORT}
 # =============================================================================
 FROM deps AS builder
 ARG NODE_OPTIONS="--max-old-space-size=4096"
-ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS}
+ARG VITE_API_URL=""
+ENV NODE_ENV=production NODE_OPTIONS=${NODE_OPTIONS} VITE_API_URL=${VITE_API_URL}
 COPY . .
 RUN npm run build
 
