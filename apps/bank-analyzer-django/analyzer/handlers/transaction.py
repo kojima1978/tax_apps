@@ -25,6 +25,17 @@ FIELD_LABELS = {
 }
 
 
+def _compute_still_visible(request: HttpRequest, new_category: str) -> bool:
+    """カテゴリー変更後も現在のフィルターで表示されるかを判定する"""
+    filter_categories = request.POST.getlist('filter_category')
+    if not filter_categories:
+        return True
+    category_mode = request.POST.get('filter_category_mode', 'include')
+    if category_mode == 'exclude':
+        return new_category not in filter_categories
+    return new_category in filter_categories
+
+
 def _extract_category_updates(request: HttpRequest, prefixes: list[str]) -> dict[str, str]:
     """POSTデータからカテゴリ更新辞書を構築する"""
     category_updates = {}
@@ -84,7 +95,8 @@ def handle_update_category(request: HttpRequest, case, pk: int) -> HttpResponse:
     count = TransactionService.update_transaction_category(case, tx_id_int, new_category, apply_all)
 
     if is_ajax(request):
-        return JsonResponse({'success': True, 'count': count, 'category': new_category})
+        still_visible = _compute_still_visible(request, new_category)
+        return JsonResponse({'success': True, 'count': count, 'category': new_category, 'still_visible': still_visible})
 
     if apply_all and count > 0:
         tx = case.transactions.filter(pk=tx_id_int).first()
