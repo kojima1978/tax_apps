@@ -1,5 +1,5 @@
 # ============================================
-# 中古資産の耐用年数計算 - Production Override
+# 減価償却計算ツール - Production Override
 # ============================================
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 # ============================================
