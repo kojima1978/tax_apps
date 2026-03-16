@@ -335,7 +335,7 @@
 ## 8. Docker構成
 
 ### 8.1 共通Dockerfile
-`docker/Dockerfile.vite-static`（6アプリ共有）
+`docker/Dockerfile.vite-static`（9アプリ共有）
 
 ### 8.2 ビルド引数
 
@@ -365,5 +365,6 @@
 
 | 日付 | 内容 |
 |-----|------|
+| 2026-03-17 | nginx設定更新: Vite HMR WebSocket設定追加（proxy_read_timeout 86400）、Next.js Font Routingマップから除外 |
 | 2026-03-08 | 空状態UI追加（贈与税・年数比較）、不動産ページのボタン配置改善 |
 | - | 仕様書初版作成 |
