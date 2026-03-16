@@ -21,6 +21,15 @@ function initViewToggle(toggleSelector, viewIdMap) {
     });
 }
 
+// 取引一覧タブ: 現在のカテゴリーフィルター状態をPOSTに追加（still_visible判定用）
+function appendActiveCategoryFilter(formData) {
+    document.querySelectorAll('input[name="category"]:checked').forEach(function(cb) {
+        formData.append('filter_category', cb.value);
+    });
+    var modeEl = document.querySelector('input[name="category_mode"]:checked');
+    if (modeEl) formData.append('filter_category_mode', modeEl.value);
+}
+
 // 未分類件数（ヘッダー合計 + タブバッジ）を delta 分減らす
 function updateUnclassifiedCount(delta) {
     var countEl = document.getElementById('unclassifiedTxTotal');
@@ -1583,6 +1592,9 @@ document.addEventListener('change', function(e) {
     });
 
     var isUnclassifiedRow = name.startsWith('uncat-');
+    var isAllTabRow = name.startsWith('cat-');
+
+    if (isAllTabRow) appendActiveCategoryFilter(formData);
 
     SaveQueue.enqueue({
         url: window.location.href,
@@ -1590,10 +1602,12 @@ document.addEventListener('change', function(e) {
         select: select,
         originalValue: originalValue,
         intendedValue: newCategory,
-        onSuccess: function() {
+        onSuccess: function(data) {
             if (isUnclassifiedRow && row) {
                 ProgressBar.update(1);
                 updateUnclassifiedCount(1);
+                fadeOutRow(row);
+            } else if (isAllTabRow && row && data.still_visible === false) {
                 fadeOutRow(row);
             } else if (row) {
                 row.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
@@ -2396,13 +2410,7 @@ const GroupedView = {
                 ProgressBar.update(count);
                 self._updateTxTotal(count);
 
-                // 行をフェードアウト
-                row.style.transition = 'opacity 0.4s, background-color 0.4s';
-                row.style.backgroundColor = 'rgba(25, 135, 84, 0.15)';
-                setTimeout(function() {
-                    row.style.opacity = '0';
-                    setTimeout(function() { row.remove(); }, 400);
-                }, 600);
+                highlightAndRemoveRow(row);
 
                 showToast('「' + desc + '」' + count + '件を「' + category + '」に分類しました', 'success');
 
