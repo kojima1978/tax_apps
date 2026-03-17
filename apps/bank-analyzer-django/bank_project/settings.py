@@ -51,6 +51,7 @@ else:
     CSRF_TRUSTED_ORIGINS = ['http://localhost', 'http://127.0.0.1']
     if DEBUG:
         # 開発環境: ALLOWED_HOSTS のホストをCSRF信頼オリジンに追加
+        # ポート付きOriginは DevCsrfTrustedOriginMiddleware が動的に追加する
         for host in ALLOWED_HOSTS:
             if host and host != '*':
                 CSRF_TRUSTED_ORIGINS.append(f'http://{host}')

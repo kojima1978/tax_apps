@@ -60,6 +60,7 @@
 bank-analyzer-django/
 ├── bank_project/              # Djangoプロジェクト設定
 │   ├── settings.py            # 設定ファイル（環境変数対応）
+│   ├── middleware.py           # DevCsrfTrustedOriginMiddleware（開発環境CSRF自動許可）
 │   ├── urls.py                # ルートURLルーティング
 │   ├── wsgi.py                # WSGI設定
 │   └── asgi.py                # ASGI設定
@@ -87,7 +88,7 @@ bank-analyzer-django/
 │   │   ├── transaction.py     # TransactionService（分類・CRUD・インポート）
 │   │   ├── analysis.py        # AnalysisService（分析データ生成）
 │   │   ├── classification.py  # 分類共通ロジック
-│   │   └── utils.py           # 共通ユーティリティ
+│   │   └── utils.py           # 共通ユーティリティ（parse_amount, parse_date_value等）
 │   ├── lib/                   # 分析・インポート用ライブラリ
 │   │   ├── importer.py        # CSV/Excel読み込み
 │   │   ├── analyzer.py        # 多額取引・資金移動分析
@@ -196,9 +197,11 @@ bank-analyzer-django/
 | パッケージ | 役割 |
 |-----------|------|
 | `handlers/` | ビューからPOST処理を分離。機能別に分割されたハンドラー群 |
+| `handlers/base.py` | 共通ヘルパー（`parse_amount`は`services/utils.py`に委譲、`build_transaction_data`等） |
 | `services/` | ビジネスロジック層。TransactionService（取引操作）、AnalysisService（分析） |
+| `services/utils.py` | 金額パース（`parse_amount`正規実装）、日付変換、ID変換等の共通処理 |
 | `lib/config/` | 設定管理。パターン（`_modify_patterns`共通ヘルパー）、閾値、ファジーマッチング設定 |
-| `lib/llm_classifier.py` | RapidFuzzによるファジーマッチング分類 |
+| `lib/llm_classifier.py` | RapidFuzzによるファジーマッチング分類（`_merge_keywords`で案件固有/グローバルキーワード統合） |
 | `lib/text_utils.py` | NFKC正規化、キーワード検索フィルタリング |
 
 ## Docker での起動
@@ -404,7 +407,7 @@ docker compose --profile production up -d bank-analyzer-prod
 
 - **ALLOWED_HOSTS**: 開発モードでは `*`（ワイルドカード）を設定済み。IPアドレス変更時も対応不要
 - **COOPヘッダー**: HTTP環境ではブラウザ警告が出るため `SECURE_CROSS_ORIGIN_OPENER_POLICY = None` で無効化済み（`settings.py`）
-- **CSRF**: nginx gateway が `proxy_set_header Host $host` を付与するため、`DJANGO_CSRF_TRUSTED_ORIGINS` の追加設定は不要
+- **CSRF**: `DevCsrfTrustedOriginMiddleware` が開発環境（`DEBUG=True`）でリクエストの `Origin` ヘッダーを自動的に `CSRF_TRUSTED_ORIGINS` に追加するため、ポート番号やLAN IPの違いによるCSRF 403エラーは発生しない
 
 ## ライセンス
 

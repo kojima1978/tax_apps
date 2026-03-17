@@ -63,6 +63,21 @@ def get_or_create_account(
     return account
 
 
+def _get_cached_account(account_cache: dict, case: Case, row: dict) -> Account:
+    """口座をキャッシュ付きで取得/作成する共通処理"""
+    acct_number = str(row.get('account_number') or row.get('account_id') or 'unknown')
+    if acct_number not in account_cache:
+        account_cache[acct_number] = get_or_create_account(
+            case=case,
+            account_number=acct_number,
+            bank_name=row.get('bank_name'),
+            branch_name=row.get('branch_name'),
+            account_type=row.get('account_type'),
+            holder=row.get('holder'),
+        )
+    return account_cache[acct_number]
+
+
 class TransactionService:
     """取引データに関するビジネスロジック"""
 
@@ -602,30 +617,15 @@ class TransactionService:
         with db_transaction.atomic():
             transactions_data = data.get('transactions', [])
             new_transactions = []
-
-            # 口座キャッシュ
             account_cache = {}
 
             for tx_data in transactions_data:
                 date_val = parse_date_value(tx_data.get('date'))
-
-                # 口座を取得または作成
-                # JSON v1.0 では account_id フィールドに口座番号が入っている
-                acct_number = tx_data.get('account_number') or tx_data.get('account_id') or 'unknown'
-                cache_key = acct_number
-                if cache_key not in account_cache:
-                    account_cache[cache_key] = get_or_create_account(
-                        case=new_case,
-                        account_number=acct_number,
-                        bank_name=tx_data.get('bank_name'),
-                        branch_name=tx_data.get('branch_name'),
-                        account_type=tx_data.get('account_type'),
-                        holder=tx_data.get('holder'),
-                    )
+                account = _get_cached_account(account_cache, new_case, tx_data)
 
                 new_transactions.append(Transaction(
                     case=new_case,
-                    account=account_cache[cache_key],
+                    account=account,
                     date=date_val,
                     description=tx_data.get('description'),
                     amount_out=tx_data.get('amount_out', 0),
@@ -675,27 +675,16 @@ class TransactionService:
         df = analyzer.analyze_large_amounts(df)
 
         with db_transaction.atomic():
-            # 口座キャッシュ
             account_cache = {}
-
             new_transactions = []
+
             for _, row in df.iterrows():
                 dt = parse_date_value(row['date'])
-
-                # 口座を取得または作成
-                acct_number = str(row.get('account_number', 'unknown'))
-                if acct_number not in account_cache:
-                    account_cache[acct_number] = get_or_create_account(
-                        case=case,
-                        account_number=acct_number,
-                        bank_name=row.get('bank_name'),
-                        branch_name=row.get('branch_name'),
-                        account_type=row.get('account_type'),
-                    )
+                account = _get_cached_account(account_cache, case, row)
 
                 new_transactions.append(Transaction(
                     case=case,
-                    account=account_cache[acct_number],
+                    account=account,
                     date=dt,
                     description=row['description'],
                     amount_out=row.get('amount_out', 0),
