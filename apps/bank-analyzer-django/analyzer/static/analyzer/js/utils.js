@@ -316,6 +316,60 @@ window.addEventListener('beforeunload', function(e) {
     }
 });
 
+// ===== Pattern Registration Utility =====
+
+/**
+ * パターン追加の共通処理（ConfirmModal.prompt → classify_and_register_pattern or add_pattern）
+ * @param {Object} opts
+ * @param {string} opts.category - 分類カテゴリ
+ * @param {string} opts.description - 摘要テキスト
+ * @param {string} opts.scope - 'global' or 'case'
+ * @param {string} [opts.action] - サーバーアクション（デフォルト: 'classify_and_register_pattern'）
+ * @param {string} [opts.confirmText] - 確認ボタンテキスト（デフォルト: '適用＆追加'）
+ * @param {string} [opts.extraMessage] - メッセージに追加するテキスト
+ * @param {Function} [opts.onSuccess] - 成功時コールバック (data) => {}
+ */
+function promptAndRegisterPattern(opts) {
+    var category = opts.category;
+    var description = opts.description;
+    var scope = opts.scope;
+    var action = opts.action || 'classify_and_register_pattern';
+    var confirmText = opts.confirmText || '適用＆追加';
+    var scopeLabel = scope === 'case' ? 'この案件' : '全案件（グローバル）';
+    var defaultKeyword = extractKeywordFromDescription(description);
+    var message = '「' + category + '」のパターンに追加するキーワード：\n摘要: ' + description + '\n適用範囲: ' + scopeLabel;
+    if (opts.extraMessage) message += '\n' + opts.extraMessage;
+
+    ConfirmModal.prompt({
+        title: 'パターン追加',
+        message: message,
+        defaultValue: defaultKeyword,
+        placeholder: 'キーワードを入力',
+        confirmText: confirmText,
+        onConfirm: function(keyword) {
+            var formData = createFormData({
+                action: action,
+                category: category,
+                keyword: keyword,
+                scope: scope,
+                description: description,
+            });
+            postJson(window.location.href, formData, {
+                onSuccess: function(data) {
+                    var scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
+                    var count = data.count || 1;
+                    if (action === 'add_pattern') {
+                        showToast('キーワード「' + keyword + '」を「' + category + '」に追加しました' + scopeMsg, 'success');
+                    } else {
+                        showToast(count + '件を「' + category + '」に分類し、キーワード「' + keyword + '」を追加しました' + scopeMsg, 'success');
+                    }
+                    if (opts.onSuccess) opts.onSuccess(data);
+                },
+            });
+        },
+    });
+}
+
 // ===== Select-All Checkbox Utility =====
 
 /**

@@ -130,33 +130,26 @@ def _detect_and_read_file(file_content: bytes) -> tuple[pd.DataFrame, str]:
         except Exception as e:
             errors["excel_binary_forced"] = str(e)
     else:
-        # CSV: 各エンコーディングで試行
-        for encoding in encodings:
+        # CSV: 各エンコーディングで試行 → Excelフォールバック → cp932 replace フォールバック
+        strategies = [(enc, None) for enc in encodings]
+        strategies.append(("excel", None))  # Excelフォールバック
+        strategies.append(("cp932", "replace"))  # cp932 置換読み込みフォールバック
+
+        for encoding, enc_errors in strategies:
             try:
-                df = _try_read_csv_with_encoding(file_content, encoding)
+                if encoding == "excel":
+                    df = pd.read_excel(io.BytesIO(file_content))
+                    logger.info("Excelファイルとして読み込み成功")
+                else:
+                    df = _try_read_csv_with_encoding(file_content, encoding, encoding_errors=enc_errors)
                 if df is not None:
                     return df, file_head_hex
-                errors[encoding] = "Decoded but missing key columns"
+                key = f"{encoding}_replace" if enc_errors else encoding
+                errors[key] = "Decoded but missing key columns"
             except Exception as e:
-                errors[encoding] = str(e)
-                logger.debug("%s で読み込み失敗: %s", encoding, e)
-
-        # Excelフォールバック
-        try:
-            df = pd.read_excel(io.BytesIO(file_content))
-            logger.info("Excelファイルとして読み込み成功")
-            return df, file_head_hex
-        except Exception as e:
-            errors["excel"] = str(e)
-
-        # cp932 置換読み込みフォールバック
-        try:
-            df = _try_read_csv_with_encoding(file_content, "cp932", encoding_errors='replace')
-            if df is not None:
-                return df, file_head_hex
-            raise ValueError("Decoded columns do not match expected format (garbage)")
-        except Exception as e:
-            errors["cp932_replace"] = str(e)
+                key = f"{encoding}_replace" if enc_errors else encoding
+                errors[key] = str(e)
+                logger.debug("%s で読み込み失敗: %s", key, e)
 
     raise EncodingError(
         message="ファイルの読み込みに失敗しました。",

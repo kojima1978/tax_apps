@@ -1018,33 +1018,15 @@ const UnclassifiedTab = {
             return;
         }
 
-        // 最初の選択項目から摘要を取得
         const firstRow = checked[0].closest('tr');
         const description = firstRow.dataset.description || '';
-        const defaultKeyword = extractKeywordFromDescription(description);
 
-        const scopeLabel = scope === 'case' ? 'この案件' : '全案件（グローバル）';
-        ConfirmModal.prompt({
-            title: 'パターン追加',
-            message: `「${category}」のパターンに追加するキーワードを入力してください：\n摘要例: ${description}\n適用範囲: ${scopeLabel}`,
-            defaultValue: defaultKeyword,
-            placeholder: 'キーワードを入力',
+        promptAndRegisterPattern({
+            category: category,
+            description: description,
+            scope: scope,
+            action: 'add_pattern',
             confirmText: '追加',
-            onConfirm: (keyword) => {
-                const formData = createFormData({
-                    action: 'add_pattern',
-                    category: category,
-                    keyword: keyword,
-                    scope: scope
-                });
-
-                postJson(window.location.href, formData, {
-                    onSuccess: () => {
-                        const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
-                        showToast(`キーワード「${keyword}」を「${category}」に追加しました${scopeMsg}`, 'success');
-                    },
-                });
-            }
         });
     },
 
@@ -1214,7 +1196,7 @@ const AISuggestions = {
                 self.updateBadgeCount(-count);
                 highlightAndRemoveRow(row);
                 // フラットビューからも同摘要の行を消す
-                self._removeFlatRowsByDescription(description);
+                self._removeRowsByDescription(description);
                 showToast(`「${category}」に${count}件分類しました`, 'success');
             },
             onError: () => {
@@ -1230,36 +1212,17 @@ const AISuggestions = {
         const category = row.dataset.category;
         const description = row.dataset.description;
         const count = parseInt(row.dataset.count);
-        const scopeLabel = scope === 'case' ? 'この案件' : '全案件（グローバル）';
-        const defaultKeyword = extractKeywordFromDescription(description);
 
-        ConfirmModal.prompt({
-            title: 'パターン追加',
-            message: `「${category}」のパターンに追加するキーワード：\n摘要: ${description}\n適用範囲: ${scopeLabel}\n対象: ${count}件`,
-            defaultValue: defaultKeyword,
-            placeholder: 'キーワードを入力',
-            confirmText: '適用＆追加',
-            onConfirm: (keyword) => {
-                // classify_and_register_pattern で一括適用＋パターン登録
-                const formData = createFormData({
-                    action: 'classify_and_register_pattern',
-                    category: category,
-                    keyword: keyword,
-                    scope: scope,
-                    description: description,
-                });
-                postJson(window.location.href, formData, {
-                    onSuccess: (data) => {
-                        const appliedCount = data.count || count;
-                        self.updateBadgeCount(-appliedCount);
-                        highlightAndRemoveRow(row);
-                        self._removeFlatRowsByDescription(description);
-                        // 他グループ行からも同摘要を含むものを消す
-                        self._removeGroupRowsByDescription(description);
-                        const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
-                        showToast(`${appliedCount}件を「${category}」に分類し、キーワード「${keyword}」を追加しました${scopeMsg}`, 'success');
-                    },
-                });
+        promptAndRegisterPattern({
+            category: category,
+            description: description,
+            scope: scope,
+            extraMessage: '対象: ' + count + '件',
+            onSuccess: function(data) {
+                var appliedCount = data.count || count;
+                self.updateBadgeCount(-appliedCount);
+                highlightAndRemoveRow(row);
+                self._removeRowsByDescription(description);
             },
         });
     },
@@ -1286,21 +1249,15 @@ const AISuggestions = {
         highlightAndRemoveRow(document.getElementById(`ai-row-${txId}`));
     },
 
-    // フラットビューの同摘要行を全て消す (D: パターン追加後の自動消去)
-    _removeFlatRowsByDescription: function(description) {
-        document.querySelectorAll('#aiFlatView .ai-flat-row').forEach(row => {
-            if (row.dataset.description === description) {
-                highlightAndRemoveRow(row);
-            }
-        });
-    },
-
-    // グループビューの同摘要行を全て消す
-    _removeGroupRowsByDescription: function(description) {
-        document.querySelectorAll('#aiGroupedView .ai-group-row').forEach(row => {
-            if (row.dataset.description === description) {
-                highlightAndRemoveRow(row);
-            }
+    // 同摘要の行をフラット・グループ両ビューから消す
+    _removeRowsByDescription: function(description) {
+        var selectors = ['#aiFlatView .ai-flat-row', '#aiGroupedView .ai-group-row'];
+        selectors.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(row) {
+                if (row.dataset.description === description) {
+                    highlightAndRemoveRow(row);
+                }
+            });
         });
     },
 
@@ -1347,35 +1304,15 @@ const AISuggestions = {
 
     // 適用してパターンに追加 (フラットビュー用)
     applyAndAddPattern: function(txId, category, description, scope) {
-        const scopeLabel = scope === 'case' ? 'この案件' : '全案件（グローバル）';
-        const defaultKeyword = extractKeywordFromDescription(description);
         const self = this;
-
-        ConfirmModal.prompt({
-            title: 'パターン追加',
-            message: `「${category}」のパターンに追加するキーワードを入力してください：\n摘要: ${description}\n適用範囲: ${scopeLabel}`,
-            defaultValue: defaultKeyword,
-            placeholder: 'キーワードを入力',
-            confirmText: '適用＆追加',
-            onConfirm: (keyword) => {
-                const formData = createFormData({
-                    action: 'classify_and_register_pattern',
-                    category: category,
-                    keyword: keyword,
-                    scope: scope,
-                    description: description,
-                });
-                postJson(window.location.href, formData, {
-                    onSuccess: (data) => {
-                        const appliedCount = data.count || 1;
-                        self.updateBadgeCount(-appliedCount);
-                        // (D) 同摘要の行を全て消す
-                        self._removeFlatRowsByDescription(description);
-                        self._removeGroupRowsByDescription(description);
-                        const scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
-                        showToast(`${appliedCount}件を「${category}」に分類し、キーワード「${keyword}」を追加しました${scopeMsg}`, 'success');
-                    },
-                });
+        promptAndRegisterPattern({
+            category: category,
+            description: description,
+            scope: scope,
+            onSuccess: function(data) {
+                var appliedCount = data.count || 1;
+                self.updateBadgeCount(-appliedCount);
+                self._removeRowsByDescription(description);
             },
         });
     },

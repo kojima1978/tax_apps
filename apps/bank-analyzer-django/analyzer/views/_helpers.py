@@ -177,19 +177,35 @@ def require_transactions(request: HttpRequest, transactions, pk: int, redirect_v
     return None
 
 
+def get_export_columns(df_columns, *, include_memo: bool = False, exclude_balance: bool = False) -> tuple[list[str], list[str]]:
+    """エクスポート用カラムとヘッダーを構築する共通処理
+
+    Args:
+        df_columns: DataFrameのカラム一覧（df.columns）
+        include_memo: メモ列を含めるか
+        exclude_balance: 残高列を除外するか
+
+    Returns:
+        (カラム名リスト, 日本語ヘッダーリスト) のタプル
+    """
+    columns = dict(FIELD_LABELS)
+    if exclude_balance:
+        columns.pop('balance', None)
+    if include_memo:
+        columns['memo'] = 'メモ'
+    cols = [c for c in columns if c in df_columns]
+    headers = [columns[c] for c in cols]
+    return cols, headers
+
+
 def prepare_export_df(df: pd.DataFrame, include_memo: bool = False) -> tuple[pd.DataFrame, list[str]]:
     """エクスポート用DataFrame準備: カラム選択 + 和暦変換 + ヘッダー日本語化"""
-    export_columns = dict(FIELD_LABELS)
-    if include_memo:
-        export_columns['memo'] = 'メモ'
-
-    cols_to_export = [c for c in export_columns.keys() if c in df.columns]
+    cols_to_export, headers = get_export_columns(df.columns, include_memo=include_memo)
     export_df = df[cols_to_export].copy()
 
     if 'date' in export_df.columns:
         export_df['date'] = export_df['date'].apply(lambda d: wareki(d, 'short'))
 
-    headers = [export_columns[c] for c in cols_to_export]
     export_df.columns = headers
     return export_df, headers
 
