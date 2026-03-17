@@ -124,7 +124,7 @@
                 <h5 class="modal-title">取引データの修正</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post">
+            <form id="editTxForm">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="update_transaction">
                 <input type="hidden" name="tx_id" id="modalTxId">
@@ -139,7 +139,7 @@
                 </div>
                 <div class="modal-footer border-top-0">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="submit" class="btn btn-primary" id="editTxSubmitBtn">保存</button>
                 </div>
             </form>
         </div>
