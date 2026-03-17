@@ -31,7 +31,7 @@
                 <i class="bi bi-house-door"></i>
             </a>
             <a class="navbar-brand" href="{% url 'case-list' %}">💰 Bank Analyzer</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="メニューを開閉">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
@@ -66,9 +66,31 @@
         {% block content %}{% endblock %}
     </div>
 
+    <!-- Bulk Operation Overlay -->
+    <div class="bulk-submit-overlay" id="bulkSubmitOverlay">
+        <div class="bulk-submit-box">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">処理中...</span>
+            </div>
+            <span class="bulk-submit-text" id="bulkSubmitText">処理中...</span>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="{% static 'analyzer/js/confirm_modal.js' %}"></script>
+    <script>
+    /** 一括操作フォーム送信時にオーバーレイ表示 */
+    document.addEventListener('submit', function(e) {
+        const form = e.target;
+        if (form.classList.contains('bulk-form')) {
+            const overlay = document.getElementById('bulkSubmitOverlay');
+            const text = document.getElementById('bulkSubmitText');
+            text.textContent = form.dataset.bulkLabel || '処理中...';
+            overlay.classList.add('active');
+        }
+    });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 

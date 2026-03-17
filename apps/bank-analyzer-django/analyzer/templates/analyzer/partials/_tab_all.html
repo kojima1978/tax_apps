@@ -131,7 +131,7 @@
         </div>
 
         <!-- 分類編集フォーム -->
-        <form method="post" id="allTxForm">
+        <form method="post" id="allTxForm" class="bulk-form" data-bulk-label="分類を保存中...">
             {% csrf_token %}
             <input type="hidden" name="action" value="bulk_update_categories">
             <input type="hidden" name="source_tab" value="all">
@@ -276,10 +276,10 @@
                                 {% include "analyzer/partials/_category_select.html" %}
                                 {% endwith %}
                             </td>
-                            <td>
+                            <td class="row-actions">
                                 {% include "analyzer/partials/_edit_button.html" %}
                             </td>
-                            <td>
+                            <td class="row-actions">
                                 {% with source_tab="all" %}
                                 {% include "analyzer/partials/_flag_button.html" %}
                                 {% endwith %}
@@ -287,7 +287,13 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="13" class="text-center">取引が見つかりません。</td>
+                            <td colspan="13">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon"><i class="bi bi-search"></i></div>
+                                    <div class="empty-state-text">取引が見つかりません</div>
+                                    <div class="empty-state-hint">フィルター条件を変更してお試しください</div>
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

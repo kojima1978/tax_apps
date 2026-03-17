@@ -68,12 +68,12 @@
                         <td style="max-width: 150px;" class="text-truncate" title="{{ tx.memo|default:'' }}">
                             <small class="text-muted">{{ tx.memo|default:"-"|truncatechars:30 }}</small>
                         </td>
-                        <td>
+                        <td class="row-actions">
                             <div class="d-flex gap-1">
                                 {% include "analyzer/partials/_edit_button.html" %}
                             </div>
                         </td>
-                        <td>
+                        <td class="row-actions">
                             {% with source_tab="flagged" %}
                             {% include "analyzer/partials/_flag_button.html" %}
                             {% endwith %}
@@ -84,8 +84,10 @@
             </table>
         </div>
         {% else %}
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> 付箋が付いた取引はありません。取引一覧で📌ボタンをクリックして付箋を追加できます。
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="bi bi-bookmark"></i></div>
+            <div class="empty-state-text">付箋が付いた取引はありません</div>
+            <div class="empty-state-hint">取引一覧で📌ボタンをクリックして付箋を追加できます</div>
         </div>
         {% endif %}
     </div>

@@ -39,7 +39,7 @@
         {% include "analyzer/partials/_category_filter.html" %}
         {% endwith %}
 
-        <form method="post" id="largeTxForm">
+        <form method="post" id="largeTxForm" class="bulk-form" data-bulk-label="分類を保存中...">
             {% csrf_token %}
             <input type="hidden" name="action" value="bulk_update_categories">
             <input type="hidden" name="source_tab" value="large">
@@ -95,12 +95,12 @@
                                 {% include "analyzer/partials/_category_select.html" %}
                                 {% endwith %}
                             </td>
-                            <td>
+                            <td class="row-actions">
                                 <div class="d-flex gap-1">
                                     {% include "analyzer/partials/_edit_button.html" %}
                                 </div>
                             </td>
-                            <td>
+                            <td class="row-actions">
                                 {% with source_tab="large" %}
                                 {% include "analyzer/partials/_flag_button.html" %}
                                 {% endwith %}
@@ -111,7 +111,11 @@
                 </table>
             </div>
             {% else %}
-            <div class="alert alert-info">該当する多額取引はありません。設定画面で閾値を確認してください。</div>
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="bi bi-cash-stack"></i></div>
+                <div class="empty-state-text">該当する多額取引はありません</div>
+                <div class="empty-state-hint">設定画面で閾値を確認してください</div>
+            </div>
             {% endif %}
         </form>
     </div>

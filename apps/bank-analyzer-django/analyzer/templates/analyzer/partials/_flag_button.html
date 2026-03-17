@@ -1,5 +1,6 @@
 <button type="button" class="btn btn-sm {% if tx.is_flagged %}btn-info{% else %}btn-outline-secondary{% endif %} flag-btn"
     data-tx-id="{{ tx.id }}" data-source-tab="{{ source_tab }}"
-    title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
+    title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}"
+    aria-label="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
     📌
 </button>

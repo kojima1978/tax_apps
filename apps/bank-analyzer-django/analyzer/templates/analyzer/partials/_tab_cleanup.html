@@ -114,7 +114,7 @@
                     <thead>
                         <tr>
                             <th style="width: 40px;"><input type="checkbox" class="form-check-input"
-                                    id="selectAllDup"></th>
+                                    id="selectAllDup" aria-label="全選択"></th>
                             <th>ID</th>
                             <th>日付</th>
                             <th>銀行名</th>
@@ -146,8 +146,9 @@
                 </table>
             </div>
             {% else %}
-            <div class="alert alert-success">
-                <i class="bi bi-check-circle"></i> 重複データは見つかりませんでした。
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="bi bi-check-circle text-success"></i></div>
+                <div class="empty-state-text">重複データは見つかりませんでした</div>
             </div>
             {% endif %}
         </form>

@@ -200,33 +200,103 @@ h1, h2, h3, h4 {
 
 /* ===== Pattern Manager ===== */
 
+/* Draggable pattern badges */
+.draggable-pattern {
+    cursor: grab;
+    transition: all 0.2s ease;
+}
+
+.draggable-pattern:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.draggable-pattern.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.drag-handle {
+    font-size: 0.7em;
+    opacity: 0.5;
+    margin-right: 2px;
+}
+
+/* Drop zones */
+.pattern-drop-zone {
+    transition: all 0.3s ease;
+    border: 2px dashed transparent;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.pattern-drop-zone.drag-over {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.pattern-drop-zone[data-scope="case"].drag-over {
+    border-color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.drop-hint {
+    border: 2px dashed #ccc;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Pending changes visualization */
 .pattern-badge.pattern-pending-add {
-    border: 2px dashed #0d6efd;
-    animation: pulse-border 1.5s infinite;
+    background-color: #d4edda !important;
+    border-color: #28a745 !important;
+    animation: pulse-green 1.5s infinite;
 }
 
 .pattern-badge.pattern-pending-delete {
-    opacity: 0.5;
     text-decoration: line-through;
+    opacity: 0.5;
+    background-color: #f8d7da !important;
 }
 
 .pattern-badge.pattern-pending-move-out {
     opacity: 0.5;
-    border: 2px dashed #ffc107;
+    border-style: dashed !important;
 }
 
-.pattern-badge.dragging {
-    opacity: 0.3;
+.pattern-badge.pattern-pending-move-in {
+    background-color: #cce5ff !important;
+    border-color: #007bff !important;
 }
 
-.pattern-drop-zone.drag-over {
-    background-color: rgba(37, 99, 235, 0.05);
-    border: 2px dashed var(--primary-gradient);
+@keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(40, 167, 69, 0); }
 }
 
 @keyframes pulse-border {
     0%, 100% { border-color: #0d6efd; }
     50% { border-color: rgba(13, 110, 253, 0.3); }
+}
+
+.pending-changes-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Settings page specific styles */
+.pattern-manager-settings .accordion-button {
+    padding: 0.5rem 1rem;
+}
+
+.pattern-manager-settings .accordion-body {
+    padding: 0.75rem;
+}
+
+.pattern-manager-settings .pattern-badge {
+    font-size: 0.85rem;
 }
 
 /* ===== Fade In Animation ===== */
@@ -732,4 +802,88 @@ h1, h2, h3, h4 {
 
 .case-card:hover .btn-primary.btn-sm {
     opacity: 1;
+}
+
+/* ===== Bulk Operation Overlay ===== */
+
+.bulk-submit-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+.bulk-submit-overlay.active {
+    display: flex;
+}
+
+.bulk-submit-box {
+    background: #fff;
+    border: 1px solid var(--glass-border);
+    border-radius: 0.75rem;
+    padding: 1.5rem 2.5rem;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.bulk-submit-box .spinner-border {
+    width: 2rem;
+    height: 2rem;
+    color: var(--primary-gradient);
+}
+
+.bulk-submit-box .bulk-submit-text {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #475569;
+}
+
+/* ===== Empty State ===== */
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #94a3b8;
+}
+
+.empty-state-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
+}
+
+.empty-state-text {
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+    color: #64748b;
+}
+
+.empty-state-hint {
+    font-size: 0.82rem;
+    color: #94a3b8;
+}
+
+/* ===== Hover Actions ===== */
+
+.row-actions {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+tr:hover .row-actions,
+tr:focus-within .row-actions {
+    opacity: 1;
+}
+
+@media (max-width: 767.98px) {
+    .row-actions {
+        opacity: 1;
+    }
 }

@@ -316,6 +316,43 @@ window.addEventListener('beforeunload', function(e) {
     }
 });
 
+// ===== Select-All Checkbox Utility =====
+
+/**
+ * Initialize a select-all checkbox for a group of checkboxes
+ * @param {string} selectAllId - ID of the select-all checkbox
+ * @param {string} checkboxSelector - CSS selector for the individual checkboxes
+ * @param {Function} [onUpdate] - Optional callback after state change
+ */
+function initSelectAll(selectAllId, checkboxSelector, onUpdate) {
+    var selectAll = document.getElementById(selectAllId);
+    if (!selectAll) return;
+
+    function getCheckboxes() {
+        return document.querySelectorAll(checkboxSelector);
+    }
+
+    function updateState() {
+        var boxes = getCheckboxes();
+        var checked = document.querySelectorAll(checkboxSelector + ':checked').length;
+        selectAll.checked = checked === boxes.length && boxes.length > 0;
+        selectAll.indeterminate = checked > 0 && checked < boxes.length;
+        if (onUpdate) onUpdate(checked, boxes.length);
+    }
+
+    selectAll.addEventListener('change', function() {
+        getCheckboxes().forEach(function(cb) { cb.checked = selectAll.checked; });
+        updateState();
+    });
+
+    // Delegate individual checkbox changes
+    document.addEventListener('change', function(e) {
+        if (e.target.matches(checkboxSelector)) updateState();
+    });
+
+    return { updateState: updateState };
+}
+
 // ===== Button State Utilities =====
 
 /**

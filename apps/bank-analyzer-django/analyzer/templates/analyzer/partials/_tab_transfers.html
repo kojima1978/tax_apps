@@ -219,7 +219,7 @@
 
         <!-- ===== テーブル表示（既存） ===== -->
         <div id="transferTableView" style="display: none;">
-            <form method="post" id="transferForm">
+            <form method="post" id="transferForm" class="bulk-form" data-bulk-label="分類を保存中...">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="bulk_update_transfer_categories">
                 <input type="hidden" name="source_tab" value="transfers">
