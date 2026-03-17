@@ -72,6 +72,21 @@ function addColumnIfMissing(
   }
 }
 
+/** 配列をキーでグルーピングしてMapを返す */
+function groupBy<T>(items: T[], keyFn: (item: T) => number): Map<number, T[]> {
+  const map = new Map<number, T[]>();
+  for (const item of items) {
+    const key = keyFn(item);
+    const arr = map.get(key);
+    if (arr) {
+      arr.push(item);
+    } else {
+      map.set(key, [item]);
+    }
+  }
+  return map;
+}
+
 // --- 顧客クエリの共通SELECT句 ---
 const CUSTOMER_SELECT = `
   SELECT c.id, c.customer_name, c.customer_code, COALESCE(s.staff_name, '') as staff_name, c.staff_id, c.created_at, c.updated_at
@@ -241,11 +256,14 @@ export function getAllCustomersWithYears(): CustomerWithYears[] {
       .prepare(`${CUSTOMER_SELECT} ORDER BY c.updated_at DESC`)
       .all() as Customer[];
 
-    return customers.map((customer) => {
-      const records = db
-        .prepare('SELECT year, updated_at FROM document_records WHERE customer_id = ? ORDER BY year DESC')
-        .all(customer.id) as { year: number; updated_at: string }[];
+    const allRecords = db
+      .prepare('SELECT customer_id, year, updated_at FROM document_records ORDER BY year DESC')
+      .all() as { customer_id: number; year: number; updated_at: string }[];
 
+    const recordsByCustomer = groupBy(allRecords, (r) => r.customer_id);
+
+    return customers.map((customer) => {
+      const records = recordsByCustomer.get(customer.id) || [];
       return {
         ...customer,
         years: records.map((r) => r.year),
@@ -427,11 +445,18 @@ export function searchCustomers(query: string): CustomerWithYears[] {
       `)
       .all(searchPattern, searchPattern) as Customer[];
 
-    return customers.map((customer) => {
-      const records = db
-        .prepare('SELECT year, updated_at FROM document_records WHERE customer_id = ? ORDER BY year DESC')
-        .all(customer.id) as { year: number; updated_at: string }[];
+    if (customers.length === 0) return [];
 
+    const customerIds = customers.map((c) => c.id);
+    const placeholders = customerIds.map(() => '?').join(',');
+    const allRecords = db
+      .prepare(`SELECT customer_id, year, updated_at FROM document_records WHERE customer_id IN (${placeholders}) ORDER BY year DESC`)
+      .all(...customerIds) as { customer_id: number; year: number; updated_at: string }[];
+
+    const recordsByCustomer = groupBy(allRecords, (r) => r.customer_id);
+
+    return customers.map((customer) => {
+      const records = recordsByCustomer.get(customer.id) || [];
       return {
         ...customer,
         years: records.map((r) => r.year),
@@ -555,11 +580,14 @@ export function getFullBackupData(): {
       `)
       .all() as Array<{ id: number; customer_name: string; customer_code: string | null; staff_name: string }>;
 
-    const customersWithRecords = customers.map((customer) => {
-      const records = db
-        .prepare('SELECT year, document_groups FROM document_records WHERE customer_id = ? ORDER BY year')
-        .all(customer.id) as Array<{ year: number; document_groups: string }>;
+    const allRecords = db
+      .prepare('SELECT customer_id, year, document_groups FROM document_records ORDER BY year')
+      .all() as Array<{ customer_id: number; year: number; document_groups: string }>;
 
+    const recordsByCustomer = groupBy(allRecords, (r) => r.customer_id);
+
+    const customersWithRecords = customers.map((customer) => {
+      const records = recordsByCustomer.get(customer.id) || [];
       return {
         customer_name: customer.customer_name,
         customer_code: customer.customer_code,
