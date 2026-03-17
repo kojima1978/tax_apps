@@ -242,6 +242,9 @@ Required-documents-for-tax-return/
 - customers 1 → N document_records（顧客 → 年度別書類データ、ON DELETE CASCADE）
 - 担当者名はJOINで取得（`LEFT JOIN staff ON customers.staff_id = staff.id`）
 
+### クエリ最適化
+- 一覧取得系クエリ（`getAllCustomersWithYears`、`searchCustomers`、`getFullBackupData`）は一括取得+`groupBy`でN+1問題を回避
+
 ## Docker 構成
 
 ### Dockerfile
