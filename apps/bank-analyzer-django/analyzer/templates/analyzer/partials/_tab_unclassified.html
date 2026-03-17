@@ -158,7 +158,7 @@
 
         <!-- ===== フラット表示（既存） ===== -->
         <div id="flatView" style="display: none;">
-            <form method="post" id="unclassifiedTxForm">
+            <form method="post" id="unclassifiedTxForm" class="bulk-form" data-bulk-label="分類を保存中...">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="bulk_update_categories">
                 <input type="hidden" name="source_tab" value="unclassified">

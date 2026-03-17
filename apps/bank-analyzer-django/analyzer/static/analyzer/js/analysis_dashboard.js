@@ -120,13 +120,7 @@ document.addEventListener('dblclick', function(e) {
 });
 
 // Select All Duplicates
-const selectAllDup = document.getElementById('selectAllDup');
-if (selectAllDup) {
-    selectAllDup.addEventListener('change', function () {
-        const checks = document.querySelectorAll('.dup-check');
-        checks.forEach(c => c.checked = this.checked);
-    });
-}
+initSelectAll('selectAllDup', '.dup-check');
 
 // URLパラメータに応じてタブを切り替え
 const urlParams = new URLSearchParams(window.location.search);
@@ -163,31 +157,23 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
         const formData = createFormData({ tx_id: txId });
         const apiUrl = getApiUrl('toggle-flag');
 
-        fetch(apiUrl, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 付箋タブで付箋を外した場合は行をフェードアウト
+        postJson(apiUrl, formData, {
+            onSuccess: (data) => {
                 if (sourceTab === 'flagged' && !data.is_flagged) {
                     fadeOutRow(row, () => {
-                        // 残り件数を確認し、0件ならメッセージ表示
                         const tbody = document.querySelector('#flagged tbody');
                         if (tbody && tbody.querySelectorAll('tr').length === 0) {
                             tbody.innerHTML = `
-                                <tr>
-                                    <td colspan="9" class="text-center py-4 text-muted">
-                                        付箋が付いた取引はありません。
-                                    </td>
-                                </tr>
-                            `;
+                                <tr><td colspan="9">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon"><i class="bi bi-bookmark"></i></div>
+                                        <div class="empty-state-text">付箋が付いた取引はありません</div>
+                                    </div>
+                                </td></tr>`;
                         }
                     });
                     showToast('付箋を外しました', 'info');
                 } else {
-                    // ボタンの見た目を更新
                     if (data.is_flagged) {
                         button.classList.remove('btn-outline-secondary');
                         button.classList.add('btn-info');
@@ -201,15 +187,8 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
                     }
                     enableButton(button);
                 }
-            } else {
-                showToast('エラー: ' + data.message, 'danger');
-                enableButton(button);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('通信エラーが発生しました', 'danger');
-            enableButton(button);
+            },
+            onError: () => enableButton(button),
         });
     });
 });
@@ -225,48 +204,19 @@ document.querySelectorAll('#analysisTabs .nav-link').forEach(tab => {
 });
 
 // ===== 一括選択機能 =====
-const selectAllTx = document.getElementById('selectAllTx');
 const bulkActionBar = document.getElementById('bulkActionBar');
 const selectedCountText = document.getElementById('selectedCountText');
 const clearSelectionBtn = document.getElementById('clearSelectionBtn');
 const applyBulkCategoryBtn = document.getElementById('applyBulkCategoryBtn');
 const bulkCategorySelect = document.getElementById('bulkCategorySelect');
 
-// 現在のチェックボックスを都度取得（削除後も正確）
-function getTxCheckboxes() {
-    return document.querySelectorAll('.tx-select-check');
-}
-
-// 選択状態の更新
 function updateSelectionUI() {
-    const allBoxes = getTxCheckboxes();
     const checkedCount = document.querySelectorAll('.tx-select-check:checked').length;
-    if (selectedCountText) {
-        selectedCountText.textContent = `${checkedCount}件選択中`;
-    }
-    if (bulkActionBar) {
-        bulkActionBar.style.display = checkedCount > 0 ? 'block' : 'none';
-    }
-    if (selectAllTx) {
-        selectAllTx.checked = checkedCount === allBoxes.length && allBoxes.length > 0;
-        selectAllTx.indeterminate = checkedCount > 0 && checkedCount < allBoxes.length;
-    }
+    if (selectedCountText) selectedCountText.textContent = `${checkedCount}件選択中`;
+    if (bulkActionBar) bulkActionBar.style.display = checkedCount > 0 ? 'block' : 'none';
 }
 
-// 全選択チェックボックス
-if (selectAllTx) {
-    selectAllTx.addEventListener('change', function() {
-        getTxCheckboxes().forEach(cb => cb.checked = this.checked);
-        updateSelectionUI();
-    });
-}
-
-// 個別チェックボックス（イベント委譲で削除後も動作）
-document.addEventListener('change', function(e) {
-    if (e.target.classList.contains('tx-select-check')) {
-        updateSelectionUI();
-    }
-});
+initSelectAll('selectAllTx', '.tx-select-check', updateSelectionUI);
 
 // 選択解除ボタン
 if (clearSelectionBtn) {
@@ -778,14 +728,8 @@ function fetchExistingKeywords(category) {
 
     const formData = createFormData({ action: 'get_category_keywords', category });
 
-    fetch(window.location.href, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+    postJson(window.location.href, formData, {
+        onSuccess: (data) => {
             const globalKws = data.global_keywords || [];
             const caseKws = data.case_keywords || [];
             const total = globalKws.length + caseKws.length;
@@ -798,27 +742,21 @@ function fetchExistingKeywords(category) {
             }
 
             let html = '';
-
             if (globalKws.length > 0) {
                 html += '<div class="mb-1"><small class="text-muted">グローバル:</small> ';
                 html += globalKws.map(k => `<span class="badge bg-light text-dark me-1">${k}</span>`).join('');
                 html += '</div>';
             }
-
             if (caseKws.length > 0) {
                 html += '<div><small class="text-muted">案件固有:</small> ';
                 html += caseKws.map(k => `<span class="badge bg-warning text-dark me-1">${k}</span>`).join('');
                 html += '</div>';
             }
-
             container.innerHTML = html;
-        } else {
+        },
+        onError: () => {
             container.innerHTML = '<span class="text-danger small">取得に失敗しました</span>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        container.innerHTML = '<span class="text-danger small">エラーが発生しました</span>';
+        },
     });
 }
 
@@ -838,42 +776,28 @@ function submitPatternAdd() {
 
     const formData = createFormData({ action: 'add_pattern', category, keyword, scope });
 
-    fetch(window.location.href, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+    postJson(window.location.href, formData, {
+        onSuccess: () => {
             const scopeLabel = scope === 'global' ? 'グローバル' : 'この案件';
-
             submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> 追加完了';
             submitBtn.classList.remove('btn-primary');
             submitBtn.classList.add('btn-success');
 
-            // モーダルを閉じる
             const patternModal = bootstrap.Modal.getInstance(document.getElementById('patternAddModal'));
             if (patternModal) {
                 setTimeout(() => {
                     patternModal.hide();
-                    // トースト通知
                     showToast(`「${keyword}」を「${category}」に追加しました（${scopeLabel}）`, 'success');
-                    // ボタンをリセット
                     resetButton(submitBtn);
                     submitBtn.classList.remove('btn-success');
                     submitBtn.classList.add('btn-primary');
                 }, 500);
             }
-        } else {
-            showPatternAddResult('danger', data.error || '追加に失敗しました');
+        },
+        onError: (data) => {
+            showPatternAddResult('danger', (data && data.error) || '追加に失敗しました');
             resetButton(submitBtn);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showPatternAddResult('danger', 'エラーが発生しました');
-        resetButton(submitBtn);
+        },
     });
 }
 
@@ -1052,26 +976,14 @@ const UnclassifiedTab = {
     // 初期化
     init: function() {
         const self = this;
-        const checkboxes = document.querySelectorAll('.unclassified-select-check');
-        const selectAllCheckbox = document.getElementById('selectAllUnclassified');
 
         // 要素がなければスキップ
-        if (checkboxes.length === 0) return;
+        if (document.querySelectorAll('.unclassified-select-check').length === 0) return;
 
-        // 個別チェックボックスのイベント
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => self.updateSelectionUI());
+        // 全選択チェックボックス（initSelectAll ヘルパー使用）
+        initSelectAll('selectAllUnclassified', '.unclassified-select-check', function() {
+            self.updateSelectionUI();
         });
-
-        // 全選択チェックボックス
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', function() {
-                checkboxes.forEach(cb => {
-                    cb.checked = this.checked;
-                });
-                self.updateSelectionUI();
-            });
-        }
 
         // 一括変更ボタン
         const applyBulkBtn = document.getElementById('applyUnclassifiedBulkBtn');
