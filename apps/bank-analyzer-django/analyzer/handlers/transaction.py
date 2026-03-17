@@ -108,28 +108,32 @@ def handle_update_category(request: HttpRequest, case, pk: int) -> HttpResponse:
     return redirect('analysis-dashboard', pk=pk)
 
 
+# タブごとのカテゴリ更新プレフィックス定義
+_BULK_UPDATE_PREFIXES = {
+    'transfers': ['transfer-src-', 'transfer-dest-'],
+}
+_BULK_UPDATE_DEFAULT_PREFIXES = ['cat-', 'uncat-']
+
+
+def _handle_bulk_update(request: HttpRequest, case, pk: int, source_tab: str, prefixes: list[str]) -> HttpResponse:
+    """カテゴリ一括更新の共通処理"""
+    category_updates = _extract_category_updates(request, prefixes)
+    count = TransactionService.bulk_update_categories(case, category_updates)
+    count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
+    filters = _extract_filters(request) if source_tab == 'all' else None
+    return redirect(build_redirect_url('analysis-dashboard', pk, source_tab, filters))
+
+
 def handle_bulk_update_categories(request: HttpRequest, case, pk: int) -> HttpResponse:
     """複数取引のカテゴリーを一括更新"""
     source_tab = request.POST.get('source_tab', 'large')
-    category_updates = _extract_category_updates(request, ['cat-', 'uncat-'])
-
-    count = TransactionService.bulk_update_categories(case, category_updates)
-    count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
-
-    # フィルター状態を復元（allタブの場合）
-    filters = _extract_filters(request) if source_tab == 'all' else None
-
-    return redirect(build_redirect_url('analysis-dashboard', pk, source_tab, filters))
+    prefixes = _BULK_UPDATE_PREFIXES.get(source_tab, _BULK_UPDATE_DEFAULT_PREFIXES)
+    return _handle_bulk_update(request, case, pk, source_tab, prefixes)
 
 
 def handle_bulk_update_categories_transfer(request: HttpRequest, case, pk: int) -> HttpResponse:
     """資金移動タブのカテゴリー一括更新"""
-    category_updates = _extract_category_updates(request, ['transfer-src-', 'transfer-dest-'])
-
-    count = TransactionService.bulk_update_categories(case, category_updates)
-    count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
-
-    return redirect(build_redirect_url('analysis-dashboard', pk, 'transfers', None))
+    return _handle_bulk_update(request, case, pk, 'transfers', _BULK_UPDATE_PREFIXES['transfers'])
 
 
 def handle_update_transaction(request: HttpRequest, case, pk: int) -> HttpResponse:

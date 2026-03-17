@@ -14,7 +14,7 @@ from ..models import Case, Transaction
 from ..services import TransactionService
 from ..services.transaction import get_or_create_account
 from ..lib.constants import UNCATEGORIZED
-from .base import json_error, json_api_error, parse_amount
+from .base import json_error, json_api_error, build_transaction_data
 
 logger = logging.getLogger(__name__)
 
@@ -47,40 +47,35 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
     case = get_object_or_404(Case, pk=pk)
 
     try:
-        date_str = request.POST.get('date')
+        data = build_transaction_data(request)
+
+        # 日付文字列をdate型に変換
         date_val = None
-        if date_str:
+        if data['date']:
             try:
-                date_val = datetime.strptime(date_str, '%Y-%m-%d').date()
+                date_val = datetime.strptime(data['date'], '%Y-%m-%d').date()
             except ValueError:
                 pass
-
-        amount_out, _ = parse_amount(request.POST.get('amount_out', '0'))
-        amount_in, _ = parse_amount(request.POST.get('amount_in', '0'))
-        balance_str = request.POST.get('balance', '')
-        balance_val = None
-        if balance_str:
-            balance_val, _ = parse_amount(balance_str)
 
         # 口座を取得または作成
         account = get_or_create_account(
             case=case,
-            account_number=request.POST.get('account_number', '') or 'unknown',
-            bank_name=request.POST.get('bank_name', ''),
-            branch_name=request.POST.get('branch_name', ''),
-            account_type=request.POST.get('account_type', ''),
+            account_number=data.get('account_number', '') or 'unknown',
+            bank_name=data.get('bank_name', ''),
+            branch_name=data.get('branch_name', ''),
+            account_type=data.get('account_type', ''),
         )
 
         tx = Transaction.objects.create(
             case=case,
             account=account,
             date=date_val,
-            description=request.POST.get('description', ''),
-            amount_out=amount_out,
-            amount_in=amount_in,
-            balance=balance_val,
-            category=request.POST.get('category', UNCATEGORIZED),
-            memo=request.POST.get('memo', ''),
+            description=data.get('description', ''),
+            amount_out=data['amount_out'],
+            amount_in=data['amount_in'],
+            balance=data['balance'],
+            category=data.get('category') or UNCATEGORIZED,
+            memo=data.get('memo', ''),
         )
 
         logger.info(f"取引作成: case_id={pk}, tx_id={tx.id}")

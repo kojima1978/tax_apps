@@ -131,7 +131,9 @@ class TransactionService:
         """
         patterns = config.get_classification_patterns()
         case_patterns = config.get_case_patterns(case)
-        txs = case.transactions.filter(category=UNCATEGORIZED).order_by('-date', '-id')
+        txs = case.transactions.filter(category=UNCATEGORIZED).only(
+            'id', 'date', 'description', 'amount_out', 'amount_in', 'category',
+        ).order_by('-date', '-id')
 
         if not txs.exists():
             return []
@@ -179,7 +181,9 @@ class TransactionService:
 
         patterns = config.get_classification_patterns()
         case_patterns = config.get_case_patterns(case)
-        txs = case.transactions.filter(id__in=tx_ids, category=UNCATEGORIZED)
+        txs = case.transactions.filter(id__in=tx_ids, category=UNCATEGORIZED).only(
+            'id', 'description', 'category',
+        )
 
         updates = []
         for tx in txs:

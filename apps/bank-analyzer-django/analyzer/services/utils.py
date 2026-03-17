@@ -49,12 +49,29 @@ def get_transaction(case: Case, tx_id: int) -> Optional[Transaction]:
     return case.transactions.filter(pk=tx_id).first()
 
 
+def parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
+    """金額文字列を整数に変換
+
+    Args:
+        value: 金額文字列（カンマ区切り対応）
+        default: 変換失敗時のデフォルト値
+
+    Returns:
+        (変換結果, 成功フラグ) のタプル
+    """
+    try:
+        cleaned = (value or '0').replace(',', '')
+        return int(cleaned), True
+    except (ValueError, AttributeError):
+        return default, False
+
+
 def parse_amount_str(value: str) -> int | None:
     """金額文字列を整数に変換（変換失敗時はNone）"""
-    try:
-        return int(value.replace(',', '')) if value else None
-    except (ValueError, AttributeError):
+    if not value:
         return None
+    result, ok = parse_amount(value)
+    return result if ok else None
 
 
 def convert_amounts_to_int(df: 'pd.DataFrame') -> 'pd.DataFrame':
