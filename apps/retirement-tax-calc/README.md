@@ -50,15 +50,18 @@ src/
 │   └── globals.css            # グローバルスタイル + 印刷 + PDF生成スタイル
 ├── components/
 │   ├── CheckboxField.tsx      # チェックボックス共通コンポーネント
+│   ├── ComparisonTable.tsx    # 比較テーブル（TABLE_ROW_DEFSデータ駆動）
 │   ├── FormField.tsx          # フォームフィールド共通
 │   ├── Header.tsx             # アプリヘッダー + 印刷/PDFボタン
 │   ├── InputWithUnit.tsx      # 入力欄+単位ラベル（フォーカス時全選択）
+│   ├── LimitResultDisplay.tsx # 役員限度額結果表示（超過警告含む）
 │   ├── OfficerLimitSection.tsx # 役員退職金限度額
 │   ├── PrintFooter.tsx        # 印刷用フッター
 │   ├── ReferenceTables.tsx    # 参照表（控除額・速算表）
-│   ├── ResultSection.tsx      # 計算結果テーブル
+│   ├── ResultSection.tsx      # 計算結果セクション（TAG_DEFSデータ駆動）
 │   ├── RetirementForm.tsx     # 入力フォーム + 計算/クリアボタン
-│   └── ServiceYearsInput.tsx  # 勤続年数（直接入力/日付計算切替）
+│   ├── ServiceYearsInput.tsx  # 勤続年数（直接入力/日付計算切替）
+│   └── SummaryPatterns.tsx    # サマリーカード（SUMMARY_ITEMSデータ駆動）
 ├── hooks/
 │   └── useRetirementTaxForm.ts # フォーム状態管理フック
 └── lib/

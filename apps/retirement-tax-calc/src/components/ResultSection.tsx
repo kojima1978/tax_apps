@@ -9,12 +9,21 @@ type ResultSectionProps = {
     isDirty: boolean;
 };
 
-const buildConditionTags = (r: RetirementTaxResult) => [
-    { label: RETIREMENT_TYPE_LABELS[r.retirementType] },
-    { label: `勤続${r.serviceYears}年` },
-    { label: TAX_RATES[r.taxYear].label },
-    ...(r.isDisability ? [{ label: "障害者退職", className: "disability" }] : []),
+type TagDef = {
+    label: (r: RetirementTaxResult) => string;
+    className?: string;
+    show?: (r: RetirementTaxResult) => boolean;
+};
+
+const TAG_DEFS: TagDef[] = [
+    { label: (r) => RETIREMENT_TYPE_LABELS[r.retirementType] },
+    { label: (r) => `勤続${r.serviceYears}年` },
+    { label: (r) => TAX_RATES[r.taxYear].label },
+    { label: () => "障害者退職", className: "disability", show: (r) => r.isDisability },
 ];
+
+const buildConditionTags = (r: RetirementTaxResult) =>
+    TAG_DEFS.filter((d) => !d.show || d.show(r)).map((d) => ({ label: d.label(r), className: d.className }));
 
 const ResultSection = ({ results, isDirty }: ResultSectionProps) => {
     const activeIndices = results.reduce<number[]>(
