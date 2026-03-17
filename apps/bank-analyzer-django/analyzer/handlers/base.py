@@ -116,12 +116,9 @@ def count_message(request: HttpRequest, count: int, success_msg: str, zero_msg: 
 
 
 def parse_amount(value: str, default: int = 0) -> tuple[int, bool]:
-    """金額文字列を整数に変換"""
-    try:
-        cleaned = (value or '0').replace(',', '')
-        return int(cleaned), True
-    except (ValueError, AttributeError):
-        return default, False
+    """金額文字列を整数に変換（実装は services.utils に委譲）"""
+    from ..services.utils import parse_amount as _parse_amount
+    return _parse_amount(value, default)
 
 
 def build_transaction_data(request: HttpRequest) -> dict:

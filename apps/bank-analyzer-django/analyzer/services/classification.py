@@ -105,7 +105,9 @@ def classify_unclassified_transactions(
     Returns:
         更新が必要なTransactionオブジェクトのリスト
     """
-    txs = case.transactions.filter(category=UNCATEGORIZED)
+    txs = case.transactions.filter(category=UNCATEGORIZED).only(
+        'id', 'description', 'amount_out', 'amount_in', 'category', 'classification_score',
+    )
     if not txs.exists():
         return []
 

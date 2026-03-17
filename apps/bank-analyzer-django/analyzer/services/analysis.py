@@ -176,18 +176,19 @@ class AnalysisService:
 
         # 資金移動の分類フィルター
         if filter_state.get('transfer_category'):
-            filter_cats = filter_state['transfer_category']
-            if filter_state.get('transfer_category_mode') == 'exclude':
+            cats = filter_state['transfer_category']
+            mode = filter_state.get('transfer_category_mode', 'include')
+            if mode == 'exclude':
                 transfer_pairs = [
-                    pair for pair in transfer_pairs
-                    if (pair['source'].get('category') not in filter_cats and
-                        (not pair['destination'] or pair['destination'].get('category') not in filter_cats))
+                    p for p in transfer_pairs
+                    if (p['source'].get('category') not in cats and
+                        (not p['destination'] or p['destination'].get('category') not in cats))
                 ]
             else:
                 transfer_pairs = [
-                    pair for pair in transfer_pairs
-                    if (pair['source'].get('category') in filter_cats or
-                        (pair['destination'] and pair['destination'].get('category') in filter_cats))
+                    p for p in transfer_pairs
+                    if (p['source'].get('category') in cats or
+                        (p['destination'] and p['destination'].get('category') in cats))
                 ]
 
         # キーワードフィルター（source/destinationのdescriptionで絞り込み、AND検索対応）
@@ -379,17 +380,21 @@ class AnalysisService:
         case_patterns = case.custom_patterns or {}
         global_patterns = config.get_classification_patterns()
 
-        # 未分類の取引を取得
-        unclassified_txs = case.transactions.filter(category=UNCATEGORIZED).order_by('-date', '-id')[:100]
-        unclassified_count = case.transactions.filter(category=UNCATEGORIZED).count()
+        # 未分類の取引を取得（countとデータ取得を1クエリに統合）
+        unclassified_qs = case.transactions.filter(
+            category=UNCATEGORIZED,
+        ).only('id', 'date', 'description', 'amount_out', 'amount_in')
+        unclassified_count = unclassified_qs.count()
 
-        if not unclassified_txs.exists():
+        if unclassified_count == 0:
             return {
                 'ai_suggestions': [],
                 'suggestions_count': 0,
                 'unclassified_count': 0,
                 'fuzzy_threshold': fuzzy_threshold,
             }
+
+        unclassified_txs = unclassified_qs.order_by('-date', '-id')[:100]
 
         suggestions = []
         for tx in unclassified_txs:
@@ -424,7 +429,6 @@ class AnalysisService:
                 })
 
         # グルーピング: 同じ(description, suggested_category)をまとめる
-        from collections import OrderedDict
         grouped = OrderedDict()
         for s in suggestions:
             key = (s['description'], s['suggested_category'])
