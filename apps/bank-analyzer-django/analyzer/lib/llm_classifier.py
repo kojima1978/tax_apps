@@ -81,6 +81,11 @@ class FuzzyMatchCache:
 _fuzzy_cache = FuzzyMatchCache()
 
 
+def _merge_keywords(category: str, case_patterns: dict, global_patterns: dict) -> list[str]:
+    """案件固有とグローバルのキーワードをマージ（重複除去）"""
+    return list(set(case_patterns.get(category, []) + global_patterns.get(category, [])))
+
+
 def _fuzzy_match_category(
     text: str,
     case_patterns: dict,
@@ -150,11 +155,15 @@ def _fuzzy_match_category(
 
         return False  # 続行
 
-    # 1. 案件固有パターンを先に評価
-    if case_patterns and _evaluate_patterns(case_patterns, "case"):
+    def _cache_and_return():
+        """現在のベストマッチをキャッシュして返す"""
         result = (best_category, best_score)
         _fuzzy_cache.set(text, combined_key, result)
         return result
+
+    # 1. 案件固有パターンを先に評価
+    if case_patterns and _evaluate_patterns(case_patterns, "case"):
+        return _cache_and_return()
 
     # 2. グローバルパターンを評価（案件固有に含まれないもののみ）
     # 案件固有で既にカバーされているカテゴリーのキーワードは重複評価しない
@@ -163,21 +172,14 @@ def _fuzzy_match_category(
         if cat in _FUZZY_EXCLUDE_CATEGORIES:
             continue
         case_kws = set(case_patterns.get(cat, []))
-        # 案件固有に含まれないキーワードのみ
         unique_kws = [kw for kw in keywords if kw not in case_kws]
         if unique_kws:
             global_only[cat] = unique_kws
 
     if global_only and _evaluate_patterns(global_only, "global"):
-        result = (best_category, best_score)
-        _fuzzy_cache.set(text, combined_key, result)
-        return result
+        return _cache_and_return()
 
-    # キャッシュに保存
-    result = (best_category, best_score)
-    _fuzzy_cache.set(text, combined_key, result)
-
-    return result
+    return _cache_and_return()
 
 
 def classify_by_rules(
@@ -262,11 +264,7 @@ def classify_by_rules(
         return result
 
     # 贈与判定（振込など）- 閾値以上の場合のみ
-    # 案件固有とグローバル両方のキーワードをチェック
-    case_gift_keywords = case_patterns.get("贈与", [])
-    global_gift_keywords = global_patterns.get("贈与", [])
-    all_gift_keywords = list(set(case_gift_keywords + global_gift_keywords))
-
+    all_gift_keywords = _merge_keywords("贈与", case_patterns, global_patterns)
     if any(kw.lower() in text_lower for kw in all_gift_keywords):
         if amount_out >= gift_threshold:
             return "贈与", 100
@@ -281,9 +279,7 @@ def classify_by_rules(
             return category, score
 
     # Phase 3: 「その他」カテゴリー（常に最後に評価）
-    case_other_keywords = case_patterns.get("その他", [])
-    global_other_keywords = global_patterns.get("その他", [])
-    all_other_keywords = list(set(case_other_keywords + global_other_keywords))
+    all_other_keywords = _merge_keywords("その他", case_patterns, global_patterns)
 
     for kw in all_other_keywords:
         if kw.lower() in text_lower:

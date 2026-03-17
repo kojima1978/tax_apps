@@ -107,6 +107,21 @@ erDiagram
 - `(case_id, is_large)`: 案件×多額取引の絞り込み用
 - `(case_id, is_transfer)`: 案件×資金移動の絞り込み用
 
+## カスタムQuerySet
+
+### TransactionQuerySet
+
+`Transaction.objects` は `TransactionQuerySet` をマネージャーとして使用し、以下のカスタムメソッドを提供する。
+
+| メソッド | 説明 |
+| :--- | :--- |
+| `with_account_info()` | `select_related('account')` + Account フィールド（`bank_name`, `branch_name`, `account_number`, `account_type`, `holder`）をアノテーションして返す。N+1クエリを防止し、DataFrame変換やテンプレート表示で使用。 |
+
+```python
+# 使用例: 口座情報付きで全取引を取得
+transactions = case.transactions.with_account_info().order_by('date')
+```
+
 ## 資金移動検出アルゴリズム
 
 `analyze_transfers`（`analyzer/lib/analyzer.py`）で実行される。

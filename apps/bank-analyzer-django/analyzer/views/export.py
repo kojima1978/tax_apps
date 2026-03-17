@@ -164,16 +164,16 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
     if 'date' in df.columns:
         df['date'] = df['date'].apply(lambda d: wareki(d, 'short'))
 
-    # 分類別シート用: 残高・メモを除外
-    export_columns = {k: v for k, v in FIELD_LABELS.items() if k != 'balance'}
-    cols_to_export = [c for c in export_columns.keys() if c in df.columns]
-    headers = [export_columns[c] for c in cols_to_export]
+    def _build_export_cols(include_memo=False):
+        """エクスポート用カラムとヘッダーを構築"""
+        columns = {k: v for k, v in FIELD_LABELS.items() if k != 'balance'}
+        if include_memo:
+            columns['memo'] = 'メモ'
+        cols = [c for c in columns if c in df.columns]
+        return cols, [columns[c] for c in cols]
 
-    # 付箋シート用: メモ列を追加
-    flagged_columns = dict(export_columns)
-    flagged_columns['memo'] = 'メモ'
-    flagged_cols = [c for c in flagged_columns.keys() if c in df.columns]
-    flagged_headers = [flagged_columns[c] for c in flagged_cols]
+    cols_to_export, headers = _build_export_cols()
+    flagged_cols, flagged_headers = _build_export_cols(include_memo=True)
 
     grouped = df.groupby('category')
     sorted_cats = sort_categories(grouped.groups.keys())
