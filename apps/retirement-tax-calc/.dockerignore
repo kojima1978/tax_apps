@@ -2,16 +2,12 @@
 node_modules
 
 # Build outputs
-.next
-out
-build
 dist
 *.tsbuildinfo
 
 # Testing
 coverage
 *.lcov
-.nyc_output
 __tests__
 *.test.ts
 *.test.tsx
@@ -56,4 +52,3 @@ docs
 *.log
 *.pem
 .vercel
-.netlify

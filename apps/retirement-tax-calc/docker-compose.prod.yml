@@ -15,6 +15,10 @@ services:
   retirement-tax-calc:
     build:
       target: runner
+    environment:
+      TZ: Asia/Tokyo
     init: false
     volumes: []
+    healthcheck:
+      start_period: 10s
     deploy: *prod-deploy
