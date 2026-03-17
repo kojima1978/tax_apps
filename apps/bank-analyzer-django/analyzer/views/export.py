@@ -21,7 +21,7 @@ from ..templatetags.japanese_date import wareki
 from ._helpers import (
     sanitize_filename, set_download_filename, build_filter_state,
     build_filtered_filename, require_transactions, prepare_export_df,
-    build_csv_response,
+    build_csv_response, get_export_columns,
 )
 
 logger = logging.getLogger(__name__)
@@ -164,16 +164,8 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
     if 'date' in df.columns:
         df['date'] = df['date'].apply(lambda d: wareki(d, 'short'))
 
-    def _build_export_cols(include_memo=False):
-        """エクスポート用カラムとヘッダーを構築"""
-        columns = {k: v for k, v in FIELD_LABELS.items() if k != 'balance'}
-        if include_memo:
-            columns['memo'] = 'メモ'
-        cols = [c for c in columns if c in df.columns]
-        return cols, [columns[c] for c in cols]
-
-    cols_to_export, headers = _build_export_cols()
-    flagged_cols, flagged_headers = _build_export_cols(include_memo=True)
+    cols_to_export, headers = get_export_columns(df.columns, exclude_balance=True)
+    flagged_cols, flagged_headers = get_export_columns(df.columns, include_memo=True, exclude_balance=True)
 
     grouped = df.groupby('category')
     sorted_cats = sort_categories(grouped.groups.keys())
