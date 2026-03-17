@@ -45,15 +45,37 @@ function requireTrimmedString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-/** req.params.id をパースし、無効な場合は400レスポンスを返す */
-function parseId(req: express.Request, res: express.Response): number | null {
-  const raw = req.params.id;
-  const id = parseInt(Array.isArray(raw) ? raw[0] : raw, 10);
-  if (isNaN(id)) {
-    res.status(400).json({ error: 'Invalid ID' });
+/** req.params のキーを整数パースし、無効な場合は400レスポンスを返す */
+function parseIntParam(req: express.Request, res: express.Response, key: string, label = key): number | null {
+  const raw = req.params[key];
+  const value = parseInt(Array.isArray(raw) ? raw[0] : raw, 10);
+  if (isNaN(value)) {
+    res.status(400).json({ error: `Invalid ${label}` });
     return null;
   }
-  return id;
+  return value;
+}
+
+function parseId(req: express.Request, res: express.Response): number | null {
+  return parseIntParam(req, res, 'id', 'ID');
+}
+
+function parseYear(req: express.Request, res: express.Response): number | null {
+  return parseIntParam(req, res, 'year', 'year');
+}
+
+/** 翌年度コピーの共通処理 */
+function handleCopyToNextYear(res: express.Response, customerId: number, year: number): void {
+  const success = copyToNextYear(customerId, year);
+  if (!success) {
+    res.status(404).json({ error: '現在の年度のデータが見つかりません' });
+    return;
+  }
+  res.json({
+    success: true,
+    message: `${formatReiwaYear(year)}のデータを${formatReiwaYear(year + 1)}にコピーしました`,
+    nextYear: year + 1,
+  });
 }
 
 /** エンティティ作成の共通エラーハンドリング（409重複 / 500サーバーエラー） */
@@ -298,17 +320,7 @@ app.post('/api/documents', (req, res) => {
     if (!year) {
       return res.status(400).json({ error: 'year is required for copyToNextYear action' });
     }
-
-    const success = copyToNextYear(customerId, year);
-    if (!success) {
-      return res.status(404).json({ error: '現在の年度のデータが見つかりません' });
-    }
-
-    return res.json({
-      success: true,
-      message: `${formatReiwaYear(year)}のデータを${formatReiwaYear(year + 1)}にコピーしました`,
-      nextYear: year + 1,
-    });
+    return handleCopyToNextYear(res, customerId, year);
   }
 
   // 通常の保存
@@ -327,10 +339,8 @@ app.post('/api/documents', (req, res) => {
 app.get('/api/customers/:id/documents/:year', (req, res) => {
   const id = parseId(req, res);
   if (id === null) return;
-  const year = parseInt(req.params.year, 10);
-  if (isNaN(year)) {
-    return res.status(400).json({ error: 'Invalid year' });
-  }
+  const year = parseYear(req, res);
+  if (year === null) return;
 
   const documentGroups = getDocumentRecordByCustomerId(id, year);
   res.json({
@@ -343,27 +353,15 @@ app.get('/api/customers/:id/documents/:year', (req, res) => {
 app.post('/api/customers/:id/documents/:year', (req, res) => {
   const id = parseId(req, res);
   if (id === null) return;
-  const year = parseInt(req.params.year, 10);
-  if (isNaN(year)) {
-    return res.status(400).json({ error: 'Invalid year' });
-  }
+  const year = parseYear(req, res);
+  if (year === null) return;
 
   const { documentGroups, action } = req.body;
 
-  // 翌年度更新
   if (action === 'copyToNextYear') {
-    const success = copyToNextYear(id, year);
-    if (!success) {
-      return res.status(404).json({ error: '現在の年度のデータが見つかりません' });
-    }
-    return res.json({
-      success: true,
-      message: `${formatReiwaYear(year)}のデータを${formatReiwaYear(year + 1)}にコピーしました`,
-      nextYear: year + 1,
-    });
+    return handleCopyToNextYear(res, id, year);
   }
 
-  // 通常の保存
   if (!documentGroups) {
     return res.status(400).json({ error: 'documentGroups is required' });
   }
@@ -385,10 +383,8 @@ app.get('/api/records', (_req, res) => {
 app.delete('/api/customers/:id/documents/:year', (req, res) => {
   const id = parseId(req, res);
   if (id === null) return;
-  const year = parseInt(req.params.year, 10);
-  if (isNaN(year)) {
-    return res.status(400).json({ error: 'Invalid year' });
-  }
+  const year = parseYear(req, res);
+  if (year === null) return;
 
   const success = deleteDocumentByCustomerAndYear(id, year);
   if (!success) {

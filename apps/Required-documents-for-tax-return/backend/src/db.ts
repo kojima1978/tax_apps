@@ -87,6 +87,34 @@ function groupBy<T>(items: T[], keyFn: (item: T) => number): Map<number, T[]> {
   return map;
 }
 
+/** staff_idの存在チェック（FK検証用） */
+function staffExists(db: Database.Database, staffId: number): boolean {
+  return !!db.prepare('SELECT id FROM staff WHERE id = ?').get(staffId);
+}
+
+/** 顧客名+staff_idで顧客を検索 */
+function findCustomerByNameAndStaffId(
+  db: Database.Database, customerName: string, staffId: number | null
+): { id: number } | undefined {
+  return staffId
+    ? db.prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id = ?').get(customerName, staffId) as { id: number } | undefined
+    : db.prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id IS NULL').get(customerName) as { id: number } | undefined;
+}
+
+/** 顧客配列にyears/latest_updated_atを付与する共通処理 */
+type YearRecord = { customer_id: number; year: number; updated_at: string };
+function enrichCustomersWithYears(customers: Customer[], allRecords: YearRecord[]): CustomerWithYears[] {
+  const recordsByCustomer = groupBy(allRecords, (r) => r.customer_id);
+  return customers.map((customer) => {
+    const records = recordsByCustomer.get(customer.id) || [];
+    return {
+      ...customer,
+      years: records.map((r) => r.year),
+      latest_updated_at: records.length > 0 ? records[0].updated_at : null,
+    };
+  });
+}
+
 // --- 顧客クエリの共通SELECT句 ---
 const CUSTOMER_SELECT = `
   SELECT c.id, c.customer_name, c.customer_code, COALESCE(s.staff_name, '') as staff_name, c.staff_id, c.created_at, c.updated_at
@@ -258,18 +286,9 @@ export function getAllCustomersWithYears(): CustomerWithYears[] {
 
     const allRecords = db
       .prepare('SELECT customer_id, year, updated_at FROM document_records ORDER BY year DESC')
-      .all() as { customer_id: number; year: number; updated_at: string }[];
+      .all() as YearRecord[];
 
-    const recordsByCustomer = groupBy(allRecords, (r) => r.customer_id);
-
-    return customers.map((customer) => {
-      const records = recordsByCustomer.get(customer.id) || [];
-      return {
-        ...customer,
-        years: records.map((r) => r.year),
-        latest_updated_at: records.length > 0 ? records[0].updated_at : null,
-      };
-    });
+    return enrichCustomersWithYears(customers, allRecords);
   });
 }
 
@@ -278,9 +297,8 @@ export function createCustomer(customerName: string, staffId?: number | null, cu
   return withDb((db) => {
     const resolvedStaffId = staffId ?? null;
 
-    if (resolvedStaffId) {
-      const staff = db.prepare('SELECT id FROM staff WHERE id = ?').get(resolvedStaffId);
-      if (!staff) throw new Error('Staff not found');
+    if (resolvedStaffId && !staffExists(db, resolvedStaffId)) {
+      throw new Error('Staff not found');
     }
 
     const info = db
@@ -307,10 +325,7 @@ export function updateCustomer(
 
     const resolvedStaffId = staffId ?? null;
 
-    if (resolvedStaffId) {
-      const staff = db.prepare('SELECT id FROM staff WHERE id = ?').get(resolvedStaffId);
-      if (!staff) return false;
-    }
+    if (resolvedStaffId && !staffExists(db, resolvedStaffId)) return false;
 
     db.prepare(
       'UPDATE customers SET customer_name = ?, staff_id = ?, customer_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
@@ -335,10 +350,7 @@ export function getOrCreateCustomer(customerName: string, staffName: string): nu
     const staffId = getOrCreateStaff(db, staffName);
 
     // 2. Check for existing customer with this staff_id
-    const existing = db
-      .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id = ?')
-      .get(customerName, staffId) as { id: number } | undefined;
-
+    const existing = findCustomerByNameAndStaffId(db, customerName, staffId);
     if (existing) return existing.id;
 
     // 3. Insert new customer
@@ -377,10 +389,7 @@ export function getDocumentRecordByCustomerInfo(
     const staff = db.prepare('SELECT id FROM staff WHERE staff_name = ?').get(staffName) as { id: number } | undefined;
     if (!staff) return null;
 
-    const customer = db
-      .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id = ?')
-      .get(customerName, staff.id) as { id: number } | undefined;
-
+    const customer = findCustomerByNameAndStaffId(db, customerName, staff.id);
     if (!customer) return null;
 
     const record = db
@@ -451,18 +460,9 @@ export function searchCustomers(query: string): CustomerWithYears[] {
     const placeholders = customerIds.map(() => '?').join(',');
     const allRecords = db
       .prepare(`SELECT customer_id, year, updated_at FROM document_records WHERE customer_id IN (${placeholders}) ORDER BY year DESC`)
-      .all(...customerIds) as { customer_id: number; year: number; updated_at: string }[];
+      .all(...customerIds) as YearRecord[];
 
-    const recordsByCustomer = groupBy(allRecords, (r) => r.customer_id);
-
-    return customers.map((customer) => {
-      const records = recordsByCustomer.get(customer.id) || [];
-      return {
-        ...customer,
-        years: records.map((r) => r.year),
-        latest_updated_at: records.length > 0 ? records[0].updated_at : null,
-      };
-    });
+    return enrichCustomersWithYears(customers, allRecords);
   });
 }
 
@@ -629,18 +629,7 @@ export function restoreFullBackup(data: {
       for (const c of data.customers) {
         const staffId = c.staff_name ? getOrCreateStaff(db, c.staff_name) : null;
 
-        let customer = db
-          .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id = ?')
-          .get(c.customer_name, staffId) as { id: number } | undefined;
-
-        if (!customer) {
-          // staff_id IS NULL の場合も検索
-          if (!staffId) {
-            customer = db
-              .prepare('SELECT id FROM customers WHERE customer_name = ? AND staff_id IS NULL')
-              .get(c.customer_name) as { id: number } | undefined;
-          }
-        }
+        let customer = findCustomerByNameAndStaffId(db, c.customer_name, staffId);
 
         if (!customer) {
           const info = db
