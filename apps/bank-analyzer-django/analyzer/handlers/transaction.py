@@ -7,6 +7,8 @@ from django.contrib import messages
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
+from django.http import JsonResponse as _JsonResponse
+
 from ..services import TransactionService
 from .base import is_ajax, json_error, count_message, build_redirect_url, build_transaction_data, handle_ajax_error
 
@@ -119,6 +121,10 @@ def _handle_bulk_update(request: HttpRequest, case, pk: int, source_tab: str, pr
     """カテゴリ一括更新の共通処理"""
     category_updates = _extract_category_updates(request, prefixes)
     count = TransactionService.bulk_update_categories(case, category_updates)
+
+    if is_ajax(request):
+        return _JsonResponse({'success': True, 'count': count})
+
     count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
     filters = _extract_filters(request) if source_tab == 'all' else None
     return redirect(build_redirect_url('analysis-dashboard', pk, source_tab, filters))
@@ -144,7 +150,31 @@ def handle_update_transaction(request: HttpRequest, case, pk: int) -> HttpRespon
     if tx_id:
         try:
             data = build_transaction_data(request)
-            success = TransactionService.update_transaction(case, int(tx_id), data)
+            tx_id_int = int(tx_id)
+            success = TransactionService.update_transaction(case, tx_id_int, data)
+
+            if is_ajax(request):
+                if not success:
+                    return json_error('取引が見つかりません')
+                # 更新後の取引データを返す（行のDOM更新用）
+                tx = case.transactions.with_account_info().filter(pk=tx_id_int).first()
+                tx_data = {
+                    'id': tx.id,
+                    'date': tx.date.isoformat() if tx.date else None,
+                    'description': tx.description or '',
+                    'amount_out': tx.amount_out,
+                    'amount_in': tx.amount_in,
+                    'balance': tx.balance,
+                    'category': tx.category,
+                    'memo': tx.memo or '',
+                    'bank_name': tx.bank_name or '',
+                    'branch_name': tx.branch_name or '',
+                    'account_type': tx.account_type or '',
+                    'account_number': tx.account_number or '',
+                    'is_flagged': tx.is_flagged,
+                }
+                return _JsonResponse({'success': True, 'transaction': tx_data})
+
             if success:
                 messages.success(request, "取引データを更新しました。")
         except Exception as e:

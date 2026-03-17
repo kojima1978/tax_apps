@@ -119,6 +119,81 @@ document.addEventListener('dblclick', function(e) {
     }
 });
 
+// ===== 編集モーダルのAJAX保存 =====
+
+const editTxForm = document.getElementById('editTxForm');
+const editTxSubmitBtn = document.getElementById('editTxSubmitBtn');
+
+if (editTxForm) {
+    editTxForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(editTxForm);
+        setButtonLoading(editTxSubmitBtn, '保存中...');
+
+        postJson(window.location.href, formData, {
+            onSuccess: function(data) {
+                const tx = data.transaction;
+                if (!tx) return;
+
+                // テーブル行のDOM更新
+                const row = document.querySelector('tr[data-tx-id="' + tx.id + '"]');
+                if (row) {
+                    _updateRowCells(row, tx);
+                    // 編集ボタンのdata属性も更新
+                    _updateEditButtonData(row, tx);
+                    // 行をハイライトで視覚フィードバック
+                    row.style.backgroundColor = 'rgba(25, 135, 84, 0.12)';
+                    setTimeout(function() { row.style.backgroundColor = ''; }, 1200);
+                }
+
+                // モーダルを閉じる
+                var modal = bootstrap.Modal.getInstance(editModal);
+                if (modal) modal.hide();
+                showToast('取引データを更新しました', 'success');
+            },
+            onFinally: function() { resetButton(editTxSubmitBtn); },
+        });
+    });
+}
+
+// テーブル行のセルを更新後のデータで書き換え
+function _updateRowCells(row, tx) {
+    var cells = row.querySelectorAll('td');
+    // 各タブでカラム構成が異なるため、data属性ベースで探索
+    cells.forEach(function(td) {
+        var truncate = td.querySelector('.text-truncate');
+        // 摘要セル（text-truncate + title属性）
+        if (truncate && truncate.title !== undefined && td.querySelector('select') === null) {
+            truncate.textContent = tx.description;
+            truncate.title = tx.description;
+        }
+    });
+
+    // カテゴリセレクトの値を更新
+    var catSelect = row.querySelector('select[name^="cat-"], select[name^="uncat-"]');
+    if (catSelect) {
+        catSelect.value = tx.category;
+        catSelect.dataset.lastSaved = tx.category;
+    }
+}
+
+// 編集ボタンのdata属性を更新後の値に同期
+function _updateEditButtonData(row, tx) {
+    var btn = row.querySelector('[data-bs-target="#editModal"]');
+    if (!btn) return;
+    btn.setAttribute('data-tx-date', tx.date || '');
+    btn.setAttribute('data-tx-desc', tx.description || '');
+    btn.setAttribute('data-tx-amount-out', tx.amount_out);
+    btn.setAttribute('data-tx-amount-in', tx.amount_in);
+    btn.setAttribute('data-tx-balance', tx.balance != null ? tx.balance : '');
+    btn.setAttribute('data-tx-cat', tx.category || '');
+    btn.setAttribute('data-tx-memo', tx.memo || '');
+    btn.setAttribute('data-tx-bank', tx.bank_name || '');
+    btn.setAttribute('data-tx-branch', tx.branch_name || '');
+    btn.setAttribute('data-tx-account-type', tx.account_type || '');
+    btn.setAttribute('data-tx-account', tx.account_number || '');
+}
+
 // Select All Duplicates
 initSelectAll('selectAllDup', '.dup-check');
 
@@ -2302,29 +2377,35 @@ const GroupedView = {
     _classifyGroup: function(row, category, select) {
         var self = this;
         var txIds = JSON.parse(row.dataset.txIds || '[]');
-        var firstTxId = row.dataset.firstTxId;
         var desc = row.dataset.groupDesc;
         var count = txIds.length;
 
         if (select) select.disabled = true;
         StatusIndicator.saving();
 
+        // tx_ids を直接送信して確実に全件更新（description一致依存をやめる）
+        var categoryUpdates = {};
+        txIds.forEach(function(id) { categoryUpdates[id] = category; });
+
         var formData = createFormData({
-            action: 'update_category',
-            tx_id: firstTxId,
-            new_category: category,
-            apply_all: 'true',
+            action: 'bulk_update_categories',
+            source_tab: 'unclassified',
+        });
+        // 個別の cat-{id} フィールドとして送信
+        txIds.forEach(function(id) {
+            formData.append('uncat-' + id, category);
         });
 
         postJson(window.location.href, formData, {
-            onSuccess: function() {
+            onSuccess: function(data) {
+                var updatedCount = data.count || count;
                 StatusIndicator.saved();
-                ProgressBar.update(count);
-                self._updateTxTotal(count);
+                ProgressBar.update(updatedCount);
+                self._updateTxTotal(updatedCount);
 
                 highlightAndRemoveRow(row);
 
-                showToast('「' + desc + '」' + count + '件を「' + category + '」に分類しました', 'success');
+                showToast('「' + desc + '」' + updatedCount + '件を「' + category + '」に分類しました', 'success');
 
                 // パターンプロンプト表示
                 PatternPrompt.show(category, desc);
