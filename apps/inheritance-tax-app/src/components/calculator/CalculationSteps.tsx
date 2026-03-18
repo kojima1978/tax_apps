@@ -2,7 +2,6 @@ import React from 'react';
 import type { DetailedTaxCalculationResult, HeirTaxBreakdown } from '../../types';
 import { formatCurrency, formatFraction } from '../../utils';
 import { BASIC_DEDUCTION, TAX_BRACKETS } from '../../constants';
-import { TaxBracketTable } from '../TaxBracketTable';
 import { CARD } from '../tableStyles';
 
 interface CalculationStepsProps {
@@ -192,9 +191,6 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
             </div>
           </div>
         ))}
-      </div>
-      <div className="calc-bracket-table mt-8 border-t pt-6">
-        <TaxBracketTable compact />
       </div>
     </div>
   );
