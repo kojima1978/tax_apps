@@ -8,6 +8,28 @@ interface HeirBreakdownTableProps {
   totalFinalTax: number;
 }
 
+const TH = 'px-3 py-2';
+
+const COLUMNS = [
+  { label: '相続人', align: 'text-left', render: (b: HeirTaxBreakdown) => <span className="font-medium">{b.label}</span> },
+  { label: '法定相続分', align: 'text-right', render: (b: HeirTaxBreakdown) => formatFraction(b.legalShareRatio) },
+  { label: '取得額', align: 'text-right', render: (b: HeirTaxBreakdown) => formatCurrency(b.acquisitionAmount) },
+  { label: '按分税額', align: 'text-right', render: (b: HeirTaxBreakdown) => formatCurrency(b.proportionalTax) },
+  {
+    label: '加算/控除', align: 'text-right', render: (b: HeirTaxBreakdown) => {
+      const adjustment = b.surchargeAmount - b.spouseDeduction;
+      return (
+        <>
+          {b.spouseDeduction > 0 && <span className="text-green-600">-{formatCurrency(b.spouseDeduction)}</span>}
+          {b.surchargeAmount > 0 && <span className="text-orange-600">+{formatCurrency(b.surchargeAmount)}</span>}
+          {adjustment === 0 && '—'}
+        </>
+      );
+    },
+  },
+  { label: '納付税額', align: 'text-right', render: (b: HeirTaxBreakdown) => <span className="font-bold">{formatCurrency(b.finalTax)}</span> },
+] as const;
+
 export const HeirBreakdownTable: React.FC<HeirBreakdownTableProps> = ({
   breakdowns,
   totalFinalTax,
@@ -22,40 +44,23 @@ export const HeirBreakdownTable: React.FC<HeirBreakdownTableProps> = ({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-green-700 text-white">
-              <th className="px-3 py-2 text-left">相続人</th>
-              <th className="px-3 py-2 text-right">法定相続分</th>
-              <th className="px-3 py-2 text-right">取得額</th>
-              <th className="px-3 py-2 text-right">按分税額</th>
-              <th className="px-3 py-2 text-right">加算/控除</th>
-              <th className="px-3 py-2 text-right">納付税額</th>
+              {COLUMNS.map(({ label, align }) => (
+                <th key={label} className={`${TH} ${align}`}>{label}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {breakdowns.map((b) => {
-              const adjustment = b.surchargeAmount - b.spouseDeduction;
-              return (
-                <tr key={b.label} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-3 py-2 font-medium">{b.label}</td>
-                  <td className="px-3 py-2 text-right">{formatFraction(b.legalShareRatio)}</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(b.acquisitionAmount)}</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(b.proportionalTax)}</td>
-                  <td className="px-3 py-2 text-right">
-                    {b.spouseDeduction > 0 && (
-                      <span className="text-green-600">-{formatCurrency(b.spouseDeduction)}</span>
-                    )}
-                    {b.surchargeAmount > 0 && (
-                      <span className="text-orange-600">+{formatCurrency(b.surchargeAmount)}</span>
-                    )}
-                    {adjustment === 0 && '—'}
-                  </td>
-                  <td className="px-3 py-2 text-right font-bold">{formatCurrency(b.finalTax)}</td>
-                </tr>
-              );
-            })}
+            {breakdowns.map((b) => (
+              <tr key={b.label} className="border-b border-gray-200 hover:bg-gray-50">
+                {COLUMNS.map(({ label, align, render }) => (
+                  <td key={label} className={`${TH} ${align}`}>{render(b)}</td>
+                ))}
+              </tr>
+            ))}
             <tr className="bg-green-50 font-bold">
-              <td className="px-3 py-2">合計</td>
-              <td className="px-3 py-2" colSpan={4} />
-              <td className="px-3 py-2 text-right text-green-800">{formatCurrency(totalFinalTax)}</td>
+              <td className={TH}>合計</td>
+              <td className={TH} colSpan={4} />
+              <td className={`${TH} text-right text-green-800`}>{formatCurrency(totalFinalTax)}</td>
             </tr>
           </tbody>
         </table>

@@ -238,13 +238,6 @@
     margin-top: 0 !important;
   }
 
-  .calculator-print .calc-bracket-table {
-    margin-top: 12px !important;
-    padding-top: 8px !important;
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
   .calculator-print .calc-steps-grid .text-lg {
     font-size: 14px !important;
   }

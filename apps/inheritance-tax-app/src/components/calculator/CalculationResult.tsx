@@ -20,6 +20,12 @@ const SUMMARY_ITEMS = [
   { label: '相続税の総額', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.totalTax) },
 ] as const;
 
+const HIGHLIGHT_ITEMS = [
+  { label: '納付税額合計', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.totalFinalTax) },
+  { label: '相続税負担率', getValue: (r: DetailedTaxCalculationResult, w: number) => formatPercent(r.effectiveTaxRate) },
+  { label: '加重平均適用税率', getValue: (_r: DetailedTaxCalculationResult, w: number) => formatPercent(w) },
+] as const;
+
 export const CalculationResult: React.FC<CalculationResultProps> = ({ result, weightedRate }) => {
   return (
     <>
@@ -41,45 +47,30 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result, we
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 shadow-sm">
-              <p className="text-sm text-green-600 font-medium mb-1">納付税額合計</p>
-              <p className="text-2xl font-bold text-green-800">{formatCurrency(result.totalFinalTax)}</p>
-            </div>
-            <div className="text-center p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 shadow-sm">
-              <p className="text-sm text-green-600 font-medium mb-1">相続税負担率</p>
-              <p className="text-2xl font-bold text-green-800">{formatPercent(result.effectiveTaxRate)}</p>
-            </div>
-            <div className="text-center p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 shadow-sm">
-              <p className="text-sm text-green-600 font-medium mb-1">加重平均適用税率</p>
-              <p className="text-2xl font-bold text-green-800">{formatPercent(weightedRate)}</p>
-            </div>
+            {HIGHLIGHT_ITEMS.map(({ label, getValue }) => (
+              <div key={label} className="text-center p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 shadow-sm">
+                <p className="text-sm text-green-600 font-medium mb-1">{label}</p>
+                <p className="text-2xl font-bold text-green-800">{getValue(result, weightedRate)}</p>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* 計算過程 */}
         <CalculationSteps result={result} />
-      </div>
 
-      {/* Page 2: 相続人別内訳 */}
-      <div className="mt-6 print-page-break">
-        <PrintHeader title="相続人別 税額内訳" />
-
+        {/* 相続人別内訳 */}
         <HeirBreakdownTable
           breakdowns={result.heirBreakdowns}
           totalFinalTax={result.totalFinalTax}
         />
       </div>
 
-      {/* Page 3: 累進税額の内訳 */}
+      {/* Page 2: 累進税額の内訳 + 速算表 */}
       <div className="mt-6 space-y-6 print-page-break">
         <PrintHeader title="累進税額の内訳" />
 
         <ProgressiveTaxBreakdown breakdowns={result.heirBreakdowns} />
-      </div>
-
-      {/* Page 4: 相続税の速算表 */}
-      <div className="mt-6 print-page-break">
-        <PrintHeader title="相続税の速算表" />
 
         <TaxBracketTable />
       </div>
