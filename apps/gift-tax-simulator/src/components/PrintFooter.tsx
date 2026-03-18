@@ -14,11 +14,6 @@ const PrintFooter = () => {
     return (
         <footer className="print-footer">
             <div className="print-footer-content">
-                <div className="print-footer-company">
-                    <p className="company-name">{COMPANY_INFO.name}</p>
-                    <p>{getFullAddress()}</p>
-                    <p>TEL: {COMPANY_INFO.phone}</p>
-                </div>
                 <div className="print-footer-meta">
                     <div className="staff-input-wrapper">
                         <label htmlFor={staffId}>担当:</label>
@@ -32,6 +27,11 @@ const PrintFooter = () => {
                         />
                     </div>
                     <p className="print-date">作成日: {today}</p>
+                </div>
+                <div className="print-footer-company">
+                    <p className="company-name">{COMPANY_INFO.name}</p>
+                    <p>{getFullAddress()}</p>
+                    <p>TEL: {COMPANY_INFO.phone}</p>
                 </div>
             </div>
         </footer>
