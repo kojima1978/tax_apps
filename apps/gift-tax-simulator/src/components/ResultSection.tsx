@@ -1,15 +1,18 @@
 import { lazy, Suspense } from 'react';
 import Calculator from 'lucide-react/icons/calculator';
 import TaxTable from './TaxTable';
-import { type CalculationResult } from '@/lib/tax-calculation';
+import CalculationProcess from './CalculationProcess';
+import RateTable from './RateTable';
+import { type CalculationResult, type GiftType } from '@/lib/tax-calculation';
 
 const TaxChart = lazy(() => import('./TaxChart'));
 
 type Props = {
     results: CalculationResult[] | null;
+    giftType: GiftType;
 };
 
-const ResultSection = ({ results }: Props) => {
+const ResultSection = ({ results, giftType }: Props) => {
     if (!results) {
         return (
             <div className="empty-state">
@@ -25,11 +28,11 @@ const ResultSection = ({ results }: Props) => {
             <Suspense fallback={null}>
                 <TaxChart results={results} />
             </Suspense>
+            <CalculationProcess results={results} />
 
-            <p className="disclaimer-right">
-                ※基礎控除110万円を含んで計算しています。<br />
-                ※税額は国税庁の速算表に基づきます。実際の納税額と端数処理等で異なる場合があります。
-            </p>
+            <div className="rate-table-page">
+                <RateTable giftType={giftType} results={results} />
+            </div>
         </div>
     );
 };

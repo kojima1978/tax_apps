@@ -494,7 +494,7 @@ tr:hover {
 }
 
 .print-footer-company {
-  flex: 1;
+  text-align: right;
 }
 
 .print-footer-company p {
@@ -510,7 +510,7 @@ tr:hover {
 }
 
 .print-footer-meta {
-  text-align: right;
+  text-align: left;
 }
 
 .staff-input-wrapper {
@@ -829,6 +829,201 @@ tr:hover {
   margin-bottom: 0.25rem;
 }
 
+/* =============================================================================
+   計算過程セクション
+   ============================================================================= */
+
+.calc-process-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #e5e7eb;
+}
+
+.calc-process-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0 0 1.5rem 0;
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--primary-color);
+}
+
+/* 速算表 */
+.rate-table-section {
+  margin-bottom: 2rem;
+}
+
+.rate-table-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background-color: #f0fdf4;
+  color: var(--primary-dark);
+  border-left: 4px solid var(--primary-color);
+}
+
+.rate-table-subtitle {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0 0 0.75rem 0;
+  padding-left: 0.75rem;
+}
+
+.rate-table {
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+.rate-table th,
+.rate-table td {
+  border: 1px solid #ddd;
+  text-align: center;
+  padding: 10px 15px;
+}
+
+.rate-col-range {
+  text-align: left !important;
+  font-weight: 600;
+}
+
+.rate-col-rate,
+.rate-col-deduction {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.rate-row-highlight {
+  background-color: #dcfce7 !important;
+}
+
+.rate-row-highlight td {
+  font-weight: 700 !important;
+  color: var(--primary-dark) !important;
+}
+
+/* 計算ステップカード */
+.calc-steps-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.calc-step-card {
+  background-color: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-left: 3px solid var(--pattern-color, var(--primary-color));
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.calc-step-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--pattern-color, var(--primary-color));
+  margin: 0 0 0.75rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.calc-step-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.calc-step-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: var(--pattern-color, var(--primary-color));
+  color: var(--white);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  margin-left: auto;
+}
+
+.calc-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.calc-step-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 0.25rem 0;
+}
+
+.calc-step-label {
+  color: #555;
+  font-weight: 500;
+}
+
+.calc-step-value {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.calc-step-row-result {
+  padding: 0.5rem;
+  background-color: var(--white);
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.calc-step-row-result .calc-step-value {
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.calc-step-formula {
+  padding: 0.5rem;
+  background-color: var(--white);
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.calc-step-formula .calc-step-label {
+  display: block;
+  margin-bottom: 0.375rem;
+}
+
+.calc-formula-box {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-color);
+  padding: 0.375rem 0.5rem;
+  background-color: #f5f5f5;
+  border-radius: 3px;
+  text-align: center;
+}
+
+.calc-formula-box strong {
+  color: var(--primary-dark);
+}
+
+.calc-step-row-total {
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  background-color: #f0fdf4;
+  border-radius: 4px;
+  border: 1px solid #bbf7d0;
+}
+
+.calc-step-total-value {
+  color: var(--primary-dark) !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+}
+
 /* 免責事項 */
 .disclaimer {
   text-align: center;
@@ -1004,15 +1199,18 @@ tr:hover {
   }
 
   .result-section {
-    padding: 10px 0 !important;
+    padding: 12px 0 !important;
+  }
+
+  .result-section > .table-container {
+    margin-bottom: 14px !important;
   }
 
   .chart-container-custom {
-    page-break-inside: avoid;
-    height: 300px !important;
+    height: 200px !important;
     width: 100% !important;
     max-width: 170mm !important;
-    margin: 10px auto !important;
+    margin: 8px auto !important;
     position: relative !important;
   }
 
@@ -1043,11 +1241,11 @@ tr:hover {
     font-size: 8pt !important;
   }
 
-  /* シミュレーターページ用縮小 */
+  /* シミュレーターページ用縮小（A4 1枚に収める） */
   body:not(:has(.table-page)) {
-    transform: scale(0.95);
+    transform: scale(0.97);
     transform-origin: top left;
-    width: 105%;
+    width: 103%;
   }
 
   /* 早見表ページ */
@@ -1103,23 +1301,31 @@ tr:hover {
 
   /* 印刷用フッター */
   .print-footer {
-    margin-top: 1rem;
-    padding: 0.5rem 0;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0;
     border-top: 1px solid #999;
     background-color: transparent;
   }
 
   .print-footer-content {
-    gap: 1rem;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    gap: 0.5rem;
+  }
+
+  .print-footer-company {
+    text-align: right !important;
   }
 
   .print-footer-company p {
-    font-size: 9pt !important;
-    margin: 0.15rem 0;
+    font-size: 8pt !important;
+    margin: 0.1rem 0;
   }
 
   .print-footer-company .company-name {
-    font-size: 10pt !important;
+    font-size: 9pt !important;
   }
 
   .staff-input-wrapper {
@@ -1245,6 +1451,109 @@ tr:hover {
 
   .real-estate-page .detail-box li {
     font-size: 8pt !important;
+  }
+
+  /* 計算過程セクション印刷用 — 1ページ目に配置 */
+  .calc-process-section {
+    margin-top: 12px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #ccc !important;
+  }
+
+  .calc-process-heading {
+    font-size: 11pt !important;
+    margin-bottom: 8px !important;
+    padding-left: 6px !important;
+    border-left-width: 3px !important;
+  }
+
+  .rate-table-section {
+    margin-bottom: 6px !important;
+  }
+
+  .rate-table-title {
+    font-size: 8.5pt !important;
+    padding: 2px 5px !important;
+    margin-bottom: 1px !important;
+  }
+
+  .rate-table-subtitle {
+    font-size: 6.5pt !important;
+    margin-bottom: 2px !important;
+  }
+
+  .rate-table th,
+  .rate-table td {
+    padding: 2px 5px !important;
+    font-size: 7.5pt !important;
+  }
+
+  .calc-steps-container {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 5px !important;
+  }
+
+  .calc-step-card {
+    padding: 5px !important;
+    background: transparent !important;
+    border: 1px solid #ccc !important;
+    border-left: 3px solid var(--pattern-color, var(--primary-color)) !important;
+  }
+
+  .calc-step-title {
+    font-size: 8pt !important;
+    margin-bottom: 3px !important;
+    padding-bottom: 2px !important;
+    gap: 3px !important;
+  }
+
+  .calc-step-dot {
+    width: 6px !important;
+    height: 6px !important;
+  }
+
+  .calc-step-badge {
+    font-size: 6pt !important;
+    padding: 0px 2px !important;
+  }
+
+  .calc-step-body {
+    gap: 2px !important;
+  }
+
+  .calc-step-row {
+    font-size: 7pt !important;
+    padding: 1px 2px !important;
+  }
+
+  .calc-step-row-result,
+  .calc-step-formula {
+    padding: 2px 3px !important;
+    border: 1px solid #ddd !important;
+  }
+
+  .calc-step-formula .calc-step-label {
+    font-size: 7pt !important;
+    margin-bottom: 1px !important;
+  }
+
+  .calc-formula-box {
+    font-size: 7pt !important;
+    padding: 1px 3px !important;
+    background-color: #f5f5f5 !important;
+  }
+
+  .calc-step-row-total {
+    padding: 2px 3px !important;
+  }
+
+  .calc-step-total-value {
+    font-size: 8pt !important;
+  }
+
+  /* 速算表 */
+  .rate-table-page {
+    margin-top: 12px !important;
   }
 
   .no-print {

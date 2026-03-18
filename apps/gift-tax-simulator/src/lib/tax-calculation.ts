@@ -6,6 +6,17 @@ export type TaxRate = {
 
 export type GiftType = 'general' | 'special';
 
+export type CalculationDetail = {
+    giftAmount: number;
+    basicDeduction: number;
+    taxableAmount: number;
+    rate: number;
+    deduction: number;
+    taxBeforeDeduction: number;
+    tax: number;
+    bracketIndex: number;
+};
+
 export type CalculationResult = {
     name: string;
     div: number;
@@ -13,6 +24,7 @@ export type CalculationResult = {
     oneTimeTax: number;
     totalTax: number;
     effectiveRate: number;
+    detail: CalculationDetail;
 };
 
 // 基礎控除 110万円
@@ -49,18 +61,51 @@ export const PATTERNS = [
     { name: '4年分割', div: 4 },
 ] as const;
 
+// パターン別カラー（濃緑→緑→明緑）
+export const PATTERN_COLORS = ['#166534', '#16a34a', '#4ade80'] as const;
+
+/**
+ * 1回あたりの計算詳細を取得
+ */
+export const calcTaxDetail = (amount: number, type: GiftType): CalculationDetail => {
+    const taxable = amount - BASIC_DEDUCTION;
+    if (taxable <= 0) {
+        return {
+            giftAmount: amount,
+            basicDeduction: BASIC_DEDUCTION,
+            taxableAmount: 0,
+            rate: 0,
+            deduction: 0,
+            taxBeforeDeduction: 0,
+            tax: 0,
+            bracketIndex: -1,
+        };
+    }
+
+    const rates = type === 'special' ? SPECIAL_RATES : GENERAL_RATES;
+    const bracketIndex = rates.findIndex((r) => taxable <= r.limit);
+    const bracket = rates[bracketIndex]; // 末尾が Infinity なので必ずヒット
+
+    const taxBeforeDeduction = Math.floor(taxable * bracket.rate);
+    const tax = Math.max(0, taxBeforeDeduction - bracket.deduction);
+
+    return {
+        giftAmount: amount,
+        basicDeduction: BASIC_DEDUCTION,
+        taxableAmount: taxable,
+        rate: bracket.rate,
+        deduction: bracket.deduction,
+        taxBeforeDeduction,
+        tax,
+        bracketIndex,
+    };
+};
+
 /**
  * 1回あたりの税額を計算
  */
 export const calcTaxOneTime = (amount: number, type: GiftType): number => {
-    const taxable = amount - BASIC_DEDUCTION;
-    if (taxable <= 0) return 0;
-
-    const rates = type === 'special' ? SPECIAL_RATES : GENERAL_RATES;
-    const bracket = rates.find((r) => taxable <= r.limit);
-
-    if (!bracket) return 0;
-    return Math.max(0, Math.floor(taxable * bracket.rate) - bracket.deduction);
+    return calcTaxDetail(amount, type).tax;
 };
 
 export type YearComparisonResult = {
@@ -112,17 +157,18 @@ export const calculateYearComparison = (amount: number, type: GiftType): YearCom
 export const calculateAllPatterns = (amount: number, type: GiftType): CalculationResult[] => {
     return PATTERNS.map((pattern) => {
         const oneTimeAmount = Math.floor(amount / pattern.div);
-        const oneTimeTax = calcTaxOneTime(oneTimeAmount, type);
-        const totalTax = oneTimeTax * pattern.div;
-        const effectiveRate = oneTimeAmount > 0 ? oneTimeTax / oneTimeAmount : 0;
+        const detail = calcTaxDetail(oneTimeAmount, type);
+        const totalTax = detail.tax * pattern.div;
+        const effectiveRate = oneTimeAmount > 0 ? detail.tax / oneTimeAmount : 0;
 
         return {
             name: pattern.name,
             div: pattern.div,
             oneTimeAmount,
-            oneTimeTax,
+            oneTimeTax: detail.tax,
             totalTax,
             effectiveRate,
+            detail,
         };
     });
 };

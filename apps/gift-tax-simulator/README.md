@@ -10,8 +10,10 @@
 - 一括贈与 / 2年分割 / 4年分割の比較
 - 実効税率の表示
 - 棒グラフによる視覚的な比較（Chart.js）
+- 計算過程のステップ表示（贈与金額→基礎控除→課税価格→速算表適用→税額）
+- 速算表の表示（該当税率ブラケットをハイライト）
 - 未入力時のガイド表示（空状態UI）
-- A4印刷対応
+- A4 1枚印刷対応（テーブル→チャート→計算過程→速算表→フッター）
 
 ### 早見表ページ
 - 100万円単位の税額早見表
@@ -123,6 +125,8 @@ npm run dev
 │   │   ├── ResultSection.tsx     # 贈与税結果表示（空状態UI付き）
 │   │   ├── TaxTable.tsx          # シミュレーター用テーブル（3パターン比較）
 │   │   ├── TaxChart.tsx          # 棒グラフ（lazy load）
+│   │   ├── CalculationProcess.tsx # 計算過程ステップ表示（3パターン並列カード）
+│   │   ├── RateTable.tsx         # 速算表（該当ブラケットハイライト）
 │   │   ├── QuickRefTable.tsx     # 早見表用テーブル
 │   │   ├── YearComparisonTable.tsx # 年数比較テーブル（最安/非課税バッジ）
 │   │   ├── YearComparisonChart.tsx # 年数比較棒グラフ（lazy load）

@@ -18,7 +18,7 @@ export default function GiftTaxPage() {
         onCalculate={form.handleCalculate}
         errorMsg={form.errorMsg}
       />
-      <ResultSection results={form.results} />
+      <ResultSection results={form.results} giftType={form.giftType} />
       <PrintFooter />
     </div>
   );
