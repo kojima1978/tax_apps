@@ -173,11 +173,13 @@ inheritance-case-management/
         │   └── ui/                     # 汎用UIコンポーネント
         │       ├── Button.tsx
         │       ├── CollapsibleSection.tsx
+        │       ├── CompanySuggestInput.tsx # サジェスト付き入力（紹介者会社名等）
         │       ├── CurrencyField.tsx
         │       ├── EmptyState.tsx
         │       ├── ErrorDisplay.tsx
         │       ├── Input.tsx / Label.tsx
         │       ├── Modal.tsx
+        │       ├── MultiSelectDropdown.tsx # チェックボックス式複数選択ドロップダウン
         │       ├── SelectField.tsx
         │       ├── Skeleton.tsx
         │       ├── SortableHeader.tsx
@@ -188,6 +190,7 @@ inheritance-case-management/
         │       └── table.tsx           # TanStack Table ラッパー
         ├── hooks/
         │   ├── use-cases.ts            # 案件一覧クエリ（TanStack Query）
+        │   ├── use-click-outside.ts    # 要素外クリック検知フック
         │   ├── use-master-list.ts      # マスタ編集ステート管理
         │   ├── use-progress-steps.ts   # 進捗チェック・D&D・一括日付設定
         │   ├── use-export-csv.ts       # CSVエクスポート
@@ -355,6 +358,9 @@ erDiagram
 - **フィルタ定数一元管理**: `FILTER_KEYS` でフィルタキーを一元管理し、hasFilters判定・KPI依存・フィルタUI定義を自動化
 - **ステータスカテゴリ定数**: `COMPLETED_STATUSES`（申告完了系）/ `DEADLINE_SKIP_STATUSES`（期限チェック対象外）で判定ロジックを一元管理
 - **コンポーネント分割**: フォームを4セクション（BasicInfo/Financial/Progress/Contact）に分割
+- **UIコンポーネント抽出**: `MultiSelectDropdown`・`CompanySuggestInput` を汎用UIとして分離
+- **共通フック抽出**: `useClickOutside` でドロップダウン外クリック検知を共通化
+- **ヘルパーDRY**: CSV出力の `downloadCSVBlob` でBOM付きダウンロード処理を一元化
 
 ## クイックスタート
 

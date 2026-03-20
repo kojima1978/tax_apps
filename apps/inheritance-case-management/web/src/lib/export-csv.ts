@@ -2,6 +2,21 @@ import type { InheritanceCase, ProgressStep } from "@/types/shared";
 import { formatId } from "@/types/shared";
 import { MAX_CONTACT_COLUMNS } from "./import-csv";
 
+function downloadCSVBlob(csvContent: string, filename: string) {
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + csvContent], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 const TEMPLATE_HEADERS = [
   "ID",
   "被相続人氏名",
@@ -52,19 +67,7 @@ export function downloadCSVTemplate() {
     TEMPLATE_SAMPLE_ROW.join(","),
   ].join("\n");
 
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + csvContent], {
-    type: "text/csv;charset=utf-8",
-  });
-
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "案件取込テンプレート.csv";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadCSVBlob(csvContent, "案件取込テンプレート.csv");
 }
 
 function escapeCSVCell(value: string | number): string {
@@ -177,18 +180,8 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
   ].join("\n");
 
   // BOM for Excel compatibility
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + csvContent], {
-    type: "text/csv;charset=utf-8",
-  });
-
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download =
-    filename || `案件一覧_${new Date().toISOString().split("T")[0]}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadCSVBlob(
+    csvContent,
+    filename || `案件一覧_${new Date().toISOString().split("T")[0]}.csv`
+  );
 }

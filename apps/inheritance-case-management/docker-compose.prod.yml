@@ -11,7 +11,17 @@ x-prod-deploy: &prod-deploy
     reservations:
       memory: 128M
 
+x-prod-db-deploy: &prod-db-deploy
+  resources:
+    limits:
+      memory: 1G
+    reservations:
+      memory: 256M
+
 services:
+  postgres:
+    deploy: *prod-db-deploy
+
   web:
     build:
       target: runner
