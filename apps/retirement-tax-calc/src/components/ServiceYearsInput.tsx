@@ -1,6 +1,7 @@
 import { useState, useId, useEffect } from "react";
 import InputWithUnit from "./InputWithUnit";
 import FormField from "./FormField";
+import ToggleButtonGroup from "./ToggleButtonGroup";
 import { calcServiceYears } from "@/lib/retirement-tax";
 import { parseIntInput } from "@/lib/utils";
 
@@ -44,18 +45,7 @@ const ServiceYearsInput = ({ value, onChange }: ServiceYearsInputProps) => {
 
     return (
         <div className="service-years-section">
-            <div className="mode-toggle">
-                {MODES.map((m) => (
-                    <button
-                        key={m.value}
-                        type="button"
-                        className={`toggle-btn ${mode === m.value ? "active" : ""}`}
-                        onClick={() => handleModeChange(m.value)}
-                    >
-                        {m.label}
-                    </button>
-                ))}
-            </div>
+            <ToggleButtonGroup options={MODES} selected={mode} onChange={handleModeChange} />
 
             {mode === "direct" ? (
                 <FormField label="勤続年数" htmlFor={yearsId}>

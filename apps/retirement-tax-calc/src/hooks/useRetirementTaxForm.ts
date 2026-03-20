@@ -1,15 +1,18 @@
 import { useState, useCallback, useRef } from "react";
-import { calcRetirementTax, type RetirementType, type RetirementTaxResult } from "@/lib/retirement-tax";
+import { calcRetirementTax, PATTERN_COUNT, type RetirementType, type RetirementTaxResult } from "@/lib/retirement-tax";
 import { DEFAULT_YEAR } from "@/lib/tax-rates";
 import { parseFormattedNumber, formatInputValue } from "@/lib/utils";
 
+const INITIAL_AMOUNTS = Array<string>(PATTERN_COUNT).fill("");
+const INITIAL_RESULTS = Array<RetirementTaxResult | null>(PATTERN_COUNT).fill(null);
+
 export const useRetirementTaxForm = () => {
-    const [amounts, setAmounts] = useState(["", "", ""]);
+    const [amounts, setAmounts] = useState(INITIAL_AMOUNTS);
     const [serviceYears, setServiceYears] = useState(0);
     const [retirementType, setRetirementType] = useState<RetirementType>("general");
     const [isDisability, setIsDisability] = useState(false);
     const [taxYear, setTaxYear] = useState(DEFAULT_YEAR);
-    const [results, setResults] = useState<(RetirementTaxResult | null)[]>([null, null, null]);
+    const [results, setResults] = useState<(RetirementTaxResult | null)[]>(INITIAL_RESULTS);
     const [isDirty, setIsDirty] = useState(false);
 
     const hasCalculated = useRef(false);
@@ -63,12 +66,12 @@ export const useRetirementTaxForm = () => {
     const handleTaxYearChange = withDirty(setTaxYear);
 
     const handleClear = useCallback(() => {
-        setAmounts(["", "", ""]);
+        setAmounts(INITIAL_AMOUNTS);
         setServiceYears(0);
         setRetirementType("general");
         setIsDisability(false);
         setTaxYear(DEFAULT_YEAR);
-        setResults([null, null, null]);
+        setResults(INITIAL_RESULTS);
         setIsDirty(false);
         hasCalculated.current = false;
     }, []);

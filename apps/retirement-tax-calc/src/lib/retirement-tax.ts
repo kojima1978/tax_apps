@@ -13,6 +13,9 @@ export const RETIREMENT_TYPE_LABELS: Record<RetirementType, string> = {
     short_term: "短期退職手当等（勤続5年以下）",
 };
 
+/** パターン数 */
+export const PATTERN_COUNT = 3;
+
 /** パターン比較ラベル */
 export const PATTERN_LABELS = ["案①", "案②", "案③"] as const;
 
