@@ -120,15 +120,16 @@ inheritance-tax-docs/
 ├── src/
 │   ├── App.tsx                          # ルーティング定義（/, /simplified, /unlisted-stock）
 │   ├── main.tsx                         # Reactエントリポイント（BrowserRouter）
-│   ├── app/
-│   │   └── globals.css                  # グローバルスタイル（印刷CSS・グラデーション）
+│   ├── globals.css                      # グローバルスタイル（印刷CSS・グラデーション）
 │   ├── components/
 │   │   ├── DocumentGuidePage.tsx         # 汎用ラッパー（hook→view+modal接続）
 │   │   ├── InheritanceTaxDocGuide.tsx    # 資料準備ガイド（PAGE_CONFIG定義のみ）
 │   │   ├── SimplifiedGuidePage.tsx       # 簡易版ページ（PAGE_CONFIG定義のみ）
 │   │   ├── UnlistedStockGuidePage.tsx    # 非上場株式ページ（PAGE_CONFIG定義のみ）
-│   │   ├── UnifiedDocumentView.tsx       # 統合ビュー（ツールバー/フィルター/基本情報/テーブル群）
+│   │   ├── UnifiedDocumentView.tsx       # 統合ビュー（基本情報/テーブル群/フッター）
 │   │   └── ui/
+│   │       ├── ToolbarHeader.tsx         # ヘッダー + ツールバーボタン（data-driven配列）
+│   │       ├── FilterToolbar.tsx         # 展開/折りたたみ・フィルター・検索パネル
 │   │       ├── ConfirmDialog.tsx         # 汎用確認ダイアログ（削除/初期化）
 │   │       ├── DismissibleBanner.tsx     # 閉じられるバナー（error/success）
 │   │       ├── DocumentForm.tsx          # 書類入力フォーム（add/edit共通）
@@ -140,15 +141,17 @@ inheritance-tax-docs/
 │   │   ├── documents.ts                 # 資料準備ガイドの書類マスターデータ + 共有型定義
 │   │   ├── simplifiedDocuments.ts       # 簡易版の書類マスターデータ
 │   │   ├── unlistedStockDocuments.ts    # 非上場株式の書類マスターデータ
-│   │   └── pageConfig.ts               # PageConfig型定義 + inputRows/printInfoFieldsファクトリ
+│   │   ├── pageConfig.ts               # PageConfig型定義 + inputRows/printInfoFieldsファクトリ
+│   │   └── excelStyles.ts              # Excelスタイル定義 + 行追加ヘルパー
 │   ├── hooks/
 │   │   ├── useDocumentGuide.ts          # 全状態管理 + ハンドラー（categories引数で汎用化）
 │   │   ├── useDocumentModal.ts          # モーダル状態管理（categories引数で汎用化）
+│   │   ├── useFilterState.ts            # フィルター/検索状態管理 + FilterCriteria型定義
 │   │   └── useJsonImport.ts             # JSONインポートロジック（appName検証対応）
 │   └── utils/
 │       ├── company.ts                   # 事務所情報（COMPANY_INFO）
-│       ├── excelExporter.ts             # Excel出力（タイトル・ファイル名パラメータ化）
-│       ├── helpers.ts                   # isCustomDocument, formatDate, toCircledNumber, COLOR_ACCENT_MAP等
+│       ├── excelExporter.ts             # Excel出力ロジック（スタイルはexcelStyles.tsから参照）
+│       ├── helpers.ts                   # フォーマット・Record操作ユーティリティ（deleteKeys, createBooleanToggle等）
 │       ├── iconMap.tsx                  # アイコン名→Lucideコンポーネント変換
 │       └── jsonDataManager.ts           # JSON保存/読込/バリデーション（appName対応）
 ├── docs/
@@ -171,7 +174,9 @@ App.tsx (react-router-dom)
             ├── useDocumentGuide(categories, appName, filenamePrefix)
             │   └── useDocumentModal(categories)
             ├── UnifiedDocumentView(pageConfig, state, handlers)
-            │   ├── フィルター/検索
+            │   ├── useFilterState() — フィルター/検索状態管理
+            │   ├── ToolbarHeader — ヘッダー+ツールバーボタン
+            │   ├── FilterToolbar — 展開/折りたたみ・フィルター・検索
             │   └── EditableCategoryTable (カテゴリ単位)
             │       ├── CategoryHeader (ヘッダー・緊急バッジ・操作ボタン)
             │       ├── SortableDocumentRow / StaticDocumentRow (書類行)

@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable';
 import { ChevronDown, Plus, CheckSquare, Square, Trash2, Power, CheckCircle2 } from 'lucide-react';
 import type { CategoryData, DocumentItem, CustomDocumentItem, DocChanges } from '../../constants/documents';
-import type { FilterCriteria } from '../UnifiedDocumentView';
+import type { FilterCriteria } from '../../hooks/useFilterState';
 import { isCustomDocument, toCircledNumber, COLOR_ACCENT_MAP } from '../../utils/helpers';
 import { getIcon } from '../../utils/iconMap';
 import { SortableDocumentRow, StaticDocumentRow, type EditableDocumentRowProps } from './EditableDocumentRow';
