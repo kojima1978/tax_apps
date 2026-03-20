@@ -5,6 +5,7 @@ import DocumentListScreen from '@/components/DocumentListScreen';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { CategoryGroup } from '@/types';
 import {
+  ApiError,
   fetchCustomerById,
   fetchDocumentsByCustomerId,
   saveDocumentsByCustomerId,
@@ -33,6 +34,7 @@ export default function DocumentEditorPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [serverUpdatedAt, setServerUpdatedAt] = useState<string | null>(null);
 
   const { messages, toast, dismiss } = useToast();
   const isSavingRef = useRef(false);
@@ -64,6 +66,7 @@ export default function DocumentEditorPage() {
             ? data.documentGroups
             : generateInitialDocumentGroups(year)
         );
+        setServerUpdatedAt(data.updatedAt ?? null);
       } catch {
         if (!cancelled) {
           setDocumentGroups(generateInitialDocumentGroups(year));
@@ -80,26 +83,54 @@ export default function DocumentEditorPage() {
     return () => { cancelled = true; };
   }, [customerId, year]);
 
-  // 保存処理（共通）
+  // サーバーレスポンスをローカルstateに反映する共通処理
+  const applyServerData = useCallback((data: { found: boolean; documentGroups: CategoryGroup[] | null; updatedAt: string | null }): boolean => {
+    if (data.found && data.documentGroups) {
+      setDocumentGroups(data.documentGroups);
+      setServerUpdatedAt(data.updatedAt ?? null);
+      setIsDirty(false);
+      return true;
+    }
+    return false;
+  }, []);
+
+  // 保存処理（共通・楽観ロック付き）
   const performSave = useCallback(async (silent = false): Promise<boolean> => {
     if (isSavingRef.current) return false;
     setIsSaving(true);
     setSaveError(null);
 
     try {
-      await saveDocumentsByCustomerId(customerId, year, documentGroups);
+      const result = await saveDocumentsByCustomerId(customerId, year, documentGroups, serverUpdatedAt);
       setIsSaving(false);
       setLastSaved(new Date());
       setIsDirty(false);
+      setServerUpdatedAt(result.updatedAt ?? null);
       if (!silent) toast('データを保存しました', 'success');
       return true;
     } catch (error) {
       setIsSaving(false);
+      if (error instanceof ApiError && error.status === 409) {
+        setSaveError(null);
+        if (silent) {
+          toast('他のユーザーが変更を保存しました。手動で読み込みしてください。', 'warning');
+          return false;
+        }
+        const shouldReload = confirm(
+          '他のユーザーまたはタブで変更が保存されています。\n最新データを読み込みますか？\n\n（「OK」で最新データに更新、「キャンセル」で現在の編集を維持）'
+        );
+        if (shouldReload) {
+          const data = await fetchDocumentsByCustomerId(customerId, year);
+          applyServerData(data);
+          toast('最新データを読み込みました', 'info');
+        }
+        return false;
+      }
       setSaveError(getErrorMessage(error, '保存に失敗しました'));
       if (!silent) toast('保存に失敗しました', 'error');
       return false;
     }
-  }, [customerId, year, documentGroups, toast]);
+  }, [customerId, year, documentGroups, serverUpdatedAt, toast, applyServerData]);
 
   const handleSave = useCallback(async () => { await performSave(false); }, [performSave]);
 
@@ -121,9 +152,7 @@ export default function DocumentEditorPage() {
     setIsLoading(true);
     try {
       const data = await fetchDocumentsByCustomerId(customerId, year);
-      if (data.found && data.documentGroups) {
-        setDocumentGroups(data.documentGroups);
-        setIsDirty(false);
+      if (applyServerData(data)) {
         toast('データを読み込みました', 'success');
       } else {
         toast('保存されたデータが見つかりませんでした', 'warning');
@@ -133,7 +162,7 @@ export default function DocumentEditorPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [customerId, year, toast]);
+  }, [customerId, year, toast, applyServerData]);
 
   const handleCopyToNextYear = useCallback(async () => {
     const saved = await performSave(true);

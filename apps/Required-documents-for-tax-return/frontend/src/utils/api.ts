@@ -2,27 +2,35 @@ import { CategoryGroup, Customer, Staff } from '@/types';
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3006';
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 async function throwIfNotOk(response: Response, defaultMsg: string): Promise<void> {
   if (response.ok) return;
+  let message = defaultMsg;
   try {
     const body = await response.json();
-    throw new Error(body.error || defaultMsg);
-  } catch (e) {
-    if (e instanceof Error) throw e;
-    throw new Error(defaultMsg);
-  }
+    if (body.error) message = body.error;
+  } catch { /* ignore parse errors */ }
+  throw new ApiError(message, response.status);
 }
 
 // API Response Types
 export interface DocumentsResponse {
   documentGroups: CategoryGroup[] | null;
   found: boolean;
+  updatedAt: string | null;
 }
 
 export interface SaveResponse {
   success: boolean;
   message: string;
   nextYear?: number;
+  updatedAt?: string;
 }
 
 export interface RecordsResponse {
@@ -172,12 +180,13 @@ export async function fetchDocumentsByCustomerId(
 export async function saveDocumentsByCustomerId(
   customerId: number,
   year: number,
-  documentGroups: CategoryGroup[]
+  documentGroups: CategoryGroup[],
+  updatedAt?: string | null
 ): Promise<SaveResponse> {
   const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}/documents/${year}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ documentGroups }),
+    body: JSON.stringify({ documentGroups, updatedAt }),
   });
   await throwIfNotOk(response, '保存に失敗しました');
   return response.json();

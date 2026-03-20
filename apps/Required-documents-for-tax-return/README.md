@@ -15,7 +15,8 @@
 - 自動保存（30秒デバウンス）
 - Ctrl+S キーボードショートカット
 - 未保存変更の警告（beforeunload）
-- Toast通知（保存成功・エラー・自動保存）
+- 楽観ロック（`updated_at`による同時更新検知、409 Conflict時に再読み込みダイアログ表示）
+- Toast通知（保存成功・エラー・自動保存・競合検知）
 
 ### 出力
 - 印刷機能（1列・2列レイアウト切替、レイアウト最適化済み）
@@ -242,6 +243,13 @@ Required-documents-for-tax-return/
 - customers 1 → N document_records（顧客 → 年度別書類データ、ON DELETE CASCADE）
 - 担当者名はJOINで取得（`LEFT JOIN staff ON customers.staff_id = staff.id`）
 
+### 楽観ロック（Optimistic Locking）
+- 書類データの保存時に`updated_at`を使った競合検知を実装
+- GETレスポンスに`updatedAt`を含め、POST時にクライアントが送信
+- サーバー側でDB上の`updated_at`と比較し、不一致なら409 Conflictを返却
+- `updatedAt`未送信時はロックチェックをスキップ（後方互換性）
+- `RETURNING`句でUPDATE/INSERT後の`updated_at`を効率的に取得
+
 ### クエリ最適化
 - 一覧取得系クエリ（`getAllCustomersWithYears`、`searchCustomers`、`getFullBackupData`）は一括取得+`groupBy`でN+1問題を回避
 
@@ -317,8 +325,8 @@ Required-documents-for-tax-return/
 
 | メソッド | エンドポイント | 説明 |
 |---------|---------------|------|
-| GET | /api/customers/:id/documents/:year | 書類データ取得（IDベース） |
-| POST | /api/customers/:id/documents/:year | 書類データ保存 / 翌年度コピー（IDベース） |
+| GET | /api/customers/:id/documents/:year | 書類データ取得（IDベース、`updatedAt`付き） |
+| POST | /api/customers/:id/documents/:year | 書類データ保存 / 翌年度コピー（楽観ロック対応、409 Conflict） |
 | DELETE | /api/customers/:id/documents/:year | 書類データ削除（顧客ID+年度） |
 | GET | /api/documents | 書類データ取得（レガシー: staffName指定） |
 | POST | /api/documents | 書類データ保存 / 翌年度コピー（レガシー） |
@@ -358,6 +366,7 @@ Required-documents-for-tax-return/
 - ドラッグ&ドロップで並び替え
 - リアルタイム書類検索（ハイライト付き）
 - 自動保存（30秒）、Ctrl+S 手動保存
+- 楽観ロックによる同時更新検知（競合時は再読み込みダイアログ / auto-save時はToast警告）
 - Toast通知による保存結果表示
 - 未保存変更の警告（ブラウザ閉じ / 戻る操作時）
 - 保存・変更破棄・標準に戻す・翌年度コピー

@@ -3,6 +3,7 @@ import cors from 'cors';
 import { formatReiwaYear } from './utils/date.js';
 import {
   initializeDb,
+  ConflictError,
   getOrCreateCustomer,
   saveDocumentRecord,
   getDocumentRecordByCustomerInfo,
@@ -342,10 +343,11 @@ app.get('/api/customers/:id/documents/:year', (req, res) => {
   const year = parseYear(req, res);
   if (year === null) return;
 
-  const documentGroups = getDocumentRecordByCustomerId(id, year);
+  const result = getDocumentRecordByCustomerId(id, year);
   res.json({
-    documentGroups: documentGroups ?? null,
-    found: documentGroups !== null,
+    documentGroups: result?.documentGroups ?? null,
+    found: result !== null,
+    updatedAt: result?.updatedAt ?? null,
   });
 });
 
@@ -356,7 +358,7 @@ app.post('/api/customers/:id/documents/:year', (req, res) => {
   const year = parseYear(req, res);
   if (year === null) return;
 
-  const { documentGroups, action } = req.body;
+  const { documentGroups, action, updatedAt } = req.body;
 
   if (action === 'copyToNextYear') {
     return handleCopyToNextYear(res, id, year);
@@ -366,11 +368,19 @@ app.post('/api/customers/:id/documents/:year', (req, res) => {
     return res.status(400).json({ error: 'documentGroups is required' });
   }
 
-  saveDocumentRecord(id, year, documentGroups);
-  res.json({
-    success: true,
-    message: `${formatReiwaYear(year)}のデータを保存しました`,
-  });
+  try {
+    const newUpdatedAt = saveDocumentRecord(id, year, documentGroups, updatedAt ?? null);
+    res.json({
+      success: true,
+      message: `${formatReiwaYear(year)}のデータを保存しました`,
+      updatedAt: newUpdatedAt,
+    });
+  } catch (e: unknown) {
+    if (e instanceof ConflictError) {
+      return res.status(409).json({ error: e.message });
+    }
+    throw e;
+  }
 });
 
 // 保存データ一覧を取得（管理画面用）

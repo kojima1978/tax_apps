@@ -33,7 +33,7 @@ erDiagram
         INTEGER year "年度（令和）"
         TEXT document_groups "書類データ（JSON）"
         DATETIME created_at "作成日時"
-        DATETIME updated_at "更新日時"
+        DATETIME updated_at "更新日時（楽観ロック用）"
     }
 ```
 
@@ -72,7 +72,7 @@ erDiagram
 | year | INTEGER | NOT NULL | 年度（令和年） |
 | document_groups | TEXT | NOT NULL | 書類データ（JSON形式） |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 作成日時 |
-| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 更新日時 |
+| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 更新日時（楽観ロックのバージョントークンとして使用） |
 
 **外部キー制約**: `FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE`
 **ユニーク制約**: `UNIQUE(customer_id, year)`
@@ -93,6 +93,19 @@ staff (1) ──────< (N) customers (1) ──────< (N) document
 | idx_customers_staff_id | customers | staff_id | 担当者による顧客フィルタ |
 | idx_document_records_customer_id | document_records | customer_id | 顧客の書類データ取得 |
 | idx_document_records_year | document_records | year | 年度による書類データ検索 |
+
+## 楽観ロック（Optimistic Locking）
+
+`document_records.updated_at` を楽観ロックのバージョントークンとして使用。
+
+```
+1. GET  → クライアントが updatedAt を取得・保持
+2. POST → クライアントが updatedAt を送信
+3. サーバー: DB上の updated_at と比較
+   - 一致   → UPDATE実行、RETURNING句で新しい updated_at を返却
+   - 不一致 → 409 Conflict を返却
+   - 未送信 → ロックチェックをスキップ（後方互換性）
+```
 
 ## 正規化
 
