@@ -6,6 +6,11 @@ export type TaxRate = {
 
 export type GiftType = 'general' | 'special';
 
+export const GIFT_TYPE_OPTIONS: { value: GiftType; label: string }[] = [
+    { value: 'special', label: '特例贈与 (直系尊属→18歳以上)' },
+    { value: 'general', label: '一般贈与 (その他)' },
+];
+
 export type CalculationDetail = {
     giftAmount: number;
     basicDeduction: number;

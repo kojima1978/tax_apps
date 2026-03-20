@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     calculateRealEstateTax,
-    calculateBuildingDeduction,
     type TaxResults,
     type TransactionType,
 } from '@/lib/real-estate-tax';
-import { formatInputValue, parseFormattedNumber, formatYen } from '@/lib/utils';
+import { formatInputValue, parseFormattedNumber } from '@/lib/utils';
 import { validateRealEstateInput, validateResult } from '@/lib/validate-real-estate';
 import { saveValuations } from '@/lib/valuation-storage';
 import { useFormattedInput } from './useFormattedInput';
 import { useValuationImport } from './useValuationImport';
+import { useBuildingDate, YEAR_OPTIONS } from './useBuildingDate';
 
 export type AcquisitionResults = TaxResults & {
     resLandAcq: number;
@@ -17,15 +17,6 @@ export type AcquisitionResults = TaxResults & {
 };
 
 export const useAcquisitionTaxForm = () => {
-    const yearOptions = useMemo(() => {
-        const currentYear = new Date().getFullYear();
-        const years: number[] = [];
-        for (let y = currentYear; y >= 1900; y--) {
-            years.push(y);
-        }
-        return years;
-    }, []);
-
     // 共通設定
     const [includeLand, setIncludeLand] = useState(false);
     const [includeBuilding, setIncludeBuilding] = useState(false);
@@ -41,13 +32,10 @@ export const useAcquisitionTaxForm = () => {
     // 建物
     const [buildingValuation, setBuildingValuation] = useState('');
     const [buildingArea, setBuildingArea] = useState('');
-    const [selYear, setSelYear] = useState('');
-    const [selMonth, setSelMonth] = useState('');
-    const [selDay, setSelDay] = useState('');
-    const [buildingDate, setBuildingDate] = useState('');
     const [isResidential, setIsResidential] = useState(true);
-    const [acquisitionDeduction, setAcquisitionDeduction] = useState('');
-    const [deductionMessage, setDeductionMessage] = useState('');
+
+    // 建築年月日・控除額
+    const buildingDate = useBuildingDate(transactionType, isResidential);
 
     // 結果
     const [showDetails, setShowDetails] = useState(false);
@@ -67,28 +55,6 @@ export const useAcquisitionTaxForm = () => {
 
     const { importLandValuation, importBuildingValuation } =
         useValuationImport('registration-tax', setResLandValuation, setBuildingValuation);
-
-    // 建築年月日の組み立て
-    useEffect(() => {
-        if (selYear && selMonth && selDay) {
-            const m = selMonth.padStart(2, '0');
-            const d = selDay.padStart(2, '0');
-            setBuildingDate(`${selYear}-${m}-${d}`);
-        } else {
-            setBuildingDate('');
-        }
-    }, [selYear, selMonth, selDay]);
-
-    // 建物控除額の自動計算
-    useEffect(() => {
-        const result = calculateBuildingDeduction(buildingDate, transactionType, isResidential);
-        setAcquisitionDeduction(formatInputValue(result.deduction));
-        if (result.deduction > 0) {
-            setDeductionMessage(`建築時期により自動設定: ${formatYen(result.deduction)} (${result.message})`);
-        } else {
-            setDeductionMessage(result.message);
-        }
-    }, [buildingDate, transactionType, isResidential]);
 
     const calculateTax = useCallback(() => {
         setErrorMsg('');
@@ -150,7 +116,7 @@ export const useAcquisitionTaxForm = () => {
             buildingArea: bArea,
             isResidential,
             hasHousingCertificate: false,
-            acquisitionDeduction: parseFormattedNumber(acquisitionDeduction),
+            acquisitionDeduction: parseFormattedNumber(buildingDate.acquisitionDeduction),
         }) : null;
 
         const resLandAcq = resResult?.landAcq ?? 0;
@@ -198,7 +164,7 @@ export const useAcquisitionTaxForm = () => {
         resLandValuation, resLandArea,
         otherLandValuation,
         buildingValuation, buildingArea,
-        transactionType, isResidential, acquisitionDeduction
+        transactionType, isResidential, buildingDate.acquisitionDeduction
     ]);
 
     return {
@@ -211,13 +177,9 @@ export const useAcquisitionTaxForm = () => {
         otherLandValuation, setOtherLandValuation,
         buildingValuation, setBuildingValuation,
         buildingArea, setBuildingArea,
-        selYear, setSelYear,
-        selMonth, setSelMonth,
-        selDay, setSelDay,
+        ...buildingDate,
         isResidential, setIsResidential,
-        acquisitionDeduction, setAcquisitionDeduction,
-        deductionMessage,
-        yearOptions,
+        yearOptions: YEAR_OPTIONS,
         results, showDetails, setShowDetails, calculateTax,
         errorMsg,
         importLandValuation, importBuildingValuation,
