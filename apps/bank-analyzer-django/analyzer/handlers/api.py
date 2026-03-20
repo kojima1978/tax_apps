@@ -14,7 +14,7 @@ from ..models import Case, Transaction
 from ..services import TransactionService
 from ..services.transaction import get_or_create_account
 from ..lib.constants import UNCATEGORIZED
-from .base import json_error, json_api_error, build_transaction_data
+from .base import json_error, json_api_error, build_transaction_data, serialize_transaction
 
 logger = logging.getLogger(__name__)
 
@@ -79,22 +79,14 @@ def api_create_transaction(request: HttpRequest, pk: int) -> JsonResponse:
         )
 
         logger.info(f"取引作成: case_id={pk}, tx_id={tx.id}")
+        # account情報をtxに付与してシリアライズ
+        tx.bank_name = account.bank_name
+        tx.branch_name = account.branch_name
+        tx.account_number = account.account_number
+        tx.account_type = account.account_type
         return JsonResponse({
             'success': True,
-            'transaction': {
-                'id': tx.id,
-                'date': tx.date.isoformat() if tx.date else None,
-                'description': tx.description,
-                'amount_out': tx.amount_out,
-                'amount_in': tx.amount_in,
-                'balance': tx.balance,
-                'bank_name': account.bank_name,
-                'branch_name': account.branch_name,
-                'account_number': account.account_number,
-                'account_type': account.account_type,
-                'category': tx.category,
-                'memo': tx.memo,
-            },
+            'transaction': serialize_transaction(tx),
             'message': '取引を追加しました'
         })
     except Exception as e:

@@ -7,10 +7,8 @@ from django.contrib import messages
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
-from django.http import JsonResponse as _JsonResponse
-
 from ..services import TransactionService
-from .base import is_ajax, json_error, count_message, build_redirect_url, build_transaction_data, handle_ajax_error
+from .base import is_ajax, json_error, count_message, build_redirect_url, build_transaction_data, handle_ajax_error, serialize_transaction
 
 # フィールドラベル定義（CSV出力・一括置換で共用）
 FIELD_LABELS = {
@@ -123,7 +121,7 @@ def _handle_bulk_update(request: HttpRequest, case, pk: int, source_tab: str, pr
     count = TransactionService.bulk_update_categories(case, category_updates)
 
     if is_ajax(request):
-        return _JsonResponse({'success': True, 'count': count})
+        return JsonResponse({'success': True, 'count': count})
 
     count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
     filters = _extract_filters(request) if source_tab == 'all' else None
@@ -158,22 +156,7 @@ def handle_update_transaction(request: HttpRequest, case, pk: int) -> HttpRespon
                     return json_error('取引が見つかりません')
                 # 更新後の取引データを返す（行のDOM更新用）
                 tx = case.transactions.with_account_info().filter(pk=tx_id_int).first()
-                tx_data = {
-                    'id': tx.id,
-                    'date': tx.date.isoformat() if tx.date else None,
-                    'description': tx.description or '',
-                    'amount_out': tx.amount_out,
-                    'amount_in': tx.amount_in,
-                    'balance': tx.balance,
-                    'category': tx.category,
-                    'memo': tx.memo or '',
-                    'bank_name': tx.bank_name or '',
-                    'branch_name': tx.branch_name or '',
-                    'account_type': tx.account_type or '',
-                    'account_number': tx.account_number or '',
-                    'is_flagged': tx.is_flagged,
-                }
-                return _JsonResponse({'success': True, 'transaction': tx_data})
+                return JsonResponse({'success': True, 'transaction': serialize_transaction(tx)})
 
             if success:
                 messages.success(request, "取引データを更新しました。")
@@ -251,26 +234,28 @@ def handle_update_memo(request: HttpRequest, case, pk: int) -> HttpResponse:
     return redirect(build_redirect_url('analysis-dashboard', pk, source_tab))
 
 
+def _validate_replace_params(field_name, old_value, new_value) -> str | None:
+    """一括置換パラメータを検証し、エラーメッセージを返す（正常時はNone）"""
+    if not field_name or field_name not in TransactionService.REPLACEABLE_FIELDS:
+        return "不正なフィールドが指定されました。"
+    if not old_value:
+        return "置換前の値を選択してください。"
+    if not new_value:
+        return "置換後の値を入力してください。"
+    if old_value == new_value:
+        return "置換前と置換後の値が同じです。"
+    return None
+
+
 def handle_bulk_replace_field(request: HttpRequest, case, pk: int) -> HttpResponse:
     """フィールド値の一括置換を処理"""
     field_name = request.POST.get('field_name')
     old_value = request.POST.get('old_value', '').strip()
     new_value = request.POST.get('new_value', '').strip()
 
-    if not field_name or field_name not in TransactionService.REPLACEABLE_FIELDS:
-        messages.error(request, "不正なフィールドが指定されました。")
-        return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-    if not old_value:
-        messages.warning(request, "置換前の値を選択してください。")
-        return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-    if not new_value:
-        messages.warning(request, "置換後の値を入力してください。")
-        return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
-
-    if old_value == new_value:
-        messages.warning(request, "置換前と置換後の値が同じです。")
+    error = _validate_replace_params(field_name, old_value, new_value)
+    if error:
+        messages.warning(request, error)
         return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
     try:
