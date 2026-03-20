@@ -1,4 +1,5 @@
 import { type InputHTMLAttributes } from "react";
+import { INPUT_BASE } from "@/lib/styles";
 
 type InputWithUnitProps = InputHTMLAttributes<HTMLInputElement> & {
     unit: string;
@@ -15,7 +16,7 @@ const InputWithUnit = ({ unit, onFocus, ...inputProps }: InputWithUnitProps) => 
             <input
                 {...inputProps}
                 onFocus={handleFocus}
-                className={`flex-1 p-3 border border-gray-300 rounded text-base text-right font-mono-num focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 w-full ${inputProps.className ?? ''}`}
+                className={`flex-1 ${INPUT_BASE} text-right font-mono-num ${inputProps.className ?? ''}`}
             />
             <span className="font-semibold text-gray-600 whitespace-nowrap text-sm">{unit}</span>
         </div>

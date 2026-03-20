@@ -1,30 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { type AssetType, type UsedAssetResult, calcUsedAssetLife } from "@/lib/used-asset-life";
-import { formatInputValue, parseFormattedNumber, parseIntInput } from "@/lib/utils";
+import { formatInputValue, parseFormattedNumber, parseIntInput, calcElapsedFromDates } from "@/lib/utils";
 import { useDirtyFlag } from "@/hooks/useDirtyFlag";
-
-/**
- * 2つの日付間の経過年数・月数を計算する
- */
-function calcElapsedFromDates(startDate: string, endDate: string): { years: number; months: number } | null {
-    if (!startDate || !endDate) return null;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return null;
-
-    let years = end.getFullYear() - start.getFullYear();
-    let months = end.getMonth() - start.getMonth();
-
-    if (end.getDate() < start.getDate()) {
-        months--;
-    }
-    if (months < 0) {
-        years--;
-        months += 12;
-    }
-
-    return { years, months };
-}
 
 export const useUsedAssetForm = () => {
     const [assetType, setAssetType] = useState<AssetType>('building');

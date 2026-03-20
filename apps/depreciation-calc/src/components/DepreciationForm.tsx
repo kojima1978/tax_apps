@@ -1,6 +1,7 @@
 import { useId } from "react";
 import FormField from "@/components/FormField";
 import BaseDepreciationForm, { type BaseDepreciationFormProps } from "@/components/BaseDepreciationForm";
+import { INPUT_BASE } from "@/lib/styles";
 
 type DepreciationFormProps = BaseDepreciationFormProps & {
     targetDate: string;
@@ -26,7 +27,7 @@ const DepreciationForm = ({
                             type="date"
                             value={targetDate}
                             onChange={(e) => onTargetDateChange(e.target.value)}
-                            className="p-3 border border-gray-300 rounded text-base w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                            className={INPUT_BASE}
                         />
                         <small className="block text-xs text-gray-500 mt-1">
                             指定日時点の残存簿価を算出します
