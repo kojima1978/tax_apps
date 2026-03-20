@@ -128,7 +128,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
       c.status,
       c.acceptanceStatus || "",
       c.assignee?.name || "",
-      c.referrer ? `${c.referrer.company} / ${c.referrer.name}` : "",
+      c.referrer ? `${c.referrer.company.name} / ${c.referrer.name}` : "",
       c.propertyValue || 0,
       c.taxAmount || 0,
       c.estimateAmount || 0,

@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { createCaseSchema, listQuerySchema } from '@/types/validation';
-import { CASE_INCLUDE, toContactCreateData, toProgressCreateData } from '@/lib/prisma-includes';
+import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
 
 // GET /api/cases - List cases with pagination, filtering, and sorting
 export async function GET(request: NextRequest) {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
-      data: cases,
+      data: cases.map(serializeCase),
       pagination: {
         page,
         pageSize,
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const newCase = await prisma.inheritanceCase.create({
       data: {
         deceasedName: data.deceasedName,
-        dateOfDeath: data.dateOfDeath,
+        dateOfDeath: toDate(data.dateOfDeath),
         fiscalYear: data.fiscalYear,
         status: data.status ?? '未着手',
         acceptanceStatus: data.acceptanceStatus ?? '未判定',
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       include: CASE_INCLUDE,
     });
 
-    return NextResponse.json(newCase, { status: 201 });
+    return NextResponse.json(serializeCase(newCase), { status: 201 });
   } catch (e) {
     return handleApiError(e);
   }

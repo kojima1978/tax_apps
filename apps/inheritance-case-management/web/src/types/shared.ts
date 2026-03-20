@@ -77,10 +77,17 @@ export interface Assignee {
   updatedAt?: Date;
 }
 
+// Company Entity
+export interface Company {
+  id: number;
+  name: string;
+}
+
 // Referrer Entity
 export interface Referrer {
   id: number;
-  company: string;
+  companyId: number;
+  company: Company;
   name: string;
   department?: string;
   active: boolean;
