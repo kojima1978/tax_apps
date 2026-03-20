@@ -1,7 +1,7 @@
-import type React from 'react';
 import { useState, useCallback, useMemo } from 'react';
 import { type CategoryData, type CategoryDocuments, type DocumentItem, type CustomDocumentItem, type DocChanges } from '../constants/documents';
 import { createExportData, downloadAsJson, type ExportData } from '../utils/jsonDataManager';
+import { deleteKeys, createBooleanToggle, generateId, formatTimeNow } from '../utils/helpers';
 import { useDocumentModal } from './useDocumentModal';
 
 // 全カテゴリを展開状態で初期化
@@ -18,34 +18,6 @@ function initializeDocumentOrder(categories: CategoryData[]) {
     order[category.id] = category.documents.map((doc) => doc.id);
   });
   return order;
-}
-
-function generateId() {
-  return `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/** Record から指定キーを削除して新しいオブジェクトを返す */
-function deleteKeys<T>(record: Record<string, T>, keys: string[]): Record<string, T> {
-  const result = { ...record };
-  keys.forEach(key => delete result[key]);
-  return result;
-}
-
-/** boolean Record の指定キーをトグルする汎用 setState ハンドラを生成 */
-function createBooleanToggle(setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>, onChange?: () => void) {
-  return (key: string) => {
-    setter((prev) => {
-      const newState = { ...prev };
-      if (prev[key]) { delete newState[key]; } else { newState[key] = true; }
-      return newState;
-    });
-    onChange?.();
-  };
-}
-
-/** 現在時刻を HH:MM 形式で返す */
-function formatTimeNow(): string {
-  return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 }
 
 interface UseDocumentGuideParams {

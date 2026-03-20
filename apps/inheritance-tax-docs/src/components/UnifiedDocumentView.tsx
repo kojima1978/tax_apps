@@ -1,43 +1,22 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  FileSpreadsheet,
-  FileDown,
-  Download,
-  Upload,
-  RotateCcw,
-  Info,
-  AlertCircle,
-  Home,
-  Eye,
-  EyeOff,
-  ChevronsDown,
-  ChevronsUp,
-  Search,
-  Filter,
-  X,
-} from 'lucide-react';
-import { type CategoryDocuments, type CustomDocumentItem, type DocChanges } from '../constants/documents';
+import { Info, AlertCircle } from 'lucide-react';
+import { type CustomDocumentItem, type DocChanges } from '../constants/documents';
 import type { PageConfig } from '../constants/pageConfig';
 import { COMPANY_INFO, getFullAddress, getContactLine } from '../utils/company';
 import { exportToExcel } from '../utils/excelExporter';
 import { type ExportData } from '../utils/jsonDataManager';
 import { formatDate } from '../utils/helpers';
 import { useJsonImport } from '../hooks/useJsonImport';
+import { useFilterState } from '../hooks/useFilterState';
 import { DismissibleBanner } from './ui/DismissibleBanner';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { EditableCategoryTable } from './ui/EditableCategoryTable';
+import { ToolbarHeader } from './ui/ToolbarHeader';
+import { FilterToolbar } from './ui/FilterToolbar';
 
-const TOOLBAR_BTN = 'flex items-center px-4 py-2 rounded-lg text-white shadow font-bold text-sm';
+export type { FilterCriteria } from '../hooks/useFilterState';
+
 const FORM_INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500';
-
-export interface FilterCriteria {
-  searchQuery: string;
-  showOnlyUnchecked: boolean;
-  showOnlyDelegatable: boolean;
-  showOnlyUrgent: boolean;
-  hideExcluded: boolean;
-}
 
 interface UnifiedDocumentViewProps {
   pageConfig: PageConfig;
@@ -91,97 +70,37 @@ interface UnifiedDocumentViewProps {
   onImportJson: (data: ExportData) => void;
   onOpenAddModal: (categoryId: string) => void;
   onStartEdit: (docId: string) => void;
-  getSelectedDocuments: () => CategoryDocuments[];
+  getSelectedDocuments: () => import('../constants/documents').CategoryDocuments[];
 }
 
-function UnifiedDocumentViewComponent({
-  pageConfig,
-  isDirty,
-  lastSavedAt,
-  clientName,
-  deceasedName,
-  deadline,
-  personInCharge,
-  personInChargeContact,
-  expandedCategories,
-  customDocuments,
-  documentOrder,
-  editedDocuments,
-  canDelegateOverrides,
-  specificDocNames,
-  checkedDocuments,
-  checkedDates,
-  documentMemos,
-  excludedDocuments,
-  urgentDocuments,
-  disabledCategories,
-  deleteConfirmation,
-  hasCustomizations,
-  onClientNameChange,
-  onDeceasedNameChange,
-  onDeadlineChange,
-  onPersonInChargeChange,
-  onPersonInChargeContactChange,
-  onToggleExpanded,
-  onExpandAll,
-  onCollapseAll,
-  onReorderDocuments,
-  onToggleCanDelegate,
-  onAddSpecificName,
-  onEditSpecificName,
-  onRemoveSpecificName,
-  onReorderSpecificNames,
-  onToggleDocumentCheck,
-  onToggleAllInCategory,
-  onSetDocumentMemo,
-  onToggleExcluded,
-  onToggleUrgent,
-  onToggleCategoryDisabled,
-  onRemoveDocument,
-  onRemoveCategory,
-  onConfirmDelete,
-  onCancelDelete,
-  onResetToDefault,
-  onExportJson,
-  onImportJson,
-  onOpenAddModal,
-  onStartEdit,
-  getSelectedDocuments,
-}: UnifiedDocumentViewProps) {
+function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
+  const {
+    pageConfig, isDirty, lastSavedAt,
+    clientName, deceasedName, deadline, personInCharge, personInChargeContact,
+    expandedCategories, customDocuments, documentOrder,
+    editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
+    checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories,
+    deleteConfirmation, hasCustomizations,
+    onClientNameChange, onDeceasedNameChange, onDeadlineChange,
+    onPersonInChargeChange, onPersonInChargeContactChange,
+    onToggleExpanded, onExpandAll, onCollapseAll,
+    onReorderDocuments, onToggleCanDelegate,
+    onAddSpecificName, onEditSpecificName, onRemoveSpecificName, onReorderSpecificNames,
+    onToggleDocumentCheck, onToggleAllInCategory,
+    onSetDocumentMemo, onToggleExcluded, onToggleUrgent, onToggleCategoryDisabled,
+    onRemoveDocument, onRemoveCategory,
+    onConfirmDelete, onCancelDelete, onResetToDefault,
+    onExportJson, onImportJson, onOpenAddModal, onStartEdit,
+    getSelectedDocuments,
+  } = props;
+
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess } = useJsonImport(onImportJson, pageConfig.appName);
   const [hideSubmittedInPrint, setHideSubmittedInPrint] = useState(false);
   const currentDate = useMemo(() => formatDate(new Date()), []);
-
-  // B2: フィルター状態
-  const [showOnlyUnchecked, setShowOnlyUnchecked] = useState(false);
-  const [showOnlyDelegatable, setShowOnlyDelegatable] = useState(false);
-  const [showOnlyUrgent, setShowOnlyUrgent] = useState(false);
-  const [hideExcluded, setHideExcluded] = useState(false);
-  // B3: 検索状態
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-
-  const filterCriteria = useMemo((): FilterCriteria => ({
-    searchQuery,
-    showOnlyUnchecked,
-    showOnlyDelegatable,
-    showOnlyUrgent,
-    hideExcluded,
-  }), [searchQuery, showOnlyUnchecked, showOnlyDelegatable, showOnlyUrgent, hideExcluded]);
-
-  const hasActiveFilters = showOnlyUnchecked || showOnlyDelegatable || showOnlyUrgent || hideExcluded || searchQuery !== '';
-
-  // 未保存変更の離脱警告
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
+  const filter = useFilterState();
 
   // フィールド値のマッピング
   const fieldValues = useMemo(() => ({
@@ -194,6 +113,15 @@ function UnifiedDocumentViewComponent({
     personInCharge: onPersonInChargeChange,
     personInChargeContact: onPersonInChargeContactChange,
   }), [onClientNameChange, onDeceasedNameChange, onDeadlineChange, onPersonInChargeChange, onPersonInChargeContactChange]);
+
+  // 未保存変更の離脱警告
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) { e.preventDefault(); }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const handleExcelExport = useCallback(async () => {
     setIsExporting(true);
@@ -225,58 +153,27 @@ function UnifiedDocumentViewComponent({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onExportJson, handleExcelExport]);
 
+  const toggleHideSubmittedInPrint = useCallback(() => setHideSubmittedInPrint(p => !p), []);
+
   return (
     <div className="animate-fade-in">
       <div className="bg-white overflow-hidden print-compact">
 
-        {/* A3: ヘッダー + ツールバー（グラデーション） */}
-        <header className="header-gradient text-white no-print">
-          <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <a href="/" title="ポータルに戻る" aria-label="ポータルに戻る" className="opacity-70 hover:opacity-100 transition-opacity">
-                <Home className="w-6 h-6" aria-hidden="true" />
-              </a>
-              <div>
-                <h1 className="text-2xl font-bold mb-1">{pageConfig.title}</h1>
-                <p className="text-emerald-200 text-sm">
-                  {pageConfig.subtitle}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {([
-                { id: 'save', icon: Download, label: lastSavedAt ? `保存 (${lastSavedAt})` : '保存', badge: isDirty ? '未保存' : null, onClick: onExportJson, disabled: false, title: '設定をJSONファイルとして保存 (Ctrl+S)', bg: isDirty ? 'bg-amber-500/80 hover:bg-amber-500' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
-                { id: 'excel', icon: FileSpreadsheet, label: isExporting ? '出力中...' : 'Excel', badge: null, onClick: handleExcelExport, disabled: isExporting, title: 'Excelファイルに出力 (Ctrl+E)', bg: `bg-emerald-500/80 hover:bg-emerald-500 ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}` },
-                { id: 'print', icon: FileDown, label: '印刷', badge: null, onClick: () => window.print(), disabled: false, title: '印刷', bg: 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' },
-                { id: 'reset', icon: RotateCcw, label: '初期化', badge: null, onClick: () => setShowResetConfirm(true), disabled: !hasCustomizations, title: '書類のカスタマイズをすべて初期状態に戻す', bg: hasCustomizations ? 'bg-white/15 hover:bg-white/25 backdrop-blur-sm' : 'bg-white/5 cursor-not-allowed opacity-50' },
-              ] as const).map(({ id, icon: Icon, label, badge, onClick, disabled, title, bg }) => (
-                <button key={id} onClick={onClick} disabled={disabled} title={title} className={`${TOOLBAR_BTN} ${bg}`}>
-                  <Icon className="w-4 h-4 mr-1" /> {label}
-                  {badge && <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-bold">{badge}</span>}
-                </button>
-              ))}
-              <label
-                className={`${TOOLBAR_BTN} cursor-pointer ${
-                  isImporting ? 'bg-slate-400 cursor-not-allowed' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm'
-                }`}
-                title="JSONファイルから設定を読み込み"
-              >
-                <Upload className="w-4 h-4 mr-1" /> 読込
-                <input type="file" accept=".json" onChange={handleJsonImport} disabled={isImporting} className="hidden" />
-              </label>
-              {pageConfig.navLinks.map(({ to, label, icon: NavIcon }) => (
-                <Link
-                  key={to}
-                  to={to}
-                  className={`${TOOLBAR_BTN} bg-indigo-500/80 hover:bg-indigo-500`}
-                  title={label}
-                >
-                  <NavIcon className="w-4 h-4 mr-1" /> {label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </header>
+        {/* A3: ヘッダー + ツールバー */}
+        <ToolbarHeader
+          title={pageConfig.title}
+          subtitle={pageConfig.subtitle}
+          navLinks={pageConfig.navLinks}
+          isDirty={isDirty}
+          lastSavedAt={lastSavedAt}
+          hasCustomizations={hasCustomizations}
+          isExporting={isExporting}
+          isImporting={isImporting}
+          onSave={onExportJson}
+          onExcelExport={handleExcelExport}
+          onReset={() => setShowResetConfirm(true)}
+          onJsonImport={handleJsonImport}
+        />
 
         {/* 印刷用ヘッダー */}
         <div className="hidden print:block print-compact-header border-b-2 border-emerald-800 pb-4 mb-4 px-4 md:px-8 pt-4 max-w-7xl mx-auto">
@@ -372,105 +269,13 @@ function UnifiedDocumentViewComponent({
         </div>
 
         {/* B1/B2/B3: ツールバー（展開/折りたたみ、フィルター、検索） */}
-        <div className="no-print">
-          <div className="bg-slate-100 border-y border-slate-200">
-            <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 space-y-2">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                {/* B1: すべて展開/折りたたみ */}
-                {([
-                  { icon: ChevronsDown, label: '全展開', onClick: onExpandAll, title: 'すべて展開' },
-                  { icon: ChevronsUp, label: '全折りたたみ', onClick: onCollapseAll, title: 'すべて折りたたみ' },
-                ] as const).map(({ icon: Icon, label, onClick, title }) => (
-                  <button key={label} onClick={onClick} title={title} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors">
-                    <Icon className="w-3.5 h-3.5" /> {label}
-                  </button>
-                ))}
-
-                {/* B2: フィルター切替 */}
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    hasActiveFilters
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                  }`}
-                  title="フィルター"
-                >
-                  <Filter className="w-3.5 h-3.5" /> フィルター
-                  {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setHideSubmittedInPrint(!hideSubmittedInPrint)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    hideSubmittedInPrint
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                  }`}
-                  title={hideSubmittedInPrint ? '提出済みを印刷に含める' : '提出済みを印刷で非表示'}
-                >
-                  {hideSubmittedInPrint ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  提出済みを印刷で非表示
-                </button>
-              </div>
-            </div>
-
-            {/* B2+B3: フィルター/検索パネル */}
-            {showFilters && (
-              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-200">
-                {/* B3: 検索 */}
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="書類名を検索..."
-                    className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-
-                {/* B2: フィルタートグル */}
-                {([
-                  { checked: showOnlyUnchecked, toggle: () => setShowOnlyUnchecked(!showOnlyUnchecked), label: '未提出のみ' },
-                  { checked: showOnlyDelegatable, toggle: () => setShowOnlyDelegatable(!showOnlyDelegatable), label: '代行可のみ' },
-                  { checked: showOnlyUrgent, toggle: () => setShowOnlyUrgent(!showOnlyUrgent), label: '緊急のみ' },
-                  { checked: hideExcluded, toggle: () => setHideExcluded(!hideExcluded), label: '対象外を非表示' },
-                ] as const).map(({ checked, toggle, label }) => (
-                  <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={toggle}
-                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-slate-600">{label}</span>
-                  </label>
-                ))}
-                {hasActiveFilters && (
-                  <button
-                    onClick={() => { setSearchQuery(''); setShowOnlyUnchecked(false); setShowOnlyDelegatable(false); setShowOnlyUrgent(false); setHideExcluded(false); }}
-                    className="text-xs text-emerald-600 hover:text-emerald-800 underline"
-                  >
-                    クリア
-                  </button>
-                )}
-              </div>
-            )}
-            </div>
-          </div>
-        </div>
+        <FilterToolbar
+          filter={filter}
+          hideSubmittedInPrint={hideSubmittedInPrint}
+          onToggleHideSubmittedInPrint={toggleHideSubmittedInPrint}
+          onExpandAll={onExpandAll}
+          onCollapseAll={onCollapseAll}
+        />
 
         {/* 注意事項 */}
         <div className="max-w-7xl mx-auto px-4 md:px-8 mt-6 mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg print-compact-notice print:mx-2 print:mt-2 print:mb-2">
@@ -522,7 +327,7 @@ function UnifiedDocumentViewComponent({
               onRemoveDocument={onRemoveDocument}
               onRemoveCategory={onRemoveCategory}
               hideSubmittedInPrint={hideSubmittedInPrint}
-              filterCriteria={filterCriteria}
+              filterCriteria={filter.criteria}
               onOpenAddModal={onOpenAddModal}
               onStartEdit={onStartEdit}
             />
