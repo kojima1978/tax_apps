@@ -14,6 +14,7 @@ from .base import (
     parse_amount,
     build_redirect_url,
     build_transaction_data,
+    serialize_transaction,
 )
 
 from .pattern import (
@@ -73,6 +74,7 @@ __all__ = [
     'parse_amount',
     'build_redirect_url',
     'build_transaction_data',
+    'serialize_transaction',
     'FIELD_LABELS',
 
     # Pattern handlers

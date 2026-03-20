@@ -142,6 +142,28 @@ def build_transaction_data(request: HttpRequest) -> dict:
     }
 
 
+def serialize_transaction(tx) -> dict:
+    """取引オブジェクトをJSON応答用の辞書にシリアライズする
+
+    with_account_info() アノテーション付きの Transaction を想定。
+    """
+    return {
+        'id': tx.id,
+        'date': tx.date.isoformat() if tx.date else None,
+        'description': tx.description or '',
+        'amount_out': tx.amount_out,
+        'amount_in': tx.amount_in,
+        'balance': tx.balance,
+        'category': tx.category,
+        'memo': tx.memo or '',
+        'bank_name': getattr(tx, 'bank_name', '') or '',
+        'branch_name': getattr(tx, 'branch_name', '') or '',
+        'account_type': getattr(tx, 'account_type', '') or '',
+        'account_number': getattr(tx, 'account_number', '') or '',
+        'is_flagged': tx.is_flagged,
+    }
+
+
 def build_redirect_url(view_name: str, pk: int, tab: Optional[str] = None, filters: Optional[dict] = None) -> str:
     """タブパラメータとフィルター付きのリダイレクトURLを生成"""
     from urllib.parse import urlencode

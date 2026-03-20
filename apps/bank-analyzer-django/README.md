@@ -43,7 +43,7 @@
 | 分類 | 技術 |
 |------|------|
 | フレームワーク | Django 5.x〜6.0 |
-| データベース | PostgreSQL 16 + pgvector（SQLiteもレガシー対応） |
+| データベース | PostgreSQL 16（SQLiteもレガシー対応） |
 | フロントエンド | Bootstrap 5, Bootstrap Icons |
 | フォーム | django-crispy-forms + crispy-bootstrap5 |
 | データ処理 | pandas |
@@ -143,16 +143,9 @@ bank-analyzer-django/
 │   │   └── commands/
 │   │       └── create_dummy_data.py  # ダミーデータ生成
 │   └── migrations/            # データベースマイグレーション
-├── docker/                    # Docker関連設定
-│   └── postgres/
-│       └── init-pgvector.sql  # pgvector拡張初期化SQL
-├── scripts/                   # 運用スクリプト
-│   └── migrate_sqlite_to_postgres.py  # SQLite→PostgreSQL移行
 ├── data/                      # ユーザー設定保存先
-├── staticfiles/               # 収集済み静的ファイル
 ├── Dockerfile                 # マルチステージDockerビルド設定
-├── docker-compose.yml         # Docker Compose設定（開発）
-├── docker-compose.prod.yml    # 本番オーバーライド設定
+├── docker-compose.yml         # Docker Compose設定（開発+本番profile）
 ├── docker-entrypoint.sh       # コンテナ起動スクリプト
 ├── .dockerignore              # Dockerビルド除外設定
 ├── .env.example               # 環境変数テンプレート
@@ -197,7 +190,7 @@ bank-analyzer-django/
 | パッケージ | 役割 |
 |-----------|------|
 | `handlers/` | ビューからPOST処理を分離。機能別に分割されたハンドラー群 |
-| `handlers/base.py` | 共通ヘルパー（`parse_amount`は`services/utils.py`に委譲、`build_transaction_data`等） |
+| `handlers/base.py` | 共通ヘルパー（`parse_amount`は`services/utils.py`に委譲、`build_transaction_data`、`serialize_transaction`等） |
 | `services/` | ビジネスロジック層。TransactionService（取引操作）、AnalysisService（分析） |
 | `services/utils.py` | 金額パース（`parse_amount`正規実装）、日付変換、ID変換等の共通処理 |
 | `lib/config/` | 設定管理。パターン（`_modify_patterns`共通ヘルパー）、閾値、ファジーマッチング設定 |
@@ -243,10 +236,7 @@ docker compose down
 # manage.bat 経由（推奨）
 manage.bat start --prod
 
-# docker-compose.prod.yml オーバーライド
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-
-# profile 指定（スタンドアロン）
+# profile 指定（スタンドアロン本番起動）
 docker compose --profile production up -d bank-analyzer-prod
 ```
 
@@ -378,7 +368,7 @@ docker compose --profile production up -d bank-analyzer-prod
 
 | サービス | 説明 | ポート |
 |---------|------|--------|
-| `bank-analyzer-db` | PostgreSQL 16 + pgvector | 5432（内部） |
+| `bank-analyzer-db` | PostgreSQL 16 | 5432（内部） |
 | `bank-analyzer-django` | Django runserver（開発モード） | 3007 |
 | `test` | テストランナー（オンデマンド） | — |
 | `bank-analyzer-prod` | Gunicorn（本番モード） | 3007 |

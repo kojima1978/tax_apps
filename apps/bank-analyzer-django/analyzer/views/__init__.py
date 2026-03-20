@@ -36,6 +36,9 @@ from .dashboard import (
 # 設定
 from .settings import settings_view
 
+# ユーティリティ（テスト等から参照）
+from ._helpers import sanitize_filename
+
 # ハンドラー（urls.py から直接参照されるもの）
 from ..handlers import (
     import_wizard,

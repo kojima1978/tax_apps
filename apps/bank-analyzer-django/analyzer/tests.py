@@ -14,7 +14,7 @@ from .forms import CaseForm, SettingsForm
 from .services import TransactionService, AnalysisService, parse_int_ids
 from .templatetags.japanese_date import wareki, wareki_short, wareki_year, get_japanese_era
 from .handlers import parse_amount
-from .views import _sanitize_filename
+from .views import sanitize_filename
 from .lib.importer import _convert_japanese_date
 from .lib.llm_classifier import classify_by_rules
 
@@ -448,19 +448,19 @@ class ParseAmountTest(TestCase):
 
 
 class SanitizeFilenameTest(TestCase):
-    """_sanitize_filename関数のテスト"""
+    """sanitize_filename関数のテスト"""
 
     def test_normal_name(self):
         """通常の名前"""
-        self.assertEqual(_sanitize_filename('テスト案件'), 'テスト案件')
+        self.assertEqual(sanitize_filename('テスト案件'), 'テスト案件')
 
     def test_with_slashes(self):
         """スラッシュを含む名前"""
-        self.assertEqual(_sanitize_filename('山田/太郎'), '山田_太郎')
+        self.assertEqual(sanitize_filename('山田/太郎'), '山田_太郎')
 
     def test_with_special_chars(self):
         """特殊文字を含む名前"""
-        result = _sanitize_filename('案件: "テスト" <1>')
+        result = sanitize_filename('案件: "テスト" <1>')
         self.assertNotIn(':', result)
         self.assertNotIn('"', result)
         self.assertNotIn('<', result)
@@ -468,7 +468,7 @@ class SanitizeFilenameTest(TestCase):
 
     def test_empty_name(self):
         """空の名前"""
-        self.assertEqual(_sanitize_filename(''), 'export')
+        self.assertEqual(sanitize_filename(''), 'export')
 
 
 class ConvertJapaneseDateTest(TestCase):

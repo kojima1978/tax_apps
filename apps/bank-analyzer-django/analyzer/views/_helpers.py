@@ -9,8 +9,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 import pandas as pd
 
-from ..handlers import FIELD_LABELS, safe_error_message, parse_amount, build_transaction_data
-from ..services import TransactionService
+from ..handlers import FIELD_LABELS, parse_amount
 from ..templatetags.japanese_date import wareki
 
 ITEMS_PER_PAGE = 100
@@ -50,19 +49,6 @@ def set_download_filename(response: HttpResponse, filename: str) -> None:
         f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
     )
 
-
-def handle_post_action(request, action_fn, error_context: str, **log_params) -> bool:
-    """POST処理の共通例外ハンドリング。成功時True、失敗時Falseを返す。"""
-    import logging
-    logger = logging.getLogger(__name__)
-    try:
-        action_fn()
-        return True
-    except Exception as e:
-        params_str = ", ".join(f"{k}={v}" for k, v in log_params.items())
-        logger.exception(f"{error_context}エラー: {params_str}, error={e}")
-        messages.error(request, safe_error_message(e, error_context))
-        return False
 
 
 VALID_SORT_FIELDS = {
@@ -257,14 +243,3 @@ def extract_form_rows(request: HttpRequest, validate: bool = False) -> tuple[lis
             rows.append(new_row)
 
     return rows, errors
-
-
-def update_transaction_from_post(request: HttpRequest, case, tx_id: str) -> None:
-    """POSTデータから取引を更新する共通処理"""
-    def _do_update():
-        data = build_transaction_data(request)
-        success = TransactionService.update_transaction(case, int(tx_id), data)
-        if success:
-            messages.success(request, "取引データを更新しました。")
-
-    handle_post_action(request, _do_update, "取引更新", tx_id=tx_id)
