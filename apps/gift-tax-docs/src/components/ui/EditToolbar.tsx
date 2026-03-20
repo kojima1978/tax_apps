@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ChevronUp,
   Printer,
@@ -18,13 +18,23 @@ import {
   Sun,
   Menu,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { giftData, EXTERNAL_LINKS } from '@/constants';
 import { VerticalDivider } from './VerticalDivider';
 
-const EXTERNAL_LINK_ITEMS = [
+// ─── ツールバーアクション定義 ───
+
+type ToolbarAction =
+  | { type: 'button'; id: string; label: string; pcLabel: string; icon: LucideIcon; color: string; onClick: () => void }
+  | { type: 'file'; id: string; label: string; pcLabel: string; icon: LucideIcon; color: string; onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void }
+  | { type: 'divider' };
+
+type ExternalLinkItem = { key: 'ntaCheckSheet' | 'etaxDocuments'; shortLabel: string };
+
+const EXTERNAL_LINK_ITEMS: ExternalLinkItem[] = [
   { key: 'ntaCheckSheet', shortLabel: 'シート' },
   { key: 'etaxDocuments', shortLabel: 'e-Tax' },
-] as const;
+];
 
 // ─── ツールバーボタン内部ヘルパー ───
 
@@ -122,6 +132,30 @@ export const EditToolbar = ({
   const btnBase = 'px-3 py-2 text-sm rounded-lg';
   const btnSlate = `${btnBase} bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200`;
 
+  const TOOLBAR_ACTIONS: ToolbarAction[] = useMemo(() => [
+    { type: 'button', id: 'expand', label: '全て展開', pcLabel: '展開', icon: ChevronsUpDown, color: 'slate', onClick: () => onExpandAll(true) },
+    { type: 'button', id: 'collapse', label: '全て折りたたむ', pcLabel: '折畳', icon: ChevronUp, color: 'slate', onClick: () => onExpandAll(false) },
+    { type: 'button', id: 'reset', label: 'リセット', pcLabel: 'リセット', icon: RotateCcw, color: 'amber', onClick: onShowResetDialog },
+    { type: 'divider' },
+    { type: 'button', id: 'json-export', label: 'JSON出力', pcLabel: '出力', icon: Download, color: 'violet', onClick: onJsonExport },
+    { type: 'file', id: 'json-import', label: 'JSON取込', pcLabel: '取込', icon: Upload, color: 'violet', onFileSelect },
+  ], [onExpandAll, onShowResetDialog, onJsonExport, onFileSelect]);
+
+  const COLOR_CLASSES: Record<string, { pc: string; mobile: string }> = {
+    slate: {
+      pc: btnSlate,
+      mobile: 'text-slate-600 dark:text-slate-300',
+    },
+    amber: {
+      pc: `${btnBase} bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 text-amber-700 dark:text-amber-300`,
+      mobile: 'text-amber-600 dark:text-amber-400',
+    },
+    violet: {
+      pc: `${btnBase} bg-violet-100 dark:bg-violet-900/50 hover:bg-violet-200 dark:hover:bg-violet-800/50 text-violet-700 dark:text-violet-300`,
+      mobile: 'text-violet-600 dark:text-violet-400',
+    },
+  };
+
   return (
     <div className="no-print bg-white dark:bg-slate-800 rounded-xl shadow-lg dark:shadow-slate-900/50 p-4 mb-6 sticky top-4 z-10 transition-colors" role="toolbar" aria-label="編集ツールバー">
       {/* 1行目: タイトル + メイン操作 */}
@@ -156,14 +190,21 @@ export const EditToolbar = ({
 
           {/* PC: インラインボタン群 */}
           <div className="hidden lg:flex items-center gap-2">
-            <ToolbarButton onClick={() => onExpandAll(true)} className={btnSlate} title="全て展開" ariaLabel="全カテゴリを展開" icon={<ChevronsUpDown className="w-4 h-4 mr-1" aria-hidden="true" />} label="展開" />
-            <ToolbarButton onClick={() => onExpandAll(false)} className={btnSlate} title="全て折りたたむ" ariaLabel="全カテゴリを折りたたむ" icon={<ChevronUp className="w-4 h-4 mr-1" aria-hidden="true" />} label="折畳" />
-            <ToolbarButton onClick={onShowResetDialog} className={`${btnBase} bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 text-amber-700 dark:text-amber-300`} title="デフォルトに戻す" ariaLabel="編集内容をリセット" icon={<RotateCcw className="w-4 h-4 mr-1" aria-hidden="true" />} label="リセット" />
-            <VerticalDivider />
-            <ToolbarButton onClick={onJsonExport} className={`${btnBase} bg-violet-100 dark:bg-violet-900/50 hover:bg-violet-200 dark:hover:bg-violet-800/50 text-violet-700 dark:text-violet-300`} title="JSONで出力" ariaLabel="JSONファイルとして出力" icon={<Download className="w-4 h-4 mr-1" aria-hidden="true" />} label="出力" />
-            <ToolbarButton asLabel className={`${btnBase} bg-violet-100 dark:bg-violet-900/50 hover:bg-violet-200 dark:hover:bg-violet-800/50 text-violet-700 dark:text-violet-300`} title="JSONを取り込み" ariaLabel="JSONファイルを選択" icon={<Upload className="w-4 h-4 mr-1" aria-hidden="true" />} label="取込">
-              <input type="file" accept=".json" onChange={onFileSelect} className="hidden" aria-label="JSONファイルを選択" />
-            </ToolbarButton>
+            {TOOLBAR_ACTIONS.map((action, i) => {
+              if (action.type === 'divider') return <VerticalDivider key={i} />;
+              const Icon = action.icon;
+              const colorClass = COLOR_CLASSES[action.color].pc;
+              if (action.type === 'file') {
+                return (
+                  <ToolbarButton key={action.id} asLabel className={colorClass} title={action.label} ariaLabel={action.label} icon={<Icon className="w-4 h-4 mr-1" aria-hidden="true" />} label={action.pcLabel}>
+                    <input type="file" accept=".json" onChange={action.onFileSelect} className="hidden" aria-label={action.label} />
+                  </ToolbarButton>
+                );
+              }
+              return (
+                <ToolbarButton key={action.id} onClick={action.onClick} className={colorClass} title={action.label} ariaLabel={action.label} icon={<Icon className="w-4 h-4 mr-1" aria-hidden="true" />} label={action.pcLabel} />
+              );
+            })}
           </div>
 
           {/* モバイル: ハンバーガーメニュー */}
@@ -179,41 +220,33 @@ export const EditToolbar = ({
 
             {showMobileMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl dark:shadow-slate-900/80 border border-slate-200 dark:border-slate-700 py-2 z-50 animate-fade-in">
-                {[
-                  { onClick: () => { onExpandAll(true); setShowMobileMenu(false); }, icon: <ChevronsUpDown className="w-4 h-4" />, label: '全て展開' },
-                  { onClick: () => { onExpandAll(false); setShowMobileMenu(false); }, icon: <ChevronUp className="w-4 h-4" />, label: '全て折りたたむ' },
-                  { onClick: () => { onShowResetDialog(); setShowMobileMenu(false); }, icon: <RotateCcw className="w-4 h-4" />, label: 'リセット', color: 'text-amber-600 dark:text-amber-400' },
-                  'divider' as const,
-                  { onClick: () => { onJsonExport(); setShowMobileMenu(false); }, icon: <Download className="w-4 h-4" />, label: 'JSON出力', color: 'text-violet-600 dark:text-violet-400' },
-                  'divider' as const,
-                  ...EXTERNAL_LINK_ITEMS.map(({ key, shortLabel }) => ({
-                    href: EXTERNAL_LINKS[key].url,
-                    icon: <ExternalLink className="w-4 h-4" />,
-                    label: shortLabel,
-                  })),
-                ].map((item, i) => {
-                  if (item === 'divider') return <hr key={i} className="my-1 border-slate-200 dark:border-slate-700" />;
-                  if ('href' in item) {
+                {TOOLBAR_ACTIONS.map((action, i) => {
+                  if (action.type === 'divider') return <hr key={i} className="my-1 border-slate-200 dark:border-slate-700" />;
+                  const Icon = action.icon;
+                  const colorClass = COLOR_CLASSES[action.color].mobile;
+                  if (action.type === 'file') {
                     return (
-                      <a key={i} href={item.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-                        {item.icon}
-                        {item.label}
-                      </a>
+                      <label key={action.id} className={`flex items-center gap-3 px-4 py-2.5 text-sm ${colorClass} hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer`}>
+                        <Icon className="w-4 h-4" />
+                        {action.label}
+                        <input type="file" accept=".json" onChange={(e) => { action.onFileSelect(e); setShowMobileMenu(false); }} className="hidden" />
+                      </label>
                     );
                   }
                   return (
-                    <button key={i} onClick={item.onClick} className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm ${item.color || 'text-slate-600 dark:text-slate-300'} hover:bg-slate-50 dark:hover:bg-slate-700`}>
-                      {item.icon}
-                      {item.label}
+                    <button key={action.id} onClick={() => { action.onClick(); setShowMobileMenu(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm ${colorClass} hover:bg-slate-50 dark:hover:bg-slate-700`}>
+                      <Icon className="w-4 h-4" />
+                      {action.label}
                     </button>
                   );
                 })}
-                {/* JSON取込（label付き） */}
-                <label className="flex items-center gap-3 px-4 py-2.5 text-sm text-violet-600 dark:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
-                  <Upload className="w-4 h-4" />
-                  JSON取込
-                  <input type="file" accept=".json" onChange={(e) => { onFileSelect(e); setShowMobileMenu(false); }} className="hidden" />
-                </label>
+                <hr className="my-1 border-slate-200 dark:border-slate-700" />
+                {EXTERNAL_LINK_ITEMS.map(({ key, shortLabel }) => (
+                  <a key={key} href={EXTERNAL_LINKS[key].url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+                    <ExternalLink className="w-4 h-4" />
+                    {shortLabel}
+                  </a>
+                ))}
               </div>
             )}
           </div>

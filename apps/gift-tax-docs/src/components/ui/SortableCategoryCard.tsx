@@ -182,28 +182,20 @@ export const SortableCategoryCard = ({
               >
                 特例
               </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlers.startEdit(category.id, category.name);
-                }}
-                className="p-1.5 text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 rounded transition-colors"
-                title="カテゴリ名を編集"
-                aria-label={`${category.name}の名前を編集`}
-              >
-                <Edit3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlers.remove(category.id);
-                }}
-                className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-100/50 dark:hover:bg-red-900/30 rounded transition-colors"
-                title="カテゴリを削除"
-                aria-label={`${category.name}を削除`}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {[
+                { onClick: () => handlers.startEdit(category.id, category.name), Icon: Edit3, colorClass: 'text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10', title: 'カテゴリ名を編集', ariaLabel: `${category.name}の名前を編集` },
+                { onClick: () => handlers.remove(category.id), Icon: Trash2, colorClass: 'text-red-500 dark:text-red-400 hover:bg-red-100/50 dark:hover:bg-red-900/30', title: 'カテゴリを削除', ariaLabel: `${category.name}を削除` },
+              ].map(({ onClick, Icon, colorClass, title, ariaLabel }) => (
+                <button
+                  key={title}
+                  onClick={(e) => { e.stopPropagation(); onClick(); }}
+                  className={`p-1.5 ${colorClass} rounded transition-colors`}
+                  title={title}
+                  aria-label={ariaLabel}
+                >
+                  <Icon className="w-4 h-4" />
+                </button>
+              ))}
               <VerticalDivider />
             </>
           )}

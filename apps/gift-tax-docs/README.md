@@ -66,11 +66,11 @@ src/
 │       ├── AddCategoryForm.tsx       # カテゴリ追加フォーム
 │       ├── ConfirmDialog.tsx         # ダイアログ群（削除/リセット/インポート確認/エラー）
 │       ├── EditableInput.tsx         # インライン編集・追加入力（Enter確定/Escape取消）
-│       ├── EditToolbar.tsx           # ツールバー（操作ボタン+検索+外部リンク+印刷設定）
+│       ├── EditToolbar.tsx           # ツールバー（TOOLBAR_ACTIONS data-driven, PC/モバイル統一描画）
 │       ├── EmptyState.tsx            # 空状態・検索結果なし表示
-│       ├── PrintSection.tsx          # 印刷専用セクション（hidden print:block）
-│       ├── SortableCategoryCard.tsx  # ドラッグ可能なカテゴリカード（ヘッダー+全済み）
-│       ├── SortableDocumentItem.tsx  # ドラッグ可能な書類アイテム（チェック+中項目）
+│       ├── PrintSection.tsx          # 印刷専用セクション（PRINT_LAYOUTS data-driven, 1列/2列切替）
+│       ├── SortableCategoryCard.tsx  # ドラッグ可能なカテゴリカード（アクションボタン data-driven）
+│       ├── SortableDocumentItem.tsx  # ドラッグ可能な書類アイテム（アクションボタン data-driven）
 │       ├── Toast.tsx                 # トースト通知コンテナ
 │       └── VerticalDivider.tsx       # ツールバー用区切り線
 ├── hooks/
@@ -152,6 +152,35 @@ interface SubItem {
   text: string;
 }
 ```
+
+## 設計パターン
+
+### Data-Driven Map
+繰り返しUI要素を定数配列 + `.map()` で生成し、ロジックとレイアウトを分離:
+
+| 定数 | ファイル | 用途 |
+|------|---------|------|
+| `INFO_BAR_FIELDS` | EditableListStep.tsx | 顧客・担当者入力フィールド4項目 |
+| `TOOLBAR_ACTIONS` | EditToolbar.tsx | ツールバーボタン6項目（PC inline + モバイルメニュー統一） |
+| `COLOR_CLASSES` | EditToolbar.tsx | ボタン色のPC/モバイル切替マップ |
+| `PRINT_LAYOUTS` | PrintSection.tsx | 1列/2列印刷スタイル20項目 |
+| `EXTERNAL_LINK_ITEMS` | EditToolbar.tsx | 外部リンク定義 |
+| action buttons | SortableCategoryCard/DocumentItem | 編集・削除ボタン群 |
+
+### Hook分解
+状態管理を責務ごとに分離し、`useEditableListEditing` で統合:
+
+```
+useEditableListEditing（ファサード）
+├── useCategoryEditing      # カテゴリCRUD
+├── useDocumentEditing       # 書類CRUD
+├── useSubItemEditing        # 中項目CRUD
+├── useDeleteConfirm         # 削除確認ダイアログ
+└── useJsonImportExport      # JSON入出力
+```
+
+### 純粋関数ユーティリティ
+`utils/editableListUtils.ts` にイミュータブルなリスト操作関数を集約（副作用なし・テスト容易）。
 
 ## Docker
 
