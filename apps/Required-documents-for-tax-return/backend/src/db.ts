@@ -29,17 +29,36 @@ function withDb<T>(operation: (db: Database.Database) => T): T {
   return operation(getDb());
 }
 
-/** 書類データの upsert（SELECT→UPDATE or INSERT） */
-function upsertDocumentRecord(db: Database.Database, customerId: number, year: number, jsonData: string): void {
+/** 楽観ロック用エラー */
+export class ConflictError extends Error {
+  constructor(message = '他のユーザーまたはタブで変更が保存されています。最新データを読み込んでください。') {
+    super(message);
+    this.name = 'ConflictError';
+  }
+}
+
+/** 書類データの upsert（楽観ロック付き） */
+function upsertDocumentRecord(
+  db: Database.Database, customerId: number, year: number, jsonData: string,
+  expectedUpdatedAt?: string | null
+): string {
   const existing = db
-    .prepare('SELECT id FROM document_records WHERE customer_id = ? AND year = ?')
-    .get(customerId, year);
+    .prepare('SELECT id, updated_at FROM document_records WHERE customer_id = ? AND year = ?')
+    .get(customerId, year) as { id: number; updated_at: string } | undefined;
+
   if (existing) {
-    db.prepare('UPDATE document_records SET document_groups = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? AND year = ?')
-      .run(jsonData, customerId, year);
+    if (expectedUpdatedAt && existing.updated_at !== expectedUpdatedAt) {
+      throw new ConflictError();
+    }
+    const row = db.prepare(
+      'UPDATE document_records SET document_groups = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? AND year = ? RETURNING updated_at'
+    ).get(jsonData, customerId, year) as { updated_at: string };
+    return row.updated_at;
   } else {
-    db.prepare('INSERT INTO document_records (customer_id, year, document_groups) VALUES (?, ?, ?)')
-      .run(customerId, year, jsonData);
+    const row = db.prepare(
+      'INSERT INTO document_records (customer_id, year, document_groups) VALUES (?, ?, ?) RETURNING updated_at'
+    ).get(customerId, year, jsonData) as { updated_at: string };
+    return row.updated_at;
   }
 }
 
@@ -362,20 +381,27 @@ export function getOrCreateCustomer(customerName: string, staffName: string): nu
   });
 }
 
-// 書類データを保存
-export function saveDocumentRecord(customerId: number, year: number, documentGroups: unknown): void {
-  withDb((db) => {
-    upsertDocumentRecord(db, customerId, year, JSON.stringify(documentGroups));
+// 書類データを保存（楽観ロック付き）
+export function saveDocumentRecord(
+  customerId: number, year: number, documentGroups: unknown,
+  expectedUpdatedAt?: string | null
+): string {
+  return withDb((db) => {
+    return upsertDocumentRecord(db, customerId, year, JSON.stringify(documentGroups), expectedUpdatedAt);
   });
 }
 
-// 顧客IDで書類データを取得
-export function getDocumentRecordByCustomerId(customerId: number, year: number): unknown | null {
+// 顧客IDで書類データを取得（updated_at付き）
+export function getDocumentRecordByCustomerId(
+  customerId: number, year: number
+): { documentGroups: unknown; updatedAt: string } | null {
   return withDb((db) => {
     const record = db
-      .prepare('SELECT document_groups FROM document_records WHERE customer_id = ? AND year = ?')
-      .get(customerId, year) as { document_groups: string } | undefined;
-    return record ? JSON.parse(record.document_groups) : null;
+      .prepare('SELECT document_groups, updated_at FROM document_records WHERE customer_id = ? AND year = ?')
+      .get(customerId, year) as { document_groups: string; updated_at: string } | undefined;
+    return record
+      ? { documentGroups: JSON.parse(record.document_groups), updatedAt: record.updated_at }
+      : null;
   });
 }
 
