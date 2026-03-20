@@ -53,3 +53,26 @@ export const formatElapsed = (years: number, months: number): string => {
     if (years === 0) return `${months}ヶ月`;
     return `${years}年${months}ヶ月`;
 };
+
+/**
+ * 2つの日付間の経過年数・月数を計算する
+ */
+export function calcElapsedFromDates(startDate: string, endDate: string): { years: number; months: number } | null {
+    if (!startDate || !endDate) return null;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return null;
+
+    let years = end.getFullYear() - start.getFullYear();
+    let months = end.getMonth() - start.getMonth();
+
+    if (end.getDate() < start.getDate()) {
+        months--;
+    }
+    if (months < 0) {
+        years--;
+        months += 12;
+    }
+
+    return { years, months };
+}

@@ -6,6 +6,7 @@ import ActionButtons from "@/components/ui/ActionButtons";
 import PresetButtons from "@/components/ui/PresetButtons";
 import { ASSET_TYPES, STATUTORY_LIFE_PRESETS, type AssetType } from "@/lib/used-asset-life";
 import { type DepreciationMethod, type MethodWithSuggestion } from "@/lib/depreciation";
+import { INPUT_BASE } from "@/lib/styles";
 
 const FISCAL_YEAR_END_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1),
@@ -75,7 +76,7 @@ const BaseDepreciationForm = ({
                         id={`${idPrefix}-asset-type`}
                         value={assetType}
                         onChange={(e) => onAssetTypeChange(e.target.value as AssetType)}
-                        className="p-3 border border-gray-300 rounded text-base w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                        className={INPUT_BASE}
                     >
                         {ASSET_TYPES.map((t) => (
                             <option key={t.value} value={t.value}>{t.label}</option>
@@ -132,7 +133,7 @@ const BaseDepreciationForm = ({
                         type="date"
                         value={acquisitionDate}
                         onChange={(e) => onAcquisitionDateChange(e.target.value)}
-                        className="p-3 border border-gray-300 rounded text-base w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                        className={INPUT_BASE}
                     />
                     <small className="block text-xs text-gray-500 mt-1">
                         償却方法の判定に使用（H19.4/H24.4 境界）
@@ -146,7 +147,7 @@ const BaseDepreciationForm = ({
                             type="date"
                             value={serviceStartDate}
                             onChange={(e) => onServiceStartDateChange(e.target.value)}
-                            className="p-3 border border-gray-300 rounded text-base w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                            className={INPUT_BASE}
                         />
                         <button
                             type="button"
@@ -171,7 +172,7 @@ const BaseDepreciationForm = ({
                         id={`${idPrefix}-method`}
                         value={method}
                         onChange={(e) => onMethodChange(e.target.value as DepreciationMethod)}
-                        className="p-3 border border-gray-300 rounded text-base w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                        className={INPUT_BASE}
                     >
                         {availableMethods.map((m) => (
                             <option key={m.value} value={m.value}>
@@ -196,7 +197,7 @@ const BaseDepreciationForm = ({
                         id={`${idPrefix}-fiscal`}
                         value={fiscalYearEndMonth}
                         onChange={(e) => onFiscalYearEndMonthChange(e.target.value)}
-                        className="p-3 border border-gray-300 rounded text-base w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                        className={INPUT_BASE}
                     >
                         {FISCAL_YEAR_END_OPTIONS.map((o) => (
                             <option key={o.value} value={o.value}>{o.label}</option>

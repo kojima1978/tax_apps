@@ -4,6 +4,7 @@ import InputWithUnit from "@/components/InputWithUnit";
 import ActionButtons from "@/components/ui/ActionButtons";
 import PresetButtons from "@/components/ui/PresetButtons";
 import { ASSET_TYPES, STATUTORY_LIFE_PRESETS, type AssetType } from "@/lib/used-asset-life";
+import { INPUT_BASE } from "@/lib/styles";
 
 type UsedAssetFormProps = {
     assetType: AssetType;
@@ -61,7 +62,7 @@ const UsedAssetForm = ({
                         id={`${idPrefix}-asset-type`}
                         value={assetType}
                         onChange={(e) => onAssetTypeChange(e.target.value as AssetType)}
-                        className="p-3 border border-gray-300 rounded text-base w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                        className={INPUT_BASE}
                     >
                         {ASSET_TYPES.map((t) => (
                             <option key={t.value} value={t.value}>{t.label}</option>
@@ -98,7 +99,7 @@ const UsedAssetForm = ({
                         type="date"
                         value={newDate}
                         onChange={(e) => onNewDateChange(e.target.value)}
-                        className="p-3 border border-gray-300 rounded text-base w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                        className={INPUT_BASE}
                     />
                     <small className="block text-xs text-gray-500 mt-1">経過年数を自動計算します</small>
                 </FormField>
@@ -109,7 +110,7 @@ const UsedAssetForm = ({
                         type="date"
                         value={acquisitionDate}
                         onChange={(e) => onAcquisitionDateChange(e.target.value)}
-                        className="p-3 border border-gray-300 rounded text-base w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                        className={INPUT_BASE}
                     />
                 </FormField>
             </div>

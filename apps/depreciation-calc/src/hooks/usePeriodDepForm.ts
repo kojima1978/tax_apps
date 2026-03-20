@@ -4,11 +4,8 @@ import {
     type DepreciationYearRow,
     calcDepreciationSchedule,
 } from "@/lib/depreciation";
-import { type AssetType } from "@/lib/used-asset-life";
 import { formatInputValue, parseFormattedNumber, parseIntInput } from "@/lib/utils";
-import { useMethodSuggestion } from "@/hooks/useMethodSuggestion";
-import { useCanCalculate } from "@/hooks/useCanCalculate";
-import { useDirtyFlag } from "@/hooks/useDirtyFlag";
+import { useBaseDepreciationState } from "@/hooks/useBaseDepreciationState";
 
 export type PeriodDepResult = {
     rows: DepreciationYearRow[];
@@ -33,47 +30,24 @@ export type PeriodDepCarryOverValues = {
 };
 
 export const usePeriodDepForm = () => {
-    const [assetType, setAssetType] = useState<AssetType>('building');
-    const [acquisitionCost, setAcquisitionCost] = useState('');
-    const [usefulLife, setUsefulLife] = useState('');
-    const [method, setMethod] = useState<DepreciationMethod>('straight_line');
-    const [acquisitionDate, setAcquisitionDate] = useState('');
-    const [serviceStartDate, setServiceStartDate] = useState('');
-    const [fiscalYearEndMonth, setFiscalYearEndMonth] = useState('3');
+    const base = useBaseDepreciationState<PeriodDepResult>();
     const [startYear, setStartYear] = useState('');
     const [displayYears, setDisplayYears] = useState('5');
-    const [result, setResult] = useState<PeriodDepResult | null>(null);
-    const [carriedOver, setCarriedOver] = useState(false);
-    const { isDirty, setIsDirty, markDirty, clearDirty } = useDirtyFlag(result);
-
-    const { availableMethods, suggestedLabel, isMethodSuggested } = useMethodSuggestion(acquisitionDate, method, setMethod);
 
     // 事業供用日変更時にデフォルト開始年度を設定
     useEffect(() => {
-        if (serviceStartDate && !startYear) {
-            const year = new Date(serviceStartDate).getFullYear();
+        if (base.state.serviceStartDate && !startYear) {
+            const year = new Date(base.state.serviceStartDate).getFullYear();
             if (!isNaN(year)) setStartYear(String(year));
         }
-    }, [serviceStartDate]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [base.state.serviceStartDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const canCalculate = useCanCalculate(acquisitionCost, usefulLife, acquisitionDate, serviceStartDate);
-
-    const handleAssetType = useCallback((val: AssetType) => { setAssetType(val); markDirty(); }, [markDirty]);
-    const handleAcquisitionCost = useCallback((val: string) => { setAcquisitionCost(formatInputValue(val)); markDirty(); }, [markDirty]);
-    const handleUsefulLife = useCallback((val: string) => { setUsefulLife(val); markDirty(); }, [markDirty]);
-    const handleMethod = useCallback((val: DepreciationMethod) => { setMethod(val); markDirty(); }, [markDirty]);
-    const handleAcquisitionDate = useCallback((val: string) => {
-        setAcquisitionDate(val);
-        if (val && !serviceStartDate) setServiceStartDate(val);
-        markDirty();
-    }, [markDirty, serviceStartDate]);
-    const handleServiceStartDate = useCallback((val: string) => { setServiceStartDate(val); markDirty(); }, [markDirty]);
-    const handleFiscalYearEndMonth = useCallback((val: string) => { setFiscalYearEndMonth(val); markDirty(); }, [markDirty]);
-    const handleStartYear = useCallback((val: string) => { setStartYear(val); markDirty(); }, [markDirty]);
-    const handleDisplayYears = useCallback((val: string) => { setDisplayYears(val); markDirty(); }, [markDirty]);
+    const handleStartYear = useCallback((val: string) => { setStartYear(val); base.markDirty(); }, [base.markDirty]);
+    const handleDisplayYears = useCallback((val: string) => { setDisplayYears(val); base.markDirty(); }, [base.markDirty]);
 
     const handleCalculate = useCallback(() => {
-        if (!canCalculate) return;
+        if (!base.canCalculate) return;
+        const { acquisitionCost, usefulLife, method, acquisitionDate, serviceStartDate, fiscalYearEndMonth } = base.state;
 
         const depResult = calcDepreciationSchedule({
             acquisitionCost: parseFormattedNumber(acquisitionCost),
@@ -101,14 +75,12 @@ export const usePeriodDepForm = () => {
         const totalDep = sliced.reduce((sum, r) => sum + r.depreciation, 0);
         const firstRow = sliced[0];
         const lastRow = sliced[sliced.length - 1];
-        const startBV = firstRow ? firstRow.beginningBookValue : 0;
-        const endBV = lastRow ? lastRow.endingBookValue : 0;
 
-        setResult({
+        base.setResult({
             rows: sliced,
             totalDepreciation: totalDep,
-            startBookValue: startBV,
-            endBookValue: endBV,
+            startBookValue: firstRow ? firstRow.beginningBookValue : 0,
+            endBookValue: lastRow ? lastRow.endingBookValue : 0,
             methodLabel: depResult.methodLabel,
             appliedRate: depResult.appliedRate,
             usefulLife: parseIntInput(usefulLife),
@@ -116,70 +88,44 @@ export const usePeriodDepForm = () => {
             displayYears: numYears,
             startYearIndex: startIdx,
         });
-        clearDirty();
-    }, [canCalculate, acquisitionCost, usefulLife, method, acquisitionDate, serviceStartDate, fiscalYearEndMonth, startYear, displayYears, clearDirty]);
+        base.clearDirty();
+    }, [base.canCalculate, base.state, startYear, displayYears, base.setResult, base.clearDirty]);
 
     const handleClear = useCallback(() => {
-        setAssetType('building');
-        setAcquisitionCost('');
-        setUsefulLife('');
-        setMethod('straight_line');
-        setAcquisitionDate('');
-        setServiceStartDate('');
-        setFiscalYearEndMonth('3');
+        base.resetBase();
         setStartYear('');
         setDisplayYears('5');
-        setResult(null);
-        clearDirty();
-        setCarriedOver(false);
-    }, [clearDirty]);
+    }, [base.resetBase]);
 
     const applyCarryOver = useCallback((values: PeriodDepCarryOverValues) => {
+        const { setUsefulLife, setAcquisitionCost, setAcquisitionDate, setServiceStartDate, setMethod, setFiscalYearEndMonth, setCarriedOver } = base.setters;
         setUsefulLife(String(values.usefulLife));
         if (values.acquisitionCost > 0) {
             setAcquisitionCost(formatInputValue(values.acquisitionCost));
         }
         if (values.acquisitionDate) {
             setAcquisitionDate(values.acquisitionDate);
-            if (!serviceStartDate) setServiceStartDate(values.acquisitionDate);
+            if (!base.state.serviceStartDate) setServiceStartDate(values.acquisitionDate);
         }
         if (values.method) setMethod(values.method);
         if (values.serviceStartDate) setServiceStartDate(values.serviceStartDate);
         if (values.fiscalYearEndMonth) setFiscalYearEndMonth(values.fiscalYearEndMonth);
         setCarriedOver(true);
-        if (result) setIsDirty(true);
-    }, [result, serviceStartDate]);
+        if (base.result) base.setIsDirty(true);
+    }, [base.result, base.state.serviceStartDate, base.setters, base.setIsDirty]);
 
     return {
         formProps: {
-            assetType,
-            acquisitionCost,
-            usefulLife,
-            method,
-            acquisitionDate,
-            serviceStartDate,
-            fiscalYearEndMonth,
+            ...base.baseFormProps,
             startYear,
             displayYears,
-            canCalculate,
-            availableMethods,
-            suggestedLabel,
-            isMethodSuggested,
-            carriedOver,
-            onAssetTypeChange: handleAssetType,
-            onAcquisitionCostChange: handleAcquisitionCost,
-            onUsefulLifeChange: handleUsefulLife,
-            onMethodChange: handleMethod,
-            onAcquisitionDateChange: handleAcquisitionDate,
-            onServiceStartDateChange: handleServiceStartDate,
-            onFiscalYearEndMonthChange: handleFiscalYearEndMonth,
             onStartYearChange: handleStartYear,
             onDisplayYearsChange: handleDisplayYears,
             onCalculate: handleCalculate,
             onClear: handleClear,
         },
-        result,
-        isDirty,
+        result: base.result,
+        isDirty: base.isDirty,
         applyCarryOver,
     };
 };
