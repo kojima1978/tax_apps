@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
-import { CATEGORIES, type CustomDocumentItem, type DocChanges } from '../constants/documents';
+import { type CategoryData, type CustomDocumentItem, type DocChanges } from '../constants/documents';
 
 interface UseDocumentModalParams {
+  categories: CategoryData[];
   editedDocuments: Record<string, DocChanges>;
   customDocuments: CustomDocumentItem[];
   editDocument: (docId: string, changes: DocChanges) => void;
@@ -9,6 +10,7 @@ interface UseDocumentModalParams {
 }
 
 export function useDocumentModal({
+  categories,
   editedDocuments,
   customDocuments,
   editDocument,
@@ -20,7 +22,7 @@ export function useDocumentModal({
   const editingDocData = useMemo(() => {
     if (!editingDocId) return undefined;
     const edited = editedDocuments[editingDocId];
-    for (const cat of CATEGORIES) {
+    for (const cat of categories) {
       const doc = cat.documents.find((d) => d.id === editingDocId);
       if (doc) {
         return {
@@ -39,7 +41,7 @@ export function useDocumentModal({
       };
     }
     return undefined;
-  }, [editingDocId, editedDocuments, customDocuments]);
+  }, [editingDocId, editedDocuments, categories, customDocuments]);
 
   const openEditModal = useCallback((docId: string) => { setEditingDocId(docId); }, []);
   const openAddModal = useCallback((categoryId: string) => { setAddingToCategoryId(categoryId); }, []);

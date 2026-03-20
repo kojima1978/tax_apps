@@ -12,6 +12,8 @@ interface ExcelExportParams {
   urgentDocuments: Record<string, boolean>;
   personInCharge: string;
   personInChargeContact: string;
+  excelTitle?: string;
+  filenamePrefix?: string;
 }
 
 // Excel スタイル定義
@@ -130,14 +132,14 @@ function pushEmptyRow(wsData: object[][]): void {
  */
 export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   const XLSX = (await import('xlsx-js-style')).default;
-  const { results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact } = params;
+  const { results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact, excelTitle = '相続税申告 資料準備ガイド', filenamePrefix = '相続税申告_必要書類' } = params;
   const exportDate = formatDate(new Date());
 
   const wb = XLSX.utils.book_new();
   const wsData: object[][] = [];
 
   // タイトル行
-  wsData.push([{ v: '相続税申告 資料準備ガイド', s: styles.title }]);
+  wsData.push([{ v: excelTitle, s: styles.title }]);
   wsData.push([{ v: `発行日: ${exportDate}`, s: styles.subTitle }]);
   wsData.push([{ v: COMPANY_INFO.name, s: styles.subTitle }]);
   wsData.push([{ v: '【お客様専用リスト】', s: styles.badge }]);
@@ -267,7 +269,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   XLSX.utils.book_append_sheet(wb, ws, '必要書類リスト');
 
   // ファイル名生成
-  let fileName = '相続税申告_必要書類';
+  let fileName = filenamePrefix;
   if (clientName) fileName += `_${clientName}`;
   fileName += `_${exportDate.replace(/\//g, '')}.xlsx`;
 

@@ -1,20 +1,20 @@
 import type React from 'react';
 import { useState, useCallback, useMemo } from 'react';
-import { CATEGORIES, type CategoryDocuments, type DocumentItem, type CustomDocumentItem, type DocChanges } from '../constants/documents';
+import { type CategoryData, type CategoryDocuments, type DocumentItem, type CustomDocumentItem, type DocChanges } from '../constants/documents';
 import { createExportData, downloadAsJson, type ExportData } from '../utils/jsonDataManager';
 import { useDocumentModal } from './useDocumentModal';
 
 // 全カテゴリを展開状態で初期化
-function initializeExpanded() {
+function initializeExpanded(categories: CategoryData[]) {
   const expanded: Record<string, boolean> = {};
-  CATEGORIES.forEach((category) => { expanded[category.id] = true; });
+  categories.forEach((category) => { expanded[category.id] = true; });
   return expanded;
 }
 
 // 初期の書類順序を生成
-function initializeDocumentOrder() {
+function initializeDocumentOrder(categories: CategoryData[]) {
   const order: Record<string, string[]> = {};
-  CATEGORIES.forEach((category) => {
+  categories.forEach((category) => {
     order[category.id] = category.documents.map((doc) => doc.id);
   });
   return order;
@@ -48,10 +48,16 @@ function formatTimeNow(): string {
   return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function useDocumentGuide() {
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => initializeExpanded());
+interface UseDocumentGuideParams {
+  categories: CategoryData[];
+  appName: string;
+  filenamePrefix: string;
+}
+
+export function useDocumentGuide({ categories, appName, filenamePrefix }: UseDocumentGuideParams) {
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => initializeExpanded(categories));
   const [customDocuments, setCustomDocuments] = useState<CustomDocumentItem[]>([]);
-  const [documentOrder, setDocumentOrder] = useState<Record<string, string[]>>(() => initializeDocumentOrder());
+  const [documentOrder, setDocumentOrder] = useState<Record<string, string[]>>(() => initializeDocumentOrder(categories));
   const [editedDocuments, setEditedDocuments] = useState<Record<string, DocChanges>>({});
   const [canDelegateOverrides, setCanDelegateOverrides] = useState<Record<string, boolean>>({});
   const [specificDocNames, setSpecificDocNames] = useState<Record<string, string[]>>({});
@@ -85,10 +91,10 @@ export function useDocumentGuide() {
   const setAllExpanded = useCallback((value: boolean) => {
     setExpandedCategories(() => {
       const result: Record<string, boolean> = {};
-      CATEGORIES.forEach((category) => { result[category.id] = value; });
+      categories.forEach((category) => { result[category.id] = value; });
       return result;
     });
-  }, []);
+  }, [categories]);
   const expandAll = useCallback(() => setAllExpanded(true), [setAllExpanded]);
   const collapseAll = useCallback(() => setAllExpanded(false), [setAllExpanded]);
 
@@ -127,7 +133,7 @@ export function useDocumentGuide() {
   }, [markDirty]);
 
   // モーダル
-  const modal = useDocumentModal({ editedDocuments, customDocuments, editDocument, addCustomDocument });
+  const modal = useDocumentModal({ categories, editedDocuments, customDocuments, editDocument, addCustomDocument });
 
   const toggleCanDelegate = useCallback((docId: string, originalCanDelegate: boolean) => {
     setCanDelegateOverrides((prev) => {
@@ -287,15 +293,16 @@ export function useDocumentGuide() {
 
   const exportToJson = useCallback(() => {
     const exportData = createExportData({
+      appName,
       clientName, deceasedName, deadline,
       customDocuments, documentOrder,
       editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
       checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories,
       personInCharge, personInChargeContact,
     });
-    downloadAsJson(exportData);
+    downloadAsJson(exportData, filenamePrefix);
     markClean();
-  }, [clientName, deceasedName, deadline, customDocuments, documentOrder, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories, personInCharge, personInChargeContact, markClean]);
+  }, [appName, filenamePrefix, clientName, deceasedName, deadline, customDocuments, documentOrder, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories, personInCharge, personInChargeContact, markClean]);
 
   const importFromJson = useCallback((data: ExportData) => {
     setClientName(data.data.clientName);
@@ -320,7 +327,7 @@ export function useDocumentGuide() {
 
   const getSelectedDocuments = useCallback((): CategoryDocuments[] => {
     const result: CategoryDocuments[] = [];
-    CATEGORIES.forEach((category) => {
+    categories.forEach((category) => {
       const order = documentOrder[category.id] || [];
       const docMap = new Map<string, DocumentItem | CustomDocumentItem>();
       category.documents.forEach((doc) => {
@@ -348,12 +355,12 @@ export function useDocumentGuide() {
       if (orderedDocs.length > 0) result.push({ category, documents: orderedDocs });
     });
     return result;
-  }, [customDocuments, documentOrder, editedDocuments, canDelegateOverrides]);
+  }, [categories, customDocuments, documentOrder, editedDocuments, canDelegateOverrides]);
 
   const resetToDefault = useCallback(() => {
-    setExpandedCategories(initializeExpanded());
+    setExpandedCategories(initializeExpanded(categories));
     setCustomDocuments([]);
-    setDocumentOrder(initializeDocumentOrder());
+    setDocumentOrder(initializeDocumentOrder(categories));
     setEditedDocuments({});
     setCanDelegateOverrides({});
     setSpecificDocNames({});
@@ -365,19 +372,19 @@ export function useDocumentGuide() {
     setDisabledCategories({});
     setIsDirty(false);
     setLastSavedAt(null);
-  }, []);
+  }, [categories]);
 
   const hasCustomizations = useMemo((): boolean => {
     const totalCount = Object.values(documentOrder).reduce((acc, ids) => acc + ids.length, 0);
     const customCount = customDocuments.length;
-    const initialBuiltInCount = CATEGORIES.reduce((acc, cat) => acc + cat.documents.length, 0);
+    const initialBuiltInCount = categories.reduce((acc, cat) => acc + cat.documents.length, 0);
     const hasDeletedDocs = totalCount - customCount < initialBuiltInCount;
     const nonEmpty = (...records: Record<string, unknown>[]) => records.some(r => Object.keys(r).length > 0);
     return customCount > 0 || hasDeletedDocs || nonEmpty(
       editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
       excludedDocuments, urgentDocuments, disabledCategories, documentMemos,
     );
-  }, [documentOrder, customDocuments, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, excludedDocuments, urgentDocuments, disabledCategories, documentMemos]);
+  }, [categories, documentOrder, customDocuments, editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments, excludedDocuments, urgentDocuments, disabledCategories, documentMemos]);
 
   // 文字列state変更時にも dirty マーク（ファクトリ）
   const withDirty = useCallback(

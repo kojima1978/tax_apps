@@ -516,10 +516,13 @@ export type IconName =
   | 'Users'
   | 'FileCheck'
   | 'Building'
+  | 'Building2'
   | 'Landmark'
   | 'FileText'
   | 'CreditCard'
   | 'Shield'
   | 'Car'
   | 'Gift'
-  | 'Receipt';
+  | 'Receipt'
+  | 'HandCoins'
+  | 'FolderOpen';

@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   FileSpreadsheet,
   FileDown,
@@ -16,11 +17,12 @@ import {
   Filter,
   X,
 } from 'lucide-react';
-import { CATEGORIES, type CategoryDocuments, type CustomDocumentItem, type DocChanges } from '../constants/documents';
+import { type CategoryDocuments, type CustomDocumentItem, type DocChanges } from '../constants/documents';
+import type { PageConfig } from '../constants/pageConfig';
 import { COMPANY_INFO, getFullAddress, getContactLine } from '../utils/company';
 import { exportToExcel } from '../utils/excelExporter';
 import { type ExportData } from '../utils/jsonDataManager';
-import { formatDate, formatDeadline } from '../utils/helpers';
+import { formatDate } from '../utils/helpers';
 import { useJsonImport } from '../hooks/useJsonImport';
 import { DismissibleBanner } from './ui/DismissibleBanner';
 import { ConfirmDialog } from './ui/ConfirmDialog';
@@ -38,6 +40,7 @@ export interface FilterCriteria {
 }
 
 interface UnifiedDocumentViewProps {
+  pageConfig: PageConfig;
   isDirty: boolean;
   lastSavedAt: string | null;
   clientName: string;
@@ -92,6 +95,7 @@ interface UnifiedDocumentViewProps {
 }
 
 function UnifiedDocumentViewComponent({
+  pageConfig,
   isDirty,
   lastSavedAt,
   clientName,
@@ -147,9 +151,9 @@ function UnifiedDocumentViewComponent({
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess } = useJsonImport(onImportJson);
+  const { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess } = useJsonImport(onImportJson, pageConfig.appName);
   const [hideSubmittedInPrint, setHideSubmittedInPrint] = useState(false);
-  const [currentDate, setCurrentDate] = useState('');
+  const currentDate = useMemo(() => formatDate(new Date()), []);
 
   // B2: フィルター状態
   const [showOnlyUnchecked, setShowOnlyUnchecked] = useState(false);
@@ -159,8 +163,6 @@ function UnifiedDocumentViewComponent({
   // B3: 検索状態
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-
-  useEffect(() => { setCurrentDate(formatDate(new Date())); }, []);
 
   const filterCriteria = useMemo((): FilterCriteria => ({
     searchQuery,
@@ -181,39 +183,35 @@ function UnifiedDocumentViewComponent({
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
-  const printInfoFields: { label: string; value: string; format?: (v: string) => string }[] = [
-    { label: 'お客様名', value: clientName, format: v => `${v} 様` },
-    { label: '被相続人', value: deceasedName, format: v => `${v} 様` },
-    { label: '資料収集期限（目安）', value: deadline, format: formatDeadline },
-    { label: '担当者', value: personInCharge },
-    { label: '担当者連絡先', value: personInChargeContact },
-  ];
-
-  const inputRows: { cols: string; fields: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }[] }[] = [
-    { cols: 'md:grid-cols-3', fields: [
-      { label: 'お客様名', value: clientName, onChange: onClientNameChange, placeholder: '例：山田 太郎' },
-      { label: '被相続人名', value: deceasedName, onChange: onDeceasedNameChange, placeholder: '例：山田 一郎' },
-      { label: '資料収集期限', value: deadline, onChange: onDeadlineChange, type: 'date' },
-    ]},
-    { cols: 'md:grid-cols-2', fields: [
-      { label: '担当者', value: personInCharge, onChange: onPersonInChargeChange, placeholder: '例：佐藤 花子' },
-      { label: '担当者連絡先', value: personInChargeContact, onChange: onPersonInChargeContactChange, placeholder: '例：088-632-6228' },
-    ]},
-  ];
+  // フィールド値のマッピング
+  const fieldValues = useMemo(() => ({
+    clientName, deceasedName, deadline, personInCharge, personInChargeContact,
+  }), [clientName, deceasedName, deadline, personInCharge, personInChargeContact]);
+  const fieldSetters = useMemo(() => ({
+    clientName: onClientNameChange,
+    deceasedName: onDeceasedNameChange,
+    deadline: onDeadlineChange,
+    personInCharge: onPersonInChargeChange,
+    personInChargeContact: onPersonInChargeContactChange,
+  }), [onClientNameChange, onDeceasedNameChange, onDeadlineChange, onPersonInChargeChange, onPersonInChargeContactChange]);
 
   const handleExcelExport = useCallback(async () => {
     setIsExporting(true);
     setExportError(null);
     try {
       const results = getSelectedDocuments();
-      exportToExcel({ results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact });
+      exportToExcel({
+        results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact,
+        excelTitle: pageConfig.excelTitle,
+        filenamePrefix: pageConfig.filenamePrefix,
+      });
     } catch (error) {
       console.error('Excel export failed:', error);
       setExportError('Excelファイルの出力に失敗しました。もう一度お試しください。');
     } finally {
       setIsExporting(false);
     }
-  }, [getSelectedDocuments, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact]);
+  }, [getSelectedDocuments, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact, pageConfig.excelTitle, pageConfig.filenamePrefix]);
 
   // B4: キーボードショートカット
   useEffect(() => {
@@ -239,9 +237,9 @@ function UnifiedDocumentViewComponent({
                 <Home className="w-6 h-6" aria-hidden="true" />
               </a>
               <div>
-                <h1 className="text-2xl font-bold mb-1">相続税申告 資料準備ガイド</h1>
+                <h1 className="text-2xl font-bold mb-1">{pageConfig.title}</h1>
                 <p className="text-emerald-200 text-sm">
-                  テーブル上で直接 編集・削除・並べ替え・代行切替ができます
+                  {pageConfig.subtitle}
                 </p>
               </div>
             </div>
@@ -266,6 +264,16 @@ function UnifiedDocumentViewComponent({
                 <Upload className="w-4 h-4 mr-1" /> 読込
                 <input type="file" accept=".json" onChange={handleJsonImport} disabled={isImporting} className="hidden" />
               </label>
+              {pageConfig.navLinks.map(({ to, label, icon: NavIcon }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className={`${TOOLBAR_BTN} bg-indigo-500/80 hover:bg-indigo-500`}
+                  title={label}
+                >
+                  <NavIcon className="w-4 h-4 mr-1" /> {label}
+                </Link>
+              ))}
             </div>
           </div>
         </header>
@@ -275,10 +283,10 @@ function UnifiedDocumentViewComponent({
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold text-slate-900 mb-2 print-compact-title">
-                相続税申告 資料準備ガイド
+                {pageConfig.title}
               </h1>
               <p className="text-slate-600 print-compact-subtitle">
-                以下の書類をご準備の上、ご来所・ご郵送ください。
+                {pageConfig.printSubtitle}
               </p>
             </div>
             <div className="text-right text-sm text-slate-500 print:text-sm">
@@ -286,12 +294,12 @@ function UnifiedDocumentViewComponent({
               <p>{COMPANY_INFO.name}</p>
             </div>
           </div>
-          {printInfoFields.some(f => f.value) && (
+          {pageConfig.printInfoFields.some(f => fieldValues[f.key]) && (
             <div className="mt-4 p-4 bg-white border border-emerald-200 rounded-lg grid grid-cols-3 gap-4 print-compact-info">
-              {printInfoFields.filter(f => f.value).map(({ label, value, format }) => (
-                <div key={label}>
+              {pageConfig.printInfoFields.filter(f => fieldValues[f.key]).map(({ key, label, format }) => (
+                <div key={key}>
                   <span className="text-xs text-slate-500 print:text-xs">{label}</span>
-                  <p className="font-bold text-slate-800 print:text-sm">{format ? format(value) : value}</p>
+                  <p className="font-bold text-slate-800 print:text-sm">{format ? format(fieldValues[key]) : fieldValues[key]}</p>
                 </div>
               ))}
             </div>
@@ -344,15 +352,15 @@ function UnifiedDocumentViewComponent({
         {/* 基本情報入力（スクリーン用） */}
         <div className="bg-emerald-50 border-b border-emerald-100 no-print">
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
-          {inputRows.map(({ cols, fields }, ri) => (
+          {pageConfig.inputRows.map(({ cols, fields }, ri) => (
             <div key={ri} className={`grid ${cols} gap-4${ri > 0 ? ' mt-4' : ''}`}>
-              {fields.map(({ label, value, onChange, type, placeholder }) => (
-                <div key={label}>
+              {fields.map(({ key, label, type, placeholder }) => (
+                <div key={key}>
                   <label className="block text-sm text-slate-600 mb-1">{label}</label>
                   <input
                     type={type ?? 'text'}
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
+                    value={fieldValues[key]}
+                    onChange={(e) => fieldSetters[key](e.target.value)}
                     className={FORM_INPUT_CLASS}
                     placeholder={placeholder}
                   />
@@ -471,15 +479,9 @@ function UnifiedDocumentViewComponent({
             <div className="text-sm text-amber-800">
               <p className="font-bold mb-1 print:mb-0 print:text-sm">ご確認ください</p>
               <ul className="list-disc list-inside space-y-1 print:space-y-0">
-                <li>
-                  資料は原本、コピー、データなどどのような形でお送りいただいても結構です。原本はスキャンやコピーを行った後、すべてお返しいたします。
-                </li>
-                <li>
-                  代行欄に<span className="bg-amber-200 px-1 rounded print:px-0.5">可</span>と記載されている書類は弊社で取得代行を行うことが可能です。詳しくは担当者にお尋ねください。
-                </li>
-                <li>
-                  身分関係書類は原則として相続開始日から10日を経過した日以後に取得したものが必要となります。
-                </li>
+                {pageConfig.noticeItems.map((item, i) => (
+                  <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+                ))}
               </ul>
             </div>
           </div>
@@ -487,7 +489,7 @@ function UnifiedDocumentViewComponent({
 
         {/* カテゴリテーブル群 */}
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-4 print:space-y-1 print:p-2">
-          {CATEGORIES.filter((category) => (documentOrder[category.id] || []).length > 0).map((category, index) => (
+          {pageConfig.categories.filter((category) => (documentOrder[category.id] || []).length > 0).map((category, index) => (
             <EditableCategoryTable
               key={category.id}
               category={category}
