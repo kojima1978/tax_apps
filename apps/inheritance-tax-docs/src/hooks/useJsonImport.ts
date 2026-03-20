@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { readJsonFile, validateImportData, type ExportData } from '../utils/jsonDataManager';
 
-export function useJsonImport(onImportJson: (data: ExportData) => void) {
+export function useJsonImport(onImportJson: (data: ExportData) => void, appName?: string) {
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -16,7 +16,7 @@ export function useJsonImport(onImportJson: (data: ExportData) => void) {
 
     try {
       const data = await readJsonFile(file);
-      const validation = validateImportData(data);
+      const validation = validateImportData(data, appName);
 
       if (!validation.isValid) {
         setImportError(validation.error || 'データの検証に失敗しました。');
@@ -31,7 +31,7 @@ export function useJsonImport(onImportJson: (data: ExportData) => void) {
       setIsImporting(false);
       e.target.value = '';
     }
-  }, [onImportJson]);
+  }, [onImportJson, appName]);
 
   const clearImportError = useCallback(() => setImportError(null), []);
   const clearImportSuccess = useCallback(() => setImportSuccess(false), []);

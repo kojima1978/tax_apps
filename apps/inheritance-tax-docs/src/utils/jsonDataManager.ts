@@ -3,6 +3,9 @@ import type { CustomDocumentItem, DocChanges } from '../constants/documents';
 // JSONデータのバージョン
 const DATA_VERSION = '1.0.0';
 
+/** 有効なappName一覧 */
+const VALID_APP_NAMES = ['inheritance-tax-docs', 'inheritance-tax-docs-simplified', 'unlisted-stock-docs'] as const;
+
 // エクスポートするデータの型
 export interface ExportData {
   version: string;
@@ -41,6 +44,7 @@ interface ValidationResult {
 
 // データをエクスポート用に整形
 export function createExportData(params: {
+  appName: string;
   clientName: string;
   deceasedName: string;
   deadline: string;
@@ -61,7 +65,7 @@ export function createExportData(params: {
   return {
     version: DATA_VERSION,
     exportedAt: new Date().toISOString(),
-    appName: 'inheritance-tax-docs',
+    appName: params.appName,
     data: {
       clientName: params.clientName,
       deceasedName: params.deceasedName,
@@ -99,8 +103,8 @@ function validateField(
   return null;
 }
 
-// JSONデータを検証
-export function validateImportData(data: unknown): ValidationResult {
+// JSONデータを検証（appName で対象アプリを絞る）
+export function validateImportData(data: unknown, expectedAppName?: string): ValidationResult {
   if (!data || typeof data !== 'object') {
     return { isValid: false, error: '無効なJSONデータです。' };
   }
@@ -110,9 +114,16 @@ export function validateImportData(data: unknown): ValidationResult {
   if (typeof obj.version !== 'string') {
     return { isValid: false, error: 'バージョン情報がありません。' };
   }
-  if (obj.appName !== 'inheritance-tax-docs') {
-    return { isValid: false, error: 'このファイルは相続税必要書類リストアプリのデータではありません。' };
+
+  // appName の検証
+  if (expectedAppName) {
+    if (obj.appName !== expectedAppName) {
+      return { isValid: false, error: 'このファイルは対象アプリのデータではありません。' };
+    }
+  } else if (!VALID_APP_NAMES.includes(obj.appName as typeof VALID_APP_NAMES[number])) {
+    return { isValid: false, error: 'このファイルは対象アプリのデータではありません。' };
   }
+
   if (!obj.data || typeof obj.data !== 'object') {
     return { isValid: false, error: 'データが見つかりません。' };
   }
@@ -151,17 +162,18 @@ export function validateImportData(data: unknown): ValidationResult {
 }
 
 // ファイルとしてダウンロード
-export function downloadAsJson(data: ExportData, filename?: string): void {
+export function downloadAsJson(data: ExportData, filenamePrefix?: string): void {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
 
   const date = new Date().toISOString().split('T')[0];
-  const defaultFilename = `inheritance-tax-docs-${date}.json`;
+  const prefix = filenamePrefix || data.appName || 'docs';
+  const filename = `${prefix}-${date}.json`;
 
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename || defaultFilename;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

@@ -2,6 +2,7 @@ import {
   FileText,
   FileCheck,
   Building,
+  Building2,
   Landmark,
   CreditCard,
   Shield,
@@ -9,6 +10,8 @@ import {
   Gift,
   Receipt,
   Users,
+  HandCoins,
+  FolderOpen,
 } from 'lucide-react';
 import type { IconName } from '../constants/documents';
 
@@ -16,6 +19,7 @@ const iconComponents = {
   Users,
   FileCheck,
   Building,
+  Building2,
   Landmark,
   FileText,
   CreditCard,
@@ -23,6 +27,8 @@ const iconComponents = {
   Car,
   Gift,
   Receipt,
+  HandCoins,
+  FolderOpen,
 } as const;
 
 /**
