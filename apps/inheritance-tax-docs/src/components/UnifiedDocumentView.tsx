@@ -1,18 +1,18 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { Info, AlertCircle } from 'lucide-react';
-import { type CustomDocumentItem, type DocChanges } from '../constants/documents';
 import type { PageConfig } from '../constants/pageConfig';
 import { COMPANY_INFO, getFullAddress, getContactLine } from '../utils/company';
 import { exportToExcel } from '../utils/excelExporter';
-import { type ExportData } from '../utils/jsonDataManager';
 import { formatDate } from '../utils/helpers';
 import { useJsonImport } from '../hooks/useJsonImport';
 import { useFilterState } from '../hooks/useFilterState';
+import type { DocumentGuideReturn } from '../hooks/useDocumentGuide';
 import { DismissibleBanner } from './ui/DismissibleBanner';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { EditableCategoryTable } from './ui/EditableCategoryTable';
 import { ToolbarHeader } from './ui/ToolbarHeader';
 import { FilterToolbar } from './ui/FilterToolbar';
+import { DocumentFormModal } from './ui/DocumentFormModal';
 
 export type { FilterCriteria } from '../hooks/useFilterState';
 
@@ -20,84 +20,36 @@ const FORM_INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-lg fo
 
 interface UnifiedDocumentViewProps {
   pageConfig: PageConfig;
-  isDirty: boolean;
-  lastSavedAt: string | null;
-  clientName: string;
-  deceasedName: string;
-  deadline: string;
-  personInCharge: string;
-  personInChargeContact: string;
-  expandedCategories: Record<string, boolean>;
-  customDocuments: CustomDocumentItem[];
-  documentOrder: Record<string, string[]>;
-  editedDocuments: Record<string, DocChanges>;
-  canDelegateOverrides: Record<string, boolean>;
-  specificDocNames: Record<string, string[]>;
-  checkedDocuments: Record<string, boolean>;
-  checkedDates: Record<string, string>;
-  documentMemos: Record<string, string>;
-  excludedDocuments: Record<string, boolean>;
-  urgentDocuments: Record<string, boolean>;
-  disabledCategories: Record<string, boolean>;
-  deleteConfirmation: { type: 'document' | 'category'; name: string } | null;
-  hasCustomizations: boolean;
-  onClientNameChange: (value: string) => void;
-  onDeceasedNameChange: (value: string) => void;
-  onDeadlineChange: (value: string) => void;
-  onPersonInChargeChange: (value: string) => void;
-  onPersonInChargeContactChange: (value: string) => void;
-  onToggleExpanded: (categoryId: string) => void;
-  onExpandAll: () => void;
-  onCollapseAll: () => void;
-  onReorderDocuments: (categoryId: string, newOrder: string[]) => void;
-  onToggleCanDelegate: (docId: string, originalCanDelegate: boolean) => void;
-  onAddSpecificName: (docId: string, name: string) => void;
-  onEditSpecificName: (docId: string, index: number, name: string) => void;
-  onRemoveSpecificName: (docId: string, index: number) => void;
-  onReorderSpecificNames: (docId: string, newNames: string[]) => void;
-  onToggleDocumentCheck: (docId: string) => void;
-  onToggleAllInCategory: (categoryId: string, checked: boolean) => void;
-  onSetDocumentMemo: (docId: string, memo: string) => void;
-  onToggleExcluded: (docId: string) => void;
-  onToggleUrgent: (docId: string) => void;
-  onToggleCategoryDisabled: (categoryId: string) => void;
-  onRemoveDocument: (docId: string, categoryId: string, name: string) => void;
-  onRemoveCategory: (categoryId: string, name: string) => void;
-  onConfirmDelete: () => void;
-  onCancelDelete: () => void;
-  onResetToDefault: () => void;
-  onExportJson: () => void;
-  onImportJson: (data: ExportData) => void;
-  onOpenAddModal: (categoryId: string) => void;
-  onStartEdit: (docId: string) => void;
-  getSelectedDocuments: () => import('../constants/documents').CategoryDocuments[];
+  guide: DocumentGuideReturn;
 }
 
-function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
+function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentViewProps) {
   const {
-    pageConfig, isDirty, lastSavedAt,
+    isDirty, lastSavedAt,
     clientName, deceasedName, deadline, personInCharge, personInChargeContact,
     expandedCategories, customDocuments, documentOrder,
     editedDocuments, canDelegateOverrides, specificDocNames, checkedDocuments,
     checkedDates, documentMemos, excludedDocuments, urgentDocuments, disabledCategories,
     deleteConfirmation, hasCustomizations,
-    onClientNameChange, onDeceasedNameChange, onDeadlineChange,
-    onPersonInChargeChange, onPersonInChargeContactChange,
-    onToggleExpanded, onExpandAll, onCollapseAll,
-    onReorderDocuments, onToggleCanDelegate,
-    onAddSpecificName, onEditSpecificName, onRemoveSpecificName, onReorderSpecificNames,
-    onToggleDocumentCheck, onToggleAllInCategory,
-    onSetDocumentMemo, onToggleExcluded, onToggleUrgent, onToggleCategoryDisabled,
-    onRemoveDocument, onRemoveCategory,
-    onConfirmDelete, onCancelDelete, onResetToDefault,
-    onExportJson, onImportJson, onOpenAddModal, onStartEdit,
-    getSelectedDocuments,
-  } = props;
+    setClientName, setDeceasedName, setDeadline, setPersonInCharge, setPersonInChargeContact,
+    toggleExpanded, expandAll, collapseAll,
+    reorderDocuments, toggleCanDelegate,
+    addSpecificName, editSpecificName, removeSpecificName, reorderSpecificNames,
+    toggleDocumentCheck, toggleAllInCategory,
+    setDocumentMemo, toggleExcluded, toggleUrgent, toggleCategoryDisabled,
+    requestDelete, requestDeleteCategory, confirmDelete, cancelDelete,
+    resetToDefault,
+    exportToJson, importFromJson, getSelectedDocuments,
+    // モーダル
+    editingDocId, editingDocData, isModalOpen, modalVariant,
+    openEditModal, openAddModal, closeModal,
+    handleEditSubmit, handleAddSubmit,
+  } = guide;
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess } = useJsonImport(onImportJson, pageConfig.appName);
+  const { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess } = useJsonImport(importFromJson, pageConfig.appName);
   const [hideSubmittedInPrint, setHideSubmittedInPrint] = useState(false);
   const currentDate = useMemo(() => formatDate(new Date()), []);
   const filter = useFilterState();
@@ -107,12 +59,12 @@ function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
     clientName, deceasedName, deadline, personInCharge, personInChargeContact,
   }), [clientName, deceasedName, deadline, personInCharge, personInChargeContact]);
   const fieldSetters = useMemo(() => ({
-    clientName: onClientNameChange,
-    deceasedName: onDeceasedNameChange,
-    deadline: onDeadlineChange,
-    personInCharge: onPersonInChargeChange,
-    personInChargeContact: onPersonInChargeContactChange,
-  }), [onClientNameChange, onDeceasedNameChange, onDeadlineChange, onPersonInChargeChange, onPersonInChargeContactChange]);
+    clientName: setClientName,
+    deceasedName: setDeceasedName,
+    deadline: setDeadline,
+    personInCharge: setPersonInCharge,
+    personInChargeContact: setPersonInChargeContact,
+  }), [setClientName, setDeceasedName, setDeadline, setPersonInCharge, setPersonInChargeContact]);
 
   // 未保存変更の離脱警告
   useEffect(() => {
@@ -145,13 +97,13 @@ function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === 's') { e.preventDefault(); onExportJson(); }
+        if (e.key === 's') { e.preventDefault(); exportToJson(); }
         if (e.key === 'e') { e.preventDefault(); handleExcelExport(); }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onExportJson, handleExcelExport]);
+  }, [exportToJson, handleExcelExport]);
 
   const toggleHideSubmittedInPrint = useCallback(() => setHideSubmittedInPrint(p => !p), []);
 
@@ -169,7 +121,7 @@ function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
           hasCustomizations={hasCustomizations}
           isExporting={isExporting}
           isImporting={isImporting}
-          onSave={onExportJson}
+          onSave={exportToJson}
           onExcelExport={handleExcelExport}
           onReset={() => setShowResetConfirm(true)}
           onJsonImport={handleJsonImport}
@@ -207,7 +159,7 @@ function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
         {showResetConfirm && (
           <ConfirmDialog
             title="書類設定を初期化"
-            onConfirm={() => { onResetToDefault(); setShowResetConfirm(false); }}
+            onConfirm={() => { resetToDefault(); setShowResetConfirm(false); }}
             onCancel={() => setShowResetConfirm(false)}
             confirmLabel="初期化する"
           >
@@ -232,8 +184,8 @@ function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
         {deleteConfirmation && (
           <ConfirmDialog
             title={deleteConfirmation.type === 'document' ? '書類を削除' : 'カテゴリを削除'}
-            onConfirm={onConfirmDelete}
-            onCancel={onCancelDelete}
+            onConfirm={confirmDelete}
+            onCancel={cancelDelete}
           >
             <p className="text-sm text-slate-600 mb-4">
               「{deleteConfirmation.name}」を削除しますか？
@@ -273,8 +225,8 @@ function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
           filter={filter}
           hideSubmittedInPrint={hideSubmittedInPrint}
           onToggleHideSubmittedInPrint={toggleHideSubmittedInPrint}
-          onExpandAll={onExpandAll}
-          onCollapseAll={onCollapseAll}
+          onExpandAll={expandAll}
+          onCollapseAll={collapseAll}
         />
 
         {/* 注意事項 */}
@@ -306,30 +258,31 @@ function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
               editedDocuments={editedDocuments}
               canDelegateOverrides={canDelegateOverrides}
               specificDocNames={specificDocNames}
-              onToggleExpanded={onToggleExpanded}
-              onReorderDocuments={onReorderDocuments}
-              onToggleCanDelegate={onToggleCanDelegate}
-              onAddSpecificName={onAddSpecificName}
-              onEditSpecificName={onEditSpecificName}
-              onRemoveSpecificName={onRemoveSpecificName}
-              onReorderSpecificNames={onReorderSpecificNames}
+              onToggleExpanded={toggleExpanded}
+              onReorderDocuments={reorderDocuments}
+              onToggleCanDelegate={toggleCanDelegate}
+              onAddSpecificName={addSpecificName}
+              onEditSpecificName={editSpecificName}
+              onRemoveSpecificName={removeSpecificName}
+              onReorderSpecificNames={reorderSpecificNames}
               checkedDocuments={checkedDocuments}
               checkedDates={checkedDates}
               documentMemos={documentMemos}
               excludedDocuments={excludedDocuments}
               urgentDocuments={urgentDocuments}
-              onToggleDocumentCheck={onToggleDocumentCheck}
-              onToggleAllInCategory={onToggleAllInCategory}
-              onSetDocumentMemo={onSetDocumentMemo}
-              onToggleExcluded={onToggleExcluded}
-              onToggleUrgent={onToggleUrgent}
-              onToggleCategoryDisabled={onToggleCategoryDisabled}
-              onRemoveDocument={onRemoveDocument}
-              onRemoveCategory={onRemoveCategory}
+              onToggleDocumentCheck={toggleDocumentCheck}
+              onToggleAllInCategory={toggleAllInCategory}
+              onSetDocumentMemo={setDocumentMemo}
+              onToggleExcluded={toggleExcluded}
+              onToggleUrgent={toggleUrgent}
+              onToggleCategoryDisabled={toggleCategoryDisabled}
+              onRemoveDocument={requestDelete}
+              onRemoveCategory={requestDeleteCategory}
               hideSubmittedInPrint={hideSubmittedInPrint}
               filterCriteria={filter.criteria}
-              onOpenAddModal={onOpenAddModal}
-              onStartEdit={onStartEdit}
+              hasActiveFilter={filter.hasActiveFilters}
+              onOpenAddModal={openAddModal}
+              onStartEdit={openEditModal}
             />
           ))}
         </div>
@@ -349,6 +302,15 @@ function UnifiedDocumentViewComponent(props: UnifiedDocumentViewProps) {
           </div>
         </div>
       </div>
+
+      {/* 書類編集/追加モーダル */}
+      <DocumentFormModal
+        isOpen={isModalOpen}
+        variant={modalVariant}
+        initialValues={editingDocId ? editingDocData : undefined}
+        onSubmit={editingDocId ? handleEditSubmit : handleAddSubmit}
+        onClose={closeModal}
+      />
     </div>
   );
 }

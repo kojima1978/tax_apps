@@ -393,3 +393,5 @@ export function useDocumentGuide({ categories, appName, filenamePrefix }: UseDoc
     exportToJson, importFromJson, getSelectedDocuments,
   };
 }
+
+export type DocumentGuideReturn = ReturnType<typeof useDocumentGuide>;

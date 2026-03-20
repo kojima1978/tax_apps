@@ -22,13 +22,14 @@ import { getIcon } from '../../utils/iconMap';
 import { SortableDocumentRow, StaticDocumentRow, type EditableDocumentRowProps } from './EditableDocumentRow';
 import { SpecificNamesTableRows } from './SpecificNamesList';
 
-/** カテゴリヘッダー（展開/折りたたみ、操作ボタン） */
+/** カテゴリヘッダー（展開/折りたたみ、操作ボタン、無効状態） */
 const CategoryHeader = memo(function CategoryHeader({
-  category, categoryIndex, isExpanded, allChecked, someChecked,
-  urgentCount,
+  category, categoryIndex, isExpanded, isDisabled, totalCount,
+  allChecked, someChecked, urgentCount,
   onToggleExpanded, onToggleCategoryDisabled, onRemoveCategory, onToggleAllInCategory,
 }: {
   category: CategoryData; categoryIndex: number; isExpanded: boolean;
+  isDisabled: boolean; totalCount: number;
   allChecked: boolean; someChecked: boolean;
   urgentCount: number;
   onToggleExpanded: (categoryId: string) => void;
@@ -36,18 +37,49 @@ const CategoryHeader = memo(function CategoryHeader({
   onRemoveCategory: (categoryId: string, name: string) => void;
   onToggleAllInCategory: (categoryId: string, checked: boolean) => void;
 }) {
+  const handleClick = () => onToggleExpanded(category.id);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); }
+  };
+
+  if (isDisabled) {
+    return (
+      <div
+        className="flex items-center justify-between p-3 cursor-pointer rounded-lg bg-slate-100 opacity-50 no-print"
+        onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="flex items-center">
+          <span className="mr-2 text-slate-400">{getIcon(category.iconName, 'w-6 h-6')}</span>
+          <span className="font-bold text-lg text-slate-400 line-through">{toCircledNumber(categoryIndex)} {category.name}</span>
+          <span className="ml-2 text-sm text-slate-400">({totalCount}件)</span>
+          <span className="ml-2 px-2 py-0.5 text-xs bg-slate-200 text-slate-500 rounded">対象外</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleCategoryDisabled(category.id); }}
+            className="flex items-center px-2.5 py-1 text-xs rounded-lg font-medium bg-slate-300 text-slate-700 hover:bg-slate-400 transition-colors"
+            title="カテゴリを有効にする"
+          >
+            <Power className="w-3.5 h-3.5 mr-1" /> 有効にする
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`flex items-center justify-between p-3 cursor-pointer rounded-t-lg transition-colors hover:opacity-90 print:cursor-default print:p-1 ${
         allChecked ? 'bg-emerald-100 border border-emerald-300' : category.bgColor
       }`}
-      onClick={() => onToggleExpanded(category.id)}
+      onClick={handleClick}
       role="button"
       tabIndex={0}
       aria-expanded={isExpanded}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleExpanded(category.id); }
-      }}
+      onKeyDown={handleKeyDown}
     >
       <div className="flex items-center gap-2">
         <span className={`print:mr-1 ${allChecked ? 'text-emerald-600' : category.color}`}>
@@ -127,6 +159,7 @@ interface EditableCategoryTableProps {
   onRemoveCategory: (categoryId: string, name: string) => void;
   hideSubmittedInPrint: boolean;
   filterCriteria: FilterCriteria;
+  hasActiveFilter: boolean;
   onOpenAddModal: (categoryId: string) => void;
   onStartEdit: (docId: string) => void;
 }
@@ -163,6 +196,7 @@ function EditableCategoryTableComponent({
   onRemoveCategory,
   hideSubmittedInPrint,
   filterCriteria,
+  hasActiveFilter,
   onOpenAddModal,
   onStartEdit,
 }: EditableCategoryTableProps) {
@@ -295,37 +329,23 @@ function EditableCategoryTableComponent({
   if (isDisabled) {
     return (
       <div className="print:hidden print-compact-section">
-        <div
-          className="flex items-center justify-between p-3 cursor-pointer rounded-lg bg-slate-100 opacity-50 no-print"
-          onClick={() => onToggleExpanded(category.id)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleExpanded(category.id); }
-          }}
-        >
-          <div className="flex items-center">
-            <span className="mr-2 text-slate-400">{getIcon(category.iconName, 'w-6 h-6')}</span>
-            <span className="font-bold text-lg text-slate-400 line-through">{toCircledNumber(categoryIndex)} {category.name}</span>
-            <span className="ml-2 text-sm text-slate-400">({totalCount}件)</span>
-            <span className="ml-2 px-2 py-0.5 text-xs bg-slate-200 text-slate-500 rounded">対象外</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={(e) => { e.stopPropagation(); onToggleCategoryDisabled(category.id); }}
-              className="flex items-center px-2.5 py-1 text-xs rounded-lg font-medium bg-slate-300 text-slate-700 hover:bg-slate-400 transition-colors"
-              title="カテゴリを有効にする"
-            >
-              <Power className="w-3.5 h-3.5 mr-1" /> 有効にする
-            </button>
-          </div>
-        </div>
+        <CategoryHeader
+          category={category}
+          categoryIndex={categoryIndex}
+          isExpanded={false}
+          isDisabled
+          totalCount={totalCount}
+          allChecked={false}
+          someChecked={false}
+          urgentCount={0}
+          onToggleExpanded={onToggleExpanded}
+          onToggleCategoryDisabled={onToggleCategoryDisabled}
+          onRemoveCategory={onRemoveCategory}
+          onToggleAllInCategory={onToggleAllInCategory}
+        />
       </div>
     );
   }
-
-  // フィルターで全ドキュメントが非表示の場合、カテゴリ自体を非表示（print時は常に表示）
-  const hasActiveFilter = filterCriteria.searchQuery !== '' || filterCriteria.showOnlyUnchecked || filterCriteria.showOnlyDelegatable || filterCriteria.showOnlyUrgent || filterCriteria.hideExcluded;
 
   return (
     <div className={`print-compact-section ${allChecked && hideSubmittedInPrint ? 'print:hidden' : ''} ${hasActiveFilter && !hasVisibleDocs ? 'hidden print:block' : ''}`}>
@@ -333,6 +353,8 @@ function EditableCategoryTableComponent({
         category={category}
         categoryIndex={categoryIndex}
         isExpanded={isExpanded}
+        isDisabled={false}
+        totalCount={totalCount}
         allChecked={allChecked}
         someChecked={someChecked}
         urgentCount={urgentCount}
