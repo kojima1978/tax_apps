@@ -45,15 +45,13 @@ const CONTACT_FIELD_MAP: Record<string, 'name' | 'phone' | 'email'> = {
 };
 
 // ── Types ──────────────────────────────────
-export interface ImportError {
+export interface ImportIssue {
   row: number;
   message: string;
 }
 
-export interface ImportWarning {
-  row: number;
-  message: string;
-}
+export type ImportError = ImportIssue;
+export type ImportWarning = ImportIssue;
 
 export interface ImportRow {
   data: CreateCaseInput;
