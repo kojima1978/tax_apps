@@ -230,7 +230,7 @@ inheritance-case-management/
 | GET | `/api/cases` | 案件一覧取得（ページネーション・フィルタ・ソート） |
 | POST | `/api/cases` | 案件作成（連絡先・進捗含む） |
 | GET | `/api/cases/:id` | 案件詳細取得（リレーション含む） |
-| PUT | `/api/cases/:id` | 案件更新（連絡先・進捗の洗い替え） |
+| PUT | `/api/cases/:id` | 案件更新（連絡先・進捗の洗い替え、楽観ロック対応） |
 | DELETE | `/api/cases/:id` | 案件削除（連絡先・進捗もカスケード削除） |
 
 **GET /api/cases クエリパラメータ:**
@@ -247,6 +247,18 @@ inheritance-case-management/
 | search | string | 被相続人氏名の部分一致検索 |
 | sortBy | string | ソートキー（createdAt/dateOfDeath/deceasedName/fiscalYear/taxAmount/feeAmount等） |
 | sortOrder | string | ソート順（asc/desc） |
+
+**PUT /api/cases/:id 楽観ロック（Optimistic Locking）:**
+
+リクエストボディに `updatedAt`（ISO 8601）を含めると、DBの `updatedAt` と比較し、不一致の場合は **409 Conflict** を返す。`updatedAt` を省略した場合はロックなし（後方互換）。
+
+```json
+// リクエスト例
+{ "summary": "更新内容", "updatedAt": "2026-03-20T10:00:00.000Z" }
+
+// 競合時レスポンス (409)
+{ "error": "他のユーザーが先に更新しました。画面を再読み込みしてください。", "code": "CONFLICT" }
+```
 
 ### 担当者 `/api/assignees`
 
@@ -372,6 +384,7 @@ erDiagram
 - **DB正規化**: Company テーブル分離（3NF）、dateOfDeath/progress.date を PostgreSQL `date` 型に変更
 - **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
+- **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知（案件詳細・進捗モーダル・特記事項インライン編集の3箇所）
 
 ## クイックスタート
 

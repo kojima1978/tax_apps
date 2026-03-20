@@ -153,12 +153,18 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 toast.success("新規登録しました")
                 router.push("/")
             } else {
-                await updateCase(formData.id, payload)
+                const updatedAt = formData.updatedAt ? new Date(formData.updatedAt).toISOString() : undefined
+                const result = await updateCase(formData.id, payload, updatedAt)
+                setFormData(prev => ({ ...prev, updatedAt: result.updatedAt }))
                 toast.success("保存しました")
                 router.refresh()
             }
         } catch (e) {
             console.error(e)
+            if (e instanceof Error && 'status' in e && (e as { status: number }).status === 409) {
+                toast.error("他のユーザーが先に更新しました。画面を再読み込みしてください。")
+                return
+            }
             toast.error("エラーが発生しました: " + String(e))
         } finally {
             setIsSaving(false)

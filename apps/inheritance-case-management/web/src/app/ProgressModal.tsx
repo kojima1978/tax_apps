@@ -109,12 +109,17 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
                 newStatus = statusPrompt.status
             }
 
-            await updateCase(caseData.id, { progress: steps, ...(newStatus && { status: newStatus }) })
+            const updatedAt = caseData.updatedAt ? new Date(caseData.updatedAt).toISOString() : undefined
+            const result = await updateCase(caseData.id, { progress: steps, ...(newStatus && { status: newStatus }) }, updatedAt)
             if (newStatus) caseData.status = newStatus
             caseData.progress = toProgressItems(steps)
+            caseData.updatedAt = result.updatedAt
             setSaved(true)
-        } catch {
-            // エラー時は何もしない
+        } catch (e) {
+            if (e instanceof Error && 'status' in e && (e as { status: number }).status === 409) {
+                alert("他のユーザーが先に更新しました。画面を再読み込みしてください。")
+                return
+            }
         } finally {
             setIsSaving(false)
         }
