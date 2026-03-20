@@ -33,6 +33,20 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     const data = updateCaseSchema.parse(body);
 
     const updated = await prisma.$transaction(async (tx) => {
+      // 楽観ロック: updatedAt が送られた場合、DB の値と比較
+      if (data.updatedAt) {
+        const current = await tx.inheritanceCase.findUnique({
+          where: { id },
+          select: { updatedAt: true },
+        });
+        if (!current) {
+          throw { _optimisticLock: true, code: 'NOT_FOUND' };
+        }
+        if (current.updatedAt.toISOString() !== data.updatedAt) {
+          throw { _optimisticLock: true, code: 'CONFLICT' };
+        }
+      }
+
       // Delete + recreate contacts if provided
       if (data.contacts !== undefined) {
         await tx.caseContact.deleteMany({ where: { caseId: id } });
@@ -87,6 +101,16 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json(serializeCase(updated));
   } catch (e) {
+    if (e && typeof e === 'object' && '_optimisticLock' in e) {
+      const err = e as { code: string };
+      if (err.code === 'NOT_FOUND') {
+        return NextResponse.json({ error: '案件が見つかりません', code: 'NOT_FOUND' }, { status: 404 });
+      }
+      return NextResponse.json(
+        { error: '他のユーザーが先に更新しました。画面を再読み込みしてください。', code: 'CONFLICT' },
+        { status: 409 }
+      );
+    }
     return handleApiError(e);
   }
 }

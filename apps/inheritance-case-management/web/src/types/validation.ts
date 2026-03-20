@@ -42,7 +42,9 @@ export const createCaseSchema = z.object({
   progress: z.array(progressStepSchema).optional(),
 });
 
-export const updateCaseSchema = createCaseSchema.partial();
+export const updateCaseSchema = createCaseSchema.partial().extend({
+  updatedAt: z.string().optional(), // 楽観ロック用（ISO 8601）
+});
 
 export const caseIdParamSchema = z.object({
   id: z.coerce.number().int('無効なID形式です'),

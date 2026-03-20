@@ -27,10 +27,15 @@ export function InlineSummaryCell({ caseData }: { caseData: InheritanceCase }) {
         }
         setIsSaving(true)
         try {
-            await updateCase(caseData.id, { summary: trimmed || null })
+            const updatedAt = caseData.updatedAt ? new Date(caseData.updatedAt).toISOString() : undefined
+            const result = await updateCase(caseData.id, { summary: trimmed || null }, updatedAt)
             caseData.summary = trimmed || undefined
+            caseData.updatedAt = result.updatedAt
             setValue(trimmed)
-        } catch {
+        } catch (e) {
+            if (e instanceof Error && 'status' in e && (e as { status: number }).status === 409) {
+                alert("他のユーザーが先に更新しました。画面を再読み込みしてください。")
+            }
             setValue(caseData.summary || "")
         } finally {
             setIsSaving(false)

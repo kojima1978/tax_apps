@@ -42,10 +42,10 @@ export async function createCase(data: CreateCaseInput): Promise<InheritanceCase
   });
 }
 
-export async function updateCase(id: number, data: UpdateCaseInput): Promise<InheritanceCase> {
+export async function updateCase(id: number, data: UpdateCaseInput, updatedAt?: string): Promise<InheritanceCase> {
   return apiClient<InheritanceCase>(`/cases/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, ...(updatedAt && { updatedAt }) }),
   });
 }
 
