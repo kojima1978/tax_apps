@@ -1,5 +1,5 @@
 import { useCallback, type ChangeEvent, type KeyboardEvent } from 'react';
-import { type GiftType } from '@/lib/tax-calculation';
+import { type GiftType, GIFT_TYPE_OPTIONS } from '@/lib/tax-calculation';
 
 type Props = {
     amount: string;
@@ -54,8 +54,9 @@ const InputSection = ({
                         value={giftType}
                         onChange={(e) => setGiftType(e.target.value as GiftType)}
                     >
-                        <option value="special">特例贈与 (直系尊属→18歳以上)</option>
-                        <option value="general">一般贈与 (その他)</option>
+                        {GIFT_TYPE_OPTIONS.map(({ value, label }) => (
+                            <option key={value} value={value}>{label}</option>
+                        ))}
                     </select>
                 </div>
 

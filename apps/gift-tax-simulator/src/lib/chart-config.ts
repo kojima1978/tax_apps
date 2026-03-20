@@ -28,8 +28,16 @@ export const BASE_CHART_OPTIONS = {
     },
 } as const;
 
-export const formatTooltipYen = (context: TooltipItem<'bar'>) => {
+const formatTooltipYen = (context: TooltipItem<'bar'>) => {
     const label = context.dataset.label || '';
     const value = context.parsed.y;
     return value !== null ? `${label}: ${formatCurrency(value)} 円` : label;
 };
+
+export const CHART_OPTIONS = {
+    ...BASE_CHART_OPTIONS,
+    plugins: {
+        ...BASE_CHART_OPTIONS.plugins,
+        tooltip: { callbacks: { label: formatTooltipYen } },
+    },
+} as const;
