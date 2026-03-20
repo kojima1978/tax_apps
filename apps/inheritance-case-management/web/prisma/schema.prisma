@@ -11,9 +11,9 @@ datasource db {
 model InheritanceCase {
   id                Int      @id @default(autoincrement())
   deceasedName      String
-  dateOfDeath       String
-  status            String   @default("未着手") // "未着手" | "進行中" | "申告済" | "入金済" | "対応終了"
-  acceptanceStatus  String?  @default("未判定") // "受託可" | "受託不可" | "未判定" | "保留"
+  dateOfDeath       DateTime @db.Date // YYYY-MM-DD（CHECK制約で検証済み）
+  status            String   @default("未着手") // CHECK制約: 未着手/手続中/申告済/請求済/入金済/対応終了
+  acceptanceStatus  String?  @default("未判定") // CHECK制約: 受託可/受託不可/未判定/保留
   taxAmount         Int?     @default(0)
   feeAmount         Int?     @default(0)
   fiscalYear        Int
@@ -65,9 +65,19 @@ model Assignee {
   @@index([name])
 }
 
+model Company {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  referrers Referrer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Referrer {
   id         Int      @id @default(autoincrement())
-  company    String
+  companyId  Int
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
   name       String
   department String?
   active     Boolean  @default(true)
@@ -78,7 +88,7 @@ model Referrer {
   updatedAt  DateTime @updatedAt
 
   @@index([active])
-  @@index([company])
+  @@index([companyId])
 }
 
 model CaseContact {
@@ -100,7 +110,7 @@ model CaseProgress {
   stepId    String
   name      String
   sortOrder Int             @default(0)
-  date      String?
+  date      DateTime?       @db.Date // YYYY-MM-DD
   memo      String?
   isDynamic Boolean         @default(false)
 

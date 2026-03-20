@@ -143,7 +143,7 @@ export function BasicInfoSection({
                     editLabel="紹介者を追加・編集"
                     renderOption={(r) => ({
                         value: r.id,
-                        label: r.department ? `${r.company} / ${r.department} / ${r.name}` : `${r.company} / ${r.name}`,
+                        label: r.department ? `${r.company.name} / ${r.department} / ${r.name}` : `${r.company.name} / ${r.name}`,
                     })}
                     onChange={handleChange}
                 />

@@ -162,8 +162,8 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
 
         // Rankings
         accumulateRanking(assigneeMap, c.assignee?.name || "未設定", netAmount)
-        accumulateRanking(referrerMap, c.referrer ? `${c.referrer.company} / ${c.referrer.name}` : "なし", c.referralFeeAmount || 0)
-        accumulateRanking(companyMap, c.referrer?.company || "なし", c.referralFeeAmount || 0)
+        accumulateRanking(referrerMap, c.referrer ? `${c.referrer.company.name} / ${c.referrer.name}` : "なし", c.referralFeeAmount || 0)
+        accumulateRanking(companyMap, c.referrer?.company.name || "なし", c.referralFeeAmount || 0)
         accumulateRanking(deptRankingMap, deptMap.get(c.assignee?.name || "") || "未設定", netAmount)
     })
 

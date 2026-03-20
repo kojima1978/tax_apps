@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { updateCaseSchema, caseIdParamSchema } from '@/types/validation';
-import { CASE_INCLUDE, toContactCreateData, toProgressCreateData } from '@/lib/prisma-includes';
+import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -19,7 +19,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: '案件が見つかりません', code: 'NOT_FOUND' }, { status: 404 });
     }
 
-    return NextResponse.json(caseItem);
+    return NextResponse.json(serializeCase(caseItem));
   } catch (e) {
     return handleApiError(e);
   }
@@ -54,7 +54,11 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 
       for (const field of scalarFields) {
         if (field in data) {
-          updateData[field] = data[field as keyof typeof data];
+          if (field === 'dateOfDeath') {
+            updateData[field] = toDate(data[field] as string);
+          } else {
+            updateData[field] = data[field as keyof typeof data];
+          }
         }
       }
 
@@ -81,7 +85,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       });
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(serializeCase(updated));
   } catch (e) {
     return handleApiError(e);
   }

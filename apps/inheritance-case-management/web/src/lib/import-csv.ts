@@ -98,8 +98,8 @@ export function buildResolverMaps(assignees: Assignee[], referrers: Referrer[]):
 
   const referrerNameToId = new Map<string, number>();
   referrers.forEach((r) => {
-    referrerNameToId.set(`${r.company} / ${r.name}`, r.id);
-    referrerNameToId.set(r.company, r.id);
+    referrerNameToId.set(`${r.company.name} / ${r.name}`, r.id);
+    referrerNameToId.set(r.company.name, r.id);
   });
 
   return { assigneeNameToId, referrerNameToId };

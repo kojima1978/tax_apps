@@ -122,7 +122,7 @@ inheritance-case-management/
     ├── package.json
     ├── next.config.ts          # basePath: /itcm
     ├── prisma/
-    │   └── schema.prisma       # DBスキーマ（5モデル）
+    │   └── schema.prisma       # DBスキーマ（6モデル: Case, Assignee, Company, Referrer, Contact, Progress）
     └── src/
         ├── app/
         │   ├── page.tsx                # 案件一覧
@@ -282,13 +282,14 @@ erDiagram
     InheritanceCase ||--o{ CaseProgress : "has many"
     InheritanceCase }o--|| Assignee : "belongs to"
     InheritanceCase }o--|| Referrer : "belongs to"
+    Referrer }o--|| Company : "belongs to"
 
     InheritanceCase {
         int id PK "自動採番"
         string deceasedName "被相続人氏名"
-        string dateOfDeath "相続開始日"
-        string status "ステータス（未着手/手続中/申告済/請求済/入金済/対応終了）"
-        string acceptanceStatus "受託状況（受託可/受託不可/未判定/保留）"
+        date dateOfDeath "相続開始日（YYYY-MM-DD）"
+        string status "ステータス（CHECK制約: 未着手/手続中/申告済/請求済/入金済/対応終了）"
+        string acceptanceStatus "受託状況（CHECK制約: 受託可/受託不可/未判定/保留）"
         int taxAmount "相続税額"
         int feeAmount "報酬額"
         int fiscalYear "年度"
@@ -316,9 +317,16 @@ erDiagram
         datetime updatedAt
     }
 
+    Company {
+        int id PK "自動採番"
+        string name UK "会社名（ユニーク）"
+        datetime createdAt
+        datetime updatedAt
+    }
+
     Referrer {
         int id PK "自動採番"
-        string company "会社名"
+        int companyId FK "会社（Company）"
         string name "担当者名"
         string department "部署"
         boolean active "有効フラグ"
@@ -341,7 +349,7 @@ erDiagram
         string stepId "ステップ識別子"
         string name "ステップ名"
         int sortOrder "並び順"
-        string date "完了日"
+        date date "完了日（YYYY-MM-DD）"
         string memo "メモ"
         boolean isDynamic "動的追加フラグ"
     }
@@ -361,6 +369,9 @@ erDiagram
 - **UIコンポーネント抽出**: `MultiSelectDropdown`・`CompanySuggestInput` を汎用UIとして分離
 - **共通フック抽出**: `useClickOutside` でドロップダウン外クリック検知を共通化
 - **ヘルパーDRY**: CSV出力の `downloadCSVBlob` でBOM付きダウンロード処理を一元化
+- **DB正規化**: Company テーブル分離（3NF）、dateOfDeath/progress.date を PostgreSQL `date` 型に変更
+- **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
+- **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
 
 ## クイックスタート
 

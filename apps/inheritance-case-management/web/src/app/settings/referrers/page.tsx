@@ -10,7 +10,7 @@ import { useMasterList, nextTempId } from "@/hooks/use-master-list"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 
 const columns: ColumnDef<Referrer>[] = [
-    { key: "company", label: "会社名" },
+    { key: "company", label: "会社名", renderCell: (r) => r.company.name },
     { key: "department", label: "部署", width: "200px", renderCell: (r) => r.department || "-" },
     { key: "name", label: "氏名", width: "200px" },
 ]
@@ -27,22 +27,22 @@ function ReferrerSettingsContent() {
         create: createReferrer,
         update: updateReferrer,
         remove: deleteReferrer,
-        getCreatePayload: (r) => ({ company: r.company, department: r.department, name: r.name }),
-        getUpdatePayload: (r) => ({ company: r.company, department: r.department, name: r.name, active: r.active }),
+        getCreatePayload: (r) => ({ company: r.company.name, department: r.department, name: r.name }),
+        getUpdatePayload: (r) => ({ company: r.company.name, department: r.department, name: r.name, active: r.active }),
         entityLabel: "紹介者",
         savedParam: "referrers",
         sortFields: ["company", "department", "name"],
         getSortValue: (r, field) => {
-            if (field === "company") return r.company
+            if (field === "company") return r.company.name
             if (field === "department") return r.department || ""
             return r.name
         },
-        getDeleteLabel: (r) => `${r.company} / ${r.name}`,
+        getDeleteLabel: (r) => `${r.company.name} / ${r.name}`,
     })
 
     // 既存の会社名一覧（重複排除・サジェスト用）
     const companySuggestions = useMemo(() => {
-        const names = new Set(masterList.items.map((r: Referrer) => r.company))
+        const names = new Set(masterList.items.map((r: Referrer) => r.company.name))
         return Array.from(names).sort((a, b) => a.localeCompare(b, "ja"))
     }, [masterList.items])
 
@@ -55,7 +55,8 @@ function ReferrerSettingsContent() {
         setNewCompanyError(""); setNewNameError("")
         masterList.handleAdd({
             id: nextTempId(),
-            company: newCompany.trim(),
+            companyId: 0,
+            company: { id: 0, name: newCompany.trim() },
             department: newDept.trim(),
             name: newName.trim(),
             active: true,
@@ -66,13 +67,13 @@ function ReferrerSettingsContent() {
     const handleSaveEdit = () => {
         const newCompanyName = masterList.editingFields.company?.trim()
         const editingItem = masterList.items.find((r: Referrer) => r.id === masterList.editingId)
-        const oldCompanyName = editingItem?.company
+        const oldCompanyName = editingItem?.company.name
 
         masterList.handleSaveEdit(
             () => !!(newCompanyName && masterList.editingFields.name?.trim()),
             (item) => ({
                 ...item,
-                company: newCompanyName!,
+                company: { ...item.company, name: newCompanyName! },
                 department: masterList.editingFields.department?.trim() || "",
                 name: masterList.editingFields.name.trim(),
             })
@@ -80,12 +81,12 @@ function ReferrerSettingsContent() {
 
         // 会社名が変更された場合、同じ旧会社名を持つ他の紹介者にも一括反映
         if (oldCompanyName && newCompanyName && oldCompanyName !== newCompanyName) {
-            const othersCount = masterList.items.filter((r: Referrer) => r.id !== editingItem!.id && r.company === oldCompanyName).length
+            const othersCount = masterList.items.filter((r: Referrer) => r.id !== editingItem!.id && r.company.name === oldCompanyName).length
             if (othersCount > 0 && window.confirm(
                 `「${oldCompanyName}」→「${newCompanyName}」に変更しました。\n同じ会社名の他${othersCount}名の紹介者にも反映しますか？`
             )) {
                 masterList.updateItems(prev => prev.map(r =>
-                    r.company === oldCompanyName ? { ...r, company: newCompanyName } : r
+                    r.company.name === oldCompanyName ? { ...r, company: { ...r.company, name: newCompanyName } } : r
                 ))
             }
         }
@@ -154,9 +155,9 @@ function ReferrerSettingsContent() {
             newItemForm={newItemForm}
             onAdd={handleAdd}
             renderEditCell={renderEditCell}
-            onStartEdit={(r) => masterList.handleStartEdit(r, { company: r.company, department: r.department || "", name: r.name })}
+            onStartEdit={(r) => masterList.handleStartEdit(r, { company: r.company.name, department: r.department || "", name: r.name })}
             onSaveEdit={handleSaveEdit}
-            groupBy={(r) => r.company}
+            groupBy={(r) => r.company.name}
         />
     )
 }
