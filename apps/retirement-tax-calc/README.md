@@ -61,8 +61,10 @@ src/
 │   ├── ResultSection.tsx      # 計算結果セクション（TAG_DEFSデータ駆動）
 │   ├── RetirementForm.tsx     # 入力フォーム + 計算/クリアボタン
 │   ├── ServiceYearsInput.tsx  # 勤続年数（直接入力/日付計算切替）
-│   └── SummaryPatterns.tsx    # サマリーカード（SUMMARY_ITEMSデータ駆動）
+│   ├── SummaryPatterns.tsx    # サマリーカード（SUMMARY_ITEMSデータ駆動）
+│   └── ToggleButtonGroup.tsx  # 汎用トグルボタングループ（モード切替/プリセット選択）
 ├── hooks/
+│   ├── usePdfExport.ts        # PDF生成フック（html2pdf.js）
 │   └── useRetirementTaxForm.ts # フォーム状態管理フック
 └── lib/
     ├── retirement-tax.ts      # 退職所得・税額計算ロジック

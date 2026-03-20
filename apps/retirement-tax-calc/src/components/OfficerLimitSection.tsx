@@ -2,8 +2,11 @@ import { useState, useMemo, useId } from "react";
 import InputWithUnit from "./InputWithUnit";
 import FormField from "./FormField";
 import LimitResultDisplay from "./LimitResultDisplay";
+import ToggleButtonGroup from "./ToggleButtonGroup";
 import { OFFICER_PRESETS, calcOfficerLimit } from "@/lib/retirement-tax";
 import { formatInputValue, parseFormattedNumber, parseIntInput } from "@/lib/utils";
+
+const PRESET_OPTIONS = OFFICER_PRESETS.map((p) => ({ value: p.label, label: p.label }));
 
 type OfficerLimitSectionProps = {
     serviceYears: number;
@@ -56,18 +59,13 @@ const OfficerLimitSection = ({ serviceYears, onServiceYearsChange, retirementAmo
                 </FormField>
 
                 <FormField label="役職プリセット">
-                    <div className="preset-buttons">
-                        {OFFICER_PRESETS.map((p) => (
-                            <button
-                                key={p.label}
-                                type="button"
-                                className={`toggle-btn small ${selectedPreset === p.label ? "active" : ""}`}
-                                onClick={() => handlePresetChange(p.label)}
-                            >
-                                {p.label}
-                            </button>
-                        ))}
-                    </div>
+                    <ToggleButtonGroup
+                        options={PRESET_OPTIONS}
+                        selected={selectedPreset}
+                        onChange={handlePresetChange}
+                        className="preset-buttons"
+                        size="small"
+                    />
                 </FormField>
 
                 <div className="officer-inputs-row">
