@@ -1,4 +1,4 @@
-import type { Asset } from '@/types';
+import type { Asset, CaseData } from '@/types';
 
 export interface ValidationResult {
   type: 'error' | 'warning';
@@ -58,4 +58,19 @@ export function validateAllAssets(assets: Asset[]): ValidationResult[] {
 
 export function hasErrors(results: ValidationResult[]): boolean {
   return results.some((r) => r.type === 'error');
+}
+
+/** 案件JSONデータのバリデーション */
+export function validateCaseData(data: unknown): CaseData {
+  const obj = data as Record<string, unknown>;
+  if (
+    !obj ||
+    typeof obj !== 'object' ||
+    !obj.caseName ||
+    !obj.taxDate ||
+    !Array.isArray(obj.assets)
+  ) {
+    throw new Error('不正な案件JSONです');
+  }
+  return obj as unknown as CaseData;
 }

@@ -1,15 +1,7 @@
-import type { Asset, AssetCategory } from '@/types';
+import type { Asset } from '@/types';
 import { CATEGORY_ORDER, CATEGORY_CONFIG } from '@/types';
 import { formatYen, formatDate } from '@/utils/formatters';
-
-const CATEGORY_HEADERS: Record<AssetCategory, string> = {
-  建物: '【1211 建物】',
-  建物付属設備: '【    建物付属設備    】',
-  構築物: '【       構築物       】',
-  機械装置: '【     機械装置     】',
-  車両: '【    車両及び運搬具    】',
-  器具備品: '【    器具及び備品    】',
-};
+import { calcWithin3YearsDate } from '@/utils/calculation';
 
 interface Props {
   caseName: string;
@@ -18,9 +10,7 @@ interface Props {
 }
 
 export function ExcelPreview({ caseName, taxDate, assets }: Props) {
-  const threeYearsAgo = new Date(
-    new Date(taxDate).getTime() - 365 * 3 * 24 * 60 * 60 * 1000
-  );
+  const threeYearsAgo = calcWithin3YearsDate(taxDate);
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 font-mono text-xs">
@@ -29,8 +19,7 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
         課税時期: {formatDate(taxDate)}
       </div>
       <div className="text-gray-600 mb-4">
-        3年以内:{' '}
-        {`${threeYearsAgo.getFullYear()}/${String(threeYearsAgo.getMonth() + 1).padStart(2, '0')}/${String(threeYearsAgo.getDate()).padStart(2, '0')}`}
+        3年以内: {formatDate(threeYearsAgo.toISOString().slice(0, 10))}
       </div>
 
       {CATEGORY_ORDER.map((category) => {
@@ -48,7 +37,7 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
         return (
           <div key={category} className="mb-4">
             <div className="font-bold mb-1">
-              {CATEGORY_HEADERS[category]}
+              {config.excelHeader}
             </div>
             <table className="w-full border-collapse">
               <thead>

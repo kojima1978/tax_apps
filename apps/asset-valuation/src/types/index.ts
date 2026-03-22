@@ -20,6 +20,7 @@ export const CATEGORY_ORDER: AssetCategory[] = [
 /** カテゴリごとの特性 */
 export interface CategoryConfig {
   label: string;
+  excelHeader: string;
   depreciationMethod: '定額法' | '定率法';
   multiply07: boolean;
   hasFixedAssetTaxRecord: boolean;
@@ -31,6 +32,7 @@ export interface CategoryConfig {
 export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
   建物: {
     label: '建物',
+    excelHeader: '【1211 建物】',
     depreciationMethod: '定額法',
     multiply07: true,
     hasFixedAssetTaxRecord: true,
@@ -40,6 +42,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
   },
   建物付属設備: {
     label: '建物付属設備',
+    excelHeader: '【    建物付属設備    】',
     depreciationMethod: '定率法',
     multiply07: true,
     hasFixedAssetTaxRecord: true,
@@ -49,6 +52,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
   },
   構築物: {
     label: '構築物',
+    excelHeader: '【       構築物       】',
     depreciationMethod: '定率法',
     multiply07: true,
     hasFixedAssetTaxRecord: false,
@@ -58,6 +62,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
   },
   機械装置: {
     label: '機械装置',
+    excelHeader: '【     機械装置     】',
     depreciationMethod: '定率法',
     multiply07: false,
     hasFixedAssetTaxRecord: false,
@@ -67,6 +72,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
   },
   車両: {
     label: '車両及び運搬具',
+    excelHeader: '【    車両及び運搬具    】',
     depreciationMethod: '定率法',
     multiply07: false,
     hasFixedAssetTaxRecord: false,
@@ -76,6 +82,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
   },
   器具備品: {
     label: '器具及び備品',
+    excelHeader: '【    器具及び備品    】',
     depreciationMethod: '定率法',
     multiply07: false,
     hasFixedAssetTaxRecord: false,

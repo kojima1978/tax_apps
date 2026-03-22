@@ -59,8 +59,7 @@ export default function App() {
     importPresetsFromJson,
   } = usePresets();
 
-  // JSON入出力
-  const { exportCase, importCase: _importCase } = useJsonExport();
+  const { exportCase } = useJsonExport();
 
   // ステップ遷移
   const goToStep = useCallback(
