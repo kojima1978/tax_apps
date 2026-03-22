@@ -132,9 +132,9 @@ export interface CaseData {
 
 /** マッピングフィールド */
 export const MAPPING_FIELDS = [
-  { key: 'category', label: '資産カテゴリ', required: true },
-  { key: 'name', label: '資産名称', required: true },
   { key: 'no', label: 'NO', required: true },
+  { key: 'name', label: '資産名称', required: true },
+  { key: 'category', label: '資産カテゴリ', required: true },
   { key: 'acquisitionDate', label: '取得年月', required: true },
   { key: 'usefulLife', label: '耐用年数', required: true },
   { key: 'acquisitionCost', label: '取得価額', required: true },
