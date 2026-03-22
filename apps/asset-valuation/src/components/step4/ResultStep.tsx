@@ -1,4 +1,5 @@
-import { Download, Printer, FileJson } from 'lucide-react';
+import { useRef } from 'react';
+import { Download, FileJson, Settings, Upload } from 'lucide-react';
 import type { Asset } from '@/types';
 import { ExcelPreview } from '@/components/step3/ExcelPreview';
 import { getCalculationTooltip } from '@/utils/calculation';
@@ -11,6 +12,8 @@ interface Props {
   assets: Asset[];
   onExportExcel: () => void;
   onExportJson: () => void;
+  onExportPresets: () => void;
+  onImportPresets: (file: File) => Promise<void>;
   onBack: () => void;
 }
 
@@ -20,8 +23,11 @@ export function ResultStep({
   assets,
   onExportExcel,
   onExportJson,
+  onExportPresets,
+  onImportPresets,
   onBack,
 }: Props) {
+  const presetFileRef = useRef<HTMLInputElement>(null);
   const grandTotalAcquisition = assets.reduce(
     (s, a) => s + a.acquisitionCost,
     0
@@ -33,7 +39,7 @@ export function ResultStep({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-800">
           Step 4: 計算結果
         </h2>
@@ -45,22 +51,41 @@ export function ResultStep({
             <Download size={16} /> Excel出力
           </button>
           <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            <Printer size={16} /> 印刷
-          </button>
-          <button
             onClick={onExportJson}
             className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
           >
-            <FileJson size={16} /> JSON保存
+            <FileJson size={16} /> 案件JSON保存
           </button>
+          <button
+            onClick={onExportPresets}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            <Settings size={16} /> マッピングJSON出力
+          </button>
+          <button
+            onClick={() => presetFileRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            <Upload size={16} /> マッピングJSON取込
+          </button>
+          <input
+            ref={presetFileRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                await onImportPresets(file);
+                e.target.value = '';
+              }
+            }}
+          />
         </div>
       </div>
 
       {/* サマリー */}
-      <div className="grid grid-cols-2 gap-4 print:hidden">
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border p-4">
           <div className="text-sm text-gray-500">取得価額合計</div>
           <div className="text-2xl font-bold font-mono text-gray-800">
@@ -76,7 +101,7 @@ export function ResultStep({
       </div>
 
       {/* カテゴリ別サマリー */}
-      <div className="bg-white rounded-lg border p-4 print:hidden">
+      <div className="bg-white rounded-lg border p-4">
         <h3 className="text-sm font-bold text-gray-700 mb-3">
           カテゴリ別内訳
         </h3>
@@ -100,17 +125,15 @@ export function ResultStep({
         </div>
       </div>
 
-      {/* 計算根拠付きプレビュー */}
-      <div className="print-area">
-        <ExcelPreview
-          caseName={caseName}
-          taxDate={taxDate}
-          assets={assets}
-        />
-      </div>
+      {/* Excelプレビュー */}
+      <ExcelPreview
+        caseName={caseName}
+        taxDate={taxDate}
+        assets={assets}
+      />
 
-      {/* 計算根拠ツールチップ一覧 */}
-      <div className="bg-gray-50 rounded-lg border p-4 print:hidden">
+      {/* 計算根拠一覧 */}
+      <div className="bg-gray-50 rounded-lg border p-4">
         <h3 className="text-sm font-bold text-gray-700 mb-3">
           計算根拠一覧
         </h3>
@@ -134,7 +157,7 @@ export function ResultStep({
       </div>
 
       {/* ナビゲーション */}
-      <div className="flex justify-between print:hidden">
+      <div className="flex justify-between">
         <button
           onClick={onBack}
           className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"

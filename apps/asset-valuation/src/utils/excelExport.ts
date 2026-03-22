@@ -58,9 +58,20 @@ const HEADER_FILL = { fgColor: { rgb: 'D9E1F2' } };
 /** 薄い罫線スタイル */
 const THIN_BORDER = { style: 'thin', color: { rgb: '000000' } } as const;
 
+/** 横線のみ（上下） */
+const HORIZONTAL_BORDER = {
+  top: THIN_BORDER,
+  bottom: THIN_BORDER,
+};
+
 /** 上罫線のみ（合計行用） */
 const TOP_BORDER = {
   top: THIN_BORDER,
+};
+
+/** 下罫線のみ */
+const BOTTOM_BORDER = {
+  bottom: THIN_BORDER,
 };
 
 /** セルスタイル生成ヘルパー */
@@ -146,12 +157,7 @@ export function exportToExcel(
         bold: true,
         fill: true,
         alignment: { horizontal: 'center' },
-        border: {
-          top: THIN_BORDER,
-          bottom: THIN_BORDER,
-          left: THIN_BORDER,
-          right: THIN_BORDER,
-        },
+        border: HORIZONTAL_BORDER,
       });
     }
     row++;
@@ -218,13 +224,12 @@ export function exportToExcel(
       row++;
     }
 
-    // 合計行
-    ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell('');
+    // 合計行（A列から全列に上罫線）
+    ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell('', { border: TOP_BORDER });
     ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = textCell('合　計', {
       bold: true,
       border: TOP_BORDER,
     });
-    // 空セルにも上罫線
     for (let c = 2; c <= 5; c++) {
       ws[XLSX.utils.encode_cell({ r: row, c })] = textCell('', { border: TOP_BORDER });
     }
@@ -260,8 +265,31 @@ export function exportToExcel(
   ws['!merges'] = merges;
   ws['!cols'] = COL_WIDTHS.map((wch) => ({ wch }));
 
+  // 印刷設定: A4横、全列を1ページに収める
+  ws['!pageSetup'] = {
+    paperSize: 9,        // A4
+    orientation: 'landscape',
+    fitToWidth: 1,       // 全列を1ページ幅に収める
+    fitToHeight: 0,      // 行方向は制限なし（複数ページ可）
+    scale: 0,            // fitToWidth/Heightを有効にするため0
+  };
+  ws['!margins'] = {
+    left: 0.3,
+    right: 0.3,
+    top: 0.4,
+    bottom: 0.4,
+    header: 0.2,
+    footer: 0.2,
+  };
+
+  // フッターにページ番号
+  ws['!headerFooter'] = {
+    oddFooter: '&C&P / &N',
+  };
+
   // ---- ワークブック作成・出力 ----
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '減価償却資産');
-  XLSX.writeFile(wb, `${caseName}_減価償却資産評価.xlsx`);
+  const dateStr = taxDate.replace(/-/g, '');
+  XLSX.writeFile(wb, `${caseName}_減価償却資産評価_${dateStr}.xlsx`);
 }

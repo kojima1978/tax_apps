@@ -167,7 +167,6 @@ export default function App() {
 
         {currentStep === 3 && (
           <DataEditStep
-            caseName={caseName}
             taxDate={taxDate}
             assets={assets}
             groupedAssets={groupedAssets}
@@ -188,6 +187,8 @@ export default function App() {
             assets={assets}
             onExportExcel={handleExportExcel}
             onExportJson={handleExportJson}
+            onExportPresets={exportPresetsToJson}
+            onImportPresets={importPresetsFromJson}
             onBack={() => setCurrentStep(3)}
           />
         )}
