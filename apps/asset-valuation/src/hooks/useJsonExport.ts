@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import type { Asset, CaseData } from '@/types';
 import { downloadJsonFile } from '@/utils/fileDownload';
-import { validateCaseData } from '@/utils/validators';
 
 export function useJsonExport() {
   const exportCase = useCallback(
@@ -18,11 +17,5 @@ export function useJsonExport() {
     []
   );
 
-  const importCase = useCallback(async (file: File): Promise<CaseData> => {
-    const text = await file.text();
-    const data: unknown = JSON.parse(text);
-    return validateCaseData(data);
-  }, []);
-
-  return { exportCase, importCase };
+  return { exportCase };
 }
