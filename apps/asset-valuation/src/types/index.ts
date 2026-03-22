@@ -1,0 +1,185 @@
+/** 資産カテゴリ */
+export type AssetCategory =
+  | '建物'
+  | '建物付属設備'
+  | '構築物'
+  | '機械装置'
+  | '車両'
+  | '器具備品';
+
+/** カテゴリ表示順 */
+export const CATEGORY_ORDER: AssetCategory[] = [
+  '建物',
+  '建物付属設備',
+  '構築物',
+  '機械装置',
+  '車両',
+  '器具備品',
+];
+
+/** カテゴリごとの特性 */
+export interface CategoryConfig {
+  label: string;
+  depreciationMethod: '定額法' | '定率法';
+  multiply07: boolean;
+  hasFixedAssetTaxRecord: boolean;
+  hasWithin3Years: boolean;
+  hasRental: boolean;
+  headerLabel: string;
+}
+
+export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
+  建物: {
+    label: '建物',
+    depreciationMethod: '定額法',
+    multiply07: true,
+    hasFixedAssetTaxRecord: true,
+    hasWithin3Years: true,
+    hasRental: true,
+    headerLabel: '償却額',
+  },
+  建物付属設備: {
+    label: '建物付属設備',
+    depreciationMethod: '定率法',
+    multiply07: true,
+    hasFixedAssetTaxRecord: true,
+    hasWithin3Years: true,
+    hasRental: true,
+    headerLabel: '償却率',
+  },
+  構築物: {
+    label: '構築物',
+    depreciationMethod: '定率法',
+    multiply07: true,
+    hasFixedAssetTaxRecord: false,
+    hasWithin3Years: true,
+    hasRental: false,
+    headerLabel: '償却率',
+  },
+  機械装置: {
+    label: '機械装置',
+    depreciationMethod: '定率法',
+    multiply07: false,
+    hasFixedAssetTaxRecord: false,
+    hasWithin3Years: false,
+    hasRental: false,
+    headerLabel: '償却率',
+  },
+  車両: {
+    label: '車両及び運搬具',
+    depreciationMethod: '定率法',
+    multiply07: false,
+    hasFixedAssetTaxRecord: false,
+    hasWithin3Years: false,
+    hasRental: false,
+    headerLabel: '償却率',
+  },
+  器具備品: {
+    label: '器具及び備品',
+    depreciationMethod: '定率法',
+    multiply07: false,
+    hasFixedAssetTaxRecord: false,
+    hasWithin3Years: false,
+    hasRental: false,
+    headerLabel: '償却率',
+  },
+};
+
+/** 評価根拠 */
+export type EvaluationBasis =
+  | '固定資産税評価明細'
+  | '3年内_簿価'
+  | '評基通89－2(2)'
+  | '評基通92'
+  | '評基通97'
+  | '評基通129';
+
+/** 資産データ */
+export interface Asset {
+  id: string;
+  no: number;
+  category: AssetCategory;
+  name: string;
+  acquisitionDate: string; // YYYY-MM-DD
+  usefulLife: number;
+  acquisitionCost: number;
+  bookValue: number;
+  hasFixedAssetTaxRecord: boolean;
+  isRental: boolean;
+  // 計算結果（自動算出）
+  elapsedYears: number;
+  depreciationAmountOrRate: number;
+  evaluationAmount: number | null; // null = '-'
+  evaluationBasis: EvaluationBasis;
+  isWithin3Years: boolean;
+}
+
+/** 案件データ */
+export interface CaseData {
+  version: string;
+  exportedAt: string;
+  caseName: string;
+  taxDate: string; // YYYY-MM-DD
+  assets: Asset[];
+}
+
+/** マッピングフィールド */
+export const MAPPING_FIELDS = [
+  { key: 'category', label: '資産カテゴリ', required: true },
+  { key: 'name', label: '資産名称', required: true },
+  { key: 'no', label: 'NO', required: true },
+  { key: 'acquisitionDate', label: '取得年月', required: true },
+  { key: 'usefulLife', label: '耐用年数', required: true },
+  { key: 'acquisitionCost', label: '取得価額', required: true },
+  { key: 'bookValue', label: '期末簿価', required: true },
+] as const;
+
+export type MappingFieldKey = (typeof MAPPING_FIELDS)[number]['key'];
+
+/** カラムマッピング */
+export type ColumnMapping = Record<MappingFieldKey, string>;
+
+/** カテゴリマッピング */
+export type CategoryMapping = Record<string, AssetCategory>;
+
+/** マッピングプリセット */
+export interface MappingPreset {
+  name: string;
+  columnMapping: ColumnMapping;
+  categoryMapping: CategoryMapping;
+}
+
+/** プリセットJSON */
+export interface PresetExportData {
+  version: string;
+  presets: MappingPreset[];
+}
+
+/** カテゴリ名の正規化テーブル */
+export const CATEGORY_ALIASES: Record<string, AssetCategory> = {
+  建物: '建物',
+  たてもの: '建物',
+  建物付属設備: '建物付属設備',
+  建物附属設備: '建物付属設備',
+  付属設備: '建物付属設備',
+  附属設備: '建物付属設備',
+  構築物: '構築物',
+  機械装置: '機械装置',
+  '機械及び装置': '機械装置',
+  車両: '車両',
+  '車両及び運搬具': '車両',
+  車両運搬具: '車両',
+  器具備品: '器具備品',
+  '器具及び備品': '器具備品',
+  工具器具備品: '器具備品',
+};
+
+/** ステップ定義 */
+export const STEPS = [
+  { id: 1, label: 'CSVインポート' },
+  { id: 2, label: 'カラムマッピング' },
+  { id: 3, label: 'データ確認・編集' },
+  { id: 4, label: '計算結果' },
+] as const;
+
+export type StepId = (typeof STEPS)[number]['id'];
