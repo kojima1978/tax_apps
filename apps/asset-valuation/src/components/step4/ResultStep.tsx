@@ -33,7 +33,7 @@ export function ResultStep({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <h2 className="text-xl font-bold text-gray-800">
           Step 4: 計算結果
         </h2>
@@ -60,7 +60,7 @@ export function ResultStep({
       </div>
 
       {/* サマリー */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 print:hidden">
         <div className="bg-white rounded-lg border p-4">
           <div className="text-sm text-gray-500">取得価額合計</div>
           <div className="text-2xl font-bold font-mono text-gray-800">
@@ -76,7 +76,7 @@ export function ResultStep({
       </div>
 
       {/* カテゴリ別サマリー */}
-      <div className="bg-white rounded-lg border p-4">
+      <div className="bg-white rounded-lg border p-4 print:hidden">
         <h3 className="text-sm font-bold text-gray-700 mb-3">
           カテゴリ別内訳
         </h3>
