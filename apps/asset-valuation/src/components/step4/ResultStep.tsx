@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import { Download, FileJson, Settings, Upload } from 'lucide-react';
+import { Download, FileJson, Settings } from 'lucide-react';
 import type { Asset } from '@/types';
 import { ExcelPreview } from '@/components/step3/ExcelPreview';
 import { getCalculationTooltip } from '@/utils/calculation';
@@ -13,7 +12,6 @@ interface Props {
   onExportExcel: () => void;
   onExportJson: () => void;
   onExportPresets: () => void;
-  onImportPresets: (file: File) => Promise<void>;
   onBack: () => void;
 }
 
@@ -24,10 +22,8 @@ export function ResultStep({
   onExportExcel,
   onExportJson,
   onExportPresets,
-  onImportPresets,
   onBack,
 }: Props) {
-  const presetFileRef = useRef<HTMLInputElement>(null);
   const grandTotalAcquisition = assets.reduce(
     (s, a) => s + a.acquisitionCost,
     0
@@ -62,25 +58,6 @@ export function ResultStep({
           >
             <Settings size={16} /> マッピングJSON出力
           </button>
-          <button
-            onClick={() => presetFileRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            <Upload size={16} /> マッピングJSON取込
-          </button>
-          <input
-            ref={presetFileRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                await onImportPresets(file);
-                e.target.value = '';
-              }
-            }}
-          />
         </div>
       </div>
 

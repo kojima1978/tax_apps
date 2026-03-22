@@ -188,7 +188,6 @@ export default function App() {
             onExportExcel={handleExportExcel}
             onExportJson={handleExportJson}
             onExportPresets={exportPresetsToJson}
-            onImportPresets={importPresetsFromJson}
             onBack={() => setCurrentStep(3)}
           />
         )}
