@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Table, FileSpreadsheet } from 'lucide-react';
 import type { Asset, AssetCategory } from '@/types';
 import { validateAllAssets, hasErrors } from '@/utils/validators';
@@ -34,9 +34,9 @@ export function DataEditStep({
 }: Props) {
   const [view, setView] = useState<'table' | 'preview'>('table');
 
-  const validationResults = validateAllAssets(assets);
-  const errors = validationResults.filter((r) => r.type === 'error');
-  const warnings = validationResults.filter((r) => r.type === 'warning');
+  const validationResults = useMemo(() => validateAllAssets(assets), [assets]);
+  const errors = useMemo(() => validationResults.filter((r) => r.type === 'error'), [validationResults]);
+  const warnings = useMemo(() => validationResults.filter((r) => r.type === 'warning'), [validationResults]);
 
   return (
     <div className="space-y-4">

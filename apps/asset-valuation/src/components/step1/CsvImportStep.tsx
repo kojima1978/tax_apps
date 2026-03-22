@@ -3,6 +3,7 @@ import { Upload, FileJson, Calendar, User } from 'lucide-react';
 import { parseCsvFile } from '@/utils/csvParser';
 import type { CsvData } from '@/utils/csvParser';
 import type { CaseData } from '@/types';
+import { validateCaseData } from '@/utils/validators';
 
 interface Props {
   caseName: string;
@@ -45,10 +46,7 @@ export function CsvImportStep({
     setError(null);
     try {
       const text = await file.text();
-      const data = JSON.parse(text) as CaseData;
-      if (!data.caseName || !data.taxDate || !Array.isArray(data.assets)) {
-        throw new Error('不正な案件JSONです');
-      }
+      const data = validateCaseData(JSON.parse(text));
       onJsonImport(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'JSON読込エラー');

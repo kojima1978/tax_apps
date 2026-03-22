@@ -1,17 +1,8 @@
 import XLSX from 'xlsx-js-style';
-import type { Asset, AssetCategory } from '@/types';
+import type { Asset } from '@/types';
 import { CATEGORY_ORDER, CATEGORY_CONFIG } from '@/types';
-import { formatDate, formatYen } from '@/utils/formatters';
-
-/** カテゴリごとのExcelヘッダーラベル */
-const CATEGORY_HEADER_LABELS: Record<AssetCategory, string> = {
-  建物: '【1211 建物】',
-  建物付属設備: '【    建物付属設備    】',
-  構築物: '【       構築物       】',
-  機械装置: '【     機械装置     】',
-  車両: '【    車両及び運搬具    】',
-  器具備品: '【    器具及び備品    】',
-};
+import { formatDate } from '@/utils/formatters';
+import { calcWithin3YearsDate } from '@/utils/calculation';
 
 /** 列ヘッダー */
 const COLUMN_HEADERS = [
@@ -98,13 +89,6 @@ function numberCell(
   return { v: value, t: 'n', s: style };
 }
 
-/** 3年以内の基準日を算出 */
-function calcWithin3YearsDate(taxDate: string): Date {
-  const d = new Date(taxDate);
-  d.setDate(d.getDate() - 365 * 3);
-  return d;
-}
-
 /** メインのExcel出力関数 */
 export function exportToExcel(
   caseName: string,
@@ -148,7 +132,7 @@ export function exportToExcel(
 
     // カテゴリヘッダー行
     ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell(
-      CATEGORY_HEADER_LABELS[category],
+      config.excelHeader,
       { bold: true }
     );
     merges.push({ s: { r: row, c: 0 }, e: { r: row, c: colCount - 1 } });

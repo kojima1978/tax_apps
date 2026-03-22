@@ -153,6 +153,9 @@ export function useAssetData(taxDate: string) {
       sortBy: 'no' | 'acquisitionDate' | 'acquisitionCost'
     ) => {
       setAssets((prev) => {
+        const firstIdx = prev.findIndex((a) => a.category === category);
+        if (firstIdx < 0) return prev;
+
         const catAssets = prev
           .filter((a) => a.category === category)
           .sort((a, b) => {
@@ -161,31 +164,21 @@ export function useAssetData(taxDate: string) {
               return a.acquisitionDate.localeCompare(b.acquisitionDate);
             return a.acquisitionCost - b.acquisitionCost;
           });
-        const others = prev.filter((a) => a.category !== category);
-        // 元の位置に挿入
-        const firstIdx = prev.findIndex((a) => a.category === category);
-        return [
-          ...others.slice(
-            0,
-            others.filter((_, i) => {
-              let count = 0;
-              for (let j = 0; j <= i; j++) {
-                if (prev[j]?.category !== category) count++;
-              }
-              return count <= firstIdx;
-            }).length
-          ),
-          ...catAssets,
-          ...others.slice(
-            others.filter((_, i) => {
-              let count = 0;
-              for (let j = 0; j <= i; j++) {
-                if (prev[j]?.category !== category) count++;
-              }
-              return count <= firstIdx;
-            }).length
-          ),
-        ];
+
+        // 元の位置にソート済み配列を挿入
+        const result: Asset[] = [];
+        let catInserted = false;
+        for (const a of prev) {
+          if (a.category === category) {
+            if (!catInserted) {
+              result.push(...catAssets);
+              catInserted = true;
+            }
+          } else {
+            result.push(a);
+          }
+        }
+        return result;
       });
     },
     []

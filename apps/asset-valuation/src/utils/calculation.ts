@@ -1,6 +1,7 @@
 import { RATE_TABLE } from '@/data/rateTable';
 import type { Asset, AssetCategory, EvaluationBasis } from '@/types';
 import { CATEGORY_CONFIG } from '@/types';
+import { formatYen } from '@/utils/formatters';
 
 /** 経過年数を計算（1年未満切上） */
 export function calcElapsedYears(
@@ -14,16 +15,21 @@ export function calcElapsedYears(
   return Math.ceil(diffDays / 365);
 }
 
+/** 3年以内の基準日を算出 */
+export function calcWithin3YearsDate(taxDate: string): Date {
+  const d = new Date(taxDate);
+  d.setDate(d.getDate() - 365 * 3);
+  return d;
+}
+
 /** 3年以内判定 */
 export function isWithin3Years(
   taxDate: string,
   acquisitionDate: string
 ): boolean {
-  const tax = new Date(taxDate).getTime();
   const acq = new Date(acquisitionDate).getTime();
-  if (isNaN(tax) || isNaN(acq)) return false;
-  const threeYearsAgo = tax - 365 * 3 * 24 * 60 * 60 * 1000;
-  return acq > threeYearsAgo;
+  if (isNaN(acq)) return false;
+  return acq > calcWithin3YearsDate(taxDate).getTime();
 }
 
 /** 未償却残額割合を取得 */
@@ -200,7 +206,7 @@ export function getCalculationTooltip(asset: Asset): string {
   }
 
   if (asset.evaluationBasis === '3年内_簿価') {
-    return `3年以内取得のため期末簿価を使用: ${asset.bookValue.toLocaleString()}`;
+    return `3年以内取得のため期末簿価を使用: ${formatYen(asset.bookValue)}`;
   }
 
   const config = CATEGORY_CONFIG[asset.category];
@@ -209,13 +215,13 @@ export function getCalculationTooltip(asset: Asset): string {
   if (asset.category === '建物') {
     const dep = asset.depreciationAmountOrRate;
     const base = asset.acquisitionCost - dep;
-    text = `${asset.evaluationBasis}: (${asset.acquisitionCost.toLocaleString()} - ${Math.floor(dep).toLocaleString()}) × 0.7 = ${Math.floor(base * 0.7).toLocaleString()}`;
+    text = `${asset.evaluationBasis}: (${formatYen(asset.acquisitionCost)} - ${formatYen(Math.floor(dep))}) × 0.7 = ${formatYen(Math.floor(base * 0.7))}`;
   } else {
     const rate = asset.depreciationAmountOrRate;
     if (config.multiply07) {
-      text = `${asset.evaluationBasis}: ${asset.acquisitionCost.toLocaleString()} × ${rate} × 0.7 = ${Math.floor(asset.acquisitionCost * rate * 0.7).toLocaleString()}`;
+      text = `${asset.evaluationBasis}: ${formatYen(asset.acquisitionCost)} × ${rate} × 0.7 = ${formatYen(Math.floor(asset.acquisitionCost * rate * 0.7))}`;
     } else {
-      text = `${asset.evaluationBasis}: ${asset.acquisitionCost.toLocaleString()} × ${rate} = ${Math.floor(asset.acquisitionCost * rate).toLocaleString()}`;
+      text = `${asset.evaluationBasis}: ${formatYen(asset.acquisitionCost)} × ${rate} = ${formatYen(Math.floor(asset.acquisitionCost * rate))}`;
     }
   }
 

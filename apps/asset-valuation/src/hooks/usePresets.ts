@@ -5,6 +5,7 @@ import type {
   CategoryMapping,
   PresetExportData,
 } from '@/types';
+import { downloadJsonFile } from '@/utils/fileDownload';
 
 const STORAGE_KEY = 'asset-valuation-presets';
 
@@ -50,19 +51,8 @@ export function usePresets() {
   }, []);
 
   const exportPresetsToJson = useCallback(() => {
-    const data: PresetExportData = {
-      version: '1.0',
-      presets,
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'mapping-presets.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    const data: PresetExportData = { version: '1.0', presets };
+    downloadJsonFile(data, 'mapping-presets.json');
   }, [presets]);
 
   const importPresetsFromJson = useCallback(
