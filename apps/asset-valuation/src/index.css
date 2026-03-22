@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background-color: #f9fafb;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+.font-mono-num {
+  font-family: 'Roboto Mono', monospace;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm 8mm;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 9pt;
+  }
+
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  .print-area {
+    break-inside: avoid;
+  }
+}

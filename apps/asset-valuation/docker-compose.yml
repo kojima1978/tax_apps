@@ -1,0 +1,65 @@
+# ============================================
+# 相続税 減価償却資産評価 - Docker Compose
+# ============================================
+# Usage:
+#   開発:   docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:   docker compose logs -f
+#   停止:   docker compose down
+# ============================================
+
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s
+
+services:
+  asset-valuation:
+    build:
+      context: .
+      dockerfile: ../../docker/Dockerfile.vite-static
+      target: dev
+      args:
+        APP_PORT: "3017"
+        APP_PATH: asset-valuation
+        APP_TITLE: "Asset Valuation"
+        APP_DESCRIPTION: "相続税 減価償却資産評価"
+        NPM_CACHE_ID: npm-store-asset-valuation
+    container_name: asset-valuation
+    networks:
+      - tax-apps-network
+    ports:
+      - "3017:3017"
+    volumes:
+      - ./src:/app/src:ro
+      - ./index.html:/app/index.html:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+    init: true
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3017/asset-valuation/ || exit 1"]
+      <<: *healthcheck-defaults
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true
