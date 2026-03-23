@@ -93,6 +93,9 @@ nginx/
 | `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Django + PostgreSQL) |
 | `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API |
 | `/bank-analyzer/static/` | `bank-analyzer:3007` | 銀行分析 静的ファイル |
+| `/salary-calc/` | `salary-calc:3016` | 給与手取り計算 (Vite) |
+| `/asset-valuation/` | `asset-valuation:3017` | 減価償却資産評価 (Vite) |
+| `/stock-valuation-form/` | `stock-valuation-form:3014` | 株式評価明細書 (Vite) |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
 
 ## Docker Compose
