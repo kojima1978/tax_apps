@@ -39,32 +39,32 @@ const PLACEHOLDER_MAP: Record<string, string> = {
   other: '例: 具体的な書類名を入力',
 };
 
+const MODE_STYLES = {
+  add:  { bg: 'bg-emerald-50/40', input: 'border-emerald-300 focus:ring-emerald-400' },
+  edit: { bg: 'bg-amber-50/40',   input: 'border-amber-300 focus:ring-amber-400' },
+} as const;
+
 /** 具体名の入力行（追加・編集共通） */
 function NameInputRow({
-  value, onChange, onKeyDown, onSubmit, onCancel, onBlur, placeholder, colorAccent, className, label, inputRef, autoFocus, mode,
+  value, onChange, onKeyDown, onSubmit, onCancel, placeholder, colorAccent, label, inputRef, autoFocus, mode,
 }: {
   value: string; onChange: (v: string) => void; onKeyDown: (e: React.KeyboardEvent) => void;
-  onSubmit: () => void; onCancel: () => void; onBlur: (e: React.FocusEvent) => void;
-  placeholder: string;
-  colorAccent: string; className?: string; label?: string;
+  onSubmit: () => void; onCancel: () => void;
+  placeholder: string; colorAccent: string; label?: string;
   inputRef?: React.RefObject<HTMLInputElement | null>; autoFocus?: boolean;
   mode: 'add' | 'edit';
 }) {
   const rowRef = useRef<HTMLTableRowElement>(null);
+  const { bg, input: inputBorder } = MODE_STYLES[mode];
 
   const handleBlur = (e: React.FocusEvent) => {
     // ボタンクリック時はblurを無視（relatedTargetが同じ行内なら処理しない）
     if (rowRef.current?.contains(e.relatedTarget as Node)) return;
-    onBlur(e);
+    onSubmit();
   };
 
-  const bgClass = mode === 'add' ? 'bg-emerald-50/40' : 'bg-amber-50/40';
-  const inputBorderClass = mode === 'add'
-    ? 'border-emerald-300 focus:ring-emerald-400'
-    : 'border-amber-300 focus:ring-amber-400';
-
   return (
-    <tr ref={rowRef} className={`border-b border-slate-100 border-l-3 ${colorAccent} ${bgClass} ${className ?? ''}`}>
+    <tr ref={rowRef} className={`border-b border-slate-100 border-l-3 ${colorAccent} ${bg}`}>
       <td className="w-10 px-1 py-1" />
       <td colSpan={3} className="px-3 py-1">
         <div className="flex flex-col gap-0.5">
@@ -79,7 +79,7 @@ function NameInputRow({
               onBlur={handleBlur}
               placeholder={placeholder}
               autoFocus={autoFocus}
-              className={`flex-1 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 ${inputBorderClass}`}
+              className={`flex-1 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 ${inputBorder}`}
             />
             <button onClick={onSubmit} className="p-0.5 px-1 flex items-center gap-0.5 rounded bg-emerald-500 text-white hover:bg-emerald-600 transition-colors" title="保存 (Enter)" aria-label="保存">
               <Check className="w-3 h-3" />
@@ -210,9 +210,6 @@ function SpecificNamesTableRowsComponent({
     else if (e.key === 'Escape') cancelEdit();
   };
 
-  const handleAddBlur = () => { submitAdd(); };
-  const handleEditBlur = () => { submitEdit(); };
-
   const startEdit = useCallback((index: number) => {
     setEditingIndex(index);
     setEditingValue(names[index]);
@@ -250,7 +247,6 @@ function SpecificNamesTableRowsComponent({
               onKeyDown={handleEditKeyDown}
               onSubmit={submitEdit}
               onCancel={cancelEdit}
-              onBlur={handleEditBlur}
               placeholder={placeholder}
               colorAccent={`${colorAccent} ${hiddenClass} ${printHiddenClass}`}
               label={`${docNumber}-${i + 1}`}
@@ -279,7 +275,6 @@ function SpecificNamesTableRowsComponent({
           onKeyDown={handleAddKeyDown}
           onSubmit={submitAdd}
           onCancel={closeAdd}
-          onBlur={handleAddBlur}
           placeholder={placeholder}
           colorAccent={`${colorAccent} print:hidden`}
           mode="add"

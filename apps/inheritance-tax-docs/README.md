@@ -24,7 +24,7 @@ react-router-dom によるSPAルーティング（basename: `/inheritance-tax-do
 |:-----|:-----|
 | 書類の編集 | モーダルダイアログで書類名・説明・取得方法をカスタマイズ |
 | カスタム書類追加 | 独自の書類をカテゴリに追加 |
-| 具体的書類名 | テーブルサブ行で具体名を表示（連続入力・テキストクリック編集・D&D並べ替え対応） |
+| 具体的書類名 | テーブルサブ行で具体名を表示（テキストクリック編集・D&D並べ替え・blur自動確定・モード別背景色） |
 | ドラッグ&ドロップ | 書類行・具体名行それぞれD&Dで並び順を変更（ネストDndContext） |
 | 代行可否設定 | 各書類の取得代行可否をワンクリック切替 |
 | 提出済みチェック | 書類ごとのチェックボックス + 提出日自動記録 + カテゴリ単位の「全済み」3段階ボタン |
@@ -136,7 +136,7 @@ inheritance-tax-docs/
 │   │       ├── DocumentFormModal.tsx     # 書類追加/編集モーダル
 │   │       ├── EditableCategoryTable.tsx # カテゴリテーブル（CategoryHeader + D&D + サブ行）
 │   │       ├── EditableDocumentRow.tsx   # テーブル行（useMemoState + チェック/D&D/操作）
-│   │       └── SpecificNamesList.tsx     # 具体名テーブルサブ行（親子連番・D&D並べ替え・連続入力）
+│   │       └── SpecificNamesList.tsx     # 具体名テーブルサブ行（親子連番・D&D並べ替え・blur自動確定）
 │   ├── constants/
 │   │   ├── documents.ts                 # 資料準備ガイドの書類マスターデータ + 共有型定義
 │   │   ├── simplifiedDocuments.ts       # 簡易版の書類マスターデータ
