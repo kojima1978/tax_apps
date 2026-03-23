@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { Check, X, AlertTriangle } from 'lucide-react';
+import { Check, X, AlertTriangle, Info } from 'lucide-react';
 
 export interface ToastMessage {
   id: number;
   text: string;
-  type: 'success' | 'error' | 'warning';
+  type: 'success' | 'error' | 'warning' | 'info';
 }
 
 interface ToastProps {
@@ -16,6 +16,7 @@ const TOAST_ICONS = {
   success: { icon: Check, bg: 'bg-emerald-600', ring: 'ring-emerald-200' },
   error: { icon: X, bg: 'bg-red-600', ring: 'ring-red-200' },
   warning: { icon: AlertTriangle, bg: 'bg-amber-500', ring: 'ring-amber-200' },
+  info: { icon: Info, bg: 'bg-blue-500', ring: 'ring-blue-200' },
 } as const;
 
 const AUTO_DISMISS_MS = 3000;

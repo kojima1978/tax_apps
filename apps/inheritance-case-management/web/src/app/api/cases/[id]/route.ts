@@ -102,7 +102,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json(serializeCase(updated));
   } catch (e) {
     if (e && typeof e === 'object' && '_optimisticLock' in e) {
-      const err = e as { code: string };
+      const err = e as unknown as { code: string };
       if (err.code === 'NOT_FOUND') {
         return NextResponse.json({ error: '案件が見つかりません', code: 'NOT_FOUND' }, { status: 404 });
       }
