@@ -5,7 +5,7 @@ import type {
   ColumnMapping,
   CategoryMapping,
 } from '@/types';
-import { CATEGORY_ORDER, CATEGORY_ALIASES } from '@/types';
+import { CATEGORY_ORDER, resolveBaseCategory } from '@/types';
 import { calculateAsset } from '@/utils/calculation';
 import { normalizeDate, generateId } from '@/utils/formatters';
 import type { CsvData } from '@/utils/csvParser';
@@ -31,7 +31,7 @@ export function useAssetData(taxDate: string) {
         const rawCategory = getValue('category');
         const category: AssetCategory =
           categoryMapping[rawCategory] ??
-          CATEGORY_ALIASES[rawCategory] ??
+          resolveBaseCategory(rawCategory) ??
           '器具備品';
 
         const acquisitionDate = normalizeDate(getValue('acquisitionDate'));
@@ -47,6 +47,7 @@ export function useAssetData(taxDate: string) {
           id: generateId(),
           no,
           category,
+          categoryLabel: rawCategory || category,
           name,
           acquisitionDate,
           usefulLife,
@@ -100,11 +101,12 @@ export function useAssetData(taxDate: string) {
 
   /** 空行を追加 */
   const addEmptyAsset = useCallback(
-    (category: AssetCategory) => {
+    (category: AssetCategory, categoryLabel: string) => {
       const base = {
         id: generateId(),
         no: 0,
         category,
+        categoryLabel: categoryLabel,
         name: '',
         acquisitionDate: '',
         usefulLife: 0,
@@ -121,10 +123,10 @@ export function useAssetData(taxDate: string) {
 
   /** カテゴリ内の一括固定資産税評価明細チェック */
   const toggleFixedAssetTaxBulk = useCallback(
-    (category: AssetCategory, checked: boolean) => {
+    (label: string, checked: boolean) => {
       setAssets((prev) =>
         prev.map((asset) => {
-          if (asset.category !== category) return asset;
+          if (asset.categoryLabel !== label) return asset;
           const updated = { ...asset, hasFixedAssetTaxRecord: checked };
           const calc = calculateAsset(updated, taxDate);
           return { ...updated, ...calc };
@@ -134,30 +136,44 @@ export function useAssetData(taxDate: string) {
     [taxDate]
   );
 
-  /** カテゴリ別にグループ化 */
+  /** カテゴリラベル別にグループ化（CATEGORY_ORDER準拠） */
   const groupedAssets = useMemo(() => {
-    const groups = new Map<AssetCategory, Asset[]>();
-    for (const cat of CATEGORY_ORDER) {
-      const catAssets = assets.filter((a) => a.category === cat);
-      if (catAssets.length > 0) {
-        groups.set(cat, catAssets);
+    // ラベル別にグループ化
+    const labelMap = new Map<string, Asset[]>();
+    for (const asset of assets) {
+      const label = asset.categoryLabel;
+      if (!labelMap.has(label)) labelMap.set(label, []);
+      labelMap.get(label)!.push(asset);
+    }
+    // CATEGORY_ORDER順にソート
+    const sorted = new Map<string, Asset[]>();
+    for (const baseCat of CATEGORY_ORDER) {
+      const labels = Array.from(labelMap.keys())
+        .filter((l) => {
+          const a = labelMap.get(l)![0]!;
+          return a.category === baseCat;
+        })
+        .sort();
+      for (const label of labels) {
+        sorted.set(label, labelMap.get(label)!);
+        labelMap.delete(label);
       }
     }
-    return groups;
+    return sorted;
   }, [assets]);
 
   /** 並び替え */
   const sortAssets = useCallback(
     (
-      category: AssetCategory,
+      label: string,
       sortBy: 'no' | 'acquisitionDate' | 'acquisitionCost'
     ) => {
       setAssets((prev) => {
-        const firstIdx = prev.findIndex((a) => a.category === category);
+        const firstIdx = prev.findIndex((a) => a.categoryLabel === label);
         if (firstIdx < 0) return prev;
 
         const catAssets = prev
-          .filter((a) => a.category === category)
+          .filter((a) => a.categoryLabel === label)
           .sort((a, b) => {
             if (sortBy === 'no') return a.no - b.no;
             if (sortBy === 'acquisitionDate')
@@ -165,11 +181,10 @@ export function useAssetData(taxDate: string) {
             return a.acquisitionCost - b.acquisitionCost;
           });
 
-        // 元の位置にソート済み配列を挿入
         const result: Asset[] = [];
         let catInserted = false;
         for (const a of prev) {
-          if (a.category === category) {
+          if (a.categoryLabel === label) {
             if (!catInserted) {
               result.push(...catAssets);
               catInserted = true;

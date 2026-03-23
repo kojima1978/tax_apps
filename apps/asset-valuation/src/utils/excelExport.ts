@@ -1,8 +1,8 @@
 import XLSX from 'xlsx-js-style';
 import type { Asset } from '@/types';
-import { CATEGORY_ORDER, CATEGORY_CONFIG } from '@/types';
-import { formatDate } from '@/utils/formatters';
-import { calcWithin3YearsDate } from '@/utils/calculation';
+import { CATEGORY_CONFIG, groupByLabel } from '@/types';
+import { formatDate, formatYen } from '@/utils/formatters';
+import { calcWithin3YearsDate, getCalculationTooltip } from '@/utils/calculation';
 
 /** 列ヘッダー */
 const COLUMN_HEADERS = [
@@ -47,13 +47,13 @@ const REGULATION_TEXTS = [
 ];
 
 /** 基本フォント */
-const BASE_FONT = { name: 'MS ゴシック', sz: 10 };
+const BASE_FONT = { name: 'Arial', sz: 10 };
 
 /** 太字フォント */
 const BOLD_FONT = { ...BASE_FONT, bold: true };
 
-/** ヘッダー背景色 */
-const HEADER_FILL = { fgColor: { rgb: 'D9E1F2' } };
+/** ヘッダー背景色（明るい緑） */
+const HEADER_FILL = { fgColor: { rgb: 'C6EFCE' } };
 
 /** 薄い罫線スタイル */
 const THIN_BORDER = { style: 'thin', color: { rgb: '000000' } } as const;
@@ -130,16 +130,15 @@ export function exportToExcel(
   // ---- Row 4: 空行 ----
   row++;
 
-  // ---- カテゴリ別セクション ----
-  for (const category of CATEGORY_ORDER) {
-    const categoryAssets = assets.filter((a) => a.category === category);
-    if (categoryAssets.length === 0) continue;
-
+  // ---- カテゴリラベル別セクション ----
+  const labelGroups = groupByLabel(assets);
+  for (const [label, categoryAssets] of labelGroups) {
+    const category = categoryAssets[0]!.category;
     const config = CATEGORY_CONFIG[category];
 
     // カテゴリヘッダー行
     ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell(
-      config.excelHeader,
+      `【　${label}　】`,
       { bold: true }
     );
     merges.push({ s: { r: row, c: 0 }, e: { r: row, c: colCount - 1 } });
@@ -186,7 +185,12 @@ export function exportToExcel(
       ws[XLSX.utils.encode_cell({ r: row, c: 6 })] = numberCell(asset.acquisitionCost);
 
       // H: 償却額 or 償却率
-      if (category === '建物') {
+      if (category === '無形固定資産' || category === '繰延資産' || category === '一括償却資産') {
+        // 償却計算なし → 空欄
+        ws[XLSX.utils.encode_cell({ r: row, c: 7 })] = textCell('-', {
+          alignment: { horizontal: 'center' },
+        });
+      } else if (category === '建物') {
         // 建物は償却額（金額）
         ws[XLSX.utils.encode_cell({ r: row, c: 7 })] = numberCell(
           asset.depreciationAmountOrRate
@@ -283,9 +287,96 @@ export function exportToExcel(
     oddFooter: '&C&P / &N',
   };
 
-  // ---- ワークブック作成・出力 ----
+  // ---- ワークブック作成 ----
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '減価償却資産');
+
+  // ---- 計算根拠シート ----
+  const basisWs = createBasisSheet(assets);
+  XLSX.utils.book_append_sheet(wb, basisWs, '計算根拠');
+
   const dateStr = taxDate.replace(/-/g, '');
   XLSX.writeFile(wb, `${caseName}_減価償却資産評価_${dateStr}.xlsx`);
+}
+
+/** 計算根拠シートを作成（カテゴリ別・NO昇順） */
+function createBasisSheet(assets: Asset[]): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  const merges: XLSX.Range[] = [];
+  let row = 0;
+  const colCount = 4; // A~D: NO, 名称, 評価額, 計算根拠
+
+  // タイトル
+  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell('計算根拠一覧', { bold: true });
+  merges.push({ s: { r: row, c: 0 }, e: { r: row, c: colCount - 1 } });
+  row++;
+  row++; // 空行
+
+  const basisGroups = groupByLabel(
+    assets.filter((a) => a.evaluationAmount !== null)
+  );
+  for (const [label, rawAssets] of basisGroups) {
+    const catAssets = rawAssets.sort((a, b) => a.no - b.no);
+    if (catAssets.length === 0) continue;
+
+    // カテゴリヘッダー
+    ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell(
+      label,
+      { bold: true }
+    );
+    merges.push({ s: { r: row, c: 0 }, e: { r: row, c: colCount - 1 } });
+    row++;
+
+    // カラムヘッダー
+    const headers = ['NO', '資産名称', '評価額', '計算根拠'];
+    for (let c = 0; c < headers.length; c++) {
+      ws[XLSX.utils.encode_cell({ r: row, c })] = textCell(headers[c]!, {
+        bold: true,
+        fill: true,
+        alignment: { horizontal: 'center' },
+        border: HORIZONTAL_BORDER,
+      });
+    }
+    row++;
+
+    // データ行
+    for (const asset of catAssets) {
+      ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = numberCell(asset.no, { format: '0' });
+      ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = textCell(asset.name);
+      ws[XLSX.utils.encode_cell({ r: row, c: 2 })] = numberCell(asset.evaluationAmount!);
+      ws[XLSX.utils.encode_cell({ r: row, c: 3 })] = textCell(
+        getCalculationTooltip(asset).replace(/\n/g, '  ')
+      );
+      row++;
+    }
+
+    // 空行
+    row++;
+  }
+
+  // シート設定
+  ws['!ref'] = XLSX.utils.encode_range({
+    s: { r: 0, c: 0 },
+    e: { r: Math.max(row - 1, 0), c: colCount - 1 },
+  });
+  ws['!merges'] = merges;
+  ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 15 }, { wch: 80 }];
+
+  ws['!pageSetup'] = {
+    paperSize: 9,
+    orientation: 'landscape',
+    fitToWidth: 1,
+    fitToHeight: 0,
+    scale: 0,
+  };
+  ws['!margins'] = {
+    left: 0.3,
+    right: 0.3,
+    top: 0.4,
+    bottom: 0.4,
+    header: 0.2,
+    footer: 0.2,
+  };
+
+  return ws;
 }

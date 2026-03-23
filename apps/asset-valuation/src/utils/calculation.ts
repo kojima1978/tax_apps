@@ -119,6 +119,28 @@ export function calculateAsset(
     };
   }
 
+  // 財産性なし（評価額0）
+  if (asset.category === '無形固定資産' || asset.category === '繰延資産') {
+    return {
+      elapsedYears: elapsed,
+      depreciationAmountOrRate: 0,
+      evaluationAmount: 0,
+      evaluationBasis: '財産性なし',
+      isWithin3Years: false,
+    };
+  }
+
+  // 一括償却資産 → 簿価
+  if (asset.category === '一括償却資産') {
+    return {
+      elapsedYears: elapsed,
+      depreciationAmountOrRate: 0,
+      evaluationAmount: asset.bookValue,
+      evaluationBasis: '簿価',
+      isWithin3Years: false,
+    };
+  }
+
   // カテゴリ別計算
   return calculateByCategory(asset, taxDate, elapsed, within3);
 }
@@ -207,6 +229,14 @@ export function getCalculationTooltip(asset: Asset): string {
 
   if (asset.evaluationBasis === '3年内_簿価') {
     return `3年以内取得のため期末簿価を使用: ${formatYen(asset.bookValue)}`;
+  }
+
+  if (asset.evaluationBasis === '財産性なし') {
+    return '財産性なし（評価額0円）';
+  }
+
+  if (asset.evaluationBasis === '簿価') {
+    return `一括償却資産のため期末簿価を使用: ${formatYen(asset.bookValue)}`;
   }
 
   const config = CATEGORY_CONFIG[asset.category];

@@ -120,8 +120,14 @@ export default function App() {
   return (
     <div className="min-h-screen">
       {/* ヘッダー */}
-      <header className="bg-green-700 text-white py-4 px-6 print:hidden">
+      <header className="bg-green-700 text-white py-4 px-6 print:hidden flex items-center justify-between">
         <h1 className="text-lg font-bold">相続税 減価償却資産評価</h1>
+        <a
+          href="/"
+          className="text-sm text-green-100 hover:text-white hover:underline"
+        >
+          ポータルに戻る
+        </a>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
@@ -162,6 +168,7 @@ export default function App() {
             onImportPresets={importPresetsFromJson}
             onBack={() => setCurrentStep(1)}
             onNext={handleStep2Next}
+            onGoToStep1={() => setCurrentStep(1)}
           />
         )}
 
@@ -177,6 +184,7 @@ export default function App() {
             onSortAssets={sortAssets}
             onBack={() => setCurrentStep(2)}
             onNext={handleStep3Next}
+            onGoToStep1={() => setCurrentStep(1)}
           />
         )}
 
@@ -189,6 +197,7 @@ export default function App() {
             onExportJson={handleExportJson}
             onExportPresets={exportPresetsToJson}
             onBack={() => setCurrentStep(3)}
+            onGoToStep1={() => setCurrentStep(1)}
           />
         )}
       </main>

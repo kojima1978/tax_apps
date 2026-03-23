@@ -5,15 +5,16 @@ import { AssetTable } from './AssetTable';
 
 interface Props {
   assets: Asset[];
-  groupedAssets: Map<AssetCategory, Asset[]>;
+  groupedAssets: Map<string, Asset[]>;
   taxDate: string;
   onUpdateAsset: (id: string, updates: Partial<Asset>) => void;
   onDeleteAsset: (id: string) => void;
-  onAddEmptyAsset: (category: AssetCategory) => void;
-  onToggleFixedAssetTaxBulk: (category: AssetCategory, checked: boolean) => void;
-  onSortAssets: (category: AssetCategory, sortBy: 'no' | 'acquisitionDate' | 'acquisitionCost') => void;
+  onAddEmptyAsset: (category: AssetCategory, categoryLabel: string) => void;
+  onToggleFixedAssetTaxBulk: (label: string, checked: boolean) => void;
+  onSortAssets: (label: string, sortBy: 'no' | 'acquisitionDate' | 'acquisitionCost') => void;
   onBack: () => void;
   onNext: () => void;
+  onGoToStep1: () => void;
 }
 
 export function DataEditStep({
@@ -27,6 +28,7 @@ export function DataEditStep({
   onSortAssets,
   onBack,
   onNext,
+  onGoToStep1,
 }: Props) {
   const validationResults = useMemo(() => validateAllAssets(assets), [assets]);
   const errors = useMemo(() => validationResults.filter((r) => r.type === 'error'), [validationResults]);
@@ -86,12 +88,20 @@ export function DataEditStep({
 
       {/* ナビゲーション */}
       <div className="flex justify-between">
-        <button
-          onClick={onBack}
-          className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-        >
-          ← 戻る
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onGoToStep1}
+            className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:underline"
+          >
+            Step 1に戻る
+          </button>
+          <button
+            onClick={onBack}
+            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            ← 戻る
+          </button>
+        </div>
         <button
           onClick={onNext}
           disabled={hasErrors(validationResults)}

@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import type { Asset } from '@/types';
-import { CATEGORY_ORDER, CATEGORY_CONFIG } from '@/types';
+import { CATEGORY_CONFIG, groupByLabel } from '@/types';
 import { formatYen, formatDate } from '@/utils/formatters';
 import { calcWithin3YearsDate } from '@/utils/calculation';
 
@@ -11,6 +12,7 @@ interface Props {
 
 export function ExcelPreview({ caseName, taxDate, assets }: Props) {
   const threeYearsAgo = calcWithin3YearsDate(taxDate);
+  const groups = useMemo(() => groupByLabel(assets), [assets]);
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 font-mono text-xs">
@@ -22,9 +24,8 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
         3年以内: {formatDate(threeYearsAgo.toISOString().slice(0, 10))}
       </div>
 
-      {CATEGORY_ORDER.map((category) => {
-        const catAssets = assets.filter((a) => a.category === category);
-        if (catAssets.length === 0) return null;
+      {groups.map(([label, catAssets]) => {
+        const category = catAssets[0]!.category;
         const config = CATEGORY_CONFIG[category];
 
         const totalAcq = catAssets.reduce((s, a) => s + a.acquisitionCost, 0);
@@ -35,13 +36,13 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
         const totalBook = catAssets.reduce((s, a) => s + a.bookValue, 0);
 
         return (
-          <div key={category} className="mb-4">
+          <div key={label} className="mb-4">
             <div className="font-bold mb-1">
-              {config.excelHeader}
+              【　{label}　】
             </div>
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-green-100">
                   <th className="border px-1 py-0.5 text-left w-10">NO</th>
                   <th className="border px-1 py-0.5 text-left">名称等</th>
                   <th className="border px-1 py-0.5 text-center w-20">取得年月</th>
@@ -80,11 +81,13 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
                       {formatYen(a.acquisitionCost)}
                     </td>
                     <td className="border px-1 py-0.5 text-right">
-                      {category === '建物'
-                        ? formatYen(
-                            Math.floor(a.depreciationAmountOrRate)
-                          )
-                        : a.depreciationAmountOrRate.toFixed(3)}
+                      {category === '無形固定資産' || category === '繰延資産' || category === '一括償却資産'
+                        ? '−'
+                        : category === '建物'
+                          ? formatYen(
+                              Math.floor(a.depreciationAmountOrRate)
+                            )
+                          : a.depreciationAmountOrRate.toFixed(3)}
                     </td>
                     <td className="border px-1 py-0.5 text-right">
                       {a.evaluationAmount === null
