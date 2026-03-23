@@ -5,7 +5,11 @@ export type AssetCategory =
   | '構築物'
   | '機械装置'
   | '車両'
-  | '器具備品';
+  | '器具備品'
+  | 'ソフトウェア'
+  | '無形固定資産'
+  | '繰延資産'
+  | '一括償却資産';
 
 /** カテゴリ表示順 */
 export const CATEGORY_ORDER: AssetCategory[] = [
@@ -15,6 +19,10 @@ export const CATEGORY_ORDER: AssetCategory[] = [
   '機械装置',
   '車両',
   '器具備品',
+  'ソフトウェア',
+  '無形固定資産',
+  '繰延資産',
+  '一括償却資産',
 ];
 
 /** カテゴリごとの特性 */
@@ -90,6 +98,46 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
     hasRental: false,
     headerLabel: '償却率',
   },
+  ソフトウェア: {
+    label: 'ソフトウェア',
+    excelHeader: '【    ソフトウェア    】',
+    depreciationMethod: '定率法',
+    multiply07: false,
+    hasFixedAssetTaxRecord: false,
+    hasWithin3Years: false,
+    hasRental: false,
+    headerLabel: '償却率',
+  },
+  無形固定資産: {
+    label: '無形固定資産',
+    excelHeader: '【    無形固定資産    】',
+    depreciationMethod: '定額法',
+    multiply07: false,
+    hasFixedAssetTaxRecord: false,
+    hasWithin3Years: false,
+    hasRental: false,
+    headerLabel: '',
+  },
+  繰延資産: {
+    label: '繰延資産',
+    excelHeader: '【      繰延資産      】',
+    depreciationMethod: '定額法',
+    multiply07: false,
+    hasFixedAssetTaxRecord: false,
+    hasWithin3Years: false,
+    hasRental: false,
+    headerLabel: '',
+  },
+  一括償却資産: {
+    label: '一括償却資産',
+    excelHeader: '【    一括償却資産    】',
+    depreciationMethod: '定額法',
+    multiply07: false,
+    hasFixedAssetTaxRecord: false,
+    hasWithin3Years: false,
+    hasRental: false,
+    headerLabel: '',
+  },
 };
 
 /** 評価根拠 */
@@ -99,13 +147,16 @@ export type EvaluationBasis =
   | '評基通89－2(2)'
   | '評基通92'
   | '評基通97'
-  | '評基通129';
+  | '評基通129'
+  | '簿価'
+  | '財産性なし';
 
 /** 資産データ */
 export interface Asset {
   id: string;
   no: number;
   category: AssetCategory;
+  categoryLabel: string; // 表示用ラベル（例: "無形固定資産（１）"）
   name: string;
   acquisitionDate: string; // YYYY-MM-DD
   usefulLife: number;
@@ -179,7 +230,44 @@ export const CATEGORY_ALIASES: Record<string, AssetCategory> = {
   器具備品: '器具備品',
   '器具及び備品': '器具備品',
   工具器具備品: '器具備品',
+  ソフトウェア: 'ソフトウェア',
+  ソフトウエア: 'ソフトウェア',
+  無形固定資産: '無形固定資産',
+  無形資産: '無形固定資産',
+  繰延資産: '繰延資産',
+  一括償却資産: '一括償却資産',
+  一括償却: '一括償却資産',
 };
+
+/** カテゴリ名からサフィックスを除去して基底カテゴリを取得 */
+export function resolveBaseCategory(raw: string): AssetCategory | undefined {
+  // 完全一致
+  if (CATEGORY_ALIASES[raw]) return CATEGORY_ALIASES[raw];
+  // （数字）や (数字) のサフィックスを除去して再検索
+  const stripped = raw.replace(/[（(]\s*[０-９0-9]+\s*[）)]\s*$/, '').trim();
+  if (stripped !== raw && CATEGORY_ALIASES[stripped]) return CATEGORY_ALIASES[stripped];
+  return undefined;
+}
+
+/** categoryLabelでグループ化し、CATEGORY_ORDER準拠で並べる */
+export function groupByLabel(assets: Asset[]): [string, Asset[]][] {
+  const labelMap = new Map<string, Asset[]>();
+  for (const a of assets) {
+    if (!labelMap.has(a.categoryLabel)) labelMap.set(a.categoryLabel, []);
+    labelMap.get(a.categoryLabel)!.push(a);
+  }
+  const result: [string, Asset[]][] = [];
+  for (const baseCat of CATEGORY_ORDER) {
+    const labels = Array.from(labelMap.keys())
+      .filter((l) => labelMap.get(l)![0]!.category === baseCat)
+      .sort();
+    for (const label of labels) {
+      result.push([label, labelMap.get(label)!]);
+      labelMap.delete(label);
+    }
+  }
+  return result;
+}
 
 /** ステップ定義 */
 export const STEPS = [

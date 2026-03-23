@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { Download, FileJson, Settings } from 'lucide-react';
 import type { Asset } from '@/types';
+import { groupByLabel } from '@/types';
 import { ExcelPreview } from '@/components/step3/ExcelPreview';
 import { getCalculationTooltip } from '@/utils/calculation';
-import { CATEGORY_ORDER } from '@/types';
 import { formatYen } from '@/utils/formatters';
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
   onExportJson: () => void;
   onExportPresets: () => void;
   onBack: () => void;
+  onGoToStep1: () => void;
 }
 
 export function ResultStep({
@@ -23,6 +25,7 @@ export function ResultStep({
   onExportJson,
   onExportPresets,
   onBack,
+  onGoToStep1,
 }: Props) {
   const grandTotalAcquisition = assets.reduce(
     (s, a) => s + a.acquisitionCost,
@@ -31,6 +34,15 @@ export function ResultStep({
   const grandTotalEvaluation = assets.reduce(
     (s, a) => s + (a.evaluationAmount ?? 0),
     0
+  );
+
+  const labelGroups = useMemo(() => groupByLabel(assets), [assets]);
+  const basisGroups = useMemo(
+    () =>
+      groupByLabel(
+        assets.filter((a) => a.evaluationAmount !== null)
+      ).map(([label, items]) => [label, items.sort((a, b) => a.no - b.no)] as [string, Asset[]]),
+    [assets]
   );
 
   return (
@@ -83,17 +95,15 @@ export function ResultStep({
           カテゴリ別内訳
         </h3>
         <div className="space-y-1">
-          {CATEGORY_ORDER.map((cat) => {
-            const catAssets = assets.filter((a) => a.category === cat);
-            if (catAssets.length === 0) return null;
+          {labelGroups.map(([label, catAssets]) => {
             const total = catAssets.reduce(
               (s, a) => s + (a.evaluationAmount ?? 0),
               0
             );
             return (
-              <div key={cat} className="flex justify-between text-sm">
+              <div key={label} className="flex justify-between text-sm">
                 <span className="text-gray-600">
-                  {cat}（{catAssets.length}件）
+                  {label}（{catAssets.length}件）
                 </span>
                 <span className="font-mono">{formatYen(total)}</span>
               </div>
@@ -109,38 +119,55 @@ export function ResultStep({
         assets={assets}
       />
 
-      {/* 計算根拠一覧 */}
+      {/* 計算根拠一覧（カテゴリ別・NO昇順） */}
       <div className="bg-gray-50 rounded-lg border p-4">
         <h3 className="text-sm font-bold text-gray-700 mb-3">
           計算根拠一覧
         </h3>
-        <div className="space-y-1 text-xs max-h-60 overflow-y-auto">
-          {assets
-            .filter((a) => a.evaluationAmount !== null)
-            .map((asset) => (
-              <div key={asset.id} className="flex gap-2">
-                <span className="text-gray-400 w-8 text-right shrink-0">
-                  {asset.no}
-                </span>
-                <span className="text-gray-500 w-24 truncate shrink-0">
-                  {asset.name}
-                </span>
-                <span className="text-gray-700 whitespace-pre-line">
-                  {getCalculationTooltip(asset)}
-                </span>
+        <div className="space-y-4 text-xs max-h-80 overflow-y-auto">
+          {basisGroups.map(([label, catAssets]) => {
+            return (
+              <div key={label}>
+                <div className="text-xs font-bold text-green-700 mb-1">
+                  {label}
+                </div>
+                <div className="space-y-1 pl-2">
+                  {catAssets.map((asset) => (
+                    <div key={asset.id} className="flex gap-2">
+                      <span className="text-gray-400 w-8 text-right shrink-0">
+                        {asset.no}
+                      </span>
+                      <span className="text-gray-500 w-24 truncate shrink-0">
+                        {asset.name}
+                      </span>
+                      <span className="text-gray-700 whitespace-pre-line">
+                        {getCalculationTooltip(asset)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            );
+          })}
         </div>
       </div>
 
       {/* ナビゲーション */}
       <div className="flex justify-between">
-        <button
-          onClick={onBack}
-          className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-        >
-          ← 戻る
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onGoToStep1}
+            className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:underline"
+          >
+            Step 1に戻る
+          </button>
+          <button
+            onClick={onBack}
+            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            ← 戻る
+          </button>
+        </div>
       </div>
     </div>
   );

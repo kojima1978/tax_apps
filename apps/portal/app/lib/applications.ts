@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity, Briefcase, Building, Calculator, ClipboardList,
-  Clock, CreditCard, FileCheck, FileText, Gift, Receipt, TrendingUp,
+  Clock, CreditCard, FileCheck, FileText, Gift, Package, Receipt, TrendingUp,
 } from 'lucide-react';
 
 export interface Application {
@@ -23,6 +23,7 @@ export const applications: Application[] = [
   { title: '非上場株式評価', description: '非上場株式の評価システム', url: '/shares/', icon: TrendingUp },
   { title: '退職金税額計算', description: '退職金の所得税・住民税を計算', url: '/retirement-tax-calc/', icon: CreditCard },
   { title: '減価償却ツール', description: '耐用年数・簿価・期間償却を計算', url: '/depreciation-calc/', icon: Clock },
+  { title: '減価償却資産評価', description: '相続税の減価償却資産を一括評価', url: '/asset-valuation/', icon: Package },
   // 分析・管理
   { title: '預貯金分析', description: '預金移動の分析ツール', url: '/bank-analyzer/', icon: Building },
   { title: '案件管理', description: '相続税案件の進捗管理', url: '/itcm/', icon: Briefcase },

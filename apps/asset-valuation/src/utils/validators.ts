@@ -10,11 +10,11 @@ export interface ValidationResult {
 export function validateAsset(asset: Asset): ValidationResult[] {
   const results: ValidationResult[] = [];
 
-  if (asset.usefulLife < 2 || asset.usefulLife > 50) {
+  if (asset.usefulLife < 0 || asset.usefulLife > 50) {
     results.push({
       type: 'error',
       field: 'usefulLife',
-      message: `耐用年数が範囲外です（2〜50）: ${asset.usefulLife}`,
+      message: `耐用年数が範囲外です（0〜50）: ${asset.usefulLife}`,
       assetId: asset.id,
     });
   }

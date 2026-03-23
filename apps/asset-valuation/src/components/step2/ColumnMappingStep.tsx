@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import {
   MAPPING_FIELDS,
-  CATEGORY_ALIASES,
   CATEGORY_ORDER,
+  resolveBaseCategory,
 } from '@/types';
 import type {
   ColumnMapping,
@@ -27,6 +27,7 @@ interface Props {
   onImportPresets: (file: File) => Promise<void>;
   onBack: () => void;
   onNext: () => void;
+  onGoToStep1: () => void;
 }
 
 export function ColumnMappingStep({
@@ -42,6 +43,7 @@ export function ColumnMappingStep({
   onImportPresets,
   onBack,
   onNext,
+  onGoToStep1,
 }: Props) {
   const [error, setError] = useState<string | null>(null);
 
@@ -87,7 +89,7 @@ export function ColumnMappingStep({
     }
     // カテゴリマッピング確認
     const unmapped = uniqueCategories.filter(
-      (c) => !categoryMapping[c] && !CATEGORY_ALIASES[c]
+      (c) => !categoryMapping[c] && !resolveBaseCategory(c)
     );
     if (unmapped.length > 0) {
       setError(
@@ -173,7 +175,7 @@ export function ColumnMappingStep({
           </h3>
           <div className="space-y-2">
             {uniqueCategories.map((csvCat) => {
-              const autoMatch = CATEGORY_ALIASES[csvCat];
+              const autoMatch = resolveBaseCategory(csvCat);
               const mapped =
                 categoryMapping[csvCat] ?? autoMatch ?? '';
               return (
@@ -265,12 +267,20 @@ export function ColumnMappingStep({
 
       {/* ナビゲーション */}
       <div className="flex justify-between">
-        <button
-          onClick={onBack}
-          className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-        >
-          ← 戻る
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onGoToStep1}
+            className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:underline"
+          >
+            Step 1に戻る
+          </button>
+          <button
+            onClick={onBack}
+            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            ← 戻る
+          </button>
+        </div>
         <button
           onClick={handleNext}
           className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"

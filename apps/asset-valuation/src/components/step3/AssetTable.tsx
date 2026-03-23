@@ -1,16 +1,16 @@
 import { ArrowUpDown, Trash2, Plus } from 'lucide-react';
 import type { Asset, AssetCategory } from '@/types';
-import { CATEGORY_CONFIG, CATEGORY_ORDER } from '@/types';
+import { CATEGORY_CONFIG } from '@/types';
 import { formatYen, formatDate } from '@/utils/formatters';
 
 interface Props {
-  groupedAssets: Map<AssetCategory, Asset[]>;
+  groupedAssets: Map<string, Asset[]>;
   taxDate: string;
   onUpdateAsset: (id: string, updates: Partial<Asset>) => void;
   onDeleteAsset: (id: string) => void;
-  onAddEmptyAsset: (category: AssetCategory) => void;
-  onToggleFixedAssetTaxBulk: (category: AssetCategory, checked: boolean) => void;
-  onSortAssets: (category: AssetCategory, sortBy: 'no' | 'acquisitionDate' | 'acquisitionCost') => void;
+  onAddEmptyAsset: (category: AssetCategory, categoryLabel: string) => void;
+  onToggleFixedAssetTaxBulk: (label: string, checked: boolean) => void;
+  onSortAssets: (label: string, sortBy: 'no' | 'acquisitionDate' | 'acquisitionCost') => void;
 }
 
 export function AssetTable({
@@ -24,9 +24,9 @@ export function AssetTable({
 }: Props) {
   return (
     <div className="space-y-6">
-      {CATEGORY_ORDER.map((category) => {
-        const assets = groupedAssets.get(category);
-        if (!assets || assets.length === 0) return null;
+      {Array.from(groupedAssets.entries()).map(([label, assets]) => {
+        if (assets.length === 0) return null;
+        const category = assets[0]!.category;
         const config = CATEGORY_CONFIG[category];
 
         const totalAcquisition = assets.reduce((s, a) => s + a.acquisitionCost, 0);
@@ -37,11 +37,11 @@ export function AssetTable({
         const totalBookValue = assets.reduce((s, a) => s + a.bookValue, 0);
 
         return (
-          <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div key={label} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             {/* カテゴリヘッダー */}
             <div className="bg-green-50 border-b px-4 py-2 flex items-center justify-between">
               <h3 className="font-bold text-green-800">
-                {config.label}（{assets.length}件）
+                {label}（{assets.length}件）
               </h3>
               <div className="flex items-center gap-2">
                 {config.hasFixedAssetTaxRecord && (
@@ -49,7 +49,7 @@ export function AssetTable({
                     <input
                       type="checkbox"
                       checked={assets.every((a) => a.hasFixedAssetTaxRecord)}
-                      onChange={(e) => onToggleFixedAssetTaxBulk(category, e.target.checked)}
+                      onChange={(e) => onToggleFixedAssetTaxBulk(label, e.target.checked)}
                       className="rounded"
                     />
                     固定資産税評価明細 一括
@@ -57,7 +57,7 @@ export function AssetTable({
                 )}
                 <div className="flex gap-1">
                   <button
-                    onClick={() => onSortAssets(category, 'no')}
+                    onClick={() => onSortAssets(label, 'no')}
                     className="p-1 text-gray-400 hover:text-gray-600"
                     title="NO順"
                   >
@@ -65,7 +65,7 @@ export function AssetTable({
                   </button>
                 </div>
                 <button
-                  onClick={() => onAddEmptyAsset(category)}
+                  onClick={() => onAddEmptyAsset(category, label)}
                   className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
                 >
                   <Plus size={12} /> 行追加
@@ -156,9 +156,11 @@ export function AssetTable({
                         />
                       </td>
                       <td className="px-2 py-1 text-right font-mono">
-                        {category === '建物'
-                          ? formatYen(Math.floor(asset.depreciationAmountOrRate))
-                          : asset.depreciationAmountOrRate.toFixed(3)}
+                        {category === '無形固定資産' || category === '繰延資産' || category === '一括償却資産'
+                          ? '−'
+                          : category === '建物'
+                            ? formatYen(Math.floor(asset.depreciationAmountOrRate))
+                            : asset.depreciationAmountOrRate.toFixed(3)}
                       </td>
                       <td className="px-2 py-1 text-right font-mono">
                         {asset.evaluationAmount === null ? (
