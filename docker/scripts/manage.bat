@@ -36,7 +36,7 @@ set "BACKUP_BASE=%SCRIPT_DIR%..\backups"
 :: ?A?v?????i?N?????????l???j
 :: gateway ????iupstream????n???K?v??????j?ADB????A?v???? DB+App ???
 :: ------------------------------------
-set "APP_COUNT=13"
+set "APP_COUNT=15"
 set "APP_1=apps\inheritance-case-management"
 set "APP_2=apps\bank-analyzer-django"
 set "APP_3=apps\Required-documents-for-tax-return"
@@ -48,8 +48,10 @@ set "APP_8=apps\gift-tax-docs"
 set "APP_9=apps\inheritance-tax-docs"
 set "APP_10=apps\retirement-tax-calc"
 set "APP_11=apps\depreciation-calc"
-set "APP_12=apps\stock-valuation-form"
-set "APP_13=docker\gateway"
+set "APP_12=apps\salary-calc"
+set "APP_13=apps\asset-valuation"
+set "APP_14=apps\stock-valuation-form"
+set "APP_15=docker\gateway"
 
 :: ------------------------------------
 :: ???C??
@@ -606,7 +608,7 @@ if not exist "!ITCM_ENV!" (
 
 :: 6. Port conflicts
 set "PORT_CONFLICT=0"
-for /f "tokens=*" %%L in ('powershell -NoProfile -Command "$ports = @(80,3000,3001,3002,3003,3004,3005,3006,3007,3010,3012,3013,3014,3015,3016,3020,3022,5173); $lines = netstat -ano 2>$null; foreach ($p in $ports) { foreach ($l in $lines) { if ($l -match 'LISTENING' -and $l -match \":$p\s\") { Write-Output $p; break } } }"') do call :do_preflight_port %%L
+for /f "tokens=*" %%L in ('powershell -NoProfile -Command "$ports = @(80,3000,3001,3002,3003,3004,3005,3006,3007,3010,3012,3013,3014,3015,3016,3017,3020,3022,5173); $lines = netstat -ano 2>$null; foreach ($p in $ports) { foreach ($l in $lines) { if ($l -match 'LISTENING' -and $l -match \":$p\s\") { Write-Output $p; break } } }"') do call :do_preflight_port %%L
 if "!PORT_CONFLICT!"=="0" (
     echo [OK]    No port conflicts detected
     set /a PF_OK+=1

@@ -266,6 +266,8 @@ manage.bat start
 | Shares Valuation | `runner` | nginx:1.27-alpine | あり |
 | Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
 | Depreciation Calc | `runner` | nginx:1.27-alpine | あり |
+| Salary Calc | `runner` | nginx:1.27-alpine | あり |
+| Asset Valuation | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
 | Stock Valuation Form | `runner` | nginx:1.27-alpine | あり（開発中・`--prod` でスキップ） |
 | Bank Analyzer | `production` | Gunicorn | あり |
@@ -457,6 +459,7 @@ docker network create tax-apps-network
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
 | Salary Calc | http://localhost/salary-calc/ | 3016 | Vite | 給与・賞与 手取り計算 |
+| Asset Valuation | http://localhost/asset-valuation/ | 3017 | Vite | 減価償却資産評価 |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
 | Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書（開発中） |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 銀行分析 |
@@ -486,8 +489,10 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 9 | inheritance-tax-docs | Vite |
 | 10 | retirement-tax-calc | Vite |
 | 11 | depreciation-calc | Vite |
-| 12 | stock-valuation-form | Vite（開発中・`--prod` でスキップ） |
-| 13 | gateway | Nginx + Portal（全アプリ起動後に起動） |
+| 12 | salary-calc | Vite |
+| 13 | asset-valuation | Vite |
+| 14 | stock-valuation-form | Vite（開発中・`--prod` でスキップ） |
+| 15 | gateway | Nginx + Portal（全アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -508,6 +513,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3015 | Depreciation Calc | apps/depreciation-calc |
 | 3016 | Salary Calc | apps/salary-calc |
+| 3017 | Asset Valuation | apps/asset-valuation |
 | 3020 | ITCM Web | apps/inheritance-case-management |
 | 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
 
@@ -519,10 +525,10 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | docker-compose.yml ファイル存在確認（13個） | OK / WARN |
+| 3 | docker-compose.yml ファイル存在確認（15個） | OK / WARN |
 | 4 | Nginx 設定ファイル存在確認 | OK / WARN |
 | 5 | ITCM `.env` ファイル存在確認 | OK / WARN |
-| 6 | ポート競合検出（16ポート） | OK / WARN |
+| 6 | ポート競合検出（17ポート） | OK / WARN |
 | 7 | ディスク空き容量（5GB未満で警告） | OK / WARN |
 
 ### Gateway 機能
@@ -601,6 +607,9 @@ tax_apps/
 │   │   └── docker-compose.yml
 │   ├── salary-calc/            # 給与・賞与 手取り計算
 │   │   └── docker-compose.yml
+│   ├── asset-valuation/        # 減価償却資産評価
+│   │   ├── docker-compose.yml
+│   │   └── docker-compose.prod.yml
 │   ├── stock-valuation-form/   # 株式評価明細書（開発中）
 │   │   ├── docker-compose.yml
 │   │   └── docker-compose.prod.yml
@@ -608,7 +617,7 @@ tax_apps/
 │       ├── data/               #   アップロードデータ（バインドマウント）
 │       └── docker-compose.yml  #   PostgreSQL + Django + テスト
 ├── docker/                     # Docker 管理
-│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（6アプリ共有）
+│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（8アプリ共有）
 │   ├── gateway/                # Gateway Compose プロジェクト
 │   │   ├── docker-compose.yml  #   Nginx + Portal
 │   │   └── docker-compose.prod.yml  #   本番オーバーライド
