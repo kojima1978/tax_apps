@@ -84,7 +84,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../../docker/Dockerfile.vite-static
+      dockerfile: ../../../docker/Dockerfile.vite-static
       target: dev
       args:
         APP_PORT: "3005"

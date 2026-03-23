@@ -214,10 +214,10 @@ DB_PASSWORD=dev-password-change-in-production
 
 ## 技術スタック
 
-- **フロントエンド**: Vite + React, Next.js 16+, Django Templates (Bootstrap 5)
+- **フロントエンド**: Vite 6〜7 + React 19, Next.js 16+, Django Templates (Bootstrap 5)
 - **バックエンド**: Express, Hono, Django
 - **ORM**: Prisma (案件管理), better-sqlite3 (確定申告書類)
-- **データベース**: SQLite, PostgreSQL (pgvector)
+- **データベース**: SQLite, PostgreSQL 16 Alpine
 - **スタイリング**: Tailwind CSS v4
 - **アイコン**: lucide-react
 - **本番サーバー**: nginx:1.27-alpine (静的サイト), Gunicorn (Django)

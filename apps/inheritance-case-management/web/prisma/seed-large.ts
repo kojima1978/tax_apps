@@ -51,11 +51,12 @@ function addDays(d: Date, days: number): Date {
 async function main() {
   console.log('Clearing all data...');
   await prisma.inheritanceCase.deleteMany();
-  await prisma.assignee.deleteMany();
   await prisma.referrer.deleteMany();
+  await prisma.company.deleteMany();
+  await prisma.assignee.deleteMany();
 
   // Reset sequences
-  for (const seq of ['Assignee_id_seq','Referrer_id_seq','InheritanceCase_id_seq','CaseContact_id_seq','CaseProgress_id_seq']) {
+  for (const seq of ['Assignee_id_seq','Company_id_seq','Referrer_id_seq','InheritanceCase_id_seq','CaseContact_id_seq','CaseProgress_id_seq']) {
     await prisma.$executeRawUnsafe(`ALTER SEQUENCE "${seq}" RESTART WITH 1`);
   }
 
@@ -80,17 +81,24 @@ async function main() {
   const assignees = await prisma.assignee.findMany({ where: { active: true } });
   console.log(`Created ${assigneeData.length} assignees (${assignees.length} active)`);
 
+  // === 会社マスタ ===
+  console.log(`Creating ${COMPANIES.length} companies...`);
+  await prisma.company.createMany({ data: COMPANIES.map(name => ({ name })) });
+  const companyRecords = await prisma.company.findMany();
+  const companyMap = new Map(companyRecords.map(c => [c.name, c.id]));
+  console.log(`Created ${companyRecords.length} companies`);
+
   // === 紹介者30名 ===
   console.log('Creating 30 referrers...');
   const referrerData = [];
   for (let i = 0; i < 30; i++) {
-    const company = COMPANIES[i % COMPANIES.length];
+    const companyName = COMPANIES[i % COMPANIES.length];
     let contactName: string;
     do {
       contactName = `${pick(LAST_NAMES)} ${pick([...FIRST_NAMES_M, ...FIRST_NAMES_F])}`;
     } while (false);
     referrerData.push({
-      company,
+      companyId: companyMap.get(companyName)!,
       name: contactName,
       department: pick(COMPANY_DEPTS),
       active: i < 28,
