@@ -40,7 +40,7 @@ cd apps/<app-name> && docker compose up -d
 
 ### 個別アプリのスクリプト（Docker内で実行）
 - Next.js系: `npm run dev` / `npm run build` / `npm run lint`
-- Vite (inheritance-tax-app): `npm run dev` / `npm run build` / `npm run lint`
+- Vite系: `npm run dev` / `npm run build` / `npm run lint`
 - Hono API (inheritance-case-management/api): `npm run dev` / `npm run test` (vitest) / `npm run db:generate` / `npm run db:push`
 - Express (Required-documents-for-tax-return/backend): `npm run dev` / `npm run build`
 - Django (bank-analyzer-django): `python manage.py runserver 0.0.0.0:3007`
@@ -59,7 +59,7 @@ cd apps/<app-name> && docker compose up -d
 | tax-docs (frontend) | `/tax-docs/` | 3005 | Vite/React + @dnd-kit + xlsx-js-style |
 | tax-docs (backend) | `/tax-docs-api/` | 3006 | Express + better-sqlite3 |
 | medical-stock-valuation | `/medical/` | 3010 | Next.js + SQLite (Prisma) |
-| shares-valuation | `/shares/` | 3012 | Next.js + react-number-format |
+| shares-valuation | `/shares/` | 3012 | Vite/React + react-number-format |
 | retirement-tax-calc | `/retirement-tax-calc/` | 3013 | Vite/React |
 | inheritance-case-management (web) | `/itcm/` | 3020 | Next.js + React Query + React Table |
 | inheritance-case-management (api) | `/itcm-api/` | 3021 | Hono + Prisma + PostgreSQL |
@@ -90,7 +90,7 @@ nginx/                   # Nginxゲートウェイ設定
 
 ### 技術スタック共通事項
 
-- **フロントエンド**: Next.js 16.x (App Router) / Vite 7.x、React 19.x、TypeScript 5.x
+- **フロントエンド**: Next.js 16.x (App Router) / Vite 6〜7.x、React 19.x、TypeScript 5.x
 - **スタイリング**: Tailwind CSS v4 (@tailwindcss/postcss)
 - **アイコン**: lucide-react
 - **DnD**: @dnd-kit（gift-tax-docs, inheritance-tax-docs, tax-docs）

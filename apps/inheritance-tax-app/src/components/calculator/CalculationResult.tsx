@@ -22,7 +22,7 @@ const SUMMARY_ITEMS = [
 
 const HIGHLIGHT_ITEMS = [
   { label: '納付税額合計', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.totalFinalTax) },
-  { label: '相続税負担率', getValue: (r: DetailedTaxCalculationResult, w: number) => formatPercent(r.effectiveTaxRate) },
+  { label: '相続税負担率', getValue: (r: DetailedTaxCalculationResult, _w: number) => formatPercent(r.effectiveTaxRate) },
   { label: '加重平均適用税率', getValue: (_r: DetailedTaxCalculationResult, w: number) => formatPercent(w) },
 ] as const;
 

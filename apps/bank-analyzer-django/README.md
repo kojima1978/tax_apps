@@ -43,7 +43,7 @@
 | 分類 | 技術 |
 |------|------|
 | フレームワーク | Django 5.x〜6.0 |
-| データベース | PostgreSQL 16（SQLiteもレガシー対応） |
+| データベース | PostgreSQL 16 Alpine（SQLiteもレガシー対応） |
 | フロントエンド | Bootstrap 5, Bootstrap Icons |
 | フォーム | django-crispy-forms + crispy-bootstrap5 |
 | データ処理 | pandas |
@@ -368,7 +368,7 @@ docker compose --profile production up -d bank-analyzer-prod
 
 | サービス | 説明 | ポート |
 |---------|------|--------|
-| `bank-analyzer-db` | PostgreSQL 16 | 5432（内部） |
+| `bank-analyzer-db` | PostgreSQL 16 (Alpine) | 5432（内部） |
 | `bank-analyzer-django` | Django runserver（開発モード） | 3007 |
 | `test` | テストランナー（オンデマンド） | — |
 | `bank-analyzer-prod` | Gunicorn（本番モード） | 3007 |

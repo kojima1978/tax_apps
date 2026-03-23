@@ -11,7 +11,7 @@
 | Frontend | Next.js 16.1.1, React 19.2.3, TypeScript 5.9.3, Tailwind CSS v4 |
 | Data | TanStack Query 5.64, TanStack Table 8.21, react-currency-input-field, @dnd-kit |
 | Backend | Next.js API Routes, Prisma 6.2, Zod 3.24 |
-| Database | PostgreSQL 16 |
+| Database | PostgreSQL 16 Alpine |
 | Charts | recharts 2.15 |
 | Other | @react-pdf/renderer, lucide-react, @radix-ui/react-label |
 | Infrastructure | Docker, Docker Compose |

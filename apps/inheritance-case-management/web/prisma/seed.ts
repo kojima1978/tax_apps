@@ -7,11 +7,13 @@ async function main() {
 
   // 既存データをクリア（子テーブルはCASCADEで自動削除）
   await prisma.inheritanceCase.deleteMany();
-  await prisma.assignee.deleteMany();
   await prisma.referrer.deleteMany();
+  await prisma.company.deleteMany();
+  await prisma.assignee.deleteMany();
 
   // シーケンスをリセット
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Assignee_id_seq" RESTART WITH 1`);
+  await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Company_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Referrer_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "InheritanceCase_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "CaseContact_id_seq" RESTART WITH 1`);
@@ -45,11 +47,18 @@ async function main() {
     }),
   ]);
 
+  // 会社データ (id: 1, 2, 3)
+  const companies = await Promise.all([
+    prisma.company.create({ data: { name: '○○銀行' } }),
+    prisma.company.create({ data: { name: '△△証券' } }),
+    prisma.company.create({ data: { name: '□□不動産' } }),
+  ]);
+
   // 紹介者データ (id: 1, 2, 3)
   const referrers = await Promise.all([
     prisma.referrer.create({
       data: {
-        company: '○○銀行',
+        companyId: companies[0].id,
         name: '田中 次郎',
         department: '信託部',
         active: true,
@@ -57,7 +66,7 @@ async function main() {
     }),
     prisma.referrer.create({
       data: {
-        company: '△△証券',
+        companyId: companies[1].id,
         name: '高橋 三郎',
         department: '営業部',
         active: true,
@@ -65,7 +74,7 @@ async function main() {
     }),
     prisma.referrer.create({
       data: {
-        company: '□□不動産',
+        companyId: companies[2].id,
         name: '伊藤 四郎',
         department: null,
         active: true,

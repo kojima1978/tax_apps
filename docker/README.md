@@ -567,11 +567,11 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 
 | カテゴリ | 技術 |
 |:---------|:-----|
-| Frontend | Next.js 16, React 19, Vite 7 |
+| Frontend | Next.js 16, React 19, Vite 6〜7 |
 | Backend | Express, Django 5.x |
-| Database | PostgreSQL 16, SQLite |
+| Database | PostgreSQL 16 Alpine, SQLite |
 | Infrastructure | Docker, Nginx 1.27 |
-| Node.js | v22 LTS (Frontend) / v24 (Backend) |
+| Node.js | v22 LTS |
 | Python | 3.12 (Django) |
 
 ### ディレクトリ構造
@@ -617,7 +617,7 @@ tax_apps/
 │       ├── data/               #   アップロードデータ（バインドマウント）
 │       └── docker-compose.yml  #   PostgreSQL + Django + テスト
 ├── docker/                     # Docker 管理
-│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（8アプリ共有）
+│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（10アプリ共有）
 │   ├── gateway/                # Gateway Compose プロジェクト
 │   │   ├── docker-compose.yml  #   Nginx + Portal
 │   │   └── docker-compose.prod.yml  #   本番オーバーライド

@@ -59,7 +59,7 @@ services:
   #   - bank_analyzer_pgdata ボリュームに永続化
   # ===========================================
   bank-analyzer-db:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: bank-analyzer-postgres
     environment:
       <<: *common-env
