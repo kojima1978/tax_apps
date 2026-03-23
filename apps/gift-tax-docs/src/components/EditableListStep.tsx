@@ -77,6 +77,22 @@ export const EditableListStep = () => {
   // ─── 検索 ───
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ドラッグオーバーレイ用の番号を算出
+  const dragOverlayCatNumber = useMemo(() => {
+    if (!dnd.activeCategory) return undefined;
+    const idx = documentList.findIndex(c => c.id === dnd.activeCategory?.id);
+    return idx !== -1 ? idx + 1 : undefined;
+  }, [dnd.activeCategory, documentList]);
+
+  const dragOverlayDocNumber = useMemo(() => {
+    if (!dnd.activeDocument) return undefined;
+    for (const cat of documentList) {
+      const idx = cat.documents.findIndex(d => d.id === dnd.activeDocument?.id);
+      if (idx !== -1) return `${idx + 1}`;
+    }
+    return undefined;
+  }, [dnd.activeDocument, documentList]);
+
   const filteredList = useMemo(() => {
     if (!searchQuery.trim()) return documentList;
     const q = searchQuery.trim().toLowerCase();
@@ -191,10 +207,11 @@ export const EditableListStep = () => {
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-4">
-                {displayList.map((category) => (
+                {displayList.map((category, catIdx) => (
                     <SortableCategoryCard
                       key={category.id}
                       category={category}
+                      categoryNumber={catIdx + 1}
                       editState={editing.categoryEditState}
                       handlers={editing.categoryHandlers}
                     >
@@ -213,11 +230,12 @@ export const EditableListStep = () => {
                           strategy={verticalListSortingStrategy}
                         >
                           <ul className="space-y-2">
-                            {category.documents.map((doc) => (
+                            {category.documents.map((doc, docIdx) => (
                               <SortableDocumentItem
                                 key={doc.id}
                                 doc={doc}
                                 categoryId={category.id}
+                                docNumber={`${docIdx + 1}`}
                                 isEditing={editing.editingDoc?.categoryId === category.id && editing.editingDoc?.docId === doc.id}
                                 editText={editing.editText}
                                 setEditText={editing.setEditText}
@@ -283,9 +301,9 @@ export const EditableListStep = () => {
             {/* ドラッグオーバーレイ */}
             <DragOverlay>
               {dnd.isDraggingCategory && dnd.activeId && dnd.activeCategory ? (
-                <CategoryDragOverlay category={dnd.activeCategory} />
+                <CategoryDragOverlay category={dnd.activeCategory} categoryNumber={dragOverlayCatNumber} />
               ) : dnd.activeId && dnd.activeDocument ? (
-                <DragOverlayItem doc={dnd.activeDocument} />
+                <DragOverlayItem doc={dnd.activeDocument} docNumber={dragOverlayDocNumber} />
               ) : null}
             </DragOverlay>
           </DndContext>

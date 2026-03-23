@@ -12,6 +12,7 @@ import {
   GripVertical,
 } from 'lucide-react';
 import type { EditableCategory } from '@/constants';
+import { toCircledNumber } from '@/utils/helpers';
 import { handleInlineKeyDown } from './EditableInput';
 import { VerticalDivider } from './VerticalDivider';
 
@@ -35,9 +36,12 @@ type CategoryHandlers = {
 
 // ─── カテゴリ名表示（カード・オーバーレイ共通） ───
 
-const CategoryNameDisplay = ({ category }: { category: EditableCategory }) => (
+const CategoryNameDisplay = ({ category, categoryNumber }: { category: EditableCategory; categoryNumber?: number }) => (
   <h3 className="font-bold text-slate-800 dark:text-slate-100">
     {category.isSpecial && <span className="text-purple-600 dark:text-purple-400">【特例】</span>}
+    {categoryNumber != null && (
+      <span className="mr-1">{toCircledNumber(categoryNumber)}</span>
+    )}
     {category.name}
   </h3>
 );
@@ -69,6 +73,7 @@ const useSortableCategory = (categoryId: string) => {
 
 type SortableCategoryCardProps = {
   category: EditableCategory;
+  categoryNumber: number;
   editState: CategoryEditState;
   handlers: CategoryHandlers;
   children: React.ReactNode;
@@ -76,6 +81,7 @@ type SortableCategoryCardProps = {
 
 export const SortableCategoryCard = ({
   category,
+  categoryNumber,
   editState,
   handlers,
   children,
@@ -160,7 +166,7 @@ export const SortableCategoryCard = ({
               </button>
             </div>
           ) : (
-            <CategoryNameDisplay category={category} />
+            <CategoryNameDisplay category={category} categoryNumber={categoryNumber} />
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -230,7 +236,7 @@ export const SortableCategoryCard = ({
 
 // ─── カテゴリドラッグオーバーレイ ───
 
-export const CategoryDragOverlay = ({ category }: { category: EditableCategory }) => (
+export const CategoryDragOverlay = ({ category, categoryNumber }: { category: EditableCategory; categoryNumber?: number }) => (
   <div
     className={`rounded-xl shadow-2xl overflow-hidden ${
       category.isSpecial
@@ -240,7 +246,7 @@ export const CategoryDragOverlay = ({ category }: { category: EditableCategory }
   >
     <div className="flex items-center gap-3 p-4">
       <GripVertical className="w-5 h-5 text-slate-400" aria-hidden="true" />
-      <CategoryNameDisplay category={category} />
+      <CategoryNameDisplay category={category} categoryNumber={categoryNumber} />
     </div>
   </div>
 );

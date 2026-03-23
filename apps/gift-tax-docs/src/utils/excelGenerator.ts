@@ -1,5 +1,6 @@
 import type XLSX from 'xlsx-js-style';
 import { COMPANY_INFO, getFullAddress, getContactLine, type DocumentGroup } from '@/constants';
+import { toCircledNumber } from '@/utils/helpers';
 
 // 共通ボーダー定義
 const thinBorder = { style: 'thin', color: { rgb: 'E5E7EB' } } as const;
@@ -43,12 +44,6 @@ const excelStyles = {
     subItemCell: {
         font: { sz: 10, color: { rgb: '6B7280' } }, // text-slate-500
         alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
-        border: { bottom: dashedBorder },
-    },
-    // チェックボックスセル
-    checkCell: {
-        font: { sz: 14, color: { rgb: '059669' } },
-        alignment: { horizontal: 'center', vertical: 'top' },
         border: { bottom: dashedBorder },
     },
     // 備考セル
@@ -96,9 +91,6 @@ export async function generateGiftTaxExcel(
         wsData.push([{ v: text, s: style }, { v: '', s: style }]);
     };
 
-    // ヘルパー: 行を追加（結合なし）
-    const pushRow = (...cells: Row) => { wsData.push(cells); };
-
     // ヘルパー: 空行
     const pushEmptyRow = () => { wsData.push([{ v: '', s: undefined }, { v: '', s: undefined }]); };
 
@@ -125,26 +117,20 @@ export async function generateGiftTaxExcel(
     pushEmptyRow();
 
     // 各カテゴリとデータ
-    results.forEach((group) => {
-        pushMergedRow(group.category, excelStyles.categoryHeader);
+    results.forEach((group, catIdx) => {
+        pushMergedRow(`${toCircledNumber(catIdx + 1)} ${group.category}`, excelStyles.categoryHeader);
 
         // 書類リスト
-        group.documents.forEach((doc) => {
+        group.documents.forEach((doc, docIdx) => {
             const docStyle = doc.checked
                 ? { ...excelStyles.documentCell, font: { ...excelStyles.documentCell.font, strike: true, color: { rgb: '9CA3AF' } } }
                 : excelStyles.documentCell;
-            const checkMark = doc.checked ? '☑' : '☐';
-            pushRow(
-                { v: checkMark, s: excelStyles.checkCell },
-                { v: doc.text, s: docStyle },
-            );
+            const docNumber = `${docIdx + 1}`;
+            pushMergedRow(`${docNumber}. ${doc.text}`, docStyle);
 
             // 中項目
-            doc.subItems.forEach((subItem) => {
-                pushRow(
-                    { v: '', s: excelStyles.subItemCell },
-                    { v: `　└ ${subItem}`, s: excelStyles.subItemCell },
-                );
+            doc.subItems.forEach((subItem, subIdx) => {
+                pushMergedRow(`　${docNumber}-${subIdx + 1} └ ${subItem}`, excelStyles.subItemCell);
             });
         });
 
@@ -177,7 +163,7 @@ export async function generateGiftTaxExcel(
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // 列幅設定: A列(チェックボックス用)は狭く、B列(内容用)は広く
+    // 列幅設定: 全行A・B結合のため合計幅が実効幅
     ws['!cols'] = [{ wch: 6 }, { wch: 90 }];
 
     ws['!rows'] = [{ hpt: 35 }]; // Title height

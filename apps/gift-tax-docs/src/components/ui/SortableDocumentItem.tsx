@@ -14,6 +14,11 @@ import { InlineEditInput, InlineAddInput } from './EditableInput';
 import type { EditableDocument } from '@/constants';
 import type { EditingSubItem, AddingSubItemTo, DocHandlers, SubItemHandlers } from '@/hooks/useEditableListEditing';
 
+// ─── 番号バッジ共通スタイル ───
+
+const docNumberClass = 'flex-shrink-0 mr-2 mt-0.5 text-sm font-semibold text-slate-500 dark:text-slate-400 min-w-[2rem] text-right';
+const subItemNumberClass = 'flex-shrink-0 mr-2 text-xs font-medium text-slate-400 dark:text-slate-500 min-w-[2.5rem] text-right';
+
 const CheckboxIcon = ({ checked }: { checked: boolean }) => (
   <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
     checked
@@ -29,6 +34,7 @@ const CheckboxIcon = ({ checked }: { checked: boolean }) => (
 type SortableDocumentItemProps = {
   doc: EditableDocument;
   categoryId: string;
+  docNumber: string;
   isEditing: boolean;
   editText: string;
   setEditText: (text: string) => void;
@@ -49,6 +55,7 @@ type SortableDocumentItemProps = {
 export const SortableDocumentItem = memo(({
   doc,
   categoryId,
+  docNumber,
   isEditing,
   editText,
   setEditText,
@@ -106,13 +113,16 @@ export const SortableDocumentItem = memo(({
         {/* チェックボックス（提出済みトグル） */}
         <button
           onClick={() => docHandlers.toggleCheck(categoryId, doc.id)}
-          className="flex-shrink-0 mr-3 mt-0.5 transition-colors"
+          className="flex-shrink-0 mr-2 mt-0.5 transition-colors"
           role="checkbox"
           aria-checked={doc.checked}
           aria-label={`${doc.text}を${doc.checked ? '未提出に戻す' : '提出済みにする'}`}
         >
           <CheckboxIcon checked={doc.checked} />
         </button>
+
+        {/* 番号 */}
+        <span className={docNumberClass}>{docNumber}.</span>
 
         {/* 書類内容 */}
         <div className="flex-grow min-w-0">
@@ -150,11 +160,12 @@ export const SortableDocumentItem = memo(({
       {/* 中項目リスト */}
       {doc.subItems.length > 0 && (
         <ul className="ml-9 mt-1 space-y-1">
-          {doc.subItems.map((subItem) => (
+          {doc.subItems.map((subItem, subIdx) => (
             <li
               key={subItem.id}
               className="flex items-center p-2 pl-3 bg-slate-100 dark:bg-slate-800/70 rounded-lg border-l-2 border-slate-300 dark:border-slate-600"
             >
+              <span className={subItemNumberClass}>{docNumber}-{subIdx + 1}</span>
               <CornerDownRight className="w-3 h-3 text-slate-400 dark:text-slate-500 mr-2 flex-shrink-0" aria-hidden="true" />
               {editingSubItem?.subItemId === subItem.id ? (
                 <div className="flex-grow">
@@ -213,7 +224,7 @@ SortableDocumentItem.displayName = 'SortableDocumentItem';
 
 // ─── ドラッグオーバーレイ ───
 
-export const DragOverlayItem = ({ doc }: { doc: EditableDocument }) => (
+export const DragOverlayItem = ({ doc, docNumber }: { doc: EditableDocument; docNumber?: string }) => (
   <div
     className={`flex items-start p-3 rounded-lg border shadow-2xl ${
       doc.checked
@@ -222,9 +233,12 @@ export const DragOverlayItem = ({ doc }: { doc: EditableDocument }) => (
     }`}
   >
     <GripVertical className="w-4 h-4 text-slate-400 mr-2" aria-hidden="true" />
-    <div className="mr-3">
+    <div className="mr-2">
       <CheckboxIcon checked={doc.checked} />
     </div>
+    {docNumber && (
+      <span className={docNumberClass}>{docNumber}.</span>
+    )}
     <span className={doc.checked ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-200'}>{doc.text}</span>
   </div>
 );
