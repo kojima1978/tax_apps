@@ -59,7 +59,7 @@ export default function InheritanceMockupPage() {
         setQueryParams(prev => ({ ...prev, [key]: parsed, page: 1 }))
     }
 
-    const handleSortChange = (sortBy: string, sortOrder: string) => {
+    const handleSortChange = (sortBy: CasesQueryParams['sortBy'], sortOrder: CasesQueryParams['sortOrder']) => {
         setQueryParams(prev => ({ ...prev, sortBy, sortOrder, page: 1 }))
     }
 
