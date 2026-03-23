@@ -1,5 +1,6 @@
 import { Info, AlertCircle } from 'lucide-react';
 import { COMPANY_INFO, getFullAddress, getContactLine, giftData, type DocumentGroup } from '@/constants';
+import { toCircledNumber } from '@/utils/helpers';
 
 const PRINT_LAYOUTS = {
   oneColumn: {
@@ -11,8 +12,6 @@ const PRINT_LAYOUTS = {
     sectionItem: 'print:mb-6',
     categoryHeader: 'print:mb-2 print:text-base print:py-1',
     docRow: 'print:py-1',
-    checkboxChecked: 'print:w-3 print:h-3 print:mt-1 print:mr-2 print:leading-3 print:text-[8px]',
-    checkboxUnchecked: 'print:w-3 print:h-3 print:mt-1 print:mr-2',
     docText: 'print:text-sm',
     subList: 'print:ml-5 print:space-y-0',
     subText: 'print:text-xs',
@@ -34,8 +33,6 @@ const PRINT_LAYOUTS = {
     sectionItem: 'print:mb-1',
     categoryHeader: 'print:mb-0.5 print:text-xs print:py-0 print:h-5',
     docRow: 'print:py-0.5',
-    checkboxChecked: 'print:w-2 print:h-2 print:mt-0.5 print:mr-1 print:leading-2 print:text-[6px]',
-    checkboxUnchecked: 'print:w-2 print:h-2 print:mt-0.5 print:mr-1',
     docText: 'print:text-[10px] print:leading-tight',
     subList: 'print:ml-3 print:space-y-0',
     subText: 'print:text-[9px] print:leading-tight',
@@ -101,19 +98,20 @@ export const PrintSection = ({
         {results.map((group, idx) => (
           <div key={idx} className={`break-inside-avoid ${l.sectionItem}`}>
             <h3 className={`font-bold text-lg mb-3 px-3 py-1 bg-emerald-50 border-l-4 border-emerald-500 text-slate-800 flex items-center ${l.categoryHeader}`}>
+              <span className="mr-1">{toCircledNumber(idx + 1)}</span>
               {group.category}
             </h3>
             <ul className="list-none pl-1 space-y-2 print:space-y-0">
-              {group.documents.map((doc, docIdx) => (
+              {group.documents.map((doc, docIdx) => {
+                const docNumber = docIdx + 1;
+                return (
                 <li key={docIdx}>
                   <div
                     className={`flex items-start text-slate-700 py-1 border-b border-dashed border-slate-100 ${doc.subItems.length > 0 ? 'border-b-0' : ''} ${l.docRow}`}
                   >
-                    {doc.checked ? (
-                      <span className={`inline-block w-4 h-4 mr-3 mt-1 border-2 border-slate-400 bg-slate-400 rounded-sm flex-shrink-0 text-white text-center leading-4 text-xs ${l.checkboxChecked}`}>✓</span>
-                    ) : (
-                      <span className={`inline-block w-4 h-4 mr-3 mt-1 border-2 border-slate-400 rounded-sm flex-shrink-0 ${l.checkboxUnchecked}`} />
-                    )}
+                    <span className={`flex-shrink-0 mr-2 mt-0.5 font-semibold text-slate-500 min-w-[1.5rem] text-right ${l.docText}`}>
+                      {docNumber}.
+                    </span>
                     <span className={`${doc.checked ? 'line-through text-slate-400' : ''} ${l.docText}`}>{doc.text}</span>
                   </div>
                   {doc.subItems.length > 0 && (
@@ -123,6 +121,7 @@ export const PrintSection = ({
                           key={subIdx}
                           className={`flex items-start text-slate-600 ${l.subText}`}
                         >
+                          <span className={`text-slate-400 mr-1 min-w-[2rem] text-right ${l.subText}`}>{docNumber}-{subIdx + 1}</span>
                           <span className={`text-slate-400 mr-2 ${l.subArrow}`}>└</span>
                           <span>{subItem}</span>
                         </li>
@@ -130,7 +129,8 @@ export const PrintSection = ({
                     </ul>
                   )}
                 </li>
-              ))}
+                );
+              })}
             </ul>
             {group.note && (
               <p className={`mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded flex items-start ${l.noteBox}`}>
