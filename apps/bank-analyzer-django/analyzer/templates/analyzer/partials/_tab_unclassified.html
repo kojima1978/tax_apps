@@ -261,7 +261,7 @@
                         </thead>
                         <tbody>
                             {% for tx in unclassified_txs %}
-                            <tr data-tx-id="{{ tx.id }}" data-description="{{ tx.description|escapejs }}">
+                            <tr data-tx-id="{{ tx.id }}" data-description="{{ tx.description|escapejs }}"{% if tx.is_flagged %} class="table-warning"{% endif %}>
                                 <td>
                                     <input type="checkbox" value="{{ tx.id }}" class="form-check-input unclassified-select-check">
                                 </td>

@@ -19,9 +19,6 @@
             <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="false" id="filterPanelToggle">
                 <i class="bi bi-funnel"></i> 詳細フィルター
             </button>
-            <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-sm btn-outline-secondary" id="filterClearBtn" style="display:none;">
-                <i class="bi bi-x-lg"></i> クリア
-            </a>
         </div>
 
         <!-- アクティブフィルター・チップ -->
@@ -98,7 +95,7 @@
                         </div>
                     </div>
                 </div>
-                <!-- 2段目: 金額フィルター + noscriptボタン -->
+                <!-- 2段目: 金額フィルター -->
                 <div class="d-flex align-items-end gap-3 pt-2 border-top">
                     <div>
                         <label class="form-label form-label-sm fw-semibold mb-1"><i class="bi bi-currency-yen me-1"></i>取引種別</label>
@@ -118,14 +115,15 @@
                                 value="{{ filter_state.amount_max }}" placeholder="最大" inputmode="numeric">
                         </div>
                     </div>
-                    <noscript>
-                        <button class="btn btn-sm btn-primary" type="submit">
-                            <i class="bi bi-search"></i> 絞り込み
-                        </button>
-                    </noscript>
-                    <span class="small text-muted auto-filter-hint">
-                        <i class="bi bi-lightning-fill"></i> 選択すると自動で絞り込みます
-                    </span>
+                </div>
+                <!-- 3段目: アクションボタン -->
+                <div class="d-flex justify-content-end gap-2 pt-3 mt-2 border-top">
+                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-outline-secondary" id="filterResetBtn">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>リセット
+                    </a>
+                    <button class="btn btn-primary" type="submit" id="filterSubmitBtn">
+                        <i class="bi bi-search me-1"></i>絞り込む
+                    </button>
                 </div>
             </form>
         </div>
@@ -243,7 +241,7 @@
                     </thead>
                     <tbody>
                         {% for tx in all_txs %}
-                        <tr data-tx-id="{{ tx.id }}">
+                        <tr data-tx-id="{{ tx.id }}"{% if tx.is_flagged %} class="table-warning"{% endif %}>
                             <td>
                                 <input type="checkbox" value="{{ tx.id }}" class="form-check-input tx-select-check">
                             </td>
