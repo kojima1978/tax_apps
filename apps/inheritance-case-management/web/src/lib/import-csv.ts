@@ -6,6 +6,8 @@ import type {
   InheritanceCase,
   Contact,
   ProgressStep,
+  CaseStatus,
+  AcceptanceStatus,
 } from '@/types/shared';
 import { CASE_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from '@/types/constants';
 

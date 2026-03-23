@@ -69,10 +69,6 @@ const TOP_BORDER = {
   top: THIN_BORDER,
 };
 
-/** 下罫線のみ */
-const BOTTOM_BORDER = {
-  bottom: THIN_BORDER,
-};
 
 /** セルスタイル生成ヘルパー */
 function textCell(
