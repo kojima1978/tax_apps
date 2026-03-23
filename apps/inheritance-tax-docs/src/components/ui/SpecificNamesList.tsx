@@ -39,39 +39,56 @@ const PLACEHOLDER_MAP: Record<string, string> = {
   other: '例: 具体的な書類名を入力',
 };
 
-const INPUT_CLASS = 'flex-1 px-2 py-0.5 border border-emerald-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-emerald-400';
-
 /** 具体名の入力行（追加・編集共通） */
 function NameInputRow({
-  value, onChange, onKeyDown, onSubmit, onCancel, placeholder, colorAccent, className, label, inputRef, autoFocus,
+  value, onChange, onKeyDown, onSubmit, onCancel, onBlur, placeholder, colorAccent, className, label, inputRef, autoFocus, mode,
 }: {
   value: string; onChange: (v: string) => void; onKeyDown: (e: React.KeyboardEvent) => void;
-  onSubmit: () => void; onCancel: () => void; placeholder: string;
+  onSubmit: () => void; onCancel: () => void; onBlur: (e: React.FocusEvent) => void;
+  placeholder: string;
   colorAccent: string; className?: string; label?: string;
   inputRef?: React.RefObject<HTMLInputElement | null>; autoFocus?: boolean;
+  mode: 'add' | 'edit';
 }) {
+  const rowRef = useRef<HTMLTableRowElement>(null);
+
+  const handleBlur = (e: React.FocusEvent) => {
+    // ボタンクリック時はblurを無視（relatedTargetが同じ行内なら処理しない）
+    if (rowRef.current?.contains(e.relatedTarget as Node)) return;
+    onBlur(e);
+  };
+
+  const bgClass = mode === 'add' ? 'bg-emerald-50/40' : 'bg-amber-50/40';
+  const inputBorderClass = mode === 'add'
+    ? 'border-emerald-300 focus:ring-emerald-400'
+    : 'border-amber-300 focus:ring-amber-400';
+
   return (
-    <tr className={`border-b border-slate-100 border-l-3 ${colorAccent} ${className ?? ''}`}>
+    <tr ref={rowRef} className={`border-b border-slate-100 border-l-3 ${colorAccent} ${bgClass} ${className ?? ''}`}>
       <td className="w-10 px-1 py-1" />
       <td colSpan={3} className="px-3 py-1">
-        <div className="flex items-center gap-1">
-          {label && <span className="text-slate-400 font-mono text-[10px] flex-shrink-0">{label}</span>}
-          <input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={placeholder}
-            autoFocus={autoFocus}
-            className={INPUT_CLASS}
-          />
-          <button onClick={onSubmit} className="p-0.5 text-slate-400 hover:text-emerald-600 transition-colors" title="保存" aria-label="保存">
-            <Check className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={onCancel} className="p-0.5 text-slate-400 hover:text-red-500 transition-colors" title="キャンセル" aria-label="キャンセル">
-            <X className="w-3.5 h-3.5" />
-          </button>
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1">
+            {label && <span className="text-slate-400 font-mono text-[10px] flex-shrink-0">{label}</span>}
+            <input
+              ref={inputRef}
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={onKeyDown}
+              onBlur={handleBlur}
+              placeholder={placeholder}
+              autoFocus={autoFocus}
+              className={`flex-1 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 ${inputBorderClass}`}
+            />
+            <button onClick={onSubmit} className="p-0.5 px-1 flex items-center gap-0.5 rounded bg-emerald-500 text-white hover:bg-emerald-600 transition-colors" title="保存 (Enter)" aria-label="保存">
+              <Check className="w-3 h-3" />
+            </button>
+            <button onClick={onCancel} className="p-0.5 px-1 flex items-center gap-0.5 rounded text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors" title="キャンセル (Esc)" aria-label="キャンセル">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <span className="text-[9px] text-slate-400 ml-auto">Enter: 保存 / Esc: キャンセル</span>
         </div>
       </td>
       <td className="w-16 px-2 py-1" />
@@ -172,27 +189,29 @@ function SpecificNamesTableRowsComponent({
     const trimmed = newName.trim();
     if (trimmed) {
       onAdd(docId, trimmed);
-      setNewName('');
-      setTimeout(() => addInputRef.current?.focus(), 0);
     }
+    closeAdd();
   };
 
   const submitEdit = () => {
     if (editingIndex !== null && editingValue.trim()) {
       onEdit(docId, editingIndex, editingValue.trim());
-      cancelEdit();
     }
+    cancelEdit();
   };
 
   const handleAddKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && newName.trim()) submitAdd();
+    if (e.key === 'Enter') { e.preventDefault(); submitAdd(); }
     else if (e.key === 'Escape') closeAdd();
   };
 
   const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && editingValue.trim()) submitEdit();
+    if (e.key === 'Enter') { e.preventDefault(); submitEdit(); }
     else if (e.key === 'Escape') cancelEdit();
   };
+
+  const handleAddBlur = () => { submitAdd(); };
+  const handleEditBlur = () => { submitEdit(); };
 
   const startEdit = useCallback((index: number) => {
     setEditingIndex(index);
@@ -231,11 +250,12 @@ function SpecificNamesTableRowsComponent({
               onKeyDown={handleEditKeyDown}
               onSubmit={submitEdit}
               onCancel={cancelEdit}
+              onBlur={handleEditBlur}
               placeholder={placeholder}
               colorAccent={`${colorAccent} ${hiddenClass} ${printHiddenClass}`}
-              className="bg-emerald-50/30"
               label={`${docNumber}-${i + 1}`}
               autoFocus
+              mode="edit"
             />
           ) : (
             <SortableNameRow
@@ -259,9 +279,10 @@ function SpecificNamesTableRowsComponent({
           onKeyDown={handleAddKeyDown}
           onSubmit={submitAdd}
           onCancel={closeAdd}
+          onBlur={handleAddBlur}
           placeholder={placeholder}
           colorAccent={`${colorAccent} print:hidden`}
-          className="bg-emerald-50/20"
+          mode="add"
           inputRef={addInputRef}
         />
       ) : (
