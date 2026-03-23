@@ -253,11 +253,13 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
                         button.classList.remove('btn-outline-secondary');
                         button.classList.add('btn-info');
                         button.title = '付箋を外す';
+                        if (row) row.classList.add('table-warning');
                         showToast('付箋を追加しました', 'success');
                     } else {
                         button.classList.remove('btn-info');
                         button.classList.add('btn-outline-secondary');
                         button.title = '付箋を付ける';
+                        if (row) row.classList.remove('table-warning');
                         showToast('付箋を外しました', 'info');
                     }
                     enableButton(button);
@@ -2126,8 +2128,6 @@ const BankAccountFilter = {
 const AutoFilter = {
     _form: null,
     _overlay: null,
-    _debounceTimer: null,
-    _DEBOUNCE_MS: 600,
 
     init: function() {
         this._form = document.getElementById('filterForm');
@@ -2136,37 +2136,18 @@ const AutoFilter = {
 
         var self = this;
 
-        // チェックボックス・ラジオ・セレクト・日付 → 即時送信
-        this._form.addEventListener('change', function(e) {
-            var tag = e.target.tagName.toLowerCase();
-            var type = (e.target.type || '').toLowerCase();
-            if (tag === 'select' || type === 'checkbox' || type === 'radio' || type === 'date') {
+        // Enterキー → 送信
+        this._form.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
                 self._submit();
             }
         });
 
-        // テキスト入力 → デバウンス送信
-        var textInputs = this._form.querySelectorAll('input[type="text"]');
-        textInputs.forEach(function(input) {
-            input.addEventListener('input', function() {
-                self._debounceSubmit();
-            });
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    clearTimeout(self._debounceTimer);
-                    self._submit();
-                }
-            });
+        // 「絞り込む」ボタン押下時にオーバーレイ表示
+        this._form.addEventListener('submit', function() {
+            if (self._overlay) self._overlay.classList.add('active');
         });
-    },
-
-    _debounceSubmit: function() {
-        var self = this;
-        clearTimeout(this._debounceTimer);
-        this._debounceTimer = setTimeout(function() {
-            self._submit();
-        }, this._DEBOUNCE_MS);
     },
 
     _submit: function() {
@@ -2183,7 +2164,6 @@ const FilterPanel = {
 
     init: function() {
         var panel = document.getElementById('filterPanel');
-        var clearBtn = document.getElementById('filterClearBtn');
         if (!panel) return;
 
         var params = new URLSearchParams(window.location.search);
@@ -2192,11 +2172,6 @@ const FilterPanel = {
         // フィルターがアクティブなら自動展開
         if (hasDetailFilter) {
             panel.classList.add('show');
-        }
-
-        // クリアボタン表示制御
-        if (clearBtn && hasDetailFilter) {
-            clearBtn.style.display = '';
         }
     },
 

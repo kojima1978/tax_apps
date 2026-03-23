@@ -419,13 +419,6 @@ h1, h2, h3, h4 {
     padding: 0.2rem 0.6rem;
 }
 
-/* ===== Auto Filter Hint ===== */
-
-.auto-filter-hint {
-    font-size: 0.75rem;
-    opacity: 0.6;
-}
-
 /* ===== Filter Panel ===== */
 
 .filter-panel-body {

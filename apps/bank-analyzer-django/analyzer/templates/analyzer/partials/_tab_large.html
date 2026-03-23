@@ -81,7 +81,7 @@
                     </thead>
                     <tbody>
                         {% for tx in large_txs %}
-                        <tr>
+                        <tr{% if tx.is_flagged %} class="table-warning"{% endif %}>
                             <td>{{ tx.date|wareki_short }}</td>
                             <td>{{ tx.bank_name|default:"-" }}</td>
                             <td>{{ tx.branch_name|default:"-" }}</td>
