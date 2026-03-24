@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, FileJson, Calendar, User } from 'lucide-react';
+import { Upload, FileJson, Calendar, User, ChevronRight, Loader2 } from 'lucide-react';
 import { parseCsvFile } from '@/utils/csvParser';
 import type { CsvData } from '@/utils/csvParser';
 import type { CaseData } from '@/types';
@@ -28,28 +28,35 @@ export function CsvImportStep({
 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [csvFileName, setCsvFileName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
 
   const handleCsvFile = async (file: File) => {
     setError(null);
+    setLoading(true);
     try {
       const data = await parseCsvFile(file);
       setCsvFileName(file.name);
       onCsvLoaded(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'CSV読込エラー');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleJsonFile = async (file: File) => {
     setError(null);
+    setLoading(true);
     try {
       const text = await file.text();
       const data = validateCaseData(JSON.parse(text));
       onJsonImport(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'JSON読込エラー');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -69,7 +76,7 @@ export function CsvImportStep({
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h2 className="text-xl font-bold text-gray-800">
-        Step 1: CSVインポート + 基本情報入力
+        CSVインポート・基本情報入力
       </h2>
 
       {/* 基本情報 */}
@@ -108,21 +115,25 @@ export function CsvImportStep({
         onDragOver={(e) => e.preventDefault()}
         className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center hover:border-green-500 transition-colors"
       >
-        <Upload size={48} className="mx-auto text-gray-400 mb-4" />
+        {loading ? (
+          <Loader2 size={48} className="mx-auto text-green-500 mb-4 animate-spin" />
+        ) : (
+          <Upload size={48} className="mx-auto text-gray-400 mb-4" />
+        )}
         <p className="text-gray-600 mb-2">
-          CSVファイルをドラッグ＆ドロップ
+          {loading ? '読み込み中...' : 'CSVファイルをドラッグ＆ドロップ'}
         </p>
-        <p className="text-gray-400 text-sm mb-4">または</p>
+        <p className="text-gray-500 text-sm mb-4">または</p>
         <div className="flex gap-3 justify-center">
           <button
             onClick={() => csvInputRef.current?.click()}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors cursor-pointer"
           >
             CSVファイルを選択
           </button>
           <button
             onClick={() => jsonInputRef.current?.click()}
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors cursor-pointer flex items-center gap-2"
           >
             <FileJson size={16} />
             案件JSONを復元
@@ -167,13 +178,13 @@ export function CsvImportStep({
         <button
           onClick={onNext}
           disabled={!canProceed}
-          className={`px-6 py-2 rounded-md font-medium transition-colors ${
+          className={`flex items-center gap-1 px-6 py-2 rounded-md font-medium transition-colors ${
             canProceed
-              ? 'bg-green-600 text-white hover:bg-green-700'
+              ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
-          次へ →
+          次へ <ChevronRight size={16} />
         </button>
       </div>
     </div>

@@ -69,6 +69,25 @@ const TOP_BORDER = {
   top: THIN_BORDER,
 };
 
+/** 共通印刷設定: A4横、全列を1ページに収める */
+const PAGE_SETUP = {
+  paperSize: 9,
+  orientation: 'landscape' as const,
+  fitToWidth: 1,
+  fitToHeight: 0,
+  scale: 0,
+};
+
+/** 共通マージン設定 */
+const MARGINS = {
+  left: 0.3,
+  right: 0.3,
+  top: 0.4,
+  bottom: 0.4,
+  header: 0.2,
+  footer: 0.2,
+};
+
 
 /** セルスタイル生成ヘルパー */
 function textCell(
@@ -265,22 +284,8 @@ export function exportToExcel(
   ws['!merges'] = merges;
   ws['!cols'] = COL_WIDTHS.map((wch) => ({ wch }));
 
-  // 印刷設定: A4横、全列を1ページに収める
-  ws['!pageSetup'] = {
-    paperSize: 9,        // A4
-    orientation: 'landscape',
-    fitToWidth: 1,       // 全列を1ページ幅に収める
-    fitToHeight: 0,      // 行方向は制限なし（複数ページ可）
-    scale: 0,            // fitToWidth/Heightを有効にするため0
-  };
-  ws['!margins'] = {
-    left: 0.3,
-    right: 0.3,
-    top: 0.4,
-    bottom: 0.4,
-    header: 0.2,
-    footer: 0.2,
-  };
+  ws['!pageSetup'] = PAGE_SETUP;
+  ws['!margins'] = MARGINS;
 
   // フッターにページ番号
   ws['!headerFooter'] = {
@@ -361,22 +366,8 @@ function createBasisSheet(assets: Asset[]): XLSX.WorkSheet {
   });
   ws['!merges'] = merges;
   ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 15 }, { wch: 80 }];
-
-  ws['!pageSetup'] = {
-    paperSize: 9,
-    orientation: 'landscape',
-    fitToWidth: 1,
-    fitToHeight: 0,
-    scale: 0,
-  };
-  ws['!margins'] = {
-    left: 0.3,
-    right: 0.3,
-    top: 0.4,
-    bottom: 0.4,
-    header: 0.2,
-    footer: 0.2,
-  };
+  ws['!pageSetup'] = PAGE_SETUP;
+  ws['!margins'] = MARGINS;
 
   return ws;
 }

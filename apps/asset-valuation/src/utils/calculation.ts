@@ -56,25 +56,31 @@ function calcBuildingDepreciation(
   return acquisitionCost * 0.9 * (elapsedYears / usefulLife);
 }
 
-/** 資産の評価額を計算 */
-export function calculateAsset(
-  asset: Omit<
-    Asset,
-    | 'elapsedYears'
-    | 'depreciationAmountOrRate'
-    | 'evaluationAmount'
-    | 'evaluationBasis'
-    | 'isWithin3Years'
-  >,
-  taxDate: string
-): Pick<
+/** カテゴリに応じた償却額/償却率を取得 */
+function getDepRate(
+  category: AssetCategory,
+  acquisitionCost: number,
+  elapsed: number,
+  usefulLife: number
+): number {
+  return category === '建物'
+    ? calcBuildingDepreciation(acquisitionCost, elapsed, usefulLife)
+    : getUndepreciatedRate(elapsed, usefulLife);
+}
+
+type CalcResult = Pick<
   Asset,
   | 'elapsedYears'
   | 'depreciationAmountOrRate'
   | 'evaluationAmount'
   | 'evaluationBasis'
   | 'isWithin3Years'
-> {
+>;
+
+type AssetInput = Omit<Asset, keyof CalcResult>;
+
+/** 資産の評価額を計算 */
+export function calculateAsset(asset: AssetInput, taxDate: string): CalcResult {
   const config = CATEGORY_CONFIG[asset.category];
   const elapsed = calcElapsedYears(taxDate, asset.acquisitionDate);
   const within3 = config.hasWithin3Years
@@ -83,17 +89,9 @@ export function calculateAsset(
 
   // 固定資産税評価明細あり
   if (asset.hasFixedAssetTaxRecord && config.hasFixedAssetTaxRecord) {
-    const depRate =
-      asset.category === '建物'
-        ? calcBuildingDepreciation(
-            asset.acquisitionCost,
-            elapsed,
-            asset.usefulLife
-          )
-        : getUndepreciatedRate(elapsed, asset.usefulLife);
     return {
       elapsedYears: elapsed,
-      depreciationAmountOrRate: depRate,
+      depreciationAmountOrRate: getDepRate(asset.category, asset.acquisitionCost, elapsed, asset.usefulLife),
       evaluationAmount: null,
       evaluationBasis: '固定資産税評価明細',
       isWithin3Years: within3,
@@ -102,17 +100,9 @@ export function calculateAsset(
 
   // 3年以内 → 簿価
   if (within3 && config.hasWithin3Years) {
-    const depRate =
-      asset.category === '建物'
-        ? calcBuildingDepreciation(
-            asset.acquisitionCost,
-            elapsed,
-            asset.usefulLife
-          )
-        : getUndepreciatedRate(elapsed, asset.usefulLife);
     return {
       elapsedYears: elapsed,
-      depreciationAmountOrRate: depRate,
+      depreciationAmountOrRate: getDepRate(asset.category, asset.acquisitionCost, elapsed, asset.usefulLife),
       evaluationAmount: asset.bookValue,
       evaluationBasis: '3年内_簿価',
       isWithin3Years: within3,
@@ -146,25 +136,11 @@ export function calculateAsset(
 }
 
 function calculateByCategory(
-  asset: Omit<
-    Asset,
-    | 'elapsedYears'
-    | 'depreciationAmountOrRate'
-    | 'evaluationAmount'
-    | 'evaluationBasis'
-    | 'isWithin3Years'
-  >,
+  asset: AssetInput,
   _taxDate: string,
   elapsed: number,
   within3: boolean
-): Pick<
-  Asset,
-  | 'elapsedYears'
-  | 'depreciationAmountOrRate'
-  | 'evaluationAmount'
-  | 'evaluationBasis'
-  | 'isWithin3Years'
-> {
+): CalcResult {
   const config = CATEGORY_CONFIG[asset.category];
   let evaluationBasis: EvaluationBasis;
   let depreciationAmountOrRate: number;

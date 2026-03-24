@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { Asset } from '@/types';
 import { CATEGORY_CONFIG, groupByLabel } from '@/types';
-import { formatYen, formatDate } from '@/utils/formatters';
+import { formatYen, formatDate, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
 import { calcWithin3YearsDate } from '@/utils/calculation';
 
 interface Props {
@@ -28,12 +28,7 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
         const category = catAssets[0]!.category;
         const config = CATEGORY_CONFIG[category];
 
-        const totalAcq = catAssets.reduce((s, a) => s + a.acquisitionCost, 0);
-        const totalEval = catAssets.reduce(
-          (s, a) => s + (a.evaluationAmount ?? 0),
-          0
-        );
-        const totalBook = catAssets.reduce((s, a) => s + a.bookValue, 0);
+        const { totalAcquisition: totalAcq, totalEvaluation: totalEval, totalBookValue: totalBook } = calcGroupTotals(catAssets);
 
         return (
           <div key={label} className="mb-4">
@@ -81,13 +76,7 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
                       {formatYen(a.acquisitionCost)}
                     </td>
                     <td className="border px-1 py-0.5 text-right">
-                      {category === '無形固定資産' || category === '繰延資産' || category === '一括償却資産'
-                        ? '−'
-                        : category === '建物'
-                          ? formatYen(
-                              Math.floor(a.depreciationAmountOrRate)
-                            )
-                          : a.depreciationAmountOrRate.toFixed(3)}
+                      {formatDepreciation(category, a.depreciationAmountOrRate)}
                     </td>
                     <td className="border px-1 py-0.5 text-right">
                       {a.evaluationAmount === null

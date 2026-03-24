@@ -53,36 +53,37 @@ Step 4: 計算結果 → Excel出力 / 案件JSON保存 / マッピングJSON出
 
 ## 主要機能
 
-- **CSVインポート**: UTF-8 / CP932 自動検出、和暦・Excelシリアル値対応
+- **CSVインポート**: UTF-8 / CP932 自動検出、和暦・Excelシリアル値対応、読込中スピナー表示
 - **カラムマッピング**: CSVヘッダーと必須フィールドの対応付け（NO→資産名称→カテゴリ→取得年月→耐用年数→取得価額→期末簿価）
-- **マッピングプリセット**: 会計ソフト別のマッピング設定をlocalStorage + JSON入出力で管理
-- **カテゴリ自動判定**: CSV内の勘定科目名を6カテゴリに自動マッピング
+- **マッピングプリセット**: 会計ソフト別のマッピング設定をlocalStorage + JSON入出力で管理（削除はダブルクリック確認）
+- **カテゴリ自動判定**: CSV内の勘定科目名を10カテゴリに自動マッピング（ソフトウェア・無形固定資産・繰延資産・一括償却資産を含む）
 - **固定資産税評価明細**: 建物・建物付属設備で一括ON/OFF可能
 - **3年以内自動判定**: 課税時期から3年以内の取得は自動ハイライト、評価額＝簿価
 - **賃貸控除**: 建物・建物付属設備の行ごとに×0.7（借家権割合30%控除）
 - **未償却残高表内蔵**: H24.4.1以後取得分（耐用年数2〜50、経過年数1〜50）
-- **Excel出力**: A4横・全列1ページ収め・横線のみ罫線・フッターページ番号・評価通達条文付き
+- **Excel出力**: A4横・全列1ページ収め・横線のみ罫線・フッターページ番号・評価通達条文付き（2シート：減価償却資産+計算根拠）
 - **案件JSON保存・復元**: 案件データ全体をJSONでエクスポート/インポート
+- **アクセシビリティ**: 統一フォーカスリング、全入力にaria-label、コントラスト4.5:1以上、prefers-reduced-motion対応
 
 ## ディレクトリ構成
 
 ```
 src/
-├── types/index.ts          # 型定義・カテゴリ設定・定数
+├── types/index.ts          # 型定義・カテゴリ設定・定数・groupByLabel
 ├── data/rateTable.ts       # 未償却残高表（Excel抽出）
 ├── utils/
-│   ├── calculation.ts      # 評価額計算ロジック
+│   ├── calculation.ts      # 評価額計算ロジック（getDepRate, CalcResult型）
 │   ├── csvParser.ts        # CSV解析
-│   ├── excelExport.ts      # Excel出力
-│   ├── fileDownload.ts     # JSONファイルダウンロード
-│   ├── formatters.ts       # 金額・日付フォーマット
+│   ├── excelExport.ts      # Excel出力（2シート・共通印刷設定定数）
+│   ├── fileDownload.ts     # JSONダウンロード + exportCaseJson
+│   ├── formatters.ts       # formatYen, formatDate, formatDepreciation, calcGroupTotals
 │   └── validators.ts       # バリデーション
 ├── hooks/
-│   ├── useAssetData.ts     # 資産データ管理
-│   ├── usePresets.ts       # マッピングプリセット管理
-│   └── useJsonExport.ts    # 案件JSONエクスポート
+│   ├── useAssetData.ts     # 資産データ管理（groupByLabel再利用）
+│   └── usePresets.ts       # マッピングプリセット管理
 └── components/
-    ├── StepIndicator.tsx
+    ├── StepIndicator.tsx    # ステップインジケーター
+    ├── StepNavigation.tsx   # 共通ナビゲーション（戻る/次へ/Step1に戻る）
     ├── step1/CsvImportStep.tsx
     ├── step2/ColumnMappingStep.tsx, PresetManager.tsx
     ├── step3/DataEditStep.tsx, AssetTable.tsx, ExcelPreview.tsx

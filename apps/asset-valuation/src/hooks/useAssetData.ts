@@ -5,7 +5,7 @@ import type {
   ColumnMapping,
   CategoryMapping,
 } from '@/types';
-import { CATEGORY_ORDER, resolveBaseCategory } from '@/types';
+import { resolveBaseCategory, groupByLabel } from '@/types';
 import { calculateAsset } from '@/utils/calculation';
 import { normalizeDate, generateId } from '@/utils/formatters';
 import type { CsvData } from '@/utils/csvParser';
@@ -137,30 +137,10 @@ export function useAssetData(taxDate: string) {
   );
 
   /** カテゴリラベル別にグループ化（CATEGORY_ORDER準拠） */
-  const groupedAssets = useMemo(() => {
-    // ラベル別にグループ化
-    const labelMap = new Map<string, Asset[]>();
-    for (const asset of assets) {
-      const label = asset.categoryLabel;
-      if (!labelMap.has(label)) labelMap.set(label, []);
-      labelMap.get(label)!.push(asset);
-    }
-    // CATEGORY_ORDER順にソート
-    const sorted = new Map<string, Asset[]>();
-    for (const baseCat of CATEGORY_ORDER) {
-      const labels = Array.from(labelMap.keys())
-        .filter((l) => {
-          const a = labelMap.get(l)![0]!;
-          return a.category === baseCat;
-        })
-        .sort();
-      for (const label of labels) {
-        sorted.set(label, labelMap.get(label)!);
-        labelMap.delete(label);
-      }
-    }
-    return sorted;
-  }, [assets]);
+  const groupedAssets = useMemo(
+    () => new Map(groupByLabel(assets)),
+    [assets]
+  );
 
   /** 並び替え */
   const sortAssets = useCallback(

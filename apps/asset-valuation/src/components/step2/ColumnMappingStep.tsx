@@ -12,6 +12,7 @@ import type {
   MappingPreset,
 } from '@/types';
 import type { CsvData } from '@/utils/csvParser';
+import { StepNavigation } from '@/components/StepNavigation';
 import { PresetManager } from './PresetManager';
 
 interface Props {
@@ -115,7 +116,7 @@ export function ColumnMappingStep({
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <h2 className="text-xl font-bold text-gray-800">
-        Step 2: カラムマッピング
+        カラムマッピング
       </h2>
 
       {/* プリセット管理 */}
@@ -149,7 +150,7 @@ export function ColumnMappingStep({
                 onChange={(e) =>
                   handleFieldChange(field.key, e.target.value)
                 }
-                className={`w-full mt-1 px-2 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 ${
+                className={`w-full mt-1 px-2 py-1.5 text-sm border rounded-md cursor-pointer focus:outline-none focus:ring-1 focus:ring-green-500 ${
                   field.required && !columnMapping[field.key]
                     ? 'border-red-300 bg-red-50'
                     : 'border-gray-300'
@@ -186,7 +187,7 @@ export function ColumnMappingStep({
                   <span className="w-48 text-sm text-gray-600 truncate">
                     {csvCat}
                   </span>
-                  <span className="text-gray-400">→</span>
+                  <span className="text-gray-500">→</span>
                   <select
                     value={mapped}
                     onChange={(e) =>
@@ -195,7 +196,7 @@ export function ColumnMappingStep({
                         e.target.value as AssetCategory
                       )
                     }
-                    className={`flex-1 px-2 py-1.5 text-sm border rounded-md ${
+                    className={`flex-1 px-2 py-1.5 text-sm border rounded-md cursor-pointer ${
                       !mapped
                         ? 'border-red-300 bg-red-50'
                         : autoMatch
@@ -265,29 +266,11 @@ export function ColumnMappingStep({
         </div>
       )}
 
-      {/* ナビゲーション */}
-      <div className="flex justify-between">
-        <div className="flex gap-2">
-          <button
-            onClick={onGoToStep1}
-            className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:underline"
-          >
-            Step 1に戻る
-          </button>
-          <button
-            onClick={onBack}
-            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            ← 戻る
-          </button>
-        </div>
-        <button
-          onClick={handleNext}
-          className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-        >
-          次へ →
-        </button>
-      </div>
+      <StepNavigation
+        onBack={onBack}
+        onNext={handleNext}
+        onGoToStep1={onGoToStep1}
+      />
     </div>
   );
 }
