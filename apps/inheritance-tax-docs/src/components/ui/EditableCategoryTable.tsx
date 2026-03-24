@@ -276,7 +276,7 @@ function EditableCategoryTableComponent({
   const colorAccent = COLOR_ACCENT_MAP[category.color] ?? '';
 
   const tableHead = (
-    <thead className="bg-slate-100">
+    <thead className={category.bgColor}>
       <tr>
         <th className="w-10 px-1 py-2 text-center print:w-6">
           <span className="print:hidden">#</span>
@@ -290,7 +290,7 @@ function EditableCategoryTableComponent({
           取得方法
         </th>
         <th className="w-16 px-2 py-2 text-center font-bold text-slate-700 print:w-12">代行</th>
-        <th className="w-20 px-1 py-2 text-center font-bold text-slate-700 print:hidden">操作</th>
+        <th className="w-24 px-1 py-2 text-center font-bold text-slate-700 print:hidden">操作</th>
       </tr>
     </thead>
   );

@@ -131,7 +131,7 @@ const RowContent = memo(function RowContent({
               <GripVertical className="w-4 h-4" />
             </button>
           ) : (
-            <span className="inline-block p-0.5 text-slate-300">
+            <span className="inline-block p-0.5 text-slate-400">
               <GripVertical className="w-4 h-4" />
             </span>
           )}
@@ -245,16 +245,16 @@ const RowContent = memo(function RowContent({
       </td>
 
       {/* 列6: 操作 */}
-      <td className="w-20 px-1 py-2 text-center align-top print:hidden">
+      <td className="w-24 px-1 py-2 text-center align-top print:hidden">
         <div className="flex items-center justify-center gap-0.5">
           {([
-            { icon: MessageSquare, onClick: memo.toggle, label: 'メモ', title: docMemo ? 'メモを編集' : 'メモを追加', active: !!docMemo, activeClass: 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50', inactiveClass: 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50' },
-            { icon: AlertTriangle, onClick: () => onToggleUrgent(doc.id), label: '緊急', title: isUrgent ? '緊急を解除' : '緊急に設定', active: isUrgent, activeClass: 'text-red-500 hover:text-red-700 hover:bg-red-50', inactiveClass: 'text-slate-400 hover:text-red-500 hover:bg-red-50' },
-            { icon: Ban, onClick: () => onToggleExcluded(doc.id), label: '対象外', title: isExcluded ? '対象外を解除' : '対象外にする', active: isExcluded, activeClass: 'text-slate-600 hover:text-slate-800 hover:bg-slate-200', inactiveClass: 'text-slate-400 hover:text-slate-600 hover:bg-slate-100' },
-            ...(!isChecked && !isExcluded ? [{ icon: Pencil, onClick: () => onStartEdit(doc.id), label: '編集', title: '編集', active: false, activeClass: '', inactiveClass: 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50' }] : []),
-            { icon: Trash2, onClick: () => onRemoveDocument(doc.id, categoryId, displayName), label: '削除', title: '削除', active: false, activeClass: '', inactiveClass: 'text-slate-400 hover:text-red-500 hover:bg-red-50' },
+            { icon: MessageSquare, onClick: memo.toggle, label: 'メモ', title: docMemo ? 'メモを編集' : 'メモを追加', active: !!docMemo, activeClass: 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50', inactiveClass: 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50' },
+            { icon: AlertTriangle, onClick: () => onToggleUrgent(doc.id), label: '緊急', title: isUrgent ? '緊急を解除' : '緊急に設定', active: isUrgent, activeClass: 'text-red-600 hover:text-red-700 hover:bg-red-50', inactiveClass: 'text-slate-500 hover:text-red-600 hover:bg-red-50' },
+            { icon: Ban, onClick: () => onToggleExcluded(doc.id), label: '対象外', title: isExcluded ? '対象外を解除' : '対象外にする', active: isExcluded, activeClass: 'text-slate-700 hover:text-slate-800 hover:bg-slate-200', inactiveClass: 'text-slate-500 hover:text-slate-700 hover:bg-slate-100' },
+            ...(!isChecked && !isExcluded ? [{ icon: Pencil, onClick: () => onStartEdit(doc.id), label: '編集', title: '編集', active: false, activeClass: '', inactiveClass: 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50' }] : []),
+            { icon: Trash2, onClick: () => onRemoveDocument(doc.id, categoryId, displayName), label: '削除', title: '削除', active: false, activeClass: '', inactiveClass: 'text-slate-500 hover:text-red-600 hover:bg-red-50' },
           ] as const).map(({ icon: Icon, onClick, label, title, active, activeClass, inactiveClass }) => (
-            <button key={label} onClick={onClick} className={`p-1.5 rounded transition-colors ${active ? activeClass : inactiveClass}`} title={title} aria-label={label}>
+            <button key={label} onClick={onClick} className={`p-2 rounded-lg transition-colors ${active ? activeClass : inactiveClass}`} title={title} aria-label={label}>
               <Icon className="w-4 h-4" />
             </button>
           ))}
