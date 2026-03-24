@@ -6,6 +6,7 @@ import Calculator from 'lucide-react/icons/calculator';
 import Scale from 'lucide-react/icons/scale';
 import Shield from 'lucide-react/icons/shield';
 import Gift from 'lucide-react/icons/gift';
+import Sliders from 'lucide-react/icons/sliders-horizontal';
 import Printer from 'lucide-react/icons/printer';
 import { COMPANY_INFO } from '../constants';
 import { useStaffInfo } from '../contexts/StaffContext';
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/comparison', label: '1次2次比較', icon: Scale },
   { to: '/insurance', label: '保険金', icon: Shield },
   { to: '/cash-gift', label: '現金贈与', icon: Gift },
+  { to: '/split', label: '分割シミュレーション', icon: Sliders },
   { to: '/table', label: '早見表', icon: Table },
 ] as const;
 

@@ -1,6 +1,5 @@
 import type {
   HeirComposition,
-  HeirType,
   TaxCalculationResult,
   SpouseAcquisitionMode,
   HeirTaxBreakdown,
@@ -8,48 +7,11 @@ import type {
   DetailedTaxCalculationResult,
 } from '../types';
 import {
-  TAX_BRACKETS,
-  BASIC_DEDUCTION,
   THIRD_RANK_SURCHARGE_RATE,
-  SHARE_RATIOS,
   SPOUSE_DEDUCTION_LIMIT,
 } from '../constants';
 import { getHeirInfo, getHeirLabel } from './heirUtils';
-
-/**
- * 法定相続分の割合を取得
- */
-function getLegalShareRatios(hasSpouse: boolean, rank: number): { spouse: number; others: number } {
-  if (hasSpouse) {
-    const ratios = SHARE_RATIOS[rank];
-    return ratios ? { spouse: ratios.spouse, others: ratios.others } : { spouse: 1.0, others: 0 };
-  }
-  return { spouse: 0, others: 1.0 };
-}
-
-/**
- * 基礎控除額を計算
- */
-function calculateBasicDeduction(totalHeirsCount: number): number {
-  return totalHeirsCount > 0
-    ? BASIC_DEDUCTION.BASE + (BASIC_DEDUCTION.PER_HEIR * totalHeirsCount)
-    : BASIC_DEDUCTION.BASE;
-}
-
-/** 順位→相続人種別 */
-const RANK_TO_HEIR_TYPE: Record<number, HeirType> = { 1: 'child', 2: 'parent', 3: 'sibling' };
-
-/**
- * 法定相続分に対する税額を計算
- * @param shareAmount 法定相続分の金額（万円）
- * @returns 算出税額（万円）
- */
-function calculateTaxForShare(shareAmount: number): number {
-  if (shareAmount <= 0) return 0;
-  const bracket = TAX_BRACKETS.find(b => shareAmount <= b.threshold) || TAX_BRACKETS[TAX_BRACKETS.length - 1];
-  const tax = shareAmount * (bracket.rate / 100) - bracket.deduction;
-  return Math.floor(Math.max(0, tax));
-}
+import { getLegalShareRatios, calculateBasicDeduction, calculateTaxForShare, RANK_TO_HEIR_TYPE } from './taxCore';
 
 /**
  * 相続税を計算

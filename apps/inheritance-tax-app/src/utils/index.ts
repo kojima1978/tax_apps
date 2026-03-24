@@ -6,3 +6,4 @@ export { getHeirInfo, getHeirLabel, getScenarioName, getSpouseModeLabel, getBene
 export { calculateComparisonTable } from './comparisonCalculator';
 export { calculateInsuranceSimulation, getHeirNetProceeds, getHeirBaseAcquisition } from './insuranceCalculator';
 export { calculateGiftTaxPerYear, calculateRecipientResult, getGiftRecipientOptions, getGiftHeirNetProceeds, calculateCashGiftSimulation, optimizeGiftAmounts } from './giftCalculator';
+export { buildHeirLabels, calculateLegalAcquisitions, calculateSplitTax, generateSplitSimulation } from './splitCalculator';
