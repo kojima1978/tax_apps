@@ -141,6 +141,37 @@ export interface InsuranceSimulationResult {
   baseEstate: number;                    // 元の財産額
 }
 
+// ── 分割シミュレーション ──
+
+// 相続人ごとの取得額・増減設定
+export interface HeirAcquisition {
+  label: string;
+  type: HeirType;
+  amount: number;       // 基準取得額（万円）
+  step: number;         // 増減額/行（万円）、自動調整の場合は無視
+  isAutoAdjust: boolean; // 自動調整対象かどうか
+}
+
+// シミュレーション1行分の結果
+export interface SplitSimulationRow {
+  rowIndex: number;              // 基準=0、+1, -1, ...
+  acquisitions: number[];        // 各相続人の取得額（万円）
+  finalTaxes: number[];          // 各相続人の最終税額（万円）
+  totalFinalTax: number;         // 税額合計（万円）
+  isBase: boolean;               // 基準行かどうか
+}
+
+// シミュレーション全体の結果
+export interface SplitSimulationResult {
+  estateValue: number;
+  basicDeduction: number;
+  taxableAmount: number;
+  totalTax: number;              // 相続税の総額（法定相続分ベース・固定）
+  heirLabels: string[];          // 相続人ラベル一覧
+  legalRow: SplitSimulationRow;  // 法定相続分による分割（比較用）
+  rows: SplitSimulationRow[];
+}
+
 // ── 現金贈与シミュレーション ──
 
 // 贈与受取人（入力モデル）
