@@ -7,6 +7,7 @@ import type {
   DetailedTaxCalculationResult,
 } from '../types';
 import {
+  TAX_BRACKETS,
   THIRD_RANK_SURCHARGE_RATE,
   SPOUSE_DEDUCTION_LIMIT,
 } from '../constants';
