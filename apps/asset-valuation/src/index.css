@@ -11,3 +11,20 @@ body {
 .font-mono-num {
   font-family: 'Roboto Mono', monospace;
 }
+
+/* 統一フォーカスリング */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+/* reduced-motion サポート */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

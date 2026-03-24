@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { StepNavigation } from '@/components/StepNavigation';
 import type { Asset, AssetCategory } from '@/types';
 import { validateAllAssets, hasErrors } from '@/utils/validators';
 import { AssetTable } from './AssetTable';
@@ -37,7 +38,7 @@ export function DataEditStep({
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-gray-800">
-        Step 3: データ確認・編集
+        データ確認・編集
       </h2>
 
       {/* 3年以内ハイライト凡例 */}
@@ -86,34 +87,12 @@ export function DataEditStep({
         onSortAssets={onSortAssets}
       />
 
-      {/* ナビゲーション */}
-      <div className="flex justify-between">
-        <div className="flex gap-2">
-          <button
-            onClick={onGoToStep1}
-            className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:underline"
-          >
-            Step 1に戻る
-          </button>
-          <button
-            onClick={onBack}
-            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            ← 戻る
-          </button>
-        </div>
-        <button
-          onClick={onNext}
-          disabled={hasErrors(validationResults)}
-          className={`px-6 py-2 rounded-md font-medium ${
-            hasErrors(validationResults)
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-green-600 text-white hover:bg-green-700'
-          }`}
-        >
-          次へ →
-        </button>
-      </div>
+      <StepNavigation
+        onBack={onBack}
+        onNext={onNext}
+        onGoToStep1={onGoToStep1}
+        nextDisabled={hasErrors(validationResults)}
+      />
     </div>
   );
 }

@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { ArrowUpDown, Trash2, Plus } from 'lucide-react';
 import type { Asset, AssetCategory } from '@/types';
 import { CATEGORY_CONFIG } from '@/types';
-import { formatYen, formatDate } from '@/utils/formatters';
+import { formatYen, formatDate, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
 
 interface Props {
   groupedAssets: Map<string, Asset[]>;
@@ -22,6 +23,17 @@ export function AssetTable({
   onToggleFixedAssetTaxBulk,
   onSortAssets,
 }: Props) {
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+
+  const handleDelete = (id: string) => {
+    if (pendingDelete === id) {
+      onDeleteAsset(id);
+      setPendingDelete(null);
+    } else {
+      setPendingDelete(id);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {Array.from(groupedAssets.entries()).map(([label, assets]) => {
@@ -29,12 +41,7 @@ export function AssetTable({
         const category = assets[0]!.category;
         const config = CATEGORY_CONFIG[category];
 
-        const totalAcquisition = assets.reduce((s, a) => s + a.acquisitionCost, 0);
-        const totalEvaluation = assets.reduce(
-          (s, a) => s + (a.evaluationAmount ?? 0),
-          0
-        );
-        const totalBookValue = assets.reduce((s, a) => s + a.bookValue, 0);
+        const { totalAcquisition, totalEvaluation, totalBookValue } = calcGroupTotals(assets);
 
         return (
           <div key={label} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -45,12 +52,13 @@ export function AssetTable({
               </h3>
               <div className="flex items-center gap-2">
                 {config.hasFixedAssetTaxRecord && (
-                  <label className="flex items-center gap-1 text-xs text-gray-600">
+                  <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={assets.every((a) => a.hasFixedAssetTaxRecord)}
                       onChange={(e) => onToggleFixedAssetTaxBulk(label, e.target.checked)}
-                      className="rounded"
+                      className="rounded cursor-pointer"
+                      aria-label={`${label} 固定資産税評価明細 一括`}
                     />
                     固定資産税評価明細 一括
                   </label>
@@ -58,15 +66,16 @@ export function AssetTable({
                 <div className="flex gap-1">
                   <button
                     onClick={() => onSortAssets(label, 'no')}
-                    className="p-1 text-gray-400 hover:text-gray-600"
+                    className="p-1 text-gray-500 hover:text-gray-700 cursor-pointer transition-colors"
                     title="NO順"
+                    aria-label={`${label}をNO順に並べ替え`}
                   >
                     <ArrowUpDown size={14} />
                   </button>
                 </div>
                 <button
                   onClick={() => onAddEmptyAsset(category, label)}
-                  className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer transition-colors"
                 >
                   <Plus size={12} /> 行追加
                 </button>
@@ -112,6 +121,7 @@ export function AssetTable({
                           value={asset.no || ''}
                           onChange={(e) => onUpdateAsset(asset.id, { no: Number(e.target.value) })}
                           className="w-full px-1 py-0.5 border rounded text-xs"
+                          aria-label={`${asset.name || '資産'} NO`}
                         />
                       </td>
                       <td className="px-2 py-1">
@@ -120,6 +130,7 @@ export function AssetTable({
                           value={asset.name}
                           onChange={(e) => onUpdateAsset(asset.id, { name: e.target.value })}
                           className="w-full px-1 py-0.5 border rounded text-xs"
+                          aria-label="資産名称"
                         />
                       </td>
                       <td className="px-2 py-1">
@@ -128,9 +139,10 @@ export function AssetTable({
                           value={asset.acquisitionDate}
                           onChange={(e) => onUpdateAsset(asset.id, { acquisitionDate: e.target.value })}
                           className="w-full px-1 py-0.5 border rounded text-xs"
+                          aria-label={`${asset.name || '資産'} 取得年月`}
                         />
                       </td>
-                      <td className="px-2 py-1 text-center text-gray-500">
+                      <td className="px-2 py-1 text-center text-gray-600">
                         {formatDate(taxDate)}
                       </td>
                       <td className="px-2 py-1 text-center font-mono">
@@ -142,6 +154,7 @@ export function AssetTable({
                           value={asset.usefulLife || ''}
                           onChange={(e) => onUpdateAsset(asset.id, { usefulLife: Number(e.target.value) })}
                           className="w-full px-1 py-0.5 border rounded text-xs text-center"
+                          aria-label={`${asset.name || '資産'} 耐用年数`}
                         />
                       </td>
                       <td className="px-2 py-1">
@@ -153,18 +166,15 @@ export function AssetTable({
                             if (!isNaN(v)) onUpdateAsset(asset.id, { acquisitionCost: v });
                           }}
                           className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono"
+                          aria-label={`${asset.name || '資産'} 取得価額`}
                         />
                       </td>
                       <td className="px-2 py-1 text-right font-mono">
-                        {category === '無形固定資産' || category === '繰延資産' || category === '一括償却資産'
-                          ? '−'
-                          : category === '建物'
-                            ? formatYen(Math.floor(asset.depreciationAmountOrRate))
-                            : asset.depreciationAmountOrRate.toFixed(3)}
+                        {formatDepreciation(category, asset.depreciationAmountOrRate)}
                       </td>
                       <td className="px-2 py-1 text-right font-mono">
                         {asset.evaluationAmount === null ? (
-                          <span className="text-gray-400">−</span>
+                          <span className="text-gray-500">−</span>
                         ) : (
                           formatYen(asset.evaluationAmount)
                         )}
@@ -178,9 +188,10 @@ export function AssetTable({
                             if (!isNaN(v)) onUpdateAsset(asset.id, { bookValue: v });
                           }}
                           className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono"
+                          aria-label={`${asset.name || '資産'} 期末簿価`}
                         />
                       </td>
-                      <td className="px-2 py-1 text-center text-[10px] text-gray-500">
+                      <td className="px-2 py-1 text-center text-[10px] text-gray-600">
                         {asset.evaluationBasis}
                       </td>
                       {config.hasFixedAssetTaxRecord && (
@@ -189,7 +200,8 @@ export function AssetTable({
                             type="checkbox"
                             checked={asset.hasFixedAssetTaxRecord}
                             onChange={(e) => onUpdateAsset(asset.id, { hasFixedAssetTaxRecord: e.target.checked })}
-                            className="rounded"
+                            className="rounded cursor-pointer"
+                            aria-label={`${asset.name || '資産'} 固定資産税評価明細`}
                           />
                         </td>
                       )}
@@ -199,14 +211,22 @@ export function AssetTable({
                             type="checkbox"
                             checked={asset.isRental}
                             onChange={(e) => onUpdateAsset(asset.id, { isRental: e.target.checked })}
-                            className="rounded"
+                            className="rounded cursor-pointer"
+                            aria-label={`${asset.name || '資産'} 賃貸`}
                           />
                         </td>
                       )}
                       <td className="px-2 py-1">
                         <button
-                          onClick={() => onDeleteAsset(asset.id)}
-                          className="text-gray-400 hover:text-red-500"
+                          onClick={() => handleDelete(asset.id)}
+                          onBlur={() => setPendingDelete(null)}
+                          className={`cursor-pointer transition-colors ${
+                            pendingDelete === asset.id
+                              ? 'text-red-600 hover:text-red-700'
+                              : 'text-gray-400 hover:text-red-500'
+                          }`}
+                          title={pendingDelete === asset.id ? 'もう一度クリックで削除' : '削除'}
+                          aria-label={`${asset.name || '資産'} を削除`}
                         >
                           <Trash2 size={14} />
                         </button>

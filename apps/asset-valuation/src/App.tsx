@@ -7,8 +7,8 @@ import { DataEditStep } from '@/components/step3/DataEditStep';
 import { ResultStep } from '@/components/step4/ResultStep';
 import { useAssetData } from '@/hooks/useAssetData';
 import { usePresets } from '@/hooks/usePresets';
-import { useJsonExport } from '@/hooks/useJsonExport';
 import { exportToExcel } from '@/utils/excelExport';
+import { exportCaseJson } from '@/utils/fileDownload';
 import type { CsvData } from '@/utils/csvParser';
 
 const EMPTY_MAPPING: ColumnMapping = {
@@ -58,8 +58,6 @@ export default function App() {
     exportPresetsToJson,
     importPresetsFromJson,
   } = usePresets();
-
-  const { exportCase } = useJsonExport();
 
   // ステップ遷移
   const goToStep = useCallback(
@@ -114,7 +112,7 @@ export default function App() {
 
   // JSON出力
   const handleExportJson = () => {
-    exportCase(caseName, taxDate, assets);
+    exportCaseJson(caseName, taxDate, assets);
   };
 
   return (
@@ -124,7 +122,7 @@ export default function App() {
         <h1 className="text-lg font-bold">相続税 減価償却資産評価</h1>
         <a
           href="/"
-          className="text-sm text-green-100 hover:text-white hover:underline"
+          className="text-sm text-green-200 hover:text-white hover:underline transition-colors"
         >
           ポータルに戻る
         </a>

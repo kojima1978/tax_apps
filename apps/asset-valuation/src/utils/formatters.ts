@@ -68,3 +68,30 @@ export function normalizeDate(value: string): string {
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
+
+/** 償却額/償却率の表示フォーマット */
+export function formatDepreciation(
+  category: string,
+  depreciationAmountOrRate: number
+): string {
+  if (category === '無形固定資産' || category === '繰延資産' || category === '一括償却資産') {
+    return '−';
+  }
+  if (category === '建物') {
+    return formatYen(Math.floor(depreciationAmountOrRate));
+  }
+  return depreciationAmountOrRate.toFixed(3);
+}
+
+/** グループの合計値を算出 */
+export function calcGroupTotals(assets: { acquisitionCost: number; evaluationAmount: number | null; bookValue: number }[]) {
+  let totalAcquisition = 0;
+  let totalEvaluation = 0;
+  let totalBookValue = 0;
+  for (const a of assets) {
+    totalAcquisition += a.acquisitionCost;
+    totalEvaluation += a.evaluationAmount ?? 0;
+    totalBookValue += a.bookValue;
+  }
+  return { totalAcquisition, totalEvaluation, totalBookValue };
+}

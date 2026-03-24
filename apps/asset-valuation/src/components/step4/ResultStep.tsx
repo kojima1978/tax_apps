@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { Download, FileJson, Settings } from 'lucide-react';
+import { useMemo, useState, useCallback } from 'react';
+import { Download, FileJson, Settings, FilePlus2, Loader2 } from 'lucide-react';
+import { StepNavigation } from '@/components/StepNavigation';
 import type { Asset } from '@/types';
 import { groupByLabel } from '@/types';
 import { ExcelPreview } from '@/components/step3/ExcelPreview';
@@ -27,6 +28,17 @@ export function ResultStep({
   onBack,
   onGoToStep1,
 }: Props) {
+  const [excelLoading, setExcelLoading] = useState(false);
+
+  const handleExcelExport = useCallback(async () => {
+    setExcelLoading(true);
+    try {
+      onExportExcel();
+    } finally {
+      // xlsx-js-style is synchronous but give UI time to show feedback
+      setTimeout(() => setExcelLoading(false), 500);
+    }
+  }, [onExportExcel]);
   const grandTotalAcquisition = assets.reduce(
     (s, a) => s + a.acquisitionCost,
     0
@@ -49,24 +61,26 @@ export function ResultStep({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-800">
-          Step 4: 計算結果
+          計算結果
         </h2>
         <div className="flex gap-2">
           <button
-            onClick={onExportExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            onClick={handleExcelExport}
+            disabled={excelLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Download size={16} /> Excel出力
+            {excelLoading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+            {excelLoading ? '出力中...' : 'Excel出力'}
           </button>
           <button
             onClick={onExportJson}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
           >
             <FileJson size={16} /> 案件JSON保存
           </button>
           <button
             onClick={onExportPresets}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
           >
             <Settings size={16} /> マッピングJSON出力
           </button>
@@ -134,10 +148,10 @@ export function ResultStep({
                 <div className="space-y-1 pl-2">
                   {catAssets.map((asset) => (
                     <div key={asset.id} className="flex gap-2">
-                      <span className="text-gray-400 w-8 text-right shrink-0">
+                      <span className="text-gray-500 w-8 text-right shrink-0">
                         {asset.no}
                       </span>
-                      <span className="text-gray-500 w-24 truncate shrink-0">
+                      <span className="text-gray-600 w-24 truncate shrink-0">
                         {asset.name}
                       </span>
                       <span className="text-gray-700 whitespace-pre-line">
@@ -152,23 +166,13 @@ export function ResultStep({
         </div>
       </div>
 
-      {/* ナビゲーション */}
-      <div className="flex justify-between">
-        <div className="flex gap-2">
-          <button
-            onClick={onGoToStep1}
-            className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:underline"
-          >
-            Step 1に戻る
-          </button>
-          <button
-            onClick={onBack}
-            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            ← 戻る
-          </button>
-        </div>
-      </div>
+      <StepNavigation
+        onBack={onBack}
+        onNext={onGoToStep1}
+        onGoToStep1={onGoToStep1}
+        nextLabel="新規案件を開始"
+        nextIcon={<FilePlus2 size={16} />}
+      />
     </div>
   );
 }
