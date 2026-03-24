@@ -1,7 +1,7 @@
 import XLSX from 'xlsx-js-style';
 import type { Asset } from '@/types';
 import { CATEGORY_CONFIG, groupByLabel } from '@/types';
-import { formatDate, formatYen } from '@/utils/formatters';
+import { formatDate } from '@/utils/formatters';
 import { calcWithin3YearsDate, getCalculationTooltip } from '@/utils/calculation';
 
 /** 列ヘッダー */
