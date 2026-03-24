@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## プロジェクト概要
-
-税務関連の業務アプリケーション群。各アプリは独立しており、個別にビルド・デプロイ可能。全UIは日本語。
-
 ## 重要な制約
 
 - **ローカル環境を汚さない**: `npm install`、`npm run build` 等をローカルで実行しないこと。開発・動作確認はDocker経由で行う。
@@ -39,76 +35,12 @@ cd apps/<app-name> && docker compose up -d
 ```
 
 ### 個別アプリのスクリプト（Docker内で実行）
-- Next.js系: `npm run dev` / `npm run build` / `npm run lint`
-- Vite系: `npm run dev` / `npm run build` / `npm run lint`
+- Next.js系 / Vite系: `npm run dev` / `npm run build` / `npm run lint`
 - Hono API (inheritance-case-management/api): `npm run dev` / `npm run test` (vitest) / `npm run db:generate` / `npm run db:push`
 - Express (Required-documents-for-tax-return/backend): `npm run dev` / `npm run build`
 - Django (bank-analyzer-django): `python manage.py runserver 0.0.0.0:3007`
 
-## アーキテクチャ
-
-### アプリケーション一覧とポート
-
-| アプリ | パス | ポート | スタック |
-|-------|------|--------|---------|
-| portal | `/` | 3000 | Next.js (静的エクスポート→nginx) |
-| inheritance-tax-app | `/inheritance-tax-app/` | 3004 | Vite/React |
-| gift-tax-simulator | `/gift-tax-simulator/` | 3001 | Vite/React + Chart.js |
-| gift-tax-docs | `/gift-tax-docs/` | 3002 | Vite/React + @dnd-kit + xlsx-js-style |
-| inheritance-tax-docs | `/inheritance-tax-docs/` | 3003 | Vite/React + @dnd-kit + xlsx-js-style |
-| tax-docs (frontend) | `/tax-docs/` | 3005 | Vite/React + @dnd-kit + xlsx-js-style |
-| tax-docs (backend) | `/tax-docs-api/` | 3006 | Express + better-sqlite3 |
-| medical-stock-valuation | `/medical/` | 3010 | Next.js + SQLite (Prisma) |
-| shares-valuation | `/shares/` | 3012 | Vite/React + react-number-format |
-| retirement-tax-calc | `/retirement-tax-calc/` | 3013 | Vite/React |
-| inheritance-case-management (web) | `/itcm/` | 3020 | Next.js + React Query + React Table |
-| inheritance-case-management (api) | `/itcm-api/` | 3021 | Hono + Prisma + PostgreSQL |
-| depreciation-calc | `/depreciation-calc/` | 3015 | Vite/React |
-| salary-calc | `/salary-calc/` | 3016 | Vite/React + lucide-react |
-| asset-valuation | `/asset-valuation/` | 3017 | Vite/React + xlsx-js-style |
-| stock-valuation-form | `/stock-valuation-form/` | 3014 | Vite/React |
-| bank-analyzer-django | `/bank-analyzer/` | 3007 | Django + pandas + Bootstrap |
-
-### ディレクトリ構成
-
-```
-apps/                    # 各アプリケーション（独立）
-docker/                  # 統合Docker Compose設定
-  docker-compose.yml     # 開発用（全サービス起動）
-  docker-compose.prod.yml # 本番オーバーライド
-nginx/                   # Nginxゲートウェイ設定
-```
-
-各アプリは独自の `Dockerfile`、`docker-compose.yml`（スタンドアロン起動用）、`package.json` を持つ。
-
-### インフラ
-
-- **Nginxゲートウェイ**: ポート80でリバースプロキシ、パスベースルーティング
-- **Docker Compose**: `docker/docker-compose.yml` で全サービス＋ゲートウェイを管理
-- **DB**: PostgreSQL（案件管理、bank-analyzer）、SQLite（medical-stock-valuation, tax-docs）
-- **環境変数**: `docker/.env`（`.env.example`参照）
-
-### 技術スタック共通事項
-
-- **フロントエンド**: Next.js 16.x (App Router) / Vite 6〜7.x、React 19.x、TypeScript 5.x
-- **スタイリング**: Tailwind CSS v4 (@tailwindcss/postcss)
-- **アイコン**: lucide-react
-- **DnD**: @dnd-kit（gift-tax-docs, inheritance-tax-docs, tax-docs）
-- **Excel出力**: xlsx-js-style（書類案内系）、exceljs（inheritance-tax-app）
-- **数値入力**: react-number-format（shares-valuation, medical-stock-valuation）
-- **パッケージマネージャー**: npm（各アプリ個別）
-
-### アプリ内の典型的なディレクトリ構成（Next.js系）
-
-```
-app/             # App Routerページ
-components/      # UIコンポーネント
-  ui/            # 汎用UIコンポーネント
-hooks/           # カスタムフック
-lib/             # ユーティリティ関数・定数・計算ロジック
-```
-
-### コーディング規約（既存コードから読み取れるパターン）
+## コーディング規約
 
 - 3箇所以上の重複はユーティリティ関数・コンポーネントに抽出（DRY原則）
 - データ駆動UI: 繰り返しJSXは定数配列 + `.map()` で生成

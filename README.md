@@ -223,13 +223,7 @@ DB_PASSWORD=dev-password-change-in-production
 - **本番サーバー**: nginx:1.27-alpine (静的サイト), Gunicorn (Django)
 - **コンテナ**: Docker Compose（アプリ毎の独立構成 + prod override パターン）
 
-## 開発ガイドライン
-
-- 各アプリは独立した `docker-compose.yml` を持ち、単体で動作可能
-- 共通の Nginx Gateway 経由でポート80からアクセス
-- `.env` ファイルは `manage.bat start` 時に `.env.example` から自動作成
-- データベースファイル（`*.db`, `*.sqlite3`）は git 管理外
-- `.env` ファイルは git 管理外
+> **Note**: データベースファイル（`*.db`, `*.sqlite3`）と `.env` ファイルは git 管理外です。
 
 ## トラブルシューティング
 
