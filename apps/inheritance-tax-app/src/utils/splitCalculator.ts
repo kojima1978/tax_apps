@@ -1,6 +1,7 @@
 import type {
   HeirComposition,
   HeirAcquisition,
+  HeirType,
   SplitSimulationRow,
   SplitSimulationResult,
 } from '../types';
