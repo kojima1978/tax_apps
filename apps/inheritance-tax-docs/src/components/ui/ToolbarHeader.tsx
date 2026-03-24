@@ -43,27 +43,36 @@ export const ToolbarHeader = memo(function ToolbarHeader({
             <p className="text-emerald-200 text-sm">{subtitle}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {toolbarActions.map(({ id, icon: Icon, label, badge, onClick, disabled, title: btnTitle, bg }) => (
-            <button key={id} onClick={onClick} disabled={disabled} title={btnTitle} className={`${TOOLBAR_BTN} ${bg}`}>
-              <Icon className="w-4 h-4 mr-1" /> {label}
-              {badge && <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-bold">{badge}</span>}
-            </button>
-          ))}
-          <label
-            className={`${TOOLBAR_BTN} cursor-pointer ${
-              isImporting ? 'bg-slate-400 cursor-not-allowed' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm'
-            }`}
-            title="JSONファイルから設定を読み込み"
-          >
-            <Upload className="w-4 h-4 mr-1" /> 読込
-            <input type="file" accept=".json" onChange={onJsonImport} disabled={isImporting} className="hidden" />
-          </label>
-          {navLinks.map(({ to, label: linkLabel, icon: NavIcon }) => (
-            <Link key={to} to={to} className={`${TOOLBAR_BTN} bg-indigo-500/80 hover:bg-indigo-500`} title={linkLabel}>
-              <NavIcon className="w-4 h-4 mr-1" /> {linkLabel}
-            </Link>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-2">
+            {toolbarActions.map(({ id, icon: Icon, label, badge, onClick, disabled, title: btnTitle, bg }) => (
+              <button key={id} onClick={onClick} disabled={disabled} title={btnTitle} className={`${TOOLBAR_BTN} ${bg}`}>
+                <Icon className="w-4 h-4 mr-1" /> {label}
+                {badge && <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-bold">{badge}</span>}
+              </button>
+            ))}
+            <label
+              className={`${TOOLBAR_BTN} cursor-pointer ${
+                isImporting ? 'bg-slate-400 cursor-not-allowed' : 'bg-white/15 hover:bg-white/25 backdrop-blur-sm'
+              }`}
+              title="JSONファイルから設定を読み込み"
+            >
+              <Upload className="w-4 h-4 mr-1" /> 読込
+              <input type="file" accept=".json" onChange={onJsonImport} disabled={isImporting} className="hidden" />
+            </label>
+          </div>
+          {navLinks.length > 0 && (
+            <>
+              <div className="hidden md:block w-px h-6 bg-white/30" />
+              <div className="flex flex-wrap gap-2">
+                {navLinks.map(({ to, label: linkLabel, icon: NavIcon }) => (
+                  <Link key={to} to={to} className={`${TOOLBAR_BTN} bg-indigo-500/80 hover:bg-indigo-500`} title={linkLabel}>
+                    <NavIcon className="w-4 h-4 mr-1" /> {linkLabel}
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
-import { Info, AlertCircle } from 'lucide-react';
+import { Info, AlertCircle, ChevronDown, CheckCircle2 } from 'lucide-react';
 import type { PageConfig } from '../constants/pageConfig';
 import { COMPANY_INFO, getFullAddress, getContactLine } from '../utils/company';
 import { exportToExcel } from '../utils/excelExporter';
@@ -51,6 +51,7 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { isImporting, importError, importSuccess, handleJsonImport, clearImportError, clearImportSuccess } = useJsonImport(importFromJson, pageConfig.appName);
   const [hideSubmittedInPrint, setHideSubmittedInPrint] = useState(false);
+  const [noticeCollapsed, setNoticeCollapsed] = useState(false);
   const currentDate = useMemo(() => formatDate(new Date()), []);
   const filter = useFilterState();
 
@@ -106,6 +107,18 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
   }, [exportToJson, handleExcelExport]);
 
   const toggleHideSubmittedInPrint = useCallback(() => setHideSubmittedInPrint(p => !p), []);
+  const toggleNoticeCollapsed = useCallback(() => setNoticeCollapsed(p => !p), []);
+
+  const allDocsCompleted = useMemo(() => {
+    const activeCategories = pageConfig.categories.filter(
+      cat => !disabledCategories[cat.id] && (documentOrder[cat.id] || []).length > 0
+    );
+    if (activeCategories.length === 0) return false;
+    return activeCategories.every(cat => {
+      const docIds = documentOrder[cat.id] || [];
+      return docIds.every(id => checkedDocuments[id] || excludedDocuments[id]);
+    });
+  }, [pageConfig.categories, disabledCategories, documentOrder, checkedDocuments, excludedDocuments]);
 
   return (
     <div className="animate-fade-in">
@@ -205,7 +218,7 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
             <div key={ri} className={`grid ${cols} gap-4${ri > 0 ? ' mt-4' : ''}`}>
               {fields.map(({ key, label, type, placeholder }) => (
                 <div key={key}>
-                  <label className="block text-sm text-slate-600 mb-1">{label}</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
                   <input
                     type={type ?? 'text'}
                     value={fieldValues[key]}
@@ -229,12 +242,20 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
           onCollapseAll={collapseAll}
         />
 
-        {/* 注意事項 */}
-        <div className="max-w-7xl mx-auto px-4 md:px-8 mt-6 mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg print-compact-notice print:mx-2 print:mt-2 print:mb-2">
-          <div className="flex items-start">
-            <Info className="w-5 h-5 text-amber-600 mr-2 mt-0.5 flex-shrink-0 print:w-4 print:h-4" />
-            <div className="text-sm text-amber-800">
-              <p className="font-bold mb-1 print:mb-0 print:text-sm">ご確認ください</p>
+        {/* 注意事項（折りたたみ可能） */}
+        <div className="max-w-7xl mx-auto px-4 md:px-8 mt-6 mb-4 print-compact-notice print:mx-2 print:mt-2 print:mb-2">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <button
+              onClick={toggleNoticeCollapsed}
+              className="w-full flex items-center justify-between cursor-pointer print:cursor-default"
+            >
+              <div className="flex items-center">
+                <Info className="w-5 h-5 text-amber-600 mr-2 flex-shrink-0 print:w-4 print:h-4" />
+                <p className="font-bold text-sm text-amber-800 print:text-sm">ご確認ください</p>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-amber-600 transition-transform print:hidden ${noticeCollapsed ? '' : 'rotate-180'}`} />
+            </button>
+            <div className={`${noticeCollapsed ? 'hidden print:block' : ''} mt-2 ml-7 text-sm text-amber-800`}>
               <ul className="list-disc list-inside space-y-1 print:space-y-0">
                 {pageConfig.noticeItems.map((item, i) => (
                   <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
@@ -287,6 +308,17 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
           ))}
         </div>
 
+        {/* 全完了メッセージ */}
+        {allDocsCompleted && (
+          <div className="max-w-7xl mx-auto px-4 md:px-8 no-print">
+            <div className="flex flex-col items-center justify-center py-8 px-6 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <CheckCircle2 className="w-12 h-12 text-emerald-500 mb-3" />
+              <p className="text-lg font-bold text-emerald-700">すべての書類が提出済み・対象外です</p>
+              <p className="text-sm text-emerald-600 mt-1">資料の収集が完了しました。お疲れさまでした。</p>
+            </div>
+          </div>
+        )}
+
         {/* 留意事項 + フッター */}
         <div className="max-w-7xl mx-auto px-4 md:px-8 mb-6 mt-4 pt-6 border-t border-slate-300 print-compact-footer print:mx-2 print:mb-2 print:mt-2">
           <div className="flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 print-compact-footer-box">
@@ -297,8 +329,10 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
               <p>・公的機関（市役所等）で取得する証明書は、原則として発行後3ヶ月以内のものをご用意ください。</p>
             </div>
           </div>
-          <div className="mt-8 text-center text-sm text-slate-400 print-compact-address">
-            {getFullAddress()} / {getContactLine()}
+          <div className="mt-8 mb-2 py-4 px-6 bg-slate-50 rounded-lg border border-slate-200 text-center print-compact-address">
+            <p className="text-sm font-medium text-slate-600">{COMPANY_INFO.name}</p>
+            <p className="text-xs text-slate-400 mt-1">{getFullAddress()}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{getContactLine()}</p>
           </div>
         </div>
       </div>
