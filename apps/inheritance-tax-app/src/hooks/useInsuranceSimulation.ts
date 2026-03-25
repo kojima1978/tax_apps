@@ -1,13 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
-import type { HeirComposition, SpouseAcquisitionMode, InsuranceContract, InsuranceSimulationResult } from '../types';
-import { createDefaultComposition } from '../constants';
+import type { InsuranceContract, InsuranceSimulationResult } from '../types';
 import { calculateInsuranceSimulation, getBeneficiaryOptions } from '../utils';
+import { useSimulationBase } from './useSimulationBase';
 import { useCleanOptions } from './useCleanOptions';
 
 export function useInsuranceSimulation() {
-  const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
-  const [estateValue, setEstateValue] = useState<number>(0);
-  const [spouseMode, setSpouseMode] = useState<SpouseAcquisitionMode>({ mode: 'legal' });
+  const base = useSimulationBase();
+  const { composition, estateValue, spouseMode } = base;
+
   const [existingContracts, setExistingContracts] = useState<InsuranceContract[]>([]);
   const [newContracts, setNewContracts] = useState<InsuranceContract[]>([]);
 
@@ -16,7 +16,6 @@ export function useInsuranceSimulation() {
     [composition],
   );
 
-  // 相続人構成が変わったら、無効な受取人を持つ契約をクリーンアップ
   const getContractId = useCallback((c: InsuranceContract) => c.beneficiaryId, []);
   const setContractId = useCallback((c: InsuranceContract, id: string, label: string) => ({ ...c, beneficiaryId: id, beneficiaryLabel: label }), []);
   const cleanedExisting = useCleanOptions(existingContracts, beneficiaryOptions, getContractId, setContractId);
@@ -33,9 +32,7 @@ export function useInsuranceSimulation() {
   }, [estateValue, composition, cleanedExisting, cleanedNew, spouseMode]);
 
   return {
-    composition, setComposition,
-    estateValue, setEstateValue,
-    spouseMode, setSpouseMode,
+    ...base,
     existingContracts, setExistingContracts,
     newContracts, setNewContracts,
     beneficiaryOptions,

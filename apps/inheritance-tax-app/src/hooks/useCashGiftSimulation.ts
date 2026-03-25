@@ -1,13 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
-import type { HeirComposition, SpouseAcquisitionMode, GiftRecipient, CashGiftSimulationResult } from '../types';
-import { createDefaultComposition } from '../constants';
+import type { GiftRecipient, CashGiftSimulationResult } from '../types';
 import { calculateCashGiftSimulation, getGiftRecipientOptions } from '../utils';
+import { useSimulationBase } from './useSimulationBase';
 import { useCleanOptions } from './useCleanOptions';
 
 export function useCashGiftSimulation() {
-  const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
-  const [estateValue, setEstateValue] = useState<number>(0);
-  const [spouseMode, setSpouseMode] = useState<SpouseAcquisitionMode>({ mode: 'legal' });
+  const base = useSimulationBase();
+  const { composition, estateValue, spouseMode } = base;
+
   const [recipients, setRecipients] = useState<GiftRecipient[]>([]);
 
   const recipientOptions = useMemo(
@@ -15,7 +15,6 @@ export function useCashGiftSimulation() {
     [composition],
   );
 
-  // 相続人構成が変わったら、無効な受取人をクリーンアップ
   const getRecipientId = useCallback((r: GiftRecipient) => r.heirId, []);
   const setRecipientId = useCallback((r: GiftRecipient, id: string, label: string) => ({ ...r, heirId: id, heirLabel: label }), []);
   const cleanedRecipients = useCleanOptions(recipients, recipientOptions, getRecipientId, setRecipientId);
@@ -23,9 +22,9 @@ export function useCashGiftSimulation() {
   const [result, setResult] = useState<CashGiftSimulationResult | null>(null);
   const [calcInputs, setCalcInputs] = useState<{
     estateValue: number;
-    composition: HeirComposition;
+    composition: typeof composition;
     recipients: GiftRecipient[];
-    spouseMode: SpouseAcquisitionMode;
+    spouseMode: typeof spouseMode;
   } | null>(null);
 
   const handleCalculate = useCallback(() => {
@@ -46,9 +45,7 @@ export function useCashGiftSimulation() {
   const noEligibleRecipients = composition.selectedRank !== 'rank1' && composition.selectedRank !== 'none';
 
   return {
-    composition, setComposition,
-    estateValue, setEstateValue,
-    spouseMode, setSpouseMode,
+    ...base,
     recipients, setRecipients,
     recipientOptions,
     cleanedRecipients,

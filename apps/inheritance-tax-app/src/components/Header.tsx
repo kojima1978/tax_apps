@@ -74,32 +74,35 @@ export const Header: React.FC<HeaderProps> = ({ actions }) => {
       </div>
 
       <nav className="max-w-7xl mx-auto px-4 md:px-8 pb-0 flex items-end gap-2">
-        <div className="overflow-x-auto flex-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <div className="flex gap-1">
-            {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === '/'}
-                className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-t-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
-                    isActive
-                      ? 'bg-white text-green-700 shadow-sm'
-                      : 'text-green-100 hover:bg-green-700/60 hover:text-white'
-                  }`
-                }
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </NavLink>
-            ))}
+        <div className="relative flex-1">
+          <div className="overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex gap-1">
+              {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === '/'}
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-t-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      isActive
+                        ? 'bg-white text-green-700 shadow-sm'
+                        : 'text-green-100 hover:bg-green-700/60 hover:text-white'
+                    }`
+                  }
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </NavLink>
+              ))}
+            </div>
           </div>
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-green-700/80 to-transparent pointer-events-none md:hidden" />
         </div>
         <div className="flex items-center gap-2 mb-1.5 flex-shrink-0">
           {actions}
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-green-100 text-green-100 rounded text-sm hover:bg-green-700 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-green-100 text-green-100 rounded text-sm cursor-pointer hover:bg-green-700 hover:text-white transition-colors"
           >
             <Printer className="w-4 h-4" />
             <span className="hidden sm:inline">印刷</span>

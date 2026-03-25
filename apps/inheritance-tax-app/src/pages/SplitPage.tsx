@@ -1,21 +1,19 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { Header } from '../components/Header';
+import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
 import { AcquisitionInputs } from '../components/split/AcquisitionInputs';
 import { SimulationSettings } from '../components/split/SimulationSettings';
 import { SplitResultTable } from '../components/split/SplitResultTable';
-import { CalculateButton } from '../components/CalculateButton';
-import { ValidationErrorPanel } from '../components/ValidationErrorPanel';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
 import { useScrollToResult } from '../hooks/useScrollToResult';
+import { useFormValidation } from '../hooks/useFormValidation';
 import type { HeirComposition, HeirAcquisition, SplitSimulationResult } from '../types';
 import { createDefaultComposition } from '../constants';
 import { SPLIT_CAUTIONS } from '../constants/cautionMessages';
 import { buildHeirLabels, calculateLegalAcquisitions, generateSplitSimulation } from '../utils';
 
-/** 相続人ラベルから HeirAcquisition 配列を生成（最後の1人を自動調整） */
 function createAcquisitions(
   labels: { label: string; type: import('../types').HeirType }[],
   prev: HeirAcquisition[] = [],
@@ -40,7 +38,6 @@ export const SplitPage: React.FC = () => {
   );
   const [rowCount, setRowCount] = useState(5);
   const [result, setResult] = useState<SplitSimulationResult | null>(null);
-  const [hasAttempted, setHasAttempted] = useState(false);
 
   const heirRef = useRef<HTMLDivElement>(null);
   const estateRef = useRef<HTMLDivElement>(null);
@@ -82,73 +79,70 @@ export const SplitPage: React.FC = () => {
     return errors;
   }, [estateValue, noHeirs, acquisitions]);
 
-  const handleCalculate = useCallback(() => {
-    setHasAttempted(true);
-    if (estateValue <= 0) {
-      estateRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    if (noHeirs) {
-      heirRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
+  const checks = useCallback(() => [
+    { condition: estateValue <= 0, ref: estateRef },
+    { condition: noHeirs, ref: heirRef },
+  ], [estateValue, noHeirs]);
+
+  const onValid = useCallback(() => {
     if (validationErrors.length > 0) return;
     setResult(generateSplitSimulation(estateValue, composition, acquisitions, rowCount));
-  }, [estateValue, noHeirs, composition, acquisitions, rowCount, validationErrors]);
+  }, [estateValue, composition, acquisitions, rowCount, validationErrors]);
+
+  const { hasAttempted, handleCalculate } = useFormValidation(checks, onValid);
 
   return (
-    <>
-      <Header />
-      <main className="max-w-7xl mx-auto px-4 py-8 split-print">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
-          <div ref={heirRef} className="space-y-6">
-            <HeirSettings
-              composition={composition}
-              onChange={handleCompositionChange}
-              hasError={hasAttempted && noHeirs}
+    <PageLayout
+      printClassName="split-print"
+      leftSection={
+        <div ref={heirRef} className="space-y-6">
+          <HeirSettings
+            composition={composition}
+            onChange={handleCompositionChange}
+            hasError={hasAttempted && noHeirs}
+          />
+          {acquisitions.length > 0 && (
+            <SimulationSettings
+              acquisitions={acquisitions}
+              onChange={setAcquisitions}
+              rowCount={rowCount}
+              onRowCountChange={setRowCount}
             />
-            {acquisitions.length > 0 && (
-              <SimulationSettings
-                acquisitions={acquisitions}
-                onChange={setAcquisitions}
-                rowCount={rowCount}
-                onRowCountChange={setRowCount}
-              />
-            )}
-          </div>
-          <div className="space-y-6">
-            <div ref={estateRef}>
-              <EstateInput
-                value={estateValue}
-                onChange={handleEstateChange}
-                hasError={hasAttempted && estateValue <= 0}
-              />
-            </div>
-            {acquisitions.length > 0 && (
-              <AcquisitionInputs
-                estateValue={estateValue}
-                acquisitions={acquisitions}
-                onChange={setAcquisitions}
-                onFillLegal={handleFillLegal}
-                hasError={hasAttempted && acquisitions.reduce((s, h) => s + h.amount, 0) !== estateValue}
-              />
-            )}
-            <CautionBox items={SPLIT_CAUTIONS} />
-          </div>
+          )}
         </div>
-
-        <div className="mb-8 no-print">
-          <ValidationErrorPanel show={hasAttempted} errors={validationErrors} />
-          <CalculateButton onClick={handleCalculate} />
-        </div>
-
-        <div ref={resultRef}>
+      }
+      rightSection={
+        <>
+          <div ref={estateRef}>
+            <EstateInput
+              value={estateValue}
+              onChange={handleEstateChange}
+              hasError={hasAttempted && estateValue <= 0}
+            />
+          </div>
+          {acquisitions.length > 0 && (
+            <AcquisitionInputs
+              estateValue={estateValue}
+              acquisitions={acquisitions}
+              onChange={setAcquisitions}
+              onFillLegal={handleFillLegal}
+              hasError={hasAttempted && acquisitions.reduce((s, h) => s + h.amount, 0) !== estateValue}
+            />
+          )}
+          <CautionBox items={SPLIT_CAUTIONS} />
+        </>
+      }
+      validationErrors={validationErrors}
+      hasAttempted={hasAttempted}
+      onCalculate={handleCalculate}
+      resultRef={resultRef}
+      resultSection={
+        <>
           {result && result.rows.length > 0 && (
             <div className="result-fade-in">
               <SplitResultTable result={result} />
             </div>
           )}
-
           {result && result.taxableAmount === 0 && estateValue > 0 && (
             <div className="result-fade-in">
               <StatusCard
@@ -158,8 +152,8 @@ export const SplitPage: React.FC = () => {
               />
             </div>
           )}
-        </div>
-      </main>
-    </>
+        </>
+      }
+    />
   );
 };

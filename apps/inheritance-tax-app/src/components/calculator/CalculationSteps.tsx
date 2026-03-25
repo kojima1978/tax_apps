@@ -33,11 +33,13 @@ const BreakdownList: React.FC<{
   </div>
 );
 
-function buildSteps(result: DetailedTaxCalculationResult): Step[] {
-  const { heirBreakdowns, spouseDeductionDetail } = result;
+// ── ステップ生成関数 ──
+
+function buildBaseSteps(result: DetailedTaxCalculationResult): Step[] {
+  const { heirBreakdowns } = result;
   const heirCount = heirBreakdowns.length;
 
-  const steps: Step[] = [
+  return [
     {
       title: '遺産総額',
       content: <p className="text-sm font-bold text-gray-800">{formatCurrency(result.estateValue)}</p>,
@@ -60,6 +62,13 @@ function buildSteps(result: DetailedTaxCalculationResult): Step[] {
         />
       ),
     },
+  ];
+}
+
+function buildShareSteps(result: DetailedTaxCalculationResult): Step[] {
+  const { heirBreakdowns } = result;
+
+  return [
     {
       title: '法定相続分に応じた取得金額',
       content: (
@@ -102,64 +111,66 @@ function buildSteps(result: DetailedTaxCalculationResult): Step[] {
       ),
     },
   ];
+}
 
-  // 配偶者の税額軽減（該当時）
-  if (spouseDeductionDetail) {
-    const d = spouseDeductionDetail;
-    const withinLimit = d.acquisitionAmount <= d.deductionLimit;
+function buildSpouseDeductionStep(result: DetailedTaxCalculationResult): Step | null {
+  const d = result.spouseDeductionDetail;
+  if (!d) return null;
 
-    steps.push({
-      title: '配偶者の税額軽減',
-      content: (
-        <div className="space-y-1">
-          <FormulaResult
-            formula={<>控除限度額: max({formatCurrency(d.legalShareAmount)}, {formatCurrency(d.limit160m)})</>}
-            result={formatCurrency(d.deductionLimit)}
-          />
+  const withinLimit = d.acquisitionAmount <= d.deductionLimit;
+  return {
+    title: '配偶者の税額軽減',
+    content: (
+      <div className="space-y-1">
+        <FormulaResult
+          formula={<>控除限度額: max({formatCurrency(d.legalShareAmount)}, {formatCurrency(d.limit160m)})</>}
+          result={formatCurrency(d.deductionLimit)}
+        />
+        <p className="text-sm text-gray-800">
+          配偶者の取得額 {formatCurrency(d.acquisitionAmount)} {withinLimit ? '≦' : '＞'} 控除限度額 {formatCurrency(d.deductionLimit)}
+        </p>
+        {withinLimit ? (
           <p className="text-sm text-gray-800">
-            配偶者の取得額 {formatCurrency(d.acquisitionAmount)} {withinLimit ? '≦' : '＞'} 控除限度額 {formatCurrency(d.deductionLimit)}
+            取得額が限度額以下 → 按分税額 {formatCurrency(d.taxBeforeDeduction)} を全額控除 ＝ <span className="font-bold">控除額: {formatCurrency(d.actualDeduction)}</span>
           </p>
-          {withinLimit ? (
-            <p className="text-sm text-gray-800">
-              取得額が限度額以下 → 按分税額 {formatCurrency(d.taxBeforeDeduction)} を全額控除 ＝ <span className="font-bold">控除額: {formatCurrency(d.actualDeduction)}</span>
-            </p>
-          ) : (
-            <FormulaResult
-              formula={<>{formatCurrency(result.totalTax)} × ({formatCurrency(d.deductionLimit)} / {formatCurrency(result.estateValue)})</>}
-              result={<>控除額: {formatCurrency(d.actualDeduction)}</>}
-            />
-          )}
-        </div>
-      ),
-    });
-  }
+        ) : (
+          <FormulaResult
+            formula={<>{formatCurrency(result.totalTax)} × ({formatCurrency(d.deductionLimit)} / {formatCurrency(result.estateValue)})</>}
+            result={<>控除額: {formatCurrency(d.actualDeduction)}</>}
+          />
+        )}
+      </div>
+    ),
+  };
+}
 
-  // 2割加算（該当時）
+function buildSurchargeStep(heirBreakdowns: HeirTaxBreakdown[]): Step | null {
   const rank3Heirs = heirBreakdowns.filter(b => b.surchargeAmount > 0);
-  if (rank3Heirs.length > 0) {
-    steps.push({
-      title: '2割加算',
-      content: (
-        <div className="bg-orange-50 rounded-lg p-3">
-          <div className="space-y-1 text-sm text-gray-700">
-            {rank3Heirs.map((b) => (
-              <p key={b.label}>
-                {b.label}: {formatCurrency(b.proportionalTax)} × 20% = <span className="font-medium text-orange-700">{formatCurrency(b.surchargeAmount)}</span>
-              </p>
-            ))}
-          </div>
-        </div>
-      ),
-    });
-  }
+  if (rank3Heirs.length === 0) return null;
 
-  // 最終ステップ
-  steps.push({
+  return {
+    title: '2割加算',
+    content: (
+      <div className="bg-orange-50 rounded-lg p-3">
+        <div className="space-y-1 text-sm text-gray-700">
+          {rank3Heirs.map((b) => (
+            <p key={b.label}>
+              {b.label}: {formatCurrency(b.proportionalTax)} × 20% = <span className="font-medium text-orange-700">{formatCurrency(b.surchargeAmount)}</span>
+            </p>
+          ))}
+        </div>
+      </div>
+    ),
+  };
+}
+
+function buildFinalStep(result: DetailedTaxCalculationResult): Step {
+  return {
     title: '納付すべき相続税額',
     content: (
       <div>
         <div className="mb-2">
-          <BreakdownList breakdowns={heirBreakdowns} renderContent={(b) => (
+          <BreakdownList breakdowns={result.heirBreakdowns} renderContent={(b) => (
             <span className="font-bold">{formatCurrency(b.finalTax)}</span>
           )} />
         </div>
@@ -168,8 +179,22 @@ function buildSteps(result: DetailedTaxCalculationResult): Step[] {
         </p>
       </div>
     ),
-  });
+  };
+}
 
+function buildSteps(result: DetailedTaxCalculationResult): Step[] {
+  const steps: Step[] = [
+    ...buildBaseSteps(result),
+    ...buildShareSteps(result),
+  ];
+
+  const spouseStep = buildSpouseDeductionStep(result);
+  if (spouseStep) steps.push(spouseStep);
+
+  const surchargeStep = buildSurchargeStep(result.heirBreakdowns);
+  if (surchargeStep) steps.push(surchargeStep);
+
+  steps.push(buildFinalStep(result));
   return steps;
 }
 
