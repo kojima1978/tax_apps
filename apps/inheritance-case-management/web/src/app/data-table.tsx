@@ -65,6 +65,7 @@ export function DataTable<TData, TValue>({
             onFocus={handleFocus}
         >
             <div className="rounded-md border overflow-x-auto">
+                <p className="text-xs text-muted-foreground px-2 py-1 md:hidden">← 横にスクロールできます →</p>
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
@@ -99,7 +100,7 @@ export function DataTable<TData, TValue>({
                                     onMouseEnter={() => setFocusedRowIndex(index)}
                                 >
                                     {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id} className="px-2 py-1 text-xs">
+                                        <TableCell key={cell.id} className="px-2 py-1 text-sm">
                                             {flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext()

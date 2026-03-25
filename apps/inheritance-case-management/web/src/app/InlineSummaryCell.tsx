@@ -4,8 +4,11 @@ import { useState, useRef, useEffect } from "react"
 import type { InheritanceCase } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
 import { MAX_SUMMARY_LENGTH } from "@/types/constants"
+import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
+import { useToast } from "@/components/ui/Toast"
 
 export function InlineSummaryCell({ caseData }: { caseData: InheritanceCase }) {
+    const toast = useToast()
     const [isEditing, setIsEditing] = useState(false)
     const [value, setValue] = useState(caseData.summary || "")
     const [isSaving, setIsSaving] = useState(false)
@@ -33,8 +36,8 @@ export function InlineSummaryCell({ caseData }: { caseData: InheritanceCase }) {
             caseData.updatedAt = result.updatedAt
             setValue(trimmed)
         } catch (e) {
-            if (e instanceof Error && 'status' in e && (e as { status: number }).status === 409) {
-                alert("他のユーザーが先に更新しました。画面を再読み込みしてください。")
+            if (isConflictError(e)) {
+                toast.error(CONFLICT_MESSAGE)
             }
             setValue(caseData.summary || "")
         } finally {

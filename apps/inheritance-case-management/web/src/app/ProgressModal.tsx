@@ -8,6 +8,7 @@ import { SetTodayButton } from "@/components/ui/SetTodayButton"
 import type { InheritanceCase, CaseStatus, ProgressStep } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
 import { addVisitStep, shouldShowAddVisit, STATUS_STEP_MAP } from "@/lib/progress-utils"
+import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { toProgressSteps, toProgressItems } from "@/lib/case-converters"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
 import Link from "next/link"
@@ -82,6 +83,7 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
     const [steps, setSteps] = useState<ProgressStep[]>([])
     const [isSaving, setIsSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    const [statusPrompt, setStatusPrompt] = useState<{ status: CaseStatus; message: string } | null>(null)
 
     const onChange = useCallback((newSteps: ProgressStep[]) => {
         setSteps(newSteps)
@@ -96,19 +98,14 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
     const openModal = () => {
         setSteps(caseData.progress ? toProgressSteps(caseData.progress) : [])
         setSaved(false)
+        setStatusPrompt(null)
         resetChecked()
         setShowModal(true)
     }
 
-    const handleSave = async () => {
+    const doSave = async (newStatus?: CaseStatus) => {
         setIsSaving(true)
         try {
-            const statusPrompt = detectStatusPrompt(steps, caseData.status)
-            let newStatus: CaseStatus | undefined
-            if (statusPrompt && window.confirm(statusPrompt.message)) {
-                newStatus = statusPrompt.status
-            }
-
             const updatedAt = caseData.updatedAt ? new Date(caseData.updatedAt).toISOString() : undefined
             const result = await updateCase(caseData.id, { progress: steps, ...(newStatus && { status: newStatus }) }, updatedAt)
             if (newStatus) caseData.status = newStatus
@@ -116,13 +113,22 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
             caseData.updatedAt = result.updatedAt
             setSaved(true)
         } catch (e) {
-            if (e instanceof Error && 'status' in e && (e as { status: number }).status === 409) {
-                alert("他のユーザーが先に更新しました。画面を再読み込みしてください。")
+            if (isConflictError(e)) {
+                alert(CONFLICT_MESSAGE)
                 return
             }
         } finally {
             setIsSaving(false)
         }
+    }
+
+    const handleSave = async () => {
+        const prompt = detectStatusPrompt(steps, caseData.status)
+        if (prompt) {
+            setStatusPrompt(prompt)
+            return
+        }
+        await doSave()
     }
 
     const currentSteps = toProgressSteps(caseData.progress ?? [])
@@ -170,6 +176,20 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
                         )}
                     </div>
 
+                    {statusPrompt && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+                            <p className="text-sm whitespace-pre-line">{statusPrompt.message}</p>
+                            <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => { setStatusPrompt(null); doSave() }}>
+                                    変更しない
+                                </Button>
+                                <Button size="sm" onClick={() => { const s = statusPrompt.status; setStatusPrompt(null); doSave(s) }}>
+                                    変更する
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex justify-between pt-4 border-t">
                         <Link href={`/${caseData.id}`} onClick={(e) => e.stopPropagation()}>
                             <Button variant="outline" size="sm">詳細を編集</Button>
@@ -177,7 +197,7 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
                         <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => setShowModal(false)}>閉じる</Button>
                             {steps.length > 0 && (
-                                <Button size="sm" onClick={handleSave} disabled={isSaving || !hasChanges}>
+                                <Button size="sm" onClick={handleSave} disabled={isSaving || !hasChanges || !!statusPrompt}>
                                     {saved ? (<><Check className="mr-1.5 h-3.5 w-3.5" />保存済み</>) : (<><Save className="mr-1.5 h-3.5 w-3.5" />{isSaving ? "保存中..." : "保存"}</>)}
                                 </Button>
                             )}

@@ -87,7 +87,8 @@ export function FilterBar({
                     {searchInput && (
                         <button
                             onClick={() => setSearchInput("")}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                            aria-label="検索をクリア"
                         >
                             <X className="h-4 w-4" />
                         </button>
@@ -110,7 +111,8 @@ export function FilterBar({
                             {f.label}
                             <button
                                 onClick={() => f.key === 'search' ? setSearchInput('') : onFilterChange(f.key as keyof CasesQueryParams, undefined)}
-                                className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                                className="hover:bg-primary/20 rounded-full p-1.5 transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center"
+                                aria-label={`${f.label}を解除`}
                             >
                                 <X className="h-3 w-3" />
                             </button>

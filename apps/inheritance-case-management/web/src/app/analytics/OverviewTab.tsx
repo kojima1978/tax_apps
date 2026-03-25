@@ -20,21 +20,11 @@ const STATUS_TABLES: StatusTableConfig[] = [
     },
 ]
 
-interface SummaryCardDef {
-    title: string
-    badge: string
-    badgeClass: string
-    cardClass: string
-    valueClass: string
-    hasIcon: boolean
-    footnote: string
-}
-
-const SUMMARY_CARDS: SummaryCardDef[] = [
-    { title: "売上（確定＋見積）", badge: "", badgeClass: "", cardClass: "bg-white border-2 border-primary/20", valueClass: "text-3xl font-bold text-primary", hasIcon: true, footnote: "※請求総額" },
-    { title: "売上（確定）", badge: "", badgeClass: "", cardClass: "bg-card border", valueClass: "text-2xl font-bold", hasIcon: false, footnote: "※請求総額" },
-    { title: "売上（見積）", badge: "", badgeClass: "", cardClass: "bg-card border", valueClass: "text-2xl font-bold", hasIcon: false, footnote: "※見積総額" },
-]
+const SUMMARY_CARDS = [
+    { title: "売上（確定＋見積）", cardClass: "bg-white border-2 border-primary/20", valueClass: "text-3xl font-bold text-primary", isPrimary: true, footnote: "※請求総額" },
+    { title: "売上（確定）", cardClass: "bg-card border", valueClass: "text-2xl font-bold", footnote: "※請求総額" },
+    { title: "売上（見積）", cardClass: "bg-card border", valueClass: "text-2xl font-bold", footnote: "※見積総額" },
+] as const
 
 interface SummaryTotals {
     grandTotalNet: number; grandTotalGross: number; grandCount: number
@@ -62,13 +52,13 @@ export function OverviewTab({ summaryTotals, annualData, selectedYear }: Overvie
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {SUMMARY_CARDS.map((card, i) => (
-                    <div key={card.title} className={`p-6 rounded-lg shadow-sm ${card.cardClass} ${card.hasIcon ? "relative overflow-hidden" : ""}`}>
-                        {card.hasIcon && (
+                    <div key={card.title} className={`p-6 rounded-lg shadow-sm ${card.cardClass} ${'isPrimary' in card && card.isPrimary ? "relative overflow-hidden" : ""}`}>
+                        {'isPrimary' in card && card.isPrimary && (
                             <div className="absolute top-0 right-0 p-4 opacity-10">
                                 <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
                             </div>
                         )}
-                        <div className="text-sm font-medium text-muted-foreground mb-2">{card.title}{card.badge && <span className={`ml-1 text-xs ${card.badgeClass} px-1 rounded`}>{card.badge}</span>}</div>
+                        <div className="text-sm font-medium text-muted-foreground mb-2">{card.title}</div>
                         <div className="flex items-baseline gap-2">
                             <div className={card.valueClass}>{formatCurrency(cardData[i].net)}</div>
                             <div className="text-sm text-muted-foreground">/ {cardData[i].count} 件</div>
