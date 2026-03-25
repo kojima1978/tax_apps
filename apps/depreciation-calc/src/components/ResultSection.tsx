@@ -2,12 +2,8 @@ import { type UsedAssetResult, getAssetTypeLabel } from "@/lib/used-asset-life";
 import { formatElapsed } from "@/lib/utils";
 import ResultLayout from "@/components/ui/ResultLayout";
 import HighlightCard from "@/components/ui/HighlightCard";
-
-const BuildingIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" /><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" /><path d="M10 6h4" /><path d="M10 10h4" /><path d="M10 14h4" /><path d="M10 18h4" />
-    </svg>
-);
+import CarryOverCta from "@/components/ui/CarryOverCta";
+import { BuildingIcon } from "@/components/ui/Icons";
 
 type ResultSectionProps = {
     result: UsedAssetResult | null;
@@ -49,7 +45,7 @@ const ResultSection = ({ result, isDirty, onCarryOver }: ResultSectionProps) => 
                     {/* 50%判定 */}
                     {r.input.acquisitionCost > 0 && (
                         <div className={`p-4 rounded-md mb-4 border-l-4 ${r.is50PercentRule ? 'bg-orange-50 border-orange-500' : 'bg-green-50 border-green-700'}`}>
-                            <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold text-white mb-2 ${r.is50PercentRule ? 'bg-orange-500' : 'bg-green-700'}`}>
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold text-white mb-2 ${r.is50PercentRule ? 'bg-orange-500' : 'bg-green-700'}`}>
                                 {r.is50PercentRule ? '簡便法適用不可' : '簡便法適用可'}
                             </span>
                             {r.is50PercentRule ? (
@@ -80,17 +76,16 @@ const ResultSection = ({ result, isDirty, onCarryOver }: ResultSectionProps) => 
                     </div>
 
                     {/* 結果ハイライト */}
-                    <HighlightCard label="中古耐用年数" value={String(r.usedAssetLife)} unit="年">
-                        {onCarryOver && (
-                            <button
-                                type="button"
-                                onClick={onCarryOver}
-                                className="mt-3 px-4 py-2 bg-green-700 text-white text-sm font-semibold rounded cursor-pointer transition-colors hover:bg-green-600 no-print"
-                            >
-                                この結果で簿価計算へ →
-                            </button>
-                        )}
-                    </HighlightCard>
+                    <HighlightCard label="中古耐用年数" value={String(r.usedAssetLife)} unit="年" />
+
+                    {/* 次タブへの連携CTA */}
+                    {onCarryOver && (
+                        <CarryOverCta
+                            description="この結果を使って減価償却スケジュールを計算できます"
+                            buttonLabel="簿価計算タブへ連携 →"
+                            onClick={onCarryOver}
+                        />
+                    )}
                 </>
             )}
         </ResultLayout>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import Header from "@/components/Header";
 import UsedAssetForm from "@/components/UsedAssetForm";
 import ResultSection from "@/components/ResultSection";
@@ -8,6 +8,7 @@ import PeriodDepForm from "@/components/PeriodDepForm";
 import PeriodDepResultSection from "@/components/PeriodDepResult";
 import ReferenceLinks from "@/components/ReferenceLinks";
 import PrintFooter from "@/components/PrintFooter";
+import { CalendarIcon, ClockIcon, CalculatorIcon } from "@/components/ui/Icons";
 import { useUsedAssetForm } from "@/hooks/useUsedAssetForm";
 import { useDepreciationForm } from "@/hooks/useDepreciationForm";
 import { usePeriodDepForm } from "@/hooks/usePeriodDepForm";
@@ -15,10 +16,10 @@ import { parseFormattedNumber } from "@/lib/utils";
 
 type Tab = 'life' | 'depreciation' | 'period';
 
-const TABS: { key: Tab; label: string }[] = [
-    { key: 'period', label: '期間償却' },
-    { key: 'life', label: '（中古）耐用年数' },
-    { key: 'depreciation', label: '簿価計算' },
+const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
+    { key: 'period', label: '期間償却', icon: <CalendarIcon /> },
+    { key: 'life', label: '（中古）耐用年数', icon: <ClockIcon /> },
+    { key: 'depreciation', label: '簿価計算', icon: <CalculatorIcon /> },
 ];
 
 export default function App() {
@@ -101,12 +102,13 @@ export default function App() {
                         key={tab.key}
                         type="button"
                         onClick={() => setActiveTab(tab.key)}
-                        className={`flex-1 sm:flex-none px-6 py-3 text-sm font-bold cursor-pointer transition-colors border-b-2 ${
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-6 py-3 text-sm font-bold cursor-pointer transition-colors border-b-2 ${
                             activeTab === tab.key
                                 ? 'text-green-800 border-green-800 bg-green-50/50'
                                 : 'text-gray-500 border-transparent hover:text-green-700 hover:bg-gray-50'
                         }`}
                     >
+                        {tab.icon}
                         {tab.label}
                     </button>
                 ))}
@@ -117,6 +119,7 @@ export default function App() {
                     <>
                         <UsedAssetForm
                             {...formProps}
+                            hasResult={!!result}
                             onCalculate={handleCalculateWithScroll}
                         />
                         <div ref={resultRef}>
@@ -127,6 +130,7 @@ export default function App() {
                     <>
                         <DepreciationForm
                             {...depFormProps}
+                            hasResult={!!depResult}
                             onCalculate={handleCalculateWithScroll}
                         />
                         <div ref={resultRef}>
@@ -141,6 +145,7 @@ export default function App() {
                     <>
                         <PeriodDepForm
                             {...fiveFormProps}
+                            hasResult={!!fiveResult}
                             onCalculate={handleCalculateWithScroll}
                         />
                         <div ref={resultRef}>

@@ -3,12 +3,8 @@ import { formatCurrency } from "@/lib/utils";
 import DepreciationScheduleTable from "@/components/DepreciationScheduleTable";
 import ResultLayout from "@/components/ui/ResultLayout";
 import HighlightCard from "@/components/ui/HighlightCard";
-
-const BarChartIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <line x1="12" x2="12" y1="20" y2="10" /><line x1="18" x2="18" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="16" />
-    </svg>
-);
+import CarryOverCta from "@/components/ui/CarryOverCta";
+import { BarChartIcon } from "@/components/ui/Icons";
 
 type DepreciationResultProps = {
     result: DepreciationResult | null;
@@ -70,15 +66,11 @@ const DepreciationResultSection = ({ result, isDirty, onCarryOverFiveYear }: Dep
 
                 {/* 期間償却タブへの連携 */}
                 {onCarryOverFiveYear && (
-                    <div className="text-center mb-4 no-print">
-                        <button
-                            type="button"
-                            onClick={onCarryOverFiveYear}
-                            className="px-4 py-2 bg-green-700 text-white text-sm font-semibold rounded cursor-pointer transition-colors hover:bg-green-600"
-                        >
-                            この条件で期間償却へ →
-                        </button>
-                    </div>
+                    <CarryOverCta
+                        description="この条件で任意期間の償却額を確認できます"
+                        buttonLabel="期間償却タブへ連携 →"
+                        onClick={onCarryOverFiveYear}
+                    />
                 )}
             </>
         )}

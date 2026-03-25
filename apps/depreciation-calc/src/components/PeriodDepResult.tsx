@@ -3,12 +3,7 @@ import { formatCurrency } from "@/lib/utils";
 import DepreciationScheduleTable from "@/components/DepreciationScheduleTable";
 import ResultLayout from "@/components/ui/ResultLayout";
 import SummaryCard from "@/components/ui/SummaryCard";
-
-const CalendarIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="M8 14h.01" /><path d="M12 14h.01" /><path d="M16 14h.01" /><path d="M8 18h.01" /><path d="M12 18h.01" /><path d="M16 18h.01" />
-    </svg>
-);
+import { CalendarDaysIcon } from "@/components/ui/Icons";
 
 type PeriodDepResultProps = {
     result: PeriodDepResult | null;
@@ -18,7 +13,7 @@ type PeriodDepResultProps = {
 const PeriodDepResultSection = ({ result, isDirty }: PeriodDepResultProps) => (
     <ResultLayout
         title={result ? `${result.displayYears}年間償却スケジュール` : '期間償却スケジュール'}
-        emptyIcon={<CalendarIcon />}
+        emptyIcon={<CalendarDaysIcon />}
         emptyLines={['取得価額・耐用年数・取得日・事業供用日を入力し', '「計算する」ボタンを押してください']}
         hasResult={!!result}
         isDirty={isDirty}
@@ -32,7 +27,7 @@ const PeriodDepResultSection = ({ result, isDirty }: PeriodDepResultProps) => (
         {result && (
             <>
                 {/* サマリーカード */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-3 gap-3 mb-4">
                     <SummaryCard label={`${result.displayYears}年間合計償却額`} value={formatCurrency(result.totalDepreciation)} unit="円" variant="primary" />
                     <SummaryCard label="開始時簿価" value={formatCurrency(result.startBookValue)} unit="円" />
                     <SummaryCard label={`${result.displayYears}年後簿価`} value={formatCurrency(result.endBookValue)} unit="円" />

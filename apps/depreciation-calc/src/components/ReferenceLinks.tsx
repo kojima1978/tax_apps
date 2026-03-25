@@ -64,6 +64,7 @@ const SECTIONS: { title: string; links: LinkItem[]; variant: 'list' | 'pill' }[]
 const ReferenceLinks = () => {
     return (
         <div className="p-4 sm:p-6 border-t border-gray-200">
+            <h2 className="text-base font-bold text-green-800 mb-3">参考リンク</h2>
             <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
                 {SECTIONS.map(({ title, links, variant }, i) => (
                     <div key={title}>
