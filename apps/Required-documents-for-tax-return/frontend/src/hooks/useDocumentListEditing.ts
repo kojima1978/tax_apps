@@ -89,7 +89,6 @@ export function useDocumentListEditing({
 
   const deleteCategory = useCallback(
     (groupId: string) => {
-      if (!confirm('このカテゴリとその中の全ての書類を削除してもよろしいですか？')) return;
       onDocumentGroupsChange(documentGroups.filter((g) => g.id !== groupId));
     },
     [documentGroups, onDocumentGroupsChange]
@@ -213,7 +212,6 @@ export function useDocumentListEditing({
 
   const deleteDocument = useCallback(
     (groupId: string, docId: string) => {
-      if (!confirm('この書類を削除してもよろしいですか？')) return;
       updateGroups((groups) =>
         groups.map((g) =>
           g.id === groupId
@@ -323,7 +321,6 @@ export function useDocumentListEditing({
 
   const deleteSubItem = useCallback(
     (groupId: string, docId: string, subItemId: string) => {
-      if (!confirm('この小項目を削除してもよろしいですか？')) return;
       updateGroups((groups) =>
         groups.map((g) =>
           g.id === groupId

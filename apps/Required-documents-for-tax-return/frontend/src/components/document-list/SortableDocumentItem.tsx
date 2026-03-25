@@ -120,18 +120,18 @@ export function SortableDocumentItem({
                                 <HighlightText text={doc.text} query={searchQuery} />
                             </span>
                         </label>
-                        <div className="flex items-center space-x-1 no-print">
+                        <div className="flex items-center no-print">
                             <button
                                 onClick={() => onStartAddSubItem(doc.id)}
-                                className="p-1 text-slate-400 hover:text-green-600"
+                                className="p-2.5 text-slate-400 hover:text-green-600 transition-colors"
                                 title="小項目を追加"
                             >
                                 <Plus className="w-4 h-4" />
                             </button>
-                            <button onClick={onStartEdit} className="p-1 text-slate-400 hover:text-emerald-600" title="編集">
+                            <button onClick={onStartEdit} className="p-2.5 text-slate-400 hover:text-emerald-600 transition-colors" title="編集">
                                 <Edit2 className="w-4 h-4" />
                             </button>
-                            <button onClick={onDelete} className="p-1 text-slate-400 hover:text-red-600" title="削除">
+                            <button onClick={onDelete} className="p-2.5 text-slate-400 hover:text-red-600 transition-colors" title="削除">
                                 <Trash2 className="w-4 h-4" />
                             </button>
                         </div>

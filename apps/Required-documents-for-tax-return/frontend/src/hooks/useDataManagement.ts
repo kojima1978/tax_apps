@@ -68,16 +68,13 @@ export function useDataManagement() {
     setCurrentPage(1);
   }, [searchStaff, searchCustomer, searchYear]);
 
-  const handleDelete = async (id: number, customerName: string, year: number) => {
-    if (!confirm(`「${customerName}」の${formatReiwaYear(year)}のデータを削除しますか？\nこの操作は取り消せません。`)) {
-      return;
-    }
-
+  const handleDelete = async (id: number): Promise<string | null> => {
     try {
       await deleteDocument(id);
       setRecords((prev) => prev.filter((r) => r.id !== id));
+      return null;
     } catch (error) {
-      alert(getErrorMessage(error, '削除に失敗しました'));
+      return getErrorMessage(error, '削除に失敗しました');
     }
   };
 
@@ -95,10 +92,9 @@ export function useDataManagement() {
     setEditState(initialEditState);
   };
 
-  const saveEdit = async () => {
+  const saveEdit = async (): Promise<string | null> => {
     if (!editState.customerId || !editState.customerName.trim() || !editState.staffId) {
-      alert('お客様名と担当者は必須です');
-      return;
+      return 'お客様名と担当者は必須です';
     }
 
     try {
@@ -119,8 +115,9 @@ export function useDataManagement() {
         )
       );
       cancelEdit();
+      return null;
     } catch (error) {
-      alert(getErrorMessage(error, '更新に失敗しました'));
+      return getErrorMessage(error, '更新に失敗しました');
     }
   };
 

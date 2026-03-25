@@ -5,6 +5,7 @@ import { formatReiwaYear } from '@/utils/date';
 import { getErrorMessage } from '@/utils/error';
 import { exportCustomerJson, readJsonFile, validateCustomerImport, CustomerExport } from '@/utils/jsonExportImport';
 import { CategoryGroup } from '@/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 const PRINT_LAYOUTS = [
   { value: 'single' as const, label: '1列' },
@@ -68,6 +69,7 @@ export function EditorToolbar({
 }: EditorToolbarProps) {
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const [isJsonImporting, setIsJsonImporting] = useState(false);
+  const [importConfirm, setImportConfirm] = useState<{ parsed: CustomerExport } | null>(null);
 
   const reiwaYearStr = formatReiwaYear(year);
 
@@ -91,26 +93,29 @@ export function EditorToolbar({
       const rawData = await readJsonFile(file);
       const validation = validateCustomerImport(rawData);
       if (!validation.isValid) {
-        alert(validation.error);
+        setImportError(validation.error ?? 'バリデーションエラー');
         return;
       }
 
       const parsed = rawData as CustomerExport;
-      const importedData = parsed.data;
-
-      if (!confirm(
-        `「${importedData.customer_name}」の${formatReiwaYear(importedData.year)}のデータをインポートします。\n` +
-        `現在の編集内容は上書きされます。よろしいですか？`
-      )) return;
-
-      onDocumentGroupsChange(importedData.document_groups);
-      alert('JSONデータをインポートしました。保存ボタンを押すとデータベースに反映されます。');
+      setImportConfirm({ parsed });
     } catch (error) {
-      alert('JSONインポートに失敗しました: ' + getErrorMessage(error, ''));
+      setImportError('JSONインポートに失敗しました: ' + getErrorMessage(error, ''));
     } finally {
       setIsJsonImporting(false);
       if (jsonFileInputRef.current) jsonFileInputRef.current.value = '';
     }
+  };
+
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState(false);
+
+  const handleConfirmImport = () => {
+    if (!importConfirm) return;
+    onDocumentGroupsChange(importConfirm.parsed.data.document_groups);
+    setImportConfirm(null);
+    setImportSuccess(true);
+    setTimeout(() => setImportSuccess(false), 3000);
   };
 
   const TOOLBAR_ACTIONS = [
@@ -213,10 +218,20 @@ export function EditorToolbar({
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between flex-wrap gap-y-2">
           <div className="flex items-center gap-3">
-            <div className="text-xs text-slate-500" aria-live="polite">
-              {saveError ? (
+            <div className="text-xs text-slate-500" role="status" aria-live="polite">
+              {importError ? (
+                <span className="flex items-center text-red-600">
+                  <span className="w-3 h-3 mr-1 font-bold">!</span>
+                  {importError}
+                </span>
+              ) : importSuccess ? (
+                <span className="flex items-center text-emerald-600">
+                  <Check className="w-3 h-3 mr-1" />
+                  インポート完了。保存ボタンで反映できます。
+                </span>
+              ) : saveError ? (
                 <span className="flex items-center text-red-600">
                   <span className="w-3 h-3 mr-1 font-bold">!</span>
                   保存エラー: {saveError}
@@ -273,7 +288,7 @@ export function EditorToolbar({
             </div>
           </div>
 
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <div className="flex bg-white border border-slate-300 rounded overflow-hidden mr-2" role="radiogroup" aria-label="印刷レイアウト">
               {PRINT_LAYOUTS.map(({ value, label }, i) => (
                 <span key={value} className="contents">
@@ -312,6 +327,17 @@ export function EditorToolbar({
           </div>
         </div>
       </div>
+
+      {importConfirm && (
+        <ConfirmDialog
+          open
+          title="JSONインポート"
+          message={`「${importConfirm.parsed.data.customer_name}」の${formatReiwaYear(importConfirm.parsed.data.year)}のデータをインポートします。\n現在の編集内容は上書きされます。よろしいですか？`}
+          confirmLabel="インポート"
+          onConfirm={handleConfirmImport}
+          onCancel={() => setImportConfirm(null)}
+        />
+      )}
     </div>
   );
 }

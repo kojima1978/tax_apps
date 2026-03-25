@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { Download, Upload, Settings, UserPlus, Users, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
 import { getErrorMessage } from '@/utils/error';
 import { exportFullBackup, importFullBackup, readJsonFile, validateFullBackupImport, FullBackupExport } from '@/utils/jsonExportImport';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ToastContainer } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
 
 const ADMIN_LINKS = [
   { href: '/staff/create', icon: UserPlus, label: '担当者登録' },
@@ -20,13 +23,16 @@ export function AdminMenu({ onDataRestored }: AdminMenuProps) {
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importConfirmData, setImportConfirmData] = useState<FullBackupExport | null>(null);
+  const { messages: toastMessages, toast, dismiss: dismissToast } = useToast();
 
   const handleFullExport = async () => {
     setIsExporting(true);
     try {
       await exportFullBackup();
+      toast('バックアップをエクスポートしました', 'success');
     } catch (error) {
-      alert('バックアップのエクスポートに失敗しました: ' + getErrorMessage(error, ''));
+      toast('バックアップのエクスポートに失敗しました: ' + getErrorMessage(error, ''), 'error');
     } finally {
       setIsExporting(false);
     }
@@ -41,20 +47,30 @@ export function AdminMenu({ onDataRestored }: AdminMenuProps) {
       const rawData = await readJsonFile(file);
       const validation = validateFullBackupImport(rawData);
       if (!validation.isValid) {
-        alert(validation.error);
+        toast(validation.error ?? 'バリデーションエラー', 'error');
         return;
       }
-
-      if (!confirm('既存のデータと重複する場合は上書きされます。復元を実行しますか？')) return;
-
-      const result = await importFullBackup(rawData as FullBackupExport);
-      alert(`復元が完了しました。\n担当者: ${result.staffCount}件\nお客様: ${result.customerCount}件\n書類データ: ${result.recordCount}件`);
-      onDataRestored();
+      setImportConfirmData(rawData as FullBackupExport);
     } catch (error) {
-      alert('バックアップの復元に失敗しました: ' + getErrorMessage(error, ''));
+      toast('バックアップの復元に失敗しました: ' + getErrorMessage(error, ''), 'error');
     } finally {
       setIsImporting(false);
       if (backupFileInputRef.current) backupFileInputRef.current.value = '';
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importConfirmData) return;
+    setImportConfirmData(null);
+    setIsImporting(true);
+    try {
+      const result = await importFullBackup(importConfirmData);
+      toast(`復元完了 — 担当者: ${result.staffCount}件 / お客様: ${result.customerCount}件 / 書類: ${result.recordCount}件`, 'success');
+      onDataRestored();
+    } catch (error) {
+      toast('バックアップの復元に失敗しました: ' + getErrorMessage(error, ''), 'error');
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -111,6 +127,17 @@ export function AdminMenu({ onDataRestored }: AdminMenuProps) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={importConfirmData !== null}
+        title="バックアップから復元"
+        message="既存のデータと重複する場合は上書きされます。復元を実行しますか？"
+        confirmLabel="復元"
+        variant="danger"
+        onConfirm={handleConfirmImport}
+        onCancel={() => setImportConfirmData(null)}
+      />
+      <ToastContainer messages={toastMessages} onDismiss={dismissToast} />
     </div>
   );
 }
