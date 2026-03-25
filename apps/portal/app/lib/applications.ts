@@ -4,29 +4,29 @@ import {
   Clock, CreditCard, FileCheck, FileText, Gift, Package, Receipt, TrendingUp,
 } from 'lucide-react';
 
+export const categories = ['必要書類', '計算・評価', '分析・管理', 'その他'] as const;
+export type Category = (typeof categories)[number];
+
 export interface Application {
   title: string;
   description: string;
   url: string;
   icon: LucideIcon;
+  category: Category;
 }
 
 export const applications: Application[] = [
-  // 必要書類
-  { title: '相続税 必要書類', description: '相続税申告に必要な書類をご案内', url: '/inheritance-tax-docs/', icon: FileText },
-  { title: '贈与税 必要書類', description: '贈与税申告に必要な書類をご案内', url: '/gift-tax-docs/', icon: ClipboardList },
-  { title: '確定申告 必要書類', description: '確定申告に必要な書類をご案内', url: '/tax-docs/', icon: FileCheck },
-  // 計算・評価
-  { title: '相続税計算', description: '相続税の早見表', url: '/inheritance-tax-app/', icon: Calculator },
-  { title: '贈与税計算', description: '贈与税計算・早見表・不動産取得税', url: '/gift-tax-simulator/', icon: Gift },
-  { title: '医療法人株式評価', description: '医療法人の株式評価システム', url: '/medical/', icon: Activity },
-  { title: '非上場株式評価', description: '非上場株式の評価システム', url: '/shares/', icon: TrendingUp },
-  { title: '退職金税額計算', description: '退職金の所得税・住民税を計算', url: '/retirement-tax-calc/', icon: CreditCard },
-  { title: '減価償却ツール', description: '耐用年数・簿価・期間償却を計算', url: '/depreciation-calc/', icon: Clock },
-  { title: '減価償却資産評価', description: '相続税の減価償却資産を一括評価', url: '/asset-valuation/', icon: Package },
-  // 分析・管理
-  { title: '預貯金分析', description: '預金移動の分析ツール', url: '/bank-analyzer/', icon: Building },
-  { title: '案件管理', description: '相続税案件の進捗管理', url: '/itcm/', icon: Briefcase },
-  // その他
-  { title: '料金表', description: '報酬についてのご案内', url: '/fee-table/', icon: Receipt },
+  { title: '相続税 必要書類', description: '相続税申告に必要な書類をご案内', url: '/inheritance-tax-docs/', icon: FileText, category: '必要書類' },
+  { title: '贈与税 必要書類', description: '贈与税申告に必要な書類をご案内', url: '/gift-tax-docs/', icon: ClipboardList, category: '必要書類' },
+  { title: '確定申告 必要書類', description: '確定申告に必要な書類をご案内', url: '/tax-docs/', icon: FileCheck, category: '必要書類' },
+  { title: '相続税計算', description: '相続税の早見表', url: '/inheritance-tax-app/', icon: Calculator, category: '計算・評価' },
+  { title: '贈与税計算', description: '贈与税計算・早見表・不動産取得税', url: '/gift-tax-simulator/', icon: Gift, category: '計算・評価' },
+  { title: '医療法人株式評価', description: '医療法人の株式評価システム', url: '/medical/', icon: Activity, category: '計算・評価' },
+  { title: '非上場株式評価', description: '非上場株式の評価システム', url: '/shares/', icon: TrendingUp, category: '計算・評価' },
+  { title: '退職金税額計算', description: '退職金の所得税・住民税を計算', url: '/retirement-tax-calc/', icon: CreditCard, category: '計算・評価' },
+  { title: '減価償却ツール', description: '耐用年数・簿価・期間償却を計算', url: '/depreciation-calc/', icon: Clock, category: '計算・評価' },
+  { title: '減価償却資産評価', description: '相続税の減価償却資産を一括評価', url: '/asset-valuation/', icon: Package, category: '計算・評価' },
+  { title: '預貯金分析', description: '預金移動の分析ツール', url: '/bank-analyzer/', icon: Building, category: '分析・管理' },
+  { title: '案件管理', description: '相続税案件の進捗管理', url: '/itcm/', icon: Briefcase, category: '分析・管理' },
+  { title: '料金表', description: '報酬についてのご案内', url: '/fee-table/', icon: Receipt, category: 'その他' },
 ];

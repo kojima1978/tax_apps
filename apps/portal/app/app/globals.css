@@ -5,12 +5,12 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-geist-sans), var(--font-noto-sans-jp);
 }
 
 body {
   color: #171717;
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), var(--font-noto-sans-jp), Arial, Helvetica, sans-serif;
 }
 
 /* フォーカス時のアウトライン */
