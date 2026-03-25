@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, LayoutDashboard, Loader2, ChevronRight, Edit2, Calendar, Trash2 } from 'lucide-react';
+import { ChevronLeft, LayoutDashboard, ChevronRight, Edit2, Calendar, Trash2 } from 'lucide-react';
 import { fetchCustomerById, fetchAvailableYears, deleteDocumentByCustomerAndYear } from '@/utils/api';
 import { formatReiwaYear, getDefaultYear } from '@/utils/date';
 import { Customer } from '@/types';
 import PageShell from '@/components/PageShell';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { DetailSkeleton } from '@/components/Skeleton';
+import { ToastContainer } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +20,8 @@ export default function CustomerDetailPage() {
   const [savedYears, setSavedYears] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedNewYear, setSelectedNewYear] = useState<number | ''>('');
+  const deleteDialog = useConfirmDialog<number>();
+  const { messages: toastMessages, toast, dismiss: dismissToast } = useToast();
 
   const defaultYear = getDefaultYear();
 
@@ -62,11 +69,26 @@ export default function CustomerDetailPage() {
     loadCustomer();
   }, [loadCustomer]);
 
+  const handleDeleteYear = async (year: number) => {
+    deleteDialog.close();
+    try {
+      await deleteDocumentByCustomerAndYear(customerId, year);
+      setSavedYears(prev => prev.filter(y => y !== year));
+      toast(`${formatReiwaYear(year)}のデータを削除しました`, 'success');
+    } catch {
+      toast('削除に失敗しました', 'error');
+    }
+  };
+
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-      </main>
+      <PageShell>
+        <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
+          <div className="bg-emerald-600 p-6">
+            <DetailSkeleton />
+          </div>
+        </div>
+      </PageShell>
     );
   }
 
@@ -143,16 +165,8 @@ export default function CustomerDetailPage() {
                           <ChevronRight className="w-4 h-4 ml-1" />
                         </Link>
                         <button
-                          onClick={async () => {
-                            if (!confirm(`${formatReiwaYear(year)}（${year}年分）のデータを削除してもよろしいですか？\nこの操作は取り消せません。`)) return;
-                            try {
-                              await deleteDocumentByCustomerAndYear(customerId, year);
-                              setSavedYears(prev => prev.filter(y => y !== year));
-                            } catch {
-                              alert('削除に失敗しました');
-                            }
-                          }}
-                          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          onClick={() => deleteDialog.open(year)}
+                          className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                           title="この年度のデータを削除"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -209,6 +223,17 @@ export default function CustomerDetailPage() {
             </div>
           </div>
         </div>
+
+        <ConfirmDialog
+          open={deleteDialog.isOpen}
+          title="年度データの削除"
+          message={deleteDialog.target !== null ? `${formatReiwaYear(deleteDialog.target)}（${deleteDialog.target}年分）のデータを削除してもよろしいですか？\nこの操作は取り消せません。` : ''}
+          confirmLabel="削除"
+          variant="danger"
+          onConfirm={() => deleteDialog.target !== null && handleDeleteYear(deleteDialog.target)}
+          onCancel={deleteDialog.close}
+        />
+        <ToastContainer messages={toastMessages} onDismiss={dismissToast} />
     </PageShell>
   );
 }

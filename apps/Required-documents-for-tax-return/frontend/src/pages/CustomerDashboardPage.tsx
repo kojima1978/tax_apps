@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Loader2, Search, X, Plus, Users, ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, List, ArrowUpDown } from 'lucide-react';
+import { Home, Search, X, Plus, Users, ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, List, ArrowUpDown, AlertCircle } from 'lucide-react';
 import { taxReturnData } from '@/data/taxReturnData';
 import { fetchCustomersWithYears, fetchStaff, CustomerWithYears } from '@/utils/api';
 import { Staff } from '@/types';
 import { CustomerCard } from '@/components/CustomerCard';
 import { AdminMenu } from '@/components/AdminMenu';
 import PageShell from '@/components/PageShell';
+import { DashboardSkeleton } from '@/components/Skeleton';
 import { formatReiwaYear, formatDateTime } from '@/utils/date';
 
 type SortKey = 'name' | 'code' | 'updated';
@@ -37,6 +38,7 @@ export default function CustomerDashboardPage() {
   const [customers, setCustomers] = useState<CustomerWithYears[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [staffFilter, setStaffFilter] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('updated');
@@ -45,6 +47,7 @@ export default function CustomerDashboardPage() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const [customersData, staffData] = await Promise.all([
         fetchCustomersWithYears(),
@@ -53,7 +56,7 @@ export default function CustomerDashboardPage() {
       setCustomers(customersData);
       setStaffList(staffData);
     } catch {
-      // silently fail
+      setLoadError('データの読み込みに失敗しました。ネットワーク接続を確認してください。');
     } finally {
       setIsLoading(false);
     }
@@ -96,9 +99,9 @@ export default function CustomerDashboardPage() {
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden animate-fade-in">
           {/* ヘッダー */}
           <header className="bg-emerald-600 p-8 text-center text-white relative">
-            <a href="/" title="ポータルに戻る" className="absolute top-4 left-4 opacity-70 hover:opacity-100 transition-opacity">
+            <Link to="/" title="ポータルに戻る" className="absolute top-4 left-4 opacity-70 hover:opacity-100 transition-opacity">
               <Home className="w-6 h-6" />
-            </a>
+            </Link>
             <h1 className="text-3xl font-bold mb-3">{taxReturnData.title}</h1>
             <p className="text-emerald-100 text-lg">お客様を選択して、必要書類リストを作成・管理できます。</p>
           </header>
@@ -141,8 +144,8 @@ export default function CustomerDashboardPage() {
                 <>
                   <div className="relative">
                     <select
-                      value=""
-                      onChange={e => { if (e.target.value) setStaffFilter(e.target.value); }}
+                      value={staffFilter}
+                      onChange={e => setStaffFilter(e.target.value)}
                       className="appearance-none pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
                     >
                       <option value="">担当者で絞り込み</option>
@@ -157,7 +160,7 @@ export default function CustomerDashboardPage() {
                   {staffFilter && (
                     <button
                       onClick={() => setStaffFilter('')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors cursor-pointer"
                     >
                       {staffFilter}
                       <X className="w-3.5 h-3.5" />
@@ -187,14 +190,14 @@ export default function CustomerDashboardPage() {
               <div className="flex border border-slate-200 rounded-lg overflow-hidden">
                 <button
                   onClick={() => setViewMode('card')}
-                  className={`p-2 transition-colors ${viewMode === 'card' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 hover:text-slate-600'}`}
+                  className={`p-2 cursor-pointer transition-colors ${viewMode === 'card' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 hover:text-slate-600'}`}
                   title="カード表示"
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 hover:text-slate-600'}`}
+                  className={`p-2 cursor-pointer transition-colors ${viewMode === 'list' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 hover:text-slate-600'}`}
                   title="リスト表示"
                 >
                   <List className="w-4 h-4" />
@@ -218,8 +221,17 @@ export default function CustomerDashboardPage() {
 
             {/* お客様一覧 */}
             {isLoading ? (
-              <div className="flex justify-center py-16">
-                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+              <DashboardSkeleton />
+            ) : loadError ? (
+              <div className="text-center py-16">
+                <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
+                <p className="text-red-600 text-lg mb-4">{loadError}</p>
+                <button
+                  onClick={loadData}
+                  className="inline-flex items-center px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-md cursor-pointer"
+                >
+                  再読み込み
+                </button>
               </div>
             ) : filteredCustomers.length === 0 ? (
               <div className="text-center py-16">
@@ -304,7 +316,8 @@ export default function CustomerDashboardPage() {
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  aria-label="前のページ"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -314,7 +327,8 @@ export default function CustomerDashboardPage() {
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  aria-label="次のページ"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

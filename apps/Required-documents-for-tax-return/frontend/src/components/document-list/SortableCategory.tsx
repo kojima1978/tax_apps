@@ -3,6 +3,8 @@ import { DndContext, DragEndEvent, KeyboardSensor, PointerSensor, closestCenter,
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Check, ChevronDown, ChevronRight, Edit2, GripVertical, Info, Plus, Trash2, X } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { CategoryGroup } from '@/types';
 import { handleInlineKeyDown } from '@/utils/keyboard';
 import { SortableDocumentItem, SubItemHandlers } from './SortableDocumentItem';
@@ -68,6 +70,8 @@ export function SortableCategory({
         onAddDocument, onStartAddDocument, onCancelAddDocument,
         onDocumentsReorder,
     } = docHandlers;
+    const deleteDialog = useConfirmDialog();
+
     const {
         attributes,
         listeners,
@@ -125,7 +129,8 @@ export function SortableCategory({
                         <button
                             {...attributes}
                             {...listeners}
-                            className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing mr-1 no-print"
+                            className="p-2.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing mr-1 no-print"
+                            aria-label={`${group.category}を並べ替え`}
                         >
                             <GripVertical className="w-5 h-5" />
                         </button>
@@ -184,14 +189,14 @@ export function SortableCategory({
                         </span>
                         <button
                             onClick={onStartEditCategory}
-                            className="p-1 text-slate-400 hover:text-emerald-600"
+                            className="p-2.5 text-slate-400 hover:text-emerald-600 transition-colors"
                             title="カテゴリ名を編集"
                         >
                             <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                            onClick={onDeleteCategory}
-                            className="p-1 text-slate-400 hover:text-red-600"
+                            onClick={() => deleteDialog.open()}
+                            className="p-2.5 text-slate-400 hover:text-red-600 transition-colors"
                             title="カテゴリを削除"
                         >
                             <Trash2 className="w-4 h-4" />
@@ -277,6 +282,19 @@ export function SortableCategory({
                     )}
                 </div>
             )}
+
+            <ConfirmDialog
+                open={deleteDialog.isOpen}
+                title="カテゴリの削除"
+                message={`「${group.category}」を削除してもよろしいですか？\nカテゴリ内の書類もすべて削除されます。`}
+                confirmLabel="削除"
+                variant="danger"
+                onConfirm={() => {
+                    deleteDialog.close();
+                    onDeleteCategory();
+                }}
+                onCancel={deleteDialog.close}
+            />
         </div>
     );
 }

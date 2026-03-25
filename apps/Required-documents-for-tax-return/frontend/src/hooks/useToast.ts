@@ -6,9 +6,9 @@ let nextId = 0;
 export function useToast() {
   const [messages, setMessages] = useState<ToastMessage[]>([]);
 
-  const toast = useCallback((text: string, type: ToastMessage['type'] = 'success') => {
+  const toast = useCallback((text: string, type: ToastMessage['type'] = 'success', action?: ToastMessage['action']) => {
     const id = ++nextId;
-    setMessages((prev) => [...prev, { id, text, type }]);
+    setMessages((prev) => [...prev, { id, text, type, action }]);
   }, []);
 
   const dismiss = useCallback((id: number) => {

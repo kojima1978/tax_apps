@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import { formatDateTime, formatReiwaYear } from '@/utils/date';
 import { useDataManagement, SortKey } from '@/hooks/useDataManagement';
 import PageShell from '@/components/PageShell';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ToastContainer } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 const SORT_COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'staff_name', label: '担当者' },
@@ -12,6 +16,8 @@ const SORT_COLUMNS: { key: SortKey; label: string }[] = [
 ];
 
 export default function DataManagementPage() {
+  const deleteDialog = useConfirmDialog<{ id: number; customerName: string; year: number }>();
+  const { messages: toastMessages, toast, dismiss: dismissToast } = useToast();
   const {
     staffList,
     isLoading,
@@ -178,7 +184,7 @@ export default function DataManagementPage() {
                         <td className="px-4 py-3 text-center">
                           {editState.id === record.id ? (
                             <div className="flex items-center justify-center space-x-2">
-                              <button onClick={saveEdit} className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="保存">
+                              <button onClick={async () => { const err = await saveEdit(); if (err) toast(err, 'error'); else toast('更新しました', 'success'); }} className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="保存">
                                 <Check className="w-4 h-4" />
                               </button>
                               <button onClick={cancelEdit} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded" title="キャンセル">
@@ -195,7 +201,7 @@ export default function DataManagementPage() {
                                 <Edit2 className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleDelete(record.id, record.customer_name, record.year)}
+                                onClick={() => deleteDialog.open({ id: record.id, customerName: record.customer_name, year: record.year })}
                                 className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                 title="削除"
                               >
@@ -240,6 +246,23 @@ export default function DataManagementPage() {
             </>
           )}
         </div>
+
+        <ConfirmDialog
+          open={deleteDialog.isOpen}
+          title="データの削除"
+          message={deleteDialog.target ? `「${deleteDialog.target.customerName}」の${formatReiwaYear(deleteDialog.target.year)}のデータを削除しますか？\nこの操作は取り消せません。` : ''}
+          confirmLabel="削除"
+          variant="danger"
+          onConfirm={async () => {
+            if (!deleteDialog.target) return;
+            const err = await handleDelete(deleteDialog.target.id);
+            if (err) toast(err, 'error');
+            else toast('削除しました', 'success');
+            deleteDialog.close();
+          }}
+          onCancel={deleteDialog.close}
+        />
+        <ToastContainer messages={toastMessages} onDismiss={dismissToast} />
     </PageShell>
   );
 }

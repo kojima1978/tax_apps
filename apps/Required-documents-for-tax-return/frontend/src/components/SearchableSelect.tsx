@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 
 type Option = {
@@ -25,10 +25,16 @@ export default function SearchableSelect({
 }: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
 
     const selectedOption = options.find(opt => opt.value === value);
+
+    const filteredOptions = options.filter(option =>
+        option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -36,16 +42,9 @@ export default function SearchableSelect({
                 setIsOpen(false);
             }
         }
-        function handleKeyDown(event: KeyboardEvent) {
-            if (event.key === 'Escape') {
-                setIsOpen(false);
-            }
-        }
         document.addEventListener('mousedown', handleClickOutside);
-        document.addEventListener('keydown', handleKeyDown);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
-            document.removeEventListener('keydown', handleKeyDown);
         };
     }, []);
 
@@ -55,21 +54,68 @@ export default function SearchableSelect({
         }
         if (!isOpen) {
             setSearchTerm('');
+            setHighlightedIndex(-1);
         }
     }, [isOpen]);
 
-    const filteredOptions = options.filter(option =>
-        option.label.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Reset highlight when filtered options change
+    useEffect(() => {
+        setHighlightedIndex(-1);
+    }, [searchTerm]);
 
-    const handleSelect = (optionValue: string | number) => {
+    // Scroll highlighted item into view
+    useEffect(() => {
+        if (highlightedIndex >= 0 && listRef.current) {
+            const items = listRef.current.querySelectorAll('[role="option"]');
+            items[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+        }
+    }, [highlightedIndex]);
+
+    const handleSelect = useCallback((optionValue: string | number) => {
         onChange(optionValue);
         setIsOpen(false);
         setSearchTerm('');
-    };
+    }, [onChange]);
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (!isOpen) return;
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                setHighlightedIndex(prev =>
+                    prev < filteredOptions.length - 1 ? prev + 1 : 0
+                );
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                setHighlightedIndex(prev =>
+                    prev > 0 ? prev - 1 : filteredOptions.length - 1
+                );
+                break;
+            case 'Home':
+                e.preventDefault();
+                setHighlightedIndex(0);
+                break;
+            case 'End':
+                e.preventDefault();
+                setHighlightedIndex(filteredOptions.length - 1);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+                    handleSelect(filteredOptions[highlightedIndex].value);
+                }
+                break;
+            case 'Escape':
+                e.preventDefault();
+                setIsOpen(false);
+                break;
+        }
+    }, [isOpen, filteredOptions, highlightedIndex, handleSelect]);
 
     return (
-        <div className="relative" ref={wrapperRef}>
+        <div className="relative" ref={wrapperRef} onKeyDown={handleKeyDown}>
             {/* Trigger Button */}
             <button
                 type="button"
@@ -108,6 +154,10 @@ export default function SearchableSelect({
                                 placeholder="検索..."
                                 className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                                 onClick={(e) => e.stopPropagation()}
+                                role="combobox"
+                                aria-expanded={isOpen}
+                                aria-controls="searchable-select-listbox"
+                                aria-activedescendant={highlightedIndex >= 0 ? `option-${highlightedIndex}` : undefined}
                             />
                         </div>
                     </div>
@@ -119,17 +169,20 @@ export default function SearchableSelect({
                                 見つかりませんでした
                             </div>
                         ) : (
-                            <ul className="py-1" role="listbox">
-                                {filteredOptions.map((option) => (
+                            <ul className="py-1" role="listbox" ref={listRef} id="searchable-select-listbox">
+                                {filteredOptions.map((option, index) => (
                                     <li
                                         key={option.value}
+                                        id={`option-${index}`}
                                         role="option"
                                         aria-selected={option.value === value}
                                         onClick={() => handleSelect(option.value)}
                                         className={`px-4 py-2.5 text-sm cursor-pointer flex items-center justify-between transition-colors
                                             ${option.value === value
                                                 ? 'bg-emerald-50 text-emerald-900 font-medium'
-                                                : 'text-slate-700 hover:bg-slate-50'
+                                                : index === highlightedIndex
+                                                    ? 'bg-slate-100 text-slate-900'
+                                                    : 'text-slate-700 hover:bg-slate-50'
                                             }
                                         `}
                                     >

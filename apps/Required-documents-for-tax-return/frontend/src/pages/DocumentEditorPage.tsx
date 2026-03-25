@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import DocumentListScreen from '@/components/DocumentListScreen';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { CategoryGroup } from '@/types';
@@ -39,6 +41,11 @@ export default function DocumentEditorPage() {
   const { messages, toast, dismiss } = useToast();
   const isSavingRef = useRef(false);
   isSavingRef.current = isSaving;
+
+  // ConfirmDialog state
+  const conflictDialog = useConfirmDialog();
+  const copyDialog = useConfirmDialog<number>();
+  const backDialog = useConfirmDialog();
 
   const handleDocumentGroupsChange = useCallback((groups: CategoryGroup[]) => {
     setDocumentGroups(groups);
@@ -116,14 +123,7 @@ export default function DocumentEditorPage() {
           toast('他のユーザーが変更を保存しました。手動で読み込みしてください。', 'warning');
           return false;
         }
-        const shouldReload = confirm(
-          '他のユーザーまたはタブで変更が保存されています。\n最新データを読み込みますか？\n\n（「OK」で最新データに更新、「キャンセル」で現在の編集を維持）'
-        );
-        if (shouldReload) {
-          const data = await fetchDocumentsByCustomerId(customerId, year);
-          applyServerData(data);
-          toast('最新データを読み込みました', 'info');
-        }
+        conflictDialog.open();
         return false;
       }
       setSaveError(getErrorMessage(error, '保存に失敗しました'));
@@ -174,13 +174,7 @@ export default function DocumentEditorPage() {
     try {
       const data = await copyToNextYearByCustomerId(customerId, year);
       if (data.success) {
-        const nextYear = year + 1;
-        const switchYear = confirm(
-          `${formatReiwaYear(year)}のデータを${formatReiwaYear(nextYear)}にコピーしました。\n\n対象年度を${formatReiwaYear(nextYear)}に切り替えますか？`
-        );
-        if (switchYear) {
-          navigate(`/customers/${customerId}/years/${nextYear}`);
-        }
+        copyDialog.open(year + 1);
       } else {
         toast('翌年度更新に失敗しました', 'error');
       }
@@ -205,7 +199,10 @@ export default function DocumentEditorPage() {
         documentGroups={documentGroups}
         onDocumentGroupsChange={handleDocumentGroupsChange}
         onBack={() => {
-          if (isDirty && !confirm('未保存の変更があります。破棄してよろしいですか？')) return;
+          if (isDirty) {
+            backDialog.open();
+            return;
+          }
           navigate(`/customers/${customerId}`);
         }}
         customerName={customerName}
@@ -219,6 +216,48 @@ export default function DocumentEditorPage() {
         saveError={saveError}
       />
       <ToastContainer messages={messages} onDismiss={dismiss} />
+
+      <ConfirmDialog
+        open={conflictDialog.isOpen}
+        title="競合が検出されました"
+        message={'他のユーザーまたはタブで変更が保存されています。\n最新データを読み込みますか？\n\n「読み込み」で最新データに更新、「キャンセル」で現在の編集を維持します。'}
+        confirmLabel="読み込み"
+        onConfirm={async () => {
+          conflictDialog.close();
+          const data = await fetchDocumentsByCustomerId(customerId, year);
+          applyServerData(data);
+          toast('最新データを読み込みました', 'info');
+        }}
+        onCancel={conflictDialog.close}
+      />
+
+      <ConfirmDialog
+        open={copyDialog.isOpen}
+        title="翌年度へコピー完了"
+        message={copyDialog.target !== null ? `${formatReiwaYear(year)}のデータを${formatReiwaYear(copyDialog.target)}にコピーしました。\n\n対象年度を${formatReiwaYear(copyDialog.target)}に切り替えますか？` : ''}
+        confirmLabel="切り替える"
+        cancelLabel="このまま"
+        onConfirm={() => {
+          if (copyDialog.target !== null) {
+            navigate(`/customers/${customerId}/years/${copyDialog.target}`);
+          }
+          copyDialog.close();
+        }}
+        onCancel={copyDialog.close}
+      />
+
+      <ConfirmDialog
+        open={backDialog.isOpen}
+        title="未保存の変更"
+        message="未保存の変更があります。破棄してよろしいですか？"
+        confirmLabel="破棄して戻る"
+        variant="danger"
+        onConfirm={() => {
+          backDialog.close();
+          navigate(`/customers/${customerId}`);
+        }}
+        onCancel={backDialog.close}
+      />
     </>
   );
 }

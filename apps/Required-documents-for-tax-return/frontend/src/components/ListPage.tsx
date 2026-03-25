@@ -2,6 +2,10 @@ import { useState, useEffect, ReactNode } from 'react';
 import { Plus, Trash2, Edit2, Loader2, ChevronLeft, LayoutDashboard } from 'lucide-react';
 import { getErrorMessage } from '@/utils/error';
 import { Link } from 'react-router-dom';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ToastContainer } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface ListPageProps<T extends { id: number }> {
     title: string;
@@ -31,6 +35,8 @@ export default function ListPage<T extends { id: number }>({
     const [items, setItems] = useState<T[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const deleteDialog = useConfirmDialog<T>();
+    const { messages: toastMessages, toast, dismiss: dismissToast } = useToast();
 
     useEffect(() => {
         loadItems();
@@ -50,19 +56,20 @@ export default function ListPage<T extends { id: number }>({
     };
 
     const handleDelete = async (item: T) => {
-        if (!confirm(deleteConfirmMessage(item))) return;
+        deleteDialog.close();
         setError(null);
         try {
             await onDelete(item.id);
             await loadItems();
+            toast('削除しました', 'success');
         } catch (e: unknown) {
-            setError(getErrorMessage(e, '削除に失敗しました'));
+            toast(getErrorMessage(e, '削除に失敗しました'), 'error');
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-8">
-            <div className="max-w-7xl mx-auto">
+        <main className="min-h-screen bg-slate-50 font-sans text-slate-800">
+            <div className="max-w-7xl mx-auto p-4 md:p-8">
                 <header className="mb-8 flex items-center justify-between">
                     <div className="flex items-center">
                         <Link to="/" className="mr-1 p-2 bg-white rounded-full text-slate-400 hover:text-emerald-600 shadow-sm hover:shadow transition-all" title="TOPへ戻る">
@@ -111,7 +118,7 @@ export default function ListPage<T extends { id: number }>({
                                                 <Edit2 className="w-5 h-5" />
                                             </Link>
                                             <button
-                                                onClick={() => handleDelete(item)}
+                                                onClick={() => deleteDialog.open(item)}
                                                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                             >
                                                 <Trash2 className="w-5 h-5" />
@@ -124,6 +131,17 @@ export default function ListPage<T extends { id: number }>({
                     </div>
                 )}
             </div>
-        </div>
+
+            <ConfirmDialog
+                open={deleteDialog.isOpen}
+                title="削除の確認"
+                message={deleteDialog.target ? deleteConfirmMessage(deleteDialog.target) : ''}
+                confirmLabel="削除"
+                variant="danger"
+                onConfirm={() => deleteDialog.target && handleDelete(deleteDialog.target)}
+                onCancel={deleteDialog.close}
+            />
+            <ToastContainer messages={toastMessages} onDismiss={dismissToast} />
+        </main>
     );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -21,6 +21,8 @@ import { SortableCategory } from './document-list/SortableCategory';
 import { fetchStaff } from '@/utils/api';
 import { generateInitialDocumentGroups } from '@/utils/documentUtils';
 import { useDocumentListEditing } from '@/hooks/useDocumentListEditing';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { EditorToolbar } from './document-list/EditorToolbar';
 import { PrintHeader } from './document-list/PrintHeader';
 import { PrintFooter } from './document-list/PrintFooter';
@@ -67,7 +69,7 @@ export default function DocumentListScreen({
   useEffect(() => {
     fetchStaff()
       .then((data) => setStaffList(data))
-      .catch(() => {});
+      .catch(() => { /* staff list is optional, fail silently */ });
   }, []);
 
   const editing = useDocumentListEditing({ documentGroups, onDocumentGroupsChange });
@@ -132,11 +134,16 @@ export default function DocumentListScreen({
     exportToExcel(documentGroups, year, customerName, staffName, currentStaff?.mobile_number || undefined);
   };
 
-  const handleResetToDefault = () => {
-    if (confirm('標準の状態に戻しますか？現在の変更はすべて失われます。')) {
-      onDocumentGroupsChange(generateInitialDocumentGroups(year));
-    }
-  };
+  const resetDialog = useConfirmDialog();
+
+  const handleResetToDefault = useCallback(() => {
+    resetDialog.open();
+  }, [resetDialog]);
+
+  const confirmReset = useCallback(() => {
+    resetDialog.close();
+    onDocumentGroupsChange(generateInitialDocumentGroups(year));
+  }, [onDocumentGroupsChange, year, resetDialog]);
 
   const currentStaffMobile = useMemo(
     () => staffList.find((s) => s.staff_name === staffName)?.mobile_number,
@@ -144,7 +151,7 @@ export default function DocumentListScreen({
   );
 
   return (
-    <div className="bg-slate-50 min-h-screen">
+    <main className="bg-slate-50 min-h-screen">
       <EditorToolbar
         customerId={customerId}
         year={year}
@@ -238,6 +245,16 @@ export default function DocumentListScreen({
       </div>
 
       <PrintFooter year={year} />
-    </div>
+
+      <ConfirmDialog
+        open={resetDialog.isOpen}
+        title="標準リストに戻す"
+        message="標準の状態に戻しますか？現在の変更はすべて失われます。"
+        confirmLabel="リセット"
+        variant="danger"
+        onConfirm={confirmReset}
+        onCancel={resetDialog.close}
+      />
+    </main>
   );
 }

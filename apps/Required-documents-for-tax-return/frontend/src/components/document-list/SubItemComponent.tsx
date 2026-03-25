@@ -64,12 +64,12 @@ export function SubItemComponent({
                             <HighlightText text={subItem.text} query={searchQuery} />
                         </span>
                     </label>
-                    <div className="flex items-center space-x-1 no-print">
-                        <button onClick={onStartEdit} className="p-1 text-slate-400 hover:text-emerald-600" title="編集">
-                            <Edit2 className="w-3 h-3" />
+                    <div className="flex items-center no-print">
+                        <button onClick={onStartEdit} className="p-2.5 text-slate-400 hover:text-emerald-600 transition-colors" title="編集">
+                            <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={onDelete} className="p-1 text-slate-400 hover:text-red-600" title="削除">
-                            <Trash2 className="w-3 h-3" />
+                        <button onClick={onDelete} className="p-2.5 text-slate-400 hover:text-red-600 transition-colors" title="削除">
+                            <Trash2 className="w-3.5 h-3.5" />
                         </button>
                     </div>
                 </>
