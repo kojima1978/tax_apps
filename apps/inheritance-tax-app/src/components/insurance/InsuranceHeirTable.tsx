@@ -1,6 +1,6 @@
 import React from 'react';
 import type { InsuranceSimulationResult, InsuranceScenarioResult } from '../../types';
-import { formatCurrency, getHeirBaseAcquisition, getHeirNetProceeds } from '../../utils';
+import { formatCurrency, getHeirBaseAcquisition, getHeirNetProceeds, heirLabelColumn, currencyColumn } from '../../utils';
 import { HeirScenarioTable, type HeirColumn } from '../HeirScenarioTable';
 import { HeirNetComparisonTable } from '../HeirNetComparisonTable';
 import { CARD } from '../tableStyles';
@@ -15,12 +15,16 @@ function buildInsuranceColumns(scenario: InsuranceScenarioResult): HeirColumn[] 
   const totalBaseAcquisition = scenario.adjustedEstate + scenario.premiumDeduction - scenario.taxableInsurance;
 
   return [
-    { label: '相続人', align: 'left', getValue: i => heirBreakdowns[i]?.label, getTotalValue: () => '合計' },
-    { label: '遺産取得額', getValue: i => formatCurrency(getHeirBaseAcquisition(scenario, i)), getTotalValue: () => formatCurrency(totalBaseAcquisition) },
-    { label: '保険料負担', getValue: i => heirBreakdowns[i]?.premiumPaid > 0 ? `ー${formatCurrency(heirBreakdowns[i].premiumPaid)}` : '—', getTotalValue: () => totalPremiumPaid > 0 ? `ー${formatCurrency(totalPremiumPaid)}` : '—' },
-    { label: '受取保険金', getValue: i => formatCurrency(heirBreakdowns[i]?.totalBenefit ?? 0), getTotalValue: () => formatCurrency(scenario.totalBenefit) },
-    { label: '納付税額', getValue: i => taxResult.heirBreakdowns[i] ? formatCurrency(taxResult.heirBreakdowns[i].finalTax) : '—', getTotalValue: () => formatCurrency(taxResult.totalFinalTax) },
-    { label: '納税後', bold: true, getValue: i => formatCurrency(getHeirNetProceeds(scenario, i)), getTotalValue: () => formatCurrency(scenario.totalNetProceeds) },
+    heirLabelColumn(i => heirBreakdowns[i]?.label),
+    currencyColumn('遺産取得額', i => getHeirBaseAcquisition(scenario, i), totalBaseAcquisition),
+    {
+      label: '保険料負担',
+      getValue: i => heirBreakdowns[i]?.premiumPaid > 0 ? `ー${formatCurrency(heirBreakdowns[i].premiumPaid)}` : '—',
+      getTotalValue: () => totalPremiumPaid > 0 ? `ー${formatCurrency(totalPremiumPaid)}` : '—',
+    },
+    currencyColumn('受取保険金', i => heirBreakdowns[i]?.totalBenefit ?? 0, scenario.totalBenefit),
+    currencyColumn('納付税額', i => taxResult.heirBreakdowns[i]?.finalTax ?? 0, taxResult.totalFinalTax),
+    currencyColumn('納税後', i => getHeirNetProceeds(scenario, i), scenario.totalNetProceeds, { bold: true }),
   ];
 }
 

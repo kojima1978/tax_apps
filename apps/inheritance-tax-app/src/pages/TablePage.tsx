@@ -1,11 +1,10 @@
 import { useState, useCallback } from 'react';
-import { Header } from '../components/Header';
+import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { RangeSettings } from '../components/RangeSettings';
 import { TaxTable } from '../components/TaxTable';
 import { BracketRateTable } from '../components/BracketRateTable';
 import { TaxBracketTable } from '../components/TaxBracketTable';
-import { CalculateButton } from '../components/CalculateButton';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import { useScrollToResult } from '../hooks/useScrollToResult';
@@ -17,9 +16,7 @@ import { calculateInheritanceTax, calculateBracketAnalysis, getHeirInfo } from '
 
 export const TablePage: React.FC = () => {
   const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
-
   const [maxValue, setMaxValue] = useState<number>(TABLE_CONFIG.DEFAULT_MAX_VALUE);
-
   const [tableData, setTableData] = useState<TaxCalculationResult[]>([]);
   const [bracketData, setBracketData] = useState<BracketAnalysisRow[]>([]);
 
@@ -40,46 +37,36 @@ export const TablePage: React.FC = () => {
   const resultRef = useScrollToResult(hasData);
 
   return (
-    <>
-      <Header />
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
-          <div className="space-y-6">
-            <HeirSettings composition={composition} onChange={setComposition} />
-          </div>
-          <div className="space-y-6">
-            <RangeSettings
-              maxValue={maxValue}
-              onMaxValueChange={setMaxValue}
-            />
-            <CautionBox items={TABLE_CAUTIONS} />
-          </div>
-        </div>
-
-        <div className="mb-8 no-print">
-          <CalculateButton onClick={handleCalculate} />
-        </div>
-
-        <div ref={resultRef}>
+    <PageLayout
+      leftSection={
+        <HeirSettings composition={composition} onChange={setComposition} />
+      }
+      rightSection={
+        <>
+          <RangeSettings maxValue={maxValue} onMaxValueChange={setMaxValue} />
+          <CautionBox items={TABLE_CAUTIONS} />
+        </>
+      }
+      onCalculate={handleCalculate}
+      resultRef={resultRef}
+      resultSection={
+        <>
           {hasData && (
             <div className="result-fade-in">
               <PrintHeader title="相続税早見表" />
               <TaxTable data={tableData} hasSpouse={composition.hasSpouse} />
-
               <div className="mt-6 print-page-break">
                 <PrintHeader title="加重平均適用税率表" />
                 <BracketRateTable data={bracketData} hasSpouse={composition.hasSpouse} heirLabel={heirLabel} />
               </div>
             </div>
           )}
-        </div>
-
-        <div className="mt-6 print-page-break">
-          <PrintHeader title="相続税の速算表" />
-          <TaxBracketTable />
-        </div>
-      </main>
-    </>
+          <div className="mt-6 print-page-break">
+            <PrintHeader title="相続税の速算表" />
+            <TaxBracketTable />
+          </div>
+        </>
+      }
+    />
   );
 };

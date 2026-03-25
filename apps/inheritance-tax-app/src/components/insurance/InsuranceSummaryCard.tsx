@@ -26,7 +26,26 @@ const ROWS: ComparisonRowDef<InsuranceSimulationResult>[] = [
   { id: 'net', label: '納税後財産額', getCurrent: r => r.current.totalNetProceeds, getProposed: r => r.proposed.totalNetProceeds, highlight: true },
 ];
 
-export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ result }) => {
+/** 納税後財産額の脚注を生成 */
+function buildNetFootnote(result: InsuranceSimulationResult): React.ReactNode {
+  const { current, proposed, taxSaving, newPremiumTotal } = result;
+  const newBenefit = proposed.totalBenefit - current.totalBenefit;
+  const insuranceNetGain = newBenefit - newPremiumTotal;
+
+  if (newPremiumTotal <= 0) {
+    return <>{formatCurrency(current.totalNetProceeds)} → {formatCurrency(proposed.totalNetProceeds)}</>;
+  }
+  if (taxSaving > 0) {
+    return <>{formatCurrency(insuranceNetGain)}（保険増加分） ＋ {formatCurrency(taxSaving)}（税軽減分）</>;
+  }
+  if (taxSaving < 0) {
+    return <>{formatCurrency(insuranceNetGain)}（保険増加分） − {formatCurrency(-taxSaving)}（税増加分）</>;
+  }
+  return <>{formatCurrency(insuranceNetGain)}（保険増加分）</>;
+}
+
+/** ハイライトカード群を生成 */
+function buildHighlights(result: InsuranceSimulationResult): HighlightItem[] {
   const { current, proposed, taxSaving, netProceedsDiff, newPremiumTotal } = result;
 
   const benefit = proposed.totalBenefit;
@@ -37,24 +56,20 @@ export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ resu
   const returnRatio = newPremiumTotal > 0 ? Math.round(newBenefit / newPremiumTotal * 100) : -1;
   const insuranceNetGain = newBenefit - newPremiumTotal;
 
-  const netFootnote = newPremiumTotal > 0
-    ? taxSaving > 0
-      ? <>{formatCurrency(insuranceNetGain)}（保険増加分） ＋ {formatCurrency(taxSaving)}（税軽減分）</>
-      : taxSaving < 0
-        ? <>{formatCurrency(insuranceNetGain)}（保険増加分） − {formatCurrency(-taxSaving)}（税増加分）</>
-        : <>{formatCurrency(insuranceNetGain)}（保険増加分）</>
-    : <>{formatCurrency(current.totalNetProceeds)} → {formatCurrency(proposed.totalNetProceeds)}</>;
+  const highlights: HighlightItem[] = [];
 
-  const highlights: HighlightItem[] = [
-    // 新規契約がある場合のみ「保険料→保険金」カードを左端に表示
-    ...(newPremiumTotal > 0 ? [{
+  if (newPremiumTotal > 0) {
+    highlights.push({
       label: '保険料 → 保険金',
       description: '支払った保険料に対する保険金の倍率',
       value: returnRatio,
-      format: 'ratio' as const,
+      format: 'ratio',
       valueSuffix: <>（＋{formatCurrency(insuranceNetGain)}）</>,
       footnote: <>{formatCurrency(newPremiumTotal)}（保険料）→ {formatCurrency(newBenefit)}（保険金）</>,
-    }] : []),
+    });
+  }
+
+  highlights.push(
     {
       label: '税金の増減',
       description: '保険加入による税額の変化',
@@ -67,7 +82,7 @@ export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ resu
       description: '保険加入後に残る財産の変化',
       value: netProceedsDiff,
       format: 'gain',
-      footnote: netFootnote,
+      footnote: buildNetFootnote(result),
     },
     {
       label: '納税充当率',
@@ -76,7 +91,14 @@ export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ resu
       format: 'ratio',
       footnote: <>{formatCurrency(benefit)}（受取保険金）/ {formatCurrency(tax)}（相続税額）</>,
     },
-  ];
+  );
+
+  return highlights;
+}
+
+export const InsuranceSummaryCard: React.FC<InsuranceSummaryCardProps> = ({ result }) => {
+  const { current, proposed, newPremiumTotal } = result;
+  const highlights = buildHighlights(result);
 
   return (
     <ScenarioComparisonCard

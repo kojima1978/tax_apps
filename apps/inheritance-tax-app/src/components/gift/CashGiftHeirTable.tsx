@@ -1,6 +1,6 @@
 import React from 'react';
 import type { CashGiftSimulationResult, GiftScenarioResult, GiftRecipientResult } from '../../types';
-import { formatCurrency, getGiftHeirNetProceeds } from '../../utils';
+import { formatCurrency, getGiftHeirNetProceeds, heirLabelColumn, currencyColumn, currencyOrDashColumn } from '../../utils';
 import { CARD, TH, TD } from '../tableStyles';
 import { HeirScenarioTable, type HeirColumn } from '../HeirScenarioTable';
 import { HeirNetComparisonTable } from '../HeirNetComparisonTable';
@@ -60,15 +60,23 @@ const RecipientDetailTable: React.FC<{ recipientResults: GiftRecipientResult[] }
   );
 };
 
+function giftAmountForHeir(rr: GiftRecipientResult[], label: string | undefined, field: 'totalGift' | 'totalGiftTax'): number {
+  if (!label) return 0;
+  return rr.filter(r => r.heirLabel === label).reduce((s, r) => s + r[field], 0);
+}
+
 function buildGiftColumns(scenario: GiftScenarioResult, rr: GiftRecipientResult[]): HeirColumn[] {
   const { taxResult } = scenario;
+  const totalGift = rr.reduce((s, r) => s + r.totalGift, 0);
+  const totalGiftTax = rr.reduce((s, r) => s + r.totalGiftTax, 0);
+
   return [
-    { label: '相続人', align: 'left', getValue: i => taxResult.heirBreakdowns[i]?.label, getTotalValue: () => '合計' },
-    { label: '遺産取得額', getValue: i => formatCurrency(taxResult.heirBreakdowns[i]?.acquisitionAmount ?? 0), getTotalValue: () => formatCurrency(scenario.estateValue) },
-    { label: '贈与受取額', getValue: i => { const g = rr.filter(r => r.heirLabel === taxResult.heirBreakdowns[i]?.label).reduce((s, r) => s + r.totalGift, 0); return g > 0 ? formatCurrency(g) : '—'; }, getTotalValue: () => rr.length > 0 ? formatCurrency(rr.reduce((s, r) => s + r.totalGift, 0)) : '—' },
-    { label: '贈与税負担', getValue: i => { const t = rr.filter(r => r.heirLabel === taxResult.heirBreakdowns[i]?.label).reduce((s, r) => s + r.totalGiftTax, 0); return t > 0 ? formatCurrency(t) : '—'; }, getTotalValue: () => rr.length > 0 ? formatCurrency(rr.reduce((s, r) => s + r.totalGiftTax, 0)) : '—' },
-    { label: '納付相続税', getValue: i => formatCurrency(taxResult.heirBreakdowns[i]?.finalTax ?? 0), getTotalValue: () => formatCurrency(taxResult.totalFinalTax) },
-    { label: '税引後', bold: true, getValue: i => formatCurrency(getGiftHeirNetProceeds(scenario, i, rr)), getTotalValue: () => formatCurrency(scenario.totalNetProceeds) },
+    heirLabelColumn(i => taxResult.heirBreakdowns[i]?.label),
+    currencyColumn('遺産取得額', i => taxResult.heirBreakdowns[i]?.acquisitionAmount ?? 0, scenario.estateValue),
+    currencyOrDashColumn('贈与受取額', i => giftAmountForHeir(rr, taxResult.heirBreakdowns[i]?.label, 'totalGift'), totalGift),
+    currencyOrDashColumn('贈与税負担', i => giftAmountForHeir(rr, taxResult.heirBreakdowns[i]?.label, 'totalGiftTax'), totalGiftTax),
+    currencyColumn('納付相続税', i => taxResult.heirBreakdowns[i]?.finalTax ?? 0, taxResult.totalFinalTax),
+    currencyColumn('税引後', i => getGiftHeirNetProceeds(scenario, i, rr), scenario.totalNetProceeds, { bold: true }),
   ];
 }
 

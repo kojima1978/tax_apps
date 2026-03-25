@@ -1,14 +1,13 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { Header } from '../components/Header';
+import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { CalculationResult } from '../components/calculator/CalculationResult';
-import { CalculateButton } from '../components/CalculateButton';
-import { ValidationErrorPanel } from '../components/ValidationErrorPanel';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
 import { useScrollToResult } from '../hooks/useScrollToResult';
+import { useFormValidation } from '../hooks/useFormValidation';
 import type { HeirComposition, SpouseAcquisitionMode } from '../types';
 import { createDefaultComposition } from '../constants';
 import { CALCULATOR_CAUTIONS } from '../constants/cautionMessages';
@@ -16,13 +15,10 @@ import { calculateDetailedInheritanceTax, calculateBracketAnalysis } from '../ut
 
 export const CalculatorPage: React.FC = () => {
   const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
-
   const [estateValue, setEstateValue] = useState<number>(0);
   const [spouseMode, setSpouseMode] = useState<SpouseAcquisitionMode>({ mode: 'legal' });
-
   const [result, setResult] = useState<ReturnType<typeof calculateDetailedInheritanceTax> | null>(null);
   const [weightedRate, setWeightedRate] = useState(0);
-  const [hasAttempted, setHasAttempted] = useState(false);
 
   const heirRef = useRef<HTMLDivElement>(null);
   const estateRef = useRef<HTMLDivElement>(null);
@@ -37,61 +33,58 @@ export const CalculatorPage: React.FC = () => {
     return errors;
   }, [estateValue, noHeirs]);
 
-  const handleCalculate = useCallback(() => {
-    setHasAttempted(true);
-    if (estateValue <= 0) {
-      estateRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    if (noHeirs) {
-      heirRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
+  const checks = useCallback(() => [
+    { condition: estateValue <= 0, ref: estateRef },
+    { condition: noHeirs, ref: heirRef },
+  ], [estateValue, noHeirs]);
+
+  const onValid = useCallback(() => {
     setResult(calculateDetailedInheritanceTax(estateValue, composition, spouseMode));
     setWeightedRate(calculateBracketAnalysis(estateValue, composition).weightedRate);
-  }, [estateValue, noHeirs, composition, spouseMode]);
+  }, [estateValue, composition, spouseMode]);
+
+  const { hasAttempted, handleCalculate } = useFormValidation(checks, onValid);
 
   return (
-    <>
-      <Header />
-      <main className="max-w-7xl mx-auto px-4 py-8 calculator-print">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
-          <div ref={heirRef} className="space-y-6">
-            <HeirSettings
-              composition={composition}
-              onChange={setComposition}
-              hasError={hasAttempted && noHeirs}
+    <PageLayout
+      printClassName="calculator-print"
+      leftSection={
+        <div ref={heirRef}>
+          <HeirSettings
+            composition={composition}
+            onChange={setComposition}
+            hasError={hasAttempted && noHeirs}
+          />
+        </div>
+      }
+      rightSection={
+        <>
+          <div ref={estateRef}>
+            <EstateInput
+              value={estateValue}
+              onChange={setEstateValue}
+              hasError={hasAttempted && estateValue <= 0}
             />
           </div>
-          <div className="space-y-6">
-            <div ref={estateRef}>
-              <EstateInput
-                value={estateValue}
-                onChange={setEstateValue}
-                hasError={hasAttempted && estateValue <= 0}
-              />
-            </div>
-            <SpouseAcquisitionSettings
-              value={spouseMode}
-              onChange={setSpouseMode}
-              hasSpouse={composition.hasSpouse}
-            />
-            <CautionBox items={CALCULATOR_CAUTIONS} />
-          </div>
-        </div>
-
-        <div className="mb-8 no-print">
-          <ValidationErrorPanel show={hasAttempted} errors={validationErrors} />
-          <CalculateButton onClick={handleCalculate} />
-        </div>
-
-        <div ref={resultRef}>
+          <SpouseAcquisitionSettings
+            value={spouseMode}
+            onChange={setSpouseMode}
+            hasSpouse={composition.hasSpouse}
+          />
+          <CautionBox items={CALCULATOR_CAUTIONS} />
+        </>
+      }
+      validationErrors={validationErrors}
+      hasAttempted={hasAttempted}
+      onCalculate={handleCalculate}
+      resultRef={resultRef}
+      resultSection={
+        <>
           {result && result.taxableAmount > 0 && (
             <div className="result-fade-in">
               <CalculationResult result={result} weightedRate={weightedRate} />
             </div>
           )}
-
           {result && result.taxableAmount === 0 && estateValue > 0 && (
             <div className="result-fade-in">
               <StatusCard
@@ -101,8 +94,8 @@ export const CalculatorPage: React.FC = () => {
               />
             </div>
           )}
-        </div>
-      </main>
-    </>
+        </>
+      }
+    />
   );
 };

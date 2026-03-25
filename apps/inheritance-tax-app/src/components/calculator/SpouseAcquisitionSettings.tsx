@@ -3,7 +3,7 @@ import Heart from 'lucide-react/icons/heart';
 import type { SpouseAcquisitionMode } from '../../types';
 import { formatCurrency } from '../../utils';
 import { SectionHeader } from '../SectionHeader';
-import { CARD, INPUT_FOCUS } from '../tableStyles';
+import { CARD, INPUT_FOCUS, TOGGLE_BTN_ACTIVE, TOGGLE_BTN_INACTIVE } from '../tableStyles';
 
 const MODE_OPTIONS = [
   {
@@ -27,10 +27,6 @@ const UNIT_OPTIONS = [
   { unit: 'amount' as const, label: '万円' },
   { unit: 'percent' as const, label: '％' },
 ] as const;
-
-const UNIT_BTN_BASE = 'px-3 py-1 text-sm font-medium rounded-md transition-colors';
-const UNIT_BTN_ACTIVE = `${UNIT_BTN_BASE} bg-green-600 text-white`;
-const UNIT_BTN_INACTIVE = `${UNIT_BTN_BASE} bg-gray-100 text-gray-600 hover:bg-gray-200`;
 
 interface SpouseAcquisitionSettingsProps {
   value: SpouseAcquisitionMode;
@@ -84,7 +80,7 @@ export const SpouseAcquisitionSettings: React.FC<SpouseAcquisitionSettingsProps>
                 key={unit}
                 type="button"
                 onClick={() => onChange({ mode: 'custom', value: 0, unit })}
-                className={value.unit === unit ? UNIT_BTN_ACTIVE : UNIT_BTN_INACTIVE}
+                className={value.unit === unit ? TOGGLE_BTN_ACTIVE : TOGGLE_BTN_INACTIVE}
               >
                 {label}
               </button>

@@ -40,7 +40,7 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result, we
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {SUMMARY_ITEMS.map(({ label, getValue }) => (
               <div key={label} className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-xs text-gray-500 mb-1">{label}</p>
+                <p className="text-xs text-gray-600 mb-1">{label}</p>
                 <p className="text-sm font-bold text-gray-800">{getValue(result)}</p>
               </div>
             ))}
