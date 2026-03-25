@@ -28,7 +28,7 @@ export const FilterToolbar = memo(function FilterToolbar({
             <div className="flex items-center gap-2">
               {/* B1: すべて展開/折りたたみ */}
               {EXPAND_ACTIONS.map(({ icon: Icon, label, key, title }) => (
-                <button key={key} onClick={expandHandlers[key]} title={title} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors">
+                <button key={key} onClick={expandHandlers[key]} title={title} className="flex items-center gap-1 px-3 py-2.5 rounded-lg text-xs font-medium bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors">
                   <Icon className="w-3.5 h-3.5" /> {label}
                 </button>
               ))}
@@ -36,7 +36,7 @@ export const FilterToolbar = memo(function FilterToolbar({
               {/* B2: フィルター切替 */}
               <button
                 onClick={filter.toggleShowFilters}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors ${
                   filter.hasActiveFilters
                     ? 'bg-emerald-100 text-emerald-700'
                     : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
@@ -51,7 +51,7 @@ export const FilterToolbar = memo(function FilterToolbar({
             <div className="flex items-center gap-2">
               <button
                 onClick={onToggleHideSubmittedInPrint}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors ${
                   hideSubmittedInPrint
                     ? 'bg-amber-100 text-amber-700'
                     : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
@@ -75,6 +75,7 @@ export const FilterToolbar = memo(function FilterToolbar({
                   value={filter.searchQuery}
                   onChange={(e) => filter.setSearchQuery(e.target.value)}
                   placeholder="書類名を検索..."
+                  aria-label="書類名を検索"
                   className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 {filter.searchQuery && (

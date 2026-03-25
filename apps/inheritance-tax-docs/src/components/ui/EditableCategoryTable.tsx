@@ -17,7 +17,7 @@ import {
 import { ChevronDown, Plus, CheckSquare, Square, Trash2, Power, CheckCircle2 } from 'lucide-react';
 import type { CategoryData, DocumentItem, CustomDocumentItem, DocChanges } from '../../constants/documents';
 import type { FilterCriteria } from '../../hooks/useFilterState';
-import { isCustomDocument, toCircledNumber, COLOR_ACCENT_MAP } from '../../utils/helpers';
+import { isCustomDocument, toCircledNumber, COLOR_ACCENT_MAP, DND_ACTIVATION_DISTANCE } from '../../utils/helpers';
 import { getIcon } from '../../utils/iconMap';
 import { SortableDocumentRow, StaticDocumentRow, type EditableDocumentRowProps } from './EditableDocumentRow';
 import { SpecificNamesTableRows } from './SpecificNamesList';
@@ -89,7 +89,7 @@ const CategoryHeader = memo(function CategoryHeader({
           {toCircledNumber(categoryIndex)} {category.name}
         </span>
         {urgentCount > 0 && (
-          <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 font-bold rounded">
+          <span className="px-1.5 py-0.5 text-xs bg-red-100 text-red-700 font-bold rounded">
             急 {urgentCount}
           </span>
         )}
@@ -127,6 +127,31 @@ const CategoryHeader = memo(function CategoryHeader({
   );
 });
 
+/** 書類操作ハンドラー */
+export interface DocumentHandlers {
+  onToggleExpanded: (categoryId: string) => void;
+  onReorderDocuments: (categoryId: string, newOrder: string[]) => void;
+  onToggleCanDelegate: (docId: string, originalCanDelegate: boolean) => void;
+  onToggleDocumentCheck: (docId: string) => void;
+  onToggleAllInCategory: (categoryId: string, checked: boolean) => void;
+  onSetDocumentMemo: (docId: string, memo: string) => void;
+  onToggleExcluded: (docId: string) => void;
+  onToggleUrgent: (docId: string) => void;
+  onToggleCategoryDisabled: (categoryId: string) => void;
+  onRemoveDocument: (docId: string, categoryId: string, name: string) => void;
+  onRemoveCategory: (categoryId: string, name: string) => void;
+  onOpenAddModal: (categoryId: string) => void;
+  onStartEdit: (docId: string) => void;
+}
+
+/** 具体名操作ハンドラー */
+export interface SpecificNameHandlers {
+  onAdd: (docId: string, name: string) => void;
+  onEdit: (docId: string, index: number, name: string) => void;
+  onRemove: (docId: string, index: number) => void;
+  onReorder: (docId: string, newNames: string[]) => void;
+}
+
 interface EditableCategoryTableProps {
   category: CategoryData;
   categoryIndex: number;
@@ -137,31 +162,16 @@ interface EditableCategoryTableProps {
   editedDocuments: Record<string, DocChanges>;
   canDelegateOverrides: Record<string, boolean>;
   specificDocNames: Record<string, string[]>;
-  onToggleExpanded: (categoryId: string) => void;
-  onReorderDocuments: (categoryId: string, newOrder: string[]) => void;
-  onToggleCanDelegate: (docId: string, originalCanDelegate: boolean) => void;
-  onAddSpecificName: (docId: string, name: string) => void;
-  onEditSpecificName: (docId: string, index: number, name: string) => void;
-  onRemoveSpecificName: (docId: string, index: number) => void;
-  onReorderSpecificNames: (docId: string, newNames: string[]) => void;
   checkedDocuments: Record<string, boolean>;
   checkedDates: Record<string, string>;
   documentMemos: Record<string, string>;
   excludedDocuments: Record<string, boolean>;
   urgentDocuments: Record<string, boolean>;
-  onToggleDocumentCheck: (docId: string) => void;
-  onToggleAllInCategory: (categoryId: string, checked: boolean) => void;
-  onSetDocumentMemo: (docId: string, memo: string) => void;
-  onToggleExcluded: (docId: string) => void;
-  onToggleUrgent: (docId: string) => void;
-  onToggleCategoryDisabled: (categoryId: string) => void;
-  onRemoveDocument: (docId: string, categoryId: string, name: string) => void;
-  onRemoveCategory: (categoryId: string, name: string) => void;
   hideSubmittedInPrint: boolean;
   filterCriteria: FilterCriteria;
   hasActiveFilter: boolean;
-  onOpenAddModal: (categoryId: string) => void;
-  onStartEdit: (docId: string) => void;
+  handlers: DocumentHandlers;
+  specificNameHandlers: SpecificNameHandlers;
 }
 
 function EditableCategoryTableComponent({
@@ -174,39 +184,31 @@ function EditableCategoryTableComponent({
   editedDocuments,
   canDelegateOverrides,
   specificDocNames,
-  onToggleExpanded,
-  onReorderDocuments,
-  onToggleCanDelegate,
-  onAddSpecificName,
-  onEditSpecificName,
-  onRemoveSpecificName,
-  onReorderSpecificNames,
   checkedDocuments,
   checkedDates,
   documentMemos,
   excludedDocuments,
   urgentDocuments,
-  onToggleDocumentCheck,
-  onToggleAllInCategory,
-  onSetDocumentMemo,
-  onToggleExcluded,
-  onToggleUrgent,
-  onToggleCategoryDisabled,
-  onRemoveDocument,
-  onRemoveCategory,
   hideSubmittedInPrint,
   filterCriteria,
   hasActiveFilter,
-  onOpenAddModal,
-  onStartEdit,
+  handlers,
+  specificNameHandlers,
 }: EditableCategoryTableProps) {
+  const {
+    onToggleExpanded, onReorderDocuments, onToggleCanDelegate,
+    onToggleDocumentCheck, onToggleAllInCategory,
+    onSetDocumentMemo, onToggleExcluded, onToggleUrgent,
+    onToggleCategoryDisabled, onRemoveDocument, onRemoveCategory,
+    onOpenAddModal, onStartEdit,
+  } = handlers;
   const [isMounted, setIsMounted] = useState(false);
   const dndId = useId();
 
   useEffect(() => { setIsMounted(true); }, []);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: DND_ACTIVATION_DISTANCE }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -283,14 +285,14 @@ function EditableCategoryTableComponent({
           <span className="hidden print:inline">✓</span>
         </th>
         <th className="px-3 py-2 text-left font-bold text-slate-700">必要書類名</th>
-        <th className="px-3 py-2 text-left font-bold text-slate-700">
+        <th className="px-3 py-2 text-left font-bold text-slate-700 hidden md:table-cell print:table-cell">
           内容説明
         </th>
-        <th className="px-3 py-2 text-left font-bold text-slate-700">
+        <th className="px-3 py-2 text-left font-bold text-slate-700 hidden md:table-cell print:table-cell">
           取得方法
         </th>
         <th className="w-16 px-2 py-2 text-center font-bold text-slate-700 print:w-12">代行</th>
-        <th className="w-24 px-1 py-2 text-center font-bold text-slate-700 print:hidden">操作</th>
+        <th className="px-1 py-2 text-center font-bold text-slate-700 print:hidden whitespace-nowrap hidden md:table-cell">操作</th>
       </tr>
     </thead>
   );
@@ -324,6 +326,50 @@ function EditableCategoryTableComponent({
       isVisible: filteredDocIds.has(doc.id),
     };
   };
+
+  const renderDocRows = (RowComponent: typeof SortableDocumentRow | typeof StaticDocumentRow) =>
+    orderedDocs.map((doc, i) => {
+      const docIsExcluded = excludedDocuments[doc.id] ?? false;
+      return (
+        <React.Fragment key={doc.id}>
+          <RowComponent {...getRowProps(doc, i)} />
+          {!docIsExcluded && (
+            <SpecificNamesTableRows
+              docId={doc.id}
+              categoryId={category.id}
+              docNumber={`${i + 1}`}
+              names={specificDocNames[doc.id] || []}
+              colorAccent={colorAccent}
+              isVisible={filteredDocIds.has(doc.id)}
+              hideSubmittedInPrint={hideSubmittedInPrint}
+              isChecked={checkedDocuments[doc.id] ?? false}
+              onAdd={specificNameHandlers.onAdd}
+              onEdit={specificNameHandlers.onEdit}
+              onRemove={specificNameHandlers.onRemove}
+              onReorder={specificNameHandlers.onReorder}
+            />
+          )}
+        </React.Fragment>
+      );
+    });
+
+  const tableContent = isExpanded && isMounted ? (
+    <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} accessibility={{ container: document.body }}>
+      <table className="w-full text-sm print-compact-table">
+        {tableHead}
+        <tbody>
+          <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+            {renderDocRows(SortableDocumentRow)}
+          </SortableContext>
+        </tbody>
+      </table>
+    </DndContext>
+  ) : (
+    <table className="w-full text-sm print-compact-table">
+      {tableHead}
+      <tbody>{renderDocRows(StaticDocumentRow)}</tbody>
+    </table>
+  );
 
   // C4: カテゴリ無効時は印刷でも非表示
   if (isDisabled) {
@@ -365,52 +411,8 @@ function EditableCategoryTableComponent({
       />
 
       {/* テーブル本体（折りたたみ時は print のみ表示） */}
-      <div className={`border border-t-0 border-slate-200 rounded-b-lg overflow-hidden print:border-t print:rounded-sm ${isExpanded ? '' : 'hidden print:block'}`}>
-        {(() => {
-          const renderDocRows = (RowComponent: typeof SortableDocumentRow | typeof StaticDocumentRow) =>
-            orderedDocs.map((doc, i) => {
-              const docIsExcluded = excludedDocuments[doc.id] ?? false;
-              return (
-                <React.Fragment key={doc.id}>
-                  <RowComponent {...getRowProps(doc, i)} />
-                  {!docIsExcluded && (
-                    <SpecificNamesTableRows
-                      docId={doc.id}
-                      categoryId={category.id}
-                      docNumber={`${i + 1}`}
-                      names={specificDocNames[doc.id] || []}
-                      colorAccent={colorAccent}
-                      isVisible={filteredDocIds.has(doc.id)}
-                      hideSubmittedInPrint={hideSubmittedInPrint}
-                      isChecked={checkedDocuments[doc.id] ?? false}
-                      onAdd={onAddSpecificName}
-                      onEdit={onEditSpecificName}
-                      onRemove={onRemoveSpecificName}
-                      onReorder={onReorderSpecificNames}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            });
-
-          return isExpanded && isMounted ? (
-            <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} accessibility={{ container: document.body }}>
-              <table className="w-full text-sm print-compact-table">
-                {tableHead}
-                <tbody>
-                  <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-                    {renderDocRows(SortableDocumentRow)}
-                  </SortableContext>
-                </tbody>
-              </table>
-            </DndContext>
-          ) : (
-            <table className="w-full text-sm print-compact-table">
-              {tableHead}
-              <tbody>{renderDocRows(StaticDocumentRow)}</tbody>
-            </table>
-          );
-        })()}
+      <div className={`border border-t-0 border-slate-200 rounded-b-lg overflow-x-auto print:overflow-visible print:border-t print:rounded-sm ${isExpanded ? '' : 'hidden print:block'}`}>
+        {tableContent}
         {/* 書類追加ボタン */}
         <button
           onClick={() => onOpenAddModal(category.id)}

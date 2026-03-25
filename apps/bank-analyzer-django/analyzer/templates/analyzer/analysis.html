@@ -6,26 +6,24 @@
 {% block title %}分析 - Bank Analyzer{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-8">
-        <h1 class="h2">📊 編集・分析: {{ case.name }}</h1>
-    </div>
-    <div class="col-md-4 text-end">
-        <a href="{% url 'import-wizard' case.pk %}" class="btn btn-outline-primary me-2">
-            <i class="bi bi-file-earmark-arrow-up"></i> CSV追加取込
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h1 class="h2 mb-0"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> 編集・分析: {{ case.name }}</h1>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'import-wizard' case.pk %}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-file-earmark-arrow-up"></i><span class="d-none d-md-inline ms-1">CSV追加取込</span>
         </a>
-        <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-success me-2">
-            <i class="bi bi-box-arrow-down"></i> JSONバックアップ
+        <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-box-arrow-down"></i><span class="d-none d-md-inline ms-1">JSONバックアップ</span>
         </a>
-        <a href="{% url 'customer-letter' %}" target="_blank" class="btn btn-outline-secondary">
-            <i class="bi bi-envelope-paper"></i> お客様配布用文書
+        <a href="{% url 'customer-letter' %}" target="_blank" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-envelope-paper"></i><span class="d-none d-md-inline ms-1">お客様配布用文書</span>
         </a>
     </div>
 </div>
 
 <!-- 登録口座一覧 -->
 <div class="glass-card p-4 mb-4">
-    <h4 class="mb-3">📋 登録口座一覧</h4>
+    <h4 class="mb-3"><i class="bi bi-list-ul" aria-hidden="true"></i> 登録口座一覧</h4>
     <div class="row g-3">
         {% for acc in account_summary %}
         <div class="col-md-6 col-lg-4">
@@ -66,22 +64,22 @@
     <li class="nav-item" role="presentation">
         <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all"
             type="button" role="tab" aria-controls="all" aria-selected="true">
-            📄 取引一覧・検索
+            <i class="bi bi-table" aria-hidden="true"></i> 取引一覧・検索
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link text-warning" id="unclassified-tab" data-bs-toggle="tab" data-bs-target="#unclassified"
+        <button class="nav-link" id="unclassified-tab" data-bs-toggle="tab" data-bs-target="#unclassified"
             type="button" role="tab" aria-controls="unclassified" aria-selected="false">
-            ❓ 未分類
+            <i class="bi bi-question-circle" aria-hidden="true"></i> 未分類
             {% if unclassified_count %}
                 <span class="badge bg-warning text-dark">{{ unclassified_count }}</span>
             {% endif %}
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link text-primary" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai"
+        <button class="nav-link" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai"
             type="button" role="tab" aria-controls="ai" aria-selected="false">
-            🤖 AI分類
+            <i class="bi bi-cpu" aria-hidden="true"></i> AI分類
             {% if suggestions_count %}
                 <span class="badge bg-primary">{{ suggestions_count }}</span>
             {% endif %}
@@ -90,19 +88,19 @@
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="transfers-tab" data-bs-toggle="tab" data-bs-target="#transfers"
             type="button" role="tab" aria-controls="transfers" aria-selected="false">
-            🔄 資金移動フロー
+            <i class="bi bi-arrow-left-right" aria-hidden="true"></i> 資金移動フロー
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link text-warning" id="cleanup-tab" data-bs-toggle="tab" data-bs-target="#cleanup"
+        <button class="nav-link" id="cleanup-tab" data-bs-toggle="tab" data-bs-target="#cleanup"
             type="button" role="tab" aria-controls="cleanup" aria-selected="false">
-            🧹 データクレンジング
+            <i class="bi bi-stars" aria-hidden="true"></i> データクレンジング
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link text-info" id="flagged-tab" data-bs-toggle="tab" data-bs-target="#flagged"
+        <button class="nav-link" id="flagged-tab" data-bs-toggle="tab" data-bs-target="#flagged"
             type="button" role="tab" aria-controls="flagged" aria-selected="false">
-            📌 付箋 {% if flagged_txs %}<span class="badge bg-info">{{ flagged_txs.count }}</span>{% endif %}
+            <i class="bi bi-bookmark" aria-hidden="true"></i> 付箋 {% if flagged_txs %}<span class="badge bg-info">{{ flagged_txs.count }}</span>{% endif %}
         </button>
     </li>
 </ul>
@@ -367,7 +365,11 @@
 {% block extra_js %}
 <script src="{% static 'analyzer/js/utils.js' %}"></script>
 <script>window.BANK_TO_ACCOUNTS = {{ bank_to_accounts_json|safe }};</script>
-<script src="{% static 'analyzer/js/analysis_dashboard.js' %}"></script>
+<script src="{% static 'analyzer/js/analysis_core.js' %}"></script>
+<script src="{% static 'analyzer/js/analysis_transactions.js' %}"></script>
+<script src="{% static 'analyzer/js/analysis_patterns.js' %}"></script>
+<script src="{% static 'analyzer/js/analysis_tabs.js' %}"></script>
+<script src="{% static 'analyzer/js/analysis_filters.js' %}"></script>
 <script>
 document.addEventListener('click', function(e) {
     var link = e.target.closest('th a[href*="sort="]');

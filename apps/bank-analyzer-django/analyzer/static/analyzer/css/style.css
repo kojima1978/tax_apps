@@ -23,10 +23,13 @@ body {
 /* ===== Navbar ===== */
 
 .navbar {
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--glass-border);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    margin: 0.75rem 1rem 0;
+    border-radius: 0.75rem;
+    z-index: 1030;
 }
 
 .portal-link {

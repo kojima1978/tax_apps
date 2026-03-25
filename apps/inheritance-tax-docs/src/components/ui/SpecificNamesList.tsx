@@ -8,6 +8,7 @@ import {
   arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { DND_ACTIVATION_DISTANCE_SMALL } from '../../utils/helpers';
 
 export interface SpecificNamesTableRowsProps {
   docId: string;
@@ -69,7 +70,7 @@ function NameInputRow({
       <td colSpan={3} className="px-3 py-1">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1">
-            {label && <span className="text-slate-400 font-mono text-[10px] flex-shrink-0">{label}</span>}
+            {label && <span className="text-slate-400 font-mono text-xs flex-shrink-0">{label}</span>}
             <input
               ref={inputRef}
               type="text"
@@ -88,11 +89,11 @@ function NameInputRow({
               <X className="w-3 h-3" />
             </button>
           </div>
-          <span className="text-[9px] text-slate-400 ml-auto">Enter: 保存 / Esc: キャンセル</span>
+          <span className="text-xs text-slate-400 ml-auto">Enter: 保存 / Esc: キャンセル</span>
         </div>
       </td>
       <td className="w-16 px-2 py-1" />
-      <td className="w-20 px-1 py-1 print:hidden" />
+      <td className="px-1 py-1 print:hidden hidden md:table-cell" />
     </tr>
   );
 }
@@ -130,7 +131,7 @@ function SortableNameRow({
       {/* 列2: 具体名（3列をまたいで表示） */}
       <td colSpan={3} className="px-3 py-1 align-middle print:px-2 print:py-0.5">
         <div className="flex items-center gap-1">
-          <span className="text-slate-400 font-mono text-[10px] flex-shrink-0 print:text-xs print:font-bold">{parentNumber}-{index + 1}</span>
+          <span className="text-slate-400 font-mono text-xs flex-shrink-0 print:font-bold">{parentNumber}-{index + 1}</span>
           <span
             className="flex-1 text-xs text-slate-600 cursor-pointer hover:text-emerald-600 hover:underline transition-colors print:cursor-default print:hover:text-slate-600 print:no-underline print:text-sm"
             onClick={() => onStartEdit(index)}
@@ -161,7 +162,7 @@ function SortableNameRow({
       {/* 列5: 代行（空） */}
       <td className="w-16 px-2 py-1 print:px-2 print:py-0.5" />
       {/* 列6: 操作（空） */}
-      <td className="w-20 px-1 py-1 print:hidden" />
+      <td className="px-1 py-1 print:hidden hidden md:table-cell" />
     </tr>
   );
 }
@@ -216,7 +217,7 @@ function SpecificNamesTableRowsComponent({
   }, [names]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
+    useSensor(PointerSensor, { activationConstraint: DND_ACTIVATION_DISTANCE_SMALL }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -293,7 +294,7 @@ function SpecificNamesTableRowsComponent({
             </button>
           </td>
           <td className="w-16 px-2 py-0.5" />
-          <td className="w-20 px-1 py-0.5 print:hidden" />
+          <td className="px-1 py-0.5 print:hidden hidden md:table-cell" />
         </tr>
       )}
     </DndContext>

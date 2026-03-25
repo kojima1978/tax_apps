@@ -40,7 +40,6 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
     requestDelete, requestDeleteCategory, confirmDelete, cancelDelete,
     resetToDefault,
     exportToJson, importFromJson, getSelectedDocuments,
-    // モーダル
     editingDocId, editingDocData, isModalOpen, modalVariant,
     openEditModal, openAddModal, closeModal,
     handleEditSubmit, handleAddSubmit,
@@ -109,6 +108,30 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
   const toggleHideSubmittedInPrint = useCallback(() => setHideSubmittedInPrint(p => !p), []);
   const toggleNoticeCollapsed = useCallback(() => setNoticeCollapsed(p => !p), []);
 
+  // ハンドラーグループ（EditableCategoryTable用）
+  const documentHandlers = useMemo(() => ({
+    onToggleExpanded: toggleExpanded,
+    onReorderDocuments: reorderDocuments,
+    onToggleCanDelegate: toggleCanDelegate,
+    onToggleDocumentCheck: toggleDocumentCheck,
+    onToggleAllInCategory: toggleAllInCategory,
+    onSetDocumentMemo: setDocumentMemo,
+    onToggleExcluded: toggleExcluded,
+    onToggleUrgent: toggleUrgent,
+    onToggleCategoryDisabled: toggleCategoryDisabled,
+    onRemoveDocument: requestDelete,
+    onRemoveCategory: requestDeleteCategory,
+    onOpenAddModal: openAddModal,
+    onStartEdit: openEditModal,
+  }), [toggleExpanded, reorderDocuments, toggleCanDelegate, toggleDocumentCheck, toggleAllInCategory, setDocumentMemo, toggleExcluded, toggleUrgent, toggleCategoryDisabled, requestDelete, requestDeleteCategory, openAddModal, openEditModal]);
+
+  const specificNameHandlers = useMemo(() => ({
+    onAdd: addSpecificName,
+    onEdit: editSpecificName,
+    onRemove: removeSpecificName,
+    onReorder: reorderSpecificNames,
+  }), [addSpecificName, editSpecificName, removeSpecificName, reorderSpecificNames]);
+
   const allDocsCompleted = useMemo(() => {
     const activeCategories = pageConfig.categories.filter(
       cat => !disabledCategories[cat.id] && (documentOrder[cat.id] || []).length > 0
@@ -157,7 +180,7 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
             </div>
           </div>
           {pageConfig.printInfoFields.some(f => fieldValues[f.key]) && (
-            <div className="mt-4 p-4 bg-white border border-emerald-200 rounded-lg grid grid-cols-3 gap-4 print-compact-info">
+            <div className="mt-4 p-4 bg-white border border-emerald-200 rounded-lg grid grid-cols-2 md:grid-cols-3 gap-4 print-compact-info print:grid-cols-3">
               {pageConfig.printInfoFields.filter(f => fieldValues[f.key]).map(({ key, label, format }) => (
                 <div key={key}>
                   <span className="text-xs text-slate-500 print:text-xs">{label}</span>
@@ -258,7 +281,7 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
             <div className={`${noticeCollapsed ? 'hidden print:block' : ''} mt-2 ml-7 text-sm text-amber-800`}>
               <ul className="list-disc list-inside space-y-1 print:space-y-0">
                 {pageConfig.noticeItems.map((item, i) => (
-                  <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+                  <li key={i}>{item}</li>
                 ))}
               </ul>
             </div>
@@ -279,31 +302,16 @@ function UnifiedDocumentViewComponent({ pageConfig, guide }: UnifiedDocumentView
               editedDocuments={editedDocuments}
               canDelegateOverrides={canDelegateOverrides}
               specificDocNames={specificDocNames}
-              onToggleExpanded={toggleExpanded}
-              onReorderDocuments={reorderDocuments}
-              onToggleCanDelegate={toggleCanDelegate}
-              onAddSpecificName={addSpecificName}
-              onEditSpecificName={editSpecificName}
-              onRemoveSpecificName={removeSpecificName}
-              onReorderSpecificNames={reorderSpecificNames}
               checkedDocuments={checkedDocuments}
               checkedDates={checkedDates}
               documentMemos={documentMemos}
               excludedDocuments={excludedDocuments}
               urgentDocuments={urgentDocuments}
-              onToggleDocumentCheck={toggleDocumentCheck}
-              onToggleAllInCategory={toggleAllInCategory}
-              onSetDocumentMemo={setDocumentMemo}
-              onToggleExcluded={toggleExcluded}
-              onToggleUrgent={toggleUrgent}
-              onToggleCategoryDisabled={toggleCategoryDisabled}
-              onRemoveDocument={requestDelete}
-              onRemoveCategory={requestDeleteCategory}
               hideSubmittedInPrint={hideSubmittedInPrint}
               filterCriteria={filter.criteria}
               hasActiveFilter={filter.hasActiveFilters}
-              onOpenAddModal={openAddModal}
-              onStartEdit={openEditModal}
+              handlers={documentHandlers}
+              specificNameHandlers={specificNameHandlers}
             />
           ))}
         </div>

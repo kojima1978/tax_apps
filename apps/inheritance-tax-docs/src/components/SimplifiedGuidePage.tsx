@@ -17,7 +17,7 @@ const PAGE_CONFIG: PageConfig = {
   inputRows: createInputRows(),
   printInfoFields: createPrintInfoFields(),
   noticeItems: [
-    'こちらは<strong>相続税シミュレーション</strong>に必要な書類のみをまとめた簡易版です。',
+    <>こちらは<strong>相続税シミュレーション</strong>に必要な書類のみをまとめた簡易版です。</>,
     '資料は原本、コピー、データなどどのような形でお送りいただいても結構です。',
   ],
 };

@@ -17,10 +17,10 @@ const PAGE_CONFIG: PageConfig = {
   inputRows: createInputRows('対象法人名', '例：株式会社○○'),
   printInfoFields: createPrintInfoFields('対象法人'),
   noticeItems: [
-    '以下の書類は、<strong>取引相場のない株式（非上場株式）の評価</strong>に必要なものです。',
-    '原則として<strong>直前期末以前3期分</strong>の書類が必要です。',
+    <>以下の書類は、<strong>取引相場のない株式（非上場株式）の評価</strong>に必要なものです。</>,
+    <>原則として<strong>直前期末以前3期分</strong>の書類が必要です。</>,
     '該当しない項目はご準備不要です。ご不明な場合はお気軽にお問い合わせください。',
-    '書類は<strong>コピーで結構</strong>です。原本は会社でお手元に保管してください。',
+    <>書類は<strong>コピーで結構</strong>です。原本は会社でお手元に保管してください。</>,
   ],
 };
 
