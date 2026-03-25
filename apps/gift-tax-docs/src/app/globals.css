@@ -5,8 +5,9 @@
 body {
   background: #ffffff;
   color: #171717;
-  font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+  font-family: 'Noto Sans JP', 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
   transition: background-color 0.3s, color 0.3s;
+  letter-spacing: 0.02em;
 }
 
 .dark body,
@@ -45,6 +46,27 @@ body.dark {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+/* チェックボックスアニメーション */
+.animate-check-in {
+  animation: checkIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes checkIn {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 進捗バーアニメーション */
+.animate-progress {
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* アニメーション軽減 */

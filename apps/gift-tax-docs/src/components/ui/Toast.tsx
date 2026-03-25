@@ -38,7 +38,7 @@ export const ToastContainer = ({ toasts, removeToast }: ToastContainerProps) => 
         return (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg animate-toast-in ${config.bg}`}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg shadow-black/5 dark:shadow-black/20 animate-toast-in backdrop-blur-sm ${config.bg}`}
           >
             <Icon className={`w-5 h-5 flex-shrink-0 ${config.iconColor}`} aria-hidden="true" />
             <span className={`text-sm font-medium ${config.text}`}>{toast.message}</span>

@@ -34,6 +34,23 @@ type CategoryHandlers = {
   toggleAll: (id: string, checked: boolean) => void;
 };
 
+// ─── カテゴリカラーテーマ ───
+
+const CATEGORY_THEME = {
+  normal: {
+    header: 'bg-gradient-to-r from-emerald-50 to-emerald-50/50 dark:from-emerald-950/50 dark:to-emerald-950/20 hover:from-emerald-100 hover:to-emerald-50 dark:hover:from-emerald-900/50 dark:hover:to-emerald-950/30 border-l-4 border-emerald-500',
+    overlay: 'bg-emerald-50 dark:bg-emerald-950 border-l-4 border-emerald-500',
+    progress: 'bg-emerald-400',
+    progressDone: 'bg-emerald-500',
+  },
+  special: {
+    header: 'bg-gradient-to-r from-purple-50 to-purple-50/50 dark:from-purple-950/50 dark:to-purple-950/20 hover:from-purple-100 hover:to-purple-50 dark:hover:from-purple-900/50 dark:hover:to-purple-950/30 border-l-4 border-purple-500',
+    overlay: 'bg-purple-50 dark:bg-purple-950 border-l-4 border-purple-500',
+    progress: 'bg-purple-400',
+    progressDone: 'bg-purple-500',
+  },
+} as const;
+
 // ─── カテゴリ名表示（カード・オーバーレイ共通） ───
 
 const CategoryNameDisplay = ({ category, categoryNumber }: { category: EditableCategory; categoryNumber?: number }) => (
@@ -90,22 +107,19 @@ export const SortableCategoryCard = ({
   const checkedCount = category.documents.filter((d) => d.checked).length;
   const allChecked = category.documents.length > 0 && checkedCount === category.documents.length;
   const someChecked = checkedCount > 0 && !allChecked;
+  const theme = category.isSpecial ? CATEGORY_THEME.special : CATEGORY_THEME.normal;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg dark:shadow-slate-900/50 overflow-hidden transition-shadow hover:shadow-xl ${isDragging ? 'opacity-50 ring-2 ring-emerald-400' : ''}`}
+      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg dark:shadow-slate-900/50 overflow-hidden transition-all hover:shadow-xl ${isDragging ? 'opacity-50 ring-2 ring-emerald-400' : ''}`}
       role="region"
       aria-label={`カテゴリ: ${category.name}`}
     >
       {/* カテゴリヘッダー */}
       <div
-        className={`flex items-center justify-between p-4 transition-colors ${
-          category.isSpecial
-            ? 'bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/50 border-l-4 border-purple-500'
-            : 'bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border-l-4 border-emerald-500'
-        }`}
+        className={`flex items-center justify-between p-4 transition-colors ${theme.header}`}
       >
         {/* ドラッグハンドル（タッチターゲット拡大） */}
         <button
@@ -223,10 +237,20 @@ export const SortableCategoryCard = ({
               ? <CheckSquare className="w-4 h-4 mr-1" aria-hidden="true" />
               : <Square className="w-4 h-4 mr-1" aria-hidden="true" />
             }
-            全済み
+            {checkedCount}/{category.documents.length}
           </button>
         </div>
       </div>
+
+      {/* 進捗バー */}
+      {category.documents.length > 0 && (
+        <div className="h-1 bg-slate-100 dark:bg-slate-700/50">
+          <div
+            className={`h-full animate-progress ${allChecked ? theme.progressDone : theme.progress}`}
+            style={{ width: `${(checkedCount / category.documents.length) * 100}%` }}
+          />
+        </div>
+      )}
 
       {/* カテゴリコンテンツ */}
       {category.isExpanded && children}
@@ -236,17 +260,16 @@ export const SortableCategoryCard = ({
 
 // ─── カテゴリドラッグオーバーレイ ───
 
-export const CategoryDragOverlay = ({ category, categoryNumber }: { category: EditableCategory; categoryNumber?: number }) => (
+export const CategoryDragOverlay = ({ category, categoryNumber }: { category: EditableCategory; categoryNumber?: number }) => {
+  const theme = category.isSpecial ? CATEGORY_THEME.special : CATEGORY_THEME.normal;
+  return (
   <div
-    className={`rounded-xl shadow-2xl overflow-hidden ${
-      category.isSpecial
-        ? 'bg-purple-50 dark:bg-purple-950 border-l-4 border-purple-500'
-        : 'bg-emerald-50 dark:bg-emerald-950 border-l-4 border-emerald-500'
-    }`}
+    className={`rounded-xl shadow-2xl overflow-hidden ${theme.overlay}`}
   >
     <div className="flex items-center gap-3 p-4">
       <GripVertical className="w-5 h-5 text-slate-400" aria-hidden="true" />
       <CategoryNameDisplay category={category} categoryNumber={categoryNumber} />
     </div>
   </div>
-);
+  );
+};

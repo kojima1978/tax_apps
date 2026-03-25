@@ -8,7 +8,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useId, useState, useMemo, useCallback } from 'react';
-import { Plus, Info, Search } from 'lucide-react';
+import { Plus, Info, Search, User, Calendar, Phone, UserCheck } from 'lucide-react';
 import { InlineAddInput } from '@/components/ui/EditableInput';
 import { useGiftTaxGuide } from '@/hooks/useGiftTaxGuide';
 import { useEditableListEditing } from '@/hooks/useEditableListEditing';
@@ -24,13 +24,13 @@ import { PrintSection } from '@/components/ui/PrintSection';
 import { ToastContainer } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/ui/EmptyState';
 
-const infoBarInputClass = 'px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 bg-white dark:bg-slate-800 transition-colors';
+const infoBarInputClass = 'pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 transition-all w-full';
 
 const INFO_BAR_FIELDS = [
-  { id: 'customerName', label: 'お客様名:', type: 'text', placeholder: '例：山田 太郎 様' },
-  { id: 'deadline', label: '資料収集期限:', type: 'text', placeholder: '例：3月末まで' },
-  { id: 'staffName', label: '担当者名:', type: 'text', placeholder: '例：鈴木 一郎' },
-  { id: 'staffPhone', label: '担当者携帯:', type: 'tel', placeholder: '例：090-1234-5678' },
+  { id: 'customerName', label: 'お客様名', type: 'text', placeholder: '例：山田 太郎 様', icon: User },
+  { id: 'deadline', label: '資料収集期限', type: 'text', placeholder: '例：3月末まで', icon: Calendar },
+  { id: 'staffName', label: '担当者名', type: 'text', placeholder: '例：鈴木 一郎', icon: UserCheck },
+  { id: 'staffPhone', label: '担当者携帯', type: 'tel', placeholder: '例：090-1234-5678', icon: Phone },
 ] as const;
 
 export const EditableListStep = () => {
@@ -165,20 +165,28 @@ export const EditableListStep = () => {
       />
 
       {/* 入力バー */}
-      <div className="no-print bg-white dark:bg-slate-800 rounded-xl shadow dark:shadow-slate-900/50 p-4 mb-6 flex flex-wrap items-center gap-4 transition-colors">
-        {INFO_BAR_FIELDS.map((field) => (
-          <div key={field.id} className="flex items-center gap-2">
-            <label htmlFor={field.id} className="text-sm font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{field.label}</label>
-            <input
-              type={field.type}
-              id={field.id}
-              className={infoBarInputClass}
-              placeholder={field.placeholder}
-              value={valueMap[field.id]}
-              onChange={(e) => setterMap[field.id](e.target.value)}
-            />
-          </div>
-        ))}
+      <div className="no-print bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl shadow dark:shadow-slate-900/50 p-4 mb-6 transition-colors border border-white/50 dark:border-slate-700/50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {INFO_BAR_FIELDS.map((field) => {
+            const Icon = field.icon;
+            return (
+              <div key={field.id}>
+                <label htmlFor={field.id} className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{field.label}</label>
+                <div className="relative">
+                  <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+                  <input
+                    type={field.type}
+                    id={field.id}
+                    className={infoBarInputClass}
+                    placeholder={field.placeholder}
+                    value={valueMap[field.id]}
+                    onChange={(e) => setterMap[field.id](e.target.value)}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* カテゴリリスト（画面表示のみ、印刷非表示） */}
@@ -270,7 +278,7 @@ export const EditableListStep = () => {
                           ) : (
                             <button
                               onClick={() => editing.setAddingToCategory(category.id)}
-                              className="mt-3 flex items-center px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg border border-dashed border-emerald-300 dark:border-emerald-700 transition-colors w-full justify-center"
+                              className="mt-3 flex items-center px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg border border-dashed border-emerald-300 dark:border-emerald-700 transition-all w-full justify-center hover:border-emerald-400 dark:hover:border-emerald-600"
                               aria-label={`${category.name}に書類を追加`}
                             >
                               <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
@@ -310,8 +318,10 @@ export const EditableListStep = () => {
         )}
 
         {/* フッター */}
-        <div className="mt-8 text-center text-sm text-slate-400 dark:text-slate-500">
-          ※チェックを入れると提出済み（取り消し線）になります
+        <div className="mt-8 text-center">
+          <p className="text-sm text-slate-400 dark:text-slate-500">
+            ※チェックを入れると提出済み（取り消し線）になります
+          </p>
         </div>
       </div>
 
