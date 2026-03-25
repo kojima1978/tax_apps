@@ -19,7 +19,7 @@ const PAGE_CONFIG: PageConfig = {
   printInfoFields: createPrintInfoFields(),
   noticeItems: [
     '資料は原本、コピー、データなどどのような形でお送りいただいても結構です。原本はスキャンやコピーを行った後、すべてお返しいたします。',
-    '代行欄に<span class="bg-amber-200 px-1 rounded print:px-0.5">可</span>と記載されている書類は弊社で取得代行を行うことが可能です。詳しくは担当者にお尋ねください。',
+    <>代行欄に<span className="bg-amber-200 px-1 rounded print:px-0.5">可</span>と記載されている書類は弊社で取得代行を行うことが可能です。詳しくは担当者にお尋ねください。</>,
     '身分関係書類は原則として相続開始日から10日を経過した日以後に取得したものが必要となります。',
   ],
 };

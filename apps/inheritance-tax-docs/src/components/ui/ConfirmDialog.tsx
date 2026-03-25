@@ -1,3 +1,5 @@
+import { useEscapeKey } from '../../hooks/useEscapeKey';
+
 interface ConfirmDialogProps {
   title: string;
   onConfirm: () => void;
@@ -7,6 +9,8 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ title, onConfirm, onCancel, confirmLabel = '削除', children }: ConfirmDialogProps) {
+  useEscapeKey(onCancel);
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 no-print"
@@ -15,7 +19,6 @@ export function ConfirmDialog({ title, onConfirm, onCancel, confirmLabel = '削�
       <div
         className="bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4"
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
       >
         <h3 className="text-lg font-bold text-slate-800 mb-2">{title}</h3>
         {children}

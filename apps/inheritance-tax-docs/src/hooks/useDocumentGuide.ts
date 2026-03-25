@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { type CategoryData, type CategoryDocuments, type DocumentItem, type CustomDocumentItem, type DocChanges } from '../constants/documents';
 import { createExportData, downloadAsJson, type ExportData } from '../utils/jsonDataManager';
-import { deleteKeys, createBooleanToggle, generateId, formatTimeNow } from '../utils/helpers';
+import { deleteKeys, createBooleanToggle, generateId, formatTimeNow, getTodayISO } from '../utils/helpers';
 import { useDocumentModal } from './useDocumentModal';
 
 // 全カテゴリを展開状態で初期化
@@ -168,7 +168,7 @@ export function useDocumentGuide({ categories, appName, filenamePrefix }: UseDoc
       if (prev[docId]) {
         delete newState[docId];
       } else {
-        newState[docId] = new Date().toISOString().split('T')[0];
+        newState[docId] = getTodayISO();
       }
       return newState;
     });
@@ -178,7 +178,7 @@ export function useDocumentGuide({ categories, appName, filenamePrefix }: UseDoc
   // カテゴリ内全書類の一括チェック切替
   const toggleAllInCategory = useCallback((categoryId: string, checked: boolean) => {
     const order = documentOrder[categoryId] || [];
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayISO();
     setCheckedDocuments((prev) => {
       const newState = { ...prev };
       order.forEach(id => { if (checked) { newState[id] = true; } else { delete newState[id]; } });

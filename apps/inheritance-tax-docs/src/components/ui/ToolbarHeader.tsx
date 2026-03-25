@@ -48,7 +48,7 @@ export const ToolbarHeader = memo(function ToolbarHeader({
             {toolbarActions.map(({ id, icon: Icon, label, badge, onClick, disabled, title: btnTitle, bg }) => (
               <button key={id} onClick={onClick} disabled={disabled} title={btnTitle} className={`${TOOLBAR_BTN} ${bg}`}>
                 <Icon className="w-4 h-4 mr-1" /> {label}
-                {badge && <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-bold">{badge}</span>}
+                {badge && <span className="ml-1 px-1.5 py-0.5 text-xs bg-amber-400 text-amber-900 rounded-full font-bold">{badge}</span>}
               </button>
             ))}
             <label
@@ -58,7 +58,7 @@ export const ToolbarHeader = memo(function ToolbarHeader({
               title="JSONファイルから設定を読み込み"
             >
               <Upload className="w-4 h-4 mr-1" /> 読込
-              <input type="file" accept=".json" onChange={onJsonImport} disabled={isImporting} className="hidden" />
+              <input type="file" accept=".json" onChange={onJsonImport} disabled={isImporting} className="hidden" aria-label="JSONファイルから設定を読み込み" />
             </label>
           </div>
           {navLinks.length > 0 && (

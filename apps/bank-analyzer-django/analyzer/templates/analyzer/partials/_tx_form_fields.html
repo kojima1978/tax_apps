@@ -78,6 +78,6 @@
 </div>
 
 <div class="mb-3">
-    <label class="form-label">📝 メモ</label>
+    <label class="form-label"><i class="bi bi-pencil-square" aria-hidden="true"></i> メモ</label>
     <textarea {% if show_name %}name="memo"{% endif %} id="{{ id_prefix }}TxMemo" class="form-control" rows="{{ memo_rows|default:3 }}" placeholder="{{ memo_placeholder|default:'メモ（任意）' }}"></textarea>
 </div>

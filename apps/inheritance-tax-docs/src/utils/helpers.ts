@@ -79,3 +79,14 @@ export function generateId(): string {
 export function formatTimeNow(): string {
   return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 }
+
+/** 今日の日付を YYYY-MM-DD 形式で返す */
+export function getTodayISO(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+/** DnD PointerSensor の activationConstraint 距離 */
+export const DND_ACTIVATION_DISTANCE = { distance: 8 } as const;
+
+/** DnD PointerSensor の activationConstraint 距離（具体名など細かい要素用） */
+export const DND_ACTIVATION_DISTANCE_SMALL = { distance: 3 } as const;

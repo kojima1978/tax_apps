@@ -2,5 +2,5 @@
     data-tx-id="{{ tx.id }}" data-source-tab="{{ source_tab }}"
     title="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}"
     aria-label="{% if tx.is_flagged %}付箋を外す{% else %}付箋を付ける{% endif %}">
-    📌
+    <i class="bi bi-bookmark-fill" aria-hidden="true"></i>
 </button>

@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type { CategoryData } from './documents';
 import { formatDeadline } from '../utils/helpers';
 
@@ -24,8 +24,8 @@ export interface PageConfig {
   inputRows: InputRowConfig[];
   /** 印刷用情報フィールド設定 */
   printInfoFields: PrintInfoFieldConfig[];
-  /** 注意事項（HTML文字列の配列） */
-  noticeItems: string[];
+  /** 注意事項 */
+  noticeItems: ReactNode[];
 }
 
 export interface InputRowConfig {

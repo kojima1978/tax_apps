@@ -6,7 +6,7 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-10">
-        <h1 class="h2 mb-4">⚙️ 設定</h1>
+        <h1 class="h2 mb-4"><i class="bi bi-gear" aria-hidden="true"></i> 設定</h1>
 
         <!-- CSRF token for AJAX requests -->
         <form id="settingsForm" method="post">
@@ -14,7 +14,7 @@
 
             <!-- 分析パラメータ設定 -->
             <div class="glass-card p-4 mb-4">
-                <h4 class="mb-3">🔍 分析パラメータ設定</h4>
+                <h4 class="mb-3"><i class="bi bi-sliders" aria-hidden="true"></i> 分析パラメータ設定</h4>
                 <h6 class="text-muted mb-2"><i class="bi bi-cash-stack me-1"></i>多額取引・資金移動</h6>
                 <div class="row mb-3">
                     <div class="col-md-3">
@@ -64,7 +64,7 @@
 
         <!-- 自動分類パターン設定 -->
         <div class="glass-card p-4 mb-4">
-            <h4 class="mb-3">📝 自動分類パターン設定</h4>
+            <h4 class="mb-3"><i class="bi bi-tags" aria-hidden="true"></i> 自動分類パターン設定</h4>
             {% include 'analyzer/partials/_pattern_manager.html' with show_global=True show_case=False global_patterns=global_patterns collapsed=False card_style="default" %}
         </div>
     </div>
