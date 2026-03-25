@@ -10,7 +10,7 @@ export default function App() {
     const { formProps, results, isDirty } = useRetirementTaxForm();
     const resultRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const handlePdf = usePdfExport(containerRef);
+    const { handlePdf, isExporting } = usePdfExport(containerRef);
 
     // 計算後に結果セクションへスムーズスクロール
     const handleCalculateWithScroll = useCallback(() => {
@@ -37,6 +37,7 @@ export default function App() {
             <Header
                 onPrint={() => window.print()}
                 onPdf={handlePdf}
+                isExporting={isExporting}
             />
             <div className="main-layout">
                 <RetirementForm

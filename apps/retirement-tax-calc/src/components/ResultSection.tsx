@@ -1,5 +1,6 @@
 import { type RetirementTaxResult, RETIREMENT_TYPE_LABELS } from "@/lib/retirement-tax";
 import { TAX_RATES } from "@/lib/tax-rates";
+import { BarChartIcon } from "./Icons";
 import SummaryPatterns from "./SummaryPatterns";
 import ComparisonTable from "./ComparisonTable";
 import ReferenceTables from "./ReferenceTables";
@@ -34,7 +35,7 @@ const ResultSection = ({ results, isDirty }: ResultSectionProps) => {
         return (
             <div className="result-section result-empty">
                 <div className="empty-state">
-                    <p className="empty-icon">📊</p>
+                    <span className="empty-icon"><BarChartIcon /></span>
                     <p>退職金額と勤続年数を入力し</p>
                     <p>「計算する」ボタンを押してください</p>
                     <p className="empty-sub">最大3パターンの比較ができます</p>
