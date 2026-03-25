@@ -3,6 +3,7 @@ import FormField from "@/components/FormField";
 import InputWithUnit from "@/components/InputWithUnit";
 import ActionButtons from "@/components/ui/ActionButtons";
 import PresetButtons from "@/components/ui/PresetButtons";
+import { CheckIcon } from "@/components/ui/Icons";
 import { ASSET_TYPES, STATUTORY_LIFE_PRESETS, type AssetType } from "@/lib/used-asset-life";
 import { INPUT_BASE } from "@/lib/styles";
 
@@ -17,6 +18,8 @@ type UsedAssetFormProps = {
     acquisitionCost: string;
     renovationCost: string;
     canCalculate: boolean;
+    hasResult?: boolean;
+    onDisableAutoCalc: () => void;
     onAssetTypeChange: (val: AssetType) => void;
     onStatutoryLifeChange: (val: string) => void;
     onElapsedYearsChange: (val: string) => void;
@@ -40,6 +43,8 @@ const UsedAssetForm = ({
     acquisitionCost,
     renovationCost,
     canCalculate,
+    hasResult,
+    onDisableAutoCalc,
     onAssetTypeChange,
     onStatutoryLifeChange,
     onElapsedYearsChange,
@@ -145,7 +150,19 @@ const UsedAssetForm = ({
                         />
                     </div>
                     {autoCalcEnabled ? (
-                        <small className="block text-xs text-green-700 font-semibold mt-1">日付から自動計算済み（手入力で上書きできます）</small>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-semibold">
+                                <CheckIcon />
+                                自動計算済み
+                            </span>
+                            <button
+                                type="button"
+                                onClick={onDisableAutoCalc}
+                                className="text-xs text-green-700 underline cursor-pointer hover:text-green-900 bg-transparent border-none p-0"
+                            >
+                                手入力に切り替え
+                            </button>
+                        </div>
                     ) : (
                         <small className="block text-xs text-gray-500 mt-1">日付を入力すると自動計算、または直接入力</small>
                     )}
@@ -180,7 +197,7 @@ const UsedAssetForm = ({
             </div>
 
             {/* ボタン */}
-            <ActionButtons canCalculate={canCalculate} onCalculate={onCalculate} onClear={onClear} />
+            <ActionButtons canCalculate={canCalculate} hasResult={hasResult} onCalculate={onCalculate} onClear={onClear} />
         </section>
     );
 };

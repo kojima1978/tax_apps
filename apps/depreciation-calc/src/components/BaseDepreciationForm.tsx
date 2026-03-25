@@ -22,6 +22,7 @@ export type BaseDepreciationFormProps = {
     serviceStartDate: string;
     fiscalYearEndMonth: string;
     canCalculate: boolean;
+    hasResult?: boolean;
     availableMethods: MethodWithSuggestion[];
     suggestedLabel: string;
     isMethodSuggested: boolean;
@@ -49,6 +50,7 @@ const BaseDepreciationForm = ({
     serviceStartDate,
     fiscalYearEndMonth,
     canCalculate,
+    hasResult,
     availableMethods,
     suggestedLabel,
     isMethodSuggested,
@@ -155,6 +157,7 @@ const BaseDepreciationForm = ({
                             disabled={!acquisitionDate}
                             className="px-3 py-1 bg-green-50 border border-green-300 rounded text-xs text-green-800 font-semibold whitespace-nowrap cursor-pointer transition-colors hover:bg-green-100 hover:border-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
                             title="取得日を複写"
+                            aria-label="取得日を事業供用日に複写"
                         >
                             複写
                         </button>
@@ -210,7 +213,7 @@ const BaseDepreciationForm = ({
             {extraFields}
 
             {/* ボタン */}
-            <ActionButtons canCalculate={canCalculate} onCalculate={onCalculate} onClear={onClear} />
+            <ActionButtons canCalculate={canCalculate} hasResult={hasResult} onCalculate={onCalculate} onClear={onClear} />
         </section>
     );
 };

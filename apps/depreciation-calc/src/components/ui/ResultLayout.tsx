@@ -15,7 +15,7 @@ type ResultLayoutProps = {
 };
 
 const ResultLayout = ({ title, emptyIcon, emptyLines, hasResult, isDirty, tags, children }: ResultLayoutProps) => (
-    <section className="p-4 sm:p-6">
+    <section className="p-4 sm:p-6 bg-gray-50/50">
         <h2 className="text-lg sm:text-xl font-bold text-green-800 mb-4">{title}</h2>
         {!hasResult ? (
             <EmptyState icon={emptyIcon} lines={emptyLines} />

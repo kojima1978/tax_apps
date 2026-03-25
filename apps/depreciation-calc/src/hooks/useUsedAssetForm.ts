@@ -70,6 +70,10 @@ export const useUsedAssetForm = () => {
         markDirty();
     }, [markDirty]);
 
+    const handleDisableAutoCalc = useCallback(() => {
+        setAutoCalcEnabled(false);
+    }, []);
+
     const handleAcquisitionCost = useCallback((val: string) => {
         setAcquisitionCost(formatInputValue(val));
         markDirty();
@@ -133,6 +137,7 @@ export const useUsedAssetForm = () => {
             onElapsedMonthsChange: handleElapsedMonths,
             onNewDateChange: handleNewDate,
             onAcquisitionDateChange: handleAcquisitionDate,
+            onDisableAutoCalc: handleDisableAutoCalc,
             onAcquisitionCostChange: handleAcquisitionCost,
             onRenovationCostChange: handleRenovationCost,
             onCalculate: handleCalculate,

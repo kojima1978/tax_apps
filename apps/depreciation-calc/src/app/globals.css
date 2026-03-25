@@ -66,6 +66,11 @@ body {
     display: none;
   }
 
+  /* ConditionTags: 印刷時に枠線を明確化 */
+  .condition-tag {
+    border: 1px solid #9ca3af !important;
+  }
+
   /* セクション間のページ分割 */
   section {
     page-break-before: auto;
@@ -116,6 +121,16 @@ body {
 
 .table-scroll-wrapper.has-scroll::after {
   opacity: 1;
+}
+
+/* フェードインアニメーション */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out;
 }
 
 /* アニメーション軽減 */
