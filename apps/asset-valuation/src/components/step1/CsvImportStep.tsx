@@ -29,6 +29,7 @@ export function CsvImportStep({
   const [error, setError] = useState<string | null>(null);
   const [csvFileName, setCsvFileName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +63,7 @@ export function CsvImportStep({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    setIsDragOver(false);
     const file = e.dataTransfer.files[0];
     if (!file) return;
     if (file.name.endsWith('.json')) {
@@ -113,7 +115,15 @@ export function CsvImportStep({
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center hover:border-green-500 transition-colors"
+        onDragEnter={() => setIsDragOver(true)}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false);
+        }}
+        className={`bg-white rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
+          isDragOver
+            ? 'border-green-500 bg-green-50'
+            : 'border-gray-300 hover:border-green-500'
+        }`}
       >
         {loading ? (
           <Loader2 size={48} className="mx-auto text-green-500 mb-4 animate-spin" />
@@ -133,7 +143,7 @@ export function CsvImportStep({
           </button>
           <button
             onClick={() => jsonInputRef.current?.click()}
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors cursor-pointer flex items-center gap-2"
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
           >
             <FileJson size={16} />
             案件JSONを復元

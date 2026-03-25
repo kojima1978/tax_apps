@@ -32,13 +32,13 @@ export function StepIndicator({
             <button
               onClick={() => isClickable && onStepClick(step.id)}
               disabled={!isClickable}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-green-600 text-white'
+                  ? 'bg-green-600 text-white cursor-default'
                   : isCompleted
-                    ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                    ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
                     : isClickable
-                      ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
                       : 'bg-gray-50 text-gray-500 cursor-not-allowed'
               }`}
             >

@@ -12,6 +12,11 @@ body {
   font-family: 'Roboto Mono', monospace;
 }
 
+/* テーブル内のtext-xs(12px)でも読みやすくするためfont-weight: 500 */
+table {
+  font-weight: 500;
+}
+
 /* 統一フォーカスリング */
 button:focus-visible,
 a:focus-visible,

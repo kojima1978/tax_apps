@@ -21,7 +21,9 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
         課税時期: {formatDate(taxDate)}
       </div>
       <div className="text-gray-600 mb-4">
-        3年以内: {formatDate(threeYearsAgo.toISOString().slice(0, 10))}
+        3年以内: {formatDate(
+          `${threeYearsAgo.getFullYear()}-${String(threeYearsAgo.getMonth() + 1).padStart(2, '0')}-${String(threeYearsAgo.getDate()).padStart(2, '0')}`
+        )}
       </div>
 
       {groups.map(([label, catAssets]) => {
@@ -37,7 +39,7 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
             </div>
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-green-100">
+                <tr className="bg-[#D9E1F2]">
                   <th className="border px-1 py-0.5 text-left w-10">NO</th>
                   <th className="border px-1 py-0.5 text-left">名称等</th>
                   <th className="border px-1 py-0.5 text-center w-20">取得年月</th>

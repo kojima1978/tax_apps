@@ -30,14 +30,16 @@ export function ResultStep({
 }: Props) {
   const [excelLoading, setExcelLoading] = useState(false);
 
-  const handleExcelExport = useCallback(async () => {
+  const handleExcelExport = useCallback(() => {
     setExcelLoading(true);
-    try {
-      onExportExcel();
-    } finally {
-      // xlsx-js-style is synchronous but give UI time to show feedback
-      setTimeout(() => setExcelLoading(false), 500);
-    }
+    // requestAnimationFrameでUIを更新してから同期処理を実行
+    requestAnimationFrame(() => {
+      try {
+        onExportExcel();
+      } finally {
+        setExcelLoading(false);
+      }
+    });
   }, [onExportExcel]);
   const grandTotalAcquisition = assets.reduce(
     (s, a) => s + a.acquisitionCost,
@@ -59,11 +61,11 @@ export function ResultStep({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-xl font-bold text-gray-800">
           計算結果
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleExcelExport}
             disabled={excelLoading}
@@ -88,7 +90,7 @@ export function ResultStep({
       </div>
 
       {/* サマリー */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border p-4">
           <div className="text-sm text-gray-500">取得価額合計</div>
           <div className="text-2xl font-bold font-mono text-gray-800">

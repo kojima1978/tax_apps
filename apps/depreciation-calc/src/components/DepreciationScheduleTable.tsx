@@ -7,9 +7,9 @@ type DepreciationScheduleTableProps = {
 };
 
 const ROW_HIGHLIGHTS = [
-    { match: (memo: string) => memo.includes('改定'), bg: 'bg-blue-50', border: 'border-blue-200', label: '改定償却率切替' },
-    { match: (memo: string) => memo.includes('限度額'), bg: 'bg-orange-50', border: 'border-orange-200', label: '95%限度額到達' },
-    { match: (_memo: string, bv: number) => bv === 1, bg: 'bg-green-50', border: 'border-green-200', label: '備忘価額1円' },
+    { match: (memo: string) => memo.includes('改定'), bg: 'bg-blue-50', border: 'border-blue-200', barColor: 'bg-blue-500', label: '改定償却率切替' },
+    { match: (memo: string) => memo.includes('限度額'), bg: 'bg-orange-50', border: 'border-orange-200', barColor: 'bg-orange-500', label: '95%限度額到達' },
+    { match: (_memo: string, bv: number) => bv === 1, bg: 'bg-green-50', border: 'border-green-200', barColor: 'bg-green-600', label: '備忘価額1円' },
 ] as const;
 
 const getRowHighlight = (memo: string, endingBookValue: number) =>
@@ -58,7 +58,7 @@ const DepreciationScheduleTable = ({ rows }: DepreciationScheduleTableProps) => 
                                     className={`border-b border-gray-100 ${highlight?.bg ?? ''}`}
                                     title={highlight?.label}
                                 >
-                                    <td className="px-2 py-1.5 text-center font-mono-num">{row.year}</td>
+                                    <td className={`px-2 py-1.5 text-center font-mono-num ${highlight ? `border-l-3 ${highlight.barColor.replace('bg-', 'border-')}` : ''}`}>{row.year}</td>
                                     <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap">{row.periodLabel}</td>
                                     <td className="px-2 py-1.5 text-right font-mono-num">{formatCurrency(row.beginningBookValue)}</td>
                                     <td className="px-2 py-1.5 text-right font-mono-num">{formatCurrency(row.depreciation)}</td>
@@ -73,8 +73,11 @@ const DepreciationScheduleTable = ({ rows }: DepreciationScheduleTableProps) => 
 
             {/* モバイル: 備考が非表示の場合の凡例 */}
             <div className="flex flex-wrap gap-2 mb-4 sm:hidden text-xs">
-                {ROW_HIGHLIGHTS.map(({ bg, border, label }) => (
-                    <span key={label} className={`px-2 py-0.5 ${bg} border ${border} rounded`}>{label}</span>
+                {ROW_HIGHLIGHTS.map(({ bg, border, barColor, label }) => (
+                    <span key={label} className={`px-2 py-0.5 ${bg} border ${border} rounded flex items-center gap-1.5`}>
+                        <span className={`w-1 h-3 rounded-full ${barColor}`} />
+                        {label}
+                    </span>
                 ))}
             </div>
         </>

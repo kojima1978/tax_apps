@@ -4,6 +4,12 @@ import DepreciationScheduleTable from "@/components/DepreciationScheduleTable";
 import ResultLayout from "@/components/ui/ResultLayout";
 import HighlightCard from "@/components/ui/HighlightCard";
 
+const BarChartIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <line x1="12" x2="12" y1="20" y2="10" /><line x1="18" x2="18" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="16" />
+    </svg>
+);
+
 type DepreciationResultProps = {
     result: DepreciationResult | null;
     isDirty: boolean;
@@ -13,7 +19,7 @@ type DepreciationResultProps = {
 const DepreciationResultSection = ({ result, isDirty, onCarryOverFiveYear }: DepreciationResultProps) => (
     <ResultLayout
         title="償却スケジュール"
-        emptyIcon="📊"
+        emptyIcon={<BarChartIcon />}
         emptyLines={['取得価額・耐用年数・取得日・事業供用日を入力し', '「計算する」ボタンを押してください']}
         hasResult={!!result}
         isDirty={isDirty}

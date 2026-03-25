@@ -6,7 +6,7 @@ import Disclaimer from "@/components/ui/Disclaimer";
 
 type ResultLayoutProps = {
     title: string;
-    emptyIcon: string;
+    emptyIcon: ReactNode;
     emptyLines: string[];
     hasResult: boolean;
     isDirty: boolean;
