@@ -17,6 +17,21 @@ body {
   color: #1a1a1a;
 }
 
+/* Focus ring — CSS変数で統一 */
+input:focus,
+select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-100), 0 0 0 4px var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Checkbox / Radio accent */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-primary);
+}
+
+/* Number spinner 非表示 */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -25,4 +40,15 @@ input[type="number"]::-webkit-outer-spin-button {
 
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
