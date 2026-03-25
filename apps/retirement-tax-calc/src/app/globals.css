@@ -78,6 +78,7 @@ body {
   border-radius: 6px;
   background-color: rgba(255, 255, 255, 0.15);
   transition: background-color 0.2s;
+  cursor: pointer;
 }
 
 .btn-home:hover {
@@ -109,8 +110,23 @@ body {
 }
 
 .btn-print:hover,
-.btn-pdf:hover {
+.btn-pdf:hover:not(:disabled) {
   background-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-pdf:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* フォーカス表示 */
+:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.header-custom :focus-visible {
+  outline-color: var(--white);
 }
 
 /* メインレイアウト（上下配置） */
@@ -283,8 +299,17 @@ body {
 
 .checkbox-label input[type="checkbox"] {
   accent-color: var(--primary-color);
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+/* チェックボックスのタッチ領域拡張 */
+.checkbox-item {
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 /* トグルボタン */
@@ -449,8 +474,10 @@ body {
 }
 
 .warning-icon {
-  font-size: 1.5rem;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  color: var(--warning-color);
+  flex-shrink: 0;
 }
 
 .warning-title {
@@ -564,12 +591,14 @@ body {
 
 .empty-state {
   text-align: center;
-  color: #999;
+  color: #666;
 }
 
 .empty-icon {
-  font-size: 3rem;
+  display: flex;
+  justify-content: center;
   margin-bottom: 0.5rem;
+  color: #999;
 }
 
 .empty-state p {
@@ -578,9 +607,9 @@ body {
 }
 
 .empty-sub {
-  font-size: 0.8rem !important;
-  color: #aaa;
-  margin-top: 0.5rem !important;
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.5rem;
 }
 
 /* サマリーパターン（パターン別比較カード） */
@@ -626,7 +655,7 @@ body {
 
 .ps-label {
   font-size: 0.7rem;
-  color: #666;
+  color: #555;
   font-weight: 600;
 }
 
@@ -722,7 +751,7 @@ td:first-child {
 .row-note {
   display: block;
   font-size: 0.75rem;
-  color: #888;
+  color: #666;
   font-family: 'Noto Sans JP', sans-serif;
   margin-top: 2px;
 }

@@ -1,5 +1,6 @@
 import { PATTERN_LABELS } from "@/lib/retirement-tax";
 import { formatYen } from "@/lib/utils";
+import { AlertTriangleIcon } from "./Icons";
 
 type LimitResultDisplayProps = {
     limit: number;
@@ -36,7 +37,7 @@ const LimitResultDisplay = ({ limit, monthlyComp, multiplier, serviceYears, reti
 
         {isOverLimit && (
             <div className="limit-warning">
-                <span className="warning-icon">⚠</span>
+                <span className="warning-icon"><AlertTriangleIcon /></span>
                 <div>
                     <p className="warning-title">限度額を超過しています</p>
                     <p className="warning-detail">

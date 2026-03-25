@@ -1,9 +1,12 @@
-import { useCallback, type RefObject } from "react";
+import { useCallback, useState, type RefObject } from "react";
 
 export const usePdfExport = (containerRef: RefObject<HTMLDivElement | null>) => {
+    const [isExporting, setIsExporting] = useState(false);
+
     const handlePdf = useCallback(async () => {
         const element = containerRef.current;
-        if (!element) return;
+        if (!element || isExporting) return;
+        setIsExporting(true);
         element.classList.add("pdf-generating");
         try {
             const html2pdf = (await import("html2pdf.js")).default;
@@ -19,8 +22,9 @@ export const usePdfExport = (containerRef: RefObject<HTMLDivElement | null>) => 
                 .save();
         } finally {
             element.classList.remove("pdf-generating");
+            setIsExporting(false);
         }
-    }, [containerRef]);
+    }, [containerRef, isExporting]);
 
-    return handlePdf;
+    return { handlePdf, isExporting };
 };
