@@ -1,8 +1,7 @@
 import { lazy, Suspense } from 'react';
 import BarChart3 from 'lucide-react/icons/bar-chart-3';
-import Navigation from '@/components/Navigation';
+import PageLayout from '@/components/PageLayout';
 import InputSection from '@/components/InputSection';
-import PrintFooter from '@/components/PrintFooter';
 import YearComparisonTable from '@/components/YearComparisonTable';
 import { useYearComparisonForm } from '@/hooks/useYearComparisonForm';
 
@@ -12,8 +11,7 @@ export default function YearComparisonPage() {
     const form = useYearComparisonForm();
 
     return (
-        <div className="container-custom">
-            <Navigation />
+        <PageLayout>
             <InputSection
                 amount={form.amount}
                 setAmount={form.setAmount}
@@ -39,7 +37,6 @@ export default function YearComparisonPage() {
                     <p className="empty-state-text">贈与金額を入力して「計算する」を押すと、分割年数ごとの税額比較が表示されます。</p>
                 </div>
             )}
-            <PrintFooter />
-        </div>
+        </PageLayout>
     );
 }

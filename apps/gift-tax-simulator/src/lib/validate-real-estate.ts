@@ -1,8 +1,6 @@
-const MAX_VALUATION = 10_000_000_000;
+import { fail, type ValidationResult } from './validation';
 
-type ValidationResult =
-    | { ok: true }
-    | { ok: false; error: string };
+const MAX_VALUATION = 10_000_000_000;
 
 export const validateRealEstateInput = (
     hasLandInput: boolean,
@@ -10,10 +8,10 @@ export const validateRealEstateInput = (
     valuations: number[],
 ): ValidationResult => {
     if (!hasLandInput && !hasBuildingInput) {
-        return { ok: false, error: '※土地または建物を選択し、固定資産税評価額を入力してください。' };
+        return fail('※土地または建物を選択し、固定資産税評価額を入力してください。');
     }
     if (valuations.some(v => v > MAX_VALUATION)) {
-        return { ok: false, error: '※評価額は100億円以下で入力してください。' };
+        return fail('※評価額は100億円以下で入力してください。');
     }
     return { ok: true };
 };

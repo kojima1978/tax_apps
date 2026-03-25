@@ -1,44 +1,37 @@
-import PrintFooter from '@/components/PrintFooter';
-import Navigation from '@/components/Navigation';
-import CommonInputSection from '@/components/shared/CommonInputSection';
-import TaxResultBox from '@/components/shared/TaxResultBox';
-import CalculationDetails from '@/components/shared/CalculationDetails';
-import ImportButton from '@/components/shared/ImportButton';
+import { useMemo } from 'react';
+import RealEstatePageLayout from '@/components/shared/RealEstatePageLayout';
 import { useRegistrationTaxForm } from '@/hooks/useRegistrationTaxForm';
 
 export default function RegistrationTaxPage() {
     const form = useRegistrationTaxForm();
 
+    const resultConfig = useMemo(() => form.results ? {
+        items: [
+            { label: '土地', value: form.results.landReg, show: form.includeLand },
+            { label: '建物', value: form.results.bldgReg, show: form.includeBuilding },
+        ],
+        totalLabel: '登録免許税 合計',
+        totalValue: form.results.totalReg,
+        taxType: 'registration' as const,
+        disclaimer: '※この計算は概算です。実際の税額は、端数処理のルールにより異なる場合があります。',
+    } : null, [form.results, form.includeLand, form.includeBuilding]);
+
     return (
-        <div className="container-custom real-estate-page">
-            <Navigation />
-
-            <CommonInputSection
-                transactionType={form.transactionType}
-                setTransactionType={form.setTransactionType}
-                includeLand={form.includeLand}
-                setIncludeLand={form.setIncludeLand}
-                includeBuilding={form.includeBuilding}
-                setIncludeBuilding={form.setIncludeBuilding}
-            />
-
-            <div className="import-bar-group no-print">
-                <ImportButton
-                    sourceLabel="不動産取得税ページ"
-                    sourcePage="acquisition-tax"
-                    field="land"
-                    onImport={form.importLandValuation}
-                />
-                <ImportButton
-                    sourceLabel="不動産取得税ページ"
-                    sourcePage="acquisition-tax"
-                    field="building"
-                    onImport={form.importBuildingValuation}
-                />
-            </div>
-
-            <div className="input-section input-section-flat">
-                <div className="re-two-column">
+        <RealEstatePageLayout
+            transactionType={form.transactionType}
+            setTransactionType={form.setTransactionType}
+            includeLand={form.includeLand}
+            setIncludeLand={form.setIncludeLand}
+            includeBuilding={form.includeBuilding}
+            setIncludeBuilding={form.setIncludeBuilding}
+            importConfig={{
+                sourceLabel: '不動産取得税ページ',
+                sourcePage: 'acquisition-tax',
+                onLandImport: form.importLandValuation,
+                onBuildingImport: form.importBuildingValuation,
+            }}
+            inputColumns={
+                <>
                     {/* 土地: 評価額のみ */}
                     <div className={`re-column ${!form.includeLand ? 'disabled' : ''}`}>
                         <h3 className="re-column-title">土地の情報</h3>
@@ -94,40 +87,14 @@ export default function RegistrationTaxPage() {
                             </div>
                         )}
                     </div>
-                </div>
-                <div className="calc-action-bar">
-                    <button className="btn-calc" onClick={form.calculateTax}>計算する</button>
-                    {form.errorMsg && <div className="error-msg">{form.errorMsg}</div>}
-                </div>
-            </div>
-
-            {form.results !== null && (
-                <div className="result-section">
-                    <TaxResultBox
-                        items={[
-                            { label: '土地', value: form.results.landReg, show: form.includeLand },
-                            { label: '建物', value: form.results.bldgReg, show: form.includeBuilding },
-                        ]}
-                        totalLabel="登録免許税 合計"
-                        totalValue={form.results.totalReg}
-                    />
-
-                    <CalculationDetails
-                        results={form.results}
-                        includeLand={form.includeLand}
-                        includeBuilding={form.includeBuilding}
-                        showDetails={form.showDetails}
-                        setShowDetails={form.setShowDetails}
-                        taxType="registration"
-                    />
-
-                    <p className="disclaimer no-print">
-                        ※この計算は概算です。実際の税額は、端数処理のルールにより異なる場合があります。
-                    </p>
-                </div>
-            )}
-
-            <PrintFooter />
-        </div>
+                </>
+            }
+            onCalculate={form.calculateTax}
+            errorMsg={form.errorMsg}
+            results={form.results}
+            resultConfig={resultConfig}
+            showDetails={form.showDetails}
+            setShowDetails={form.setShowDetails}
+        />
     );
 }

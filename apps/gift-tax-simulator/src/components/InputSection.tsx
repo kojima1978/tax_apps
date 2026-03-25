@@ -1,5 +1,6 @@
 import { useCallback, type ChangeEvent, type KeyboardEvent } from 'react';
 import { type GiftType, GIFT_TYPE_OPTIONS } from '@/lib/tax-calculation';
+import ErrorMessage from './shared/ErrorMessage';
 
 type Props = {
     amount: string;
@@ -62,7 +63,7 @@ const InputSection = ({
 
                 <button className="btn-calc" onClick={onCalculate}>計算する</button>
             </div>
-            <div className="error-msg">{errorMsg}</div>
+            <ErrorMessage message={errorMsg} />
         </div>
     );
 };

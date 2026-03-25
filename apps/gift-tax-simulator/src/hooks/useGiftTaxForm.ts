@@ -1,11 +1,9 @@
 import { useCallback } from 'react';
-import { calculateAllPatterns, type CalculationResult } from '@/lib/tax-calculation';
+import { calculateAllPatterns } from '@/lib/tax-calculation';
+import { hasInvalidTax } from '@/lib/utils';
 import { useBaseGiftForm } from './useBaseGiftForm';
-
-const hasInvalidResults = (rows: CalculationResult[]) =>
-    rows.some(r => !isFinite(r.totalTax) || isNaN(r.totalTax));
 
 export const useGiftTaxForm = () => {
     const calculate = useCallback(calculateAllPatterns, []);
-    return useBaseGiftForm(calculate, hasInvalidResults);
+    return useBaseGiftForm(calculate, hasInvalidTax);
 };
