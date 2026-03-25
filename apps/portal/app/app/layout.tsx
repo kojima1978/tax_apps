@@ -1,10 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+});
+
+const notoSansJP = Noto_Sans_JP({
+  variable: "--font-noto-sans-jp",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
 });
 
 export const metadata: Metadata = {
@@ -27,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body
-        className={`${geistSans.variable} antialiased min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50`}
+        className={`${geistSans.variable} ${notoSansJP.variable} antialiased min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50`}
       >
         {children}
       </body>

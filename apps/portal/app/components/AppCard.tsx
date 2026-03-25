@@ -1,38 +1,40 @@
 import type { Application } from '@/lib/applications';
 import { ExternalLink } from 'lucide-react';
 
+const CARD_CLASS = [
+  'group relative h-full bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-md p-6',
+  'hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]',
+  'focus-within:shadow-2xl focus-within:-translate-y-1',
+  'transition-[shadow,transform] duration-300 cursor-pointer',
+].join(' ');
+
 export default function AppCard({ app }: { app: Application }) {
   const Icon = app.icon;
   const external = app.url.startsWith('http');
 
-  const card = (
-    <div className="group relative h-full bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-2xl transition-[shadow,transform] duration-300 hover:scale-105 cursor-pointer">
-      <div className="flex flex-col space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-            <Icon className="w-7 h-7" />
-          </div>
-          {external && (
-            <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-colors" />
-          )}
-        </div>
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {app.title}
-          </h3>
-          <p className="text-sm text-gray-600">
-            {app.description}
-          </p>
-        </div>
-      </div>
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-    </div>
-  );
-
-  // 全リンクを <a> で描画（各アプリは nginx 経由の別サービスなので client-side routing は不可）
   return (
-    <a href={app.url} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="h-full">
-      {card}
+    <a
+      href={app.url}
+      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      className="h-full"
+    >
+      <div className={CARD_CLASS}>
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+              <Icon className="w-7 h-7" />
+            </div>
+            {external && (
+              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-colors" />
+            )}
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">{app.title}</h3>
+            <p className="text-sm text-gray-600">{app.description}</p>
+          </div>
+        </div>
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      </div>
     </a>
   );
 }
