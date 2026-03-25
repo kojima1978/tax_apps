@@ -1,15 +1,13 @@
-import Navigation from '@/components/Navigation';
+import PageLayout from '@/components/PageLayout';
 import InputSection from '@/components/InputSection';
 import ResultSection from '@/components/ResultSection';
-import PrintFooter from '@/components/PrintFooter';
 import { useGiftTaxForm } from '@/hooks/useGiftTaxForm';
 
 export default function GiftTaxPage() {
   const form = useGiftTaxForm();
 
   return (
-    <div className="container-custom">
-      <Navigation />
+    <PageLayout>
       <InputSection
         amount={form.amount}
         setAmount={form.setAmount}
@@ -19,7 +17,6 @@ export default function GiftTaxPage() {
         errorMsg={form.errorMsg}
       />
       <ResultSection results={form.results} giftType={form.giftType} />
-      <PrintFooter />
-    </div>
+    </PageLayout>
   );
 }

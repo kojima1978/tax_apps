@@ -1,12 +1,12 @@
 import { formatYen } from '@/lib/utils';
 
-type ResultItem = {
+export type ResultItem = {
     label: string;
     value: number;
     show: boolean;
 };
 
-type ResultGroup = {
+export type ResultGroup = {
     title: string;
     items: ResultItem[];
     show: boolean;

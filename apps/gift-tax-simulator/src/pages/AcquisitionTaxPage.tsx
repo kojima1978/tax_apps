@@ -1,52 +1,55 @@
-import PrintFooter from '@/components/PrintFooter';
-import Navigation from '@/components/Navigation';
+import { useMemo } from 'react';
 import LandInput from '@/components/acquisition-tax/LandInput';
 import BuildingInput from '@/components/acquisition-tax/BuildingInput';
-import CommonInputSection from '@/components/shared/CommonInputSection';
-import TaxResultBox from '@/components/shared/TaxResultBox';
-import CalculationDetails from '@/components/shared/CalculationDetails';
-import ImportButton from '@/components/shared/ImportButton';
+import RealEstatePageLayout from '@/components/shared/RealEstatePageLayout';
 import { useAcquisitionTaxForm } from '@/hooks/useAcquisitionTaxForm';
 
 export default function AcquisitionTaxPage() {
     const form = useAcquisitionTaxForm();
 
+    const resultConfig = useMemo(() => form.results ? {
+        groups: [
+            {
+                title: '土地',
+                show: form.includeLand,
+                items: [
+                    { label: '宅地', value: form.results.resLandAcq, show: !!form.resLandValuation },
+                    { label: 'その他（宅地以外）', value: form.results.otherLandAcq, show: !!form.otherLandValuation },
+                ],
+            },
+            {
+                title: '建物',
+                show: form.includeBuilding,
+                items: [
+                    { label: '不動産取得税', value: form.results.bldgAcq, show: true },
+                ],
+            },
+        ],
+        totalLabel: '不動産取得税 合計',
+        totalValue: form.results.totalAcq,
+        taxType: 'acquisition' as const,
+        disclaimer: '※この計算は概算です。実際の税額は、自治体の条例や端数処理のルールにより異なる場合があります。',
+    } : null, [form.results, form.includeLand, form.includeBuilding, form.resLandValuation, form.otherLandValuation]);
+
     return (
-        <div className="container-custom real-estate-page">
-            <Navigation />
-
-            <CommonInputSection
-                transactionType={form.transactionType}
-                setTransactionType={form.setTransactionType}
-                includeLand={form.includeLand}
-                setIncludeLand={form.setIncludeLand}
-                includeBuilding={form.includeBuilding}
-                setIncludeBuilding={form.setIncludeBuilding}
-            >
-                {form.transactionType === 'inheritance' && (
-                    <p className="notice-primary">
-                        ※ 相続の場合、不動産取得税は非課税です。
-                    </p>
-                )}
-            </CommonInputSection>
-
-            <div className="import-bar-group no-print">
-                <ImportButton
-                    sourceLabel="登録免許税ページ"
-                    sourcePage="registration-tax"
-                    field="land"
-                    onImport={form.importLandValuation}
-                />
-                <ImportButton
-                    sourceLabel="登録免許税ページ"
-                    sourcePage="registration-tax"
-                    field="building"
-                    onImport={form.importBuildingValuation}
-                />
-            </div>
-
-            <div className="input-section input-section-flat">
-                <div className="re-two-column">
+        <RealEstatePageLayout
+            transactionType={form.transactionType}
+            setTransactionType={form.setTransactionType}
+            includeLand={form.includeLand}
+            setIncludeLand={form.setIncludeLand}
+            includeBuilding={form.includeBuilding}
+            setIncludeBuilding={form.setIncludeBuilding}
+            inputNotice={form.transactionType === 'inheritance' ? (
+                <p className="notice-primary">※ 相続の場合、不動産取得税は非課税です。</p>
+            ) : undefined}
+            importConfig={{
+                sourceLabel: '登録免許税ページ',
+                sourcePage: 'registration-tax',
+                onLandImport: form.importLandValuation,
+                onBuildingImport: form.importBuildingValuation,
+            }}
+            inputColumns={
+                <>
                     <LandInput
                         disabled={!form.includeLand}
                         resValuation={form.resLandValuation}
@@ -75,53 +78,14 @@ export default function AcquisitionTaxPage() {
                         setIsResidential={form.setIsResidential}
                         onDeductionChange={(e) => form.handleFormattedInput(e, form.setAcquisitionDeduction)}
                     />
-                </div>
-                <div className="calc-action-bar">
-                    <button className="btn-calc" onClick={form.calculateTax}>計算する</button>
-                    {form.errorMsg && <div className="error-msg">{form.errorMsg}</div>}
-                </div>
-            </div>
-
-            {form.results !== null && (
-                <div className="result-section">
-                    <TaxResultBox
-                        groups={[
-                            {
-                                title: '土地',
-                                show: form.includeLand,
-                                items: [
-                                    { label: '宅地', value: form.results.resLandAcq, show: !!form.resLandValuation },
-                                    { label: 'その他（宅地以外）', value: form.results.otherLandAcq, show: !!form.otherLandValuation },
-                                ],
-                            },
-                            {
-                                title: '建物',
-                                show: form.includeBuilding,
-                                items: [
-                                    { label: '不動産取得税', value: form.results.bldgAcq, show: true },
-                                ],
-                            },
-                        ]}
-                        totalLabel="不動産取得税 合計"
-                        totalValue={form.results.totalAcq}
-                    />
-
-                    <CalculationDetails
-                        results={form.results}
-                        includeLand={form.includeLand}
-                        includeBuilding={form.includeBuilding}
-                        showDetails={form.showDetails}
-                        setShowDetails={form.setShowDetails}
-                        taxType="acquisition"
-                    />
-
-                    <p className="disclaimer no-print">
-                        ※この計算は概算です。実際の税額は、自治体の条例や端数処理のルールにより異なる場合があります。
-                    </p>
-                </div>
-            )}
-
-            <PrintFooter />
-        </div>
+                </>
+            }
+            onCalculate={form.calculateTax}
+            errorMsg={form.errorMsg}
+            results={form.results}
+            resultConfig={resultConfig}
+            showDetails={form.showDetails}
+            setShowDetails={form.setShowDetails}
+        />
     );
 }

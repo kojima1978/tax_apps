@@ -1,3 +1,4 @@
+import { useRef, useEffect, useCallback } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import Home from 'lucide-react/icons/home';
 import Gift from 'lucide-react/icons/gift';
@@ -19,12 +20,27 @@ const NAV_ITEMS = [
 const Navigation = () => {
     const { pathname } = useLocation();
     const pageTitle = NAV_ITEMS.find(item => item.to === pathname)?.pageTitle ?? '';
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    const checkOverflow = useCallback(() => {
+        const el = wrapperRef.current;
+        if (!el) return;
+        const inner = el.querySelector('.nav-tabs');
+        if (!inner) return;
+        el.classList.toggle('has-overflow', inner.scrollWidth > el.clientWidth);
+    }, []);
+
+    useEffect(() => {
+        checkOverflow();
+        window.addEventListener('resize', checkOverflow);
+        return () => window.removeEventListener('resize', checkOverflow);
+    }, [checkOverflow]);
 
     return (
     <header className="header-custom">
         <div className="header-top">
             <div className="header-left">
-                <a href="/" className="btn-portal" title="ポータルに戻る">
+                <a href="/" className="btn-portal" title="ポータルに戻る" aria-label="ポータルに戻る">
                     <Home size={24} />
                 </a>
                 <div>
@@ -40,23 +56,25 @@ const Navigation = () => {
                 <p>TEL: {COMPANY_INFO.phone}</p>
             </address>
         </div>
-        <nav className="header-nav">
-            <div className="nav-tabs">
-                {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-                    <NavLink
-                        key={to}
-                        to={to}
-                        end={to === '/'}
-                        className={({ isActive }) =>
-                            `nav-tab ${isActive ? 'active' : ''}`
-                        }
-                    >
-                        <Icon size={16} />
-                        {label}
-                    </NavLink>
-                ))}
+        <nav className="header-nav" aria-label="メインナビゲーション">
+            <div className="nav-tabs-wrapper" ref={wrapperRef}>
+                <div className="nav-tabs">
+                    {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+                        <NavLink
+                            key={to}
+                            to={to}
+                            end={to === '/'}
+                            className={({ isActive }) =>
+                                `nav-tab ${isActive ? 'active' : ''}`
+                            }
+                        >
+                            <Icon size={16} />
+                            {label}
+                        </NavLink>
+                    ))}
+                </div>
             </div>
-            <button className="btn-print" onClick={() => window.print()}>
+            <button className="btn-print" onClick={() => window.print()} aria-label="印刷">
                 <Printer size={16} />
                 <span className="print-label">印刷</span>
             </button>

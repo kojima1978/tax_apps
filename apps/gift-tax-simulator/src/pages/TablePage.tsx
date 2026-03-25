@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { calcTaxOneTime, type GiftType } from '@/lib/tax-calculation';
 import QuickRefTable, { type QuickRefRow } from '@/components/QuickRefTable';
-import PrintFooter from '@/components/PrintFooter';
-import Navigation from '@/components/Navigation';
+import PageLayout from '@/components/PageLayout';
 
 const UNIT = 1_000_000; // 100万円
 
@@ -37,9 +36,7 @@ export default function TablePage() {
     const generalData = useMemo(() => generateTableData(maxAmount, 'general'), [maxAmount]);
 
     return (
-        <div className="container-custom table-page">
-            <Navigation />
-
+        <PageLayout className="table-page">
             <div className="input-section">
                 <div className="input-group-row">
                     <div className="input-item">
@@ -78,8 +75,6 @@ export default function TablePage() {
                     note={TAX_NOTES.general}
                 />
             </div>
-
-            <PrintFooter />
-        </div>
+        </PageLayout>
     );
 }

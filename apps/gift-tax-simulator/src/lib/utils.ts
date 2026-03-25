@@ -64,3 +64,9 @@ export const parseFormattedNumber = (val: string): number => {
  */
 export const formatDate = (date: Date): string =>
     `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+
+/**
+ * 計算結果の totalTax に異常値が含まれるか判定
+ */
+export const hasInvalidTax = <T extends { totalTax: number }>(rows: T[]): boolean =>
+    rows.some(r => !isFinite(r.totalTax) || isNaN(r.totalTax));
