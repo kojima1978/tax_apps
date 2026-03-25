@@ -31,7 +31,7 @@ export function Table2({ getField, updateField }: TableProps) {
       <TableTitleBar
         title="第２表　特定の評価会社の判定の明細書"
         fontSize={11}
-        companyName={{ value: g('companyName'), onChange: (v) => u('companyName', v) }}
+        companyNameReadonly={getField('table1_1', 'companyName')}
       />
 
       {/* ===== メインボディ ===== */}

@@ -14,7 +14,7 @@ export function Table6({ getField, updateField }: TableProps) {
     <div className="gov-form" style={{ fontSize: 8 }}>
       <TableTitleBar
         title="第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書"
-        companyName={{ value: g('companyName'), onChange: (v) => u('companyName', v) }}
+        companyNameReadonly={getField('table1_1', 'companyName')}
       />
 
       {/* ===== 3カラム ===== */}

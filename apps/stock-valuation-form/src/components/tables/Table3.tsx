@@ -70,7 +70,7 @@ export function Table3({ getField, updateField }: TableProps) {
       <TableTitleBar
         title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書"
         fontSize={10}
-        companyName={{ value: g('companyName'), onChange: (v) => u('companyName', v) }}
+        companyNameReadonly={getField('table1_1', 'companyName')}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>

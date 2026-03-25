@@ -1,4 +1,5 @@
 import { TableTitleBar } from './TableTitleBar';
+import { ResetButton } from '@/components/ui/ResetButton';
 import { parseNum } from './shared';
 import type { TableProps } from '@/types/form';
 import { Table4Section1 } from './Table4Section1';
@@ -30,16 +31,7 @@ export function Table4({ getField, updateField }: TableProps) {
         title="第４表　類似業種比準価額等の計算明細書"
         fontSize={10}
         companyNameReadonly={getField('table1_1', 'companyName')}
-        extra={
-          <button
-            className="no-print"
-            onClick={resetAll}
-            style={{ padding: '2px 8px', fontSize: 7, background: '#f5f5f5', border: '1px solid #ccc', borderRadius: 2, cursor: 'pointer', whiteSpace: 'nowrap', marginRight: 4 }}
-            title="全フィールドをリセット"
-          >
-            リセット
-          </button>
-        }
+        extra={<ResetButton onClick={resetAll} />}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
