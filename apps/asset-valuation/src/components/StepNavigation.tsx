@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 
 interface Props {
   onBack?: () => void;
@@ -22,9 +22,9 @@ export function StepNavigation({
       <div className="flex gap-2">
         <button
           onClick={onGoToStep1}
-          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:underline cursor-pointer transition-colors"
+          className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 hover:text-gray-800 cursor-pointer transition-colors"
         >
-          Step 1に戻る
+          <RotateCcw size={14} /> Step 1に戻る
         </button>
         {onBack && (
           <button

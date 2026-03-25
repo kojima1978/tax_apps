@@ -7,6 +7,7 @@ import { DataEditStep } from '@/components/step3/DataEditStep';
 import { ResultStep } from '@/components/step4/ResultStep';
 import { useAssetData } from '@/hooks/useAssetData';
 import { usePresets } from '@/hooks/usePresets';
+import { Calculator } from 'lucide-react';
 import { exportToExcel } from '@/utils/excelExport';
 import { exportCaseJson } from '@/utils/fileDownload';
 import type { CsvData } from '@/utils/csvParser';
@@ -119,7 +120,10 @@ export default function App() {
     <div className="min-h-screen">
       {/* ヘッダー */}
       <header className="bg-green-700 text-white py-4 px-6 print:hidden flex items-center justify-between">
-        <h1 className="text-lg font-bold">相続税 減価償却資産評価</h1>
+        <h1 className="flex items-center gap-2 text-lg font-bold">
+          <Calculator size={20} />
+          相続税 減価償却資産評価
+        </h1>
         <a
           href="/"
           className="text-sm text-green-200 hover:text-white hover:underline transition-colors"

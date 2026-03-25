@@ -1,8 +1,49 @@
 import { useState } from 'react';
-import { ArrowUpDown, Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Hash, Calendar, Banknote } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { Asset, AssetCategory } from '@/types';
 import { CATEGORY_CONFIG } from '@/types';
 import { formatYen, formatDate, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
+
+type SortKey = 'no' | 'acquisitionDate' | 'acquisitionCost';
+const SORT_OPTIONS: { key: SortKey; icon: LucideIcon; title: string }[] = [
+  { key: 'no', icon: Hash, title: 'NO順' },
+  { key: 'acquisitionDate', icon: Calendar, title: '取得年月順' },
+  { key: 'acquisitionCost', icon: Banknote, title: '金額順' },
+];
+
+/** スティッキーカラムの背景色 */
+const stickyBg = (isHighlight: boolean) =>
+  isHighlight ? 'bg-yellow-50' : 'bg-white';
+
+/** 金額入力: フォーカス時は生数値、ブラー時はカンマフォーマット */
+function MoneyInput({
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  ariaLabel: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [raw, setRaw] = useState('');
+  return (
+    <input
+      type="text"
+      value={editing ? raw : value ? formatYen(value) : ''}
+      onFocus={() => { setEditing(true); setRaw(value ? String(value) : ''); }}
+      onChange={(e) => setRaw(e.target.value)}
+      onBlur={() => {
+        const v = Number(raw.replace(/,/g, ''));
+        if (!isNaN(v)) onChange(v);
+        setEditing(false);
+      }}
+      className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono"
+      aria-label={ariaLabel}
+    />
+  );
+}
 
 interface Props {
   groupedAssets: Map<string, Asset[]>;
@@ -63,15 +104,19 @@ export function AssetTable({
                     固定資産税評価明細 一括
                   </label>
                 )}
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => onSortAssets(label, 'no')}
-                    className="p-1 text-gray-500 hover:text-gray-700 cursor-pointer transition-colors"
-                    title="NO順"
-                    aria-label={`${label}をNO順に並べ替え`}
-                  >
-                    <ArrowUpDown size={14} />
-                  </button>
+                <div className="flex gap-0.5 items-center text-[10px] text-gray-500">
+                  <span>並替:</span>
+                  {SORT_OPTIONS.map(({ key, icon: Icon, title }) => (
+                    <button
+                      key={key}
+                      onClick={() => onSortAssets(label, key)}
+                      className="p-1 text-gray-500 hover:text-green-700 hover:bg-green-50 rounded cursor-pointer transition-colors"
+                      title={title}
+                      aria-label={`${label}を${title}に並べ替え`}
+                    >
+                      <Icon size={13} />
+                    </button>
+                  ))}
                 </div>
                 <button
                   onClick={() => onAddEmptyAsset(category, label)}
@@ -85,10 +130,11 @@ export function AssetTable({
             {/* テーブル */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
+                <caption className="sr-only">{label} 資産一覧</caption>
                 <thead>
                   <tr className="bg-gray-50 border-b">
-                    <th className="px-2 py-1.5 text-left w-12">NO</th>
-                    <th className="px-2 py-1.5 text-left w-40">名称</th>
+                    <th className="px-2 py-1.5 text-left w-12 sticky left-0 bg-gray-50 z-10">NO</th>
+                    <th className="px-2 py-1.5 text-left w-40 sticky left-12 bg-gray-50 z-10">名称</th>
                     <th className="px-2 py-1.5 text-left w-24">取得年月</th>
                     <th className="px-2 py-1.5 text-center w-24">課税時期</th>
                     <th className="px-2 py-1.5 text-center w-14">経過年数</th>
@@ -115,7 +161,7 @@ export function AssetTable({
                         asset.isWithin3Years ? 'bg-yellow-50' : ''
                       }`}
                     >
-                      <td className="px-2 py-1">
+                      <td className={`px-2 py-1 sticky left-0 z-10 ${stickyBg(asset.isWithin3Years)}`}>
                         <input
                           type="number"
                           value={asset.no || ''}
@@ -124,7 +170,7 @@ export function AssetTable({
                           aria-label={`${asset.name || '資産'} NO`}
                         />
                       </td>
-                      <td className="px-2 py-1">
+                      <td className={`px-2 py-1 sticky left-12 z-10 ${stickyBg(asset.isWithin3Years)}`}>
                         <input
                           type="text"
                           value={asset.name}
@@ -158,15 +204,10 @@ export function AssetTable({
                         />
                       </td>
                       <td className="px-2 py-1">
-                        <input
-                          type="text"
-                          value={asset.acquisitionCost ? formatYen(asset.acquisitionCost) : ''}
-                          onChange={(e) => {
-                            const v = Number(e.target.value.replace(/,/g, ''));
-                            if (!isNaN(v)) onUpdateAsset(asset.id, { acquisitionCost: v });
-                          }}
-                          className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono"
-                          aria-label={`${asset.name || '資産'} 取得価額`}
+                        <MoneyInput
+                          value={asset.acquisitionCost}
+                          onChange={(v) => onUpdateAsset(asset.id, { acquisitionCost: v })}
+                          ariaLabel={`${asset.name || '資産'} 取得価額`}
                         />
                       </td>
                       <td className="px-2 py-1 text-right font-mono">
@@ -180,15 +221,10 @@ export function AssetTable({
                         )}
                       </td>
                       <td className="px-2 py-1">
-                        <input
-                          type="text"
-                          value={asset.bookValue ? formatYen(asset.bookValue) : ''}
-                          onChange={(e) => {
-                            const v = Number(e.target.value.replace(/,/g, ''));
-                            if (!isNaN(v)) onUpdateAsset(asset.id, { bookValue: v });
-                          }}
-                          className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono"
-                          aria-label={`${asset.name || '資産'} 期末簿価`}
+                        <MoneyInput
+                          value={asset.bookValue}
+                          onChange={(v) => onUpdateAsset(asset.id, { bookValue: v })}
+                          ariaLabel={`${asset.name || '資産'} 期末簿価`}
                         />
                       </td>
                       <td className="px-2 py-1 text-center text-[10px] text-gray-600">
@@ -220,15 +256,17 @@ export function AssetTable({
                         <button
                           onClick={() => handleDelete(asset.id)}
                           onBlur={() => setPendingDelete(null)}
-                          className={`cursor-pointer transition-colors ${
+                          className={`flex items-center gap-0.5 cursor-pointer transition-colors whitespace-nowrap ${
                             pendingDelete === asset.id
                               ? 'text-red-600 hover:text-red-700'
                               : 'text-gray-400 hover:text-red-500'
                           }`}
-                          title={pendingDelete === asset.id ? 'もう一度クリックで削除' : '削除'}
                           aria-label={`${asset.name || '資産'} を削除`}
                         >
                           <Trash2 size={14} />
+                          {pendingDelete === asset.id && (
+                            <span className="text-[10px] font-medium">確認</span>
+                          )}
                         </button>
                       </td>
                     </tr>
@@ -236,7 +274,7 @@ export function AssetTable({
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50 font-bold border-t-2">
-                    <td colSpan={6} className="px-2 py-1.5 text-right">
+                    <td colSpan={6} className="px-2 py-1.5 text-right sticky left-0 bg-gray-50 z-10">
                       合　計
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono">

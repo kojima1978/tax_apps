@@ -136,7 +136,7 @@ export function ColumnMappingStep({
         <h3 className="text-sm font-bold text-gray-700 mb-4">
           カラム割り当て
         </h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {MAPPING_FIELDS.map((field) => (
             <div key={field.key}>
               <label className="text-sm text-gray-600">

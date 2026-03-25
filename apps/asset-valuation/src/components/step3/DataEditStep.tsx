@@ -41,13 +41,14 @@ export function DataEditStep({
         データ確認・編集
       </h2>
 
-      {/* 3年以内ハイライト凡例 */}
-      <div className="flex gap-4 text-xs text-gray-500">
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-yellow-50 border border-yellow-200 rounded" />
+      {/* 凡例・件数 */}
+      <div className="flex items-center gap-4 text-sm text-gray-600 bg-white rounded-md border border-gray-200 px-4 py-2">
+        <span className="flex items-center gap-1.5">
+          <span className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded" />
           3年以内取得
         </span>
-        <span>全{assets.length}件</span>
+        <span className="text-gray-400">|</span>
+        <span>全 <strong>{assets.length}</strong> 件</span>
       </div>
 
       {/* バリデーション結果 */}

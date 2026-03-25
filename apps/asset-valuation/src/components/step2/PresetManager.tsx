@@ -50,15 +50,19 @@ export function PresetManager({
       {presets.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {presets.map((preset) => (
-            <div key={preset.name} className="flex items-center gap-1 bg-white rounded-md border px-2 py-1">
-              <button
-                onClick={() => onLoadPreset(preset)}
-                className="text-sm text-green-700 hover:text-green-900 cursor-pointer transition-colors"
-              >
+            <div
+              key={preset.name}
+              onClick={() => onLoadPreset(preset)}
+              className="flex items-center gap-1 bg-white rounded-md border px-2 py-1 cursor-pointer hover:bg-green-50 hover:border-green-300 transition-colors"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && onLoadPreset(preset)}
+            >
+              <span className="text-sm text-green-700">
                 {preset.name}
-              </button>
+              </span>
               <button
-                onClick={() => handleDelete(preset.name)}
+                onClick={(e) => { e.stopPropagation(); handleDelete(preset.name); }}
                 onBlur={() => setPendingDelete(null)}
                 className={`cursor-pointer transition-colors ${
                   pendingDelete === preset.name
