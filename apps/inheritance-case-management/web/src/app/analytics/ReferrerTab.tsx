@@ -36,7 +36,7 @@ export function ReferrerTab({ sortedReferrerRanking, referrerSort, onSort, sorte
                             { label: "紹介料合計", align: "right", sortKey: "feeTotal" },
                             { label: "件数", align: "center", sortKey: "count" },
                         ]}
-                        onSort={(col) => onSort(col as "feeTotal" | "count" | "name")}
+                        onSort={onSort}
                         sortState={referrerSort}
                     />
                 </div>

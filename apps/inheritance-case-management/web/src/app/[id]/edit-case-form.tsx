@@ -12,6 +12,7 @@ import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { getAssignees } from "@/lib/api/assignees"
 import { getReferrers } from "@/lib/api/referrers"
 import { useToast } from "@/components/ui/Toast"
+import { Modal } from "@/components/ui/Modal"
 import { ProgressEditor } from "./ProgressEditor"
 import { ContactListEditor } from "./ContactListEditor"
 import { BasicInfoSection } from "./BasicInfoSection"
@@ -19,6 +20,7 @@ import { FinancialSection } from "./FinancialSection"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { ListChecks, Phone, StickyNote } from "lucide-react"
 import { STATUS_STEP_MAP, STATUS_ORDER } from "@/lib/progress-utils"
+import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -50,6 +52,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     }, [searchParams])
 
     const [isSaving, setIsSaving] = useState(false)
+    const [pendingSuggestion, setPendingSuggestion] = useState<{ status: CaseStatus; message: string } | null>(null)
 
     const currencyChange = (field: keyof InheritanceCase) => (value: string | undefined) =>
         setFormData((prev) => ({ ...prev, [field]: value ? Number(value) : 0 }))
@@ -127,21 +130,10 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         return { warnings }
     }
 
-    const handleSave = async () => {
-        if (!formData.deceasedName || formData.deceasedName.trim() === "") {
-            toast.warning("被相続人氏名を入力してください")
-            return
-        }
-
-        // 整合性チェック
-        const { warnings, suggestion } = checkStatusProgressConsistency()
-        for (const w of warnings) {
-            toast.warning(w)
-        }
-        if (suggestion && window.confirm(suggestion.message)) {
-            setFormData(prev => ({ ...prev, status: suggestion.status }))
-            // formDataを直接変更してpayloadに反映
-            formData.status = suggestion.status
+    const doSave = async (statusOverride?: CaseStatus) => {
+        if (statusOverride) {
+            setFormData(prev => ({ ...prev, status: statusOverride }))
+            formData.status = statusOverride
         }
 
         setIsSaving(true)
@@ -161,14 +153,34 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             }
         } catch (e) {
             console.error(e)
-            if (e instanceof Error && 'status' in e && (e as { status: number }).status === 409) {
-                toast.error("他のユーザーが先に更新しました。画面を再読み込みしてください。")
+            if (isConflictError(e)) {
+                toast.error(CONFLICT_MESSAGE)
                 return
             }
             toast.error("エラーが発生しました: " + String(e))
         } finally {
             setIsSaving(false)
         }
+    }
+
+    const handleSave = async () => {
+        if (!formData.deceasedName || formData.deceasedName.trim() === "") {
+            toast.warning("被相続人氏名を入力してください")
+            return
+        }
+
+        // 整合性チェック
+        const { warnings, suggestion } = checkStatusProgressConsistency()
+        for (const w of warnings) {
+            toast.warning(w)
+        }
+
+        if (suggestion) {
+            setPendingSuggestion(suggestion)
+            return
+        }
+
+        await doSave()
     }
 
     const returnToPath = isCreateMode ? '/new' : `/${formData.id}`
@@ -234,10 +246,29 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 <Button onClick={() => router.push("/")} variant="ghost" className="min-w-[100px]" disabled={isSaving}>
                     キャンセル
                 </Button>
-                <Button onClick={handleSave} disabled={isSaving} variant="outline" className="min-w-[120px] font-bold shadow-sm">
+                <Button onClick={handleSave} disabled={isSaving} className="min-w-[120px]">
                     {isSaving ? "処理中..." : isCreateMode ? "新規登録" : "変更を保存"}
                 </Button>
             </StickyActionBar>
+
+            <Modal
+                isOpen={!!pendingSuggestion}
+                onClose={() => {
+                    setPendingSuggestion(null)
+                    doSave()
+                }}
+                title="ステータスの確認"
+            >
+                <p className="text-sm whitespace-pre-line mb-6">{pendingSuggestion?.message}</p>
+                <div className="flex justify-end gap-3">
+                    <Button variant="ghost" onClick={() => { setPendingSuggestion(null); doSave() }}>
+                        変更しない
+                    </Button>
+                    <Button onClick={() => { const status = pendingSuggestion!.status; setPendingSuggestion(null); doSave(status) }}>
+                        変更する
+                    </Button>
+                </div>
+            </Modal>
         </div>
     )
 }

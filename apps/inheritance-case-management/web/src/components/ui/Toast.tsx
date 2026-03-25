@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import { Check, X, AlertTriangle, Info } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -27,48 +28,45 @@ export function useToast() {
   return context;
 }
 
-function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
-  const bgColors = {
-    success: 'bg-green-50 border-green-300 text-green-800',
-    error: 'bg-red-50 border-red-300 text-red-800',
-    warning: 'bg-yellow-50 border-yellow-300 text-yellow-800',
-    info: 'bg-blue-50 border-blue-300 text-blue-800',
-  };
+const TOAST_STYLES: Record<ToastType, { container: string; icon: ReactNode }> = {
+  success: {
+    container: 'bg-green-50 border-green-300 text-green-800',
+    icon: <Check className="w-5 h-5 text-green-500" />,
+  },
+  error: {
+    container: 'bg-red-50 border-red-300 text-red-800',
+    icon: <X className="w-5 h-5 text-red-500" />,
+  },
+  warning: {
+    container: 'bg-yellow-50 border-yellow-300 text-yellow-800',
+    icon: <AlertTriangle className="w-5 h-5 text-yellow-500" />,
+  },
+  info: {
+    container: 'bg-blue-50 border-blue-300 text-blue-800',
+    icon: <Info className="w-5 h-5 text-blue-500" />,
+  },
+};
 
-  const icons = {
-    success: (
-      <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
-    ),
-    error: (
-      <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-      </svg>
-    ),
-    warning: (
-      <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      </svg>
-    ),
-    info: (
-      <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  };
+const TOAST_DURATION: Record<ToastType, number> = {
+  success: 3000,
+  error: 8000,
+  warning: 5000,
+  info: 4000,
+};
+
+function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
+  const style = TOAST_STYLES[toast.type];
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${bgColors[toast.type]} animate-slide-in`}>
-      {icons[toast.type]}
+    <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${style.container} animate-slide-in`}>
+      {style.icon}
       <span className="flex-1 text-sm font-medium">{toast.message}</span>
       <button
         onClick={() => onRemove(toast.id)}
         className="p-1 hover:bg-black/10 rounded transition-colors"
+        aria-label="通知を閉じる"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <X className="w-4 h-4" />
       </button>
     </div>
   );
@@ -84,7 +82,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const addToast = useCallback((message: string, type: ToastType) => {
     const id = Date.now().toString();
     setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => removeToast(id), 3000);
+    setTimeout(() => removeToast(id), TOAST_DURATION[type]);
   }, [removeToast]);
 
   const value = useMemo<ToastContextType>(() => ({

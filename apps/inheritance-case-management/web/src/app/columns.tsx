@@ -50,7 +50,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
                 return (
                     <div className="text-muted-foreground">
                         {dateStr}
-                        <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">申告済</span>
+                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">申告済</span>
                     </div>
                 )
             }
@@ -60,7 +60,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
                 <div className={status?.className ?? ""}>
                     {dateStr}
                     {status && (
-                        <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${status.badgeClassName}`}>
+                        <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${status.badgeClassName}`}>
                             {status.badge}
                         </span>
                     )}
@@ -99,7 +99,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
             return (
                 <div className="text-right font-medium">
                     {formatCurrency(amount)}
-                    <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${hasFee ? "bg-green-50 text-green-700" : "bg-blue-50 text-blue-700"}`}>
+                    <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${hasFee ? "bg-green-50 text-green-700" : "bg-blue-50 text-blue-700"}`}>
                         {hasFee ? "確定" : "見込"}
                     </span>
                 </div>
@@ -115,7 +115,7 @@ export const columns: ColumnDef<InheritanceCase>[] = [
             return (
                 <div className="flex items-center justify-center gap-1.5">
                     {lastCompleted && (
-                        <span className="text-[10px] text-muted-foreground truncate max-w-[60px]">
+                        <span className="text-xs text-muted-foreground truncate max-w-[100px]">
                             {lastCompleted.name}
                         </span>
                     )}

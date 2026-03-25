@@ -29,7 +29,7 @@ export default function SettingsMenuPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {SETTINGS_MENU_ITEMS.map((item) => (
-                    <Link key={item.href} href={item.href} className="block">
+                    <Link key={item.href} href={item.href} className="block cursor-pointer">
                         <div className="border rounded-xl p-6 hover:bg-muted/50 transition-colors h-full">
                             <div className="flex items-center gap-4 mb-4">
                                 <div className={`p-3 rounded-lg ${item.iconClass}`}>
