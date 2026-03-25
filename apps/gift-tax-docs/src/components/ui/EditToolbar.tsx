@@ -50,7 +50,7 @@ type ToolbarButtonProps = {
 };
 
 const ToolbarButton = ({ onClick, className, title, ariaLabel, icon, label, asLabel, children }: ToolbarButtonProps) => {
-  const baseClass = `flex items-center transition-colors ${className}`;
+  const baseClass = `flex items-center ${className}`;
 
   if (asLabel) {
     return (
@@ -129,7 +129,7 @@ export const EditToolbar = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showMobileMenu]);
 
-  const btnBase = 'px-3 py-2 text-sm rounded-lg';
+  const btnBase = 'px-3 py-2 text-sm rounded-lg transition-colors';
   const btnSlate = `${btnBase} bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200`;
 
   const TOOLBAR_ACTIONS: ToolbarAction[] = useMemo(() => [
@@ -157,14 +157,14 @@ export const EditToolbar = ({
   };
 
   return (
-    <div className="no-print bg-white dark:bg-slate-800 rounded-xl shadow-lg dark:shadow-slate-900/50 p-4 mb-6 sticky top-4 z-10 transition-colors" role="toolbar" aria-label="編集ツールバー">
+    <div className="no-print bg-white/80 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-lg dark:shadow-slate-900/50 p-4 mb-6 sticky top-4 z-10 transition-colors border border-white/50 dark:border-slate-700/50" role="toolbar" aria-label="編集ツールバー">
       {/* 1行目: タイトル + メイン操作 */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <a href="/" title="ポータルに戻る" aria-label="ポータルに戻る" className="text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex-shrink-0">
             <Home className="w-5 h-5" aria-hidden="true" />
           </a>
-          <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 truncate">{giftData.title}</h1>
+          <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-emerald-700 to-emerald-500 dark:from-emerald-400 dark:to-emerald-300 bg-clip-text text-transparent truncate">{giftData.title}</h1>
         </div>
 
         <div className="flex items-center gap-2">
@@ -329,7 +329,7 @@ export const EditToolbar = ({
         <VerticalDivider />
         <ToolbarButton
           onClick={isExporting ? undefined : onExcelExport}
-          className={`px-4 py-2 rounded-lg font-medium ${isExporting ? 'bg-blue-400 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+          className={`px-4 py-2 rounded-lg font-medium shadow-sm ${isExporting ? 'bg-blue-400 text-white cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white hover:shadow-md hover:shadow-blue-500/25'} transition-all`}
           ariaLabel="Excelファイルとして出力"
           icon={isExporting
             ? <span className="w-4 h-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
@@ -339,7 +339,7 @@ export const EditToolbar = ({
         />
         <ToolbarButton
           onClick={onPrint}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium"
+          className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-lg font-medium shadow-sm hover:shadow-md hover:shadow-emerald-500/25 transition-all"
           ariaLabel="印刷またはPDF保存"
           icon={<Printer className="w-4 h-4 mr-2" aria-hidden="true" />}
           label="印刷"

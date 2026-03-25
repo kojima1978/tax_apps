@@ -26,7 +26,7 @@ export const AddCategoryForm = ({
     return (
       <button
         onClick={() => setIsAdding(true)}
-        className="w-full flex items-center justify-center px-6 py-4 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-700 transition-colors font-medium"
+        className="w-full flex items-center justify-center px-6 py-4 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-700 transition-all font-medium hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-sm"
         aria-label="新しいカテゴリを追加"
       >
         <Plus className="w-5 h-5 mr-2" aria-hidden="true" />

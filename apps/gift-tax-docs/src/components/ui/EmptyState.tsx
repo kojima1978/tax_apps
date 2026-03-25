@@ -7,10 +7,10 @@ type EmptyStateProps = {
 
 export const EmptyState = ({ isSearching, onClearSearch }: EmptyStateProps) => (
   <div className="text-center py-16 animate-fade-in">
-    <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full mb-6">
+    <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/30 dark:to-slate-800 rounded-full mb-6 shadow-inner">
       {isSearching
-        ? <Search className="w-10 h-10 text-slate-400" />
-        : <FileText className="w-10 h-10 text-slate-400" />
+        ? <Search className="w-10 h-10 text-emerald-400" />
+        : <FileText className="w-10 h-10 text-emerald-400" />
       }
     </div>
     <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mb-2">
@@ -25,7 +25,7 @@ export const EmptyState = ({ isSearching, onClearSearch }: EmptyStateProps) => (
     {isSearching && (
       <button
         onClick={onClearSearch}
-        className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+        className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-lg hover:from-emerald-700 hover:to-emerald-600 transition-all text-sm font-medium shadow-sm hover:shadow-md hover:shadow-emerald-500/25"
       >
         検索をクリア
       </button>

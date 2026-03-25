@@ -20,12 +20,12 @@ const docNumberClass = 'flex-shrink-0 mr-2 mt-0.5 text-sm font-semibold text-sla
 const subItemNumberClass = 'flex-shrink-0 mr-2 text-xs font-medium text-slate-400 dark:text-slate-500 min-w-[2.5rem] text-right';
 
 const CheckboxIcon = ({ checked }: { checked: boolean }) => (
-  <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
+  <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
     checked
-      ? 'bg-emerald-500 border-emerald-500 text-white'
-      : 'border-slate-300 dark:border-slate-600'
+      ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/30'
+      : 'border-slate-300 dark:border-slate-600 hover:border-emerald-400'
   }`}>
-    {checked && <Check className="w-4 h-4" />}
+    {checked && <Check className="w-4 h-4 animate-check-in" />}
   </div>
 );
 
@@ -92,10 +92,10 @@ export const SortableDocumentItem = memo(({
     >
       {/* 大項目 */}
       <div
-        className={`flex items-start p-3 rounded-lg border transition-colors ${
+        className={`flex items-start p-3 rounded-lg border transition-all ${
           doc.checked
-            ? 'bg-slate-100 dark:bg-slate-800/50 border-slate-300 dark:border-slate-600'
-            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+            ? 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700'
+            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm'
         } ${isDragging ? 'shadow-lg ring-2 ring-emerald-400' : ''}`}
       >
         {/* ドラッグハンドル（タッチターゲット拡大: p-1→p-2） */}
@@ -163,7 +163,7 @@ export const SortableDocumentItem = memo(({
           {doc.subItems.map((subItem, subIdx) => (
             <li
               key={subItem.id}
-              className="flex items-center p-2 pl-3 bg-slate-100 dark:bg-slate-800/70 rounded-lg border-l-2 border-slate-300 dark:border-slate-600"
+              className="flex items-center p-2 pl-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border-l-2 border-emerald-300 dark:border-emerald-700 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors"
             >
               <span className={subItemNumberClass}>{docNumber}-{subIdx + 1}</span>
               <CornerDownRight className="w-3 h-3 text-slate-400 dark:text-slate-500 mr-2 flex-shrink-0" aria-hidden="true" />
