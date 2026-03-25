@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -61,6 +62,18 @@ function SortableRow({ id, rowIndex, onDelete, children }: {
   id: string; rowIndex: number; onDelete: () => void; children: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleDelete = () => {
+    if (showConfirm) {
+      onDelete();
+      setShowConfirm(false);
+    } else {
+      setShowConfirm(true);
+      setTimeout(() => setShowConfirm(false), 3000);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -76,10 +89,25 @@ function SortableRow({ id, rowIndex, onDelete, children }: {
         className="no-print row-num"
         {...attributes}
         {...listeners}
-        onDoubleClick={(e) => { e.preventDefault(); onDelete(); }}
-        style={{ width: 18, ...br, ...flex, justifyContent: 'center', fontSize: 6.5, color: '#999', cursor: 'grab' }}
+        style={{ width: 18, ...br, ...flex, justifyContent: 'center', fontSize: 6.5, color: '#999', cursor: 'grab', position: 'relative' }}
       >
-        {rowIndex + 1}
+        <span>{rowIndex + 1}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="row-delete-btn"
+          style={{
+            position: 'absolute', top: -1, right: -1,
+            width: 10, height: 10, padding: 0, border: 'none',
+            background: showConfirm ? '#c62828' : 'transparent',
+            color: showConfirm ? '#fff' : 'transparent',
+            fontSize: 7, lineHeight: 1, cursor: 'pointer', borderRadius: 2,
+          }}
+          aria-label={`行${rowIndex + 1}を削除`}
+          title={showConfirm ? 'もう一度クリックで削除' : '行を削除'}
+        >
+          {showConfirm ? '!' : '\u00d7'}
+        </button>
       </div>
       {children}
     </div>
@@ -93,7 +121,7 @@ function SectionTitle({ label, showPreset, onTogglePreset, onClear }: {
     <div style={{ ...bb, ...hdr, textAlign: 'center', padding: '1px', letterSpacing: '0.5em', fontWeight: 700, height: ROW_H, ...flex, justifyContent: 'center', position: 'relative' }}>
       {label}
       <span className="no-print" style={{ position: 'absolute', right: 2, display: 'flex', gap: 2, letterSpacing: 0, fontSize: 7, fontWeight: 400 }}>
-        <button onClick={onTogglePreset} style={{ padding: '0 3px', border: '1px solid #aaa', borderRadius: 2, cursor: 'pointer', background: showPreset ? '#e3f2fd' : '#fff', fontSize: 7 }}>科目</button>
+        <button onClick={onTogglePreset} style={{ padding: '0 3px', border: '1px solid #aaa', borderRadius: 2, cursor: 'pointer', background: showPreset ? '#f5f5f0' : '#fff', fontSize: 7 }}>科目</button>
         <button onClick={onClear} style={{ padding: '0 3px', border: '1px solid #aaa', borderRadius: 2, cursor: 'pointer', background: '#fff', fontSize: 7, color: '#c62828' }}>クリア</button>
       </span>
     </div>
@@ -104,11 +132,11 @@ function PresetPanel({ presets, onSelect, onSelectAll }: {
   presets: Preset[]; onSelect: (p: Preset) => void; onSelectAll: () => void;
 }) {
   return (
-    <div className="no-print" style={{ padding: '3px 4px', background: '#e3f2fd', ...bb, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+    <div className="no-print" style={{ padding: '3px 4px', background: '#f5f5f0', ...bb, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
       {presets.map((p) => (
-        <button key={p.name} onClick={() => onSelect(p)} style={{ padding: '1px 4px', fontSize: 7, border: '1px solid #90caf9', borderRadius: 2, cursor: 'pointer', background: '#fff' }}>{p.name}</button>
+        <button key={p.name} onClick={() => onSelect(p)} style={{ padding: '1px 4px', fontSize: 7, border: '1px solid #ccc', borderRadius: 2, cursor: 'pointer', background: '#fff' }}>{p.name}</button>
       ))}
-      <button onClick={onSelectAll} style={{ padding: '1px 4px', fontSize: 7, border: '1px solid #1565c0', borderRadius: 2, cursor: 'pointer', background: '#1565c0', color: '#fff' }}>全科目</button>
+      <button onClick={onSelectAll} style={{ padding: '1px 4px', fontSize: 7, border: '1px solid #555', borderRadius: 2, cursor: 'pointer', background: '#555', color: '#fff' }}>全科目</button>
     </div>
   );
 }
@@ -133,8 +161,8 @@ function CellRenderer({ col, prefix, rowIndex, isLast, g, u }: {
   if (col.type === 'select') {
     return (
       <div style={cellStyle}>
-        <select value={value} onChange={(e) => u(fieldKey, e.target.value)} className="gov-input" style={{ fontSize: 'inherit', padding: '1px 0' }}>
-          {(col.options ?? []).map((opt) => <option key={opt} value={opt}>{opt || '—'}</option>)}
+        <select value={value} onChange={(e) => u(fieldKey, e.target.value)} className="gov-input" style={{ fontSize: 'inherit', padding: '1px 0' }} aria-label={col.header}>
+          {(col.options ?? []).map((opt) => <option key={opt} value={opt}>{opt || '\u2014'}</option>)}
         </select>
       </div>
     );
@@ -151,7 +179,7 @@ function CellRenderer({ col, prefix, rowIndex, isLast, g, u }: {
     };
     return (
       <div style={cellStyle}>
-        <NumberField value={value} onChange={handleChange} />
+        <NumberField value={value} onChange={handleChange} ariaLabel={col.header} />
       </div>
     );
   }
@@ -159,7 +187,7 @@ function CellRenderer({ col, prefix, rowIndex, isLast, g, u }: {
   // text
   return (
     <div style={cellStyle}>
-      <FormField value={value} onChange={(v) => u(fieldKey, v)} />
+      <FormField value={value} onChange={(v) => u(fieldKey, v)} ariaLabel={col.header} />
     </div>
   );
 }

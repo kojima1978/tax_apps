@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { TABS } from '@/data/constants';
 import type { TableId } from '@/types/form';
 
@@ -7,13 +8,20 @@ interface NavigationProps {
 }
 
 export function Navigation({ activeTab, onTabChange }: NavigationProps) {
+  const activeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [activeTab]);
+
   return (
-    <nav className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+    <nav className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto', flex: 1 }}>
       {TABS.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
           <button
             key={tab.id}
+            ref={isActive ? activeRef : undefined}
             onClick={() => onTabChange(tab.id)}
             style={{
               display: 'flex',
@@ -31,6 +39,7 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
               transition: 'all 0.15s',
             }}
             className={isActive ? '' : 'hover:bg-[#f0f0f0]'}
+            aria-current={isActive ? 'page' : undefined}
           >
             <span style={{ whiteSpace: 'nowrap' }}>{tab.label}</span>
             <span style={{ fontSize: 9, opacity: 0.6 }}>{tab.subtitle}</span>

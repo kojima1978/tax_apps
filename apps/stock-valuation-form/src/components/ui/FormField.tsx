@@ -5,6 +5,7 @@ interface FormFieldProps {
   placeholder?: string;
   textAlign?: 'left' | 'center' | 'right';
   unit?: string;
+  ariaLabel?: string;
 }
 
 export function FormField({
@@ -14,6 +15,7 @@ export function FormField({
   placeholder,
   textAlign = 'left',
   unit,
+  ariaLabel,
 }: FormFieldProps) {
   const alignClass =
     textAlign === 'right'
@@ -30,6 +32,7 @@ export function FormField({
         onChange={(e) => onChange(e.target.value)}
         className={`gov-input ${alignClass}`}
         placeholder={placeholder}
+        aria-label={ariaLabel ?? placeholder}
       />
       {unit && <span className="whitespace-nowrap ml-0.5">{unit}</span>}
     </span>

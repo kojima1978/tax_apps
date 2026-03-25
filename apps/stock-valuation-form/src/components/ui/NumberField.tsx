@@ -4,11 +4,17 @@ interface NumberFieldProps {
   className?: string;
   unit?: string;
   placeholder?: string;
+  ariaLabel?: string;
+  allowNegative?: boolean;
 }
 
 function addCommas(v: string): string {
-  if (!v) return '';
-  return Number(v).toLocaleString();
+  if (!v || v === '-') return v;
+  const neg = v.startsWith('-');
+  const abs = neg ? v.slice(1) : v;
+  const num = Number(abs);
+  if (isNaN(num)) return v;
+  return (neg ? '-' : '') + num.toLocaleString();
 }
 
 export function NumberField({
@@ -17,11 +23,17 @@ export function NumberField({
   className = '',
   unit,
   placeholder,
+  ariaLabel,
+  allowNegative = false,
 }: NumberFieldProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // カンマを除去して数字のみ許可
     const raw = e.target.value.replace(/,/g, '');
-    if (raw === '' || /^\d+$/.test(raw)) {
+    if (raw === '' || raw === '-') {
+      onChange(raw);
+      return;
+    }
+    const pattern = allowNegative ? /^-?\d+$/ : /^\d+$/;
+    if (pattern.test(raw)) {
       onChange(raw);
     }
   };
@@ -35,6 +47,7 @@ export function NumberField({
         onChange={handleChange}
         className="gov-input gov-input-number"
         placeholder={placeholder}
+        aria-label={ariaLabel ?? placeholder}
       />
       {unit && <span className="whitespace-nowrap ml-0.5">{unit}</span>}
     </span>

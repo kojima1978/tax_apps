@@ -16,6 +16,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
 import { CircledNumber } from '@/components/ui/CircledNumber';
+import { ResetButton } from '@/components/ui/ResetButton';
 import { bb, br, hdr, parseNum, pct, fmtNum, fmtPct } from './shared';
 import type { TableProps } from '@/types/form';
 import type { GFn, UFn } from './shared';
@@ -323,13 +324,7 @@ function MinoritySection({ g, u, minorityResult }: {
     <>
       <div style={{ padding: '2px 4px', fontWeight: 700, ...bb, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>２．少数株式所有者の評価方式の判定</span>
-        <span
-          className="no-print"
-          onClick={() => MINORITY_FIELDS.forEach((f) => u(f, ''))}
-          style={{ cursor: 'pointer', color: '#d32f2f', fontSize: 8, fontWeight: 400 }}
-        >
-          リセット
-        </span>
+        <ResetButton onClick={() => MINORITY_FIELDS.forEach((f) => u(f, ''))} />
       </div>
 
       <table className="gov-table" style={{ fontSize: 8 }}>
@@ -538,7 +533,7 @@ export function Table1_1({ getField, updateField }: TableProps) {
       {/* タイトル行 */}
       <div style={{ padding: '3px 6px', fontWeight: 700, fontSize: 11, ...bb, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>第１表の１　評価上の株主の判定及び会社規模の判定の明細書</span>
-        <span className="no-print" onClick={resetHeader} style={{ cursor: 'pointer', color: '#d32f2f', fontSize: 8, fontWeight: 400 }}>会社情報リセット</span>
+        <ResetButton onClick={resetHeader} label="会社情報リセット" />
       </div>
 
       {/* 会社情報ヘッダー */}
@@ -556,7 +551,7 @@ export function Table1_1({ getField, updateField }: TableProps) {
               )}
               <span onClick={sortByVotes} style={{ cursor: 'pointer', color: '#1976d2', fontSize: 8, fontWeight: 400 }}>↓ ソート</span>
               <span onClick={clearEmptyRows} style={{ cursor: 'pointer', color: '#1976d2', fontSize: 8, fontWeight: 400 }}>空行削除</span>
-              <span onClick={resetShareholders} style={{ cursor: 'pointer', color: '#d32f2f', fontSize: 8, fontWeight: 400 }}>リセット</span>
+              <ResetButton onClick={resetShareholders} />
             </span>
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
