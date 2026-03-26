@@ -144,7 +144,7 @@ export const EditableListStep = () => {
   const displayList = isSearching ? filteredList : documentList;
 
   return (
-    <div className="w-full p-4 md:px-8 md:py-6 animate-fade-in">
+    <div className="w-full animate-fade-in">
       {/* ヘッダーツールバー */}
       <EditToolbar
         onExpandAll={editing.handleExpandAll}
@@ -164,6 +164,7 @@ export const EditableListStep = () => {
         isExporting={isExporting}
       />
 
+      <div className="p-4 md:px-8 md:py-6">
       {/* 入力バー */}
       <div className="no-print bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl shadow dark:shadow-slate-900/50 p-4 mb-6 transition-colors border border-white/50 dark:border-slate-700/50">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -323,6 +324,7 @@ export const EditableListStep = () => {
             ※チェックを入れると提出済み（取り消し線）になります
           </p>
         </div>
+      </div>
       </div>
 
       {/* 印刷専用セクション */}
