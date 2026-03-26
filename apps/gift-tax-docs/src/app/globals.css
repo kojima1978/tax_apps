@@ -16,6 +16,11 @@ body.dark {
   color: #e2e8f0;
 }
 
+/* ヘッダーグラデーション */
+.header-gradient {
+  background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #059669 100%);
+}
+
 /* アニメーション */
 .animate-fade-in {
   animation: fadeIn 0.3s ease-in-out;
