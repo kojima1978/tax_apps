@@ -125,6 +125,18 @@ export function buildResolverMaps(assignees: Assignee[], referrers: Referrer[]):
   return { assigneeNameToId, referrerNameToId };
 }
 
+/** Normalize date string to YYYY-MM-DD (handles Excel's YYYY/M/D conversion) */
+function normalizeDate(value: string): string {
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  // YYYY/M/D or YYYY/MM/DD (Excel auto-conversion)
+  const match = value.match(/^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$/);
+  if (match) {
+    return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+  }
+  return value;
+}
+
 function parseOptionalInt(value: string): number | undefined {
   const trimmed = value.trim();
   if (trimmed === '') return undefined;
@@ -290,8 +302,10 @@ function rowToInput(
 
     switch (fieldName) {
       case 'deceasedName':
-      case 'dateOfDeath':
         obj[fieldName] = value;
+        break;
+      case 'dateOfDeath':
+        obj[fieldName] = normalizeDate(value);
         break;
       case 'fiscalYear':
         obj[fieldName] = value ? Number(value) : undefined;
@@ -540,13 +554,16 @@ export function parseAndValidateCSV(
       let id: number | undefined;
 
       if (rawId !== null) {
-        // ID present → update mode
         if (existingById.has(rawId)) {
+          // ID exists → update mode
           mode = 'update';
           id = rawId;
         } else {
-          errors.push({ row: csvRowNum, message: `ID ${rawId} の案件が見つかりません` });
-          continue;
+          // ID not found → fallback to create mode
+          warnings.push({
+            row: csvRowNum,
+            message: `ID ${rawId} の案件が見つかりません（新規作成として取り込みます）`,
+          });
         }
       } else {
         // No ID → check for duplicates
