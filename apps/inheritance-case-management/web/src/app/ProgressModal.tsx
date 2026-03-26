@@ -40,7 +40,7 @@ function SortableRow({
     return (
         <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}>
             <div className="grid grid-cols-[20px_20px_1fr_130px_1fr] gap-1 p-2 text-sm items-center">
-                <button type="button" className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none" {...attributes} {...listeners}>
+                <button type="button" aria-label="ドラッグして順序変更" className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none" {...attributes} {...listeners}>
                     <GripVertical className="h-3.5 w-3.5" />
                 </button>
                 <input type="checkbox" checked={checked} onChange={onToggle} className="h-3.5 w-3.5 rounded border-gray-300 accent-primary" />
