@@ -4,11 +4,11 @@ import { SelectField } from "@/components/ui/SelectField"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { MasterSelect } from "@/components/ui/MasterSelect"
 import { User, Info } from "lucide-react"
-import type { InheritanceCase, Assignee, Referrer, AcceptanceStatus } from "@/types/shared"
-import { formatId } from "@/types/shared"
+import type { InheritanceCase, Assignee, Referrer, AcceptanceStatus, HandlingStatus } from "@/types/shared"
+import { formatId, formatReferrerLabel } from "@/types/shared"
 import {
-    FISCAL_YEARS, CASE_STATUS_OPTIONS, ACCEPTANCE_FORM_OPTIONS,
-    STATUS_ENABLED_WHEN, ACCEPTANCE_AUTO_STATUS, ACCEPTANCE_HINTS,
+    FISCAL_YEARS, CASE_STATUS_OPTIONS, HANDLING_STATUS_OPTIONS, ACCEPTANCE_FORM_OPTIONS,
+    STATUS_ENABLED_WHEN, ACCEPTANCE_AUTO_HANDLING, ACCEPTANCE_HINTS,
     MAX_SUMMARY_LENGTH,
 } from "@/types/constants"
 
@@ -65,10 +65,11 @@ export function BasicInfoSection({
                         value={acceptance}
                         onChange={(e) => {
                             const val = e.target.value as AcceptanceStatus
+                            const autoHandling = ACCEPTANCE_AUTO_HANDLING[val]
                             setFormData(prev => ({
                                 ...prev,
                                 acceptanceStatus: val,
-                                status: ACCEPTANCE_AUTO_STATUS[val] ?? prev.status,
+                                ...(autoHandling ? { handlingStatus: autoHandling } : {}),
                             }))
                         }}
                     >
@@ -79,7 +80,7 @@ export function BasicInfoSection({
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="status">ステータス</Label>
+                    <Label htmlFor="status">進み具合</Label>
                     <SelectField
                         id="status"
                         name="status"
@@ -99,6 +100,20 @@ export function BasicInfoSection({
                             {hint}
                         </p>
                     )}
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="handlingStatus">対応状況</Label>
+                    <SelectField
+                        id="handlingStatus"
+                        name="handlingStatus"
+                        value={formData.handlingStatus || "対応中"}
+                        onChange={handleChange}
+                    >
+                        {HANDLING_STATUS_OPTIONS.map(s => (
+                            <option key={s} value={s}>{s}</option>
+                        ))}
+                    </SelectField>
                 </div>
 
                 <div className="space-y-2">
@@ -143,7 +158,7 @@ export function BasicInfoSection({
                     editLabel="紹介者を追加・編集"
                     renderOption={(r) => ({
                         value: r.id,
-                        label: r.department ? `${r.company.name} / ${r.department} / ${r.name}` : `${r.company.name} / ${r.name}`,
+                        label: formatReferrerLabel(r),
                     })}
                     onChange={handleChange}
                 />

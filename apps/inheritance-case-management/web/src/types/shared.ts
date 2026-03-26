@@ -1,5 +1,6 @@
 // Case Status Types
-export type CaseStatus = '未着手' | '手続中' | '申告済' | '請求済' | '入金済' | '対応終了';
+export type CaseStatus = '未着手' | '手続中' | '申告済' | '請求済' | '入金済';
+export type HandlingStatus = '対応中' | '対応終了' | '未分割';
 export type AcceptanceStatus = '受託可' | '受託不可' | '未判定' | '保留';
 
 // Progress Step (input shape for API — used by editors)
@@ -43,6 +44,7 @@ export interface InheritanceCase {
   deceasedName: string;
   dateOfDeath: string;
   status: CaseStatus;
+  handlingStatus?: HandlingStatus;
   acceptanceStatus?: AcceptanceStatus;
   taxAmount: number;
   feeAmount: number;
@@ -98,7 +100,7 @@ export interface Referrer {
   id: number;
   companyId: number;
   company: Company;
-  name: string;
+  name?: string;
   department?: string;
   active: boolean;
   createdAt?: Date;
@@ -121,5 +123,13 @@ export interface PaginatedResponse<T> {
 // Format ID as 4-digit padded string for display
 export function formatId(id: number): string {
   return String(id).padStart(4, '0');
+}
+
+/** 紹介者の表示ラベルを生成（氏名は任意） */
+export function formatReferrerLabel(r: Referrer): string {
+  const parts = [r.company.name];
+  if (r.department) parts.push(r.department);
+  if (r.name) parts.push(r.name);
+  return parts.join(" / ");
 }
 

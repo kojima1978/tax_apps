@@ -41,7 +41,7 @@ erDiagram
     Referrer {
         int id PK "SERIAL"
         int companyId FK "会社（RESTRICT on delete）"
-        string name "担当者名"
+        string name "担当者名（nullable）"
         string department "部署（任意）"
         boolean active "有効フラグ（default: true）"
         datetime createdAt "default: now()"
@@ -52,7 +52,8 @@ erDiagram
         int id PK "SERIAL"
         string deceasedName "被相続人氏名"
         date dateOfDeath "相続開始日（YYYY-MM-DD）"
-        string status "未着手|手続中|申告済|請求済|入金済|対応終了"
+        string status "未着手|手続中|申告済|請求済|入金済"
+        string handlingStatus "対応中|対応終了|未分割"
         string acceptanceStatus "受託可|受託不可|未判定|保留"
         int taxAmount "相続税額（default: 0）"
         int feeAmount "報酬額（default: 0）"
@@ -147,7 +148,7 @@ erDiagram
 |--------|-----|------|-----------|------|
 | id | Int | PK | autoincrement | 自動採番 |
 | companyId | Int | Yes (FK) | - | 会社（RESTRICT on delete） |
-| name | String | Yes | - | 担当者名 |
+| name | String | No | null | 担当者名（任意） |
 | department | String | No | null | 部署 |
 | active | Boolean | Yes | true | 有効フラグ（論理削除用） |
 | createdAt | DateTime | Yes | now() | 作成日時 |
@@ -164,7 +165,8 @@ erDiagram
 | id | Int | PK | autoincrement | 自動採番（表示時は4桁ゼロ埋め） |
 | deceasedName | String | Yes | - | 被相続人氏名 |
 | dateOfDeath | Date | Yes | - | 相続開始日（YYYY-MM-DD） |
-| status | String | Yes | "未着手" | 未着手 / 手続中 / 申告済 / 請求済 / 入金済 / 対応終了 |
+| status | String | Yes | "未着手" | 進み具合: 未着手 / 手続中 / 申告済 / 請求済 / 入金済 |
+| handlingStatus | String | Yes | "対応中" | 対応状況: 対応中 / 対応終了 / 未分割 |
 | acceptanceStatus | String | No | "未判定" | 受託可 / 受託不可 / 未判定 / 保留 |
 | taxAmount | Int | No | 0 | 相続税額（円） |
 | feeAmount | Int | No | 0 | 報酬額（円） |
@@ -182,7 +184,7 @@ erDiagram
 | createdAt | DateTime | Yes | now() | 作成日時 |
 | updatedAt | DateTime | Yes | @updatedAt | 更新日時 |
 
-**インデックス**: `status`, `fiscalYear`, `acceptanceStatus`, `createdAt`, `assigneeId`, `referrerId`
+**インデックス**: `status`, `handlingStatus`, `fiscalYear`, `acceptanceStatus`, `createdAt`, `assigneeId`, `referrerId`
 
 **ビジネスルール**:
 - 申告期限 = dateOfDeath + 10ヶ月（アプリ側で計算）

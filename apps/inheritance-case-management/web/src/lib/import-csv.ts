@@ -9,14 +9,15 @@ import type {
   CaseStatus,
   AcceptanceStatus,
 } from '@/types/shared';
-import { CASE_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from '@/types/constants';
+import { CASE_STATUS_OPTIONS, HANDLING_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from '@/types/constants';
 
 // ── Header → field mapping ──────────────────────────────────
 const CSV_HEADER_MAP: Record<string, string> = {
   '被相続人氏名': 'deceasedName',
   '死亡日': 'dateOfDeath',
   '年度': 'fiscalYear',
-  'ステータス': 'status',
+  '進み具合': 'status',
+  '対応状況': 'handlingStatus',
   '受託状況': 'acceptanceStatus',
   '担当者': 'assigneeName',
   '担当者_氏名': 'assigneePersonName',
@@ -38,6 +39,7 @@ const CSV_HEADER_MAP: Record<string, string> = {
 const IGNORED_HEADERS = new Set(['作成日', '更新日']);
 
 const VALID_STATUSES = CASE_STATUS_OPTIONS as readonly string[];
+const VALID_HANDLING = HANDLING_STATUS_OPTIONS as readonly string[];
 const VALID_ACCEPTANCE = ACCEPTANCE_STATUS_OPTIONS as readonly string[];
 
 export const MAX_CONTACT_COLUMNS = 10;
@@ -62,7 +64,7 @@ export type ImportWarning = ImportIssue;
 
 export interface PendingReferrer {
   company: string;
-  name: string;
+  name?: string;
   department?: string;
 }
 
@@ -83,7 +85,8 @@ export interface ImportRow {
 
 // Fields that receive Zod defaults when empty
 export const DEFAULTABLE_FIELDS: Record<string, string> = {
-  status: 'ステータス→未着手',
+  status: '進み具合→未着手',
+  handlingStatus: '対応状況→対応中',
   acceptanceStatus: '受託状況→未判定',
   taxAmount: '相続税額→0',
   feeAmount: '報酬額→0',
@@ -118,7 +121,9 @@ export function buildResolverMaps(assignees: Assignee[], referrers: Referrer[]):
 
   const referrerNameToId = new Map<string, number>();
   referrers.forEach((r) => {
-    referrerNameToId.set(`${r.company.name} / ${r.name}`, r.id);
+    if (r.name) {
+      referrerNameToId.set(`${r.company.name} / ${r.name}`, r.id);
+    }
     referrerNameToId.set(r.company.name, r.id);
   });
 
@@ -314,6 +319,10 @@ function rowToInput(
         obj[fieldName] =
           value && VALID_STATUSES.includes(value as CaseStatus) ? value : undefined;
         break;
+      case 'handlingStatus':
+        obj[fieldName] =
+          value && VALID_HANDLING.includes(value) ? value : undefined;
+        break;
       case 'acceptanceStatus':
         obj[fieldName] =
           value && VALID_ACCEPTANCE.includes(value as AcceptanceStatus) ? value : undefined;
@@ -392,15 +401,15 @@ function rowToInput(
   }
 
   // Resolve 3-column referrer (takes precedence over legacy 紹介者 column)
-  if (refCompany && refPersonName) {
-    const key = `${refCompany} / ${refPersonName}`;
-    const id = resolvers?.referrerNameToId.get(key) ?? resolvers?.referrerNameToId.get(refCompany);
+  if (refCompany) {
+    const key = refPersonName ? `${refCompany} / ${refPersonName}` : null;
+    const id = (key ? resolvers?.referrerNameToId.get(key) : undefined) ?? resolvers?.referrerNameToId.get(refCompany);
     if (id) {
       obj.referrerId = id;
     } else {
       pendingReferrer = {
         company: refCompany,
-        name: refPersonName,
+        ...(refPersonName ? { name: refPersonName } : {}),
         ...(refDepartment ? { department: refDepartment } : {}),
       };
     }

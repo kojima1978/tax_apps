@@ -32,7 +32,8 @@ const FIELD_GUIDE = {
     { name: "年度", note: "必須 / 2000〜2100" },
   ],
   withDefaults: [
-    { name: "ステータス", note: CASE_STATUS_OPTIONS.join(" / ") },
+    { name: "進み具合", note: CASE_STATUS_OPTIONS.join(" / ") },
+    { name: "対応状況", note: "対応中 / 対応終了 / 未分割" },
     { name: "受託状況", note: ACCEPTANCE_STATUS_OPTIONS.join(" / ") },
     { name: "財産評価額・相続税額・見積額・報酬額", note: "0以上の整数" },
   ],
@@ -50,7 +51,7 @@ const PREVIEW_COLUMNS = [
   { key: "deceasedName", label: "被相続人氏名" },
   { key: "dateOfDeath", label: "死亡日" },
   { key: "fiscalYear", label: "年度" },
-  { key: "status", label: "ステータス" },
+  { key: "status", label: "進み具合" },
 ] as const;
 
 export function ImportCSVModal({

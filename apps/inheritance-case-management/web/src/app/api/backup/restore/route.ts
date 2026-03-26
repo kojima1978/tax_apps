@@ -66,7 +66,7 @@ export async function POST(request: Request) {
             data: (data.referrers as Record<string, unknown>[]).map((r) => ({
               id: r.id as number,
               companyId: r.companyId as number,
-              name: r.name as string,
+              name: (r.name as string) ?? null,
               department: (r.department as string) ?? null,
               active: (r.active as boolean) ?? true,
               createdAt: new Date(r.createdAt as string),
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
               deceasedName: c.deceasedName as string,
               dateOfDeath: new Date((c.dateOfDeath as string) + 'T00:00:00.000Z'),
               status: (c.status as string) ?? '未着手',
+              handlingStatus: (c.handlingStatus as string) ?? '対応中',
               acceptanceStatus: (c.acceptanceStatus as string) ?? '未判定',
               taxAmount: (c.taxAmount as number) ?? 0,
               feeAmount: (c.feeAmount as number) ?? 0,

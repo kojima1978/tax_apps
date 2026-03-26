@@ -8,6 +8,7 @@ import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toDate, serial
 /** Build Prisma where clause from parsed query params */
 export function buildCaseWhereClause(params: {
   status?: string;
+  handlingStatus?: string;
   acceptanceStatus?: string;
   fiscalYear?: number;
   search?: string;
@@ -15,10 +16,13 @@ export function buildCaseWhereClause(params: {
   department?: string;
 }): Prisma.InheritanceCaseWhereInput {
   const where: Prisma.InheritanceCaseWhereInput = {};
-  const { status, acceptanceStatus, fiscalYear, search, assigneeId, department } = params;
+  const { status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, department } = params;
 
   if (status) {
     where.status = status.includes(',') ? { in: status.split(',') } : status;
+  }
+  if (handlingStatus) {
+    where.handlingStatus = handlingStatus.includes(',') ? { in: handlingStatus.split(',') } : handlingStatus;
   }
   if (acceptanceStatus) {
     where.acceptanceStatus = acceptanceStatus.includes(',') ? { in: acceptanceStatus.split(',') } : acceptanceStatus;
@@ -42,10 +46,10 @@ export function buildCaseWhereClause(params: {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const { page, pageSize, status, acceptanceStatus, fiscalYear, search, assigneeId, department, sortBy, sortOrder } =
+    const { page, pageSize, status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, department, sortBy, sortOrder } =
       listQuerySchema.parse(searchParams);
 
-    const where = buildCaseWhereClause({ status, acceptanceStatus, fiscalYear, search, assigneeId, department });
+    const where = buildCaseWhereClause({ status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, department });
 
     // ページネーション用のカウントとデータ取得を並列実行
     const [total, cases] = await Promise.all([
@@ -85,6 +89,7 @@ export async function POST(request: NextRequest) {
         dateOfDeath: toDate(data.dateOfDeath),
         fiscalYear: data.fiscalYear,
         status: data.status ?? '未着手',
+        handlingStatus: data.handlingStatus ?? '対応中',
         acceptanceStatus: data.acceptanceStatus ?? '未判定',
         taxAmount: data.taxAmount ?? 0,
         feeAmount: data.feeAmount ?? 0,

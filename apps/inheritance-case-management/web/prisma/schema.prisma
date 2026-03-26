@@ -12,7 +12,8 @@ model InheritanceCase {
   id                Int      @id @default(autoincrement())
   deceasedName      String
   dateOfDeath       DateTime @db.Date // YYYY-MM-DD（CHECK制約で検証済み）
-  status            String   @default("未着手") // CHECK制約: 未着手/手続中/申告済/請求済/入金済/対応終了
+  status            String   @default("未着手") // CHECK制約: 未着手/手続中/申告済/請求済/入金済
+  handlingStatus    String   @default("対応中") // CHECK制約: 対応中/対応終了/未分割
   acceptanceStatus  String?  @default("未判定") // CHECK制約: 受託可/受託不可/未判定/保留
   taxAmount         Int?     @default(0)
   feeAmount         Int?     @default(0)
@@ -42,6 +43,7 @@ model InheritanceCase {
 
   // Indexes for common queries
   @@index([status])
+  @@index([handlingStatus])
   @@index([fiscalYear])
   @@index([acceptanceStatus])
   @@index([createdAt])
@@ -96,7 +98,7 @@ model Referrer {
   id         Int      @id @default(autoincrement())
   companyId  Int
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  name       String
+  name       String?
   department String?
   active     Boolean  @default(true)
   cases      InheritanceCase[]

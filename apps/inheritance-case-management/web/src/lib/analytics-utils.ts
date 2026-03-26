@@ -1,4 +1,5 @@
 import type { InheritanceCase } from "@/types/shared"
+import { formatReferrerLabel } from "@/types/shared"
 import { isCompleted } from "@/types/constants"
 import { STEP_NAMES } from "./progress-utils"
 
@@ -15,6 +16,11 @@ export type RankingData = {
     name: string
     feeTotal: number
     count: number
+    group?: string
+}
+
+export type CompanyRankingData = RankingData & {
+    departments: RankingData[]
 }
 
 export type AggregationResult = {
@@ -22,7 +28,12 @@ export type AggregationResult = {
     assigneeRanking: RankingData[]
     departmentTotals: RankingData[]
     referrerRanking: RankingData[]
-    companyRanking: RankingData[]
+    companyRanking: CompanyRankingData[]
+}
+
+/** 確定/見込のうち適切な方のネット売上を返す */
+export function calcBestNet(c: InheritanceCase): number {
+    return (c.feeAmount || 0) > 0 ? calcNet(c, "fee") : calcNet(c, "estimate")
 }
 
 export function calcNet(c: InheritanceCase, baseType: "fee" | "estimate"): number {
@@ -34,6 +45,17 @@ export function calcNet(c: InheritanceCase, baseType: "fee" | "estimate"): numbe
     }
 
     return base - referral
+}
+
+export const LABEL_NONE = "なし"
+export const LABEL_UNSET = "未設定"
+
+/** 「なし」「未設定」を末尾に固定するための比較ヘルパー（0=同等, 1=aが下, -1=bが下） */
+export function pinBottomCompare(a: string, b: string): number {
+    const aBottom = a === LABEL_NONE || a === LABEL_UNSET
+    const bBottom = b === LABEL_NONE || b === LABEL_UNSET
+    if (aBottom === bBottom) return 0
+    return aBottom ? 1 : -1
 }
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY" })
@@ -116,6 +138,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
     const deptRankingMap = new Map<string, RankingData>()
     const referrerMap = new Map<string, RankingData>()
     const companyMap = new Map<string, RankingData>()
+    const companyDeptMap = new Map<string, Map<string, RankingData>>()
 
     cases.forEach(c => {
         const year = c.fiscalYear
@@ -161,10 +184,20 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         }
 
         // Rankings
-        accumulateRanking(assigneeMap, c.assignee?.name || "未設定", netAmount)
-        accumulateRanking(referrerMap, c.referrer ? `${c.referrer.company.name} / ${c.referrer.name}` : "なし", c.referralFeeAmount || 0)
-        accumulateRanking(companyMap, c.referrer?.company.name || "なし", c.referralFeeAmount || 0)
-        accumulateRanking(deptRankingMap, deptMap.get(c.assignee?.name || "") || "未設定", netAmount)
+        accumulateRanking(assigneeMap, c.assignee?.name || LABEL_UNSET, netAmount)
+        const referrerKey = c.referrer ? formatReferrerLabel(c.referrer) : LABEL_NONE
+        accumulateRanking(referrerMap, referrerKey, c.referralFeeAmount || 0)
+        const refEntry = referrerMap.get(referrerKey)
+        if (refEntry) refEntry.group = c.referrer?.company.name || LABEL_NONE
+        const companyName = c.referrer?.company.name || LABEL_NONE
+        accumulateRanking(companyMap, companyName, c.referralFeeAmount || 0)
+        const refDept = c.referrer?.department
+        if (refDept) {
+            if (!companyDeptMap.has(companyName)) companyDeptMap.set(companyName, new Map())
+            const deptMap2 = companyDeptMap.get(companyName)!
+            accumulateRanking(deptMap2, refDept, c.referralFeeAmount || 0)
+        }
+        accumulateRanking(deptRankingMap, deptMap.get(c.assignee?.name || "") || LABEL_UNSET, netAmount)
     })
 
     return {
@@ -172,6 +205,13 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         assigneeRanking: Array.from(assigneeMap.values()).sort((a, b) => b.feeTotal - a.feeTotal),
         departmentTotals: Array.from(deptRankingMap.values()).sort((a, b) => b.feeTotal - a.feeTotal),
         referrerRanking: Array.from(referrerMap.values()).sort((a, b) => b.feeTotal - a.feeTotal),
-        companyRanking: Array.from(companyMap.values()).sort((a, b) => b.feeTotal - a.feeTotal),
+        companyRanking: Array.from(companyMap.values())
+            .map(c => ({
+                ...c,
+                departments: companyDeptMap.has(c.name)
+                    ? Array.from(companyDeptMap.get(c.name)!.values()).sort((a, b) => b.feeTotal - a.feeTotal)
+                    : [],
+            }))
+            .sort((a, b) => b.feeTotal - a.feeTotal),
     }
 }

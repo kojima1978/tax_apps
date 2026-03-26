@@ -6,7 +6,7 @@ import { SelectField } from "@/components/ui/SelectField"
 import { MultiSelectDropdown } from "@/components/ui/MultiSelectDropdown"
 import { Search, X, Filter } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
-import { CASE_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, SORT_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
+import { CASE_STATUS_FILTER_OPTIONS, HANDLING_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, SORT_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
 import type { Assignee, Department } from "@/types/shared"
 
 const FILTER_SELECT_WRAPPER = "h-10 w-auto"
@@ -32,7 +32,8 @@ interface FilterBarProps {
 const STATIC_FILTER_DEFS: FilterDef[] = [
     { key: "fiscalYear", placeholder: "年度", options: FILTER_YEAR_OPTIONS.map(y => ({ value: y, label: `${y}年度` })) },
     { key: "acceptanceStatus", placeholder: "受託状況", options: ACCEPTANCE_STATUS_FILTER_OPTIONS, multiSelect: true },
-    { key: "status", placeholder: "ステータス", options: CASE_STATUS_FILTER_OPTIONS, multiSelect: true },
+    { key: "status", placeholder: "進み具合", options: CASE_STATUS_FILTER_OPTIONS, multiSelect: true },
+    { key: "handlingStatus", placeholder: "対応状況", options: HANDLING_STATUS_FILTER_OPTIONS, multiSelect: true },
 ]
 
 export function FilterBar({
@@ -61,7 +62,8 @@ export function FilterBar({
 
     const CHIP_LABELS: Record<string, (v: string | number) => string> = {
         search: (v) => `検索: ${v}`,
-        status: (v) => `ステータス: ${v}`,
+        status: (v) => `進み具合: ${v}`,
+        handlingStatus: (v) => `対応状況: ${v}`,
         acceptanceStatus: (v) => `受託: ${v}`,
         fiscalYear: (v) => `年度: ${v}年度`,
         department: (v) => `部門: ${v}`,
