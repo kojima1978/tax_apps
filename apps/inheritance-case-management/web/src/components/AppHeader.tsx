@@ -23,9 +23,9 @@ export function AppHeader() {
             <div className="container mx-auto flex h-14 items-center justify-between px-4">
                 {/* Left: Home + App Name */}
                 <div className="flex items-center gap-3">
-                    <Link href="/" title="ポータルに戻る" className="text-muted-foreground hover:text-primary transition-colors">
+                    <a href="/" title="ポータルに戻る" className="text-muted-foreground hover:text-primary transition-colors">
                         <Home className="h-5 w-5" />
-                    </Link>
+                    </a>
                     <Link
                         href="/"
                         className={cn(

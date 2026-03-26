@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { parseAndValidateCSV, buildResolverMaps, MAX_IMPORT_FILE_SIZE } from '@/lib/import-csv';
 import type { ImportParseResult, ResolverMaps } from '@/lib/import-csv';
 import { createCase, updateCase, getAllCases } from '@/lib/api/cases';
+import { DEFAULT_PROGRESS_STEPS } from '@/lib/progress-utils';
 import { getAssignees, createAssignee } from '@/lib/api/assignees';
 import { getReferrers, createReferrer } from '@/lib/api/referrers';
 import { getDepartments, createDepartment } from '@/lib/api/departments';
@@ -70,7 +71,7 @@ async function resolveOrCreateReferrer(
   referrerCache: Map<string, number>,
   companyCache: Map<string, number>
 ): Promise<number> {
-  const cacheKey = `${pending.company}\0${pending.name}`;
+  const cacheKey = `${pending.company}\0${pending.name ?? ''}`;
   const cached = referrerCache.get(cacheKey);
   if (cached) return cached;
 
@@ -78,7 +79,7 @@ async function resolveOrCreateReferrer(
 
   const created = await createReferrer({
     companyId,
-    name: pending.name,
+    name: pending.name || undefined,
     department: pending.department,
   });
   referrerCache.set(cacheKey, created.id);
@@ -97,17 +98,6 @@ export function useImportCSV() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const abortRef = useRef(false);
 
-  // Load master data + existing cases for name resolution & duplicate detection
-  useEffect(() => {
-    Promise.all([getAssignees(), getReferrers(), getAllCases(), getDepartments(), getCompanies()])
-      .then(([assignees, referrers, cases, depts, comps]) => {
-        setResolvers(buildResolverMaps(assignees, referrers));
-        setExistingCases(cases);
-        setDepartments(depts);
-        setCompanies(comps);
-      })
-      .catch(() => {});
-  }, []);
 
   const handleFileSelect = useCallback(
     async (file: File) => {
@@ -130,15 +120,25 @@ export function useImportCSV() {
       }
 
       try {
+        // マスターデータと既存案件を最新に更新してからパース
+        const [freshAssignees, freshReferrers, freshCases, freshDepts, freshComps] = await Promise.all([
+          getAssignees(), getReferrers(), getAllCases(), getDepartments(), getCompanies(),
+        ]);
+        const freshResolvers = buildResolverMaps(freshAssignees, freshReferrers);
+        setResolvers(freshResolvers);
+        setExistingCases(freshCases);
+        setDepartments(freshDepts);
+        setCompanies(freshComps);
+
         const text = await file.text();
-        const result = parseAndValidateCSV(text, resolvers ?? undefined, existingCases);
+        const result = parseAndValidateCSV(text, freshResolvers, freshCases);
         setParseResult(result);
         setStep('preview');
       } catch {
         setFileError('ファイルの読み込みに失敗しました');
       }
     },
-    [resolvers, existingCases]
+    []
   );
 
   const executeImport = useCallback(async () => {
@@ -186,6 +186,10 @@ export function useImportCSV() {
           await updateCase(row.id, row.data);
           updatedCount++;
         } else {
+          // 進捗データがなければデフォルトステップを自動セット
+          if (!row.data.progress || row.data.progress.length === 0) {
+            row.data.progress = [...DEFAULT_PROGRESS_STEPS];
+          }
           await createCase(row.data);
           createdCount++;
         }

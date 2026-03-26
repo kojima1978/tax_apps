@@ -2,10 +2,9 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import type { Column } from "@tanstack/react-table"
 
-function SortIcon<T>({ column }: { column: Column<T, unknown> }) {
-    const sorted = column.getIsSorted()
-    if (sorted === "asc") return <ArrowUp className="ml-1 h-4 w-4" />
-    if (sorted === "desc") return <ArrowDown className="ml-1 h-4 w-4" />
+export function SortIcon({ direction }: { direction: "asc" | "desc" | false | null }) {
+    if (direction === "asc") return <ArrowUp className="ml-1 h-4 w-4" />
+    if (direction === "desc") return <ArrowDown className="ml-1 h-4 w-4" />
     return <ArrowUpDown className="ml-1 h-4 w-4 opacity-50" />
 }
 
@@ -23,7 +22,7 @@ export function SortableHeader<T>({ column, children, className }: SortableHeade
             className="h-8 text-xs -ml-2 px-2"
         >
             {children}
-            <SortIcon column={column} />
+            <SortIcon direction={column.getIsSorted()} />
         </Button>
     )
 

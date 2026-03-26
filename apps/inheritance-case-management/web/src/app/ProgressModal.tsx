@@ -7,7 +7,7 @@ import { Modal } from "@/components/ui/Modal"
 import { SetTodayButton } from "@/components/ui/SetTodayButton"
 import type { InheritanceCase, CaseStatus, ProgressStep } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
-import { addVisitStep, shouldShowAddVisit, STATUS_STEP_MAP } from "@/lib/progress-utils"
+import { addVisitStep, shouldShowAddVisit, STATUS_STEP_MAP, DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { toProgressSteps, toProgressItems } from "@/lib/case-converters"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
@@ -72,7 +72,7 @@ function detectStatusPrompt(steps: ProgressStep[], currentStatus: CaseStatus) {
         // このステータス以上なら提案不要
         const atOrBeyond = STATUS_STEP_MAP.slice(i).some(m => m.status === currentStatus)
         if (step?.date && !atOrBeyond) {
-            return { status, message: `「${stepName}」に日付が入力されました。\nステータスを「${status}」に変更しますか？` }
+            return { status, message: `「${stepName}」に日付が入力されました。\n進み具合を「${status}」に変更しますか？` }
         }
     }
     return null
@@ -172,7 +172,17 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
                                 </SortableContext>
                             </DndContext>
                         ) : (
-                            <div className="p-4 text-center text-muted-foreground text-sm">進捗データがありません</div>
+                            <div className="p-4 text-center space-y-2">
+                                <p className="text-muted-foreground text-sm">進捗データがありません</p>
+                                <button
+                                    type="button"
+                                    onClick={() => onChange([...DEFAULT_PROGRESS_STEPS])}
+                                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                                >
+                                    <Plus className="h-3 w-3" />
+                                    デフォルトステップを追加
+                                </button>
+                            </div>
                         )}
                     </div>
 

@@ -104,7 +104,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         for (const { status: expectedStatus, stepName } of STATUS_STEP_MAP) {
             const step = progress.find(s => s.name === stepName)
             if (status === expectedStatus && !step?.date) {
-                warnings.push(`ステータスが「${expectedStatus}」ですが、進捗の「${stepName}」に日付が入力されていません。`)
+                warnings.push(`進み具合が「${expectedStatus}」ですが、進捗の「${stepName}」に日付が入力されていません。`)
             }
         }
 
@@ -120,7 +120,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         warnings,
                         suggestion: {
                             status: suggestedStatus,
-                            message: `進捗の「${stepName}」に日付が入力されています。\nステータスを「${suggestedStatus}」に変更しますか？`,
+                            message: `進捗の「${stepName}」に日付が入力されています。\n進み具合を「${suggestedStatus}」に変更しますか？`,
                         },
                     }
                 }
@@ -141,15 +141,15 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             const payload = toApiPayload()
             if (isCreateMode) {
                 await createCase(payload)
-                queryClient.removeQueries({ queryKey: CASES_QUERY_KEY })
+                await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
                 toast.success("新規登録しました")
                 router.push("/")
             } else {
                 const updatedAt = formData.updatedAt ? new Date(formData.updatedAt).toISOString() : undefined
-                const result = await updateCase(formData.id, payload, updatedAt)
-                setFormData(prev => ({ ...prev, updatedAt: result.updatedAt }))
+                await updateCase(formData.id, payload, updatedAt)
+                await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
                 toast.success("保存しました")
-                router.refresh()
+                router.push("/")
             }
         } catch (e) {
             console.error(e)
@@ -257,7 +257,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     setPendingSuggestion(null)
                     doSave()
                 }}
-                title="ステータスの確認"
+                title="進み具合の確認"
             >
                 <p className="text-sm whitespace-pre-line mb-6">{pendingSuggestion?.message}</p>
                 <div className="flex justify-end gap-3">

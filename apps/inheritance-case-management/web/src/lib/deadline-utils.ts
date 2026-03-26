@@ -13,8 +13,8 @@ export function getDeadlineDate(dateOfDeath: string | Date): Date {
     return deadline
 }
 
-/** 期限までの残日数に基づくスタイルとバッジテキスト */
-export function getDeadlineStatus(deadline: Date): { className: string; badge: string; badgeClassName: string } | null {
+/** 期限までの残日数に基づくスタイルとバッジテキスト（常時返す） */
+export function getDeadlineStatus(deadline: Date): { className: string; badge: string; badgeClassName: string } {
     const now = new Date()
     const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
@@ -39,5 +39,9 @@ export function getDeadlineStatus(deadline: Date): { className: string; badge: s
             badgeClassName: "bg-amber-50 text-amber-600",
         }
     }
-    return null
+    return {
+        className: "",
+        badge: `残${daysLeft}日`,
+        badgeClassName: "bg-gray-100 text-gray-500",
+    }
 }

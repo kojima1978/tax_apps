@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { columns } from "./columns"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import { createColumns } from "./columns"
 import { DataTable } from "./data-table"
 import { useCases } from "@/hooks/use-cases"
 import { useExportCSV } from "@/hooks/use-export-csv"
@@ -12,6 +12,7 @@ import { getAssignees } from "@/lib/api/assignees"
 import { getDepartments } from "@/lib/api/departments"
 import { computeKPI } from "@/lib/kpi-utils"
 import { FILTER_KEYS } from "@/types/constants"
+import { calcNet, calcBestNet, formatCurrency } from "@/lib/analytics-utils"
 import { Button } from "@/components/ui/Button"
 import { RefreshCw, Download, Upload, Trash2 } from "lucide-react"
 import { TableSkeleton } from "@/components/ui/Skeleton"
@@ -28,7 +29,7 @@ export default function InheritanceMockupPage() {
     const toast = useToast()
     const [queryParams, setQueryParams] = useState<CasesQueryParams>({
         page: 1,
-        pageSize: 30,
+        pageSize: 100,
         fiscalYear: new Date().getFullYear(),
     })
     const [searchInput, setSearchInput] = useState("")
@@ -40,6 +41,31 @@ export default function InheritanceMockupPage() {
     const [isDeleting, setIsDeleting] = useState(false)
     const cases = data?.data ?? []
     const pagination = data?.pagination
+    const [amountSort, setAmountSort] = useState<"asc" | "desc" | null>(null)
+
+    const toggleAmountSort = useCallback(() => {
+        setAmountSort(prev => prev === null ? "desc" : prev === "desc" ? "asc" : null)
+    }, [])
+
+    const sortedCases = useMemo(() => {
+        if (!amountSort) return cases
+        return [...cases].sort((a, b) => {
+            const aNet = calcBestNet(a)
+            const bNet = calcBestNet(b)
+            return amountSort === "asc" ? aNet - bNet : bNet - aNet
+        })
+    }, [cases, amountSort])
+
+    const amountTotals = useMemo(() => {
+        let confirmed = 0, estimate = 0
+        cases.forEach(c => {
+            if ((c.feeAmount || 0) > 0) confirmed += calcNet(c, "fee")
+            else estimate += calcNet(c, "estimate")
+        })
+        return { confirmed, estimate, total: confirmed + estimate }
+    }, [cases])
+
+    const tableColumns = useMemo(() => createColumns({ amountSort, toggleAmountSort }), [amountSort, toggleAmountSort])
 
     // KPI data & assignees
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
@@ -94,7 +120,8 @@ export default function InheritanceMockupPage() {
     const filterDescription = useMemo(() => {
         const parts: string[] = []
         if (queryParams.fiscalYear) parts.push(`${queryParams.fiscalYear}年度`)
-        if (queryParams.status) parts.push(`ステータス: ${queryParams.status}`)
+        if (queryParams.status) parts.push(`進み具合: ${queryParams.status}`)
+        if (queryParams.handlingStatus) parts.push(`対応状況: ${queryParams.handlingStatus}`)
         if (queryParams.acceptanceStatus) parts.push(`受託: ${queryParams.acceptanceStatus}`)
         if (queryParams.department) parts.push(`部門: ${queryParams.department}`)
         if (queryParams.assigneeId) {
@@ -178,9 +205,18 @@ export default function InheritanceMockupPage() {
                             </div>
                         </div>
                     )}
+                    {sortedCases.length > 0 && (
+                        <div className="flex items-center justify-end gap-3 px-2 py-1.5 text-sm border rounded-t-md bg-muted/50">
+                            <span className="text-muted-foreground">売上合計:</span>
+                            <span className="font-bold">{formatCurrency(amountTotals.total)}</span>
+                            <span className="text-xs text-green-700">確定 {formatCurrency(amountTotals.confirmed)}</span>
+                            <span className="text-xs text-blue-700">見込 {formatCurrency(amountTotals.estimate)}</span>
+                            <span className="text-muted-foreground">/ {sortedCases.length}件</span>
+                        </div>
+                    )}
                     <DataTable
-                        columns={columns}
-                        data={cases}
+                        columns={tableColumns}
+                        data={sortedCases}
                         hasFilters={hasFilters}
                         onClearFilters={handleClearAll}
                     />

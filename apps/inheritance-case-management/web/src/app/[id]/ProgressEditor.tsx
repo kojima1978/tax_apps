@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { SetTodayButton } from "@/components/ui/SetTodayButton"
 import type { ProgressStep } from "@/types/shared"
-import { addVisitStep, removeVisitStep, shouldShowAddVisit } from "@/lib/progress-utils"
+import { addVisitStep, removeVisitStep, shouldShowAddVisit, DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
 import { GripVertical } from "lucide-react"
 import { DndContext, closestCenter } from "@dnd-kit/core"
@@ -86,6 +86,17 @@ export function ProgressEditor({ progress, onChange }: ProgressEditorProps) {
     const handleDeleteStep = (index: number) => {
         if (!confirm("この訪問日時を削除してもよろしいですか？")) return
         onChange(removeVisitStep(progress, index))
+    }
+
+    if (progress.length === 0) {
+        return (
+            <div className="text-center py-6 border rounded-lg bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-2">進捗データがありません</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => onChange([...DEFAULT_PROGRESS_STEPS])}>
+                    + デフォルトステップを追加
+                </Button>
+            </div>
+        )
     }
 
     return (

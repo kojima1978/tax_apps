@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { MAX_SUMMARY_LENGTH } from './constants';
 
 // Status Schemas (internal - used by createCaseSchema/listQuerySchema)
-const caseStatusSchema = z.enum(['未着手', '手続中', '申告済', '請求済', '入金済', '対応終了']);
+const caseStatusSchema = z.enum(['未着手', '手続中', '申告済', '請求済', '入金済']);
+const handlingStatusSchema = z.enum(['対応中', '対応終了', '未分割']);
 const acceptanceStatusSchema = z.enum(['受託可', '受託不可', '未判定', '保留']);
 
 // Contact Schema (internal - used by createCaseSchema)
@@ -27,6 +28,7 @@ export const createCaseSchema = z.object({
   dateOfDeath: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）'),
   fiscalYear: z.number().int('年度は整数で入力してください').min(2000, '年度は2000年以上を入力してください').max(2100, '年度は2100年以下を入力してください'),
   status: caseStatusSchema.optional().default('未着手'),
+  handlingStatus: handlingStatusSchema.optional().default('対応中'),
   acceptanceStatus: acceptanceStatusSchema.optional().default('未判定'),
   taxAmount: z.number().int().min(0, '税額は0以上を入力してください').optional().default(0),
   assigneeId: z.number().int().nullable().optional(),
@@ -83,7 +85,7 @@ export const updateCompanySchema = createCompanySchema.partial().extend({
 // Referrer Schemas
 export const createReferrerSchema = z.object({
   companyId: z.number().int('会社IDは整数で入力してください'),
-  name: z.string().min(1, '担当者名は必須です').max(50, '担当者名は50文字以内で入力してください'),
+  name: z.string().max(50, '氏名は50文字以内で入力してください').optional(),
   department: z.string().max(50, '部署は50文字以内で入力してください').optional(),
 });
 
@@ -108,8 +110,9 @@ const sortOrderSchema = z.enum(['asc', 'desc']);
 // Query Params Schema
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(30),
+  pageSize: z.coerce.number().int().min(1).max(200).optional().default(100),
   status: z.string().optional(),
+  handlingStatus: z.string().optional(),
   acceptanceStatus: z.string().optional(),
   fiscalYear: z.coerce.number().int().optional(),
   search: z.string().optional(),

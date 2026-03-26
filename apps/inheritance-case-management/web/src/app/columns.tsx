@@ -1,17 +1,35 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import type { InheritanceCase, CaseStatus, AcceptanceStatus } from "@/types/shared"
-import { formatCurrency, calcNet } from "@/lib/analytics-utils"
-import { STATUS_STYLES, ACCEPTANCE_STYLES, MAX_SUMMARY_LENGTH, isCompleted } from "@/types/constants"
+import type { InheritanceCase, CaseStatus, AcceptanceStatus, HandlingStatus } from "@/types/shared"
+import { formatCurrency, calcBestNet } from "@/lib/analytics-utils"
+import { STATUS_STYLES, HANDLING_STATUS_STYLES, ACCEPTANCE_STYLES, MAX_SUMMARY_LENGTH, isCompleted } from "@/types/constants"
 import { StatusBadge } from "@/components/ui/StatusBadge"
-import { SortableHeader } from "@/components/ui/SortableHeader"
+import { SortableHeader, SortIcon } from "@/components/ui/SortableHeader"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
+import { Button } from "@/components/ui/Button"
 import Link from "next/link"
 import { ProgressModalButton } from "./ProgressModal"
 import { InlineSummaryCell } from "./InlineSummaryCell"
 
-export const columns: ColumnDef<InheritanceCase>[] = [
+interface ColumnOptions {
+    amountSort: "asc" | "desc" | null
+    toggleAmountSort: () => void
+}
+
+function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onToggle: () => void }) {
+    return (
+        <div className="flex justify-end">
+            <Button variant="ghost" onClick={onToggle} className="h-8 text-xs px-2">
+                売上
+                <SortIcon direction={sort || false} />
+            </Button>
+        </div>
+    )
+}
+
+export function createColumns({ amountSort, toggleAmountSort }: ColumnOptions): ColumnDef<InheritanceCase>[] {
+    return [
     {
         accessorKey: "deceasedName",
         header: ({ column }) => <SortableHeader column={column}>被相続人氏名</SortableHeader>,
@@ -43,27 +61,28 @@ export const columns: ColumnDef<InheritanceCase>[] = [
             const deadline = getDeadlineDate(row.getValue("dateOfDeath"))
             const dateStr = deadline.toLocaleDateString("ja-JP")
 
-            if (row.original.status === "対応終了") {
-                return <div className="text-muted-foreground line-through">{dateStr}</div>
+            if (row.original.handlingStatus === "対応終了") {
+                return (
+                    <div className="text-muted-foreground">
+                        <div className="text-xs mb-0.5 line-through">対応終了</div>
+                        <div className="line-through">{dateStr}</div>
+                    </div>
+                )
             }
             if (isCompleted(row.original.status)) {
                 return (
                     <div className="text-muted-foreground">
-                        {dateStr}
-                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">申告済</span>
+                        <div className="text-xs mb-0.5"><span className="px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">申告済</span></div>
+                        <div>{dateStr}</div>
                     </div>
                 )
             }
 
             const status = getDeadlineStatus(deadline)
             return (
-                <div className={status?.className ?? ""}>
-                    {dateStr}
-                    {status && (
-                        <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${status.badgeClassName}`}>
-                            {status.badge}
-                        </span>
-                    )}
+                <div className={status.className}>
+                    <div className="text-xs mb-0.5"><span className={`px-1.5 py-0.5 rounded-full ${status.badgeClassName}`}>{status.badge}</span></div>
+                    <div>{dateStr}</div>
                 </div>
             )
         },
@@ -78,10 +97,18 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     },
     {
         accessorKey: "status",
-        header: ({ column }) => <SortableHeader column={column}>ステータス</SortableHeader>,
+        header: ({ column }) => <SortableHeader column={column}>進み具合</SortableHeader>,
         cell: ({ row }) => {
             const status = row.getValue("status") as CaseStatus
             return <StatusBadge label={status} style={STATUS_STYLES[status]} />
+        },
+    },
+    {
+        accessorKey: "handlingStatus",
+        header: ({ column }) => <SortableHeader column={column}>対応状況</SortableHeader>,
+        cell: ({ row }) => {
+            const handling = (row.getValue("handlingStatus") || "対応中") as HandlingStatus
+            return <StatusBadge label={handling} style={HANDLING_STATUS_STYLES[handling]} />
         },
     },
     {
@@ -91,11 +118,11 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     },
     {
         id: "amount",
-        header: () => <span className="inline-flex items-center justify-end h-8 w-full">売上</span>,
+        header: () => <AmountSortHeader sort={amountSort} onToggle={toggleAmountSort} />,
         cell: ({ row }) => {
             const c = row.original
             const hasFee = (c.feeAmount || 0) > 0
-            const amount = hasFee ? calcNet(c, "fee") : calcNet(c, "estimate")
+            const amount = calcBestNet(c)
             return (
                 <div className="text-right font-medium">
                     <div className={`text-xs mb-0.5 ${hasFee ? "text-green-700" : "text-blue-700"}`}>
@@ -129,4 +156,5 @@ export const columns: ColumnDef<InheritanceCase>[] = [
         header: () => <span className="inline-flex items-center h-8">特記事項（{MAX_SUMMARY_LENGTH}文字まで）</span>,
         cell: ({ row }) => <InlineSummaryCell caseData={row.original} />,
     },
-]
+    ]
+}

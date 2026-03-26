@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { Label } from "./Label"
 import { SelectField } from "./SelectField"
 
@@ -27,9 +28,9 @@ export function MasterSelect<T extends { id: number; active: boolean }>({
                 })}
             </SelectField>
             <div className="text-right text-xs">
-                <a href={editHref} className="text-muted-foreground hover:underline hover:text-primary">
+                <Link href={editHref} className="text-muted-foreground hover:underline hover:text-primary">
                     {editLabel}
-                </a>
+                </Link>
             </div>
         </div>
     )

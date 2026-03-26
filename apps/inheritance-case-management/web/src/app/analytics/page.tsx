@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
 import type { InheritanceCase } from "@/types/shared"
-import { calcNet, aggregateCases, computeRollingAnnual } from "@/lib/analytics-utils"
+import { calcNet, aggregateCases, computeRollingAnnual, LABEL_NONE, pinBottomCompare } from "@/lib/analytics-utils"
 import { isCompleted } from "@/types/constants"
 import { SelectField } from "@/components/ui/SelectField"
 import { RefreshCw } from "lucide-react"
@@ -45,6 +45,10 @@ export default function AnalyticsPage() {
 
                 const uniqueYears = Array.from(new Set(cases.map(c => c.fiscalYear))).sort((a, b) => b - a)
                 setYears(uniqueYears)
+                const currentYear = new Date().getFullYear()
+                if (!uniqueYears.includes(currentYear)) {
+                    setSelectedYear(uniqueYears.length > 0 ? String(uniqueYears[0]) : "all")
+                }
             } catch (error) {
                 console.error("Failed to load analytics data:", error)
             } finally {
@@ -66,7 +70,17 @@ export default function AnalyticsPage() {
 
     const rollingAnnualData = useMemo(() => computeRollingAnnual(data), [data])
 
-    const { sorted: sortedReferrerRanking, sort: referrerSort, handleSort: handleReferrerSort } = useRankingSort(aggregation.referrerRanking)
+    const groupedReferrerRanking = useMemo(() => {
+        const data = aggregation.referrerRanking
+        return [...data].sort((a, b) => {
+            const aGroup = a.group || LABEL_NONE
+            const bGroup = b.group || LABEL_NONE
+            const pin = pinBottomCompare(aGroup, bGroup)
+            if (pin !== 0) return pin
+            if (aGroup !== bGroup) return aGroup.localeCompare(bGroup, "ja")
+            return b.feeTotal - a.feeTotal
+        })
+    }, [aggregation.referrerRanking])
     const { sorted: sortedCompanyRanking, sort: companySort, handleSort: handleCompanySort } = useRankingSort(aggregation.companyRanking)
 
     const summaryTotals = useMemo(() => {
@@ -152,9 +166,7 @@ export default function AnalyticsPage() {
 
             {activeTab === "referrer" && (
                 <ReferrerTab
-                    sortedReferrerRanking={sortedReferrerRanking}
-                    referrerSort={referrerSort}
-                    onSort={handleReferrerSort}
+                    groupedReferrerRanking={groupedReferrerRanking}
                     sortedCompanyRanking={sortedCompanyRanking}
                     companySort={companySort}
                     onCompanySort={handleCompanySort}

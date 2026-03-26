@@ -18,7 +18,7 @@ export function computeKPI(allCases: InheritanceCase[]): KPIData {
     const ongoing = accepted.filter(c => c.status === "手続中").length
 
     const deadlineSoon = accepted.filter(c => {
-        if (isDeadlineSkip(c.status)) return false
+        if (isDeadlineSkip(c.status, c.handlingStatus)) return false
         const deadline = getDeadlineDate(c.dateOfDeath)
         return deadline <= in30Days && deadline >= now
     }).length
