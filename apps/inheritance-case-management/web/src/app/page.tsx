@@ -6,22 +6,26 @@ import { DataTable } from "./data-table"
 import { useCases } from "@/hooks/use-cases"
 import { useExportCSV } from "@/hooks/use-export-csv"
 import type { CasesQueryParams } from "@/lib/api/cases"
-import { getAllCases } from "@/lib/api/cases"
-import type { InheritanceCase, Assignee } from "@/types/shared"
+import { getAllCases, bulkDeleteCases } from "@/lib/api/cases"
+import type { InheritanceCase, Assignee, Department } from "@/types/shared"
 import { getAssignees } from "@/lib/api/assignees"
+import { getDepartments } from "@/lib/api/departments"
 import { computeKPI } from "@/lib/kpi-utils"
 import { FILTER_KEYS } from "@/types/constants"
 import { Button } from "@/components/ui/Button"
-import { RefreshCw, Download, Upload } from "lucide-react"
+import { RefreshCw, Download, Upload, Trash2 } from "lucide-react"
 import { TableSkeleton } from "@/components/ui/Skeleton"
 import { ErrorDisplay } from "@/components/ui/ErrorDisplay"
 import { parseError } from "@/hooks/use-error-handler"
+import { useToast } from "@/components/ui/Toast"
 import { KPICards } from "./KPICards"
 import { FilterBar } from "./FilterBar"
 import { Pagination } from "./Pagination"
 import { ImportCSVModal } from "@/components/ImportCSVModal"
+import { BulkDeleteModal } from "@/components/BulkDeleteModal"
 
 export default function InheritanceMockupPage() {
+    const toast = useToast()
     const [queryParams, setQueryParams] = useState<CasesQueryParams>({
         page: 1,
         pageSize: 30,
@@ -32,12 +36,15 @@ export default function InheritanceMockupPage() {
     const { data, isLoading, isError, error, refetch, isFetching } = useCases(queryParams)
     const { exportCSV, isExporting } = useExportCSV()
     const [showImportModal, setShowImportModal] = useState(false)
+    const [showBulkDelete, setShowBulkDelete] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
     const cases = data?.data ?? []
     const pagination = data?.pagination
 
     // KPI data & assignees
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
     const [assignees, setAssignees] = useState<Assignee[]>([])
+    const [departments, setDepartments] = useState<Department[]>([])
     const dataVersion = data?.pagination?.total
     const kpiFilters = Object.fromEntries(FILTER_KEYS.filter(k => queryParams[k]).map(k => [k, queryParams[k]]))
     const kpiDepsKey = JSON.stringify(kpiFilters)
@@ -45,6 +52,7 @@ export default function InheritanceMockupPage() {
     useEffect(() => {
         refreshKPI()
         getAssignees().then(setAssignees).catch(() => {})
+        getDepartments().then(setDepartments).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dataVersion, kpiDepsKey])
 
@@ -67,6 +75,35 @@ export default function InheritanceMockupPage() {
         setQueryParams({ page: 1, pageSize: 30 })
         setSearchInput("")
     }
+
+    const handleBulkDelete = async () => {
+        setIsDeleting(true)
+        try {
+            const { page, pageSize, sortBy, sortOrder, ...filters } = queryParams
+            await bulkDeleteCases(filters)
+            setShowBulkDelete(false)
+            refetch()
+            refreshKPI()
+        } catch {
+            toast.error("一括削除に失敗しました")
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    const filterDescription = useMemo(() => {
+        const parts: string[] = []
+        if (queryParams.fiscalYear) parts.push(`${queryParams.fiscalYear}年度`)
+        if (queryParams.status) parts.push(`ステータス: ${queryParams.status}`)
+        if (queryParams.acceptanceStatus) parts.push(`受託: ${queryParams.acceptanceStatus}`)
+        if (queryParams.department) parts.push(`部門: ${queryParams.department}`)
+        if (queryParams.assigneeId) {
+            const matched = assignees.find(item => item.id === queryParams.assigneeId)
+            if (matched) parts.push(`担当: ${matched.name}`)
+        }
+        if (queryParams.search) parts.push(`検索: ${queryParams.search}`)
+        return parts.length > 0 ? parts.join(' / ') : '全案件'
+    }, [queryParams, assignees])
 
     const hasFilters = FILTER_KEYS.some(k => queryParams[k])
 
@@ -98,6 +135,16 @@ export default function InheritanceMockupPage() {
                         <Download className={`mr-2 h-4 w-4 ${isExporting ? 'animate-pulse' : ''}`} />
                         {isExporting ? 'エクスポート中...' : hasFilters ? 'CSV出力(絞り込み)' : 'CSV出力'}
                     </Button>
+                    {hasFilters && pagination?.total != null && pagination.total > 0 && (
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowBulkDelete(true)}
+                            className="text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            一括削除 ({pagination.total}件)
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -112,6 +159,7 @@ export default function InheritanceMockupPage() {
                 onSortChange={handleSortChange}
                 onClearAll={handleClearAll}
                 assignees={assignees}
+                departments={departments}
                 totalCount={pagination?.total}
                 hasFilters={hasFilters}
             />
@@ -156,6 +204,15 @@ export default function InheritanceMockupPage() {
                     refetch()
                     refreshKPI()
                 }}
+            />
+
+            <BulkDeleteModal
+                isOpen={showBulkDelete}
+                onClose={() => setShowBulkDelete(false)}
+                onConfirm={handleBulkDelete}
+                totalCount={pagination?.total ?? 0}
+                filterDescription={filterDescription}
+                isDeleting={isDeleting}
             />
         </div>
     )

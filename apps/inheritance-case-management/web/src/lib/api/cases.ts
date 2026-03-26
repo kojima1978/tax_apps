@@ -53,6 +53,20 @@ export async function deleteCase(id: number): Promise<void> {
   await apiClient<void>(`/cases/${id}`, { method: 'DELETE' });
 }
 
+export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortOrder'>): Promise<{ deleted: number }> {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.acceptanceStatus) searchParams.set('acceptanceStatus', params.acceptanceStatus);
+  if (params?.fiscalYear) searchParams.set('fiscalYear', String(params.fiscalYear));
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.assigneeId) searchParams.set('assigneeId', String(params.assigneeId));
+  if (params?.department) searchParams.set('department', params.department);
+
+  const queryString = searchParams.toString();
+  const url = queryString ? `/cases/bulk-delete?${queryString}` : '/cases/bulk-delete';
+  return apiClient<{ deleted: number }>(url, { method: 'DELETE' });
+}
+
 // Fetch all cases (for analytics and export)
 // Optional filters allow exporting only filtered results
 export async function getAllCases(

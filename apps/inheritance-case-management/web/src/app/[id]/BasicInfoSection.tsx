@@ -128,7 +128,7 @@ export function BasicInfoSection({
                     editLabel="担当者を追加・編集"
                     renderOption={(a) => ({
                         value: a.id,
-                        label: a.department ? `${a.department} / ${a.name}` : a.name,
+                        label: a.department?.name ? `${a.department.name} / ${a.name}` : a.name,
                     })}
                     onChange={handleChange}
                 />

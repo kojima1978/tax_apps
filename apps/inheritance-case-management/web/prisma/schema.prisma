@@ -49,29 +49,47 @@ model InheritanceCase {
   @@index([referrerId])
 }
 
-model Assignee {
-  id         Int      @id @default(autoincrement())
-  name       String
-  employeeId String?
-  department String?
-  active     Boolean  @default(true)
-  cases      InheritanceCase[]
+model Department {
+  id         Int        @id @default(autoincrement())
+  name       String     @unique
+  sortOrder  Int        @default(0)
+  active     Boolean    @default(true)
+  assignees  Assignee[]
 
-  // Audit fields
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@index([active])
+}
+
+model Assignee {
+  id           Int          @id @default(autoincrement())
+  name         String
+  employeeId   String?
+  departmentId Int?
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  active       Boolean      @default(true)
+  cases        InheritanceCase[]
+
+  // Audit fields
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([active])
   @@index([name])
+  @@index([departmentId])
 }
 
 model Company {
   id        Int        @id @default(autoincrement())
   name      String     @unique
+  active    Boolean    @default(true)
   referrers Referrer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([active])
 }
 
 model Referrer {

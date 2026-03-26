@@ -6,13 +6,11 @@ export interface KPIData {
     total: number
     ongoing: number
     deadlineSoon: number
-    completedThisMonth: number
+    completed: number
 }
 
 export function computeKPI(allCases: InheritanceCase[]): KPIData {
     const now = new Date()
-    const thisMonth = now.getMonth()
-    const thisYear = now.getFullYear()
     const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
     const accepted = allCases.filter(c => c.acceptanceStatus === "受託可")
@@ -25,11 +23,7 @@ export function computeKPI(allCases: InheritanceCase[]): KPIData {
         return deadline <= in30Days && deadline >= now
     }).length
 
-    const completedThisMonth = accepted.filter(c => {
-        if (!isCompleted(c.status)) return false
-        const updated = c.updatedAt ? new Date(c.updatedAt) : null
-        return updated && updated.getMonth() === thisMonth && updated.getFullYear() === thisYear
-    }).length
+    const completed = accepted.filter(c => isCompleted(c.status)).length
 
-    return { total: allCases.length, ongoing, deadlineSoon, completedThisMonth }
+    return { total: allCases.length, ongoing, deadlineSoon, completed }
 }

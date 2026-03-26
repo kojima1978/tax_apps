@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { SelectField } from "@/components/ui/SelectField"
-import { DEPARTMENTS, type Assignee } from "@/types/shared"
+import type { Assignee, Department } from "@/types/shared"
 import { getAssignees, createAssignee, updateAssignee, deleteAssignee } from "@/lib/api/assignees"
+import { getDepartments } from "@/lib/api/departments"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 import { useToast } from "@/components/ui/Toast"
@@ -19,15 +20,21 @@ const formatEmployeeId = (val: string) => {
 
 const columns: ColumnDef<Assignee>[] = [
     { key: "employeeId", label: "社員ID", width: "120px", renderCell: (a) => a.employeeId || "-" },
-    { key: "department", label: "部署", width: "200px", renderCell: (a) => a.department },
+    { key: "department", label: "部署", width: "200px", renderCell: (a) => a.department?.name || "-" },
     { key: "name", label: "氏名" },
 ]
 
 function AssigneeSettingsContent() {
     const toast = useToast()
+    const [departments, setDepartments] = useState<Department[]>([])
+
+    useEffect(() => {
+        getDepartments().then((depts) => setDepartments(depts.filter(d => d.active)))
+            .catch(() => {})
+    }, [])
 
     const [newId, setNewId] = useState("")
-    const [newDept, setNewDept] = useState("")
+    const [newDeptId, setNewDeptId] = useState("")
     const [newName, setNewName] = useState("")
     const [newIdError, setNewIdError] = useState("")
     const [newDeptError, setNewDeptError] = useState("")
@@ -38,14 +45,14 @@ function AssigneeSettingsContent() {
         create: createAssignee,
         update: updateAssignee,
         remove: deleteAssignee,
-        getCreatePayload: (a) => ({ name: a.name, employeeId: a.employeeId, department: a.department }),
-        getUpdatePayload: (a) => ({ name: a.name, employeeId: a.employeeId, department: a.department, active: a.active }),
+        getCreatePayload: (a) => ({ name: a.name, employeeId: a.employeeId, departmentId: a.departmentId ?? null }),
+        getUpdatePayload: (a) => ({ name: a.name, employeeId: a.employeeId, departmentId: a.departmentId ?? null, active: a.active }),
         entityLabel: "担当者",
         savedParam: "assignees",
         sortFields: ["employeeId", "department", "name"],
         getSortValue: (a, field) => {
             if (field === "employeeId") return a.employeeId || ""
-            if (field === "department") return a.department || ""
+            if (field === "department") return a.department?.name || ""
             return a.name
         },
         getDeleteLabel: (a) => a.name,
@@ -54,7 +61,7 @@ function AssigneeSettingsContent() {
     const handleAdd = () => {
         let hasError = false
         if (!newName.trim()) { setNewNameError("氏名を入力してください"); hasError = true }
-        if (!newDept.trim()) { setNewDeptError("部署を選択してください"); hasError = true }
+        if (!newDeptId) { setNewDeptError("部署を選択してください"); hasError = true }
         if (newId.trim() !== "") {
             const num = parseInt(newId.trim(), 10)
             if (isNaN(num) || num < 0 || num > 999) { setNewIdError("3桁の整数を入力してください"); hasError = true }
@@ -62,14 +69,17 @@ function AssigneeSettingsContent() {
         if (hasError) return
 
         setNewIdError(""); setNewNameError(""); setNewDeptError("")
+        const deptIdNum = parseInt(newDeptId, 10)
+        const dept = departments.find(d => d.id === deptIdNum)
         masterList.handleAdd({
             id: nextTempId(),
             name: newName.trim(),
             employeeId: newId.trim() ? formatEmployeeId(newId.trim()) : undefined,
-            department: newDept.trim(),
+            departmentId: deptIdNum,
+            department: dept ?? null,
             active: true,
         } as Assignee)
-        setNewId(""); setNewDept(""); setNewName("")
+        setNewId(""); setNewDeptId(""); setNewName("")
     }
 
     const handleSaveEdit = () => {
@@ -86,12 +96,17 @@ function AssigneeSettingsContent() {
                 }
                 return true
             },
-            (item) => ({
-                ...item,
-                name: masterList.editingFields.name.trim(),
-                employeeId: masterList.editingFields.employeeId?.trim() ? formatEmployeeId(masterList.editingFields.employeeId.trim()) : undefined,
-                department: masterList.editingFields.department?.trim() || "",
-            })
+            (item) => {
+                const deptIdNum = masterList.editingFields.departmentId ? parseInt(masterList.editingFields.departmentId, 10) : null
+                const dept = deptIdNum ? departments.find(d => d.id === deptIdNum) : null
+                return {
+                    ...item,
+                    name: masterList.editingFields.name.trim(),
+                    employeeId: masterList.editingFields.employeeId?.trim() ? formatEmployeeId(masterList.editingFields.employeeId.trim()) : undefined,
+                    departmentId: deptIdNum,
+                    department: dept ?? null,
+                }
+            }
         )
     }
 
@@ -113,12 +128,12 @@ function AssigneeSettingsContent() {
                 <Label htmlFor="new-dept">部署 (必須)</Label>
                 <SelectField
                     id="new-dept"
-                    value={newDept}
-                    onChange={(e) => { setNewDept(e.target.value); if (newDeptError) setNewDeptError("") }}
+                    value={newDeptId}
+                    onChange={(e) => { setNewDeptId(e.target.value); if (newDeptError) setNewDeptError("") }}
                     className={newDeptError ? "border-red-500" : ""}
                 >
                     <option value="">部署を選択</option>
-                    {DEPARTMENTS.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                    {departments.map((dept) => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
                 </SelectField>
                 {newDeptError && <p className="text-xs text-red-500">{newDeptError}</p>}
             </div>
@@ -141,12 +156,12 @@ function AssigneeSettingsContent() {
         if (col.key === "department") {
             return (
                 <SelectField
-                    value={masterList.editingFields.department || ""}
-                    onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, department: e.target.value }))}
+                    value={masterList.editingFields.departmentId || ""}
+                    onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, departmentId: e.target.value }))}
                     className="h-9"
                 >
                     <option value="">部署を選択</option>
-                    {DEPARTMENTS.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                    {departments.map((dept) => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
                 </SelectField>
             )
         }
@@ -181,7 +196,7 @@ function AssigneeSettingsContent() {
             newItemForm={newItemForm}
             onAdd={handleAdd}
             renderEditCell={renderEditCell}
-            onStartEdit={(a) => masterList.handleStartEdit(a, { name: a.name, employeeId: a.employeeId || "", department: a.department || "" })}
+            onStartEdit={(a) => masterList.handleStartEdit(a, { name: a.name, employeeId: a.employeeId || "", departmentId: a.departmentId ? String(a.departmentId) : "" })}
             onSaveEdit={handleSaveEdit}
         />
     )

@@ -54,16 +54,35 @@ export const caseIdParamSchema = z.object({
 export const createAssigneeSchema = z.object({
   name: z.string().min(1, '氏名は必須です').max(50, '氏名は50文字以内で入力してください'),
   employeeId: z.string().max(20, '社員番号は20文字以内で入力してください').optional(),
-  department: z.string().max(50, '部署は50文字以内で入力してください').optional(),
+  departmentId: z.number().int().nullable().optional(),
 });
 
 export const updateAssigneeSchema = createAssigneeSchema.partial().extend({
   active: z.boolean().optional(),
 });
 
+// Department Schemas
+export const createDepartmentSchema = z.object({
+  name: z.string().min(1, '部署名は必須です').max(50, '部署名は50文字以内で入力してください'),
+  sortOrder: z.number().int().min(0).optional().default(0),
+});
+
+export const updateDepartmentSchema = createDepartmentSchema.partial().extend({
+  active: z.boolean().optional(),
+});
+
+// Company Schemas
+export const createCompanySchema = z.object({
+  name: z.string().min(1, '会社名は必須です').max(100, '会社名は100文字以内で入力してください'),
+});
+
+export const updateCompanySchema = createCompanySchema.partial().extend({
+  active: z.boolean().optional(),
+});
+
 // Referrer Schemas
 export const createReferrerSchema = z.object({
-  company: z.string().min(1, '会社名は必須です').max(100, '会社名は100文字以内で入力してください'),
+  companyId: z.number().int('会社IDは整数で入力してください'),
   name: z.string().min(1, '担当者名は必須です').max(50, '担当者名は50文字以内で入力してください'),
   department: z.string().max(50, '部署は50文字以内で入力してください').optional(),
 });
@@ -96,15 +115,19 @@ export const listQuerySchema = z.object({
   search: z.string().optional(),
   assigneeId: z.coerce.number().int().optional(),
   department: z.string().optional(),
-  sortBy: sortFieldSchema.optional().default('createdAt'),
-  sortOrder: sortOrderSchema.optional().default('desc'),
+  sortBy: sortFieldSchema.optional().default('dateOfDeath'),
+  sortOrder: sortOrderSchema.optional().default('asc'),
 });
 
 // Type exports
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
 export type UpdateCaseInput = z.infer<typeof updateCaseSchema>;
+export type CreateDepartmentInput = z.infer<typeof createDepartmentSchema>;
+export type UpdateDepartmentInput = z.infer<typeof updateDepartmentSchema>;
 export type CreateAssigneeInput = z.infer<typeof createAssigneeSchema>;
 export type UpdateAssigneeInput = z.infer<typeof updateAssigneeSchema>;
+export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
+export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
 export type CreateReferrerInput = z.infer<typeof createReferrerSchema>;
 export type UpdateReferrerInput = z.infer<typeof updateReferrerSchema>;
 export type ListQueryInput = z.infer<typeof listQuerySchema>;

@@ -5,6 +5,39 @@ import { handleApiError } from '@/lib/api-error-handler';
 import { createCaseSchema, listQuerySchema } from '@/types/validation';
 import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
 
+/** Build Prisma where clause from parsed query params */
+export function buildCaseWhereClause(params: {
+  status?: string;
+  acceptanceStatus?: string;
+  fiscalYear?: number;
+  search?: string;
+  assigneeId?: number;
+  department?: string;
+}): Prisma.InheritanceCaseWhereInput {
+  const where: Prisma.InheritanceCaseWhereInput = {};
+  const { status, acceptanceStatus, fiscalYear, search, assigneeId, department } = params;
+
+  if (status) {
+    where.status = status.includes(',') ? { in: status.split(',') } : status;
+  }
+  if (acceptanceStatus) {
+    where.acceptanceStatus = acceptanceStatus.includes(',') ? { in: acceptanceStatus.split(',') } : acceptanceStatus;
+  }
+  if (fiscalYear) {
+    where.fiscalYear = fiscalYear;
+  }
+  if (search) {
+    where.deceasedName = { contains: search, mode: 'insensitive' };
+  }
+  if (assigneeId) {
+    where.assigneeId = assigneeId;
+  }
+  if (department) {
+    where.assignee = { department: { name: department } };
+  }
+  return where;
+}
+
 // GET /api/cases - List cases with pagination, filtering, and sorting
 export async function GET(request: NextRequest) {
   try {
@@ -12,27 +45,7 @@ export async function GET(request: NextRequest) {
     const { page, pageSize, status, acceptanceStatus, fiscalYear, search, assigneeId, department, sortBy, sortOrder } =
       listQuerySchema.parse(searchParams);
 
-    // Build where clause for filtering
-    const where: Prisma.InheritanceCaseWhereInput = {};
-
-    if (status) {
-      where.status = status.includes(',') ? { in: status.split(',') } : status;
-    }
-    if (acceptanceStatus) {
-      where.acceptanceStatus = acceptanceStatus.includes(',') ? { in: acceptanceStatus.split(',') } : acceptanceStatus;
-    }
-    if (fiscalYear) {
-      where.fiscalYear = fiscalYear;
-    }
-    if (search) {
-      where.deceasedName = { contains: search, mode: 'insensitive' };
-    }
-    if (assigneeId) {
-      where.assigneeId = assigneeId;
-    }
-    if (department) {
-      where.assignee = { department };
-    }
+    const where = buildCaseWhereClause({ status, acceptanceStatus, fiscalYear, search, assigneeId, department });
 
     // ページネーション用のカウントとデータ取得を並列実行
     const [total, cases] = await Promise.all([
@@ -40,7 +53,7 @@ export async function GET(request: NextRequest) {
       prisma.inheritanceCase.findMany({
         where,
         include: CASE_INCLUDE,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: [{ fiscalYear: 'desc' }, { [sortBy]: sortOrder }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

@@ -7,8 +7,7 @@ import { MultiSelectDropdown } from "@/components/ui/MultiSelectDropdown"
 import { Search, X, Filter } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { CASE_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, SORT_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
-import type { Assignee } from "@/types/shared"
-import { DEPARTMENTS } from "@/types/shared"
+import type { Assignee, Department } from "@/types/shared"
 
 const FILTER_SELECT_WRAPPER = "h-10 w-auto"
 
@@ -25,25 +24,25 @@ interface FilterBarProps {
     onSortChange: (sortBy: SortField, sortOrder: SortOrder) => void
     onClearAll: () => void
     assignees: Assignee[]
+    departments: Department[]
     totalCount?: number
     hasFilters: boolean
 }
 
-// Static filter definitions
 const STATIC_FILTER_DEFS: FilterDef[] = [
     { key: "fiscalYear", placeholder: "年度", options: FILTER_YEAR_OPTIONS.map(y => ({ value: y, label: `${y}年度` })) },
     { key: "acceptanceStatus", placeholder: "受託状況", options: ACCEPTANCE_STATUS_FILTER_OPTIONS, multiSelect: true },
     { key: "status", placeholder: "ステータス", options: CASE_STATUS_FILTER_OPTIONS, multiSelect: true },
-    { key: "department", placeholder: "部門", options: DEPARTMENTS.map(d => ({ value: d, label: d })) },
 ]
 
 export function FilterBar({
-    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onSortChange, onClearAll, assignees, totalCount, hasFilters,
+    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onSortChange, onClearAll, assignees, departments, totalCount, hasFilters,
 }: FilterBarProps) {
     const filterDefs: FilterDef[] = useMemo(() => [
         ...STATIC_FILTER_DEFS,
+        { key: "department" as const, placeholder: "部門", options: departments.filter(d => d.active).map(d => ({ value: d.name, label: d.name })) },
         { key: "assigneeId" as const, placeholder: "担当者", options: assignees.filter(a => a.active).map(a => ({ value: a.id, label: a.name })) },
-    ], [assignees])
+    ], [assignees, departments])
 
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 
@@ -156,7 +155,7 @@ export function FilterBar({
                 })}
                 <SelectField
                     wrapperClassName={FILTER_SELECT_WRAPPER}
-                    value={`${queryParams.sortBy || 'createdAt'}_${queryParams.sortOrder || 'desc'}`}
+                    value={`${queryParams.sortBy || 'dateOfDeath'}_${queryParams.sortOrder || 'asc'}`}
                     onChange={(e) => {
                         const [field, order] = e.target.value.split('_') as [SortField, SortOrder]
                         onSortChange(field, order)

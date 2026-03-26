@@ -2,9 +2,12 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { parseAndValidateCSV, buildResolverMaps, MAX_IMPORT_FILE_SIZE } from '@/lib/import-csv';
 import type { ImportParseResult, ResolverMaps } from '@/lib/import-csv';
 import { createCase, updateCase, getAllCases } from '@/lib/api/cases';
-import { getAssignees } from '@/lib/api/assignees';
-import { getReferrers } from '@/lib/api/referrers';
-import type { InheritanceCase } from '@/types/shared';
+import { getAssignees, createAssignee } from '@/lib/api/assignees';
+import { getReferrers, createReferrer } from '@/lib/api/referrers';
+import { getDepartments, createDepartment } from '@/lib/api/departments';
+import { getCompanies, createCompany } from '@/lib/api/companies';
+import type { PendingReferrer, PendingAssignee } from '@/lib/import-csv';
+import type { InheritanceCase, Department, Company } from '@/types/shared';
 
 export type ImportStep = 'select' | 'preview' | 'importing' | 'done';
 
@@ -17,6 +20,71 @@ export interface ImportResult {
   updatedCount: number;
 }
 
+/** Generic resolve-or-create for simple name-based master data (Department, Company) */
+async function resolveOrCreateByName<T extends { id: number; name: string }>(
+  name: string,
+  items: T[],
+  cache: Map<string, number>,
+  createFn: (payload: { name: string }) => Promise<T>
+): Promise<number> {
+  const cached = cache.get(name);
+  if (cached) return cached;
+
+  const existing = items.find((item) => item.name === name);
+  if (existing) {
+    cache.set(name, existing.id);
+    return existing.id;
+  }
+
+  const created = await createFn({ name });
+  cache.set(name, created.id);
+  return created.id;
+}
+
+async function resolveOrCreateAssignee(
+  pending: PendingAssignee,
+  departments: Department[],
+  assigneeCache: Map<string, number>,
+  departmentCache: Map<string, number>
+): Promise<number> {
+  const cacheKey = pending.name;
+  const cached = assigneeCache.get(cacheKey);
+  if (cached) return cached;
+
+  let departmentId: number | null = null;
+  if (pending.department) {
+    departmentId = await resolveOrCreateByName(pending.department, departments, departmentCache, createDepartment);
+  }
+
+  const created = await createAssignee({
+    name: pending.name,
+    departmentId,
+  });
+  assigneeCache.set(cacheKey, created.id);
+  return created.id;
+}
+
+async function resolveOrCreateReferrer(
+  pending: PendingReferrer,
+  companies: Company[],
+  referrerCache: Map<string, number>,
+  companyCache: Map<string, number>
+): Promise<number> {
+  const cacheKey = `${pending.company}\0${pending.name}`;
+  const cached = referrerCache.get(cacheKey);
+  if (cached) return cached;
+
+  const companyId = await resolveOrCreateByName(pending.company, companies, companyCache, createCompany);
+
+  const created = await createReferrer({
+    companyId,
+    name: pending.name,
+    department: pending.department,
+  });
+  referrerCache.set(cacheKey, created.id);
+  return created.id;
+}
+
 export function useImportCSV() {
   const [step, setStep] = useState<ImportStep>('select');
   const [parseResult, setParseResult] = useState<ImportParseResult | null>(null);
@@ -25,14 +93,18 @@ export function useImportCSV() {
   const [progress, setProgress] = useState(0);
   const [resolvers, setResolvers] = useState<ResolverMaps | null>(null);
   const [existingCases, setExistingCases] = useState<InheritanceCase[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const abortRef = useRef(false);
 
   // Load master data + existing cases for name resolution & duplicate detection
   useEffect(() => {
-    Promise.all([getAssignees(), getReferrers(), getAllCases()])
-      .then(([assignees, referrers, cases]) => {
+    Promise.all([getAssignees(), getReferrers(), getAllCases(), getDepartments(), getCompanies()])
+      .then(([assignees, referrers, cases, depts, comps]) => {
         setResolvers(buildResolverMaps(assignees, referrers));
         setExistingCases(cases);
+        setDepartments(depts);
+        setCompanies(comps);
       })
       .catch(() => {});
   }, []);
@@ -84,6 +156,12 @@ export function useImportCSV() {
     let updatedCount = 0;
     const failedRows: ImportResult['failedRows'] = [];
 
+    // Caches for auto-created master data (avoid duplicate API calls)
+    const departmentCache = new Map<string, number>();
+    const companyCache = new Map<string, number>();
+    const assigneeCache = new Map<string, number>();
+    const referrerCache = new Map<string, number>();
+
     for (let i = 0; i < rows.length; i++) {
       if (abortRef.current) {
         skipped = rows.length - i;
@@ -92,6 +170,18 @@ export function useImportCSV() {
 
       const row = rows[i];
       try {
+        // Auto-create assignee if pending
+        if (row.pendingAssignee) {
+          const asgId = await resolveOrCreateAssignee(row.pendingAssignee, departments, assigneeCache, departmentCache);
+          row.data.assigneeId = asgId;
+        }
+
+        // Auto-create referrer if pending
+        if (row.pendingReferrer) {
+          const refId = await resolveOrCreateReferrer(row.pendingReferrer, companies, referrerCache, companyCache);
+          row.data.referrerId = refId;
+        }
+
         if (row.mode === 'update' && row.id) {
           await updateCase(row.id, row.data);
           updatedCount++;
@@ -113,7 +203,7 @@ export function useImportCSV() {
 
     setImportResult({ success, failed, skipped, failedRows, createdCount, updatedCount });
     setStep('done');
-  }, [parseResult]);
+  }, [parseResult, departments, companies]);
 
   const abortImport = useCallback(() => {
     abortRef.current = true;

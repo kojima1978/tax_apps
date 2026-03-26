@@ -66,12 +66,21 @@ export interface InheritanceCase {
   updatedAt?: Date;
 }
 
+// Department Entity
+export interface Department {
+  id: number;
+  name: string;
+  sortOrder: number;
+  active: boolean;
+}
+
 // Assignee Entity
 export interface Assignee {
   id: number;
   name: string;
   employeeId?: string;
-  department?: string;
+  departmentId?: number | null;
+  department?: Department | null;
   active: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -81,6 +90,7 @@ export interface Assignee {
 export interface Company {
   id: number;
   name: string;
+  active: boolean;
 }
 
 // Referrer Entity
@@ -113,5 +123,3 @@ export function formatId(id: number): string {
   return String(id).padStart(4, '0');
 }
 
-// Constants
-export const DEPARTMENTS = ['会計部', '医療部', '建設部', '資産税部'] as const;

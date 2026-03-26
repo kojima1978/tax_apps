@@ -19,7 +19,12 @@ const CSV_HEADER_MAP: Record<string, string> = {
   'ステータス': 'status',
   '受託状況': 'acceptanceStatus',
   '担当者': 'assigneeName',
+  '担当者_氏名': 'assigneePersonName',
+  '担当者_部署名': 'assigneeDepartment',
   '紹介者': 'referrerName',
+  '紹介者_会社名': 'referrerCompany',
+  '紹介者_氏名': 'referrerPersonName',
+  '紹介者_部署名': 'referrerDepartment',
   '財産評価額': 'propertyValue',
   '相続税額': 'taxAmount',
   '見積額': 'estimateAmount',
@@ -55,12 +60,25 @@ export interface ImportIssue {
 export type ImportError = ImportIssue;
 export type ImportWarning = ImportIssue;
 
+export interface PendingReferrer {
+  company: string;
+  name: string;
+  department?: string;
+}
+
+export interface PendingAssignee {
+  name: string;
+  department?: string;
+}
+
 export interface ImportRow {
   data: CreateCaseInput;
   mode: 'create' | 'update';
   id?: number;
   deceasedName: string;
   defaultedFields: string[];
+  pendingReferrer?: PendingReferrer;
+  pendingAssignee?: PendingAssignee;
 }
 
 // Fields that receive Zod defaults when empty
@@ -232,6 +250,8 @@ interface RowParseResult {
   rawId: number | null;
   unresolvedAssignee?: string;
   unresolvedReferrer?: string;
+  pendingReferrer?: PendingReferrer;
+  pendingAssignee?: PendingAssignee;
 }
 
 function rowToInput(
@@ -243,6 +263,15 @@ function rowToInput(
   let rawId: number | null = null;
   let unresolvedAssignee: string | undefined;
   let unresolvedReferrer: string | undefined;
+  let pendingReferrer: PendingReferrer | undefined;
+  let pendingAssignee: PendingAssignee | undefined;
+
+  // Accumulate multi-column fields
+  let refCompany = '';
+  let refPersonName = '';
+  let refDepartment = '';
+  let asgPersonName = '';
+  let asgDepartment = '';
 
   // Parse ID
   if (colMaps.idCol !== null) {
@@ -297,6 +326,21 @@ function rowToInput(
           }
         }
         break;
+      case 'assigneePersonName':
+        asgPersonName = value;
+        break;
+      case 'assigneeDepartment':
+        asgDepartment = value;
+        break;
+      case 'referrerCompany':
+        refCompany = value;
+        break;
+      case 'referrerPersonName':
+        refPersonName = value;
+        break;
+      case 'referrerDepartment':
+        refDepartment = value;
+        break;
       case 'propertyValue':
       case 'taxAmount':
       case 'estimateAmount':
@@ -317,6 +361,34 @@ function rowToInput(
       case 'memo':
         if (value) obj[fieldName] = value;
         break;
+    }
+  }
+
+  // Resolve 2-column assignee (takes precedence over legacy 担当者 column)
+  if (asgPersonName) {
+    const id = resolvers?.assigneeNameToId.get(asgPersonName);
+    if (id) {
+      obj.assigneeId = id;
+    } else {
+      pendingAssignee = {
+        name: asgPersonName,
+        ...(asgDepartment ? { department: asgDepartment } : {}),
+      };
+    }
+  }
+
+  // Resolve 3-column referrer (takes precedence over legacy 紹介者 column)
+  if (refCompany && refPersonName) {
+    const key = `${refCompany} / ${refPersonName}`;
+    const id = resolvers?.referrerNameToId.get(key) ?? resolvers?.referrerNameToId.get(refCompany);
+    if (id) {
+      obj.referrerId = id;
+    } else {
+      pendingReferrer = {
+        company: refCompany,
+        name: refPersonName,
+        ...(refDepartment ? { department: refDepartment } : {}),
+      };
     }
   }
 
@@ -372,7 +444,7 @@ function rowToInput(
     }
   }
 
-  return { obj, rawId, unresolvedAssignee, unresolvedReferrer };
+  return { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee };
 }
 
 // ── Main parse & validate ──────────────────────────────────
@@ -441,7 +513,7 @@ export function parseAndValidateCSV(
 
   for (let i = 0; i < dataRows.length; i++) {
     const csvRowNum = i + 2; // 1-based, header is row 1
-    const { obj, rawId, unresolvedAssignee, unresolvedReferrer } = rowToInput(
+    const { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee } = rowToInput(
       dataRows[i],
       colMaps,
       resolvers
@@ -499,6 +571,8 @@ export function parseAndValidateCSV(
         id,
         deceasedName: result.data.deceasedName,
         defaultedFields,
+        ...(pendingReferrer ? { pendingReferrer } : {}),
+        ...(pendingAssignee ? { pendingAssignee } : {}),
       });
     } else {
       const messages = result.error.issues.map((issue) => issue.message);

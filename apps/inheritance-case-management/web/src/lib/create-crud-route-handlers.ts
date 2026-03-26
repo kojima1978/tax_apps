@@ -14,6 +14,8 @@ interface CrudRouteConfig {
   createSchema: z.ZodType;
   /** Zod schema for update validation */
   updateSchema: z.ZodType;
+  /** Optional Prisma include for relation loading */
+  include?: Record<string, unknown>;
 }
 
 type PrismaDelegate = {
@@ -29,14 +31,14 @@ function getDelegate(model: string): PrismaDelegate {
 }
 
 export function createCrudRouteHandlers(config: CrudRouteConfig) {
-  const { model, orderBy, entityLabel, createSchema, updateSchema } = config;
+  const { model, orderBy, entityLabel, createSchema, updateSchema, include } = config;
   const delegate = getDelegate(model);
 
   // GET /api/{resource} + POST /api/{resource}
   const listAndCreate = {
     async GET() {
       try {
-        const items = await delegate.findMany({ orderBy: { [orderBy]: 'asc' } });
+        const items = await delegate.findMany({ orderBy: { [orderBy]: 'asc' }, ...(include && { include }) });
         return NextResponse.json(items);
       } catch (e) {
         return handleApiError(e);
@@ -47,7 +49,7 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
       try {
         const body = await request.json();
         const data = createSchema.parse(body);
-        const created = await delegate.create({ data: { ...data, active: true } });
+        const created = await delegate.create({ data: { ...data, active: true }, ...(include && { include }) });
         return NextResponse.json(created, { status: 201 });
       } catch (e) {
         return handleApiError(e);
@@ -61,7 +63,7 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
       try {
         const { id: rawId } = await params;
         const id = Number(rawId);
-        const item = await delegate.findUnique({ where: { id } });
+        const item = await delegate.findUnique({ where: { id }, ...(include && { include }) });
         if (!item) {
           return NextResponse.json({ error: `${entityLabel}が見つかりません`, code: 'NOT_FOUND' }, { status: 404 });
         }
@@ -77,7 +79,7 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
         const id = Number(rawId);
         const body = await request.json();
         const data = updateSchema.parse(body);
-        const updated = await delegate.update({ where: { id }, data });
+        const updated = await delegate.update({ where: { id }, data, ...(include && { include }) });
         return NextResponse.json(updated);
       } catch (e) {
         return handleApiError(e);

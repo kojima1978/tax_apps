@@ -91,17 +91,17 @@ export const columns: ColumnDef<InheritanceCase>[] = [
     },
     {
         id: "amount",
-        header: () => <span className="inline-flex items-center justify-end h-8 w-full">金額</span>,
+        header: () => <span className="inline-flex items-center justify-end h-8 w-full">売上</span>,
         cell: ({ row }) => {
             const c = row.original
             const hasFee = (c.feeAmount || 0) > 0
             const amount = hasFee ? calcNet(c, "fee") : calcNet(c, "estimate")
             return (
                 <div className="text-right font-medium">
-                    {formatCurrency(amount)}
-                    <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${hasFee ? "bg-green-50 text-green-700" : "bg-blue-50 text-blue-700"}`}>
+                    <div className={`text-xs mb-0.5 ${hasFee ? "text-green-700" : "text-blue-700"}`}>
                         {hasFee ? "確定" : "見込"}
-                    </span>
+                    </div>
+                    <div>{formatCurrency(amount)}</div>
                 </div>
             )
         },
