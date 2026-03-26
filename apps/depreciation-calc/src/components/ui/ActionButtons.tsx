@@ -9,7 +9,7 @@ type ActionButtonsProps = {
 
 const ActionButtons = ({ canCalculate, hasResult, onCalculate, onClear }: ActionButtonsProps) => {
     const [calculating, setCalculating] = useState(false);
-    const timerRef = useRef<ReturnType<typeof setTimeout>>();
+    const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     const handleCalculate = useCallback(() => {
         if (calculating) return;

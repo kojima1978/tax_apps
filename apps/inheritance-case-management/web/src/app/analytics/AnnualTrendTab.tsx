@@ -29,6 +29,7 @@ const CHART_DEFS = [
         name: "件数",
         stroke: "#16a34a",
         height: 250,
+        yAxisFormatter: (v: number) => `${v}`,
         tooltipFormatter: (v: number) => [`${v}件`, "件数"] as [string, string],
         yAxisWidth: 40,
     },
