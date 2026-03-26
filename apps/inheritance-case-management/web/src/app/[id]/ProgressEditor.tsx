@@ -49,7 +49,7 @@ function SortableStep({
             <div className="pb-5">
                 <div className="p-3 border rounded-lg bg-card/50">
                     <div className="flex items-center gap-2 mb-2">
-                        <button type="button" className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none" {...attributes} {...listeners}>
+                        <button type="button" aria-label="ドラッグして順序変更" className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none" {...attributes} {...listeners}>
                             <GripVertical className="h-4 w-4" />
                         </button>
                         <input type="checkbox" checked={checked} onChange={onToggle} className="h-3.5 w-3.5 rounded border-gray-300 accent-primary" />

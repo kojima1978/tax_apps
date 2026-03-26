@@ -119,7 +119,7 @@ export function FilterBar({
                             </button>
                         </span>
                     ))}
-                    <button onClick={onClearAll} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    <button onClick={onClearAll} className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                         すべてクリア
                     </button>
                 </div>
