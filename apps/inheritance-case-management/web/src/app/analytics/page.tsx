@@ -40,7 +40,7 @@ export default function AnalyticsPage() {
                 setData(cases)
 
                 const map = new Map<string, string>()
-                assignees.forEach(a => map.set(a.name, a.department || ""))
+                assignees.forEach(a => map.set(a.name, a.department?.name || ""))
                 setDeptMap(map)
 
                 const uniqueYears = Array.from(new Set(cases.map(c => c.fiscalYear))).sort((a, b) => b - a)

@@ -69,14 +69,12 @@ export const FILTER_KEYS = ['search', 'status', 'acceptanceStatus', 'fiscalYear'
 
 // Sort options for case list
 export const SORT_OPTIONS = [
+    { value: "dateOfDeath_asc", label: "死亡日 (古い順)" },
+    { value: "dateOfDeath_desc", label: "死亡日 (新しい順)" },
     { value: "createdAt_desc", label: "登録日 (新しい順)" },
     { value: "createdAt_asc", label: "登録日 (古い順)" },
-    { value: "dateOfDeath_desc", label: "死亡日 (新しい順)" },
-    { value: "dateOfDeath_asc", label: "死亡日 (古い順)" },
     { value: "deceasedName_asc", label: "氏名 (昇順)" },
     { value: "deceasedName_desc", label: "氏名 (降順)" },
-    { value: "fiscalYear_desc", label: "年度 (新しい順)" },
-    { value: "fiscalYear_asc", label: "年度 (古い順)" },
     { value: "taxAmount_desc", label: "税額 (高い順)" },
     { value: "taxAmount_asc", label: "税額 (低い順)" },
     { value: "feeAmount_desc", label: "報酬 (高い順)" },

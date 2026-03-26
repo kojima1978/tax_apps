@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useMemo, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
-import { CompanySuggestInput } from "@/components/ui/CompanySuggestInput"
-import type { Referrer } from "@/types/shared"
+import { SelectField } from "@/components/ui/SelectField"
+import type { Referrer, Company } from "@/types/shared"
 import { getReferrers, createReferrer, updateReferrer, deleteReferrer } from "@/lib/api/referrers"
+import { getCompanies } from "@/lib/api/companies"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 
@@ -16,7 +17,14 @@ const columns: ColumnDef<Referrer>[] = [
 ]
 
 function ReferrerSettingsContent() {
-    const [newCompany, setNewCompany] = useState("")
+    const [companies, setCompanies] = useState<Company[]>([])
+
+    useEffect(() => {
+        getCompanies().then((items) => setCompanies(items.filter(c => c.active)))
+            .catch(() => {})
+    }, [])
+
+    const [newCompanyId, setNewCompanyId] = useState("")
     const [newDept, setNewDept] = useState("")
     const [newName, setNewName] = useState("")
     const [newCompanyError, setNewCompanyError] = useState("")
@@ -27,8 +35,8 @@ function ReferrerSettingsContent() {
         create: createReferrer,
         update: updateReferrer,
         remove: deleteReferrer,
-        getCreatePayload: (r) => ({ company: r.company.name, department: r.department, name: r.name }),
-        getUpdatePayload: (r) => ({ company: r.company.name, department: r.department, name: r.name, active: r.active }),
+        getCreatePayload: (r) => ({ companyId: r.companyId, department: r.department, name: r.name }),
+        getUpdatePayload: (r) => ({ companyId: r.companyId, department: r.department, name: r.name, active: r.active }),
         entityLabel: "紹介者",
         savedParam: "referrers",
         sortFields: ["company", "department", "name"],
@@ -40,69 +48,55 @@ function ReferrerSettingsContent() {
         getDeleteLabel: (r) => `${r.company.name} / ${r.name}`,
     })
 
-    // 既存の会社名一覧（重複排除・サジェスト用）
-    const companySuggestions = useMemo(() => {
-        const names = new Set(masterList.items.map((r: Referrer) => r.company.name))
-        return Array.from(names).sort((a, b) => a.localeCompare(b, "ja"))
-    }, [masterList.items])
-
     const handleAdd = () => {
         let hasError = false
-        if (!newCompany.trim()) { setNewCompanyError("会社名を入力してください"); hasError = true }
+        if (!newCompanyId) { setNewCompanyError("会社を選択してください"); hasError = true }
         if (!newName.trim()) { setNewNameError("氏名を入力してください"); hasError = true }
         if (hasError) return
 
         setNewCompanyError(""); setNewNameError("")
+        const companyIdNum = parseInt(newCompanyId, 10)
+        const company = companies.find(c => c.id === companyIdNum)
         masterList.handleAdd({
             id: nextTempId(),
-            companyId: 0,
-            company: { id: 0, name: newCompany.trim() },
+            companyId: companyIdNum,
+            company: company ?? { id: companyIdNum, name: "", active: true },
             department: newDept.trim(),
             name: newName.trim(),
             active: true,
         } as Referrer)
-        setNewCompany(""); setNewDept(""); setNewName("")
+        setNewCompanyId(""); setNewDept(""); setNewName("")
     }
 
     const handleSaveEdit = () => {
-        const newCompanyName = masterList.editingFields.company?.trim()
-        const editingItem = masterList.items.find((r: Referrer) => r.id === masterList.editingId)
-        const oldCompanyName = editingItem?.company.name
-
         masterList.handleSaveEdit(
-            () => !!(newCompanyName && masterList.editingFields.name?.trim()),
-            (item) => ({
-                ...item,
-                company: { ...item.company, name: newCompanyName! },
-                department: masterList.editingFields.department?.trim() || "",
-                name: masterList.editingFields.name.trim(),
-            })
-        )
-
-        // 会社名が変更された場合、同じ旧会社名を持つ他の紹介者にも一括反映
-        if (oldCompanyName && newCompanyName && oldCompanyName !== newCompanyName) {
-            const othersCount = masterList.items.filter((r: Referrer) => r.id !== editingItem!.id && r.company.name === oldCompanyName).length
-            if (othersCount > 0 && window.confirm(
-                `「${oldCompanyName}」→「${newCompanyName}」に変更しました。\n同じ会社名の他${othersCount}名の紹介者にも反映しますか？`
-            )) {
-                masterList.updateItems(prev => prev.map(r =>
-                    r.company.name === oldCompanyName ? { ...r, company: { ...r.company, name: newCompanyName } } : r
-                ))
+            () => !!(masterList.editingFields.companyId && masterList.editingFields.name?.trim()),
+            (item) => {
+                const companyIdNum = parseInt(masterList.editingFields.companyId, 10)
+                const company = companies.find(c => c.id === companyIdNum)
+                return {
+                    ...item,
+                    companyId: companyIdNum,
+                    company: company ?? item.company,
+                    department: masterList.editingFields.department?.trim() || "",
+                    name: masterList.editingFields.name.trim(),
+                }
             }
-        }
+        )
     }
 
     const newItemForm = (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
             <div className="grid gap-1.5">
                 <Label>会社名 (必須)</Label>
-                <CompanySuggestInput
-                    placeholder="会社名"
-                    value={newCompany}
-                    onChange={(val) => { setNewCompany(val); if (newCompanyError) setNewCompanyError("") }}
-                    suggestions={companySuggestions}
+                <SelectField
+                    value={newCompanyId}
+                    onChange={(e) => { setNewCompanyId(e.target.value); if (newCompanyError) setNewCompanyError("") }}
                     className={newCompanyError ? "border-red-500" : ""}
-                />
+                >
+                    <option value="">会社を選択</option>
+                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </SelectField>
                 {newCompanyError && <p className="text-xs text-red-500">{newCompanyError}</p>}
             </div>
             <div className="grid gap-1.5">
@@ -126,13 +120,14 @@ function ReferrerSettingsContent() {
     const renderEditCell = (col: ColumnDef<Referrer>) => {
         if (col.key === "company") {
             return (
-                <CompanySuggestInput
-                    value={masterList.editingFields.company || ""}
-                    onChange={(val) => masterList.setEditingFields(prev => ({ ...prev, company: val }))}
-                    suggestions={companySuggestions}
-                    placeholder="会社名"
+                <SelectField
+                    value={masterList.editingFields.companyId || ""}
+                    onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, companyId: e.target.value }))}
                     className="h-9"
-                />
+                >
+                    <option value="">会社を選択</option>
+                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </SelectField>
             )
         }
         return (
@@ -155,7 +150,7 @@ function ReferrerSettingsContent() {
             newItemForm={newItemForm}
             onAdd={handleAdd}
             renderEditCell={renderEditCell}
-            onStartEdit={(r) => masterList.handleStartEdit(r, { company: r.company.name, department: r.department || "", name: r.name })}
+            onStartEdit={(r) => masterList.handleStartEdit(r, { companyId: String(r.companyId), department: r.department || "", name: r.name })}
             onSaveEdit={handleSaveEdit}
             groupBy={(r) => r.company.name}
         />

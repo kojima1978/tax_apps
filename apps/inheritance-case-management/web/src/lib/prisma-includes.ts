@@ -1,8 +1,12 @@
 export const CASE_INCLUDE = {
   contacts: { orderBy: { sortOrder: 'asc' as const } },
   progress: { orderBy: { sortOrder: 'asc' as const } },
-  assignee: true,
+  assignee: { include: { department: true } },
   referrer: { include: { company: true } },
+} as const;
+
+export const ASSIGNEE_INCLUDE = {
+  department: true,
 } as const;
 
 export const REFERRER_INCLUDE = {
