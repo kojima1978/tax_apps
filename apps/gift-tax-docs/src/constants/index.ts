@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   staffPhone: 'gift_tax_staff_phone',
   customerName: 'gift_tax_customer_name',
   deadline: 'gift_tax_deadline',
+  darkMode: 'gift_tax_dark_mode',
 } as const;
 
 // 会社情報

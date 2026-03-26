@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { EditableDocumentList } from '@/constants';
+import { DIALOG_MESSAGES } from '@/constants/messages';
 import { removeDocument, removeCategory } from '@/utils/editableListUtils';
 
 type DeleteTarget =
@@ -35,12 +36,12 @@ export const useDeleteConfirm = (setDocumentList: SetDocumentList) => {
 
   const deleteDialogMessage = deleteTarget
     ? deleteTarget.type === 'document'
-      ? 'この書類を削除しますか？'
-      : `「${deleteTarget.name}」を削除しますか？`
+      ? DIALOG_MESSAGES.delete.document
+      : DIALOG_MESSAGES.delete.category(deleteTarget.name)
     : '';
 
   const deleteDialogSubMessage = deleteTarget?.type === 'category'
-    ? '含まれる書類もすべて削除されます。'
+    ? DIALOG_MESSAGES.delete.categorySubMessage
     : undefined;
 
   return {

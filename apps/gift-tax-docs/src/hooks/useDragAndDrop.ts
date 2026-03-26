@@ -9,7 +9,7 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { EditableDocumentList } from '@/constants';
-import { reorderDocuments, reorderCategories } from '@/utils/editableListUtils';
+import { reorderDocuments, reorderCategories, findCategoryIdByDocumentId } from '@/utils/editableListUtils';
 
 type SetDocumentList = React.Dispatch<React.SetStateAction<EditableDocumentList>>;
 
@@ -53,13 +53,8 @@ export const useDragAndDrop = (
       setActiveCategoryId(null);
     } else {
       setIsDraggingCategory(false);
-      for (const category of documentListRef.current) {
-        const docIndex = category.documents.findIndex((d) => d.id === activeIdStr);
-        if (docIndex !== -1) {
-          setActiveCategoryId(category.id);
-          break;
-        }
-      }
+      const catId = findCategoryIdByDocumentId(documentListRef.current, activeIdStr);
+      if (catId) setActiveCategoryId(catId);
     }
   }, []);
 

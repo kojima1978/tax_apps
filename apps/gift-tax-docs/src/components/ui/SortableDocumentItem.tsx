@@ -2,17 +2,14 @@ import { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  Plus,
-  Trash2,
-  Edit3,
   Check,
   CornerDownRight,
   GripVertical,
-  X,
 } from 'lucide-react';
 import { InlineEditInput, InlineAddInput } from './EditableInput';
 import type { EditableDocument } from '@/constants';
-import type { EditingSubItem, AddingSubItemTo, DocHandlers, SubItemHandlers } from '@/hooks/useEditableListEditing';
+import { getDocumentActions, getSubItemActions } from '@/constants/buttonConfigs';
+import type { DocHandlers, SubItemHandlers, SubItemEditState } from '@/hooks/useEditableListEditing';
 
 // ─── 番号バッジ共通スタイル ───
 
@@ -41,12 +38,7 @@ type SortableDocumentItemProps = {
   onConfirmEdit: () => void;
   onCancelEdit: () => void;
   docHandlers: DocHandlers;
-  editingSubItem: EditingSubItem;
-  editSubItemText: string;
-  setEditSubItemText: (text: string) => void;
-  addingSubItemTo: AddingSubItemTo;
-  newSubItemText: string;
-  setNewSubItemText: (text: string) => void;
+  subItemEditState: SubItemEditState;
   subItemHandlers: SubItemHandlers;
 };
 
@@ -62,14 +54,10 @@ export const SortableDocumentItem = memo(({
   onConfirmEdit,
   onCancelEdit,
   docHandlers,
-  editingSubItem,
-  editSubItemText,
-  setEditSubItemText,
-  addingSubItemTo,
-  newSubItemText,
-  setNewSubItemText,
+  subItemEditState,
   subItemHandlers,
 }: SortableDocumentItemProps) => {
+  const { editingSubItem, editSubItemText, setEditSubItemText, addingSubItemTo, newSubItemText, setNewSubItemText } = subItemEditState;
   const {
     attributes,
     listeners,
@@ -144,12 +132,8 @@ export const SortableDocumentItem = memo(({
         {/* アクションボタン */}
         {!isEditing && (
           <div className="flex items-center gap-1 ml-2">
-            {[
-              { onClick: () => subItemHandlers.startAdd(categoryId, doc.id), Icon: Plus, colorClass: 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50', title: '中項目を追加', ariaLabel: `${doc.text}に中項目を追加` },
-              { onClick: () => docHandlers.startEdit(categoryId, doc.id, doc.text), Icon: Edit3, colorClass: 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700', title: '編集', ariaLabel: `${doc.text}を編集` },
-              { onClick: () => docHandlers.remove(categoryId, doc.id), Icon: Trash2, colorClass: 'text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50', title: '削除', ariaLabel: `${doc.text}を削除` },
-            ].map(({ onClick, Icon, colorClass, title, ariaLabel }) => (
-              <button key={title} onClick={onClick} className={`p-1.5 ${colorClass} rounded transition-colors`} title={title} aria-label={ariaLabel}>
+            {getDocumentActions(categoryId, doc.id, doc.text, { startAdd: subItemHandlers.startAdd, startEdit: docHandlers.startEdit, remove: docHandlers.remove }).map(({ key, onClick, Icon, colorClass, title, ariaLabel }) => (
+              <button key={key} onClick={onClick} className={`p-1.5 ${colorClass} rounded transition-colors`} title={title} aria-label={ariaLabel}>
                 <Icon className="w-4 h-4" />
               </button>
             ))}
@@ -184,11 +168,8 @@ export const SortableDocumentItem = memo(({
                 <>
                   <span className="text-sm flex-grow text-slate-600 dark:text-slate-300">{subItem.text}</span>
                   <div className="flex items-center gap-1">
-                    {[
-                      { onClick: () => subItemHandlers.startEdit(categoryId, doc.id, subItem.id, subItem.text), Icon: Edit3, colorClass: 'text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700', title: '編集', ariaLabel: `${subItem.text}を編集` },
-                      { onClick: () => subItemHandlers.remove(categoryId, doc.id, subItem.id), Icon: X, colorClass: 'text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50', title: '削除', ariaLabel: `${subItem.text}を削除` },
-                    ].map(({ onClick, Icon, colorClass, title, ariaLabel }) => (
-                      <button key={title} onClick={onClick} className={`p-1 ${colorClass} rounded transition-colors`} title={title} aria-label={ariaLabel}>
+                    {getSubItemActions(categoryId, doc.id, subItem.id, subItem.text, subItemHandlers).map(({ key, onClick, Icon, colorClass, title, ariaLabel }) => (
+                      <button key={key} onClick={onClick} className={`p-1 ${colorClass} rounded transition-colors`} title={title} aria-label={ariaLabel}>
                         <Icon className="w-3 h-3" />
                       </button>
                     ))}

@@ -191,6 +191,19 @@ export const toggleCategorySpecial = (
 ): EditableDocumentList =>
   updateCategory(list, categoryId, cat => ({ ...cat, isSpecial: !cat.isSpecial }));
 
+// 書類IDからカテゴリIDを検索
+export const findCategoryIdByDocumentId = (
+  list: EditableDocumentList,
+  documentId: string
+): string | null => {
+  for (const category of list) {
+    if (category.documents.some(d => d.id === documentId)) {
+      return category.id;
+    }
+  }
+  return null;
+};
+
 // 配列内の要素を並び替える共通ヘルパー
 const reorderArray = <T>(arr: T[], oldIndex: number, newIndex: number): T[] => {
   const result = [...arr];
@@ -235,5 +248,6 @@ export const toDocumentGroups = (
           subItems: doc.subItems.map(sub => sub.text),
         })),
       note: cat.note,
+      isSpecial: cat.isSpecial,
     }))
     .filter(cat => cat.documents.length > 0);

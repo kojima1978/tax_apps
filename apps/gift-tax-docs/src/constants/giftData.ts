@@ -9,6 +9,7 @@ export interface DocumentGroup {
   category: string;
   documents: PrintDocument[];
   note?: string;
+  isSpecial?: boolean;
 }
 
 // giftData 内部のみで使用する型
