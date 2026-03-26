@@ -78,6 +78,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             dateOfDeath: formData.dateOfDeath,
             fiscalYear: formData.fiscalYear,
             status: formData.status,
+            handlingStatus: formData.handlingStatus || "対応中",
             acceptanceStatus: formData.acceptanceStatus || "未判定",
             taxAmount: formData.taxAmount,
             feeAmount: formData.feeAmount,
