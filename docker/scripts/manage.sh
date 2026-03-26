@@ -47,6 +47,8 @@ APPS=(
   "apps/inheritance-tax-docs"
   "apps/retirement-tax-calc"
   "apps/depreciation-calc"
+  "apps/salary-calc"
+  "apps/asset-valuation"
   "apps/stock-valuation-form"
   "docker/gateway"
 )
@@ -826,7 +828,7 @@ cmd_preflight() {
 
   # 6. Port conflicts
   local port_conflict=0
-  local ports=(80 3000 3001 3002 3003 3004 3005 3006 3007 3010 3012 3013 3014 3015 3020 3022 5173)
+  local ports=(80 3000 3001 3002 3003 3004 3005 3006 3007 3010 3012 3013 3014 3015 3016 3017 3020 3022 5173)
   for p in "${ports[@]}"; do
     if ss -tlnH 2>/dev/null | grep -q ":$p " 2>/dev/null || netstat -tln 2>/dev/null | grep -q ":$p "; then
       warn "Port $p is already in use"
