@@ -25,7 +25,7 @@ nginx/
 │   ├── proxy_params.conf       # 共通プロキシヘッダー設定
 │   ├── upstreams.conf          # アップストリーム参照情報（ホスト名:ポート一覧）
 │   ├── maps.conf               # map定義（WebSocket Upgrade, Font Routing）
-│   ├── rate_limit_general.conf # 一般レート制限（burst=20）
+│   ├── rate_limit_general.conf # 一般レート制限（burst=200）
 │   └── rate_limit_api.conf     # APIレート制限（burst=10）
 ├── .dockerignore   # Dockerビルド除外設定
 └── readme.md       # このファイル
