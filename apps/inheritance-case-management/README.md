@@ -2,7 +2,7 @@
 
 ## 概要
 
-相続税申告案件を管理するシステムです。案件の進捗管理、担当者・紹介者のマスタ管理、経営分析ダッシュボード、CSV取込・出力機能を提供します。
+相続税申告案件を管理するシステムです。案件の進捗管理、担当者・紹介者のマスタ管理、経営分析ダッシュボード、CSV取込・出力、JSONバックアップ・リストア機能を提供します。
 
 ## 技術スタック
 
@@ -56,8 +56,10 @@
 
 ### マスタ管理
 
-- **担当者**: 社員番号（3桁）、部署（会計部/医療部/建設部/資産税部）、氏名
-- **紹介者**: 会社名、部署、担当者名（会社名でグループ表示）
+- **部署**: 部署名、表示順（設定画面でCRUD管理）
+- **会社**: 会社名（設定画面でCRUD管理、紹介者の所属先）
+- **担当者**: 社員番号（3桁）、部署（Departmentマスタからセレクト）、氏名
+- **紹介者**: 会社（Companyマスタからセレクト）、部署、担当者名（会社名でグループ表示）
 - 一括編集・一括保存、ソフトデリート（active フラグ）
 
 ### 経営分析ダッシュボード（4タブ）
@@ -70,13 +72,33 @@
 
 ### CSV取込・出力
 
-- 案件データのCSVエクスポート
+- 案件データのCSVエクスポート（担当者・紹介者は複数列形式: 氏名/部署名/会社名）
 - CSVインポートによる一括登録・更新（バリデーション付き）
+- 担当者・紹介者の3列方式取込（`担当者_氏名`/`担当者_部署名`、`紹介者_会社名`/`紹介者_氏名`/`紹介者_部署名`）
+- 未登録のマスタデータ（部署・会社・担当者・紹介者）をインポート時に自動作成
+- 旧形式（`担当者`/`紹介者` 1列）も後方互換で対応
+
+### JSONバックアップ / リストア
+
+- 全7テーブルのデータをJSON形式でエクスポート（`itcm-backup-YYYY-MM-DD.json`）
+- JSONファイルからの全データリストア（プレビュー + 確認入力付き）
+- リストアはトランザクション内で全削除→全挿入（PostgreSQLシーケンスも自動リセット）
+
+### 案件一括削除
+
+- フィルタ条件（年度・ステータス・受託状況・部門・担当者・検索）で絞り込んだ案件を一括削除
+- 削除件数の手入力による確認（誤操作防止）
+- フィルタ適用時のみ一括削除ボタンを表示
 
 ### KPIダッシュボード
 
-- 案件総数 / 進行中 / 期限間近（30日以内）/ 当月完了の4指標をカード表示
+- 案件総数 / 進行中 / 期限間近（30日以内）/ 完了の4指標をカード表示
 - フィルター連動: フィルタ適用時はフィルタ後の件数を反映
+
+### ソート
+
+- デフォルト: 年度降順（新しい年度が上）→ 死亡日昇順（古い日付が上）
+- 年度ソートは常に最優先（ユーザーが選択するソートは第2ソートキー）
 
 ### UI/UX
 
@@ -84,7 +106,7 @@
 - **期限インジケーター**: 期限切れ（赤）/ 期限間近（琥珀）を視覚的に警告、完了系は「申告済」バッジ、対応終了は取消線表示
 - **進捗タイムライン**: 縦タイムラインUI（完了=緑ドット、未完了=グレードット）
 - **インライン編集**: 一覧画面で特記事項をクリックして即時編集・保存
-- **金額列統合**: 報酬額入力済→確定（緑）、未入力→見込額（青）を1列で表示
+- **売上列**: 報酬額入力済→確定（緑）、未入力→見込額（青）のラベルを金額の上に配置
 - **フィルターチップ**: 適用中のフィルターをチップ表示し、個別に解除可能
 - **フィルター**: 年度・受託状況（複数選択）・ステータス（複数選択）・部門・担当者・検索をdata-driven定義（`FILTER_KEYS`/`STATIC_FILTER_DEFS`）
 - **キーボードナビゲーション**: テーブル行の矢印キー移動・Enterで詳細遷移
@@ -93,18 +115,21 @@
 - **ローディングスケルトン**: データ取得中のプレースホルダーUI
 - **トースト通知**: 成功/エラー/警告メッセージ
 - **空状態メッセージ**: 検索結果なし時の案内表示
-- **モーダルダイアログ**: CSV取込、進捗編集、確認ダイアログ
+- **モーダルダイアログ**: CSV取込、進捗編集、一括削除確認、確認ダイアログ
 
 ## ページ構成
 
 | パス | 内容 |
 |------|------|
-| `/` | 案件一覧（KPI + フィルター + テーブル + ページネーション） |
+| `/` | 案件一覧（KPI + フィルター + テーブル + ページネーション + 一括削除） |
 | `/new` | 新規案件登録 |
 | `/[id]` | 案件詳細編集（基本情報/金額/進捗/連絡先の4セクション） |
 | `/settings` | 設定メニュー |
+| `/settings/departments` | 部署マスタ管理 |
 | `/settings/assignees` | 担当者マスタ管理 |
+| `/settings/companies` | 会社マスタ管理 |
 | `/settings/referrers` | 紹介者マスタ管理 |
+| `/settings/backup` | バックアップ / リストア |
 | `/analytics` | 経営分析ダッシュボード（売上・件数/年計表/部門・担当者/紹介者の4タブ） |
 
 ## ディレクトリ構成
@@ -122,7 +147,7 @@ inheritance-case-management/
     ├── package.json
     ├── next.config.ts          # basePath: /itcm
     ├── prisma/
-    │   └── schema.prisma       # DBスキーマ（6モデル: Case, Assignee, Company, Referrer, Contact, Progress）
+    │   └── schema.prisma       # DBスキーマ（8モデル: Department, Company, Assignee, Referrer, Case, Contact, Progress）
     └── src/
         ├── app/
         │   ├── page.tsx                # 案件一覧
@@ -143,8 +168,11 @@ inheritance-case-management/
         │   │   └── ContactListEditor.tsx
         │   ├── settings/               # マスタ管理
         │   │   ├── page.tsx
+        │   │   ├── departments/page.tsx
         │   │   ├── assignees/page.tsx
-        │   │   └── referrers/page.tsx
+        │   │   ├── companies/page.tsx
+        │   │   ├── referrers/page.tsx
+        │   │   └── backup/page.tsx
         │   ├── analytics/              # 経営分析
         │   │   ├── page.tsx
         │   │   ├── OverviewTab.tsx
@@ -154,26 +182,38 @@ inheritance-case-management/
         │   │   └── RankingTable.tsx
         │   └── api/                    # API Routes
         │       ├── health/route.ts
+        │       ├── backup/
+        │       │   ├── route.ts        # GET（全データエクスポート）
+        │       │   └── restore/route.ts # POST（全データリストア）
         │       ├── cases/
         │       │   ├── route.ts        # GET（一覧+フィルタ）, POST（作成）
-        │       │   └── [id]/route.ts   # GET, PUT, DELETE
-        │       ├── assignees/
+        │       │   ├── [id]/route.ts   # GET, PUT, DELETE
+        │       │   └── bulk-delete/route.ts # DELETE（フィルタ条件一括削除）
+        │       ├── departments/
         │       │   ├── route.ts
         │       │   ├── handlers.ts     # ファクトリベースCRUD
         │       │   └── [id]/route.ts
+        │       ├── companies/
+        │       │   ├── route.ts
+        │       │   ├── handlers.ts     # ファクトリベースCRUD
+        │       │   └── [id]/route.ts
+        │       ├── assignees/
+        │       │   ├── route.ts
+        │       │   ├── handlers.ts     # ファクトリベースCRUD（include対応）
+        │       │   └── [id]/route.ts
         │       └── referrers/
         │           ├── route.ts
-        │           ├── handlers.ts
+        │           ├── handlers.ts     # ファクトリベースCRUD（include対応）
         │           └── [id]/route.ts
         ├── components/
         │   ├── AppHeader.tsx           # ヘッダーナビゲーション
+        │   ├── BulkDeleteModal.tsx     # 一括削除確認ダイアログ
         │   ├── ClientLayout.tsx        # QueryClient + Toast プロバイダー
         │   ├── ImportCSVModal.tsx       # CSV取込ダイアログ
         │   ├── MasterListPage.tsx      # マスタ編集UI（共通）
         │   └── ui/                     # 汎用UIコンポーネント
         │       ├── Button.tsx
         │       ├── CollapsibleSection.tsx
-        │       ├── CompanySuggestInput.tsx # サジェスト付き入力（紹介者会社名等）
         │       ├── CurrencyField.tsx
         │       ├── EmptyState.tsx
         │       ├── ErrorDisplay.tsx
@@ -194,14 +234,15 @@ inheritance-case-management/
         │   ├── use-master-list.ts      # マスタ編集ステート管理
         │   ├── use-progress-steps.ts   # 進捗チェック・D&D・一括日付設定
         │   ├── use-export-csv.ts       # CSVエクスポート
-        │   ├── use-import-csv.ts       # CSVインポート
+        │   ├── use-import-csv.ts       # CSVインポート（マスタ自動作成対応）
         │   ├── use-keyboard-navigation.ts
         │   └── use-error-handler.ts
         ├── lib/
         │   ├── prisma.ts               # Prisma クライアントシングルトン
+        │   ├── prisma-includes.ts      # Prisma include定義（CASE/ASSIGNEE/REFERRER）
         │   ├── prisma-utils.ts
         │   ├── api-error-handler.ts    # 統一エラーレスポンス
-        │   ├── create-crud-route-handlers.ts  # CRUD APIルートファクトリ
+        │   ├── create-crud-route-handlers.ts  # CRUD APIルートファクトリ（include対応）
         │   ├── analytics-utils.ts      # 集計・ランキングロジック
         │   ├── kpi-utils.ts            # KPI計算
         │   ├── deadline-utils.ts       # 申告期限計算（死亡日+10ヶ月）
@@ -210,14 +251,18 @@ inheritance-case-management/
         │   ├── utils.ts
         │   └── api/                    # クライアントサイドAPI
         │       ├── client.ts           # fetchラッパー（baseURL: /itcm/api）
-        │       ├── cases.ts
+        │       ├── cases.ts            # 案件CRUD + 一括削除
+        │       ├── departments.ts
+        │       ├── companies.ts
         │       ├── assignees.ts
         │       ├── referrers.ts
+        │       ├── backup.ts           # バックアップ/リストア
         │       ├── crud-factory.ts     # 汎用CRUDクライアントファクトリ
         │       └── index.ts
         └── types/
-            ├── shared.ts               # TypeScript型定義
+            ├── shared.ts               # TypeScript型定義（Department, Company, Assignee, Referrer等）
             ├── validation.ts           # Zodバリデーションスキーマ
+            ├── backup.ts               # バックアップJSON型定義
             └── constants.ts            # UI定数（ステータス色、ソート、年度等）
 ```
 
@@ -232,6 +277,7 @@ inheritance-case-management/
 | GET | `/api/cases/:id` | 案件詳細取得（リレーション含む） |
 | PUT | `/api/cases/:id` | 案件更新（連絡先・進捗の洗い替え、楽観ロック対応） |
 | DELETE | `/api/cases/:id` | 案件削除（連絡先・進捗もカスケード削除） |
+| DELETE | `/api/cases/bulk-delete` | フィルタ条件に一致する案件を一括削除 |
 
 **GET /api/cases クエリパラメータ:**
 
@@ -239,46 +285,38 @@ inheritance-case-management/
 |-----------|-----|------|
 | page | int | ページ番号（デフォルト: 1） |
 | pageSize | int | 1ページあたりの件数（デフォルト: 30） |
-| status | string | ステータスフィルタ（未着手/手続中/申告済/請求済/入金済/対応終了、カンマ区切りで複数指定可） |
-| acceptanceStatus | string | 受託状況フィルタ（受託可/受託不可/未判定/保留） |
+| status | string | ステータスフィルタ（カンマ区切りで複数指定可） |
+| acceptanceStatus | string | 受託状況フィルタ |
 | fiscalYear | int | 年度フィルタ |
 | department | string | 部門フィルタ（担当者の部署でリレーション経由フィルタ） |
 | assigneeId | int | 担当者フィルタ |
 | search | string | 被相続人氏名の部分一致検索 |
-| sortBy | string | ソートキー（createdAt/dateOfDeath/deceasedName/fiscalYear/taxAmount/feeAmount等） |
-| sortOrder | string | ソート順（asc/desc） |
+| sortBy | string | ソートキー（デフォルト: dateOfDeath） |
+| sortOrder | string | ソート順（デフォルト: asc）※年度降順は常に最優先 |
 
 **PUT /api/cases/:id 楽観ロック（Optimistic Locking）:**
 
-リクエストボディに `updatedAt`（ISO 8601）を含めると、DBの `updatedAt` と比較し、不一致の場合は **409 Conflict** を返す。`updatedAt` を省略した場合はロックなし（後方互換）。
+リクエストボディに `updatedAt`（ISO 8601）を含めると、DBの `updatedAt` と比較し、不一致の場合は **409 Conflict** を返す。
 
-```json
-// リクエスト例
-{ "summary": "更新内容", "updatedAt": "2026-03-20T10:00:00.000Z" }
-
-// 競合時レスポンス (409)
-{ "error": "他のユーザーが先に更新しました。画面を再読み込みしてください。", "code": "CONFLICT" }
-```
-
-### 担当者 `/api/assignees`
+### マスタ管理
 
 | メソッド | パス | 説明 |
 |---------|------|------|
-| GET | `/api/assignees` | 担当者一覧 |
-| POST | `/api/assignees` | 担当者作成 |
-| GET | `/api/assignees/:id` | 担当者取得 |
-| PUT | `/api/assignees/:id` | 担当者更新 |
-| DELETE | `/api/assignees/:id` | 担当者削除 |
+| GET/POST | `/api/departments` | 部署一覧 / 作成 |
+| GET/PUT/DELETE | `/api/departments/:id` | 部署取得 / 更新 / 削除 |
+| GET/POST | `/api/companies` | 会社一覧 / 作成 |
+| GET/PUT/DELETE | `/api/companies/:id` | 会社取得 / 更新 / 削除 |
+| GET/POST | `/api/assignees` | 担当者一覧 / 作成（Department include付き） |
+| GET/PUT/DELETE | `/api/assignees/:id` | 担当者取得 / 更新 / 削除 |
+| GET/POST | `/api/referrers` | 紹介者一覧 / 作成（Company include付き） |
+| GET/PUT/DELETE | `/api/referrers/:id` | 紹介者取得 / 更新 / 削除 |
 
-### 紹介者 `/api/referrers`
+### バックアップ
 
 | メソッド | パス | 説明 |
 |---------|------|------|
-| GET | `/api/referrers` | 紹介者一覧 |
-| POST | `/api/referrers` | 紹介者作成 |
-| GET | `/api/referrers/:id` | 紹介者取得 |
-| PUT | `/api/referrers/:id` | 紹介者更新 |
-| DELETE | `/api/referrers/:id` | 紹介者削除 |
+| GET | `/api/backup` | 全データJSONエクスポート |
+| POST | `/api/backup/restore` | JSONからの全データリストア |
 
 ### その他
 
@@ -290,18 +328,56 @@ inheritance-case-management/
 
 ```mermaid
 erDiagram
-    InheritanceCase ||--o{ CaseContact : "has many (max 10)"
-    InheritanceCase ||--o{ CaseProgress : "has many"
-    InheritanceCase }o--|| Assignee : "belongs to"
-    InheritanceCase }o--|| Referrer : "belongs to"
-    Referrer }o--|| Company : "belongs to"
+    Department ||--o{ Assignee : "所属"
+    Company ||--o{ Referrer : "所属"
+    Assignee ||--o{ InheritanceCase : "担当"
+    Referrer ||--o{ InheritanceCase : "紹介"
+    InheritanceCase ||--o{ CaseContact : "連絡先"
+    InheritanceCase ||--o{ CaseProgress : "進捗"
+
+    Department {
+        int id PK "自動採番"
+        string name UK "部署名（ユニーク）"
+        int sortOrder "表示順"
+        boolean active "有効フラグ"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Company {
+        int id PK "自動採番"
+        string name UK "会社名（ユニーク）"
+        boolean active "有効フラグ"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Assignee {
+        int id PK "自動採番"
+        string name "氏名"
+        string employeeId "社員番号"
+        int departmentId FK "部署（Department）"
+        boolean active "有効フラグ"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Referrer {
+        int id PK "自動採番"
+        int companyId FK "会社（Company）"
+        string name "担当者名"
+        string department "部署"
+        boolean active "有効フラグ"
+        datetime createdAt
+        datetime updatedAt
+    }
 
     InheritanceCase {
         int id PK "自動採番"
         string deceasedName "被相続人氏名"
         date dateOfDeath "相続開始日（YYYY-MM-DD）"
-        string status "ステータス（CHECK制約: 未着手/手続中/申告済/請求済/入金済/対応終了）"
-        string acceptanceStatus "受託状況（CHECK制約: 受託可/受託不可/未判定/保留）"
+        string status "ステータス（CHECK制約）"
+        string acceptanceStatus "受託状況（CHECK制約）"
         int taxAmount "相続税額"
         int feeAmount "報酬額"
         int fiscalYear "年度"
@@ -315,33 +391,6 @@ erDiagram
         int referrerId FK "紹介者"
         string createdBy "作成者"
         string updatedBy "更新者"
-        datetime createdAt
-        datetime updatedAt
-    }
-
-    Assignee {
-        int id PK "自動採番"
-        string name "氏名"
-        string employeeId "社員番号"
-        string department "部署（会計部/医療部/建設部/資産税部）"
-        boolean active "有効フラグ"
-        datetime createdAt
-        datetime updatedAt
-    }
-
-    Company {
-        int id PK "自動採番"
-        string name UK "会社名（ユニーク）"
-        datetime createdAt
-        datetime updatedAt
-    }
-
-    Referrer {
-        int id PK "自動採番"
-        int companyId FK "会社（Company）"
-        string name "担当者名"
-        string department "部署"
-        boolean active "有効フラグ"
         datetime createdAt
         datetime updatedAt
     }
@@ -369,22 +418,21 @@ erDiagram
 
 ## 設計パターン
 
-- **CRUDルートファクトリ**: `createCrudRouteHandlers()` で担当者・紹介者のAPIルートを共通生成
+- **CRUDルートファクトリ**: `createCrudRouteHandlers()` で部署・会社・担当者・紹介者のAPIルートを共通生成（`include`オプション対応）
 - **CRUDクライアントファクトリ**: `crud-factory.ts` でフロントエンドAPIクライアントを共通生成
-- **マスタ編集共通化**: `MasterListPage` + `useMasterList` で担当者・紹介者の編集UIを共通化（groupByによるグループ表示対応）
+- **マスタ編集共通化**: `MasterListPage` + `useMasterList` で4つのマスタ管理画面の編集UIを共通化（groupByによるグループ表示対応）
+- **where句ビルダー共通化**: `buildCaseWhereClause()` で案件一覧取得と一括削除のフィルタ条件構築を共通化
+- **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成
 - **ステータス⇔進捗連動**: `STATUS_STEP_MAP` + `STATUS_ORDER` + `STEP_NAMES` で一元管理、進捗モーダル保存時・案件詳細保存時の双方向整合性チェック
 - **TanStack Query**: サーバーステート管理（キャッシュ・再取得・楽観的更新）
 - **Zodバリデーション**: リクエストボディの型安全な検証
 - **フィルタ定数一元管理**: `FILTER_KEYS` でフィルタキーを一元管理し、hasFilters判定・KPI依存・フィルタUI定義を自動化
 - **ステータスカテゴリ定数**: `COMPLETED_STATUSES`（申告完了系）/ `DEADLINE_SKIP_STATUSES`（期限チェック対象外）で判定ロジックを一元管理
 - **コンポーネント分割**: フォームを4セクション（BasicInfo/Financial/Progress/Contact）に分割
-- **UIコンポーネント抽出**: `MultiSelectDropdown`・`CompanySuggestInput` を汎用UIとして分離
-- **共通フック抽出**: `useClickOutside` でドロップダウン外クリック検知を共通化
-- **ヘルパーDRY**: CSV出力の `downloadCSVBlob` でBOM付きダウンロード処理を一元化
-- **DB正規化**: Company テーブル分離（3NF）、dateOfDeath/progress.date を PostgreSQL `date` 型に変更
+- **DB正規化**: Department・Company テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId でFK参照
 - **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
-- **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知（案件詳細・進捗モーダル・特記事項インライン編集の3箇所）
+- **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
 
 ## クイックスタート
 
