@@ -9,7 +9,7 @@ import { useJsonImportExport } from './useJsonImportExport';
 
 // Re-export types for consumers
 export type { DocHandlers } from './useDocumentEditing';
-export type { EditingSubItem, AddingSubItemTo, SubItemHandlers } from './useSubItemEditing';
+export type { EditingSubItem, AddingSubItemTo, SubItemHandlers, SubItemEditState } from './useSubItemEditing';
 
 type SetDocumentList = React.Dispatch<React.SetStateAction<EditableDocumentList>>;
 
@@ -80,7 +80,15 @@ export const useEditableListEditing = ({
     // 書類編集
     ...docEditing,
     // 中項目編集
-    ...subItemEditing,
+    subItemEditState: {
+      editingSubItem: subItemEditing.editingSubItem,
+      editSubItemText: subItemEditing.editSubItemText,
+      setEditSubItemText: subItemEditing.setEditSubItemText,
+      addingSubItemTo: subItemEditing.addingSubItemTo,
+      newSubItemText: subItemEditing.newSubItemText,
+      setNewSubItemText: subItemEditing.setNewSubItemText,
+    },
+    subItemHandlers: subItemEditing.subItemHandlers,
     // カテゴリ編集
     ...catEditing,
     // 削除確認（internal request関数は非公開）

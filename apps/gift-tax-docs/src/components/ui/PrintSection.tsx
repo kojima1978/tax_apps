@@ -1,5 +1,6 @@
 import { Info, AlertCircle } from 'lucide-react';
 import { COMPANY_INFO, getFullAddress, getContactLine, giftData, type DocumentGroup } from '@/constants';
+import { getCategoryTheme } from '@/constants/categoryTheme';
 import { toCircledNumber } from '@/utils/helpers';
 
 const PRINT_LAYOUTS = {
@@ -97,7 +98,7 @@ export const PrintSection = ({
       <div className={`space-y-8 print:block ${l.section}`}>
         {results.map((group, idx) => (
           <div key={idx} className={`break-inside-avoid ${l.sectionItem}`}>
-            <h3 className={`font-bold text-lg mb-3 px-3 py-1 bg-emerald-50 border-l-4 border-emerald-500 text-slate-800 flex items-center ${l.categoryHeader}`}>
+            <h3 className={`font-bold text-lg mb-3 px-3 py-1 ${getCategoryTheme(!!group.isSpecial).printHeader} text-slate-800 flex items-center ${l.categoryHeader}`}>
               <span className="mr-1">{toCircledNumber(idx + 1)}</span>
               {group.category}
             </h3>

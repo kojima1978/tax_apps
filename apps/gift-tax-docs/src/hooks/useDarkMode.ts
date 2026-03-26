@@ -1,17 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
-
-const DARK_STORAGE_KEY = 'gift_tax_dark_mode';
+import { STORAGE_KEYS } from '@/constants';
 
 export const useDarkMode = () => {
   const [isDark, setIsDark] = useState(() => {
     try {
-      return localStorage.getItem(DARK_STORAGE_KEY) === 'true';
+      return localStorage.getItem(STORAGE_KEYS.darkMode) === 'true';
     } catch { return false; }
   });
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
-    try { localStorage.setItem(DARK_STORAGE_KEY, String(isDark)); } catch { /* ignore */ }
+    try { localStorage.setItem(STORAGE_KEYS.darkMode, String(isDark)); } catch { /* ignore */ }
   }, [isDark]);
 
   const toggleDark = useCallback(() => setIsDark(prev => !prev), []);

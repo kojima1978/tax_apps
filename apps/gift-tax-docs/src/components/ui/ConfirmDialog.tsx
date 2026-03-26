@@ -1,5 +1,6 @@
 import { AlertTriangle, Trash2, Upload, XCircle } from 'lucide-react';
 import type { ExportData } from '@/utils/jsonExportImport';
+import { DIALOG_MESSAGES } from '@/constants/messages';
 
 // ─── 共通ダイアログオーバーレイ ───
 
@@ -101,14 +102,14 @@ export const ResetConfirmDialog = ({ onConfirm, onCancel }: ResetConfirmDialogPr
   <DialogOverlay labelledBy="reset-dialog-title" onClose={onCancel}>
     <DialogHeader
       titleId="reset-dialog-title"
-      title="編集内容をリセットしますか？"
+      title={DIALOG_MESSAGES.reset.title}
       icon={<AlertTriangle className="w-6 h-6 text-amber-600" aria-hidden="true" />}
       iconBgClass="bg-amber-100 dark:bg-amber-900/50"
     />
     <div className="mb-6 pl-15">
-      <p className="text-slate-600 dark:text-slate-300 mb-3">以下の内容が初期状態に戻ります：</p>
+      <p className="text-slate-600 dark:text-slate-300 mb-3">{DIALOG_MESSAGES.reset.description}</p>
       <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
-        {['チェック状態', '追加したカテゴリ・書類', '中項目', '並び順'].map((item) => (
+        {DIALOG_MESSAGES.reset.items.map((item) => (
           <li key={item} className="flex items-center">
             <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" aria-hidden="true" />
             {item}
@@ -132,12 +133,12 @@ export const ImportConfirmDialog = ({ preview, onConfirm, onCancel }: ImportConf
   <DialogOverlay labelledBy="import-dialog-title" onClose={onCancel} maxWidth="max-w-lg">
     <DialogHeader
       titleId="import-dialog-title"
-      title="データを取り込みますか？"
+      title={DIALOG_MESSAGES.import.title}
       icon={<Upload className="w-6 h-6 text-violet-600" aria-hidden="true" />}
       iconBgClass="bg-violet-100 dark:bg-violet-900/50"
     />
     <div className="mb-6">
-      <p className="text-slate-600 dark:text-slate-300 mb-3">以下のデータが読み込まれます：</p>
+      <p className="text-slate-600 dark:text-slate-300 mb-3">{DIALOG_MESSAGES.import.description}</p>
       <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg space-y-2 text-sm">
         {preview.customerName && (
           <p><span className="text-slate-500 dark:text-slate-400">お客様名:</span> <span className="font-medium dark:text-slate-200">{preview.customerName}</span></p>
@@ -168,7 +169,7 @@ export const ImportConfirmDialog = ({ preview, onConfirm, onCancel }: ImportConf
         )}
       </div>
       <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
-        ※現在の編集内容は上書きされます
+        {DIALOG_MESSAGES.import.overwriteWarning}
       </p>
     </div>
     <DialogButtons onCancel={onCancel} onConfirm={onConfirm} confirmLabel="取り込む" confirmClass="bg-violet-600 hover:bg-violet-700" />
@@ -185,12 +186,12 @@ export const ImportErrorDialog = ({ onDismiss }: ImportErrorDialogProps) => (
   <DialogOverlay labelledBy="import-error-dialog-title" onClose={onDismiss} role="alertdialog">
     <DialogHeader
       titleId="import-error-dialog-title"
-      title="読み込みに失敗しました"
+      title={DIALOG_MESSAGES.importError.title}
       icon={<XCircle className="w-6 h-6 text-red-600" aria-hidden="true" />}
       iconBgClass="bg-red-100 dark:bg-red-900/50"
     />
     <p className="mb-6 pl-15 text-sm text-slate-500 dark:text-slate-400">
-      JSONファイルの形式を確認してください。
+      {DIALOG_MESSAGES.importError.description}
     </p>
     <div className="flex justify-end">
       <button

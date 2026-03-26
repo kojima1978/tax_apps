@@ -8,14 +8,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useId, useState, useMemo, useCallback } from 'react';
-import { Plus, Info, Search, User, Calendar, Phone, UserCheck } from 'lucide-react';
+import { Plus, Info, Search } from 'lucide-react';
 import { InlineAddInput } from '@/components/ui/EditableInput';
 import { useGiftTaxGuide } from '@/hooks/useGiftTaxGuide';
 import { useEditableListEditing } from '@/hooks/useEditableListEditing';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { useToast } from '@/hooks/useToast';
 import { useDarkMode } from '@/hooks/useDarkMode';
-import { ResetConfirmDialog, ImportConfirmDialog, DeleteConfirmDialog, ImportErrorDialog } from '@/components/ui/ConfirmDialog';
 import { SortableDocumentItem, DragOverlayItem } from '@/components/ui/SortableDocumentItem';
 import { SortableCategoryCard, CategoryDragOverlay } from '@/components/ui/SortableCategoryCard';
 import { EditToolbar } from '@/components/ui/EditToolbar';
@@ -23,15 +22,9 @@ import { AddCategoryForm } from '@/components/ui/AddCategoryForm';
 import { PrintSection } from '@/components/ui/PrintSection';
 import { ToastContainer } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/ui/EmptyState';
-
-const infoBarInputClass = 'pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 transition-all w-full';
-
-const INFO_BAR_FIELDS = [
-  { id: 'customerName', label: 'お客様名', type: 'text', placeholder: '例：山田 太郎 様', icon: User },
-  { id: 'deadline', label: '資料収集期限', type: 'text', placeholder: '例：3月末まで', icon: Calendar },
-  { id: 'staffName', label: '担当者名', type: 'text', placeholder: '例：鈴木 一郎', icon: UserCheck },
-  { id: 'staffPhone', label: '担当者携帯', type: 'tel', placeholder: '例：090-1234-5678', icon: Phone },
-] as const;
+import { InfoBar } from '@/components/ui/InfoBar';
+import { Dialogs } from '@/components/ui/Dialogs';
+import { TOAST_MESSAGES } from '@/constants/messages';
 
 export const EditableListStep = () => {
   const {
@@ -114,9 +107,9 @@ export const EditableListStep = () => {
     setIsExporting(true);
     try {
       await Promise.resolve(handleExcelExport());
-      addToast('Excelファイルを出力しました', 'success');
+      addToast(TOAST_MESSAGES.excelExportSuccess, 'success');
     } catch {
-      addToast('Excel出力に失敗しました', 'error');
+      addToast(TOAST_MESSAGES.excelExportError, 'error');
     } finally {
       setIsExporting(false);
     }
@@ -124,21 +117,21 @@ export const EditableListStep = () => {
 
   const handleJsonExportWithToast = useCallback(() => {
     editing.handleJsonExport();
-    addToast('JSONファイルを出力しました', 'success');
+    addToast(TOAST_MESSAGES.jsonExportSuccess, 'success');
   }, [editing.handleJsonExport, addToast]);
 
   const handleResetWithToast = useCallback(() => {
     editing.handleResetToDefault();
-    addToast('初期状態にリセットしました', 'info');
+    addToast(TOAST_MESSAGES.resetSuccess, 'info');
   }, [editing.handleResetToDefault, addToast]);
 
   const handleImportWithToast = useCallback(() => {
     editing.confirmImport();
-    addToast('データを取り込みました', 'success');
+    addToast(TOAST_MESSAGES.importSuccess, 'success');
   }, [editing.confirmImport, addToast]);
 
-  const valueMap = { customerName, staffName, staffPhone, deadline } as const;
-  const setterMap = { customerName: setCustomerName, staffName: setStaffName, staffPhone: setStaffPhone, deadline: setDeadline } as const;
+  const infoBarValues = { customerName, staffName, staffPhone, deadline } as const;
+  const infoBarSetters = { customerName: setCustomerName, staffName: setStaffName, staffPhone: setStaffPhone, deadline: setDeadline } as const;
 
   const isSearching = searchQuery.trim() !== '';
   const displayList = isSearching ? filteredList : documentList;
@@ -166,29 +159,7 @@ export const EditableListStep = () => {
 
       <div className="p-4 md:px-8 md:py-6">
       {/* 入力バー */}
-      <div className="no-print bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl shadow dark:shadow-slate-900/50 p-4 mb-6 transition-colors border border-white/50 dark:border-slate-700/50">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {INFO_BAR_FIELDS.map((field) => {
-            const Icon = field.icon;
-            return (
-              <div key={field.id}>
-                <label htmlFor={field.id} className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{field.label}</label>
-                <div className="relative">
-                  <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-                  <input
-                    type={field.type}
-                    id={field.id}
-                    className={infoBarInputClass}
-                    placeholder={field.placeholder}
-                    value={valueMap[field.id]}
-                    onChange={(e) => setterMap[field.id](e.target.value)}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <InfoBar values={infoBarValues} setters={infoBarSetters} />
 
       {/* カテゴリリスト（画面表示のみ、印刷非表示） */}
       <div className="no-print">
@@ -251,12 +222,7 @@ export const EditableListStep = () => {
                                 onConfirmEdit={editing.confirmEdit}
                                 onCancelEdit={editing.cancelEdit}
                                 docHandlers={editing.docHandlers}
-                                editingSubItem={editing.editingSubItem}
-                                editSubItemText={editing.editSubItemText}
-                                setEditSubItemText={editing.setEditSubItemText}
-                                addingSubItemTo={editing.addingSubItemTo}
-                                newSubItemText={editing.newSubItemText}
-                                setNewSubItemText={editing.setNewSubItemText}
+                                subItemEditState={editing.subItemEditState}
                                 subItemHandlers={editing.subItemHandlers}
                               />
                             ))}
@@ -338,37 +304,23 @@ export const EditableListStep = () => {
         deadline={deadline}
       />
 
-      {/* リセット確認ダイアログ */}
-      {editing.showResetDialog && (
-        <ResetConfirmDialog
-          onConfirm={handleResetWithToast}
-          onCancel={() => editing.setShowResetDialog(false)}
-        />
-      )}
-
-      {/* インポート確認ダイアログ */}
-      {editing.showImportDialog && editing.importPreview && (
-        <ImportConfirmDialog
-          preview={editing.importPreview}
-          onConfirm={handleImportWithToast}
-          onCancel={editing.cancelImport}
-        />
-      )}
-
-      {/* 削除確認ダイアログ */}
-      {editing.deleteTarget && (
-        <DeleteConfirmDialog
-          message={editing.deleteDialogMessage}
-          subMessage={editing.deleteDialogSubMessage}
-          onConfirm={editing.confirmDelete}
-          onCancel={editing.cancelDelete}
-        />
-      )}
-
-      {/* インポートエラーダイアログ */}
-      {editing.importError && (
-        <ImportErrorDialog onDismiss={editing.dismissImportError} />
-      )}
+      {/* ダイアログ群 */}
+      <Dialogs
+        showResetDialog={editing.showResetDialog}
+        onResetConfirm={handleResetWithToast}
+        onResetCancel={() => editing.setShowResetDialog(false)}
+        showImportDialog={editing.showImportDialog}
+        importPreview={editing.importPreview}
+        onImportConfirm={handleImportWithToast}
+        onImportCancel={editing.cancelImport}
+        hasDeleteTarget={!!editing.deleteTarget}
+        deleteDialogMessage={editing.deleteDialogMessage}
+        deleteDialogSubMessage={editing.deleteDialogSubMessage}
+        onDeleteConfirm={editing.confirmDelete}
+        onDeleteCancel={editing.cancelDelete}
+        importError={!!editing.importError}
+        onDismissImportError={editing.dismissImportError}
+      />
 
       {/* トースト通知 */}
       <ToastContainer toasts={toasts} removeToast={removeToast} />

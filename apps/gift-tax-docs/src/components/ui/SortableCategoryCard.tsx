@@ -3,8 +3,6 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   ChevronDown,
   ChevronRight,
-  Trash2,
-  Edit3,
   Check,
   X,
   CheckSquare,
@@ -12,6 +10,8 @@ import {
   GripVertical,
 } from 'lucide-react';
 import type { EditableCategory } from '@/constants';
+import { getCategoryTheme } from '@/constants/categoryTheme';
+import { getCategoryActions } from '@/constants/buttonConfigs';
 import { toCircledNumber } from '@/utils/helpers';
 import { handleInlineKeyDown } from './EditableInput';
 import { VerticalDivider } from './VerticalDivider';
@@ -33,23 +33,6 @@ type CategoryHandlers = {
   remove: (id: string) => void;
   toggleAll: (id: string, checked: boolean) => void;
 };
-
-// ─── カテゴリカラーテーマ ───
-
-const CATEGORY_THEME = {
-  normal: {
-    header: 'bg-gradient-to-r from-emerald-50 to-emerald-50/50 dark:from-emerald-950/50 dark:to-emerald-950/20 hover:from-emerald-100 hover:to-emerald-50 dark:hover:from-emerald-900/50 dark:hover:to-emerald-950/30 border-l-4 border-emerald-500',
-    overlay: 'bg-emerald-50 dark:bg-emerald-950 border-l-4 border-emerald-500',
-    progress: 'bg-emerald-400',
-    progressDone: 'bg-emerald-500',
-  },
-  special: {
-    header: 'bg-gradient-to-r from-purple-50 to-purple-50/50 dark:from-purple-950/50 dark:to-purple-950/20 hover:from-purple-100 hover:to-purple-50 dark:hover:from-purple-900/50 dark:hover:to-purple-950/30 border-l-4 border-purple-500',
-    overlay: 'bg-purple-50 dark:bg-purple-950 border-l-4 border-purple-500',
-    progress: 'bg-purple-400',
-    progressDone: 'bg-purple-500',
-  },
-} as const;
 
 // ─── カテゴリ名表示（カード・オーバーレイ共通） ───
 
@@ -107,7 +90,7 @@ export const SortableCategoryCard = ({
   const checkedCount = category.documents.filter((d) => d.checked).length;
   const allChecked = category.documents.length > 0 && checkedCount === category.documents.length;
   const someChecked = checkedCount > 0 && !allChecked;
-  const theme = category.isSpecial ? CATEGORY_THEME.special : CATEGORY_THEME.normal;
+  const theme = getCategoryTheme(category.isSpecial);
 
   return (
     <div
@@ -202,12 +185,9 @@ export const SortableCategoryCard = ({
               >
                 特例
               </button>
-              {[
-                { onClick: () => handlers.startEdit(category.id, category.name), Icon: Edit3, colorClass: 'text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10', title: 'カテゴリ名を編集', ariaLabel: `${category.name}の名前を編集` },
-                { onClick: () => handlers.remove(category.id), Icon: Trash2, colorClass: 'text-red-500 dark:text-red-400 hover:bg-red-100/50 dark:hover:bg-red-900/30', title: 'カテゴリを削除', ariaLabel: `${category.name}を削除` },
-              ].map(({ onClick, Icon, colorClass, title, ariaLabel }) => (
+              {getCategoryActions(category.id, category.name, handlers).map(({ key, onClick, Icon, colorClass, title, ariaLabel }) => (
                 <button
-                  key={title}
+                  key={key}
                   onClick={(e) => { e.stopPropagation(); onClick(); }}
                   className={`p-1.5 ${colorClass} rounded transition-colors`}
                   title={title}
@@ -261,7 +241,7 @@ export const SortableCategoryCard = ({
 // ─── カテゴリドラッグオーバーレイ ───
 
 export const CategoryDragOverlay = ({ category, categoryNumber }: { category: EditableCategory; categoryNumber?: number }) => {
-  const theme = category.isSpecial ? CATEGORY_THEME.special : CATEGORY_THEME.normal;
+  const theme = getCategoryTheme(category.isSpecial);
   return (
   <div
     className={`rounded-xl shadow-2xl overflow-hidden ${theme.overlay}`}

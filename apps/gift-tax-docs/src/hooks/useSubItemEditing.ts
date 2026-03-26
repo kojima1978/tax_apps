@@ -7,6 +7,16 @@ type SetDocumentList = React.Dispatch<React.SetStateAction<EditableDocumentList>
 export type EditingSubItem = { categoryId: string; docId: string; subItemId: string } | null;
 export type AddingSubItemTo = { categoryId: string; docId: string } | null;
 
+/** 中項目の編集状態をまとめた型（prop drilling削減用） */
+export type SubItemEditState = {
+  editingSubItem: EditingSubItem;
+  editSubItemText: string;
+  setEditSubItemText: (text: string) => void;
+  addingSubItemTo: AddingSubItemTo;
+  newSubItemText: string;
+  setNewSubItemText: (text: string) => void;
+};
+
 /** 中項目操作ハンドラー（メモ化用） */
 export type SubItemHandlers = {
   startAdd: (categoryId: string, docId: string) => void;
