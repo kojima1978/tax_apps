@@ -12,7 +12,7 @@ interface BracketRateTableProps {
 
 export const BracketRateTable: React.FC<BracketRateTableProps> = memo(({ data, hasSpouse, heirLabel }) => {
   return (
-    <div className={`${CARD} overflow-x-auto`} role="region" aria-label="加重平均適用税率表">
+    <div className={`${CARD} overflow-x-auto table-scroll-hint`} role="region" aria-label="加重平均適用税率表">
       <h2 className="text-xl font-bold text-gray-800 mb-1" id="bracket-table-heading">加重平均適用税率表</h2>
       <p className="text-sm text-gray-500 mb-4">
         各法定相続人の法定取得額に適用される税率ブラケットを法定相続分で加重平均した値です。

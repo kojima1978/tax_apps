@@ -39,7 +39,7 @@ export const TaxTable: React.FC<TaxTableProps> = memo(({ data, hasSpouse }) => {
   const allSubColumns = [...spouseColumns, ...mainColumns];
 
   return (
-    <div className={`${CARD} overflow-x-auto`} role="region" aria-label="相続税額一覧表">
+    <div className={`${CARD} overflow-x-auto table-scroll-hint`} role="region" aria-label="相続税額一覧表">
       <h2 className="text-xl font-bold text-gray-800 mb-4" id="tax-table-heading">相続税額一覧表</h2>
 
       <table className="w-full border-collapse text-sm" aria-labelledby="tax-table-heading">

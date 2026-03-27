@@ -74,8 +74,7 @@ export function ScenarioComparisonCard<T>({
       {topSlot && <div className="mb-6">{topSlot}</div>}
 
       {/* 比較テーブル */}
-      <p className="text-xs text-gray-400 mb-1 md:hidden">← 横にスクロールできます</p>
-      <div className="overflow-x-auto mb-6">
+      <div className="overflow-x-auto table-scroll-hint mb-6">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-green-600 text-white">

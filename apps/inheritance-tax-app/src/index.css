@@ -65,6 +65,17 @@
   animation: alertSlideIn 0.3s ease-out;
 }
 
+/* モバイルテーブルスクロールヒント */
+@media (max-width: 767px) {
+  .table-scroll-hint::before {
+    content: '← 横にスクロールできます';
+    display: block;
+    font-size: 10px;
+    color: #9ca3af;
+    margin-bottom: 4px;
+  }
+}
+
 /* モバイルナビのスクロールバー非表示 */
 .scrollbar-hide {
   -ms-overflow-style: none;
@@ -105,6 +116,11 @@
   /* min-h-screen が印刷レイアウトに干渉するのを防止 */
   .min-h-screen {
     min-height: auto !important;
+  }
+
+  /* スクロールヒント非表示 */
+  .table-scroll-hint::before {
+    display: none !important;
   }
 
   /* overflow が印刷時にコンテンツを切り取るのを防止 */

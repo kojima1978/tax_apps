@@ -90,8 +90,8 @@ export const Header: React.FC<HeaderProps> = ({ actions }) => {
                     }`
                   }
                 >
-                  <Icon className="w-4 h-4" />
-                  {label}
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">{label}</span>
                 </NavLink>
               ))}
             </div>

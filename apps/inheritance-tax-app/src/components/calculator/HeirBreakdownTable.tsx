@@ -40,7 +40,7 @@ export const HeirBreakdownTable: React.FC<HeirBreakdownTableProps> = ({
     <div className={`${CARD} heir-breakdown-card`}>
       <h3 className="text-lg font-bold text-gray-800 mb-4">相続人別 税額内訳</h3>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto table-scroll-hint">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-green-700 text-white">

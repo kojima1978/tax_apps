@@ -54,8 +54,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
         配偶者取得割合別 税額比較
       </h2>
 
-      <p className="text-xs text-gray-400 mb-2 md:hidden">← 横にスクロールできます</p>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto table-scroll-hint">
       <table className="w-full border-collapse text-sm" aria-labelledby="comparison-heading">
         <thead>
           <tr className="bg-green-600 text-white">

@@ -20,8 +20,8 @@ function App() {
         <Route path="/split" element={<SplitPage />} />
       </Routes>
 
-      <footer className="bg-gray-800 text-white py-6 mt-12 no-print">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm">
+      <footer className="bg-gray-800 text-white py-4 md:py-6 mt-8 md:mt-12 no-print">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 text-center text-xs md:text-sm">
           <p>&copy; 2026 相続税シミュレーター</p>
         </div>
       </footer>

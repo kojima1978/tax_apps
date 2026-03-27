@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
@@ -65,37 +65,24 @@ export const SplitPage: React.FC = () => {
     setResult(null);
   }, [estateValue, composition, acquisitions.length]);
 
-  const validationErrors = useMemo(() => {
-    const errors: string[] = [];
-    if (estateValue <= 0) errors.push('遺産総額を入力してください');
-    if (noHeirs) errors.push('相続人を設定してください');
-    if (acquisitions.length > 0 && !acquisitions.some(h => h.isAutoAdjust)) {
-      errors.push('自動調整対象の相続人を1人選択してください');
-    }
-    const total = acquisitions.reduce((s, h) => s + h.amount, 0);
-    if (estateValue > 0 && total > 0 && total !== estateValue) {
-      errors.push(`取得額の合計（${total.toLocaleString()}万円）が遺産総額（${estateValue.toLocaleString()}万円）と一致しません`);
-    }
-    return errors;
-  }, [estateValue, noHeirs, acquisitions]);
-
-  const checks = useCallback(() => [
-    { condition: estateValue <= 0, ref: estateRef },
-    { condition: noHeirs, ref: heirRef },
-  ], [estateValue, noHeirs]);
+  const total = acquisitions.reduce((s, h) => s + h.amount, 0);
 
   const onValid = useCallback(() => {
-    if (validationErrors.length > 0) return;
     setResult(generateSplitSimulation(estateValue, composition, acquisitions, rowCount));
-  }, [estateValue, composition, acquisitions, rowCount, validationErrors]);
+  }, [estateValue, composition, acquisitions, rowCount]);
 
-  const { hasAttempted, handleCalculate } = useFormValidation(checks, onValid);
+  const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
+    { condition: estateValue <= 0, ref: estateRef, message: '遺産総額を入力してください' },
+    { condition: noHeirs, ref: heirRef, message: '相続人を設定してください' },
+    { condition: acquisitions.length > 0 && !acquisitions.some(h => h.isAutoAdjust), message: '自動調整対象の相続人を1人選択してください' },
+    { condition: estateValue > 0 && total > 0 && total !== estateValue, message: `取得額の合計（${total.toLocaleString()}万円）が遺産総額（${estateValue.toLocaleString()}万円）と一致しません` },
+  ], onValid);
 
   return (
     <PageLayout
       printClassName="split-print"
       leftSection={
-        <div ref={heirRef} className="space-y-6">
+        <div ref={heirRef} className="space-y-4 md:space-y-6">
           <HeirSettings
             composition={composition}
             onChange={handleCompositionChange}

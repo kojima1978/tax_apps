@@ -20,7 +20,7 @@ const RecipientDetailTable: React.FC<{ recipientResults: GiftRecipientResult[] }
   return (
     <div>
       <h4 className="text-base font-bold text-gray-700 mb-2">受取人別 贈与詳細</h4>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto table-scroll-hint">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-green-600 text-white">

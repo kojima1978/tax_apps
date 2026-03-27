@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
@@ -26,24 +26,15 @@ export const CalculatorPage: React.FC = () => {
 
   const noHeirs = !composition.hasSpouse && composition.selectedRank === 'none';
 
-  const validationErrors = useMemo(() => {
-    const errors: string[] = [];
-    if (estateValue <= 0) errors.push('遺産総額を入力してください');
-    if (noHeirs) errors.push('相続人を設定してください（配偶者または相続人の順位を選択）');
-    return errors;
-  }, [estateValue, noHeirs]);
-
-  const checks = useCallback(() => [
-    { condition: estateValue <= 0, ref: estateRef },
-    { condition: noHeirs, ref: heirRef },
-  ], [estateValue, noHeirs]);
-
   const onValid = useCallback(() => {
     setResult(calculateDetailedInheritanceTax(estateValue, composition, spouseMode));
     setWeightedRate(calculateBracketAnalysis(estateValue, composition).weightedRate);
   }, [estateValue, composition, spouseMode]);
 
-  const { hasAttempted, handleCalculate } = useFormValidation(checks, onValid);
+  const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
+    { condition: estateValue <= 0, ref: estateRef, message: '遺産総額を入力してください' },
+    { condition: noHeirs, ref: heirRef, message: '相続人を設定してください（配偶者または相続人の順位を選択）' },
+  ], onValid);
 
   return (
     <PageLayout

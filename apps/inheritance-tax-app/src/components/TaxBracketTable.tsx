@@ -12,7 +12,7 @@ const formatThreshold = (value: number, index: number): string => {
 };
 
 export const TaxBracketTable: React.FC = memo(() => (
-  <div className={`${CARD} overflow-x-auto`} role="region" aria-label="相続税の速算表">
+  <div className={`${CARD} overflow-x-auto table-scroll-hint`} role="region" aria-label="相続税の速算表">
     <h2 className="text-xl font-bold text-gray-800 mb-1" id="bracket-heading">相続税の速算表</h2>
     <p className="text-sm text-gray-500 mb-4">
       法定相続分に応ずる取得金額に対する税率と控除額です。

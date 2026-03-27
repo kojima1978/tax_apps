@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
@@ -41,19 +41,10 @@ export const CashGiftPage: React.FC = () => {
     cleanedRecipients.every(r => r.annualAmount <= 0 || r.years <= 0)
   );
 
-  const validationErrors = useMemo(() => {
-    const errors: string[] = [];
-    if (estateValue <= 0) errors.push('遺産総額を入力してください');
-    if (recipientsInvalid) errors.push('受取人を追加し、贈与額・年数を入力してください');
-    return errors;
-  }, [estateValue, recipientsInvalid]);
-
-  const checks = useCallback(() => [
-    { condition: estateValue <= 0, ref: estateRef },
-    { condition: recipientsInvalid, ref: recipientsRef },
-  ], [estateValue, recipientsInvalid]);
-
-  const { hasAttempted, handleCalculate } = useFormValidation(checks, executeCalculate);
+  const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
+    { condition: estateValue <= 0, ref: estateRef, message: '遺産総額を入力してください' },
+    { condition: recipientsInvalid, ref: recipientsRef, message: '受取人を追加し、贈与額・年数を入力してください' },
+  ], executeCalculate);
 
   return (
     <PageLayout
@@ -124,7 +115,7 @@ export const CashGiftPage: React.FC = () => {
           {result && (
             <div className="result-fade-in">
               <PrintHeader title="現金贈与シミュレーション" />
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 <CashGiftSummaryCard result={result} />
                 <CashGiftFlowSteps result={result} />
                 <CashGiftHeirTable result={result} />

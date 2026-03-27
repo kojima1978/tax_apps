@@ -84,12 +84,12 @@ export const ProgressiveTaxBreakdown: React.FC<ProgressiveTaxBreakdownProps> = m
 
   return (
     <div className={CARD}>
-      <h3 className="text-lg font-bold text-gray-800 mb-1">累進税額の内訳</h3>
-      <p className="text-sm text-gray-500 mb-4">
+      <h3 className="text-base md:text-lg font-bold text-gray-800 mb-1">累進税額の内訳</h3>
+      <p className="text-xs md:text-sm text-gray-500 mb-3 md:mb-4">
         法定取得額が各ブラケットでどのように課税されるかの詳細です。
       </p>
 
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {groups.map((group) => (
           <div key={group.legalShareAmount} style={{ breakInside: 'avoid' }}>
             <h4 className="text-base font-bold text-green-700 mb-2">
@@ -99,7 +99,7 @@ export const ProgressiveTaxBreakdown: React.FC<ProgressiveTaxBreakdownProps> = m
               </span>
             </h4>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto table-scroll-hint">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="bg-green-600 text-white">
