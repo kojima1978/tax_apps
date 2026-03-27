@@ -214,10 +214,9 @@ export const SortableCategoryCard = ({
             aria-label={allChecked ? `${category.name}の全済みを解除` : `${category.name}を全て提出済みにする`}
           >
             {allChecked
-              ? <CheckSquare className="w-4 h-4 mr-1" aria-hidden="true" />
-              : <Square className="w-4 h-4 mr-1" aria-hidden="true" />
+              ? <CheckSquare className="w-4 h-4" aria-hidden="true" />
+              : <Square className="w-4 h-4" aria-hidden="true" />
             }
-            {checkedCount}/{category.documents.length}
           </button>
         </div>
       </div>
