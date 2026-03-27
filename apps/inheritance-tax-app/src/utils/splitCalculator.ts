@@ -6,28 +6,22 @@ import type {
   SplitSimulationResult,
 } from '../types';
 import { SPOUSE_DEDUCTION_LIMIT } from '../constants';
-import { getHeirInfo, getHeirLabel } from './heirUtils';
-import { getLegalShareRatios, calculateBasicDeduction, calculateTaxForShare, RANK_TO_HEIR_TYPE } from './taxCore';
+import { getHeirInfo, getEffectiveHeirShares } from './heirUtils';
+import { getLegalShareRatios, calculateBasicDeduction, calculateTaxForShare } from './taxCore';
 
 /**
  * 相続人構成から相続人ラベル一覧を生成
  */
 export function buildHeirLabels(composition: HeirComposition): { label: string; type: HeirType }[] {
   const result: { label: string; type: HeirType }[] = [];
-  const { rank, rankHeirsCount } = getHeirInfo(composition);
 
   if (composition.hasSpouse) {
     result.push({ label: '配偶者', type: 'spouse' });
   }
 
-  if (rank > 0 && rankHeirsCount > 0) {
-    const heirType = RANK_TO_HEIR_TYPE[rank] || 'sibling';
-    for (let i = 0; i < rankHeirsCount; i++) {
-      result.push({
-        label: getHeirLabel(heirType, i, rankHeirsCount),
-        type: heirType,
-      });
-    }
+  const shares = getEffectiveHeirShares(composition);
+  for (const share of shares) {
+    result.push({ label: share.label, type: share.type });
   }
 
   return result;
@@ -40,19 +34,18 @@ export function calculateLegalAcquisitions(
   estateValue: number,
   composition: HeirComposition,
 ): number[] {
-  const { rank, rankHeirsCount } = getHeirInfo(composition);
-  const labels = buildHeirLabels(composition);
+  const { rank } = getHeirInfo(composition);
   const { spouse: spouseRatio, others: othersRatio } = getLegalShareRatios(composition.hasSpouse, rank);
+  const shares = getEffectiveHeirShares(composition);
 
-  return labels.map(h => {
-    if (h.type === 'spouse') {
-      return Math.floor(estateValue * spouseRatio);
-    }
-    if (othersRatio > 0 && rankHeirsCount > 0) {
-      return Math.floor(Math.floor(estateValue * othersRatio) / rankHeirsCount);
-    }
-    return 0;
-  });
+  const result: number[] = [];
+  if (composition.hasSpouse) {
+    result.push(Math.floor(estateValue * spouseRatio));
+  }
+  for (const share of shares) {
+    result.push(Math.floor(estateValue * othersRatio * share.ratio));
+  }
+  return result;
 }
 
 /**
@@ -66,7 +59,7 @@ export function calculateSplitTax(
   composition: HeirComposition,
   acquisitions: number[],
 ): { totalTax: number; basicDeduction: number; taxableAmount: number; finalTaxes: number[] } {
-  const { rank, totalHeirsCount, rankHeirsCount } = getHeirInfo(composition);
+  const { rank, totalHeirsCount } = getHeirInfo(composition);
   const basicDeduction = calculateBasicDeduction(totalHeirsCount);
 
   const taxableAmount = Math.max(0, estateValue - basicDeduction);
@@ -82,9 +75,12 @@ export function calculateSplitTax(
   if (spouseRatio > 0) {
     totalTax += calculateTaxForShare(Math.floor(taxableAmount * spouseRatio));
   }
-  if (othersRatio > 0 && rankHeirsCount > 0) {
-    const perPerson = Math.floor(Math.floor(taxableAmount * othersRatio) / rankHeirsCount);
-    totalTax += calculateTaxForShare(perPerson) * rankHeirsCount;
+  if (othersRatio > 0) {
+    const shares = getEffectiveHeirShares(composition);
+    for (const share of shares) {
+      const shareAmount = Math.floor(taxableAmount * othersRatio * share.ratio);
+      totalTax += calculateTaxForShare(shareAmount);
+    }
   }
 
   // 按分税額の計算
