@@ -6,22 +6,18 @@ import { SelectField } from "@/components/ui/SelectField"
 import { MultiSelectDropdown } from "@/components/ui/MultiSelectDropdown"
 import { Search, X, Filter } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
-import { CASE_STATUS_FILTER_OPTIONS, HANDLING_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, SORT_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
+import { CASE_STATUS_FILTER_OPTIONS, HANDLING_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
 import type { Assignee, Department } from "@/types/shared"
 
 const FILTER_SELECT_WRAPPER = "h-10 w-auto"
 
 type FilterDef = { key: keyof CasesQueryParams; placeholder: string; options: readonly { value: string | number; label: string }[]; multiSelect?: boolean }
-type SortField = 'deceasedName' | 'dateOfDeath' | 'fiscalYear' | 'status' | 'taxAmount' | 'feeAmount' | 'createdAt' | 'updatedAt'
-type SortOrder = 'asc' | 'desc'
-
 interface FilterBarProps {
     queryParams: CasesQueryParams
     searchInput: string
     setSearchInput: (val: string) => void
     onSearch: () => void
     onFilterChange: (key: keyof CasesQueryParams, value: string | undefined) => void
-    onSortChange: (sortBy: SortField, sortOrder: SortOrder) => void
     onClearAll: () => void
     assignees: Assignee[]
     departments: Department[]
@@ -37,7 +33,7 @@ const STATIC_FILTER_DEFS: FilterDef[] = [
 ]
 
 export function FilterBar({
-    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onSortChange, onClearAll, assignees, departments, totalCount, hasFilters,
+    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onClearAll, assignees, departments, totalCount, hasFilters,
 }: FilterBarProps) {
     const filterDefs: FilterDef[] = useMemo(() => [
         ...STATIC_FILTER_DEFS,
@@ -155,18 +151,6 @@ export function FilterBar({
                         </SelectField>
                     )
                 })}
-                <SelectField
-                    wrapperClassName={FILTER_SELECT_WRAPPER}
-                    value={`${queryParams.sortBy || 'dateOfDeath'}_${queryParams.sortOrder || 'asc'}`}
-                    onChange={(e) => {
-                        const [field, order] = e.target.value.split('_') as [SortField, SortOrder]
-                        onSortChange(field, order)
-                    }}
-                >
-                    {SORT_OPTIONS.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                    ))}
-                </SelectField>
             </div>
         </div>
     )

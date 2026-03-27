@@ -93,10 +93,6 @@ export default function InheritanceMockupPage() {
         setQueryParams(prev => ({ ...prev, [key]: parsed, page: 1 }))
     }
 
-    const handleSortChange = (sortBy: CasesQueryParams['sortBy'], sortOrder: CasesQueryParams['sortOrder']) => {
-        setQueryParams(prev => ({ ...prev, sortBy, sortOrder, page: 1 }))
-    }
-
     const handleClearAll = () => {
         setQueryParams({ page: 1, pageSize: 30 })
         setSearchInput("")
@@ -183,7 +179,6 @@ export default function InheritanceMockupPage() {
                 setSearchInput={setSearchInput}
                 onSearch={handleSearch}
                 onFilterChange={handleFilterChange}
-                onSortChange={handleSortChange}
                 onClearAll={handleClearAll}
                 assignees={assignees}
                 departments={departments}
