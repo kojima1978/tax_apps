@@ -35,7 +35,7 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
         （税額合計: {formatCurrency(taxTotal)}）
       </span>
     </h4>
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto table-scroll-hint">
       <table className="w-full border-collapse">
         <thead>
           <tr className={`${headerBg} text-white`}>

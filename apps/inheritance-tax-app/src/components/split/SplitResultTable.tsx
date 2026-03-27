@@ -85,18 +85,18 @@ export const SplitResultTable: React.FC<SplitResultTableProps> = ({ result }) =>
   const legalTotalTax = legalRow.totalFinalTax;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* サマリー */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
         {[
           { label: '遺産総額', value: formatCurrency(estateValue) },
           { label: '基礎控除額', value: formatCurrency(basicDeduction) },
           { label: '課税遺産総額', value: formatCurrency(taxableAmount) },
           { label: '相続税の総額', value: formatCurrency(totalTax) },
         ].map(item => (
-          <div key={item.label} className="bg-green-50 rounded-lg p-3 text-center">
-            <div className="text-xs text-green-600 font-medium">{item.label}</div>
-            <div className="text-sm font-bold text-green-800 mt-1">{item.value}</div>
+          <div key={item.label} className="bg-green-50 rounded-lg p-2 md:p-3 text-center">
+            <div className="text-[10px] md:text-xs text-green-600 font-medium">{item.label}</div>
+            <div className="text-xs md:text-sm font-bold text-green-800 mt-0.5 md:mt-1">{item.value}</div>
           </div>
         ))}
       </div>
@@ -115,7 +115,7 @@ export const SplitResultTable: React.FC<SplitResultTableProps> = ({ result }) =>
 
       {/* 結果テーブル */}
       <div className={CARD}>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto table-scroll-hint">
           <table className="w-full border-collapse">
             <thead>
               <tr>

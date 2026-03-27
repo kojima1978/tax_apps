@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Landmark from 'lucide-react/icons/landmark';
 import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
@@ -25,23 +25,14 @@ export const ComparisonPage: React.FC = () => {
   const heirRef = useRef<HTMLDivElement>(null);
   const estateRef = useRef<HTMLDivElement>(null);
 
-  const validationErrors = useMemo(() => {
-    const errors: string[] = [];
-    if (estateValue <= 0) errors.push('相続財産額を入力してください');
-    if (!composition.hasSpouse) errors.push('配偶者ありの構成を選択してください（1次2次比較に必要）');
-    return errors;
-  }, [estateValue, composition.hasSpouse]);
-
-  const checks = useCallback(() => [
-    { condition: estateValue <= 0, ref: estateRef },
-    { condition: !composition.hasSpouse, ref: heirRef },
-  ], [estateValue, composition.hasSpouse]);
-
   const onValid = useCallback(() => {
     setComparisonData(calculateComparisonTable(estateValue, spouseOwnEstate, composition));
   }, [estateValue, spouseOwnEstate, composition]);
 
-  const { hasAttempted, handleCalculate } = useFormValidation(checks, onValid);
+  const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
+    { condition: estateValue <= 0, ref: estateRef, message: '相続財産額を入力してください' },
+    { condition: !composition.hasSpouse, ref: heirRef, message: '配偶者ありの構成を選択してください（1次2次比較に必要）' },
+  ], onValid);
 
   const hasData = comparisonData.length > 0;
   const resultRef = useScrollToResult(hasData);

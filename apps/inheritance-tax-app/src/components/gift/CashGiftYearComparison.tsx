@@ -64,7 +64,7 @@ export const CashGiftYearComparison: React.FC<CashGiftYearComparisonProps> = ({
       <p className="text-sm text-gray-500 mb-4">
         受取人{recipients.length}人 × 各贈与年数での最適な年間贈与額と税引後の比較
       </p>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto table-scroll-hint">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-green-600 text-white">

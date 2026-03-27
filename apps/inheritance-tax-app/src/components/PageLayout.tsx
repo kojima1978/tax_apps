@@ -30,15 +30,15 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 }) => (
   <>
     <Header />
-    <main className={`max-w-7xl mx-auto px-4 py-8 ${printClassName}`.trim()}>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print">
-        <div className="space-y-6">{leftSection}</div>
-        <div className="space-y-6">{rightSection}</div>
+    <main className={`max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-8 ${printClassName}`.trim()}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8 no-print">
+        <div className="space-y-4 md:space-y-6">{leftSection}</div>
+        <div className="space-y-4 md:space-y-6">{rightSection}</div>
       </div>
 
       {middleSection}
 
-      <div className="mb-8 no-print">
+      <div className="mb-6 md:mb-8 no-print">
         <ValidationErrorPanel show={hasAttempted} errors={validationErrors} />
         <CalculateButton onClick={onCalculate} />
       </div>

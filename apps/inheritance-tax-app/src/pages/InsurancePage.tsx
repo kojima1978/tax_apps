@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
@@ -34,19 +34,10 @@ export const InsurancePage: React.FC = () => {
 
   const noContracts = cleanedExisting.length === 0 && cleanedNew.length === 0;
 
-  const validationErrors = useMemo(() => {
-    const errors: string[] = [];
-    if (estateValue <= 0) errors.push('遺産総額を入力してください');
-    if (noContracts) errors.push('保険契約を1件以上追加してください');
-    return errors;
-  }, [estateValue, noContracts]);
-
-  const checks = useCallback(() => [
-    { condition: estateValue <= 0, ref: estateRef },
-    { condition: noContracts, ref: contractsRef },
-  ], [estateValue, noContracts]);
-
-  const { hasAttempted, handleCalculate } = useFormValidation(checks, executeCalculate);
+  const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
+    { condition: estateValue <= 0, ref: estateRef, message: '遺産総額を入力してください' },
+    { condition: noContracts, ref: contractsRef, message: '保険契約を1件以上追加してください' },
+  ], executeCalculate);
 
   return (
     <PageLayout
@@ -76,7 +67,7 @@ export const InsurancePage: React.FC = () => {
       middleSection={
         <div
           ref={contractsRef}
-          className={`grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 no-print ${hasAttempted && noContracts ? 'ring-2 ring-red-400 rounded-lg p-1' : ''}`}
+          className={`grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8 no-print ${hasAttempted && noContracts ? 'ring-2 ring-red-400 rounded-lg p-1' : ''}`}
         >
           <InsuranceContractList
             contracts={existingContracts}
@@ -110,7 +101,7 @@ export const InsurancePage: React.FC = () => {
         result ? (
           <div className="result-fade-in">
             <PrintHeader title="保険金シミュレーション" />
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               <InsuranceSummaryCard result={result} />
               <div className="print-page-break">
                 <InsuranceFlowSteps result={result} />
