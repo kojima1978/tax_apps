@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import RealEstatePageLayout from '@/components/shared/RealEstatePageLayout';
+import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
 import { useRegistrationTaxForm } from '@/hooks/useRegistrationTaxForm';
 
 export default function RegistrationTaxPage() {
@@ -35,33 +36,25 @@ export default function RegistrationTaxPage() {
                     {/* 土地: 評価額のみ */}
                     <div className={`re-column ${!form.includeLand ? 'disabled' : ''}`}>
                         <h3 className="re-column-title">土地の情報</h3>
-                        <div className="input-item">
-                            <label>固定資産税評価額</label>
-                            <input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="例: 15,000,000"
-                                value={form.landValuation}
-                                onChange={(e) => form.handleFormattedInput(e, form.setLandValuation)}
-                                disabled={!form.includeLand}
-                            />
-                        </div>
+                        <FormattedNumberInput
+                            label="固定資産税評価額"
+                            placeholder="例: 15,000,000"
+                            value={form.landValuation}
+                            onChange={(e) => form.handleFormattedInput(e, form.setLandValuation)}
+                            disabled={!form.includeLand}
+                        />
                     </div>
 
                     {/* 建物: 評価額 + 居住用 + 住宅用家屋証明 */}
                     <div className={`re-column ${!form.includeBuilding ? 'disabled' : ''}`}>
                         <h3 className="re-column-title">建物の情報</h3>
-                        <div className="input-item">
-                            <label>固定資産税評価額</label>
-                            <input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="例: 10,000,000"
-                                value={form.buildingValuation}
-                                onChange={(e) => form.handleFormattedInput(e, form.setBuildingValuation)}
-                                disabled={!form.includeBuilding}
-                            />
-                        </div>
+                        <FormattedNumberInput
+                            label="固定資産税評価額"
+                            placeholder="例: 10,000,000"
+                            value={form.buildingValuation}
+                            onChange={(e) => form.handleFormattedInput(e, form.setBuildingValuation)}
+                            disabled={!form.includeBuilding}
+                        />
                         <div className="input-item">
                             <label className="checkbox-label">
                                 <input

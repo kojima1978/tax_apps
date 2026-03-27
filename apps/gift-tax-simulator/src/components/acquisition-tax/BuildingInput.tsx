@@ -1,4 +1,5 @@
 import { getWareki } from '@/lib/real-estate-tax';
+import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -44,29 +45,21 @@ const BuildingInput = ({
 }: BuildingInputProps) => (
     <div className={`re-column ${disabled ? 'disabled' : ''}`}>
         <h3 className="re-column-title">建物の情報</h3>
-        <div className="input-item">
-            <label>固定資産税評価額</label>
-            <input
-                type="text"
-                inputMode="decimal"
-                placeholder="例: 10,000,000"
-                value={valuation}
-                onChange={onValuationChange}
-                disabled={disabled}
-            />
-        </div>
-        <div className="input-item">
-            <label>建物床面積 (m²)</label>
-            <input
-                type="text"
-                inputMode="decimal"
-                placeholder="例: 90"
-                value={area}
-                onChange={onAreaChange}
-                disabled={disabled}
-            />
-            <small>※土地の税額軽減にも影響</small>
-        </div>
+        <FormattedNumberInput
+            label="固定資産税評価額"
+            placeholder="例: 10,000,000"
+            value={valuation}
+            onChange={onValuationChange}
+            disabled={disabled}
+        />
+        <FormattedNumberInput
+            label="建物床面積 (m²)"
+            placeholder="例: 90"
+            value={area}
+            onChange={onAreaChange}
+            disabled={disabled}
+            hint="※土地の税額軽減にも影響"
+        />
         <div className="input-item">
             <label>建築年月日</label>
             <div className="flex-row">
@@ -117,20 +110,15 @@ const BuildingInput = ({
             </label>
         </div>
         {isResidential && (
-            <div className="input-item">
-                <label>建物不動産取得税の控除額</label>
-                <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="例: 12,000,000"
-                    value={acquisitionDeduction}
-                    onChange={onDeductionChange}
-                    disabled={disabled}
-                />
-                {deductionMessage && (
-                    <small className="text-primary">{deductionMessage}</small>
-                )}
-            </div>
+            <FormattedNumberInput
+                label="建物不動産取得税の控除額"
+                placeholder="例: 12,000,000"
+                value={acquisitionDeduction}
+                onChange={onDeductionChange}
+                disabled={disabled}
+                hint={deductionMessage}
+                hintClassName="text-primary"
+            />
         )}
     </div>
 );

@@ -2,14 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     calculateRealEstateTax,
     type TaxResults,
-    type TransactionType,
 } from '@/lib/real-estate-tax';
 import { formatInputValue, parseFormattedNumber } from '@/lib/utils';
 import { validateRealEstateInput, validateResult } from '@/lib/validate-real-estate';
 import { saveValuations } from '@/lib/valuation-storage';
-import { useFormattedInput } from './useFormattedInput';
 import { useValuationImport } from './useValuationImport';
 import { useBuildingDate, YEAR_OPTIONS } from './useBuildingDate';
+import { useRealEstateFormBase } from './useRealEstateFormBase';
 
 export type AcquisitionResults = TaxResults & {
     resLandAcq: number;
@@ -17,10 +16,8 @@ export type AcquisitionResults = TaxResults & {
 };
 
 export const useAcquisitionTaxForm = () => {
-    // 共通設定
-    const [includeLand, setIncludeLand] = useState(false);
-    const [includeBuilding, setIncludeBuilding] = useState(false);
-    const [transactionType, setTransactionType] = useState<TransactionType>('gift');
+    const base = useRealEstateFormBase<AcquisitionResults>();
+    const { transactionType, includeLand, includeBuilding, setErrorMsg, setResults } = base;
 
     // 土地（宅地）
     const [resLandValuation, setResLandValuation] = useState('');
@@ -36,13 +33,6 @@ export const useAcquisitionTaxForm = () => {
 
     // 建築年月日・控除額
     const buildingDate = useBuildingDate(transactionType, isResidential);
-
-    // 結果
-    const [showDetails, setShowDetails] = useState(false);
-    const [results, setResults] = useState<AcquisitionResults | null>(null);
-    const [errorMsg, setErrorMsg] = useState('');
-
-    const handleFormattedInput = useFormattedInput();
 
     // 評価額をlocalStorageに保存（土地は宅地+その他の合計値を保存）
     useEffect(() => {
@@ -168,10 +158,7 @@ export const useAcquisitionTaxForm = () => {
     ]);
 
     return {
-        transactionType, setTransactionType,
-        includeLand, setIncludeLand,
-        includeBuilding, setIncludeBuilding,
-        handleFormattedInput,
+        ...base,
         resLandValuation, setResLandValuation,
         resLandArea, setResLandArea,
         otherLandValuation, setOtherLandValuation,
@@ -180,8 +167,7 @@ export const useAcquisitionTaxForm = () => {
         ...buildingDate,
         isResidential, setIsResidential,
         yearOptions: YEAR_OPTIONS,
-        results, showDetails, setShowDetails, calculateTax,
-        errorMsg,
+        calculateTax,
         importLandValuation, importBuildingValuation,
     };
 };

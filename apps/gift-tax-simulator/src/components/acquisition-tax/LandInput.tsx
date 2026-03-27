@@ -1,3 +1,5 @@
+import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
+
 type LandInputProps = {
     disabled: boolean;
     resValuation: string;
@@ -22,44 +24,32 @@ const LandInput = ({
 
         <div className="land-subsection">
             <h4 className="land-subsection-title">宅地（特例あり）</h4>
-            <div className="input-item">
-                <label>固定資産税評価額</label>
-                <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="例: 15,000,000"
-                    value={resValuation}
-                    onChange={onResValuationChange}
-                    disabled={disabled}
-                />
-            </div>
-            <div className="input-item">
-                <label>土地面積 (m²)</label>
-                <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="例: 100"
-                    value={resArea}
-                    onChange={onResAreaChange}
-                    disabled={disabled}
-                />
-                <small>※税額軽減の計算に使用</small>
-            </div>
+            <FormattedNumberInput
+                label="固定資産税評価額"
+                placeholder="例: 15,000,000"
+                value={resValuation}
+                onChange={onResValuationChange}
+                disabled={disabled}
+            />
+            <FormattedNumberInput
+                label="土地面積 (m²)"
+                placeholder="例: 100"
+                value={resArea}
+                onChange={onResAreaChange}
+                disabled={disabled}
+                hint="※税額軽減の計算に使用"
+            />
         </div>
 
         <div className="land-subsection">
             <h4 className="land-subsection-title other">その他（宅地以外）</h4>
-            <div className="input-item">
-                <label>固定資産税評価額</label>
-                <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="例: 5,000,000"
-                    value={otherValuation}
-                    onChange={onOtherValuationChange}
-                    disabled={disabled}
-                />
-            </div>
+            <FormattedNumberInput
+                label="固定資産税評価額"
+                placeholder="例: 5,000,000"
+                value={otherValuation}
+                onChange={onOtherValuationChange}
+                disabled={disabled}
+            />
         </div>
     </div>
 );
