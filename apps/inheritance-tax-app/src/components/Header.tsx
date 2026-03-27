@@ -12,12 +12,12 @@ import { COMPANY_INFO } from '../constants';
 import { useStaffInfo } from '../contexts/StaffContext';
 
 const NAV_ITEMS = [
-  { to: '/', label: '相続税計算', icon: Calculator },
-  { to: '/comparison', label: '1次2次比較', icon: Scale },
-  { to: '/insurance', label: '保険金', icon: Shield },
-  { to: '/cash-gift', label: '現金贈与', icon: Gift },
-  { to: '/split', label: '分割シミュレーション', icon: Sliders },
-  { to: '/table', label: '早見表', icon: Table },
+  { to: '/', label: '相続税計算', shortLabel: '計算', icon: Calculator },
+  { to: '/comparison', label: '1次2次比較', shortLabel: '比較', icon: Scale },
+  { to: '/insurance', label: '保険金', shortLabel: '保険', icon: Shield },
+  { to: '/cash-gift', label: '現金贈与', shortLabel: '贈与', icon: Gift },
+  { to: '/split', label: '分割シミュレーション', shortLabel: '分割', icon: Sliders },
+  { to: '/table', label: '早見表', shortLabel: '早見表', icon: Table },
 ] as const;
 
 interface HeaderProps {
@@ -77,13 +77,13 @@ export const Header: React.FC<HeaderProps> = ({ actions }) => {
         <div className="relative flex-1">
           <div className="overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
             <div className="flex gap-1">
-              {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+              {NAV_ITEMS.map(({ to, label, shortLabel, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={to === '/'}
                   className={({ isActive }) =>
-                    `flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-t-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                    `flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-t-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                       isActive
                         ? 'bg-white text-green-700 shadow-sm'
                         : 'text-green-100 hover:bg-green-700/60 hover:text-white'
@@ -91,6 +91,7 @@ export const Header: React.FC<HeaderProps> = ({ actions }) => {
                   }
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
+                  <span className="sm:hidden text-[10px] leading-tight">{shortLabel}</span>
                   <span className="hidden sm:inline">{label}</span>
                 </NavLink>
               ))}
