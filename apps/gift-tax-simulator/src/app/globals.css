@@ -18,12 +18,17 @@
   --general-bg: #fff3e0;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Noto Sans JP', sans-serif;
   background-color: var(--white);
   color: var(--text-color);
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* ===================== コンテナ ===================== */
@@ -161,6 +166,10 @@ body {
   background-color: var(--white);
   color: var(--green-700);
   font-weight: 700;
+}
+
+.nav-label-short {
+  display: none;
 }
 
 .btn-print {
@@ -1084,6 +1093,7 @@ tr.rate-row-highlight td {
 
 /* ===================== スマホ対応 ===================== */
 @media (max-width: 768px) {
+  /* ヘッダー */
   .header-top {
     padding: 0.75rem 1rem;
   }
@@ -1100,6 +1110,7 @@ tr.rate-row-highlight td {
     display: none;
   }
 
+  /* ナビゲーション */
   .header-nav {
     padding: 0 0.5rem;
   }
@@ -1119,31 +1130,98 @@ tr.rate-row-highlight td {
   }
 
   .nav-tab {
+    flex-direction: column;
+    gap: 0.125rem;
     white-space: nowrap;
-    padding: 0.625rem 0.75rem;
-    font-size: 0.8rem;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.625rem;
     min-height: 44px;
+    text-align: center;
+  }
+
+  .nav-tab .nav-label-full {
+    display: none;
+  }
+
+  .nav-tab .nav-label-short {
+    display: inline;
   }
 
   .btn-print {
     min-height: 44px;
     min-width: 44px;
     justify-content: center;
+    flex-direction: column;
+    gap: 0.125rem;
+    font-size: 0.625rem;
   }
 
   .print-label {
-    display: none;
+    display: block;
   }
 
-  .chart-container-custom {
-    height: 200px;
+  /* 入力セクション */
+  .input-section {
+    padding: 1rem;
   }
 
-  .print-footer-content {
-    flex-direction: column;
-    gap: 1rem;
+  .input-item {
+    min-width: 140px;
   }
 
+  .input-item input[type="text"],
+  .input-item select {
+    padding: 0.625rem;
+    font-size: 1rem;
+  }
+
+  .btn-calc {
+    width: 100%;
+    padding: 0.75rem 1rem;
+  }
+
+  /* テーブル */
+  th,
+  td {
+    padding: 8px 6px;
+    font-size: 0.8rem;
+  }
+
+  .tax-table-single th,
+  .tax-table-single td {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+
+  .rate-table th,
+  .rate-table td {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+
+  .table-container::before {
+    content: '← 横にスクロールできます';
+    display: block;
+    font-size: 0.625rem;
+    color: #9ca3af;
+    margin-bottom: 4px;
+  }
+
+  /* 結果セクション */
+  .result-section {
+    padding: 1rem;
+  }
+
+  .calc-process-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+
+  .calc-steps-container {
+    grid-template-columns: 1fr;
+  }
+
+  /* 不動産 */
   .re-two-column {
     grid-template-columns: 1fr;
   }
@@ -1155,10 +1233,58 @@ tr.rate-row-highlight td {
   .re-result-groups {
     grid-template-columns: 1fr;
   }
+
+  .re-result-box {
+    padding: 1rem;
+  }
+
+  .re-result-total .total-value {
+    font-size: 1.25rem;
+  }
+
+  /* チャート */
+  .chart-container-custom {
+    height: 200px;
+  }
+
+  /* フッター */
+  .print-footer-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* 評価額引用バー */
+  .import-bar-group {
+    padding: 0.5rem 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  /* 早見表タイトル */
+  .table-section-title {
+    font-size: 1.1rem;
+  }
+
+  /* 計算過程 */
+  .calc-process-heading {
+    font-size: 1rem;
+  }
+
+  .calc-step-card {
+    padding: 0.75rem;
+  }
+
+  /* 免責 */
+  .disclaimer {
+    font-size: 0.7rem;
+  }
 }
 
 /* ===================== 印刷用スタイル ===================== */
 @media print {
+  .table-container::before {
+    display: none;
+  }
+
   @page {
     size: A4 portrait;
     margin: 5mm;

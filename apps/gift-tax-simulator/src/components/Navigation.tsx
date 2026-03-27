@@ -10,11 +10,11 @@ import Printer from 'lucide-react/icons/printer';
 import { COMPANY_INFO } from '@/lib/company';
 
 const NAV_ITEMS = [
-    { to: '/', label: '贈与税', icon: Gift, pageTitle: '贈与税シミュレーター' },
-    { to: '/table', label: '早見表', icon: Table, pageTitle: '贈与税 早見表' },
-    { to: '/year-comparison', label: '年数比較', icon: BarChart3, pageTitle: '分割年数別 税額比較' },
-    { to: '/acquisition-tax', label: '不動産取得税', icon: Building, pageTitle: '不動産取得税シミュレーター' },
-    { to: '/registration-tax', label: '登録免許税', icon: FileText, pageTitle: '登録免許税シミュレーター' },
+    { to: '/', label: '贈与税', shortLabel: '贈与税', icon: Gift, pageTitle: '贈与税シミュレーター' },
+    { to: '/year-comparison', label: '年数比較', shortLabel: '比較', icon: BarChart3, pageTitle: '分割年数別 税額比較' },
+    { to: '/table', label: '早見表', shortLabel: '早見表', icon: Table, pageTitle: '贈与税 早見表' },
+    { to: '/acquisition-tax', label: '不動産取得税', shortLabel: '取得税', icon: Building, pageTitle: '不動産取得税シミュレーター' },
+    { to: '/registration-tax', label: '登録免許税', shortLabel: '登免税', icon: FileText, pageTitle: '登録免許税シミュレーター' },
 ] as const;
 
 const Navigation = () => {
@@ -59,7 +59,7 @@ const Navigation = () => {
         <nav className="header-nav" aria-label="メインナビゲーション">
             <div className="nav-tabs-wrapper" ref={wrapperRef}>
                 <div className="nav-tabs">
-                    {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+                    {NAV_ITEMS.map(({ to, label, shortLabel, icon: Icon }) => (
                         <NavLink
                             key={to}
                             to={to}
@@ -69,7 +69,8 @@ const Navigation = () => {
                             }
                         >
                             <Icon size={16} />
-                            {label}
+                            <span className="nav-label-short">{shortLabel}</span>
+                            <span className="nav-label-full">{label}</span>
                         </NavLink>
                     ))}
                 </div>
