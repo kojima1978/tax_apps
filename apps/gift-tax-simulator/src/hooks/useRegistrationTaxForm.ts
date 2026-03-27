@@ -2,19 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     calculateRealEstateTax,
     type TaxResults,
-    type TransactionType,
 } from '@/lib/real-estate-tax';
 import { parseFormattedNumber } from '@/lib/utils';
 import { validateRealEstateInput, validateResult } from '@/lib/validate-real-estate';
 import { saveValuations } from '@/lib/valuation-storage';
-import { useFormattedInput } from './useFormattedInput';
 import { useValuationImport } from './useValuationImport';
+import { useRealEstateFormBase } from './useRealEstateFormBase';
 
 export const useRegistrationTaxForm = () => {
-    // 共通設定
-    const [includeLand, setIncludeLand] = useState(false);
-    const [includeBuilding, setIncludeBuilding] = useState(false);
-    const [transactionType, setTransactionType] = useState<TransactionType>('gift');
+    const base = useRealEstateFormBase<TaxResults>();
+    const { includeLand, includeBuilding, transactionType, setErrorMsg, setResults } = base;
 
     // 土地（評価額のみ）
     const [landValuation, setLandValuation] = useState('');
@@ -24,11 +21,6 @@ export const useRegistrationTaxForm = () => {
     const [isResidential, setIsResidential] = useState(true);
     const [hasHousingCertificate, setHasHousingCertificate] = useState(true);
 
-    // 結果
-    const [showDetails, setShowDetails] = useState(false);
-    const [results, setResults] = useState<TaxResults | null>(null);
-    const [errorMsg, setErrorMsg] = useState('');
-
     // 評価額をlocalStorageに保存
     useEffect(() => {
         saveValuations('registration-tax', { landValuation, buildingValuation });
@@ -36,8 +28,6 @@ export const useRegistrationTaxForm = () => {
 
     const { importLandValuation, importBuildingValuation } =
         useValuationImport('acquisition-tax', setLandValuation, setBuildingValuation);
-
-    const handleFormattedInput = useFormattedInput();
 
     const calculateTax = useCallback(() => {
         setErrorMsg('');
@@ -81,16 +71,12 @@ export const useRegistrationTaxForm = () => {
     ]);
 
     return {
-        transactionType, setTransactionType,
-        includeLand, setIncludeLand,
-        includeBuilding, setIncludeBuilding,
-        handleFormattedInput,
+        ...base,
         landValuation, setLandValuation,
         buildingValuation, setBuildingValuation,
         isResidential, setIsResidential,
         hasHousingCertificate, setHasHousingCertificate,
-        results, showDetails, setShowDetails, calculateTax,
-        errorMsg,
+        calculateTax,
         importLandValuation, importBuildingValuation,
     };
 };
