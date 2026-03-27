@@ -71,20 +71,6 @@ export const ACCEPTANCE_STATUS_FILTER_OPTIONS = ACCEPTANCE_STATUS_OPTIONS.map(s 
 // Filter keys used for hasFilters check and KPI dependency
 export const FILTER_KEYS = ['search', 'status', 'handlingStatus', 'acceptanceStatus', 'fiscalYear', 'department', 'assigneeId'] as const
 
-// Sort options for case list
-export const SORT_OPTIONS = [
-    { value: "dateOfDeath_asc", label: "死亡日 (古い順)" },
-    { value: "dateOfDeath_desc", label: "死亡日 (新しい順)" },
-    { value: "createdAt_desc", label: "登録日 (新しい順)" },
-    { value: "createdAt_asc", label: "登録日 (古い順)" },
-    { value: "deceasedName_asc", label: "氏名 (昇順)" },
-    { value: "deceasedName_desc", label: "氏名 (降順)" },
-    { value: "taxAmount_desc", label: "税額 (高い順)" },
-    { value: "taxAmount_asc", label: "税額 (低い順)" },
-    { value: "feeAmount_desc", label: "報酬 (高い順)" },
-    { value: "feeAmount_asc", label: "報酬 (低い順)" },
-] as const
-
 // Fiscal year range
 export const FISCAL_YEAR_START = 2015
 export const FISCAL_YEAR_COUNT = 21
