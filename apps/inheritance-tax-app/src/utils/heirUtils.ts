@@ -1,4 +1,4 @@
-import type { Heir, HeirComposition, SpouseAcquisitionMode, BeneficiaryOption } from '../types';
+import type { Heir, HeirComposition, HeirType, SpouseAcquisitionMode, BeneficiaryOption } from '../types';
 import { RANK_LABELS } from '../constants';
 
 /**
@@ -14,6 +14,77 @@ function countEffectiveHeirs(heirs: Heir[]): number {
     }
     return acc + (heir.isDeceased ? 0 : 1);
   }, 0);
+}
+
+/** 有効相続人の個別割合（代襲相続考慮） */
+export interface EffectiveHeirShare {
+  type: HeirType;
+  /** othersグループ内での割合（合計 = 1.0） */
+  ratio: number;
+  label: string;
+}
+
+/**
+ * 代襲相続を考慮した個別割合を返す。
+ * 被代襲者の取り分を代襲相続人で均等分割する。
+ */
+export function getEffectiveHeirShares(composition: HeirComposition): EffectiveHeirShare[] {
+  let heirs: Heir[];
+  let baseType: HeirType;
+  let repType: HeirType;
+
+  switch (composition.selectedRank) {
+    case 'rank1':
+      heirs = composition.rank1Children;
+      baseType = 'child';
+      repType = 'grandchild';
+      break;
+    case 'rank2': {
+      const count = composition.rank2Ascendants.length;
+      if (count === 0) return [];
+      return composition.rank2Ascendants.map((_, i) => ({
+        type: 'parent' as HeirType,
+        ratio: 1 / count,
+        label: getHeirLabel('parent', i, count),
+      }));
+    }
+    case 'rank3':
+      heirs = composition.rank3Siblings;
+      baseType = 'sibling';
+      repType = 'nephew_niece';
+      break;
+    default:
+      return [];
+  }
+
+  const originalCount = heirs.length;
+  if (originalCount === 0) return [];
+
+  const perOriginal = 1 / originalCount;
+  const raw: { type: HeirType; ratio: number }[] = [];
+
+  for (const heir of heirs) {
+    if (heir.isDeceased && heir.representatives && heir.representatives.length > 0) {
+      const perRep = perOriginal / heir.representatives.length;
+      for (let j = 0; j < heir.representatives.length; j++) {
+        raw.push({ type: repType, ratio: perRep });
+      }
+    } else if (!heir.isDeceased) {
+      raw.push({ type: baseType, ratio: perOriginal });
+    }
+  }
+
+  // タイプ別にラベル生成
+  const typeCounts: Partial<Record<HeirType, number>> = {};
+  for (const s of raw) typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
+  const typeIdx: Partial<Record<HeirType, number>> = {};
+
+  return raw.map(s => {
+    const count = typeCounts[s.type]!;
+    const idx = typeIdx[s.type] || 0;
+    typeIdx[s.type] = idx + 1;
+    return { ...s, label: getHeirLabel(s.type, idx, count) };
+  });
 }
 
 /**
@@ -113,11 +184,15 @@ export function getBeneficiaryOptions(composition: HeirComposition): Beneficiary
         effective.push({ id: heir.id, type: baseType });
       }
     }
-    for (let i = 0; i < effective.length; i++) {
-      options.push({
-        id: effective[i].id,
-        label: getHeirLabel(effective[i].type, i, effective.length),
-      });
+    // タイプ別にカウントしてラベル生成
+    const typeCounts: Record<string, number> = {};
+    for (const e of effective) typeCounts[e.type] = (typeCounts[e.type] || 0) + 1;
+    const typeIdx: Record<string, number> = {};
+    for (const e of effective) {
+      const count = typeCounts[e.type];
+      const idx = typeIdx[e.type] || 0;
+      typeIdx[e.type] = idx + 1;
+      options.push({ id: e.id, label: getHeirLabel(e.type, idx, count) });
     }
   };
 

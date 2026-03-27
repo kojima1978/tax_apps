@@ -60,17 +60,18 @@ export function reapportionTax(
     breakdowns[spouseIdx].acquisitionAmount = spouseBase;
 
     const remaining = baseEstate - spouseBase;
-    const otherCount = otherIndices.length;
-    if (otherCount > 0) {
-      const perPerson = Math.floor(remaining / otherCount);
+    const othersLegalTotal = otherIndices.reduce((sum, idx) => sum + breakdowns[idx].legalShareRatio, 0);
+    if (othersLegalTotal > 0) {
       for (const idx of otherIndices) {
-        breakdowns[idx].acquisitionAmount = perPerson;
+        breakdowns[idx].acquisitionAmount = Math.floor(remaining * breakdowns[idx].legalShareRatio / othersLegalTotal);
       }
     }
   } else {
-    const perPerson = Math.floor(baseEstate / breakdowns.length);
-    for (let i = 0; i < breakdowns.length; i++) {
-      breakdowns[i].acquisitionAmount = perPerson;
+    const totalRatio = breakdowns.reduce((sum, b) => sum + b.legalShareRatio, 0);
+    for (const b of breakdowns) {
+      b.acquisitionAmount = totalRatio > 0
+        ? Math.floor(baseEstate * b.legalShareRatio / totalRatio)
+        : Math.floor(baseEstate / breakdowns.length);
     }
   }
 

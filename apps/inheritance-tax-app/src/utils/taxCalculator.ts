@@ -11,8 +11,8 @@ import {
   THIRD_RANK_SURCHARGE_RATE,
   SPOUSE_DEDUCTION_LIMIT,
 } from '../constants';
-import { getHeirInfo, getHeirLabel } from './heirUtils';
-import { getLegalShareRatios, calculateBasicDeduction, calculateTaxForShare, RANK_TO_HEIR_TYPE } from './taxCore';
+import { getHeirInfo, getEffectiveHeirShares } from './heirUtils';
+import { getLegalShareRatios, calculateBasicDeduction, calculateTaxForShare } from './taxCore';
 
 /**
  * 相続税を計算
@@ -55,20 +55,17 @@ export function calculateInheritanceTax(
   }
 
   // B. 他の相続人の税額（法定相続分で取得したと仮定）
+  // 代襲相続人は被代襲者の取り分を均等分割する
   if (otherShareRatio > 0 && rankHeirsCount > 0) {
-    const othersTotalAmount = Math.floor(taxableAmount * otherShareRatio);
-    // 各人の取得分（均等割と仮定）
-    const perPersonAmount = Math.floor(othersTotalAmount / rankHeirsCount);
-
-    // 各人の税額を算出
-    const perPersonTax = calculateTaxForShare(perPersonAmount);
-
-    // 全員分の税額
-    let othersTax = perPersonTax * rankHeirsCount;
+    const shares = getEffectiveHeirShares(composition);
+    let othersTax = 0;
+    for (const share of shares) {
+      const shareAmount = Math.floor(taxableAmount * otherShareRatio * share.ratio);
+      othersTax += calculateTaxForShare(shareAmount);
+    }
 
     // 第3順位（兄弟姉妹）の場合は2割加算
-    // ※代襲相続人（甥姪）も2割加算だが、子が代襲する場合は対象外。
-    // ここでは簡易的にrank3なら一律2割加算とする。
+    // ※代襲相続人（甥姪）も2割加算
     if (rank === 3) {
       othersTax = Math.floor(othersTax * THIRD_RANK_SURCHARGE_RATE);
     }
@@ -148,10 +145,15 @@ export function calculateBracketAnalysis(
     ? getBracketRate(Math.floor(taxableAmount * spouseRatio))
     : null;
 
-  // 他の相続人（全員均等なので同一税率）
-  const otherRate = othersRatio > 0 && rankHeirsCount > 0
-    ? getBracketRate(Math.floor(Math.floor(taxableAmount * othersRatio) / rankHeirsCount))
-    : 0;
+  // 他の相続人（代襲相続考慮：個別割合で加重平均）
+  let otherRate = 0;
+  if (othersRatio > 0 && rankHeirsCount > 0) {
+    const shares = getEffectiveHeirShares(composition);
+    for (const share of shares) {
+      const shareAmount = Math.floor(taxableAmount * othersRatio * share.ratio);
+      otherRate += getBracketRate(shareAmount) * share.ratio;
+    }
+  }
 
   // 加重平均（全体）
   const weightedRate = (spouseRate ?? 0) * spouseRatio + otherRate * othersRatio * surcharge;
@@ -212,21 +214,18 @@ export function calculateDetailedInheritanceTax(
     });
   }
 
-  // 他の相続人
+  // 他の相続人（代襲相続考慮）
   if (othersLegalRatio > 0 && rankHeirsCount > 0) {
-    const perPersonRatio = othersLegalRatio / rankHeirsCount;
-    const othersTotalAmount = Math.floor(taxableAmount * othersLegalRatio);
-    const perPersonAmount = Math.floor(othersTotalAmount / rankHeirsCount);
-
-    const heirType = RANK_TO_HEIR_TYPE[rank] || 'sibling';
-
-    for (let i = 0; i < rankHeirsCount; i++) {
+    const shares = getEffectiveHeirShares(composition);
+    for (const share of shares) {
+      const legalShareRatio = othersLegalRatio * share.ratio;
+      const legalShareAmount = Math.floor(taxableAmount * legalShareRatio);
       breakdowns.push({
-        label: getHeirLabel(heirType, i, rankHeirsCount),
-        type: heirType,
-        legalShareRatio: perPersonRatio,
-        legalShareAmount: perPersonAmount,
-        taxOnShare: calculateTaxForShare(perPersonAmount),
+        label: share.label,
+        type: share.type,
+        legalShareRatio,
+        legalShareAmount,
+        taxOnShare: calculateTaxForShare(legalShareAmount),
         acquisitionAmount: 0,
         proportionalTax: 0,
         surchargeAmount: 0,
@@ -259,20 +258,21 @@ export function calculateDetailedInheritanceTax(
 
     breakdowns[spouseIdx].acquisitionAmount = spouseAcquisitionAmount;
 
-    // 残りを他の相続人で均等割
+    // 残りを他の相続人で法定相続分の割合で配分
     const remaining = estateValue - spouseAcquisitionAmount;
-    const otherCount = otherIndices.length;
-    if (otherCount > 0) {
-      const perPerson = Math.floor(remaining / otherCount);
+    const othersLegalTotal = otherIndices.reduce((sum, idx) => sum + breakdowns[idx].legalShareRatio, 0);
+    if (othersLegalTotal > 0) {
       for (const idx of otherIndices) {
-        breakdowns[idx].acquisitionAmount = perPerson;
+        breakdowns[idx].acquisitionAmount = Math.floor(remaining * breakdowns[idx].legalShareRatio / othersLegalTotal);
       }
     }
   } else {
-    // 配偶者なし: 全員均等
-    const perPerson = Math.floor(estateValue / breakdowns.length);
+    // 配偶者なし: 法定相続分の割合で配分
+    const totalRatio = breakdowns.reduce((sum, b) => sum + b.legalShareRatio, 0);
     for (const b of breakdowns) {
-      b.acquisitionAmount = perPerson;
+      b.acquisitionAmount = totalRatio > 0
+        ? Math.floor(estateValue * b.legalShareRatio / totalRatio)
+        : Math.floor(estateValue / breakdowns.length);
     }
   }
 

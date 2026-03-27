@@ -2,7 +2,8 @@ export { formatCurrency, formatPercent, formatFraction, formatDelta, formatDelta
 export { generateId } from './idGenerator';
 export { calculateInheritanceTax, calculateDetailedInheritanceTax, calculateBracketAnalysis } from './taxCalculator';
 export type { BracketAnalysisRow } from './taxCalculator';
-export { getHeirInfo, getHeirLabel, getScenarioName, getSpouseModeLabel, getBeneficiaryOptions } from './heirUtils';
+export { getHeirInfo, getHeirLabel, getEffectiveHeirShares, getScenarioName, getSpouseModeLabel, getBeneficiaryOptions } from './heirUtils';
+export type { EffectiveHeirShare } from './heirUtils';
 export { calculateComparisonTable } from './comparisonCalculator';
 export { calculateInsuranceSimulation, getHeirNetProceeds, getHeirBaseAcquisition } from './insuranceCalculator';
 export { calculateGiftTaxPerYear, calculateRecipientResult, getGiftRecipientOptions, getGiftHeirNetProceeds, calculateCashGiftSimulation, optimizeGiftAmounts } from './giftCalculator';
