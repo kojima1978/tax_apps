@@ -142,20 +142,12 @@ function normalizeDate(value: string): string {
   return value;
 }
 
-function parseOptionalInt(value: string): number | undefined {
+function parseOptionalNumber(value: string, round = false): number | undefined {
   const trimmed = value.trim();
   if (trimmed === '') return undefined;
   const n = Number(trimmed);
   if (isNaN(n)) return undefined;
-  return Math.round(n);
-}
-
-function parseOptionalFloat(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (trimmed === '') return undefined;
-  const n = Number(trimmed);
-  if (isNaN(n)) return undefined;
-  return n;
+  return round ? Math.round(n) : n;
 }
 
 // ── CSV parser ──────────────────────────────────
@@ -368,13 +360,9 @@ function rowToInput(
       case 'taxAmount':
       case 'estimateAmount':
       case 'feeAmount':
-      case 'referralFeeAmount': {
-        const n = parseOptionalInt(value);
-        if (n !== undefined) obj[fieldName] = n;
-        break;
-      }
+      case 'referralFeeAmount':
       case 'referralFeeRate': {
-        const n = parseOptionalFloat(value);
+        const n = parseOptionalNumber(value, fieldName !== 'referralFeeRate');
         if (n !== undefined) obj[fieldName] = n;
         break;
       }
