@@ -25,31 +25,31 @@
 </head>
 
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
-        <div class="container-fluid px-4">
-            <a class="nav-link portal-link" href="/" title="ポータルに戻る">
-                <i class="bi bi-house-door"></i>
-            </a>
-            <a class="navbar-brand" href="{% url 'case-list' %}"><i class="bi bi-bank2" aria-hidden="true"></i> Bank Analyzer</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="メニューを開閉">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'case-list' %}active{% endif %}" href="{% url 'case-list' %}">
-                            <i class="bi bi-folder2-open"></i> 案件一覧
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" href="{% url 'settings' %}">
-                            <i class="bi bi-gear"></i> 設定
-                        </a>
-                    </li>
-                </ul>
+    <header class="app-header sticky-top">
+        <div class="container-fluid d-flex align-items-center justify-content-between px-4" style="height: 3.5rem;">
+            <!-- Left: Portal + Nav Links -->
+            <div class="d-flex align-items-center gap-2">
+                <a class="header-portal-link" href="/" title="ポータルに戻る">
+                    <i class="bi bi-house-door"></i>
+                    <span class="d-none d-md-inline">ポータル</span>
+                </a>
+                <a class="header-nav-link {% if request.resolver_match.url_name == 'case-list' or request.resolver_match.url_name == 'case-create' %}active{% endif %}" href="{% url 'case-list' %}">
+                    <i class="bi bi-folder2-open"></i>
+                    <span class="d-none d-md-inline">案件一覧</span>
+                </a>
+                <a class="header-nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" href="{% url 'settings' %}">
+                    <i class="bi bi-gear"></i>
+                    <span class="d-none d-md-inline">設定</span>
+                </a>
             </div>
+
+            <!-- Right: New Case Button -->
+            <a class="header-action-btn {% if request.resolver_match.url_name == 'case-create' %}active{% endif %}" href="{% url 'case-create' %}">
+                <i class="bi bi-plus-lg"></i>
+                <span class="d-none d-sm-inline">新規案件</span>
+            </a>
         </div>
-    </nav>
+    </header>
 
     <div class="container mt-4">
         {% if messages %}
