@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Activity, Briefcase, Building, Calculator, ClipboardList,
+  Activity, Briefcase, Building, Calculator,
   Clock, CreditCard, FileCheck, FileText, Gift, Package, Receipt, TrendingUp,
 } from 'lucide-react';
 
@@ -16,10 +16,9 @@ export interface Application {
 }
 
 export const applications: Application[] = [
-  { title: '相続税 必要書類', description: '相続税申告に必要な書類をご案内', url: '/inheritance-tax-docs/', icon: FileText, category: '必要書類' },
-  { title: '贈与税 必要書類', description: '贈与税申告に必要な書類をご案内', url: '/gift-tax-docs/', icon: ClipboardList, category: '必要書類' },
-  { title: '確定申告 必要書類', description: '確定申告に必要な書類をご案内', url: '/tax-docs/', icon: FileCheck, category: '必要書類' },
-  { title: '相続税計算', description: '相続税の早見表', url: '/inheritance-tax-app/', icon: Calculator, category: '計算・評価' },
+  { title: '相続税 必要書類', description: '相続税・相続シミュレーション・株価計算に必要な書類をご案内', url: '/inheritance-tax-docs/', icon: FileText, category: '必要書類' },
+  { title: '所得税・贈与税 必要書類', description: '所得税・贈与税申告に必要な書類をご案内', url: '/tax-docs/', icon: FileCheck, category: '必要書類' },
+  { title: '相続税計算', description: '相続税の概算計算', url: '/inheritance-tax-app/', icon: Calculator, category: '計算・評価' },
   { title: '贈与税計算', description: '贈与税計算・早見表・不動産取得税', url: '/gift-tax-simulator/', icon: Gift, category: '計算・評価' },
   { title: '医療法人株式評価', description: '医療法人の株式評価システム', url: '/medical/', icon: Activity, category: '計算・評価' },
   { title: '非上場株式評価', description: '非上場株式の評価システム', url: '/shares/', icon: TrendingUp, category: '計算・評価' },

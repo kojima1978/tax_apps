@@ -32,7 +32,7 @@ const TRANS_THRESHOLDS: Record<string, number[]> = {
 
 function classify(value: number, thresholds: number[]): SizeLevel {
   for (let i = 0; i < thresholds.length; i++) {
-    if (value >= thresholds[i]) return (4 - i) as SizeLevel;
+    if (value >= thresholds[i]!) return (4 - i) as SizeLevel;
   }
   return 0;
 }
@@ -63,9 +63,9 @@ export function Table1_2({ getField, updateField }: TableProps) {
   const is70Over = totalEmpDisplay !== '' && totalEmp >= 70;
 
   // 判定レベルの計算
-  const assetLevel = industryType ? classify(totalAssets, ASSET_THRESHOLDS[industryType]) : null;
+  const assetLevel = industryType ? classify(totalAssets, ASSET_THRESHOLDS[industryType] ?? []) : null;
   const empLevel = classifyEmp(totalEmp);
-  const transLevel = industryType ? classify(transactionAmount, TRANS_THRESHOLDS[industryType]) : null;
+  const transLevel = industryType ? classify(transactionAmount, TRANS_THRESHOLDS[industryType] ?? []) : null;
   const sectionTe = (assetLevel !== null) ? Math.min(assetLevel, empLevel) as SizeLevel : null;
   const finalLevel = (sectionTe !== null && transLevel !== null) ? Math.max(sectionTe, transLevel) as SizeLevel : null;
 

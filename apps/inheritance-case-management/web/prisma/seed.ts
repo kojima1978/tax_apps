@@ -10,8 +10,10 @@ async function main() {
   await prisma.referrer.deleteMany();
   await prisma.company.deleteMany();
   await prisma.assignee.deleteMany();
+  await prisma.department.deleteMany();
 
   // シーケンスをリセット
+  await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Department_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Assignee_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Company_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Referrer_id_seq" RESTART WITH 1`);
@@ -19,13 +21,19 @@ async function main() {
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "CaseContact_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "CaseProgress_id_seq" RESTART WITH 1`);
 
+  // 部署データ
+  const departments = await Promise.all([
+    prisma.department.create({ data: { name: '資産税部', sortOrder: 0 } }),
+    prisma.department.create({ data: { name: '会計部', sortOrder: 1 } }),
+  ]);
+
   // 担当者データ (id: 1, 2, 3)
   const assignees = await Promise.all([
     prisma.assignee.create({
       data: {
         name: '山田 太郎',
         employeeId: 'EMP001',
-        department: '資産税部',
+        departmentId: departments[0].id,
         active: true,
       },
     }),
@@ -33,7 +41,7 @@ async function main() {
       data: {
         name: '佐藤 花子',
         employeeId: 'EMP002',
-        department: '資産税部',
+        departmentId: departments[0].id,
         active: true,
       },
     }),
@@ -41,7 +49,7 @@ async function main() {
       data: {
         name: '鈴木 一郎',
         employeeId: 'EMP003',
-        department: '会計部',
+        departmentId: departments[1].id,
         active: true,
       },
     }),
