@@ -1,0 +1,78 @@
+# ============================================
+# 税務書類リスト - Docker Compose
+# ============================================
+# Usage:
+#   開発:   docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:   docker compose logs -f
+#   停止:   docker compose down
+# ============================================
+
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s
+
+services:
+  # ===========================================
+  # 税務書類リスト（所得税・贈与税）
+  # Port: 3002
+  #
+  # 機能:
+  #   - 申告に必要な書類のチェックリスト管理
+  #   - 所得税申告 / 贈与税申告の切り替え
+  #   - ドラッグ&ドロップで並べ替え
+  #   - Excel出力 / 印刷
+  #   - JSON形式での保存・読込
+  # ===========================================
+  tax-docs:
+    build:
+      context: .
+      dockerfile: ../../docker/Dockerfile.vite-static
+      target: dev
+      args:
+        APP_PORT: "3002"
+        APP_PATH: tax-docs
+        APP_TITLE: "Tax Documents Checklist"
+        APP_DESCRIPTION: "税務書類リスト"
+        NPM_CACHE_ID: npm-store-tax-docs
+    container_name: tax-docs
+    networks:
+      - tax-apps-network
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./src:/app/src:ro
+      - ./public:/app/public:ro
+      - ./index.html:/app/index.html:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+    init: true
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3002/tax-docs/ || exit 1"]
+      <<: *healthcheck-defaults
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true
