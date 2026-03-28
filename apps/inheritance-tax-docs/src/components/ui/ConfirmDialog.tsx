@@ -1,42 +1,209 @@
-import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { AlertTriangle, Trash2, Upload, XCircle } from 'lucide-react';
+import type { ExportData } from '@/hooks/useJsonImportExport';
+import { DIALOG_MESSAGES } from '@/constants/messages';
 
-interface ConfirmDialogProps {
+// ─── 共通ダイアログオーバーレイ ───
+
+type DialogOverlayProps = {
+  labelledBy: string;
+  onClose: () => void;
+  role?: 'dialog' | 'alertdialog';
+  maxWidth?: string;
+  children: React.ReactNode;
+};
+
+const DialogOverlay = ({ labelledBy, onClose, role = 'dialog', maxWidth = 'max-w-md', children }: DialogOverlayProps) => (
+  <div
+    className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in"
+    role={role}
+    aria-modal="true"
+    aria-labelledby={labelledBy}
+    onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+    onClick={onClose}
+  >
+    <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 ${maxWidth} mx-4`} onClick={(e) => e.stopPropagation()}>
+      {children}
+    </div>
+  </div>
+);
+
+// ─── 共通ダイアログヘッダー ───
+
+type DialogHeaderProps = {
+  titleId: string;
   title: string;
+  icon: React.ReactNode;
+  iconBgClass: string;
+};
+
+const DialogHeader = ({ titleId, title, icon, iconBgClass }: DialogHeaderProps) => (
+  <div className="flex items-center gap-3 mb-4">
+    <div className={`w-12 h-12 ${iconBgClass} rounded-full flex items-center justify-center`}>
+      {icon}
+    </div>
+    <h3 id={titleId} className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h3>
+  </div>
+);
+
+// ─── 共通ダイアログボタン ───
+
+const cancelBtnClass = 'px-5 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium';
+
+type DialogButtonsProps = {
+  onCancel: () => void;
+  onConfirm: () => void;
+  confirmLabel: string;
+  confirmClass: string;
+};
+
+const DialogButtons = ({ onCancel, onConfirm, confirmLabel, confirmClass }: DialogButtonsProps) => (
+  <div className="flex justify-end gap-3">
+    <button onClick={onCancel} className={cancelBtnClass} autoFocus>
+      キャンセル
+    </button>
+    <button onClick={onConfirm} className={`px-5 py-2 text-white rounded-lg transition-colors font-medium ${confirmClass}`}>
+      {confirmLabel}
+    </button>
+  </div>
+);
+
+// ─── 削除確認ダイアログ ───
+
+type DeleteConfirmDialogProps = {
+  message: string;
+  subMessage?: string;
   onConfirm: () => void;
   onCancel: () => void;
-  confirmLabel?: string;
-  children: React.ReactNode;
-}
+};
 
-export function ConfirmDialog({ title, onConfirm, onCancel, confirmLabel = '削除', children }: ConfirmDialogProps) {
-  useEscapeKey(onCancel);
+export const DeleteConfirmDialog = ({ message, subMessage, onConfirm, onCancel }: DeleteConfirmDialogProps) => (
+  <DialogOverlay labelledBy="delete-dialog-title" onClose={onCancel}>
+    <DialogHeader
+      titleId="delete-dialog-title"
+      title={message}
+      icon={<Trash2 className="w-6 h-6 text-red-600" aria-hidden="true" />}
+      iconBgClass="bg-red-100 dark:bg-red-900/50"
+    />
+    {subMessage && (
+      <p className="mb-6 pl-15 text-sm text-slate-500 dark:text-slate-400">{subMessage}</p>
+    )}
+    <DialogButtons onCancel={onCancel} onConfirm={onConfirm} confirmLabel="削除" confirmClass="bg-red-500 hover:bg-red-600" />
+  </DialogOverlay>
+);
 
-  return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 no-print"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-bold text-slate-800 mb-2">{title}</h3>
-        {children}
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
-          >
-            キャンセル
-          </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg font-bold"
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
+// ─── リセット確認ダイアログ ───
+
+type ResetConfirmDialogProps = {
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+
+export const ResetConfirmDialog = ({ onConfirm, onCancel }: ResetConfirmDialogProps) => (
+  <DialogOverlay labelledBy="reset-dialog-title" onClose={onCancel}>
+    <DialogHeader
+      titleId="reset-dialog-title"
+      title={DIALOG_MESSAGES.reset.title}
+      icon={<AlertTriangle className="w-6 h-6 text-amber-600" aria-hidden="true" />}
+      iconBgClass="bg-amber-100 dark:bg-amber-900/50"
+    />
+    <div className="mb-6 pl-15">
+      <p className="text-slate-600 dark:text-slate-300 mb-3">{DIALOG_MESSAGES.reset.description}</p>
+      <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
+        {DIALOG_MESSAGES.reset.items.map((item) => (
+          <li key={item} className="flex items-center">
+            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2" aria-hidden="true" />
+            {item}
+          </li>
+        ))}
+      </ul>
     </div>
-  );
-}
+    <DialogButtons onCancel={onCancel} onConfirm={onConfirm} confirmLabel="リセット" confirmClass="bg-amber-500 hover:bg-amber-600" />
+  </DialogOverlay>
+);
+
+// ─── インポート確認ダイアログ ───
+
+type ImportConfirmDialogProps = {
+  preview: ExportData;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+
+export const ImportConfirmDialog = ({ preview, onConfirm, onCancel }: ImportConfirmDialogProps) => (
+  <DialogOverlay labelledBy="import-dialog-title" onClose={onCancel} maxWidth="max-w-lg">
+    <DialogHeader
+      titleId="import-dialog-title"
+      title={DIALOG_MESSAGES.import.title}
+      icon={<Upload className="w-6 h-6 text-violet-600" aria-hidden="true" />}
+      iconBgClass="bg-violet-100 dark:bg-violet-900/50"
+    />
+    <div className="mb-6">
+      <p className="text-slate-600 dark:text-slate-300 mb-3">{DIALOG_MESSAGES.import.description}</p>
+      <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg space-y-2 text-sm">
+        {preview.clientName && (
+          <p><span className="text-slate-500 dark:text-slate-400">依頼者名:</span> <span className="font-medium dark:text-slate-200">{preview.clientName}</span></p>
+        )}
+        {preview.deceasedName && (
+          <p><span className="text-slate-500 dark:text-slate-400">被相続人名:</span> <span className="font-medium dark:text-slate-200">{preview.deceasedName}</span></p>
+        )}
+        {preview.personInCharge && (
+          <p><span className="text-slate-500 dark:text-slate-400">担当者:</span> <span className="font-medium dark:text-slate-200">{preview.personInCharge}</span></p>
+        )}
+        {preview.personInChargeContact && (
+          <p><span className="text-slate-500 dark:text-slate-400">連絡先:</span> <span className="font-medium dark:text-slate-200">{preview.personInChargeContact}</span></p>
+        )}
+        <p>
+          <span className="text-slate-500 dark:text-slate-400">カテゴリ数:</span>{' '}
+          <span className="font-medium dark:text-slate-200">{preview.documentList.length}</span>
+        </p>
+        <p>
+          <span className="text-slate-500 dark:text-slate-400">書類数:</span>{' '}
+          <span className="font-medium dark:text-slate-200">
+            {preview.documentList.reduce((acc, cat) => acc + cat.documents.length, 0)}
+          </span>
+        </p>
+        {preview.exportedAt && (
+          <p>
+            <span className="text-slate-500 dark:text-slate-400">エクスポート日時:</span>{' '}
+            <span className="font-medium dark:text-slate-200">
+              {new Date(preview.exportedAt).toLocaleString('ja-JP')}
+            </span>
+          </p>
+        )}
+      </div>
+      <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
+        {DIALOG_MESSAGES.import.overwriteWarning}
+      </p>
+    </div>
+    <DialogButtons onCancel={onCancel} onConfirm={onConfirm} confirmLabel="取り込む" confirmClass="bg-violet-600 hover:bg-violet-700" />
+  </DialogOverlay>
+);
+
+// ─── インポートエラーダイアログ ───
+
+type ImportErrorDialogProps = {
+  onDismiss: () => void;
+};
+
+export const ImportErrorDialog = ({ onDismiss }: ImportErrorDialogProps) => (
+  <DialogOverlay labelledBy="import-error-dialog-title" onClose={onDismiss} role="alertdialog">
+    <DialogHeader
+      titleId="import-error-dialog-title"
+      title={DIALOG_MESSAGES.importError.title}
+      icon={<XCircle className="w-6 h-6 text-red-600" aria-hidden="true" />}
+      iconBgClass="bg-red-100 dark:bg-red-900/50"
+    />
+    <p className="mb-6 pl-15 text-sm text-slate-500 dark:text-slate-400">
+      {DIALOG_MESSAGES.importError.description}
+    </p>
+    <div className="flex justify-end">
+      <button
+        onClick={onDismiss}
+        className="px-5 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-medium"
+        autoFocus
+      >
+        閉じる
+      </button>
+    </div>
+  </DialogOverlay>
+);
