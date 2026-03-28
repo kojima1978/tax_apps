@@ -15,6 +15,7 @@ services:
   stock-valuation-form:
     build:
       target: runner
+    command: []
     init: false
     volumes: []
     deploy: *prod-deploy
