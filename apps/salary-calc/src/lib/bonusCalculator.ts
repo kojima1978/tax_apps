@@ -1,5 +1,5 @@
 import { NURSING_CARE_RATE, PENSION_RATE, EMPLOYMENT_INSURANCE_RATE, PREFECTURES } from '@/data/prefectureRates';
-import { getHealthStandardMonthly, getPensionStandardMonthly } from '@/data/standardRemuneration';
+import { getGradeNumber, getGradeInfo } from '@/data/standardRemuneration';
 import { getBonusTaxRate } from '@/data/bonusTaxRates';
 
 export interface BonusInput {
@@ -38,6 +38,16 @@ export interface BonusResult {
   totalDeductions: number;
   /** 手取り金額 */
   takeHomePay: number;
+  /** 健康保険料率（%、労使折半前） */
+  healthRate: number;
+  /** 介護保険料率（%、労使折半前） */
+  nursingCareRate: number;
+  /** 健康保険の標準賞与額 */
+  healthBase: number;
+  /** 厚生年金の標準賞与額 */
+  pensionBase: number;
+  /** 課税対象賞与額（賞与 − 社保） */
+  taxableBonus: number;
 }
 
 /** 健康保険の標準賞与額上限（年度累計） */
@@ -89,6 +99,11 @@ export function calculateBonus(input: BonusInput): BonusResult {
     incomeTax,
     totalDeductions,
     takeHomePay,
+    healthRate: prefecture.healthRate,
+    nursingCareRate: input.isNursingCare ? NURSING_CARE_RATE : 0,
+    healthBase,
+    pensionBase,
+    taxableBonus,
   };
 }
 
@@ -104,8 +119,9 @@ export function estimatePrevMonthSalaryAfterSI(
   const prefecture = PREFECTURES.find(p => p.code === prefectureCode);
   if (!prefecture) return grossSalary;
 
-  const healthStd = getHealthStandardMonthly(grossSalary);
-  const pensionStd = getPensionStandardMonthly(grossSalary);
+  const grade = getGradeInfo(getGradeNumber(grossSalary));
+  const healthStd = grade.healthAmount;
+  const pensionStd = grade.pensionAmount;
 
   const health = Math.floor(healthStd * (prefecture.healthRate / 100) / 2);
   const nursing = isNursingCare ? Math.floor(healthStd * (NURSING_CARE_RATE / 100) / 2) : 0;

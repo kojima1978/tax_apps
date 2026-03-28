@@ -7,6 +7,7 @@ export interface ResultItem {
   value: number;
   isBold?: boolean;
   sub?: string;
+  subs?: string[];
 }
 
 interface ResultSectionProps {
@@ -137,6 +138,9 @@ export function ResultSection({ type, items, takeHomePay, grossAmount }: ResultS
                 {item.sub && (
                   <span className="block text-xs text-gray-400">{item.sub}</span>
                 )}
+                {item.subs?.map((s, j) => (
+                  <span key={j} className="block text-xs text-gray-400">{s}</span>
+                ))}
               </div>
               <span
                 className={`font-mono text-sm ${
