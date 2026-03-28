@@ -9,10 +9,10 @@ const PRINT_LAYOUTS = {
     title: 'print:text-2xl print:mb-2',
     meta: 'print:text-base',
     subtitle: 'print:text-sm',
-    section: 'print:space-y-6',
-    sectionItem: 'print:mb-6',
-    categoryHeader: 'print:mb-2 print:text-base print:py-1',
-    docRow: 'print:py-1',
+    section: 'print:space-y-0',
+    sectionItem: 'print:mb-0',
+    categoryHeader: 'print:mb-0.5 print:text-base print:py-0.5',
+    docRow: 'print:py-0.5',
     docText: 'print:text-sm',
     subList: 'print:ml-5 print:space-y-0',
     subText: 'print:text-xs',
@@ -97,10 +97,10 @@ export const PrintSection = ({
         </div>
       </div>
 
-      <div className={`space-y-8 print:block ${l.section}`}>
+      <div className={`space-y-8 print:space-y-0 print:block ${l.section}`}>
         {results.map((group, idx) => (
-          <div key={idx} className={`break-inside-avoid ${l.sectionItem}`}>
-            <h3 className={`font-bold text-lg mb-3 px-3 py-1 ${getCategoryTheme(!!group.isSpecial).printHeader} text-slate-800 flex items-center ${l.categoryHeader}`}>
+          <div key={idx} className={l.sectionItem}>
+            <h3 className={`font-bold text-lg mb-3 print:mb-0.5 px-3 py-1 ${getCategoryTheme(!!group.isSpecial).printHeader} text-slate-800 flex items-center ${l.categoryHeader}`}>
               <span className="mr-1">{toCircledNumber(idx + 1)}</span>
               {group.category}
             </h3>

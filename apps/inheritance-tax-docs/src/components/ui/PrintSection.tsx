@@ -8,9 +8,9 @@ const PRINT_LAYOUTS = {
     title: 'print:text-2xl print:mb-2',
     meta: 'print:text-base',
     subtitle: 'print:text-sm',
-    section: 'print:space-y-6',
-    sectionItem: 'print:mb-6',
-    categoryHeader: 'print:mb-2 print:text-base print:py-1',
+    section: 'print:space-y-0',
+    sectionItem: 'print:mb-0',
+    categoryHeader: 'print:mb-1 print:text-base print:py-0.5',
     docRow: 'print:py-1.5',
     docText: 'print:text-sm',
     descText: 'print:text-xs',
@@ -120,11 +120,11 @@ export const PrintSection = ({
       </div>
 
       {/* ─── カテゴリ・書類リスト ─── */}
-      <div className={`space-y-8 print:block ${l.section}`}>
+      <div className={`space-y-8 print:space-y-0 print:block ${l.section}`}>
         {printCategories.map((cat, catIdx) => (
-          <div key={cat.id} className={`break-inside-avoid ${l.sectionItem}`}>
+          <div key={cat.id} className={l.sectionItem}>
             {/* カテゴリヘッダー */}
-            <h3 className={`font-bold text-lg mb-3 px-3 py-1 bg-emerald-50 border-l-4 border-emerald-500 text-slate-800 flex items-center ${l.categoryHeader}`}>
+            <h3 className={`font-bold text-lg mb-3 print:mb-0.5 px-3 py-1 bg-emerald-50 border-l-4 border-emerald-500 text-slate-800 flex items-center ${l.categoryHeader}`}>
               <span className="mr-1">{toCircledNumber(catIdx + 1)}</span>
               {cat.name}
               <span className="ml-2 font-normal text-slate-500 text-sm">
@@ -140,7 +140,7 @@ export const PrintSection = ({
                   <li key={doc.id}>
                     {/* 書類メイン行 */}
                     <div
-                      className={`flex items-start py-2 border-b border-dashed border-slate-200 ${
+                      className={`flex items-start py-2 print:py-0.5 border-b border-dashed border-slate-200 ${
                         doc.urgent ? 'bg-red-50 border-red-200 px-2 rounded' : ''
                       } ${doc.specificNames.length > 0 ? 'border-b-0' : ''} ${l.docRow}`}
                     >
