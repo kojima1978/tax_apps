@@ -2,8 +2,8 @@
 export type TaxType = 'gift-tax' | 'income-tax';
 
 export const TAX_TYPE_LABELS: Record<TaxType, string> = {
-  'gift-tax': '贈与税申告',
   'income-tax': '所得税申告',
+  'gift-tax': '贈与税申告',
 };
 
 // ストレージキー

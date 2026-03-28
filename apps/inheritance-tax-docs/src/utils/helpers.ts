@@ -1,11 +1,3 @@
-import type React from 'react';
-import type { DocumentItem, CustomDocumentItem } from '../constants/documents';
-
-/** カスタム書類かどうかを判定 */
-export function isCustomDocument(doc: DocumentItem | CustomDocumentItem): doc is CustomDocumentItem {
-  return 'isCustom' in doc && doc.isCustom === true;
-}
-
 /** 日付を日本語形式でフォーマット（YYYY/MM/DD） */
 export function formatDate(date: Date): string {
   return date.toLocaleDateString('ja-JP', {
@@ -46,38 +38,10 @@ export function formatDeadline(deadline: string): string {
   });
 }
 
-// --- Record 操作ユーティリティ ---
-
-/** Record から指定キーを削除して新しいオブジェクトを返す */
-export function deleteKeys<T>(record: Record<string, T>, keys: string[]): Record<string, T> {
-  const result = { ...record };
-  keys.forEach(key => delete result[key]);
-  return result;
-}
-
-/** boolean Record の指定キーをトグルする汎用 setState ハンドラを生成 */
-export function createBooleanToggle(
-  setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
-  onChange?: () => void,
-) {
-  return (key: string) => {
-    setter((prev) => {
-      const newState = { ...prev };
-      if (prev[key]) { delete newState[key]; } else { newState[key] = true; }
-      return newState;
-    });
-    onChange?.();
-  };
-}
-
-/** 一意IDを生成 */
-export function generateId(): string {
-  return `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/** 現在時刻を HH:MM 形式で返す */
-export function formatTimeNow(): string {
-  return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+/** 提出済み日付を表示用にフォーマット（M/D） */
+export function formatCheckedDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 /** 今日の日付を YYYY-MM-DD 形式で返す */

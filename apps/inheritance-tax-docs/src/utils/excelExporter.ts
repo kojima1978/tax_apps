@@ -1,18 +1,15 @@
-import type { CategoryDocuments, DocumentItem, CustomDocumentItem } from '../constants/documents';
+import type { EditableDocumentList } from '@/constants';
 import { EXCEL_STYLES as styles, pushMergedRow, pushEmptyRow } from '../constants/excelStyles';
-import { COMPANY_INFO, getFullAddress, getContactLine } from './company';
-import { isCustomDocument, formatDate, formatDeadline, toCircledNumber } from './helpers';
+import { COMPANY_INFO, getFullAddress, getContactLine } from '@/constants';
+import { formatDate, toCircledNumber } from './helpers';
 
 interface ExcelExportParams {
-  results: CategoryDocuments[];
+  documentList: EditableDocumentList;
   clientName: string;
   deceasedName: string;
-  deadline: string;
-  specificDocNames: Record<string, string[]>;
-  checkedDocuments: Record<string, boolean>;
-  urgentDocuments: Record<string, boolean>;
   personInCharge: string;
   personInChargeContact: string;
+  hideSubmitted?: boolean;
   excelTitle?: string;
   filenamePrefix?: string;
 }
@@ -22,7 +19,16 @@ interface ExcelExportParams {
  */
 export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   const XLSX = (await import('xlsx-js-style')).default;
-  const { results, clientName, deceasedName, deadline, specificDocNames, checkedDocuments, urgentDocuments, personInCharge, personInChargeContact, excelTitle = '相続税申告 資料準備ガイド', filenamePrefix = '相続税申告_必要書類' } = params;
+  const {
+    documentList,
+    clientName,
+    deceasedName,
+    personInCharge,
+    personInChargeContact,
+    hideSubmitted = false,
+    excelTitle = '相続税申告 資料準備ガイド',
+    filenamePrefix = '相続税申告_必要書類',
+  } = params;
   const exportDate = formatDate(new Date());
 
   const wb = XLSX.utils.book_new();
@@ -35,14 +41,11 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   wsData.push([{ v: '【お客様専用リスト】', s: styles.badge }]);
   pushEmptyRow(wsData);
 
-  // 基本情報（入力されている場合）
-  if (clientName || deceasedName || deadline || personInCharge || personInChargeContact) {
+  // 基本情報
+  if (clientName || deceasedName || personInCharge || personInChargeContact) {
     const infoRow: object[] = [];
     if (clientName) infoRow.push({ v: `お客様名: ${clientName} 様`, s: styles.clientInfo });
     if (deceasedName) infoRow.push({ v: `被相続人: ${deceasedName} 様`, s: styles.clientInfo });
-    if (deadline) {
-      infoRow.push({ v: `資料収集期限: ${formatDeadline(deadline)}`, s: styles.clientInfo });
-    }
     wsData.push(infoRow);
     if (personInCharge || personInChargeContact) {
       const chargeRow: object[] = [];
@@ -64,34 +67,17 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   pushMergedRow(wsData, noticeRows, '・身分関係書類は原則として相続開始日から10日を経過した日以後に取得したものが必要となります。', styles.noticeText);
   pushEmptyRow(wsData);
 
-  // 書類行を追加するヘルパー
-  function pushDocRow(doc: DocumentItem | CustomDocumentItem, index: number): void {
-    const isUrgent = urgentDocuments[doc.id] ?? false;
-    const cellStyle = isUrgent ? styles.urgentCell : (index % 2 === 0 ? styles.documentCell : styles.documentCellAlt);
-    const isCustom = isCustomDocument(doc);
-    const canDelegate = doc.canDelegate ?? false;
-    const isChecked = checkedDocuments[doc.id] ?? false;
-    const baseName = isCustom ? `${doc.name} [追加]` : doc.name;
-    const urgentPrefix = isUrgent ? '【急】' : '';
-    const docNumber = `${index + 1}`;
-    const nameWithStatus = isChecked ? `[済] ${docNumber} ${urgentPrefix}${baseName}` : `${docNumber} ${urgentPrefix}${baseName}`;
-    const names = specificDocNames[doc.id];
-    const docName = names && names.length > 0
-      ? nameWithStatus + '\n' + names.map((n, i) => `(${i + 1}) ${n}`).join('\n')
-      : nameWithStatus;
-    wsData.push([
-      { v: isChecked ? '☑' : '☐', s: isUrgent ? styles.urgentBadge : styles.checkCell },
-      { v: docName, s: cellStyle },
-      { v: doc.description, s: cellStyle },
-      { v: doc.howToGet || '-', s: cellStyle },
-      { v: canDelegate ? '可' : '', s: canDelegate ? styles.delegateBadge : cellStyle },
-    ]);
-  }
-
   // 各カテゴリのデータ
-  results.forEach(({ category, documents }, catIdx) => {
+  const activeCats = documentList.filter(cat => !cat.isDisabled);
+  activeCats.forEach((category, catIdx) => {
+    const docs = category.documents
+      .filter(doc => !doc.excluded)
+      .filter(doc => !hideSubmitted || !doc.checked);
+
+    if (docs.length === 0) return;
+
     const catNum = toCircledNumber(catIdx + 1);
-    pushMergedRow(wsData, categoryHeaderRows, `■ ${catNum} ${category.name}（${documents.length}件）`, styles.categoryHeader);
+    pushMergedRow(wsData, categoryHeaderRows, `■ ${catNum} ${category.name}（${docs.length}件）`, styles.categoryHeader);
 
     // テーブルヘッダー
     wsData.push([
@@ -102,7 +88,27 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
       { v: '代行', s: styles.tableHeader },
     ]);
 
-    documents.forEach((doc, i) => pushDocRow(doc, i));
+    docs.forEach((doc, i) => {
+      const cellStyle = doc.urgent ? styles.urgentCell : (i % 2 === 0 ? styles.documentCell : styles.documentCellAlt);
+      const urgentPrefix = doc.urgent ? '【急】' : '';
+      const customSuffix = doc.isCustom ? ' [追加]' : '';
+      const docNumber = `${i + 1}`;
+      const nameBase = `${urgentPrefix}${doc.name}${customSuffix}`;
+      const nameWithStatus = doc.checked ? `[済] ${docNumber} ${nameBase}` : `${docNumber} ${nameBase}`;
+
+      // 個別名リスト
+      const docName = doc.specificNames.length > 0
+        ? nameWithStatus + '\n' + doc.specificNames.map((n, j) => `(${j + 1}) ${n.text}`).join('\n')
+        : nameWithStatus;
+
+      wsData.push([
+        { v: doc.checked ? '☑' : '☐', s: doc.urgent ? styles.urgentBadge : styles.checkCell },
+        { v: docName, s: cellStyle },
+        { v: doc.description, s: cellStyle },
+        { v: doc.howToGet || '-', s: cellStyle },
+        { v: doc.canDelegate ? '可' : '', s: doc.canDelegate ? styles.delegateBadge : cellStyle },
+      ]);
+    });
 
     pushEmptyRow(wsData);
   });
