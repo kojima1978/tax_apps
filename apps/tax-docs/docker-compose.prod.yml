@@ -1,5 +1,5 @@
 # ============================================
-# 税務書類リスト - Production Override
+# 所得税・贈与税書類リスト - Production Override
 # ============================================
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 # ============================================

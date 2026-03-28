@@ -607,7 +607,7 @@ if not exist "!ITCM_ENV!" (
 
 :: 6. Port conflicts
 set "PORT_CONFLICT=0"
-for /f "tokens=*" %%L in ('powershell -NoProfile -Command "$ports = @(80,3000,3001,3002,3003,3004,3007,3010,3012,3013,3014,3015,3016,3017,3020,3022,5173); $lines = netstat -ano 2>$null; foreach ($p in $ports) { foreach ($l in $lines) { if ($l -match 'LISTENING' -and $l -match \":$p\s\") { Write-Output $p; break } } }"') do call :do_preflight_port %%L
+for /f "tokens=*" %%L in ('powershell -NoProfile -Command "$ports = @(80,3000,3001,3002,3003,3004,3007,3010,3012,3013,3014,3015,3016,3017,3020,3022,5432); $lines = netstat -ano 2>$null; foreach ($p in $ports) { foreach ($l in $lines) { if ($l -match 'LISTENING' -and $l -match \":$p\s\") { Write-Output $p; break } } }"') do call :do_preflight_port %%L
 if "!PORT_CONFLICT!"=="0" (
     echo [OK]    No port conflicts detected
     set /a PF_OK+=1
@@ -657,11 +657,6 @@ goto :end
 call :init_app_vars %1
 if !ERRORLEVEL! neq 0 (
     for %%N in ("!APP_PATH!") do echo [WARN]    ?X?L?b?v: %%~nxN
-    goto :eof
-)
-:: Skip apps under development in prod mode
-if "!PROD_MODE!"=="1" if "!APP_NAME!"=="stock-valuation-form" (
-    echo [WARN]    Skip (under development^): !APP_NAME!
     goto :eof
 )
 :: .env.example ?????? .env ??????????????

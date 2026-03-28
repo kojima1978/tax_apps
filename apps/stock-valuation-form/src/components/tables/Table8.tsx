@@ -1,7 +1,7 @@
 import { NumberField } from '@/components/ui/NumberField';
 import { CircledNumber } from '@/components/ui/CircledNumber';
 import { TableTitleBar } from './TableTitleBar';
-import { bb, hdr } from './shared';
+import { bb, br, hdr } from './shared';
 import type { TableProps } from '@/types/form';
 
 const T = 'table8' as const;

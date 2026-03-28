@@ -443,9 +443,9 @@ export function Table1_1({ getField, updateField }: TableProps) {
       SH_KEYS.map((k) => g(`${k}_${i}`))
     );
     const [moved] = rows.splice(from, 1);
-    rows.splice(to, 0, moved);
+    if (moved) rows.splice(to, 0, moved);
     rows.forEach((vals, i) => {
-      SH_KEYS.forEach((k, j) => u(`${k}_${i}`, vals[j]));
+      SH_KEYS.forEach((k, j) => u(`${k}_${i}`, vals[j] ?? ''));
     });
   };
 
@@ -472,9 +472,9 @@ export function Table1_1({ getField, updateField }: TableProps) {
     const rows = Array.from({ length: rowCount }, (_, i) =>
       SH_KEYS.map((k) => g(`${k}_${i}`))
     );
-    rows.sort((a, b) => parseNum(b[5]) - parseNum(a[5]));
+    rows.sort((a, b) => parseNum(b[5] ?? '') - parseNum(a[5] ?? ''));
     rows.forEach((vals, i) => {
-      SH_KEYS.forEach((k, j) => u(`${k}_${i}`, vals[j]));
+      SH_KEYS.forEach((k, j) => u(`${k}_${i}`, vals[j] ?? ''));
     });
   };
 
@@ -487,8 +487,8 @@ export function Table1_1({ getField, updateField }: TableProps) {
     }
     const newCount = Math.max(nonEmpty.length, DEFAULT_ROWS);
     for (let i = 0; i < rowCount; i++) {
-      const vals = i < nonEmpty.length ? nonEmpty[i] : SH_KEYS.map(() => '');
-      SH_KEYS.forEach((k, j) => u(`${k}_${i}`, vals[j]));
+      const vals = (i < nonEmpty.length ? nonEmpty[i] : undefined) ?? SH_KEYS.map(() => '');
+      SH_KEYS.forEach((k, j) => u(`${k}_${i}`, vals[j] ?? ''));
     }
     u('sh_count', String(newCount));
   };

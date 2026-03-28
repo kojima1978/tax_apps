@@ -197,7 +197,7 @@ function CellRenderer({ col, prefix, rowIndex, isLast, g, u }: {
  * ================================================ */
 
 export function EditableTable({
-  prefix, label, columns, presets, rows, rowIds,
+  prefix, label, columns, presets, rows: _rows, rowIds,
   g, u, showPreset, onTogglePreset, onClear,
   sensors, onDragEnd, onDeleteRow, onApplyPreset, onApplyAllPresets,
   footer,

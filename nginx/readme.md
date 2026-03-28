@@ -78,24 +78,23 @@ nginx/
 | URL Path | 宛先サービス | 説明 |
 |:---------|:-------------|:-----|
 | `/` | `portal-app:3000` | ポータルサイト (Next.js) |
-| `/tax-docs/` | `tax-docs-frontend:3005` | 確定申告 必要書類 (Front) |
-| `/tax-docs-api/` | `tax-docs-backend:3006` | 確定申告 必要書類 (API) |
+| `/tax-docs/` | `tax-docs:3002` | 所得税・贈与税書類リスト (Vite + Express API) |
 | `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Next.js + API Routes) |
 | `/itcm/api/` | `itcm-frontend:3020` | 相続税案件管理 API（同一サービス内） |
-| `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価 |
-| `/shares/` | `shares-valuation:3012` | 非上場株式評価 |
+| `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価 (Next.js) |
+| `/shares/` | `shares-valuation:3012` | 非上場株式評価 (Vite) |
 | `/inheritance-tax-app/` | `inheritance-tax-app:3004` | 相続税計算 (Vite) |
-| `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド |
-| `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター |
-| `/gift-tax-docs/` | `gift-tax-docs:3002` | 贈与税 必要書類 |
-| `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 |
+| `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド (Vite) |
+| `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター (Vite) |
+| `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 (Vite) |
 | `/depreciation-calc/` | `depreciation-calc:3015` | 減価償却計算 (Vite) |
-| `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Django + PostgreSQL) |
-| `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API |
-| `/bank-analyzer/static/` | `bank-analyzer:3007` | 銀行分析 静的ファイル |
 | `/salary-calc/` | `salary-calc:3016` | 給与手取り計算 (Vite) |
 | `/asset-valuation/` | `asset-valuation:3017` | 減価償却資産評価 (Vite) |
 | `/stock-valuation-form/` | `stock-valuation-form:3014` | 株式評価明細書 (Vite) |
+| `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Django + PostgreSQL) |
+| `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API |
+| `/bank-analyzer/static/` | `bank-analyzer:3007` | 銀行分析 静的ファイル |
+| `/gift-tax-docs/` | → `/tax-docs/` | 301リダイレクト（旧URL互換） |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
 
 ## Docker Compose

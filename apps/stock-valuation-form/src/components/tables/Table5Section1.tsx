@@ -148,7 +148,7 @@ export function Table5Section1({ g, u, rows, setRows, totals }: Props) {
     );
     const reordered = arrayMove(data, Number(active.id), Number(over.id));
     reordered.forEach((row, i) => {
-      ROW_FIELDS.forEach((f, j) => u(`${prefix}_${f}_${i}`, row[j]));
+      ROW_FIELDS.forEach((f, j) => u(`${prefix}_${f}_${i}`, row[j] ?? ''));
     });
   };
 

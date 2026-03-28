@@ -155,7 +155,7 @@ dir_size() {
 }
 
 # 本番モードで除外するアプリ（開発中）
-PROD_SKIP_APPS=("stock-valuation-form")
+PROD_SKIP_APPS=()
 
 is_prod_skip() {
   local name="$1"
@@ -827,7 +827,7 @@ cmd_preflight() {
 
   # 6. Port conflicts
   local port_conflict=0
-  local ports=(80 3000 3001 3002 3003 3004 3007 3010 3012 3013 3014 3015 3016 3017 3020 3022 5173)
+  local ports=(80 3000 3001 3002 3003 3004 3007 3010 3012 3013 3014 3015 3016 3017 3020 3022 5432)
   for p in "${ports[@]}"; do
     if ss -tlnH 2>/dev/null | grep -q ":$p " 2>/dev/null || netstat -tln 2>/dev/null | grep -q ":$p "; then
       warn "Port $p is already in use"

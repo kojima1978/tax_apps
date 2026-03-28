@@ -10,7 +10,7 @@ interface Props {
 
 /* ---- 類似業種ブロック (共通レンダラー) ---- */
 
-function IndustryBlock({ prefix, resultNum, g, u }: { prefix: string; resultNum: string; g: GFn; u: UFn }) {
+function IndustryBlock({ prefix, g, u }: { prefix: string; resultNum: string; g: GFn; u: UFn }) {
   const p = (f: string) => `${prefix}_${f}`;
   const rows = [
     { label: '課税時期の属する月', sub: '月' },

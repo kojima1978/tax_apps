@@ -1,5 +1,5 @@
 # ============================================
-# 税務書類リスト - Docker Compose
+# 所得税・贈与税書類リスト - Docker Compose
 # ============================================
 # Usage:
 #   開発:   docker compose up -d
@@ -26,7 +26,7 @@ x-healthcheck-defaults: &healthcheck-defaults
 
 services:
   # ===========================================
-  # 税務書類リスト（所得税・贈与税）
+  # 所得税・贈与税書類リスト
   # Port: 3002
   #
   # 機能:
@@ -45,7 +45,7 @@ services:
         APP_PORT: "3002"
         APP_PATH: tax-docs
         APP_TITLE: "Tax Documents Checklist"
-        APP_DESCRIPTION: "税務書類リスト"
+        APP_DESCRIPTION: "所得税・贈与税書類リスト"
         NPM_CACHE_ID: npm-store-tax-docs
     container_name: tax-docs
     networks:

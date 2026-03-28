@@ -54,7 +54,7 @@ async function resolveOrCreateAssignee(
 
   let departmentId: number | null = null;
   if (pending.department) {
-    departmentId = await resolveOrCreateByName(pending.department, departments, departmentCache, createDepartment);
+    departmentId = await resolveOrCreateByName(pending.department, departments, departmentCache, (p) => createDepartment({ ...p, sortOrder: 0 }));
   }
 
   const created = await createAssignee({
