@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Header from "@/components/Header";
 import UsedAssetForm from "@/components/UsedAssetForm";
 import ResultSection from "@/components/ResultSection";
@@ -14,12 +14,12 @@ import { useDepreciationForm } from "@/hooks/useDepreciationForm";
 import { usePeriodDepForm } from "@/hooks/usePeriodDepForm";
 import { parseFormattedNumber } from "@/lib/utils";
 
-type Tab = 'life' | 'depreciation' | 'period';
+import type { Tab, TabItem } from "@/components/Header";
 
-const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
-    { key: 'period', label: '期間償却', icon: <CalendarIcon /> },
-    { key: 'life', label: '（中古）耐用年数', icon: <ClockIcon /> },
-    { key: 'depreciation', label: '簿価計算', icon: <CalculatorIcon /> },
+const TABS: TabItem[] = [
+    { key: 'period', label: '期間償却', shortLabel: '期間', icon: <CalendarIcon /> },
+    { key: 'life', label: '耐用年数', shortLabel: '耐用', icon: <ClockIcon /> },
+    { key: 'depreciation', label: '簿価計算', shortLabel: '簿価', icon: <CalculatorIcon /> },
 ];
 
 export default function App() {
@@ -88,30 +88,11 @@ export default function App() {
 
     return (
         <div className="w-full min-h-screen bg-white flex flex-col">
-            <Header onPrint={() => window.print()} />
+            <Header tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} onPrint={() => window.print()} />
 
             {/* 印刷用ヘッダー */}
             <div className="hidden print-only px-4 pt-4 pb-2 border-b border-gray-300">
-                <h1 className="text-lg font-bold text-green-800 m-0">減価償却ツール — {activeTabLabel}</h1>
-            </div>
-
-            {/* タブ切替 */}
-            <div className="flex border-b border-gray-200 no-print">
-                {TABS.map((tab) => (
-                    <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setActiveTab(tab.key)}
-                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-6 py-3 text-sm font-bold cursor-pointer transition-colors border-b-2 ${
-                            activeTab === tab.key
-                                ? 'text-green-800 border-green-800 bg-green-50/50'
-                                : 'text-gray-500 border-transparent hover:text-green-700 hover:bg-gray-50'
-                        }`}
-                    >
-                        {tab.icon}
-                        {tab.label}
-                    </button>
-                ))}
+                <h1 className="text-lg font-bold text-emerald-800 m-0">減価償却ツール — {activeTabLabel}</h1>
             </div>
 
             <div className="flex flex-col">
