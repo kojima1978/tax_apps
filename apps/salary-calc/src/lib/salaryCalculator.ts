@@ -1,5 +1,5 @@
 import { NURSING_CARE_RATE, PENSION_RATE, EMPLOYMENT_INSURANCE_RATE, PREFECTURES } from '@/data/prefectureRates';
-import { getHealthStandardMonthly, getPensionStandardMonthly } from '@/data/standardRemuneration';
+import { getGradeNumber, getGradeInfo } from '@/data/standardRemuneration';
 
 /**
  * 給与所得控除額の計算（電子計算機の特例 — 月額換算）
@@ -28,18 +28,32 @@ function calcBasicDeduction(a: number): number {
  * 税額計算（電子計算機の特例）
  * B = 課税給与所得金額（月額）
  */
-function calcTaxFromTaxableIncome(b: number): number {
-  if (b <= 0) return 0;
-  let tax: number;
-  if (b <= 162500) tax = b * 0.05105;
-  else if (b <= 275000) tax = b * 0.10210 - 8296;
-  else if (b <= 579166) tax = b * 0.20420 - 36374;
-  else if (b <= 750000) tax = b * 0.23483 - 54113;
-  else if (b <= 1500000) tax = b * 0.33693 - 130688;
-  else if (b <= 3333333) tax = b * 0.40840 - 237893;
-  else tax = b * 0.45945 - 408061;
-  // 10円未満四捨五入
-  return Math.round(tax / 10) * 10;
+/** 税率テーブル（電子計算機の特例） */
+const TAX_BRACKETS: { upper: number; rate: number; deduction: number }[] = [
+  { upper: 162500, rate: 0.05105, deduction: 0 },
+  { upper: 275000, rate: 0.10210, deduction: 8296 },
+  { upper: 579166, rate: 0.20420, deduction: 36374 },
+  { upper: 750000, rate: 0.23483, deduction: 54113 },
+  { upper: 1500000, rate: 0.33693, deduction: 130688 },
+  { upper: 3333333, rate: 0.40840, deduction: 237893 },
+  { upper: Infinity, rate: 0.45945, deduction: 408061 },
+];
+
+export interface TaxCalcDetail {
+  tax: number;
+  rate: number;
+  deduction: number;
+}
+
+function calcTaxFromTaxableIncome(b: number): TaxCalcDetail {
+  if (b <= 0) return { tax: 0, rate: 0, deduction: 0 };
+  const bracket = TAX_BRACKETS.find(t => b <= t.upper)!;
+  const rawTax = b * bracket.rate - bracket.deduction;
+  return {
+    tax: Math.round(rawTax / 10) * 10,
+    rate: bracket.rate,
+    deduction: bracket.deduction,
+  };
 }
 
 export interface SalaryInput {
@@ -55,11 +69,15 @@ export interface SalaryInput {
   isNursingCare: boolean;
   /** 住民税（月額、手入力） */
   residentTax: number;
+  /** 標準報酬月額等級のオーバーライド（未指定時は自動判定） */
+  gradeOverride?: number;
 }
 
 export interface SalaryResult {
   /** 総支給額 */
   grossSalary: number;
+  /** 標準報酬月額等級番号（1始まり） */
+  gradeNumber: number;
   /** 健康保険の標準報酬月額 */
   healthStandardMonthly: number;
   /** 厚生年金の標準報酬月額 */
@@ -84,6 +102,24 @@ export interface SalaryResult {
   totalDeductions: number;
   /** 手取り金額 */
   takeHomePay: number;
+  /** 健康保険料率（%、労使折半前） */
+  healthRate: number;
+  /** 介護保険料率（%、労使折半前） */
+  nursingCareRate: number;
+  /** 課税対象額（社保控除後 − 通勤手当） */
+  taxableBase: number;
+  /** 給与所得控除額 */
+  employmentDeduction: number;
+  /** 基礎控除額 */
+  basicDeduction: number;
+  /** 扶養控除額 */
+  dependentDeduction: number;
+  /** 課税給与所得金額 */
+  taxableIncome: number;
+  /** 適用税率（復興特別所得税込み） */
+  taxRate: number;
+  /** 速算控除額 */
+  taxDeduction: number;
 }
 
 export function calculateSalary(input: SalaryInput): SalaryResult {
@@ -93,9 +129,11 @@ export function calculateSalary(input: SalaryInput): SalaryResult {
   const gross = input.grossSalary;
   const commute = input.commuteAllowance;
 
-  // 標準報酬月額の決定
-  const healthStd = getHealthStandardMonthly(gross);
-  const pensionStd = getPensionStandardMonthly(gross);
+  // 標準報酬月額の決定（等級オーバーライド対応）
+  const gradeNum = input.gradeOverride ?? getGradeNumber(gross);
+  const grade = getGradeInfo(gradeNum);
+  const healthStd = grade.healthAmount;
+  const pensionStd = grade.pensionAmount;
 
   // 社会保険料計算（被保険者負担＝折半）
   const healthInsurance = Math.floor(healthStd * (prefecture.healthRate / 100) / 2);
@@ -124,13 +162,15 @@ export function calculateSalary(input: SalaryInput): SalaryResult {
   const taxableIncome = Math.max(0, a - employmentDeduction - basicDeduction - dependentDeduction);
 
   // 所得税（源泉徴収税額）
-  const incomeTax = calcTaxFromTaxableIncome(taxableIncome);
+  const taxDetail = calcTaxFromTaxableIncome(taxableIncome);
+  const incomeTax = taxDetail.tax;
 
   const totalDeductions = totalSI + incomeTax + input.residentTax;
   const takeHomePay = gross - totalDeductions;
 
   return {
     grossSalary: gross,
+    gradeNumber: grade.gradeNumber,
     healthStandardMonthly: healthStd,
     pensionStandardMonthly: pensionStd,
     healthInsurance,
@@ -143,5 +183,14 @@ export function calculateSalary(input: SalaryInput): SalaryResult {
     residentTax: input.residentTax,
     totalDeductions,
     takeHomePay,
+    healthRate: prefecture.healthRate,
+    nursingCareRate: input.isNursingCare ? NURSING_CARE_RATE : 0,
+    taxableBase: a,
+    employmentDeduction,
+    basicDeduction,
+    dependentDeduction,
+    taxableIncome,
+    taxRate: taxDetail.rate,
+    taxDeduction: taxDetail.deduction,
   };
 }

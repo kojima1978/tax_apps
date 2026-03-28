@@ -4,13 +4,22 @@
  * 厚生年金: 上限650,000円
  */
 
-interface Grade {
+export interface Grade {
   amount: number;
   upper: number;
 }
 
+export interface GradeInfo {
+  /** 等級番号（1始まり） */
+  gradeNumber: number;
+  /** 健康保険の標準報酬月額 */
+  healthAmount: number;
+  /** 厚生年金の標準報酬月額（上限650,000円） */
+  pensionAmount: number;
+}
+
 /** 健康保険の標準報酬月額等級（50等級） */
-const HEALTH_GRADES: Grade[] = [
+export const HEALTH_GRADES: Grade[] = [
   { amount: 58000, upper: 63000 },
   { amount: 68000, upper: 73000 },
   { amount: 78000, upper: 83000 },
@@ -66,16 +75,24 @@ const HEALTH_GRADES: Grade[] = [
 /** 厚生年金の標準報酬月額上限 */
 const PENSION_MAX = 650000;
 
-/** 報酬月額から健康保険の標準報酬月額を取得 */
-export function getHealthStandardMonthly(salary: number): number {
-  for (const grade of HEALTH_GRADES) {
-    if (salary <= grade.upper) return grade.amount;
+/** 報酬月額から等級番号（1始まり）を取得 */
+export function getGradeNumber(salary: number): number {
+  for (let i = 0; i < HEALTH_GRADES.length; i++) {
+    if (salary <= HEALTH_GRADES[i].upper) return i + 1;
   }
-  return HEALTH_GRADES[HEALTH_GRADES.length - 1].amount;
+  return HEALTH_GRADES.length;
 }
 
-/** 報酬月額から厚生年金の標準報酬月額を取得（上限650,000円） */
-export function getPensionStandardMonthly(salary: number): number {
-  const healthStandard = getHealthStandardMonthly(salary);
-  return Math.min(healthStandard, PENSION_MAX);
+/** 等級番号からGradeInfoを取得 */
+export function getGradeInfo(gradeNumber: number): GradeInfo {
+  const idx = Math.max(0, Math.min(gradeNumber - 1, HEALTH_GRADES.length - 1));
+  const healthAmount = HEALTH_GRADES[idx].amount;
+  return {
+    gradeNumber: idx + 1,
+    healthAmount,
+    pensionAmount: Math.min(healthAmount, PENSION_MAX),
+  };
 }
+
+/** 等級の総数 */
+export const GRADE_COUNT = HEALTH_GRADES.length;
