@@ -130,26 +130,20 @@ export async function POST(request: Request) {
             })),
           });
         }
+
+        // Reset PostgreSQL sequences inside transaction
+        const tables = [
+          'Department', 'Company', 'Assignee', 'Referrer',
+          'InheritanceCase', 'CaseContact', 'CaseProgress',
+        ];
+        for (const table of tables) {
+          await tx.$executeRawUnsafe(
+            `SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), COALESCE((SELECT MAX("id") FROM "${table}"), 0) + 1, false)`
+          );
+        }
       },
       { timeout: 60000 }
     );
-
-    // Reset PostgreSQL sequences
-    const tables = [
-      { table: 'Department', column: 'id' },
-      { table: 'Company', column: 'id' },
-      { table: 'Assignee', column: 'id' },
-      { table: 'Referrer', column: 'id' },
-      { table: 'InheritanceCase', column: 'id' },
-      { table: 'CaseContact', column: 'id' },
-      { table: 'CaseProgress', column: 'id' },
-    ];
-
-    for (const { table, column } of tables) {
-      await prisma.$executeRawUnsafe(
-        `SELECT setval(pg_get_serial_sequence('"${table}"', '${column}'), COALESCE((SELECT MAX("${column}") FROM "${table}"), 0))`
-      );
-    }
 
     return NextResponse.json({
       success: true,
