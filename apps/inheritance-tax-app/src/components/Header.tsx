@@ -8,7 +8,6 @@ import Shield from 'lucide-react/icons/shield';
 import Gift from 'lucide-react/icons/gift';
 import Sliders from 'lucide-react/icons/sliders-horizontal';
 import Printer from 'lucide-react/icons/printer';
-import { COMPANY_INFO } from '../constants';
 import { useStaffInfo } from '../contexts/StaffContext';
 
 const NAV_ITEMS = [
@@ -24,92 +23,78 @@ interface HeaderProps {
   actions?: React.ReactNode;
 }
 
-const STAFF_INPUT = 'bg-transparent border-b border-green-300 text-green-100 placeholder-green-300/60 text-sm px-1 py-0.5 focus:outline-none focus:border-white w-32';
+const STAFF_INPUT = 'px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 w-28';
 
 export const Header: React.FC<HeaderProps> = ({ actions }) => {
   const { staffName, staffPhone, setStaffName, setStaffPhone } = useStaffInfo();
 
   return (
-    <header className="bg-gradient-to-r from-green-600 to-green-800 text-white shadow-lg no-print">
-      <div className="max-w-7xl mx-auto py-3 md:py-6 px-4 md:px-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/" title="ポータルに戻る" className="opacity-70 hover:opacity-100 transition-opacity">
-              <Home className="w-6 h-6" />
-            </a>
-            <div>
-              <h1 className="text-xl md:text-3xl font-bold md:mb-2">相続税シミュレーター</h1>
-              <p className="hidden md:block text-green-100 text-sm">Inheritance Tax Simulator</p>
-            </div>
-          </div>
-          <address className="hidden md:block text-right text-sm not-italic">
-            <p className="font-bold text-lg mb-1">{COMPANY_INFO.name}</p>
-            <p className="text-green-100">{COMPANY_INFO.postalCode}</p>
-            <p className="text-green-100">{COMPANY_INFO.address}</p>
-            <p className="text-green-100 mt-1">TEL: {COMPANY_INFO.phone}</p>
-            <div className="flex items-center gap-3 mt-2 text-xs">
-              <label className="flex items-center gap-1">
-                <span className="text-green-200">担当</span>
-                <input
-                  type="text"
-                  value={staffName}
-                  onChange={e => setStaffName(e.target.value)}
-                  placeholder="担当者名"
-                  className={STAFF_INPUT}
-                />
-              </label>
-              <label className="flex items-center gap-1">
-                <span className="text-green-200">TEL</span>
-                <input
-                  type="tel"
-                  value={staffPhone}
-                  onChange={e => setStaffPhone(e.target.value)}
-                  placeholder="電話番号"
-                  className={STAFF_INPUT}
-                />
-              </label>
-            </div>
-          </address>
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 no-print">
+      <div className="max-w-7xl mx-auto flex items-center h-14 px-4 gap-2">
+        {/* Left: Portal + Nav Links */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <a
+            href="/"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-emerald-600 transition-colors"
+            title="ポータルに戻る"
+          >
+            <Home className="h-5 w-5" />
+            <span className="hidden lg:inline">ポータル</span>
+          </a>
         </div>
-      </div>
 
-      <nav className="max-w-7xl mx-auto px-4 md:px-8 pb-0 flex items-end gap-2">
-        <div className="relative flex-1">
-          <div className="overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <div className="flex gap-1">
-              {NAV_ITEMS.map(({ to, label, shortLabel, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === '/'}
-                  className={({ isActive }) =>
-                    `flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-t-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
-                      isActive
-                        ? 'bg-white text-green-700 shadow-sm'
-                        : 'text-green-100 hover:bg-green-700/60 hover:text-white'
-                    }`
-                  }
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="sm:hidden text-[10px] leading-tight">{shortLabel}</span>
-                  <span className="hidden sm:inline">{label}</span>
-                </NavLink>
-              ))}
-            </div>
-          </div>
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-green-700/80 to-transparent pointer-events-none md:hidden" />
+        {/* Center: Navigation */}
+        <nav className="flex items-center gap-0.5 overflow-x-auto flex-1 min-w-0">
+          {NAV_ITEMS.map(({ to, label, shortLabel, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) =>
+                `flex items-center gap-1 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
+                  isActive
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                }`
+              }
+            >
+              <Icon className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden md:inline">{label}</span>
+              <span className="md:hidden text-xs">{shortLabel}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Right: Staff inputs + Print */}
+        <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+          <input
+            type="text"
+            value={staffName}
+            onChange={e => setStaffName(e.target.value)}
+            placeholder="担当者名"
+            className={STAFF_INPUT}
+            aria-label="担当者名"
+          />
+          <input
+            type="tel"
+            value={staffPhone}
+            onChange={e => setStaffPhone(e.target.value)}
+            placeholder="電話番号"
+            className={STAFF_INPUT}
+            aria-label="担当者電話番号"
+          />
         </div>
-        <div className="flex items-center gap-2 mb-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {actions}
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-green-100 text-green-100 rounded text-sm cursor-pointer hover:bg-green-700 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors border border-transparent hover:border-slate-200"
           >
-            <Printer className="w-4 h-4" />
+            <Printer className="h-4 w-4" />
             <span className="hidden sm:inline">印刷</span>
           </button>
         </div>
-      </nav>
+      </div>
     </header>
   );
 };

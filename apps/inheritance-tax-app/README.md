@@ -15,6 +15,7 @@
 
 ### 共通機能
 
+- **ポータルに戻る**: ヘッダー左端にホームアイコン+リンク
 - **担当者情報**: ヘッダーから担当者名・電話番号を入力（localStorage保存、印刷に反映）
 - **印刷対応**: 全ページA4/A3横向き印刷に最適化（PrintHeader、ページ分割）
 - **バリデーション**: 入力不備時にエラー箇所へスクロール＋エラーパネル表示
@@ -129,7 +130,7 @@ src/
 │   ├── CurrencyInput.tsx             # 金額入力（万円 + フォーマット表示）
 │   ├── EstateInput.tsx               # 遺産総額入力（共通）
 │   ├── FlowSteps.tsx                 # 財産フロー共通コンポーネント
-│   ├── Header.tsx                    # ヘッダー（タブナビゲーション＋担当者入力）
+│   ├── Header.tsx                    # ヘッダー（ITCMスタイル: pill型ナビ＋担当者入力）
 │   ├── HeirNetComparisonTable.tsx    # 相続人別手取り比較テーブル共通
 │   ├── HeirScenarioTable.tsx         # 相続人シナリオテーブル共通
 │   ├── HeirSettings.tsx              # 相続人設定メイン
@@ -180,7 +181,7 @@ src/
 
 ### テーマ
 
-- **テーマカラー**: 緑（Green-600 `#16a34a` 〜 Green-800）
+- **テーマカラー**: 緑（emerald）— ヘッダーはフラットデザイン（border-b + backdrop-blur、ITCM準拠）
 - **背景**: Gray-50
 - **カード**: 白背景 + `rounded-xl` + `shadow-md` + `border border-gray-100`
 
@@ -191,7 +192,7 @@ src/
 | 計算ボタン | グラデーション背景 + shadow + hover浮き上がり + active沈み込み |
 | セクション見出し | 左ボーダーアクセント（`border-l-4 border-green-500`）+ アイコン |
 | 金額入力 | hover時ボーダー変化 + focus時shadow + number spinner非表示 |
-| ナビゲーション | タブ形式 + アクティブタブshadow + スクロールバー非表示 |
+| ナビゲーション | pill型（ITCMスタイル）+ アクティブ: bg-emerald-50 text-emerald-700 |
 | ステータスカード | バリアントアイコン（CheckCircle/AlertTriangle/XCircle）付き |
 | 注意ボックス | 左ボーダーアクセント（黄）+ AlertTriangleアイコン |
 | エラーパネル | 左ボーダーアクセント（赤）+ shadow-sm |
