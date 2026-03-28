@@ -190,6 +190,8 @@ erDiagram
 - 申告期限 = dateOfDeath + 10ヶ月（アプリ側で計算）
 - 純売上 = feeAmount - referralFeeAmount（分析画面で計算）
 - IDは表示上4桁ゼロ埋め（例: 1 → "0001"）
+- CSVインポート時の重複判定キー: `deceasedName` + `dateOfDeath` + `fiscalYear`（一致時は更新モード）
+- バックアップリストア時はID指定でINSERT後、シーケンスをトランザクション内でリセット
 
 ### CaseContact
 
