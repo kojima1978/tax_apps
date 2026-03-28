@@ -48,7 +48,9 @@
 - 取得税⇔登録免許税間の評価額引用（localStorage経由）
 - 印刷時にページタイトル（税目名）をヘッダーに表示
 - 印刷用フッター（会社情報・担当者名入力・作成日）
-- タブ形式ナビゲーション（5ページ切替、lucide-reactアイコン付き）
+- ポータルに戻るリンク（ヘッダー左端）
+- pill型ナビゲーション（5ページ切替、inheritance-tax-appと同パターン）
+- 担当者名・電話番号入力（localStorage保存、印刷に反映）
 - 全角数字→半角自動変換、カンマ区切り自動フォーマット
 - レスポンシブデザイン（モバイル対応）
 
@@ -110,7 +112,9 @@ npm run dev
 ```
 ├── src/
 │   ├── main.tsx                  # エントリーポイント
-│   ├── App.tsx                   # ルーティング（5ルート）
+│   ├── App.tsx                   # ルーティング（5ルート）+ StaffProvider
+│   ├── contexts/
+│   │   └── StaffContext.tsx      # 担当者情報（localStorage連携）
 │   ├── app/
 │   │   └── globals.css           # グローバルスタイル（CSS変数・印刷用・レスポンシブ）
 │   ├── pages/
@@ -120,7 +124,7 @@ npm run dev
 │   │   ├── AcquisitionTaxPage.tsx # 不動産取得税
 │   │   └── RegistrationTaxPage.tsx # 登録免許税
 │   ├── components/
-│   │   ├── Navigation.tsx        # ナビゲーション（タブ形式・5ページ切替）
+│   │   ├── Navigation.tsx        # ナビゲーション（pill型・5ページ切替・担当者入力）
 │   │   ├── InputSection.tsx      # 贈与税入力フォーム（金額・区分・計算ボタン）
 │   │   ├── ResultSection.tsx     # 贈与税結果表示（空状態UI付き）
 │   │   ├── TaxTable.tsx          # シミュレーター用テーブル（3パターン比較）
