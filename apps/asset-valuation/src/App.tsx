@@ -7,7 +7,7 @@ import { DataEditStep } from '@/components/step3/DataEditStep';
 import { ResultStep } from '@/components/step4/ResultStep';
 import { useAssetData } from '@/hooks/useAssetData';
 import { usePresets } from '@/hooks/usePresets';
-import { Calculator } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { exportToExcel } from '@/utils/excelExport';
 import { exportCaseJson } from '@/utils/fileDownload';
 import type { CsvData } from '@/utils/csvParser';
@@ -119,17 +119,17 @@ export default function App() {
   return (
     <div className="min-h-screen">
       {/* ヘッダー */}
-      <header className="bg-green-700 text-white py-4 px-6 print:hidden flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-lg font-bold">
-          <Calculator size={20} />
-          相続税 減価償却資産評価
-        </h1>
-        <a
-          href="/"
-          className="text-sm text-green-200 hover:text-white hover:underline transition-colors"
-        >
-          ポータルに戻る
-        </a>
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 print:hidden">
+        <div className="max-w-7xl mx-auto flex items-center h-14 px-4">
+          <a
+            href="/"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-emerald-600 transition-colors"
+            title="ポータルに戻る"
+          >
+            <Home className="h-5 w-5" />
+            <span className="hidden sm:inline">ポータル</span>
+          </a>
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">

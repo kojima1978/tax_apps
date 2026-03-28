@@ -79,12 +79,29 @@ export default function App() {
 
   return (
     <div className="app-root" style={{ fontFamily: '"Noto Sans JP", sans-serif' }}>
+      {/* ヘッダー */}
+      <header className="no-print" style={{ position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid #e2e8f0', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', height: 40, display: 'flex', alignItems: 'center', padding: '0 12px' }}>
+        <a
+          href="/"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, color: '#94a3b8', textDecoration: 'none', padding: '4px 8px', borderRadius: 6, transition: 'color 0.2s' }}
+          title="ポータルに戻る"
+          onMouseEnter={e => (e.currentTarget.style.color = '#059669')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+            <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          </svg>
+          ポータル
+        </a>
+      </header>
+
       {/* モバイルヒント */}
       <div className="no-print mobile-hint">
         横スクロールまたはピンチで拡大縮小できます
       </div>
 
-      <div style={{ display: 'flex', minHeight: '100vh', background: '#e5e5e5' }}>
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 40px)', background: '#e5e5e5' }}>
         {/* 左サイドバー */}
         {sidebarOpen && (
           <aside className="no-print app-sidebar">

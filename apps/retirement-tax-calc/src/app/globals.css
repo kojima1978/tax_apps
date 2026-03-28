@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --primary-color: #2e7d32;
@@ -25,108 +23,26 @@
 
 body {
   font-family: 'Noto Sans JP', sans-serif;
-  background-color: var(--bg-color);
+  background-color: var(--white);
   color: var(--text-color);
   margin: 0;
-  padding: 20px;
-  display: flex;
-  justify-content: center;
+  padding: 0;
   min-height: 100vh;
 }
 
 /* コンテナ */
 .container-custom {
   width: 100%;
-  max-width: 1200px;
   background-color: var(--white);
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
-}
-
-/* ヘッダー */
-.header-custom {
-  background-color: var(--primary-color);
-  color: var(--white);
-  padding: 1rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.header-custom h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.btn-home {
-  color: var(--white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
-  background-color: rgba(255, 255, 255, 0.15);
-  transition: background-color 0.2s;
-  cursor: pointer;
-}
-
-.btn-home:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-.header-buttons {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.btn-print,
-.btn-pdf {
-  background-color: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: var(--white);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
-}
-
-.btn-pdf {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.btn-print:hover,
-.btn-pdf:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-.btn-pdf:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  min-height: 100vh;
 }
 
 /* フォーカス表示 */
 :focus-visible {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
-}
-
-.header-custom :focus-visible {
-  outline-color: var(--white);
 }
 
 /* メインレイアウト（上下配置） */
@@ -906,31 +822,6 @@ tr:nth-child(even) {
     box-shadow: none;
   }
 
-  /* ヘッダー */
-  .header-custom {
-    padding: 0.75rem 1rem;
-  }
-
-  .header-custom h1 {
-    font-size: 1rem;
-  }
-
-  .btn-home {
-    width: 32px;
-    height: 32px;
-  }
-
-  .btn-home svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .btn-print,
-  .btn-pdf {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.8rem;
-  }
-
   .btn-shortcut {
     display: none;
   }
@@ -1088,13 +979,6 @@ tr:nth-child(even) {
 
 /* 極小スマホ (幅380px以下) */
 @media (max-width: 380px) {
-  .header-custom h1 {
-    font-size: 0.85rem;
-  }
-
-  .header-left {
-    gap: 0.5rem;
-  }
 
   .pattern-label {
     font-size: 0.75rem;
@@ -1133,12 +1017,9 @@ tr:nth-child(even) {
 }
 
 /* PDF生成時の非表示 */
-.pdf-generating .btn-print,
-.pdf-generating .btn-pdf,
 .pdf-generating .btn-calc,
 .pdf-generating .btn-clear,
 .pdf-generating .btn-apply-limit,
-.pdf-generating .btn-home,
 .pdf-generating .btn-shortcut,
 .pdf-generating .dirty-notice,
 .pdf-generating .mode-toggle,
@@ -1147,9 +1028,6 @@ tr:nth-child(even) {
   display: none !important;
 }
 
-.pdf-generating .header-custom {
-  padding: 8px 12px !important;
-}
 
 /* アニメーション軽減 */
 @media (prefers-reduced-motion: reduce) {
@@ -1193,28 +1071,13 @@ tr:nth-child(even) {
     overflow: visible !important;
   }
 
-  .btn-print,
-  .btn-pdf,
   .btn-calc,
   .btn-clear,
   .btn-apply-limit,
-  .btn-home,
   .btn-shortcut,
   .dirty-notice,
   .form-buttons {
     display: none !important;
-  }
-
-  .header-custom {
-    padding: 8px 0 !important;
-    color: #000 !important;
-    background: transparent !important;
-    border-bottom: 2px solid var(--primary-color);
-  }
-
-  .header-custom h1 {
-    font-size: 14pt !important;
-    color: var(--primary-color);
   }
 
   .main-layout {
