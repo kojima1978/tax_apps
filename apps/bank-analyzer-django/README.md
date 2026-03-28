@@ -44,7 +44,7 @@
 |------|------|
 | フレームワーク | Django 5.x〜6.0 |
 | データベース | PostgreSQL 16 Alpine（SQLiteもレガシー対応） |
-| フロントエンド | Bootstrap 5, Bootstrap Icons |
+| フロントエンド | Bootstrap 5, Bootstrap Icons（テーマカラー: emerald green） |
 | フォーム | django-crispy-forms + crispy-bootstrap5 |
 | データ処理 | pandas |
 | ファジーマッチング | RapidFuzz |
@@ -130,7 +130,7 @@ bank-analyzer-django/
 │   │   ├── japanese_date.py   # 和暦変換フィルター
 │   │   └── pagination_tags.py # ページネーションURL生成
 │   ├── static/analyzer/       # 静的ファイル
-│   │   ├── css/style.css      # カスタムCSS（グラスモーフィズム）
+│   │   ├── css/style.css      # カスタムCSS（ITCMスタイルヘッダー、emerald greenテーマ）
 │   │   └── js/
 │   │       ├── utils.js               # 共通ユーティリティ（postJson, disableButton等）
 │   │       ├── analysis_dashboard.js  # ダッシュボード操作
