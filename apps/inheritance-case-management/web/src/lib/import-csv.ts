@@ -579,9 +579,11 @@ export function parseAndValidateCSV(
         const key = `${result.data.deceasedName}|${result.data.dateOfDeath}|${result.data.fiscalYear}`;
         const existing = existingByKey.get(key);
         if (existing) {
+          mode = 'update';
+          id = existing.id;
           warnings.push({
             row: csvRowNum,
-            message: `「${result.data.deceasedName} / ${result.data.dateOfDeath} / ${result.data.fiscalYear}年度」は既存案件(ID:${existing.id})と重複しています`,
+            message: `「${result.data.deceasedName} / ${result.data.dateOfDeath} / ${result.data.fiscalYear}年度」は既存案件(ID:${existing.id})の更新として取り込みます`,
           });
         }
       }
