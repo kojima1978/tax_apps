@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import BarChart3 from 'lucide-react/icons/bar-chart-3';
 import PageLayout from '@/components/PageLayout';
 import InputSection from '@/components/InputSection';
+import PrintHeader from '@/components/PrintHeader';
 import YearComparisonTable from '@/components/YearComparisonTable';
 import { useYearComparisonForm } from '@/hooks/useYearComparisonForm';
 
@@ -22,6 +23,7 @@ export default function YearComparisonPage() {
             />
             {form.results ? (
                 <div className="result-section">
+                    <PrintHeader title="分割年数別 税額比較" />
                     <YearComparisonTable results={form.results} totalAmount={form.totalAmount} />
                     <Suspense fallback={null}>
                         <YearComparisonChart results={form.results} />

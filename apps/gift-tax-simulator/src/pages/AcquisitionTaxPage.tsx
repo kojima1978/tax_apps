@@ -86,6 +86,7 @@ export default function AcquisitionTaxPage() {
             resultConfig={resultConfig}
             showDetails={form.showDetails}
             setShowDetails={form.setShowDetails}
+            printTitle="不動産取得税シミュレーション"
         />
     );
 }

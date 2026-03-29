@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import Home from 'lucide-react/icons/home';
 import Calculator from 'lucide-react/icons/calculator';
 import Scale from 'lucide-react/icons/scale';
@@ -7,6 +7,8 @@ import Building from 'lucide-react/icons/building';
 import FileText from 'lucide-react/icons/file-text';
 import Printer from 'lucide-react/icons/printer';
 import { useStaffInfo } from '@/contexts/StaffContext';
+import { COMPANY_INFO, getFullAddress } from '@/lib/company';
+import { formatDate } from '@/lib/utils';
 
 const NAV_ITEMS = [
     { to: '/', label: '贈与税', shortLabel: '贈与税', icon: Calculator, pageTitle: '贈与税シミュレーター' },
@@ -19,11 +21,11 @@ const NAV_ITEMS = [
 const STAFF_INPUT = 'px-2 py-1 text-sm border border-slate-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 w-28';
 
 const Navigation = () => {
-    const { pathname } = useLocation();
-    const pageTitle = NAV_ITEMS.find(item => item.to === pathname)?.pageTitle ?? '';
     const { staffName, staffPhone, setStaffName, setStaffPhone } = useStaffInfo();
+    const todayStr = formatDate(new Date());
 
     return (
+    <>
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 no-print">
         <div className="max-w-7xl mx-auto flex items-center h-14 px-4 gap-2">
             {/* Left: Portal */}
@@ -86,9 +88,22 @@ const Navigation = () => {
                 <span className="hidden sm:inline">印刷</span>
             </button>
         </div>
-        {/* 印刷用ページタイトル（画面非表示） */}
-        {pageTitle && <p className="hidden print-page-title">{pageTitle}</p>}
     </header>
+
+    {/* 会社情報・担当者・作成日（画面+印刷で表示） */}
+    <div className="print-header-info">
+        <div className="print-header-meta">
+            {staffName && <p>担当: {staffName}</p>}
+            {staffPhone && <p>TEL: {staffPhone}</p>}
+            <p>作成日: {todayStr}</p>
+        </div>
+        <div className="print-header-company">
+            <p className="company-name">{COMPANY_INFO.name}</p>
+            <p>{getFullAddress()}</p>
+            <p>TEL: {COMPANY_INFO.phone}</p>
+        </div>
+    </div>
+    </>
     );
 };
 

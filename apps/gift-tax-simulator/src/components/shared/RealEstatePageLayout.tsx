@@ -1,5 +1,6 @@
 import type { TransactionType, TaxResults } from '@/lib/real-estate-tax';
 import PageLayout from '@/components/PageLayout';
+import PrintHeader from '@/components/PrintHeader';
 import CommonInputSection from './CommonInputSection';
 import ImportButton from './ImportButton';
 import TaxResultBox, { type ResultGroup, type ResultItem } from './TaxResultBox';
@@ -38,6 +39,7 @@ type Props = {
     resultConfig: ResultConfig | null;
     showDetails: boolean;
     setShowDetails: (v: boolean) => void;
+    printTitle: string;
 };
 
 const RealEstatePageLayout = ({
@@ -50,6 +52,7 @@ const RealEstatePageLayout = ({
     onCalculate, errorMsg,
     results, resultConfig,
     showDetails, setShowDetails,
+    printTitle,
 }: Props) => (
     <PageLayout className="real-estate-page">
         <CommonInputSection
@@ -90,6 +93,7 @@ const RealEstatePageLayout = ({
 
         {results !== null && resultConfig && (
             <div className="result-section">
+                <PrintHeader title={printTitle} />
                 <TaxResultBox
                     items={resultConfig.items}
                     groups={resultConfig.groups}
