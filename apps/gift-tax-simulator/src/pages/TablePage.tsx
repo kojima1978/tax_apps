@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { calcTaxOneTime, type GiftType } from '@/lib/tax-calculation';
 import QuickRefTable, { type QuickRefRow } from '@/components/QuickRefTable';
+import PrintHeader from '@/components/PrintHeader';
 import PageLayout from '@/components/PageLayout';
 
 const UNIT = 1_000_000; // 100万円
@@ -57,6 +58,7 @@ export default function TablePage() {
             </div>
 
             <div className="result-section">
+                <PrintHeader title="贈与税 早見表" />
                 <p className="table-common-note">
                     ※基礎控除110万円を含んで計算しています。税額は国税庁の速算表に基づきます。
                 </p>

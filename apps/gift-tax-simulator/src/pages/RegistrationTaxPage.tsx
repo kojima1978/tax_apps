@@ -88,6 +88,7 @@ export default function RegistrationTaxPage() {
             resultConfig={resultConfig}
             showDetails={form.showDetails}
             setShowDetails={form.setShowDetails}
+            printTitle="登録免許税シミュレーション"
         />
     );
 }

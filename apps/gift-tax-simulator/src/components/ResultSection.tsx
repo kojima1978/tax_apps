@@ -3,6 +3,7 @@ import Calculator from 'lucide-react/icons/calculator';
 import TaxTable from './TaxTable';
 import CalculationProcess from './CalculationProcess';
 import RateTable from './RateTable';
+import PrintHeader from './PrintHeader';
 import { type CalculationResult, type GiftType } from '@/lib/tax-calculation';
 
 const TaxChart = lazy(() => import('./TaxChart'));
@@ -24,6 +25,7 @@ const ResultSection = ({ results, giftType }: Props) => {
 
     return (
         <div className="result-section">
+            <PrintHeader title="贈与税シミュレーション" />
             <TaxTable results={results} />
             <Suspense fallback={null}>
                 <TaxChart results={results} />

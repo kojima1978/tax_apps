@@ -85,6 +85,39 @@
   display: none;
 }
 
+/* ===================== ヘッダー内 会社情報 ===================== */
+.print-header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  gap: 1rem;
+}
+
+.print-header-meta p {
+  margin: 0.1rem 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.print-header-company {
+  text-align: right;
+}
+
+.print-header-company p {
+  margin: 0.1rem 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.print-header-company .company-name {
+  font-weight: bold;
+  font-size: 0.85rem;
+  color: #16a34a;
+}
+
 .print-only,
 .print-only-block {
   display: none !important;
@@ -92,6 +125,11 @@
 
 @media print {
   .no-print {
+    display: none !important;
+  }
+
+  /* 印刷時は画面用の会社情報バーを非表示（PrintHeaderで表示） */
+  .print-header-info {
     display: none !important;
   }
 
