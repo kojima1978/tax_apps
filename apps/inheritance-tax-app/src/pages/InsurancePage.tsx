@@ -5,7 +5,6 @@ import { EstateInput } from '../components/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { InsuranceContractList } from '../components/insurance/InsuranceContractList';
 import { InsuranceSummaryCard } from '../components/insurance/InsuranceSummaryCard';
-import { InsuranceFlowSteps } from '../components/insurance/InsuranceFlowSteps';
 import { InsuranceHeirTable } from '../components/insurance/InsuranceHeirTable';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
@@ -103,9 +102,6 @@ export const InsurancePage: React.FC = () => {
             <PrintHeader title="保険金シミュレーション" />
             <div className="space-y-4 md:space-y-6">
               <InsuranceSummaryCard result={result} />
-              <div className="print-page-break">
-                <InsuranceFlowSteps result={result} />
-              </div>
               <div className="print-page-break">
                 <InsuranceHeirTable result={result} />
               </div>

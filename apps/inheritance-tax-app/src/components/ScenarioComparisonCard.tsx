@@ -15,6 +15,13 @@ export type ComparisonRowDef<T> = {
   rowSign?: string;
 };
 
+export type WaterfallStep = {
+  label: string;
+  value: number;
+  separator?: 'single' | 'double';
+  isSummary?: boolean;
+};
+
 export type HighlightItem = {
   label: string;
   value: number;
@@ -22,6 +29,7 @@ export type HighlightItem = {
   description?: string;
   valueSuffix?: React.ReactNode;
   footnote?: React.ReactNode;
+  breakdown?: WaterfallStep[];
 };
 
 interface ScenarioComparisonCardProps<T> {
@@ -73,8 +81,63 @@ export function ScenarioComparisonCard<T>({
 
       {topSlot && <div className="mb-6">{topSlot}</div>}
 
+      {/* 結果ハイライト */}
+      <div className={`grid grid-cols-1 gap-4 ${gridColsClass(highlights.length)}`}>
+        {highlights.map(h => {
+          const { formatted, bgClass, textClass } = getHighlightStyle(h);
+
+          if (h.breakdown) {
+            return (
+              <div key={h.label} className={`rounded-lg p-4 ${bgClass}`}>
+                <p className="text-xs text-gray-500 mb-1 text-center">{h.label}</p>
+                {h.description && (
+                  <p className="text-[10px] text-gray-400 mb-2 text-center">{h.description}</p>
+                )}
+                <div className="space-y-0.5 max-w-xs mx-auto">
+                  {h.breakdown.map((step, i) => (
+                    <React.Fragment key={i}>
+                      {step.separator === 'single' && (
+                        <div className="border-t border-gray-300 my-1" />
+                      )}
+                      {step.separator === 'double' && (
+                        <div className="border-t-2 border-double border-gray-400 my-1" />
+                      )}
+                      <div className={`flex justify-between text-sm ${step.isSummary ? 'font-bold' : ''}`}>
+                        <span className={step.isSummary ? textClass : 'text-gray-600'}>{step.label}</span>
+                        <span className={step.isSummary ? textClass : 'text-gray-700'}>
+                          {formatDelta(step.value)}
+                        </span>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </div>
+                {h.footnote && (
+                  <p className="text-[10px] text-gray-500 mt-2 text-center">{h.footnote}</p>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <div key={h.label} className={`rounded-lg p-4 text-center ${bgClass}`}>
+              <p className="text-xs text-gray-500 mb-1">{h.label}</p>
+              {h.description && (
+                <p className="text-[10px] text-gray-400 mb-1">{h.description}</p>
+              )}
+              <p className={`text-xl font-bold ${textClass}`}>
+                {formatted}
+                {h.valueSuffix && <span className="text-sm">{h.valueSuffix}</span>}
+              </p>
+              {h.footnote && (
+                <p className="text-[10px] text-gray-500 mt-1 md:whitespace-nowrap">{h.footnote}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {/* 比較テーブル */}
-      <div className="overflow-x-auto table-scroll-hint mb-6">
+      <div className="overflow-x-auto table-scroll-hint mt-6">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-green-600 text-white">
@@ -120,28 +183,6 @@ export function ScenarioComparisonCard<T>({
             })}
           </tbody>
         </table>
-      </div>
-
-      {/* 結果ハイライト */}
-      <div className={`grid grid-cols-1 gap-4 ${gridColsClass(highlights.length)}`}>
-        {highlights.map(h => {
-          const { formatted, bgClass, textClass } = getHighlightStyle(h);
-          return (
-            <div key={h.label} className={`rounded-lg p-4 text-center ${bgClass}`}>
-              <p className="text-xs text-gray-500 mb-1">{h.label}</p>
-              {h.description && (
-                <p className="text-[10px] text-gray-400 mb-1">{h.description}</p>
-              )}
-              <p className={`text-xl font-bold ${textClass}`}>
-                {formatted}
-                {h.valueSuffix && <span className="text-sm">{h.valueSuffix}</span>}
-              </p>
-              {h.footnote && (
-                <p className="text-[10px] text-gray-500 mt-1 md:whitespace-nowrap">{h.footnote}</p>
-              )}
-            </div>
-          );
-        })}
       </div>
 
       {bottomSlot && <div className="mt-4">{bottomSlot}</div>}

@@ -338,7 +338,7 @@
     overflow: visible !important;
   }
 
-  /* 保険ページ */
+  /* ====== 保険ページ ====== */
   .insurance-print {
     padding: 0 !important;
     max-width: 100% !important;
@@ -350,143 +350,103 @@
     padding: 6px 10px !important;
   }
 
+  /* セクション間余白 */
   .insurance-print .space-y-6 > * + * {
-    margin-top: 8px !important;
+    margin-top: 5px !important;
   }
 
+  .insurance-print .space-y-4 > * + * {
+    margin-top: 4px !important;
+  }
+
+  /* 見出し */
   .insurance-print h3 {
-    font-size: 14px !important;
-    margin-bottom: 4px !important;
+    font-size: 13px !important;
+    margin-bottom: 3px !important;
   }
 
-  .insurance-print .text-2xl {
-    font-size: 18px !important;
-  }
+  /* フォントサイズ */
+  .insurance-print .text-2xl { font-size: 14px !important; }
+  .insurance-print .text-xl  { font-size: 12px !important; }
+  .insurance-print .text-lg  { font-size: 11px !important; }
+  .insurance-print .text-sm  { font-size: 10px !important; }
+  .insurance-print .text-xs  { font-size: 9px !important; }
+  .insurance-print .text-\[10px\] { font-size: 8px !important; }
 
-  .insurance-print .text-xl {
-    font-size: 14px !important;
-  }
+  /* 余白 */
+  .insurance-print .mb-6 { margin-bottom: 3px !important; }
+  .insurance-print .mt-6 { margin-top: 4px !important; }
+  .insurance-print .mb-4 { margin-bottom: 2px !important; }
+  .insurance-print .mb-3 { margin-bottom: 2px !important; }
+  .insurance-print .mb-2 { margin-bottom: 1px !important; }
+  .insurance-print .mb-1 { margin-bottom: 1px !important; }
+  .insurance-print .mt-2 { margin-top: 1px !important; }
+  .insurance-print .mt-1 { margin-top: 1px !important; }
 
-  .insurance-print .text-lg {
-    font-size: 12px !important;
-  }
+  /* gap */
+  .insurance-print .gap-3 { gap: 4px !important; }
+  .insurance-print .gap-4 { gap: 4px !important; }
+  .insurance-print .gap-6 { gap: 6px !important; }
 
-  .insurance-print .text-sm {
-    font-size: 11px !important;
-  }
+  /* パディング */
+  .insurance-print .p-4  { padding: 4px 8px !important; }
+  .insurance-print .p-6  { padding: 5px 10px !important; }
+  .insurance-print .py-3 { padding-top: 2px !important; padding-bottom: 2px !important; }
+  .insurance-print .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
 
-  .insurance-print .text-xs {
-    font-size: 9px !important;
-  }
+  /* グリッド: 印刷時は常にN列 */
+  .insurance-print .grid.md\:grid-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
+  .insurance-print .grid.md\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
 
-  .insurance-print .text-\[10px\] {
-    font-size: 8px !important;
-  }
-
-  /* 1ページ目: サマリーカードを収める */
-  .insurance-print .mb-6 {
-    margin-bottom: 5px !important;
-  }
-
-  .insurance-print .gap-3 {
-    gap: 4px !important;
-  }
-
-  .insurance-print .gap-4 {
-    gap: 4px !important;
-  }
-
-  .insurance-print .p-4 {
-    padding: 4px 8px !important;
-  }
-
-  .insurance-print .p-6 {
-    padding: 6px 10px !important;
-  }
-
-  .insurance-print .py-3 {
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
-  }
-
-  .insurance-print .px-4 {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-  }
-
-  .insurance-print .mb-1 {
-    margin-bottom: 1px !important;
-  }
-
-  .insurance-print .mt-1 {
-    margin-top: 1px !important;
-  }
-
-  .insurance-print .mb-3 {
-    margin-bottom: 2px !important;
-  }
-
-  /* topSlot・ハイライトカード: 印刷時は常にN列 */
-  .insurance-print .grid.md\:grid-cols-3 {
-    grid-template-columns: repeat(3, 1fr) !important;
-  }
-
-  .insurance-print .grid.md\:grid-cols-4 {
-    grid-template-columns: repeat(4, 1fr) !important;
-  }
-
-  /* テーブル行の詰め */
-  .insurance-print table .px-3 {
-    padding-left: 4px !important;
-    padding-right: 4px !important;
-  }
-
-  .insurance-print table .py-2 {
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
-  }
-
-  /* セクション見出し行の詰め */
-  .insurance-print table .py-1\.5 {
-    padding-top: 1px !important;
-    padding-bottom: 1px !important;
-  }
-
-  /* セクション説明文: 印刷時縮小 */
-  .insurance-print table td > span.ml-2 {
-    font-size: 8px !important;
-    margin-left: 6px !important;
-  }
-
+  /* 比較テーブル */
   .insurance-print table {
     font-size: 11px !important;
-    break-inside: avoid;
-    page-break-inside: avoid;
   }
 
-  /* PrintHeader: 印刷時に縮小 */
+  .insurance-print table .px-3 { padding-left: 6px !important; padding-right: 6px !important; }
+  .insurance-print table .py-2 { padding-top: 2px !important; padding-bottom: 2px !important; }
+  .insurance-print table .py-1\.5 { padding-top: 1px !important; padding-bottom: 1px !important; }
+
+  .insurance-print table td > span.ml-2 {
+    font-size: 8px !important;
+    margin-left: 5px !important;
+  }
+
+  /* PrintHeader */
   .insurance-print .print-only {
-    padding: 2px 6px !important;
-    margin-bottom: 4px !important;
+    padding: 3px 8px !important;
+    margin-bottom: 3px !important;
     border-bottom-width: 1px !important;
   }
 
   .insurance-print .print-only .text-3xl {
     font-size: 14px !important;
-    line-height: 1.2 !important;
+    line-height: 1.3 !important;
   }
 
   .insurance-print .print-only address {
-    font-size: 8px !important;
+    font-size: 9px !important;
     line-height: 1.3 !important;
   }
 
   .insurance-print .print-only address .text-lg {
-    font-size: 9px !important;
+    font-size: 10px !important;
   }
 
-  .insurance-print h4 {
-    break-after: avoid;
+  /* ウォーターフォール分解 */
+  .insurance-print .space-y-0\.5 > * + * { margin-top: 1px !important; }
+  .insurance-print .my-1 { margin-top: 1px !important; margin-bottom: 1px !important; }
+
+  .insurance-print h4 { break-after: avoid; }
+
+  /* 2ページ目: 相続人別内訳 */
+  .insurance-print .lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* 内部の改ページは無効、外側は有効 */
+  .insurance-print .print-page-break .print-page-break {
+    break-before: auto !important;
   }
 
   /* 贈与ページ */

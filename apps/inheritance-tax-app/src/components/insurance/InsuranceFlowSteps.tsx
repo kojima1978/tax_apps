@@ -33,7 +33,13 @@ export const InsuranceFlowSteps: React.FC<InsuranceFlowStepsProps> = ({ result }
       sign: '+',
     },
     {
-      title: '非課税控除',
+      title: '財産合計',
+      description: '相続時の財産構成',
+      currentValue: baseEstate + current.totalBenefit,
+      proposedValue: baseEstate - newPremiumTotal + proposed.totalBenefit,
+    },
+    {
+      title: '死亡保険金の非課税額',
       description: `限度額 ${formatCurrency(current.nonTaxableLimit)}`,
       currentValue: current.nonTaxableAmount,
       proposedValue: proposed.nonTaxableAmount,
@@ -41,7 +47,7 @@ export const InsuranceFlowSteps: React.FC<InsuranceFlowStepsProps> = ({ result }
     },
     {
       title: '課税遺産額',
-      description: '遺産 − 保険料 + 課税対象保険金',
+      description: '非課税額控除後の課税対象額',
       currentValue: current.adjustedEstate,
       proposedValue: proposed.adjustedEstate,
     },
