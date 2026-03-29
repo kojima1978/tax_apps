@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { backupDataSchema } from '@/types/backup';
 
+type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
+
 /** Date文字列をDate型に変換（日付のみの場合はUTC noon） */
 function toDateOnly(s: string): Date {
   return new Date(s + 'T00:00:00.000Z');
@@ -14,7 +16,7 @@ type Rec = Record<string, unknown>;
 const TABLE_DEFS = [
   {
     key: 'departments' as const,
-    model: (tx: typeof prisma) => tx.department,
+    model: (tx: TxClient) => tx.department,
     map: (d: Rec) => ({
       id: d.id as number,
       name: d.name as string,
@@ -27,7 +29,7 @@ const TABLE_DEFS = [
   },
   {
     key: 'companies' as const,
-    model: (tx: typeof prisma) => tx.company,
+    model: (tx: TxClient) => tx.company,
     map: (c: Rec) => ({
       id: c.id as number,
       name: c.name as string,
@@ -39,7 +41,7 @@ const TABLE_DEFS = [
   },
   {
     key: 'assignees' as const,
-    model: (tx: typeof prisma) => tx.assignee,
+    model: (tx: TxClient) => tx.assignee,
     map: (a: Rec) => ({
       id: a.id as number,
       name: a.name as string,
@@ -53,7 +55,7 @@ const TABLE_DEFS = [
   },
   {
     key: 'referrers' as const,
-    model: (tx: typeof prisma) => tx.referrer,
+    model: (tx: TxClient) => tx.referrer,
     map: (r: Rec) => ({
       id: r.id as number,
       companyId: r.companyId as number,
@@ -67,7 +69,7 @@ const TABLE_DEFS = [
   },
   {
     key: 'cases' as const,
-    model: (tx: typeof prisma) => tx.inheritanceCase,
+    model: (tx: TxClient) => tx.inheritanceCase,
     map: (c: Rec) => ({
       id: c.id as number,
       deceasedName: c.deceasedName as string,
@@ -95,7 +97,7 @@ const TABLE_DEFS = [
   },
   {
     key: 'caseContacts' as const,
-    model: (tx: typeof prisma) => tx.caseContact,
+    model: (tx: TxClient) => tx.caseContact,
     map: (c: Rec) => ({
       id: c.id as number,
       caseId: c.caseId as number,
@@ -108,7 +110,7 @@ const TABLE_DEFS = [
   },
   {
     key: 'caseProgress' as const,
-    model: (tx: typeof prisma) => tx.caseProgress,
+    model: (tx: TxClient) => tx.caseProgress,
     map: (p: Rec) => ({
       id: p.id as number,
       caseId: p.caseId as number,
@@ -125,7 +127,7 @@ const TABLE_DEFS = [
 
 interface TableDef {
   key: string;
-  model: (tx: typeof prisma) => { createMany: (args: { data: Rec[] }) => Promise<unknown> };
+  model: (tx: TxClient) => { createMany: (args: { data: Rec[] }) => Promise<unknown> };
   map: (row: Rec) => Rec;
   seqTable: string;
 }
@@ -137,7 +139,7 @@ export async function POST(request: Request) {
     const { data } = parsed;
 
     await prisma.$transaction(
-      async (tx: typeof prisma) => {
+      async (tx: TxClient) => {
         // Delete in reverse FK order
         await tx.caseProgress.deleteMany();
         await tx.caseContact.deleteMany();
