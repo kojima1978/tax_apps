@@ -1,7 +1,7 @@
 import React from 'react';
 import type { InsuranceSimulationResult } from '../../types';
 import { formatCurrency } from '../../utils';
-import { ScenarioComparisonCard, type ComparisonRowDef, type HighlightItem } from '../ScenarioComparisonCard';
+import { ScenarioComparisonCard, type ComparisonRowDef, type HighlightItem, type WaterfallStep } from '../ScenarioComparisonCard';
 
 interface InsuranceSummaryCardProps {
   result: InsuranceSimulationResult;
@@ -9,18 +9,21 @@ interface InsuranceSummaryCardProps {
 
 const ROWS: ComparisonRowDef<InsuranceSimulationResult>[] = [
   // ── 財産の構成 ──
-  { id: 'estate', label: '手元資産', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate - r.newPremiumTotal, sectionHeader: '財産の構成', sectionDescription: '保険料支払い後の手元財産' },
+  { id: 'estate', label: '手元資産', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate - r.newPremiumTotal, sectionHeader: '財産の構成', sectionDescription: '' },
+  { id: 'existing-benefit', label: '既存保険金', getCurrent: r => r.current.totalBenefit, getProposed: r => r.current.totalBenefit },
   { id: 'premium', label: '新規保険料', getCurrent: () => 0, getProposed: r => r.newPremiumTotal },
-  { id: 'estate-total', label: '資産合計', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate, sectionEnd: true },
-  // ── 保険金の計算 ──
-  { id: 'benefit', label: '受取保険金（全額）', getCurrent: r => r.current.totalBenefit, getProposed: r => r.proposed.totalBenefit, sectionHeader: '保険金の計算', sectionDescription: '非課税枠を適用した課税対象額' },
-  { id: 'exempt', label: '非課税額', getCurrent: r => r.current.nonTaxableAmount, getProposed: r => r.proposed.nonTaxableAmount },
-  { id: 'taxable-ins', label: '課税対象保険金', getCurrent: r => r.current.taxableInsurance, getProposed: r => r.proposed.taxableInsurance, sectionEnd: true },
+  { id: 'estate-total', label: '財産合計', getCurrent: r => r.baseEstate + r.current.totalBenefit, getProposed: r => r.baseEstate + r.current.totalBenefit, sectionEnd: true },
+  // ── 保険金の加算 ──
+  { id: 'ins-estate', label: '手元資産', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate - r.newPremiumTotal, sectionHeader: '相続時の財産構成', sectionDescription: '' },
+  { id: 'benefit', label: '受取保険金（全額）', getCurrent: r => r.current.totalBenefit, getProposed: r => r.proposed.totalBenefit },
+  { id: 'estate-plus-benefit', label: '財産合計', getCurrent: r => r.baseEstate + r.current.totalBenefit, getProposed: r => r.baseEstate - r.newPremiumTotal + r.proposed.totalBenefit, sectionEnd: true },
   // ── 税額計算 ──
-  { id: 'adjusted', label: '課税遺産額', getCurrent: r => r.current.adjustedEstate, getProposed: r => r.proposed.adjustedEstate, sectionHeader: '税額計算', sectionDescription: '課税遺産から算出した相続税' },
+  { id: 'tax-estate-total', label: '財産合計', getCurrent: r => r.baseEstate + r.current.totalBenefit, getProposed: r => r.baseEstate - r.newPremiumTotal + r.proposed.totalBenefit, sectionHeader: '税額計算', sectionDescription: '非課税枠適用後の課税遺産から相続税を算出' },
+  { id: 'exempt', label: '死亡保険金の非課税額', getCurrent: r => r.current.nonTaxableAmount, getProposed: r => r.proposed.nonTaxableAmount, valuePrefix: '−' },
+  { id: 'adjusted', label: '課税遺産額', getCurrent: r => r.current.adjustedEstate, getProposed: r => r.proposed.adjustedEstate },
   { id: 'tax', label: '相続税額', getCurrent: r => r.current.taxResult.totalFinalTax, getProposed: r => r.proposed.taxResult.totalFinalTax, sectionEnd: true },
   // ── 結果 ──
-  { id: 'r-estate', label: '手許資産', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate - r.newPremiumTotal, sectionHeader: '結果', sectionDescription: '手許資産 ＋ 保険金 − 税額 ＝ 納税後財産額' },
+  { id: 'r-estate', label: '手元資産', getCurrent: r => r.baseEstate, getProposed: r => r.baseEstate - r.newPremiumTotal, sectionHeader: '結果', sectionDescription: '手元資産 ＋ 保険金 − 税額 ＝ 納税後財産額' },
   { id: 'r-benefit', label: '受取保険金', getCurrent: r => r.current.totalBenefit, getProposed: r => r.proposed.totalBenefit },
   { id: 'r-tax', label: '相続税額', getCurrent: r => r.current.taxResult.totalFinalTax, getProposed: r => r.proposed.taxResult.totalFinalTax, valuePrefix: '−' },
   { id: 'net', label: '納税後財産額', getCurrent: r => r.current.totalNetProceeds, getProposed: r => r.proposed.totalNetProceeds, highlight: true },
@@ -69,6 +72,28 @@ function buildHighlights(result: InsuranceSimulationResult): HighlightItem[] {
     });
   }
 
+  // 保険加入の効果（ウォーターフォール分解）
+  const effectBreakdown: WaterfallStep[] = [];
+  if (newPremiumTotal > 0) {
+    effectBreakdown.push(
+      { label: '受取保険金', value: newBenefit },
+      { label: '支払保険料', value: -newPremiumTotal },
+      { label: '保険の純増分', value: insuranceNetGain, separator: 'single' },
+    );
+  }
+  if (taxSaving !== 0) {
+    effectBreakdown.push({
+      label: taxSaving > 0 ? '税軽減効果' : '税増加分',
+      value: taxSaving,
+    });
+  }
+  effectBreakdown.push({
+    label: '手取り増加額',
+    value: netProceedsDiff,
+    separator: 'double',
+    isSummary: true,
+  });
+
   highlights.push(
     {
       label: '税金の増減',
@@ -78,11 +103,12 @@ function buildHighlights(result: InsuranceSimulationResult): HighlightItem[] {
       footnote: <>{formatCurrency(current.taxResult.totalFinalTax)}（現状） → {formatCurrency(proposed.taxResult.totalFinalTax)}（提案）</>,
     },
     {
-      label: '納税後財産額の増減',
-      description: '保険加入後に残る財産の変化',
+      label: '保険加入の効果',
+      description: '保険料を差し引いた上での財産増加額',
       value: netProceedsDiff,
       format: 'gain',
-      footnote: buildNetFootnote(result),
+      breakdown: newPremiumTotal > 0 ? effectBreakdown : undefined,
+      footnote: newPremiumTotal > 0 ? <>※保険料は差引済みの金額です</> : buildNetFootnote(result),
     },
     {
       label: '納税充当率',
