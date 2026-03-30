@@ -187,6 +187,33 @@ function postJson(url, formData, { onSuccess, onError, onFinally } = {}) {
     });
 }
 
+// ===== DB検証ヘルパー =====
+
+/**
+ * 保存後にDBから取引を再取得して検証する
+ * @param {number|string} txId - 取引ID
+ * @param {Function} onVerified - 検証成功時コールバック(transaction)
+ * @param {Function} [onFallback] - 検証失敗時コールバック（保存自体は成功）
+ */
+function verifyTransaction(txId, onVerified, onFallback) {
+    if (!txId || typeof getApiUrl !== 'function') {
+        if (onFallback) onFallback();
+        return;
+    }
+    fetch(getApiUrl('transaction') + '?tx_id=' + txId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success && data.transaction) {
+                onVerified(data.transaction);
+            } else if (onFallback) {
+                onFallback();
+            }
+        })
+        .catch(function() {
+            if (onFallback) onFallback();
+        });
+}
+
 // ===== Save Queue (sequential request processing with retry) =====
 
 /**
@@ -250,10 +277,20 @@ var SaveQueue = {
         .then(function(response) { return response.json(); })
         .then(function(data) {
             if (data.success) {
-                if (task.select) {
-                    task.select.dataset.lastSaved = task.select.value;
-                }
-                if (task.onSuccess) task.onSuccess(data);
+                var txId = task.formData.get('tx_id');
+                var finalize = function() {
+                    if (task.select) task.select.dataset.lastSaved = task.select.value;
+                    if (task.onSuccess) task.onSuccess(data);
+                };
+                verifyTransaction(txId, function(verified) {
+                    var dbCategory = verified.category;
+                    if (task.select && task.select.value !== dbCategory) {
+                        task.select.value = dbCategory;
+                        showToast('分類の保存結果がDBと不一致のため修正しました', 'warning');
+                    }
+                    if (task.select) task.select.dataset.lastSaved = dbCategory;
+                    if (task.onSuccess) task.onSuccess(data);
+                }, finalize);
             } else {
                 throw new Error(data.error || data.message || 'サーバーエラー');
             }

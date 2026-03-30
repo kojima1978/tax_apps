@@ -60,6 +60,7 @@ from .api import (
     api_toggle_flag,
     api_create_transaction,
     api_delete_transaction,
+    api_get_transaction,
     api_get_field_values,
 )
 
@@ -115,5 +116,6 @@ __all__ = [
     'api_toggle_flag',
     'api_create_transaction',
     'api_delete_transaction',
+    'api_get_transaction',
     'api_get_field_values',
 ]

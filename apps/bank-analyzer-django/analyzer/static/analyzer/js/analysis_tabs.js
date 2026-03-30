@@ -537,15 +537,26 @@ const GroupedView = {
         postJson(window.location.href, formData, {
             onSuccess: function(data) {
                 var updatedCount = data.count || count;
-                StatusIndicator.saved();
-                ProgressBar.update(updatedCount);
-                self._updateTxTotal(updatedCount);
 
-                highlightAndRemoveRow(row);
+                var applySuccess = function(suffix) {
+                    StatusIndicator.saved();
+                    ProgressBar.update(updatedCount);
+                    self._updateTxTotal(updatedCount);
+                    highlightAndRemoveRow(row);
+                    showToast('「' + desc + '」' + updatedCount + '件を「' + category + '」に分類しました' + (suffix || ''), 'success');
+                    PatternPrompt.show(category, desc);
+                };
 
-                showToast('「' + desc + '」' + updatedCount + '件を「' + category + '」に分類しました', 'success');
-
-                PatternPrompt.show(category, desc);
+                verifyTransaction(txIds[0], function(verified) {
+                    if (verified.category !== category) {
+                        showToast('一括分類の保存結果がDBと不一致です。ページを再読み込みしてください。', 'danger');
+                        StatusIndicator.failed();
+                        return;
+                    }
+                    applySuccess('（DB検証済み）');
+                }, function() {
+                    applySuccess();
+                });
             },
             onError: function() {
                 if (select) { select.disabled = false; select.value = ''; }

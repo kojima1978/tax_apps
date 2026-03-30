@@ -20,6 +20,7 @@ urlpatterns = [
     path('case/<int:pk>/api/toggle-flag/', views.api_toggle_flag, name='api-toggle-flag'),
     path('case/<int:pk>/api/create-transaction/', views.api_create_transaction, name='api-create-transaction'),
     path('case/<int:pk>/api/delete-transaction/', views.api_delete_transaction, name='api-delete-transaction'),
+    path('case/<int:pk>/api/transaction/', views.api_get_transaction, name='api-get-transaction'),
     path('case/<int:pk>/api/field-values/', views.api_get_field_values, name='api-field-values'),
     # 印刷用ページ
     path('customer-letter/', views.customer_letter, name='customer-letter'),
