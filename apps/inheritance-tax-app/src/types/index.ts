@@ -216,3 +216,38 @@ export interface CashGiftSimulationResult {
   netProceedsDiff: number;        // 財産額の増減
   baseEstate: number;
 }
+
+// ── 2次相続タイムライン・シミュレーション ──
+
+// 年数ごとの最適解サマリー
+export interface TimelineYearSummary {
+  years: number;                    // 経過年数
+  secondEstateReduction: number;    // 2次遺産の減少額（万円）
+  optimalRatio: number;             // 最適な配偶者取得割合 (0-100)
+  optimalTotalTax: number;          // 最適時の合計税額（万円）
+}
+
+// タイムライン比較テーブルの1行（取得割合ごと）
+export interface TimelineRow {
+  ratio: number;                    // 配偶者取得割合 (0-100)
+  spouseAcquisition: number;        // 配偶者取得額（万円）
+  firstTax: number;                 // 1次相続税額（万円）
+  firstBreakdowns: HeirTaxBreakdown[];
+  yearColumns: TimelineYearColumn[];
+}
+
+// 各年数列のデータ
+export interface TimelineYearColumn {
+  years: number;
+  secondEstate: number;             // 2次遺産額（万円）
+  secondTax: number;                // 2次税額（万円）
+  totalTax: number;                 // 合計税額（万円）
+  secondBreakdowns: HeirTaxBreakdown[];
+}
+
+// タイムライン全体結果
+export interface TimelineSimulationResult {
+  rows: TimelineRow[];
+  summaries: TimelineYearSummary[];
+  selectedYears: number[];
+}

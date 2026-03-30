@@ -6,6 +6,7 @@ import { ComparisonPage } from './pages/ComparisonPage';
 import { InsurancePage } from './pages/InsurancePage';
 import { CashGiftPage } from './pages/CashGiftPage';
 import { SplitPage } from './pages/SplitPage';
+import { TimelinePage } from './pages/TimelinePage';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/insurance" element={<InsurancePage />} />
         <Route path="/cash-gift" element={<CashGiftPage />} />
         <Route path="/split" element={<SplitPage />} />
+        <Route path="/timeline" element={<TimelinePage />} />
       </Routes>
 
       <footer className="bg-gray-800 text-white py-4 md:py-6 mt-8 md:mt-12 no-print">

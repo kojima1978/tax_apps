@@ -7,6 +7,7 @@ import Scale from 'lucide-react/icons/scale';
 import Shield from 'lucide-react/icons/shield';
 import Gift from 'lucide-react/icons/gift';
 import Sliders from 'lucide-react/icons/sliders-horizontal';
+import Clock from 'lucide-react/icons/clock';
 import Printer from 'lucide-react/icons/printer';
 import { useStaffInfo } from '../contexts/StaffContext';
 import { COMPANY_INFO } from '../constants';
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/insurance', label: '保険金', shortLabel: '保険', icon: Shield },
   { to: '/cash-gift', label: '現金贈与', shortLabel: '贈与', icon: Gift },
   { to: '/split', label: '分割シミュレーション', shortLabel: '分割', icon: Sliders },
+  { to: '/timeline', label: 'タイムライン', shortLabel: '時間軸', icon: Clock },
   { to: '/table', label: '早見表', shortLabel: '早見表', icon: Table },
 ] as const;
 

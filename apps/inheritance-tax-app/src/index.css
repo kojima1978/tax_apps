@@ -188,15 +188,132 @@
   .comparison-print .bg-white {
     box-shadow: none !important;
     border-radius: 0 !important;
-    padding: 10px 16px !important;
+    padding: 8px 12px !important;
+  }
+
+  /* 前提条件ボックス */
+  .comparison-print .print-only-block .border {
+    background-color: #f0fdf4 !important;
+    border: 1px solid #bbf7d0 !important;
+    border-radius: 6px !important;
+    padding: 8px 14px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .comparison-print .print-only-block h3 {
+    font-size: 12px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .comparison-print .print-only-block h4 {
+    font-size: 11px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .comparison-print .print-only-block .grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .comparison-print .print-only-block dt,
+  .comparison-print .print-only-block dd {
+    font-size: 10px !important;
+  }
+
+  .comparison-print .print-only-block dl {
+    margin: 0 !important;
+  }
+
+  .comparison-print .print-only-block .space-y-0\.5 > * + * {
+    margin-top: 1px !important;
+  }
+
+  /* セクション間余白 */
+  .comparison-print .space-y-4 > * + *,
+  .comparison-print .space-y-6 > * + * {
+    margin-top: 8px !important;
+  }
+
+  /* 見出し */
+  .comparison-print h2 {
+    font-size: 14px !important;
+    margin-bottom: 4px !important;
+    break-after: avoid;
+  }
+
+  /* テーブル — 21行あるので途中改ページを許可 */
+  .comparison-print table {
+    font-size: 11px !important;
+    break-inside: auto;
+  }
+
+  /* theadが各ページ先頭に繰り返される（ブラウザ対応時） */
+  .comparison-print thead {
+    display: table-header-group;
+  }
+
+  .comparison-print table th {
+    padding: 3px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .comparison-print table td {
+    padding: 3px 8px !important;
+    font-size: 10px !important;
+  }
+
+  /* 2次遺産額の内訳サブテキスト */
+  .comparison-print table td .text-\[10px\] {
+    font-size: 8px !important;
+  }
+
+  /* 凡例テキスト */
+  .comparison-print .text-xs {
+    font-size: 9px !important;
+  }
+
+  /* PrintHeader */
+  .comparison-print .print-only {
+    padding: 4px 8px !important;
+    margin-bottom: 6px !important;
+    border-bottom-width: 1px !important;
+  }
+
+  .comparison-print .print-only .text-3xl {
+    font-size: 15px !important;
+    line-height: 1.3 !important;
+  }
+
+  .comparison-print .print-only address {
+    font-size: 9px !important;
+    line-height: 1.3 !important;
+  }
+
+  .comparison-print .print-only address .text-lg {
+    font-size: 10px !important;
   }
 
   /* 比較詳細パネル */
   .comparison-detail-print {
     border: 1px solid #ccc !important;
     box-shadow: none !important;
-    margin-top: 12px !important;
+    margin-top: 8px !important;
+    padding: 8px 12px !important;
     break-inside: avoid;
+  }
+
+  .comparison-detail-print h3 {
+    font-size: 12px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .comparison-detail-print h4 {
+    font-size: 11px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .comparison-detail-print .lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   .calculator-print {
