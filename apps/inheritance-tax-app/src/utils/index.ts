@@ -1,4 +1,4 @@
-export { formatCurrency, formatPercent, formatFraction, formatDelta, formatDeltaArrow, formatSavingArrow, deltaColor } from './formatters';
+export { formatCurrency, formatPercent, formatFraction, formatDelta, formatDeltaArrow, formatSavingArrow, formatSignedCurrency, deltaColor } from './formatters';
 export { generateId } from './idGenerator';
 export { calculateInheritanceTax, calculateDetailedInheritanceTax, calculateBracketAnalysis } from './taxCalculator';
 export type { BracketAnalysisRow } from './taxCalculator';
@@ -8,4 +8,5 @@ export { calculateComparisonTable } from './comparisonCalculator';
 export { calculateInsuranceSimulation, getHeirNetProceeds, getHeirBaseAcquisition } from './insuranceCalculator';
 export { calculateGiftTaxPerYear, calculateRecipientResult, getGiftRecipientOptions, getGiftHeirNetProceeds, calculateCashGiftSimulation, optimizeGiftAmounts } from './giftCalculator';
 export { buildHeirLabels, calculateLegalAcquisitions, calculateSplitTax, generateSplitSimulation } from './splitCalculator';
+export { calculateTimelineSimulation } from './timelineCalculator';
 export { heirLabelColumn, currencyColumn, currencyOrDashColumn } from './heirColumnHelpers';

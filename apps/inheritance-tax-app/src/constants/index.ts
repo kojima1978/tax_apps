@@ -113,6 +113,11 @@ export function createDefaultComposition(): HeirComposition {
 }
 
 /**
+ * タイムラインシミュレーションの年数選択肢
+ */
+export const TIMELINE_YEAR_OPTIONS = [5, 10, 15, 20, 25, 30] as const;
+
+/**
  * 1億円単位でハイライト表示するかどうかを判定
  * @param estateValue 相続財産額（万円単位）
  * @returns 1億円の倍数の場合true

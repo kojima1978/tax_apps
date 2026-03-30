@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import Landmark from 'lucide-react/icons/landmark';
 import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { SectionHeader } from '../components/SectionHeader';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { ComparisonTable } from '../components/comparison/ComparisonTable';
+import { PrintConditions } from '../components/PrintConditions';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
@@ -13,7 +14,7 @@ import { useFormValidation } from '../hooks/useFormValidation';
 import type { HeirComposition } from '../types';
 import { createDefaultComposition } from '../constants';
 import { COMPARISON_CAUTIONS } from '../constants/cautionMessages';
-import { calculateComparisonTable } from '../utils';
+import { calculateComparisonTable, formatCurrency } from '../utils';
 import { CARD } from '../components/tableStyles';
 
 export const ComparisonPage: React.FC = () => {
@@ -36,6 +37,21 @@ export const ComparisonPage: React.FC = () => {
 
   const hasData = comparisonData.length > 0;
   const resultRef = useScrollToResult(hasData);
+
+  const printSections = useMemo(() => [
+    {
+      title: '1次相続',
+      items: [
+        { label: '相続財産額', value: formatCurrency(estateValue) },
+      ],
+    },
+    {
+      title: '2次相続',
+      items: [
+        { label: '配偶者固有財産', value: formatCurrency(spouseOwnEstate) },
+      ],
+    },
+  ], [estateValue, spouseOwnEstate]);
 
   return (
     <PageLayout
@@ -93,8 +109,9 @@ export const ComparisonPage: React.FC = () => {
       resultRef={resultRef}
       resultSection={
         hasData ? (
-          <div className="result-fade-in">
+          <div className="result-fade-in space-y-4 md:space-y-6">
             <PrintHeader title="1次相続・2次相続 配偶者取得割合別比較" />
+            <PrintConditions sections={printSections} composition={composition} />
             <ComparisonTable data={comparisonData} spouseOwnEstate={spouseOwnEstate} />
           </div>
         ) : null

@@ -85,6 +85,12 @@ function gcd(a: number, b: number): number {
   return a;
 }
 
+/** 符号付き金額フォーマット（+1,000万円 / -500万円） */
+export function formatSignedCurrency(value: number): string {
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${formatCurrency(Math.abs(value))}`;
+}
+
 /** 差額に応じた色クラス（invert=trueで税額など「減った方が良い」項目用） */
 export function deltaColor(diff: number, invert = false): string {
   const positive = invert ? diff < 0 : diff > 0;
