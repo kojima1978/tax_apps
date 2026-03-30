@@ -1,5 +1,5 @@
 import { Computed } from '@/components/ui/Computed';
-import { bb, br, bl, hdr, flex, ROW_H } from './shared';
+import { bb, br, bl, hdr, flex, ROW_H } from '../shared';
 
 /* ---- Types ---- */
 

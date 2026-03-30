@@ -1,10 +1,10 @@
-import { TableTitleBar } from './TableTitleBar';
+import { TableTitleBar } from '../TableTitleBar';
 import { ResetButton } from '@/components/ui/ResetButton';
-import { parseNum } from './shared';
+import { parseNum } from '../shared';
 import type { TableProps } from '@/types/form';
-import { Table4Section1 } from './Table4Section1';
-import { Table4Section2 } from './Table4Section2';
-import { Table4Section3 } from './Table4Section3';
+import { Table4Section1 } from './Section1';
+import { Table4Section2 } from './Section2';
+import { Table4Section3 } from './Section3';
 
 const T = 'table4' as const;
 

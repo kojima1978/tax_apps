@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { TableTitleBar } from './TableTitleBar';
-import { parseNum } from './shared';
+import { TableTitleBar } from '../TableTitleBar';
+import { parseNum } from '../shared';
 import type { TableProps } from '@/types/form';
-import { Table5Section1 } from './Table5Section1';
-import { Table5Section2 } from './Table5Section2';
-import { Table5CalcProcess } from './Table5CalcProcess';
+import { Table5Section1 } from './Section1';
+import { Table5Section2 } from './Section2';
+import { Table5CalcProcess } from './CalcProcess';
 
 const T = 'table5' as const;
 const DEFAULT_ROWS = 20;
