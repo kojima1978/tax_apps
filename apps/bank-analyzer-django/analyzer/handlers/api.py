@@ -117,6 +117,26 @@ def api_delete_transaction(request: HttpRequest, pk: int) -> JsonResponse:
         return json_api_error(e, f"取引削除APIエラー: tx_id={tx_id}")
 
 
+def api_get_transaction(request: HttpRequest, pk: int) -> JsonResponse:
+    """取引データ取得APIエンドポイント（保存後の検証用）"""
+    case = get_object_or_404(Case, pk=pk)
+    tx_id = request.GET.get('tx_id')
+
+    if not tx_id:
+        return json_error('取引IDが指定されていません')
+
+    try:
+        tx = case.transactions.with_account_info().filter(pk=int(tx_id)).first()
+        if not tx:
+            return json_error('取引が見つかりません', status=404)
+        return JsonResponse({
+            'success': True,
+            'transaction': serialize_transaction(tx)
+        })
+    except Exception as e:
+        return json_api_error(e, f"取引取得APIエラー: tx_id={tx_id}")
+
+
 def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
     """フィールドのユニーク値を取得するAPIエンドポイント"""
     case = get_object_or_404(Case, pk=pk)

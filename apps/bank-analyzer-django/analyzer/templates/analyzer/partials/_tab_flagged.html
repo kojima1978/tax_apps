@@ -55,7 +55,7 @@
                 </thead>
                 <tbody>
                     {% for tx in flagged_txs %}
-                    <tr>
+                    <tr data-tx-id="{{ tx.id }}">
                         <td>{{ tx.date|wareki_short }}</td>
                         <td>{{ tx.bank_name|default:"-" }}</td>
                         <td>{{ tx.branch_name|default:"-" }}</td>

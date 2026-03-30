@@ -94,6 +94,18 @@ document.addEventListener('dblclick', function(e) {
 
 // ===== 編集モーダルのAJAX保存 =====
 
+// フィールドラベル定義（差分表示用）
+const FIELD_LABELS = {
+    description: '摘要', category: '分類', memo: 'メモ',
+    date: '日付', amount_out: '払戻', amount_in: 'お預り',
+    bank_name: '銀行名', branch_name: '支店名',
+    account_type: '種別', account_number: '口座番号', balance: '残高',
+};
+
+// 保存前の値を記録するキー（差分表示用）
+const DIFF_FIELDS = ['description', 'category', 'memo', 'date', 'amount_out', 'amount_in',
+    'bank_name', 'branch_name', 'account_type', 'account_number', 'balance'];
+
 const editTxForm = document.getElementById('editTxForm');
 const editTxSubmitBtn = document.getElementById('editTxSubmitBtn');
 
@@ -103,43 +115,124 @@ if (editTxForm) {
         const formData = new FormData(editTxForm);
         setButtonLoading(editTxSubmitBtn, '保存中...');
 
+        // 保存前の値を記録（差分表示用）
+        var beforeValues = {};
+        var editBtn = document.querySelector('tr[data-tx-id="' + formData.get('tx_id') + '"] [data-bs-target="#editModal"]');
+        if (editBtn) {
+            EDIT_BTN_DATA_ATTRS.forEach(function([attr, key]) {
+                beforeValues[key] = editBtn.getAttribute(attr) || '';
+            });
+        }
+
         postJson(window.location.href, formData, {
             onSuccess: function(data) {
                 const tx = data.transaction;
                 if (!tx) return;
 
-                const row = document.querySelector('tr[data-tx-id="' + tx.id + '"]');
-                if (row) {
-                    _updateRowCells(row, tx);
-                    _updateEditButtonData(row, tx);
-                    row.style.backgroundColor = 'rgba(25, 135, 84, 0.12)';
-                    setTimeout(function() { row.style.backgroundColor = ''; }, 1200);
-                }
+                verifyTransaction(tx.id, function(verified) {
+                    // 検証済みデータでDOM更新
+                    document.querySelectorAll('tr[data-tx-id="' + tx.id + '"]').forEach(function(row) {
+                        _updateRowCells(row, verified);
+                        _updateEditButtonData(row, verified);
+                        row.style.backgroundColor = 'rgba(25, 135, 84, 0.12)';
+                        setTimeout(function() { row.style.backgroundColor = ''; }, 1200);
+                    });
 
-                var modal = bootstrap.Modal.getInstance(editModal);
-                if (modal) modal.hide();
-                showToast('取引データを更新しました', 'success');
+                    // モーダルのフォーム値を検証済みデータで更新
+                    MODAL_FIELDS.forEach(function([id, attr, fallback]) {
+                        var key = EDIT_BTN_DATA_ATTRS.find(function(a) { return a[0] === attr; });
+                        if (key) {
+                            document.getElementById(id).value = verified[key[1]] != null ? verified[key[1]] : (fallback || '');
+                        }
+                    });
+
+                    // 差分計算
+                    var changes = [];
+                    DIFF_FIELDS.forEach(function(key) {
+                        var before = String(beforeValues[key] || '');
+                        var after = String(verified[key] != null ? verified[key] : '');
+                        if (before !== after) {
+                            changes.push((FIELD_LABELS[key] || key) + ': ' + (before || '(空)') + ' → ' + (after || '(空)'));
+                        }
+                    });
+
+                    _showSaveConfirmation(changes);
+                }, function() {
+                    showToast('保存は成功しましたが、検証リクエストに失敗しました。', 'warning');
+                    var modal = bootstrap.Modal.getInstance(editModal);
+                    if (modal) modal.hide();
+                });
             },
             onFinally: function() { resetButton(editTxSubmitBtn); },
         });
     });
+
+    // モーダルが閉じられたとき、ボタンを元に戻す
+    editModal.addEventListener('hidden.bs.modal', function() {
+        editTxSubmitBtn.textContent = '保存';
+        editTxSubmitBtn.type = 'submit';
+        editTxSubmitBtn.onclick = null;
+        var existingMsg = editModal.querySelector('.save-confirm-msg');
+        if (existingMsg) existingMsg.remove();
+    });
+}
+
+// モーダル内に保存完了メッセージを表示し、ボタンを「確認して閉じる」に変更
+function _showSaveConfirmation(changes) {
+    var footer = editModal.querySelector('.modal-footer');
+    var existingMsg = footer.querySelector('.save-confirm-msg');
+    if (existingMsg) existingMsg.remove();
+
+    var msg = document.createElement('div');
+    msg.className = 'save-confirm-msg w-100 mb-2';
+    msg.innerHTML = '<div class="alert alert-success py-2 mb-0 small">' +
+        '<i class="bi bi-check-circle-fill"></i> <strong>保存完了（DB検証済み）</strong>' +
+        (changes.length > 0 ? '<br>' + changes.join('<br>') : '<br>変更なし') +
+        '<div class="mt-2"><small class="text-muted">確認して閉じてください</small></div>' +
+        '</div>';
+    footer.insertBefore(msg, footer.firstChild);
+
+    editTxSubmitBtn.textContent = '確認して閉じる';
+    editTxSubmitBtn.type = 'button';
+    editTxSubmitBtn.onclick = function() {
+        var modal = bootstrap.Modal.getInstance(editModal);
+        if (modal) modal.hide();
+    };
+
+    if (changes.length > 0) {
+        showToast('変更を保存しました: ' + changes.join(', '), 'success');
+    } else {
+        showToast('取引データを更新しました（変更なし）', 'info');
+    }
 }
 
 // テーブル行のセルを更新後のデータで書き換え
 function _updateRowCells(row, tx) {
-    var cells = row.querySelectorAll('td');
-    cells.forEach(function(td) {
-        var truncate = td.querySelector('.text-truncate');
-        if (truncate && truncate.title !== undefined && td.querySelector('select') === null) {
-            truncate.textContent = tx.description;
-            truncate.title = tx.description;
+    // 摘要セル（td自体がtext-truncateの場合と、子要素の場合を両方対応）
+    var descCells = row.querySelectorAll('td.text-truncate');
+    if (descCells.length > 0) {
+        // 最初のtext-truncateは摘要
+        descCells[0].textContent = tx.description;
+        descCells[0].title = tx.description;
+        // 2番目のtext-truncateがあればメモ
+        if (descCells.length > 1) {
+            var memoText = tx.memo || '-';
+            descCells[1].title = tx.memo || '';
+            descCells[1].innerHTML = '<small class="text-muted">' + (memoText.length > 30 ? memoText.substring(0, 27) + '...' : memoText) + '</small>';
         }
-    });
+    }
 
+    // カテゴリーセレクト
     var catSelect = row.querySelector('select[name^="cat-"], select[name^="uncat-"]');
     if (catSelect) {
         catSelect.value = tx.category;
         catSelect.dataset.lastSaved = tx.category;
+    }
+
+    // カテゴリーバッジ（付箋タブ等）
+    var catBadge = row.querySelector('.badge');
+    if (catBadge && !catSelect) {
+        catBadge.textContent = tx.category || '-';
     }
 }
 
