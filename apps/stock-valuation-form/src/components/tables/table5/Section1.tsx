@@ -9,8 +9,8 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { NumberField } from '@/components/ui/NumberField';
 import { Computed } from '@/components/ui/Computed';
 import { EditableTable, NoPrintSpacer, type ColumnDef, type Preset } from '@/components/ui/EditableTable';
-import { bb, br, hdr, flex, parseNum, ROW_H } from './shared';
-import type { GFn, UFn } from './shared';
+import { bb, br, hdr, flex, parseNum, ROW_H } from '../shared';
+import type { GFn, UFn } from '../shared';
 
 /* ---- Constants ---- */
 

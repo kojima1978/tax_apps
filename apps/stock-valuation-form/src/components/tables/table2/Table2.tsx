@@ -1,8 +1,8 @@
 import { NumberField } from '@/components/ui/NumberField';
 import { FormField } from '@/components/ui/FormField';
 import { CircledNumber } from '@/components/ui/CircledNumber';
-import { TableTitleBar } from './TableTitleBar';
-import { bb, br } from './shared';
+import { TableTitleBar } from '../TableTitleBar';
+import { bb, br } from '../shared';
 import type { TableProps } from '@/types/form';
 
 const T = 'table2' as const;

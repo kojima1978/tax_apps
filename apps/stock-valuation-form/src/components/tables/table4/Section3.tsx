@@ -1,7 +1,7 @@
 import { FormField } from '@/components/ui/FormField';
 import { NumberField } from '@/components/ui/NumberField';
-import { bb, br, hdr, vt } from './shared';
-import type { GFn, UFn } from './shared';
+import { bb, br, hdr, vt } from '../shared';
+import type { GFn, UFn } from '../shared';
 
 interface Props {
   g: GFn;

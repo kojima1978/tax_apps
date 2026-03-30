@@ -1,0 +1,11 @@
+export { Table1_2 } from './Table1_2';
+export { SectionTitle } from './SectionTitle';
+export { InputLeft } from './InputLeft';
+export { InputRight } from './InputRight';
+export { EmployeeClass } from './EmployeeClass';
+export { IndustrySelect } from './IndustrySelect';
+export { SizeMatrixLeft } from './SizeMatrixLeft';
+export { SizeMatrixRight } from './SizeMatrixRight';
+export { Note } from './Note';
+export { SizeResult } from './SizeResult';
+export { CapitalChanges } from './CapitalChanges';
