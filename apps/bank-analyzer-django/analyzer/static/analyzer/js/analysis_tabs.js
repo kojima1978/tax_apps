@@ -157,14 +157,11 @@ const UnclassifiedTab = {
                 if (!keyword) { showToast('キーワードを入力してください', 'warning'); return; }
                 if (!category) { showToast('カテゴリーが指定されていません', 'warning'); return; }
 
-                var formData = createFormData({
-                    action: 'add_pattern',
+                postAction('add_pattern', {
                     category: category,
                     keyword: keyword,
                     scope: scope,
-                });
-
-                postJson(window.location.href, formData, {
+                }, {
                     onSuccess: function() {
                         var scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
                         showToast('「' + keyword + '」を「' + category + '」に追加しました' + scopeMsg, 'success');
@@ -219,12 +216,10 @@ const AISuggestions = {
 
     _applyOne: function(txId, category) {
         const self = this;
-        const formData = createFormData({
-            action: 'apply_ai_suggestion',
+        postAction('apply_ai_suggestion', {
             tx_id: txId,
             category: category,
-        });
-        postJson(window.location.href, formData, {
+        }, {
             onSuccess: () => {
                 self.removeRow(txId);
                 self.updateBadgeCount(-1);
@@ -240,17 +235,14 @@ const AISuggestions = {
         const description = row.dataset.description;
         const count = parseInt(row.dataset.count);
 
-        const formData = createFormData({
-            action: 'update_category',
-            tx_id: txIds[0],
-            category: category,
-            apply_all: 'true',
-        });
-
         row.style.opacity = '0.5';
         row.style.pointerEvents = 'none';
 
-        postJson(window.location.href, formData, {
+        postAction('update_category', {
+            tx_id: txIds[0],
+            category: category,
+            apply_all: 'true',
+        }, {
             onSuccess: () => {
                 self.updateBadgeCount(-count);
                 highlightAndRemoveRow(row);
@@ -322,13 +314,11 @@ const AISuggestions = {
             message: `信頼度${scoreText}のAI提案を一括適用しますか？`,
             confirmText: '一括適用',
             onConfirm: () => {
-                const formData = createFormData({
-                    action: 'bulk_apply_ai_suggestions',
-                    min_score: minScore,
-                });
                 showToast('一括適用中...', 'info');
                 const self = this;
-                postJson(window.location.href, formData, {
+                postAction('bulk_apply_ai_suggestions', {
+                    min_score: minScore,
+                }, {
                     onSuccess: function(data) {
                         let removedCount = 0;
                         document.querySelectorAll('#aiGroupedView .ai-group-row').forEach(row => {

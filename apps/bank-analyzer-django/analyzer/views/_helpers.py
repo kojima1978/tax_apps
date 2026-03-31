@@ -109,9 +109,6 @@ def build_filter_state(request: HttpRequest, include_tab_filters: bool = False) 
     }
     if include_tab_filters:
         state.update({
-            'large_category': request.GET.getlist('large_category'),
-            'large_category_mode': request.GET.get('large_category_mode', 'include'),
-            'large_amount_threshold': request.GET.get('large_amount_threshold', ''),
             'transfer_category': request.GET.getlist('transfer_category'),
             'transfer_category_mode': request.GET.get('transfer_category_mode', 'include'),
         })

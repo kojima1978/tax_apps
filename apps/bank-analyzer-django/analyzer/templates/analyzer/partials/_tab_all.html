@@ -108,10 +108,10 @@
                     <div>
                         <label class="form-label form-label-sm fw-semibold mb-1">金額範囲</label>
                         <div class="d-flex align-items-center gap-1">
-                            <input type="text" name="amount_min" class="form-control form-control-sm" style="width: 110px;"
+                            <input type="text" name="amount_min" class="form-control form-control-sm amount-comma-input" style="width: 130px;"
                                 value="{{ filter_state.amount_min }}" placeholder="最小" inputmode="numeric">
                             <span class="text-muted">〜</span>
-                            <input type="text" name="amount_max" class="form-control form-control-sm" style="width: 110px;"
+                            <input type="text" name="amount_max" class="form-control form-control-sm amount-comma-input" style="width: 130px;"
                                 value="{{ filter_state.amount_max }}" placeholder="最大" inputmode="numeric">
                         </div>
                     </div>
@@ -267,8 +267,8 @@
                             <td>{{ tx.account_type|default:"-" }}</td>
                             <td>{{ tx.account_number|default:"-" }}</td>
                             <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
-                            <td class="text-end">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
-                            <td class="text-end">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>
+                            <td class="text-end">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% elif tx.amount_in == 0 %}0{% endif %}</td>
+                            <td class="text-end">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% elif tx.amount_out == 0 %}0{% endif %}</td>
                             <td>
                                 {% with name_prefix="cat-" %}
                                 {% include "analyzer/partials/_category_select.html" %}
@@ -286,11 +286,7 @@
                         {% empty %}
                         <tr>
                             <td colspan="13">
-                                <div class="empty-state">
-                                    <div class="empty-state-icon"><i class="bi bi-search"></i></div>
-                                    <div class="empty-state-text">取引が見つかりません</div>
-                                    <div class="empty-state-hint">フィルター条件を変更してお試しください</div>
-                                </div>
+                                {% include "analyzer/partials/_empty_state.html" with icon="search" text="取引が見つかりません" hint="フィルター条件を変更してお試しください" %}
                             </td>
                         </tr>
                         {% endfor %}

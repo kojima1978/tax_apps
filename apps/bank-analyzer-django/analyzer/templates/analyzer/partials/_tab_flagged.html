@@ -19,20 +19,9 @@
         </p>
 
         <!-- キーワード検索 -->
-        <form method="get" class="row g-2 mb-3">
-            <input type="hidden" name="tab" value="flagged">
-            {% if filter_state.sort %}<input type="hidden" name="sort" value="{{ filter_state.sort }}">{% endif %}
-            {% if filter_state.per_page != '100' %}<input type="hidden" name="per_page" value="{{ filter_state.per_page }}">{% endif %}
-            <div class="col-md-4">
-                <div class="input-group input-group-sm">
-                    <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}" placeholder="摘要をキーワード検索（半角/全角カタカナ対応）">
-                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
-                    {% if filter_state.keyword %}
-                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=flagged" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
-                    {% endif %}
-                </div>
-            </div>
-        </form>
+        {% with tab_name="flagged" %}
+        {% include "analyzer/partials/_keyword_search.html" %}
+        {% endwith %}
 
         {% if flagged_txs %}
         <div class="table-responsive">
@@ -62,8 +51,8 @@
                         <td>{{ tx.account_type|default:"-" }}</td>
                         <td>{{ tx.account_number|default:"-" }}</td>
                         <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
-                        <td class="text-end text-danger">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% endif %}</td>
-                        <td class="text-end text-success">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% endif %}</td>
+                        <td class="text-end text-danger">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% elif tx.amount_in == 0 %}0{% endif %}</td>
+                        <td class="text-end text-success">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% elif tx.amount_out == 0 %}0{% endif %}</td>
                         <td><span class="badge bg-secondary">{{ tx.category|default:"-" }}</span></td>
                         <td style="max-width: 150px;" class="text-truncate" title="{{ tx.memo|default:'' }}">
                             <small class="text-muted">{{ tx.memo|default:"-"|truncatechars:30 }}</small>
@@ -84,11 +73,7 @@
             </table>
         </div>
         {% else %}
-        <div class="empty-state">
-            <div class="empty-state-icon"><i class="bi bi-bookmark"></i></div>
-            <div class="empty-state-text">付箋が付いた取引はありません</div>
-            <div class="empty-state-hint">取引一覧で<i class="bi bi-bookmark-fill"></i>ボタンをクリックして付箋を追加できます</div>
-        </div>
+        {% include "analyzer/partials/_empty_state.html" with icon="bookmark" text="付箋が付いた取引はありません" hint="取引一覧で付箋ボタンをクリックして付箋を追加できます" %}
         {% endif %}
     </div>
 </div>

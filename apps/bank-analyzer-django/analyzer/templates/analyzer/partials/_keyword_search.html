@@ -1,0 +1,16 @@
+{# キーワード検索バー — tab_name, filter_state, case を変数で受け取る #}
+{% load pagination_tags %}
+<form method="get" class="row g-2 mb-3">
+    <input type="hidden" name="tab" value="{{ tab_name }}">
+    {% if filter_state.sort %}<input type="hidden" name="sort" value="{{ filter_state.sort }}">{% endif %}
+    {% if filter_state.per_page != '100' %}<input type="hidden" name="per_page" value="{{ filter_state.per_page }}">{% endif %}
+    <div class="col-md-4">
+        <div class="input-group input-group-sm">
+            <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}" placeholder="摘要をキーワード検索（半角/全角カタカナ対応）">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+            {% if filter_state.keyword %}
+            <a href="{% url 'analysis-dashboard' case.pk %}?tab={{ tab_name }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+            {% endif %}
+        </div>
+    </div>
+</form>

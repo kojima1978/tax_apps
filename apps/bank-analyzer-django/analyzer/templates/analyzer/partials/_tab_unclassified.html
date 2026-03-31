@@ -274,12 +274,12 @@
                                 <td class="text-end">
                                     {% if tx.amount_out > 0 %}
                                     <span class="text-danger">{{ tx.amount_out|intcomma }}</span>
-                                    {% endif %}
+                                    {% elif tx.amount_in == 0 %}0{% endif %}
                                 </td>
                                 <td class="text-end">
                                     {% if tx.amount_in > 0 %}
                                     <span class="text-success">{{ tx.amount_in|intcomma }}</span>
-                                    {% endif %}
+                                    {% elif tx.amount_out == 0 %}0{% endif %}
                                 </td>
                                 <td>
                                     {% with name_prefix="uncat-" %}

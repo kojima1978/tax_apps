@@ -99,9 +99,7 @@ function fetchExistingKeywords(category) {
 
     container.innerHTML = '<span class="text-muted small">読み込み中...</span>';
 
-    const formData = createFormData({ action: 'get_category_keywords', category });
-
-    postJson(window.location.href, formData, {
+    postAction('get_category_keywords', { category }, {
         onSuccess: (data) => {
             const globalKws = data.global_keywords || [];
             const caseKws = data.case_keywords || [];
@@ -147,9 +145,7 @@ function submitPatternAdd() {
     const submitBtn = document.getElementById('patternAddSubmitBtn');
     setButtonLoading(submitBtn, '追加中...');
 
-    const formData = createFormData({ action: 'add_pattern', category, keyword, scope });
-
-    postJson(window.location.href, formData, {
+    postAction('add_pattern', { category, keyword, scope }, {
         onSuccess: () => {
             const scopeLabel = scope === 'global' ? 'グローバル' : 'この案件';
             submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> 追加完了';
@@ -235,15 +231,12 @@ const PatternPrompt = {
 
     _register: function(category, keyword, scope, description) {
         var self = this;
-        var formData = createFormData({
-            action: 'classify_and_register_pattern',
+        postAction('classify_and_register_pattern', {
             category: category,
             keyword: keyword,
             scope: scope,
             description: description,
-        });
-
-        postJson(window.location.href, formData, {
+        }, {
             onSuccess: function(data) {
                 var scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
                 var extra = data.count ? '（追加で' + data.count + '件分類）' : '';

@@ -107,6 +107,34 @@ def require_params(*param_names):
     return decorator
 
 
+def redirect_on_error(error_context: str, redirect_view: str = 'analysis-dashboard'):
+    """
+    ハンドラーの例外処理を共通化するデコレータ
+
+    try/except + handle_ajax_error パターンを自動適用する。
+    ハンドラー関数は (request, case, pk, ...) シグネチャを想定。
+
+    Args:
+        error_context: ログに出力するエラーコンテキスト
+        redirect_view: リダイレクト先ビュー名
+
+    使用例:
+        @redirect_on_error('自動分類エラー')
+        def handle_run_classifier(request, case, pk):
+            count = TransactionService.run_classifier(case)
+            ...
+    """
+    def decorator(handler_func: Callable) -> Callable:
+        @wraps(handler_func)
+        def wrapper(request: HttpRequest, case, pk: int, *args, **kwargs) -> HttpResponse:
+            try:
+                return handler_func(request, case, pk, *args, **kwargs)
+            except Exception as e:
+                return handle_ajax_error(request, pk, e, error_context, redirect_view)
+        return wrapper
+    return decorator
+
+
 def count_message(request: HttpRequest, count: int, success_msg: str, zero_msg: str, zero_level: str = "warning"):
     """件数に応じたメッセージを表示"""
     if count > 0:

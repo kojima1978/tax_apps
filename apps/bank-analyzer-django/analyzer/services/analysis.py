@@ -135,9 +135,6 @@ class AnalysisService:
         return {
             'account_summary': AnalysisService._build_account_summary(case),
             'transfer_pairs': AnalysisService._build_transfer_data(df, filter_state, sort_param),
-            'large_txs': sort_dict_list(
-                AnalysisService._build_large_txs(df, filter_state), sort_param
-            ),
             'all_txs': AnalysisService.apply_filters(
                 transactions, filter_state
             ),
@@ -217,29 +214,6 @@ class AnalysisService:
             )
 
         return transfer_pairs
-
-    @staticmethod
-    def _build_large_txs(df: pd.DataFrame, filter_state: dict) -> list:
-        """多額取引データを生成（フィルター適用含む）"""
-        custom_threshold = parse_amount_str(
-            filter_state.get('large_amount_threshold', '')
-        )
-        if custom_threshold is not None:
-            large_df = df[
-                (df['amount_out'] >= custom_threshold) | (df['amount_in'] >= custom_threshold)
-            ].copy()
-        else:
-            large_df = df[df['is_large']].copy()
-        if filter_state.get('large_category'):
-            if filter_state.get('large_category_mode') == 'exclude':
-                large_df = large_df[~large_df['category'].isin(filter_state['large_category'])]
-            else:
-                large_df = large_df[large_df['category'].isin(filter_state['large_category'])]
-        large_df = convert_amounts_to_int(
-            large_df.sort_values('date', ascending=True).copy()
-        )
-        large_txs = large_df.to_dict(orient='records')
-        return filter_by_keyword(large_txs, filter_state.get('keyword', ''))
 
     @staticmethod
     def _build_filter_options(df: pd.DataFrame, case=None) -> dict:
