@@ -45,7 +45,7 @@ export function Section1PriceCalc({ g, u }: Props) {
       {COMPANY_SIZES.map((row) => (
         <tr key={row.key}>
           <td className="gov-header" style={{ fontSize: 7.5, lineHeight: 1.4 }}>{row.label}</td>
-          <td style={{ padding: '2px 4px', fontSize: 7, lineHeight: 1.4, textAlign: 'left' }}>
+          <td colSpan={2} style={{ padding: '2px 4px', fontSize: 7, lineHeight: 1.4, textAlign: 'left' }}>
             {'hasLRatio' in row && row.hasLRatio ? (
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span>（①と②とのいずれか低い方の金額 × Ｌの割合　0.</span>

@@ -1,6 +1,6 @@
 import { NumberField } from '@/components/ui/NumberField';
 import { Computed } from '@/components/ui/Computed';
-import { bb, br, hdr, vt, parseNum } from '../shared';
+import { hdr, vt, parseNum } from '../shared';
 import type { GFn, UFn } from '../shared';
 
 interface Props {
@@ -30,349 +30,358 @@ export function Table4Section2({ g, u }: Props) {
   const th6: React.CSSProperties = { fontSize: 6, lineHeight: 1.2 };
   const th55: React.CSSProperties = { fontSize: 5.5, lineHeight: 1.2 };
 
-  // Grid cell styles for 配当 section
-  const gc: React.CSSProperties = {
-    borderRight: '0.5px solid #000',
-    borderBottom: '0.5px solid #000',
-    padding: '2px 3px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    textAlign: 'center',
-    overflow: 'hidden',
-  };
-  const ghdr: React.CSSProperties = { ...gc, background: '#f5f5f0', fontWeight: 500 };
-
   return (
-    <div style={{ display: 'flex', borderBottom: '1.5px solid #000' }}>
-      {/* セクション番号＋ラベル */}
-      <div style={{ width: 20, ...br, ...hdr, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2px 1px', fontSize: 7 }}>
-        <span style={{ marginBottom: 2, fontWeight: 700 }}>２</span>
-        <span style={{ ...vt, flex: 1, fontSize: 7 }}>比準要素等の金額の計算</span>
-      </div>
-
-      {/* コンテンツ */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-
+    <table className="gov-table" style={{ fontSize: 6.5, borderBottom: '1.5px solid #000' }}>
+      <colgroup>
+        <col style={{ width: '4%' }} />
+        <col style={{ width: '7%' }} />
+        <col />
+      </colgroup>
+      <tbody>
         {/* ---- 2a: 配当金額 ---- */}
-        <div style={{ display: 'flex', ...bb }}>
-          <div style={{ width: 38, ...br, ...hdr, position: 'relative' }}>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              <span style={{ ...vt, fontSize: 6, padding: '1px' }}>1株(50円)当たりの<br />年平均配当金額</span>
+        <tr>
+          <td rowSpan={3} style={{ ...hdr, padding: '2px 1px', fontSize: 7, textAlign: 'center', verticalAlign: 'middle' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ marginBottom: 2, fontWeight: 700 }}>２</span>
+              <span style={{ ...vt, fontSize: 7 }}>比準要素等の金額の計算</span>
             </div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '10% 15% 15% 15% 15% 30%',
-              gridTemplateRows: 'auto auto repeat(6, minmax(0, 1fr))',
-              borderTop: '0.5px solid #000',
-              fontSize: 6.5,
-            }}>
-              {/* Row 1: Section header */}
-              <div style={{ ...ghdr, gridColumn: '1/6', gridRow: '1/2' }}>
-                直前期末以前２（３）年間の年平均配当金額
-              </div>
-              <div style={{ ...ghdr, gridColumn: '6/7', gridRow: '1/3', ...th6, lineHeight: 1.3 }}>
-                比準要素数１の会社、<br />比準要素数０の会社の<br />判定要素の金額
-              </div>
-              {/* Row 2: Column headers */}
-              <div style={{ ...ghdr, gridColumn: '1/2', gridRow: '2/3', ...th6 }}>事業年度</div>
-              <div style={{ ...ghdr, gridColumn: '2/3', gridRow: '2/3', ...th6 }}>⑥年配当<br />金額</div>
-              <div style={{ ...ghdr, gridColumn: '3/4', gridRow: '2/3', ...th6 }}>⑦左のうち非経常<br />的な配当金額</div>
-              <div style={{ ...ghdr, gridColumn: '4/5', gridRow: '2/3', ...th6 }}>⑧差引経常的な年<br />配当金額(⑥−⑦)</div>
-              <div style={{ ...ghdr, gridColumn: '5/6', gridRow: '2/3', ...th6 }}>年平均<br />配当金額</div>
-
-              {/* イ (rows 3-4) */}
-              <div style={{ ...ghdr, gridColumn: '1/2', gridRow: '3/5' }}>直 前 期</div>
-              <div style={{ ...gc, gridColumn: '2/3', gridRow: '3/5' }}>
-                <NumberField value={g('div_y1')} onChange={(v) => u('div_y1', v)} unit="千円" />
-              </div>
-              <div style={{ ...gc, gridColumn: '3/4', gridRow: '3/5' }}>
-                <NumberField value={g('div_extra_y1')} onChange={(v) => u('div_extra_y1', v)} unit="千円" />
-              </div>
-              <div style={{ ...gc, gridColumn: '4/5', gridRow: '3/5' }}>
-                <span style={{ fontSize: 6, marginRight: 2 }}>イ</span>
-                <Computed value={divRegY1} unit="千円" />
-              </div>
-
-              {/* ⑨ (rows 3-5) */}
-              <div style={{ ...gc, gridColumn: '5/6', gridRow: '3/6', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
-                <div style={{ fontSize: 6 }}>⑨(イ+ロ)÷2</div>
-                <Computed value={avgDiv} unit="千円" />
-              </div>
-
-              {/* Ⓑ1 (rows 3-4) */}
-              <div style={{ ...gc, gridColumn: '6/7', gridRow: '3/5', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ fontSize: 6, marginBottom: 1 }}>⑨÷⑤：Ⓑ1</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
-                  <NumberField value={g('judge_b1')} onChange={(v) => u('judge_b1', v)} className="w-8" />
-                  <span style={{ fontSize: 6 }}>円</span>
-                  <NumberField value={g('judge_b1_sen')} onChange={(v) => u('judge_b1_sen', v)} className="w-6" />
-                  <span style={{ fontSize: 6 }}>銭</span>
-                </div>
-              </div>
-
-              {/* ロ (rows 5-6) */}
-              <div style={{ ...ghdr, gridColumn: '1/2', gridRow: '5/7' }}>直前々期</div>
-              <div style={{ ...gc, gridColumn: '2/3', gridRow: '5/7' }}>
-                <NumberField value={g('div_y2')} onChange={(v) => u('div_y2', v)} unit="千円" />
-              </div>
-              <div style={{ ...gc, gridColumn: '3/4', gridRow: '5/7' }}>
-                <NumberField value={g('div_extra_y2')} onChange={(v) => u('div_extra_y2', v)} unit="千円" />
-              </div>
-              <div style={{ ...gc, gridColumn: '4/5', gridRow: '5/7' }}>
-                <span style={{ fontSize: 6, marginRight: 2 }}>ロ</span>
-                <Computed value={divRegY2} unit="千円" />
-              </div>
-
-              {/* Ⓑ2 (rows 5-6) */}
-              <div style={{ ...gc, gridColumn: '6/7', gridRow: '5/7', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ fontSize: 6, marginBottom: 1 }}>⑩÷⑤：Ⓑ2</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
-                  <NumberField value={g('judge_b2')} onChange={(v) => u('judge_b2', v)} className="w-8" />
-                  <span style={{ fontSize: 6 }}>円</span>
-                  <NumberField value={g('judge_b2_sen')} onChange={(v) => u('judge_b2_sen', v)} className="w-6" />
-                  <span style={{ fontSize: 6 }}>銭</span>
-                </div>
-              </div>
-
-              {/* ⑩ (rows 6-8) */}
-              <div style={{ ...gc, gridColumn: '5/6', gridRow: '6/9', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
-                <div style={{ fontSize: 6 }}>⑩(ロ+ハ)÷2</div>
-                <Computed value={avgDiv10} unit="千円" />
-              </div>
-
-              {/* ハ (rows 7-8) */}
-              <div style={{ ...ghdr, gridColumn: '1/2', gridRow: '7/9', fontSize: 5.5 }}>直前々前期<br />の前期</div>
-              <div style={{ ...gc, gridColumn: '2/3', gridRow: '7/9' }}>
-                <NumberField value={g('div_y3')} onChange={(v) => u('div_y3', v)} unit="千円" />
-              </div>
-              <div style={{ ...gc, gridColumn: '3/4', gridRow: '7/9' }}>
-                <NumberField value={g('div_extra_y3')} onChange={(v) => u('div_extra_y3', v)} unit="千円" />
-              </div>
-              <div style={{ ...gc, gridColumn: '4/5', gridRow: '7/9' }}>
-                <span style={{ fontSize: 6, marginRight: 2 }}>ハ</span>
-                <Computed value={divRegY3} unit="千円" />
-              </div>
-
-              {/* Ⓑ (rows 7-8): label at top + input below */}
-              <div style={{ ...gc, gridColumn: '6/7', gridRow: '7/9', flexDirection: 'column', alignItems: 'flex-start', padding: 0 }}>
-                <div style={{ ...hdr, width: '100%', textAlign: 'center', padding: '1px', fontSize: 6, borderBottom: '0.5px solid #000' }}>
-                  1株(50円)当たりの年配当金額<br />（Ⓑ1の金額）
-                </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px', width: '100%' }}>
-                  <div style={{ fontSize: 6, marginBottom: 1 }}>Ⓑ</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
-                    <NumberField value={g('judge_b')} onChange={(v) => u('judge_b', v)} className="w-8" />
-                    <span style={{ fontSize: 6 }}>円</span>
-                    <NumberField value={g('judge_b_sen')} onChange={(v) => u('judge_b_sen', v)} className="w-6" />
-                    <span style={{ fontSize: 6 }}>銭</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          </td>
+          <td style={{ ...hdr, padding: '2px 1px', textAlign: 'center', verticalAlign: 'middle' }}>
+            <span style={{ ...vt, fontSize: 6 }}>1株(50円)当たりの<br />年平均配当金額</span>
+          </td>
+          <td style={{ padding: 0 }}>
+            <DividendTable g={g} u={u} divRegY1={divRegY1} divRegY2={divRegY2} divRegY3={divRegY3} avgDiv={avgDiv} avgDiv10={avgDiv10} />
+          </td>
+        </tr>
 
         {/* ---- 2b: 利益金額 ---- */}
-        <div style={{ display: 'flex', ...bb }}>
-          <div style={{ width: 38, ...br, ...hdr, position: 'relative' }}>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              <span style={{ ...vt, fontSize: 6, padding: '1px' }}>1株(50円)当たりの<br />年利益金額等</span>
-            </div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <table className="gov-table" style={{ fontSize: 6.5, tableLayout: 'fixed' }}>
-              <colgroup>
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '30%' }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th colSpan={7} style={{ fontSize: 6.5 }}>
-                    直前期末以前２（３）年間の利益金額
-                  </th>
-                  <th rowSpan={2} style={{ ...th6, lineHeight: 1.3 }}>比準要素数１の会社、<br />比準要素数０の会社の<br />判定要素の金額</th>
-                </tr>
-                <tr>
-                  <th style={th55}>事業年度</th>
-                  <th style={th55}>⑪法人税の課<br />税所得金額</th>
-                  <th style={th55}>⑫非経常的な<br />利益金額</th>
-                  <th style={th55}>⑬受取配当等の<br />益金不算入額</th>
-                  <th style={th55}>⑭左の所得税<br />住民税を含む</th>
-                  <th style={th55}>⑮繰越欠損金<br />控除額</th>
-                  <th style={th55}>⑯利益金額<br />(⑪−⑫−⑬<br />+⑭+⑮)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th>直 前 期</th>
-                  <td><NumberField value={g('income_y1')} onChange={(v) => u('income_y1', v)} unit="千円" /></td>
-                  <td><NumberField value={g('extra_profit_y1')} onChange={(v) => u('extra_profit_y1', v)} unit="千円" /></td>
-                  <td><NumberField value={g('div_exclusion_y1')} onChange={(v) => u('div_exclusion_y1', v)} unit="千円" /></td>
-                  <td><NumberField value={g('tax_y1')} onChange={(v) => u('tax_y1', v)} unit="千円" /></td>
-                  <td><NumberField value={g('loss_deduct_y1')} onChange={(v) => u('loss_deduct_y1', v)} unit="千円" /></td>
-                  <td style={{ padding: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 3px' }}>
-                      <span style={{ fontSize: 6 }}>二</span>
-                      <Computed value={profitY1} unit="千円" />
-                    </div>
-                  </td>
-                  <td rowSpan={3} style={{ verticalAlign: 'top', padding: 0 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px', borderBottom: '0.5px solid #000' }}>
-                        <div style={{ fontSize: 5.5, marginBottom: 1 }}>ニ÷⑤又は｛｛ニ＋ホ｝÷２｝÷⑤：Ⓒ1</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
-                          <NumberField value={g('judge_c1')} onChange={(v) => u('judge_c1', v)} className="w-10" />
-                          <span style={{ fontSize: 6 }}>円</span>
-                        </div>
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px', borderBottom: '0.5px solid #000' }}>
-                        <div style={{ fontSize: 5.5, marginBottom: 1 }}>ホ÷⑤又は｛｛ホ＋ヘ｝÷２｝÷⑤：Ⓒ2</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
-                          <NumberField value={g('judge_c2')} onChange={(v) => u('judge_c2', v)} className="w-10" />
-                          <span style={{ fontSize: 6 }}>円</span>
-                        </div>
-                      </div>
-                      <div style={{ ...hdr, textAlign: 'center', padding: '1px', fontSize: 6, borderBottom: '0.5px solid #000' }}>
-                        1株(50円)当たりの年利益金額<br />（ニ÷⑤又は｛｛ニ＋ホ｝÷２｝÷⑤の金額）
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px' }}>
-                        <div style={{ fontSize: 6, marginBottom: 1 }}>Ⓒ</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
-                          <NumberField value={g('judge_c_final')} onChange={(v) => u('judge_c_final', v)} className="w-10" />
-                          <span style={{ fontSize: 6 }}>円</span>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <th>直前々期</th>
-                  <td><NumberField value={g('income_y2')} onChange={(v) => u('income_y2', v)} unit="千円" /></td>
-                  <td><NumberField value={g('extra_profit_y2')} onChange={(v) => u('extra_profit_y2', v)} unit="千円" /></td>
-                  <td><NumberField value={g('div_exclusion_y2')} onChange={(v) => u('div_exclusion_y2', v)} unit="千円" /></td>
-                  <td><NumberField value={g('tax_y2')} onChange={(v) => u('tax_y2', v)} unit="千円" /></td>
-                  <td><NumberField value={g('loss_deduct_y2')} onChange={(v) => u('loss_deduct_y2', v)} unit="千円" /></td>
-                  <td style={{ padding: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 3px' }}>
-                      <span style={{ fontSize: 6 }}>ホ</span>
-                      <Computed value={profitY2} unit="千円" />
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <th style={{ fontSize: 5.5 }}>直前々前期<br />の前期</th>
-                  <td><NumberField value={g('income_y3')} onChange={(v) => u('income_y3', v)} unit="千円" /></td>
-                  <td><NumberField value={g('extra_profit_y3')} onChange={(v) => u('extra_profit_y3', v)} unit="千円" /></td>
-                  <td><NumberField value={g('div_exclusion_y3')} onChange={(v) => u('div_exclusion_y3', v)} unit="千円" /></td>
-                  <td><NumberField value={g('tax_y3')} onChange={(v) => u('tax_y3', v)} unit="千円" /></td>
-                  <td><NumberField value={g('loss_deduct_y3')} onChange={(v) => u('loss_deduct_y3', v)} unit="千円" /></td>
-                  <td style={{ padding: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 3px' }}>
-                      <span style={{ fontSize: 6 }}>ヘ</span>
-                      <Computed value={profitY3} unit="千円" />
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <tr>
+          <td style={{ ...hdr, padding: '2px 1px', textAlign: 'center', verticalAlign: 'middle' }}>
+            <span style={{ ...vt, fontSize: 6 }}>1株(50円)当たりの<br />年利益金額等</span>
+          </td>
+          <td style={{ padding: 0 }}>
+            <ProfitTable g={g} u={u} profitY1={profitY1} profitY2={profitY2} profitY3={profitY3} th55={th55} th6={th6} />
+          </td>
+        </tr>
 
         {/* ---- 2c: 純資産価額 ---- */}
-        <div style={{ display: 'flex' }}>
-          <div style={{ width: 38, ...br, ...hdr, position: 'relative' }}>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              <span style={{ ...vt, fontSize: 6, padding: '1px' }}>1株(50円)当たりの<br />純資産価額の<br />金額の計算</span>
+        <tr>
+          <td style={{ ...hdr, padding: '2px 1px', textAlign: 'center', verticalAlign: 'middle' }}>
+            <span style={{ ...vt, fontSize: 6 }}>1株(50円)当たりの<br />純資産価額の<br />金額の計算</span>
+          </td>
+          <td style={{ padding: 0 }}>
+            <AssetTable g={g} u={u} assetY1={assetY1} assetY2={assetY2} th6={th6} />
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+/* ---- 配当金額テーブル ---- */
+function DividendTable({ g, u, divRegY1, divRegY2, divRegY3, avgDiv, avgDiv10 }: {
+  g: GFn; u: UFn;
+  divRegY1: number | null; divRegY2: number | null; divRegY3: number | null;
+  avgDiv: number | null; avgDiv10: number | null;
+}) {
+  const th6: React.CSSProperties = { fontSize: 6, lineHeight: 1.2 };
+  return (
+    <table className="gov-table" style={{ fontSize: 6.5, tableLayout: 'fixed' }}>
+      <colgroup>
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '15%' }} />
+        <col style={{ width: '15%' }} />
+        <col style={{ width: '15%' }} />
+        <col style={{ width: '15%' }} />
+        <col style={{ width: '30%' }} />
+      </colgroup>
+      <tbody>
+        {/* Header row 1 */}
+        <tr>
+          <td colSpan={5} style={{ ...hdr, textAlign: 'center' }}>直前期末以前２（３）年間の年平均配当金額</td>
+          <td rowSpan={2} style={{ ...hdr, ...th6, lineHeight: 1.3, textAlign: 'center' }}>
+            比準要素数１の会社、比準要素数０の会社の<br />判定要素の金額
+          </td>
+        </tr>
+        {/* Header row 2 */}
+        <tr>
+          <td style={{ ...hdr, ...th6, textAlign: 'center' }}>事業年度</td>
+          <td style={{ ...hdr, ...th6, textAlign: 'center' }}>⑥年配当<br />金額</td>
+          <td style={{ ...hdr, ...th6, textAlign: 'center' }}>⑦左のうち非経常<br />的な配当金額</td>
+          <td style={{ ...hdr, ...th6, textAlign: 'center' }}>⑧差引経常的な年<br />配当金額(⑥−⑦)</td>
+          <td style={{ ...hdr, ...th6, textAlign: 'center' }}>年平均<br />配当金額</td>
+        </tr>
+        {/* 直前期 */}
+        <tr>
+          <td style={{ ...hdr, textAlign: 'center' }}>直 前 期</td>
+          <td><NumberField value={g('div_y1')} onChange={(v) => u('div_y1', v)} unit="千円" /></td>
+          <td><NumberField value={g('div_extra_y1')} onChange={(v) => u('div_extra_y1', v)} unit="千円" /></td>
+          <td>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: 6, marginRight: 2 }}>イ</span>
+              <Computed value={divRegY1} unit="千円" />
             </div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <table className="gov-table" style={{ fontSize: 6.5, tableLayout: 'fixed' }}>
-              <colgroup>
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '30%' }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th colSpan={4} style={{ fontSize: 6.5 }}>
-                    直前期末（直前々期末）の純資産価額
-                  </th>
-                  <th rowSpan={2} style={{ ...th6, lineHeight: 1.3 }}>比準要素数１の会社、<br />比準要素数０の会社の<br />判定要素の金額</th>
-                </tr>
-                <tr>
-                  <th style={th6}>事業年度</th>
-                  <th style={th6}>⑰ 資本金等の額</th>
-                  <th style={th6}>⑱ 利益積立金額</th>
-                  <th style={th6}>⑲ 純資産価額<br />（⑰＋⑱）</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th>直 前 期</th>
-                  <td><NumberField value={g('cap_y1')} onChange={(v) => u('cap_y1', v)} unit="千円" /></td>
-                  <td><NumberField value={g('retained_y1')} onChange={(v) => u('retained_y1', v)} unit="千円" /></td>
-                  <td style={{ padding: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 3px' }}>
-                      <span style={{ fontSize: 6 }}>ト</span>
-                      <Computed value={assetY1} unit="千円" />
-                    </div>
-                  </td>
-                  <td rowSpan={2} style={{ verticalAlign: 'top', padding: 0 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px', borderBottom: '0.5px solid #000' }}>
-                        <div style={{ fontSize: 6, marginBottom: 1 }}>ト÷⑤：Ⓓ1</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
-                          <NumberField value={g('judge_d1')} onChange={(v) => u('judge_d1', v)} className="w-10" />
-                          <span style={{ fontSize: 6 }}>円</span>
-                        </div>
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px', borderBottom: '0.5px solid #000' }}>
-                        <div style={{ fontSize: 6, marginBottom: 1 }}>チ÷⑤：Ⓓ2</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
-                          <NumberField value={g('judge_d2')} onChange={(v) => u('judge_d2', v)} className="w-10" />
-                          <span style={{ fontSize: 6 }}>円</span>
-                        </div>
-                      </div>
-                      <div style={{ ...hdr, textAlign: 'center', padding: '1px', fontSize: 6, borderBottom: '0.5px solid #000' }}>
-                        1株(50円)当たりの純資産価額<br />（ト÷⑤の金額）
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px' }}>
-                        <div style={{ fontSize: 6, marginBottom: 1 }}>Ⓓ</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
-                          <NumberField value={g('judge_d_final')} onChange={(v) => u('judge_d_final', v)} className="w-10" />
-                          <span style={{ fontSize: 6 }}>円</span>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <th>直前々期</th>
-                  <td><NumberField value={g('cap_y2')} onChange={(v) => u('cap_y2', v)} unit="千円" /></td>
-                  <td><NumberField value={g('retained_y2')} onChange={(v) => u('retained_y2', v)} unit="千円" /></td>
-                  <td style={{ padding: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 3px' }}>
-                      <span style={{ fontSize: 6 }}>チ</span>
-                      <Computed value={assetY2} unit="千円" />
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
+          </td>
+          <td rowSpan={3} style={{ padding: 0, fontSize: 6, position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ flex: 1, padding: '2px 3px', borderBottom: '0.5px solid #000', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>⑨(イ+ロ)÷2</div>
+                <div style={{ alignSelf: 'flex-end' }}><Computed value={avgDiv} unit="千円" /></div>
+              </div>
+              <div style={{ flex: 1, padding: '2px 3px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>⑩(ロ+ハ)÷2</div>
+                <div style={{ alignSelf: 'flex-end' }}><Computed value={avgDiv10} unit="千円" /></div>
+              </div>
+            </div>
+          </td>
+          <td style={{ fontSize: 6 }}>
+            <div style={{ marginBottom: 1 }}>⑨÷⑤：Ⓑ1</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'flex-end' }}>
+              <NumberField value={g('judge_b1')} onChange={(v) => u('judge_b1', v)} className="w-8" />
+              <span>円</span>
+              <NumberField value={g('judge_b1_sen')} onChange={(v) => u('judge_b1_sen', v)} className="w-6" />
+              <span>銭</span>
+            </div>
+          </td>
+        </tr>
+        {/* 直前々期 */}
+        <tr>
+          <td style={{ ...hdr, textAlign: 'center' }}>直前々期</td>
+          <td><NumberField value={g('div_y2')} onChange={(v) => u('div_y2', v)} unit="千円" /></td>
+          <td><NumberField value={g('div_extra_y2')} onChange={(v) => u('div_extra_y2', v)} unit="千円" /></td>
+          <td>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: 6, marginRight: 2 }}>ロ</span>
+              <Computed value={divRegY2} unit="千円" />
+            </div>
+          </td>
+          {/* col5: spanned */}
+          <td style={{ fontSize: 6 }}>
+            <div style={{ marginBottom: 1 }}>⑩÷⑤：Ⓑ2</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'flex-end' }}>
+              <NumberField value={g('judge_b2')} onChange={(v) => u('judge_b2', v)} className="w-8" />
+              <span>円</span>
+              <NumberField value={g('judge_b2_sen')} onChange={(v) => u('judge_b2_sen', v)} className="w-6" />
+              <span>銭</span>
+            </div>
+          </td>
+        </tr>
+        {/* 直前々前期の前期 */}
+        <tr>
+          <td style={{ ...hdr, textAlign: 'center', fontSize: 5.5 }}>直前々前期<br />の前期</td>
+          <td><NumberField value={g('div_y3')} onChange={(v) => u('div_y3', v)} unit="千円" /></td>
+          <td><NumberField value={g('div_extra_y3')} onChange={(v) => u('div_extra_y3', v)} unit="千円" /></td>
+          <td>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: 6, marginRight: 2 }}>ハ</span>
+              <Computed value={divRegY3} unit="千円" />
+            </div>
+          </td>
+          {/* col5: spanned */}
+          <td style={{ padding: 0, fontSize: 5 }}>
+            <div style={{ ...hdr, textAlign: 'center', padding: '1px', borderBottom: '0.5px solid #000', whiteSpace: 'nowrap', fontSize: 4.5 }}>
+              1株(50円)当たりの年配当金額（Ⓑ1の金額）
+            </div>
+            <div style={{ padding: '2px 3px' }}>
+              <div style={{ marginBottom: 1 }}>Ⓑ</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'flex-end' }}>
+                <NumberField value={g('judge_b')} onChange={(v) => u('judge_b', v)} className="w-8" />
+                <span>円</span>
+                <NumberField value={g('judge_b_sen')} onChange={(v) => u('judge_b_sen', v)} className="w-6" />
+                <span>銭</span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+/* ---- 利益金額テーブル ---- */
+function ProfitTable({ g, u, profitY1, profitY2, profitY3, th55, th6 }: {
+  g: GFn; u: UFn;
+  profitY1: number | null; profitY2: number | null; profitY3: number | null;
+  th55: React.CSSProperties; th6: React.CSSProperties;
+}) {
+  return (
+    <table className="gov-table" style={{ fontSize: 6.5, tableLayout: 'fixed' }}>
+      <colgroup>
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '30%' }} />
+      </colgroup>
+      <tbody>
+        <tr>
+          <td colSpan={7} style={{ ...hdr, textAlign: 'center' }}>直前期末以前２（３）年間の利益金額</td>
+          <td rowSpan={2} style={{ ...hdr, ...th6, lineHeight: 1.3, textAlign: 'center' }}>比準要素数１の会社、比準要素数０の会社の<br />判定要素の金額</td>
+        </tr>
+        <tr>
+          <td style={{ ...hdr, ...th55, textAlign: 'center' }}>事業年度</td>
+          <td style={{ ...hdr, ...th55, textAlign: 'center' }}>⑪法人税の課<br />税所得金額</td>
+          <td style={{ ...hdr, ...th55, textAlign: 'center' }}>⑫非経常的な<br />利益金額</td>
+          <td style={{ ...hdr, ...th55, textAlign: 'center' }}>⑬受取配当等の<br />益金不算入額</td>
+          <td style={{ ...hdr, ...th55, textAlign: 'center' }}>⑭左の所得税<br />住民税を含む</td>
+          <td style={{ ...hdr, ...th55, textAlign: 'center' }}>⑮繰越欠損金<br />控除額</td>
+          <td style={{ ...hdr, ...th55, textAlign: 'center' }}>⑯利益金額<br />(⑪−⑫−⑬<br />+⑭+⑮)</td>
+        </tr>
+        <tr>
+          <td style={{ ...hdr, textAlign: 'center' }}>直 前 期</td>
+          <td><NumberField value={g('income_y1')} onChange={(v) => u('income_y1', v)} unit="千円" /></td>
+          <td><NumberField value={g('extra_profit_y1')} onChange={(v) => u('extra_profit_y1', v)} unit="千円" /></td>
+          <td><NumberField value={g('div_exclusion_y1')} onChange={(v) => u('div_exclusion_y1', v)} unit="千円" /></td>
+          <td><NumberField value={g('tax_y1')} onChange={(v) => u('tax_y1', v)} unit="千円" /></td>
+          <td><NumberField value={g('loss_deduct_y1')} onChange={(v) => u('loss_deduct_y1', v)} unit="千円" /></td>
+          <td>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 6 }}>二</span>
+              <Computed value={profitY1} unit="千円" />
+            </div>
+          </td>
+          <td rowSpan={3} style={{ verticalAlign: 'top', padding: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px', borderBottom: '0.5px solid #000' }}>
+                <div style={{ fontSize: 5.5, marginBottom: 1 }}>ニ÷⑤又は｛｛ニ＋ホ｝÷２｝÷⑤：Ⓒ1</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
+                  <NumberField value={g('judge_c1')} onChange={(v) => u('judge_c1', v)} className="w-10" />
+                  <span style={{ fontSize: 6 }}>円</span>
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px', borderBottom: '0.5px solid #000' }}>
+                <div style={{ fontSize: 5.5, marginBottom: 1 }}>ホ÷⑤又は｛｛ホ＋ヘ｝÷２｝÷⑤：Ⓒ2</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
+                  <NumberField value={g('judge_c2')} onChange={(v) => u('judge_c2', v)} className="w-10" />
+                  <span style={{ fontSize: 6 }}>円</span>
+                </div>
+              </div>
+              <div style={{ ...hdr, textAlign: 'center', padding: '1px', fontSize: 6, borderBottom: '0.5px solid #000' }}>
+                1株(50円)当たりの年利益金額<br />（ニ÷⑤又は｛｛ニ＋ホ｝÷２｝÷⑤の金額）
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px' }}>
+                <div style={{ fontSize: 6, marginBottom: 1 }}>Ⓒ</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
+                  <NumberField value={g('judge_c_final')} onChange={(v) => u('judge_c_final', v)} className="w-10" />
+                  <span style={{ fontSize: 6 }}>円</span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style={{ ...hdr, textAlign: 'center' }}>直前々期</td>
+          <td><NumberField value={g('income_y2')} onChange={(v) => u('income_y2', v)} unit="千円" /></td>
+          <td><NumberField value={g('extra_profit_y2')} onChange={(v) => u('extra_profit_y2', v)} unit="千円" /></td>
+          <td><NumberField value={g('div_exclusion_y2')} onChange={(v) => u('div_exclusion_y2', v)} unit="千円" /></td>
+          <td><NumberField value={g('tax_y2')} onChange={(v) => u('tax_y2', v)} unit="千円" /></td>
+          <td><NumberField value={g('loss_deduct_y2')} onChange={(v) => u('loss_deduct_y2', v)} unit="千円" /></td>
+          <td>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 6 }}>ホ</span>
+              <Computed value={profitY2} unit="千円" />
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style={{ ...hdr, textAlign: 'center', fontSize: 5.5 }}>直前々前期<br />の前期</td>
+          <td><NumberField value={g('income_y3')} onChange={(v) => u('income_y3', v)} unit="千円" /></td>
+          <td><NumberField value={g('extra_profit_y3')} onChange={(v) => u('extra_profit_y3', v)} unit="千円" /></td>
+          <td><NumberField value={g('div_exclusion_y3')} onChange={(v) => u('div_exclusion_y3', v)} unit="千円" /></td>
+          <td><NumberField value={g('tax_y3')} onChange={(v) => u('tax_y3', v)} unit="千円" /></td>
+          <td><NumberField value={g('loss_deduct_y3')} onChange={(v) => u('loss_deduct_y3', v)} unit="千円" /></td>
+          <td>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 6 }}>ヘ</span>
+              <Computed value={profitY3} unit="千円" />
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+/* ---- 純資産価額テーブル ---- */
+function AssetTable({ g, u, assetY1, assetY2, th6 }: {
+  g: GFn; u: UFn;
+  assetY1: number | null; assetY2: number | null;
+  th6: React.CSSProperties;
+}) {
+  return (
+    <table className="gov-table" style={{ fontSize: 6.5, tableLayout: 'fixed' }}>
+      <colgroup>
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '20%' }} />
+        <col style={{ width: '20%' }} />
+        <col style={{ width: '20%' }} />
+        <col style={{ width: '30%' }} />
+      </colgroup>
+      <tbody>
+        <tr>
+          <td colSpan={4} style={{ ...hdr, textAlign: 'center' }}>直前期末（直前々期末）の純資産価額</td>
+          <td rowSpan={2} style={{ ...hdr, ...th6, lineHeight: 1.3, textAlign: 'center' }}>比準要素数１の会社、比準要素数０の会社の<br />判定要素の金額</td>
+        </tr>
+        <tr>
+          <td style={{ ...hdr, ...th6, textAlign: 'center' }}>事業年度</td>
+          <td style={{ ...hdr, ...th6, textAlign: 'center' }}>⑰ 資本金等の額</td>
+          <td style={{ ...hdr, ...th6, textAlign: 'center' }}>⑱ 利益積立金額</td>
+          <td style={{ ...hdr, ...th6, textAlign: 'center' }}>⑲ 純資産価額<br />（⑰＋⑱）</td>
+        </tr>
+        <tr>
+          <td style={{ ...hdr, textAlign: 'center' }}>直 前 期</td>
+          <td><NumberField value={g('cap_y1')} onChange={(v) => u('cap_y1', v)} unit="千円" /></td>
+          <td><NumberField value={g('retained_y1')} onChange={(v) => u('retained_y1', v)} unit="千円" /></td>
+          <td>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 6 }}>ト</span>
+              <Computed value={assetY1} unit="千円" />
+            </div>
+          </td>
+          <td rowSpan={2} style={{ verticalAlign: 'top', padding: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px', borderBottom: '0.5px solid #000' }}>
+                <div style={{ fontSize: 6, marginBottom: 1 }}>ト÷⑤：Ⓓ1</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
+                  <NumberField value={g('judge_d1')} onChange={(v) => u('judge_d1', v)} className="w-10" />
+                  <span style={{ fontSize: 6 }}>円</span>
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px', borderBottom: '0.5px solid #000' }}>
+                <div style={{ fontSize: 6, marginBottom: 1 }}>チ÷⑤：Ⓓ2</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
+                  <NumberField value={g('judge_d2')} onChange={(v) => u('judge_d2', v)} className="w-10" />
+                  <span style={{ fontSize: 6 }}>円</span>
+                </div>
+              </div>
+              <div style={{ ...hdr, textAlign: 'center', padding: '1px', fontSize: 6, borderBottom: '0.5px solid #000' }}>
+                1株(50円)当たりの純資産価額<br />（ト÷⑤の金額）
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '2px 3px' }}>
+                <div style={{ fontSize: 6, marginBottom: 1 }}>Ⓓ</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-end' }}>
+                  <NumberField value={g('judge_d_final')} onChange={(v) => u('judge_d_final', v)} className="w-10" />
+                  <span style={{ fontSize: 6 }}>円</span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style={{ ...hdr, textAlign: 'center' }}>直前々期</td>
+          <td><NumberField value={g('cap_y2')} onChange={(v) => u('cap_y2', v)} unit="千円" /></td>
+          <td><NumberField value={g('retained_y2')} onChange={(v) => u('retained_y2', v)} unit="千円" /></td>
+          <td>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 6 }}>チ</span>
+              <Computed value={assetY2} unit="千円" />
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   );
 }

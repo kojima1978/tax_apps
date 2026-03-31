@@ -18,7 +18,7 @@ export function Section1Header({ g, u }: Props) {
             <span style={{ ...vt, fontSize: 7 }}>原則的評価方式による価額</span>
           </div>
         </td>
-        <td rowSpan={2} style={{ ...hdr, padding: '3px 4px', textAlign: 'center', lineHeight: 1.4, fontSize: 7.5 }}>
+        <td colSpan={2} rowSpan={2} style={{ ...hdr, padding: '3px 4px', textAlign: 'center', lineHeight: 1.4, fontSize: 7.5 }}>
           1株当たりの<br />価額の計算の<br />基となる金額
         </td>
         <td style={{ ...hdr, padding: '2px 4px', lineHeight: 1.3, fontSize: 7.5 }}>
@@ -34,19 +34,19 @@ export function Section1Header({ g, u }: Props) {
       {/* Header行2: 入力 */}
       <tr>
         <td style={{ padding: '2px 4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ marginRight: 4 }}>①</span>
             <NumberField value={g('ruiji_price')} onChange={(v) => u('ruiji_price', v)} unit="円" className="w-16" />
           </div>
         </td>
         <td style={{ padding: '2px 4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ marginRight: 4 }}>②</span>
             <NumberField value={g('net_asset_price')} onChange={(v) => u('net_asset_price', v)} unit="円" className="w-16" />
           </div>
         </td>
         <td style={{ padding: '2px 4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ marginRight: 4 }}>③</span>
             <NumberField value={g('net_asset_80')} onChange={(v) => u('net_asset_80', v)} unit="円" className="w-16" />
           </div>
@@ -60,7 +60,7 @@ export function Section1Header({ g, u }: Props) {
           </div>
         </td>
         <td className="gov-header" style={{ letterSpacing: '0.5em', fontWeight: 500 }}>区　分</td>
-        <td className="gov-header" style={{ letterSpacing: '0.3em', fontWeight: 500 }}>１株当たりの価額の算定方法</td>
+        <td colSpan={2} className="gov-header" style={{ letterSpacing: '0.3em', fontWeight: 500 }}>１株当たりの価額の算定方法</td>
         <td className="gov-header" style={{ fontSize: 7.5, fontWeight: 500 }}>１株当たりの価額</td>
       </tr>
     </>
