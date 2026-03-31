@@ -33,9 +33,9 @@
 - **直接入力**: フォームから取引データを直接登録（5行一括入力対応）
 - **エクスポート**:
   - CSVエクスポート（全データ / 絞り込み結果 / Excel対応BOM付きUTF-8）
-  - 分類別Excelエクスポート（分類ごとにシート分け、和暦変換済み）
+  - 分類別Excelエクスポート（分類ごとにシート分け、多額取引シート、付箋付きシート、和暦変換済み、カンマ区切り書式、A4縦印刷設定）
   - JSONバックアップ（案件データの完全バックアップ・リストア）
-- **付箋機能**: 確認が必要な取引にマークを付けて管理（多額取引・取引一覧・未分類タブ・付箋タブ対応）
+- **付箋機能**: 確認が必要な取引にマークを付けて管理（取引一覧・未分類タブ・付箋タブ対応）
 - **お客様手紙**: 通帳のお預り依頼書の印刷テンプレート
 
 ## 技術スタック
@@ -114,7 +114,6 @@ bank-analyzer-django/
 │   │   ├── customer_letter.html # お客様手紙（印刷用）
 │   │   └── partials/          # 再利用可能テンプレート部品
 │   │       ├── _tab_all.html          # 取引一覧タブ
-│   │       ├── _tab_large.html        # 多額取引タブ
 │   │       ├── _tab_transfers.html    # 資金移動タブ
 │   │       ├── _tab_unclassified.html # 未分類取引タブ
 │   │       ├── _tab_ai.html           # AI分類タブ
@@ -122,7 +121,8 @@ bank-analyzer-django/
 │   │       ├── _tab_flagged.html      # 付箋タブ
 │   │       ├── _pattern_manager.html  # パターン管理UI
 │   │       ├── _tx_form_fields.html   # 取引フォームフィールド共通
-│   │       ├── _category_filter.html  # 分類フィルター
+│   │       ├── _empty_state.html      # 空状態表示
+│   │       ├── _keyword_search.html   # キーワード検索バー
 │   │       ├── _category_select.html  # 分類セレクト
 │   │       ├── _edit_button.html      # 編集ボタン
 │   │       └── _flag_button.html      # 付箋ボタン
@@ -132,9 +132,13 @@ bank-analyzer-django/
 │   ├── static/analyzer/       # 静的ファイル
 │   │   ├── css/style.css      # カスタムCSS（ITCMスタイルヘッダー、emerald greenテーマ）
 │   │   └── js/
-│   │       ├── utils.js               # 共通ユーティリティ（postJson, disableButton等）
-│   │       ├── analysis_dashboard.js  # ダッシュボード操作
-│   │       ├── pattern_manager.js     # パターン管理操作
+│   │       ├── utils.js               # 共通ユーティリティ（postJson, postAction, SaveQueue等）
+│   │       ├── analysis_core.js       # ダッシュボード共通（StatusIndicator, ProgressBar, インライン分類保存）
+│   │       ├── analysis_transactions.js # 取引編集・追加・削除・一括選択
+│   │       ├── analysis_filters.js    # フィルター・クイックフィルター・金額カンマ入力
+│   │       ├── analysis_tabs.js       # 未分類タブ・AI分類タブ・資金移動タブ
+│   │       ├── analysis_patterns.js   # パターン追加モーダル・プロンプト
+│   │       ├── pattern_manager.js     # パターン管理操作（設定画面）
 │   │       ├── classify_preview.js    # 分類プレビュー操作
 │   │       ├── direct_input.js        # 直接入力フォーム操作
 │   │       ├── confirm_modal.js       # 確認ダイアログ
@@ -190,12 +194,12 @@ bank-analyzer-django/
 | パッケージ | 役割 |
 |-----------|------|
 | `handlers/` | ビューからPOST処理を分離。機能別に分割されたハンドラー群 |
-| `handlers/base.py` | 共通ヘルパー（`parse_amount`は`services/utils.py`に委譲、`build_transaction_data`、`serialize_transaction`等） |
+| `handlers/base.py` | 共通ヘルパー（`redirect_on_error`デコレータ、`require_params`デコレータ、`parse_amount`は`services/utils.py`に委譲、`build_transaction_data`、`serialize_transaction`等） |
 | `services/` | ビジネスロジック層。TransactionService（取引操作）、AnalysisService（分析） |
 | `services/utils.py` | 金額パース（`parse_amount`正規実装）、日付変換、ID変換等の共通処理 |
 | `lib/config/` | 設定管理。パターン（`_modify_patterns`共通ヘルパー）、閾値、ファジーマッチング設定 |
 | `lib/llm_classifier.py` | RapidFuzzによるファジーマッチング分類（`_merge_keywords`で案件固有/グローバルキーワード統合） |
-| `lib/text_utils.py` | NFKC正規化、キーワード検索フィルタリング |
+| `lib/text_utils.py` | NFKC正規化、キーワード検索フィルタリング（`filter_by_keyword`、`df_filter_by_keyword`） |
 
 ## Docker での起動
 
@@ -255,9 +259,8 @@ docker compose --profile production up -d bank-analyzer-prod
 
 | タブ | 機能 |
 |------|------|
+| 取引一覧・検索 | 全取引の検索・絞り込み（銀行→口座連動フィルター、金額クイックフィルター、ボタン式適用+Enterキー対応）、分類編集、複数選択での一括変更、取引追加（新規口座の手入力対応）、CSVエクスポート、分類別Excelエクスポート |
 | 資金移動フロー | 口座間の資金移動をペア（出金元・移動先）で表示、振込手数料の差額表示、分類編集、フィルター |
-| 多額出金・入金 | 閾値以上の取引一覧、分類編集、フィルター |
-| 取引一覧・検索 | 全取引の検索・絞り込み（銀行→口座連動フィルター、ボタン式適用+Enterキー対応）、分類編集、複数選択での一括変更、CSVエクスポート、分類別Excelエクスポート |
 | 未分類取引 | グループ表示（摘要でグルーピング、サジェスト付き）/ フラット表示（個別編集・付箋・一括変更・パターン追加、分類変更後に行自動消去） |
 | AI分類 | ファジーマッチングによる分類提案、信頼度スコア表示、個別/一括適用 |
 | データクレンジング | 重複データの検出・削除、ID範囲指定削除、フィールド値の一括置換 |
@@ -312,7 +315,7 @@ docker compose --profile production up -d bank-analyzer-prod
 
 | メソッド | エンドポイント | 説明 |
 |---------|---------------|------|
-| GET | `/case/<id>/export/<type>/` | CSVエクスポート（all / large / transfers / flagged） |
+| GET | `/case/<id>/export/<type>/` | CSVエクスポート（all / transfers / flagged） |
 | GET | `/case/<id>/export-filtered/` | フィルタ済みCSVエクスポート |
 | GET | `/case/<id>/export-xlsx-by-category/` | 分類別Excelエクスポート（.xlsx） |
 | GET | `/case/<id>/export-json/` | JSONバックアップエクスポート |
@@ -324,6 +327,7 @@ docker compose --profile production up -d bank-analyzer-prod
 | POST | `/case/<id>/api/toggle-flag/` | 付箋のON/OFF切替 |
 | POST | `/case/<id>/api/create-transaction/` | 取引の追加 |
 | POST | `/case/<id>/api/delete-transaction/` | 取引の削除 |
+| GET | `/case/<id>/api/transaction/` | 取引データ取得（DB検証用） |
 | GET | `/case/<id>/api/field-values/` | フィールドのユニーク値取得 |
 
 ## CSVフォーマット

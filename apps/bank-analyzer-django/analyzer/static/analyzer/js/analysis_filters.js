@@ -626,8 +626,55 @@ const FilterPanel = {
     }
 };
 
+// ===== 金額入力カンマ表示 =====
+
+const AmountCommaInput = {
+    init: function() {
+        // イベント委任で全 .amount-comma-input に対応（動的追加含む）
+        document.addEventListener('input', function(e) {
+            if (!e.target.matches('.amount-comma-input')) return;
+            var input = e.target;
+            var pos = input.selectionStart;
+            var oldLen = input.value.length;
+            var raw = input.value.replace(/[^\d]/g, '');
+            input.value = AmountCommaInput.format(raw);
+            var newLen = input.value.length;
+            input.setSelectionRange(pos + newLen - oldLen, pos + newLen - oldLen);
+        });
+
+        // 初期値をカンマ表示に変換
+        document.querySelectorAll('.amount-comma-input').forEach(function(input) {
+            if (input.value) {
+                input.value = AmountCommaInput.format(input.value);
+            }
+        });
+
+        // フィルターフォーム送信前にカンマを除去
+        var form = document.getElementById('filterForm');
+        if (form) {
+            form.addEventListener('submit', function() {
+                form.querySelectorAll('.amount-comma-input').forEach(function(input) {
+                    input.value = input.value.replace(/,/g, '');
+                });
+            });
+        }
+    },
+
+    format: function(value) {
+        var num = String(value).replace(/[^\d]/g, '');
+        if (!num) return '';
+        return Number(num).toLocaleString();
+    },
+
+    /** カンマを除去して素の数値文字列を返す */
+    raw: function(value) {
+        return String(value).replace(/,/g, '');
+    }
+};
+
 // ===== 全モジュール初期化 =====
 
+AmountCommaInput.init();
 StatusIndicator.init();
 KeyboardShortcuts.init();
 ContextMenu.init();

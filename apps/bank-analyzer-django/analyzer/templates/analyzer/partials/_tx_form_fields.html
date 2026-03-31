@@ -48,11 +48,11 @@
 <div class="row g-2 mb-3">
     <div class="col-4">
         <label class="form-label">払戻（出金）</label>
-        <input type="number" {% if show_name %}name="amount_out"{% endif %} id="{{ id_prefix }}TxAmountOut" class="form-control" {% if not show_name %}value="0"{% endif %}>
+        <input type="text" {% if show_name %}name="amount_out"{% endif %} id="{{ id_prefix }}TxAmountOut" class="form-control amount-comma-input" inputmode="numeric" {% if not show_name %}value="0"{% endif %}>
     </div>
     <div class="col-4">
         <label class="form-label">お預り（入金）</label>
-        <input type="number" {% if show_name %}name="amount_in"{% endif %} id="{{ id_prefix }}TxAmountIn" class="form-control" {% if not show_name %}value="0"{% endif %}>
+        <input type="text" {% if show_name %}name="amount_in"{% endif %} id="{{ id_prefix }}TxAmountIn" class="form-control amount-comma-input" inputmode="numeric" {% if not show_name %}value="0"{% endif %}>
     </div>
     <div class="col-4">
         <label class="form-label">残高</label>

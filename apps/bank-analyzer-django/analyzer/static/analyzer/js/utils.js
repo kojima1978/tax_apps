@@ -187,6 +187,25 @@ function postJson(url, formData, { onSuccess, onError, onFinally } = {}) {
     });
 }
 
+/**
+ * POST an action to the current page with standard error handling.
+ * Convenience wrapper around createFormData + postJson.
+ * @param {string} action - Server action name (e.g. 'update_category')
+ * @param {Object} params - Additional key-value pairs
+ * @param {Object} callbacks - { onSuccess, onError, onFinally }
+ */
+function postAction(action, params, callbacks) {
+    var data = { action: action };
+    if (params) {
+        for (var key in params) {
+            if (Object.prototype.hasOwnProperty.call(params, key)) {
+                data[key] = params[key];
+            }
+        }
+    }
+    postJson(window.location.href, createFormData(data), callbacks || {});
+}
+
 // ===== DB検証ヘルパー =====
 
 /**
@@ -384,14 +403,12 @@ function promptAndRegisterPattern(opts) {
         placeholder: 'キーワードを入力',
         confirmText: confirmText,
         onConfirm: function(keyword) {
-            var formData = createFormData({
-                action: action,
+            postAction(action, {
                 category: category,
                 keyword: keyword,
                 scope: scope,
                 description: description,
-            });
-            postJson(window.location.href, formData, {
+            }, {
                 onSuccess: function(data) {
                     var scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
                     var count = data.count || 1;

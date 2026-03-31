@@ -8,7 +8,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
 from ..services import TransactionService
-from .base import is_ajax, json_error, count_message, build_redirect_url, build_transaction_data, handle_ajax_error, serialize_transaction
+from .base import is_ajax, json_error, count_message, build_redirect_url, build_transaction_data, handle_ajax_error, redirect_on_error, serialize_transaction
 
 # フィールドラベル定義（CSV出力・一括置換で共用）
 FIELD_LABELS = {
@@ -60,16 +60,13 @@ def _extract_filters(request: HttpRequest) -> dict:
     }
 
 
+@redirect_on_error('口座削除エラー')
 def handle_delete_account(request: HttpRequest, case, pk: int) -> HttpResponse:
     """口座の全取引を削除"""
     account_number = request.POST.get('account_number')
     if account_number:
-        try:
-            count = TransactionService.delete_account_transactions(case, account_number)
-            messages.success(request, f"口座番号: {account_number} のデータ（{count}件）を削除しました。")
-        except Exception as e:
-            return handle_ajax_error(request, pk, e, "口座削除エラー")
-
+        count = TransactionService.delete_account_transactions(case, account_number)
+        messages.success(request, f"口座番号: {account_number} のデータ（{count}件）を削除しました。")
     return redirect('analysis-dashboard', pk=pk)
 
 
@@ -140,32 +137,27 @@ def handle_bulk_update_categories_transfer(request: HttpRequest, case, pk: int) 
     return _handle_bulk_update(request, case, pk, 'transfers', _BULK_UPDATE_PREFIXES['transfers'])
 
 
+@redirect_on_error('取引更新エラー')
 def handle_update_transaction(request: HttpRequest, case, pk: int) -> HttpResponse:
     """取引データを更新"""
     source_tab = request.POST.get('source_tab', '')
     tx_id = request.POST.get('tx_id')
 
     if tx_id:
-        try:
-            data = build_transaction_data(request)
-            tx_id_int = int(tx_id)
-            success = TransactionService.update_transaction(case, tx_id_int, data)
+        data = build_transaction_data(request)
+        tx_id_int = int(tx_id)
+        success = TransactionService.update_transaction(case, tx_id_int, data)
 
-            if is_ajax(request):
-                if not success:
-                    return json_error('取引が見つかりません')
-                # 更新後の取引データを返す（行のDOM更新用）
-                tx = case.transactions.with_account_info().filter(pk=tx_id_int).first()
-                return JsonResponse({'success': True, 'transaction': serialize_transaction(tx)})
+        if is_ajax(request):
+            if not success:
+                return json_error('取引が見つかりません')
+            tx = case.transactions.with_account_info().filter(pk=tx_id_int).first()
+            return JsonResponse({'success': True, 'transaction': serialize_transaction(tx)})
 
-            if success:
-                messages.success(request, "取引データを更新しました。")
-        except Exception as e:
-            return handle_ajax_error(request, pk, e, "取引更新エラー")
+        if success:
+            messages.success(request, "取引データを更新しました。")
 
-    # フィルター状態を復元（allタブの場合）
     filters = _extract_filters(request) if source_tab == 'all' else None
-
     return redirect(build_redirect_url('analysis-dashboard', pk, source_tab, filters))
 
 
@@ -197,26 +189,25 @@ def handle_delete_by_range(request: HttpRequest, case, pk: int) -> HttpResponse:
     return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
 
+@redirect_on_error('フラグ更新エラー')
 def handle_toggle_flag(request: HttpRequest, case, pk: int) -> HttpResponse:
     """取引の付箋をトグル"""
     tx_id = request.POST.get('tx_id')
     source_tab = request.POST.get('source_tab', '')
 
     if tx_id:
-        try:
-            new_state = TransactionService.toggle_flag(case, int(tx_id))
-            if new_state is None:
-                messages.warning(request, "取引が見つかりません。")
-            elif new_state:
-                messages.success(request, "付箋を追加しました。")
-            else:
-                messages.info(request, "付箋を外しました。")
-        except Exception as e:
-            return handle_ajax_error(request, pk, e, "フラグ更新エラー")
+        new_state = TransactionService.toggle_flag(case, int(tx_id))
+        if new_state is None:
+            messages.warning(request, "取引が見つかりません。")
+        elif new_state:
+            messages.success(request, "付箋を追加しました。")
+        else:
+            messages.info(request, "付箋を外しました。")
 
     return redirect(build_redirect_url('analysis-dashboard', pk, source_tab))
 
 
+@redirect_on_error('メモ更新エラー')
 def handle_update_memo(request: HttpRequest, case, pk: int) -> HttpResponse:
     """取引のメモを更新"""
     tx_id = request.POST.get('tx_id')
@@ -224,12 +215,9 @@ def handle_update_memo(request: HttpRequest, case, pk: int) -> HttpResponse:
     source_tab = request.POST.get('source_tab', '')
 
     if tx_id:
-        try:
-            success = TransactionService.update_memo(case, int(tx_id), memo)
-            if success:
-                messages.success(request, "メモを更新しました。")
-        except Exception as e:
-            return handle_ajax_error(request, pk, e, "メモ更新エラー")
+        success = TransactionService.update_memo(case, int(tx_id), memo)
+        if success:
+            messages.success(request, "メモを更新しました。")
 
     return redirect(build_redirect_url('analysis-dashboard', pk, source_tab))
 
@@ -247,6 +235,7 @@ def _validate_replace_params(field_name, old_value, new_value) -> str | None:
     return None
 
 
+@redirect_on_error('一括置換エラー')
 def handle_bulk_replace_field(request: HttpRequest, case, pk: int) -> HttpResponse:
     """フィールド値の一括置換を処理"""
     field_name = request.POST.get('field_name')
@@ -258,15 +247,11 @@ def handle_bulk_replace_field(request: HttpRequest, case, pk: int) -> HttpRespon
         messages.warning(request, error)
         return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
-    try:
-        count = TransactionService.bulk_replace_field_value(case, field_name, old_value, new_value)
-        field_label = FIELD_LABELS.get(field_name, field_name)
-        count_message(
-            request, count,
-            f"{field_label}「{old_value}」を「{new_value}」に置換しました（{count}件）。",
-            "該当するデータがありませんでした。",
-        )
-    except Exception as e:
-        return handle_ajax_error(request, pk, e, "一括置換エラー")
-
+    count = TransactionService.bulk_replace_field_value(case, field_name, old_value, new_value)
+    field_label = FIELD_LABELS.get(field_name, field_name)
+    count_message(
+        request, count,
+        f"{field_label}「{old_value}」を「{new_value}」に置換しました（{count}件）。",
+        "該当するデータがありませんでした。",
+    )
     return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))

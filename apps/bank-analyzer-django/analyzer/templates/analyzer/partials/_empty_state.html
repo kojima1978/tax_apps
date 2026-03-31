@@ -1,0 +1,6 @@
+{# 空状態の表示 — icon, text, hint を変数で受け取る #}
+<div class="empty-state">
+    <div class="empty-state-icon"><i class="bi bi-{{ icon|default:'search' }}"></i></div>
+    <div class="empty-state-text">{{ text }}</div>
+    {% if hint %}<div class="empty-state-hint">{{ hint }}</div>{% endif %}
+</div>

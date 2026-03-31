@@ -112,7 +112,15 @@ const editTxSubmitBtn = document.getElementById('editTxSubmitBtn');
 if (editTxForm) {
     editTxForm.addEventListener('submit', function(e) {
         e.preventDefault();
+        // 送信前にカンマ除去
+        editTxForm.querySelectorAll('.amount-comma-input').forEach(function(input) {
+            input.value = AmountCommaInput.raw(input.value);
+        });
         const formData = new FormData(editTxForm);
+        // 送信後にカンマ表示に戻す
+        editTxForm.querySelectorAll('.amount-comma-input').forEach(function(input) {
+            input.value = AmountCommaInput.format(input.value);
+        });
         setButtonLoading(editTxSubmitBtn, '保存中...');
 
         // 保存前の値を記録（差分表示用）
@@ -405,6 +413,73 @@ const ADD_TX_FIELDS = [
 
 const ACCOUNT_FIELDS = ['addTxBankName', 'addTxBranchName', 'addTxAccountType', 'addTxAccountNumber', 'addTxDate'];
 
+// ===== コンボボックス（select + 新規入力切替） =====
+
+document.querySelectorAll('.combo-select').forEach(function(select) {
+    var inputId = select.dataset.inputId;
+    if (!inputId) return;
+    var input = document.getElementById(inputId);
+    if (!input) return;
+
+    select.addEventListener('change', function() {
+        if (this.value === '__new__') {
+            this.style.display = 'none';
+            input.style.display = '';
+            input.value = '';
+            input.focus();
+        } else {
+            input.style.display = 'none';
+            input.value = '';
+        }
+    });
+
+    // テキスト入力欄を右クリックまたはEscでselectに戻す
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            input.style.display = 'none';
+            input.value = '';
+            select.style.display = '';
+            select.value = '';
+        }
+    });
+});
+
+/**
+ * コンボボックスの実際の値を取得する
+ * selectが__new__ならテキスト入力欄の値、それ以外はselectの値を返す
+ */
+function getComboValue(selectId) {
+    var select = document.getElementById(selectId);
+    if (!select) return '';
+    if (select.value === '__new__') {
+        var inputId = select.dataset.inputId;
+        var input = inputId ? document.getElementById(inputId) : null;
+        return input ? input.value : '';
+    }
+    return select.value;
+}
+
+/**
+ * コンボボックスをリセットする（selectを表示、テキスト入力を非表示に戻す）
+ */
+function resetCombo(selectId, value) {
+    var select = document.getElementById(selectId);
+    if (!select) return;
+    var inputId = select.dataset.inputId;
+    var input = inputId ? document.getElementById(inputId) : null;
+
+    // 値が既存選択肢にあればselectで選択、なければテキスト入力に表示
+    if (value && !Array.from(select.options).some(function(o) { return o.value === value && o.value !== '__new__'; })) {
+        select.value = '__new__';
+        select.style.display = 'none';
+        if (input) { input.style.display = ''; input.value = value; }
+    } else {
+        select.value = value || '';
+        select.style.display = '';
+        if (input) { input.style.display = 'none'; input.value = ''; }
+    }
+}
+
 // 和暦短縮変換 (JS版)
 function toWarekiShort(dateStr) {
     if (!dateStr) return '-';
@@ -427,8 +502,9 @@ function insertTxRow(tx) {
     const tbody = document.querySelector('#allTxForm table tbody');
     if (!tbody) return;
     const catOptions = getCategoryOptions();
-    const amtOut = tx.amount_out > 0 ? Number(tx.amount_out).toLocaleString() : '';
-    const amtIn = tx.amount_in > 0 ? Number(tx.amount_in).toLocaleString() : '';
+    const bothZero = tx.amount_out == 0 && tx.amount_in == 0;
+    const amtOut = tx.amount_out > 0 ? Number(tx.amount_out).toLocaleString() : (bothZero ? '0' : '');
+    const amtIn = tx.amount_in > 0 ? Number(tx.amount_in).toLocaleString() : (bothZero ? '0' : '');
     const tr = document.createElement('tr');
     tr.setAttribute('data-tx-id', tx.id);
     tr.style.opacity = '0';
@@ -469,10 +545,20 @@ function insertTxRow(tx) {
     requestAnimationFrame(() => { tr.style.transition = 'opacity 0.3s'; tr.style.opacity = '1'; });
 }
 
+// フィールド値をセットする共通処理（コンボボックス対応）
+function setAddTxFieldValue(id, value) {
+    if (COMBO_FIELD_IDS.includes(id)) {
+        resetCombo(id, value);
+    } else {
+        document.getElementById(id).value = value;
+    }
+}
+
 // 追加ボタンクリック時 - モーダルを開く
 function handleInsertBtnClick() {
+    var btn = this;
     ADD_TX_FIELDS.forEach(([id, , attr, resetDefault]) => {
-        document.getElementById(id).value = (attr ? this.getAttribute(attr) : null) || resetDefault;
+        setAddTxFieldValue(id, (attr ? btn.getAttribute(attr) : null) || resetDefault);
     });
     const modal = new bootstrap.Modal(addTxModal);
     modal.show();
@@ -486,18 +572,28 @@ const addTxTopBtn = document.getElementById('addTxTopBtn');
 if (addTxTopBtn) {
     addTxTopBtn.addEventListener('click', function() {
         ADD_TX_FIELDS.forEach(([id, , , resetDefault]) => {
-            document.getElementById(id).value = resetDefault;
+            setAddTxFieldValue(id, resetDefault);
         });
         const modal = new bootstrap.Modal(addTxModal);
         modal.show();
     });
 }
 
+// コンボボックスを持つフィールドのID一覧
+const COMBO_FIELD_IDS = ['addTxBankName', 'addTxBranchName', 'addTxAccountNumber'];
+
+// カンマ除去が必要なフィールド
+const AMOUNT_FIELD_KEYS = ['amount_out', 'amount_in'];
+
 // 取引追加の共通送信処理
 function submitAddTx(triggerBtn, keepOpen) {
     const data = {};
     ADD_TX_FIELDS.forEach(([id, key, , , readDefault]) => {
-        data[key] = document.getElementById(id).value || readDefault || '';
+        var val = COMBO_FIELD_IDS.includes(id)
+            ? (getComboValue(id) || readDefault || '')
+            : (document.getElementById(id).value || readDefault || '');
+        if (AMOUNT_FIELD_KEYS.includes(key)) val = AmountCommaInput.raw(val);
+        data[key] = val;
     });
     const formData = createFormData(data);
     setButtonLoading(triggerBtn, '追加中...');

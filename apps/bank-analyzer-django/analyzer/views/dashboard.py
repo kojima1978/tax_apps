@@ -3,7 +3,6 @@ import json
 import logging
 
 from django.contrib import messages
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncMonth
 from django.http import HttpRequest, HttpResponse
@@ -78,42 +77,19 @@ def _handle_analysis_post(request: HttpRequest, case: Case, pk: int) -> HttpResp
     return redirect('analysis-dashboard', pk=pk)
 
 
-def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
-    """分析・表示ダッシュボード"""
-    case = get_object_or_404(Case, pk=pk)
+def _filter_and_paginate(queryset, keyword, page, per_page):
+    """キーワードフィルタ適用 + ページネーション"""
+    if keyword:
+        filtered = filter_by_keyword(queryset, keyword)
+        return len(filtered), paginate(filtered, page, per_page)
+    return queryset.count(), paginate(queryset, page, per_page)
 
-    if request.method == 'POST':
-        return _handle_analysis_post(request, case, pk)
 
-    filter_state = build_filter_state(request, include_tab_filters=True)
-    analysis_data = AnalysisService.get_analysis_data(case, filter_state)
-
-    if analysis_data.get('no_data'):
-        return render(request, 'analyzer/analysis.html', {'case': case, 'no_data': True})
-
-    keyword = filter_state.get('keyword', '')
-    per_page = get_per_page(request)
-
-    def _filter_and_paginate(queryset, page_param):
-        """キーワードフィルタ適用 + ページネーション"""
-        if keyword:
-            filtered = filter_by_keyword(queryset, keyword)
-            return len(filtered), paginate(filtered, request.GET.get(page_param, 1), per_page)
-        return queryset.count(), paginate(queryset, request.GET.get(page_param, 1), per_page)
-
-    all_txs_count, all_txs_page = _filter_and_paginate(analysis_data['all_txs'], 'page')
-
-    sort_param = filter_state.get('sort', '')
-    sort_order = get_sort_order_by(sort_param, default='date_desc')
-    unclassified_txs = case.transactions.with_account_info().filter(category=UNCATEGORIZED).order_by(*sort_order)
-    _, unclassified_page = _filter_and_paginate(unclassified_txs, 'unclassified_page')
-
-    flagged_txs = sort_dict_list(
-        filter_by_keyword(analysis_data['flagged_txs'], keyword), sort_param
-    )
-
-    # チャート用データ: カテゴリー別集計
+def _build_chart_data(case):
+    """チャート用データ（カテゴリー別集計 + 月次推移）を構築"""
     all_txs_qs = case.transactions.all()
+
+    # カテゴリー別集計
     category_stats = (
         all_txs_qs
         .exclude(category=UNCATEGORIZED)
@@ -139,7 +115,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         chart_categories['counts'].append(unclassified_total)
         chart_categories['totals'].append(0)
 
-    # チャート用データ: 月次入出金推移
+    # 月次入出金推移
     monthly_stats = (
         all_txs_qs
         .filter(date__isnull=False)
@@ -154,11 +130,89 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'in': [s['total_in'] or 0 for s in monthly_stats],
     }
 
+    return {
+        'chart_categories_json': json.dumps(chart_categories, ensure_ascii=False),
+        'chart_monthly_json': json.dumps(chart_monthly, ensure_ascii=False),
+        'total_tx_count': total_tx_count,
+        'classified_count': classified_count,
+        'classified_pct': classified_pct,
+    }
+
+
+def _build_transfer_context(pairs):
+    """資金移動タブのサマリー統計 + 金額差を計算"""
+    if not pairs:
+        return {}
+
+    transfer_total_amount = sum(p['source'].get('amount', 0) for p in pairs)
+    transfer_unclassified = sum(
+        1 for p in pairs
+        if p['source'].get('category', '') == UNCATEGORIZED
+        or (p.get('destination') and p['destination'].get('category', '') == UNCATEGORIZED)
+    )
+    for p in pairs:
+        if p.get('destination'):
+            src_amt = p['source'].get('amount', 0)
+            dest_amt = p['destination'].get('amount', 0)
+            p['amount_diff'] = abs(src_amt - dest_amt)
+
+    return {
+        'transfer_summary': {
+            'total_amount': transfer_total_amount,
+            'pair_count': len(pairs),
+            'unclassified_count': transfer_unclassified,
+        },
+    }
+
+
+def _build_unclassified_context(request, case, sort_order, keyword):
+    """未分類タブのグルーピング + サジェストデータを構築"""
+    unclassified_qs = case.transactions.with_account_info().filter(category=UNCATEGORIZED).order_by(*sort_order)
+    group_data = AnalysisService.build_unclassified_groups(unclassified_qs, keyword)
+    group_page = paginate(group_data['groups'], request.GET.get('group_page', 1), 50)
+
+    return {
+        'unclassified_groups': group_page,
+        'unclassified_group_count': len(group_data['groups']),
+        'unclassified_tx_total': group_data['tx_total'],
+        'max_group_count': group_data['max_group_count'],
+        'group_suggestions_json': AnalysisService.build_group_suggestions(group_page, case),
+    }
+
+
+def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
+    """分析・表示ダッシュボード"""
+    case = get_object_or_404(Case, pk=pk)
+
+    if request.method == 'POST':
+        return _handle_analysis_post(request, case, pk)
+
+    filter_state = build_filter_state(request, include_tab_filters=True)
+    analysis_data = AnalysisService.get_analysis_data(case, filter_state)
+
+    if analysis_data.get('no_data'):
+        return render(request, 'analyzer/analysis.html', {'case': case, 'no_data': True})
+
+    keyword = filter_state.get('keyword', '')
+    per_page = get_per_page(request)
+    sort_param = filter_state.get('sort', '')
+    sort_order = get_sort_order_by(sort_param, default='date_desc')
+
+    all_txs_count, all_txs_page = _filter_and_paginate(
+        analysis_data['all_txs'], keyword, request.GET.get('page', 1), per_page,
+    )
+    unclassified_txs = case.transactions.with_account_info().filter(category=UNCATEGORIZED).order_by(*sort_order)
+    _, unclassified_page = _filter_and_paginate(
+        unclassified_txs, keyword, request.GET.get('unclassified_page', 1), per_page,
+    )
+    flagged_txs = sort_dict_list(
+        filter_by_keyword(analysis_data['flagged_txs'], keyword), sort_param
+    )
+
     context = {
         'case': case,
         'account_summary': analysis_data['account_summary'],
         'transfer_pairs': analysis_data['transfer_pairs'],
-        'large_txs': analysis_data['large_txs'],
         'all_txs': all_txs_page,
         'all_txs_count': all_txs_count,
         'unclassified_txs': unclassified_page,
@@ -181,51 +235,12 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         ),
         'global_patterns': sort_patterns_dict(config.get_classification_patterns()),
         'case_patterns': sort_patterns_dict(case.custom_patterns or {}),
-        'chart_categories_json': json.dumps(chart_categories, ensure_ascii=False),
-        'chart_monthly_json': json.dumps(chart_monthly, ensure_ascii=False),
-        'total_tx_count': total_tx_count,
-        'classified_count': classified_count,
-        'classified_pct': classified_pct,
+        **_build_chart_data(case),
+        **_build_transfer_context(analysis_data['transfer_pairs']),
     }
 
-    # 資金移動タブ: サマリー統計 + 金額差計算
-    pairs = analysis_data['transfer_pairs']
-    if pairs:
-        transfer_total_amount = sum(p['source'].get('amount', 0) for p in pairs)
-        transfer_unclassified = sum(
-            1 for p in pairs
-            if p['source'].get('category', '') == UNCATEGORIZED
-            or (p.get('destination') and p['destination'].get('category', '') == UNCATEGORIZED)
-        )
-        context['transfer_summary'] = {
-            'total_amount': transfer_total_amount,
-            'pair_count': len(pairs),
-            'unclassified_count': transfer_unclassified,
-        }
-        for p in pairs:
-            if p.get('destination'):
-                src_amt = p['source'].get('amount', 0)
-                dest_amt = p['destination'].get('amount', 0)
-                p['amount_diff'] = abs(src_amt - dest_amt)
-
-    # 未分類タブ: 摘要グルーピング + サジェスト
     if request.GET.get('tab') == 'unclassified':
-        unclassified_qs = case.transactions.with_account_info().filter(category=UNCATEGORIZED).order_by(*sort_order)
-        group_data = AnalysisService.build_unclassified_groups(unclassified_qs, keyword)
-        groups = group_data['groups']
-
-        group_page_num = request.GET.get('group_page', 1)
-        group_paginator = Paginator(groups, 50)
-        try:
-            group_page = group_paginator.page(group_page_num)
-        except (PageNotAnInteger, EmptyPage):
-            group_page = group_paginator.page(1)
-
-        context['unclassified_groups'] = group_page
-        context['unclassified_group_count'] = len(groups)
-        context['unclassified_tx_total'] = group_data['tx_total']
-        context['max_group_count'] = group_data['max_group_count']
-        context['group_suggestions_json'] = AnalysisService.build_group_suggestions(group_page, case)
+        context.update(_build_unclassified_context(request, case, sort_order, keyword))
 
     return render(request, 'analyzer/analysis.html', context)
 

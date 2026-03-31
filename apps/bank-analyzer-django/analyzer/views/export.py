@@ -10,12 +10,14 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 import pandas as pd
 from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.properties import PageSetupProperties
 
 from ..models import Case
 from ..handlers import FIELD_LABELS, parse_amount
 from ..lib import config
 from ..lib.constants import sort_categories
-from ..lib.text_utils import matches_all_keywords, split_keywords
+from ..lib.text_utils import df_filter_by_keyword
 from ..services import AnalysisService
 from ..templatetags.japanese_date import wareki
 from ._helpers import (
@@ -28,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 # エクスポートタイプ設定: (フィルタフィールド, ファイル名サフィックス)
 _EXPORT_TYPE_CONFIG = {
-    'large':     ('is_large',    '多額取引'),
     'transfers': ('is_transfer', '資金移動'),
     'flagged':   ('is_flagged',  '付箋付き取引'),
     'all':       (None,          '全取引'),
@@ -138,8 +139,7 @@ def export_csv_filtered(request: HttpRequest, pk: int) -> HttpResponse:
 
     keyword = filter_state.get('keyword', '')
     if keyword:
-        kws = split_keywords(keyword)
-        df = df[df['description'].fillna('').apply(lambda d: matches_all_keywords(d, kws))].copy()
+        df = df_filter_by_keyword(df, keyword)
         if df.empty:
             messages.warning(request, "エクスポートするデータがありません。")
             return redirect('analysis-dashboard', pk=pk)
@@ -170,6 +170,25 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
     grouped = df.groupby('category')
     sorted_cats = sort_categories(grouped.groups.keys())
 
+    # 金額カラムのインデックスを特定（1-based, ヘッダー行の次から）
+    amount_fields = {'amount_out', 'amount_in'}
+
+    def _format_sheet(ws, columns):
+        """金額カラムにカンマ区切り書式を適用 + A4縦・列幅1ページの印刷設定"""
+        # カンマ区切り書式
+        amount_col_indices = [i + 1 for i, c in enumerate(columns) if c in amount_fields]
+        for col_idx in amount_col_indices:
+            col_letter = get_column_letter(col_idx)
+            for cell in ws[col_letter]:
+                if cell.row > 1:
+                    cell.number_format = '#,##0'
+        # 印刷設定: A4縦、列幅を1ページに収める
+        ws.page_setup.paperSize = 9  # A4
+        ws.page_setup.orientation = 'portrait'
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+        ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+
     wb = Workbook()
     wb.remove(wb.active)
 
@@ -179,6 +198,19 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
         ws.append(headers)
         for _, row in cat_df[cols_to_export].iterrows():
             ws.append([row[c] for c in cols_to_export])
+        _format_sheet(ws, cols_to_export)
+
+    # 多額取引シートを追加
+    threshold = config.load_user_settings().get('LARGE_AMOUNT_THRESHOLD', 500000)
+    large_df = df[(df['amount_out'] >= threshold) | (df['amount_in'] >= threshold)]
+    if not large_df.empty:
+        threshold_label = f"{threshold // 10000}万円以上"
+        ws = wb.create_sheet(title=threshold_label[:31])
+        ws.sheet_properties.tabColor = 'DC3545'
+        ws.append(headers)
+        for _, row in large_df[cols_to_export].iterrows():
+            ws.append([row[c] for c in cols_to_export])
+        _format_sheet(ws, cols_to_export)
 
     # 付箋付き取引シートを末尾に追加
     flagged_df = df[df['is_flagged'] == True]  # noqa: E712
@@ -188,6 +220,7 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
         ws.append(flagged_headers)
         for _, row in flagged_df[flagged_cols].iterrows():
             ws.append([row[c] for c in flagged_cols])
+        _format_sheet(ws, flagged_cols)
 
     buf = BytesIO()
     wb.save(buf)

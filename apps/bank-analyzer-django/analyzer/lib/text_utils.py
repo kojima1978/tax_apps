@@ -99,3 +99,28 @@ def filter_by_keyword(items, keyword: str):
         item for item in items
         if matches_all_keywords(getattr(item, 'description', ''), keywords)
     ]
+
+
+def df_filter_by_keyword(df, keyword: str, column: str = 'description'):
+    """DataFrameをキーワードでフィルタリングする
+
+    filter_by_keyword のDataFrame特化版。
+    descriptionカラム（またはcolumn指定）に対してAND検索を行う。
+
+    Args:
+        df: pandas DataFrame
+        keyword: 検索キーワード（空文字の場合はそのまま返す）
+        column: フィルタ対象カラム名
+
+    Returns:
+        フィルタ適用後のDataFrame
+    """
+    if not keyword:
+        return df
+
+    keywords = split_keywords(keyword)
+    if not keywords:
+        return df
+
+    mask = df[column].fillna('').apply(lambda d: matches_all_keywords(d, keywords))
+    return df[mask].copy()
