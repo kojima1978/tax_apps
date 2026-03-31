@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import type { HeirComposition } from '../types';
-import { formatCurrency } from '../utils';
+
 import { getHeirInfo, getEffectiveHeirShares } from '../utils/heirUtils';
 import { RANK_LABELS } from '../constants';
 

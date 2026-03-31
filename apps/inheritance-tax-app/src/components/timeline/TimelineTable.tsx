@@ -1,5 +1,5 @@
 import React, { useState, memo, useMemo } from 'react';
-import type { TimelineSimulationResult, TimelineRow } from '../../types';
+import type { TimelineSimulationResult } from '../../types';
 import { formatCurrency } from '../../utils';
 import { ComparisonDetailPanel } from '../comparison/ComparisonDetailPanel';
 import { CARD, TH_WIDE, TD_WIDE } from '../tableStyles';
@@ -166,7 +166,7 @@ export const TimelineTable: React.FC<TimelineTableProps> = memo(({ result, spous
 
       {rows.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-          {summaries.map((s, idx) => (
+          {summaries.map((s) => (
             <span key={s.years} className="text-green-700">
               ★ {s.years}年後の最適: {s.optimalRatio}%（{formatCurrency(s.optimalTotalTax)}）
             </span>
