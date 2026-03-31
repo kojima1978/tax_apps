@@ -13,7 +13,7 @@ interface Props {
 export function Section2({ g, u }: Props) {
   return (
     <div style={{ display: 'flex', borderBottom: '1.5px solid #000' }}>
-      <div style={{ width: 26, ...br, ...hdr, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4px 2px', fontSize: 8 }}>
+      <div style={{ width: '5%', ...br, ...hdr, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4px 2px', fontSize: 8 }}>
         <span style={{ marginBottom: 4, fontWeight: 700 }}>２</span>
         <span style={{ ...vt, flex: 1 }}>配当還元方式による価額</span>
       </div>

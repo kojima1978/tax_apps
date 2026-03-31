@@ -10,13 +10,14 @@ interface Props {
 
 export function Section1({ g, u }: Props) {
   return (
-    <table className="gov-table" style={{ fontSize: 8, borderBottom: '1.5px solid #000' }}>
+    <table className="gov-table" style={{ fontSize: 8, borderBottom: '1.5px solid #000', tableLayout: 'fixed' }}>
       <colgroup>
-        <col style={{ width: 26 }} />
-        <col style={{ width: 48 }} />
-        <col style={{ width: 65 }} />
+        <col style={{ width: '5%' }} />
+        <col style={{ width: '10%' }} />
+        <col style={{ width: '13%' }} />
         <col />
-        <col style={{ width: 100 }} />
+        <col />
+        <col />
       </colgroup>
       <tbody>
         <Section1Header g={g} u={u} />
