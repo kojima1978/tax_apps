@@ -26,76 +26,43 @@ export function Table8({ getField, updateField }: TableProps) {
           </div>
           <table className="gov-table" style={{ fontSize: 7 }}>
             <tbody>
-              <tr>
-                <td className="gov-header text-left" style={{ width: '33%' }}>
-                  <CircledNumber n={1} /> 相続税評価額による純資産価額（第５表⑤）
-                </td>
-                <td style={{ width: '17%' }}>
-                  <NumberField value={g('s1_net_eval')} onChange={(v) => u('s1_net_eval', v)} unit="千円" />
-                </td>
-                <td className="gov-header text-left" style={{ width: '33%' }}>
-                  <CircledNumber n={2} /> 株式等の価額の合計額（第５表イ）
-                </td>
-                <td style={{ width: '17%' }}>
-                  <NumberField value={g('s1_stock_eval')} onChange={(v) => u('s1_stock_eval', v)} unit="千円" />
-                </td>
-              </tr>
-              <tr>
-                <td className="gov-header text-left">
-                  <CircledNumber n={3} /> 差引（<CircledNumber n={1} />−<CircledNumber n={2} />）
-                </td>
-                <td>
-                  <NumberField value={g('s1_diff_1')} onChange={(v) => u('s1_diff_1', v)} unit="千円" />
-                </td>
-                <td className="gov-header text-left">
-                  <CircledNumber n={4} /> 帳簿価額による純資産価額（第５表⑥）
-                </td>
-                <td>
-                  <NumberField value={g('s1_net_book')} onChange={(v) => u('s1_net_book', v)} unit="千円" />
-                </td>
-              </tr>
-              <tr>
-                <td className="gov-header text-left">
-                  <CircledNumber n={5} /> 株式等の帳簿価額の合計額
-                </td>
-                <td>
-                  <NumberField value={g('s1_stock_book2')} onChange={(v) => u('s1_stock_book2', v)} unit="千円" />
-                </td>
-                <td className="gov-header text-left">
-                  <CircledNumber n={6} /> 差引（<CircledNumber n={4} />−<CircledNumber n={5} />）
-                </td>
-                <td>
-                  <NumberField value={g('s1_diff_2')} onChange={(v) => u('s1_diff_2', v)} unit="千円" />
-                </td>
-              </tr>
-              <tr>
-                <td className="gov-header text-left">
-                  <CircledNumber n={7} /> 評価差額（<CircledNumber n={3} />−<CircledNumber n={6} />）
-                </td>
-                <td>
-                  <NumberField value={g('s1_eval_diff')} onChange={(v) => u('s1_eval_diff', v)} unit="千円" />
-                </td>
-                <td className="gov-header text-left">
-                  <CircledNumber n={8} /> 法人税額等相当額（<CircledNumber n={7} />×37％）
-                </td>
-                <td>
-                  <NumberField value={g('s1_corp_tax')} onChange={(v) => u('s1_corp_tax', v)} unit="千円" />
-                </td>
-              </tr>
-              <tr>
-                <td className="gov-header text-left">
-                  <CircledNumber n={9} /> 修正純資産価額（<CircledNumber n={3} />−<CircledNumber n={8} />）
-                </td>
-                <td>
-                  <NumberField value={g('s1_modified_net')} onChange={(v) => u('s1_modified_net', v)} unit="千円" />
-                </td>
-                <td className="gov-header text-left">
-                  <CircledNumber n={10} /> 発行済株式数（第５表⑩）
-                </td>
-                <td>
-                  <NumberField value={g('s1_shares')} onChange={(v) => u('s1_shares', v)} unit="株" />
-                </td>
-              </tr>
+              {([
+                [
+                  { n: 1, label: '相続税評価額による純資産価額（第５表⑤）', f: 's1_net_eval', unit: '千円' },
+                  { n: 2, label: '株式等の価額の合計額（第５表イ）', f: 's1_stock_eval', unit: '千円' },
+                ],
+                [
+                  { n: 3, label: <>差引（<CircledNumber n={1} />−<CircledNumber n={2} />）</>, f: 's1_diff_1', unit: '千円' },
+                  { n: 4, label: '帳簿価額による純資産価額（第５表⑥）', f: 's1_net_book', unit: '千円' },
+                ],
+                [
+                  { n: 5, label: '株式等の帳簿価額の合計額', f: 's1_stock_book2', unit: '千円' },
+                  { n: 6, label: <>差引（<CircledNumber n={4} />−<CircledNumber n={5} />）</>, f: 's1_diff_2', unit: '千円' },
+                ],
+                [
+                  { n: 7, label: <>評価差額（<CircledNumber n={3} />−<CircledNumber n={6} />）</>, f: 's1_eval_diff', unit: '千円' },
+                  { n: 8, label: <>法人税額等相当額（<CircledNumber n={7} />×37％）</>, f: 's1_corp_tax', unit: '千円' },
+                ],
+                [
+                  { n: 9, label: <>修正純資産価額（<CircledNumber n={3} />−<CircledNumber n={8} />）</>, f: 's1_modified_net', unit: '千円' },
+                  { n: 10, label: '発行済株式数（第５表⑩）', f: 's1_shares', unit: '株' },
+                ],
+              ] as const).map(([left, right]) => (
+                <tr key={left.f}>
+                  <td className="gov-header text-left" style={{ width: '33%' }}>
+                    <CircledNumber n={left.n} /> {left.label}
+                  </td>
+                  <td style={{ width: '17%' }}>
+                    <NumberField value={g(left.f)} onChange={(v) => u(left.f, v)} unit={left.unit} />
+                  </td>
+                  <td className="gov-header text-left" style={{ width: '33%' }}>
+                    <CircledNumber n={right.n} /> {right.label}
+                  </td>
+                  <td style={{ width: '17%' }}>
+                    <NumberField value={g(right.f)} onChange={(v) => u(right.f, v)} unit={right.unit} />
+                  </td>
+                </tr>
+              ))}
               <tr>
                 <td className="gov-header text-left" colSpan={3}>
                   <CircledNumber n={11} /> 修正後の1株当たりの純資産価額（相続税評価額）（<CircledNumber n={9} />÷<CircledNumber n={10} />）

@@ -1,6 +1,5 @@
 import { CircledNumber } from '@/components/ui/CircledNumber';
-
-const hl = { background: '#fff8e1', fontWeight: 700 } as const;
+import { hl } from '../shared';
 
 const MATRIX_ROWS = [
   { key: 'over50' as const, label: '50%超', values: ['50%超', '30%以上', '15%以上'], category: '同族株主', categoryStyle: {} as React.CSSProperties },

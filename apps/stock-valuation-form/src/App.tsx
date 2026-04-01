@@ -121,22 +121,23 @@ export default function App() {
 
             {/* サイドバー下部: ツール */}
             <div style={{ marginTop: 'auto', padding: '6px 10px', borderTop: '1px solid #ddd', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <button onClick={exportJson} className="sidebar-tool-btn" title="Ctrl+S">
-                保存 (JSON)
-              </button>
-              <button onClick={() => importRef.current?.click()} className="sidebar-tool-btn">
-                読込 (JSON)
-              </button>
+              {([
+                { label: '保存 (JSON)', onClick: exportJson, title: 'Ctrl+S' },
+                { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
+                { label: '全表印刷', onClick: handlePrintAll },
+                { label: '現在の表を印刷', onClick: () => window.print() },
+                { label: '全データリセット', onClick: resetAll, danger: true },
+              ] as const).map((tool) => (
+                <button
+                  key={tool.label}
+                  onClick={tool.onClick}
+                  className={`sidebar-tool-btn${'danger' in tool && tool.danger ? ' sidebar-tool-btn-danger' : ''}`}
+                  title={'title' in tool ? tool.title : undefined}
+                >
+                  {tool.label}
+                </button>
+              ))}
               <input ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
-              <button onClick={handlePrintAll} className="sidebar-tool-btn">
-                全表印刷
-              </button>
-              <button onClick={() => window.print()} className="sidebar-tool-btn">
-                現在の表を印刷
-              </button>
-              <button onClick={resetAll} className="sidebar-tool-btn sidebar-tool-btn-danger">
-                全データリセット
-              </button>
             </div>
           </aside>
         )}

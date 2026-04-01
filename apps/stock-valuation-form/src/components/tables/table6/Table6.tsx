@@ -161,22 +161,23 @@ export function Table6({ getField, updateField }: TableProps) {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>直前期</td>
-                <td><NumberField value={g('div_y1')} onChange={(v) => u('div_y1', v)} unit="千円" /></td>
-                <td><NumberField value={g('div_extra_y1')} onChange={(v) => u('div_extra_y1', v)} unit="千円" /></td>
-                <td>イ <NumberField value={g('div_reg_y1')} onChange={(v) => u('div_reg_y1', v)} unit="千円" className="w-14" /></td>
-                <td rowSpan={2}>
-                  <CircledNumber n={19} />(イ＋ロ)÷２
-                  <NumberField value={g('avg_div')} onChange={(v) => u('avg_div', v)} unit="千円" />
-                </td>
-              </tr>
-              <tr>
-                <td>直前々期</td>
-                <td><NumberField value={g('div_y2')} onChange={(v) => u('div_y2', v)} unit="千円" /></td>
-                <td><NumberField value={g('div_extra_y2')} onChange={(v) => u('div_extra_y2', v)} unit="千円" /></td>
-                <td>ロ <NumberField value={g('div_reg_y2')} onChange={(v) => u('div_reg_y2', v)} unit="千円" className="w-14" /></td>
-              </tr>
+              {([
+                { label: '直前期', suffix: 'y1', kana: 'イ' },
+                { label: '直前々期', suffix: 'y2', kana: 'ロ' },
+              ] as const).map((yr, i) => (
+                <tr key={yr.suffix}>
+                  <td>{yr.label}</td>
+                  <td><NumberField value={g(`div_${yr.suffix}`)} onChange={(v) => u(`div_${yr.suffix}`, v)} unit="千円" /></td>
+                  <td><NumberField value={g(`div_extra_${yr.suffix}`)} onChange={(v) => u(`div_extra_${yr.suffix}`, v)} unit="千円" /></td>
+                  <td>{yr.kana} <NumberField value={g(`div_reg_${yr.suffix}`)} onChange={(v) => u(`div_reg_${yr.suffix}`, v)} unit="千円" className="w-14" /></td>
+                  {i === 0 && (
+                    <td rowSpan={2}>
+                      <CircledNumber n={19} />(イ＋ロ)÷２
+                      <NumberField value={g('avg_div')} onChange={(v) => u('avg_div', v)} unit="千円" />
+                    </td>
+                  )}
+                </tr>
+              ))}
             </tbody>
           </table>
 
@@ -208,18 +209,16 @@ export function Table6({ getField, updateField }: TableProps) {
               </div>
               <table className="gov-table" style={{ fontSize: 7 }}>
                 <tbody>
-                  <tr>
-                    <td className="gov-header text-left">1株当たりの予想配当金額</td>
-                    <td><NumberField value={g('expected_div')} onChange={(v) => u('expected_div', v)} unit="円銭" /></td>
-                  </tr>
-                  <tr>
-                    <td className="gov-header text-left">源泉徴収されるべき所得税相当額</td>
-                    <td><NumberField value={g('withholding')} onChange={(v) => u('withholding', v)} unit="円銭" /></td>
-                  </tr>
-                  <tr>
-                    <td className="gov-header text-left">㉒ 配当期待権の価額</td>
-                    <td><NumberField value={g('div_right_price')} onChange={(v) => u('div_right_price', v)} unit="円" /></td>
-                  </tr>
+                  {([
+                    { label: '1株当たりの予想配当金額', f: 'expected_div', unit: '円銭' },
+                    { label: '源泉徴収されるべき所得税相当額', f: 'withholding', unit: '円銭' },
+                    { label: '㉒ 配当期待権の価額', f: 'div_right_price', unit: '円' },
+                  ] as const).map((row) => (
+                    <tr key={row.f}>
+                      <td className="gov-header text-left">{row.label}</td>
+                      <td><NumberField value={g(row.f)} onChange={(v) => u(row.f, v)} unit={row.unit} /></td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -231,27 +230,19 @@ export function Table6({ getField, updateField }: TableProps) {
               </div>
               <table className="gov-table" style={{ fontSize: 7 }}>
                 <tbody>
-                  <tr>
-                    <td className="gov-header text-left" style={{ fontSize: 6.5 }}>株式の割当てを受ける権利</td>
-                    <td style={{ width: '15%' }}>
-                      <div>㉓</div>
-                      <NumberField value={g('right_allotment')} onChange={(v) => u('right_allotment', v)} unit="円" />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="gov-header text-left" style={{ fontSize: 6.5 }}>株主となる権利</td>
-                    <td>
-                      <div>㉔</div>
-                      <NumberField value={g('right_shareholder')} onChange={(v) => u('right_shareholder', v)} unit="円" />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="gov-header text-left" style={{ fontSize: 6.5 }}>株式無償交付期待権</td>
-                    <td>
-                      <div>㉕</div>
-                      <NumberField value={g('right_free')} onChange={(v) => u('right_free', v)} unit="円" />
-                    </td>
-                  </tr>
+                  {([
+                    { label: '株式の割当てを受ける権利', num: '㉓', f: 'right_allotment' },
+                    { label: '株主となる権利', num: '㉔', f: 'right_shareholder' },
+                    { label: '株式無償交付期待権', num: '㉕', f: 'right_free' },
+                  ] as const).map((row) => (
+                    <tr key={row.f}>
+                      <td className="gov-header text-left" style={{ fontSize: 6.5 }}>{row.label}</td>
+                      <td style={{ width: '15%' }}>
+                        <div>{row.num}</div>
+                        <NumberField value={g(row.f)} onChange={(v) => u(row.f, v)} unit="円" />
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

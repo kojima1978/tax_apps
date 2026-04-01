@@ -1,8 +1,7 @@
 import { FormField } from '@/components/ui/FormField';
 import { ResetButton } from '@/components/ui/ResetButton';
+import { hl } from '../shared';
 import type { GFn, UFn } from '../shared';
-
-const hl = { background: '#fff8e1', fontWeight: 700 } as const;
 const choiceCell: React.CSSProperties = { fontSize: 7.5, padding: '1px 3px' };
 
 const MINORITY_ITEMS = [
