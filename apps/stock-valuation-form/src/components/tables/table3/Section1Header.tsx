@@ -33,24 +33,18 @@ export function Section1Header({ g, u }: Props) {
       </tr>
       {/* Header行2: 入力 */}
       <tr>
-        <td style={{ padding: '2px 4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ marginRight: 4 }}>①</span>
-            <NumberField value={g('ruiji_price')} onChange={(v) => u('ruiji_price', v)} unit="円" className="w-16" />
-          </div>
-        </td>
-        <td style={{ padding: '2px 4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ marginRight: 4 }}>②</span>
-            <NumberField value={g('net_asset_price')} onChange={(v) => u('net_asset_price', v)} unit="円" className="w-16" />
-          </div>
-        </td>
-        <td style={{ padding: '2px 4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ marginRight: 4 }}>③</span>
-            <NumberField value={g('net_asset_80')} onChange={(v) => u('net_asset_80', v)} unit="円" className="w-16" />
-          </div>
-        </td>
+        {([
+          { num: '①', key: 'ruiji_price' },
+          { num: '②', key: 'net_asset_price' },
+          { num: '③', key: 'net_asset_80' },
+        ] as const).map((cell) => (
+          <td key={cell.key} style={{ padding: '2px 4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ marginRight: 4 }}>{cell.num}</span>
+              <NumberField value={g(cell.key)} onChange={(v) => u(cell.key, v)} unit="円" className="w-16" />
+            </div>
+          </td>
+        ))}
       </tr>
       {/* 区分ヘッダー行 */}
       <tr>

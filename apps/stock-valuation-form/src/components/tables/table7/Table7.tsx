@@ -63,46 +63,31 @@ export function Table7({ getField, updateField }: TableProps) {
           {/* B・C要素の修正 */}
           <table className="gov-table" style={{ fontSize: 7 }}>
             <tbody>
-              <tr>
-                <td className="gov-header text-left" style={{ width: '22%' }}>
-                  <CircledNumber n={3} /> Ｂ（第４表）
-                </td>
-                <td style={{ width: '12%' }}>
-                  <NumberField value={g('s1_b_orig')} onChange={(v) => u('s1_b_orig', v)} unit="円銭" />
-                </td>
-                <td className="gov-header text-left" style={{ width: '22%' }}>
-                  <CircledNumber n={4} /> ｂ（<CircledNumber n={3} />×ハ）
-                </td>
-                <td style={{ width: '12%' }}>
-                  <NumberField value={g('s1_b_adj')} onChange={(v) => u('s1_b_adj', v)} unit="円銭" />
-                </td>
-                <td className="gov-header text-left" style={{ width: '20%' }}>
-                  <CircledNumber n={5} /> Ｂ−ｂ
-                </td>
-                <td style={{ width: '12%' }}>
-                  <NumberField value={g('s1_b_diff')} onChange={(v) => u('s1_b_diff', v)} unit="円銭" />
-                </td>
-              </tr>
-              <tr>
-                <td className="gov-header text-left">
-                  <CircledNumber n={6} /> Ｃ（第４表）
-                </td>
-                <td>
-                  <NumberField value={g('s1_c_orig')} onChange={(v) => u('s1_c_orig', v)} unit="円" />
-                </td>
-                <td className="gov-header text-left">
-                  <CircledNumber n={7} /> ｃ（<CircledNumber n={6} />×ハ）
-                </td>
-                <td>
-                  <NumberField value={g('s1_c_adj')} onChange={(v) => u('s1_c_adj', v)} unit="円" />
-                </td>
-                <td className="gov-header text-left">
-                  <CircledNumber n={8} /> Ｃ−ｃ
-                </td>
-                <td>
-                  <NumberField value={g('s1_c_diff')} onChange={(v) => u('s1_c_diff', v)} unit="円" />
-                </td>
-              </tr>
+              {([
+                { el: 'Ｂ', el2: 'ｂ', nOrig: 3, nAdj: 4, nDiff: 5, key: 'b', unit: '円銭' },
+                { el: 'Ｃ', el2: 'ｃ', nOrig: 6, nAdj: 7, nDiff: 8, key: 'c', unit: '円' },
+              ] as const).map((row) => (
+                <tr key={row.key}>
+                  <td className="gov-header text-left" style={{ width: '22%' }}>
+                    <CircledNumber n={row.nOrig} /> {row.el}（第４表）
+                  </td>
+                  <td style={{ width: '12%' }}>
+                    <NumberField value={g(`s1_${row.key}_orig`)} onChange={(v) => u(`s1_${row.key}_orig`, v)} unit={row.unit} />
+                  </td>
+                  <td className="gov-header text-left" style={{ width: '22%' }}>
+                    <CircledNumber n={row.nAdj} /> {row.el2}（<CircledNumber n={row.nOrig} />×ハ）
+                  </td>
+                  <td style={{ width: '12%' }}>
+                    <NumberField value={g(`s1_${row.key}_adj`)} onChange={(v) => u(`s1_${row.key}_adj`, v)} unit={row.unit} />
+                  </td>
+                  <td className="gov-header text-left" style={{ width: '20%' }}>
+                    <CircledNumber n={row.nDiff} /> {row.el}−{row.el2}
+                  </td>
+                  <td style={{ width: '12%' }}>
+                    <NumberField value={g(`s1_${row.key}_diff`)} onChange={(v) => u(`s1_${row.key}_diff`, v)} unit={row.unit} />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
 

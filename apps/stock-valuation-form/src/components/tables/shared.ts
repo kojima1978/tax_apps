@@ -19,6 +19,8 @@ export const hdr: React.CSSProperties = { background: '#f5f5f0', fontWeight: 500
 export const vt: React.CSSProperties = { writingMode: 'vertical-rl', textOrientation: 'mixed', letterSpacing: '0.12em' };
 export const flex: React.CSSProperties = { display: 'flex', alignItems: 'center' };
 export const roStyle: React.CSSProperties = { pointerEvents: 'none', background: '#fafafa' };
+export const lbl: React.CSSProperties = { ...hdr, padding: '1px 3px', whiteSpace: 'nowrap', textAlign: 'center' };
+export const hl = { background: '#fff8e1', fontWeight: 700 } as const;
 
 /* ================================================
  * Shared utilities

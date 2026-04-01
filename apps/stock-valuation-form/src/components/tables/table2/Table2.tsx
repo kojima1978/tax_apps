@@ -52,94 +52,42 @@ export function Table2({ getField, updateField }: TableProps) {
                 判　定　要　素
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-                {/* (1) 直前期末 */}
-                <div style={{ ...br, fontSize: 7 }}>
-                  <div style={{ textAlign: 'center', ...bb, padding: '1px 2px' }}>
-                    （１）直前期末を基とした判定要素
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', ...bb }}>
-                    <div style={{ ...br, textAlign: 'center', padding: '1px 1px', fontSize: 6.5 }}>
-                      第４表の第４表の
+                {([
+                  { num: 1, title: '直前期末', prefix: '1', units: ['円　銭', '円', '円'], hasBr: true },
+                  { num: 2, title: '直前々期末', prefix: '2', units: ['円', '円　銭', '円'], hasBr: false },
+                ] as const).map((period) => (
+                  <div key={period.prefix} style={{ ...(period.hasBr ? br : {}), fontSize: 7 }}>
+                    <div style={{ textAlign: 'center', ...bb, padding: '1px 2px' }}>
+                      （{period.num}）{period.title}を基とした判定要素
                     </div>
-                    <div style={{ ...br, textAlign: 'center', padding: '1px 1px', fontSize: 6.5 }}>
-                      第４表の
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', ...bb }}>
+                      {[8, 9, 10].map((n, ci) => (
+                        <div key={n} style={{ ...(ci < 2 ? br : {}), textAlign: 'center', padding: '1px 1px', fontSize: 6.5 }}>
+                          {ci === 0 && period.prefix === '1' ? '第４表の第４表の' : '第４表の'}
+                        </div>
+                      ))}
                     </div>
-                    <div style={{ textAlign: 'center', padding: '1px 1px', fontSize: 6.5 }}>
-                      第４表の
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', ...bb }}>
+                      {[8, 9, 10].map((n, ci) => (
+                        <div key={n} style={{ ...(ci < 2 ? br : {}), textAlign: 'center', padding: '1px' }}>
+                          <CircledNumber n={n} />の金額
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', ...bb }}>
-                    <div style={{ ...br, textAlign: 'center', padding: '1px' }}>
-                      <CircledNumber n={8} />の金額
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', ...bb }}>
+                      {period.units.map((unit, ci) => (
+                        <div key={ci} style={{ ...(ci < 2 ? br : {}), textAlign: 'center', fontSize: 6.5, padding: '1px' }}>{unit}</div>
+                      ))}
                     </div>
-                    <div style={{ ...br, textAlign: 'center', padding: '1px' }}>
-                      <CircledNumber n={9} />の金額
-                    </div>
-                    <div style={{ textAlign: 'center', padding: '1px' }}>
-                      <CircledNumber n={10} />の金額
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', ...bb }}>
-                    <div style={{ ...br, textAlign: 'center', fontSize: 6.5, padding: '1px' }}>円　銭</div>
-                    <div style={{ ...br, textAlign: 'center', fontSize: 6.5, padding: '1px' }}>円</div>
-                    <div style={{ textAlign: 'center', fontSize: 6.5, padding: '1px' }}>円</div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                    <div style={{ ...br, minHeight: 18 }}>
-                      <NumberField value={g('b1_1')} onChange={(v) => u('b1_1', v)} />
-                    </div>
-                    <div style={{ ...br, minHeight: 18 }}>
-                      <NumberField value={g('c1_1')} onChange={(v) => u('c1_1', v)} />
-                    </div>
-                    <div style={{ minHeight: 18 }}>
-                      <NumberField value={g('d1_1')} onChange={(v) => u('d1_1', v)} />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                      {['b', 'c', 'd'].map((col, ci) => (
+                        <div key={col} style={{ ...(ci < 2 ? br : {}), minHeight: 18 }}>
+                          <NumberField value={g(`${col}${period.prefix}_1`)} onChange={(v) => u(`${col}${period.prefix}_1`, v)} />
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
-                {/* (2) 直前々期末 */}
-                <div style={{ fontSize: 7 }}>
-                  <div style={{ textAlign: 'center', ...bb, padding: '1px 2px' }}>
-                    （２）直前々期末を基とした判定要素
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', ...bb }}>
-                    <div style={{ ...br, textAlign: 'center', padding: '1px 1px', fontSize: 6.5 }}>
-                      第４表の
-                    </div>
-                    <div style={{ ...br, textAlign: 'center', padding: '1px 1px', fontSize: 6.5 }}>
-                      第４表の
-                    </div>
-                    <div style={{ textAlign: 'center', padding: '1px 1px', fontSize: 6.5 }}>
-                      第４表の
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', ...bb }}>
-                    <div style={{ ...br, textAlign: 'center', padding: '1px' }}>
-                      <CircledNumber n={8} />の金額
-                    </div>
-                    <div style={{ ...br, textAlign: 'center', padding: '1px' }}>
-                      <CircledNumber n={9} />の金額
-                    </div>
-                    <div style={{ textAlign: 'center', padding: '1px' }}>
-                      <CircledNumber n={10} />の金額
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', ...bb }}>
-                    <div style={{ ...br, textAlign: 'center', fontSize: 6.5, padding: '1px' }}>円</div>
-                    <div style={{ ...br, textAlign: 'center', fontSize: 6.5, padding: '1px' }}>円　銭</div>
-                    <div style={{ textAlign: 'center', fontSize: 6.5, padding: '1px' }}>円</div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                    <div style={{ ...br, minHeight: 18 }}>
-                      <NumberField value={g('b2_1')} onChange={(v) => u('b2_1', v)} />
-                    </div>
-                    <div style={{ ...br, minHeight: 18 }}>
-                      <NumberField value={g('c2_1')} onChange={(v) => u('c2_1', v)} />
-                    </div>
-                    <div style={{ minHeight: 18 }}>
-                      <NumberField value={g('d2_1')} onChange={(v) => u('d2_1', v)} />
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
             {/* 右: 判定基準・判定 */}

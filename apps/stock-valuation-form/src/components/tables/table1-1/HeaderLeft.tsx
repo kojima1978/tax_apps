@@ -1,11 +1,6 @@
 import { FormField } from '@/components/ui/FormField';
-import { hdr } from '../shared';
+import { lbl } from '../shared';
 import type { GFn, UFn } from '../shared';
-
-const lbl: React.CSSProperties = {
-  ...hdr, padding: '1px 3px', whiteSpace: 'nowrap',
-  textAlign: 'center' as const,
-};
 
 const formatWareki = (dateStr: string): string => {
   if (!dateStr) return '';
