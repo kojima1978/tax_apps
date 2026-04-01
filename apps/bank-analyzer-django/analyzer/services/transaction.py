@@ -689,7 +689,7 @@ class TransactionService:
                     description=row['description'],
                     amount_out=row.get('amount_out', 0),
                     amount_in=row.get('amount_in', 0),
-                    balance=row.get('balance', 0) if pd.notna(row['balance']) else None,
+                    balance=row.get('balance', 0) if pd.notna(row.get('balance')) else None,
                     is_large=row.get('is_large', False),
                     category=row.get('category') if pd.notna(row.get('category')) else UNCATEGORIZED,
                 ))

@@ -173,6 +173,7 @@ def _parse_single_file(csv_file, existing_keys: set) -> list[dict]:
     """単一のCSVファイルをパースして口座ごとにグルーピング"""
     # CSV読込（複数口座混在を許可してウィザード側で分割）
     df = importer.load_csv(csv_file, allow_multiple=True)
+    has_balance = df.attrs.get("has_balance", True)
     df = importer.validate_balance(df)
 
     # 日付を文字列に変換
@@ -185,9 +186,9 @@ def _parse_single_file(csv_file, existing_keys: set) -> list[dict]:
 
     # 口座が1つだけの場合、またはCSVに口座情報がない場合
     if len(account_groups) <= 1:
-        return _process_single_account_file(csv_file.name, df, rows, existing_keys)
+        return _process_single_account_file(csv_file.name, df, rows, existing_keys, has_balance)
     else:
-        return _process_multi_account_file(csv_file.name, account_groups, existing_keys)
+        return _process_multi_account_file(csv_file.name, account_groups, existing_keys, has_balance)
 
 
 def _group_rows_by_account(rows: list[dict]) -> dict:
@@ -216,7 +217,7 @@ def _group_rows_by_account(rows: list[dict]) -> dict:
     return account_groups
 
 
-def _process_single_account_file(filename: str, df: pd.DataFrame, rows: list[dict], existing_keys: set) -> list[dict]:
+def _process_single_account_file(filename: str, df: pd.DataFrame, rows: list[dict], existing_keys: set, has_balance: bool = True) -> list[dict]:
     """単一口座のCSVファイルを処理"""
     detected_account = _detect_account_from_csv(df, filename)
     detected_account_number = detected_account.get('account_number', '')
@@ -228,11 +229,12 @@ def _process_single_account_file(filename: str, df: pd.DataFrame, rows: list[dic
         'row_count': len(rows),
         'duplicate_count': duplicate_count,
         'detected_account': detected_account,
+        'has_balance': has_balance,
         'rows': rows,
     }]
 
 
-def _process_multi_account_file(filename: str, account_groups: dict, existing_keys: set) -> list[dict]:
+def _process_multi_account_file(filename: str, account_groups: dict, existing_keys: set, has_balance: bool = True) -> list[dict]:
     """複数口座を含むCSVファイルを処理（口座ごとに分割）"""
     logger.info(f"ウィザード: {filename} に {len(account_groups)} 口座を検出")
 
@@ -271,6 +273,7 @@ def _process_multi_account_file(filename: str, account_groups: dict, existing_ke
                 'account_type': group_data['account_type'],
                 'account_number': account_number,
             },
+            'has_balance': has_balance,
             'rows': group_rows,
             'is_split': True,  # 分割されたことを示すフラグ
         })

@@ -387,6 +387,21 @@
             <!-- ファイル別プレビュー（編集可能テーブル） -->
             <div class="accordion" id="previewAccordion"></div>
 
+            <!-- 残高なし警告 -->
+            <div class="alert alert-warning d-none mt-4" id="noBalanceWarning">
+                <div class="mb-2">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    <strong>残高データがないファイルが含まれています。</strong>
+                    残高の整合性チェックはスキップされます。
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="allowNoBalance">
+                    <label class="form-check-label" for="allowNoBalance">
+                        残高なしで取り込むことを許可する
+                    </label>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-between mt-4">
                 <button type="button" class="btn btn-outline-secondary" id="backToStep2Btn">
                     <i class="bi bi-arrow-left me-1"></i> 戻る
@@ -411,7 +426,8 @@ const wizardState = {
     files: [],           // 選択されたファイル
     parsedData: [],      // パースされたデータ
     accountAssignments: [], // 口座割り当て
-    duplicateAction: 'skip'
+    duplicateAction: 'skip',
+    hasNoBalance: false  // 残高なしファイルが含まれるか
 };
 
 // 案件ID
@@ -555,6 +571,7 @@ processFilesBtn.addEventListener('click', async () => {
         if (result.success) {
             hideErrorDetails();
             wizardState.parsedData = result.files;
+            wizardState.hasNoBalance = result.files.some(f => f.has_balance === false);
 
             // 分割されたファイルがあるかチェック
             const splitFiles = result.files.filter(f => f.is_split);
@@ -715,6 +732,7 @@ function renderPreview() {
     let totalRows = 0;
     let newRows = 0;
     let errorCount = 0;
+    const noBalance = wizardState.hasNoBalance;
 
     previewAccordion.innerHTML = wizardState.parsedData.map((fileData, fileIndex) => {
         const assignment = wizardState.accountAssignments[fileIndex];
@@ -766,14 +784,14 @@ function renderPreview() {
                         <input type="number" data-field="amount_in" value="${row.amount_in || 0}"
                             data-global-id="${globalId}" style="width: 90px;">
                     </td>
-                    <td>
+                    ${noBalance ? '' : `<td>
                         <input type="number" data-field="balance" value="${row.balance || 0}"
                             data-global-id="${globalId}" class="${isError ? 'text-danger fw-bold' : ''}" style="width: 100px;">
                     </td>
-                    <td class="calc-balance text-end">${(row.calc_balance || row.balance || 0).toLocaleString()}</td>
+                    <td class="calc-balance text-end">${(row.calc_balance || row.balance || 0).toLocaleString()}</td>`}
                     <td class="status-cell text-center">
                         ${isDuplicate ? '<span class="badge bg-warning text-dark">重複</span>' : ''}
-                        ${isError ? '<span class="badge bg-danger">誤差</span>' : '<span class="badge bg-success">OK</span>'}
+                        ${noBalance ? '' : (isError ? '<span class="badge bg-danger">誤差</span>' : '<span class="badge bg-success">OK</span>')}
                     </td>
                 </tr>
             `;
@@ -816,8 +834,8 @@ function renderPreview() {
                                         <th>摘要</th>
                                         <th style="width: 100px;" class="text-end">出金</th>
                                         <th style="width: 100px;" class="text-end">入金</th>
-                                        <th style="width: 110px;" class="text-end">残高</th>
-                                        <th style="width: 90px;" class="text-end">計算残高</th>
+                                        ${noBalance ? '' : '<th style="width: 110px;" class="text-end">残高</th>'}
+                                        ${noBalance ? '' : '<th style="width: 90px;" class="text-end">計算残高</th>'}
                                         <th style="width: 60px;">状態</th>
                                     </tr>
                                 </thead>
@@ -837,6 +855,25 @@ function renderPreview() {
     document.getElementById('summaryTotalRows').textContent = totalRows;
     document.getElementById('summaryNewRows').textContent = newRows;
     document.getElementById('summaryErrors').textContent = errorCount;
+
+    // 残高なし時の制御
+    const noBalanceWarning = document.getElementById('noBalanceWarning');
+    const allowNoBalanceCheck = document.getElementById('allowNoBalance');
+    const commitBtn = document.getElementById('commitImportBtn');
+    const recalcBtn = document.getElementById('recalculateBtn');
+
+    if (noBalance) {
+        noBalanceWarning.classList.remove('d-none');
+        allowNoBalanceCheck.checked = false;
+        commitBtn.disabled = true;
+        recalcBtn.classList.add('d-none');
+        document.getElementById('summaryErrors').parentElement.classList.add('d-none');
+    } else {
+        noBalanceWarning.classList.add('d-none');
+        commitBtn.disabled = false;
+        recalcBtn.classList.remove('d-none');
+        document.getElementById('summaryErrors').parentElement.classList.remove('d-none');
+    }
 
     // イベントリスナー設定
     setupEditableTableEvents();
@@ -955,10 +992,10 @@ function insertNewRow(fileIndex, afterRowIndex) {
         <td>
             <input type="number" data-field="amount_in" value="0" data-global-id="${globalId}" style="width: 90px;">
         </td>
-        <td>
+        ${wizardState.hasNoBalance ? '' : `<td>
             <input type="number" data-field="balance" value="0" data-global-id="${globalId}" style="width: 100px;">
         </td>
-        <td class="calc-balance text-end">-</td>
+        <td class="calc-balance text-end">-</td>`}
         <td class="status-cell text-center">
             <span class="badge bg-info">新規</span>
         </td>
@@ -1031,6 +1068,7 @@ document.getElementById('deleteSelectedBtn').addEventListener('click', function(
 
 // ===== 残高再計算 =====
 function recalculateAllBalances() {
+    if (wizardState.hasNoBalance) return 0;
     let totalErrors = 0;
 
     wizardState.parsedData.forEach((fileData, fileIndex) => {
@@ -1104,6 +1142,11 @@ document.getElementById('recalculateBtn').addEventListener('click', function() {
         btn.classList.remove('btn-danger', 'btn-success');
         btn.classList.add('btn-warning');
     }, 2000);
+});
+
+// ===== 残高なし許可チェックボックス =====
+document.getElementById('allowNoBalance').addEventListener('change', function() {
+    document.getElementById('commitImportBtn').disabled = !this.checked;
 });
 
 // ===== エラーナビゲーション =====
@@ -1202,12 +1245,13 @@ document.getElementById('importForm').addEventListener('submit', function(e) {
             // 重複スキップの場合、重複行は除外
             if (skipDuplicates && isDuplicate) return;
 
+            const balanceInput = tr.querySelector('[data-field="balance"]');
             rows.push({
                 date: tr.querySelector('[data-field="date"]')?.value || null,
                 description: tr.querySelector('[data-field="description"]')?.value || '',
                 amount_out: parseInt(tr.querySelector('[data-field="amount_out"]')?.value) || 0,
                 amount_in: parseInt(tr.querySelector('[data-field="amount_in"]')?.value) || 0,
-                balance: parseInt(tr.querySelector('[data-field="balance"]')?.value) || 0,
+                balance: balanceInput ? (parseInt(balanceInput.value) || 0) : null,
                 is_new: tr.dataset.isNew === 'true'
             });
         });
