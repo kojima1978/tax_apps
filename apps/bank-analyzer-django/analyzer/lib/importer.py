@@ -30,7 +30,7 @@ COLUMN_RENAME_MAP = {
     "種別": "account_type",
 }
 
-REQUIRED_COLUMNS = ["date", "description", "amount_out", "amount_in", "balance"]
+REQUIRED_COLUMNS = ["date", "description", "amount_out", "amount_in"]
 
 EXPECTED_COLUMN_KEYWORDS = ("銀行名", "日付", "支店名")
 
@@ -324,20 +324,28 @@ def load_csv(file, allow_multiple: bool = False) -> pd.DataFrame:
     # 5. 日付変換
     df = _convert_dates(df)
 
-    # 6. 金額変換
+    # 6. 残高カラムの有無を記録
+    has_balance = "balance" in df.columns
+
+    # 7. 金額変換
     df = _convert_amounts(df)
 
-    # 7. メタデータからのバックフィル（カラムがない場合）
+    # 8. メタデータからのバックフィル（カラムがない場合）
     for col in ["bank_name", "branch_name", "account_number"]:
         if col not in df.columns and csv_metadata.get(col):
             df[col] = csv_metadata[col]
 
-    # 8. 必要なカラムのみ保持
+    # 9. 残高カラムがない場合は NaN で補完
+    if not has_balance:
+        df["balance"] = pd.NA
+
+    # 10. 必要なカラムのみ保持
     cols_to_drop = [col for col in df.columns if col not in COLUMNS_TO_KEEP]
     df = df.drop(columns=cols_to_drop)
 
     if csv_metadata:
         df.attrs["csv_metadata"] = csv_metadata
+    df.attrs["has_balance"] = has_balance
 
     return df
 
@@ -346,8 +354,18 @@ def validate_balance(df: pd.DataFrame) -> pd.DataFrame:
     """
     残高不整合チェック
     前行残高 + 入金 - 出金 = 今回残高
+
+    残高データがない場合（has_balance=False）はチェックをスキップする。
     """
     df = df.reset_index(drop=True)
+
+    # 残高データがない場合はスキップ
+    has_balance = df.attrs.get("has_balance", True)
+    if not has_balance:
+        df["calc_balance"] = pd.NA
+        df["is_balance_error"] = False
+        return df
+
     df["_original_order"] = df.index
 
     df = df.sort_values(["date", "_original_order"]).reset_index(drop=True)
