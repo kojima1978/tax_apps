@@ -137,6 +137,31 @@ def api_get_transaction(request: HttpRequest, pk: int) -> JsonResponse:
         return json_api_error(e, f"取引取得APIエラー: tx_id={tx_id}")
 
 
+@require_POST
+def api_update_reference_date(request: HttpRequest, pk: int) -> JsonResponse:
+    """基準日更新APIエンドポイント（AJAX用）"""
+    case = get_object_or_404(Case, pk=pk)
+    date_str = request.POST.get('reference_date', '').strip()
+
+    try:
+        if date_str:
+            case.reference_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        else:
+            case.reference_date = None
+        case.save(update_fields=['reference_date'])
+
+        logger.info(f"基準日更新: case_id={pk}, date={case.reference_date}")
+        return JsonResponse({
+            'success': True,
+            'reference_date': case.reference_date.isoformat() if case.reference_date else None,
+            'message': '基準日を更新しました' if case.reference_date else '基準日をクリアしました',
+        })
+    except ValueError:
+        return json_error('日付の形式が正しくありません（YYYY-MM-DD）')
+    except Exception as e:
+        return json_api_error(e, f"基準日更新APIエラー: case_id={pk}")
+
+
 def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
     """フィールドのユニーク値を取得するAPIエンドポイント"""
     case = get_object_or_404(Case, pk=pk)

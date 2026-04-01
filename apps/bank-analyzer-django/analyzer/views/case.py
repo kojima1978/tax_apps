@@ -25,10 +25,11 @@ class CaseListView(ListView):
         return (
             Case.objects.order_by('-created_at')
             .annotate(
-                tx_count=Count('transactions'),
+                tx_count=Count('transactions', distinct=True),
                 unclassified_count=Count(
                     'transactions',
                     filter=Q(transactions__category=UNCATEGORIZED),
+                    distinct=True,
                 ),
                 account_count=Count(
                     'accounts',

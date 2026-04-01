@@ -21,33 +21,88 @@
     </div>
 </div>
 
-<!-- 登録口座一覧 -->
-<div class="glass-card p-4 mb-4">
-    <h4 class="mb-3"><i class="bi bi-list-ul" aria-hidden="true"></i> 登録口座一覧</h4>
-    <div class="row g-3">
-        {% for acc in account_summary %}
-        <div class="col-md-6 col-lg-4">
-            <div class="card bg-white border-light shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-truncate" title="{{ acc.account_number }}">{{ acc.account_number }}</h5>
-                    <p class="card-text text-muted mb-2">名義: {{ acc.holder }}</p>
-                    <div class="d-flex justify-content-between align-items-end">
-                        <small>取引件数: {{ acc.count }}件<br>最終取引: {{ acc.last_date|wareki_short }}</small>
-                        <form method="post" class="d-inline delete-account-form">
-                            {% csrf_token %}
-                            <input type="hidden" name="account_number" value="{{ acc.account_number }}">
-                            <input type="hidden" name="action" value="delete_account">
-                            <button type="button" class="btn btn-sm btn-outline-danger"
-                                data-account-number="{{ acc.account_number }}"
-                                onclick="ConfirmModal.show({title:'口座データの削除',message:'口座「'+this.dataset.accountNumber+'」のデータを全て削除しますか？この操作は取り消せません。',confirmText:'削除',confirmClass:'btn-danger',onConfirm:()=>this.closest('form').submit()})">
-                                <i class="bi bi-trash"></i> 削除
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+<!-- 基準日設定 -->
+<div class="glass-card px-4 py-3 mb-4">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <span class="fw-semibold text-muted"><i class="bi bi-calendar-event me-1"></i>基準日</span>
+        <div id="referenceDateDisplay" class="d-flex align-items-center gap-2">
+            {% if case.reference_date %}
+            <span class="badge bg-primary fs-6 fw-normal" id="referenceDateValue">{{ case.reference_date|date:"Y-m-d" }}</span>
+            {% else %}
+            <span class="text-muted small" id="referenceDateValue">未設定</span>
+            {% endif %}
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="toggleReferenceDateEdit(true)" title="変更">
+                <i class="bi bi-pencil"></i>
+            </button>
+            {% if case.reference_date %}
+            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="clearReferenceDate()" title="クリア">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            {% endif %}
         </div>
-        {% endfor %}
+        <div id="referenceDateEdit" class="d-none d-flex align-items-center gap-2">
+            <input type="date" id="referenceDateInput" class="form-control form-control-sm w-auto"
+                value="{{ case.reference_date|date:'Y-m-d'|default:'' }}">
+            <button type="button" class="btn btn-sm btn-primary py-0 px-2" onclick="saveReferenceDate()">
+                <i class="bi bi-check-lg"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="toggleReferenceDateEdit(false)">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 登録口座一覧（折りたたみ + テーブル） -->
+<div class="glass-card p-4 mb-4">
+    <h4 class="mb-0">
+        <a class="text-decoration-none text-body d-flex align-items-center gap-2" data-bs-toggle="collapse" href="#accountListCollapse" role="button" aria-expanded="false" aria-controls="accountListCollapse">
+            <i class="bi bi-list-ul" aria-hidden="true"></i>
+            登録口座一覧
+            <span class="badge bg-secondary fw-normal fs-6">{{ account_summary|length }}口座</span>
+            <i class="bi bi-chevron-down small ms-auto transition-transform" id="accountListChevron"></i>
+        </a>
+    </h4>
+    <div class="collapse" id="accountListCollapse">
+        <div class="table-responsive mt-3">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>銀行名</th>
+                        <th>支店名</th>
+                        <th>口座番号</th>
+                        <th>種別</th>
+                        <th class="text-end">取引件数</th>
+                        <th>最終取引</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for acc in account_summary %}
+                    <tr>
+                        <td>{{ acc.bank_name|default:"－" }}</td>
+                        <td>{{ acc.branch_name|default:"－" }}</td>
+                        <td class="fw-semibold">{{ acc.account_number }}</td>
+                        <td>{{ acc.account_type|default:"－" }}</td>
+                        <td class="text-end">{{ acc.count|intcomma }}件</td>
+                        <td>{{ acc.last_date|wareki_short }}</td>
+                        <td class="text-end">
+                            <form method="post" class="d-inline delete-account-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="account_number" value="{{ acc.account_number }}">
+                                <input type="hidden" name="action" value="delete_account">
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1"
+                                    data-account-number="{{ acc.account_number }}"
+                                    onclick="ConfirmModal.show({title:'口座データの削除',message:'口座「'+this.dataset.accountNumber+'」のデータを全て削除しますか？この操作は取り消せません。',confirmText:'削除',confirmClass:'btn-danger',onConfirm:()=>this.closest('form').submit()})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -433,5 +488,107 @@ document.addEventListener('click', function(e) {
 })();
 </script>
 {% endif %}
+
+<!-- 基準日 JS -->
+<script>
+(function() {
+    const referenceDateUrl = '{% url "api-reference-date" case.pk %}';
+    const csrfToken = '{{ csrf_token }}';
+    let referenceDate = {% if case.reference_date %}'{{ case.reference_date|date:"Y-m-d" }}'{% else %}null{% endif %};
+
+    // --- 基準日 UI ---
+    window.toggleReferenceDateEdit = function(show) {
+        document.getElementById('referenceDateDisplay').classList.toggle('d-none', show);
+        document.getElementById('referenceDateEdit').classList.toggle('d-none', !show);
+        if (show) document.getElementById('referenceDateInput').focus();
+    };
+
+    window.saveReferenceDate = function() {
+        const val = document.getElementById('referenceDateInput').value;
+        if (!val) return;
+        postReferenceDate(val);
+    };
+
+    window.clearReferenceDate = function() {
+        postReferenceDate('');
+    };
+
+    function postReferenceDate(dateVal) {
+        const fd = new FormData();
+        fd.append('reference_date', dateVal);
+        fd.append('csrfmiddlewaretoken', csrfToken);
+        fetch(referenceDateUrl, { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    referenceDate = data.reference_date;
+                    updateReferenceDateDisplay();
+                    applyReferenceDateBadges();
+                }
+            });
+    }
+
+    function updateReferenceDateDisplay() {
+        const valueEl = document.getElementById('referenceDateValue');
+        const displayEl = document.getElementById('referenceDateDisplay');
+        toggleReferenceDateEdit(false);
+
+        if (referenceDate) {
+            valueEl.className = 'badge bg-primary fs-6 fw-normal';
+            valueEl.textContent = referenceDate;
+            // クリアボタンを表示
+            let clearBtn = displayEl.querySelector('.btn-outline-danger');
+            if (!clearBtn) {
+                clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'btn btn-sm btn-outline-danger py-0 px-2';
+                clearBtn.title = 'クリア';
+                clearBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+                clearBtn.onclick = clearReferenceDate;
+                displayEl.appendChild(clearBtn);
+            }
+        } else {
+            valueEl.className = 'text-muted small';
+            valueEl.textContent = '未設定';
+            const clearBtn = displayEl.querySelector('.btn-outline-danger');
+            if (clearBtn) clearBtn.remove();
+        }
+    }
+
+    // --- バッジ描画 ---
+    const BADGE_CONFIG = {
+        before: { label: '前', cls: 'bg-primary bg-opacity-75' },
+        same:   { label: '当', cls: 'bg-warning text-dark' },
+        after:  { label: '後', cls: 'bg-danger bg-opacity-75' },
+    };
+
+    function applyReferenceDateBadges() {
+        document.querySelectorAll('.tx-date-cell').forEach(cell => {
+            // 既存バッジを除去
+            const old = cell.querySelector('.ref-date-badge');
+            if (old) old.remove();
+
+            if (!referenceDate) return;
+
+            const txDate = cell.dataset.date;
+            if (!txDate) return;
+
+            let type;
+            if (txDate < referenceDate) type = 'before';
+            else if (txDate === referenceDate) type = 'same';
+            else type = 'after';
+
+            const cfg = BADGE_CONFIG[type];
+            const badge = document.createElement('span');
+            badge.className = `badge ${cfg.cls} ref-date-badge me-1`;
+            badge.textContent = cfg.label;
+            cell.prepend(badge);
+        });
+    }
+
+    // 初回描画
+    applyReferenceDateBadges();
+})();
+</script>
 
 {% endblock %}
