@@ -158,7 +158,8 @@ class AnalysisService:
                 count=Count('transactions'),
                 last_date=Max('transactions__date'),
             )
-            .values('account_number', 'holder', 'bank_name', 'branch_name', 'count', 'last_date')
+            .values('account_number', 'holder', 'bank_name', 'branch_name', 'account_type', 'count', 'last_date')
+            .order_by('bank_name', 'branch_name', 'account_number')
         )
         return list(accounts)
 

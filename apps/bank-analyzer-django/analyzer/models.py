@@ -20,6 +20,13 @@ class Case(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
 
+    reference_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="基準日",
+        help_text="この日付を基準に取引を前/当日/後に分類"
+    )
+
     # 案件固有の分類パターン（グローバル設定に追加して適用）
     custom_patterns = models.JSONField(
         default=dict,

@@ -248,6 +248,8 @@ def _process_multi_account_file(filename: str, account_groups: dict, existing_ke
             group_df = pd.DataFrame(group_rows)
             # 日付を datetime に戻す（validate_balance が期待する形式）
             group_df['date'] = pd.to_datetime(group_df['date'])
+            # has_balance フラグを引き継ぐ（なければ validate_balance が None で演算エラー）
+            group_df.attrs["has_balance"] = has_balance
             # 残高検証を実行
             group_df = importer.validate_balance(group_df)
             # 日付を文字列に戻す

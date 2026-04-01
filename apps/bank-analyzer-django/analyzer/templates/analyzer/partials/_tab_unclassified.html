@@ -265,7 +265,7 @@
                                 <td>
                                     <input type="checkbox" value="{{ tx.id }}" class="form-check-input unclassified-select-check">
                                 </td>
-                                <td>{{ tx.date|wareki_short }}</td>
+                                <td class="text-nowrap tx-date-cell" data-date="{{ tx.date|date:'Y-m-d' }}">{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
                                 <td>{{ tx.branch_name|default:"-" }}</td>
                                 <td>{{ tx.account_type|default:"-" }}</td>
