@@ -43,11 +43,17 @@
                 </a>
             </div>
 
-            <!-- Right: New Case Button -->
-            <a class="header-action-btn {% if request.resolver_match.url_name == 'case-create' %}active{% endif %}" href="{% url 'case-create' %}">
-                <i class="bi bi-plus-lg"></i>
-                <span class="d-none d-sm-inline">新規案件</span>
-            </a>
+            <!-- Right: Actions -->
+            <div class="d-flex align-items-center gap-2">
+                <a class="header-action-btn" href="{% url 'customer-letter' %}" target="_blank">
+                    <i class="bi bi-envelope-paper"></i>
+                    <span class="d-none d-sm-inline">お客様配布用文書</span>
+                </a>
+                <a class="header-action-btn {% if request.resolver_match.url_name == 'case-create' %}active{% endif %}" href="{% url 'case-create' %}">
+                    <i class="bi bi-plus-lg"></i>
+                    <span class="d-none d-sm-inline">新規案件</span>
+                </a>
+            </div>
         </div>
     </header>
 
