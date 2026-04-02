@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/Label"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { UserPlus } from "lucide-react"
 import type { Contact } from "@/types/shared"
-import { MAX_CONTACT_COLUMNS } from "@/lib/import-csv"
+import { MAX_CONTACT_COLUMNS } from "@/lib/import"
 
 const CONTACT_FIELDS: { key: keyof Contact; label: string; placeholder: string }[] = [
     { key: "name", label: "氏名", placeholder: "氏名" },

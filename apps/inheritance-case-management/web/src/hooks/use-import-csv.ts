@@ -1,13 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
-import { parseAndValidateCSV, buildResolverMaps, MAX_IMPORT_FILE_SIZE } from '@/lib/import-csv';
-import type { ImportParseResult, ResolverMaps } from '@/lib/import-csv';
+import { parseAndValidateCSV, buildResolverMaps, MAX_IMPORT_FILE_SIZE } from '@/lib/import';
+import type { ImportParseResult, ResolverMaps } from '@/lib/import';
 import { createCase, updateCase, getAllCases } from '@/lib/api/cases';
 import { DEFAULT_PROGRESS_STEPS } from '@/lib/progress-utils';
 import { getAssignees, createAssignee } from '@/lib/api/assignees';
 import { getReferrers, createReferrer } from '@/lib/api/referrers';
 import { getDepartments, createDepartment } from '@/lib/api/departments';
 import { getCompanies, createCompany } from '@/lib/api/companies';
-import type { PendingReferrer, PendingAssignee } from '@/lib/import-csv';
+import type { PendingReferrer, PendingAssignee } from '@/lib/import';
 import type { InheritanceCase, Department, Company } from '@/types/shared';
 
 export type ImportStep = 'select' | 'preview' | 'importing' | 'done';
