@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import type { InheritanceCase, CaseStatus, AcceptanceStatus, HandlingStatus } from "@/types/shared"
-import { formatCurrency, calcBestNet } from "@/lib/analytics-utils"
+import { formatCurrency, formatDate, calcBestNet } from "@/lib/analytics-utils"
 import { STATUS_STYLES, HANDLING_STATUS_STYLES, ACCEPTANCE_STYLES, MAX_SUMMARY_LENGTH, isCompleted } from "@/types/constants"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SortableHeader, SortIcon } from "@/components/ui/SortableHeader"
@@ -15,6 +15,18 @@ import { InlineSummaryCell } from "./InlineSummaryCell"
 interface ColumnOptions {
     amountSort: "asc" | "desc" | null
     toggleAmountSort: () => void
+}
+
+// ── Cell factory helpers ──────────────────────────────────
+
+function statusCell<T extends string>(
+    getValue: (row: InheritanceCase) => T,
+    styleMap: Record<T, { bg: string; text: string }>,
+) {
+    return ({ row }: { row: { original: InheritanceCase; getValue: (key: string) => unknown } }) => {
+        const value = getValue(row.original)
+        return <StatusBadge label={value} style={styleMap[value]} />
+    }
 }
 
 function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onToggle: () => void }) {
@@ -50,9 +62,7 @@ export function createColumns({ amountSort, toggleAmountSort }: ColumnOptions): 
     {
         accessorKey: "dateOfDeath",
         header: ({ column }) => <SortableHeader column={column}>相続開始日</SortableHeader>,
-        cell: ({ row }) => (
-            <div>{new Date(row.getValue("dateOfDeath")).toLocaleDateString("ja-JP")}</div>
-        ),
+        cell: ({ row }) => <div>{formatDate(row.getValue("dateOfDeath"))}</div>,
     },
     {
         id: "declarationDeadline",
@@ -90,26 +100,26 @@ export function createColumns({ amountSort, toggleAmountSort }: ColumnOptions): 
     {
         accessorKey: "acceptanceStatus",
         header: ({ column }) => <SortableHeader column={column}>受託</SortableHeader>,
-        cell: ({ row }) => {
-            const acceptance = (row.getValue("acceptanceStatus") || "未判定") as AcceptanceStatus
-            return <StatusBadge label={acceptance} style={ACCEPTANCE_STYLES[acceptance]} />
-        },
+        cell: statusCell(
+            (c) => (c.acceptanceStatus || "未判定") as AcceptanceStatus,
+            ACCEPTANCE_STYLES,
+        ),
     },
     {
         accessorKey: "status",
         header: ({ column }) => <SortableHeader column={column}>進み具合</SortableHeader>,
-        cell: ({ row }) => {
-            const status = row.getValue("status") as CaseStatus
-            return <StatusBadge label={status} style={STATUS_STYLES[status]} />
-        },
+        cell: statusCell(
+            (c) => c.status as CaseStatus,
+            STATUS_STYLES,
+        ),
     },
     {
         accessorKey: "handlingStatus",
         header: ({ column }) => <SortableHeader column={column}>対応状況</SortableHeader>,
-        cell: ({ row }) => {
-            const handling = (row.getValue("handlingStatus") || "対応中") as HandlingStatus
-            return <StatusBadge label={handling} style={HANDLING_STATUS_STYLES[handling]} />
-        },
+        cell: statusCell(
+            (c) => (c.handlingStatus || "対応中") as HandlingStatus,
+            HANDLING_STATUS_STYLES,
+        ),
     },
     {
         id: "assignee",

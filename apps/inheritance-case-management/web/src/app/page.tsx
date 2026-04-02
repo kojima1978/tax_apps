@@ -7,9 +7,8 @@ import { useCases } from "@/hooks/use-cases"
 import { useExportCSV } from "@/hooks/use-export-csv"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { getAllCases, bulkDeleteCases } from "@/lib/api/cases"
-import type { InheritanceCase, Assignee, Department } from "@/types/shared"
-import { getAssignees } from "@/lib/api/assignees"
-import { getDepartments } from "@/lib/api/departments"
+import type { InheritanceCase } from "@/types/shared"
+import { useAsyncMasters } from "@/hooks/use-async-masters"
 import { computeKPI } from "@/lib/kpi-utils"
 import { FILTER_KEYS } from "@/types/constants"
 import { calcNet, calcBestNet, formatCurrency } from "@/lib/analytics-utils"
@@ -69,18 +68,16 @@ export default function InheritanceMockupPage() {
 
     // KPI data & assignees
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
-    const [assignees, setAssignees] = useState<Assignee[]>([])
-    const [departments, setDepartments] = useState<Department[]>([])
     const dataVersion = data?.pagination?.total
     const kpiFilters = Object.fromEntries(FILTER_KEYS.filter(k => queryParams[k]).map(k => [k, queryParams[k]]))
     const kpiDepsKey = JSON.stringify(kpiFilters)
     const refreshKPI = () => getAllCases(Object.keys(kpiFilters).length > 0 ? kpiFilters : undefined).then(setAllCases).catch(() => {})
     useEffect(() => {
         refreshKPI()
-        getAssignees().then(setAssignees).catch(() => {})
-        getDepartments().then(setDepartments).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dataVersion, kpiDepsKey])
+
+    const { assignees, departments } = useAsyncMasters([dataVersion, kpiDepsKey])
 
     const kpiData = useMemo(() => computeKPI(allCases), [allCases])
 
