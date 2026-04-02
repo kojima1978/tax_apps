@@ -224,7 +224,12 @@ inheritance-case-management/
         │   ├── AppHeader.tsx           # ヘッダーナビゲーション
         │   ├── BulkDeleteModal.tsx     # 一括削除確認ダイアログ
         │   ├── ClientLayout.tsx        # QueryClient + Toast プロバイダー
-        │   ├── ImportCSVModal.tsx       # CSV取込ダイアログ
+        │   ├── ImportCSVModal.tsx       # CSV取込ダイアログ（ステップ別コンポーネントを統合）
+        │   ├── import-csv/             # CSV取込ステップ別コンポーネント
+        │   │   ├── FileSelectStep.tsx  # ファイル選択（D&D・テンプレDL・項目ガイド）
+        │   │   ├── PreviewStep.tsx     # プレビュー（サマリーバッジ・テーブル・警告/エラー）
+        │   │   ├── ImportingStep.tsx   # 取り込み中（プログレスバー・中止）
+        │   │   └── DoneStep.tsx        # 完了（結果サマリー・失敗行詳細）
         │   ├── MasterListPage.tsx      # マスタ編集UI（共通）
         │   └── ui/                     # 汎用UIコンポーネント
         │       ├── Button.tsx
@@ -244,6 +249,7 @@ inheritance-case-management/
         │       ├── Toast.tsx
         │       └── table.tsx           # TanStack Table ラッパー
         ├── hooks/
+        │   ├── use-async-masters.ts    # 担当者・部署マスタ非同期取得（共通フック）
         │   ├── use-cases.ts            # 案件一覧クエリ（TanStack Query）
         │   ├── use-click-outside.ts    # 要素外クリック検知フック
         │   ├── use-master-list.ts      # マスタ編集ステート管理
@@ -258,19 +264,31 @@ inheritance-case-management/
         │   ├── prisma-utils.ts
         │   ├── api-error-handler.ts    # 統一エラーレスポンス
         │   ├── create-crud-route-handlers.ts  # CRUD APIルートファクトリ（include対応）
-        │   ├── analytics-utils.ts      # 集計・ランキングロジック
+        │   ├── analytics/              # 集計・分析ロジック（モジュール分割）
+        │   │   ├── calculations.ts     # calcNet, calcBestNet, formatCurrency, formatDate, pinBottomCompare
+        │   │   ├── aggregations.ts     # aggregateCases, computeRollingAnnual, 型定義
+        │   │   └── index.ts            # re-export
+        │   ├── analytics-utils.ts      # 後方互換re-export（→ analytics/）
+        │   ├── import/                 # CSVインポートロジック（モジュール分割）
+        │   │   ├── types.ts            # 型定義・定数（CSV_HEADER_MAP, DEFAULTABLE_FIELDS等）
+        │   │   ├── parser.ts           # CSVテキストパーサー・日付正規化・数値パース
+        │   │   ├── converters.ts       # ヘッダー→カラムマップ構築・行→入力オブジェクト変換
+        │   │   ├── validator.ts        # パース&バリデーション・重複検出・リゾルバー構築
+        │   │   └── index.ts            # re-export
+        │   ├── import-csv.ts           # 後方互換re-export（→ import/）
         │   ├── kpi-utils.ts            # KPI計算
         │   ├── deadline-utils.ts       # 申告期限計算（死亡日+10ヶ月）
         │   ├── progress-utils.ts       # 訪問ステップ追加/削除
-        │   ├── export-csv.ts / import-csv.ts
+        │   ├── export-csv.ts
         │   ├── utils.ts
         │   └── api/                    # クライアントサイドAPI
         │       ├── client.ts           # fetchラッパー（baseURL: /itcm/api）
         │       ├── cases.ts            # 案件CRUD + 一括削除
-        │       ├── departments.ts
-        │       ├── companies.ts
-        │       ├── assignees.ts
-        │       ├── referrers.ts
+        │       ├── masters.ts          # 4マスタAPI統合（companies/departments/assignees/referrers）
+        │       ├── companies.ts        # re-export（→ masters.ts）
+        │       ├── departments.ts      # re-export（→ masters.ts）
+        │       ├── assignees.ts        # re-export（→ masters.ts）
+        │       ├── referrers.ts        # re-export（→ masters.ts）
         │       ├── backup.ts           # バックアップ/リストア
         │       ├── crud-factory.ts     # 汎用CRUDクライアントファクトリ
         │       └── index.ts
@@ -436,7 +454,7 @@ erDiagram
 ## 設計パターン
 
 - **CRUDルートファクトリ**: `createCrudRouteHandlers()` で部署・会社・担当者・紹介者のAPIルートを共通生成（`include`オプション対応）
-- **CRUDクライアントファクトリ**: `crud-factory.ts` でフロントエンドAPIクライアントを共通生成
+- **CRUDクライアントファクトリ**: `crud-factory.ts` でフロントエンドAPIクライアントを共通生成、`masters.ts` で4マスタ（会社/部署/担当者/紹介者）を統合
 - **マスタ編集共通化**: `MasterListPage` + `useMasterList` で4つのマスタ管理画面の編集UIを共通化（groupByによるグループ表示対応）
 - **where句ビルダー共通化**: `buildCaseWhereClause()` で案件一覧取得と一括削除のフィルタ条件構築を共通化
 - **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成
@@ -446,7 +464,10 @@ erDiagram
 - **Zodバリデーション**: リクエストボディの型安全な検証
 - **フィルタ定数一元管理**: `FILTER_KEYS` でフィルタキーを一元管理し、hasFilters判定・KPI依存・フィルタUI定義を自動化
 - **ステータスカテゴリ定数**: `COMPLETED_STATUSES`（申告完了系）/ `DEADLINE_SKIP_STATUSES`（期限チェック対象外）/ `HANDLING_STATUS_VALUES`（対応状況）で判定ロジックを一元管理
-- **コンポーネント分割**: フォームを4セクション（BasicInfo/Financial/Progress/Contact）に分割
+- **コンポーネント分割**: フォームを4セクション（BasicInfo/Financial/Progress/Contact）に分割、CSV取込モーダルを4ステップコンポーネント（FileSelect/Preview/Importing/Done）に分割
+- **セルファクトリ**: `statusCell()` でステータスバッジ列の定義を共通化、`formatDate()` で日付フォーマットを統一
+- **マスタ取得共通化**: `useAsyncMasters` フックで担当者・部署の非同期取得パターンを一元化
+- **モジュール分割**: `import-csv.ts`（629行）→ `lib/import/`（types/parser/converters/validator）、`analytics-utils.ts`（217行）→ `lib/analytics/`（calculations/aggregations）に分割し、旧ファイルは後方互換re-exportとして維持
 - **DB正規化**: Department・Company テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId でFK参照
 - **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
