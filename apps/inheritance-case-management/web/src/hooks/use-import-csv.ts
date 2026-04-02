@@ -86,6 +86,26 @@ async function resolveOrCreateReferrer(
   return created.id;
 }
 
+/** Detect encoding and decode CSV file (UTF-8 BOM → UTF-8, otherwise try Shift-JIS) */
+async function decodeCSVFile(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  // UTF-8 BOM detection
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return new TextDecoder('utf-8').decode(buffer);
+  }
+
+  // Try UTF-8 first — if it decodes cleanly (no replacement chars), use it
+  const utf8Text = new TextDecoder('utf-8', { fatal: true });
+  try {
+    return utf8Text.decode(buffer);
+  } catch {
+    // Not valid UTF-8 → decode as Shift-JIS (CP932)
+    return new TextDecoder('shift-jis').decode(buffer);
+  }
+}
+
 export function useImportCSV() {
   const [step, setStep] = useState<ImportStep>('select');
   const [parseResult, setParseResult] = useState<ImportParseResult | null>(null);
@@ -130,7 +150,7 @@ export function useImportCSV() {
         setDepartments(freshDepts);
         setCompanies(freshComps);
 
-        const text = await file.text();
+        const text = await decodeCSVFile(file);
         const result = parseAndValidateCSV(text, freshResolvers, freshCases);
         setParseResult(result);
         setStep('preview');

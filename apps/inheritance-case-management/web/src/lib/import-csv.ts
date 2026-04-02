@@ -130,14 +130,32 @@ export function buildResolverMaps(assignees: Assignee[], referrers: Referrer[]):
   return { assigneeNameToId, referrerNameToId };
 }
 
-/** Normalize date string to YYYY-MM-DD (handles Excel's YYYY/M/D conversion) */
+/** Japanese era → Western year offset (令和=2018, 平成=1988, 昭和=1925, 大正=1911, 明治=1867) */
+const ERA_OFFSETS: Record<string, number> = {
+  'R': 2018, '令': 2018, '令和': 2018,
+  'H': 1988, '平': 1988, '平成': 1988,
+  'S': 1925, '昭': 1925, '昭和': 1925,
+  'T': 1911, '大': 1911, '大正': 1911,
+  'M': 1867, '明': 1867, '明治': 1867,
+};
+
+/** Normalize date string to YYYY-MM-DD (handles Excel's YYYY/M/D and Japanese era R4.1.21) */
 function normalizeDate(value: string): string {
   // Already YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   // YYYY/M/D or YYYY/MM/DD (Excel auto-conversion)
-  const match = value.match(/^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$/);
-  if (match) {
-    return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+  const westernMatch = value.match(/^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$/);
+  if (westernMatch) {
+    return `${westernMatch[1]}-${westernMatch[2].padStart(2, '0')}-${westernMatch[3].padStart(2, '0')}`;
+  }
+  // Japanese era: R4.1.21, 令和4.1.21, H31/4/30, etc.
+  const eraMatch = value.match(/^(R|H|S|T|M|令和?|平成?|昭和?|大正?|明治?)(\d{1,2})[./](\d{1,2})[./](\d{1,2})$/);
+  if (eraMatch) {
+    const offset = ERA_OFFSETS[eraMatch[1]];
+    if (offset !== undefined) {
+      const year = offset + parseInt(eraMatch[2], 10);
+      return `${year}-${eraMatch[3].padStart(2, '0')}-${eraMatch[4].padStart(2, '0')}`;
+    }
   }
   return value;
 }
@@ -145,7 +163,9 @@ function normalizeDate(value: string): string {
 function parseOptionalNumber(value: string, round = false): number | undefined {
   const trimmed = value.trim();
   if (trimmed === '') return undefined;
-  const n = Number(trimmed);
+  // Strip comma-separated formatting (e.g. "58,645,000" → "58645000")
+  const cleaned = trimmed.replace(/,/g, '');
+  const n = Number(cleaned);
   if (isNaN(n)) return undefined;
   return round ? Math.round(n) : n;
 }
@@ -522,8 +542,17 @@ export function parseAndValidateCSV(
   const errors: ImportError[] = [];
   const warnings: ImportWarning[] = [];
 
+  // Pre-compute deceasedName column index for blank row detection
+  const deceasedNameCol = [...colMaps.fieldMap.entries()].find(([, f]) => f === 'deceasedName')?.[0];
+
   for (let i = 0; i < dataRows.length; i++) {
     const csvRowNum = i + 2; // 1-based, header is row 1
+
+    // Skip rows where deceasedName column is empty (blank/summary rows)
+    if (deceasedNameCol !== undefined && !(dataRows[i][deceasedNameCol] ?? '').trim()) {
+      continue;
+    }
+
     const { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee } = rowToInput(
       dataRows[i],
       colMaps,
