@@ -7,6 +7,7 @@ import type { InheritanceCase } from "@/types/shared"
 import { calcNet, aggregateCases, computeRollingAnnual, LABEL_NONE, pinBottomCompare } from "@/lib/analytics-utils"
 import { isCompleted } from "@/types/constants"
 import { SelectField } from "@/components/ui/SelectField"
+import { Button } from "@/components/ui/Button"
 import { RefreshCw } from "lucide-react"
 import { useRankingSort } from "@/hooks/use-ranking-sort"
 import { OverviewTab } from "./OverviewTab"
@@ -27,10 +28,14 @@ const TABS: { id: TabId; label: string }[] = [
 export default function AnalyticsPage() {
     const [data, setData] = useState<InheritanceCase[]>([])
     const [deptMap, setDeptMap] = useState<Map<string, string>>(new Map())
-    const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
+    const currentYear = new Date().getFullYear()
+    const [yearFrom, setYearFrom] = useState<number | null>(currentYear)
+    const [yearTo, setYearTo] = useState<number | null>(currentYear)
     const [activeTab, setActiveTab] = useState<TabId>("overview")
     const [years, setYears] = useState<number[]>([])
     const [isLoading, setIsLoading] = useState(true)
+
+    const isAllYears = yearFrom === null && yearTo === null
 
     useEffect(() => {
         const load = async () => {
@@ -45,9 +50,11 @@ export default function AnalyticsPage() {
 
                 const uniqueYears = Array.from(new Set(cases.map(c => c.fiscalYear))).sort((a, b) => b - a)
                 setYears(uniqueYears)
-                const currentYear = new Date().getFullYear()
-                if (!uniqueYears.includes(currentYear)) {
-                    setSelectedYear(uniqueYears.length > 0 ? String(uniqueYears[0]) : "all")
+                const cy = new Date().getFullYear()
+                if (!uniqueYears.includes(cy)) {
+                    const latest = uniqueYears[0] ?? null
+                    setYearFrom(latest)
+                    setYearTo(latest)
                 }
             } catch (error) {
                 console.error("Failed to load analytics data:", error)
@@ -59,9 +66,19 @@ export default function AnalyticsPage() {
     }, [])
 
     const filteredData = useMemo(() => {
-        if (selectedYear === "all") return data
-        return data.filter(c => c.fiscalYear === Number(selectedYear))
-    }, [data, selectedYear])
+        if (isAllYears) return data
+        return data.filter(c => {
+            if (yearFrom !== null && c.fiscalYear < yearFrom) return false
+            if (yearTo !== null && c.fiscalYear > yearTo) return false
+            return true
+        })
+    }, [data, yearFrom, yearTo, isAllYears])
+
+    const yearLabel = useMemo(() => {
+        if (isAllYears) return "全期間"
+        if (yearFrom === yearTo) return `${yearFrom}年度`
+        return `${yearFrom ?? ""}〜${yearTo ?? ""}年度`
+    }, [yearFrom, yearTo, isAllYears])
 
     const aggregation = useMemo(
         () => aggregateCases(filteredData, deptMap),
@@ -119,16 +136,48 @@ export default function AnalyticsPage() {
         <div className="container mx-auto py-10 px-4 space-y-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <h1 className="text-2xl md:text-3xl font-bold">経営分析ダッシュボード</h1>
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">表示年度:</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">表示期間:</span>
                     <SelectField
-                        wrapperClassName="h-10 w-auto"
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(e.target.value)}
+                        wrapperClassName={`h-10 w-auto ${isAllYears ? "opacity-40" : ""}`}
+                        value={isAllYears ? (years[years.length - 1] ?? "") : (yearFrom ?? "")}
+                        onChange={(e) => {
+                            const v = Number(e.target.value)
+                            if (isAllYears) {
+                                setYearFrom(v)
+                                setYearTo(years[0] ?? v)
+                            } else {
+                                setYearFrom(v)
+                                if (yearTo !== null && v > yearTo) setYearTo(v)
+                            }
+                        }}
                     >
-                        <option value="all">全期間</option>
                         {years.map(y => <option key={y} value={y}>{y}年度</option>)}
                     </SelectField>
+                    <span className="text-sm text-muted-foreground">〜</span>
+                    <SelectField
+                        wrapperClassName={`h-10 w-auto ${isAllYears ? "opacity-40" : ""}`}
+                        value={isAllYears ? (years[0] ?? "") : (yearTo ?? "")}
+                        onChange={(e) => {
+                            const v = Number(e.target.value)
+                            if (isAllYears) {
+                                setYearFrom(years[years.length - 1] ?? v)
+                                setYearTo(v)
+                            } else {
+                                setYearTo(v)
+                                if (yearFrom !== null && v < yearFrom) setYearFrom(v)
+                            }
+                        }}
+                    >
+                        {years.map(y => <option key={y} value={y}>{y}年度</option>)}
+                    </SelectField>
+                    <Button
+                        variant={isAllYears ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => { setYearFrom(null); setYearTo(null) }}
+                    >
+                        全期間
+                    </Button>
                 </div>
             </div>
 
@@ -149,7 +198,7 @@ export default function AnalyticsPage() {
                 <OverviewTab
                     summaryTotals={summaryTotals}
                     annualData={aggregation.annualData}
-                    selectedYear={selectedYear}
+                    yearLabel={yearLabel}
                 />
             )}
 

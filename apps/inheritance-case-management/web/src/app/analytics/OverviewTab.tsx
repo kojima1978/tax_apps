@@ -35,10 +35,10 @@ interface SummaryTotals {
 interface OverviewTabProps {
     summaryTotals: SummaryTotals
     annualData: AnnualData[]
-    selectedYear: string
+    yearLabel: string
 }
 
-export function OverviewTab({ summaryTotals, annualData, selectedYear }: OverviewTabProps) {
+export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTabProps) {
     const { grandTotalNet, grandTotalGross, grandCount, salesTotalNet, salesTotalGross, salesCount, estimateTotalNet, estimateTotalGross, estimateCount } = summaryTotals
 
     const cardData: { net: number; count: number; gross: number; referralFee: number }[] = [
@@ -73,7 +73,7 @@ export function OverviewTab({ summaryTotals, annualData, selectedYear }: Overvie
             {/* Annual Performance */}
             <div className="space-y-4">
                 <h2 className="text-xl font-semibold border-b pb-2">
-                    {selectedYear === "all" ? "年度別 業績推移" : `${selectedYear}年度 業績詳細`}
+                    {yearLabel === "全期間" ? "年度別 業績推移" : `${yearLabel} 業績詳細`}
                 </h2>
                 <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
                     <table className="w-full text-sm text-left min-w-[500px]">
