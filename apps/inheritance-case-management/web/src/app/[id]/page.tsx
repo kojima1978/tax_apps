@@ -48,7 +48,7 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
             await deleteCase(Number(id))
             queryClient.removeQueries({ queryKey: CASES_QUERY_KEY })
             toast.success("案件を削除しました")
-            router.push("/")
+            router.back()
         } catch (e) {
             console.error(e)
             toast.error("削除に失敗しました: " + String(e))

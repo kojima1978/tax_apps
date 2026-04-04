@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import type { InheritanceCase, CaseStatus, AcceptanceStatus, HandlingStatus } from "@/types/shared"
-import { formatCurrency, formatDate, calcBestNet } from "@/lib/analytics-utils"
+import { formatCurrency, formatDateWithWareki, calcBestNet, toWareki } from "@/lib/analytics-utils"
 import { STATUS_STYLES, HANDLING_STATUS_STYLES, ACCEPTANCE_STYLES, MAX_SUMMARY_LENGTH, isCompleted } from "@/types/constants"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SortableHeader, SortIcon } from "@/components/ui/SortableHeader"
@@ -62,14 +62,14 @@ export function createColumns({ amountSort, toggleAmountSort }: ColumnOptions): 
     {
         accessorKey: "dateOfDeath",
         header: ({ column }) => <SortableHeader column={column}>相続開始日</SortableHeader>,
-        cell: ({ row }) => <div>{formatDate(row.getValue("dateOfDeath"))}</div>,
+        cell: ({ row }) => <div>{formatDateWithWareki(row.getValue("dateOfDeath"))}</div>,
     },
     {
         id: "declarationDeadline",
         header: () => <span className="inline-flex items-center h-8">申告期限</span>,
         cell: ({ row }) => {
             const deadline = getDeadlineDate(row.getValue("dateOfDeath"))
-            const dateStr = deadline.toLocaleDateString("ja-JP")
+            const dateStr = `${deadline.toLocaleDateString("ja-JP")}（${toWareki(deadline)}）`
 
             if (row.original.handlingStatus === "対応終了") {
                 return (

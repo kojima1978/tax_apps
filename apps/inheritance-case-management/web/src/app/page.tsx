@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { createColumns } from "./columns"
 import { DataTable } from "./data-table"
 import { useCases } from "@/hooks/use-cases"
@@ -24,14 +25,69 @@ import { Pagination } from "./Pagination"
 import { ImportCSVModal } from "@/components/ImportCSVModal"
 import { BulkDeleteModal } from "@/components/BulkDeleteModal"
 
-export default function InheritanceMockupPage() {
-    const toast = useToast()
-    const [queryParams, setQueryParams] = useState<CasesQueryParams>({
+/** URLクエリパラメータからCasesQueryParamsを復元 */
+function parseUrlParams(searchParams: URLSearchParams): CasesQueryParams {
+    const params: CasesQueryParams = {
         page: 1,
         pageSize: 100,
-        fiscalYear: new Date().getFullYear(),
-    })
-    const [searchInput, setSearchInput] = useState("")
+    }
+    const page = searchParams.get("page")
+    if (page) params.page = Number(page)
+    const pageSize = searchParams.get("pageSize")
+    if (pageSize) params.pageSize = Number(pageSize)
+    const fiscalYear = searchParams.get("fiscalYear")
+    params.fiscalYear = fiscalYear ? Number(fiscalYear) : new Date().getFullYear()
+    for (const key of ["search", "status", "handlingStatus", "acceptanceStatus", "department"] as const) {
+        const val = searchParams.get(key)
+        if (val) (params as Record<string, unknown>)[key] = val
+    }
+    const assigneeId = searchParams.get("assigneeId")
+    if (assigneeId) params.assigneeId = Number(assigneeId)
+    return params
+}
+
+/** CasesQueryParamsをURLクエリ文字列に変換（デフォルト値は省略） */
+function toUrlSearch(params: CasesQueryParams): string {
+    const sp = new URLSearchParams()
+    if (params.fiscalYear) sp.set("fiscalYear", String(params.fiscalYear))
+    if (params.search) sp.set("search", params.search)
+    if (params.status) sp.set("status", params.status)
+    if (params.handlingStatus) sp.set("handlingStatus", params.handlingStatus)
+    if (params.acceptanceStatus) sp.set("acceptanceStatus", params.acceptanceStatus)
+    if (params.department) sp.set("department", params.department)
+    if (params.assigneeId) sp.set("assigneeId", String(params.assigneeId))
+    if (params.page && params.page > 1) sp.set("page", String(params.page))
+    return sp.toString()
+}
+
+export default function InheritanceMockupPage() {
+    const toast = useToast()
+    const router = useRouter()
+    const searchParams = useSearchParams()
+
+    const [queryParams, setQueryParams] = useState<CasesQueryParams>(() => parseUrlParams(searchParams))
+    const [searchInput, setSearchInput] = useState(() => searchParams.get("search") || "")
+
+    // フィルタ状態をURLに同期（ブラウザバックで復元可能にする）
+    useEffect(() => {
+        const qs = toUrlSearch(queryParams)
+        const current = searchParams.toString()
+        if (qs !== current) {
+            router.replace(qs ? `?${qs}` : "/", { scroll: false })
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [queryParams])
+
+    // ブラウザバック/フォワード時にURLからフィルタ状態を復元
+    useEffect(() => {
+        const onPopState = () => {
+            const sp = new URLSearchParams(window.location.search)
+            setQueryParams(parseUrlParams(sp))
+            setSearchInput(sp.get("search") || "")
+        }
+        window.addEventListener("popstate", onPopState)
+        return () => window.removeEventListener("popstate", onPopState)
+    }, [])
 
     const { data, isLoading, isError, error, refetch, isFetching } = useCases(queryParams)
     const { exportCSV, isExporting } = useExportCSV()
@@ -91,7 +147,7 @@ export default function InheritanceMockupPage() {
     }
 
     const handleClearAll = () => {
-        setQueryParams({ page: 1, pageSize: 30 })
+        setQueryParams({ page: 1, pageSize: 100 })
         setSearchInput("")
     }
 

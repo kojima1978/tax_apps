@@ -9,6 +9,7 @@ import type { InheritanceCase, CaseStatus, ProgressStep } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
 import { addVisitStep, shouldShowAddVisit, STATUS_STEP_MAP, DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
+import { formatDateWithWareki, toWareki } from "@/lib/analytics-utils"
 import { toProgressSteps, toProgressItems } from "@/lib/case-converters"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
 import Link from "next/link"
@@ -47,6 +48,7 @@ function SortableRow({
                 <div className="font-medium text-xs truncate">{step.name}</div>
                 <div>
                     <input type="date" value={step.date || ""} onChange={(e) => onDateChange(e.target.value)} className="w-full text-xs border rounded px-1.5 py-1 bg-background" />
+                    {step.date && <div className="text-[10px] text-muted-foreground mt-0.5">{toWareki(step.date)}</div>}
                 </div>
                 <div>
                     <input type="text" value={step.memo || ""} onChange={(e) => onMemoChange(e.target.value)} placeholder="-" className="w-full text-xs border rounded px-1.5 py-1 bg-background" />
@@ -144,7 +146,7 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
             <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={`${caseData.deceasedName} 様 - 進捗`}>
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <div className="text-sm text-muted-foreground">相続開始日: {caseData.dateOfDeath}</div>
+                        <div className="text-sm text-muted-foreground">相続開始日: {formatDateWithWareki(caseData.dateOfDeath)}</div>
                         <SetTodayButton count={checkedIds.size} onClick={setTodayForChecked} />
                     </div>
 
