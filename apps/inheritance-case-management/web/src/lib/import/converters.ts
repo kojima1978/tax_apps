@@ -118,7 +118,8 @@ export function rowToInput(
         break;
       case 'referrerName':
         if (value && resolvers) {
-          const id = resolvers.referrerNameToId.get(value);
+          // 単一列「紹介者」は会社名として検索
+          const id = resolvers.referrerNameToId.get(`${value}\0\0`);
           if (id) {
             obj.referrerId = id;
           } else {
@@ -175,9 +176,12 @@ export function rowToInput(
   }
 
   // Resolve 3-column referrer (takes precedence over legacy 紹介者 column)
+  // 3段階フォールバック: company+dept+name → company+name → company（一意の場合のみ）
   if (refCompany) {
-    const key = refPersonName ? `${refCompany} / ${refPersonName}` : null;
-    const id = (key ? resolvers?.referrerNameToId.get(key) : undefined) ?? resolvers?.referrerNameToId.get(refCompany);
+    const id =
+      (refPersonName && refDepartment ? resolvers?.referrerNameToId.get(`${refCompany}\0${refDepartment}\0${refPersonName}`) : undefined) ??
+      (refPersonName ? resolvers?.referrerNameToId.get(`${refCompany}\0\0${refPersonName}`) : undefined) ??
+      resolvers?.referrerNameToId.get(`${refCompany}\0\0`);
     if (id) {
       obj.referrerId = id;
     } else {

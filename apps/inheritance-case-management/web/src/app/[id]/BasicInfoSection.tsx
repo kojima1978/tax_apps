@@ -4,6 +4,7 @@ import { SelectField } from "@/components/ui/SelectField"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { MasterSelect } from "@/components/ui/MasterSelect"
 import { User, Info } from "lucide-react"
+import { toWareki } from "@/lib/analytics-utils"
 import type { InheritanceCase, Assignee, Referrer, AcceptanceStatus, HandlingStatus } from "@/types/shared"
 import { formatId, formatReferrerLabel } from "@/types/shared"
 import {
@@ -55,6 +56,7 @@ export function BasicInfoSection({
                 <div className="space-y-2">
                     <Label htmlFor="dateOfDeath">相続開始日</Label>
                     <Input id="dateOfDeath" name="dateOfDeath" type="date" value={formData.dateOfDeath} onChange={handleChange} />
+                    {formData.dateOfDeath && <p className="text-xs text-muted-foreground">{toWareki(formData.dateOfDeath)}</p>}
                 </div>
 
                 <div className="space-y-2">

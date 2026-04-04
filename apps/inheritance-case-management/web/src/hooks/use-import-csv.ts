@@ -71,7 +71,7 @@ async function resolveOrCreateReferrer(
   referrerCache: Map<string, number>,
   companyCache: Map<string, number>
 ): Promise<number> {
-  const cacheKey = `${pending.company}\0${pending.name ?? ''}`;
+  const cacheKey = `${pending.company}\0${pending.department ?? ''}\0${pending.name ?? ''}`;
   const cached = referrerCache.get(cacheKey);
   if (cached) return cached;
 

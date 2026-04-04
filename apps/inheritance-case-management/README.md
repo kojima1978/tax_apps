@@ -32,6 +32,8 @@
 - 報酬・見積・財産評価額・紹介料（率/額）の管理
 - 特記事項（10文字以内の短い概要）・メモ（フリーテキスト）の管理
 - 申告期限の自動計算（死亡日 + 10ヶ月）
+- 和暦表示: 相続開始日・申告期限・進捗完了日に和暦を自動表示（令和/平成/昭和/大正/明治対応）
+- フィルタ状態のURL同期: 絞り込み条件がURLクエリパラメータに保持され、ブラウザバック・URL共有で復元可能
 
 ### 進捗管理
 
@@ -81,6 +83,7 @@
 - 旧形式（`担当者`/`紹介者` 1列）も後方互換で対応
 - インポート時に進捗データが空なら自動でデフォルトステップをセット
 - 日付の正規化（Excel形式 YYYY/M/D 対応）
+- 紹介者の3段階フォールバック解決: 会社+部署+氏名 → 会社+氏名 → 会社（一意の場合のみ）
 - 重複検出（被相続人氏名＋死亡日＋年度）で既存案件を自動的に更新モードに切替（再インポート時の重複登録を防止）
 - 存在しないIDの案件は新規作成にフォールバック
 - ファイル選択時にマスターデータを最新に再読込
@@ -118,7 +121,8 @@
 - **インライン編集**: 一覧画面で特記事項をクリックして即時編集・保存
 - **売上列**: 報酬額入力済→確定（緑）、未入力→見込額（青）のラベルを金額の上に配置
 - **フィルターチップ**: 適用中のフィルターをチップ表示し、個別に解除可能
-- **フィルター**: 年度・受託状況（複数選択）・ステータス（複数選択）・対応状況・部門・担当者・検索をdata-driven定義（`FILTER_KEYS`/`STATIC_FILTER_DEFS`）
+- **フィルター**: 年度（2015〜2035）・受託状況（複数選択）・ステータス（複数選択）・対応状況・部門・担当者・検索をdata-driven定義（`FILTER_KEYS`/`STATIC_FILTER_DEFS`）
+- **フィルタURL同期**: フィルタ条件をURLクエリパラメータに同期（`?fiscalYear=2023&status=手続中`）、ブラウザバック・共有URL対応
 - **表示件数**: デフォルト100件
 - **キーボードナビゲーション**: テーブル行の矢印キー移動・Enterで詳細遷移
 - **スティッキーアクションバー**: 保存/キャンセル/削除ボタンがスクロール時も表示
@@ -127,7 +131,7 @@
 - **トースト通知**: 成功/エラー/警告メッセージ
 - **空状態メッセージ**: 検索結果なし時の案内表示
 - **モーダルダイアログ**: CSV取込、進捗編集、一括削除確認、確認ダイアログ
-- **案件詳細の保存後遷移**: 保存完了後に一覧画面に自動遷移
+- **案件詳細の保存後遷移**: 保存完了後にブラウザバックで一覧画面に遷移（フィルタ状態を維持）
 - **ポータルに戻るボタン**: aタグで外部遷移（クライアントサイドルーティング外）
 - **年度セレクトボックス**: 降順表示（新しい年度が上）
 - **MasterSelectリンク**: Link化によるクライアントサイドルーティング
@@ -265,7 +269,7 @@ inheritance-case-management/
         │   ├── api-error-handler.ts    # 統一エラーレスポンス
         │   ├── create-crud-route-handlers.ts  # CRUD APIルートファクトリ（include対応）
         │   ├── analytics/              # 集計・分析ロジック（モジュール分割）
-        │   │   ├── calculations.ts     # calcNet, calcBestNet, formatCurrency, formatDate, pinBottomCompare
+        │   │   ├── calculations.ts     # calcNet, calcBestNet, formatCurrency, formatDate, toWareki, formatDateWithWareki, pinBottomCompare
         │   │   ├── aggregations.ts     # aggregateCases, computeRollingAnnual, 型定義
         │   │   └── index.ts            # re-export
         │   ├── analytics-utils.ts      # 後方互換re-export（→ analytics/）
@@ -404,6 +408,7 @@ erDiagram
         boolean active "有効フラグ"
         datetime createdAt
         datetime updatedAt
+        ___ ___ "UK: companyId+name+department（COALESCE付き機能インデックス）"
     }
 
     InheritanceCase {
@@ -472,6 +477,10 @@ erDiagram
 - **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
 - **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
+- **和暦変換**: `toWareki()` / `formatDateWithWareki()` で令和/平成/昭和/大正/明治を自動判定し、日付表示に和暦を併記
+- **フィルタURL同期**: `useSearchParams` + `router.replace` でフィルタ状態をURLクエリパラメータに双方向同期、`popstate` リスナーでブラウザバック復元
+- **紹介者3段階解決**: `buildResolverMaps` で会社+部署+氏名 / 会社+氏名 / 会社（一意時のみ）の3段階キーを構築、CSV取込時の紹介者マッチングの正確性を向上
+- **Referrerユニーク制約**: `COALESCE` 付き機能ユニークインデックスでNULL安全な重複防止（companyId + name + department）
 
 ## クイックスタート
 

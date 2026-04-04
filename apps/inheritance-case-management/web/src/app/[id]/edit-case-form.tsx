@@ -150,7 +150,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 await updateCase(formData.id, payload, updatedAt)
                 await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
                 toast.success("保存しました")
-                router.push("/")
+                router.back()
             }
         } catch (e) {
             console.error(e)
@@ -244,7 +244,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             </CollapsibleSection>
 
             <StickyActionBar>
-                <Button onClick={() => router.push("/")} variant="ghost" className="min-w-[100px]" disabled={isSaving}>
+                <Button onClick={() => router.back()} variant="ghost" className="min-w-[100px]" disabled={isSaving}>
                     キャンセル
                 </Button>
                 <Button onClick={handleSave} disabled={isSaving} className="min-w-[120px]">

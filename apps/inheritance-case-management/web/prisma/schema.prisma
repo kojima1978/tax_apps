@@ -107,6 +107,8 @@ model Referrer {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // ユニーク制約はCOALESCE付き機能インデックスで実装（migration SQL参照）
+  // NULL同士を同一視するため @@unique ではなく raw SQL を使用
   @@index([active])
   @@index([companyId])
 }

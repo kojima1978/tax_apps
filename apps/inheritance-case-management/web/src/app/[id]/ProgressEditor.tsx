@@ -8,6 +8,7 @@ import type { ProgressStep } from "@/types/shared"
 import { addVisitStep, removeVisitStep, shouldShowAddVisit, DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
 import { GripVertical } from "lucide-react"
+import { toWareki } from "@/lib/analytics-utils"
 import { DndContext, closestCenter } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -61,7 +62,10 @@ function SortableStep({
                         )}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                        <Input type="date" value={step.date || ""} onChange={(e) => onStepChange(index, "date", e.target.value)} />
+                        <div>
+                            <Input type="date" value={step.date || ""} onChange={(e) => onStepChange(index, "date", e.target.value)} />
+                            {step.date && <p className="text-[10px] text-muted-foreground mt-0.5">{toWareki(step.date)}</p>}
+                        </div>
                         <Input placeholder="備考（場所、結果など）" value={step.memo || ""} onChange={(e) => onStepChange(index, "memo", e.target.value)} />
                     </div>
                 </div>
