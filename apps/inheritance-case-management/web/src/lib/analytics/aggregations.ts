@@ -2,7 +2,7 @@ import type { InheritanceCase } from "@/types/shared"
 import { formatReferrerLabel } from "@/types/shared"
 import { isCompleted } from "@/types/constants"
 import { STEP_NAMES } from "../progress-utils"
-import { calcNet, LABEL_NONE, LABEL_UNSET } from "./calculations"
+import { calcNet, calcNetPersonal, calcReferralFee, LABEL_NONE, LABEL_UNSET } from "./calculations"
 
 export type AnnualData = {
     year: number
@@ -18,6 +18,10 @@ export type RankingData = {
     feeTotal: number
     count: number
     group?: string
+    assignedFee?: number
+    assignedCount?: number
+    referralFee?: number
+    referralCount?: number
 }
 
 export type CompanyRankingData = RankingData & {
@@ -140,27 +144,76 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         else if (acceptance === "受託不可") annual.acceptanceCounts.rejected++
         else annual.acceptanceCounts.undecided++
 
-        let netAmount = 0
+        let personalNet = 0
+        let referralFee = 0
+        let baseType: "fee" | "estimate" | null = null
         if (isCompleted(c.status)) {
-            netAmount = calcNet(c, "fee")
+            baseType = "fee"
+            personalNet = calcNetPersonal(c, "fee")
+            referralFee = calcReferralFee(c, "fee")
         } else if (c.status === "手続中" && c.acceptanceStatus === "受託可") {
-            netAmount = calcNet(c, "estimate")
+            baseType = "estimate"
+            personalNet = calcNetPersonal(c, "estimate")
+            referralFee = calcReferralFee(c, "estimate")
         }
 
-        accumulateRanking(assigneeMap, c.assignee?.name || LABEL_UNSET, netAmount)
-        const referrerKey = c.referrer ? formatReferrerLabel(c.referrer) : LABEL_NONE
-        accumulateRanking(referrerMap, referrerKey, c.referralFeeAmount || 0)
-        const refEntry = referrerMap.get(referrerKey)
-        if (refEntry) refEntry.group = c.referrer?.company.name || LABEL_NONE
-        const companyName = c.referrer?.company.name || LABEL_NONE
-        accumulateRanking(companyMap, companyName, c.referralFeeAmount || 0)
-        const refDept = c.referrer?.department
-        if (refDept) {
-            if (!companyDeptMap.has(companyName)) companyDeptMap.set(companyName, new Map())
-            const deptMap2 = companyDeptMap.get(companyName)!
-            accumulateRanking(deptMap2, refDept, c.referralFeeAmount || 0)
+        // 担当者の担当売上
+        const assigneeName = c.assignee?.name || LABEL_UNSET
+        if (!assigneeMap.has(assigneeName)) assigneeMap.set(assigneeName, { name: assigneeName, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0 })
+        const assigneeEntry = assigneeMap.get(assigneeName)!
+        assigneeEntry.feeTotal += personalNet
+        assigneeEntry.count++
+        assigneeEntry.assignedFee! += personalNet
+        assigneeEntry.assignedCount! ++
+
+        // 社内紹介者の紹介売上 → internalReferrer で紐づいた担当者に加算
+        if (referralFee > 0 && c.internalReferrerId != null) {
+            const refAssigneeName = c.internalReferrer?.name || LABEL_UNSET
+            if (!assigneeMap.has(refAssigneeName)) assigneeMap.set(refAssigneeName, { name: refAssigneeName, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0 })
+            const refAssigneeEntry = assigneeMap.get(refAssigneeName)!
+            refAssigneeEntry.feeTotal += referralFee
+            refAssigneeEntry.referralFee! += referralFee
+            refAssigneeEntry.referralCount! ++
         }
-        accumulateRanking(deptRankingMap, deptMap.get(c.assignee?.name || "") || LABEL_UNSET, netAmount)
+
+        // 部門別（担当売上）
+        const deptName = deptMap.get(assigneeName) || LABEL_UNSET
+        if (!deptRankingMap.has(deptName)) deptRankingMap.set(deptName, { name: deptName, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0 })
+        const deptEntry = deptRankingMap.get(deptName)!
+        deptEntry.feeTotal += personalNet
+        deptEntry.count++
+        deptEntry.assignedFee! += personalNet
+        deptEntry.assignedCount! ++
+
+        // 部門別（社内紹介売上）
+        if (referralFee > 0 && c.internalReferrerId != null) {
+            const refAssigneeName2 = c.internalReferrer?.name || LABEL_UNSET
+            const refDeptName = deptMap.get(refAssigneeName2) || LABEL_UNSET
+            if (!deptRankingMap.has(refDeptName)) deptRankingMap.set(refDeptName, { name: refDeptName, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0 })
+            const refDeptEntry = deptRankingMap.get(refDeptName)!
+            refDeptEntry.feeTotal += referralFee
+            refDeptEntry.referralFee! += referralFee
+            refDeptEntry.referralCount! ++
+        }
+
+        // 紹介者ランキング（社外紹介者のみ + 社内紹介者）
+        if (c.referrer) {
+            const referrerKey = formatReferrerLabel(c.referrer)
+            accumulateRanking(referrerMap, referrerKey, c.referralFeeAmount || 0)
+            const refEntry = referrerMap.get(referrerKey)
+            if (refEntry) refEntry.group = c.referrer.company.name
+            const companyName = c.referrer.company.name
+            accumulateRanking(companyMap, companyName, c.referralFeeAmount || 0)
+            const refDept = c.referrer.department
+            if (refDept) {
+                if (!companyDeptMap.has(companyName)) companyDeptMap.set(companyName, new Map())
+                const deptMap2 = companyDeptMap.get(companyName)!
+                accumulateRanking(deptMap2, refDept, c.referralFeeAmount || 0)
+            }
+        } else if (!c.referrer && !c.internalReferrerId) {
+            accumulateRanking(referrerMap, LABEL_NONE, c.referralFeeAmount || 0)
+            accumulateRanking(companyMap, LABEL_NONE, c.referralFeeAmount || 0)
+        }
     })
 
     return {

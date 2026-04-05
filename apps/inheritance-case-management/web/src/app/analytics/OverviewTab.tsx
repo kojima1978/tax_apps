@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/lib/analytics-utils"
+import { formatCurrency, fiscalYearWareki } from "@/lib/analytics-utils"
 import type { AnnualData } from "@/lib/analytics-utils"
 
 type StatusTableConfig = {
@@ -30,6 +30,9 @@ interface SummaryTotals {
     grandTotalNet: number; grandTotalGross: number; grandCount: number
     salesTotalNet: number; salesTotalGross: number; salesCount: number
     estimateTotalNet: number; estimateTotalGross: number; estimateCount: number
+    grandReferralInternal: number; grandReferralExternal: number
+    salesReferralInternal: number; salesReferralExternal: number
+    estimateReferralInternal: number; estimateReferralExternal: number
 }
 
 interface OverviewTabProps {
@@ -39,12 +42,12 @@ interface OverviewTabProps {
 }
 
 export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTabProps) {
-    const { grandTotalNet, grandTotalGross, grandCount, salesTotalNet, salesTotalGross, salesCount, estimateTotalNet, estimateTotalGross, estimateCount } = summaryTotals
+    const s = summaryTotals
 
-    const cardData: { net: number; count: number; gross: number; referralFee: number }[] = [
-        { net: grandTotalNet, count: grandCount, gross: grandTotalGross, referralFee: grandTotalGross - grandTotalNet },
-        { net: salesTotalNet, count: salesCount, gross: salesTotalGross, referralFee: salesTotalGross - salesTotalNet },
-        { net: estimateTotalNet, count: estimateCount, gross: estimateTotalGross, referralFee: estimateTotalGross - estimateTotalNet },
+    const cardData: { net: number; count: number; gross: number; referralFee: number; refInternal: number; refExternal: number }[] = [
+        { net: s.grandTotalNet, count: s.grandCount, gross: s.grandTotalGross, referralFee: s.grandTotalGross - s.grandTotalNet, refInternal: s.grandReferralInternal, refExternal: s.grandReferralExternal },
+        { net: s.salesTotalNet, count: s.salesCount, gross: s.salesTotalGross, referralFee: s.salesTotalGross - s.salesTotalNet, refInternal: s.salesReferralInternal, refExternal: s.salesReferralExternal },
+        { net: s.estimateTotalNet, count: s.estimateCount, gross: s.estimateTotalGross, referralFee: s.estimateTotalGross - s.estimateTotalNet, refInternal: s.estimateReferralInternal, refExternal: s.estimateReferralExternal },
     ]
 
     return (
@@ -64,7 +67,7 @@ export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTa
                             <div className="text-sm text-muted-foreground">/ {cardData[i].count} 件</div>
                         </div>
                         <div className="mt-2 text-xs text-muted-foreground">
-                            {card.footnote}: {formatCurrency(cardData[i].gross)} − 紹介手数料 {formatCurrency(cardData[i].referralFee)}
+                            {card.footnote}: {formatCurrency(cardData[i].gross)} − 紹介手数料（社外） {formatCurrency(cardData[i].refExternal)}
                         </div>
                     </div>
                 ))}
@@ -90,7 +93,7 @@ export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTa
                         <tbody className="divide-y">
                             {annualData.map(d => (
                                 <tr key={d.year}>
-                                    <td className="p-3 font-medium">{d.year}年度</td>
+                                    <td className="p-3 font-medium">{d.year}年度<span className="text-muted-foreground text-xs ml-1">({fiscalYearWareki(d.year)})</span></td>
                                     <td className="p-3 text-right font-bold text-base">{formatCurrency(d.feeTotal + d.estimateTotal)}</td>
                                     <td className="p-3 text-right">{formatCurrency(d.feeTotal)}</td>
                                     <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.estimateTotal)}</td>
@@ -122,7 +125,7 @@ export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTa
                                         const values = table.getValues(d)
                                         return (
                                             <tr key={d.year}>
-                                                <td className="p-2 font-medium">{d.year}年度</td>
+                                                <td className="p-2 font-medium">{d.year}年度<span className="text-muted-foreground text-xs ml-1">({fiscalYearWareki(d.year)})</span></td>
                                                 {values.map((v, i) => <td key={i} className="p-2">{v}</td>)}
                                                 <td className="p-2 font-bold">{values.reduce((a, b) => a + b, 0)}</td>
                                             </tr>

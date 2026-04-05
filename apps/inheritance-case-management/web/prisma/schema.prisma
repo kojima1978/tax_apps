@@ -26,10 +26,12 @@ model InheritanceCase {
   memo              String?  @db.Text        // メモ（フリーテキスト）
 
   // Normalized FK references
-  assigneeId        Int?
-  assignee          Assignee?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
-  referrerId        Int?
-  referrer          Referrer?      @relation(fields: [referrerId], references: [id], onDelete: SetNull)
+  assigneeId            Int?
+  assignee              Assignee?      @relation("CaseAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  internalReferrerId    Int?
+  internalReferrer      Assignee?      @relation("CaseInternalReferrer", fields: [internalReferrerId], references: [id], onDelete: SetNull)
+  referrerId            Int?
+  referrer              Referrer?      @relation(fields: [referrerId], references: [id], onDelete: SetNull)
 
   // Normalized child tables
   contacts          CaseContact[]
@@ -48,6 +50,7 @@ model InheritanceCase {
   @@index([acceptanceStatus])
   @@index([createdAt])
   @@index([assigneeId])
+  @@index([internalReferrerId])
   @@index([referrerId])
 }
 
@@ -71,7 +74,8 @@ model Assignee {
   departmentId Int?
   department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   active       Boolean      @default(true)
-  cases        InheritanceCase[]
+  assignedCases          InheritanceCase[] @relation("CaseAssignee")
+  internalReferredCases  InheritanceCase[] @relation("CaseInternalReferrer")
 
   // Audit fields
   createdAt    DateTime @default(now())
@@ -95,12 +99,11 @@ model Company {
 }
 
 model Referrer {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   companyId  Int
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  name       String?
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
   department String?
-  active     Boolean  @default(true)
+  active     Boolean   @default(true)
   cases      InheritanceCase[]
 
   // Audit fields

@@ -60,7 +60,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         const numericFields = ["taxAmount", "feeAmount", "fiscalYear"]
-        const fkFields = ["assigneeId", "referrerId"]
+        const fkFields = ["assigneeId", "internalReferrerId", "referrerId"]
         setFormData((prev) => ({
             ...prev,
             [name]: numericFields.includes(name) ? Number(value)
@@ -89,6 +89,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             summary: formData.summary || null,
             memo: formData.memo || null,
             assigneeId: formData.assigneeId || null,
+            internalReferrerId: formData.internalReferrerId || null,
             referrerId: formData.referrerId || null,
             contacts,
             progress,

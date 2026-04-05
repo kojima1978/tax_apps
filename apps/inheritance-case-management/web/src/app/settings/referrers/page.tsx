@@ -8,13 +8,13 @@ import type { Referrer, Company } from "@/types/shared"
 import { formatReferrerLabel } from "@/types/shared"
 import { getReferrers, createReferrer, updateReferrer, deleteReferrer } from "@/lib/api/referrers"
 import { getCompanies } from "@/lib/api/companies"
+// assignees no longer needed for referrers (external only)
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 
 const columns: ColumnDef<Referrer>[] = [
     { key: "company", label: "会社名", renderCell: (r) => r.company.name },
     { key: "department", label: "部署", width: "200px", renderCell: (r) => r.department || "-" },
-    { key: "name", label: "氏名", width: "200px", renderCell: (r) => r.name || "-" },
 ]
 
 function ReferrerSettingsContent() {
@@ -27,7 +27,6 @@ function ReferrerSettingsContent() {
 
     const [newCompanyId, setNewCompanyId] = useState("")
     const [newDept, setNewDept] = useState("")
-    const [newName, setNewName] = useState("")
     const [newCompanyError, setNewCompanyError] = useState("")
 
     const masterList = useMasterList<Referrer, Parameters<typeof createReferrer>[0], Parameters<typeof updateReferrer>[1]>({
@@ -35,23 +34,20 @@ function ReferrerSettingsContent() {
         create: createReferrer,
         update: updateReferrer,
         remove: deleteReferrer,
-        getCreatePayload: (r) => ({ companyId: r.companyId, department: r.department, name: r.name || undefined }),
-        getUpdatePayload: (r) => ({ companyId: r.companyId, department: r.department, name: r.name || undefined, active: r.active }),
+        getCreatePayload: (r) => ({ companyId: r.companyId, department: r.department }),
+        getUpdatePayload: (r) => ({ companyId: r.companyId, department: r.department, active: r.active }),
         entityLabel: "紹介者",
         savedParam: "referrers",
-        sortFields: ["company", "department", "name"],
+        sortFields: ["company", "department"],
         getSortValue: (r, field) => {
             if (field === "company") return r.company.name
-            if (field === "department") return r.department || ""
-            return r.name || ""
+            return r.department || ""
         },
         getDeleteLabel: (r) => formatReferrerLabel(r),
     })
 
     const handleAdd = () => {
-        let hasError = false
-        if (!newCompanyId) { setNewCompanyError("会社を選択してください"); hasError = true }
-        if (hasError) return
+        if (!newCompanyId) { setNewCompanyError("会社を選択してください"); return }
 
         setNewCompanyError("")
         const companyIdNum = parseInt(newCompanyId, 10)
@@ -61,15 +57,17 @@ function ReferrerSettingsContent() {
             companyId: companyIdNum,
             company: company ?? { id: companyIdNum, name: "", active: true },
             department: newDept.trim(),
-            name: newName.trim() || undefined,
             active: true,
         } as Referrer)
-        setNewCompanyId(""); setNewDept(""); setNewName("")
+        setNewCompanyId(""); setNewDept("")
     }
 
     const handleSaveEdit = () => {
         masterList.handleSaveEdit(
-            () => !!masterList.editingFields.companyId,
+            () => {
+                if (!masterList.editingFields.companyId) return false
+                return true
+            },
             (item) => {
                 const companyIdNum = parseInt(masterList.editingFields.companyId, 10)
                 const company = companies.find(c => c.id === companyIdNum)
@@ -78,14 +76,13 @@ function ReferrerSettingsContent() {
                     companyId: companyIdNum,
                     company: company ?? item.company,
                     department: masterList.editingFields.department?.trim() || "",
-                    name: masterList.editingFields.name?.trim() || undefined,
                 }
             }
         )
     }
 
     const newItemForm = (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
             <div className="grid gap-1.5">
                 <Label>会社名 (必須)</Label>
                 <SelectField
@@ -100,14 +97,10 @@ function ReferrerSettingsContent() {
             </div>
             <div className="grid gap-1.5">
                 <Label>部署 (任意)</Label>
-                <Input placeholder="部署名" value={newDept} onChange={(e) => setNewDept(e.target.value)} />
-            </div>
-            <div className="grid gap-1.5">
-                <Label>氏名 (任意)</Label>
                 <Input
-                    placeholder="氏名"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="部署名"
+                    value={newDept}
+                    onChange={(e) => setNewDept(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                 />
             </div>
@@ -133,7 +126,7 @@ function ReferrerSettingsContent() {
                 onChange={(e) => masterList.setEditingFields(prev => ({ ...prev, [col.key]: e.target.value }))}
                 placeholder={col.label}
                 className="h-9"
-                autoFocus={col.key === "name"}
+                autoFocus={col.key === "department"}
             />
         )
     }
@@ -147,7 +140,7 @@ function ReferrerSettingsContent() {
             newItemForm={newItemForm}
             onAdd={handleAdd}
             renderEditCell={renderEditCell}
-            onStartEdit={(r) => masterList.handleStartEdit(r, { companyId: String(r.companyId), department: r.department || "", name: r.name || "" })}
+            onStartEdit={(r) => masterList.handleStartEdit(r, { companyId: String(r.companyId), department: r.department || "" })}
             onSaveEdit={handleSaveEdit}
             groupBy={(r) => r.company.name}
         />

@@ -57,9 +57,11 @@ export interface InheritanceCase {
   memo?: string;
   // Normalized FK references
   assigneeId?: number | null;
+  internalReferrerId?: number | null;
   referrerId?: number | null;
   // Included relations (from Prisma include)
   assignee?: Assignee | null;
+  internalReferrer?: Assignee | null;
   referrer?: Referrer | null;
   // Normalized child records
   progress?: CaseProgressItem[];
@@ -95,12 +97,11 @@ export interface Company {
   active: boolean;
 }
 
-// Referrer Entity
+// Referrer Entity (external only)
 export interface Referrer {
   id: number;
   companyId: number;
   company: Company;
-  name?: string;
   department?: string;
   active: boolean;
   createdAt?: Date;
@@ -125,11 +126,10 @@ export function formatId(id: number): string {
   return String(id).padStart(4, '0');
 }
 
-/** 紹介者の表示ラベルを生成（氏名は任意） */
+/** 紹介者の表示ラベルを生成（社外: 会社名 / 部署） */
 export function formatReferrerLabel(r: Referrer): string {
   const parts = [r.company.name];
   if (r.department) parts.push(r.department);
-  if (r.name) parts.push(r.name);
   return parts.join(" / ");
 }
 

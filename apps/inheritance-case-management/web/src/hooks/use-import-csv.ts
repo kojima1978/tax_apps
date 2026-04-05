@@ -71,7 +71,7 @@ async function resolveOrCreateReferrer(
   referrerCache: Map<string, number>,
   companyCache: Map<string, number>
 ): Promise<number> {
-  const cacheKey = `${pending.company}\0${pending.department ?? ''}\0${pending.name ?? ''}`;
+  const cacheKey = `${pending.company}\0${pending.department ?? ''}`;
   const cached = referrerCache.get(cacheKey);
   if (cached) return cached;
 
@@ -79,7 +79,6 @@ async function resolveOrCreateReferrer(
 
   const created = await createReferrer({
     companyId,
-    name: pending.name || undefined,
     department: pending.department,
   });
   referrerCache.set(cacheKey, created.id);
@@ -194,6 +193,12 @@ export function useImportCSV() {
         if (row.pendingAssignee) {
           const asgId = await resolveOrCreateAssignee(row.pendingAssignee, departments, assigneeCache, departmentCache);
           row.data.assigneeId = asgId;
+        }
+
+        // Auto-create internal referrer (as assignee) if pending
+        if (row.pendingInternalReferrer) {
+          const intRefId = await resolveOrCreateAssignee(row.pendingInternalReferrer, departments, assigneeCache, departmentCache);
+          row.data.internalReferrerId = intRefId;
         }
 
         // Auto-create referrer if pending

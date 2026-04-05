@@ -16,6 +16,7 @@ const emptyCase: InheritanceCase = {
     assigneeId: null,
     feeAmount: 0,
     fiscalYear: new Date().getFullYear(),
+    internalReferrerId: null,
     referrerId: null,
     estimateAmount: 0,
     propertyValue: 0,

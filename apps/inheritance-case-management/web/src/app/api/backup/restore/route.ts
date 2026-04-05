@@ -59,7 +59,6 @@ const TABLE_DEFS = [
     map: (r: Rec) => ({
       id: r.id as number,
       companyId: r.companyId as number,
-      name: (r.name as string) ?? null,
       department: (r.department as string) ?? null,
       active: (r.active as boolean) ?? true,
       createdAt: new Date(r.createdAt as string),
@@ -87,6 +86,7 @@ const TABLE_DEFS = [
       summary: (c.summary as string) ?? null,
       memo: (c.memo as string) ?? null,
       assigneeId: (c.assigneeId as number) ?? null,
+      internalReferrerId: (c.internalReferrerId as number) ?? null,
       referrerId: (c.referrerId as number) ?? null,
       createdBy: (c.createdBy as string) ?? null,
       updatedBy: (c.updatedBy as string) ?? null,
