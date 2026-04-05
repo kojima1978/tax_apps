@@ -7,10 +7,10 @@ import { buildCaseWhereClause } from '../route';
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const { status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, department } =
+    const { status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department } =
       listQuerySchema.parse(searchParams);
 
-    const where = buildCaseWhereClause({ status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, department });
+    const where = buildCaseWhereClause({ status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department });
 
     const ids = await prisma.inheritanceCase.findMany({ where, select: { id: true } });
     const idList = ids.map(c => c.id);

@@ -9,7 +9,11 @@ interface ReferrerTabProps {
 
 function buildCompanyHref(companyName: string, selectedYears: Set<number>): string {
     const params = new URLSearchParams()
-    params.set("referrerCompany", companyName)
+    if (companyName === "なし") {
+        params.set("noReferrer", "true")
+    } else {
+        params.set("referrerCompany", companyName)
+    }
     if (selectedYears.size === 1) {
         params.set("fiscalYear", String([...selectedYears][0]))
     }

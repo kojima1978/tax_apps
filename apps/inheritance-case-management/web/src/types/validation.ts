@@ -120,6 +120,8 @@ export const listQuerySchema = z.object({
   internalReferrerId: z.coerce.number().int().optional(),
   staffId: z.coerce.number().int().optional(),
   referrerCompany: z.string().optional(),
+  unassigned: z.coerce.boolean().optional(),
+  noReferrer: z.coerce.boolean().optional(),
   department: z.string().optional(),
   sortBy: sortFieldSchema.optional().default('dateOfDeath'),
   sortOrder: sortOrderSchema.optional().default('asc'),

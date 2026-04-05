@@ -50,9 +50,10 @@ function AssigneeSettingsContent() {
         entityLabel: "担当者",
         savedParam: "assignees",
         sortFields: ["employeeId", "department", "name"],
+        defaultSortField: "department",
         getSortValue: (a, field) => {
             if (field === "employeeId") return a.employeeId || ""
-            if (field === "department") return a.department?.name || ""
+            if (field === "department") return String(a.department?.sortOrder ?? 9999).padStart(5, "0")
             return a.name
         },
         getDeleteLabel: (a) => a.name,

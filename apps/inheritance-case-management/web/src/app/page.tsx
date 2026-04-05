@@ -36,7 +36,6 @@ function parseUrlParams(searchParams: URLSearchParams): CasesQueryParams {
     const pageSize = searchParams.get("pageSize")
     if (pageSize) params.pageSize = Number(pageSize)
     const fiscalYear = searchParams.get("fiscalYear")
-    params.fiscalYear = fiscalYear ? Number(fiscalYear) : new Date().getFullYear()
     for (const key of ["search", "status", "handlingStatus", "acceptanceStatus", "department"] as const) {
         const val = searchParams.get(key)
         if (val) (params as Record<string, unknown>)[key] = val
@@ -49,6 +48,23 @@ function parseUrlParams(searchParams: URLSearchParams): CasesQueryParams {
     if (staffId) params.staffId = Number(staffId)
     const referrerCompany = searchParams.get("referrerCompany")
     if (referrerCompany) params.referrerCompany = referrerCompany
+    if (searchParams.get("unassigned") === "true") params.unassigned = true
+    if (searchParams.get("noReferrer") === "true") params.noReferrer = true
+
+    // fiscalYearがURLに明示されている場合はその値を使用
+    // 他のフィルタ経由の遷移（staffId, referrerCompany等）でfiscalYear未指定なら全期間
+    // フィルタが何もない初回アクセス時のみ今年度をデフォルトに
+    if (fiscalYear) {
+        params.fiscalYear = Number(fiscalYear)
+    } else {
+        const hasAnyFilter = params.search || params.status || params.handlingStatus
+            || params.acceptanceStatus || params.department || params.assigneeId
+            || params.internalReferrerId || params.staffId || params.referrerCompany
+            || params.unassigned || params.noReferrer
+        if (!hasAnyFilter) {
+            params.fiscalYear = new Date().getFullYear()
+        }
+    }
     return params
 }
 
@@ -65,6 +81,8 @@ function toUrlSearch(params: CasesQueryParams): string {
     if (params.internalReferrerId) sp.set("internalReferrerId", String(params.internalReferrerId))
     if (params.staffId) sp.set("staffId", String(params.staffId))
     if (params.referrerCompany) sp.set("referrerCompany", params.referrerCompany)
+    if (params.unassigned) sp.set("unassigned", "true")
+    if (params.noReferrer) sp.set("noReferrer", "true")
     if (params.page && params.page > 1) sp.set("page", String(params.page))
     return sp.toString()
 }
@@ -151,7 +169,11 @@ export default function InheritanceMockupPage() {
     }
 
     const handleFilterChange = (key: keyof CasesQueryParams, value: string | undefined) => {
-        const parsed = (key === 'assigneeId' || key === 'internalReferrerId' || key === 'staffId') && value ? Number(value) : (value || undefined)
+        const parsed = (key === 'unassigned' || key === 'noReferrer')
+            ? (value === 'true' ? true : undefined)
+            : (key === 'assigneeId' || key === 'internalReferrerId' || key === 'staffId') && value
+                ? Number(value)
+                : (value || undefined)
         setQueryParams(prev => ({ ...prev, [key]: parsed, page: 1 }))
     }
 
@@ -195,6 +217,8 @@ export default function InheritanceMockupPage() {
             if (matched) parts.push(`${matched.name}の担当・紹介案件`)
         }
         if (queryParams.referrerCompany) parts.push(`紹介会社: ${queryParams.referrerCompany}`)
+        if (queryParams.unassigned) parts.push(`担当者: 未設定`)
+        if (queryParams.noReferrer) parts.push(`紹介者: なし`)
         if (queryParams.search) parts.push(`検索: ${queryParams.search}`)
         return parts.length > 0 ? parts.join(' / ') : '全案件'
     }, [queryParams, assignees])
