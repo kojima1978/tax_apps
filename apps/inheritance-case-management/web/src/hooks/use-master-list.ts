@@ -16,6 +16,7 @@ export interface MasterListConfig<T extends { id: number; active: boolean }, C, 
     entityLabel: string
     savedParam: string
     sortFields: string[]
+    defaultSortField?: string
     getSortValue: (item: T, field: string) => string
     getDeleteLabel: (item: T) => string
 }
@@ -44,7 +45,7 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
     const [items, setItems] = useState<T[]>([])
     const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set())
 
-    const [sortField, setSortField] = useState<string | null>(null)
+    const [sortField, setSortField] = useState<string | null>(config.defaultSortField ?? null)
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
     const [showInactive, setShowInactive] = useState(true)
 

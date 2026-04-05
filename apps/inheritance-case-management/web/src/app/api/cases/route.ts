@@ -16,10 +16,12 @@ export function buildCaseWhereClause(params: {
   internalReferrerId?: number;
   staffId?: number;
   referrerCompany?: string;
+  unassigned?: boolean;
+  noReferrer?: boolean;
   department?: string;
 }): Prisma.InheritanceCaseWhereInput {
   const where: Prisma.InheritanceCaseWhereInput = {};
-  const { status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, department } = params;
+  const { status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department } = params;
 
   if (status) {
     where.status = status.includes(',') ? { in: status.split(',') } : status;
@@ -36,7 +38,9 @@ export function buildCaseWhereClause(params: {
   if (search) {
     where.deceasedName = { contains: search, mode: 'insensitive' };
   }
-  if (staffId) {
+  if (unassigned) {
+    where.assigneeId = null;
+  } else if (staffId) {
     // 担当 OR 紹介者として関わる全案件
     where.OR = [
       { assigneeId: staffId },
@@ -50,7 +54,10 @@ export function buildCaseWhereClause(params: {
       where.internalReferrerId = internalReferrerId;
     }
   }
-  if (referrerCompany) {
+  if (noReferrer) {
+    where.referrerId = null;
+    where.internalReferrerId = where.internalReferrerId ?? null;
+  } else if (referrerCompany) {
     where.referrer = { company: { name: referrerCompany } };
   }
   if (department) {
@@ -63,10 +70,10 @@ export function buildCaseWhereClause(params: {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const { page, pageSize, status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, department, sortBy, sortOrder } =
+    const { page, pageSize, status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department, sortBy, sortOrder } =
       listQuerySchema.parse(searchParams);
 
-    const where = buildCaseWhereClause({ status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, department });
+    const where = buildCaseWhereClause({ status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department });
 
     // ページネーション用のカウントとデータ取得を並列実行
     const [total, cases] = await Promise.all([

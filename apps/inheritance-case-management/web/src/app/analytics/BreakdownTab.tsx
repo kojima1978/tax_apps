@@ -49,6 +49,15 @@ function buildCaseListUrl(assigneeId: number, selectedYears: Set<number>): strin
     return `/?${params.toString()}`
 }
 
+function buildUnassignedUrl(selectedYears: Set<number>): string {
+    const params = new URLSearchParams()
+    params.set("unassigned", "true")
+    if (selectedYears.size === 1) {
+        params.set("fiscalYear", String([...selectedYears][0]))
+    }
+    return `/?${params.toString()}`
+}
+
 export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabProps) {
     const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -113,6 +122,7 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
 
 function DepartmentRows({ group, isOpen, onToggle, selectedYears }: { group: DepartmentGroup; isOpen: boolean; onToggle: () => void; selectedYears: Set<number> }) {
     const totals = useMemo(() => calcDeptTotals(group.assignees), [group.assignees])
+    const isUnset = group.departmentName === "未設定"
 
     return (
         <>
@@ -126,7 +136,17 @@ function DepartmentRows({ group, isOpen, onToggle, selectedYears }: { group: Dep
                             className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
                         />
                         <div>
-                            <div>{group.departmentName}</div>
+                            <div>
+                                {isUnset ? (
+                                    <Link
+                                        href={buildUnassignedUrl(selectedYears)}
+                                        className="underline decoration-muted-foreground/40 underline-offset-2 hover:text-primary hover:decoration-primary transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {group.departmentName}
+                                    </Link>
+                                ) : group.departmentName}
+                            </div>
                             <div className="text-xs text-muted-foreground font-normal mt-0.5 space-y-0.5">
                                 <div>担当: {formatCurrency(totals.assignedFee)} / {totals.assignedCount}件</div>
                                 <div>紹介: {formatCurrency(totals.referralFee)} / {totals.referralCount}件</div>

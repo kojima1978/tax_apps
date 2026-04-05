@@ -18,6 +18,8 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.internalReferrerId) searchParams.set('internalReferrerId', String(params.internalReferrerId));
   if (params?.staffId) searchParams.set('staffId', String(params.staffId));
   if (params?.referrerCompany) searchParams.set('referrerCompany', params.referrerCompany);
+  if (params?.unassigned) searchParams.set('unassigned', 'true');
+  if (params?.noReferrer) searchParams.set('noReferrer', 'true');
   if (params?.department) searchParams.set('department', params.department);
   if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
@@ -68,6 +70,8 @@ export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | '
   if (params?.internalReferrerId) searchParams.set('internalReferrerId', String(params.internalReferrerId));
   if (params?.staffId) searchParams.set('staffId', String(params.staffId));
   if (params?.referrerCompany) searchParams.set('referrerCompany', params.referrerCompany);
+  if (params?.unassigned) searchParams.set('unassigned', 'true');
+  if (params?.noReferrer) searchParams.set('noReferrer', 'true');
   if (params?.department) searchParams.set('department', params.department);
 
   const queryString = searchParams.toString();

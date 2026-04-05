@@ -39,7 +39,7 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
     }
 
     const renderName = (name: string, className?: string) => {
-        if (buildHref && name !== LABEL_NONE) {
+        if (buildHref) {
             return (
                 <Link
                     href={buildHref(name)}
