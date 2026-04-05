@@ -14,8 +14,9 @@ export const CSV_HEADER_MAP: Record<string, string> = {
   '担当者_部署名': 'assigneeDepartment',
   '紹介者': 'referrerName',
   '紹介者_会社名': 'referrerCompany',
-  '紹介者_氏名': 'referrerPersonName',
   '紹介者_部署名': 'referrerDepartment',
+  '社内紹介者': 'internalReferrerName',
+  '社内紹介者_氏名': 'internalReferrerName',
   '財産評価額': 'propertyValue',
   '相続税額': 'taxAmount',
   '見積額': 'estimateAmount',
@@ -54,7 +55,6 @@ export type ImportWarning = ImportIssue;
 
 export interface PendingReferrer {
   company: string;
-  name?: string;
   department?: string;
 }
 
@@ -71,6 +71,7 @@ export interface ImportRow {
   defaultedFields: string[];
   pendingReferrer?: PendingReferrer;
   pendingAssignee?: PendingAssignee;
+  pendingInternalReferrer?: PendingAssignee;
 }
 
 /** Fields that receive Zod defaults when empty */
@@ -110,4 +111,5 @@ export interface RowParseResult {
   unresolvedReferrer?: string;
   pendingReferrer?: PendingReferrer;
   pendingAssignee?: PendingAssignee;
+  pendingInternalReferrer?: PendingAssignee;
 }

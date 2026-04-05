@@ -80,6 +80,9 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       if ('assigneeId' in data) {
         updateData.assigneeId = data.assigneeId || null;
       }
+      if ('internalReferrerId' in data) {
+        updateData.internalReferrerId = data.internalReferrerId || null;
+      }
       if ('referrerId' in data) {
         updateData.referrerId = data.referrerId || null;
       }

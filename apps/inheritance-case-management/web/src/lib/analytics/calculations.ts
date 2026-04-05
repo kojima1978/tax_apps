@@ -5,7 +5,8 @@ export function calcBestNet(c: InheritanceCase): number {
     return (c.feeAmount || 0) > 0 ? calcNet(c, "fee") : calcNet(c, "estimate")
 }
 
-export function calcNet(c: InheritanceCase, baseType: "fee" | "estimate"): number {
+/** 紹介手数料額を返す */
+export function calcReferralFee(c: InheritanceCase, baseType: "fee" | "estimate"): number {
     const base = baseType === "fee" ? (c.feeAmount || 0) : (c.estimateAmount || 0)
     let referral = c.referralFeeAmount || 0
 
@@ -13,7 +14,21 @@ export function calcNet(c: InheritanceCase, baseType: "fee" | "estimate"): numbe
         referral = Math.floor(base * (c.referralFeeRate / 100))
     }
 
-    return base - referral
+    return referral
+}
+
+/** 会社レベル売上 = 請求額 − 社外紹介手数料のみ（社内は控除しない） */
+export function calcNet(c: InheritanceCase, baseType: "fee" | "estimate"): number {
+    const base = baseType === "fee" ? (c.feeAmount || 0) : (c.estimateAmount || 0)
+    const referral = calcReferralFee(c, baseType)
+    const isInternal = c.internalReferrerId != null
+    return base - (isInternal ? 0 : referral)
+}
+
+/** 個人レベル純売上 = 請求額 − 紹介手数料（全額、社内含む） */
+export function calcNetPersonal(c: InheritanceCase, baseType: "fee" | "estimate"): number {
+    const base = baseType === "fee" ? (c.feeAmount || 0) : (c.estimateAmount || 0)
+    return base - calcReferralFee(c, baseType)
 }
 
 export const LABEL_NONE = "なし"
@@ -66,6 +81,20 @@ export function toWareki(date: string | Date): string {
     }
 
     return `${era}${eraYear === 1 ? "元" : eraYear}年`
+}
+
+/** 年度（西暦数値）→和暦年度文字列（例: 2024 → "R6"） */
+export function fiscalYearWareki(year: number): string {
+    if (year >= 2019) {
+        const n = year - 2018
+        return `R${n === 1 ? "元" : n}`
+    }
+    if (year >= 1989) {
+        const n = year - 1988
+        return `H${n === 1 ? "元" : n}`
+    }
+    const n = year - 1925
+    return `S${n}`
 }
 
 /** 日付を「2025年4月3日（令和7年）」形式でフォーマット */

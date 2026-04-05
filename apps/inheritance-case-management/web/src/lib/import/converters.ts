@@ -1,5 +1,6 @@
 import type { Contact, ProgressStep, CaseStatus, AcceptanceStatus } from '@/types/shared';
 import type { ColumnMaps, ResolverMaps, RowParseResult, PendingReferrer, PendingAssignee } from './types';
+// Note: PendingAssignee is reused for pendingInternalReferrer (same shape: name + optional department)
 import {
   CSV_HEADER_MAP, IGNORED_HEADERS, CONTACT_HEADER_RE, CONTACT_FIELD_MAP,
   MAX_CONTACT_COLUMNS, VALID_STATUSES, VALID_HANDLING, VALID_ACCEPTANCE,
@@ -61,10 +62,11 @@ export function rowToInput(
   let unresolvedReferrer: string | undefined;
   let pendingReferrer: PendingReferrer | undefined;
   let pendingAssignee: PendingAssignee | undefined;
+  let pendingInternalReferrer: PendingAssignee | undefined;
 
   let refCompany = '';
-  let refPersonName = '';
   let refDepartment = '';
+  let internalReferrerName = '';
   let asgPersonName = '';
   let asgDepartment = '';
 
@@ -119,7 +121,7 @@ export function rowToInput(
       case 'referrerName':
         if (value && resolvers) {
           // 単一列「紹介者」は会社名として検索
-          const id = resolvers.referrerNameToId.get(`${value}\0\0`);
+          const id = resolvers.referrerNameToId.get(`${value}\0`);
           if (id) {
             obj.referrerId = id;
           } else {
@@ -137,11 +139,11 @@ export function rowToInput(
       case 'referrerCompany':
         refCompany = value;
         break;
-      case 'referrerPersonName':
-        refPersonName = value;
-        break;
       case 'referrerDepartment':
         refDepartment = value;
+        break;
+      case 'internalReferrerName':
+        internalReferrerName = value;
         break;
       case 'propertyValue':
       case 'taxAmount':
@@ -175,19 +177,26 @@ export function rowToInput(
     }
   }
 
-  // Resolve 3-column referrer (takes precedence over legacy 紹介者 column)
-  // 3段階フォールバック: company+dept+name → company+name → company（一意の場合のみ）
+  // Resolve internal referrer by name → assigneeId
+  if (internalReferrerName) {
+    const id = resolvers?.assigneeNameToId.get(internalReferrerName);
+    if (id) {
+      obj.internalReferrerId = id;
+    } else {
+      pendingInternalReferrer = { name: internalReferrerName };
+    }
+  }
+
+  // Resolve external referrer (company + department)
   if (refCompany) {
     const id =
-      (refPersonName && refDepartment ? resolvers?.referrerNameToId.get(`${refCompany}\0${refDepartment}\0${refPersonName}`) : undefined) ??
-      (refPersonName ? resolvers?.referrerNameToId.get(`${refCompany}\0\0${refPersonName}`) : undefined) ??
-      resolvers?.referrerNameToId.get(`${refCompany}\0\0`);
+      (refDepartment ? resolvers?.referrerNameToId.get(`${refCompany}\0${refDepartment}`) : undefined) ??
+      resolvers?.referrerNameToId.get(`${refCompany}\0`);
     if (id) {
       obj.referrerId = id;
     } else {
       pendingReferrer = {
         company: refCompany,
-        ...(refPersonName ? { name: refPersonName } : {}),
         ...(refDepartment ? { department: refDepartment } : {}),
       };
     }
@@ -245,5 +254,5 @@ export function rowToInput(
     }
   }
 
-  return { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee };
+  return { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee, pendingInternalReferrer };
 }

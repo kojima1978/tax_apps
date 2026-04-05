@@ -12,24 +12,20 @@ export function buildResolverMaps(assignees: Assignee[], referrers: Referrer[]):
   assignees.forEach((a) => assigneeNameToId.set(a.name, a.id));
 
   const referrerNameToId = new Map<string, number>();
-  // 会社ごとの紹介者数をカウント（会社名のみフォールバ��ク用）
+  // 会社ごとの紹介者数をカウント（会社名のみフォールバック用）
   const companyCount = new Map<string, number>();
   referrers.forEach((r) => {
     companyCount.set(r.company.name, (companyCount.get(r.company.name) || 0) + 1);
   });
   referrers.forEach((r) => {
     const co = r.company.name;
-    // 最も具体的なキー: company / department / name
-    if (r.name && r.department) {
-      referrerNameToId.set(`${co}\0${r.department}\0${r.name}`, r.id);
-    }
-    // 中間キー: company / name
-    if (r.name) {
-      referrerNameToId.set(`${co}\0\0${r.name}`, r.id);
+    // company + department キー
+    if (r.department) {
+      referrerNameToId.set(`${co}\0${r.department}`, r.id);
     }
     // 会社名のみキー: 会社に紹介者が1人だけの場合のみ（曖昧さ回避）
     if (companyCount.get(co) === 1) {
-      referrerNameToId.set(`${co}\0\0`, r.id);
+      referrerNameToId.set(`${co}\0`, r.id);
     }
   });
 
@@ -111,7 +107,7 @@ export function parseAndValidateCSV(
       continue;
     }
 
-    const { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee } = rowToInput(
+    const { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee, pendingInternalReferrer } = rowToInput(
       dataRows[i],
       colMaps,
       resolvers
@@ -172,6 +168,7 @@ export function parseAndValidateCSV(
         defaultedFields,
         ...(pendingReferrer ? { pendingReferrer } : {}),
         ...(pendingAssignee ? { pendingAssignee } : {}),
+        ...(pendingInternalReferrer ? { pendingInternalReferrer } : {}),
       });
     } else {
       const messages = result.error.issues.map((issue) => issue.message);
