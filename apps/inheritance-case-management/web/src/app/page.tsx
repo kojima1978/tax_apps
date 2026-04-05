@@ -43,6 +43,12 @@ function parseUrlParams(searchParams: URLSearchParams): CasesQueryParams {
     }
     const assigneeId = searchParams.get("assigneeId")
     if (assigneeId) params.assigneeId = Number(assigneeId)
+    const internalReferrerId = searchParams.get("internalReferrerId")
+    if (internalReferrerId) params.internalReferrerId = Number(internalReferrerId)
+    const staffId = searchParams.get("staffId")
+    if (staffId) params.staffId = Number(staffId)
+    const referrerCompany = searchParams.get("referrerCompany")
+    if (referrerCompany) params.referrerCompany = referrerCompany
     return params
 }
 
@@ -56,6 +62,9 @@ function toUrlSearch(params: CasesQueryParams): string {
     if (params.acceptanceStatus) sp.set("acceptanceStatus", params.acceptanceStatus)
     if (params.department) sp.set("department", params.department)
     if (params.assigneeId) sp.set("assigneeId", String(params.assigneeId))
+    if (params.internalReferrerId) sp.set("internalReferrerId", String(params.internalReferrerId))
+    if (params.staffId) sp.set("staffId", String(params.staffId))
+    if (params.referrerCompany) sp.set("referrerCompany", params.referrerCompany)
     if (params.page && params.page > 1) sp.set("page", String(params.page))
     return sp.toString()
 }
@@ -120,7 +129,7 @@ export default function InheritanceMockupPage() {
         return { confirmed, estimate, total: confirmed + estimate }
     }, [cases])
 
-    const tableColumns = useMemo(() => createColumns({ amountSort, toggleAmountSort }), [amountSort, toggleAmountSort])
+    const tableColumns = useMemo(() => createColumns({ amountSort, toggleAmountSort, queryAssigneeId: queryParams.assigneeId, queryInternalReferrerId: queryParams.internalReferrerId, queryStaffId: queryParams.staffId }), [amountSort, toggleAmountSort, queryParams.assigneeId, queryParams.internalReferrerId, queryParams.staffId])
 
     // KPI data & assignees
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
@@ -142,7 +151,7 @@ export default function InheritanceMockupPage() {
     }
 
     const handleFilterChange = (key: keyof CasesQueryParams, value: string | undefined) => {
-        const parsed = key === 'assigneeId' && value ? Number(value) : (value || undefined)
+        const parsed = (key === 'assigneeId' || key === 'internalReferrerId' || key === 'staffId') && value ? Number(value) : (value || undefined)
         setQueryParams(prev => ({ ...prev, [key]: parsed, page: 1 }))
     }
 
@@ -177,6 +186,15 @@ export default function InheritanceMockupPage() {
             const matched = assignees.find(item => item.id === queryParams.assigneeId)
             if (matched) parts.push(`担当: ${matched.name}`)
         }
+        if (queryParams.internalReferrerId) {
+            const matched = assignees.find(item => item.id === queryParams.internalReferrerId)
+            if (matched) parts.push(`紹介者: ${matched.name}`)
+        }
+        if (queryParams.staffId) {
+            const matched = assignees.find(item => item.id === queryParams.staffId)
+            if (matched) parts.push(`${matched.name}の担当・紹介案件`)
+        }
+        if (queryParams.referrerCompany) parts.push(`紹介会社: ${queryParams.referrerCompany}`)
         if (queryParams.search) parts.push(`検索: ${queryParams.search}`)
         return parts.length > 0 ? parts.join(' / ') : '全案件'
     }, [queryParams, assignees])

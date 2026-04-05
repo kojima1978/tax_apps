@@ -1,3 +1,5 @@
+import { useState, useMemo } from "react"
+import Link from "next/link"
 import { Label } from "@/components/ui/Label"
 import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
@@ -21,6 +23,115 @@ interface BasicInfoSectionProps {
     returnToPath: string
     handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
+}
+
+type ReferrerMode = "none" | "internal" | "external"
+
+function ReferrerToggleSelect({
+    formData, assignees, referrers, returnToPath, setFormData
+}: Pick<BasicInfoSectionProps, "formData" | "assignees" | "referrers" | "returnToPath" | "setFormData">) {
+    const initialMode: ReferrerMode = formData.referrerId ? "external"
+        : formData.internalReferrerId ? "internal" : "none"
+    const [mode, setMode] = useState<ReferrerMode>(initialMode)
+
+    const activeAssignees = useMemo(() => assignees.filter(a => a.active !== false), [assignees])
+
+    // Group assignees by department (sortOrder順、部門なしは末尾)
+    const grouped = useMemo(() => {
+        const map = new Map<string, { sortOrder: number; members: Assignee[] }>()
+        for (const a of activeAssignees) {
+            const dept = a.department?.name || "部門なし"
+            const sortOrder = a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER
+            if (!map.has(dept)) map.set(dept, { sortOrder, members: [] })
+            map.get(dept)!.members.push(a)
+        }
+        return [...map.entries()]
+            .sort(([, a], [, b]) => a.sortOrder - b.sortOrder)
+            .map(([dept, { members }]) => [dept, members.sort((a, b) => a.id - b.id)] as const)
+    }, [activeAssignees])
+
+    const activeReferrers = useMemo(() => referrers.filter(r => r.active !== false), [referrers])
+
+    const handleModeSwitch = (newMode: ReferrerMode) => {
+        if (newMode === mode) return
+        setMode(newMode)
+        // Clear both IDs, the selected mode's select will set the appropriate one
+        setFormData(prev => ({
+            ...prev,
+            internalReferrerId: null,
+            referrerId: null,
+        }))
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+                <Label className="shrink-0">紹介者</Label>
+                <div className="inline-flex gap-px bg-muted rounded p-px">
+                    {([["none", "なし"], ["internal", "社内"], ["external", "社外"]] as const).map(([m, label]) => (
+                        <button
+                            key={m}
+                            type="button"
+                            onClick={() => handleModeSwitch(m)}
+                            className={`px-2 py-0.5 text-[11px] leading-tight font-medium rounded-sm transition-colors cursor-pointer ${mode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/50"}`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {mode === "internal" ? (
+                <>
+                    <SelectField
+                        id="internalReferrerId"
+                        name="internalReferrerId"
+                        value={formData.internalReferrerId || ""}
+                        onChange={(e) => {
+                            const val = e.target.value ? Number(e.target.value) : null
+                            setFormData(prev => ({ ...prev, internalReferrerId: val }))
+                        }}
+                    >
+                        <option value="">社内紹介者を選択</option>
+                        {grouped.map(([dept, members]) => (
+                            <optgroup key={dept} label={dept}>
+                                {members.map(a => (
+                                    <option key={a.id} value={a.id}>{a.department?.name ? `${a.department.name} / ${a.name}` : a.name}</option>
+                                ))}
+                            </optgroup>
+                        ))}
+                    </SelectField>
+                    <div className="text-right text-xs">
+                        <Link href={`/settings/assignees?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
+                            担当者を追加・編集
+                        </Link>
+                    </div>
+                </>
+            ) : mode === "external" ? (
+                <>
+                    <SelectField
+                        id="referrerId"
+                        name="referrerId"
+                        value={formData.referrerId || ""}
+                        onChange={(e) => {
+                            const val = e.target.value ? Number(e.target.value) : null
+                            setFormData(prev => ({ ...prev, referrerId: val }))
+                        }}
+                    >
+                        <option value="">社外紹介者を選択</option>
+                        {activeReferrers.map(r => (
+                            <option key={r.id} value={r.id}>{formatReferrerLabel(r)}</option>
+                        ))}
+                    </SelectField>
+                    <div className="text-right text-xs">
+                        <Link href={`/settings/referrers?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
+                            紹介者を追加・編集
+                        </Link>
+                    </div>
+                </>
+            ) : null}
+        </div>
+    )
 }
 
 export function BasicInfoSection({
@@ -150,19 +261,12 @@ export function BasicInfoSection({
                     onChange={handleChange}
                 />
 
-                <MasterSelect
-                    id="referrerId"
-                    label="紹介者"
-                    value={formData.referrerId || ""}
-                    items={referrers}
-                    placeholder="紹介者を選択"
-                    editHref={`/settings/referrers?returnTo=${returnToPath}`}
-                    editLabel="紹介者を追加・編集"
-                    renderOption={(r) => ({
-                        value: r.id,
-                        label: formatReferrerLabel(r),
-                    })}
-                    onChange={handleChange}
+                <ReferrerToggleSelect
+                    formData={formData}
+                    assignees={assignees}
+                    referrers={referrers}
+                    returnToPath={returnToPath}
+                    setFormData={setFormData}
                 />
             </div>
         </CollapsibleSection>

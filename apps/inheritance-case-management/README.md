@@ -28,7 +28,7 @@
   - 未判定・保留 → 進み具合は「未着手」のみ選択可
   - 受託不可 → 対応状況は自動的に「対応終了」に設定
   - 受託可 → 未着手 / 手続中 / 申告済 / 請求済 / 入金済 を選択可
-- 担当者・紹介者のリレーション（FK）
+- 担当者・社内紹介者・社外紹介者のリレーション（FK）、担当者・社内紹介者は「部門 / 氏名」形式で表示（部門別optgroupグループ化、sortOrder順）
 - 報酬・見積・財産評価額・紹介料（率/額）の管理
 - 特記事項（10文字以内の短い概要）・メモ（フリーテキスト）の管理
 - 申告期限の自動計算（死亡日 + 10ヶ月）
@@ -63,27 +63,35 @@
 - **部署**: 部署名、表示順（設定画面でCRUD管理）
 - **会社**: 会社名（設定画面でCRUD管理、紹介者の所属先）
 - **担当者**: 社員番号（3桁）、部署（Departmentマスタからセレクト）、氏名
-- **紹介者**: 会社（Companyマスタからセレクト）、部署、担当者名（任意）（会社名でグループ表示）
+- **紹介者**（社外専用）: 会社（Companyマスタからセレクト）、部署（会社名でグループ表示）
 - 一括編集・一括保存、ソフトデリート（active フラグ）
 
 ### 経営分析ダッシュボード（4タブ）
 
-- **売上・件数**: 売上（確定＋見積）サマリーカード、年度別業績テーブル、ステータス内訳
+- **売上・件数**: 売上（確定＋見積）サマリーカード（社外紹介手数料控除後の純売上表示）、年度別業績テーブル、ステータス内訳
 - **年計表**: 移動年計（直近12ヶ月累計）の売上・件数を折れ線グラフで表示（recharts）
-- **部門・担当者**: 部署別・担当者別の売上/件数ランキング
-- **紹介者**: 紹介者別実績が会社ごとにグループ表示、会社別実績に部門小計表示、「なし」は常に最下部に表示
+- **部門・担当者（担当者合計）**: 部門→担当者の階層テーブル（部門=大分類、担当者=中分類）
+  - 部門行: クリックで担当者の展開/折りたたみ（デフォルト: 閉じた状態）、部門合計（売上・件数・担当/紹介内訳）を常時表示
+  - 担当者行: 担当売上＋社内紹介売上の内訳を常時表示
+  - 部門はsortOrder順、担当者はid（登録順）、未設定部門は末尾
+  - 「すべて開く/すべて閉じる」一括切替ボタン
+  - 担当者名はリンク（クリックで一覧画面に遷移、`staffId`パラメータで担当＋紹介の全案件を表示）
+  - 年度フィルタの引き継ぎ（1年度選択時のみ）
+- **紹介者**: 会社別実績に部門小計表示、「なし」は常に最下部に表示
+  - 会社名はリンク（クリックで一覧画面に遷移、`referrerCompany`パラメータでその会社の紹介案件を表示）
+  - 年度フィルタの引き継ぎ
 - 年度セレクター（デフォルト: 現在年度に自動フォールバック、降順＝新しい年度が上）で全年度/特定年度を切替
 
 ### CSV取込・出力
 
-- 案件データのCSVエクスポート（担当者・紹介者は複数列形式: 氏名/部署名/会社名）
+- 案件データのCSVエクスポート（担当者・社内紹介者・社外紹介者は複数列形式）
 - CSVインポートによる一括登録・更新（バリデーション付き）
-- 担当者・紹介者の3列方式取込（`担当者_氏名`/`担当者_部署名`、`紹介者_会社名`/`紹介者_氏名`/`紹介者_部署名`）
+- 担当者・社内紹介者・社外紹介者の複数列方式取込（`担当者_氏名`/`担当者_部署名`、`社内紹介者_氏名`、`紹介者_会社名`/`紹介者_部署名`）
 - 未登録のマスタデータ（部署・会社・担当者・紹介者）をインポート時に自動作成
 - 旧形式（`担当者`/`紹介者` 1列）も後方互換で対応
 - インポート時に進捗データが空なら自動でデフォルトステップをセット
 - 日付の正規化（Excel形式 YYYY/M/D 対応）
-- 紹介者の3段階フォールバック解決: 会社+部署+氏名 → 会社+氏名 → 会社（一意の場合のみ）
+- 社外紹介者の2段階フォールバック解決: 会社+部署 → 会社（一意の場合のみ）
 - 重複検出（被相続人氏名＋死亡日＋年度）で既存案件を自動的に更新モードに切替（再インポート時の重複登録を防止）
 - 存在しないIDの案件は新規作成にフォールバック
 - ファイル選択時にマスターデータを最新に再読込
@@ -96,7 +104,7 @@
 
 ### 案件一括削除
 
-- フィルタ条件（年度・ステータス・受託状況・部門・担当者・検索）で絞り込んだ案件を一括削除
+- フィルタ条件（年度・ステータス・受託状況・部門・担当者・紹介者・紹介会社・検索）で絞り込んだ案件を一括削除
 - 削除件数の手入力による確認（誤操作防止）
 - フィルタ適用時のみ一括削除ボタンを表示
 
@@ -121,7 +129,13 @@
 - **インライン編集**: 一覧画面で特記事項をクリックして即時編集・保存
 - **売上列**: 報酬額入力済→確定（緑）、未入力→見込額（青）のラベルを金額の上に配置
 - **フィルターチップ**: 適用中のフィルターをチップ表示し、個別に解除可能
-- **フィルター**: 年度（2015〜2035）・受託状況（複数選択）・ステータス（複数選択）・対応状況・部門・担当者・検索をdata-driven定義（`FILTER_KEYS`/`STATIC_FILTER_DEFS`）
+- **フィルター**: 年度（2015〜2035）・受託状況（複数選択）・ステータス（複数選択）・対応状況・部門・担当者・紹介者（社内）・紹介会社をdata-driven定義（`FILTER_KEYS`/`STATIC_FILTER_DEFS`）
+  - 担当者・紹介者（社内）セレクトボックスは部門別 `<optgroup>` でグループ化（sortOrder順）
+  - 紹介者（社内）セレクトボックスはオレンジボーダーで担当者と視覚的に区別
+  - フィルタチップの色分け: 紹介者=オレンジ系、その他=プライマリ系
+  - `staffId` パラメータ: 経営分析からの遷移用、担当＋紹介の全案件を OR 条件で取得
+  - `referrerCompany` パラメータ: 経営分析からの遷移用、紹介会社名でフィルタ
+- **役割列**: 担当者・紹介者・staffIdフィルタ適用時に自動表示、担当=青バッジ、紹介=オレンジバッジ
 - **フィルタURL同期**: フィルタ条件をURLクエリパラメータに同期（`?fiscalYear=2023&status=手続中`）、ブラウザバック・共有URL対応
 - **表示件数**: デフォルト100件
 - **キーボードナビゲーション**: テーブル行の矢印キー移動・Enterで詳細遷移
@@ -135,6 +149,7 @@
 - **ポータルに戻るボタン**: aタグで外部遷移（クライアントサイドルーティング外）
 - **年度セレクトボックス**: 降順表示（新しい年度が上）
 - **MasterSelectリンク**: Link化によるクライアントサイドルーティング
+- **MasterSelect表示**: 担当者・社内紹介者を「部門 / 氏名」形式で表示、部門別optgroupグループ化
 
 ## ページ構成
 
@@ -166,7 +181,7 @@ inheritance-case-management/
     ├── package.json
     ├── next.config.ts          # basePath: /itcm
     ├── prisma/
-    │   └── schema.prisma       # DBスキーマ（8モデル: Department, Company, Assignee, Referrer, Case, Contact, Progress）
+    │   └── schema.prisma       # DBスキーマ（7モデル: Department, Company, Assignee, Referrer, InheritanceCase, CaseContact, CaseProgress）
     └── src/
         ├── app/
         │   ├── page.tsx                # 案件一覧
@@ -328,6 +343,9 @@ inheritance-case-management/
 | fiscalYear | int | 年度フィルタ |
 | department | string | 部門フィルタ（担当者の部署でリレーション経由フィルタ） |
 | assigneeId | int | 担当者フィルタ |
+| internalReferrerId | int | 社内紹介者フィルタ |
+| staffId | int | 担当者OR社内紹介者フィルタ（担当＋紹介の全案件） |
+| referrerCompany | string | 紹介会社名フィルタ（社外紹介者の会社でリレーション経由フィルタ） |
 | search | string | 被相続人氏名の部分一致検索 |
 | sortBy | string | ソートキー（デフォルト: dateOfDeath） |
 | sortOrder | string | ソート順（デフォルト: asc）※年度降順は常に最優先 |
@@ -369,7 +387,8 @@ erDiagram
     Department ||--o{ Assignee : "所属"
     Company ||--o{ Referrer : "所属"
     Assignee ||--o{ InheritanceCase : "担当"
-    Referrer ||--o{ InheritanceCase : "紹介"
+    Assignee ||--o{ InheritanceCase : "社内紹介"
+    Referrer ||--o{ InheritanceCase : "社外紹介"
     InheritanceCase ||--o{ CaseContact : "連絡先"
     InheritanceCase ||--o{ CaseProgress : "進捗"
 
@@ -403,12 +422,10 @@ erDiagram
     Referrer {
         int id PK "自動採番"
         int companyId FK "会社（Company）"
-        string name "担当者名（任意）"
         string department "部署"
         boolean active "有効フラグ"
         datetime createdAt
         datetime updatedAt
-        ___ ___ "UK: companyId+name+department（COALESCE付き機能インデックス）"
     }
 
     InheritanceCase {
@@ -427,8 +444,9 @@ erDiagram
         int referralFeeAmount "紹介料額"
         string summary "特記事項（最大10文字）"
         string memo "メモ（フリーテキスト）"
-        int assigneeId FK "担当者"
-        int referrerId FK "紹介者"
+        int assigneeId FK "担当者（Assignee）"
+        int internalReferrerId FK "社内紹介者（Assignee）"
+        int referrerId FK "社外紹介者（Referrer）"
         string createdBy "作成者"
         string updatedBy "更新者"
         datetime createdAt
@@ -473,14 +491,14 @@ erDiagram
 - **セルファクトリ**: `statusCell()` でステータスバッジ列の定義を共通化、`formatDate()` で日付フォーマットを統一
 - **マスタ取得共通化**: `useAsyncMasters` フックで担当者・部署の非同期取得パターンを一元化
 - **モジュール分割**: `import-csv.ts`（629行）→ `lib/import/`（types/parser/converters/validator）、`analytics-utils.ts`（217行）→ `lib/analytics/`（calculations/aggregations）に分割し、旧ファイルは後方互換re-exportとして維持
-- **DB正規化**: Department・Company テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId でFK参照
+- **DB正規化**: Department・Company テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId でFK参照。社内紹介者はAssigneeテーブルで一元管理（InheritanceCase.internalReferrerId → Assignee）
 - **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
 - **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
 - **和暦変換**: `toWareki()` / `formatDateWithWareki()` で令和/平成/昭和/大正/明治を自動判定し、日付表示に和暦を併記
 - **フィルタURL同期**: `useSearchParams` + `router.replace` でフィルタ状態をURLクエリパラメータに双方向同期、`popstate` リスナーでブラウザバック復元
-- **紹介者3段階解決**: `buildResolverMaps` で会社+部署+氏名 / 会社+氏名 / 会社（一意時のみ）の3段階キーを構築、CSV取込時の紹介者マッチングの正確性を向上
-- **Referrerユニーク制約**: `COALESCE` 付き機能ユニークインデックスでNULL安全な重複防止（companyId + name + department）
+- **紹介者2段階解決**: `buildResolverMaps` で会社+部署 / 会社（一意時のみ）の2段階キーを構築、CSV取込時の社外紹介者マッチングの正確性を向上
+- **社内/社外紹介者分離**: 社内紹介者は `Assignee` テーブルで管理（`internalReferrerId`）、社外紹介者は `Referrer` テーブルで管理（`referrerId`）。同一人物の重複管理を排除
 
 ## クイックスタート
 

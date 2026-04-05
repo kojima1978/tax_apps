@@ -10,8 +10,10 @@ import { CASE_STATUS_FILTER_OPTIONS, HANDLING_STATUS_FILTER_OPTIONS, ACCEPTANCE_
 import type { Assignee, Department } from "@/types/shared"
 
 const FILTER_SELECT_WRAPPER = "h-10 w-auto"
+const REFERRER_SELECT_WRAPPER = "h-10 w-auto border-orange-300"
 
-type FilterDef = { key: keyof CasesQueryParams; placeholder: string; options: readonly { value: string | number; label: string }[]; multiSelect?: boolean }
+type OptGroupDef = { label: string; options: readonly { value: string | number; label: string }[] }
+type FilterDef = { key: keyof CasesQueryParams; placeholder: string; options: readonly { value: string | number; label: string }[]; optGroups?: OptGroupDef[]; multiSelect?: boolean; wrapperClassName?: string }
 interface FilterBarProps {
     queryParams: CasesQueryParams
     searchInput: string
@@ -35,11 +37,33 @@ const STATIC_FILTER_DEFS: FilterDef[] = [
 export function FilterBar({
     queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onClearAll, assignees, departments, totalCount, hasFilters,
 }: FilterBarProps) {
+    const activeAssigneeOptions = useMemo(() => assignees.filter(a => a.active).map(a => ({ value: a.id, label: a.name })), [assignees])
+
+    const assigneeOptGroups = useMemo((): OptGroupDef[] => {
+        const active = assignees.filter(a => a.active)
+        const deptMap = new Map<string, { sortOrder: number; items: { value: number; label: string }[] }>()
+
+        active.forEach(a => {
+            const deptName = a.department?.name || "未設定"
+            const sortOrder = a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER
+            if (!deptMap.has(deptName)) deptMap.set(deptName, { sortOrder, items: [] })
+            deptMap.get(deptName)!.items.push({ value: a.id, label: a.name })
+        })
+
+        return Array.from(deptMap.entries())
+            .sort(([, a], [, b]) => a.sortOrder - b.sortOrder)
+            .map(([name, { items }]) => ({
+                label: name,
+                options: items.sort((a, b) => a.value - b.value),
+            }))
+    }, [assignees])
+
     const filterDefs: FilterDef[] = useMemo(() => [
         ...STATIC_FILTER_DEFS,
         { key: "department" as const, placeholder: "部門", options: departments.filter(d => d.active).map(d => ({ value: d.name, label: d.name })) },
-        { key: "assigneeId" as const, placeholder: "担当者", options: assignees.filter(a => a.active).map(a => ({ value: a.id, label: a.name })) },
-    ], [assignees, departments])
+        { key: "assigneeId" as const, placeholder: "担当者", options: activeAssigneeOptions, optGroups: assigneeOptGroups },
+        { key: "internalReferrerId" as const, placeholder: "紹介者（社内）", options: activeAssigneeOptions, optGroups: assigneeOptGroups, wrapperClassName: REFERRER_SELECT_WRAPPER },
+    ], [activeAssigneeOptions, assigneeOptGroups, departments])
 
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 
@@ -64,10 +88,23 @@ export function FilterBar({
         fiscalYear: (v) => `年度: ${v}年度`,
         department: (v) => `部門: ${v}`,
         assigneeId: (v) => `担当: ${assignees.find(a => a.id === v)?.name || v}`,
+        internalReferrerId: (v) => `紹介者: ${assignees.find(a => a.id === v)?.name || v}`,
+        staffId: (v) => `担当・紹介: ${assignees.find(a => a.id === v)?.name || v}`,
+        referrerCompany: (v) => `紹介会社: ${v}`,
     }
+
+    const CHIP_STYLES: Record<string, string> = {
+        internalReferrerId: "bg-orange-100 text-orange-800",
+    }
+    const DEFAULT_CHIP_STYLE = "bg-primary/10 text-primary"
+
     const activeFilters = Object.entries(CHIP_LABELS)
         .filter(([key]) => queryParams[key as keyof CasesQueryParams])
-        .map(([key, label]) => ({ key, label: label(queryParams[key as keyof CasesQueryParams] as string | number) }))
+        .map(([key, label]) => ({
+            key,
+            label: label(queryParams[key as keyof CasesQueryParams] as string | number),
+            chipStyle: CHIP_STYLES[key] || DEFAULT_CHIP_STYLE,
+        }))
 
     return (
         <div className="space-y-3 mb-4">
@@ -104,11 +141,11 @@ export function FilterBar({
             {activeFilters.length > 0 && (
                 <div className="flex gap-2 flex-wrap items-center">
                     {activeFilters.map(f => (
-                        <span key={f.key} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs pl-2.5 pr-1 py-1 rounded-full font-medium">
+                        <span key={f.key} className={`inline-flex items-center gap-1 text-xs pl-2.5 pr-1 py-1 rounded-full font-medium ${f.chipStyle}`}>
                             {f.label}
                             <button
                                 onClick={() => f.key === 'search' ? setSearchInput('') : onFilterChange(f.key as keyof CasesQueryParams, undefined)}
-                                className="hover:bg-primary/20 rounded-full p-1.5 transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center"
+                                className="hover:bg-black/10 rounded-full p-1.5 transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center"
                                 aria-label={`${f.label}を解除`}
                             >
                                 <X className="h-3 w-3" />
@@ -123,7 +160,7 @@ export function FilterBar({
 
             {/* Row 2: フィルター + ソート */}
             <div className="flex gap-2 flex-wrap items-center">
-                {filterDefs.map(({ key, placeholder, options, multiSelect }) => {
+                {filterDefs.map(({ key, placeholder, options, optGroups, multiSelect, wrapperClassName }) => {
                     if (multiSelect) {
                         const raw = queryParams[key] as string | undefined
                         const selected = new Set(raw ? raw.split(',') : [])
@@ -140,14 +177,24 @@ export function FilterBar({
                     return (
                         <SelectField
                             key={key}
-                            wrapperClassName={FILTER_SELECT_WRAPPER}
+                            wrapperClassName={wrapperClassName || FILTER_SELECT_WRAPPER}
                             value={queryParams[key] || ""}
                             onChange={(e) => onFilterChange(key, e.target.value || undefined)}
                         >
                             <option value="">{placeholder}</option>
-                            {options.map(({ value, label }) => (
-                                <option key={String(value)} value={value}>{label}</option>
-                            ))}
+                            {optGroups ? (
+                                optGroups.map(group => (
+                                    <optgroup key={group.label} label={group.label}>
+                                        {group.options.map(({ value, label }) => (
+                                            <option key={String(value)} value={value}>{label}</option>
+                                        ))}
+                                    </optgroup>
+                                ))
+                            ) : (
+                                options.map(({ value, label }) => (
+                                    <option key={String(value)} value={value}>{label}</option>
+                                ))
+                            )}
                         </SelectField>
                     )
                 })}

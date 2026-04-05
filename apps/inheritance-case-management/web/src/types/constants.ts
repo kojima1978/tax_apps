@@ -69,7 +69,7 @@ export const HANDLING_STATUS_FILTER_OPTIONS = HANDLING_STATUS_OPTIONS.map(s => (
 export const ACCEPTANCE_STATUS_FILTER_OPTIONS = ACCEPTANCE_STATUS_OPTIONS.map(s => ({ value: s, label: s }))
 
 // Filter keys used for hasFilters check and KPI dependency
-export const FILTER_KEYS = ['search', 'status', 'handlingStatus', 'acceptanceStatus', 'fiscalYear', 'department', 'assigneeId'] as const
+export const FILTER_KEYS = ['search', 'status', 'handlingStatus', 'acceptanceStatus', 'fiscalYear', 'department', 'assigneeId', 'internalReferrerId', 'staffId', 'referrerCompany'] as const
 
 // Fiscal year range
 export const FISCAL_YEAR_START = 2015

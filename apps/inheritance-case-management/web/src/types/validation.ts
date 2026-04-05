@@ -32,6 +32,7 @@ export const createCaseSchema = z.object({
   acceptanceStatus: acceptanceStatusSchema.optional().default('未判定'),
   taxAmount: z.number().int().min(0, '税額は0以上を入力してください').optional().default(0),
   assigneeId: z.number().int().nullable().optional(),
+  internalReferrerId: z.number().int().nullable().optional(),
   feeAmount: z.number().int().min(0, '報酬は0以上を入力してください').optional().default(0),
   referrerId: z.number().int().nullable().optional(),
   estimateAmount: z.number().int().min(0, '見積額は0以上を入力してください').optional().default(0),
@@ -85,7 +86,6 @@ export const updateCompanySchema = createCompanySchema.partial().extend({
 // Referrer Schemas
 export const createReferrerSchema = z.object({
   companyId: z.number().int('会社IDは整数で入力してください'),
-  name: z.string().max(50, '氏名は50文字以内で入力してください').optional(),
   department: z.string().max(50, '部署は50文字以内で入力してください').optional(),
 });
 
@@ -117,6 +117,9 @@ export const listQuerySchema = z.object({
   fiscalYear: z.coerce.number().int().optional(),
   search: z.string().optional(),
   assigneeId: z.coerce.number().int().optional(),
+  internalReferrerId: z.coerce.number().int().optional(),
+  staffId: z.coerce.number().int().optional(),
+  referrerCompany: z.string().optional(),
   department: z.string().optional(),
   sortBy: sortFieldSchema.optional().default('dateOfDeath'),
   sortOrder: sortOrderSchema.optional().default('asc'),

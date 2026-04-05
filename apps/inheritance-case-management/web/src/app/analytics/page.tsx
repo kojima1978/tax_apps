@@ -3,11 +3,10 @@
 import { useEffect, useState, useMemo } from "react"
 import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
-import type { InheritanceCase } from "@/types/shared"
-import { calcNet, aggregateCases, computeRollingAnnual, LABEL_NONE, pinBottomCompare } from "@/lib/analytics-utils"
+import type { InheritanceCase, Assignee } from "@/types/shared"
+import type { RankingData } from "@/lib/analytics-utils"
+import { calcNet, calcReferralFee, aggregateCases, computeRollingAnnual } from "@/lib/analytics-utils"
 import { isCompleted } from "@/types/constants"
-import { SelectField } from "@/components/ui/SelectField"
-import { Button } from "@/components/ui/Button"
 import { RefreshCw } from "lucide-react"
 import { useRankingSort } from "@/hooks/use-ranking-sort"
 import { OverviewTab } from "./OverviewTab"
@@ -27,15 +26,15 @@ const TABS: { id: TabId; label: string }[] = [
 
 export default function AnalyticsPage() {
     const [data, setData] = useState<InheritanceCase[]>([])
+    const [assigneesData, setAssigneesData] = useState<Assignee[]>([])
     const [deptMap, setDeptMap] = useState<Map<string, string>>(new Map())
     const currentYear = new Date().getFullYear()
-    const [yearFrom, setYearFrom] = useState<number | null>(currentYear)
-    const [yearTo, setYearTo] = useState<number | null>(currentYear)
+    const [selectedYears, setSelectedYears] = useState<Set<number>>(new Set([currentYear]))
     const [activeTab, setActiveTab] = useState<TabId>("overview")
     const [years, setYears] = useState<number[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
-    const isAllYears = yearFrom === null && yearTo === null
+    const isAllYears = selectedYears.size === 0
 
     useEffect(() => {
         const load = async () => {
@@ -43,6 +42,7 @@ export default function AnalyticsPage() {
             try {
                 const [cases, assignees] = await Promise.all([getAllCases(), getAssignees()])
                 setData(cases)
+                setAssigneesData(assignees)
 
                 const map = new Map<string, string>()
                 assignees.forEach(a => map.set(a.name, a.department?.name || ""))
@@ -52,9 +52,7 @@ export default function AnalyticsPage() {
                 setYears(uniqueYears)
                 const cy = new Date().getFullYear()
                 if (!uniqueYears.includes(cy)) {
-                    const latest = uniqueYears[0] ?? null
-                    setYearFrom(latest)
-                    setYearTo(latest)
+                    setSelectedYears(uniqueYears.length > 0 ? new Set([uniqueYears[0]]) : new Set())
                 }
             } catch (error) {
                 console.error("Failed to load analytics data:", error)
@@ -67,18 +65,15 @@ export default function AnalyticsPage() {
 
     const filteredData = useMemo(() => {
         if (isAllYears) return data
-        return data.filter(c => {
-            if (yearFrom !== null && c.fiscalYear < yearFrom) return false
-            if (yearTo !== null && c.fiscalYear > yearTo) return false
-            return true
-        })
-    }, [data, yearFrom, yearTo, isAllYears])
+        return data.filter(c => selectedYears.has(c.fiscalYear))
+    }, [data, selectedYears, isAllYears])
 
     const yearLabel = useMemo(() => {
         if (isAllYears) return "全期間"
-        if (yearFrom === yearTo) return `${yearFrom}年度`
-        return `${yearFrom ?? ""}〜${yearTo ?? ""}年度`
-    }, [yearFrom, yearTo, isAllYears])
+        const sorted = [...selectedYears].sort((a, b) => a - b)
+        if (sorted.length === 1) return `${sorted[0]}年度`
+        return `${sorted[0]}〜${sorted[sorted.length - 1]}年度`
+    }, [selectedYears, isAllYears])
 
     const aggregation = useMemo(
         () => aggregateCases(filteredData, deptMap),
@@ -87,18 +82,47 @@ export default function AnalyticsPage() {
 
     const rollingAnnualData = useMemo(() => computeRollingAnnual(data), [data])
 
-    const groupedReferrerRanking = useMemo(() => {
-        const data = aggregation.referrerRanking
-        return [...data].sort((a, b) => {
-            const aGroup = a.group || LABEL_NONE
-            const bGroup = b.group || LABEL_NONE
-            const pin = pinBottomCompare(aGroup, bGroup)
-            if (pin !== 0) return pin
-            if (aGroup !== bGroup) return aGroup.localeCompare(bGroup, "ja")
-            return b.feeTotal - a.feeTotal
-        })
-    }, [aggregation.referrerRanking])
     const { sorted: sortedCompanyRanking, sort: companySort, handleSort: handleCompanySort } = useRankingSort(aggregation.companyRanking)
+
+    // 部門→担当者の階層グループを構築
+    const departmentGroups = useMemo(() => {
+        const rankingMap = new Map<string, RankingData>()
+        aggregation.assigneeRanking.forEach((r: RankingData) => rankingMap.set(r.name, r))
+
+        // 担当者をid順で部門ごとにグループ化
+        type GroupEntry = { departmentName: string; sortOrder: number; assignees: { id: number; ranking: RankingData }[] }
+        const groups = new Map<string, GroupEntry>()
+
+        assigneesData.forEach((a: Assignee) => {
+            const deptName = a.department?.name || "未設定"
+            const sortOrder = a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER
+            const ranking = rankingMap.get(a.name)
+            if (!ranking) return // この担当者にデータなし
+            if (!groups.has(deptName)) {
+                groups.set(deptName, { departmentName: deptName, sortOrder, assignees: [] })
+            }
+            groups.get(deptName)!.assignees.push({ id: a.id, ranking })
+        })
+
+        // assigneeRankingにあるがassigneesDataにない名前（「未設定」等）を拾う
+        aggregation.assigneeRanking.forEach((r: RankingData) => {
+            const found = assigneesData.some((a: Assignee) => a.name === r.name)
+            if (!found) {
+                const deptName = "未設定"
+                if (!groups.has(deptName)) {
+                    groups.set(deptName, { departmentName: deptName, sortOrder: Number.MAX_SAFE_INTEGER, assignees: [] })
+                }
+                groups.get(deptName)!.assignees.push({ id: Number.MAX_SAFE_INTEGER, ranking: r })
+            }
+        })
+
+        return Array.from(groups.values())
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map(g => ({
+                departmentName: g.departmentName,
+                assignees: g.assignees.sort((a, b) => a.id - b.id).map(a => ({ ...a.ranking, assigneeId: a.id })),
+            }))
+    }, [aggregation.assigneeRanking, assigneesData])
 
     const summaryTotals = useMemo(() => {
         const acceptedCases = filteredData.filter(c => c.acceptanceStatus === "受託可")
@@ -110,12 +134,33 @@ export default function AnalyticsPage() {
         const estimateTotalNet = ongoingCases.reduce((sum, c) => sum + calcNet(c, "estimate"), 0)
         const estimateTotalGross = ongoingCases.reduce((sum, c) => sum + (c.estimateAmount || 0), 0)
 
+        const calcInternalExternal = (cases: InheritanceCase[], baseType: "fee" | "estimate") => {
+            let internal = 0, external = 0
+            for (const c of cases) {
+                const fee = calcReferralFee(c, baseType)
+                if (fee === 0) continue
+                if (c.internalReferrerId != null) {
+                    internal += fee
+                } else {
+                    external += fee
+                }
+            }
+            return { internal, external }
+        }
+
+        const salesReferral = calcInternalExternal(completedCases, "fee")
+        const estimateReferral = calcInternalExternal(ongoingCases, "estimate")
+
         return {
             salesTotalNet, salesTotalGross, salesCount: completedCases.length,
+            salesReferralInternal: salesReferral.internal, salesReferralExternal: salesReferral.external,
             estimateTotalNet, estimateTotalGross, estimateCount: ongoingCases.length,
+            estimateReferralInternal: estimateReferral.internal, estimateReferralExternal: estimateReferral.external,
             grandTotalNet: salesTotalNet + estimateTotalNet,
             grandTotalGross: salesTotalGross + estimateTotalGross,
             grandCount: completedCases.length + ongoingCases.length,
+            grandReferralInternal: salesReferral.internal + estimateReferral.internal,
+            grandReferralExternal: salesReferral.external + estimateReferral.external,
         }
     }, [filteredData])
 
@@ -136,48 +181,33 @@ export default function AnalyticsPage() {
         <div className="container mx-auto py-10 px-4 space-y-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <h1 className="text-2xl md:text-3xl font-bold">経営分析ダッシュボード</h1>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">表示期間:</span>
-                    <SelectField
-                        wrapperClassName={`h-10 w-auto ${isAllYears ? "opacity-40" : ""}`}
-                        value={isAllYears ? (years[years.length - 1] ?? "") : (yearFrom ?? "")}
-                        onChange={(e) => {
-                            const v = Number(e.target.value)
-                            if (isAllYears) {
-                                setYearFrom(v)
-                                setYearTo(years[0] ?? v)
-                            } else {
-                                setYearFrom(v)
-                                if (yearTo !== null && v > yearTo) setYearTo(v)
-                            }
-                        }}
-                    >
-                        {years.map(y => <option key={y} value={y}>{y}年度</option>)}
-                    </SelectField>
-                    <span className="text-sm text-muted-foreground">〜</span>
-                    <SelectField
-                        wrapperClassName={`h-10 w-auto ${isAllYears ? "opacity-40" : ""}`}
-                        value={isAllYears ? (years[0] ?? "") : (yearTo ?? "")}
-                        onChange={(e) => {
-                            const v = Number(e.target.value)
-                            if (isAllYears) {
-                                setYearFrom(years[years.length - 1] ?? v)
-                                setYearTo(v)
-                            } else {
-                                setYearTo(v)
-                                if (yearFrom !== null && v < yearFrom) setYearFrom(v)
-                            }
-                        }}
-                    >
-                        {years.map(y => <option key={y} value={y}>{y}年度</option>)}
-                    </SelectField>
-                    <Button
-                        variant={isAllYears ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => { setYearFrom(null); setYearTo(null) }}
+                <div className="flex items-center gap-1 flex-wrap">
+                    <button
+                        onClick={() => setSelectedYears(new Set())}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-full border transition-colors cursor-pointer ${isAllYears ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground"}`}
                     >
                         全期間
-                    </Button>
+                    </button>
+                    {years.map(y => {
+                        const active = selectedYears.has(y)
+                        return (
+                            <button
+                                key={y}
+                                onClick={() => {
+                                    const next = new Set(selectedYears)
+                                    if (active) {
+                                        next.delete(y)
+                                    } else {
+                                        next.add(y)
+                                    }
+                                    setSelectedYears(next)
+                                }}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-full border transition-colors cursor-pointer ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground"}`}
+                            >
+                                {y}
+                            </button>
+                        )
+                    })}
                 </div>
             </div>
 
@@ -208,17 +238,17 @@ export default function AnalyticsPage() {
 
             {activeTab === "breakdown" && (
                 <BreakdownTab
-                    departmentTotals={aggregation.departmentTotals}
-                    assigneeRanking={aggregation.assigneeRanking}
+                    departmentGroups={departmentGroups}
+                    selectedYears={selectedYears}
                 />
             )}
 
             {activeTab === "referrer" && (
                 <ReferrerTab
-                    groupedReferrerRanking={groupedReferrerRanking}
                     sortedCompanyRanking={sortedCompanyRanking}
                     companySort={companySort}
                     onCompanySort={handleCompanySort}
+                    selectedYears={selectedYears}
                 />
             )}
         </div>
