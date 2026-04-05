@@ -15,6 +15,9 @@ import { InlineSummaryCell } from "./InlineSummaryCell"
 interface ColumnOptions {
     amountSort: "asc" | "desc" | null
     toggleAmountSort: () => void
+    queryAssigneeId?: number
+    queryInternalReferrerId?: number
+    queryStaffId?: number
 }
 
 // ── Cell factory helpers ──────────────────────────────────
@@ -40,7 +43,8 @@ function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onT
     )
 }
 
-export function createColumns({ amountSort, toggleAmountSort }: ColumnOptions): ColumnDef<InheritanceCase>[] {
+export function createColumns({ amountSort, toggleAmountSort, queryAssigneeId, queryInternalReferrerId, queryStaffId }: ColumnOptions): ColumnDef<InheritanceCase>[] {
+    const showRoleColumn = queryAssigneeId || queryInternalReferrerId || queryStaffId
     return [
     {
         accessorKey: "deceasedName",
@@ -126,6 +130,24 @@ export function createColumns({ amountSort, toggleAmountSort }: ColumnOptions): 
         header: ({ column }) => <SortableHeader column={column}>担当者</SortableHeader>,
         cell: ({ row }) => <div>{row.original.assignee?.name || ""}</div>,
     },
+    ...(showRoleColumn ? [{
+        id: "role",
+        header: () => <span className="inline-flex items-center h-8">役割</span>,
+        cell: ({ row }: { row: { original: InheritanceCase } }) => {
+            const c = row.original
+            const targetId = queryStaffId || queryAssigneeId
+            const isAssigned = targetId && c.assigneeId === targetId
+            const isReferrer = queryInternalReferrerId
+                ? c.internalReferrerId === queryInternalReferrerId
+                : targetId && c.internalReferrerId === targetId
+            return (
+                <div className="flex gap-1">
+                    {isAssigned && <span className="px-1.5 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700">担当</span>}
+                    {isReferrer && <span className="px-1.5 py-0.5 rounded-full text-xs bg-orange-50 text-orange-700">紹介</span>}
+                </div>
+            )
+        },
+    } as ColumnDef<InheritanceCase>] : []),
     {
         id: "amount",
         header: () => <AmountSortHeader sort={amountSort} onToggle={toggleAmountSort} />,

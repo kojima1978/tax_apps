@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { formatCurrency, LABEL_NONE } from "@/lib/analytics-utils"
 
 type RankingColumnDef = {
@@ -15,9 +16,10 @@ interface RankingTableProps {
     sortState?: { col: string; desc: boolean }
     groupBy?: boolean
     showSubRows?: boolean
+    buildHref?: (name: string) => string
 }
 
-export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSort, sortState, groupBy, showSubRows }: RankingTableProps) {
+export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSort, sortState, groupBy, showSubRows, buildHref }: RankingTableProps) {
     const renderTh = (col: RankingColumnDef) => {
         const align = col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : ""
         const sortable = onSort && col.sortKey
@@ -34,6 +36,20 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
                 {col.label}{indicator}
             </th>
         )
+    }
+
+    const renderName = (name: string, className?: string) => {
+        if (buildHref && name !== LABEL_NONE) {
+            return (
+                <Link
+                    href={buildHref(name)}
+                    className={`underline decoration-muted-foreground/40 underline-offset-2 hover:text-primary hover:decoration-primary transition-colors ${className || ""}`}
+                >
+                    {name}
+                </Link>
+            )
+        }
+        return <span className={className}>{name}</span>
     }
 
     // Group rows by group field
@@ -76,9 +92,12 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
         })
     } else {
         data.forEach(r => {
+            const hasSubRows = showSubRows && r.departments && r.departments.length > 0
             rows.push(
                 <tr key={r.name}>
-                    <td className={`p-3 font-medium ${showSubRows && r.departments && r.departments.length > 0 ? "font-semibold" : ""}`}>{r.name}</td>
+                    <td className={`p-3 font-medium ${hasSubRows ? "font-semibold" : ""}`}>
+                        {renderName(r.name)}
+                    </td>
                     <td className="p-3 text-right font-medium">{formatCurrency(r.feeTotal)}</td>
                     <td className="p-3 text-center text-muted-foreground">{r.count}</td>
                 </tr>
