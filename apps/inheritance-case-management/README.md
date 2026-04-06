@@ -68,7 +68,7 @@
 
 ### 経営分析ダッシュボード（4タブ）
 
-- **売上・件数**: 売上（確定＋見積）サマリーカード（社外紹介手数料控除後の純売上表示）、年度別業績テーブル、ステータス内訳
+- **売上・件数**: 売上（確定＋見積）サマリーカード（紹介手数料の社内/社外内訳表示、社外紹介手数料控除後の純売上表示）、年度別業績テーブル、ステータス内訳
 - **年計表**: 移動年計（直近12ヶ月累計）の売上・件数を折れ線グラフで表示（recharts）
 - **部門・担当者（担当者合計）**: 部門→担当者の階層テーブル（部門=大分類、担当者=中分類）
   - 部門行: クリックで担当者の展開/折りたたみ（デフォルト: 閉じた状態）、部門合計（売上・件数・担当/紹介内訳）を常時表示
@@ -76,17 +76,20 @@
   - 部門はsortOrder順、担当者はid（登録順）、未設定部門は末尾
   - 「すべて開く/すべて閉じる」一括切替ボタン
   - 担当者名はリンク（クリックで一覧画面に遷移、`staffId`パラメータで担当＋紹介の全案件を表示）
+  - 「未設定」もリンク化（`unassigned`パラメータで担当者未設定案件を表示）
   - 年度フィルタの引き継ぎ（1年度選択時のみ）
 - **紹介者**: 会社別実績に部門小計表示、「なし」は常に最下部に表示
   - 会社名はリンク（クリックで一覧画面に遷移、`referrerCompany`パラメータでその会社の紹介案件を表示）
+  - 「なし」もリンク化（`noReferrer`パラメータで紹介者未設定案件を表示）
   - 年度フィルタの引き継ぎ
-- 年度セレクター（デフォルト: 現在年度に自動フォールバック、降順＝新しい年度が上）で全年度/特定年度を切替
+- 年度ピルUI: 全期間 + 個別年度をトグルボタンで複数選択可能（デフォルト: 現在年度、データに現在年度がなければ最新年度にフォールバック）
 
 ### CSV取込・出力
 
 - 案件データのCSVエクスポート（担当者・社内紹介者・社外紹介者は複数列形式）
 - CSVインポートによる一括登録・更新（バリデーション付き）
 - 担当者・社内紹介者・社外紹介者の複数列方式取込（`担当者_氏名`/`担当者_部署名`、`社内紹介者_氏名`、`紹介者_会社名`/`紹介者_部署名`）
+- 社内紹介者: Assignee名でマッチング、未登録時は自動作成
 - 未登録のマスタデータ（部署・会社・担当者・紹介者）をインポート時に自動作成
 - 旧形式（`担当者`/`紹介者` 1列）も後方互換で対応
 - インポート時に進捗データが空なら自動でデフォルトステップをセット
@@ -135,6 +138,8 @@
   - フィルタチップの色分け: 紹介者=オレンジ系、その他=プライマリ系
   - `staffId` パラメータ: 経営分析からの遷移用、担当＋紹介の全案件を OR 条件で取得
   - `referrerCompany` パラメータ: 経営分析からの遷移用、紹介会社名でフィルタ
+  - `unassigned` パラメータ: 担当者未設定案件の絞り込み
+  - `noReferrer` パラメータ: 紹介者未設定案件の絞り込み
 - **役割列**: 担当者・紹介者・staffIdフィルタ適用時に自動表示、担当=青バッジ、紹介=オレンジバッジ
 - **フィルタURL同期**: フィルタ条件をURLクエリパラメータに同期（`?fiscalYear=2023&status=手続中`）、ブラウザバック・共有URL対応
 - **表示件数**: デフォルト100件
@@ -171,8 +176,7 @@
 ```
 inheritance-case-management/
 ├── .env                        # PostgreSQL認証情報
-├── docker-compose.yml          # 本番用（PostgreSQL + Web）
-├── docker-compose.dev.yml      # 開発用
+├── docker-compose.yml          # 開発用（PostgreSQL + Web）
 ├── docker-compose.prod.yml     # 本番オーバーライド
 └── web/                        # Next.js（フロントエンド + API Routes）
     ├── Dockerfile              # マルチステージビルド（dev/builder/runner）
@@ -257,6 +261,7 @@ inheritance-case-management/
         │       ├── EmptyState.tsx
         │       ├── ErrorDisplay.tsx
         │       ├── Input.tsx / Label.tsx
+        │       ├── MasterSelect.tsx        # マスタセレクター（optgroup対応）
         │       ├── Modal.tsx
         │       ├── MultiSelectDropdown.tsx # チェックボックス式複数選択ドロップダウン
         │       ├── SelectField.tsx
@@ -268,23 +273,27 @@ inheritance-case-management/
         │       ├── Toast.tsx
         │       └── table.tsx           # TanStack Table ラッパー
         ├── hooks/
+        │   ├── index.ts                # barrel export
         │   ├── use-async-masters.ts    # 担当者・部署マスタ非同期取得（共通フック）
         │   ├── use-cases.ts            # 案件一覧クエリ（TanStack Query）
         │   ├── use-click-outside.ts    # 要素外クリック検知フック
-        │   ├── use-master-list.ts      # マスタ編集ステート管理
-        │   ├── use-progress-steps.ts   # 進捗チェック・D&D・一括日付設定
+        │   ├── use-error-handler.ts
         │   ├── use-export-csv.ts       # CSVエクスポート
         │   ├── use-import-csv.ts       # CSVインポート（マスタ自動作成対応）
         │   ├── use-keyboard-navigation.ts
-        │   └── use-error-handler.ts
+        │   ├── use-master-list.ts      # マスタ編集ステート管理
+        │   ├── use-progress-steps.ts   # 進捗チェック・D&D・一括日付設定
+        │   └── use-ranking-sort.ts     # 経営分析ランキングソート
         ├── lib/
         │   ├── prisma.ts               # Prisma クライアントシングルトン
         │   ├── prisma-includes.ts      # Prisma include定義（CASE/ASSIGNEE/REFERRER）
         │   ├── prisma-utils.ts
         │   ├── api-error-handler.ts    # 統一エラーレスポンス
+        │   ├── case-converters.ts      # 案件データ変換ユーティリティ
         │   ├── create-crud-route-handlers.ts  # CRUD APIルートファクトリ（include対応）
+        │   ├── error-utils.ts          # エラーユーティリティ
         │   ├── analytics/              # 集計・分析ロジック（モジュール分割）
-        │   │   ├── calculations.ts     # calcNet, calcBestNet, formatCurrency, formatDate, toWareki, formatDateWithWareki, pinBottomCompare
+        │   │   ├── calculations.ts     # calcNet, calcReferralFee, formatCurrency, formatDate, toWareki, formatDateWithWareki, pinBottomCompare
         │   │   ├── aggregations.ts     # aggregateCases, computeRollingAnnual, 型定義
         │   │   └── index.ts            # re-export
         │   ├── analytics-utils.ts      # 後方互換re-export（→ analytics/）
@@ -344,8 +353,10 @@ inheritance-case-management/
 | department | string | 部門フィルタ（担当者の部署でリレーション経由フィルタ） |
 | assigneeId | int | 担当者フィルタ |
 | internalReferrerId | int | 社内紹介者フィルタ |
-| staffId | int | 担当者OR社内紹介者フィルタ（担当＋紹介の全案件） |
+| staffId | int | 担当者OR社内紹介者フィルタ（担当＋紹介の全案件をOR条件で取得） |
 | referrerCompany | string | 紹介会社名フィルタ（社外紹介者の会社でリレーション経由フィルタ） |
+| unassigned | boolean | 担当者未設定フィルタ（`true`で`assigneeId=null`の案件のみ） |
+| noReferrer | boolean | 紹介者未設定フィルタ（`true`で社内・社外とも紹介者なしの案件のみ） |
 | search | string | 被相続人氏名の部分一致検索 |
 | sortBy | string | ソートキー（デフォルト: dateOfDeath） |
 | sortOrder | string | ソート順（デフォルト: asc）※年度降順は常に最優先 |
@@ -422,7 +433,7 @@ erDiagram
     Referrer {
         int id PK "自動採番"
         int companyId FK "会社（Company）"
-        string department "部署"
+        string department "部署（任意）"
         boolean active "有効フラグ"
         datetime createdAt
         datetime updatedAt
@@ -499,6 +510,10 @@ erDiagram
 - **フィルタURL同期**: `useSearchParams` + `router.replace` でフィルタ状態をURLクエリパラメータに双方向同期、`popstate` リスナーでブラウザバック復元
 - **紹介者2段階解決**: `buildResolverMaps` で会社+部署 / 会社（一意時のみ）の2段階キーを構築、CSV取込時の社外紹介者マッチングの正確性を向上
 - **社内/社外紹介者分離**: 社内紹介者は `Assignee` テーブルで管理（`internalReferrerId`）、社外紹介者は `Referrer` テーブルで管理（`referrerId`）。同一人物の重複管理を排除
+- **紹介料の社内/社外分離**: `calcReferralFee` で紹介料算出、`calcNet` は社外紹介料のみ控除（会社純売上）、担当者個人集計では全紹介料を控除
+- **年度ピルUI**: `selectedYears: Set<number>` で複数年度をトグル選択、`isAllYears` フラグで全期間表示を制御
+- **部門→担当者階層構築**: `assigneesData` と `assigneeRanking` をマージし、部門sortOrder順・担当者id順で階層グループを構築
+- **ランキングソートフック**: `useRankingSort` で汎用的なソート状態管理（key/direction切替）を提供
 
 ## クイックスタート
 
@@ -513,7 +528,7 @@ erDiagram
 cp .env.example .env
 
 # 2. 開発環境を起動
-docker compose -f docker-compose.dev.yml up --build
+docker compose up --build
 
 # 3. ブラウザでアクセス
 # Web + API: http://localhost:3020
@@ -522,7 +537,7 @@ docker compose -f docker-compose.dev.yml up --build
 ### 本番環境の起動
 
 ```bash
-docker compose up --build -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
 > **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/itcm/ からアクセスできます。
@@ -538,20 +553,20 @@ docker compose up --build -d
 
 ```bash
 # コンテナに入ってコマンド実行
-docker exec -it itcm-dev-web sh
+docker exec -it itcm-frontend sh
 
 # Prisma Studio（DB GUI）
-docker exec -it itcm-dev-web npx prisma studio
+docker exec -it itcm-frontend npx prisma studio
 
 # マイグレーション実行
-docker exec -it itcm-dev-web npx prisma migrate deploy
+docker exec -it itcm-frontend npx prisma migrate deploy
 
 # ログ確認
-docker compose -f docker-compose.dev.yml logs -f web
+docker compose logs -f web
 
 # コンテナ停止
-docker compose -f docker-compose.dev.yml down
+docker compose down
 
 # データも含めて削除
-docker compose -f docker-compose.dev.yml down -v
+docker compose down -v
 ```
