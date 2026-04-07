@@ -67,7 +67,6 @@ async function main() {
     prisma.referrer.create({
       data: {
         companyId: companies[0].id,
-        name: '田中 次郎',
         department: '信託部',
         active: true,
       },
@@ -75,7 +74,6 @@ async function main() {
     prisma.referrer.create({
       data: {
         companyId: companies[1].id,
-        name: '高橋 三郎',
         department: '営業部',
         active: true,
       },
@@ -83,7 +81,6 @@ async function main() {
     prisma.referrer.create({
       data: {
         companyId: companies[2].id,
-        name: '伊藤 四郎',
         department: null,
         active: true,
       },
