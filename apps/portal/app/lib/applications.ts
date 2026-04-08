@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity, Banknote, Briefcase, Building, Calculator,
-  Clock, CreditCard, FileCheck, FileSpreadsheet, FileText, Gift, Package, Receipt, TrendingUp,
+  Clock, CreditCard, FileCheck, FileSpreadsheet, FileText, Gift, Landmark, Package, Receipt, TrendingUp,
 } from 'lucide-react';
 
 export const categories = ['必要書類', '計算・評価', '分析・管理', 'その他'] as const;
@@ -22,6 +22,7 @@ export const applications: Application[] = [
   { title: '贈与税計算', description: '贈与税計算・早見表・不動産取得税', url: '/gift-tax-simulator/', icon: Gift, category: '計算・評価' },
   { title: '医療法人株式評価', description: '医療法人の株式評価システム', url: '/medical/', icon: Activity, category: '計算・評価' },
   { title: '非上場株式評価', description: '非上場株式の評価システム', url: '/shares/', icon: TrendingUp, category: '計算・評価' },
+  { title: '所得税計算', description: '確定申告書に沿って所得税・住民税を計算', url: '/income-tax-calc/', icon: Landmark, category: '計算・評価' },
   { title: '退職金税額計算', description: '退職金の所得税・住民税を計算', url: '/retirement-tax-calc/', icon: CreditCard, category: '計算・評価' },
   { title: '減価償却ツール', description: '耐用年数・簿価・期間償却を計算', url: '/depreciation-calc/', icon: Clock, category: '計算・評価' },
   { title: '減価償却資産評価', description: '相続税の減価償却資産を一括評価', url: '/asset-valuation/', icon: Package, category: '計算・評価' },

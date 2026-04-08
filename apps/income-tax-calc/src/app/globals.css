@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/* ベース */
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background-color: #f0f4f8;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* 数値フィールド用モノスペース */
+.font-mono-num {
+  font-family: 'Roboto Mono', monospace;
+}
+
+/* 確定申告書セクション罫線 */
+.section-border {
+  border-left: 4px solid #1e40af;
+}
+
+/* 項目記号（ア、①、⑬等） */
+.field-label-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* 印刷用スタイル */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 8mm;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 10pt;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  section {
+    page-break-inside: avoid;
+  }
+}
+
+/* フェードインアニメーション */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* アニメーション軽減 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

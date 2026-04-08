@@ -1,0 +1,25 @@
+services:
+  income-tax-calc:
+    build:
+      context: .
+      dockerfile: ../../docker/Dockerfile.vite-static
+      target: dev
+      args:
+        APP_PORT: "3018"
+        APP_PATH: income-tax-calc
+        APP_TITLE: "Income Tax Calculator"
+        APP_DESCRIPTION: "所得税計算ツール"
+        NPM_CACHE_ID: npm-store-income-tax-calc
+    container_name: income-tax-calc
+    ports:
+      - "3018:3018"
+    volumes:
+      - ./src:/app/src:ro
+      - ./index.html:/app/index.html:ro
+    environment:
+      NODE_ENV: development
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3018/income-tax-calc/ || exit 1"]
+networks:
+  tax-apps-network:
+    external: true
