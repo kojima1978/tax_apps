@@ -1,0 +1,12 @@
+services:
+  income-tax-calc:
+    build:
+      target: runner
+    init: false
+    volumes: []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M

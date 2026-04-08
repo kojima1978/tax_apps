@@ -36,7 +36,7 @@ set "BACKUP_BASE=%SCRIPT_DIR%..\backups"
 :: ?A?v?????i?N?????????l???j
 :: gateway ????iupstream????n???K?v??????j?ADB????A?v???? DB+App ???
 :: ------------------------------------
-set "APP_COUNT=14"
+set "APP_COUNT=15"
 set "APP_1=apps\inheritance-case-management"
 set "APP_2=apps\bank-analyzer-django"
 set "APP_3=apps\tax-docs"
@@ -50,7 +50,8 @@ set "APP_10=apps\depreciation-calc"
 set "APP_11=apps\salary-calc"
 set "APP_12=apps\asset-valuation"
 set "APP_13=apps\stock-valuation-form"
-set "APP_14=docker\gateway"
+set "APP_14=apps\income-tax-calc"
+set "APP_15=docker\gateway"
 
 :: ------------------------------------
 :: ???C??
