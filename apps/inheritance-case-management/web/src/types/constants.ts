@@ -35,7 +35,7 @@ export const ACCEPTANCE_FORM_OPTIONS: readonly AcceptanceStatus[] = ["未判定"
 
 // Which acceptance statuses enable each case status in the form
 export const STATUS_ENABLED_WHEN: Record<CaseStatus, readonly AcceptanceStatus[]> = {
-    '未着手': ['未判定', '受託可', '保留', '受託不可'],
+    '未着手': ['未判定', '受託可', '保留'],
     '手続中': ['受託可'],
     '申告済': ['受託可'],
     '請求済': ['受託可'],
