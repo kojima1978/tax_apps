@@ -133,14 +133,15 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     }
 
     const doSave = async (statusOverride?: CaseStatus) => {
+        let finalStatus = formData.status
         if (statusOverride) {
+            finalStatus = statusOverride
             setFormData(prev => ({ ...prev, status: statusOverride }))
-            formData.status = statusOverride
         }
 
         setIsSaving(true)
         try {
-            const payload = toApiPayload()
+            const payload = { ...toApiPayload(), status: finalStatus }
             if (isCreateMode) {
                 await createCase(payload)
                 await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
