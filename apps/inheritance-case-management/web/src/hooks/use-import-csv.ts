@@ -7,8 +7,9 @@ import { getAssignees, createAssignee } from '@/lib/api/assignees';
 import { getReferrers, createReferrer } from '@/lib/api/referrers';
 import { getDepartments, createDepartment } from '@/lib/api/departments';
 import { getCompanies, createCompany } from '@/lib/api/companies';
+import { getCompanyBranches, createCompanyBranch } from '@/lib/api/company-branches';
 import type { PendingReferrer, PendingAssignee } from '@/lib/import';
-import type { InheritanceCase, Department, Company } from '@/types/shared';
+import type { InheritanceCase, Department, Company, CompanyBranch } from '@/types/shared';
 
 export type ImportStep = 'select' | 'preview' | 'importing' | 'done';
 
@@ -68,8 +69,10 @@ async function resolveOrCreateAssignee(
 async function resolveOrCreateReferrer(
   pending: PendingReferrer,
   companies: Company[],
+  branches: CompanyBranch[],
   referrerCache: Map<string, number>,
-  companyCache: Map<string, number>
+  companyCache: Map<string, number>,
+  branchCache: Map<string, number>
 ): Promise<number> {
   const cacheKey = `${pending.company}\0${pending.department ?? ''}`;
   const cached = referrerCache.get(cacheKey);
@@ -77,9 +80,28 @@ async function resolveOrCreateReferrer(
 
   const companyId = await resolveOrCreateByName(pending.company, companies, companyCache, createCompany);
 
+  let branchId: number | null = null;
+  if (pending.department) {
+    const branchKey = `${companyId}\0${pending.department}`;
+    const cachedBranch = branchCache.get(branchKey);
+    if (cachedBranch) {
+      branchId = cachedBranch;
+    } else {
+      const existingBranch = branches.find(b => b.companyId === companyId && b.name === pending.department);
+      if (existingBranch) {
+        branchId = existingBranch.id;
+        branchCache.set(branchKey, existingBranch.id);
+      } else {
+        const created = await createCompanyBranch({ companyId, name: pending.department });
+        branchId = created.id;
+        branchCache.set(branchKey, created.id);
+      }
+    }
+  }
+
   const created = await createReferrer({
     companyId,
-    department: pending.department,
+    branchId,
   });
   referrerCache.set(cacheKey, created.id);
   return created.id;
@@ -115,6 +137,7 @@ export function useImportCSV() {
   const [existingCases, setExistingCases] = useState<InheritanceCase[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [branches, setBranches] = useState<CompanyBranch[]>([]);
   const abortRef = useRef(false);
 
 
@@ -140,14 +163,15 @@ export function useImportCSV() {
 
       try {
         // マスターデータと既存案件を最新に更新してからパース
-        const [freshAssignees, freshReferrers, freshCases, freshDepts, freshComps] = await Promise.all([
-          getAssignees(), getReferrers(), getAllCases(), getDepartments(), getCompanies(),
+        const [freshAssignees, freshReferrers, freshCases, freshDepts, freshComps, freshBranches] = await Promise.all([
+          getAssignees(), getReferrers(), getAllCases(), getDepartments(), getCompanies(), getCompanyBranches(),
         ]);
         const freshResolvers = buildResolverMaps(freshAssignees, freshReferrers);
         setResolvers(freshResolvers);
         setExistingCases(freshCases);
         setDepartments(freshDepts);
         setCompanies(freshComps);
+        setBranches(freshBranches);
 
         const text = await decodeCSVFile(file);
         const result = parseAndValidateCSV(text, freshResolvers, freshCases);
@@ -178,6 +202,7 @@ export function useImportCSV() {
     // Caches for auto-created master data (avoid duplicate API calls)
     const departmentCache = new Map<string, number>();
     const companyCache = new Map<string, number>();
+    const branchCache = new Map<string, number>();
     const assigneeCache = new Map<string, number>();
     const referrerCache = new Map<string, number>();
 
@@ -203,7 +228,7 @@ export function useImportCSV() {
 
         // Auto-create referrer if pending
         if (row.pendingReferrer) {
-          const refId = await resolveOrCreateReferrer(row.pendingReferrer, companies, referrerCache, companyCache);
+          const refId = await resolveOrCreateReferrer(row.pendingReferrer, companies, branches, referrerCache, companyCache, branchCache);
           row.data.referrerId = refId;
         }
 
@@ -232,7 +257,7 @@ export function useImportCSV() {
 
     setImportResult({ success, failed, skipped, failedRows, createdCount, updatedCount });
     setStep('done');
-  }, [parseResult, departments, companies]);
+  }, [parseResult, departments, companies, branches]);
 
   const abortImport = useCallback(() => {
     abortRef.current = true;

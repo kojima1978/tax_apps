@@ -5,11 +5,15 @@
 ```mermaid
 erDiagram
     Department ||--o{ Assignee : "所属"
+    Company ||--o{ CompanyBranch : "部門"
     Company ||--o{ Referrer : "所属"
+    CompanyBranch ||--o{ Referrer : "部門"
     Assignee ||--o{ InheritanceCase : "担当"
-    Referrer ||--o{ InheritanceCase : "紹介"
+    Assignee ||--o{ InheritanceCase : "社内紹介"
+    Referrer ||--o{ InheritanceCase : "社外紹介"
     InheritanceCase ||--o{ CaseContact : "連絡先"
     InheritanceCase ||--o{ CaseProgress : "進捗"
+    InheritanceCase ||--o{ CaseExpense : "立替金"
 
     Department {
         int id PK "SERIAL"
@@ -28,6 +32,15 @@ erDiagram
         datetime updatedAt "@updatedAt"
     }
 
+    CompanyBranch {
+        int id PK "SERIAL"
+        int companyId FK "会社（RESTRICT on delete）"
+        string name "部門名"
+        boolean active "有効フラグ（default: true）"
+        datetime createdAt "default: now()"
+        datetime updatedAt "@updatedAt"
+    }
+
     Assignee {
         int id PK "SERIAL"
         string name "氏名"
@@ -41,8 +54,7 @@ erDiagram
     Referrer {
         int id PK "SERIAL"
         int companyId FK "会社（RESTRICT on delete）"
-        string name "担当者名（nullable）"
-        string department "部署（任意）"
+        int branchId FK "部門（SET NULL on delete）"
         boolean active "有効フラグ（default: true）"
         datetime createdAt "default: now()"
         datetime updatedAt "@updatedAt"
@@ -65,7 +77,8 @@ erDiagram
         string summary "特記事項（最大10文字）"
         string memo "メモ（フリーテキスト）"
         int assigneeId FK "担当者（SET NULL on delete）"
-        int referrerId FK "紹介者（SET NULL on delete）"
+        int internalReferrerId FK "社内紹介者（SET NULL on delete）"
+        int referrerId FK "社外紹介者（SET NULL on delete）"
         string createdBy "作成者"
         string updatedBy "更新者"
         datetime createdAt "default: now()"
@@ -90,6 +103,16 @@ erDiagram
         date date "完了日（nullable）"
         string memo "メモ（nullable）"
         boolean isDynamic "動的追加（default: false）"
+    }
+
+    CaseExpense {
+        int id PK "SERIAL"
+        int caseId FK "CASCADE on delete"
+        int sortOrder "並び順（default: 0）"
+        date date "日付（YYYY-MM-DD）"
+        string description "内容"
+        int amount "金額（円）"
+        string memo "備考（nullable）"
     }
 ```
 
@@ -124,6 +147,22 @@ erDiagram
 
 **インデックス**: `active`
 
+### CompanyBranch
+
+紹介元会社の部門・支店マスター。紹介者の所属部門として使用。
+
+| カラム | 型 | 必須 | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | Int | PK | autoincrement | 自動採番 |
+| companyId | Int | Yes (FK) | - | 会社（RESTRICT on delete） |
+| name | String | Yes | - | 部門名 |
+| active | Boolean | Yes | true | 有効フラグ（論理削除用） |
+| createdAt | DateTime | Yes | now() | 作成日時 |
+| updatedAt | DateTime | Yes | @updatedAt | 更新日時 |
+
+**ユニーク制約**: `[companyId, name]`（同一会社内の重複防止）
+**インデックス**: `active`, `companyId`
+
 ### Assignee
 
 社内の担当者マスター。
@@ -142,19 +181,19 @@ erDiagram
 
 ### Referrer
 
-紹介者（税理士、業者など）マスター。
+紹介者（社外専用）マスター。会社＋部門でグループ化。
 
 | カラム | 型 | 必須 | デフォルト | 説明 |
 |--------|-----|------|-----------|------|
 | id | Int | PK | autoincrement | 自動採番 |
 | companyId | Int | Yes (FK) | - | 会社（RESTRICT on delete） |
-| name | String | No | null | 担当者名（任意） |
-| department | String | No | null | 部署 |
+| branchId | Int | No (FK) | null | 部門（SET NULL on delete） |
 | active | Boolean | Yes | true | 有効フラグ（論理削除用） |
 | createdAt | DateTime | Yes | now() | 作成日時 |
 | updatedAt | DateTime | Yes | @updatedAt | 更新日時 |
 
-**インデックス**: `active`, `companyId`
+**ユニーク制約**: `[companyId, COALESCE(branchId, 0)]`（機能インデックス）
+**インデックス**: `active`, `companyId`, `branchId`
 
 ### InheritanceCase
 
@@ -178,13 +217,14 @@ erDiagram
 | summary | VarChar(10) | No | null | 特記事項（最大10文字） |
 | memo | Text | No | null | メモ（フリーテキスト） |
 | assigneeId | Int | No (FK) | null | 担当者（SET NULL on delete） |
-| referrerId | Int | No (FK) | null | 紹介者（SET NULL on delete） |
+| internalReferrerId | Int | No (FK) | null | 社内紹介者（SET NULL on delete） |
+| referrerId | Int | No (FK) | null | 社外紹介者（SET NULL on delete） |
 | createdBy | String | No | null | 作成者 |
 | updatedBy | String | No | null | 更新者 |
 | createdAt | DateTime | Yes | now() | 作成日時 |
 | updatedAt | DateTime | Yes | @updatedAt | 更新日時 |
 
-**インデックス**: `status`, `handlingStatus`, `fiscalYear`, `acceptanceStatus`, `createdAt`, `assigneeId`, `referrerId`
+**インデックス**: `status`, `handlingStatus`, `fiscalYear`, `acceptanceStatus`, `createdAt`, `assigneeId`, `internalReferrerId`, `referrerId`
 
 **ビジネスルール**:
 - 申告期限 = dateOfDeath + 10ヶ月（アプリ側で計算）
@@ -230,13 +270,33 @@ erDiagram
 - 訪問ステップ（isDynamic=true）は動的に追加・削除可能
 - 訪問ステップ削除時は残りの訪問を自動再番号付け
 
+### CaseExpense
+
+案件に紐づく立替金（1対多）。案件削除時にカスケード削除。
+
+| カラム | 型 | 必須 | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | Int | PK | autoincrement | 自動採番 |
+| caseId | Int | FK | - | InheritanceCase.id（CASCADE on delete） |
+| sortOrder | Int | Yes | 0 | 並び順 |
+| date | Date | Yes | - | 日付（YYYY-MM-DD） |
+| description | String | Yes | - | 内容 |
+| amount | Int | Yes | - | 金額（円） |
+| memo | String | No | null | 備考 |
+
+**インデックス**: `caseId`, `[caseId, sortOrder]`（複合）
+
 ## リレーション概要
 
 | 親テーブル | 子テーブル | 関係 | 削除時の動作 |
 |-----------|-----------|------|-------------|
 | Department | Assignee | 1対多 | SET NULL（FKをnullに） |
+| Company | CompanyBranch | 1対多 | RESTRICT（削除不可） |
 | Company | Referrer | 1対多 | RESTRICT（削除不可） |
-| Assignee | InheritanceCase | 1対多 | SET NULL（FKをnullに） |
+| CompanyBranch | Referrer | 1対多 | SET NULL（FKをnullに） |
+| Assignee | InheritanceCase | 1対多（担当） | SET NULL（FKをnullに） |
+| Assignee | InheritanceCase | 1対多（社内紹介） | SET NULL（FKをnullに） |
 | Referrer | InheritanceCase | 1対多 | SET NULL（FKをnullに） |
 | InheritanceCase | CaseContact | 1対多 | CASCADE（子も削除） |
 | InheritanceCase | CaseProgress | 1対多 | CASCADE（子も削除） |
+| InheritanceCase | CaseExpense | 1対多 | CASCADE（子も削除） |

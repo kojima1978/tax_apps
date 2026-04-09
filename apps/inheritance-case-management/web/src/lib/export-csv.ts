@@ -144,7 +144,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
       c.assignee?.name || "",
       c.internalReferrer?.name || "",
       c.referrer?.company.name || "",
-      c.referrer?.department || "",
+      c.referrer?.branch?.name || "",
       c.referralFeeRate ?? "",
       c.referralFeeAmount ?? "",
       c.propertyValue || 0,

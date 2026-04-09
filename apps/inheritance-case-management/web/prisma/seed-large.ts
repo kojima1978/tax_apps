@@ -52,11 +52,12 @@ async function main() {
   console.log('Clearing all data...');
   await prisma.inheritanceCase.deleteMany();
   await prisma.referrer.deleteMany();
+  await prisma.companyBranch.deleteMany();
   await prisma.company.deleteMany();
   await prisma.assignee.deleteMany();
 
   // Reset sequences
-  for (const seq of ['Assignee_id_seq','Company_id_seq','Referrer_id_seq','InheritanceCase_id_seq','CaseContact_id_seq','CaseProgress_id_seq']) {
+  for (const seq of ['Assignee_id_seq','Company_id_seq','CompanyBranch_id_seq','Referrer_id_seq','InheritanceCase_id_seq','CaseContact_id_seq','CaseProgress_id_seq']) {
     await prisma.$executeRawUnsafe(`ALTER SEQUENCE "${seq}" RESTART WITH 1`);
   }
 
@@ -88,19 +89,32 @@ async function main() {
   const companyMap = new Map(companyRecords.map(c => [c.name, c.id]));
   console.log(`Created ${companyRecords.length} companies`);
 
+  // === 部門マスタ ===
+  console.log('Creating company branches...');
+  const branchData: { companyId: number; name: string }[] = [];
+  for (const companyName of COMPANIES) {
+    const cId = companyMap.get(companyName)!;
+    for (const dept of COMPANY_DEPTS) {
+      if (dept) branchData.push({ companyId: cId, name: dept });
+    }
+  }
+  await prisma.companyBranch.createMany({ data: branchData });
+  const branchRecords = await prisma.companyBranch.findMany();
+  // Map: "companyId\0name" → id
+  const branchMap = new Map(branchRecords.map(b => [`${b.companyId}\0${b.name}`, b.id]));
+  console.log(`Created ${branchRecords.length} company branches`);
+
   // === 紹介者30名 ===
   console.log('Creating 30 referrers...');
   const referrerData = [];
   for (let i = 0; i < 30; i++) {
     const companyName = COMPANIES[i % COMPANIES.length];
-    let contactName: string;
-    do {
-      contactName = `${pick(LAST_NAMES)} ${pick([...FIRST_NAMES_M, ...FIRST_NAMES_F])}`;
-    } while (false);
+    const cId = companyMap.get(companyName)!;
+    const dept = pick(COMPANY_DEPTS);
+    const branchId = dept ? branchMap.get(`${cId}\0${dept}`) ?? null : null;
     referrerData.push({
-      companyId: companyMap.get(companyName)!,
-      name: contactName,
-      department: pick(COMPANY_DEPTS),
+      companyId: cId,
+      branchId,
       active: i < 28,
     });
   }

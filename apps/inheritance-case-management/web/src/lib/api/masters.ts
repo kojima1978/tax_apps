@@ -1,6 +1,7 @@
-import type { Company, Department, Assignee, Referrer } from '@/types/shared';
+import type { Company, CompanyBranch, Department, Assignee, Referrer } from '@/types/shared';
 import type {
   CreateCompanyInput, UpdateCompanyInput,
+  CreateCompanyBranchInput, UpdateCompanyBranchInput,
   CreateDepartmentInput, UpdateDepartmentInput,
   CreateAssigneeInput, UpdateAssigneeInput,
   CreateReferrerInput, UpdateReferrerInput,
@@ -12,6 +13,12 @@ export const getCompanies = companyApi.getAll;
 export const createCompany = companyApi.create;
 export const updateCompany = companyApi.update;
 export const deleteCompany = companyApi.remove;
+
+const companyBranchApi = createCrudApi<CompanyBranch, CreateCompanyBranchInput, UpdateCompanyBranchInput>('/company-branches');
+export const getCompanyBranches = companyBranchApi.getAll;
+export const createCompanyBranch = companyBranchApi.create;
+export const updateCompanyBranch = companyBranchApi.update;
+export const deleteCompanyBranch = companyBranchApi.remove;
 
 const departmentApi = createCrudApi<Department, CreateDepartmentInput, UpdateDepartmentInput>('/departments');
 export const getDepartments = departmentApi.getAll;
