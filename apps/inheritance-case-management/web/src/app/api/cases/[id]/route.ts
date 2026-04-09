@@ -47,15 +47,6 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
         }
       }
 
-      // Delete + recreate contacts if provided
-      if (data.contacts !== undefined) {
-        await tx.caseContact.deleteMany({ where: { caseId: id } });
-      }
-      // Delete + recreate progress if provided
-      if (data.progress !== undefined) {
-        await tx.caseProgress.deleteMany({ where: { caseId: id } });
-      }
-
       // Build update data for scalar fields
       const updateData: Record<string, unknown> = {};
 
@@ -87,12 +78,18 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
         updateData.referrerId = data.referrerId || null;
       }
 
-      // Nested creates for contacts/progress
-      if (data.contacts) {
-        updateData.contacts = { create: toContactCreateData(data.contacts) };
+      // Nested updates for contacts/progress
+      if (data.contacts !== undefined) {
+        updateData.contacts = {
+          deleteMany: {},
+          create: toContactCreateData(data.contacts),
+        };
       }
-      if (data.progress) {
-        updateData.progress = { create: toProgressCreateData(data.progress) };
+      if (data.progress !== undefined) {
+        updateData.progress = {
+          deleteMany: {},
+          create: toProgressCreateData(data.progress),
+        };
       }
 
       return tx.inheritanceCase.update({
