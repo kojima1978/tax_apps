@@ -1,9 +1,10 @@
 export const CASE_INCLUDE = {
   contacts: { orderBy: { sortOrder: 'asc' as const } },
   progress: { orderBy: { sortOrder: 'asc' as const } },
+  expenses: { orderBy: { sortOrder: 'asc' as const } },
   assignee: { include: { department: true } },
   internalReferrer: { include: { department: true } },
-  referrer: { include: { company: true } },
+  referrer: { include: { company: true, branch: true } },
 } as const;
 
 export const ASSIGNEE_INCLUDE = {
@@ -12,6 +13,7 @@ export const ASSIGNEE_INCLUDE = {
 
 export const REFERRER_INCLUDE = {
   company: true,
+  branch: true,
 } as const;
 
 /** POST/PUT 用: contacts 配列を Prisma create 入力に変換 */
@@ -36,6 +38,17 @@ export function toProgressCreateData(progress: { id: string; name: string; date:
   }));
 }
 
+/** POST/PUT 用: expenses 配列を Prisma create 入力に変換 */
+export function toExpenseCreateData(expenses: { date: string; description: string; amount: number; memo?: string }[]) {
+  return expenses.map((e, i) => ({
+    date: toDate(e.date),
+    description: e.description,
+    amount: e.amount,
+    memo: e.memo ?? null,
+    sortOrder: i,
+  }));
+}
+
 // ── Date ↔ String 変換ヘルパー ──────────────────────────────
 
 /** YYYY-MM-DD 文字列 → Date（Prisma書込用） */
@@ -51,13 +64,17 @@ export function toDateStr(date: Date | string | null): string | null {
 }
 
 /** Prisma の案件データを API レスポンス形式に変換（Date→文字列） */
-export function serializeCase<T extends { dateOfDeath: Date | string; progress?: { date: Date | string | null }[] }>(c: T): T {
+export function serializeCase<T extends { dateOfDeath: Date | string; progress?: { date: Date | string | null }[]; expenses?: { date: Date | string }[] }>(c: T): T {
   return {
     ...c,
     dateOfDeath: toDateStr(c.dateOfDeath as Date) ?? '',
     progress: c.progress?.map(p => ({
       ...p,
       date: toDateStr(p.date as Date | null),
+    })),
+    expenses: c.expenses?.map(e => ({
+      ...e,
+      date: toDateStr(e.date as Date) ?? '',
     })),
   };
 }

@@ -36,6 +36,7 @@ model InheritanceCase {
   // Normalized child tables
   contacts          CaseContact[]
   progress          CaseProgress[]
+  expenses          CaseExpense[]
 
   // Audit fields
   createdBy         String?
@@ -87,10 +88,11 @@ model Assignee {
 }
 
 model Company {
-  id        Int        @id @default(autoincrement())
-  name      String     @unique
-  active    Boolean    @default(true)
+  id        Int             @id @default(autoincrement())
+  name      String          @unique
+  active    Boolean         @default(true)
   referrers Referrer[]
+  branches  CompanyBranch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -98,12 +100,29 @@ model Company {
   @@index([active])
 }
 
+model CompanyBranch {
+  id        Int        @id @default(autoincrement())
+  companyId Int
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  name      String
+  active    Boolean    @default(true)
+  referrers Referrer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, name])
+  @@index([active])
+  @@index([companyId])
+}
+
 model Referrer {
-  id         Int       @id @default(autoincrement())
+  id         Int            @id @default(autoincrement())
   companyId  Int
-  company    Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  department String?
-  active     Boolean   @default(true)
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branchId   Int?
+  branch     CompanyBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  active     Boolean        @default(true)
   cases      InheritanceCase[]
 
   // Audit fields
@@ -114,6 +133,7 @@ model Referrer {
   // NULL同士を同一視するため @@unique ではなく raw SQL を使用
   @@index([active])
   @@index([companyId])
+  @@index([branchId])
 }
 
 model CaseContact {
@@ -138,6 +158,20 @@ model CaseProgress {
   date      DateTime?       @db.Date // YYYY-MM-DD
   memo      String?
   isDynamic Boolean         @default(false)
+
+  @@index([caseId])
+  @@index([caseId, sortOrder])
+}
+
+model CaseExpense {
+  id          Int             @id @default(autoincrement())
+  caseId      Int
+  case        InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sortOrder   Int             @default(0)
+  date        DateTime        @db.Date // YYYY-MM-DD
+  description String          // 内容（自由入力）
+  amount      Int             // 金額（円）
+  memo        String?         // 備考
 
   @@index([caseId])
   @@index([caseId, sortOrder])

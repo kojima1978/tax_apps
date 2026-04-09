@@ -19,9 +19,9 @@ export function buildResolverMaps(assignees: Assignee[], referrers: Referrer[]):
   });
   referrers.forEach((r) => {
     const co = r.company.name;
-    // company + department キー
-    if (r.department) {
-      referrerNameToId.set(`${co}\0${r.department}`, r.id);
+    // company + branch キー
+    if (r.branch?.name) {
+      referrerNameToId.set(`${co}\0${r.branch.name}`, r.id);
     }
     // 会社名のみキー: 会社に紹介者が1人だけの場合のみ（曖昧さ回避）
     if (companyCount.get(co) === 1) {

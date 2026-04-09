@@ -19,7 +19,24 @@ export interface Contact {
   email: string;
 }
 
+// Expense (input shape for API — used by editors)
+export interface Expense {
+  date: string;
+  description: string;
+  amount: number;
+  memo?: string;
+}
+
 // Normalized DB entities
+export interface CaseExpenseItem {
+  id: number;
+  sortOrder: number;
+  date: string;
+  description: string;
+  amount: number;
+  memo?: string;
+}
+
 export interface CaseContact {
   id: number;
   sortOrder: number;
@@ -66,6 +83,7 @@ export interface InheritanceCase {
   // Normalized child records
   progress?: CaseProgressItem[];
   contacts?: CaseContact[];
+  expenses?: CaseExpenseItem[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -97,12 +115,22 @@ export interface Company {
   active: boolean;
 }
 
+// CompanyBranch Entity (会社の部門・支店)
+export interface CompanyBranch {
+  id: number;
+  companyId: number;
+  company?: Company;
+  name: string;
+  active: boolean;
+}
+
 // Referrer Entity (external only)
 export interface Referrer {
   id: number;
   companyId: number;
   company: Company;
-  department?: string;
+  branchId?: number | null;
+  branch?: CompanyBranch | null;
   active: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -126,10 +154,10 @@ export function formatId(id: number): string {
   return String(id).padStart(4, '0');
 }
 
-/** 紹介者の表示ラベルを生成（社外: 会社名 / 部署） */
+/** 紹介者の表示ラベルを生成（社外: 会社名 / 部門） */
 export function formatReferrerLabel(r: Referrer): string {
   const parts = [r.company.name];
-  if (r.department) parts.push(r.department);
+  if (r.branch?.name) parts.push(r.branch.name);
   return parts.join(" / ");
 }
 

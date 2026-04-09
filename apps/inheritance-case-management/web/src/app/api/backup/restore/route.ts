@@ -54,12 +54,25 @@ const TABLE_DEFS = [
     seqTable: 'Assignee',
   },
   {
+    key: 'companyBranches' as const,
+    model: (tx: TxClient) => tx.companyBranch,
+    map: (b: Rec) => ({
+      id: b.id as number,
+      companyId: b.companyId as number,
+      name: b.name as string,
+      active: (b.active as boolean) ?? true,
+      createdAt: new Date(b.createdAt as string),
+      updatedAt: new Date(b.updatedAt as string),
+    }),
+    seqTable: 'CompanyBranch',
+  },
+  {
     key: 'referrers' as const,
     model: (tx: TxClient) => tx.referrer,
     map: (r: Rec) => ({
       id: r.id as number,
       companyId: r.companyId as number,
-      department: (r.department as string) ?? null,
+      branchId: (r.branchId as number) ?? null,
       active: (r.active as boolean) ?? true,
       createdAt: new Date(r.createdAt as string),
       updatedAt: new Date(r.updatedAt as string),
@@ -123,6 +136,20 @@ const TABLE_DEFS = [
     }),
     seqTable: 'CaseProgress',
   },
+  {
+    key: 'caseExpenses' as const,
+    model: (tx: TxClient) => tx.caseExpense,
+    map: (e: Rec) => ({
+      id: e.id as number,
+      caseId: e.caseId as number,
+      sortOrder: (e.sortOrder as number) ?? 0,
+      date: toDateOnly(e.date as string),
+      description: e.description as string,
+      amount: (e.amount as number) ?? 0,
+      memo: (e.memo as string) ?? null,
+    }),
+    seqTable: 'CaseExpense',
+  },
 ];
 
 interface TableDef {
@@ -141,10 +168,12 @@ export async function POST(request: Request) {
     await prisma.$transaction(
       async (tx: TxClient) => {
         // Delete in reverse FK order
+        await tx.caseExpense.deleteMany();
         await tx.caseProgress.deleteMany();
         await tx.caseContact.deleteMany();
         await tx.inheritanceCase.deleteMany();
         await tx.referrer.deleteMany();
+        await tx.companyBranch.deleteMany();
         await tx.assignee.deleteMany();
         await tx.company.deleteMany();
         await tx.department.deleteMany();

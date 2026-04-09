@@ -2,7 +2,7 @@
 "use client"
 
 import Link from "next/link"
-import { Users, UserPlus, Building2, Briefcase, HardDriveDownload } from "lucide-react"
+import { Users, UserPlus, Building2, Briefcase, GitBranch, HardDriveDownload } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; title: string; description: string }[] = [
@@ -28,11 +28,18 @@ const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; 
         description: "紹介者の所属会社の追加・編集・削除を行います。紹介者の所属先として使用されます。",
     },
     {
+        href: "/settings/company-branches",
+        icon: GitBranch,
+        iconClass: "bg-teal-100 text-teal-600",
+        title: "部門管理（紹介元）",
+        description: "紹介元会社の部門・支店の追加・編集・削除を行います。紹介者の所属部門として使用されます。",
+    },
+    {
         href: "/settings/referrers",
         icon: UserPlus,
         iconClass: "bg-green-100 text-green-600",
         title: "紹介者管理",
-        description: "案件を紹介してくれる外部の紹介者の追加・編集・削除を行います。会社ごとの管理が可能です。",
+        description: "案件を紹介してくれる外部の紹介者の追加・編集・削除を行います。会社・部門ごとの管理が可能です。",
     },
     {
         href: "/settings/backup",

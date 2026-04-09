@@ -62,26 +62,36 @@ async function main() {
     prisma.company.create({ data: { name: '□□不動産' } }),
   ]);
 
+  // 部門データ (id: 1, 2)
+  const branches = await Promise.all([
+    prisma.companyBranch.create({
+      data: { companyId: companies[0].id, name: '信託部' },
+    }),
+    prisma.companyBranch.create({
+      data: { companyId: companies[1].id, name: '営業部' },
+    }),
+  ]);
+
   // 紹介者データ (id: 1, 2, 3)
   const referrers = await Promise.all([
     prisma.referrer.create({
       data: {
         companyId: companies[0].id,
-        department: '信託部',
+        branchId: branches[0].id,
         active: true,
       },
     }),
     prisma.referrer.create({
       data: {
         companyId: companies[1].id,
-        department: '営業部',
+        branchId: branches[1].id,
         active: true,
       },
     }),
     prisma.referrer.create({
       data: {
         companyId: companies[2].id,
-        department: null,
+        branchId: null,
         active: true,
       },
     }),

@@ -63,7 +63,8 @@
 - **部署**: 部署名、表示順（設定画面でCRUD管理）
 - **会社**: 会社名（設定画面でCRUD管理、紹介者の所属先）
 - **担当者**: 社員番号（3桁）、部署（Departmentマスタからセレクト）、氏名
-- **紹介者**（社外専用）: 会社（Companyマスタからセレクト）、部署（会社名でグループ表示）
+- **部門（紹介元）**: 会社（Companyマスタからセレクト）、部門名（CompanyBranchマスタ、会社名でグループ表示）
+- **紹介者**（社外専用）: 会社（Companyマスタからセレクト）、部門（CompanyBranchマスタからセレクト、会社名でグループ表示）
 - 一括編集・一括保存、ソフトデリート（active フラグ）
 
 ### 経営分析ダッシュボード（4タブ）
@@ -101,7 +102,7 @@
 
 ### JSONバックアップ / リストア
 
-- 全7テーブルのデータをJSON形式でエクスポート（`itcm-backup-YYYY-MM-DD.json`）
+- 全9テーブルのデータをJSON形式でエクスポート（`itcm-backup-YYYY-MM-DD.json`）
 - JSONファイルからの全データリストア（プレビュー + 確認入力付き）
 - リストアはトランザクション内で全削除→全挿入→シーケンスリセットをアトミックに実行
 
@@ -167,6 +168,7 @@
 | `/settings/departments` | 部署マスタ管理 |
 | `/settings/assignees` | 担当者マスタ管理 |
 | `/settings/companies` | 会社マスタ管理 |
+| `/settings/company-branches` | 部門マスタ管理（紹介元） |
 | `/settings/referrers` | 紹介者マスタ管理 |
 | `/settings/backup` | バックアップ / リストア |
 | `/analytics` | 経営分析ダッシュボード（売上・件数/年計表/部門・担当者/紹介者の4タブ） |
@@ -185,7 +187,7 @@ inheritance-case-management/
     ├── package.json
     ├── next.config.ts          # basePath: /itcm
     ├── prisma/
-    │   └── schema.prisma       # DBスキーマ（7モデル: Department, Company, Assignee, Referrer, InheritanceCase, CaseContact, CaseProgress）
+    │   └── schema.prisma       # DBスキーマ（9モデル: Department, Company, CompanyBranch, Assignee, Referrer, InheritanceCase, CaseContact, CaseProgress, CaseExpense）
     └── src/
         ├── app/
         │   ├── page.tsx                # 案件一覧
@@ -209,6 +211,7 @@ inheritance-case-management/
         │   │   ├── departments/page.tsx
         │   │   ├── assignees/page.tsx
         │   │   ├── companies/page.tsx
+        │   │   ├── company-branches/page.tsx
         │   │   ├── referrers/page.tsx
         │   │   └── backup/page.tsx
         │   ├── analytics/              # 経営分析
@@ -234,6 +237,10 @@ inheritance-case-management/
         │       ├── companies/
         │       │   ├── route.ts
         │       │   ├── handlers.ts     # ファクトリベースCRUD
+        │       │   └── [id]/route.ts
+        │       ├── company-branches/
+        │       │   ├── route.ts
+        │       │   ├── handlers.ts     # ファクトリベースCRUD（Company include付き）
         │       │   └── [id]/route.ts
         │       ├── assignees/
         │       │   ├── route.ts
@@ -312,7 +319,8 @@ inheritance-case-management/
         │   └── api/                    # クライアントサイドAPI
         │       ├── client.ts           # fetchラッパー（baseURL: /itcm/api）
         │       ├── cases.ts            # 案件CRUD + 一括削除
-        │       ├── masters.ts          # 4マスタAPI統合（companies/departments/assignees/referrers）
+        │       ├── masters.ts          # 5マスタAPI統合（companies/company-branches/departments/assignees/referrers）
+        │       ├── company-branches.ts # re-export（→ masters.ts）
         │       ├── companies.ts        # re-export（→ masters.ts）
         │       ├── departments.ts      # re-export（→ masters.ts）
         │       ├── assignees.ts        # re-export（→ masters.ts）
@@ -375,7 +383,9 @@ inheritance-case-management/
 | GET/PUT/DELETE | `/api/companies/:id` | 会社取得 / 更新 / 削除 |
 | GET/POST | `/api/assignees` | 担当者一覧 / 作成（Department include付き） |
 | GET/PUT/DELETE | `/api/assignees/:id` | 担当者取得 / 更新 / 削除 |
-| GET/POST | `/api/referrers` | 紹介者一覧 / 作成（Company include付き） |
+| GET/POST | `/api/company-branches` | 部門一覧 / 作成（Company include付き） |
+| GET/PUT/DELETE | `/api/company-branches/:id` | 部門取得 / 更新 / 削除 |
+| GET/POST | `/api/referrers` | 紹介者一覧 / 作成（Company, Branch include付き） |
 | GET/PUT/DELETE | `/api/referrers/:id` | 紹介者取得 / 更新 / 削除 |
 
 ### バックアップ
@@ -396,12 +406,15 @@ inheritance-case-management/
 ```mermaid
 erDiagram
     Department ||--o{ Assignee : "所属"
+    Company ||--o{ CompanyBranch : "部門"
     Company ||--o{ Referrer : "所属"
+    CompanyBranch ||--o{ Referrer : "部門"
     Assignee ||--o{ InheritanceCase : "担当"
     Assignee ||--o{ InheritanceCase : "社内紹介"
     Referrer ||--o{ InheritanceCase : "社外紹介"
     InheritanceCase ||--o{ CaseContact : "連絡先"
     InheritanceCase ||--o{ CaseProgress : "進捗"
+    InheritanceCase ||--o{ CaseExpense : "立替金"
 
     Department {
         int id PK "自動採番"
@@ -420,6 +433,15 @@ erDiagram
         datetime updatedAt
     }
 
+    CompanyBranch {
+        int id PK "自動採番"
+        int companyId FK "会社（Company）"
+        string name "部門名"
+        boolean active "有効フラグ"
+        datetime createdAt
+        datetime updatedAt
+    }
+
     Assignee {
         int id PK "自動採番"
         string name "氏名"
@@ -433,7 +455,7 @@ erDiagram
     Referrer {
         int id PK "自動採番"
         int companyId FK "会社（Company）"
-        string department "部署（任意）"
+        int branchId FK "部門（CompanyBranch）"
         boolean active "有効フラグ"
         datetime createdAt
         datetime updatedAt
@@ -483,6 +505,16 @@ erDiagram
         string memo "メモ"
         boolean isDynamic "動的追加フラグ"
     }
+
+    CaseExpense {
+        int id PK "自動採番"
+        int caseId FK "案件ID（カスケード削除）"
+        int sortOrder "並び順"
+        date date "日付（YYYY-MM-DD）"
+        string description "内容"
+        int amount "金額（円）"
+        string memo "備考"
+    }
 ```
 
 ## 設計パターン
@@ -491,7 +523,7 @@ erDiagram
 - **CRUDクライアントファクトリ**: `crud-factory.ts` でフロントエンドAPIクライアントを共通生成、`masters.ts` で4マスタ（会社/部署/担当者/紹介者）を統合
 - **マスタ編集共通化**: `MasterListPage` + `useMasterList` で4つのマスタ管理画面の編集UIを共通化（groupByによるグループ表示対応）
 - **where句ビルダー共通化**: `buildCaseWhereClause()` で案件一覧取得と一括削除のフィルタ条件構築を共通化
-- **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成
+- **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/CompanyBranch/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成
 - **リストアのデータ駆動化**: `TABLE_DEFS` 配列でテーブル定義・行変換・シーケンス名を一元管理し、ループで全テーブルを処理
 - **ステータス⇔進捗連動**: `STATUS_STEP_MAP` + `STATUS_ORDER` + `STEP_NAMES` で一元管理、進捗モーダル保存時・案件詳細保存時の双方向整合性チェック
 - **TanStack Query**: サーバーステート管理（キャッシュ・再取得・楽観的更新）
@@ -502,7 +534,7 @@ erDiagram
 - **セルファクトリ**: `statusCell()` でステータスバッジ列の定義を共通化、`formatDate()` で日付フォーマットを統一
 - **マスタ取得共通化**: `useAsyncMasters` フックで担当者・部署の非同期取得パターンを一元化
 - **モジュール分割**: `import-csv.ts`（629行）→ `lib/import/`（types/parser/converters/validator）、`analytics-utils.ts`（217行）→ `lib/analytics/`（calculations/aggregations）に分割し、旧ファイルは後方互換re-exportとして維持
-- **DB正規化**: Department・Company テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId でFK参照。社内紹介者はAssigneeテーブルで一元管理（InheritanceCase.internalReferrerId → Assignee）
+- **DB正規化**: Department・Company・CompanyBranch テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId + branchId でFK参照。紹介元の部門はCompanyBranchマスタで管理（表記ゆれ防止）。社内紹介者はAssigneeテーブルで一元管理（InheritanceCase.internalReferrerId → Assignee）
 - **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
 - **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知

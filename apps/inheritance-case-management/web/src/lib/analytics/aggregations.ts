@@ -204,7 +204,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
             if (refEntry) refEntry.group = c.referrer.company.name
             const companyName = c.referrer.company.name
             accumulateRanking(companyMap, companyName, c.referralFeeAmount || 0)
-            const refDept = c.referrer.department
+            const refDept = c.referrer.branch?.name
             if (refDept) {
                 if (!companyDeptMap.has(companyName)) companyDeptMap.set(companyName, new Map())
                 const deptMap2 = companyDeptMap.get(companyName)!

@@ -4,7 +4,7 @@ import { REFERRER_INCLUDE } from '@/lib/prisma-includes';
 
 export const { listAndCreate, byId } = createCrudRouteHandlers({
   model: 'referrer',
-  orderBy: 'department',
+  orderBy: 'companyId',
   entityLabel: '紹介者',
   createSchema: createReferrerSchema,
   updateSchema: updateReferrerSchema,
