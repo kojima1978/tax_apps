@@ -23,6 +23,10 @@ export const CSV_HEADER_MAP: Record<string, string> = {
   '報酬額': 'feeAmount',
   '紹介料率(%)': 'referralFeeRate',
   '紹介料': 'referralFeeAmount',
+  '土地数_路線価': 'landRosenkaCount',
+  '土地数_倍率': 'landBairitsuCount',
+  '非上場株式数': 'unlistedStockCount',
+  '相続人数': 'heirCount',
   '特記事項': 'summary',
   'メモ': 'memo',
 };
@@ -83,6 +87,10 @@ export const DEFAULTABLE_FIELDS: Record<string, string> = {
   feeAmount: '報酬額→0',
   estimateAmount: '見積額→0',
   propertyValue: '財産評価額→0',
+  landRosenkaCount: '土地数（路線価）→0',
+  landBairitsuCount: '土地数（倍率）→0',
+  unlistedStockCount: '非上場株式数→0',
+  heirCount: '相続人数→0',
 };
 
 export interface ImportParseResult {

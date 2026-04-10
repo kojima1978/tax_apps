@@ -150,7 +150,11 @@ export function rowToInput(
       case 'estimateAmount':
       case 'feeAmount':
       case 'referralFeeAmount':
-      case 'referralFeeRate': {
+      case 'referralFeeRate':
+      case 'landRosenkaCount':
+      case 'landBairitsuCount':
+      case 'unlistedStockCount':
+      case 'heirCount': {
         const n = parseOptionalNumber(value, fieldName !== 'referralFeeRate');
         if (n !== undefined) obj[fieldName] = n;
         break;

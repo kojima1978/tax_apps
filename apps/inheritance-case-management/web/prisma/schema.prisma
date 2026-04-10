@@ -22,6 +22,10 @@ model InheritanceCase {
   propertyValue     Int?     @default(0)
   referralFeeRate   Float?
   referralFeeAmount Int?
+  landRosenkaCount  Int?     @default(0) // 土地数（路線価）
+  landBairitsuCount Int?     @default(0) // 土地数（倍率）
+  unlistedStockCount Int?    @default(0) // 非上場株式の数
+  heirCount         Int?     @default(0) // 相続人の数
   summary           String?  @db.VarChar(10) // 特記事項（短い概要、最大10文字）
   memo              String?  @db.Text        // メモ（フリーテキスト）
 

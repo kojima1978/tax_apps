@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { updateCaseSchema, caseIdParamSchema } from '@/types/validation';
-import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
+import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -89,6 +89,12 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
         updateData.progress = {
           deleteMany: {},
           create: toProgressCreateData(data.progress),
+        };
+      }
+      if (data.expenses !== undefined) {
+        updateData.expenses = {
+          deleteMany: {},
+          create: toExpenseCreateData(data.expenses),
         };
       }
 
