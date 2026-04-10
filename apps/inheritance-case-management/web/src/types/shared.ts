@@ -70,6 +70,10 @@ export interface InheritanceCase {
   propertyValue: number;
   referralFeeRate?: number;
   referralFeeAmount?: number;
+  landRosenkaCount?: number;
+  landBairitsuCount?: number;
+  unlistedStockCount?: number;
+  heirCount?: number;
   summary?: string;
   memo?: string;
   // Normalized FK references

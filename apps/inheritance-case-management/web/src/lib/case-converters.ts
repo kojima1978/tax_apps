@@ -1,4 +1,4 @@
-import type { CaseProgressItem, CaseContact, ProgressStep, Contact } from '@/types/shared';
+import type { CaseProgressItem, CaseContact, CaseExpenseItem, ProgressStep, Contact, Expense } from '@/types/shared';
 
 /** DB の CaseProgressItem[] → API 入力の ProgressStep[] */
 export function toProgressSteps(items: CaseProgressItem[]): ProgressStep[] {
@@ -41,5 +41,27 @@ export function toContactItems(contacts: Contact[]): CaseContact[] {
     name: c.name,
     phone: c.phone,
     email: c.email,
+  }));
+}
+
+/** DB の CaseExpenseItem[] → API 入力の Expense[] */
+export function toExpenses(items: CaseExpenseItem[]): Expense[] {
+  return items.map((e) => ({
+    date: e.date,
+    description: e.description,
+    amount: e.amount,
+    memo: e.memo,
+  }));
+}
+
+/** API 入力の Expense[] → DB 形状の CaseExpenseItem[] */
+export function toExpenseItems(expenses: Expense[]): CaseExpenseItem[] {
+  return expenses.map((e, i) => ({
+    id: 0,
+    sortOrder: i,
+    date: e.date,
+    description: e.description,
+    amount: e.amount,
+    memo: e.memo,
   }));
 }

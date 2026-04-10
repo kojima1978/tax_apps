@@ -89,6 +89,8 @@ services:
       - ./web/src:/app/src:ro
       - ./web/public:/app/public:ro
       - ./web/prisma:/app/prisma:ro
+      # テンプレートファイル（見積書・請求書Excel）
+      - ./templates:/app/templates:ro
     ports:
       - "3020:3020"
     depends_on:

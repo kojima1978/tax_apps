@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { createCaseSchema, listQuerySchema } from '@/types/validation';
-import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
+import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
 
 /** Build Prisma where clause from parsed query params */
 export function buildCaseWhereClause(params: {
@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
         referrerId: data.referrerId || null,
         contacts: { create: toContactCreateData(data.contacts ?? []) },
         progress: { create: toProgressCreateData(data.progress ?? []) },
+        expenses: { create: toExpenseCreateData(data.expenses ?? []) },
       },
       include: CASE_INCLUDE,
     });

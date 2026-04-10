@@ -7,20 +7,23 @@ import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer, CaseStatus } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
-import { toProgressSteps, toProgressItems, toContacts, toContactItems } from "@/lib/case-converters"
+import { toProgressSteps, toProgressItems, toContacts, toContactItems, toExpenses, toExpenseItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { getAssignees } from "@/lib/api/assignees"
 import { getReferrers } from "@/lib/api/referrers"
 import { useToast } from "@/components/ui/Toast"
 import { Modal } from "@/components/ui/Modal"
 import { ProgressEditor } from "./ProgressEditor"
+import { ExpenseEditor } from "./ExpenseEditor"
 import { ContactListEditor } from "./ContactListEditor"
 import { BasicInfoSection } from "./BasicInfoSection"
 import { FinancialSection } from "./FinancialSection"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
-import { ListChecks, Phone, StickyNote } from "lucide-react"
+import { DocumentExportModal } from "./DocumentExportModal"
+import { ListChecks, Receipt, Phone, StickyNote, FileText } from "lucide-react"
 import { STATUS_STEP_MAP, STATUS_ORDER } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -28,6 +31,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const toast = useToast()
     const searchParams = useSearchParams()
     const [formData, setFormData] = useState<InheritanceCase>(initialData)
+    const { isDirty, resetBaseline } = useUnsavedChanges(formData)
+    const [showLeaveModal, setShowLeaveModal] = useState(false)
+    const [exportDocType, setExportDocType] = useState<"estimate" | "invoice" | null>(null)
     const [assignees, setAssignees] = useState<Assignee[]>([])
     const [referrers, setReferrers] = useState<Referrer[]>([])
     useEffect(() => {
@@ -73,6 +79,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const toApiPayload = () => {
         const contacts = formData.contacts ? toContacts(formData.contacts) : undefined
         const progress = formData.progress ? toProgressSteps(formData.progress) : undefined
+        const expenses = formData.expenses ? toExpenses(formData.expenses).filter(e => e.description) : undefined
         return {
             deceasedName: formData.deceasedName,
             dateOfDeath: formData.dateOfDeath,
@@ -86,6 +93,10 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             propertyValue: formData.propertyValue,
             referralFeeRate: formData.referralFeeRate,
             referralFeeAmount: formData.referralFeeAmount,
+            landRosenkaCount: formData.landRosenkaCount || 0,
+            landBairitsuCount: formData.landBairitsuCount || 0,
+            unlistedStockCount: formData.unlistedStockCount || 0,
+            heirCount: formData.heirCount || 0,
             summary: formData.summary || null,
             memo: formData.memo || null,
             assigneeId: formData.assigneeId || null,
@@ -93,6 +104,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             referrerId: formData.referrerId || null,
             contacts,
             progress,
+            expenses,
         }
     }
 
@@ -149,10 +161,11 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 router.push("/")
             } else {
                 const updatedAt = formData.updatedAt ? new Date(formData.updatedAt).toISOString() : undefined
-                await updateCase(formData.id, payload, updatedAt)
+                const updated = await updateCase(formData.id, payload, updatedAt)
                 await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
+                setFormData(updated)
+                resetBaseline(updated)
                 toast.success("保存しました")
-                router.back()
             }
         } catch (e) {
             console.error(e)
@@ -228,6 +241,13 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 </CollapsibleSection>
             )}
 
+            <CollapsibleSection title="立替金" icon={Receipt} defaultOpen={!isCreateMode && (formData.expenses || []).length > 0} badge={`${(formData.expenses || []).length}件`}>
+                <ExpenseEditor
+                    expenses={toExpenses(formData.expenses || [])}
+                    onChange={(expenses) => setFormData(prev => ({ ...prev, expenses: toExpenseItems(expenses) }))}
+                />
+            </CollapsibleSection>
+
             <CollapsibleSection title="連絡先" icon={Phone} defaultOpen={false} badge={`${(formData.contacts || []).length}件`}>
                 <ContactListEditor
                     contacts={toContacts(formData.contacts || [])}
@@ -246,12 +266,35 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             </CollapsibleSection>
 
             <StickyActionBar>
-                <Button onClick={() => router.back()} variant="ghost" className="min-w-[100px]" disabled={isSaving}>
-                    キャンセル
+                <Button
+                    onClick={() => {
+                        if (isDirty) {
+                            setShowLeaveModal(true)
+                        } else {
+                            router.back()
+                        }
+                    }}
+                    variant="ghost"
+                    className="min-w-[100px]"
+                    disabled={isSaving}
+                >
+                    戻る
                 </Button>
-                <Button onClick={handleSave} disabled={isSaving} className="min-w-[120px]">
-                    {isSaving ? "処理中..." : isCreateMode ? "新規登録" : "変更を保存"}
-                </Button>
+                <div className="flex gap-2">
+                    {!isCreateMode && (
+                        <>
+                            <Button variant="outline" onClick={() => setExportDocType("estimate")} disabled={isSaving}>
+                                <FileText className="mr-1.5 h-4 w-4" />見積書
+                            </Button>
+                            <Button variant="outline" onClick={() => setExportDocType("invoice")} disabled={isSaving}>
+                                <FileText className="mr-1.5 h-4 w-4" />請求書
+                            </Button>
+                        </>
+                    )}
+                    <Button onClick={handleSave} disabled={isSaving} className="min-w-[120px]">
+                        {isSaving ? "処理中..." : isCreateMode ? "新規登録" : "変更を保存"}
+                    </Button>
+                </div>
             </StickyActionBar>
 
             <Modal
@@ -272,6 +315,31 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     </Button>
                 </div>
             </Modal>
+
+            <Modal
+                isOpen={showLeaveModal}
+                onClose={() => setShowLeaveModal(false)}
+                title="未保存の変更があります"
+            >
+                <p className="text-sm mb-6">変更内容が保存されていません。保存してから戻りますか？</p>
+                <div className="flex justify-end gap-3">
+                    <Button variant="ghost" onClick={() => { setShowLeaveModal(false); router.back() }}>
+                        保存せず戻る
+                    </Button>
+                    <Button onClick={async () => { setShowLeaveModal(false); await doSave(); router.back() }}>
+                        保存して戻る
+                    </Button>
+                </div>
+            </Modal>
+
+            {exportDocType && (
+                <DocumentExportModal
+                    isOpen={!!exportDocType}
+                    onClose={() => setExportDocType(null)}
+                    caseData={formData}
+                    docType={exportDocType}
+                />
+            )}
         </div>
     )
 }

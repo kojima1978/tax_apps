@@ -74,6 +74,10 @@ erDiagram
         int propertyValue "財産評価額（default: 0）"
         float referralFeeRate "紹介料率（%）"
         int referralFeeAmount "紹介料額"
+        int landRosenkaCount "土地数・路線価（default: 0）"
+        int landBairitsuCount "土地数・倍率（default: 0）"
+        int unlistedStockCount "非上場株式数（default: 0）"
+        int heirCount "相続人数（default: 0）"
         string summary "特記事項（最大10文字）"
         string memo "メモ（フリーテキスト）"
         int assigneeId FK "担当者（SET NULL on delete）"
@@ -214,6 +218,10 @@ erDiagram
 | propertyValue | Int | No | 0 | 財産評価額（円） |
 | referralFeeRate | Float | No | null | 紹介料率（%） |
 | referralFeeAmount | Int | No | null | 紹介料額（円） |
+| landRosenkaCount | Int | No | 0 | 土地数（路線価地域） |
+| landBairitsuCount | Int | No | 0 | 土地数（倍率地域） |
+| unlistedStockCount | Int | No | 0 | 非上場株式の数 |
+| heirCount | Int | No | 0 | 相続人の数 |
 | summary | VarChar(10) | No | null | 特記事項（最大10文字） |
 | memo | Text | No | null | メモ（フリーテキスト） |
 | assigneeId | Int | No (FK) | null | 担当者（SET NULL on delete） |
