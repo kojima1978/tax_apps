@@ -23,7 +23,7 @@ const emptyCase: InheritanceCase = {
     progress: DEFAULT_PROGRESS_STEPS.map((step, i) => ({
         id: 0, stepId: step.id, name: step.name, sortOrder: i, date: null,
     })),
-    contacts: [{ id: 0, sortOrder: 0, name: "", phone: "", email: "" }],
+    contacts: [{ id: 0, sortOrder: 0, name: "", phone: "", postalCode: "", address: "", memo: "" }],
 }
 
 export default function NewCasePage() {

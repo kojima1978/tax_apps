@@ -120,8 +120,8 @@ async function main() {
         referrerId: referrers[0].id,
         contacts: {
           create: [
-            { name: '相続 一郎', phone: '090-1234-5678', email: 'ichiro@example.com', sortOrder: 0 },
-            { name: '相続 二郎', phone: '090-2345-6789', email: 'jiro@example.com', sortOrder: 1 },
+            { name: '相続 一郎', phone: '090-1234-5678', postalCode: '100-0001', address: '東京都千代田区千代田1-1', memo: '', sortOrder: 0 },
+            { name: '相続 二郎', phone: '090-2345-6789', postalCode: '160-0023', address: '東京都新宿区西新宿2-8-1', memo: '', sortOrder: 1 },
           ],
         },
         progress: {
@@ -154,7 +154,7 @@ async function main() {
         referrerId: null,
         contacts: {
           create: [
-            { name: '遺産 三郎', phone: '080-1111-2222', email: '', sortOrder: 0 },
+            { name: '遺産 三郎', phone: '080-1111-2222', postalCode: '', address: '', memo: '', sortOrder: 0 },
           ],
         },
       },
@@ -180,7 +180,7 @@ async function main() {
         referrerId: referrers[1].id,
         contacts: {
           create: [
-            { name: '財産 四郎', phone: '03-1234-5678', email: 'shiro@example.com', sortOrder: 0 },
+            { name: '財産 四郎', phone: '03-1234-5678', postalCode: '530-0001', address: '大阪府大阪市北区梅田1-1', memo: '', sortOrder: 0 },
           ],
         },
         progress: {
@@ -241,7 +241,7 @@ async function main() {
         referrerId: null,
         contacts: {
           create: [
-            { name: '遺贈 六郎', phone: '090-9999-8888', email: 'rokuro@example.com', sortOrder: 0 },
+            { name: '遺贈 六郎', phone: '090-9999-8888', postalCode: '460-0008', address: '愛知県名古屋市中区栄3-1', memo: '', sortOrder: 0 },
           ],
         },
         progress: {

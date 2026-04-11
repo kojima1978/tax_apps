@@ -95,7 +95,9 @@ erDiagram
         int sortOrder "表示順（default: 0）"
         string name "連絡先氏名"
         string phone "電話番号（default: 空文字）"
-        string email "メール（default: 空文字）"
+        string postalCode "郵便番号（default: 空文字）"
+        string address "住所（default: 空文字）"
+        string memo "メモ（default: 空文字）"
     }
 
     CaseProgress {
@@ -252,7 +254,9 @@ erDiagram
 | sortOrder | Int | Yes | 0 | 表示順 |
 | name | String | Yes | - | 連絡先氏名 |
 | phone | String | Yes | "" | 電話番号 |
-| email | String | Yes | "" | メールアドレス |
+| postalCode | String | Yes | "" | 郵便番号 |
+| address | String | Yes | "" | 住所 |
+| memo | String | Yes | "" | メモ |
 
 **インデックス**: `caseId`
 

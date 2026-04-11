@@ -44,7 +44,9 @@ const TEMPLATE_HEADERS = [
   "メモ",
   "連絡先1_氏名",
   "連絡先1_電話",
-  "連絡先1_メール",
+  "連絡先1_郵便番号",
+  "連絡先1_住所",
+  "連絡先1_メモ",
 ];
 
 const TEMPLATE_SAMPLE_ROW = [
@@ -74,7 +76,9 @@ const TEMPLATE_SAMPLE_ROW = [
   "",
   "山田花子",
   "03-1234-5678",
-  "hanako@example.com",
+  "100-0001",
+  "東京都千代田区千代田1-1",
+  "",
 ];
 
 export function downloadCSVTemplate() {
@@ -133,7 +137,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
   ];
 
   for (let i = 1; i <= maxContacts; i++) {
-    headers.push(`連絡先${i}_氏名`, `連絡先${i}_電話`, `連絡先${i}_メール`);
+    headers.push(`連絡先${i}_氏名`, `連絡先${i}_電話`, `連絡先${i}_郵便番号`, `連絡先${i}_住所`, `連絡先${i}_メモ`);
   }
 
   if (hasProgress) {
@@ -177,7 +181,9 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
       row.push(
         contact?.name || "",
         contact?.phone || "",
-        contact?.email || ""
+        contact?.postalCode || "",
+        contact?.address || "",
+        contact?.memo || ""
       );
     }
 

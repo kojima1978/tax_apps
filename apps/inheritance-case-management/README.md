@@ -62,7 +62,8 @@
 
 ### 連絡先管理
 
-- 案件ごとに最大10件の連絡先（氏名・電話番号・メール）を管理
+- 案件ごとに最大10件の連絡先（氏名・電話番号・郵便番号・住所・メモ）を管理
+- 郵便番号から住所を自動検索（zipcloud API、7桁入力時に自動補完）
 - 並び順の保持（sortOrder）
 
 ### マスタ管理
@@ -538,7 +539,9 @@ erDiagram
         int sortOrder "並び順"
         string name "連絡先氏名"
         string phone "電話番号"
-        string email "メールアドレス"
+        string postalCode "郵便番号"
+        string address "住所"
+        string memo "メモ"
     }
 
     CaseProgress {

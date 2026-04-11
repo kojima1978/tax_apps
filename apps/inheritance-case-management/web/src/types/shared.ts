@@ -16,7 +16,9 @@ export interface ProgressStep {
 export interface Contact {
   name: string;
   phone: string;
-  email: string;
+  postalCode: string;
+  address: string;
+  memo: string;
 }
 
 // Expense (input shape for API — used by editors)
@@ -42,7 +44,9 @@ export interface CaseContact {
   sortOrder: number;
   name: string;
   phone: string;
-  email: string;
+  postalCode: string;
+  address: string;
+  memo: string;
 }
 
 export interface CaseProgressItem {
