@@ -19,13 +19,14 @@ interface FinancialSectionProps {
     formData: InheritanceCase
     netRevenue: number
     estimateNetRevenue: number
-    defaultOpen?: boolean
+    isOpen?: boolean
+    onToggle?: () => void
     currencyChange: (field: keyof InheritanceCase) => (value: string | undefined) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
 }
 
 export function FinancialSection({
-    formData, netRevenue, estimateNetRevenue, defaultOpen = true, currencyChange, setFormData,
+    formData, netRevenue, estimateNetRevenue, isOpen, onToggle, currencyChange, setFormData,
 }: FinancialSectionProps) {
     const breakdown = calcEstimate({
         propertyValue: formData.propertyValue || 0,
@@ -50,7 +51,7 @@ export function FinancialSection({
     }
 
     return (
-        <CollapsibleSection title="金額情報" icon={Banknote} defaultOpen={defaultOpen}>
+        <CollapsibleSection title="金額情報" icon={Banknote} isOpen={isOpen} onToggle={onToggle}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                     <Label htmlFor="propertyValue">取得財産の価格</Label>

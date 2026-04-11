@@ -9,18 +9,23 @@ interface CollapsibleSectionProps {
     title: string
     icon?: LucideIcon
     defaultOpen?: boolean
+    /** 外部から制御する場合 */
+    isOpen?: boolean
+    onToggle?: () => void
     badge?: string
     children: React.ReactNode
 }
 
-export function CollapsibleSection({ title, icon: Icon, defaultOpen = true, badge, children }: CollapsibleSectionProps) {
-    const [isOpen, setIsOpen] = useState(defaultOpen)
+export function CollapsibleSection({ title, icon: Icon, defaultOpen = true, isOpen: controlledOpen, onToggle, badge, children }: CollapsibleSectionProps) {
+    const [internalOpen, setInternalOpen] = useState(defaultOpen)
+    const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen
+    const handleToggle = onToggle ?? (() => setInternalOpen(v => !v))
 
     return (
         <div className="border rounded-lg overflow-hidden">
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={handleToggle}
                 className="w-full flex items-center justify-between px-5 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
                 aria-expanded={isOpen}
             >
