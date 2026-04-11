@@ -20,10 +20,13 @@ import { BasicInfoSection } from "./BasicInfoSection"
 import { FinancialSection } from "./FinancialSection"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { DocumentExportModal } from "./DocumentExportModal"
-import { ListChecks, Receipt, Phone, StickyNote, FileText } from "lucide-react"
+import { ListChecks, Receipt, Phone, StickyNote, FileText, ChevronsUpDown } from "lucide-react"
 import { STATUS_STEP_MAP, STATUS_ORDER } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
+import { useSectionState } from "@/hooks/use-section-state"
+
+const SECTION_IDS = ["basicInfo", "financial", "progress", "expenses", "contacts", "memo"] as const
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -32,6 +35,13 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const searchParams = useSearchParams()
     const [formData, setFormData] = useState<InheritanceCase>(initialData)
     const { isDirty, resetBaseline } = useUnsavedChanges(formData)
+    const sections = useSectionState(
+        [...SECTION_IDS],
+        isCreateMode
+            ? { basicInfo: true, financial: false, progress: false, expenses: false, contacts: false, memo: false }
+            : { basicInfo: false, financial: false, progress: false, expenses: false, contacts: false, memo: false },
+        { persist: !isCreateMode },
+    )
     const [showLeaveModal, setShowLeaveModal] = useState(false)
     const [exportDocType, setExportDocType] = useState<"estimate" | "invoice" | null>(null)
     const [assignees, setAssignees] = useState<Assignee[]>([])
@@ -219,21 +229,35 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 assignees={assignees}
                 referrers={referrers}
                 returnToPath={returnToPath}
+                isOpen={sections.isOpen("basicInfo")}
+                onToggle={() => sections.toggle("basicInfo")}
                 handleChange={handleChange}
                 setFormData={setFormData}
             />
+
+            <div className="flex justify-end">
+                <button
+                    type="button"
+                    onClick={sections.toggleAll}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <ChevronsUpDown className="h-3.5 w-3.5" />
+                    {sections.allOpen ? "すべて閉じる" : "すべて開く"}
+                </button>
+            </div>
 
             <FinancialSection
                 formData={formData}
                 netRevenue={netRevenue}
                 estimateNetRevenue={estimateNetRevenue}
-                defaultOpen={!isCreateMode}
+                isOpen={sections.isOpen("financial")}
+                onToggle={() => sections.toggle("financial")}
                 currencyChange={currencyChange}
                 setFormData={setFormData}
             />
 
             {formData.progress && (
-                <CollapsibleSection title="進捗管理" icon={ListChecks} defaultOpen={!isCreateMode} badge={`${formData.progress.filter(s => s.date).length}/${formData.progress.length}`}>
+                <CollapsibleSection title="進捗管理" icon={ListChecks} isOpen={sections.isOpen("progress")} onToggle={() => sections.toggle("progress")} badge={`${formData.progress.filter(s => s.date).length}/${formData.progress.length}`}>
                     <ProgressEditor
                         progress={toProgressSteps(formData.progress)}
                         onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
@@ -241,21 +265,21 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 </CollapsibleSection>
             )}
 
-            <CollapsibleSection title="立替金" icon={Receipt} defaultOpen={!isCreateMode && (formData.expenses || []).length > 0} badge={`${(formData.expenses || []).length}件`}>
+            <CollapsibleSection title="立替金" icon={Receipt} isOpen={sections.isOpen("expenses")} onToggle={() => sections.toggle("expenses")} badge={`${(formData.expenses || []).length}件`}>
                 <ExpenseEditor
                     expenses={toExpenses(formData.expenses || [])}
                     onChange={(expenses) => setFormData(prev => ({ ...prev, expenses: toExpenseItems(expenses) }))}
                 />
             </CollapsibleSection>
 
-            <CollapsibleSection title="連絡先" icon={Phone} defaultOpen={false} badge={`${(formData.contacts || []).length}件`}>
+            <CollapsibleSection title="連絡先" icon={Phone} isOpen={sections.isOpen("contacts")} onToggle={() => sections.toggle("contacts")} badge={`${(formData.contacts || []).length}件`}>
                 <ContactListEditor
                     contacts={toContacts(formData.contacts || [])}
                     onChange={(contacts) => setFormData(prev => ({ ...prev, contacts: toContactItems(contacts) }))}
                 />
             </CollapsibleSection>
 
-            <CollapsibleSection title="メモ" icon={StickyNote} defaultOpen={!!formData.memo}>
+            <CollapsibleSection title="メモ" icon={StickyNote} isOpen={sections.isOpen("memo")} onToggle={() => sections.toggle("memo")}>
                 <textarea
                     value={formData.memo || ""}
                     onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}

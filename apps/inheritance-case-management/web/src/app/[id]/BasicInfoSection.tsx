@@ -21,6 +21,8 @@ interface BasicInfoSectionProps {
     assignees: Assignee[]
     referrers: Referrer[]
     returnToPath: string
+    isOpen?: boolean
+    onToggle?: () => void
     handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
 }
@@ -135,13 +137,13 @@ function ReferrerToggleSelect({
 }
 
 export function BasicInfoSection({
-    formData, isCreateMode, assignees, referrers, returnToPath, handleChange, setFormData
+    formData, isCreateMode, assignees, referrers, returnToPath, isOpen, onToggle, handleChange, setFormData
 }: BasicInfoSectionProps) {
     const acceptance = formData.acceptanceStatus || "未判定"
     const hint = ACCEPTANCE_HINTS[acceptance]
 
     return (
-        <CollapsibleSection title="基本情報" icon={User} defaultOpen>
+        <CollapsibleSection title="基本情報" icon={User} isOpen={isOpen} onToggle={onToggle}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {!isCreateMode && (
                     <div className="space-y-2">
