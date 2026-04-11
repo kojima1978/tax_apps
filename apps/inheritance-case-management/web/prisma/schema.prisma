@@ -141,13 +141,15 @@ model Referrer {
 }
 
 model CaseContact {
-  id        Int             @id @default(autoincrement())
-  caseId    Int
-  case      InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  sortOrder Int             @default(0)
-  name      String
-  phone     String          @default("")
-  email     String          @default("")
+  id         Int             @id @default(autoincrement())
+  caseId     Int
+  case       InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sortOrder  Int             @default(0)
+  name       String
+  phone      String          @default("")
+  postalCode String          @default("")
+  address    String          @default("")
+  memo       String          @default("")
 
   @@index([caseId])
 }

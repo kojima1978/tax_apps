@@ -29,7 +29,9 @@ export function toContacts(items: CaseContact[]): Contact[] {
   return items.map((c) => ({
     name: c.name,
     phone: c.phone,
-    email: c.email,
+    postalCode: c.postalCode,
+    address: c.address,
+    memo: c.memo,
   }));
 }
 
@@ -40,7 +42,9 @@ export function toContactItems(contacts: Contact[]): CaseContact[] {
     sortOrder: i,
     name: c.name,
     phone: c.phone,
-    email: c.email,
+    postalCode: c.postalCode,
+    address: c.address,
+    memo: c.memo,
   }));
 }
 

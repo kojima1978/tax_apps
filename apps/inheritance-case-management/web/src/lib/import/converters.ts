@@ -11,7 +11,7 @@ import { normalizeDate, parseOptionalNumber } from './parser';
 
 export function buildColumnMaps(headers: string[]): ColumnMaps {
   const fieldMap = new Map<number, string>();
-  const contactCols = new Map<number, { index: number; field: 'name' | 'phone' | 'email' }>();
+  const contactCols = new Map<number, { index: number; field: keyof Contact }>();
   let progressCol: number | null = null;
   let idCol: number | null = null;
 
@@ -220,11 +220,13 @@ export function rowToInput(
     const contacts: Contact[] = [];
     for (let i = 1; i <= MAX_CONTACT_COLUMNS; i++) {
       const c = contactMap.get(i);
-      if (c && (c.name || c.phone || c.email)) {
+      if (c && (c.name || c.phone || c.postalCode || c.address || c.memo)) {
         contacts.push({
           name: c.name || '',
           phone: c.phone || '',
-          email: c.email || '',
+          postalCode: c.postalCode || '',
+          address: c.address || '',
+          memo: c.memo || '',
         });
       }
     }

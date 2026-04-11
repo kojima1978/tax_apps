@@ -1,4 +1,5 @@
 import type { CreateCaseInput } from '@/types/validation';
+import type { Contact } from '@/types/shared';
 import { CASE_STATUS_OPTIONS, HANDLING_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from '@/types/constants';
 
 // ── Header → field mapping ──────────────────────────────────
@@ -41,11 +42,14 @@ export const MAX_CONTACT_COLUMNS = 10;
 export const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 
 // ── Contact column detection ──────────────────────────────────
-export const CONTACT_HEADER_RE = /^連絡先(\d+)_(氏名|電話|メール)$/;
-export const CONTACT_FIELD_MAP: Record<string, 'name' | 'phone' | 'email'> = {
+export const CONTACT_HEADER_RE = /^連絡先(\d+)_(氏名|電話|郵便番号|住所|メモ|メール)$/;
+export const CONTACT_FIELD_MAP: Record<string, keyof Contact> = {
   '氏名': 'name',
   '電話': 'phone',
-  'メール': 'email',
+  '郵便番号': 'postalCode',
+  '住所': 'address',
+  'メモ': 'memo',
+  'メール': 'memo', // 旧形式の後方互換（メール→メモに変換）
 };
 
 // ── Types ──────────────────────────────────
@@ -107,7 +111,7 @@ export interface ResolverMaps {
 
 export interface ColumnMaps {
   fieldMap: Map<number, string>;
-  contactCols: Map<number, { index: number; field: 'name' | 'phone' | 'email' }>;
+  contactCols: Map<number, { index: number; field: keyof Contact }>;
   progressCol: number | null;
   idCol: number | null;
 }

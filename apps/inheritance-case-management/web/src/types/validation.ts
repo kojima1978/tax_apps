@@ -10,7 +10,9 @@ const acceptanceStatusSchema = z.enum(['受託可', '受託不可', '未判定',
 const contactSchema = z.object({
   name: z.string(),
   phone: z.string(),
-  email: z.string().email('メールアドレスの形式が正しくありません').or(z.literal('')),
+  postalCode: z.string(),
+  address: z.string(),
+  memo: z.string(),
 });
 
 // Progress Step Schema (internal - used by createCaseSchema)

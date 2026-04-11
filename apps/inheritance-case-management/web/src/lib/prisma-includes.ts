@@ -17,11 +17,13 @@ export const REFERRER_INCLUDE = {
 } as const;
 
 /** POST/PUT 用: contacts 配列を Prisma create 入力に変換 */
-export function toContactCreateData(contacts: { name: string; phone: string; email: string }[]) {
+export function toContactCreateData(contacts: { name: string; phone: string; postalCode?: string; address?: string; memo?: string }[]) {
   return contacts.map((c, i) => ({
     name: c.name,
     phone: c.phone,
-    email: c.email,
+    postalCode: c.postalCode ?? '',
+    address: c.address ?? '',
+    memo: c.memo ?? '',
     sortOrder: i,
   }));
 }
