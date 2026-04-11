@@ -9,7 +9,7 @@
 | レイヤー | 技術 |
 |---------|------|
 | Frontend | Next.js 16.1.1, React 19.2.3, TypeScript 5.9.3, Tailwind CSS v4 |
-| Data | TanStack Query 5.64, TanStack Table 8.21, react-currency-input-field, @dnd-kit |
+| Data | TanStack Query 5.64, TanStack Table 8.21, react-currency-input-field, @dnd-kit, xlsx-js-style |
 | Backend | Next.js API Routes, Prisma 6.2, Zod 3.24 |
 | Database | PostgreSQL 16 Alpine |
 | Charts | recharts 2.15 |
@@ -30,6 +30,13 @@
   - 受託可 → 未着手 / 手続中 / 申告済 / 請求済 / 入金済 を選択可
 - 担当者・社内紹介者・社外紹介者のリレーション（FK）、担当者・社内紹介者は「部門 / 氏名」形式で表示（部門別optgroupグループ化、sortOrder順）
 - 報酬・見積・財産評価額・紹介料（率/額）の管理
+- 報酬計算パラメータ: 土地数（路線価/倍率）、非上場株式数、相続人数の管理
+- 報酬計算ロジック: 基本報酬（遺産総額×0.8%）+ 土地評価加算 + 非上場株式加算 + 相続人加算
+- 計算結果の転記: 「見積額に反映」「報酬額に反映」ボタンで明示的に転記（自動転記なし）
+- 報酬額転記時の紹介料自動再計算（紹介料率が設定されている場合）
+- 値引き・調整に対応（転記後の金額を直接編集可能）
+- 未保存変更検知: フォーム変更時に離脱確認ダイアログを表示、ブラウザタブ閉じ・リロード時の警告（beforeunload）
+- 保存後は一覧に遷移せずフォームに留まり、ベースラインをリセット
 - 特記事項（10文字以内の短い概要）・メモ（フリーテキスト）の管理
 - 申告期限の自動計算（死亡日 + 10ヶ月）
 - 和暦表示: 相続開始日・申告期限・進捗完了日に和暦を自動表示（令和/平成/昭和/大正/明治対応）
@@ -100,6 +107,21 @@
 - 存在しないIDの案件は新規作成にフォールバック
 - ファイル選択時にマスターデータを最新に再読込
 
+### 見積書・請求書Excel出力
+
+- 見積書（御見積書）・請求書（御請求書）をExcelファイル（.xlsx）でダウンロード
+- 案件詳細画面の「見積書」「請求書」ボタンから出力
+- 宛先選択: 案件の連絡先から複数選択（連名対応）＋カスタム入力
+- 発行日入力
+- テンプレート方式: `templates/` フォルダにExcelテンプレートを配置すると、テンプレートにデータを埋め込んで出力
+- テンプレートが存在しない場合はコード内で自動生成（フォールバック）
+- 明細行: 基本報酬、土地評価（路線価/倍率）、非上場株式評価、相続人加算
+- 値引き・調整行の自動表示（転記額と計算合計が異なる場合）
+- 小計・消費税（10%）・合計（税込）を自動計算
+- 見積書は `estimateAmount`、請求書は `feeAmount` を基準に出力
+- ファイル名: `見積書_被相続人名_YYYYMMDD.xlsx` / `請求書_被相続人名_YYYYMMDD.xlsx`
+- テンプレートファイルはGit管理対象外（`.gitignore`）、Dockerコンテナ内では `/app/templates/` にマウント
+
 ### JSONバックアップ / リストア
 
 - 全9テーブルのデータをJSON形式でエクスポート（`itcm-backup-YYYY-MM-DD.json`）
@@ -151,7 +173,7 @@
 - **トースト通知**: 成功/エラー/警告メッセージ
 - **空状態メッセージ**: 検索結果なし時の案内表示
 - **モーダルダイアログ**: CSV取込、進捗編集、一括削除確認、確認ダイアログ
-- **案件詳細の保存後遷移**: 保存完了後にブラウザバックで一覧画面に遷移（フィルタ状態を維持）
+- **案件詳細の保存後動作**: 保存完了後はフォームに留まりベースラインをリセット（離脱は「戻る」ボタンで、未保存時は確認ダイアログ）
 - **ポータルに戻るボタン**: aタグで外部遷移（クライアントサイドルーティング外）
 - **年度セレクトボックス**: 降順表示（新しい年度が上）
 - **MasterSelectリンク**: Link化によるクライアントサイドルーティング
@@ -180,6 +202,9 @@ inheritance-case-management/
 ├── .env                        # PostgreSQL認証情報
 ├── docker-compose.yml          # 開発用（PostgreSQL + Web）
 ├── docker-compose.prod.yml     # 本番オーバーライド
+├── templates/                  # 見積書・請求書Excelテンプレート（Git管理外、Dockerマウント）
+│   ├── .gitignore              # *.xlsx除外
+│   └── README.md               # テンプレート配置手順
 └── web/                        # Next.js（フロントエンド + API Routes）
     ├── Dockerfile              # マルチステージビルド（dev/builder/runner）
     ├── Dockerfile.dev
@@ -203,7 +228,9 @@ inheritance-case-management/
         │   │   ├── page.tsx
         │   │   ├── edit-case-form.tsx  # メインフォーム
         │   │   ├── BasicInfoSection.tsx
-        │   │   ├── FinancialSection.tsx
+        │   │   ├── FinancialSection.tsx  # 報酬計算・転記ボタン
+        │   │   ├── ExpenseEditor.tsx   # 立替金エディタ
+        │   │   ├── DocumentExportModal.tsx  # 見積書・請求書出力モーダル
         │   │   ├── ProgressEditor.tsx  # タイムライン進捗UI（D&D対応）
         │   │   └── ContactListEditor.tsx
         │   ├── settings/               # マスタ管理
@@ -246,10 +273,12 @@ inheritance-case-management/
         │       │   ├── route.ts
         │       │   ├── handlers.ts     # ファクトリベースCRUD（include対応）
         │       │   └── [id]/route.ts
-        │       └── referrers/
-        │           ├── route.ts
-        │           ├── handlers.ts     # ファクトリベースCRUD（include対応）
-        │           └── [id]/route.ts
+        │       ├── referrers/
+        │       │   ├── route.ts
+        │       │   ├── handlers.ts     # ファクトリベースCRUD（include対応）
+        │       │   └── [id]/route.ts
+        │       └── templates/
+        │           └── route.ts        # GET（テンプレートファイル取得、Base64）
         ├── components/
         │   ├── AppHeader.tsx           # ヘッダーナビゲーション
         │   ├── BulkDeleteModal.tsx     # 一括削除確認ダイアログ
@@ -290,7 +319,8 @@ inheritance-case-management/
         │   ├── use-keyboard-navigation.ts
         │   ├── use-master-list.ts      # マスタ編集ステート管理
         │   ├── use-progress-steps.ts   # 進捗チェック・D&D・一括日付設定
-        │   └── use-ranking-sort.ts     # 経営分析ランキングソート
+        │   ├── use-ranking-sort.ts     # 経営分析ランキングソート
+        │   └── use-unsaved-changes.ts  # 未保存変更検知（beforeunload + dirty state）
         ├── lib/
         │   ├── prisma.ts               # Prisma クライアントシングルトン
         │   ├── prisma-includes.ts      # Prisma include定義（CASE/ASSIGNEE/REFERRER）
@@ -314,6 +344,9 @@ inheritance-case-management/
         │   ├── kpi-utils.ts            # KPI計算
         │   ├── deadline-utils.ts       # 申告期限計算（死亡日+10ヶ月）
         │   ├── progress-utils.ts       # 訪問ステップ追加/削除
+        │   ├── estimate-calc.ts        # 報酬計算ロジック（基本報酬+各種加算）
+        │   ├── excel-styles.ts         # Excel出力スタイル定数
+        │   ├── export-excel.ts         # 見積書・請求書Excel出力（テンプレート+フォールバック）
         │   ├── export-csv.ts
         │   ├── utils.ts
         │   └── api/                    # クライアントサイドAPI
@@ -395,6 +428,15 @@ inheritance-case-management/
 | GET | `/api/backup` | 全データJSONエクスポート |
 | POST | `/api/backup/restore` | JSONからの全データリストア |
 
+### テンプレート
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/api/templates?type=estimate` | 見積書テンプレート取得（Base64） |
+| GET | `/api/templates?type=invoice` | 請求書テンプレート取得（Base64） |
+
+テンプレートファイルが存在しない場合は `{ exists: false }` を返し、クライアント側でコード生成にフォールバック。
+
 ### その他
 
 | メソッド | パス | 説明 |
@@ -475,6 +517,10 @@ erDiagram
         int propertyValue "財産評価額"
         float referralFeeRate "紹介料率（%）"
         int referralFeeAmount "紹介料額"
+        int landRosenkaCount "土地数・路線価"
+        int landBairitsuCount "土地数・倍率"
+        int unlistedStockCount "非上場株式数"
+        int heirCount "相続人数"
         string summary "特記事項（最大10文字）"
         string memo "メモ（フリーテキスト）"
         int assigneeId FK "担当者（Assignee）"
@@ -539,6 +585,9 @@ erDiagram
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
 - **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
 - **和暦変換**: `toWareki()` / `formatDateWithWareki()` で令和/平成/昭和/大正/明治を自動判定し、日付表示に和暦を併記
+- **未保存変更検知**: `useUnsavedChanges` フックでJSON比較によるdirty state管理 + `beforeunload` 警告。保存後は `resetBaseline()` でベースラインリセット
+- **Excel出力テンプレート方式**: テンプレートファイルが存在すればBase64 API経由で読み込みデータ埋め込み、存在しなければコード内で `xlsx-js-style` により直接生成（フォールバック）
+- **報酬計算ロジック**: `calcEstimate()` で基本報酬+各種加算を算出、「見積額に反映」「報酬額に反映」ボタンで明示的に転記（自動転記なし）
 - **フィルタURL同期**: `useSearchParams` + `router.replace` でフィルタ状態をURLクエリパラメータに双方向同期、`popstate` リスナーでブラウザバック復元
 - **紹介者2段階解決**: `buildResolverMaps` で会社+部署 / 会社（一意時のみ）の2段階キーを構築、CSV取込時の社外紹介者マッチングの正確性を向上
 - **社内/社外紹介者分離**: 社内紹介者は `Assignee` テーブルで管理（`internalReferrerId`）、社外紹介者は `Referrer` テーブルで管理（`referrerId`）。同一人物の重複管理を排除
