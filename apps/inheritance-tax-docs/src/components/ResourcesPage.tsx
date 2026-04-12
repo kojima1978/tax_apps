@@ -1,15 +1,26 @@
 import { Link } from 'react-router-dom';
-import { FileText, Download, ArrowLeft, Home } from 'lucide-react';
+import { FileText, FileSpreadsheet, Download, ArrowLeft, Home } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useDarkMode } from '@/hooks/useDarkMode';
 import { Sun, Moon } from 'lucide-react';
 
-const PDF_RESOURCES = [
+type Resource = {
+  id: string;
+  title: string;
+  description: string;
+  filename: string;
+  downloadName: string;
+  icon: LucideIcon;
+};
+
+const RESOURCES: Resource[] = [
   {
     id: 'schedule',
     title: '相続・手続きスケジュール',
     description: '葬儀を終えた後の相続手続きの流れとスケジュール（14日以内〜1年以内）',
     filename: 'schedule.pdf',
     downloadName: '相続手続きスケジュール.pdf',
+    icon: FileText,
   },
   {
     id: 'checklist',
@@ -17,6 +28,7 @@ const PDF_RESOURCES = [
     description: '相続発生後に必要な各種届出・手続きの一覧と提出先・相談先',
     filename: 'checklist.pdf',
     downloadName: '相続手続きチェックリスト.pdf',
+    icon: FileText,
   },
   {
     id: 'after-support',
@@ -24,6 +36,7 @@ const PDF_RESOURCES = [
     description: '二次相続対策・資産運用・不動産見直しなど申告後のサポート案内',
     filename: 'after-support.pdf',
     downloadName: '相続後のアフターサポート.pdf',
+    icon: FileText,
   },
   {
     id: 'life-insurance',
@@ -31,8 +44,25 @@ const PDF_RESOURCES = [
     description: '生命保険の非課税枠や生前贈与を組み合わせた節税方法の解説',
     filename: 'life-insurance.pdf',
     downloadName: '生命保険を使った相続税対策.pdf',
+    icon: FileText,
   },
-] as const;
+  {
+    id: 'real-estate-risk',
+    title: '不動産リスク診断チェック表',
+    description: '保有不動産のリスクを10項目でチェックできる診断シート',
+    filename: 'real-estate-risk-check.pdf',
+    downloadName: '不動産リスク診断チェックシート.pdf',
+    icon: FileText,
+  },
+  {
+    id: 'household-family',
+    title: '生計一親族チェックリスト',
+    description: '生計を一にする親族の判定に使用するチェックリスト',
+    filename: 'household-family-checklist.xlsx',
+    downloadName: '生計一親族チェックリスト.xlsx',
+    icon: FileSpreadsheet,
+  },
+];
 
 export const ResourcesPage = () => {
   const basePath = import.meta.env.BASE_URL;
@@ -76,15 +106,15 @@ export const ResourcesPage = () => {
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {PDF_RESOURCES.map((resource) => (
+            {RESOURCES.map((resource) => (
               <a
                 key={resource.id}
-                href={`${basePath}pdf/${resource.filename}`}
+                href={`${basePath}files/${resource.filename}`}
                 download={resource.downloadName}
                 className="group flex items-start gap-4 p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-600 transition-all"
               >
                 <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 transition-colors">
-                  <FileText className="w-5 h-5" />
+                  <resource.icon className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">

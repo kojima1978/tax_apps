@@ -44,6 +44,12 @@ export const UNLISTED_STOCK_CATEGORIES: CategoryData[] = [
         description: '親会社・子会社・関連会社の関係図。株式の保有関係や取引関係を把握します。',
         howToGet: '会社にてご用意ください。',
       },
+      {
+        id: 'us_pamphlet',
+        name: '会社のパンフレット等、業務内容が分かるもの',
+        description: '会社の事業内容・業種を把握するための資料。類似業種比準方式の業種判定に使用します。',
+        howToGet: '会社にてご用意ください。',
+      },
     ],
   },
   {
@@ -94,7 +100,7 @@ export const UNLISTED_STOCK_CATEGORIES: CategoryData[] = [
   },
   {
     id: 'corporate_assets',
-    name: '法人所有資産の関係書類',
+    name: '法人所有の固定資産関係',
     iconName: 'Landmark',
     color: 'text-amber-700',
     bgColor: 'bg-amber-50',
@@ -131,6 +137,22 @@ export const UNLISTED_STOCK_CATEGORIES: CategoryData[] = [
         howToGet: '会社にてご用意ください。',
       },
       {
+        id: 'us_fudosan_baibai',
+        name: '法人契約の不動産売買契約書（死亡日以前3年間において購入した不動産に限る）',
+        description: '課税時期前3年以内に取得した不動産は通常の取引価額で評価するため、取得価額の確認に使用します。',
+        howToGet: '会社にてご用意ください。',
+      },
+    ],
+  },
+  {
+    id: 'corporate_financial_assets',
+    name: '法人所有の金融資産関係',
+    iconName: 'Landmark',
+    color: 'text-teal-700',
+    bgColor: 'bg-teal-50',
+    borderColor: 'border-teal-200',
+    documents: [
+      {
         id: 'us_yuuka',
         name: '法人が保有する有価証券の明細',
         description: '上場株式は銘柄・株数、非上場株式は発行会社名・株数・取得価額等。',
@@ -141,6 +163,18 @@ export const UNLISTED_STOCK_CATEGORIES: CategoryData[] = [
         name: '法人契約の生命保険の解約返戻金証明書',
         description: '保険積立金の時価評価に使用します。契約者が法人である保険すべてが対象。',
         howToGet: '各保険会社へ「評価時点の解約返戻金額」を照会してください。',
+      },
+      {
+        id: 'us_kyosai',
+        name: '各共済制度の死亡日の解約返戻金証明書',
+        description: '倒産防止共済掛金、中小企業退職金共済等に加入している場合に必要です。',
+        howToGet: '各共済の窓口へ「死亡日時点の解約返戻金額」を照会してください。',
+      },
+      {
+        id: 'us_golf',
+        name: '法人契約のゴルフ・レジャー会員権証書',
+        description: '法人名義で保有するゴルフ会員権・レジャー会員権の時価評価に使用します。',
+        howToGet: '会社にてご用意ください。',
       },
     ],
   },
@@ -181,6 +215,24 @@ export const UNLISTED_STOCK_CATEGORIES: CategoryData[] = [
         name: '過去の株式評価書（評価実績がある場合）',
         description: '過去に相続・贈与等で株式評価を行った実績がある場合、参考資料として使用します。',
         howToGet: '会社または顧問税理士にてご用意ください。',
+      },
+      {
+        id: 'us_kabuka_report',
+        name: '株式評価レポート・発行会社作成の株価資料',
+        description: '過去に株価評価をしたことがある場合の評価レポートや、発行会社が作成した株価の資料。',
+        howToGet: '会社または顧問税理士にてご用意ください。',
+      },
+      {
+        id: 'us_yakuin_kashitsuke',
+        name: '役員に対する貸付金・役員借入金等の債権債務明細・契約書',
+        description: '役員との間の貸付金・借入金等の債権債務の内容を確認します。純資産価額の計算に影響します。',
+        howToGet: '会社にてご用意ください。',
+      },
+      {
+        id: 'us_gyoushu_uriage',
+        name: '直前期の業種別売上高が分かるもの',
+        description: '類似業種比準方式における業種の判定に使用します。',
+        howToGet: '会社の顧問税理士または会社にてご用意ください。',
       },
     ],
   },
