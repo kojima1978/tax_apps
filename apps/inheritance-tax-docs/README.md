@@ -9,8 +9,8 @@
 | 種別 | 説明 |
 |:-----|:-----|
 | 相続税申告 | 相続税申告に必要な全書類の管理（11カテゴリ） |
-| 相続シミュレーション | シミュレーション用に必要最小限の書類（1カテゴリ） |
-| 非上場株式評価 | 非上場株式評価に必要な書類の管理（4カテゴリ） |
+| 相続シミュレーション | シミュレーション用に必要最小限の書類（1カテゴリ・10書類） |
+| 非上場株式評価 | 非上場株式評価に必要な書類の管理（5カテゴリ） |
 
 ## 主な機能
 
@@ -49,6 +49,19 @@
 | 印刷/PDF保存 | リスト型レイアウト（1列/2列切替、提出済み非表示オプション） |
 | JSON保存 | 設定をJSONファイルとして保存 |
 | JSON読込 | JSONファイルから設定を復元（旧フォーマットの後方互換あり） |
+
+### 参考資料ダウンロード（/resources）
+
+専用ページで相続手続きに関する参考資料をダウンロード可能。
+
+| ファイル | 内容 |
+|:--------|:-----|
+| 相続手続きスケジュール | 葬儀後の手続きスケジュール（14日〜1年以内） |
+| 手続き＆チェックリスト | 各種届出・手続き一覧と提出先・相談先 |
+| 相続税申告後サポート | 二次相続対策・資産運用等の案内 |
+| 保険を使った相続税対策 | 生命保険の非課税枠・生前贈与の節税方法 |
+| 不動産リスク診断チェック表 | 保有不動産の10項目リスク診断 |
+| 生計一親族チェックリスト | 生計一親族の判定チェックリスト（Excel） |
 
 ### 画面レイアウト
 
@@ -94,6 +107,7 @@ http://localhost:3003/inheritance-tax-docs/ でアクセスできます。
 | ビルドツール | Vite 6 |
 | UI | React 19, Tailwind CSS v4 |
 | 言語 | TypeScript 5.9 |
+| ルーティング | react-router-dom 7 |
 | D&D | @dnd-kit/core + @dnd-kit/sortable |
 | Excel出力 | xlsx-js-style |
 | アイコン | Lucide React |
@@ -104,11 +118,12 @@ http://localhost:3003/inheritance-tax-docs/ でアクセスできます。
 ```
 inheritance-tax-docs/
 ├── src/
-│   ├── App.tsx                          # 単一ページ（EditableListStep）
-│   ├── main.tsx                         # Reactエントリポイント
+│   ├── App.tsx                          # ルーティング（/ + /resources）
+│   ├── main.tsx                         # Reactエントリポイント（BrowserRouter）
 │   ├── globals.css                      # グローバルスタイル（ダークモード・印刷・アニメーション）
 │   ├── components/
 │   │   ├── EditableListStep.tsx          # メインページコンポーネント（状態・DnD・モーダル統合）
+│   │   ├── ResourcesPage.tsx            # 参考資料ダウンロードページ
 │   │   └── ui/
 │   │       ├── EditToolbar.tsx           # ヘッダーツールバー（種別切替・入力欄・アクション）
 │   │       ├── SortableCategoryCard.tsx  # カテゴリカード（D&D・展開/折畳・進捗バー）
@@ -126,7 +141,7 @@ inheritance-tax-docs/
 │   │   ├── index.ts                     # 型定義（EditableDocument, EditableCategory等）・ストレージキー・会社情報
 │   │   ├── documents.ts                 # 相続税申告の書類マスターデータ（11カテゴリ）
 │   │   ├── simplifiedDocuments.ts       # 相続シミュレーションの書類マスターデータ（1カテゴリ）
-│   │   ├── unlistedStockDocuments.ts    # 非上場株式の書類マスターデータ（4カテゴリ）
+│   │   ├── unlistedStockDocuments.ts    # 非上場株式の書類マスターデータ（5カテゴリ）
 │   │   ├── excelStyles.ts              # Excelスタイル定義
 │   │   └── messages.ts                 # Toast・ダイアログメッセージ定数
 │   ├── hooks/
@@ -144,6 +159,8 @@ inheritance-tax-docs/
 │       ├── excelExporter.ts             # Excel出力ロジック
 │       ├── helpers.ts                   # 日付フォーマット・丸数字等ユーティリティ
 │       └── jsonDataManager.ts           # JSON保存/読込/バリデーション
+├── public/
+│   └── files/                           # 参考資料ダウンロード用ファイル（PDF/Excel）
 ├── docker-compose.yml                   # スタンドアロンDocker設定
 ├── docker-compose.prod.yml              # 本番オーバーライド（nginx静的配信）
 ├── vite.config.ts                       # Vite設定（basePath, エイリアス）
@@ -153,8 +170,11 @@ inheritance-tax-docs/
 ### アーキテクチャ
 
 ```
-App.tsx
-└── EditableListStep.tsx（メインコンポーネント）
+App.tsx（react-router-dom）
+├── / → EditableListStep.tsx（メインコンポーネント）
+├── /resources → ResourcesPage.tsx（参考資料ダウンロード）
+│
+└── EditableListStep.tsx
     ├── useInheritanceTaxGuide — 状態管理（種別切替・localStorage・出力）
     ├── useEditableListEditing — 編集操作統合
     │   ├── useDocumentEditing — 書類操作（チェック・フラグ・個別名）

@@ -138,7 +138,7 @@ export const UNLISTED_STOCK_CATEGORIES: CategoryData[] = [
       },
       {
         id: 'us_fudosan_baibai',
-        name: '法人契約の不動産売買契約書（死亡日以前3年間において購入した不動産に限る）',
+        name: '法人契約の不動産売買契約書（評価日以前3年間において購入した不動産に限る）',
         description: '課税時期前3年以内に取得した不動産は通常の取引価額で評価するため、取得価額の確認に使用します。',
         howToGet: '会社にてご用意ください。',
       },
@@ -166,9 +166,9 @@ export const UNLISTED_STOCK_CATEGORIES: CategoryData[] = [
       },
       {
         id: 'us_kyosai',
-        name: '各共済制度の死亡日の解約返戻金証明書',
+        name: '各共済制度の評価時点の解約返戻金証明書',
         description: '倒産防止共済掛金、中小企業退職金共済等に加入している場合に必要です。',
-        howToGet: '各共済の窓口へ「死亡日時点の解約返戻金額」を照会してください。',
+        howToGet: '各共済の窓口へ「評価時点の解約返戻金額」を照会してください。',
       },
       {
         id: 'us_golf',
