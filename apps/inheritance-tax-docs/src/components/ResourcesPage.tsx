@@ -94,6 +94,14 @@ const RESOURCES: Resource[] = [
     downloadName: '未分割申告の確認書.docx',
     icon: FileIcon,
   },
+  {
+    id: 'declaration-schedule',
+    title: '申告完了までのスケジュール',
+    description: '相続税申告完了までの全体スケジュールと各工程の流れ',
+    filename: 'declaration-schedule.xlsx',
+    downloadName: '申告完了までのスケジュール.xlsx',
+    icon: FileSpreadsheet,
+  },
 ];
 
 export const ResourcesPage = () => {
