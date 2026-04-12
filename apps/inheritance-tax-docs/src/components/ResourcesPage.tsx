@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FileText, FileSpreadsheet, Download, ArrowLeft, Home } from 'lucide-react';
+import { FileText, FileSpreadsheet, FileIcon, Download, ArrowLeft, Home } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useDarkMode } from '@/hooks/useDarkMode';
 import { Sun, Moon } from 'lucide-react';
@@ -61,6 +61,38 @@ const RESOURCES: Resource[] = [
     filename: 'household-family-checklist.xlsx',
     downloadName: '生計一親族チェックリスト.xlsx',
     icon: FileSpreadsheet,
+  },
+  {
+    id: 'nominee-deposit',
+    title: '名義預金、生前贈与について',
+    description: '名義預金の基礎知識・具体例と申告しない場合のペナルティの解説',
+    filename: 'nominee-deposit.pdf',
+    downloadName: '名義預金、生前贈与について.pdf',
+    icon: FileText,
+  },
+  {
+    id: 'deposit-transfer',
+    title: '預金移動調査について',
+    description: '預金移動調査の目的・必要性判定フローチャートとお預かり資料の案内',
+    filename: 'deposit-transfer-survey.pdf',
+    downloadName: '預金移動調査について.pdf',
+    icon: FileText,
+  },
+  {
+    id: 'gift-contract',
+    title: '贈与契約書ひな形',
+    description: '贈与契約書のひな形テンプレート',
+    filename: 'gift-contract-template.doc',
+    downloadName: '贈与契約書ひな形.doc',
+    icon: FileIcon,
+  },
+  {
+    id: 'undivided-declaration',
+    title: '未分割申告の確認書',
+    description: '遺産が未分割の場合の申告に関する確認書',
+    filename: 'undivided-declaration-confirmation.docx',
+    downloadName: '未分割申告の確認書.docx',
+    icon: FileIcon,
   },
 ];
 
