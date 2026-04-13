@@ -105,20 +105,42 @@ function cell(v: CellValue, style?: object): CellObj {
   return obj;
 }
 
-/** テンプレートファイルの取得を試みる */
-async function fetchTemplate(docType: DocumentType): Promise<ArrayBuffer | null> {
+/** テンプレートが存在するか確認 */
+async function checkTemplateExists(docType: DocumentType): Promise<boolean> {
   try {
-    const res = await apiClient<{ exists: boolean; data?: string }>(`/templates?type=${docType}`);
-    if (res.exists && res.data) {
-      const binary = atob(res.data);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      return bytes.buffer;
-    }
+    const res = await apiClient<{ exists: boolean }>(`/templates?type=${docType}`);
+    return res.exists;
   } catch {
-    // テンプレートAPI接続失敗 — フォールバック
+    return false;
   }
-  return null;
+}
+
+/** サーバーサイドでテンプレートに値を埋め込み、Blobとして取得 */
+async function generateFromTemplate(
+  docType: DocumentType,
+  data: {
+    addresseeName: string;
+    deceasedName: string;
+    propertyValue: number;
+    landRosenkaCount: number;
+    landBairitsuCount: number;
+    unlistedStockCount: number;
+    heirCount: number;
+    discount: number;
+    expensesTotal: number;
+  },
+): Promise<Blob> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/itcm/api';
+  const res = await fetch(`${apiUrl}/templates/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ docType, ...data }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || '生成に失敗しました');
+  }
+  return res.blob();
 }
 
 export async function exportDocument(params: ExportParams): Promise<void> {
@@ -148,48 +170,30 @@ export async function exportDocument(params: ExportParams): Promise<void> {
   const dateStr = issueDate.replace(/-/g, '');
   const fileName = `${typeLabel}_${caseData.deceasedName}_${dateStr}.xlsx`;
 
-  // ── テンプレート方式を試行 ──
-  const templateBuffer = await fetchTemplate(docType);
-  if (templateBuffer) {
-    const wb = XLSX.read(templateBuffer, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-
-    // テンプレートにデータを埋め込み
-    // TODO: テンプレートのセル位置に合わせて調整が必要
-    // 以下は一般的な埋め込みパターン（テンプレート提供後に調整）
-    ws['B3'] = { v: addressee, t: 's' };
-    ws['E3'] = { v: formatDate(issueDate), t: 's' };
-    ws['B5'] = { v: total, t: 'n', z: '#,##0' };
-
-    // 明細行の開始位置（テンプレートに合わせて調整）
-    const detailStartRow = 10;
-    detailRows.forEach((row, i) => {
-      const r = detailStartRow + i;
-      ws[XLSX.utils.encode_cell({ r, c: 0 })] = { v: row.description, t: 's' };
-      ws[XLSX.utils.encode_cell({ r, c: 1 })] = { v: row.detail, t: 's' };
-      ws[XLSX.utils.encode_cell({ r, c: 2 })] = { v: row.amount, t: 'n', z: '#,##0' };
+  // ── テンプレート方式を試行（サーバーサイドでexceljsを使用） ──
+  const hasTemplate = await checkTemplateExists(docType);
+  if (hasTemplate) {
+    // 立替金合計
+    const expensesTotal = (caseData.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+    const blob = await generateFromTemplate(docType, {
+      addresseeName: addresseeNames[0] || '',
+      deceasedName: caseData.deceasedName,
+      propertyValue: caseData.propertyValue || 0,
+      landRosenkaCount: caseData.landRosenkaCount || 0,
+      landBairitsuCount: caseData.landBairitsuCount || 0,
+      unlistedStockCount: caseData.unlistedStockCount || 0,
+      heirCount: caseData.heirCount || 0,
+      discount: caseData.discountAmount || 0,
+      expensesTotal,
     });
 
-    // 値引き/調整
-    let nextRow = detailStartRow + detailRows.length;
-    if (subtotal !== breakdown.total) {
-      const diff = subtotal - breakdown.total;
-      ws[XLSX.utils.encode_cell({ r: nextRow, c: 0 })] = { v: diff < 0 ? '値引き' : '調整', t: 's' };
-      ws[XLSX.utils.encode_cell({ r: nextRow, c: 2 })] = { v: diff, t: 'n', z: '#,##0' };
-      nextRow++;
-    }
-
-    // 小計・消費税・合計
-    ws[XLSX.utils.encode_cell({ r: nextRow, c: 1 })] = { v: '小計', t: 's' };
-    ws[XLSX.utils.encode_cell({ r: nextRow, c: 2 })] = { v: subtotal, t: 'n', z: '#,##0' };
-    nextRow++;
-    ws[XLSX.utils.encode_cell({ r: nextRow, c: 1 })] = { v: `消費税（${TAX_RATE * 100}%）`, t: 's' };
-    ws[XLSX.utils.encode_cell({ r: nextRow, c: 2 })] = { v: tax, t: 'n', z: '#,##0' };
-    nextRow++;
-    ws[XLSX.utils.encode_cell({ r: nextRow, c: 1 })] = { v: '合計（税込）', t: 's' };
-    ws[XLSX.utils.encode_cell({ r: nextRow, c: 2 })] = { v: total, t: 'n', z: '#,##0' };
-
-    XLSX.writeFile(wb, fileName);
+    // Blobをダウンロード
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
     return;
   }
 

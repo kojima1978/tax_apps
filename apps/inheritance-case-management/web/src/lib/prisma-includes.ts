@@ -41,7 +41,7 @@ export function toProgressCreateData(progress: { id: string; name: string; date:
 }
 
 /** POST/PUT 用: expenses 配列を Prisma create 入力に変換 */
-export function toExpenseCreateData(expenses: { date: string; description: string; amount: number; memo?: string }[]) {
+export function toExpenseCreateData(expenses: { date: string; description: string; amount: number; memo?: string | null }[]) {
   return expenses.map((e, i) => ({
     date: toDate(e.date),
     description: e.description,

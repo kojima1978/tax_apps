@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { createColumns } from "./columns"
 import { DataTable } from "./data-table"
@@ -88,6 +88,14 @@ function toUrlSearch(params: CasesQueryParams): string {
 }
 
 export default function InheritanceMockupPage() {
+    return (
+        <Suspense fallback={<TableSkeleton />}>
+            <InheritanceMockupPageContent />
+        </Suspense>
+    )
+}
+
+function InheritanceMockupPageContent() {
     const toast = useToast()
     const router = useRouter()
     const searchParams = useSearchParams()
