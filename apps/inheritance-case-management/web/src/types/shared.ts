@@ -78,6 +78,7 @@ export interface InheritanceCase {
   landBairitsuCount?: number;
   unlistedStockCount?: number;
   heirCount?: number;
+  discountAmount?: number;
   summary?: string;
   memo?: string;
   // Normalized FK references

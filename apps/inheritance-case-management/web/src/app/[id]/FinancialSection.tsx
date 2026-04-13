@@ -36,16 +36,18 @@ export function FinancialSection({
         heirCount: formData.heirCount || 0,
     })
 
+    const netEstimate = breakdown.total - (formData.discountAmount || 0)
+
     const applyToEstimate = () => {
-        setFormData(prev => ({ ...prev, estimateAmount: breakdown.total }))
+        setFormData(prev => ({ ...prev, estimateAmount: netEstimate }))
     }
 
     const applyToFee = () => {
         const rate = formData.referralFeeRate || 0
-        const newReferralAmount = Math.floor(breakdown.total * (rate / 100))
+        const newReferralAmount = Math.floor(netEstimate * (rate / 100))
         setFormData(prev => ({
             ...prev,
-            feeAmount: breakdown.total,
+            feeAmount: netEstimate,
             referralFeeAmount: newReferralAmount,
         }))
     }
@@ -104,7 +106,24 @@ export function FinancialSection({
                         {breakdown.landBairitsuFee > 0 && <div className="flex justify-between"><span>加算：土地（倍率）{formData.landBairitsuCount}区分 × ¥3,000</span><span>{formatCurrency(breakdown.landBairitsuFee)}</span></div>}
                         {breakdown.unlistedStockFee > 0 && <div className="flex justify-between"><span>加算：非上場株式 {formData.unlistedStockCount}社 × ¥100,000</span><span>{formatCurrency(breakdown.unlistedStockFee)}</span></div>}
                         {breakdown.heirFee > 0 && <div className="flex justify-between"><span>加算：相続人 {Math.min((formData.heirCount || 0) - 1, 4)}人 × ¥50,000</span><span>{formatCurrency(breakdown.heirFee)}</span></div>}
-                        <div className="flex justify-between font-semibold border-t pt-1"><span>計算合計</span><span>{formatCurrency(breakdown.total)}</span></div>
+                        <div className="flex justify-between font-semibold border-t pt-1"><span>小計</span><span>{formatCurrency(breakdown.total)}</span></div>
+                    </div>
+                    {/* 値引額 */}
+                    <div className="space-y-1">
+                        <Label htmlFor="discountAmount" className="text-xs">値引額</Label>
+                        <CurrencyField
+                            id="discountAmount"
+                            name="discountAmount"
+                            value={formData.discountAmount}
+                            onValueChange={currencyChange("discountAmount")}
+                        />
+                    </div>
+                    {/* 差引額 */}
+                    <div className="text-xs text-muted-foreground border-t pt-2">
+                        <div className="flex justify-between font-semibold text-sm">
+                            <span>差引額</span>
+                            <span>{formatCurrency(breakdown.total - (formData.discountAmount || 0))}</span>
+                        </div>
                     </div>
                     {/* 転記ボタン */}
                     <div className="flex gap-3 pt-2">

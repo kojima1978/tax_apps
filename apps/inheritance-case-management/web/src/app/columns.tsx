@@ -24,7 +24,7 @@ interface ColumnOptions {
 
 function statusCell<T extends string>(
     getValue: (row: InheritanceCase) => T,
-    styleMap: Record<T, { bg: string; text: string }>,
+    styleMap: Record<T, { dot: string; bg: string; text: string }>,
 ) {
     return ({ row }: { row: { original: InheritanceCase; getValue: (key: string) => unknown } }) => {
         const value = getValue(row.original)

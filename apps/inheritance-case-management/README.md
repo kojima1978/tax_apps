@@ -460,111 +460,127 @@ erDiagram
     InheritanceCase ||--o{ CaseExpense : "立替金"
 
     Department {
-        int id PK "自動採番"
+        int id PK "SERIAL"
         string name UK "部署名（ユニーク）"
-        int sortOrder "表示順"
-        boolean active "有効フラグ"
-        datetime createdAt
-        datetime updatedAt
+        int sortOrder "表示順（default: 0）"
+        boolean active "有効フラグ（default: true）"
+        datetime createdAt "default: now()"
+        datetime updatedAt "@updatedAt"
     }
 
     Company {
-        int id PK "自動採番"
+        int id PK "SERIAL"
         string name UK "会社名（ユニーク）"
-        boolean active "有効フラグ"
-        datetime createdAt
-        datetime updatedAt
+        boolean active "有効フラグ（default: true）"
+        datetime createdAt "default: now()"
+        datetime updatedAt "@updatedAt"
     }
 
     CompanyBranch {
-        int id PK "自動採番"
-        int companyId FK "会社（Company）"
+        int id PK "SERIAL"
+        int companyId FK "会社（RESTRICT on delete）"
         string name "部門名"
-        boolean active "有効フラグ"
-        datetime createdAt
-        datetime updatedAt
+        boolean active "有効フラグ（default: true）"
+        datetime createdAt "default: now()"
+        datetime updatedAt "@updatedAt"
     }
 
     Assignee {
-        int id PK "自動採番"
+        int id PK "SERIAL"
         string name "氏名"
-        string employeeId "社員番号"
-        int departmentId FK "部署（Department）"
-        boolean active "有効フラグ"
-        datetime createdAt
-        datetime updatedAt
+        string employeeId "社員番号（任意）"
+        int departmentId FK "部署（SET NULL on delete）"
+        boolean active "有効フラグ（default: true）"
+        datetime createdAt "default: now()"
+        datetime updatedAt "@updatedAt"
     }
 
     Referrer {
-        int id PK "自動採番"
-        int companyId FK "会社（Company）"
-        int branchId FK "部門（CompanyBranch）"
-        boolean active "有効フラグ"
-        datetime createdAt
-        datetime updatedAt
+        int id PK "SERIAL"
+        int companyId FK "会社（RESTRICT on delete）"
+        int branchId FK "部門（SET NULL on delete）"
+        boolean active "有効フラグ（default: true）"
+        datetime createdAt "default: now()"
+        datetime updatedAt "@updatedAt"
     }
 
     InheritanceCase {
-        int id PK "自動採番"
+        int id PK "SERIAL"
         string deceasedName "被相続人氏名"
         date dateOfDeath "相続開始日（YYYY-MM-DD）"
-        string status "進み具合（CHECK制約）"
-        string handlingStatus "対応状況（CHECK制約）"
-        string acceptanceStatus "受託状況（CHECK制約）"
-        int taxAmount "相続税額"
-        int feeAmount "報酬額"
+        string status "未着手|手続中|申告済|請求済|入金済"
+        string handlingStatus "対応中|対応終了|未分割"
+        string acceptanceStatus "受託可|受託不可|未判定|保留"
+        int taxAmount "相続税額（default: 0）"
+        int feeAmount "報酬額（default: 0）"
         int fiscalYear "年度"
-        int estimateAmount "見積額"
-        int propertyValue "財産評価額"
+        int estimateAmount "見積額（default: 0）"
+        int propertyValue "財産評価額（default: 0）"
         float referralFeeRate "紹介料率（%）"
         int referralFeeAmount "紹介料額"
-        int landRosenkaCount "土地数・路線価"
-        int landBairitsuCount "土地数・倍率"
-        int unlistedStockCount "非上場株式数"
-        int heirCount "相続人数"
+        int landRosenkaCount "土地数・路線価（default: 0）"
+        int landBairitsuCount "土地数・倍率（default: 0）"
+        int unlistedStockCount "非上場株式数（default: 0）"
+        int heirCount "相続人数（default: 0）"
+        int discountAmount "値引額（default: 0）"
         string summary "特記事項（最大10文字）"
         string memo "メモ（フリーテキスト）"
-        int assigneeId FK "担当者（Assignee）"
-        int internalReferrerId FK "社内紹介者（Assignee）"
-        int referrerId FK "社外紹介者（Referrer）"
+        int assigneeId FK "担当者（SET NULL on delete）"
+        int internalReferrerId FK "社内紹介者（SET NULL on delete）"
+        int referrerId FK "社外紹介者（SET NULL on delete）"
         string createdBy "作成者"
         string updatedBy "更新者"
-        datetime createdAt
-        datetime updatedAt
+        datetime createdAt "default: now()"
+        datetime updatedAt "@updatedAt"
     }
 
     CaseContact {
-        int id PK "自動採番"
-        int caseId FK "案件ID（カスケード削除）"
-        int sortOrder "並び順"
+        int id PK "SERIAL"
+        int caseId FK "CASCADE on delete"
+        int sortOrder "表示順（default: 0）"
         string name "連絡先氏名"
-        string phone "電話番号"
-        string postalCode "郵便番号"
-        string address "住所"
-        string memo "メモ"
+        string phone "電話番号（default: 空文字）"
+        string postalCode "郵便番号（default: 空文字）"
+        string address "住所（default: 空文字）"
+        string memo "メモ（default: 空文字）"
     }
 
     CaseProgress {
-        int id PK "自動採番"
-        int caseId FK "案件ID（カスケード削除）"
+        int id PK "SERIAL"
+        int caseId FK "CASCADE on delete"
         string stepId "ステップ識別子"
         string name "ステップ名"
-        int sortOrder "並び順"
-        date date "完了日（YYYY-MM-DD）"
-        string memo "メモ"
-        boolean isDynamic "動的追加フラグ"
+        int sortOrder "表示順（default: 0）"
+        date date "完了日（nullable）"
+        string memo "メモ（nullable）"
+        boolean isDynamic "動的追加（default: false）"
     }
 
     CaseExpense {
-        int id PK "自動採番"
-        int caseId FK "案件ID（カスケード削除）"
-        int sortOrder "並び順"
+        int id PK "SERIAL"
+        int caseId FK "CASCADE on delete"
+        int sortOrder "並び順（default: 0）"
         date date "日付（YYYY-MM-DD）"
         string description "内容"
         int amount "金額（円）"
-        string memo "備考"
+        string memo "備考（nullable）"
     }
 ```
+
+### リレーション概要
+
+| 親テーブル | 子テーブル | 関係 | 削除時の動作 |
+|-----------|-----------|------|-------------|
+| Department | Assignee | 1対多 | SET NULL（FKをnullに） |
+| Company | CompanyBranch | 1対多 | RESTRICT（削除不可） |
+| Company | Referrer | 1対多 | RESTRICT（削除不可） |
+| CompanyBranch | Referrer | 1対多 | SET NULL（FKをnullに） |
+| Assignee | InheritanceCase | 1対多（担当） | SET NULL（FKをnullに） |
+| Assignee | InheritanceCase | 1対多（社内紹介） | SET NULL（FKをnullに） |
+| Referrer | InheritanceCase | 1対多 | SET NULL（FKをnullに） |
+| InheritanceCase | CaseContact | 1対多 | CASCADE（子も削除） |
+| InheritanceCase | CaseProgress | 1対多 | CASCADE（子も削除） |
+| InheritanceCase | CaseExpense | 1対多 | CASCADE（子も削除） |
 
 ## 設計パターン
 

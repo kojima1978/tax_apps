@@ -180,7 +180,7 @@ export function FilterBar({
                         <SelectField
                             key={key}
                             wrapperClassName={wrapperClassName || FILTER_SELECT_WRAPPER}
-                            value={queryParams[key] || ""}
+                            value={String(queryParams[key] || "")}
                             onChange={(e) => onFilterChange(key, e.target.value || undefined)}
                         >
                             <option value="">{placeholder}</option>

@@ -53,6 +53,7 @@ export const createCaseSchema = z.object({
   landBairitsuCount: z.number().int().min(0, '土地数（倍率）は0以上を入力してください').optional().default(0),
   unlistedStockCount: z.number().int().min(0, '非上場株式数は0以上を入力してください').optional().default(0),
   heirCount: z.number().int().min(0, '相続人数は0以上を入力してください').optional().default(0),
+  discountAmount: z.number().int().min(0, '値引額は0以上を入力してください').optional().default(0),
   summary: z.string().max(MAX_SUMMARY_LENGTH, `特記事項は${MAX_SUMMARY_LENGTH}文字以内で入力してください`).nullable().optional(),
   memo: z.string().nullable().optional(),
   contacts: z.array(contactSchema).max(10, '連絡先は最大10件までです').optional(),

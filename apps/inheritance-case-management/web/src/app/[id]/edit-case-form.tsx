@@ -107,6 +107,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             landBairitsuCount: formData.landBairitsuCount || 0,
             unlistedStockCount: formData.unlistedStockCount || 0,
             heirCount: formData.heirCount || 0,
+            discountAmount: formData.discountAmount || 0,
             summary: formData.summary || null,
             memo: formData.memo || null,
             assigneeId: formData.assigneeId || null,
