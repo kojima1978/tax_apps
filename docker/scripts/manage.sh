@@ -49,6 +49,7 @@ APPS=(
   "apps/salary-calc"
   "apps/asset-valuation"
   "apps/stock-valuation-form"
+  "apps/income-tax-calc"
   "docker/gateway"
 )
 
