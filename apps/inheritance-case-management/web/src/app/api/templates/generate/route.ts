@@ -6,9 +6,17 @@ import ExcelJS from 'exceljs';
 
 const TEMPLATE_DIR = path.join(process.cwd(), 'templates');
 
-const TEMPLATE_FILES: Record<string, string> = {
-  estimate: 'estimate_template.xlsx',
-  invoice: 'invoice_template.xlsx',
+const TEMPLATE_FILE = 'estimate_template.xlsx';
+
+/** 請求書の場合に上書きするセル値 */
+const INVOICE_OVERRIDES: Record<string, string> = {
+  B11: '相 続 税 申 告 報 酬 請 求 書',
+  B14: '下記計算書の通り御請求申し上げます。',
+  B17: '御請求額',
+  B41: ' ４．立替金費用（戸籍謄本・不動産登記事項閲覧・残高証明書発行手数料等）',
+  B43: '御　請　求　額',
+  B44: '振　込　先',
+  E44: '　阿波銀行（銀行コード：0172）蔵本支店（店番号：117）\n　普通預金 №１１３５４１７　ゼイ）マスエージェント\n　（振込手数料はお客様にてご負担をお願い致します。）',
 };
 
 interface GenerateRequest {
@@ -30,14 +38,14 @@ export async function POST(request: Request) {
     const body: GenerateRequest = await request.json();
     const { docType } = body;
 
-    if (!docType || !TEMPLATE_FILES[docType]) {
+    if (!docType || !['estimate', 'invoice'].includes(docType)) {
       return NextResponse.json(
         { error: '無効なテンプレートタイプです（estimate / invoice）' },
         { status: 400 }
       );
     }
 
-    const templatePath = path.join(TEMPLATE_DIR, TEMPLATE_FILES[docType]);
+    const templatePath = path.join(TEMPLATE_DIR, TEMPLATE_FILE);
     if (!existsSync(templatePath)) {
       return NextResponse.json({ error: 'テンプレートファイルが見つかりません' }, { status: 404 });
     }
@@ -51,6 +59,13 @@ export async function POST(request: Request) {
     const ws = workbook.getWorksheet(1);
     if (!ws) {
       return NextResponse.json({ error: 'ワークシートが見つかりません' }, { status: 500 });
+    }
+
+    // 請求書の場合はタイトル等のセルを上書き
+    if (docType === 'invoice') {
+      for (const [cell, value] of Object.entries(INVOICE_OVERRIDES)) {
+        ws.getCell(cell).value = value;
+      }
     }
 
     // 入力値のみ書き込み（数式・レイアウト・画像はそのまま）

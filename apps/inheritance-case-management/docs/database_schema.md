@@ -78,6 +78,7 @@ erDiagram
         int landBairitsuCount "土地数・倍率（default: 0）"
         int unlistedStockCount "非上場株式数（default: 0）"
         int heirCount "相続人数（default: 0）"
+        int discountAmount "値引額（default: 0）"
         string summary "特記事項（最大10文字）"
         string memo "メモ（フリーテキスト）"
         int assigneeId FK "担当者（SET NULL on delete）"
@@ -224,6 +225,7 @@ erDiagram
 | landBairitsuCount | Int | No | 0 | 土地数（倍率地域） |
 | unlistedStockCount | Int | No | 0 | 非上場株式の数 |
 | heirCount | Int | No | 0 | 相続人の数 |
+| discountAmount | Int | No | 0 | 値引額（円） |
 | summary | VarChar(10) | No | null | 特記事項（最大10文字） |
 | memo | Text | No | null | メモ（フリーテキスト） |
 | assigneeId | Int | No (FK) | null | 担当者（SET NULL on delete） |

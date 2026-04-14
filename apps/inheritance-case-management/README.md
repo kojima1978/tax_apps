@@ -114,12 +114,9 @@
 - 案件詳細画面の「見積書」「請求書」ボタンから出力
 - 宛先選択: 案件の連絡先から複数選択（連名対応）＋カスタム入力
 - 発行日入力
-- テンプレート方式: `templates/` フォルダにExcelテンプレートを配置すると、テンプレートにデータを埋め込んで出力
-- テンプレートが存在しない場合はコード内で自動生成（フォールバック）
-- 明細行: 基本報酬、土地評価（路線価/倍率）、非上場株式評価、相続人加算
-- 値引き・調整行の自動表示（転記額と計算合計が異なる場合）
-- 小計・消費税（10%）・合計（税込）を自動計算
-- 見積書は `estimateAmount`、請求書は `feeAmount` を基準に出力
+- テンプレート方式: `templates/estimate_template.xlsx` をベーステンプレートとして使用
+- 見積書はテンプレートをそのまま使用、請求書は生成時に7セル（タイトル・金額ラベル・振込先等）をコードで上書き
+- テンプレートが存在しない場合はエラー（フォールバックなし）
 - ファイル名: `見積書_被相続人名_YYYYMMDD.xlsx` / `請求書_被相続人名_YYYYMMDD.xlsx`
 - テンプレートファイルはGit管理対象外（`.gitignore`）、Dockerコンテナ内では `/app/templates/` にマウント
 
@@ -279,7 +276,8 @@ inheritance-case-management/
         │       │   ├── handlers.ts     # ファクトリベースCRUD（include対応）
         │       │   └── [id]/route.ts
         │       └── templates/
-        │           └── route.ts        # GET（テンプレートファイル取得、Base64）
+        │           ├── route.ts        # GET（テンプレートファイル存在確認、Base64）
+        │           └── generate/route.ts # POST（テンプレートにデータ埋め込み、ExcelJS）
         ├── components/
         │   ├── AppHeader.tsx           # ヘッダーナビゲーション
         │   ├── BulkDeleteModal.tsx     # 一括削除確認ダイアログ
@@ -346,8 +344,7 @@ inheritance-case-management/
         │   ├── deadline-utils.ts       # 申告期限計算（死亡日+10ヶ月）
         │   ├── progress-utils.ts       # 訪問ステップ追加/削除
         │   ├── estimate-calc.ts        # 報酬計算ロジック（基本報酬+各種加算）
-        │   ├── excel-styles.ts         # Excel出力スタイル定数
-        │   ├── export-excel.ts         # 見積書・請求書Excel出力（テンプレート+フォールバック）
+        │   ├── export-excel.ts         # 見積書・請求書Excel出力（テンプレート必須）
         │   ├── export-csv.ts
         │   ├── utils.ts
         │   └── api/                    # クライアントサイドAPI
@@ -436,7 +433,13 @@ inheritance-case-management/
 | GET | `/api/templates?type=estimate` | 見積書テンプレート取得（Base64） |
 | GET | `/api/templates?type=invoice` | 請求書テンプレート取得（Base64） |
 
-テンプレートファイルが存在しない場合は `{ exists: false }` を返し、クライアント側でコード生成にフォールバック。
+テンプレートファイル（`estimate_template.xlsx`）が存在しない場合は `{ exists: false }` を返す。
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| POST | `/api/templates/generate` | テンプレートにデータを埋め込みExcelファイルを生成（ExcelJS） |
+
+リクエストボディに `docType`（estimate/invoice）と案件データを含める。`invoice` の場合はタイトル・金額ラベル・振込先等の7セルをコードで上書き。
 
 ### その他
 
@@ -605,7 +608,7 @@ erDiagram
 - **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
 - **和暦変換**: `toWareki()` / `formatDateWithWareki()` で令和/平成/昭和/大正/明治を自動判定し、日付表示に和暦を併記
 - **未保存変更検知**: `useUnsavedChanges` フックでJSON比較によるdirty state管理 + `beforeunload` 警告。保存後は `resetBaseline()` でベースラインリセット
-- **Excel出力テンプレート方式**: テンプレートファイルが存在すればBase64 API経由で読み込みデータ埋め込み、存在しなければコード内で `xlsx-js-style` により直接生成（フォールバック）
+- **Excel出力テンプレート方式**: `estimate_template.xlsx` をベーステンプレートとして見積書・請求書を共通生成。請求書は生成時に7セル（B11/B14/B17/B41/B43/B44/E44）をINVOICE_OVERRIDESで上書き。テンプレート未配置時はエラー
 - **報酬計算ロジック**: `calcEstimate()` で基本報酬+各種加算を算出、「見積額に反映」「報酬額に反映」ボタンで明示的に転記（自動転記なし）
 - **フィルタURL同期**: `useSearchParams` + `router.replace` でフィルタ状態をURLクエリパラメータに双方向同期、`popstate` リスナーでブラウザバック復元
 - **紹介者2段階解決**: `buildResolverMaps` で会社+部署 / 会社（一意時のみ）の2段階キーを構築、CSV取込時の社外紹介者マッチングの正確性を向上

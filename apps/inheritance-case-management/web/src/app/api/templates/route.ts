@@ -5,24 +5,21 @@ import path from 'path';
 
 const TEMPLATE_DIR = path.join(process.cwd(), 'templates');
 
-const TEMPLATE_FILES: Record<string, string> = {
-  estimate: 'estimate_template.xlsx',
-  invoice: 'invoice_template.xlsx',
-};
+const TEMPLATE_FILE = 'estimate_template.xlsx';
 
-/** テンプレートファイルをBase64で返す */
+/** テンプレートファイルをBase64で返す（見積・請求で共通テンプレート） */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
 
-  if (!type || !TEMPLATE_FILES[type]) {
+  if (!type || !['estimate', 'invoice'].includes(type)) {
     return NextResponse.json(
       { error: '無効なテンプレートタイプです（estimate / invoice）' },
       { status: 400 }
     );
   }
 
-  const filePath = path.join(TEMPLATE_DIR, TEMPLATE_FILES[type]);
+  const filePath = path.join(TEMPLATE_DIR, TEMPLATE_FILE);
 
   if (!existsSync(filePath)) {
     return NextResponse.json({ exists: false });
