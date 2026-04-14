@@ -26,7 +26,9 @@ services:
     build:
       target: runner
     init: false
-    volumes: []
+    volumes:
+      # テンプレートファイル（見積書・請求書Excel）のみマウント
+      - ./templates:/app/templates:ro
     environment:
       TZ: Asia/Tokyo
       NODE_ENV: production
