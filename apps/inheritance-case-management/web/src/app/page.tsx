@@ -179,7 +179,7 @@ function InheritanceMockupPageContent() {
     const handleFilterChange = (key: keyof CasesQueryParams, value: string | undefined) => {
         const parsed = (key === 'unassigned' || key === 'noReferrer')
             ? (value === 'true' ? true : undefined)
-            : (key === 'assigneeId' || key === 'internalReferrerId' || key === 'staffId') && value
+            : (key === 'assigneeId' || key === 'internalReferrerId' || key === 'staffId' || key === 'fiscalYear') && value
                 ? Number(value)
                 : (value || undefined)
         setQueryParams(prev => ({ ...prev, [key]: parsed, page: 1 }))

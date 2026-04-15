@@ -207,7 +207,7 @@ backup_postgres() {
   if is_container_running "$container"; then
     if docker exec "$container" pg_dump -U "$pg_user" -d "$db_name" > "$backup_dir/$dump_file.sql" 2>/dev/null; then
       ok "$dump_file.sql"
-      (( backup_ok++ ))
+      (( backup_ok++ )) || true
       return
     fi
     rm -f "$backup_dir/$dump_file.sql"
@@ -222,14 +222,14 @@ backup_postgres() {
   if docker volume inspect "$volume" >/dev/null 2>&1; then
     if docker run --rm -v "$volume":/data -v "$backup_dir":/backup alpine tar czf "/backup/$dump_file-volume.tar.gz" -C /data . >/dev/null 2>&1; then
       ok "$dump_file-volume.tar.gz"
-      (( backup_ok++ ))
+      (( backup_ok++ )) || true
     else
       err "Volume backup failed"
-      (( backup_fail++ ))
+      (( backup_fail++ )) || true
     fi
   else
     warn "$label volume not found"
-    (( backup_skip++ ))
+    (( backup_skip++ )) || true
   fi
 }
 
@@ -243,7 +243,7 @@ restore_postgres() {
     if ! is_container_running "$container"; then
       err "$container container is not running."
       echo "  Run: ./manage.sh restart $restart_hint"
-      (( restore_fail++ ))
+      (( restore_fail++ )) || true
       return
     fi
     docker exec "$container" psql -U "$pg_user" -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$db_name' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
@@ -251,24 +251,24 @@ restore_postgres() {
     docker exec "$container" psql -U "$pg_user" -d postgres -c "CREATE DATABASE $db_name;" >/dev/null 2>&1
     if docker exec -i "$container" psql -U "$pg_user" -d "$db_name" < "$backup_dir/$dump_file.sql" >/dev/null 2>&1; then
       ok "$dump_file.sql"
-      (( restore_ok++ ))
+      (( restore_ok++ )) || true
     else
       err "$label restore failed"
-      (( restore_fail++ ))
+      (( restore_fail++ )) || true
     fi
   elif [[ -f "$backup_dir/$dump_file-volume.tar.gz" ]]; then
     warn "Volume restore - container must be stopped"
     docker volume inspect "$volume" >/dev/null 2>&1 || docker volume create "$volume" >/dev/null 2>&1
     if docker run --rm -v "$volume":/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$dump_file-volume.tar.gz" >/dev/null 2>&1; then
       ok "$dump_file-volume.tar.gz"
-      (( restore_ok++ ))
+      (( restore_ok++ )) || true
     else
       err "Volume restore failed"
-      (( restore_fail++ ))
+      (( restore_fail++ )) || true
     fi
   else
     warn "Not in backup"
-    (( restore_skip++ ))
+    (( restore_skip++ )) || true
   fi
 }
 
@@ -282,13 +282,13 @@ backup_sqlite_volumes() {
     local fname="${pair##*:}"
     if docker volume inspect "$vol" >/dev/null 2>&1; then
       if docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine tar czf "/backup/${fname}.tar.gz" -C /data . >/dev/null 2>&1; then
-        (( sqlite_ok++ ))
+        (( sqlite_ok++ )) || true
       else
         err "$vol backup failed"
-        (( backup_fail++ ))
+        (( backup_fail++ )) || true
       fi
     else
-      (( sqlite_skip++ ))
+      (( sqlite_skip++ )) || true
     fi
   done
   if [[ $sqlite_ok -gt 0 ]]; then
@@ -297,7 +297,7 @@ backup_sqlite_volumes() {
   fi
   if [[ $sqlite_ok -eq 0 && $sqlite_skip -eq $# ]]; then
     warn "No SQLite volumes found"
-    (( backup_skip++ ))
+    (( backup_skip++ )) || true
   fi
 }
 
@@ -312,9 +312,9 @@ restore_sqlite_volumes() {
     if [[ -f "$backup_dir/$fname" ]]; then
       docker volume inspect "$vol" >/dev/null 2>&1 || docker volume create "$vol" >/dev/null 2>&1
       if docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$fname" >/dev/null 2>&1; then
-        (( sqlite_ok++ ))
+        (( sqlite_ok++ )) || true
       else
-        (( restore_fail++ ))
+        (( restore_fail++ )) || true
       fi
     fi
   done
@@ -323,7 +323,7 @@ restore_sqlite_volumes() {
     (( restore_ok += sqlite_ok ))
   else
     warn "No SQLite backups found"
-    (( restore_skip++ ))
+    (( restore_skip++ )) || true
   fi
 }
 
@@ -488,14 +488,14 @@ cmd_backup() {
     mkdir -p "$backup_dir/bank-analyzer-upload"
     if cp -r "$bank_data"/* "$backup_dir/bank-analyzer-upload/" 2>/dev/null; then
       ok "bank-analyzer-upload/"
-      (( backup_ok++ ))
+      (( backup_ok++ )) || true
     else
       err "bank-analyzer upload data copy failed"
-      (( backup_fail++ ))
+      (( backup_fail++ )) || true
     fi
   else
     warn "bank-analyzer/data/ not found"
-    (( backup_skip++ ))
+    (( backup_skip++ )) || true
   fi
 
   # --- 5/5 ITCM .env ---
@@ -504,10 +504,10 @@ cmd_backup() {
   if [[ -f "$itcm_env" ]]; then
     cp "$itcm_env" "$backup_dir/itcm-.env"
     ok "itcm-.env"
-    (( backup_ok++ ))
+    (( backup_ok++ )) || true
   else
     warn "ITCM .env not found"
-    (( backup_skip++ ))
+    (( backup_skip++ )) || true
   fi
 
   # --- Summary ---
@@ -626,14 +626,14 @@ cmd_restore() {
     mkdir -p "$bank_data"
     if cp -r "$backup_dir/bank-analyzer-upload"/* "$bank_data/" 2>/dev/null; then
       ok "bank-analyzer-upload/"
-      (( restore_ok++ ))
+      (( restore_ok++ )) || true
     else
       err "bank-analyzer upload data restore failed"
-      (( restore_fail++ ))
+      (( restore_fail++ )) || true
     fi
   else
     warn "Not in backup"
-    (( restore_skip++ ))
+    (( restore_skip++ )) || true
   fi
 
   # --- 5/5 Settings ---
@@ -641,10 +641,10 @@ cmd_restore() {
   if [[ -f "$backup_dir/itcm-.env" ]]; then
     cp "$backup_dir/itcm-.env" "$PROJECT_ROOT/apps/inheritance-case-management/.env"
     ok "itcm-.env"
-    (( restore_ok++ ))
+    (( restore_ok++ )) || true
   else
     warn "Not in backup"
-    (( restore_skip++ ))
+    (( restore_skip++ )) || true
   fi
 
   # --- Summary ---
