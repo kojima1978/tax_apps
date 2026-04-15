@@ -673,3 +673,48 @@ docker compose down
 # データも含めて削除
 docker compose down -v
 ```
+
+## マイグレーション運用ルール
+
+### 基本方針
+
+スキーマ変更は必ず **マイグレーションファイル経由** で行う。`prisma db push` は使用しない。
+
+```bash
+# スキーマ変更の手順
+# 1. schema.prisma を編集
+# 2. マイグレーションファイルを生成（Docker内で実行）
+docker exec -it itcm-frontend npx prisma migrate dev --name <変更内容>
+# 3. 生成されたSQLを確認し、コミット
+```
+
+### 禁止事項
+
+| 操作 | 理由 |
+|------|------|
+| `prisma db push` | マイグレーション履歴に記録されず、他環境で `migrate deploy` 時にエラーになる |
+| マイグレーションSQLの手動編集（生成後） | 履歴のチェックサムと不一致になり、全環境でエラーになる |
+| マイグレーションファイルの削除 | 適用済み環境との履歴不整合が発生する |
+
+### docker-entrypoint.sh のエラー診断
+
+コンテナ起動時に `prisma migrate deploy` が自動実行される。失敗した場合、エラー種別に応じた対処法が表示される。
+
+| エラー | 原因 | 表示される対処法 |
+|--------|------|-----------------|
+| DB接続エラー | PostgreSQL未起動 | `docker compose ps` で確認 → `docker compose up -d postgres` |
+| カラム/テーブル既存（42701/42P07） | `db push` で先にスキーマが適用済み | `prisma migrate resolve --applied <マイグレーション名>` で履歴を同期 |
+| 履歴不整合（P3009/P3012） | マイグレーションファイルの編集・削除 | `prisma migrate reset`（開発環境のみ、全データ削除） |
+
+**対処例（カラム既存エラー）:**
+
+```bash
+# エラーログでマイグレーション名を確認
+docker logs itcm-frontend
+
+# 履歴を同期
+docker exec itcm-frontend npx prisma migrate resolve --applied <マイグレーション名>
+
+# コンテナを再起動
+docker compose restart itcm-frontend
+```
