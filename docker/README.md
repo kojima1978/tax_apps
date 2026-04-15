@@ -186,7 +186,7 @@ manage.bat start                          # 全アプリを開発モードで起
 manage.bat start --prod                   # 全アプリを本番モードで起動
 manage.bat status                         # 状態確認
 manage.bat build bank-analyzer            # 特定アプリを再ビルド
-manage.bat logs gift-tax-docs             # ログ確認
+manage.bat logs inheritance-tax-docs       # ログ確認
 manage.bat restart retirement-tax-calc    # 再起動
 manage.bat backup                         # バックアップ
 manage.bat preflight                      # 起動前チェック
@@ -228,7 +228,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 個別アプリの例:
 
 ```bash
-docker compose -f apps\gift-tax-docs\docker-compose.yml -f apps\gift-tax-docs\docker-compose.prod.yml up -d --build
+docker compose -f apps\inheritance-tax-docs\docker-compose.yml -f apps\inheritance-tax-docs\docker-compose.prod.yml up -d --build
 docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-analyzer-django\docker-compose.prod.yml up -d --build
 ```
 
@@ -258,7 +258,6 @@ manage.bat start
 | アプリ | 本番ステージ | 本番サーバー | prod.yml |
 |:------|:------------|:------------|:---------|
 | Gift Tax Simulator | `runner` | nginx:1.27-alpine | あり |
-| Gift Tax Docs | `runner` | nginx:1.27-alpine | あり |
 | Inheritance Tax Docs | `runner` | nginx:1.27-alpine | あり |
 | Inheritance Tax App | `runner` | nginx:1.27-alpine | あり |
 | Tax Docs (frontend) | `runner` | nginx:1.27-alpine | あり |
@@ -269,8 +268,8 @@ manage.bat start
 | Salary Calc | `runner` | nginx:1.27-alpine | あり |
 | Asset Valuation | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
-| Stock Valuation Form | `runner` | nginx:1.27-alpine | あり（開発中・`--prod` でスキップ） |
-| Income Tax Calc | `runner` | nginx:1.27-alpine | なし（開発中） |
+| Stock Valuation Form | `runner` | nginx:1.27-alpine | あり |
+| Income Tax Calc | `runner` | nginx:1.27-alpine | あり |
 | Bank Analyzer | `production` | Gunicorn | あり |
 | ITCM | `runner` | Node.js standalone + tini | あり |
 
@@ -342,7 +341,7 @@ docker exec tax-apps-gateway nginx -s reload
 | ボリューム名 | サービス | 内容 |
 |:------------|:---------|:-----|
 | `inheritance-case-management_postgres_data` | itcm-postgres | ITCM用 PostgreSQL データ |
-| `bank-analyzer-postgres` | bank-analyzer-postgres | 銀行分析用 PostgreSQL + pgvector |
+| `bank-analyzer-postgres` | bank-analyzer-postgres | 銀行分析用 PostgreSQL |
 | `bank-analyzer-sqlite` | bank-analyzer | 銀行分析 SQLite（レガシー） |
 | `tax-docs-data` | tax-docs-backend | 確定申告書類 SQLite |
 | `medical-stock-valuation-data` | medical-stock-valuation | 医療法人株式 SQLite |
@@ -430,7 +429,7 @@ manage.bat restart <app-name>
 ```bash
 docker network create tax-apps-network                          # ネットワーク作成
 docker compose -f docker\gateway\docker-compose.yml up -d       # Gateway 起動
-docker compose -f apps\gift-tax-docs\docker-compose.yml up -d   # 必要なアプリだけ起動
+docker compose -f apps\tax-docs\docker-compose.yml up -d        # 必要なアプリだけ起動
 ```
 
 ### ネットワークエラー
@@ -450,29 +449,27 @@ docker network create tax-apps-network
 | アプリケーション | Gateway URL | Port | 技術 | 説明 |
 |:----------------|:------------|:-----|:-----|:-----|
 | Portal | http://localhost/ | 3000 | Next.js | メインポータル |
-| Tax Docs | http://localhost/tax-docs/ | 3005 | Vite + Express | 確定申告 必要書類 |
 | Gift Tax Simulator | http://localhost/gift-tax-simulator/ | 3001 | Vite | 贈与税計算シミュレーター |
-| Gift Tax Docs | http://localhost/gift-tax-docs/ | 3002 | Vite | 贈与税 必要書類 |
+| Tax Docs | http://localhost/tax-docs/ | 3002 | Vite + Express | 確定申告 必要書類 |
 | Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | Vite | 相続税 資料ガイド |
 | Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | Vite | 相続税計算 |
+| Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 銀行分析 |
 | Medical Stock | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人株式評価 |
 | Shares Valuation | http://localhost/shares/ | 3012 | Vite | 非上場株式評価 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
+| Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書 |
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
 | Salary Calc | http://localhost/salary-calc/ | 3016 | Vite | 給与・賞与 手取り計算 |
 | Asset Valuation | http://localhost/asset-valuation/ | 3017 | Vite | 減価償却資産評価 |
-| ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
-| Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書（開発中） |
 | Income Tax Calc | http://localhost/income-tax-calc/ | 3018 | Vite | 所得税計算 |
-| Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 銀行分析 |
+| ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
 
 ### バックエンドサービス
 
 | サービス | Port | 説明 |
 |:--------|:-----|:-----|
-| tax-docs-backend | 3006 | 確定申告書類 API（Express + SQLite） |
 | itcm-postgres | 3022 | ITCM用 PostgreSQL |
-| bank-analyzer-postgres | 5432 (内部) | 銀行分析用 PostgreSQL + pgvector |
+| bank-analyzer-postgres | 5432 (内部) | 銀行分析用 PostgreSQL |
 
 ### 起動順序
 
@@ -482,20 +479,19 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 |:--|:------|:-----|
 | 1 | inheritance-case-management | PostgreSQL + Next.js |
 | 2 | bank-analyzer-django | PostgreSQL + Django |
-| 3 | Required-documents-for-tax-return | SQLite + Express + Vite |
+| 3 | tax-docs | SQLite + Express + Vite |
 | 4 | medical-stock-valuation | SQLite + Next.js |
 | 5 | shares-valuation | Vite |
 | 6 | inheritance-tax-app | Vite |
 | 7 | gift-tax-simulator | Vite |
-| 8 | gift-tax-docs | Vite |
-| 9 | inheritance-tax-docs | Vite |
-| 10 | retirement-tax-calc | Vite |
-| 11 | depreciation-calc | Vite |
-| 12 | salary-calc | Vite |
-| 13 | asset-valuation | Vite |
-| 14 | stock-valuation-form | Vite（開発中・`--prod` でスキップ） |
-| 15 | income-tax-calc | Vite |
-| 16 | gateway | Nginx + Portal（全アプリ起動後に起動） |
+| 8 | inheritance-tax-docs | Vite |
+| 9 | retirement-tax-calc | Vite |
+| 10 | depreciation-calc | Vite |
+| 11 | salary-calc | Vite |
+| 12 | asset-valuation | Vite |
+| 13 | stock-valuation-form | Vite |
+| 14 | income-tax-calc | Vite |
+| 15 | gateway | Nginx + Portal（全アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -504,11 +500,9 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | 80 | Nginx Gateway | docker/gateway |
 | 3000 | Portal | docker/gateway |
 | 3001 | Gift Tax Simulator | apps/gift-tax-simulator |
-| 3002 | Gift Tax Docs | apps/gift-tax-docs |
+| 3002 | Tax Docs Frontend | apps/tax-docs |
 | 3003 | Inheritance Tax Docs | apps/inheritance-tax-docs |
 | 3004 | Inheritance Tax App | apps/inheritance-tax-app |
-| 3005 | Tax Docs Frontend | apps/Required-documents-for-tax-return |
-| 3006 | Tax Docs Backend | apps/Required-documents-for-tax-return |
 | 3007 | Bank Analyzer | apps/bank-analyzer-django |
 | 3010 | Medical Stock Valuation | apps/medical-stock-valuation |
 | 3012 | Shares Valuation | apps/shares-valuation |
@@ -529,7 +523,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | docker-compose.yml ファイル存在確認（16個） | OK / WARN |
+| 3 | docker-compose.yml ファイル存在確認（15個） | OK / WARN |
 | 4 | Nginx 設定ファイル存在確認 | OK / WARN |
 | 5 | ITCM `.env` ファイル存在確認 | OK / WARN |
 | 6 | ポート競合検出（18ポート） | OK / WARN |
@@ -563,7 +557,6 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | Portal (prod) | `wget --spider` | nginx:alpine 内蔵 |
 | Next.js / Express 系 (dev) | `node -e "fetch(...)"` | Node.js 内蔵 |
 | Vite 系 (dev) | `wget --spider` | BusyBox 内蔵 |
-| Stock Valuation Form (dev) | `wget --spider` | BusyBox 内蔵 |
 | Django | `curl --fail` | Dockerfile に curl 追加 |
 | PostgreSQL | `pg_isready -U <user> -d <db>` | PostgreSQL 内蔵 |
 
@@ -584,13 +577,9 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 tax_apps/
 ├── apps/                       # アプリケーションコード
 │   ├── portal/                 # ポータルサイト
-│   ├── Required-documents-for-tax-return/  # 確定申告書類
-│   │   ├── frontend/           #   Vite フロントエンド
-│   │   ├── backend/            #   Express API
-│   │   └── docker-compose.yml  #   独立 Compose
-│   ├── gift-tax-simulator/     # 贈与税計算
+│   ├── tax-docs/               # 確定申告 必要書類
 │   │   └── docker-compose.yml
-│   ├── gift-tax-docs/          # 贈与税書類
+│   ├── gift-tax-simulator/     # 贈与税計算
 │   │   └── docker-compose.yml
 │   ├── inheritance-tax-docs/   # 相続税資料ガイド
 │   │   └── docker-compose.yml
@@ -614,7 +603,7 @@ tax_apps/
 │   ├── asset-valuation/        # 減価償却資産評価
 │   │   ├── docker-compose.yml
 │   │   └── docker-compose.prod.yml
-│   ├── stock-valuation-form/   # 株式評価明細書（開発中）
+│   ├── stock-valuation-form/   # 株式評価明細書
 │   │   ├── docker-compose.yml
 │   │   └── docker-compose.prod.yml
 │   ├── income-tax-calc/        # 所得税計算
@@ -631,13 +620,8 @@ tax_apps/
 │   │   ├── manage.bat          #   Windows 管理スクリプト
 │   │   ├── manage.sh           #   Linux/Bash 管理スクリプト
 │   │   └── convert_encoding.ps1 #  エンコーディング変換スクリプト
-│   ├── data/                   # 永続データ（git管理外）
-│   │   ├── bank-analyzer/      #   銀行分析アップロードデータ
-│   │   ├── medical-stock/      #   医療法人 SQLite
-│   │   ├── postgres/           #   PostgreSQL データ
-│   │   └── tax-docs/           #   確定申告書類 SQLite
-│   ├── postgres/               # PostgreSQL 初期化
-│   │   └── init-pgvector.sql   #   pgvector拡張初期化
+│   ├── specs/                  # 仕様書
+│   │   └── manage-script-spec.md #  管理スクリプト仕様書
 │   ├── backups/                # バックアップ保存先（git管理外）
 │   └── README.md               # このファイル
 └── nginx/                      # Nginx 設定

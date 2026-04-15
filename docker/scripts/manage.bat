@@ -54,6 +54,31 @@ set "APP_14=apps\income-tax-calc"
 set "APP_15=docker\gateway"
 
 :: ------------------------------------
+:: Backup/Restore target definitions
+:: ------------------------------------
+:: PostgreSQL: "label|container|pg_user|db_name|volume|dump_file|restart_hint"
+set "PG_COUNT=2"
+set "PG_1=ITCM PostgreSQL|itcm-postgres|postgres|inheritance_tax_db|inheritance-case-management_postgres_data|itcm-postgres|inheritance-case-management"
+set "PG_2=Bank Analyzer PostgreSQL|bank-analyzer-postgres|bankuser|bank_analyzer|bank-analyzer-postgres|bank-analyzer-postgres|bank-analyzer-django"
+
+:: SQLite: "volume|backup_filename"
+set "SQLITE_COUNT=3"
+set "SQLITE_1=bank-analyzer-sqlite|bank-analyzer-sqlite"
+set "SQLITE_2=tax-docs-data|tax-docs-data"
+set "SQLITE_3=medical-stock-valuation-data|medical-stock-valuation-data"
+
+:: Bind mount: "label|src_relative_path|backup_dirname"
+set "BIND_COUNT=1"
+set "BIND_1=bank-analyzer upload|apps\bank-analyzer-django\data|bank-analyzer-upload"
+
+:: Settings: "label|src_relative_path|backup_filename"
+set "SETTINGS_COUNT=1"
+set "SETTINGS_1=ITCM .env|apps\inheritance-case-management\.env|itcm-.env"
+
+:: Total backup steps
+set /a "BACKUP_TOTAL=%PG_COUNT%+1+%BIND_COUNT%+%SETTINGS_COUNT%"
+
+:: ------------------------------------
 :: ???C??
 :: ------------------------------------
 if /i "%~1"=="" goto :show_help
@@ -200,63 +225,34 @@ mkdir "%BACKUP_DIR%" 2>nul
 set "BACKUP_OK=0"
 set "BACKUP_FAIL=0"
 set "BACKUP_SKIP=0"
+set "STEP=0"
 
-:: --- 1/5 ITCM PostgreSQL ---
-call :do_backup_postgres "1/5" "ITCM PostgreSQL" "itcm-postgres" "postgres" "inheritance_tax_db" "inheritance-case-management_postgres_data" "itcm-postgres"
+:: --- PostgreSQL ---
+for /L %%I in (1,1,%PG_COUNT%) do call :do_backup_postgres_target %%I
 
-:: --- 2/5 Bank Analyzer PostgreSQL ---
-call :do_backup_postgres "2/5" "Bank Analyzer PostgreSQL" "bank-analyzer-postgres" "bankuser" "bank_analyzer" "bank-analyzer-postgres" "bank-analyzer-postgres"
-
-:: --- 3/5 SQLite volumes ---
-echo [3/5] SQLite volumes ...
+:: --- SQLite volumes ---
+set /a STEP+=1
+echo [!STEP!/%BACKUP_TOTAL%] SQLite volumes ...
 
 set "SQLITE_OK=0"
 set "SQLITE_SKIP=0"
 
-call :do_backup_sqlite "bank-analyzer-sqlite" "bank-analyzer-sqlite"
-call :do_backup_sqlite "tax-docs-data" "tax-docs-data"
-call :do_backup_sqlite "medical-stock-valuation-data" "medical-stock-valuation-data"
+for /L %%I in (1,1,%SQLITE_COUNT%) do call :do_backup_sqlite_target %%I
 
 if !SQLITE_OK! gtr 0 (
     echo [OK]    SQLite !SQLITE_OK! volumes
     set /a BACKUP_OK+=!SQLITE_OK!
 )
-if !SQLITE_OK! equ 0 if !SQLITE_SKIP! equ 3 (
+if !SQLITE_OK! equ 0 if !SQLITE_SKIP! equ %SQLITE_COUNT% (
     echo [SKIP]  No SQLite volumes found
     set /a BACKUP_SKIP+=1
 )
 
-:: --- 4/5 Upload data (bind mount) ---
-echo [4/5] Upload data ...
+:: --- Bind mount data ---
+for /L %%I in (1,1,%BIND_COUNT%) do call :do_backup_bind_target %%I
 
-set "BANK_DATA=%PROJECT_ROOT%\apps\bank-analyzer-django\data"
-if exist "!BANK_DATA!" (
-    mkdir "%BACKUP_DIR%\bank-analyzer-upload" 2>nul
-    robocopy "!BANK_DATA!" "%BACKUP_DIR%\bank-analyzer-upload" /E /NFL /NDL /NJH /NJS >nul 2>&1
-    if !ERRORLEVEL! lss 8 (
-        echo [OK]    bank-analyzer-upload/
-        set /a BACKUP_OK+=1
-    ) else (
-        echo [ERROR] bank-analyzer upload data copy failed
-        set /a BACKUP_FAIL+=1
-    )
-) else (
-    echo [SKIP]  bank-analyzer/data/ not found
-    set /a BACKUP_SKIP+=1
-)
-
-:: --- 5/5 ITCM .env (credentials backup) ---
-echo [5/5] Settings ...
-
-set "ITCM_ENV=%PROJECT_ROOT%\apps\inheritance-case-management\.env"
-if exist "!ITCM_ENV!" (
-    copy "!ITCM_ENV!" "%BACKUP_DIR%\itcm-.env" >nul 2>&1
-    echo [OK]    itcm-.env
-    set /a BACKUP_OK+=1
-) else (
-    echo [SKIP]  ITCM .env not found
-    set /a BACKUP_SKIP+=1
-)
+:: --- Settings files ---
+for /L %%I in (1,1,%SETTINGS_COUNT%) do call :do_backup_settings_target %%I
 
 :: --- Summary ---
 echo.
@@ -370,21 +366,18 @@ echo.
 set "RESTORE_OK=0"
 set "RESTORE_FAIL=0"
 set "RESTORE_SKIP=0"
+set "STEP=0"
 
-:: --- 1/5 ITCM PostgreSQL ---
-call :do_restore_postgres "1/5" "ITCM PostgreSQL" "itcm-postgres" "postgres" "inheritance_tax_db" "inheritance-case-management_postgres_data" "itcm-postgres" "inheritance-case-management"
+:: --- PostgreSQL ---
+for /L %%I in (1,1,%PG_COUNT%) do call :do_restore_postgres_target %%I
 
-:: --- 2/5 Bank Analyzer PostgreSQL ---
-call :do_restore_postgres "2/5" "Bank Analyzer PostgreSQL" "bank-analyzer-postgres" "bankuser" "bank_analyzer" "bank-analyzer-postgres" "bank-analyzer-postgres" "bank-analyzer-django"
-
-:: --- 3/5 SQLite volumes ---
-echo [3/5] SQLite volumes ...
+:: --- SQLite volumes ---
+set /a STEP+=1
+echo [!STEP!/%BACKUP_TOTAL%] SQLite volumes ...
 
 set "SQLITE_OK=0"
 
-call :do_restore_sqlite "bank-analyzer-sqlite.tar.gz" "bank-analyzer-sqlite"
-call :do_restore_sqlite "tax-docs-data.tar.gz" "tax-docs-data"
-call :do_restore_sqlite "medical-stock-valuation-data.tar.gz" "medical-stock-valuation-data"
+for /L %%I in (1,1,%SQLITE_COUNT%) do call :do_restore_sqlite_target %%I
 
 if !SQLITE_OK! gtr 0 (
     echo [OK]    SQLite !SQLITE_OK! volumes
@@ -394,37 +387,11 @@ if !SQLITE_OK! gtr 0 (
     set /a RESTORE_SKIP+=1
 )
 
-:: --- 4/5 Upload data ---
-echo [4/5] Upload data ...
+:: --- Bind mount data ---
+for /L %%I in (1,1,%BIND_COUNT%) do call :do_restore_bind_target %%I
 
-if exist "!BACKUP_DIR!\bank-analyzer-upload" (
-    set "BANK_DATA=%PROJECT_ROOT%\apps\bank-analyzer-django\data"
-    mkdir "!BANK_DATA!" 2>nul
-    robocopy "!BACKUP_DIR!\bank-analyzer-upload" "!BANK_DATA!" /E /NFL /NDL /NJH /NJS >nul 2>&1
-    if !ERRORLEVEL! lss 8 (
-        echo [OK]    bank-analyzer-upload/
-        set /a RESTORE_OK+=1
-    ) else (
-        echo [ERROR] bank-analyzer upload data restore failed
-        set /a RESTORE_FAIL+=1
-    )
-) else (
-    echo [SKIP]  Not in backup
-    set /a RESTORE_SKIP+=1
-)
-
-:: --- 5/5 Settings ---
-echo [5/5] Settings ...
-
-if exist "!BACKUP_DIR!\itcm-.env" (
-    set "ITCM_ENV=%PROJECT_ROOT%\apps\inheritance-case-management\.env"
-    copy "!BACKUP_DIR!\itcm-.env" "!ITCM_ENV!" >nul 2>&1
-    echo [OK]    itcm-.env
-    set /a RESTORE_OK+=1
-) else (
-    echo [SKIP]  Not in backup
-    set /a RESTORE_SKIP+=1
-)
+:: --- Settings files ---
+for /L %%I in (1,1,%SETTINGS_COUNT%) do call :do_restore_settings_target %%I
 
 :: --- Summary ---
 echo.
@@ -778,7 +745,7 @@ if !ERRORLEVEL! equ 0 (
 )
 goto :eof
 
-:: --- PostgreSQLリストア ---
+:: --- PostgreSQL???X?g?A ---
 :do_restore_postgres
 :: %1=step_label %2=display_name %3=container_name %4=pg_user %5=db_name %6=volume_name %7=dump_filename %8=restart_app_name
 echo [%~1] %~2 ...
@@ -824,7 +791,118 @@ if !ERRORLEVEL! equ 0 (
 )
 goto :eof
 
-:: --- Preflight: composeファイルチェック ---
+:: --- Data-driven target dispatchers ---
+
+:do_backup_postgres_target
+:: %1=index - Parse PG_%1 and dispatch to :do_backup_postgres
+set /a STEP+=1
+for /f "tokens=1-7 delims=|" %%A in ("!PG_%1!") do call :do_backup_postgres "!STEP!/%BACKUP_TOTAL%" "%%A" "%%B" "%%C" "%%D" "%%E" "%%F"
+goto :eof
+
+:do_backup_sqlite_target
+:: %1=index - Parse SQLITE_%1 and dispatch to :do_backup_sqlite
+for /f "tokens=1-2 delims=|" %%A in ("!SQLITE_%1!") do call :do_backup_sqlite "%%A" "%%B"
+goto :eof
+
+:do_backup_bind_target
+:: %1=index - Parse BIND_%1 and backup bind mount data
+set /a STEP+=1
+for /f "tokens=1-3 delims=|" %%A in ("!BIND_%1!") do (
+    echo [!STEP!/%BACKUP_TOTAL%] %%A ...
+    set "_BIND_SRC=%PROJECT_ROOT%\%%B"
+    set "_BIND_DEST=%BACKUP_DIR%\%%C"
+    set "_BIND_DIRNAME=%%C"
+)
+if exist "!_BIND_SRC!" (
+    mkdir "!_BIND_DEST!" 2>nul
+    robocopy "!_BIND_SRC!" "!_BIND_DEST!" /E /NFL /NDL /NJH /NJS >nul 2>&1
+    if !ERRORLEVEL! lss 8 (
+        echo [OK]    !_BIND_DIRNAME!/
+        set /a BACKUP_OK+=1
+    ) else (
+        echo [ERROR] bind data copy failed
+        set /a BACKUP_FAIL+=1
+    )
+) else (
+    echo [SKIP]  bind data not found
+    set /a BACKUP_SKIP+=1
+)
+goto :eof
+
+:do_backup_settings_target
+:: %1=index - Parse SETTINGS_%1 and backup settings file
+set /a STEP+=1
+for /f "tokens=1-3 delims=|" %%A in ("!SETTINGS_%1!") do (
+    echo [!STEP!/%BACKUP_TOTAL%] %%A ...
+    set "_SET_SRC=%PROJECT_ROOT%\%%B"
+    set "_SET_FNAME=%%C"
+)
+if exist "!_SET_SRC!" (
+    copy "!_SET_SRC!" "%BACKUP_DIR%\!_SET_FNAME!" >nul 2>&1
+    echo [OK]    !_SET_FNAME!
+    set /a BACKUP_OK+=1
+) else (
+    echo [SKIP]  !_SET_FNAME! not found
+    set /a BACKUP_SKIP+=1
+)
+goto :eof
+
+:do_restore_postgres_target
+:: %1=index - Parse PG_%1 and dispatch to :do_restore_postgres
+set /a STEP+=1
+for /f "tokens=1-7 delims=|" %%A in ("!PG_%1!") do call :do_restore_postgres "!STEP!/%BACKUP_TOTAL%" "%%A" "%%B" "%%C" "%%D" "%%E" "%%F" "%%G"
+goto :eof
+
+:do_restore_sqlite_target
+:: %1=index - Parse SQLITE_%1 and dispatch to :do_restore_sqlite
+for /f "tokens=1-2 delims=|" %%A in ("!SQLITE_%1!") do call :do_restore_sqlite "%%B.tar.gz" "%%A"
+goto :eof
+
+:do_restore_bind_target
+:: %1=index - Parse BIND_%1 and restore bind mount data
+set /a STEP+=1
+for /f "tokens=1-3 delims=|" %%A in ("!BIND_%1!") do (
+    echo [!STEP!/%BACKUP_TOTAL%] %%A ...
+    set "_BIND_SRC=!BACKUP_DIR!\%%C"
+    set "_BIND_DEST=%PROJECT_ROOT%\%%B"
+    set "_BIND_DIRNAME=%%C"
+)
+if exist "!_BIND_SRC!" (
+    mkdir "!_BIND_DEST!" 2>nul
+    robocopy "!_BIND_SRC!" "!_BIND_DEST!" /E /NFL /NDL /NJH /NJS >nul 2>&1
+    if !ERRORLEVEL! lss 8 (
+        echo [OK]    !_BIND_DIRNAME!/
+        set /a RESTORE_OK+=1
+    ) else (
+        echo [ERROR] bind data restore failed
+        set /a RESTORE_FAIL+=1
+    )
+) else (
+    echo [SKIP]  Not in backup
+    set /a RESTORE_SKIP+=1
+)
+goto :eof
+
+:do_restore_settings_target
+:: %1=index - Parse SETTINGS_%1 and restore settings file
+set /a STEP+=1
+for /f "tokens=1-3 delims=|" %%A in ("!SETTINGS_%1!") do (
+    echo [!STEP!/%BACKUP_TOTAL%] %%A ...
+    set "_SET_SRC=!BACKUP_DIR!\%%C"
+    set "_SET_DEST=%PROJECT_ROOT%\%%B"
+    set "_SET_FNAME=%%C"
+)
+if exist "!_SET_SRC!" (
+    copy "!_SET_SRC!" "!_SET_DEST!" >nul 2>&1
+    echo [OK]    !_SET_FNAME!
+    set /a RESTORE_OK+=1
+) else (
+    echo [SKIP]  Not in backup
+    set /a RESTORE_SKIP+=1
+)
+goto :eof
+
+:: --- Preflight: compose?t?@?C???`?F?b?N ---
 :do_preflight_compose
 set "APP_PATH=!APP_%1!"
 if exist "%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml" (
@@ -836,7 +914,7 @@ if exist "%PROJECT_ROOT%\!APP_PATH!\docker-compose.yml" (
 )
 goto :eof
 
-:: --- Preflight: nginxファイルチェック ---
+:: --- Preflight: nginx?t?@?C???`?F?b?N ---
 :do_preflight_nginx
 if not exist "%PROJECT_ROOT%\%~1" (
     echo [WARN]  Missing: %~1
@@ -845,35 +923,35 @@ if not exist "%PROJECT_ROOT%\%~1" (
 )
 goto :eof
 
-:: --- Preflight: ポートチェック ---
+:: --- Preflight: ?|?[?g?`?F?b?N ---
 :do_preflight_port
 echo [WARN]  Port %1 is already in use
 set "PORT_CONFLICT=1"
 set /a PF_WARN+=1
 goto :eof
 
-:: --- バックアップ一覧表示 ---
+:: --- ?o?b?N?A?b?v???\?? ---
 :do_show_backup
 set "BK_NAME=!BACKUP_%1!"
 call :format_dir_size "%BACKUP_BASE%\!BK_NAME!"
 echo   [%1] !BK_NAME!  (!DIR_SIZE_RESULT!)
 goto :eof
 
-:: --- アプリ一覧表示 ---
+:: --- ?A?v?????\?? ---
 :do_show_app
 set "APP_PATH=!APP_%1!"
 for %%N in ("!APP_PATH!") do echo   %%~nxN
 goto :eof
 
 :: ============================================================
-:: ユーティリティ関数
+:: ???[?e?B???e?B???
 :: ============================================================
 
-:: --- 単一アプリコマンド共通前処理 ---
+:: --- ?P??A?v???R?}???h????O???? ---
 :require_app_arg
 :: %1=command_name  Validates APP_CMD_ARG, resolves app, sets RESOLVED_DIR and APP_NAME
 if "!APP_CMD_ARG!"=="" (
-    echo [ERROR] アプリ名を指定してください
+    echo [ERROR] ?A?v???????w???????????
     echo Usage: manage.bat %~1 ^<app-name^>
     call :show_apps
     exit /b 1
@@ -883,7 +961,7 @@ if "!RESOLVED_DIR!"=="" exit /b 1
 for %%N in ("!RESOLVED_DIR!") do set "APP_NAME=%%~nxN"
 exit /b 0
 
-:: --- アプリ変数初期化 ---
+:: --- ?A?v??????????? ---
 :init_app_vars
 :: %1=app_index  Sets: APP_PATH, COMPOSE_FILE, APP_NAME. Returns ERRORLEVEL 1 if compose not found.
 set "APP_PATH=!APP_%1!"
@@ -892,22 +970,22 @@ if not exist "!COMPOSE_FILE!" exit /b 1
 for %%N in ("!APP_PATH!") do set "APP_NAME=%%~nxN"
 exit /b 0
 
-:: --- ディレクトリサイズフォーマット ---
+:: --- ?f?B???N?g???T?C?Y?t?H?[?}?b?g ---
 :format_dir_size
 :: %1=directory_path  Sets: DIR_SIZE_RESULT
 for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$s = (Get-ChildItem -Path '%~1' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s -gt 1MB) { '{0:N1} MB' -f ($s/1MB) } elseif ($s -gt 1KB) { '{0:N1} KB' -f ($s/1KB) } else { '{0} bytes' -f $s }"`) do set "DIR_SIZE_RESULT=%%S"
 goto :eof
 
-:: --- ネットワーク作成 ---
+:: --- ?l?b?g???[?N?? ---
 :ensure_network
 docker network inspect %NETWORK_NAME% >nul 2>&1
 if !ERRORLEVEL! neq 0 (
-    echo [manage] ネットワーク %NETWORK_NAME% を作成...
+    echo [manage] ?l?b?g???[?N %NETWORK_NAME% ????...
     docker network create %NETWORK_NAME% >nul 2>&1
 )
 goto :eof
 
-:: --- アプリ名からディレクトリを解決 ---
+:: --- ?A?v????????f?B???N?g???????? ---
 :resolve_app
 set "RESOLVED_DIR="
 set "SEARCH=%~1"
@@ -916,7 +994,7 @@ set "FIRST_MATCH="
 set "MATCH_LIST="
 for /L %%I in (1,1,%APP_COUNT%) do call :do_resolve_check %%I
 if "!MATCH_COUNT!"=="0" (
-    echo [ERROR] アプリが見つかりません: !SEARCH!
+    echo [ERROR] ?A?v???????????????: !SEARCH!
     call :show_apps
 ) else if "!MATCH_COUNT!"=="1" (
     set "RESOLVED_DIR=!FIRST_MATCH!"
@@ -939,14 +1017,14 @@ if !ERRORLEVEL! equ 0 (
 )
 goto :eof
 
-:: --- アプリ一覧表示 ---
+:: --- ?A?v?????\?? ---
 :show_apps
 echo.
 echo Available apps:
 for /L %%I in (1,1,%APP_COUNT%) do call :do_show_app %%I
 goto :eof
 
-:: --- 簡易preflight（Docker起動チェックのみ） ---
+:: --- ???preflight?iDocker?N???`?F?b?N???j ---
 :preflight_quick
 docker info >nul 2>&1
 if !ERRORLEVEL! neq 0 (
@@ -956,7 +1034,7 @@ if !ERRORLEVEL! neq 0 (
 exit /b 0
 
 :: ============================================================
-:: ヘルプ表示
+:: ?w???v?\??
 :: ============================================================
 :show_help
 echo.
@@ -967,20 +1045,20 @@ echo.
 echo Usage: manage.bat ^<command^> [app-name]
 echo.
 echo Commands:
-echo   start              全アプリを起動（ネットワーク自動作成）
-echo   start --prod       全アプリを本番モードで起動
-echo   stop               全アプリを停止
-echo   down               全アプリを停止してコンテナ削除
-echo   restart ^<app^>      指定アプリのみ再起動
-echo   build ^<app^>        指定アプリを再ビルドして起動
-echo   logs ^<app^>         指定アプリのログ表示
-echo   status             全アプリの状態表示
+echo   start              ?S?A?v?????N???i?l?b?g???[?N???????j
+echo   start --prod       ?S?A?v????{????[?h??N??
+echo   stop               ?S?A?v?????~
+echo   down               ?S?A?v?????~????R???e?i??
+echo   restart ^<app^>      ?w??A?v??????N??
+echo   build ^<app^>        ?w??A?v??????r???h????N??
+echo   logs ^<app^>         ?w??A?v??????O?\??
+echo   status             ?S?A?v??????\??
 echo.
 echo Operations:
-echo   backup             全データベース・データをバックアップ
-echo   restore [dir]      バックアップからリストア
-echo   clean              コンテナ・イメージのクリーンアップ
-echo   preflight          起動前チェック
+echo   backup             ?S?f?[?^?x?[?X?E?f?[?^???o?b?N?A?b?v
+echo   restore [dir]      ?o?b?N?A?b?v?????X?g?A
+echo   clean              ?R???e?i?E?C???[?W??N???[???A?b?v
+echo   preflight          ?N???O?`?F?b?N
 echo.
 echo Apps:
 for /L %%I in (1,1,%APP_COUNT%) do call :do_show_app %%I
@@ -988,7 +1066,7 @@ echo.
 goto :end
 
 :: ============================================================
-:: 終了
+:: ?I??
 :: ============================================================
 :end
 endlocal

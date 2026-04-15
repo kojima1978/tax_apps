@@ -44,7 +44,7 @@ nginx/
 
 - **レート制限**: API 300req/s、一般 1000req/s（超過時は 429 を返却）
 - **接続数制限**: 1IPあたり50接続（全ロケーション共通）
-- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy
+- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
 - **サーバー情報非表示**: server_tokens off, proxy_hide_header (X-Powered-By, Server)
 - **Real IP対応**: Docker内部ネットワークからの X-Forwarded-For を信頼
 - **APIエラー応答保護**: APIエンドポイントは `proxy_intercept_errors off` でバックエンドのJSON応答をそのまま返却

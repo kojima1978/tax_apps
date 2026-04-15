@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # =============================================================================
-# Vite Static App - Shared Dockerfile
+# Vite Static App - Shared Dockerfile (10アプリ共有)
 # Multi-stage build for development and production (Vite + nginx)
 # =============================================================================
 #
@@ -78,6 +78,7 @@ ARG APP_TITLE="Vite Static App"
 ARG APP_DESCRIPTION=""
 
 RUN apk upgrade --no-cache
+ENV TZ=Asia/Tokyo
 
 LABEL org.opencontainers.image.title="${APP_TITLE}" \
       org.opencontainers.image.description="${APP_DESCRIPTION}" \
@@ -172,7 +173,8 @@ server {
         application/json
         application/javascript
         application/xml
-        image/svg+xml;
+        image/svg+xml
+        font/woff;
 }
 TEMPLATE
 RUN sed "s/__APP_PORT__/${APP_PORT}/g; s/__APP_PATH__/${APP_PATH}/g" \

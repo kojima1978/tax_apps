@@ -62,6 +62,32 @@ VOLUMES=(
   "medical-stock-valuation-data"
 )
 
+# ------------------------------------
+# バックアップ/リストア対象定義
+# 形式: "label:container:pg_user:db_name:volume:dump_file:restart_hint"
+# ------------------------------------
+PG_TARGETS=(
+  "ITCM PostgreSQL:itcm-postgres:postgres:inheritance_tax_db:inheritance-case-management_postgres_data:itcm-postgres:inheritance-case-management"
+  "Bank Analyzer PostgreSQL:bank-analyzer-postgres:bankuser:bank_analyzer:bank-analyzer-postgres:bank-analyzer-postgres:bank-analyzer-django"
+)
+
+# SQLite バックアップ対象 "volume:filename"
+SQLITE_TARGETS=(
+  "bank-analyzer-sqlite:bank-analyzer-sqlite"
+  "tax-docs-data:tax-docs-data"
+  "medical-stock-valuation-data:medical-stock-valuation-data"
+)
+
+# バインドマウントデータ "label:src_relative_path:backup_dirname"
+BIND_TARGETS=(
+  "bank-analyzer upload:apps/bank-analyzer-django/data:bank-analyzer-upload"
+)
+
+# 設定ファイル "label:src_relative_path:backup_filename"
+SETTINGS_TARGETS=(
+  "ITCM .env:apps/inheritance-case-management/.env:itcm-.env"
+)
+
 check_dependencies() {
   if ! command -v docker >/dev/null 2>&1; then
     err "docker がインストールされていません。"
@@ -220,7 +246,7 @@ backup_postgres() {
 
   # volume fallback
   if docker volume inspect "$volume" >/dev/null 2>&1; then
-    if docker run --rm -v "$volume":/data -v "$backup_dir":/backup alpine tar czf "/backup/$dump_file-volume.tar.gz" -C /data . >/dev/null 2>&1; then
+    if MSYS_NO_PATHCONV=1 docker run --rm -v "$volume":/data -v "$backup_dir":/backup alpine tar czf "/backup/$dump_file-volume.tar.gz" -C /data . >/dev/null 2>&1; then
       ok "$dump_file-volume.tar.gz"
       (( backup_ok++ )) || true
     else
@@ -259,7 +285,7 @@ restore_postgres() {
   elif [[ -f "$backup_dir/$dump_file-volume.tar.gz" ]]; then
     warn "Volume restore - container must be stopped"
     docker volume inspect "$volume" >/dev/null 2>&1 || docker volume create "$volume" >/dev/null 2>&1
-    if docker run --rm -v "$volume":/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$dump_file-volume.tar.gz" >/dev/null 2>&1; then
+    if MSYS_NO_PATHCONV=1 docker run --rm -v "$volume":/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$dump_file-volume.tar.gz" >/dev/null 2>&1; then
       ok "$dump_file-volume.tar.gz"
       (( restore_ok++ )) || true
     else
@@ -281,7 +307,7 @@ backup_sqlite_volumes() {
     local vol="${pair%%:*}"
     local fname="${pair##*:}"
     if docker volume inspect "$vol" >/dev/null 2>&1; then
-      if docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine tar czf "/backup/${fname}.tar.gz" -C /data . >/dev/null 2>&1; then
+      if MSYS_NO_PATHCONV=1 docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine tar czf "/backup/${fname}.tar.gz" -C /data . >/dev/null 2>&1; then
         (( sqlite_ok++ )) || true
       else
         err "$vol backup failed"
@@ -311,7 +337,7 @@ restore_sqlite_volumes() {
     local vol="${pair##*:}"
     if [[ -f "$backup_dir/$fname" ]]; then
       docker volume inspect "$vol" >/dev/null 2>&1 || docker volume create "$vol" >/dev/null 2>&1
-      if docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$fname" >/dev/null 2>&1; then
+      if MSYS_NO_PATHCONV=1 docker run --rm -v "$vol":/data -v "$backup_dir":/backup alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$fname" >/dev/null 2>&1; then
         (( sqlite_ok++ )) || true
       else
         (( restore_fail++ )) || true
@@ -323,6 +349,83 @@ restore_sqlite_volumes() {
     (( restore_ok += sqlite_ok ))
   else
     warn "No SQLite backups found"
+    (( restore_skip++ )) || true
+  fi
+}
+
+# backup_bind_data <step_label> <label> <src_dir> <dest_dir>
+# バインドマウントデータのバックアップ
+backup_bind_data() {
+  local step_label="$1" label="$2" src_dir="$3" dest_dir="$4"
+  echo "$step_label $label ..."
+  if [[ -d "$src_dir" ]]; then
+    local file_count
+    file_count=$(find "$src_dir" -mindepth 1 ! -name '.gitkeep' 2>/dev/null | head -1 | wc -l)
+    if [[ $file_count -eq 0 ]]; then
+      warn "$label is empty"
+      (( backup_skip++ )) || true
+    else
+      mkdir -p "$dest_dir"
+      if cp -r "$src_dir"/* "$dest_dir/" 2>/dev/null; then
+        ok "$(basename "$dest_dir")/"
+        (( backup_ok++ )) || true
+      else
+        err "$label copy failed"
+        (( backup_fail++ )) || true
+      fi
+    fi
+  else
+    warn "$label not found"
+    (( backup_skip++ )) || true
+  fi
+}
+
+# backup_settings_file <step_label> <label> <src_file> <dest_file>
+# 設定ファイルのバックアップ
+backup_settings_file() {
+  local step_label="$1" label="$2" src_file="$3" dest_file="$4"
+  echo "$step_label $label ..."
+  if [[ -f "$src_file" ]]; then
+    cp "$src_file" "$dest_file"
+    ok "$(basename "$dest_file")"
+    (( backup_ok++ )) || true
+  else
+    warn "$label not found"
+    (( backup_skip++ )) || true
+  fi
+}
+
+# restore_bind_data <step_label> <label> <backup_dir> <dest_dir>
+# バインドマウントデータのリストア
+restore_bind_data() {
+  local step_label="$1" label="$2" src_dir="$3" dest_dir="$4"
+  echo "$step_label $label ..."
+  if [[ -d "$src_dir" ]]; then
+    mkdir -p "$dest_dir"
+    if cp -r "$src_dir"/* "$dest_dir/" 2>/dev/null; then
+      ok "$(basename "$src_dir")/"
+      (( restore_ok++ )) || true
+    else
+      err "$label restore failed"
+      (( restore_fail++ )) || true
+    fi
+  else
+    warn "Not in backup"
+    (( restore_skip++ )) || true
+  fi
+}
+
+# restore_settings_file <step_label> <label> <backup_file> <dest_file>
+# 設定ファイルのリストア
+restore_settings_file() {
+  local step_label="$1" label="$2" src_file="$3" dest_file="$4"
+  echo "$step_label $label ..."
+  if [[ -f "$src_file" ]]; then
+    cp "$src_file" "$dest_file"
+    ok "$(basename "$src_file")"
+    (( restore_ok++ )) || true
+  else
+    warn "Not in backup"
     (( restore_skip++ )) || true
   fi
 }
@@ -424,6 +527,15 @@ cmd_logs() {
   docker compose -f "$RESOLVED_DIR/docker-compose.yml" logs -f
 }
 
+_do_status() {
+  local dir="$1" name="$2"
+  docker compose -f "$dir/docker-compose.yml" ps --format \
+    "{{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null | \
+    while IFS=$'\t' read -r cname cstatus cports; do
+      printf "%-35s %-15s %-10s\n" "$cname" "$cstatus" "$cports"
+    done
+}
+
 cmd_status() {
   print_banner "Tax Apps コンテナ状態"
   echo "ネットワーク: $NETWORK_NAME"
@@ -435,16 +547,7 @@ cmd_status() {
   echo ""
   printf "%-35s %-15s %-10s\n" "CONTAINER" "STATUS" "PORTS"
   echo "----------------------------------------"
-  for app in "${APPS[@]}"; do
-    local dir="$PROJECT_ROOT/$app"
-    if [[ -f "$dir/docker-compose.yml" ]]; then
-      docker compose -f "$dir/docker-compose.yml" ps --format \
-        "{{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null | \
-        while IFS=$'\t' read -r cname cstatus cports; do
-          printf "%-35s %-15s %-10s\n" "$cname" "$cstatus" "$cports"
-        done
-    fi
-  done
+  for_each_app _do_status
   echo "========================================"
   echo ""
 }
@@ -464,51 +567,32 @@ cmd_backup() {
   echo ""
 
   local backup_ok=0 backup_fail=0 backup_skip=0
+  local step=0 total=$(( ${#PG_TARGETS[@]} + 1 + ${#BIND_TARGETS[@]} + ${#SETTINGS_TARGETS[@]} ))
 
-  # --- 1/5 ITCM PostgreSQL ---
-  backup_postgres "[1/5] ITCM PostgreSQL ..." \
-    "itcm-postgres" "postgres" "inheritance_tax_db" \
-    "inheritance-case-management_postgres_data" "itcm-postgres"
+  # --- PostgreSQL ---
+  for target in "${PG_TARGETS[@]}"; do
+    (( step++ )) || true
+    IFS=: read -r label container pg_user db_name volume dump_file _restart <<< "$target"
+    backup_postgres "[$step/$total] $label ..." "$container" "$pg_user" "$db_name" "$volume" "$dump_file"
+  done
 
-  # --- 2/5 Bank Analyzer PostgreSQL ---
-  backup_postgres "[2/5] Bank Analyzer PostgreSQL ..." \
-    "bank-analyzer-postgres" "bankuser" "bank_analyzer" \
-    "bank-analyzer-postgres" "bank-analyzer-postgres"
+  # --- SQLite volumes ---
+  (( step++ )) || true
+  backup_sqlite_volumes "${SQLITE_TARGETS[@]}"
 
-  # --- 3/5 SQLite volumes ---
-  backup_sqlite_volumes \
-    "bank-analyzer-sqlite:bank-analyzer-sqlite" \
-    "tax-docs-data:tax-docs-data" \
-    "medical-stock-valuation-data:medical-stock-valuation-data"
+  # --- Bind mount data ---
+  for target in "${BIND_TARGETS[@]}"; do
+    (( step++ )) || true
+    IFS=: read -r label src_path backup_dirname <<< "$target"
+    backup_bind_data "[$step/$total]" "$label" "$PROJECT_ROOT/$src_path" "$backup_dir/$backup_dirname"
+  done
 
-  # --- 4/5 Upload data (bind mount) ---
-  echo "[4/5] Upload data ..."
-  local bank_data="$PROJECT_ROOT/apps/bank-analyzer-django/data"
-  if [[ -d "$bank_data" ]]; then
-    mkdir -p "$backup_dir/bank-analyzer-upload"
-    if cp -r "$bank_data"/* "$backup_dir/bank-analyzer-upload/" 2>/dev/null; then
-      ok "bank-analyzer-upload/"
-      (( backup_ok++ )) || true
-    else
-      err "bank-analyzer upload data copy failed"
-      (( backup_fail++ )) || true
-    fi
-  else
-    warn "bank-analyzer/data/ not found"
-    (( backup_skip++ )) || true
-  fi
-
-  # --- 5/5 ITCM .env ---
-  echo "[5/5] Settings ..."
-  local itcm_env="$PROJECT_ROOT/apps/inheritance-case-management/.env"
-  if [[ -f "$itcm_env" ]]; then
-    cp "$itcm_env" "$backup_dir/itcm-.env"
-    ok "itcm-.env"
-    (( backup_ok++ )) || true
-  else
-    warn "ITCM .env not found"
-    (( backup_skip++ )) || true
-  fi
+  # --- Settings files ---
+  for target in "${SETTINGS_TARGETS[@]}"; do
+    (( step++ )) || true
+    IFS=: read -r label src_path backup_filename <<< "$target"
+    backup_settings_file "[$step/$total]" "$label" "$PROJECT_ROOT/$src_path" "$backup_dir/$backup_filename"
+  done
 
   # --- Summary ---
   print_summary_banner "Backup Complete" "$backup_fail"
@@ -600,52 +684,38 @@ cmd_restore() {
   echo ""
 
   local restore_ok=0 restore_fail=0 restore_skip=0
+  local step=0 total=$(( ${#PG_TARGETS[@]} + 1 + ${#BIND_TARGETS[@]} + ${#SETTINGS_TARGETS[@]} ))
 
-  # --- 1/5 ITCM PostgreSQL ---
-  restore_postgres "[1/5] ITCM PostgreSQL ..." \
-    "itcm-postgres" "postgres" "inheritance_tax_db" \
-    "inheritance-case-management_postgres_data" "itcm-postgres" \
-    "inheritance-case-management"
+  # --- PostgreSQL ---
+  for target in "${PG_TARGETS[@]}"; do
+    (( step++ )) || true
+    IFS=: read -r label container pg_user db_name volume dump_file restart_hint <<< "$target"
+    restore_postgres "[$step/$total] $label ..." "$container" "$pg_user" "$db_name" "$volume" "$dump_file" "$restart_hint"
+  done
 
-  # --- 2/5 Bank Analyzer PostgreSQL ---
-  restore_postgres "[2/5] Bank Analyzer PostgreSQL ..." \
-    "bank-analyzer-postgres" "bankuser" "bank_analyzer" \
-    "bank-analyzer-postgres" "bank-analyzer-postgres" \
-    "bank-analyzer-django"
+  # --- SQLite volumes ---
+  (( step++ )) || true
+  local -a sqlite_restore_pairs=()
+  for target in "${SQLITE_TARGETS[@]}"; do
+    local fname="${target##*:}"
+    local vol="${target%%:*}"
+    sqlite_restore_pairs+=("$fname.tar.gz:$vol")
+  done
+  restore_sqlite_volumes "${sqlite_restore_pairs[@]}"
 
-  # --- 3/5 SQLite volumes ---
-  restore_sqlite_volumes \
-    "bank-analyzer-sqlite.tar.gz:bank-analyzer-sqlite" \
-    "tax-docs-data.tar.gz:tax-docs-data" \
-    "medical-stock-valuation-data.tar.gz:medical-stock-valuation-data"
+  # --- Bind mount data ---
+  for target in "${BIND_TARGETS[@]}"; do
+    (( step++ )) || true
+    IFS=: read -r label src_path backup_dirname <<< "$target"
+    restore_bind_data "[$step/$total]" "$label" "$backup_dir/$backup_dirname" "$PROJECT_ROOT/$src_path"
+  done
 
-  # --- 4/5 Upload data ---
-  echo "[4/5] Upload data ..."
-  if [[ -d "$backup_dir/bank-analyzer-upload" ]]; then
-    local bank_data="$PROJECT_ROOT/apps/bank-analyzer-django/data"
-    mkdir -p "$bank_data"
-    if cp -r "$backup_dir/bank-analyzer-upload"/* "$bank_data/" 2>/dev/null; then
-      ok "bank-analyzer-upload/"
-      (( restore_ok++ )) || true
-    else
-      err "bank-analyzer upload data restore failed"
-      (( restore_fail++ )) || true
-    fi
-  else
-    warn "Not in backup"
-    (( restore_skip++ )) || true
-  fi
-
-  # --- 5/5 Settings ---
-  echo "[5/5] Settings ..."
-  if [[ -f "$backup_dir/itcm-.env" ]]; then
-    cp "$backup_dir/itcm-.env" "$PROJECT_ROOT/apps/inheritance-case-management/.env"
-    ok "itcm-.env"
-    (( restore_ok++ )) || true
-  else
-    warn "Not in backup"
-    (( restore_skip++ )) || true
-  fi
+  # --- Settings files ---
+  for target in "${SETTINGS_TARGETS[@]}"; do
+    (( step++ )) || true
+    IFS=: read -r label src_path backup_filename <<< "$target"
+    restore_settings_file "[$step/$total]" "$label" "$backup_dir/$backup_filename" "$PROJECT_ROOT/$src_path"
+  done
 
   # --- Summary ---
   print_summary_banner "Restore Complete" "$restore_fail"
