@@ -884,9 +884,9 @@ tr.rate-row-highlight td {
   margin-top: 1rem;
 }
 
-/* ===================== A3印刷用ページ設定 ===================== */
+/* ===================== 早見表印刷用ページ設定 ===================== */
 @page table-page {
-  size: A3 portrait;
+  size: A4 landscape;
   margin: 10mm;
 }
 
@@ -1197,7 +1197,7 @@ tr.rate-row-highlight td {
     width: 103%;
   }
 
-  /* 早見表ページ */
+  /* 早見表ページ（A4横・2テーブル横並び） */
   .table-page {
     max-width: 100% !important;
     page: table-page;
@@ -1209,29 +1209,46 @@ tr.rate-row-highlight td {
 
   .table-page .result-section {
     padding: 5px 0 !important;
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .table-page .result-section > .print-header-block,
+  .table-page .result-section > .table-common-note {
+    width: 100%;
+    flex-shrink: 0;
   }
 
   .table-page .tax-table-section {
-    margin-bottom: 0.75rem;
-    page-break-inside: avoid;
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+  }
+
+  .table-page .tax-table-section:first-of-type {
+    padding-right: 10px;
+  }
+
+  .table-page .tax-table-section:last-of-type {
+    padding-left: 10px;
   }
 
   .table-page .table-section-title {
-    font-size: 10pt !important;
+    font-size: 11pt !important;
     margin-bottom: 0.3rem;
-    padding: 0.2rem 0.4rem;
+    padding: 0.3rem 0.5rem;
   }
 
   .table-page .table-common-note {
-    font-size: 8pt !important;
+    font-size: 9pt !important;
     margin-bottom: 0.5rem;
-    padding: 0.2rem;
+    padding: 0.3rem;
   }
 
   .table-page .table-note {
-    font-size: 7pt !important;
-    margin-top: 0.2rem;
-    padding: 0.2rem;
+    font-size: 8pt !important;
+    margin-top: 0.3rem;
+    padding: 0.3rem;
   }
 
   .table-page .tax-table-single {
@@ -1240,8 +1257,8 @@ tr.rate-row-highlight td {
 
   .table-page .tax-table-single th,
   .table-page .tax-table-single td {
-    padding: 2px 4px !important;
-    font-size: 8pt !important;
+    padding: 5px 8px !important;
+    font-size: 10pt !important;
   }
 
   .table-page .table-container {
