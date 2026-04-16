@@ -14,26 +14,47 @@ import { TABLE_CONFIG, createDefaultComposition, RANK_LABELS } from '../constant
 import { TABLE_CAUTIONS } from '../constants/cautionMessages';
 import { calculateInheritanceTax, calculateBracketAnalysis, getHeirInfo } from '../utils';
 
+function buildConditionLabel(composition: HeirComposition): string {
+  const { rank, rankHeirsCount } = getHeirInfo(composition);
+  const parts = [`配偶者：${composition.hasSpouse ? 'あり' : 'なし'}`];
+  if (rank > 0 && rankHeirsCount > 0) {
+    parts.push(`${RANK_LABELS[rank]}：${rankHeirsCount}人`);
+  }
+  return parts.join(' ／ ');
+}
+
+interface TableResults {
+  tableData: TaxCalculationResult[];
+  bracketData: BracketAnalysisRow[];
+  secondaryTableData: TaxCalculationResult[];
+}
+
+const EMPTY_RESULTS: TableResults = { tableData: [], bracketData: [], secondaryTableData: [] };
+
 export const TablePage: React.FC = () => {
   const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
   const [maxValue, setMaxValue] = useState<number>(TABLE_CONFIG.DEFAULT_MAX_VALUE);
-  const [tableData, setTableData] = useState<TaxCalculationResult[]>([]);
-  const [bracketData, setBracketData] = useState<BracketAnalysisRow[]>([]);
+  const [results, setResults] = useState<TableResults>(EMPTY_RESULTS);
 
   const handleCalculate = useCallback(() => {
-    const newTableData: TaxCalculationResult[] = [];
-    const newBracketData: BracketAnalysisRow[] = [];
+    const tableData: TaxCalculationResult[] = [];
+    const bracketData: BracketAnalysisRow[] = [];
+    const secondaryTableData: TaxCalculationResult[] = [];
+    const noSpouseComposition: HeirComposition = { ...composition, hasSpouse: false };
     for (let value = TABLE_CONFIG.MIN_VALUE; value <= maxValue; value += TABLE_CONFIG.STEP) {
-      newTableData.push(calculateInheritanceTax(value, composition));
-      newBracketData.push(calculateBracketAnalysis(value, composition));
+      tableData.push(calculateInheritanceTax(value, composition));
+      bracketData.push(calculateBracketAnalysis(value, composition));
+      if (composition.hasSpouse) {
+        secondaryTableData.push(calculateInheritanceTax(value, noSpouseComposition));
+      }
     }
-    setTableData(newTableData);
-    setBracketData(newBracketData);
+    setResults({ tableData, bracketData, secondaryTableData });
   }, [maxValue, composition]);
 
   const { rank } = getHeirInfo(composition);
   const heirLabel = RANK_LABELS[rank] || '子';
-  const hasData = tableData.length > 0;
+  const hasData = results.tableData.length > 0;
+  const conditionLabel = buildConditionLabel(composition);
   const resultRef = useScrollToResult(hasData);
 
   return (
@@ -54,10 +75,10 @@ export const TablePage: React.FC = () => {
           {hasData && (
             <div className="result-fade-in">
               <PrintHeader title="相続税早見表" />
-              <TaxTable data={tableData} hasSpouse={composition.hasSpouse} />
+              <TaxTable data={results.tableData} hasSpouse={composition.hasSpouse} secondaryData={results.secondaryTableData} conditionLabel={conditionLabel} />
               <div className="mt-6 print-page-break">
                 <PrintHeader title="加重平均適用税率表" />
-                <BracketRateTable data={bracketData} hasSpouse={composition.hasSpouse} heirLabel={heirLabel} />
+                <BracketRateTable data={results.bracketData} hasSpouse={composition.hasSpouse} heirLabel={heirLabel} conditionLabel={conditionLabel} />
               </div>
             </div>
           )}
