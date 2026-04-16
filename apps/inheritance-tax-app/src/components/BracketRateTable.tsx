@@ -8,12 +8,40 @@ interface BracketRateTableProps {
   data: BracketAnalysisRow[];
   hasSpouse: boolean;
   heirLabel: string;
+  conditionLabel?: string;
 }
 
-export const BracketRateTable: React.FC<BracketRateTableProps> = memo(({ data, hasSpouse, heirLabel }) => {
+type Column = {
+  label: string;
+  getValue: (row: BracketAnalysisRow) => string;
+  cellClass: string;
+};
+
+function buildColumns(hasSpouse: boolean, heirLabel: string): Column[] {
+  if (!hasSpouse) {
+    return [
+      { label: '加重平均適用税率', getValue: r => formatPercent(r.weightedRate), cellClass: 'text-center font-bold text-green-700' },
+    ];
+  }
+  return [
+    { label: '配偶者 適用税率', getValue: r => formatPercent(r.spouseRate ?? 0), cellClass: 'text-center' },
+    { label: `${heirLabel} 適用税率`, getValue: r => formatPercent(r.otherRate), cellClass: 'text-center' },
+    { label: '加重平均適用税率', getValue: r => formatPercent(r.weightedRate), cellClass: 'text-center font-medium' },
+    { label: '控除後加重平均', getValue: r => formatPercent(r.weightedRateAfterSpouse), cellClass: 'text-center font-bold text-green-700' },
+  ];
+}
+
+export const BracketRateTable: React.FC<BracketRateTableProps> = memo(({ data, hasSpouse, heirLabel, conditionLabel }) => {
+  const columns = buildColumns(hasSpouse, heirLabel);
+
   return (
     <div className={`${CARD} overflow-x-auto table-scroll-hint`} role="region" aria-label="加重平均適用税率表">
-      <h2 className="text-xl font-bold text-gray-800 mb-1" id="bracket-table-heading">加重平均適用税率表</h2>
+      <div className="flex items-baseline gap-4 mb-1">
+        <h2 className="text-xl font-bold text-gray-800" id="bracket-table-heading">加重平均適用税率表</h2>
+        {conditionLabel && (
+          <span className="text-sm text-gray-500">{conditionLabel}</span>
+        )}
+      </div>
       <p className="text-sm text-gray-500 mb-4">
         各法定相続人の法定取得額に適用される税率ブラケットを法定相続分で加重平均した値です。
         財産が増減したときの税額変動の目安になります。
@@ -23,17 +51,9 @@ export const BracketRateTable: React.FC<BracketRateTableProps> = memo(({ data, h
         <thead>
           <tr className="bg-green-600 text-white">
             <th scope="col" className={TH}>相続財産</th>
-            {hasSpouse && (
-              <>
-                <th scope="col" className={TH}>配偶者 適用税率</th>
-                <th scope="col" className={TH}>{heirLabel} 適用税率</th>
-                <th scope="col" className={TH}>加重平均適用税率</th>
-                <th scope="col" className={TH}>控除後加重平均</th>
-              </>
-            )}
-            {!hasSpouse && (
-              <th scope="col" className={TH}>加重平均適用税率</th>
-            )}
+            {columns.map(col => (
+              <th key={col.label} scope="col" className={TH}>{col.label}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -42,17 +62,11 @@ export const BracketRateTable: React.FC<BracketRateTableProps> = memo(({ data, h
               <td className={`${TD} font-medium`}>
                 {formatCurrency(row.estateValue)}
               </td>
-              {hasSpouse && (
-                <>
-                  <td className={`${TD} text-center`}>{formatPercent(row.spouseRate ?? 0)}</td>
-                  <td className={`${TD} text-center`}>{formatPercent(row.otherRate)}</td>
-                  <td className={`${TD} text-center font-medium`}>{formatPercent(row.weightedRate)}</td>
-                  <td className={`${TD} text-center font-bold text-green-700`}>{formatPercent(row.weightedRateAfterSpouse)}</td>
-                </>
-              )}
-              {!hasSpouse && (
-                <td className={`${TD} text-center font-bold text-green-700`}>{formatPercent(row.weightedRate)}</td>
-              )}
+              {columns.map(col => (
+                <td key={col.label} className={`${TD} ${col.cellClass}`}>
+                  {col.getValue(row)}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
