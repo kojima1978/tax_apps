@@ -17,7 +17,6 @@
 | 相続税計算 | `/inheritance-tax-app/` | http://localhost/inheritance-tax-app/ | 3004 | Vite + React | 相続税シミュレーション |
 | 贈与税計算 | `/gift-tax-simulator/` | http://localhost/gift-tax-simulator/ | 3001 | Vite + React | 贈与税・不動産取得税・登録免許税シミュレーション |
 | 退職金税額計算 | `/retirement-tax-calc/` | http://localhost/retirement-tax-calc/ | 3013 | Vite + React | 退職金の税額計算シミュレーション |
-| 贈与税申告書類案内 | `/gift-tax-docs/` | http://localhost/gift-tax-docs/ | 3002 | Vite + React | 贈与税申告の必要書類ガイド |
 | 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React | 相続税申告の必要書類ガイド |
 | 非上場株式評価 | `/shares/` | http://localhost/shares/ | 3012 | Vite + React | 非上場株式の評価計算 |
 | 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3005/3006 | Vite + React + Express | 確定申告書類管理 |
@@ -27,13 +26,14 @@
 | 給与手取り計算 | `/salary-calc/` | http://localhost/salary-calc/ | 3016 | Vite + React | 給与・賞与の手取り計算シミュレーション |
 | 減価償却資産評価 | `/asset-valuation/` | http://localhost/asset-valuation/ | 3017 | Vite + React | 相続税申告の減価償却資産評価 |
 | 株式評価明細書 | `/stock-valuation-form/` | http://localhost/stock-valuation-form/ | 3014 | Vite + React | 取引相場のない株式の評価明細書 |
+| 所得税計算 | `/income-tax-calc/` | http://localhost/income-tax-calc/ | 3018 | Vite + React | 所得税計算ツール |
 | 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 預金移動分析 |
 
 ### 本番モード イメージサイズ
 
 | 種別 | アプリ | イメージサイズ |
 |------|--------|--------------|
-| nginx (静的) | 13 Vite/Next.js アプリ + gateway | ~59-60MB |
+| nginx (静的) | 14 Vite/Next.js アプリ + gateway | ~59-60MB |
 | Express | 確定申告必要書類 バックエンド | ~178MB |
 | Next.js standalone | 医療法人株式評価 | ~240MB |
 | Next.js + Prisma | 案件管理 | ~333MB |
@@ -48,7 +48,7 @@ tax_apps/
 │   ├── inheritance-tax-app/           # 相続税計算 (Vite)
 │   ├── gift-tax-simulator/            # 贈与税計算 (Vite)
 │   ├── retirement-tax-calc/           # 退職金税額計算 (Vite)
-│   ├── gift-tax-docs/                 # 贈与税申告書類案内 (Vite)
+│   ├── income-tax-calc/               # 所得税計算 (Vite)
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
 │   ├── shares-valuation/              # 非上場株式評価 (Vite)
 │   ├── Required-documents-for-tax-return/ # 確定申告必要書類 (Vite + Express)
