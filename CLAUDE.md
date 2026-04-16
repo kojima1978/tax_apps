@@ -9,29 +9,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## コマンド
 
 ### Docker操作（推奨）
+
+各アプリは個別の `docker-compose.yml` を持つ。共有ネットワーク `tax-apps-network` で接続。
+
 ```bash
-# 全サービス起動
-cd docker && docker compose up -d
+# 個別アプリの起動
+cd apps/<app-name> && docker compose up -d
 
-# ビルドし直して起動
-cd docker && docker compose up -d --build
+# 個別アプリの再ビルド
+cd apps/<app-name> && docker compose up -d --build
 
-# 特定サービスのみ再ビルド
-cd docker && docker compose up -d --build <service-name>
+# 個別アプリの本番モード
+cd apps/<app-name> && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
-# ログ確認
-cd docker && docker compose logs -f <service-name>
-
-# 停止
-cd docker && docker compose down
-
-# 本番モード
-cd docker && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# 個別アプリのログ確認
+cd apps/<app-name> && docker compose logs -f
 ```
 
-### 個別アプリの起動（スタンドアロン）
+### manage.sh / manage.bat（全アプリ統合管理）
 ```bash
-cd apps/<app-name> && docker compose up -d
+# 全アプリ起動
+docker/scripts/manage.sh start
+
+# 全アプリ本番モード起動
+docker/scripts/manage.sh start --prod
+
+# 特定アプリのみ再ビルド
+docker/scripts/manage.sh build <app-name>
+
+# ログ確認
+docker/scripts/manage.sh logs <app-name>
+
+# 全アプリ停止
+docker/scripts/manage.sh stop
+
+# 状態確認
+docker/scripts/manage.sh status
 ```
 
 ### 個別アプリのスクリプト（Docker内で実行）
