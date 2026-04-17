@@ -10,7 +10,7 @@ const EXT_ICONS: Record<string, typeof FileText> = {
 };
 
 function getIcon(resource: Resource) {
-  if (resource.url) return FileText;
+  if (!resource.filename) return FileText;
   const ext = resource.filename.split('.').pop() ?? '';
   return EXT_ICONS[ext] ?? FileText;
 }
