@@ -13,7 +13,8 @@ const FILTER_SELECT_WRAPPER = "h-10 w-auto"
 const REFERRER_SELECT_WRAPPER = "h-10 w-auto border-orange-300"
 
 type OptGroupDef = { label: string; options: readonly { value: string | number; label: string }[] }
-type FilterDef = { key: keyof CasesQueryParams; placeholder: string; options: readonly { value: string | number; label: string }[]; optGroups?: OptGroupDef[]; multiSelect?: boolean; wrapperClassName?: string }
+type FilterableKey = Exclude<keyof CasesQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortOrder' | 'unassigned' | 'noReferrer'>
+type FilterDef = { key: FilterableKey; placeholder: string; options: readonly { value: string | number; label: string }[]; optGroups?: OptGroupDef[]; multiSelect?: boolean; wrapperClassName?: string }
 interface FilterBarProps {
     queryParams: CasesQueryParams
     searchInput: string
