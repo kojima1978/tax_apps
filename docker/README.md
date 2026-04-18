@@ -146,8 +146,10 @@ rd /s /q tax_apps
 
 | スクリプト | 環境 | 説明 |
 |-----------|------|------|
-| `manage.bat` | Windows (CMD) | 全機能搭載 |
-| `manage.sh` | Linux / Git Bash | 全機能搭載（manage.bat と同等） |
+| `manage.bat` | Windows (CMD) | manage.sh を Git Bash 経由で呼び出すラッパー |
+| `manage.sh` | Linux / Git Bash | 全機能搭載（本体） |
+
+> **前提**: [Git for Windows](https://gitforwindows.org/) がインストールされていること（`bash` コマンドが必要）。
 
 ### コマンド一覧
 
@@ -617,9 +619,8 @@ tax_apps/
 │   │   ├── docker-compose.yml  #   Nginx + Portal
 │   │   └── docker-compose.prod.yml  #   本番オーバーライド
 │   ├── scripts/                # 管理スクリプト
-│   │   ├── manage.bat          #   Windows 管理スクリプト
-│   │   ├── manage.sh           #   Linux/Bash 管理スクリプト
-│   │   └── convert_encoding.ps1 #  エンコーディング変換スクリプト
+│   │   ├── manage.bat          #   Windows ラッパー（manage.sh を Git Bash 経由で実行）
+│   │   └── manage.sh           #   管理スクリプト本体（全機能）
 │   ├── specs/                  # 仕様書
 │   │   └── manage-script-spec.md #  管理スクリプト仕様書
 │   ├── backups/                # バックアップ保存先（git管理外）
