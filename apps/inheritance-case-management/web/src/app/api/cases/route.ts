@@ -1,72 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Prisma } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { createCaseSchema, listQuerySchema } from '@/types/validation';
-import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
+import { buildCaseWhereClause, listCases, createCase } from '@/lib/services/case-service';
 
-/** Build Prisma where clause from parsed query params */
-export function buildCaseWhereClause(params: {
-  status?: string;
-  handlingStatus?: string;
-  acceptanceStatus?: string;
-  fiscalYear?: number;
-  search?: string;
-  assigneeId?: number;
-  internalReferrerId?: number;
-  staffId?: number;
-  referrerCompany?: string;
-  unassigned?: boolean;
-  noReferrer?: boolean;
-  department?: string;
-}): Prisma.InheritanceCaseWhereInput {
-  const where: Prisma.InheritanceCaseWhereInput = {};
-  const { status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department } = params;
-
-  if (status) {
-    where.status = status.includes(',') ? { in: status.split(',') } : status;
-  }
-  if (handlingStatus) {
-    where.handlingStatus = handlingStatus.includes(',') ? { in: handlingStatus.split(',') } : handlingStatus;
-  }
-  if (acceptanceStatus) {
-    where.acceptanceStatus = acceptanceStatus.includes(',') ? { in: acceptanceStatus.split(',') } : acceptanceStatus;
-  }
-  if (fiscalYear) {
-    where.fiscalYear = fiscalYear;
-  }
-  if (search) {
-    where.deceasedName = { contains: search, mode: 'insensitive' };
-  }
-  if (unassigned) {
-    where.assigneeId = null;
-  } else if (staffId) {
-    // 担当 OR 紹介者として関わる全案件
-    where.OR = [
-      { assigneeId: staffId },
-      { internalReferrerId: staffId },
-    ];
-  } else {
-    if (assigneeId) {
-      where.assigneeId = assigneeId;
-    }
-    if (internalReferrerId) {
-      where.internalReferrerId = internalReferrerId;
-    }
-  }
-  if (noReferrer) {
-    where.referrerId = null;
-    where.internalReferrerId = where.internalReferrerId ?? null;
-  } else if (referrerCompany) {
-    where.referrer = { company: { name: referrerCompany } };
-  }
-  if (department) {
-    where.assignee = { department: { name: department } };
-  }
-  return where;
-}
-
-// GET /api/cases - List cases with pagination, filtering, and sorting
 export async function GET(request: NextRequest) {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
@@ -74,66 +10,21 @@ export async function GET(request: NextRequest) {
       listQuerySchema.parse(searchParams);
 
     const where = buildCaseWhereClause({ status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department });
+    const result = await listCases({ where, page, pageSize, sortBy, sortOrder });
 
-    // ページネーション用のカウントとデータ取得を並列実行
-    const [total, cases] = await Promise.all([
-      prisma.inheritanceCase.count({ where }),
-      prisma.inheritanceCase.findMany({
-        where,
-        include: CASE_INCLUDE,
-        orderBy: [{ fiscalYear: 'desc' }, { [sortBy]: sortOrder }],
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-    ]);
-
-    return NextResponse.json({
-      data: cases.map(serializeCase),
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
-      },
-    });
+    return NextResponse.json(result);
   } catch (e) {
     return handleApiError(e);
   }
 }
 
-// POST /api/cases - Create case
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = createCaseSchema.parse(body);
+    const newCase = await createCase(data);
 
-    const newCase = await prisma.inheritanceCase.create({
-      data: {
-        deceasedName: data.deceasedName,
-        dateOfDeath: toDate(data.dateOfDeath),
-        fiscalYear: data.fiscalYear,
-        status: data.status ?? '未着手',
-        handlingStatus: data.handlingStatus ?? '対応中',
-        acceptanceStatus: data.acceptanceStatus ?? '未判定',
-        taxAmount: data.taxAmount ?? 0,
-        feeAmount: data.feeAmount ?? 0,
-        estimateAmount: data.estimateAmount ?? 0,
-        propertyValue: data.propertyValue ?? 0,
-        referralFeeRate: data.referralFeeRate,
-        referralFeeAmount: data.referralFeeAmount,
-        summary: data.summary || null,
-        memo: data.memo || null,
-        assigneeId: data.assigneeId || null,
-        internalReferrerId: data.internalReferrerId || null,
-        referrerId: data.referrerId || null,
-        contacts: { create: toContactCreateData(data.contacts ?? []) },
-        progress: { create: toProgressCreateData(data.progress ?? []) },
-        expenses: { create: toExpenseCreateData(data.expenses ?? []) },
-      },
-      include: CASE_INCLUDE,
-    });
-
-    return NextResponse.json(serializeCase(newCase), { status: 201 });
+    return NextResponse.json(newCase, { status: 201 });
   } catch (e) {
     return handleApiError(e);
   }
