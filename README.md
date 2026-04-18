@@ -5,9 +5,9 @@
 ## システム構成
 
 ### インフラストラクチャ
-- **Docker Compose**: 各アプリが独自の `docker-compose.yml` を持ち、`manage.bat` で一括管理
+- **Docker Compose**: 各アプリが独自の `docker-compose.yml` を持ち、`manage.bat` / `manage.sh` で一括管理
 - **Nginx Gateway**: リバースプロキシによるルーティング（ポート80）
-- **manage.bat**: 全アプリの起動・停止・バックアップ等を一括管理するスクリプト
+- **manage.sh**: 全アプリの起動・停止・バックアップ等を一括管理するスクリプト（`manage.bat` は Git Bash 経由で `manage.sh` を実行するラッパー）
 
 ### アプリケーション一覧
 
@@ -19,7 +19,7 @@
 | 退職金税額計算 | `/retirement-tax-calc/` | http://localhost/retirement-tax-calc/ | 3013 | Vite + React | 退職金の税額計算シミュレーション |
 | 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React | 相続税申告の必要書類ガイド |
 | 非上場株式評価 | `/shares/` | http://localhost/shares/ | 3012 | Vite + React | 非上場株式の評価計算 |
-| 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3005/3006 | Vite + React + Express | 確定申告書類管理 |
+| 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React + Express | 確定申告書類管理 |
 | 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人の株式評価 |
 | 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3021 | Next.js + Hono + PostgreSQL | 相続税案件管理 |
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
@@ -51,7 +51,7 @@ tax_apps/
 │   ├── income-tax-calc/               # 所得税計算 (Vite)
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
 │   ├── shares-valuation/              # 非上場株式評価 (Vite)
-│   ├── Required-documents-for-tax-return/ # 確定申告必要書類 (Vite + Express)
+│   ├── tax-docs/                      # 確定申告必要書類 (Vite + Express)
 │   ├── depreciation-calc/             # 減価償却計算 (Vite)
 │   ├── salary-calc/                   # 給与手取り計算 (Vite)
 │   ├── asset-valuation/              # 減価償却資産評価 (Vite)
@@ -62,9 +62,8 @@ tax_apps/
 ├── docker/                            # Docker共通設定
 │   ├── gateway/                       # Nginx Gateway の docker-compose.yml
 │   ├── scripts/                       # 管理スクリプト
-│   │   ├── manage.bat                 # Windows用 一括管理スクリプト
-│   │   ├── manage.sh                  # Linux/Mac用 管理スクリプト
-│   │   └── convert_encoding.ps1       # エンコーディング変換ユーティリティ
+│   │   ├── manage.bat                 # Windows ラッパー（Git Bash 経由で manage.sh を実行）
+│   │   └── manage.sh                  # 管理スクリプト本体（全機能）
 │   ├── data/                          # 永続化データ（git管理外）
 │   ├── backups/                       # バックアップ保存先
 │   ├── postgres/                      # PostgreSQL初期化SQL
@@ -98,8 +97,8 @@ apps/<アプリ名>/
 ## セットアップ
 
 ### 前提条件
-- Docker / Docker Compose
-- Windows環境（manage.bat 使用時）
+- [Git for Windows](https://gitforwindows.org/)（`manage.bat` が Git Bash を使用）
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
 ### 一括起動（推奨）
 

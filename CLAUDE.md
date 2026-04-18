@@ -26,31 +26,34 @@ cd apps/<app-name> && docker compose -f docker-compose.yml -f docker-compose.pro
 cd apps/<app-name> && docker compose logs -f
 ```
 
-### manage.sh / manage.bat（全アプリ統合管理）
+### manage.bat / manage.sh（全アプリ統合管理）
+
+`manage.bat` は Git Bash 経由で `manage.sh` を実行する薄いラッパー。Windows CMD からも Git Bash からも同じように使用可能。
+
 ```bash
 # 全アプリ起動
-docker/scripts/manage.sh start
+docker/scripts/manage.bat start
 
 # 全アプリ本番モード起動
-docker/scripts/manage.sh start --prod
+docker/scripts/manage.bat start --prod
 
 # 特定アプリのみ再ビルド
-docker/scripts/manage.sh build <app-name>
+docker/scripts/manage.bat build <app-name>
 
 # ログ確認
-docker/scripts/manage.sh logs <app-name>
+docker/scripts/manage.bat logs <app-name>
 
 # 全アプリ停止
-docker/scripts/manage.sh stop
+docker/scripts/manage.bat stop
 
 # 状態確認
-docker/scripts/manage.sh status
+docker/scripts/manage.bat status
 ```
 
 ### 個別アプリのスクリプト（Docker内で実行）
 - Next.js系 / Vite系: `npm run dev` / `npm run build` / `npm run lint`
 - Hono API (inheritance-case-management/api): `npm run dev` / `npm run test` (vitest) / `npm run db:generate` / `npm run db:push`
-- Express (Required-documents-for-tax-return/backend): `npm run dev` / `npm run build`
+- Express (tax-docs/backend): `npm run dev` / `npm run build`
 - Django (bank-analyzer-django): `python manage.py runserver 0.0.0.0:3007`
 
 ## コーディング規約
