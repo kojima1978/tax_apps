@@ -214,13 +214,6 @@ inheritance-case-management/
     └── src/
         ├── app/
         │   ├── page.tsx                # 案件一覧
-        │   ├── columns.tsx             # TanStack Table カラム定義
-        │   ├── data-table.tsx          # DataTable コンポーネント
-        │   ├── FilterBar.tsx           # フィルターUI
-        │   ├── KPICards.tsx            # KPI指標カード
-        │   ├── Pagination.tsx          # ページネーション
-        │   ├── InlineSummaryCell.tsx    # 特記事項インライン編集セル
-        │   ├── ProgressModal.tsx       # 進捗クイック編集モーダル（D&D対応）
         │   ├── new/page.tsx            # 新規案件登録
         │   ├── [id]/                   # 案件詳細
         │   │   ├── page.tsx
@@ -246,15 +239,15 @@ inheritance-case-management/
         │   │   ├── ReferrerTab.tsx
         │   │   ├── AnnualTrendTab.tsx  # 年計表（移動年計グラフ、recharts）
         │   │   └── RankingTable.tsx
-        │   └── api/                    # API Routes
+        │   └── api/                    # API Routes（薄いラッパー、ロジックはlib/services/に委譲）
         │       ├── health/route.ts
         │       ├── backup/
-        │       │   ├── route.ts        # GET（全データエクスポート）
-        │       │   └── restore/route.ts # POST（全データリストア）
+        │       │   ├── route.ts        # GET → backup-service.exportBackup()
+        │       │   └── restore/route.ts # POST → backup-service.restoreBackup()
         │       ├── cases/
-        │       │   ├── route.ts        # GET（一覧+フィルタ）, POST（作成）
-        │       │   ├── [id]/route.ts   # GET, PUT, DELETE
-        │       │   └── bulk-delete/route.ts # DELETE（フィルタ条件一括削除）
+        │       │   ├── route.ts        # GET/POST → case-service
+        │       │   ├── [id]/route.ts   # GET/PUT/DELETE → case-service
+        │       │   └── bulk-delete/route.ts # DELETE → case-service.bulkDeleteCases()
         │       ├── departments/
         │       │   ├── route.ts
         │       │   ├── handlers.ts     # ファクトリベースCRUD
@@ -276,9 +269,17 @@ inheritance-case-management/
         │       │   ├── handlers.ts     # ファクトリベースCRUD（include対応）
         │       │   └── [id]/route.ts
         │       └── templates/
-        │           ├── route.ts        # GET（テンプレートファイル存在確認、Base64）
-        │           └── generate/route.ts # POST（テンプレートにデータ埋め込み、ExcelJS）
+        │           ├── route.ts        # GET → template-service.getTemplateBase64()
+        │           └── generate/route.ts # POST → template-service.generateTemplate()
         ├── components/
+        │   ├── cases/                  # 案件一覧ページ用コンポーネント
+        │   │   ├── columns.tsx         # TanStack Table カラム定義
+        │   │   ├── data-table.tsx      # DataTable コンポーネント
+        │   │   ├── FilterBar.tsx       # フィルターUI
+        │   │   ├── KPICards.tsx        # KPI指標カード
+        │   │   ├── Pagination.tsx      # ページネーション
+        │   │   ├── InlineSummaryCell.tsx # 特記事項インライン編集セル
+        │   │   └── ProgressModal.tsx   # 進捗クイック編集モーダル（D&D対応）
         │   ├── AppHeader.tsx           # ヘッダーナビゲーション
         │   ├── BulkDeleteModal.tsx     # 一括削除確認ダイアログ
         │   ├── ClientLayout.tsx        # QueryClient + Toast プロバイダー
@@ -321,6 +322,10 @@ inheritance-case-management/
         │   ├── use-ranking-sort.ts     # 経営分析ランキングソート
         │   └── use-unsaved-changes.ts  # 未保存変更検知（beforeunload + dirty state）
         ├── lib/
+        │   ├── services/               # ビジネスロジック層（APIルートから分離）
+        │   │   ├── case-service.ts     # 案件CRUD・where句構築・楽観ロック・一括削除
+        │   │   ├── backup-service.ts   # 全テーブルエクスポート・リストア（TABLE_DEFS）
+        │   │   └── template-service.ts # Excelテンプレート取得・生成（ExcelJS）
         │   ├── prisma.ts               # Prisma クライアントシングルトン
         │   ├── prisma-includes.ts      # Prisma include定義（CASE/ASSIGNEE/REFERRER）
         │   ├── prisma-utils.ts
@@ -587,6 +592,7 @@ erDiagram
 
 ## 設計パターン
 
+- **サービス層分離**: APIルートはバリデーション+レスポンス生成のみの薄いラッパーとし、ビジネスロジックを `lib/services/`（case-service / backup-service / template-service）に集約
 - **CRUDルートファクトリ**: `createCrudRouteHandlers()` で部署・会社・担当者・紹介者のAPIルートを共通生成（`include`オプション対応）
 - **CRUDクライアントファクトリ**: `crud-factory.ts` でフロントエンドAPIクライアントを共通生成、`masters.ts` で4マスタ（会社/部署/担当者/紹介者）を統合
 - **マスタ編集共通化**: `MasterListPage` + `useMasterList` で4つのマスタ管理画面の編集UIを共通化（groupByによるグループ表示対応）
