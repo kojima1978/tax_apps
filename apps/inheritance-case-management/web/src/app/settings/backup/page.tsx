@@ -11,11 +11,13 @@ import { useToast } from "@/components/ui/Toast"
 const TABLE_LABELS: { key: keyof BackupData["data"]; label: string }[] = [
   { key: "departments", label: "部署" },
   { key: "companies", label: "会社" },
+  { key: "companyBranches", label: "支店" },
   { key: "assignees", label: "担当者" },
   { key: "referrers", label: "紹介者" },
   { key: "cases", label: "案件" },
   { key: "caseContacts", label: "連絡先" },
   { key: "caseProgress", label: "進捗" },
+  { key: "caseExpenses", label: "立替経費" },
 ]
 
 function BackupContent() {
@@ -51,14 +53,15 @@ function BackupContent() {
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
-        const json = JSON.parse(e.target?.result as string)
+        const raw = (e.target?.result as string).replace(/^\uFEFF/, '')
+        const json = JSON.parse(raw)
         const parsed = backupDataSchema.parse(json)
         setBackupData(parsed)
       } catch {
         setParseError("無効なバックアップファイルです。正しいJSONファイルを選択してください。")
       }
     }
-    reader.readAsText(file)
+    reader.readAsText(file, 'UTF-8')
   }
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -87,8 +90,9 @@ function BackupContent() {
         setConfirmInput("")
         if (fileRef.current) fileRef.current.value = ""
       }
-    } catch {
-      setResult({ success: false, message: "リストアに失敗しました。データを確認してください。" })
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : ""
+      setResult({ success: false, message: detail ? `リストアに失敗しました: ${detail}` : "リストアに失敗しました。データを確認してください。" })
     } finally {
       setRestoring(false)
     }
