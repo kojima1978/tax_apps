@@ -96,6 +96,7 @@ const TABLE_DEFS = [
       landBairitsuCount: (c.landBairitsuCount as number) ?? 0,
       unlistedStockCount: (c.unlistedStockCount as number) ?? 0,
       heirCount: (c.heirCount as number) ?? 0,
+      discountAmount: (c.discountAmount as number) ?? 0,
       summary: (c.summary as string) ?? null,
       memo: (c.memo as string) ?? null,
       assigneeId: (c.assigneeId as number) ?? null,

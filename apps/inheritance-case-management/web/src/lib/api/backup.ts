@@ -4,7 +4,8 @@ import type { BackupData } from '@/types/backup';
 export async function exportBackup(): Promise<void> {
   const data = await apiClient<BackupData>('/backup');
   const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + json], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   const date = new Date().toISOString().split('T')[0];

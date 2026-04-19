@@ -11,6 +11,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, counts });
   } catch (e) {
+    console.error('リストアエラー:', e);
     return handleApiError(e);
   }
 }
