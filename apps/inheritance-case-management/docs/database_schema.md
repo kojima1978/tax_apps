@@ -314,3 +314,27 @@ erDiagram
 | InheritanceCase | CaseContact | 1対多 | CASCADE（子も削除） |
 | InheritanceCase | CaseProgress | 1対多 | CASCADE（子も削除） |
 | InheritanceCase | CaseExpense | 1対多 | CASCADE（子も削除） |
+
+## マイグレーション履歴
+
+| マイグレーション | 内容 |
+|-----------------|------|
+| 20260204000000_init | 初期スキーマ（InheritanceCase, CaseContact, CaseProgress） |
+| 20260312000000_normalize_schema | スキーマ正規化 |
+| 20260312100000_integer_ids | ID型をInteger化 |
+| 20260314133010_add_summary_memo | summary・memoカラム追加 |
+| 20260315000000_rename_status_completed | ステータス名変更 |
+| 20260320000000_normalize_dates_company | 日付正規化・Company分離 |
+| 20260326000000_add_department | Departmentテーブル追加 |
+| 20260326100000_company_active | Company.activeフラグ追加 |
+| 20260326200000_referrer_name_optional | Referrer.name任意化 |
+| 20260326300000_add_handling_status | handlingStatusカラム追加 |
+| 20260404000000_referrer_unique_constraint | Referrerユニーク制約（COALESCE付き機能インデックス） |
+| 20260404100000_add_company_internal_flag | Company内部フラグ追加 |
+| 20260404200000_add_referrer_assignee_link | Referrer-Assigneeリンク |
+| 20260404300000_split_internal_external_referrer | 社内/社外紹介者分離（internalReferrerId） |
+| 20260410000000_normalize_referrer_branch | CompanyBranchテーブル追加・Referrer正規化 |
+| 20260410100000_add_estimate_fields | 見積・報酬計算フィールド追加 |
+| 20260411100000_contact_address_memo | CaseContact住所・メモカラム追加 |
+| 20260415000000_add_discount_amount | discountAmountカラム追加 |
+| 20260419000000_add_case_expense | CaseExpenseテーブル追加 |
