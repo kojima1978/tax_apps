@@ -68,6 +68,7 @@ export function rowToInput(
   let refCompany = '';
   let refDepartment = '';
   let internalReferrerName = '';
+  let internalReferrerDepartment = '';
   let asgPersonName = '';
   let asgDepartment = '';
 
@@ -146,6 +147,9 @@ export function rowToInput(
       case 'internalReferrerName':
         internalReferrerName = value;
         break;
+      case 'internalReferrerDepartment':
+        internalReferrerDepartment = value;
+        break;
       case 'propertyValue':
       case 'taxAmount':
       case 'estimateAmount':
@@ -193,7 +197,10 @@ export function rowToInput(
     if (id) {
       obj.internalReferrerId = id;
     } else {
-      pendingInternalReferrer = { name: internalReferrerName };
+      pendingInternalReferrer = {
+        name: internalReferrerName,
+        ...(internalReferrerDepartment ? { department: internalReferrerDepartment } : {}),
+      };
     }
   }
 
