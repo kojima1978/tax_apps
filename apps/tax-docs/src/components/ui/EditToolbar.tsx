@@ -34,11 +34,12 @@ type ToolbarAction = {
   colorClass?: string;
 };
 
-type ExternalLinkItem = { key: 'ntaCheckSheet' | 'etaxDocuments'; shortLabel: string };
+type ExternalLinkItem = { key: 'ntaCheckSheet' | 'etaxDocuments' | 'giftTaxLivingExpenseQA'; shortLabel: string };
 
 const EXTERNAL_LINK_ITEMS: ExternalLinkItem[] = [
   { key: 'ntaCheckSheet', shortLabel: 'チェックシート' },
   { key: 'etaxDocuments', shortLabel: 'e-Tax添付書類' },
+  { key: 'giftTaxLivingExpenseQA', shortLabel: '生活費・教育費Q&A' },
 ];
 
 // ─── Props ───
