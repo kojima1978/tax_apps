@@ -28,13 +28,18 @@ cd apps/<app-name> && docker compose logs -f
 
 ### manage.bat / manage.sh（全アプリ統合管理）
 
-`manage.bat` は Git Bash 経由で `manage.sh` を実行する薄いラッパー。Windows CMD からも Git Bash からも同じように使用可能。
+`manage.bat` は Git Bash 経由で `manage.sh` を実行する薄いラッパー。ダブルクリックで開発モード起動。Windows CMD からも Git Bash からも同じように使用可能。
+
+ヘルパースクリプト（ダブルクリック用）:
+- `start-prod.bat` — ワンクリックで本番モード起動
+- `stop.bat` — ワンクリックで停止
+- `status.bat` — ワンクリックで状態確認
 
 ```bash
-# 全アプリ起動
+# 全アプリ起動（開発モード）— manage.bat ダブルクリックでも可
 docker/scripts/manage.bat start
 
-# 全アプリ本番モード起動
+# 全アプリ本番モード起動 — start-prod.bat ダブルクリックでも可
 docker/scripts/manage.bat start --prod
 
 # 特定アプリのみ再ビルド
@@ -43,10 +48,10 @@ docker/scripts/manage.bat build <app-name>
 # ログ確認
 docker/scripts/manage.bat logs <app-name>
 
-# 全アプリ停止
+# 全アプリ停止 — stop.bat ダブルクリックでも可
 docker/scripts/manage.bat stop
 
-# 状態確認
+# 状態確認 — status.bat ダブルクリックでも可
 docker/scripts/manage.bat status
 ```
 
