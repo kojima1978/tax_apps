@@ -7,8 +7,9 @@ import { DEFAULTABLE_FIELDS } from "@/lib/import";
 const PREVIEW_COLUMNS = [
   { key: "mode", label: "モード" },
   { key: "deceasedName", label: "被相続人氏名" },
-  { key: "dateOfDeath", label: "死亡日" },
   { key: "fiscalYear", label: "年度" },
+  { key: "dateOfDeath", label: "死亡日" },
+  { key: "acceptanceStatus", label: "受託状況" },
   { key: "status", label: "進み具合" },
 ] as const;
 
@@ -41,7 +42,10 @@ export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProp
         assignees.add(label);
       }
       if (row.pendingInternalReferrer) {
-        internalReferrers.add(row.pendingInternalReferrer.name);
+        const label = row.pendingInternalReferrer.department
+          ? `${row.pendingInternalReferrer.name}（${row.pendingInternalReferrer.department}）`
+          : row.pendingInternalReferrer.name;
+        internalReferrers.add(label);
       }
       if (row.pendingReferrer) {
         const label = row.pendingReferrer.department

@@ -18,6 +18,7 @@ export const CSV_HEADER_MAP: Record<string, string> = {
   '紹介者_部署名': 'referrerDepartment',
   '社内紹介者': 'internalReferrerName',
   '社内紹介者_氏名': 'internalReferrerName',
+  '社内紹介者_部署名': 'internalReferrerDepartment',
   '財産評価額': 'propertyValue',
   '相続税額': 'taxAmount',
   '見積額': 'estimateAmount',
