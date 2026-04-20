@@ -5,6 +5,10 @@ import { DEFAULTABLE_FIELDS } from './types';
 import { parseCSVText } from './parser';
 import { buildColumnMaps, rowToInput } from './converters';
 
+function caseCompositeKey(name: string, date: string, year: number): string {
+  return `${name}|${date}|${year}`;
+}
+
 // ── Resolver builder ──────────────────────────────────
 
 export function buildResolverMaps(assignees: Assignee[], referrers: Referrer[]): ResolverMaps {
@@ -87,14 +91,16 @@ export function parseAndValidateCSV(
   if (existingCases) {
     for (const c of existingCases) {
       existingById.set(c.id, c);
-      const key = `${c.deceasedName}|${c.dateOfDeath}|${c.fiscalYear}`;
-      existingByKey.set(key, c);
+      existingByKey.set(caseCompositeKey(c.deceasedName, c.dateOfDeath, c.fiscalYear), c);
     }
   }
 
   const validRows: ImportRow[] = [];
   const errors: ImportError[] = [];
   const warnings: ImportWarning[] = [];
+
+  // CSV内重複検出用マップ（IDなし行: 複合キー→初出行番号）
+  const csvDuplicateMap = new Map<string, number>();
 
   // Pre-compute deceasedName column index for blank row detection
   const deceasedNameCol = [...colMaps.fieldMap.entries()].find(([, f]) => f === 'deceasedName')?.[0];
@@ -107,11 +113,16 @@ export function parseAndValidateCSV(
       continue;
     }
 
-    const { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee, pendingInternalReferrer } = rowToInput(
+    const { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee, pendingInternalReferrer, rowWarnings } = rowToInput(
       dataRows[i],
       colMaps,
       resolvers
     );
+
+    // Row-level warnings (summary truncation, progress JSON parse error, etc.)
+    for (const msg of rowWarnings) {
+      warnings.push({ row: csvRowNum, message: msg });
+    }
 
     // Name resolution warnings
     if (unresolvedAssignee) {
@@ -144,8 +155,7 @@ export function parseAndValidateCSV(
           });
         }
       } else {
-        const key = `${result.data.deceasedName}|${result.data.dateOfDeath}|${result.data.fiscalYear}`;
-        const existing = existingByKey.get(key);
+        const existing = existingByKey.get(caseCompositeKey(result.data.deceasedName, result.data.dateOfDeath, result.data.fiscalYear));
         if (existing) {
           mode = 'update';
           id = existing.id;
@@ -153,6 +163,20 @@ export function parseAndValidateCSV(
             row: csvRowNum,
             message: `「${result.data.deceasedName} / ${result.data.dateOfDeath} / ${result.data.fiscalYear}年度」は既存案件(ID:${existing.id})の更新として取り込みます`,
           });
+        }
+      }
+
+      // CSV内重複検出（IDなし行のみ）
+      if (rawId === null) {
+        const dupKey = caseCompositeKey(result.data.deceasedName, result.data.dateOfDeath, result.data.fiscalYear);
+        const firstRow = csvDuplicateMap.get(dupKey);
+        if (firstRow !== undefined) {
+          warnings.push({
+            row: csvRowNum,
+            message: `CSV内で${firstRow}行目と重複しています（被相続人: ${result.data.deceasedName} / ${result.data.dateOfDeath} / ${result.data.fiscalYear}年度）`,
+          });
+        } else {
+          csvDuplicateMap.set(dupKey, csvRowNum);
         }
       }
 

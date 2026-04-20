@@ -95,3 +95,26 @@ export function parseOptionalNumber(value: string, round = false): number | unde
   if (isNaN(n)) return undefined;
   return round ? Math.round(n) : n;
 }
+
+// ── File decoding ──────────────────────────────────
+
+export interface DecodeResult {
+  text: string;
+  encoding: 'utf-8' | 'utf-8-bom' | 'shift-jis';
+}
+
+export async function decodeCSVFile(file: File): Promise<DecodeResult> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return { text: new TextDecoder('utf-8').decode(buffer), encoding: 'utf-8-bom' };
+  }
+
+  const utf8Text = new TextDecoder('utf-8', { fatal: true });
+  try {
+    return { text: utf8Text.decode(buffer), encoding: 'utf-8' };
+  } catch {
+    return { text: new TextDecoder('shift-jis').decode(buffer), encoding: 'shift-jis' };
+  }
+}

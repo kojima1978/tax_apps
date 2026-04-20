@@ -64,6 +64,7 @@ export function rowToInput(
   let pendingAssignee: PendingAssignee | undefined;
   let pendingInternalReferrer: PendingAssignee | undefined;
 
+  const rowWarnings: string[] = [];
   let refCompany = '';
   let refDepartment = '';
   let internalReferrerName = '';
@@ -160,7 +161,12 @@ export function rowToInput(
         break;
       }
       case 'summary':
-        if (value) obj[fieldName] = value.slice(0, 10);
+        if (value) {
+          if (value.length > 10) {
+            rowWarnings.push(`特記事項が10文字を超えています（${value.length}文字→10文字に切り詰め）`);
+          }
+          obj[fieldName] = value.slice(0, 10);
+        }
         break;
       case 'memo':
         if (value) obj[fieldName] = value;
@@ -255,10 +261,10 @@ export function rowToInput(
           obj.progress = progress;
         }
       } catch {
-        // Invalid JSON — skip progress
+        rowWarnings.push('進捗データのJSON形式が不正です（進捗データなしで取り込みます）');
       }
     }
   }
 
-  return { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee, pendingInternalReferrer };
+  return { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee, pendingInternalReferrer, rowWarnings };
 }
