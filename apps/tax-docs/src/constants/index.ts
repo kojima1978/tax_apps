@@ -46,6 +46,10 @@ export const EXTERNAL_LINKS = {
     url: 'https://www.e-tax.nta.go.jp/tetsuzuki/tetsuzuki6.htm',
     label: 'イメージデータにより提出可能な添付書類',
   },
+  giftTaxLivingExpenseQA: {
+    url: 'https://www.nta.go.jp/law/joho-zeikaishaku/sozoku/131206/pdf/01.pdf',
+    label: '「生活費」又は「教育費」の贈与税に関するＱ＆Ａ',
+  },
 } as const;
 
 // 中項目（サブアイテム）
