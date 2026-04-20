@@ -24,4 +24,9 @@ if "%GIT_BASH%"=="" (
     exit /b 1
 )
 
-"%GIT_BASH%" "%~dp0manage.sh" %*
+if "%~1"=="" (
+    "%GIT_BASH%" "%~dp0manage.sh" start
+) else (
+    "%GIT_BASH%" "%~dp0manage.sh" %*
+)
+pause

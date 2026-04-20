@@ -84,12 +84,9 @@ git clone https://github.com/kojima1978/tax_apps.git
 
 タスクバーにクジラのアイコンが表示され、**"Docker Desktop is running"** になるまで待ちます。
 
-#### Step 3. manage.bat start を実行
+#### Step 3. manage.bat をダブルクリック
 
-```bash
-cd tax_apps\docker\scripts
-manage.bat start
-```
+エクスプローラーで `tax_apps\docker\scripts\` フォルダを開き、`manage.bat` をダブルクリックします。
 
 **これだけで完了です。** 内部で以下が自動的に行われます:
 
@@ -108,6 +105,8 @@ manage.bat start
 http://localhost を開くとポータル画面が表示されます。
 
 ### 停止するとき
+
+`stop.bat` をダブルクリック、またはコマンドプロンプトで:
 
 ```bash
 manage.bat stop
@@ -146,10 +145,24 @@ rd /s /q tax_apps
 
 | スクリプト | 環境 | 説明 |
 |-----------|------|------|
-| `manage.bat` | Windows (CMD) | manage.sh を Git Bash 経由で呼び出すラッパー |
+| `manage.bat` | Windows (CMD) | manage.sh を Git Bash 経由で呼び出すラッパー（ダブルクリックで開発モード起動） |
 | `manage.sh` | Linux / Git Bash | 全機能搭載（本体） |
+| `start-prod.bat` | Windows (CMD) | ワンクリックで本番モード起動 |
+| `stop.bat` | Windows (CMD) | ワンクリックで全アプリ停止 |
+| `status.bat` | Windows (CMD) | ワンクリックで状態確認 |
 
 > **前提**: [Git for Windows](https://gitforwindows.org/) がインストールされていること（`bash` コマンドが必要）。
+
+### かんたん操作（ダブルクリック）
+
+| 操作 | スクリプト | 説明 |
+|:-----|:---------|:-----|
+| 開発モード起動 | `manage.bat` | ダブルクリックするだけで全アプリを開発モードで起動 |
+| 本番モード起動 | `start-prod.bat` | ダブルクリックするだけで全アプリを本番モードで起動 |
+| 停止 | `stop.bat` | ダブルクリックするだけで全アプリを停止 |
+| 状態確認 | `status.bat` | ダブルクリックするだけで状態を確認 |
+
+> コマンドプロンプトでの詳細操作は下記「コマンド一覧」を参照してください。
 
 ### コマンド一覧
 
@@ -619,8 +632,11 @@ tax_apps/
 │   │   ├── docker-compose.yml  #   Nginx + Portal
 │   │   └── docker-compose.prod.yml  #   本番オーバーライド
 │   ├── scripts/                # 管理スクリプト
-│   │   ├── manage.bat          #   Windows ラッパー（manage.sh を Git Bash 経由で実行）
-│   │   └── manage.sh           #   管理スクリプト本体（全機能）
+│   │   ├── manage.bat          #   Windows ラッパー（ダブルクリックで開発モード起動）
+│   │   ├── manage.sh           #   管理スクリプト本体（全機能）
+│   │   ├── start-prod.bat      #   ワンクリック本番モード起動
+│   │   ├── stop.bat            #   ワンクリック停止
+│   │   └── status.bat          #   ワンクリック状態確認
 │   ├── specs/                  # 仕様書
 │   │   └── manage-script-spec.md #  管理スクリプト仕様書
 │   ├── backups/                # バックアップ保存先（git管理外）

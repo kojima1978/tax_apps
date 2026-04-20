@@ -62,8 +62,11 @@ tax_apps/
 ├── docker/                            # Docker共通設定
 │   ├── gateway/                       # Nginx Gateway の docker-compose.yml
 │   ├── scripts/                       # 管理スクリプト
-│   │   ├── manage.bat                 # Windows ラッパー（Git Bash 経由で manage.sh を実行）
-│   │   └── manage.sh                  # 管理スクリプト本体（全機能）
+│   │   ├── manage.bat                 # Windows ラッパー（ダブルクリックで開発モード起動）
+│   │   ├── manage.sh                  # 管理スクリプト本体（全機能）
+│   │   ├── start-prod.bat             # ワンクリック本番モード起動
+│   │   ├── stop.bat                   # ワンクリック停止
+│   │   └── status.bat                 # ワンクリック状態確認
 │   ├── data/                          # 永続化データ（git管理外）
 │   ├── backups/                       # バックアップ保存先
 │   ├── postgres/                      # PostgreSQL初期化SQL
@@ -106,11 +109,24 @@ apps/<アプリ名>/
 # 1. リポジトリをクローン
 git clone https://github.com/kojima1978/tax_apps.git
 cd tax_apps
+```
 
-# 2. 開発モードで全アプリを起動
+#### かんたん操作（ダブルクリック）
+
+| 操作 | スクリプト | 場所 |
+|:-----|:---------|:-----|
+| 開発モード起動 | `manage.bat` | `docker\scripts\manage.bat` をダブルクリック |
+| 本番モード起動 | `start-prod.bat` | `docker\scripts\start-prod.bat` をダブルクリック |
+| 停止 | `stop.bat` | `docker\scripts\stop.bat` をダブルクリック |
+| 状態確認 | `status.bat` | `docker\scripts\status.bat` をダブルクリック |
+
+#### コマンドプロンプトでの操作
+
+```bash
+# 開発モードで全アプリを起動
 docker\scripts\manage.bat start
 
-# 3. 本番モードで全アプリを起動
+# 本番モードで全アプリを起動
 docker\scripts\manage.bat start --prod
 ```
 
