@@ -4,6 +4,7 @@ export type {
   ImportParseResult, ResolverMaps, ColumnMaps, RowParseResult,
 } from './types';
 export { MAX_CONTACT_COLUMNS, MAX_IMPORT_FILE_SIZE, DEFAULTABLE_FIELDS } from './types';
-export { parseCSVText } from './parser';
+export { parseCSVText, decodeCSVFile } from './parser';
+export type { DecodeResult } from './parser';
 export { buildColumnMaps, rowToInput } from './converters';
 export { buildResolverMaps, parseAndValidateCSV } from './validator';

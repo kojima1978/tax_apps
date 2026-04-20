@@ -242,7 +242,8 @@ erDiagram
 - 申告期限 = dateOfDeath + 10ヶ月（アプリ側で計算）
 - 純売上 = feeAmount - referralFeeAmount（分析画面で計算）
 - IDは表示上4桁ゼロ埋め（例: 1 → "0001"）
-- CSVインポート時の重複判定キー: `deceasedName` + `dateOfDeath` + `fiscalYear`（一致時は更新モード）
+- CSVインポート時の重複判定キー: `deceasedName` + `dateOfDeath` + `fiscalYear`（一致時は更新モード、同一CSV内の重複行も検出・警告）
+- CSVバッチ取込: `/api/cases/bulk-upsert` エンドポイントで最大500件を一括作成・更新（50件×並列20件のバッチ処理）
 - バックアップリストア時はID指定でINSERT後、シーケンスをトランザクション内でリセット
 
 ### CaseContact

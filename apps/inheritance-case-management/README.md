@@ -105,6 +105,12 @@
 - 日付の正規化（Excel形式 YYYY/M/D 対応）
 - 社外紹介者の2段階フォールバック解決: 会社+部署 → 会社（一意の場合のみ）
 - 重複検出（被相続人氏名＋死亡日＋年度）で既存案件を自動的に更新モードに切替（再インポート時の重複登録を防止）
+- 同一CSV内の重複行検出・警告（IDなし行同士の複合キー一致を検知）
+- 特記事項が10文字超の場合、切り詰め警告をプレビューに表示
+- 進捗データのJSON形式が不正な場合、警告をプレビューに表示（無音スキップしない）
+- 未登録マスタデータ（担当者・社内紹介者・紹介者）の自動作成一覧をプレビューに表示（タイプミス防止）
+- Shift-JIS（CP932）フォールバック時にエンコーディング警告を表示
+- バッチAPI（`/api/cases/bulk-upsert`）による一括作成・更新（50件ずつチャンク送信、サーバー側は20件並列処理）
 - 存在しないIDの案件は新規作成にフォールバック
 - ファイル選択時にマスターデータを最新に再読込
 
@@ -248,7 +254,8 @@ inheritance-case-management/
         │       ├── cases/
         │       │   ├── route.ts        # GET/POST → case-service
         │       │   ├── [id]/route.ts   # GET/PUT/DELETE → case-service
-        │       │   └── bulk-delete/route.ts # DELETE → case-service.bulkDeleteCases()
+        │       │   ├── bulk-delete/route.ts # DELETE → case-service.bulkDeleteCases()
+        │       │   └── bulk-upsert/route.ts # POST → case-service.bulkUpsertCases()
         │       ├── departments/
         │       │   ├── route.ts
         │       │   ├── handlers.ts     # ファクトリベースCRUD
@@ -324,7 +331,7 @@ inheritance-case-management/
         │   └── use-unsaved-changes.ts  # 未保存変更検知（beforeunload + dirty state）
         ├── lib/
         │   ├── services/               # ビジネスロジック層（APIルートから分離）
-        │   │   ├── case-service.ts     # 案件CRUD・where句構築・楽観ロック・一括削除
+        │   │   ├── case-service.ts     # 案件CRUD・where句構築・楽観ロック・一括削除・一括作成更新
         │   │   ├── backup-service.ts   # 全テーブルエクスポート・リストア（TABLE_DEFS）
         │   │   └── template-service.ts # Excelテンプレート取得・生成（ExcelJS）
         │   ├── prisma.ts               # Prisma クライアントシングルトン
@@ -341,9 +348,10 @@ inheritance-case-management/
         │   ├── analytics-utils.ts      # 後方互換re-export（→ analytics/）
         │   ├── import/                 # CSVインポートロジック（モジュール分割）
         │   │   ├── types.ts            # 型定義・定数（CSV_HEADER_MAP, DEFAULTABLE_FIELDS等）
-        │   │   ├── parser.ts           # CSVテキストパーサー・日付正規化・数値パース
-        │   │   ├── converters.ts       # ヘッダー→カラムマップ構築・行→入力オブジェクト変換
-        │   │   ├── validator.ts        # パース&バリデーション・重複検出・リゾルバー構築
+        │   │   ├── parser.ts           # CSVテキストパーサー・日付正規化・数値パース・ファイルエンコーディング検出
+        │   │   ├── converters.ts       # ヘッダー→カラムマップ構築・行→入力オブジェクト変換（切り詰め/JSON警告付き）
+        │   │   ├── validator.ts        # パース&バリデーション・重複検出（DB既存+CSV内）・リゾルバー構築
+        │   │   ├── master-resolver.ts  # マスタデータ自動作成（担当者・紹介者・部署・会社・部門）
         │   │   └── index.ts            # re-export
         │   ├── import-csv.ts           # 後方互換re-export（→ import/）
         │   ├── kpi-utils.ts            # KPI計算
@@ -355,7 +363,7 @@ inheritance-case-management/
         │   ├── utils.ts
         │   └── api/                    # クライアントサイドAPI
         │       ├── client.ts           # fetchラッパー（baseURL: /itcm/api）
-        │       ├── cases.ts            # 案件CRUD + 一括削除
+        │       ├── cases.ts            # 案件CRUD + 一括削除 + 一括作成更新
         │       ├── masters.ts          # 5マスタAPI統合（companies/company-branches/departments/assignees/referrers）
         │       ├── company-branches.ts # re-export（→ masters.ts）
         │       ├── companies.ts        # re-export（→ masters.ts）
@@ -384,6 +392,7 @@ inheritance-case-management/
 | PUT | `/api/cases/:id` | 案件更新（連絡先・進捗の洗い替え、楽観ロック対応） |
 | DELETE | `/api/cases/:id` | 案件削除（連絡先・進捗もカスケード削除） |
 | DELETE | `/api/cases/bulk-delete` | フィルタ条件に一致する案件を一括削除 |
+| POST | `/api/cases/bulk-upsert` | 案件の一括作成・更新（CSVインポート用、最大500件） |
 
 **GET /api/cases クエリパラメータ:**
 
@@ -598,7 +607,7 @@ erDiagram
 - **CRUDクライアントファクトリ**: `crud-factory.ts` でフロントエンドAPIクライアントを共通生成、`masters.ts` で4マスタ（会社/部署/担当者/紹介者）を統合
 - **マスタ編集共通化**: `MasterListPage` + `useMasterList` で4つのマスタ管理画面の編集UIを共通化（groupByによるグループ表示対応）
 - **where句ビルダー共通化**: `buildCaseWhereClause()` で案件一覧取得と一括削除のフィルタ条件構築を共通化
-- **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/CompanyBranch/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成
+- **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/CompanyBranch/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成（`lib/import/master-resolver.ts` に分離）。プレビュー画面で自動作成対象を一覧表示
 - **リストアのデータ駆動化**: `TABLE_DEFS` 配列でテーブル定義・行変換・シーケンス名を一元管理し、ループで全テーブルを処理
 - **ステータス⇔進捗連動**: `STATUS_STEP_MAP` + `STATUS_ORDER` + `STEP_NAMES` で一元管理、進捗モーダル保存時・案件詳細保存時の双方向整合性チェック
 - **TanStack Query**: サーバーステート管理（キャッシュ・再取得・楽観的更新）
@@ -608,7 +617,7 @@ erDiagram
 - **コンポーネント分割**: フォームを4セクション（BasicInfo/Financial/Progress/Contact）に分割、CSV取込モーダルを4ステップコンポーネント（FileSelect/Preview/Importing/Done）に分割
 - **セルファクトリ**: `statusCell()` でステータスバッジ列の定義を共通化、`formatDate()` で日付フォーマットを統一
 - **マスタ取得共通化**: `useAsyncMasters` フックで担当者・部署の非同期取得パターンを一元化
-- **モジュール分割**: `import-csv.ts`（629行）→ `lib/import/`（types/parser/converters/validator）、`analytics-utils.ts`（217行）→ `lib/analytics/`（calculations/aggregations）に分割し、旧ファイルは後方互換re-exportとして維持
+- **モジュール分割**: `import-csv.ts`（629行）→ `lib/import/`（types/parser/converters/validator/master-resolver）、`analytics-utils.ts`（217行）→ `lib/analytics/`（calculations/aggregations）に分割し、旧ファイルは後方互換re-exportとして維持。ファイルデコード（`decodeCSVFile`）はparser.tsに、マスタ解決関数群はmaster-resolver.tsに責務分離
 - **DB正規化**: Department・Company・CompanyBranch テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId + branchId でFK参照。紹介元の部門はCompanyBranchマスタで管理（表記ゆれ防止）。社内紹介者はAssigneeテーブルで一元管理（InheritanceCase.internalReferrerId → Assignee）
 - **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化

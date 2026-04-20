@@ -124,4 +124,5 @@ export interface RowParseResult {
   pendingReferrer?: PendingReferrer;
   pendingAssignee?: PendingAssignee;
   pendingInternalReferrer?: PendingAssignee;
+  rowWarnings: string[];
 }

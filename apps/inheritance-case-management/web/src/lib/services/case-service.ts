@@ -214,6 +214,51 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
   return serializeCase(updated);
 }
 
+export interface BulkUpsertItem {
+  mode: 'create' | 'update';
+  id?: number;
+  data: Parameters<typeof createCase>[0];
+}
+
+export interface BulkUpsertResult {
+  created: number;
+  updated: number;
+  failed: number;
+  results: { index: number; success: boolean; error?: string }[];
+}
+
+export async function bulkUpsertCases(items: BulkUpsertItem[]): Promise<BulkUpsertResult> {
+  let created = 0;
+  let updated = 0;
+  let failed = 0;
+  const results: BulkUpsertResult['results'] = [];
+
+  const BATCH_SIZE = 20;
+  for (let start = 0; start < items.length; start += BATCH_SIZE) {
+    const batch = items.slice(start, start + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (item, batchIdx) => {
+        const index = start + batchIdx;
+        try {
+          if (item.mode === 'update' && item.id) {
+            await updateCase(item.id, item.data as Record<string, unknown>);
+            updated++;
+          } else {
+            await createCase(item.data);
+            created++;
+          }
+          results.push({ index, success: true });
+        } catch (e) {
+          failed++;
+          results.push({ index, success: false, error: e instanceof Error ? e.message : '不明なエラー' });
+        }
+      })
+    );
+  }
+
+  return { created, updated, failed, results };
+}
+
 export async function deleteCase(id: number) {
   await prisma.inheritanceCase.delete({ where: { id } });
 }

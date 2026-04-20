@@ -1,4 +1,5 @@
-import { CheckCircle2, XCircle, AlertTriangle, RefreshCw, Info, FileText } from "lucide-react";
+import { useMemo } from "react";
+import { CheckCircle2, XCircle, AlertTriangle, RefreshCw, Info, FileText, UserPlus } from "lucide-react";
 import { Button } from "../ui/Button";
 import type { ImportParseResult } from "@/lib/import";
 import { DEFAULTABLE_FIELDS } from "@/lib/import";
@@ -27,6 +28,35 @@ interface PreviewStepProps {
 export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProps) {
   const newCount = parseResult.validRows.filter((r) => r.mode === "create").length;
   const updateCount = parseResult.validRows.filter((r) => r.mode === "update").length;
+
+  const pendingMasterData = useMemo(() => {
+    const assignees = new Set<string>();
+    const internalReferrers = new Set<string>();
+    const referrers = new Set<string>();
+    for (const row of parseResult.validRows) {
+      if (row.pendingAssignee) {
+        const label = row.pendingAssignee.department
+          ? `${row.pendingAssignee.name}（${row.pendingAssignee.department}）`
+          : row.pendingAssignee.name;
+        assignees.add(label);
+      }
+      if (row.pendingInternalReferrer) {
+        internalReferrers.add(row.pendingInternalReferrer.name);
+      }
+      if (row.pendingReferrer) {
+        const label = row.pendingReferrer.department
+          ? `${row.pendingReferrer.company} / ${row.pendingReferrer.department}`
+          : row.pendingReferrer.company;
+        referrers.add(label);
+      }
+    }
+    const items = [
+      { label: '担当者', values: [...assignees] },
+      { label: '社内紹介者', values: [...internalReferrers] },
+      { label: '紹介者', values: [...referrers] },
+    ].filter((g) => g.values.length > 0);
+    return items;
+  }, [parseResult.validRows]);
 
   const counts: Record<string, number> = {
     new: newCount,
@@ -64,6 +94,21 @@ export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProp
                 )
               )].join("、")}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* マスタ自動作成通知 */}
+      {pendingMasterData.length > 0 && (
+        <div className="flex items-start gap-2 text-xs bg-orange-50 text-orange-700 border border-orange-200 p-2.5 rounded-lg">
+          <UserPlus className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium">以下のマスタデータが自動作成されます（タイプミスにご注意ください）:</p>
+            <ul className="mt-1 space-y-0.5 list-disc list-inside">
+              {pendingMasterData.map((g) => (
+                <li key={g.label}>{g.label}: {g.values.join("、")}</li>
+              ))}
+            </ul>
           </div>
         </div>
       )}

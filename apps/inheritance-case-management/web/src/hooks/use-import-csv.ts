@@ -1,15 +1,16 @@
 import { useState, useCallback, useRef } from 'react';
-import { parseAndValidateCSV, buildResolverMaps, MAX_IMPORT_FILE_SIZE } from '@/lib/import';
-import type { ImportParseResult, ResolverMaps } from '@/lib/import';
-import { createCase, updateCase, getAllCases } from '@/lib/api/cases';
+import { parseAndValidateCSV, buildResolverMaps, decodeCSVFile, MAX_IMPORT_FILE_SIZE } from '@/lib/import';
+import type { ImportParseResult } from '@/lib/import';
+import { getAllCases, bulkUpsertCases } from '@/lib/api/cases';
+import type { BulkUpsertPayload } from '@/lib/api/cases';
 import { DEFAULT_PROGRESS_STEPS } from '@/lib/progress-utils';
-import { getAssignees, createAssignee } from '@/lib/api/assignees';
-import { getReferrers, createReferrer } from '@/lib/api/referrers';
-import { getDepartments, createDepartment } from '@/lib/api/departments';
-import { getCompanies, createCompany } from '@/lib/api/companies';
-import { getCompanyBranches, createCompanyBranch } from '@/lib/api/company-branches';
-import type { PendingReferrer, PendingAssignee } from '@/lib/import';
-import type { InheritanceCase, Department, Company, CompanyBranch } from '@/types/shared';
+import { getAssignees } from '@/lib/api/assignees';
+import { getReferrers } from '@/lib/api/referrers';
+import { getDepartments } from '@/lib/api/departments';
+import { getCompanies } from '@/lib/api/companies';
+import { getCompanyBranches } from '@/lib/api/company-branches';
+import { resolveOrCreateAssignee, resolveOrCreateReferrer } from '@/lib/import/master-resolver';
+import type { Department, Company, CompanyBranch } from '@/types/shared';
 
 export type ImportStep = 'select' | 'preview' | 'importing' | 'done';
 
@@ -22,124 +23,16 @@ export interface ImportResult {
   updatedCount: number;
 }
 
-/** Generic resolve-or-create for simple name-based master data (Department, Company) */
-async function resolveOrCreateByName<T extends { id: number; name: string }>(
-  name: string,
-  items: T[],
-  cache: Map<string, number>,
-  createFn: (payload: { name: string }) => Promise<T>
-): Promise<number> {
-  const cached = cache.get(name);
-  if (cached) return cached;
-
-  const existing = items.find((item) => item.name === name);
-  if (existing) {
-    cache.set(name, existing.id);
-    return existing.id;
-  }
-
-  const created = await createFn({ name });
-  cache.set(name, created.id);
-  return created.id;
-}
-
-async function resolveOrCreateAssignee(
-  pending: PendingAssignee,
-  departments: Department[],
-  assigneeCache: Map<string, number>,
-  departmentCache: Map<string, number>
-): Promise<number> {
-  const cacheKey = pending.name;
-  const cached = assigneeCache.get(cacheKey);
-  if (cached) return cached;
-
-  let departmentId: number | null = null;
-  if (pending.department) {
-    departmentId = await resolveOrCreateByName(pending.department, departments, departmentCache, (p) => createDepartment({ ...p, sortOrder: 0 }));
-  }
-
-  const created = await createAssignee({
-    name: pending.name,
-    departmentId,
-  });
-  assigneeCache.set(cacheKey, created.id);
-  return created.id;
-}
-
-async function resolveOrCreateReferrer(
-  pending: PendingReferrer,
-  companies: Company[],
-  branches: CompanyBranch[],
-  referrerCache: Map<string, number>,
-  companyCache: Map<string, number>,
-  branchCache: Map<string, number>
-): Promise<number> {
-  const cacheKey = `${pending.company}\0${pending.department ?? ''}`;
-  const cached = referrerCache.get(cacheKey);
-  if (cached) return cached;
-
-  const companyId = await resolveOrCreateByName(pending.company, companies, companyCache, createCompany);
-
-  let branchId: number | null = null;
-  if (pending.department) {
-    const branchKey = `${companyId}\0${pending.department}`;
-    const cachedBranch = branchCache.get(branchKey);
-    if (cachedBranch) {
-      branchId = cachedBranch;
-    } else {
-      const existingBranch = branches.find(b => b.companyId === companyId && b.name === pending.department);
-      if (existingBranch) {
-        branchId = existingBranch.id;
-        branchCache.set(branchKey, existingBranch.id);
-      } else {
-        const created = await createCompanyBranch({ companyId, name: pending.department });
-        branchId = created.id;
-        branchCache.set(branchKey, created.id);
-      }
-    }
-  }
-
-  const created = await createReferrer({
-    companyId,
-    branchId,
-  });
-  referrerCache.set(cacheKey, created.id);
-  return created.id;
-}
-
-/** Detect encoding and decode CSV file (UTF-8 BOM → UTF-8, otherwise try Shift-JIS) */
-async function decodeCSVFile(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-
-  // UTF-8 BOM detection
-  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    return new TextDecoder('utf-8').decode(buffer);
-  }
-
-  // Try UTF-8 first — if it decodes cleanly (no replacement chars), use it
-  const utf8Text = new TextDecoder('utf-8', { fatal: true });
-  try {
-    return utf8Text.decode(buffer);
-  } catch {
-    // Not valid UTF-8 → decode as Shift-JIS (CP932)
-    return new TextDecoder('shift-jis').decode(buffer);
-  }
-}
-
 export function useImportCSV() {
   const [step, setStep] = useState<ImportStep>('select');
   const [parseResult, setParseResult] = useState<ImportParseResult | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState(0);
-  const [resolvers, setResolvers] = useState<ResolverMaps | null>(null);
-  const [existingCases, setExistingCases] = useState<InheritanceCase[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<CompanyBranch[]>([]);
   const abortRef = useRef(false);
-
 
   const handleFileSelect = useCallback(
     async (file: File) => {
@@ -162,19 +55,22 @@ export function useImportCSV() {
       }
 
       try {
-        // マスターデータと既存案件を最新に更新してからパース
         const [freshAssignees, freshReferrers, freshCases, freshDepts, freshComps, freshBranches] = await Promise.all([
           getAssignees(), getReferrers(), getAllCases(), getDepartments(), getCompanies(), getCompanyBranches(),
         ]);
         const freshResolvers = buildResolverMaps(freshAssignees, freshReferrers);
-        setResolvers(freshResolvers);
-        setExistingCases(freshCases);
         setDepartments(freshDepts);
         setCompanies(freshComps);
         setBranches(freshBranches);
 
-        const text = await decodeCSVFile(file);
+        const { text, encoding } = await decodeCSVFile(file);
         const result = parseAndValidateCSV(text, freshResolvers, freshCases);
+        if (encoding === 'shift-jis') {
+          result.warnings.unshift({
+            row: 0,
+            message: 'Shift-JIS（CP932）として読み込みました。文字化けがある場合はUTF-8で保存し直してください',
+          });
+        }
         setParseResult(result);
         setStep('preview');
       } catch {
@@ -192,14 +88,9 @@ export function useImportCSV() {
     abortRef.current = false;
 
     const rows = parseResult.validRows;
-    let success = 0;
-    let failed = 0;
-    let skipped = 0;
-    let createdCount = 0;
-    let updatedCount = 0;
     const failedRows: ImportResult['failedRows'] = [];
 
-    // Caches for auto-created master data (avoid duplicate API calls)
+    // Phase 1: マスタデータの事前解決・作成
     const departmentCache = new Map<string, number>();
     const companyCache = new Map<string, number>();
     const branchCache = new Map<string, number>();
@@ -207,53 +98,90 @@ export function useImportCSV() {
     const referrerCache = new Map<string, number>();
 
     for (let i = 0; i < rows.length; i++) {
-      if (abortRef.current) {
-        skipped = rows.length - i;
-        break;
-      }
-
+      if (abortRef.current) break;
       const row = rows[i];
       try {
-        // Auto-create assignee if pending
         if (row.pendingAssignee) {
-          const asgId = await resolveOrCreateAssignee(row.pendingAssignee, departments, assigneeCache, departmentCache);
-          row.data.assigneeId = asgId;
+          row.data.assigneeId = await resolveOrCreateAssignee(row.pendingAssignee, departments, assigneeCache, departmentCache);
         }
-
-        // Auto-create internal referrer (as assignee) if pending
         if (row.pendingInternalReferrer) {
-          const intRefId = await resolveOrCreateAssignee(row.pendingInternalReferrer, departments, assigneeCache, departmentCache);
-          row.data.internalReferrerId = intRefId;
+          row.data.internalReferrerId = await resolveOrCreateAssignee(row.pendingInternalReferrer, departments, assigneeCache, departmentCache);
         }
-
-        // Auto-create referrer if pending
         if (row.pendingReferrer) {
-          const refId = await resolveOrCreateReferrer(row.pendingReferrer, companies, branches, referrerCache, companyCache, branchCache);
-          row.data.referrerId = refId;
+          row.data.referrerId = await resolveOrCreateReferrer(row.pendingReferrer, companies, branches, referrerCache, companyCache, branchCache);
         }
-
-        if (row.mode === 'update' && row.id) {
-          await updateCase(row.id, row.data);
-          updatedCount++;
-        } else {
-          // 進捗データがなければデフォルトステップを自動セット
-          if (!row.data.progress || row.data.progress.length === 0) {
-            row.data.progress = [...DEFAULT_PROGRESS_STEPS];
-          }
-          await createCase(row.data);
-          createdCount++;
-        }
-        success++;
       } catch (e) {
-        failed++;
         failedRows.push({
           index: i + 1,
           deceasedName: row.deceasedName,
-          error: e instanceof Error ? e.message : '不明なエラー',
+          error: `マスタ作成エラー: ${e instanceof Error ? e.message : '不明なエラー'}`,
         });
       }
-      setProgress(i + 1);
     }
+
+    if (abortRef.current) {
+      setImportResult({ success: 0, failed: 0, skipped: rows.length, failedRows: [], createdCount: 0, updatedCount: 0 });
+      setStep('done');
+      return;
+    }
+
+    // Phase 2: バッチAPI でケースを一括作成・更新
+    const failedIndices = new Set(failedRows.map(r => r.index));
+    const batchItems: (BulkUpsertPayload & { originalIndex: number; deceasedName: string })[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      if (failedIndices.has(i + 1)) continue;
+      const row = rows[i];
+      if (row.mode === 'create' && (!row.data.progress || row.data.progress.length === 0)) {
+        row.data.progress = [...DEFAULT_PROGRESS_STEPS];
+      }
+      batchItems.push({
+        mode: row.mode,
+        id: row.id,
+        data: row.data,
+        originalIndex: i + 1,
+        deceasedName: row.deceasedName,
+      });
+    }
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    const CHUNK_SIZE = 50;
+
+    for (let start = 0; start < batchItems.length; start += CHUNK_SIZE) {
+      if (abortRef.current) break;
+      const chunk = batchItems.slice(start, start + CHUNK_SIZE);
+      try {
+        const result = await bulkUpsertCases(
+          chunk.map(({ mode, id, data }) => ({ mode, id, data }))
+        );
+        createdCount += result.created;
+        updatedCount += result.updated;
+        for (const r of result.results) {
+          if (!r.success) {
+            const item = chunk[r.index];
+            failedRows.push({
+              index: item.originalIndex,
+              deceasedName: item.deceasedName,
+              error: r.error || '不明なエラー',
+            });
+          }
+        }
+      } catch (e) {
+        for (const item of chunk) {
+          failedRows.push({
+            index: item.originalIndex,
+            deceasedName: item.deceasedName,
+            error: e instanceof Error ? e.message : '不明なエラー',
+          });
+        }
+      }
+      setProgress(Math.min(start + CHUNK_SIZE, batchItems.length));
+    }
+
+    const success = createdCount + updatedCount;
+    const failed = failedRows.length;
+    const skipped = abortRef.current ? batchItems.length - (success + failed) : 0;
 
     setImportResult({ success, failed, skipped, failedRows, createdCount, updatedCount });
     setStep('done');

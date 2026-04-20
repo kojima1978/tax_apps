@@ -79,6 +79,26 @@ export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | '
   return apiClient<{ deleted: number }>(url, { method: 'DELETE' });
 }
 
+export interface BulkUpsertPayload {
+  mode: 'create' | 'update';
+  id?: number;
+  data: CreateCaseInput;
+}
+
+export interface BulkUpsertResponse {
+  created: number;
+  updated: number;
+  failed: number;
+  results: { index: number; success: boolean; error?: string }[];
+}
+
+export async function bulkUpsertCases(items: BulkUpsertPayload[]): Promise<BulkUpsertResponse> {
+  return apiClient<BulkUpsertResponse>('/cases/bulk-upsert', {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  });
+}
+
 // Fetch all cases (for analytics and export)
 // Optional filters allow exporting only filtered results
 export async function getAllCases(
