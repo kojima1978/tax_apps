@@ -56,6 +56,7 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
     for (const [cell, value] of Object.entries(INVOICE_OVERRIDES)) {
       ws.getCell(cell).value = value;
     }
+    ws.name = '請求書';
   }
 
   ws.getCell('D2').value = input.addresseeName;

@@ -169,6 +169,7 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       'deceasedName', 'dateOfDeath', 'fiscalYear', 'status', 'handlingStatus', 'acceptanceStatus',
       'taxAmount', 'feeAmount', 'estimateAmount', 'propertyValue',
       'referralFeeRate', 'referralFeeAmount', 'summary', 'memo',
+      'landRosenkaCount', 'landBairitsuCount', 'unlistedStockCount', 'heirCount', 'discountAmount',
     ] as const;
 
     for (const field of scalarFields) {

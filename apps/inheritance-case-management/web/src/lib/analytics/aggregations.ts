@@ -22,6 +22,8 @@ export type RankingData = {
     assignedCount?: number
     referralFee?: number
     referralCount?: number
+    confirmedFee?: number
+    estimateFee?: number
 }
 
 export type CompanyRankingData = RankingData & {
@@ -36,11 +38,13 @@ export type AggregationResult = {
     companyRanking: CompanyRankingData[]
 }
 
-function accumulateRanking(map: Map<string, RankingData>, key: string, fee: number) {
-    if (!map.has(key)) map.set(key, { name: key, feeTotal: 0, count: 0 })
+function accumulateRanking(map: Map<string, RankingData>, key: string, fee: number, baseType?: "fee" | "estimate" | null) {
+    if (!map.has(key)) map.set(key, { name: key, feeTotal: 0, count: 0, confirmedFee: 0, estimateFee: 0 })
     const d = map.get(key)!
     d.feeTotal += fee
     d.count++
+    if (baseType === "fee") d.confirmedFee! += fee
+    else if (baseType === "estimate") d.estimateFee! += fee
 }
 
 /** 移動年計データ（月ごとの直近12ヶ月累計） */
@@ -157,62 +161,75 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
             referralFee = calcReferralFee(c, "estimate")
         }
 
+        const initRanking = (name: string): RankingData => ({ name, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0, confirmedFee: 0, estimateFee: 0 })
+
         // 担当者の担当売上
         const assigneeName = c.assignee?.name || LABEL_UNSET
-        if (!assigneeMap.has(assigneeName)) assigneeMap.set(assigneeName, { name: assigneeName, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0 })
+        if (!assigneeMap.has(assigneeName)) assigneeMap.set(assigneeName, initRanking(assigneeName))
         const assigneeEntry = assigneeMap.get(assigneeName)!
         assigneeEntry.feeTotal += personalNet
         assigneeEntry.count++
         assigneeEntry.assignedFee! += personalNet
         assigneeEntry.assignedCount! ++
+        if (baseType === "fee") assigneeEntry.confirmedFee! += personalNet
+        else if (baseType === "estimate") assigneeEntry.estimateFee! += personalNet
 
         // 社内紹介者の紹介売上 → internalReferrer で紐づいた担当者に加算
         if (referralFee > 0 && c.internalReferrerId != null) {
             const refAssigneeName = c.internalReferrer?.name || LABEL_UNSET
-            if (!assigneeMap.has(refAssigneeName)) assigneeMap.set(refAssigneeName, { name: refAssigneeName, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0 })
+            if (!assigneeMap.has(refAssigneeName)) assigneeMap.set(refAssigneeName, initRanking(refAssigneeName))
             const refAssigneeEntry = assigneeMap.get(refAssigneeName)!
             refAssigneeEntry.feeTotal += referralFee
             refAssigneeEntry.referralFee! += referralFee
             refAssigneeEntry.referralCount! ++
+            if (baseType === "fee") refAssigneeEntry.confirmedFee! += referralFee
+            else if (baseType === "estimate") refAssigneeEntry.estimateFee! += referralFee
         }
 
         // 部門別（担当売上）
         const deptName = deptMap.get(assigneeName) || LABEL_UNSET
-        if (!deptRankingMap.has(deptName)) deptRankingMap.set(deptName, { name: deptName, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0 })
+        if (!deptRankingMap.has(deptName)) deptRankingMap.set(deptName, initRanking(deptName))
         const deptEntry = deptRankingMap.get(deptName)!
         deptEntry.feeTotal += personalNet
         deptEntry.count++
         deptEntry.assignedFee! += personalNet
         deptEntry.assignedCount! ++
+        if (baseType === "fee") deptEntry.confirmedFee! += personalNet
+        else if (baseType === "estimate") deptEntry.estimateFee! += personalNet
 
         // 部門別（社内紹介売上）
         if (referralFee > 0 && c.internalReferrerId != null) {
             const refAssigneeName2 = c.internalReferrer?.name || LABEL_UNSET
             const refDeptName = deptMap.get(refAssigneeName2) || LABEL_UNSET
-            if (!deptRankingMap.has(refDeptName)) deptRankingMap.set(refDeptName, { name: refDeptName, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0 })
+            if (!deptRankingMap.has(refDeptName)) deptRankingMap.set(refDeptName, initRanking(refDeptName))
             const refDeptEntry = deptRankingMap.get(refDeptName)!
             refDeptEntry.feeTotal += referralFee
             refDeptEntry.referralFee! += referralFee
             refDeptEntry.referralCount! ++
+            if (baseType === "fee") refDeptEntry.confirmedFee! += referralFee
+            else if (baseType === "estimate") refDeptEntry.estimateFee! += referralFee
         }
 
-        // 紹介者ランキング（社外紹介者のみ + 社内紹介者）
-        if (c.referrer) {
-            const referrerKey = formatReferrerLabel(c.referrer)
-            accumulateRanking(referrerMap, referrerKey, c.referralFeeAmount || 0)
-            const refEntry = referrerMap.get(referrerKey)
-            if (refEntry) refEntry.group = c.referrer.company.name
-            const companyName = c.referrer.company.name
-            accumulateRanking(companyMap, companyName, c.referralFeeAmount || 0)
-            const refDept = c.referrer.branch?.name
-            if (refDept) {
-                if (!companyDeptMap.has(companyName)) companyDeptMap.set(companyName, new Map())
-                const deptMap2 = companyDeptMap.get(companyName)!
-                accumulateRanking(deptMap2, refDept, c.referralFeeAmount || 0)
+        // 紹介者ランキング（社外紹介者のみ + 社内紹介者）— 完了・手続中のみ集計
+        if (baseType) {
+            const refFee = calcReferralFee(c, baseType)
+            if (c.referrer) {
+                const referrerKey = formatReferrerLabel(c.referrer)
+                accumulateRanking(referrerMap, referrerKey, refFee, baseType)
+                const refEntry = referrerMap.get(referrerKey)
+                if (refEntry) refEntry.group = c.referrer.company.name
+                const companyName = c.referrer.company.name
+                accumulateRanking(companyMap, companyName, refFee, baseType)
+                const refDept = c.referrer.branch?.name
+                if (refDept) {
+                    if (!companyDeptMap.has(companyName)) companyDeptMap.set(companyName, new Map())
+                    const deptMap2 = companyDeptMap.get(companyName)!
+                    accumulateRanking(deptMap2, refDept, refFee, baseType)
+                }
+            } else if (!c.referrer && !c.internalReferrerId) {
+                accumulateRanking(referrerMap, LABEL_NONE, refFee, baseType)
+                accumulateRanking(companyMap, LABEL_NONE, refFee, baseType)
             }
-        } else if (!c.referrer && !c.internalReferrerId) {
-            accumulateRanking(referrerMap, LABEL_NONE, c.referralFeeAmount || 0)
-            accumulateRanking(companyMap, LABEL_NONE, c.referralFeeAmount || 0)
         }
     })
 

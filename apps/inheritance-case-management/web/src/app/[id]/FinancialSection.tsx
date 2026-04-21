@@ -3,9 +3,10 @@ import { Label } from "@/components/ui/Label"
 import { Input } from "@/components/ui/Input"
 import { CurrencyField } from "@/components/ui/CurrencyField"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
-import { Banknote, ArrowDown } from "lucide-react"
+import { Banknote, ArrowDown, BarChart3 } from "lucide-react"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { calcEstimate } from "@/lib/estimate-calc"
+import { isCompleted } from "@/types/constants"
 import type { InheritanceCase } from "@/types/shared"
 
 const ESTIMATE_COUNT_FIELDS: { key: keyof InheritanceCase; label: string; suffix: string }[] = [
@@ -206,7 +207,41 @@ export function FinancialSection({
                         <p className="text-xs text-muted-foreground text-right">※ 見積額 × (1 - 紹介料率)</p>
                     </div>
                 </div>
+
+                <AggregationStatus formData={formData} />
             </div>
         </CollapsibleSection>
+    )
+}
+
+function AggregationStatus({ formData }: { formData: InheritanceCase }) {
+    const completed = isCompleted(formData.status)
+    const ongoing = formData.status === "手続中" && formData.acceptanceStatus === "受託可"
+
+    if (completed) {
+        const amount = formData.feeAmount || 0
+        return (
+            <div className="col-span-1 md:col-span-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                <BarChart3 className="h-4 w-4 shrink-0" />
+                <span>ダッシュボード集計: <strong>確定額 {formatCurrency(amount)}</strong> として集計中</span>
+            </div>
+        )
+    }
+
+    if (ongoing) {
+        const amount = formData.estimateAmount || 0
+        return (
+            <div className="col-span-1 md:col-span-2 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <BarChart3 className="h-4 w-4 shrink-0" />
+                <span>ダッシュボード集計: <strong>見込額 {formatCurrency(amount)}</strong> として集計中</span>
+            </div>
+        )
+    }
+
+    return (
+        <div className="col-span-1 md:col-span-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-muted-foreground">
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            <span>ダッシュボード集計: 集計対象外（進み具合が「手続中」以降、かつ受託可の場合に集計されます）</span>
+        </div>
     )
 }

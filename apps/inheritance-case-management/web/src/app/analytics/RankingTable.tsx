@@ -7,7 +7,7 @@ type RankingColumnDef = {
     sortKey?: string
 }
 
-type RankingItem = { name: string; feeTotal: number; count: number; group?: string; departments?: RankingItem[] }
+type RankingItem = { name: string; feeTotal: number; count: number; group?: string; departments?: RankingItem[]; confirmedFee?: number; estimateFee?: number }
 
 interface RankingTableProps {
     data: RankingItem[]
@@ -16,10 +16,11 @@ interface RankingTableProps {
     sortState?: { col: string; desc: boolean }
     groupBy?: boolean
     showSubRows?: boolean
+    showBreakdown?: boolean
     buildHref?: (name: string) => string
 }
 
-export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSort, sortState, groupBy, showSubRows, buildHref }: RankingTableProps) {
+export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSort, sortState, groupBy, showSubRows, showBreakdown, buildHref }: RankingTableProps) {
     const renderTh = (col: RankingColumnDef) => {
         const align = col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : ""
         const sortable = onSort && col.sortKey
@@ -96,19 +97,31 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
             rows.push(
                 <tr key={r.name}>
                     <td className={`p-3 font-medium ${hasSubRows ? "font-semibold" : ""}`}>
-                        {renderName(r.name)}
+                        <div>{renderName(r.name)}</div>
+                        {showBreakdown && (
+                            <div className="text-xs text-muted-foreground font-normal mt-0.5">
+                                確定: {formatCurrency(r.confirmedFee ?? 0)}　見込: {formatCurrency(r.estimateFee ?? 0)}
+                            </div>
+                        )}
                     </td>
-                    <td className="p-3 text-right font-medium">{formatCurrency(r.feeTotal)}</td>
-                    <td className="p-3 text-center text-muted-foreground">{r.count}</td>
+                    <td className="p-3 text-right font-medium align-top">{formatCurrency(r.feeTotal)}</td>
+                    <td className="p-3 text-center text-muted-foreground align-top">{r.count}</td>
                 </tr>
             )
             if (showSubRows && r.departments) {
                 r.departments.forEach(dept => {
                     rows.push(
                         <tr key={`${r.name}-${dept.name}`} className="bg-muted/30">
-                            <td className="p-2 pl-6 text-xs text-muted-foreground">{dept.name}</td>
-                            <td className="p-2 text-right text-xs text-muted-foreground">{formatCurrency(dept.feeTotal)}</td>
-                            <td className="p-2 text-center text-xs text-muted-foreground">{dept.count}</td>
+                            <td className="p-2 pl-6 text-xs text-muted-foreground">
+                                <div>{dept.name}</div>
+                                {showBreakdown && (
+                                    <div className="mt-0.5">
+                                        確定: {formatCurrency(dept.confirmedFee ?? 0)}　見込: {formatCurrency(dept.estimateFee ?? 0)}
+                                    </div>
+                                )}
+                            </td>
+                            <td className="p-2 text-right text-xs text-muted-foreground align-top">{formatCurrency(dept.feeTotal)}</td>
+                            <td className="p-2 text-center text-xs text-muted-foreground align-top">{dept.count}</td>
                         </tr>
                     )
                 })
