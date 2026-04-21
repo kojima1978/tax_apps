@@ -66,7 +66,8 @@ tax_apps/
 │   │   ├── manage.sh                  # 管理スクリプト本体（全機能）
 │   │   ├── start-prod.bat             # ワンクリック本番モード起動
 │   │   ├── stop.bat                   # ワンクリック停止
-│   │   └── status.bat                 # ワンクリック状態確認
+│   │   ├── status.bat                 # ワンクリック状態確認
+│   │   └── backup-db.bat              # ITCM PostgreSQLバックアップ（7日間保持）
 │   ├── data/                          # 永続化データ（git管理外）
 │   ├── backups/                       # バックアップ保存先
 │   ├── postgres/                      # PostgreSQL初期化SQL
@@ -119,6 +120,7 @@ cd tax_apps
 | 本番モード起動 | `start-prod.bat` | `docker\scripts\start-prod.bat` をダブルクリック |
 | 停止 | `stop.bat` | `docker\scripts\stop.bat` をダブルクリック |
 | 状態確認 | `status.bat` | `docker\scripts\status.bat` をダブルクリック |
+| DBバックアップ | `backup-db.bat` | `docker\scripts\backup-db.bat` をダブルクリック |
 
 #### コマンドプロンプトでの操作
 
