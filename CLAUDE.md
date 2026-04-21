@@ -34,6 +34,7 @@ cd apps/<app-name> && docker compose logs -f
 - `start-prod.bat` — ワンクリックで本番モード起動
 - `stop.bat` — ワンクリックで停止
 - `status.bat` — ワンクリックで状態確認
+- `backup-db.bat` — ITCM PostgreSQLのSQLダンプ（7日間保持、タスクスケジューラ対応）
 
 ```bash
 # 全アプリ起動（開発モード）— manage.bat ダブルクリックでも可
