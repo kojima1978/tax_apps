@@ -161,6 +161,7 @@ rd /s /q tax_apps
 | 本番モード起動 | `start-prod.bat` | ダブルクリックするだけで全アプリを本番モードで起動 |
 | 停止 | `stop.bat` | ダブルクリックするだけで全アプリを停止 |
 | 状態確認 | `status.bat` | ダブルクリックするだけで状態を確認 |
+| DBバックアップ | `backup-db.bat` | ITCM PostgreSQLのSQLダンプを取得（7日間保持） |
 
 > コマンドプロンプトでの詳細操作は下記「コマンド一覧」を参照してください。
 
@@ -396,6 +397,32 @@ PostgreSQL はコンテナ起動中に `psql` でリストア、SQLite はボリ
 manage.bat restart inheritance-case-management
 manage.bat restart bank-analyzer-django
 ```
+
+### 自動バックアップ（タスクスケジューラ）
+
+`backup-db.bat` を使って ITCM PostgreSQL の定期バックアップを設定できます。
+
+```bash
+backup-db.bat                              # ダブルクリックまたはコマンドで実行
+```
+
+| 項目 | 内容 |
+|:-----|:-----|
+| 対象 | ITCM PostgreSQL（`itcm-postgres` コンテナ） |
+| 方式 | `docker exec` + `pg_dump --clean --if-exists` |
+| 保存先 | `docker\backups\itcm-db\itcm-db_YYYYMMDD_HHMM.sql` |
+| 保持期間 | 7日間（古いファイルは自動削除） |
+
+**タスクスケジューラへの登録手順:**
+
+1. `taskschd.msc` を開く（Win+R →「taskschd.msc」）
+2. 「タスクの作成」→ 名前: `ITCM DB Backup`
+3. トリガー: 毎日、深夜 3:00
+4. 操作: プログラム `C:\Users\Desktop\dev\tax_apps\docker\scripts\backup-db.bat`
+5. 条件: 「AC電源でのみ」のチェックを外す（ノートPCの場合）
+6. 設定: 「タスクを停止するまでの時間」を1時間に設定
+
+> OneDrive等の同期フォルダに保存する場合は、バッチ内の `BACKUP_DIR` を変更してください。
 
 ---
 
@@ -636,7 +663,8 @@ tax_apps/
 │   │   ├── manage.sh           #   管理スクリプト本体（全機能）
 │   │   ├── start-prod.bat      #   ワンクリック本番モード起動
 │   │   ├── stop.bat            #   ワンクリック停止
-│   │   └── status.bat          #   ワンクリック状態確認
+│   │   ├── status.bat          #   ワンクリック状態確認
+│   │   └── backup-db.bat       #   ITCM PostgreSQL 自動バックアップ（7日間保持）
 │   ├── specs/                  # 仕様書
 │   │   └── manage-script-spec.md #  管理スクリプト仕様書
 │   ├── backups/                # バックアップ保存先（git管理外）
