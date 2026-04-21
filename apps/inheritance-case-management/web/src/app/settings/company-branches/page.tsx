@@ -8,6 +8,7 @@ import type { Company, CompanyBranch } from "@/types/shared"
 import { getCompanies } from "@/lib/api/companies"
 import { getCompanyBranches, createCompanyBranch, updateCompanyBranch, deleteCompanyBranch } from "@/lib/api/company-branches"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
+import { useFormFields } from "@/hooks/use-form-fields"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 
 const columns: ColumnDef<CompanyBranch>[] = [
@@ -23,10 +24,7 @@ function CompanyBranchSettingsContent() {
             .catch(() => {})
     }, [])
 
-    const [newCompanyId, setNewCompanyId] = useState("")
-    const [newName, setNewName] = useState("")
-    const [newCompanyError, setNewCompanyError] = useState("")
-    const [newNameError, setNewNameError] = useState("")
+    const form = useFormFields({ companyId: "", name: "" })
 
     const masterList = useMasterList<CompanyBranch, Parameters<typeof createCompanyBranch>[0], Parameters<typeof updateCompanyBranch>[1]>({
         fetchAll: getCompanyBranches,
@@ -47,21 +45,21 @@ function CompanyBranchSettingsContent() {
 
     const handleAdd = () => {
         let hasError = false
-        if (!newCompanyId) { setNewCompanyError("会社を選択してください"); hasError = true }
-        if (!newName.trim()) { setNewNameError("部門名を入力してください"); hasError = true }
+        if (!form.values.companyId) { form.setError("companyId", "会社を選択してください"); hasError = true }
+        if (!form.values.name.trim()) { form.setError("name", "部門名を入力してください"); hasError = true }
         if (hasError) return
 
-        setNewCompanyError(""); setNewNameError("")
-        const companyIdNum = parseInt(newCompanyId, 10)
+        form.clearErrors()
+        const companyIdNum = parseInt(form.values.companyId, 10)
         const company = companies.find(c => c.id === companyIdNum)
         masterList.handleAdd({
             id: nextTempId(),
             companyId: companyIdNum,
             company: company ?? { id: companyIdNum, name: "", active: true },
-            name: newName.trim(),
+            name: form.values.name.trim(),
             active: true,
         } as CompanyBranch)
-        setNewCompanyId(""); setNewName("")
+        form.reset()
     }
 
     const handleSaveEdit = () => {
@@ -89,25 +87,25 @@ function CompanyBranchSettingsContent() {
             <div className="grid gap-1.5">
                 <Label>会社名 (必須)</Label>
                 <SelectField
-                    value={newCompanyId}
-                    onChange={(e) => { setNewCompanyId(e.target.value); if (newCompanyError) setNewCompanyError("") }}
-                    className={newCompanyError ? "border-red-500" : ""}
+                    value={form.values.companyId}
+                    onChange={(e) => form.set("companyId", e.target.value)}
+                    className={form.errors.companyId ? "border-red-500" : ""}
                 >
                     <option value="">会社を選択</option>
                     {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </SelectField>
-                {newCompanyError && <p className="text-xs text-red-500">{newCompanyError}</p>}
+                {form.errors.companyId && <p className="text-xs text-red-500">{form.errors.companyId}</p>}
             </div>
             <div className="grid gap-1.5">
                 <Label>部門名 (必須)</Label>
                 <Input
                     placeholder="部門名を入力"
-                    value={newName}
-                    onChange={(e) => { setNewName(e.target.value); if (newNameError) setNewNameError("") }}
+                    value={form.values.name}
+                    onChange={(e) => form.set("name", e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                    className={newNameError ? "border-red-500" : ""}
+                    className={form.errors.name ? "border-red-500" : ""}
                 />
-                {newNameError && <p className="text-xs text-red-500">{newNameError}</p>}
+                {form.errors.name && <p className="text-xs text-red-500">{form.errors.name}</p>}
             </div>
         </div>
     )

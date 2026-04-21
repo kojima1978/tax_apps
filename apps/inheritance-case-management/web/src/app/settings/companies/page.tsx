@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { Suspense } from "react"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import type { Company } from "@/types/shared"
 import { getCompanies, createCompany, updateCompany, deleteCompany } from "@/lib/api/companies"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
+import { useFormFields } from "@/hooks/use-form-fields"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 
 const columns: ColumnDef<Company>[] = [
@@ -13,8 +14,7 @@ const columns: ColumnDef<Company>[] = [
 ]
 
 function CompanySettingsContent() {
-    const [newName, setNewName] = useState("")
-    const [newNameError, setNewNameError] = useState("")
+    const form = useFormFields({ name: "" })
 
     const masterList = useMasterList<Company, Parameters<typeof createCompany>[0], Parameters<typeof updateCompany>[1]>({
         fetchAll: getCompanies,
@@ -31,14 +31,14 @@ function CompanySettingsContent() {
     })
 
     const handleAdd = () => {
-        if (!newName.trim()) { setNewNameError("会社名を入力してください"); return }
-        setNewNameError("")
+        if (!form.values.name.trim()) { form.setError("name", "会社名を入力してください"); return }
+        form.clearErrors()
         masterList.handleAdd({
             id: nextTempId(),
-            name: newName.trim(),
+            name: form.values.name.trim(),
             active: true,
         } as Company)
-        setNewName("")
+        form.reset()
     }
 
     const handleSaveEdit = () => {
@@ -54,12 +54,12 @@ function CompanySettingsContent() {
             <Input
                 id="new-name"
                 placeholder="会社名を入力"
-                value={newName}
-                onChange={(e) => { setNewName(e.target.value); if (newNameError) setNewNameError("") }}
+                value={form.values.name}
+                onChange={(e) => form.set("name", e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                className={newNameError ? "border-red-500" : ""}
+                className={form.errors.name ? "border-red-500" : ""}
             />
-            {newNameError && <p className="text-xs text-red-500">{newNameError}</p>}
+            {form.errors.name && <p className="text-xs text-red-500">{form.errors.name}</p>}
         </div>
     )
 

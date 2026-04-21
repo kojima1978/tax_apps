@@ -9,6 +9,7 @@ import { getReferrers, createReferrer, updateReferrer, deleteReferrer } from "@/
 import { getCompanies } from "@/lib/api/companies"
 import { getCompanyBranches } from "@/lib/api/company-branches"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
+import { useFormFields } from "@/hooks/use-form-fields"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 
 const columns: ColumnDef<Referrer>[] = [
@@ -29,15 +30,12 @@ function ReferrerSettingsContent() {
             .catch(() => {})
     }, [])
 
-    const [newCompanyId, setNewCompanyId] = useState("")
-    const [newBranchId, setNewBranchId] = useState("")
-    const [newCompanyError, setNewCompanyError] = useState("")
+    const form = useFormFields({ companyId: "", branchId: "" })
 
-    // 新規追加時: 選択中の会社に紐づく部門のみ表示
     const filteredNewBranches = useMemo(() => {
-        if (!newCompanyId) return []
-        return branches.filter(b => b.companyId === parseInt(newCompanyId, 10))
-    }, [branches, newCompanyId])
+        if (!form.values.companyId) return []
+        return branches.filter(b => b.companyId === parseInt(form.values.companyId, 10))
+    }, [branches, form.values.companyId])
 
     const masterList = useMasterList<Referrer, Parameters<typeof createReferrer>[0], Parameters<typeof updateReferrer>[1]>({
         fetchAll: getReferrers,
@@ -57,12 +55,12 @@ function ReferrerSettingsContent() {
     })
 
     const handleAdd = () => {
-        if (!newCompanyId) { setNewCompanyError("会社を選択してください"); return }
+        if (!form.values.companyId) { form.setError("companyId", "会社を選択してください"); return }
 
-        setNewCompanyError("")
-        const companyIdNum = parseInt(newCompanyId, 10)
+        form.clearErrors()
+        const companyIdNum = parseInt(form.values.companyId, 10)
         const company = companies.find(c => c.id === companyIdNum)
-        const branchIdNum = newBranchId ? parseInt(newBranchId, 10) : null
+        const branchIdNum = form.values.branchId ? parseInt(form.values.branchId, 10) : null
         const branch = branchIdNum ? branches.find(b => b.id === branchIdNum) ?? null : null
         masterList.handleAdd({
             id: nextTempId(),
@@ -72,10 +70,9 @@ function ReferrerSettingsContent() {
             branch,
             active: true,
         } as Referrer)
-        setNewCompanyId(""); setNewBranchId("")
+        form.reset()
     }
 
-    // 編集時: 選択中の会社に紐づく部門のみ表示
     const filteredEditBranches = useMemo(() => {
         const companyId = masterList.editingFields.companyId
         if (!companyId) return []
@@ -109,21 +106,21 @@ function ReferrerSettingsContent() {
             <div className="grid gap-1.5">
                 <Label>会社名 (必須)</Label>
                 <SelectField
-                    value={newCompanyId}
-                    onChange={(e) => { setNewCompanyId(e.target.value); setNewBranchId(""); if (newCompanyError) setNewCompanyError("") }}
-                    className={newCompanyError ? "border-red-500" : ""}
+                    value={form.values.companyId}
+                    onChange={(e) => { form.set("companyId", e.target.value); form.set("branchId", "") }}
+                    className={form.errors.companyId ? "border-red-500" : ""}
                 >
                     <option value="">会社を選択</option>
                     {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </SelectField>
-                {newCompanyError && <p className="text-xs text-red-500">{newCompanyError}</p>}
+                {form.errors.companyId && <p className="text-xs text-red-500">{form.errors.companyId}</p>}
             </div>
             <div className="grid gap-1.5">
                 <Label>部門 (任意)</Label>
                 <SelectField
-                    value={newBranchId}
-                    onChange={(e) => setNewBranchId(e.target.value)}
-                    disabled={!newCompanyId}
+                    value={form.values.branchId}
+                    onChange={(e) => form.set("branchId", e.target.value)}
+                    disabled={!form.values.companyId}
                 >
                     <option value="">なし</option>
                     {filteredNewBranches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}

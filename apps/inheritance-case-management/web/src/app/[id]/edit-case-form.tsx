@@ -21,7 +21,7 @@ import { FinancialSection } from "./FinancialSection"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { DocumentExportModal } from "./DocumentExportModal"
 import { ListChecks, Receipt, Phone, StickyNote, FileText, ChevronsUpDown } from "lucide-react"
-import { STATUS_STEP_MAP, STATUS_ORDER } from "@/lib/progress-utils"
+import { checkStatusProgressConsistency } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { useSectionState } from "@/hooks/use-section-state"
@@ -119,42 +119,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         }
     }
 
-    /** ステータスと進捗ステップの整合性チェック */
-    const checkStatusProgressConsistency = (): { warnings: string[]; suggestion?: { status: CaseStatus; message: string } } => {
-        const progress = formData.progress ? toProgressSteps(formData.progress) : []
-        const status = formData.status
-        const warnings: string[] = []
-
-        // ステータスに対して期待される進捗ステップに日付があるか
-        for (const { status: expectedStatus, stepName } of STATUS_STEP_MAP) {
-            const step = progress.find(s => s.name === stepName)
-            if (status === expectedStatus && !step?.date) {
-                warnings.push(`進み具合が「${expectedStatus}」ですが、進捗の「${stepName}」に日付が入力されていません。`)
-            }
-        }
-
-        // 逆方向: 進捗に日付があるのにステータスが手前のまま
-        const currentIdx = STATUS_ORDER.indexOf(status as CaseStatus)
-        if (currentIdx >= 0) {
-            for (let i = STATUS_STEP_MAP.length - 1; i >= 0; i--) {
-                const { status: suggestedStatus, stepName } = STATUS_STEP_MAP[i]
-                const suggestedIdx = STATUS_ORDER.indexOf(suggestedStatus)
-                const step = progress.find(s => s.name === stepName)
-                if (step?.date && suggestedIdx > currentIdx) {
-                    return {
-                        warnings,
-                        suggestion: {
-                            status: suggestedStatus,
-                            message: `進捗の「${stepName}」に日付が入力されています。\n進み具合を「${suggestedStatus}」に変更しますか？`,
-                        },
-                    }
-                }
-            }
-        }
-
-        return { warnings }
-    }
-
     const doSave = async (statusOverride?: CaseStatus) => {
         let finalStatus = formData.status
         if (statusOverride) {
@@ -196,8 +160,8 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             return
         }
 
-        // 整合性チェック
-        const { warnings, suggestion } = checkStatusProgressConsistency()
+        const progress = formData.progress ? toProgressSteps(formData.progress) : []
+        const { warnings, suggestion } = checkStatusProgressConsistency(formData.status, progress)
         for (const w of warnings) {
             toast.warning(w)
         }
