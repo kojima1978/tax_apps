@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
-import { ChevronRight, ChevronsUpDown } from "lucide-react"
+import { ChevronRight, ChevronsUpDown, Info } from "lucide-react"
 import { formatCurrency } from "@/lib/analytics-utils"
 import type { RankingData } from "@/lib/analytics-utils"
 
@@ -25,10 +25,12 @@ type DeptTotals = {
     assignedCount: number
     referralFee: number
     referralCount: number
+    confirmedFee: number
+    estimateFee: number
 }
 
 function calcDeptTotals(assignees: RankingData[]): DeptTotals {
-    let feeTotal = 0, count = 0, assignedFee = 0, assignedCount = 0, referralFee = 0, referralCount = 0
+    let feeTotal = 0, count = 0, assignedFee = 0, assignedCount = 0, referralFee = 0, referralCount = 0, confirmedFee = 0, estimateFee = 0
     for (const r of assignees) {
         feeTotal += r.feeTotal
         count += r.count + (r.referralCount ?? 0)
@@ -36,8 +38,10 @@ function calcDeptTotals(assignees: RankingData[]): DeptTotals {
         assignedCount += r.assignedCount ?? 0
         referralFee += r.referralFee ?? 0
         referralCount += r.referralCount ?? 0
+        confirmedFee += r.confirmedFee ?? 0
+        estimateFee += r.estimateFee ?? 0
     }
-    return { feeTotal, count, assignedFee, assignedCount, referralFee, referralCount }
+    return { feeTotal, count, assignedFee, assignedCount, referralFee, referralCount, confirmedFee, estimateFee }
 }
 
 function buildCaseListUrl(assigneeId: number, selectedYears: Set<number>): string {
@@ -90,12 +94,25 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
                         {isAllExpanded ? "すべて閉じる" : "すべて開く"}
                     </button>
                 </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />確定 = 完了案件の報酬額ベース</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />見込 = 手続中案件の見積額ベース</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />未着手・受託不可は集計対象外</span>
+                </div>
                 <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
                     <table className="w-full text-sm text-left">
                         <thead className="bg-muted text-muted-foreground">
                             <tr>
                                 <th className="p-3">部門 / 担当者</th>
-                                <th className="p-3 text-right">売上合計</th>
+                                <th className="p-3 text-right">
+                                    <span className="group relative cursor-help">
+                                        売上合計
+                                        <Info className="inline-block ml-1 h-3.5 w-3.5 align-text-top" />
+                                        <span className="invisible group-hover:visible absolute right-0 top-full mt-1 z-10 w-56 rounded-lg border bg-popover p-3 text-xs font-normal text-popover-foreground shadow-md leading-relaxed text-left">
+                                            確定額（報酬額ベース）と見込額（見積額ベース）の合計です。各行の内訳で内訳を確認できます。
+                                        </span>
+                                    </span>
+                                </th>
                                 <th className="p-3 text-center">件数</th>
                             </tr>
                         </thead>
@@ -150,6 +167,7 @@ function DepartmentRows({ group, isOpen, onToggle, selectedYears }: { group: Dep
                             <div className="text-xs text-muted-foreground font-normal mt-0.5 space-y-0.5">
                                 <div>担当: {formatCurrency(totals.assignedFee)} / {totals.assignedCount}件</div>
                                 <div>紹介: {formatCurrency(totals.referralFee)} / {totals.referralCount}件</div>
+                                <div>確定: {formatCurrency(totals.confirmedFee)}　見込: {formatCurrency(totals.estimateFee)}</div>
                             </div>
                         </div>
                     </div>
@@ -177,6 +195,7 @@ function DepartmentRows({ group, isOpen, onToggle, selectedYears }: { group: Dep
                             <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                                 <div>担当: {formatCurrency(r.assignedFee ?? 0)} / {r.assignedCount ?? 0}件</div>
                                 <div>紹介: {formatCurrency(r.referralFee ?? 0)} / {r.referralCount ?? 0}件</div>
+                                <div>確定: {formatCurrency(r.confirmedFee ?? 0)}　見込: {formatCurrency(r.estimateFee ?? 0)}</div>
                             </div>
                         </td>
                         <td className="p-3 text-right font-medium align-top">{formatCurrency(r.feeTotal)}</td>
