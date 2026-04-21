@@ -27,21 +27,29 @@ type DeptTotals = {
     referralCount: number
     confirmedFee: number
     estimateFee: number
+    assignedConfirmedFee: number
+    assignedEstimateFee: number
+    referralConfirmedFee: number
+    referralEstimateFee: number
 }
 
 function calcDeptTotals(assignees: RankingData[]): DeptTotals {
-    let feeTotal = 0, count = 0, assignedFee = 0, assignedCount = 0, referralFee = 0, referralCount = 0, confirmedFee = 0, estimateFee = 0
+    const t: DeptTotals = { feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0, confirmedFee: 0, estimateFee: 0, assignedConfirmedFee: 0, assignedEstimateFee: 0, referralConfirmedFee: 0, referralEstimateFee: 0 }
     for (const r of assignees) {
-        feeTotal += r.feeTotal
-        count += r.count + (r.referralCount ?? 0)
-        assignedFee += r.assignedFee ?? 0
-        assignedCount += r.assignedCount ?? 0
-        referralFee += r.referralFee ?? 0
-        referralCount += r.referralCount ?? 0
-        confirmedFee += r.confirmedFee ?? 0
-        estimateFee += r.estimateFee ?? 0
+        t.feeTotal += r.feeTotal
+        t.count += r.count + (r.referralCount ?? 0)
+        t.assignedFee += r.assignedFee ?? 0
+        t.assignedCount += r.assignedCount ?? 0
+        t.referralFee += r.referralFee ?? 0
+        t.referralCount += r.referralCount ?? 0
+        t.confirmedFee += r.confirmedFee ?? 0
+        t.estimateFee += r.estimateFee ?? 0
+        t.assignedConfirmedFee += r.assignedConfirmedFee ?? 0
+        t.assignedEstimateFee += r.assignedEstimateFee ?? 0
+        t.referralConfirmedFee += r.referralConfirmedFee ?? 0
+        t.referralEstimateFee += r.referralEstimateFee ?? 0
     }
-    return { feeTotal, count, assignedFee, assignedCount, referralFee, referralCount, confirmedFee, estimateFee }
+    return t
 }
 
 function buildCaseListUrl(assigneeId: number, selectedYears: Set<number>): string {
@@ -165,9 +173,8 @@ function DepartmentRows({ group, isOpen, onToggle, selectedYears }: { group: Dep
                                 ) : group.departmentName}
                             </div>
                             <div className="text-xs text-muted-foreground font-normal mt-0.5 space-y-0.5">
-                                <div>担当: {formatCurrency(totals.assignedFee)} / {totals.assignedCount}件</div>
-                                <div>紹介: {formatCurrency(totals.referralFee)} / {totals.referralCount}件</div>
-                                <div>確定: {formatCurrency(totals.confirmedFee)}　見込: {formatCurrency(totals.estimateFee)}</div>
+                                <div>担当: {formatCurrency(totals.assignedFee)} / {totals.assignedCount}件（確定: {formatCurrency(totals.assignedConfirmedFee)}　見込: {formatCurrency(totals.assignedEstimateFee)}）</div>
+                                <div>紹介: {formatCurrency(totals.referralFee)} / {totals.referralCount}件（確定: {formatCurrency(totals.referralConfirmedFee)}　見込: {formatCurrency(totals.referralEstimateFee)}）</div>
                             </div>
                         </div>
                     </div>
@@ -193,9 +200,8 @@ function DepartmentRows({ group, isOpen, onToggle, selectedYears }: { group: Dep
                                 )}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                                <div>担当: {formatCurrency(r.assignedFee ?? 0)} / {r.assignedCount ?? 0}件</div>
-                                <div>紹介: {formatCurrency(r.referralFee ?? 0)} / {r.referralCount ?? 0}件</div>
-                                <div>確定: {formatCurrency(r.confirmedFee ?? 0)}　見込: {formatCurrency(r.estimateFee ?? 0)}</div>
+                                <div>担当: {formatCurrency(r.assignedFee ?? 0)} / {r.assignedCount ?? 0}件（確定: {formatCurrency(r.assignedConfirmedFee ?? 0)}　見込: {formatCurrency(r.assignedEstimateFee ?? 0)}）</div>
+                                <div>紹介: {formatCurrency(r.referralFee ?? 0)} / {r.referralCount ?? 0}件（確定: {formatCurrency(r.referralConfirmedFee ?? 0)}　見込: {formatCurrency(r.referralEstimateFee ?? 0)}）</div>
                             </div>
                         </td>
                         <td className="p-3 text-right font-medium align-top">{formatCurrency(r.feeTotal)}</td>
