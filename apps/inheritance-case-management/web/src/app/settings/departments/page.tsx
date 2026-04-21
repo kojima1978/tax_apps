@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { Suspense } from "react"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import type { Department } from "@/types/shared"
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from "@/lib/api/departments"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
+import { useFormFields } from "@/hooks/use-form-fields"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 
 const columns: ColumnDef<Department>[] = [
@@ -14,9 +15,7 @@ const columns: ColumnDef<Department>[] = [
 ]
 
 function DepartmentSettingsContent() {
-    const [newName, setNewName] = useState("")
-    const [newOrder, setNewOrder] = useState("")
-    const [newNameError, setNewNameError] = useState("")
+    const form = useFormFields({ name: "", order: "" })
 
     const masterList = useMasterList<Department, Parameters<typeof createDepartment>[0], Parameters<typeof updateDepartment>[1]>({
         fetchAll: getDepartments,
@@ -36,17 +35,17 @@ function DepartmentSettingsContent() {
     })
 
     const handleAdd = () => {
-        if (!newName.trim()) { setNewNameError("部署名を入力してください"); return }
-        setNewNameError("")
+        if (!form.values.name.trim()) { form.setError("name", "部署名を入力してください"); return }
+        form.clearErrors()
 
         const maxOrder = masterList.items.reduce((max, d) => Math.max(max, d.sortOrder), 0)
         masterList.handleAdd({
             id: nextTempId(),
-            name: newName.trim(),
-            sortOrder: newOrder.trim() ? parseInt(newOrder.trim(), 10) || 0 : maxOrder + 1,
+            name: form.values.name.trim(),
+            sortOrder: form.values.order.trim() ? parseInt(form.values.order.trim(), 10) || 0 : maxOrder + 1,
             active: true,
         } as Department)
-        setNewName(""); setNewOrder("")
+        form.reset()
     }
 
     const handleSaveEdit = () => {
@@ -67,12 +66,12 @@ function DepartmentSettingsContent() {
                 <Input
                     id="new-name"
                     placeholder="部署名を入力"
-                    value={newName}
-                    onChange={(e) => { setNewName(e.target.value); if (newNameError) setNewNameError("") }}
+                    value={form.values.name}
+                    onChange={(e) => form.set("name", e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                    className={newNameError ? "border-red-500" : ""}
+                    className={form.errors.name ? "border-red-500" : ""}
                 />
-                {newNameError && <p className="text-xs text-red-500">{newNameError}</p>}
+                {form.errors.name && <p className="text-xs text-red-500">{form.errors.name}</p>}
             </div>
             <div className="grid gap-1.5">
                 <Label htmlFor="new-order">表示順 (任意)</Label>
@@ -80,8 +79,8 @@ function DepartmentSettingsContent() {
                     id="new-order"
                     type="number"
                     placeholder="自動採番"
-                    value={newOrder}
-                    onChange={(e) => setNewOrder(e.target.value)}
+                    value={form.values.order}
+                    onChange={(e) => form.set("order", e.target.value)}
                 />
             </div>
         </div>

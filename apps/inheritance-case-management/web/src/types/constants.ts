@@ -78,3 +78,19 @@ export const FISCAL_YEARS = Array.from({ length: FISCAL_YEAR_COUNT }, (_, i) => 
 
 // Filter year options (FISCAL_YEARSと同じ範囲)
 export const FILTER_YEAR_OPTIONS = FISCAL_YEARS
+
+// Referrer mode toggle options
+export const REFERRER_MODE_OPTIONS = [
+    { value: "none" as const, label: "なし" },
+    { value: "internal" as const, label: "社内" },
+    { value: "external" as const, label: "社外" },
+] as const
+
+// Expense description presets
+export const EXPENSE_DESCRIPTION_PRESETS = [
+    "戸籍謄本",
+    "登記簿謄本",
+    "固定資産評価証明書",
+    "残高証明書",
+    "交通費",
+] as const

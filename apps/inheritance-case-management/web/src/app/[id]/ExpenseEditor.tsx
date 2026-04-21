@@ -7,6 +7,7 @@ import { CurrencyField } from "@/components/ui/CurrencyField"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Download, GripVertical, Receipt } from "lucide-react"
 import type { Expense } from "@/types/shared"
+import { EXPENSE_DESCRIPTION_PRESETS } from "@/types/constants"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
@@ -37,14 +38,6 @@ function exportExpensesCsv(expenses: Expense[], total: number) {
     URL.revokeObjectURL(url)
 }
 
-const DESCRIPTION_OPTIONS = [
-    "戸籍謄本",
-    "登記簿謄本",
-    "固定資産評価証明書",
-    "残高証明書",
-    "交通費",
-] as const
-
 const OTHER_VALUE = "__other__"
 
 function today(): string {
@@ -52,7 +45,7 @@ function today(): string {
 }
 
 function isPresetValue(value: string): boolean {
-    return (DESCRIPTION_OPTIONS as readonly string[]).includes(value)
+    return (EXPENSE_DESCRIPTION_PRESETS as readonly string[]).includes(value)
 }
 
 function DescriptionField({
@@ -104,7 +97,7 @@ function DescriptionField({
             className="flex h-11 w-full rounded-xl border-2 border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
             <option value="" disabled>選択...</option>
-            {DESCRIPTION_OPTIONS.map((opt) => (
+            {EXPENSE_DESCRIPTION_PRESETS.map((opt) => (
                 <option key={opt} value={opt}>{opt}</option>
             ))}
             <option value={OTHER_VALUE}>その他（自由入力）</option>

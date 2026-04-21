@@ -80,3 +80,38 @@ export function shouldShowAddVisit(steps: ProgressStep[], step: ProgressStep, in
   const nextStep = steps[index + 1];
   return !!nextStep && !nextStep.name.includes('回目訪問');
 }
+
+/** ステータスと進捗ステップの整合性チェック */
+export function checkStatusProgressConsistency(
+  status: CaseStatus,
+  progress: ProgressStep[],
+): { warnings: string[]; suggestion?: { status: CaseStatus; message: string } } {
+  const warnings: string[] = [];
+
+  for (const { status: expectedStatus, stepName } of STATUS_STEP_MAP) {
+    const step = progress.find(s => s.name === stepName);
+    if (status === expectedStatus && !step?.date) {
+      warnings.push(`進み具合が「${expectedStatus}」ですが、進捗の「${stepName}」に日付が入力されていません。`);
+    }
+  }
+
+  const currentIdx = STATUS_ORDER.indexOf(status);
+  if (currentIdx >= 0) {
+    for (let i = STATUS_STEP_MAP.length - 1; i >= 0; i--) {
+      const { status: suggestedStatus, stepName } = STATUS_STEP_MAP[i];
+      const suggestedIdx = STATUS_ORDER.indexOf(suggestedStatus);
+      const step = progress.find(s => s.name === stepName);
+      if (step?.date && suggestedIdx > currentIdx) {
+        return {
+          warnings,
+          suggestion: {
+            status: suggestedStatus,
+            message: `進捗の「${stepName}」に日付が入力されています。\n進み具合を「${suggestedStatus}」に変更しますか？`,
+          },
+        };
+      }
+    }
+  }
+
+  return { warnings };
+}

@@ -8,6 +8,7 @@ import type { Assignee, Department } from "@/types/shared"
 import { getAssignees, createAssignee, updateAssignee, deleteAssignee } from "@/lib/api/assignees"
 import { getDepartments } from "@/lib/api/departments"
 import { useMasterList, nextTempId } from "@/hooks/use-master-list"
+import { useFormFields } from "@/hooks/use-form-fields"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 import { useToast } from "@/components/ui/Toast"
 
@@ -33,12 +34,7 @@ function AssigneeSettingsContent() {
             .catch(() => {})
     }, [])
 
-    const [newId, setNewId] = useState("")
-    const [newDeptId, setNewDeptId] = useState("")
-    const [newName, setNewName] = useState("")
-    const [newIdError, setNewIdError] = useState("")
-    const [newDeptError, setNewDeptError] = useState("")
-    const [newNameError, setNewNameError] = useState("")
+    const form = useFormFields({ id: "", deptId: "", name: "" })
 
     const masterList = useMasterList<Assignee, Parameters<typeof createAssignee>[0], Parameters<typeof updateAssignee>[1]>({
         fetchAll: getAssignees,
@@ -61,26 +57,26 @@ function AssigneeSettingsContent() {
 
     const handleAdd = () => {
         let hasError = false
-        if (!newName.trim()) { setNewNameError("氏名を入力してください"); hasError = true }
-        if (!newDeptId) { setNewDeptError("部署を選択してください"); hasError = true }
-        if (newId.trim() !== "") {
-            const num = parseInt(newId.trim(), 10)
-            if (isNaN(num) || num < 0 || num > 999) { setNewIdError("3桁の整数を入力してください"); hasError = true }
+        if (!form.values.name.trim()) { form.setError("name", "氏名を入力してください"); hasError = true }
+        if (!form.values.deptId) { form.setError("deptId", "部署を選択してください"); hasError = true }
+        if (form.values.id.trim() !== "") {
+            const num = parseInt(form.values.id.trim(), 10)
+            if (isNaN(num) || num < 0 || num > 999) { form.setError("id", "3桁の整数を入力してください"); hasError = true }
         }
         if (hasError) return
 
-        setNewIdError(""); setNewNameError(""); setNewDeptError("")
-        const deptIdNum = parseInt(newDeptId, 10)
+        form.clearErrors()
+        const deptIdNum = parseInt(form.values.deptId, 10)
         const dept = departments.find(d => d.id === deptIdNum)
         masterList.handleAdd({
             id: nextTempId(),
-            name: newName.trim(),
-            employeeId: newId.trim() ? formatEmployeeId(newId.trim()) : undefined,
+            name: form.values.name.trim(),
+            employeeId: form.values.id.trim() ? formatEmployeeId(form.values.id.trim()) : undefined,
             departmentId: deptIdNum,
             department: dept ?? null,
             active: true,
         } as Assignee)
-        setNewId(""); setNewDeptId(""); setNewName("")
+        form.reset()
     }
 
     const handleSaveEdit = () => {
@@ -118,37 +114,37 @@ function AssigneeSettingsContent() {
                 <Input
                     id="new-id"
                     placeholder="例: 001"
-                    value={newId}
-                    onChange={(e) => { setNewId(e.target.value); if (newIdError) setNewIdError("") }}
-                    onBlur={(e) => setNewId(formatEmployeeId(e.target.value))}
-                    className={newIdError ? "border-red-500" : ""}
+                    value={form.values.id}
+                    onChange={(e) => form.set("id", e.target.value)}
+                    onBlur={(e) => form.set("id", formatEmployeeId(e.target.value))}
+                    className={form.errors.id ? "border-red-500" : ""}
                 />
-                {newIdError && <p className="text-xs text-red-500">{newIdError}</p>}
+                {form.errors.id && <p className="text-xs text-red-500">{form.errors.id}</p>}
             </div>
             <div className="grid gap-1.5">
                 <Label htmlFor="new-dept">部署 (必須)</Label>
                 <SelectField
                     id="new-dept"
-                    value={newDeptId}
-                    onChange={(e) => { setNewDeptId(e.target.value); if (newDeptError) setNewDeptError("") }}
-                    className={newDeptError ? "border-red-500" : ""}
+                    value={form.values.deptId}
+                    onChange={(e) => form.set("deptId", e.target.value)}
+                    className={form.errors.deptId ? "border-red-500" : ""}
                 >
                     <option value="">部署を選択</option>
                     {departments.map((dept) => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
                 </SelectField>
-                {newDeptError && <p className="text-xs text-red-500">{newDeptError}</p>}
+                {form.errors.deptId && <p className="text-xs text-red-500">{form.errors.deptId}</p>}
             </div>
             <div className="grid gap-1.5">
                 <Label htmlFor="new-name">氏名 (必須)</Label>
                 <Input
                     id="new-name"
                     placeholder="氏名を入力"
-                    value={newName}
-                    onChange={(e) => { setNewName(e.target.value); if (newNameError) setNewNameError("") }}
+                    value={form.values.name}
+                    onChange={(e) => form.set("name", e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                    className={newNameError ? "border-red-500" : ""}
+                    className={form.errors.name ? "border-red-500" : ""}
                 />
-                {newNameError && <p className="text-xs text-red-500">{newNameError}</p>}
+                {form.errors.name && <p className="text-xs text-red-500">{form.errors.name}</p>}
             </div>
         </div>
     )
