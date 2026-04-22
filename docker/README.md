@@ -607,7 +607,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | カテゴリ | 技術 |
 |:---------|:-----|
 | Frontend | Next.js 16, React 19, Vite 6〜7 |
-| Backend | Express, Django 5.x |
+| Backend | Next.js API Routes, Express, Django 5.x |
 | Database | PostgreSQL 16 Alpine, SQLite |
 | Infrastructure | Docker, Nginx 1.27 |
 | Node.js | v22 LTS |
