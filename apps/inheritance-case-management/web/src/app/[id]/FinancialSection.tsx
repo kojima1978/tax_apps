@@ -57,7 +57,7 @@ export function FinancialSection({
         <CollapsibleSection title="金額情報" icon={Banknote} isOpen={isOpen} onToggle={onToggle}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                    <Label htmlFor="propertyValue">取得財産の価格</Label>
+                    <Label htmlFor="propertyValue">遺産総額 <span className="text-[10px] font-normal text-muted-foreground">（生前贈与加算額を含み、債務控除、非課税及び各種特例適用前）</span></Label>
                     <CurrencyField
                         id="propertyValue"
                         name="propertyValue"
@@ -102,7 +102,7 @@ export function FinancialSection({
                         ))}
                     </div>
                     <div className="text-xs text-muted-foreground space-y-1 border-t pt-2">
-                        <div className="flex justify-between"><span>基本報酬（財産 × 0.8%）</span><span>{formatCurrency(breakdown.baseFee)}</span></div>
+                        <div className="flex justify-between"><span>基本報酬（遺産総額 × 0.8%）</span><span>{formatCurrency(breakdown.baseFee)}</span></div>
                         {breakdown.landRosenkaFee > 0 && <div className="flex justify-between"><span>加算：土地（路線価）{formData.landRosenkaCount}区分 × ¥10,000</span><span>{formatCurrency(breakdown.landRosenkaFee)}</span></div>}
                         {breakdown.landBairitsuFee > 0 && <div className="flex justify-between"><span>加算：土地（倍率）{formData.landBairitsuCount}区分 × ¥3,000</span><span>{formatCurrency(breakdown.landBairitsuFee)}</span></div>}
                         {breakdown.unlistedStockFee > 0 && <div className="flex justify-between"><span>加算：非上場株式 {formData.unlistedStockCount}社 × ¥100,000</span><span>{formatCurrency(breakdown.unlistedStockFee)}</span></div>}
