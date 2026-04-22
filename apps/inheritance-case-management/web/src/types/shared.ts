@@ -74,6 +74,7 @@ export interface InheritanceCase {
   propertyValue: number;
   referralFeeRate?: number;
   referralFeeAmount?: number;
+  estimateReferralFeeAmount?: number;
   landRosenkaCount?: number;
   landBairitsuCount?: number;
   unlistedStockCount?: number;

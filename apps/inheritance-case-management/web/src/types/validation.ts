@@ -49,6 +49,7 @@ export const createCaseSchema = z.object({
   propertyValue: z.number().int().min(0, '財産評価額は0以上を入力してください').optional().default(0),
   referralFeeRate: z.number().min(0, '紹介料率は0%以上を入力してください').max(100, '紹介料率は100%以下を入力してください').nullable().optional(),
   referralFeeAmount: z.number().int().min(0, '紹介料は0以上を入力してください').nullable().optional(),
+  estimateReferralFeeAmount: z.number().int().min(0, '見積紹介料は0以上を入力してください').nullable().optional(),
   landRosenkaCount: z.number().int().min(0, '土地数（路線価）は0以上を入力してください').optional().default(0),
   landBairitsuCount: z.number().int().min(0, '土地数（倍率）は0以上を入力してください').optional().default(0),
   unlistedStockCount: z.number().int().min(0, '非上場株式数は0以上を入力してください').optional().default(0),

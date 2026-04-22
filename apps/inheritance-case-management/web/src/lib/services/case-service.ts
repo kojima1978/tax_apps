@@ -108,6 +108,7 @@ export async function createCase(data: {
   propertyValue?: number;
   referralFeeRate?: number | null;
   referralFeeAmount?: number | null;
+  estimateReferralFeeAmount?: number | null;
   summary?: string | null;
   memo?: string | null;
   assigneeId?: number | null;
@@ -131,6 +132,7 @@ export async function createCase(data: {
       propertyValue: data.propertyValue ?? 0,
       referralFeeRate: data.referralFeeRate,
       referralFeeAmount: data.referralFeeAmount,
+      estimateReferralFeeAmount: data.estimateReferralFeeAmount,
       summary: data.summary || null,
       memo: data.memo || null,
       assigneeId: data.assigneeId || null,
@@ -168,7 +170,7 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
     const scalarFields = [
       'deceasedName', 'dateOfDeath', 'fiscalYear', 'status', 'handlingStatus', 'acceptanceStatus',
       'taxAmount', 'feeAmount', 'estimateAmount', 'propertyValue',
-      'referralFeeRate', 'referralFeeAmount', 'summary', 'memo',
+      'referralFeeRate', 'referralFeeAmount', 'estimateReferralFeeAmount', 'summary', 'memo',
       'landRosenkaCount', 'landBairitsuCount', 'unlistedStockCount', 'heirCount', 'discountAmount',
     ] as const;
 

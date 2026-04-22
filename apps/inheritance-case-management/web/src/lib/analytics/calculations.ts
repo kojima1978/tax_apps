@@ -7,14 +7,16 @@ export function calcBestNet(c: InheritanceCase): number {
 
 /** 紹介手数料額を返す */
 export function calcReferralFee(c: InheritanceCase, baseType: "fee" | "estimate"): number {
-    const base = baseType === "fee" ? (c.feeAmount || 0) : (c.estimateAmount || 0)
-    let referral = c.referralFeeAmount || 0
-
-    if (baseType === "estimate" && referral === 0 && c.referralFeeRate && c.referralFeeRate > 0) {
-        referral = Math.floor(base * (c.referralFeeRate / 100))
+    if (baseType === "fee") {
+        return c.referralFeeAmount || 0
     }
-
-    return referral
+    const base = c.estimateAmount || 0
+    const referral = c.estimateReferralFeeAmount || 0
+    if (referral > 0) return referral
+    if (c.referralFeeRate && c.referralFeeRate > 0) {
+        return Math.floor(base * (c.referralFeeRate / 100))
+    }
+    return 0
 }
 
 /** 会社レベル売上 = 請求額 − 社外紹介手数料のみ（社内は控除しない） */

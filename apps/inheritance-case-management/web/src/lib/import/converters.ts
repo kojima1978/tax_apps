@@ -155,6 +155,7 @@ export function rowToInput(
       case 'estimateAmount':
       case 'feeAmount':
       case 'referralFeeAmount':
+      case 'estimateReferralFeeAmount':
       case 'referralFeeRate':
       case 'landRosenkaCount':
       case 'landBairitsuCount':

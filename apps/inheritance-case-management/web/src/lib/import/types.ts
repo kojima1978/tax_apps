@@ -25,6 +25,7 @@ export const CSV_HEADER_MAP: Record<string, string> = {
   '報酬額': 'feeAmount',
   '紹介料率(%)': 'referralFeeRate',
   '紹介料': 'referralFeeAmount',
+  '見積紹介料': 'estimateReferralFeeAmount',
   '土地数_路線価': 'landRosenkaCount',
   '土地数_倍率': 'landBairitsuCount',
   '非上場株式数': 'unlistedStockCount',
