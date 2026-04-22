@@ -21,7 +21,7 @@
 | 非上場株式評価 | `/shares/` | http://localhost/shares/ | 3012 | Vite + React | 非上場株式の評価計算 |
 | 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React + Express | 確定申告書類管理 |
 | 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人の株式評価 |
-| 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3021 | Next.js + Hono + PostgreSQL | 相続税案件管理 |
+| 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Prisma + PostgreSQL | 相続税案件管理 |
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
 | 給与手取り計算 | `/salary-calc/` | http://localhost/salary-calc/ | 3016 | Vite + React | 給与・賞与の手取り計算シミュレーション |
 | 減価償却資産評価 | `/asset-valuation/` | http://localhost/asset-valuation/ | 3017 | Vite + React | 相続税申告の減価償却資産評価 |
@@ -57,7 +57,7 @@ tax_apps/
 │   ├── asset-valuation/              # 減価償却資産評価 (Vite)
 │   ├── stock-valuation-form/          # 株式評価明細書 (Vite)
 │   ├── medical-stock-valuation/       # 医療法人株式評価 (Next.js + SQLite)
-│   ├── inheritance-case-management/   # 案件管理 (Next.js + Hono + Prisma)
+│   ├── inheritance-case-management/   # 案件管理 (Next.js + Prisma + PostgreSQL)
 │   └── bank-analyzer-django/          # 銀行分析 (Django)
 ├── docker/                            # Docker共通設定
 │   ├── gateway/                       # Nginx Gateway の docker-compose.yml
@@ -232,7 +232,7 @@ DB_PASSWORD=dev-password-change-in-production
 ## 技術スタック
 
 - **フロントエンド**: Vite 6〜7 + React 19, Next.js 16+, Django Templates (Bootstrap 5)
-- **バックエンド**: Express, Hono, Django
+- **バックエンド**: Next.js API Routes, Express, Django
 - **ORM**: Prisma (案件管理), better-sqlite3 (確定申告書類)
 - **データベース**: SQLite, PostgreSQL 16 Alpine
 - **スタイリング**: Tailwind CSS v4
@@ -292,7 +292,7 @@ LAN IPアドレス経由（例: `http://192.168.x.x/`）でアクセスする場
 
 | 問題 | 対応済み | 対象 |
 |------|---------|------|
-| `crypto.randomUUID()` が使えない | `crypto.getRandomValues()` ベースのフォールバック実装 | inheritance-tax-app, gift-tax-docs |
+| `crypto.randomUUID()` が使えない | `crypto.getRandomValues()` ベースのフォールバック実装 | inheritance-tax-app, inheritance-tax-docs |
 | Django の `ALLOWED_HOSTS` エラー (400) | ワイルドカード `*` を許可（開発モード） | bank-analyzer-django |
 | Django の COOP ヘッダー警告 | `SECURE_CROSS_ORIGIN_OPENER_POLICY = None` で無効化 | bank-analyzer-django |
 

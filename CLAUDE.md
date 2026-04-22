@@ -58,7 +58,7 @@ docker/scripts/manage.bat status
 
 ### 個別アプリのスクリプト（Docker内で実行）
 - Next.js系 / Vite系: `npm run dev` / `npm run build` / `npm run lint`
-- Hono API (inheritance-case-management/api): `npm run dev` / `npm run test` (vitest) / `npm run db:generate` / `npm run db:push`
+- 案件管理 (inheritance-case-management/web): `npm run dev` / `npm run db:generate` / `npm run db:push`
 - Express (tax-docs/backend): `npm run dev` / `npm run build`
 - Django (bank-analyzer-django): `python manage.py runserver 0.0.0.0:3007`
 
