@@ -359,7 +359,7 @@ docker exec tax-apps-gateway nginx -s reload
 | `inheritance-case-management_postgres_data` | itcm-postgres | ITCM用 PostgreSQL データ |
 | `bank-analyzer-postgres` | bank-analyzer-postgres | 銀行分析用 PostgreSQL |
 | `bank-analyzer-sqlite` | bank-analyzer | 銀行分析 SQLite（レガシー） |
-| `tax-docs-data` | tax-docs-backend | 確定申告書類 SQLite |
+| ~~`tax-docs-data`~~ | ~~tax-docs-backend~~ | ~~確定申告書類 SQLite~~ ※廃止済み |
 | `medical-stock-valuation-data` | medical-stock-valuation | 医療法人株式 SQLite |
 
 > `bank-analyzer-django/data/` のみバインドマウント（アップロードファイル用）
@@ -378,7 +378,7 @@ manage.bat backup
 |:--|:------|:-----|:-----|
 | 1 | ITCM PostgreSQL | `pg_dump`（SQLダンプ） | コンテナ停止中はボリューム tar バックアップ |
 | 2 | Bank Analyzer PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
-| 3 | SQLite ボリューム（3つ） | `docker run alpine tar` | bank-analyzer-sqlite, tax-docs-data, medical-stock-valuation-data |
+| 3 | SQLite ボリューム（2つ） | `docker run alpine tar` | bank-analyzer-sqlite, medical-stock-valuation-data |
 | 4 | アップロードデータ | `robocopy` | bank-analyzer/data/ |
 | 5 | 設定ファイル | `copy` | ITCM .env |
 
@@ -492,7 +492,7 @@ docker network create tax-apps-network
 |:----------------|:------------|:-----|:-----|:-----|
 | Portal | http://localhost/ | 3000 | Next.js | メインポータル |
 | Gift Tax Simulator | http://localhost/gift-tax-simulator/ | 3001 | Vite | 贈与税計算シミュレーター |
-| Tax Docs | http://localhost/tax-docs/ | 3002 | Vite + Express | 確定申告 必要書類 |
+| Tax Docs | http://localhost/tax-docs/ | 3002 | Vite | 確定申告 必要書類 |
 | Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | Vite | 相続税 資料ガイド |
 | Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | Vite | 相続税計算 |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 銀行分析 |
@@ -521,7 +521,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 |:--|:------|:-----|
 | 1 | inheritance-case-management | PostgreSQL + Next.js |
 | 2 | bank-analyzer-django | PostgreSQL + Django |
-| 3 | tax-docs | SQLite + Express + Vite |
+| 3 | tax-docs | Vite |
 | 4 | medical-stock-valuation | SQLite + Next.js |
 | 5 | shares-valuation | Vite |
 | 6 | inheritance-tax-app | Vite |
@@ -607,7 +607,7 @@ manage.bat/sh は以下の順序でアプリを起動します（停止は逆順
 | カテゴリ | 技術 |
 |:---------|:-----|
 | Frontend | Next.js 16, React 19, Vite 6〜7 |
-| Backend | Next.js API Routes, Express, Django 5.x |
+| Backend | Next.js API Routes, Django 5.x |
 | Database | PostgreSQL 16 Alpine, SQLite |
 | Infrastructure | Docker, Nginx 1.27 |
 | Node.js | v22 LTS |
