@@ -1,55 +1,116 @@
 @echo off
 REM ============================================================
-REM  ITCM PostgreSQL Auto Backup
-REM  - docker exec + pg_dump
+REM  All Database Backup
+REM  - ITCM PostgreSQL (pg_dump)
+REM  - Bank Analyzer PostgreSQL (pg_dump)
+REM  - Medical Stock SQLite (docker cp)
 REM  - 7 days retention (auto cleanup)
 REM  - Task Scheduler or double-click
 REM ============================================================
 
 setlocal enabledelayedexpansion
 
-REM --- Settings ---
-set CONTAINER=itcm-postgres
-set DB_USER=postgres
-set DB_NAME=inheritance_tax_db
-set BACKUP_DIR=%~dp0..\backups\itcm-db
 set RETENTION_DAYS=7
+set ERRORS=0
 
-REM --- Create backup directory ---
-if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
-
-REM --- Generate filename ---
+REM --- Generate date/time stamp ---
 for /f "tokens=1-3 delims=/ " %%a in ('date /t') do set YMD=%%a%%b%%c
 for /f "tokens=1-2 delims=: " %%a in ('time /t') do set HM=%%a%%b
-set FILENAME=itcm-db_%YMD%_%HM%.sql
 
-echo [%date% %time%] ITCM DB Backup Start
-echo   Container: %CONTAINER%
-echo   Database:  %DB_NAME%
-echo   Output:    %BACKUP_DIR%\%FILENAME%
+echo ============================================================
+echo  Database Backup - %date% %time%
+echo ============================================================
+echo.
 
-REM --- Check container is running ---
-docker inspect -f "{{.State.Running}}" %CONTAINER% >nul 2>&1
+REM ============================================================
+REM  1. ITCM PostgreSQL
+REM ============================================================
+set PG1_CONTAINER=itcm-postgres
+set PG1_USER=postgres
+set PG1_DB=inheritance_tax_db
+set PG1_DIR=%~dp0..\backups\itcm-db
+set PG1_FILE=itcm-db_%YMD%_%HM%.sql
+
+echo [1/3] ITCM PostgreSQL
+if not exist "%PG1_DIR%" mkdir "%PG1_DIR%"
+
+docker inspect -f "{{.State.Running}}" %PG1_CONTAINER% >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Container %CONTAINER% is not running.
-    echo         Run: docker compose up -d
-    pause
-    exit /b 1
+    echo   [SKIP] Container %PG1_CONTAINER% is not running.
+    set /a ERRORS+=1
+) else (
+    docker exec %PG1_CONTAINER% pg_dump -U %PG1_USER% -d %PG1_DB% --clean --if-exists > "%PG1_DIR%\%PG1_FILE%"
+    if errorlevel 1 (
+        echo   [ERROR] pg_dump failed.
+        set /a ERRORS+=1
+    ) else (
+        for %%f in ("%PG1_DIR%\%PG1_FILE%") do echo   OK: %%~zf bytes -^> %PG1_FILE%
+        forfiles /p "%PG1_DIR%" /m "itcm-db_*.sql" /d -%RETENTION_DAYS% /c "cmd /c echo   Deleting: @file && del @path" 2>nul
+    )
 )
+echo.
 
-REM --- Execute pg_dump ---
-docker exec %CONTAINER% pg_dump -U %DB_USER% -d %DB_NAME% --clean --if-exists > "%BACKUP_DIR%\%FILENAME%"
+REM ============================================================
+REM  2. Bank Analyzer PostgreSQL
+REM ============================================================
+set PG2_CONTAINER=bank-analyzer-postgres
+set PG2_USER=bankuser
+set PG2_DB=bank_analyzer
+set PG2_DIR=%~dp0..\backups\bank-analyzer-db
+set PG2_FILE=bank-analyzer-db_%YMD%_%HM%.sql
+
+echo [2/3] Bank Analyzer PostgreSQL
+if not exist "%PG2_DIR%" mkdir "%PG2_DIR%"
+
+docker inspect -f "{{.State.Running}}" %PG2_CONTAINER% >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] pg_dump failed.
-    pause
-    exit /b 1
+    echo   [SKIP] Container %PG2_CONTAINER% is not running.
+    set /a ERRORS+=1
+) else (
+    docker exec %PG2_CONTAINER% pg_dump -U %PG2_USER% -d %PG2_DB% --clean --if-exists > "%PG2_DIR%\%PG2_FILE%"
+    if errorlevel 1 (
+        echo   [ERROR] pg_dump failed.
+        set /a ERRORS+=1
+    ) else (
+        for %%f in ("%PG2_DIR%\%PG2_FILE%") do echo   OK: %%~zf bytes -^> %PG2_FILE%
+        forfiles /p "%PG2_DIR%" /m "bank-analyzer-db_*.sql" /d -%RETENTION_DAYS% /c "cmd /c echo   Deleting: @file && del @path" 2>nul
+    )
 )
+echo.
 
-REM --- Show file size ---
-for %%f in ("%BACKUP_DIR%\%FILENAME%") do echo   Size: %%~zf bytes
+REM ============================================================
+REM  3. Medical Stock SQLite
+REM ============================================================
+set SQ1_CONTAINER=medical-stock-valuation
+set SQ1_SRC=/app/data/doctor.db
+set SQ1_DIR=%~dp0..\backups\medical-stock-db
+set SQ1_FILE=medical-stock-db_%YMD%_%HM%.db
 
-REM --- Cleanup old backups ---
-echo   Cleaning up backups older than %RETENTION_DAYS% days...
-forfiles /p "%BACKUP_DIR%" /m "itcm-db_*.sql" /d -%RETENTION_DAYS% /c "cmd /c echo   Deleting: @file && del @path" 2>nul
+echo [3/3] Medical Stock SQLite
+if not exist "%SQ1_DIR%" mkdir "%SQ1_DIR%"
 
-echo [%date% %time%] Backup Complete
+docker inspect -f "{{.State.Running}}" %SQ1_CONTAINER% >nul 2>&1
+if errorlevel 1 (
+    echo   [SKIP] Container %SQ1_CONTAINER% is not running.
+    set /a ERRORS+=1
+) else (
+    docker cp %SQ1_CONTAINER%:%SQ1_SRC% "%SQ1_DIR%\%SQ1_FILE%"
+    if errorlevel 1 (
+        echo   [ERROR] docker cp failed.
+        set /a ERRORS+=1
+    ) else (
+        for %%f in ("%SQ1_DIR%\%SQ1_FILE%") do echo   OK: %%~zf bytes -^> %SQ1_FILE%
+        forfiles /p "%SQ1_DIR%" /m "medical-stock-db_*.db" /d -%RETENTION_DAYS% /c "cmd /c echo   Deleting: @file && del @path" 2>nul
+    )
+)
+echo.
+
+REM ============================================================
+REM  Summary
+REM ============================================================
+if %ERRORS%==0 (
+    echo [OK] All backups completed successfully.
+) else (
+    echo [WARN] %ERRORS% backup(s) skipped or failed.
+)
+echo ============================================================

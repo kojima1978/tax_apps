@@ -59,7 +59,7 @@ docker/scripts/manage.bat status
 ### 個別アプリのスクリプト（Docker内で実行）
 - Next.js系 / Vite系: `npm run dev` / `npm run build` / `npm run lint`
 - 案件管理 (inheritance-case-management/web): `npm run dev` / `npm run db:generate` / `npm run db:push`
-- Express (tax-docs/backend): `npm run dev` / `npm run build`
+- 確定申告書類 (tax-docs): Vite フロントエンドのみ（バックエンドなし）
 - Django (bank-analyzer-django): `python manage.py runserver 0.0.0.0:3007`
 
 ## コーディング規約

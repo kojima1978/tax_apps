@@ -19,7 +19,7 @@
 | 退職金税額計算 | `/retirement-tax-calc/` | http://localhost/retirement-tax-calc/ | 3013 | Vite + React | 退職金の税額計算シミュレーション |
 | 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React | 相続税申告の必要書類ガイド |
 | 非上場株式評価 | `/shares/` | http://localhost/shares/ | 3012 | Vite + React | 非上場株式の評価計算 |
-| 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React + Express | 確定申告書類管理 |
+| 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React | 確定申告書類管理 |
 | 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人の株式評価 |
 | 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Prisma + PostgreSQL | 相続税案件管理 |
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
@@ -33,8 +33,7 @@
 
 | 種別 | アプリ | イメージサイズ |
 |------|--------|--------------|
-| nginx (静的) | 14 Vite/Next.js アプリ + gateway | ~59-60MB |
-| Express | 確定申告必要書類 バックエンド | ~178MB |
+| nginx (静的) | 15 Vite/Next.js アプリ + gateway | ~59-60MB |
 | Next.js standalone | 医療法人株式評価 | ~240MB |
 | Next.js + Prisma | 案件管理 | ~333MB |
 | Django + Gunicorn | 銀行分析 | ~465MB |
@@ -51,7 +50,7 @@ tax_apps/
 │   ├── income-tax-calc/               # 所得税計算 (Vite)
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
 │   ├── shares-valuation/              # 非上場株式評価 (Vite)
-│   ├── tax-docs/                      # 確定申告必要書類 (Vite + Express)
+│   ├── tax-docs/                      # 確定申告必要書類 (Vite)
 │   ├── depreciation-calc/             # 減価償却計算 (Vite)
 │   ├── salary-calc/                   # 給与手取り計算 (Vite)
 │   ├── asset-valuation/              # 減価償却資産評価 (Vite)
@@ -232,8 +231,8 @@ DB_PASSWORD=dev-password-change-in-production
 ## 技術スタック
 
 - **フロントエンド**: Vite 6〜7 + React 19, Next.js 16+, Django Templates (Bootstrap 5)
-- **バックエンド**: Next.js API Routes, Express, Django
-- **ORM**: Prisma (案件管理), better-sqlite3 (確定申告書類)
+- **バックエンド**: Next.js API Routes, Django
+- **ORM**: Prisma (案件管理)
 - **データベース**: SQLite, PostgreSQL 16 Alpine
 - **スタイリング**: Tailwind CSS v4
 - **アイコン**: lucide-react
