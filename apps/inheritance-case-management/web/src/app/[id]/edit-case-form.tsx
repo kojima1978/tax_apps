@@ -181,10 +181,11 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         [formData.feeAmount, formData.referralFeeAmount]
     )
 
-    const estimateNetRevenue = useMemo(() =>
-        Math.floor((formData.estimateAmount || 0) * (1 - (formData.referralFeeRate || 0) / 100)),
-        [formData.estimateAmount, formData.referralFeeRate]
-    )
+    const estimateNetRevenue = useMemo(() => {
+        const base = formData.estimateAmount || 0
+        const referral = formData.estimateReferralFeeAmount || Math.floor(base * ((formData.referralFeeRate || 0) / 100))
+        return base - referral
+    }, [formData.estimateAmount, formData.estimateReferralFeeAmount, formData.referralFeeRate])
 
     return (
         <div className="space-y-4">

@@ -22,6 +22,7 @@ model InheritanceCase {
   propertyValue     Int?     @default(0)
   referralFeeRate   Float?
   referralFeeAmount Int?
+  estimateReferralFeeAmount Int?
   landRosenkaCount  Int?     @default(0) // 土地数（路線価）
   landBairitsuCount Int?     @default(0) // 土地数（倍率）
   unlistedStockCount Int?    @default(0) // 非上場株式の数

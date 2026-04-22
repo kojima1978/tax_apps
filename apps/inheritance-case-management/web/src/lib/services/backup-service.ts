@@ -92,6 +92,7 @@ const TABLE_DEFS = [
       propertyValue: (c.propertyValue as number) ?? 0,
       referralFeeRate: (c.referralFeeRate as number) ?? null,
       referralFeeAmount: (c.referralFeeAmount as number) ?? null,
+      estimateReferralFeeAmount: (c.estimateReferralFeeAmount as number) ?? null,
       landRosenkaCount: (c.landRosenkaCount as number) ?? 0,
       landBairitsuCount: (c.landBairitsuCount as number) ?? 0,
       unlistedStockCount: (c.unlistedStockCount as number) ?? 0,

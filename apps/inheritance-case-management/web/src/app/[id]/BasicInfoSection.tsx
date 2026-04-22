@@ -48,7 +48,7 @@ export function BasicInfoSection({
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="fiscalYear">年度</Label>
+                    <Label htmlFor="fiscalYear">年度（{toWareki(new Date(formData.fiscalYear, 0, 1))}度）</Label>
                     <SelectField id="fiscalYear" name="fiscalYear" value={formData.fiscalYear} onChange={handleChange}>
                         {FISCAL_YEARS.map(year => (
                             <option key={year} value={year}>{year}年度</option>
@@ -57,9 +57,8 @@ export function BasicInfoSection({
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="dateOfDeath">相続開始日</Label>
+                    <Label htmlFor="dateOfDeath">相続開始日{formData.dateOfDeath ? `（${toWareki(formData.dateOfDeath)}）` : ""}</Label>
                     <Input id="dateOfDeath" name="dateOfDeath" type="date" value={formData.dateOfDeath} onChange={handleChange} />
-                    {formData.dateOfDeath && <p className="text-xs text-muted-foreground">{toWareki(formData.dateOfDeath)}</p>}
                 </div>
 
                 <div className="space-y-2">

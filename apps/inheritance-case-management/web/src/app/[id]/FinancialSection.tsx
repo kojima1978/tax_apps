@@ -137,74 +137,90 @@ export function FinancialSection({
                     </div>
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="estimateAmount">見積額（税抜）</Label>
-                    <CurrencyField
-                        id="estimateAmount"
-                        name="estimateAmount"
-                        value={formData.estimateAmount}
-                        onValueChange={currencyChange("estimateAmount")}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="feeAmount">報酬額（税抜）</Label>
-                    <CurrencyField
-                        id="feeAmount"
-                        name="feeAmount"
-                        value={formData.feeAmount}
-                        onValueChange={(value) => {
-                            const newFee = value ? Number(value) : 0
-                            const rate = formData.referralFeeRate || 0
-                            const newReferralAmount = Math.floor(newFee * (rate / 100))
-                            setFormData((prev) => ({ ...prev, feeAmount: newFee, referralFeeAmount: newReferralAmount }))
-                        }}
-                    />
-                </div>
-
+                {/* 紹介料・担当者売上 */}
                 <div className="space-y-4 col-span-1 md:col-span-2 border rounded-lg p-4 bg-muted/30">
-                    <Label className="text-base font-semibold">紹介料・担当者売上計算</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="referralFeeRate">紹介料率 (%)</Label>
-                            <Input
-                                id="referralFeeRate"
-                                name="referralFeeRate"
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.1"
-                                value={formData.referralFeeRate?.toString() ?? ""}
-                                onChange={(e) => {
-                                    const val = e.target.value
-                                    const rate = val === "" ? undefined : Number(val)
-                                    const currentFee = formData.feeAmount || 0
-                                    const newReferralAmount = rate !== undefined ? Math.floor(currentFee * (rate / 100)) : 0
-                                    setFormData((prev) => ({ ...prev, referralFeeRate: rate, referralFeeAmount: newReferralAmount }))
-                                }}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="referralFeeAmount">紹介料額</Label>
-                            <CurrencyField
-                                id="referralFeeAmount"
-                                name="referralFeeAmount"
-                                value={formData.referralFeeAmount || 0}
-                                onValueChange={currencyChange("referralFeeAmount")}
-                            />
-                        </div>
+                    <Label className="text-base font-semibold">紹介料・担当者売上</Label>
+                    <div className="max-w-xs space-y-2">
+                        <Label htmlFor="referralFeeRate">紹介料率 (%)</Label>
+                        <Input
+                            id="referralFeeRate"
+                            name="referralFeeRate"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={formData.referralFeeRate?.toString() ?? ""}
+                            onChange={(e) => {
+                                const val = e.target.value
+                                const rate = val === "" ? undefined : Number(val)
+                                const currentFee = formData.feeAmount || 0
+                                const newReferralAmount = rate !== undefined ? Math.floor(currentFee * (rate / 100)) : 0
+                                setFormData((prev) => ({ ...prev, referralFeeRate: rate, referralFeeAmount: newReferralAmount }))
+                            }}
+                        />
                     </div>
-                    <div className="pt-2 border-t mt-2 space-y-2">
-                        <div className="flex justify-between items-end">
-                            <Label className="text-base">担当者売上（手取り）</Label>
-                            <div className="text-xl font-bold">{formatCurrency(netRevenue)}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        {/* 見積ベース */}
+                        <div className="border rounded-lg p-4 bg-background space-y-3">
+                            <Label className="text-sm font-semibold text-muted-foreground">見積ベース</Label>
+                            <div className="space-y-2">
+                                <Label htmlFor="estimateAmount" className="text-xs">見積額（税抜）</Label>
+                                <CurrencyField
+                                    id="estimateAmount"
+                                    name="estimateAmount"
+                                    value={formData.estimateAmount}
+                                    onValueChange={currencyChange("estimateAmount")}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="estimateReferralFeeAmount" className="text-xs">紹介料額</Label>
+                                <CurrencyField
+                                    id="estimateReferralFeeAmount"
+                                    name="estimateReferralFeeAmount"
+                                    value={formData.estimateReferralFeeAmount || 0}
+                                    onValueChange={currencyChange("estimateReferralFeeAmount")}
+                                />
+                            </div>
+                            <div className="border-t pt-3">
+                                <div className="flex justify-between items-end">
+                                    <span className="text-sm font-medium">手取り</span>
+                                    <span className="text-lg font-bold">{formatCurrency(estimateNetRevenue)}</span>
+                                </div>
+                            </div>
                         </div>
-                        <p className="text-xs text-muted-foreground text-right">※ 報酬額（税抜） - 紹介料額</p>
-                        <div className="flex justify-between items-end pt-2 border-t border-dashed">
-                            <Label className="text-sm text-muted-foreground">（参考）見積ベースの手取り予測</Label>
-                            <div className="text-lg font-semibold text-muted-foreground">{formatCurrency(estimateNetRevenue)}</div>
+                        {/* 確定ベース */}
+                        <div className="border-2 border-primary/20 rounded-lg p-4 bg-background space-y-3">
+                            <Label className="text-sm font-semibold">確定ベース</Label>
+                            <div className="space-y-2">
+                                <Label htmlFor="feeAmount" className="text-xs">報酬額（税抜）</Label>
+                                <CurrencyField
+                                    id="feeAmount"
+                                    name="feeAmount"
+                                    value={formData.feeAmount}
+                                    onValueChange={(value) => {
+                                        const newFee = value ? Number(value) : 0
+                                        const rate = formData.referralFeeRate || 0
+                                        const newReferralAmount = Math.floor(newFee * (rate / 100))
+                                        setFormData((prev) => ({ ...prev, feeAmount: newFee, referralFeeAmount: newReferralAmount }))
+                                    }}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="referralFeeAmount" className="text-xs">紹介料額</Label>
+                                <CurrencyField
+                                    id="referralFeeAmount"
+                                    name="referralFeeAmount"
+                                    value={formData.referralFeeAmount || 0}
+                                    onValueChange={currencyChange("referralFeeAmount")}
+                                />
+                            </div>
+                            <div className="border-t pt-3">
+                                <div className="flex justify-between items-end">
+                                    <span className="text-sm font-medium">手取り</span>
+                                    <span className="text-lg font-bold">{formatCurrency(netRevenue)}</span>
+                                </div>
+                            </div>
                         </div>
-                        <p className="text-xs text-muted-foreground text-right">※ 見積額 × (1 - 紹介料率)</p>
                     </div>
                 </div>
 
