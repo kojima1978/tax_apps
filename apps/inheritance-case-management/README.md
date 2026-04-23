@@ -122,16 +122,17 @@
 - テンプレート・エクスポートの列順はUIフォーム入力順に統一（受託状況→進み具合→対応状況→特記事項→担当者→社内紹介者→紹介者→メモ→金額系→連絡先）
 - インポートはヘッダー名ベースで列を判定するため、列の順序に依存しない
 
-### 見積書・請求書Excel出力
+### 見積書・請求書・請求書発行依頼票Excel出力
 
-- 見積書（御見積書）・請求書（御請求書）をExcelファイル（.xlsx）でダウンロード
-- 案件詳細画面の「見積書」「請求書」ボタンから出力
+- 見積書（御見積書）・請求書（御請求書）・請求書発行依頼票をExcelファイル（.xlsx）でダウンロード
+- 案件詳細画面の「見積書」「請求書」「依頼票」ボタンから出力
 - 宛先選択: 案件の連絡先から複数選択（連名対応）＋カスタム入力
 - 発行日入力
-- テンプレート方式: `templates/estimate_template.xlsx` をベーステンプレートとして使用
+- テンプレート方式: 見積書・請求書は `estimate_template.xlsx`、依頼票は `invoice_request_template.xlsx` を使用
 - 見積書はテンプレートをそのまま使用、請求書は生成時に7セル（タイトル・金額ラベル・振込先等）をコードで上書き + シートタブ名を「請求書」に変更
+- 請求書発行依頼票: 担当者名(W3)・請求先(C5)・紹介者名(A18)・売上/紹介料内訳(A19)・合計額(V18)・立替金(H15)をセルに転記。紹介者は社内（部門/氏名）・社外（会社/支店）の両方に対応
 - テンプレートが存在しない場合はエラー（フォールバックなし）
-- ファイル名: `見積書_被相続人名_YYYYMMDD.xlsx` / `請求書_被相続人名_YYYYMMDD.xlsx`
+- ファイル名: `見積書_被相続人名_YYYYMMDD.xlsx` / `請求書_被相続人名_YYYYMMDD.xlsx` / `請求書発行依頼票_被相続人名_YYYYMMDD.xlsx`
 - テンプレートファイルはGit管理対象外（`.gitignore`）、Dockerコンテナ内では `/app/templates/` にマウント
 
 ### JSONバックアップ / リストア
@@ -236,7 +237,7 @@ inheritance-case-management/
         │   │   ├── BasicInfoSection.tsx
         │   │   ├── FinancialSection.tsx  # 報酬計算・転記ボタン
         │   │   ├── ExpenseEditor.tsx   # 立替金エディタ
-        │   │   ├── DocumentExportModal.tsx  # 見積書・請求書出力モーダル
+        │   │   ├── DocumentExportModal.tsx  # 見積書・請求書・依頼票出力モーダル
         │   │   ├── ProgressEditor.tsx  # タイムライン進捗UI（D&D対応）
         │   │   └── ContactListEditor.tsx
         │   ├── settings/               # マスタ管理
@@ -366,7 +367,7 @@ inheritance-case-management/
         │   ├── deadline-utils.ts       # 申告期限計算（死亡日+10ヶ月）
         │   ├── progress-utils.ts       # 訪問ステップ追加/削除
         │   ├── estimate-calc.ts        # 報酬計算ロジック（基本報酬+各種加算）
-        │   ├── export-excel.ts         # 見積書・請求書Excel出力（テンプレート必須）
+        │   ├── export-excel.ts         # 見積書・請求書・依頼票Excel出力（テンプレート必須）
         │   ├── export-csv.ts
         │   ├── utils.ts
         │   └── api/                    # クライアントサイドAPI
@@ -455,14 +456,15 @@ inheritance-case-management/
 |---------|------|------|
 | GET | `/api/templates?type=estimate` | 見積書テンプレート取得（Base64） |
 | GET | `/api/templates?type=invoice` | 請求書テンプレート取得（Base64） |
+| GET | `/api/templates?type=invoice-request` | 請求書発行依頼票テンプレート取得（Base64） |
 
-テンプレートファイル（`estimate_template.xlsx`）が存在しない場合は `{ exists: false }` を返す。
+テンプレートファイルが存在しない場合は `{ exists: false }` を返す。
 
 | メソッド | パス | 説明 |
 |---------|------|------|
 | POST | `/api/templates/generate` | テンプレートにデータを埋め込みExcelファイルを生成（ExcelJS） |
 
-リクエストボディに `docType`（estimate/invoice）と案件データを含める。`invoice` の場合はタイトル・金額ラベル・振込先等の7セルをコードで上書き。
+リクエストボディに `docType`（estimate/invoice/invoice-request）と案件データを含める。`invoice` の場合はタイトル等7セルを上書き、`invoice-request` の場合は担当者・請求先・紹介者・売上/紹介料・立替金をセルに転記。
 
 ### その他
 
@@ -633,7 +635,7 @@ erDiagram
 - **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
 - **和暦変換**: `toWareki()` / `formatDateWithWareki()` で令和/平成/昭和/大正/明治を自動判定し、日付表示に和暦を併記
 - **未保存変更検知**: `useUnsavedChanges` フックでJSON比較によるdirty state管理 + `beforeunload` 警告。保存後は `resetBaseline()` でベースラインリセット
-- **Excel出力テンプレート方式**: `estimate_template.xlsx` をベーステンプレートとして見積書・請求書を共通生成。請求書は生成時に7セル（B11/B14/B17/B41/B43/B44/E44）をINVOICE_OVERRIDESで上書き + シートタブ名を「請求書」に変更。テンプレート未配置時はエラー
+- **Excel出力テンプレート方式**: `estimate_template.xlsx` で見積書・請求書を共通生成（請求書は7セル上��き + シートタブ名変更）、`invoice_request_template.xlsx` で請求書発行依頼票を生成（担当者・請求先・紹介者・売上/紹介料・立替金をセル転記）。TEMPLATE_FILESマップでdocType→テンプレート���ァイルを管理。テンプレート未配置時はエラー
 - **報酬計算ロジック**: `calcEstimate()` で基本報酬+各種加算を算出、「見積額に反映」「報酬額に反映」ボタンで明示的に転記（自動転記なし）
 - **フィルタURL同期**: `useSearchParams` + `router.replace` でフィルタ状態をURLクエリパラメータに双方向同期、`popstate` リスナーでブラウザバック復元
 - **紹介者2段階解決**: `buildResolverMaps` で会社+部署 / 会社（一意時のみ）の2段階キーを構築、CSV取込時の社外紹介者マッチングの正確性を向上

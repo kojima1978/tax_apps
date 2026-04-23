@@ -9,11 +9,12 @@ import type { InheritanceCase } from "@/types/shared"
 import { exportDocument } from "@/lib/export-excel"
 import { useToast } from "@/components/ui/Toast"
 
-type DocumentType = "estimate" | "invoice"
+type DocumentType = "estimate" | "invoice" | "invoice-request"
 
 const DOC_TYPE_LABELS: Record<DocumentType, string> = {
     estimate: "見積書",
     invoice: "請求書",
+    "invoice-request": "請求書発行依頼票",
 }
 
 interface DocumentExportModalProps {

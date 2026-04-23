@@ -43,7 +43,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         { persist: !isCreateMode },
     )
     const [showLeaveModal, setShowLeaveModal] = useState(false)
-    const [exportDocType, setExportDocType] = useState<"estimate" | "invoice" | null>(null)
+    const [exportDocType, setExportDocType] = useState<"estimate" | "invoice" | "invoice-request" | null>(null)
     const [assignees, setAssignees] = useState<Assignee[]>([])
     const [referrers, setReferrers] = useState<Referrer[]>([])
     useEffect(() => {
@@ -278,6 +278,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                             </Button>
                             <Button variant="outline" onClick={() => setExportDocType("invoice")} disabled={isSaving}>
                                 <FileText className="mr-1.5 h-4 w-4" />請求書
+                            </Button>
+                            <Button variant="outline" onClick={() => setExportDocType("invoice-request")} disabled={isSaving}>
+                                <FileText className="mr-1.5 h-4 w-4" />依頼票
                             </Button>
                         </>
                     )}

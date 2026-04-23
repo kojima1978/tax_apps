@@ -7,9 +7,9 @@ export async function POST(request: Request) {
     const body: GenerateTemplateInput = await request.json();
     const { docType } = body;
 
-    if (!docType || !['estimate', 'invoice'].includes(docType)) {
+    if (!docType || !['estimate', 'invoice', 'invoice-request'].includes(docType)) {
       return NextResponse.json(
-        { error: '無効なテンプレートタイプです（estimate / invoice）' },
+        { error: '無効なテンプレートタイプです（estimate / invoice / invoice-request）' },
         { status: 400 }
       );
     }

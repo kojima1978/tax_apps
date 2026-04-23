@@ -5,9 +5,10 @@
  * テンプレートが存在しない場合はエラー。
  */
 import type { InheritanceCase } from '@/types/shared';
+import { formatReferrerLabel } from '@/types/shared';
 import { apiClient } from './api/client';
 
-type DocumentType = 'estimate' | 'invoice';
+type DocumentType = 'estimate' | 'invoice' | 'invoice-request';
 
 interface ExportParams {
   caseData: InheritanceCase;
@@ -41,6 +42,10 @@ async function generateFromTemplate(
     heirCount: number;
     discount: number;
     expensesTotal: number;
+    assigneeName?: string;
+    referrerName?: string;
+    revenueAmount?: number;
+    referralFeeAmount?: number;
   },
 ): Promise<Blob> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/itcm/api';
@@ -56,20 +61,24 @@ async function generateFromTemplate(
   return res.blob();
 }
 
+const DOC_TYPE_FILE_LABELS: Record<DocumentType, string> = {
+  estimate: '見積書',
+  invoice: '請求書',
+  'invoice-request': '請求書発行依頼票',
+};
+
 export async function exportDocument(params: ExportParams): Promise<void> {
   const { caseData, docType, addresseeNames } = params;
 
-  const typeLabel = docType === 'estimate' ? '見積書' : '請求書';
+  const typeLabel = DOC_TYPE_FILE_LABELS[docType];
   const dateStr = params.issueDate.replace(/-/g, '');
   const fileName = `${typeLabel}_${caseData.deceasedName}_${dateStr}.xlsx`;
 
-  // テンプレート存在チェック
   const hasTemplate = await checkTemplateExists(docType);
   if (!hasTemplate) {
     throw new Error('テンプレートファイルが見つかりません。サーバーにテンプレートを配置してください。');
   }
 
-  // 立替金合計
   const expensesTotal = (caseData.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
   const blob = await generateFromTemplate(docType, {
     addresseeName: addresseeNames[0] || '',
@@ -81,9 +90,16 @@ export async function exportDocument(params: ExportParams): Promise<void> {
     heirCount: caseData.heirCount || 0,
     discount: caseData.discountAmount || 0,
     expensesTotal,
+    assigneeName: caseData.assignee?.name,
+    referrerName: caseData.referrer
+      ? formatReferrerLabel(caseData.referrer)
+      : caseData.internalReferrer
+        ? `（社内）${caseData.internalReferrer.department?.name ? caseData.internalReferrer.department.name + ' / ' : ''}${caseData.internalReferrer.name}`
+        : undefined,
+    revenueAmount: caseData.feeAmount || 0,
+    referralFeeAmount: caseData.referralFeeAmount || 0,
   });
 
-  // Blobをダウンロード
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
