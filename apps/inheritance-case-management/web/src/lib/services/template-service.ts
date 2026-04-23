@@ -117,8 +117,11 @@ function fillInvoiceRequest(ws: ExcelJS.Worksheet, input: GenerateTemplateInput)
   // (発行日は addresseeName と同じリクエストで送られてくる前提、
   //  export-excel.ts 側で issueDate を Date に変換して送る)
 
-  // C5: 請求先
-  ws.getCell('C5').value = input.addresseeName;
+  // C5: 請求先（被相続人名付き）
+  const addressee = input.deceasedName
+    ? `${input.addresseeName}（被相続人: ${input.deceasedName}）`
+    : input.addresseeName;
+  ws.getCell('C5').value = addressee;
 
   // A18: 紹介者名
   if (input.referrerName) {
@@ -131,11 +134,11 @@ function fillInvoiceRequest(ws: ExcelJS.Worksheet, input: GenerateTemplateInput)
   const revenue = input.revenueAmount || 0;
   const referral = input.referralFeeAmount || 0;
   const detailCell = ws.getCell('A19');
-  detailCell.value = `売上: ${formatYen(revenue)}円　紹介料: ${formatYen(referral)}円`;
+  detailCell.value = `売上: ${formatYen(revenue - referral)}円　紹介料: ${formatYen(referral)}円`;
   detailCell.font = { ...detailCell.font, ...smallFont };
 
-  // V18: 売上 + 紹介料 合計
-  ws.getCell('V18').value = revenue + referral;
+  // V18: 報酬額（税抜）
+  ws.getCell('V18').value = revenue;
 
   // H15: 立替金合計
   ws.getCell('H15').value = input.expensesTotal;
