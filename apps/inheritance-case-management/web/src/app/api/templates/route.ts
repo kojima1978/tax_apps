@@ -5,9 +5,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
 
-  if (!type || !['estimate', 'invoice'].includes(type)) {
+  if (!type || !['estimate', 'invoice', 'invoice-request'].includes(type)) {
     return NextResponse.json(
-      { error: '無効なテンプレートタイプです（estimate / invoice）' },
+      { error: '無効なテンプレートタイプです（estimate / invoice / invoice-request）' },
       { status: 400 }
     );
   }
