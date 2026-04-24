@@ -103,6 +103,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             propertyValue: formData.propertyValue,
             referralFeeRate: formData.referralFeeRate,
             referralFeeAmount: formData.referralFeeAmount,
+            estimateReferralFeeAmount: formData.estimateReferralFeeAmount,
             landRosenkaCount: formData.landRosenkaCount || 0,
             landBairitsuCount: formData.landBairitsuCount || 0,
             unlistedStockCount: formData.unlistedStockCount || 0,

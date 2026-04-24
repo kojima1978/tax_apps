@@ -155,7 +155,9 @@ export function FinancialSection({
                                 const rate = val === "" ? undefined : Number(val)
                                 const currentFee = formData.feeAmount || 0
                                 const newReferralAmount = rate !== undefined ? Math.floor(currentFee * (rate / 100)) : 0
-                                setFormData((prev) => ({ ...prev, referralFeeRate: rate, referralFeeAmount: newReferralAmount }))
+                                const currentEstimate = formData.estimateAmount || 0
+                                const newEstimateReferral = rate !== undefined ? Math.floor(currentEstimate * (rate / 100)) : 0
+                                setFormData((prev) => ({ ...prev, referralFeeRate: rate, referralFeeAmount: newReferralAmount, estimateReferralFeeAmount: newEstimateReferral }))
                             }}
                         />
                     </div>
@@ -169,7 +171,12 @@ export function FinancialSection({
                                     id="estimateAmount"
                                     name="estimateAmount"
                                     value={formData.estimateAmount}
-                                    onValueChange={currencyChange("estimateAmount")}
+                                    onValueChange={(value) => {
+                                        const newEstimate = value ? Number(value) : 0
+                                        const rate = formData.referralFeeRate || 0
+                                        const newEstimateReferral = Math.floor(newEstimate * (rate / 100))
+                                        setFormData((prev) => ({ ...prev, estimateAmount: newEstimate, estimateReferralFeeAmount: newEstimateReferral }))
+                                    }}
                                 />
                             </div>
                             <div className="space-y-2">
