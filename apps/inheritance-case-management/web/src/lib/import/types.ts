@@ -32,9 +32,10 @@ export const CSV_HEADER_MAP: Record<string, string> = {
   '相続人数': 'heirCount',
   '特記事項': 'summary',
   'メモ': 'memo',
+  '受託日': 'caseAddedDate',
 };
 
-export const IGNORED_HEADERS = new Set(['作成日', '更新日']);
+export const IGNORED_HEADERS = new Set(['作成日', '更新日', '申告完了日']);
 
 export const VALID_STATUSES = CASE_STATUS_OPTIONS as readonly string[];
 export const VALID_HANDLING = HANDLING_STATUS_OPTIONS as readonly string[];

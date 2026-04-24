@@ -111,6 +111,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             discountAmount: formData.discountAmount || 0,
             summary: formData.summary || null,
             memo: formData.memo || null,
+            caseAddedDate: formData.caseAddedDate || null,
             assigneeId: formData.assigneeId || null,
             internalReferrerId: formData.internalReferrerId || null,
             referrerId: formData.referrerId || null,

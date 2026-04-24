@@ -121,6 +121,18 @@ export function BasicInfoSection({
                 </div>
 
                 <div className="space-y-2">
+                    <Label htmlFor="caseAddedDate">受託日</Label>
+                    <Input id="caseAddedDate" name="caseAddedDate" type="date" value={formData.caseAddedDate || ""} onChange={handleChange} />
+                </div>
+
+                {!isCreateMode && formData.caseCompletedDate && (
+                    <div className="space-y-2">
+                        <Label htmlFor="caseCompletedDate">申告完了日（自動）</Label>
+                        <Input id="caseCompletedDate" value={formData.caseCompletedDate} disabled className="bg-muted" />
+                    </div>
+                )}
+
+                <div className="space-y-2">
                     <Label htmlFor="summary">特記事項（{MAX_SUMMARY_LENGTH}文字まで）</Label>
                     <div className="relative">
                         <Input

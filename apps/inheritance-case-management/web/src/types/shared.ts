@@ -82,6 +82,8 @@ export interface InheritanceCase {
   discountAmount?: number;
   summary?: string;
   memo?: string;
+  caseAddedDate?: string | null;
+  caseCompletedDate?: string | null;
   // Normalized FK references
   assigneeId?: number | null;
   internalReferrerId?: number | null;

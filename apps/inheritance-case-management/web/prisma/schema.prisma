@@ -28,8 +28,10 @@ model InheritanceCase {
   unlistedStockCount Int?    @default(0) // 非上場株式の数
   heirCount         Int?     @default(0) // 相続人の数
   discountAmount    Int?     @default(0) // 値引額（円）
-  summary           String?  @db.VarChar(10) // 特記事項（短い概要、最大10文字）
+  summary           String?  @db.VarChar(10) // 特記事項��短い概要、最大10���字）
   memo              String?  @db.Text        // メモ（フリーテキスト）
+  caseAddedDate     DateTime? @db.Date       // 受託日（業務上の案件追加日）
+  caseCompletedDate DateTime? @db.Date       // 申告完了日（ステータス連動）
 
   // Normalized FK references
   assigneeId            Int?
@@ -56,6 +58,8 @@ model InheritanceCase {
   @@index([fiscalYear])
   @@index([acceptanceStatus])
   @@index([createdAt])
+  @@index([caseAddedDate])
+  @@index([caseCompletedDate])
   @@index([assigneeId])
   @@index([internalReferrerId])
   @@index([referrerId])
