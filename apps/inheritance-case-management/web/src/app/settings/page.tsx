@@ -2,44 +2,23 @@
 "use client"
 
 import Link from "next/link"
-import { Users, UserPlus, Building2, Briefcase, GitBranch, HardDriveDownload } from "lucide-react"
+import { Users, Network, HardDriveDownload } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; title: string; description: string }[] = [
     {
-        href: "/settings/departments",
-        icon: Building2,
-        iconClass: "bg-purple-100 text-purple-600",
-        title: "部署管理",
-        description: "社内の部署の追加・編集・削除を行います。担当者の所属部署として使用されます。",
-    },
-    {
-        href: "/settings/assignees",
+        href: "/settings/staff",
         icon: Users,
         iconClass: "bg-blue-100 text-blue-600",
         title: "担当者管理",
-        description: "案件を担当する社内メンバーの追加・編集・削除を行います。部署や社員IDの管理も可能です。",
+        description: "担当者と部署を一元管理します。部署ごとのグループ表示で、追加・編集・無効化がこの画面で完結します。",
     },
     {
-        href: "/settings/companies",
-        icon: Briefcase,
-        iconClass: "bg-amber-100 text-amber-600",
-        title: "会社管理",
-        description: "紹介者の所属会社の追加・編集・削除を行います。紹介者の所属先として使用されます。",
-    },
-    {
-        href: "/settings/company-branches",
-        icon: GitBranch,
-        iconClass: "bg-teal-100 text-teal-600",
-        title: "部門管理（紹介元）",
-        description: "紹介元会社の部門・支店の追加・編集・削除を行います。紹介者の所属部門として使用されます。",
-    },
-    {
-        href: "/settings/referrers",
-        icon: UserPlus,
-        iconClass: "bg-green-100 text-green-600",
-        title: "紹介者管理",
-        description: "案件を紹介してくれる外部の紹介者の追加・編集・削除を行います。会社・部門ごとの管理が可能です。",
+        href: "/settings/referral-sources",
+        icon: Network,
+        iconClass: "bg-emerald-100 text-emerald-600",
+        title: "紹介元管理",
+        description: "紹介元の会社・部門をツリー形式で一元管理します。紹介者としての有効/無効もこの画面で設定できます。",
     },
     {
         href: "/settings/backup",

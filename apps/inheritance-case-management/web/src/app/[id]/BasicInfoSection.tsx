@@ -143,7 +143,7 @@ export function BasicInfoSection({
                     value={formData.assigneeId || ""}
                     items={assignees}
                     placeholder="担当者を選択"
-                    editHref={`/settings/assignees?returnTo=${returnToPath}`}
+                    editHref={`/settings/staff?returnTo=${returnToPath}`}
                     editLabel="担当者を追加・編集"
                     renderOption={(a) => ({ value: a.id, label: a.name })}
                     groupBy={{

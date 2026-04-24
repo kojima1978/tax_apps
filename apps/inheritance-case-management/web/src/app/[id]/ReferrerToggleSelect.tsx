@@ -3,7 +3,6 @@ import Link from "next/link"
 import { Label } from "@/components/ui/Label"
 import { SelectField } from "@/components/ui/SelectField"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
-import { formatReferrerLabel } from "@/types/shared"
 import { REFERRER_MODE_OPTIONS } from "@/types/constants"
 
 type ReferrerMode = "none" | "internal" | "external"
@@ -38,7 +37,18 @@ export function ReferrerToggleSelect({
             .map(([dept, { members }]) => [dept, members.sort((a, b) => a.id - b.id)] as const)
     }, [activeAssignees])
 
-    const activeReferrers = useMemo(() => referrers.filter(r => r.active !== false), [referrers])
+    const groupedReferrers = useMemo(() => {
+        const active = referrers.filter(r => r.active !== false)
+        const map = new Map<string, Referrer[]>()
+        for (const r of active) {
+            const companyName = r.company.name
+            if (!map.has(companyName)) map.set(companyName, [])
+            map.get(companyName)!.push(r)
+        }
+        return [...map.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([name, members]) => [name, members.sort((a, b) => (a.branch?.name || "").localeCompare(b.branch?.name || ""))] as const)
+    }, [referrers])
 
     const handleModeSwitch = (newMode: ReferrerMode) => {
         if (newMode === mode) return
@@ -89,7 +99,7 @@ export function ReferrerToggleSelect({
                         ))}
                     </SelectField>
                     <div className="text-right text-xs">
-                        <Link href={`/settings/assignees?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
+                        <Link href={`/settings/staff?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
                             担当者を追加・編集
                         </Link>
                     </div>
@@ -106,13 +116,17 @@ export function ReferrerToggleSelect({
                         }}
                     >
                         <option value="">社外紹介者を選択</option>
-                        {activeReferrers.map(r => (
-                            <option key={r.id} value={r.id}>{formatReferrerLabel(r)}</option>
+                        {groupedReferrers.map(([companyName, members]) => (
+                            <optgroup key={companyName} label={companyName}>
+                                {members.map(r => (
+                                    <option key={r.id} value={r.id}>{r.branch?.name ? `${companyName} / ${r.branch.name}` : companyName}</option>
+                                ))}
+                            </optgroup>
                         ))}
                     </SelectField>
                     <div className="text-right text-xs">
-                        <Link href={`/settings/referrers?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
-                            紹介者を追加・編集
+                        <Link href={`/settings/referral-sources?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
+                            紹介元を追加・編集
                         </Link>
                     </div>
                 </>
