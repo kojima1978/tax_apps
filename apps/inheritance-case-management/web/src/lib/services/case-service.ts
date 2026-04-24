@@ -1,6 +1,12 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
+import { COMPLETED_STATUSES } from '@/types/constants';
+
+function todayDate(): Date {
+  const d = new Date();
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
 
 export function buildCaseWhereClause(params: {
   status?: string;
@@ -111,6 +117,7 @@ export async function createCase(data: {
   estimateReferralFeeAmount?: number | null;
   summary?: string | null;
   memo?: string | null;
+  caseAddedDate?: string | null;
   assigneeId?: number | null;
   internalReferrerId?: number | null;
   referrerId?: number | null;
@@ -135,6 +142,8 @@ export async function createCase(data: {
       estimateReferralFeeAmount: data.estimateReferralFeeAmount,
       summary: data.summary || null,
       memo: data.memo || null,
+      caseAddedDate: data.caseAddedDate ? toDate(data.caseAddedDate) : todayDate(),
+      caseCompletedDate: (COMPLETED_STATUSES as readonly string[]).includes(data.status ?? '未着手') ? todayDate() : null,
       assigneeId: data.assigneeId || null,
       internalReferrerId: data.internalReferrerId || null,
       referrerId: data.referrerId || null,
@@ -172,15 +181,33 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       'taxAmount', 'feeAmount', 'estimateAmount', 'propertyValue',
       'referralFeeRate', 'referralFeeAmount', 'estimateReferralFeeAmount', 'summary', 'memo',
       'landRosenkaCount', 'landBairitsuCount', 'unlistedStockCount', 'heirCount', 'discountAmount',
+      'caseAddedDate',
     ] as const;
 
+    const dateFields = new Set(['dateOfDeath', 'caseAddedDate']);
     for (const field of scalarFields) {
       if (field in data) {
-        if (field === 'dateOfDeath') {
+        if (dateFields.has(field)) {
           updateData[field] = toDate(data[field] as string);
         } else {
           updateData[field] = data[field as keyof typeof data];
         }
+      }
+    }
+
+    if ('status' in data) {
+      const newStatus = data.status as string;
+      const isNowCompleted = (COMPLETED_STATUSES as readonly string[]).includes(newStatus);
+      if (isNowCompleted) {
+        const current = await tx.inheritanceCase.findUnique({
+          where: { id },
+          select: { caseCompletedDate: true },
+        });
+        if (!current?.caseCompletedDate) {
+          updateData.caseCompletedDate = todayDate();
+        }
+      } else {
+        updateData.caseCompletedDate = null;
       }
     }
 

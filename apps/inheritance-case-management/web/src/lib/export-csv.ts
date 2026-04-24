@@ -43,6 +43,7 @@ const TEMPLATE_HEADERS = [
   "土地数_倍率",
   "非上場株式数",
   "相続人数",
+  "受託日",
   "連絡先1_氏名",
   "連絡先1_電話",
   "連絡先1_郵便番号",
@@ -77,6 +78,7 @@ const TEMPLATE_SAMPLE_ROW = [
   "0",
   "0",
   "0",
+  "",
   "山田花子",
   "03-1234-5678",
   "100-0001",
@@ -139,6 +141,8 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
     "土地数_倍率",
     "非上場株式数",
     "相続人数",
+    "受託日",
+    "申告完了日",
   ];
 
   for (let i = 1; i <= maxContacts; i++) {
@@ -180,6 +184,8 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
       c.landBairitsuCount || 0,
       c.unlistedStockCount || 0,
       c.heirCount || 0,
+      c.caseAddedDate || "",
+      c.caseCompletedDate || "",
     ];
 
     // Contact columns

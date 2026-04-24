@@ -1,4 +1,4 @@
-import { FileText, Clock, AlertTriangle, CheckCircle } from "lucide-react"
+import { FileText, Clock, AlertTriangle, CheckCircle, PlusCircle, CheckCircle2 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import type { KPIData } from "@/lib/kpi-utils"
 
@@ -7,11 +7,13 @@ const KPI_CARD_DEFS: readonly { key: keyof KPIData; label: string; icon: LucideI
     { key: "ongoing", label: "手続中", icon: Clock, color: "text-blue-600 bg-blue-100" },
     { key: "deadlineSoon", label: "期限間近", icon: AlertTriangle, color: "text-amber-600 bg-amber-100" },
     { key: "completed", label: "完了", icon: CheckCircle, color: "text-green-600 bg-green-100" },
+    { key: "addedThisMonth", label: "当月追加", icon: PlusCircle, color: "text-purple-600 bg-purple-100" },
+    { key: "completedThisMonth", label: "当月完了", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-100" },
 ] as const
 
 export function KPICards({ data }: { data: KPIData }) {
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
             {KPI_CARD_DEFS.map(({ key, label, icon: Icon, color }) => (
                 <div key={key} className="flex items-center gap-3 p-4 rounded-lg border bg-card">
                     <div className={`p-2 rounded-lg ${color}`}>

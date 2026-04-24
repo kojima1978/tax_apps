@@ -7,6 +7,20 @@ export interface KPIData {
     ongoing: number
     deadlineSoon: number
     completed: number
+    addedThisMonth: number
+    completedThisMonth: number
+}
+
+function isThisMonth(dateStr: string | null | undefined): boolean {
+    if (!dateStr) return false
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = now.getMonth()
+    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`
+    const endMonth = m === 11 ? 0 : m + 1
+    const endYear = m === 11 ? y + 1 : y
+    const end = `${endYear}-${String(endMonth + 1).padStart(2, "0")}-01`
+    return dateStr >= start && dateStr < end
 }
 
 export function computeKPI(allCases: InheritanceCase[]): KPIData {
@@ -25,5 +39,8 @@ export function computeKPI(allCases: InheritanceCase[]): KPIData {
 
     const completed = accepted.filter(c => isCompleted(c.status)).length
 
-    return { total: allCases.length, ongoing, deadlineSoon, completed }
+    const addedThisMonth = allCases.filter(c => isThisMonth(c.caseAddedDate)).length
+    const completedThisMonth = allCases.filter(c => isThisMonth(c.caseCompletedDate)).length
+
+    return { total: allCases.length, ongoing, deadlineSoon, completed, addedThisMonth, completedThisMonth }
 }

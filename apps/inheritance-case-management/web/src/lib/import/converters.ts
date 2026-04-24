@@ -176,6 +176,9 @@ export function rowToInput(
       case 'memo':
         if (value) obj[fieldName] = value;
         break;
+      case 'caseAddedDate':
+        if (value) obj[fieldName] = normalizeDate(value);
+        break;
     }
   }
 

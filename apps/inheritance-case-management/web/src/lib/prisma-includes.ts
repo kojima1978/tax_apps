@@ -66,10 +66,12 @@ export function toDateStr(date: Date | string | null): string | null {
 }
 
 /** Prisma の案件データを API レスポンス形式に変換（Date→文字列） */
-export function serializeCase<T extends { dateOfDeath: Date | string; progress?: { date: Date | string | null }[]; expenses?: { date: Date | string }[] }>(c: T): T {
+export function serializeCase<T extends { dateOfDeath: Date | string; caseAddedDate?: Date | string | null; caseCompletedDate?: Date | string | null; progress?: { date: Date | string | null }[]; expenses?: { date: Date | string }[] }>(c: T): T {
   return {
     ...c,
     dateOfDeath: toDateStr(c.dateOfDeath as Date) ?? '',
+    caseAddedDate: toDateStr(c.caseAddedDate as Date | null) ?? null,
+    caseCompletedDate: toDateStr(c.caseCompletedDate as Date | null) ?? null,
     progress: c.progress?.map(p => ({
       ...p,
       date: toDateStr(p.date as Date | null),
