@@ -66,5 +66,9 @@ export function useSectionState(
         })
     }, [allOpen, sectionIds])
 
-    return { isOpen, toggle, allOpen, toggleAll }
+    const open = useCallback((id: string) => {
+        setStates(prev => prev[id] ? prev : { ...prev, [id]: true })
+    }, [])
+
+    return { isOpen, toggle, open, allOpen, toggleAll }
 }
