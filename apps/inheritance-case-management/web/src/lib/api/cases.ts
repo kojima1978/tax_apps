@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { InheritanceCase, PaginatedResponse } from '@/types/shared';
+import type { InheritanceCase, PaginatedResponse, AuditLogEntry } from '@/types/shared';
 import type { CreateCaseInput, UpdateCaseInput, ListQueryInput } from '@/types/validation';
 
 export type CasesQueryParams = Partial<ListQueryInput>;
@@ -119,4 +119,8 @@ export async function getAllCases(
   }
 
   return allCases;
+}
+
+export async function getCaseAuditLogs(caseId: number): Promise<AuditLogEntry[]> {
+  return apiClient<AuditLogEntry[]>(`/cases/${caseId}/audit-log`);
 }

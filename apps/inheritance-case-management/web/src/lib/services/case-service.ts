@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
 import { COMPLETED_STATUSES } from '@/types/constants';
+import { writeAuditLog, diffScalar } from './audit-service';
 
 function todayDate(): Date {
   const d = new Date();
@@ -115,6 +116,7 @@ export async function createCase(data: {
   referralFeeRate?: number | null;
   referralFeeAmount?: number | null;
   estimateReferralFeeAmount?: number | null;
+  feeCalcSnapshot?: Record<string, unknown> | null;
   summary?: string | null;
   memo?: string | null;
   caseAddedDate?: string | null;
@@ -125,33 +127,38 @@ export async function createCase(data: {
   progress?: { id: string; name: string; date: string | null; memo?: string; isDynamic?: boolean }[];
   expenses?: { date: string; description: string; amount: number; memo?: string | null }[];
 }) {
-  const newCase = await prisma.inheritanceCase.create({
-    data: {
-      deceasedName: data.deceasedName,
-      dateOfDeath: toDate(data.dateOfDeath),
-      fiscalYear: data.fiscalYear,
-      status: data.status ?? '未着手',
-      handlingStatus: data.handlingStatus ?? '対応中',
-      acceptanceStatus: data.acceptanceStatus ?? '未判定',
-      taxAmount: data.taxAmount ?? 0,
-      feeAmount: data.feeAmount ?? 0,
-      estimateAmount: data.estimateAmount ?? 0,
-      propertyValue: data.propertyValue ?? 0,
-      referralFeeRate: data.referralFeeRate,
-      referralFeeAmount: data.referralFeeAmount,
-      estimateReferralFeeAmount: data.estimateReferralFeeAmount,
-      summary: data.summary || null,
-      memo: data.memo || null,
-      caseAddedDate: data.caseAddedDate ? toDate(data.caseAddedDate) : todayDate(),
-      caseCompletedDate: (COMPLETED_STATUSES as readonly string[]).includes(data.status ?? '未着手') ? todayDate() : null,
-      assigneeId: data.assigneeId || null,
-      internalReferrerId: data.internalReferrerId || null,
-      referrerId: data.referrerId || null,
-      contacts: { create: toContactCreateData(data.contacts ?? []) },
-      progress: { create: toProgressCreateData(data.progress ?? []) },
-      expenses: { create: toExpenseCreateData(data.expenses ?? []) },
-    },
-    include: CASE_INCLUDE,
+  const newCase = await prisma.$transaction(async (tx) => {
+    const created = await tx.inheritanceCase.create({
+      data: {
+        deceasedName: data.deceasedName,
+        dateOfDeath: toDate(data.dateOfDeath),
+        fiscalYear: data.fiscalYear,
+        status: data.status ?? '未着手',
+        handlingStatus: data.handlingStatus ?? '対応中',
+        acceptanceStatus: data.acceptanceStatus ?? '未判定',
+        taxAmount: data.taxAmount ?? 0,
+        feeAmount: data.feeAmount ?? 0,
+        estimateAmount: data.estimateAmount ?? 0,
+        propertyValue: data.propertyValue ?? 0,
+        referralFeeRate: data.referralFeeRate,
+        referralFeeAmount: data.referralFeeAmount,
+        estimateReferralFeeAmount: data.estimateReferralFeeAmount,
+        feeCalcSnapshot: data.feeCalcSnapshot ?? undefined,
+        summary: data.summary || null,
+        memo: data.memo || null,
+        caseAddedDate: data.caseAddedDate ? toDate(data.caseAddedDate) : todayDate(),
+        caseCompletedDate: (COMPLETED_STATUSES as readonly string[]).includes(data.status ?? '未着手') ? todayDate() : null,
+        assigneeId: data.assigneeId || null,
+        internalReferrerId: data.internalReferrerId || null,
+        referrerId: data.referrerId || null,
+        contacts: { create: toContactCreateData(data.contacts ?? []) },
+        progress: { create: toProgressCreateData(data.progress ?? []) },
+        expenses: { create: toExpenseCreateData(data.expenses ?? []) },
+      },
+      include: CASE_INCLUDE,
+    });
+    await writeAuditLog(tx, 'InheritanceCase', created.id, 'CREATE');
+    return created;
   });
 
   return serializeCase(newCase);
@@ -161,17 +168,13 @@ export type OptimisticLockError = { code: 'NOT_FOUND' | 'CONFLICT' };
 
 export async function updateCase(id: number, data: Record<string, unknown>): Promise<ReturnType<typeof serializeCase>> {
   const updated = await prisma.$transaction(async (tx) => {
-    if (data.updatedAt) {
-      const current = await tx.inheritanceCase.findUnique({
-        where: { id },
-        select: { updatedAt: true },
-      });
-      if (!current) {
-        throw { _optimisticLock: true, code: 'NOT_FOUND' } as { _optimisticLock: true } & OptimisticLockError;
-      }
-      if (current.updatedAt.toISOString() !== data.updatedAt) {
-        throw { _optimisticLock: true, code: 'CONFLICT' } as { _optimisticLock: true } & OptimisticLockError;
-      }
+    const before = await tx.inheritanceCase.findUnique({ where: { id } });
+    if (!before) {
+      throw { _optimisticLock: true, code: 'NOT_FOUND' } as { _optimisticLock: true } & OptimisticLockError;
+    }
+
+    if (data.updatedAt && before.updatedAt.toISOString() !== data.updatedAt) {
+      throw { _optimisticLock: true, code: 'CONFLICT' } as { _optimisticLock: true } & OptimisticLockError;
     }
 
     const updateData: Record<string, unknown> = {};
@@ -181,7 +184,7 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       'taxAmount', 'feeAmount', 'estimateAmount', 'propertyValue',
       'referralFeeRate', 'referralFeeAmount', 'estimateReferralFeeAmount', 'summary', 'memo',
       'landRosenkaCount', 'landBairitsuCount', 'unlistedStockCount', 'heirCount', 'discountAmount',
-      'caseAddedDate',
+      'feeCalcSnapshot', 'caseAddedDate',
     ] as const;
 
     const dateFields = new Set(['dateOfDeath', 'caseAddedDate']);
@@ -199,11 +202,7 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       const newStatus = data.status as string;
       const isNowCompleted = (COMPLETED_STATUSES as readonly string[]).includes(newStatus);
       if (isNowCompleted) {
-        const current = await tx.inheritanceCase.findUnique({
-          where: { id },
-          select: { caseCompletedDate: true },
-        });
-        if (!current?.caseCompletedDate) {
+        if (!before.caseCompletedDate) {
           updateData.caseCompletedDate = todayDate();
         }
       } else {
@@ -234,11 +233,18 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       };
     }
 
-    return tx.inheritanceCase.update({
+    const result = await tx.inheritanceCase.update({
       where: { id },
       data: updateData,
       include: CASE_INCLUDE,
     });
+
+    const changes = diffScalar(before as unknown as Record<string, unknown>, result as unknown as Record<string, unknown>);
+    if (changes.length > 0) {
+      await writeAuditLog(tx, 'InheritanceCase', id, 'UPDATE', changes);
+    }
+
+    return result;
   });
 
   return serializeCase(updated);
@@ -290,7 +296,11 @@ export async function bulkUpsertCases(items: BulkUpsertItem[]): Promise<BulkUpse
 }
 
 export async function deleteCase(id: number) {
-  await prisma.inheritanceCase.delete({ where: { id } });
+  await prisma.$transaction(async (tx) => {
+    const before = await tx.inheritanceCase.findUnique({ where: { id }, select: { deceasedName: true } });
+    await tx.inheritanceCase.delete({ where: { id } });
+    await writeAuditLog(tx, 'InheritanceCase', id, 'DELETE', before ? [{ field: 'deceasedName', old: before.deceasedName, new: null }] : undefined);
+  });
 }
 
 export async function bulkDeleteCases(where: Prisma.InheritanceCaseWhereInput) {

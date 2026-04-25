@@ -1,3 +1,5 @@
+import type { FeeCalcSnapshot } from '@/lib/estimate-calc';
+
 // Case Status Types
 export type CaseStatus = '未着手' | '手続中' | '申告済' | '請求済' | '入金済';
 export type HandlingStatus = '対応中' | '対応終了' | '未分割';
@@ -80,6 +82,7 @@ export interface InheritanceCase {
   unlistedStockCount?: number;
   heirCount?: number;
   discountAmount?: number;
+  feeCalcSnapshot?: FeeCalcSnapshot | null;
   summary?: string;
   memo?: string;
   caseAddedDate?: string | null;
@@ -159,6 +162,17 @@ interface Pagination {
 export interface PaginatedResponse<T> {
   data: T[];
   pagination: Pagination;
+}
+
+// Audit Log
+export interface AuditLogEntry {
+  id: number;
+  entity: string;
+  entityId: number;
+  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  changes?: { field: string; old: unknown; new: unknown }[];
+  changedBy?: string | null;
+  changedAt: string;
 }
 
 // Format ID as 4-digit padded string for display

@@ -28,6 +28,7 @@ model InheritanceCase {
   unlistedStockCount Int?    @default(0) // 非上場株式の数
   heirCount         Int?     @default(0) // 相続人の数
   discountAmount    Int?     @default(0) // 値引額（円）
+  feeCalcSnapshot   Json?    // 報酬計算時のパラメータ・料率・内訳スナップショット
   summary           String?  @db.VarChar(10) // 特記事項��短い概要、最大10���字）
   memo              String?  @db.Text        // メモ（フリーテキスト）
   caseAddedDate     DateTime? @db.Date       // 受託日（業務上の案件追加日）
@@ -144,6 +145,19 @@ model Referrer {
   @@index([active])
   @@index([companyId])
   @@index([branchId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  entity    String   // InheritanceCase, Assignee, etc.
+  entityId  Int
+  action    String   // CREATE, UPDATE, DELETE
+  changes   Json?    // [{ field, old, new }]
+  changedBy String?
+  changedAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([changedAt])
 }
 
 model CaseContact {

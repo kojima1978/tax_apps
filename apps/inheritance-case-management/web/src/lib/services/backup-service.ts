@@ -98,6 +98,7 @@ const TABLE_DEFS = [
       unlistedStockCount: (c.unlistedStockCount as number) ?? 0,
       heirCount: (c.heirCount as number) ?? 0,
       discountAmount: (c.discountAmount as number) ?? 0,
+      feeCalcSnapshot: (c.feeCalcSnapshot as Record<string, unknown>) ?? null,
       summary: (c.summary as string) ?? null,
       memo: (c.memo as string) ?? null,
       assigneeId: (c.assigneeId as number) ?? null,
@@ -154,6 +155,20 @@ const TABLE_DEFS = [
     }),
     seqTable: 'CaseExpense',
   },
+  {
+    key: 'auditLogs' as const,
+    model: (tx: TxClient) => tx.auditLog,
+    map: (a: Rec) => ({
+      id: a.id as number,
+      entity: a.entity as string,
+      entityId: a.entityId as number,
+      action: a.action as string,
+      changes: (a.changes as Record<string, unknown>) ?? null,
+      changedBy: (a.changedBy as string) ?? null,
+      changedAt: new Date(a.changedAt as string),
+    }),
+    seqTable: 'AuditLog',
+  },
 ];
 
 interface TableDef {
@@ -164,7 +179,7 @@ interface TableDef {
 }
 
 export async function exportBackup() {
-  const [departments, companies, companyBranches, assignees, referrers, cases, caseContacts, caseProgress, caseExpenses] = await Promise.all([
+  const [departments, companies, companyBranches, assignees, referrers, cases, caseContacts, caseProgress, caseExpenses, auditLogs] = await Promise.all([
     prisma.department.findMany(),
     prisma.company.findMany(),
     prisma.companyBranch.findMany(),
@@ -174,6 +189,7 @@ export async function exportBackup() {
     prisma.caseContact.findMany(),
     prisma.caseProgress.findMany(),
     prisma.caseExpense.findMany(),
+    prisma.auditLog.findMany(),
   ]);
 
   const serializeTimestamps = <T extends { createdAt: Date; updatedAt: Date }>(item: T) => ({
@@ -204,6 +220,10 @@ export async function exportBackup() {
         ...e,
         date: toDateStr(e.date),
       })),
+      auditLogs: auditLogs.map(a => ({
+        ...a,
+        changedAt: a.changedAt.toISOString(),
+      })),
     },
   };
 }
@@ -211,6 +231,7 @@ export async function exportBackup() {
 export async function restoreBackup(data: Record<string, Rec[]>) {
   await prisma.$transaction(
     async (tx: TxClient) => {
+      await tx.auditLog.deleteMany();
       await tx.caseExpense.deleteMany();
       await tx.caseProgress.deleteMany();
       await tx.caseContact.deleteMany();
