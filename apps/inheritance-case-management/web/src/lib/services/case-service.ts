@@ -4,9 +4,38 @@ import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreat
 import { COMPLETED_STATUSES } from '@/types/constants';
 import { writeAuditLog, diffScalar } from './audit-service';
 
+type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
+
 function todayDate(): Date {
   const d = new Date();
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
+type ContactInput = { personId: number; memo?: string };
+type ImportContactInput = { name: string; phone?: string; postalCode?: string; address?: string; memo?: string };
+
+function isImportContact(c: unknown): c is ImportContactInput {
+  return c != null && typeof c === 'object' && 'name' in c && !('personId' in c);
+}
+
+async function resolveContacts(tx: TxClient, contacts: unknown[]): Promise<ContactInput[]> {
+  const result: ContactInput[] = [];
+  for (const c of contacts) {
+    if (isImportContact(c)) {
+      let person = await tx.person.findFirst({
+        where: { name: c.name, phone: c.phone ?? '', postalCode: c.postalCode ?? '', address: c.address ?? '' },
+      });
+      if (!person) {
+        person = await tx.person.create({
+          data: { name: c.name, phone: c.phone ?? '', postalCode: c.postalCode ?? '', address: c.address ?? '', memo: c.memo ?? '' },
+        });
+      }
+      result.push({ personId: person.id, memo: c.memo });
+    } else {
+      result.push(c as ContactInput);
+    }
+  }
+  return result;
 }
 
 export function buildCaseWhereClause(params: {
@@ -123,11 +152,12 @@ export async function createCase(data: {
   assigneeId?: number | null;
   internalReferrerId?: number | null;
   referrerId?: number | null;
-  contacts?: { name: string; phone: string; postalCode?: string; address?: string; memo?: string }[];
+  contacts?: unknown[];
   progress?: { id: string; name: string; date: string | null; memo?: string; isDynamic?: boolean }[];
   expenses?: { date: string; description: string; amount: number; memo?: string | null }[];
 }) {
   const newCase = await prisma.$transaction(async (tx) => {
+    const resolvedContacts = await resolveContacts(tx, data.contacts ?? []);
     const created = await tx.inheritanceCase.create({
       data: {
         deceasedName: data.deceasedName,
@@ -151,7 +181,7 @@ export async function createCase(data: {
         assigneeId: data.assigneeId || null,
         internalReferrerId: data.internalReferrerId || null,
         referrerId: data.referrerId || null,
-        contacts: { create: toContactCreateData(data.contacts ?? []) },
+        contacts: { create: toContactCreateData(resolvedContacts) },
         progress: { create: toProgressCreateData(data.progress ?? []) },
         expenses: { create: toExpenseCreateData(data.expenses ?? []) },
       },
@@ -215,9 +245,10 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
     if ('referrerId' in data) updateData.referrerId = data.referrerId || null;
 
     if (data.contacts !== undefined) {
+      const resolvedContacts = await resolveContacts(tx, data.contacts as unknown[]);
       updateData.contacts = {
         deleteMany: {},
-        create: toContactCreateData(data.contacts as Parameters<typeof toContactCreateData>[0]),
+        create: toContactCreateData(resolvedContacts),
       };
     }
     if (data.progress !== undefined) {

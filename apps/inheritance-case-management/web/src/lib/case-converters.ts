@@ -1,4 +1,4 @@
-import type { CaseProgressItem, CaseContact, CaseExpenseItem, ProgressStep, Contact, Expense } from '@/types/shared';
+import type { CaseProgressItem, CaseContact, CaseExpenseItem, ProgressStep, ContactInput, Expense } from '@/types/shared';
 
 /** DB の CaseProgressItem[] → API 入力の ProgressStep[] */
 export function toProgressSteps(items: CaseProgressItem[]): ProgressStep[] {
@@ -24,28 +24,26 @@ export function toProgressItems(steps: ProgressStep[]): CaseProgressItem[] {
   }));
 }
 
-/** DB の CaseContact[] → API 入力の Contact[] */
-export function toContacts(items: CaseContact[]): Contact[] {
+/** DB の CaseContact[] → API 入力の ContactInput[] */
+export function toContactInputs(items: CaseContact[]): ContactInput[] {
   return items.map((c) => ({
-    name: c.name,
-    phone: c.phone,
-    postalCode: c.postalCode,
-    address: c.address,
-    memo: c.memo,
+    personId: c.personId,
+    memo: c.memo || undefined,
   }));
 }
 
-/** API 入力の Contact[] → DB 形状の CaseContact[] */
-export function toContactItems(contacts: Contact[]): CaseContact[] {
-  return contacts.map((c, i) => ({
-    id: 0,
-    sortOrder: i,
-    name: c.name,
-    phone: c.phone,
-    postalCode: c.postalCode,
-    address: c.address,
-    memo: c.memo,
-  }));
+/** API 入力の ContactInput[] → DB 形状の CaseContact[] (sortOrder付与) */
+export function toContactItems(contacts: ContactInput[], existingContacts?: CaseContact[]): CaseContact[] {
+  return contacts.map((c, i) => {
+    const existing = existingContacts?.find(ec => ec.personId === c.personId);
+    return {
+      id: existing?.id ?? 0,
+      sortOrder: i,
+      personId: c.personId,
+      person: existing?.person ?? { id: c.personId, name: '', phone: '', postalCode: '', address: '', memo: '', active: true },
+      memo: c.memo ?? '',
+    };
+  });
 }
 
 /** DB の CaseExpenseItem[] → API 入力の Expense[] */

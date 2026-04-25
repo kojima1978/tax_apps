@@ -1,6 +1,13 @@
 import type { CreateCaseInput } from '@/types/validation';
-import type { Contact } from '@/types/shared';
 import { CASE_STATUS_OPTIONS, HANDLING_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from '@/types/constants';
+
+export interface ImportContact {
+  name: string;
+  phone: string;
+  postalCode: string;
+  address: string;
+  memo: string;
+}
 
 // ── Header → field mapping ──────────────────────────────────
 export const CSV_HEADER_MAP: Record<string, string> = {
@@ -46,7 +53,7 @@ export const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 
 // ── Contact column detection ──────────────────────────────────
 export const CONTACT_HEADER_RE = /^連絡先(\d+)_(氏名|電話|郵便番号|住所|メモ|メール)$/;
-export const CONTACT_FIELD_MAP: Record<string, keyof Contact> = {
+export const CONTACT_FIELD_MAP: Record<string, keyof ImportContact> = {
   '氏名': 'name',
   '電話': 'phone',
   '郵便番号': 'postalCode',
@@ -114,7 +121,7 @@ export interface ResolverMaps {
 
 export interface ColumnMaps {
   fieldMap: Map<number, string>;
-  contactCols: Map<number, { index: number; field: keyof Contact }>;
+  contactCols: Map<number, { index: number; field: keyof ImportContact }>;
   progressCol: number | null;
   idCol: number | null;
 }

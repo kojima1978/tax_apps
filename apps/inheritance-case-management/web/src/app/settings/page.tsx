@@ -2,7 +2,7 @@
 "use client"
 
 import Link from "next/link"
-import { Users, Network, HardDriveDownload } from "lucide-react"
+import { Users, Network, HardDriveDownload, Contact } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; title: string; description: string }[] = [
@@ -19,6 +19,13 @@ const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; 
         iconClass: "bg-emerald-100 text-emerald-600",
         title: "紹介元管理",
         description: "紹介元の会社・部門をツリー形式で一元管理します。紹介者としての有効/無効もこの画面で設定できます。",
+    },
+    {
+        href: "/settings/persons",
+        icon: Contact,
+        iconClass: "bg-violet-100 text-violet-600",
+        title: "人物マスタ管理",
+        description: "案件の連絡先として登録される人物情報を一元管理します。氏名・電話番号・住所の編集や有効/無効の切り替えができます。",
     },
     {
         href: "/settings/backup",

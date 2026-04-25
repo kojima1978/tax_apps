@@ -1,10 +1,11 @@
-import type { Company, CompanyBranch, Department, Assignee, Referrer } from '@/types/shared';
+import type { Company, CompanyBranch, Department, Assignee, Referrer, Person } from '@/types/shared';
 import type {
   CreateCompanyInput, UpdateCompanyInput,
   CreateCompanyBranchInput, UpdateCompanyBranchInput,
   CreateDepartmentInput, UpdateDepartmentInput,
   CreateAssigneeInput, UpdateAssigneeInput,
   CreateReferrerInput, UpdateReferrerInput,
+  CreatePersonInput, UpdatePersonInput,
 } from '@/types/validation';
 import { createCrudApi } from './crud-factory';
 
@@ -37,3 +38,9 @@ export const getReferrers = referrerApi.getAll;
 export const createReferrer = referrerApi.create;
 export const updateReferrer = referrerApi.update;
 export const deleteReferrer = referrerApi.remove;
+
+const personApi = createCrudApi<Person, CreatePersonInput, UpdatePersonInput>('/persons');
+export const getPersons = personApi.getAll;
+export const createPerson = personApi.create;
+export const updatePerson = personApi.update;
+export const deletePerson = personApi.remove;

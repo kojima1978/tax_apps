@@ -191,11 +191,12 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
     // Contact columns
     for (let i = 0; i < maxContacts; i++) {
       const contact = c.contacts?.[i];
+      const person = contact?.person;
       row.push(
-        contact?.name || "",
-        contact?.phone || "",
-        contact?.postalCode || "",
-        contact?.address || "",
+        person?.name || "",
+        person?.phone || "",
+        person?.postalCode || "",
+        person?.address || "",
         contact?.memo || ""
       );
     }

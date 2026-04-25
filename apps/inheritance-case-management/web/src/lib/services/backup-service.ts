@@ -112,16 +112,29 @@ const TABLE_DEFS = [
     seqTable: 'InheritanceCase',
   },
   {
+    key: 'persons' as const,
+    model: (tx: TxClient) => tx.person,
+    map: (p: Rec) => ({
+      id: p.id as number,
+      name: p.name as string,
+      phone: (p.phone as string) ?? '',
+      postalCode: (p.postalCode as string) ?? '',
+      address: (p.address as string) ?? '',
+      memo: (p.memo as string) ?? '',
+      active: (p.active as boolean) ?? true,
+      createdAt: new Date(p.createdAt as string),
+      updatedAt: new Date(p.updatedAt as string),
+    }),
+    seqTable: 'Person',
+  },
+  {
     key: 'caseContacts' as const,
     model: (tx: TxClient) => tx.caseContact,
     map: (c: Rec) => ({
       id: c.id as number,
       caseId: c.caseId as number,
+      personId: c.personId as number,
       sortOrder: (c.sortOrder as number) ?? 0,
-      name: c.name as string,
-      phone: (c.phone as string) ?? '',
-      postalCode: (c.postalCode as string) ?? '',
-      address: (c.address as string) ?? '',
       memo: (c.memo as string) ?? '',
     }),
     seqTable: 'CaseContact',
@@ -179,12 +192,13 @@ interface TableDef {
 }
 
 export async function exportBackup() {
-  const [departments, companies, companyBranches, assignees, referrers, cases, caseContacts, caseProgress, caseExpenses, auditLogs] = await Promise.all([
+  const [departments, companies, companyBranches, assignees, referrers, persons, cases, caseContacts, caseProgress, caseExpenses, auditLogs] = await Promise.all([
     prisma.department.findMany(),
     prisma.company.findMany(),
     prisma.companyBranch.findMany(),
     prisma.assignee.findMany(),
     prisma.referrer.findMany(),
+    prisma.person.findMany(),
     prisma.inheritanceCase.findMany(),
     prisma.caseContact.findMany(),
     prisma.caseProgress.findMany(),
@@ -207,6 +221,7 @@ export async function exportBackup() {
       companyBranches: companyBranches.map(serializeTimestamps),
       assignees: assignees.map(serializeTimestamps),
       referrers: referrers.map(serializeTimestamps),
+      persons: persons.map(serializeTimestamps),
       cases: cases.map(c => ({
         ...serializeTimestamps(c),
         dateOfDeath: toDateStr(c.dateOfDeath) ?? '',
@@ -236,6 +251,7 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
       await tx.caseProgress.deleteMany();
       await tx.caseContact.deleteMany();
       await tx.inheritanceCase.deleteMany();
+      await tx.person.deleteMany();
       await tx.referrer.deleteMany();
       await tx.companyBranch.deleteMany();
       await tx.assignee.deleteMany();

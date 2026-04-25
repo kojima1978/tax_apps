@@ -5,12 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
-import type { InheritanceCase, Assignee, Referrer, CaseStatus } from "@/types/shared"
+import type { InheritanceCase, Assignee, Referrer, Person, CaseStatus } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
-import { toProgressSteps, toProgressItems, toContacts, toContactItems, toExpenses, toExpenseItems } from "@/lib/case-converters"
+import { toProgressSteps, toProgressItems, toContactInputs, toContactItems, toExpenses, toExpenseItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { getAssignees } from "@/lib/api/assignees"
 import { getReferrers } from "@/lib/api/referrers"
+import { getPersons } from "@/lib/api/persons"
 import { useToast } from "@/components/ui/Toast"
 import { Modal } from "@/components/ui/Modal"
 import { ProgressEditor } from "./ProgressEditor"
@@ -48,12 +49,14 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const [exportDocType, setExportDocType] = useState<"estimate" | "invoice" | "invoice-request" | null>(null)
     const [assignees, setAssignees] = useState<Assignee[]>([])
     const [referrers, setReferrers] = useState<Referrer[]>([])
+    const [persons, setPersons] = useState<Person[]>([])
     useEffect(() => {
         const loadMasters = async () => {
             try {
-                const [as, rs] = await Promise.all([getAssignees(), getReferrers()])
+                const [as, rs, ps] = await Promise.all([getAssignees(), getReferrers(), getPersons()])
                 setAssignees(as)
                 setReferrers(rs)
+                setPersons(ps)
             } catch (e) {
                 console.error("Failed to load masters", e)
             }
@@ -93,7 +96,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     // Convert normalized DB shapes to API input shapes
     const toApiPayload = () => {
-        const contacts = formData.contacts ? toContacts(formData.contacts) : undefined
+        const contacts = formData.contacts ? toContactInputs(formData.contacts) : undefined
         const progress = formData.progress ? toProgressSteps(formData.progress) : undefined
         const expenses = formData.expenses ? toExpenses(formData.expenses).filter(e => e.description) : undefined
         return {
@@ -256,8 +259,10 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
             <CollapsibleSection title="連絡先" icon={Phone} isOpen={sections.isOpen("contacts")} onToggle={() => sections.toggle("contacts")} badge={`${(formData.contacts || []).length}件`}>
                 <ContactListEditor
-                    contacts={toContacts(formData.contacts || [])}
-                    onChange={(contacts) => setFormData(prev => ({ ...prev, contacts: toContactItems(contacts) }))}
+                    caseContacts={formData.contacts || []}
+                    persons={persons}
+                    onChange={(contacts) => setFormData(prev => ({ ...prev, contacts }))}
+                    onPersonsChange={setPersons}
                 />
             </CollapsibleSection>
 

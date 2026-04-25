@@ -1,5 +1,5 @@
-import type { Contact, ProgressStep, CaseStatus, AcceptanceStatus } from '@/types/shared';
-import type { ColumnMaps, ResolverMaps, RowParseResult, PendingReferrer, PendingAssignee } from './types';
+import type { ProgressStep, CaseStatus, AcceptanceStatus } from '@/types/shared';
+import type { ImportContact, ColumnMaps, ResolverMaps, RowParseResult, PendingReferrer, PendingAssignee } from './types';
 // Note: PendingAssignee is reused for pendingInternalReferrer (same shape: name + optional department)
 import {
   CSV_HEADER_MAP, IGNORED_HEADERS, CONTACT_HEADER_RE, CONTACT_FIELD_MAP,
@@ -11,7 +11,7 @@ import { normalizeDate, parseOptionalNumber } from './parser';
 
 export function buildColumnMaps(headers: string[]): ColumnMaps {
   const fieldMap = new Map<number, string>();
-  const contactCols = new Map<number, { index: number; field: keyof Contact }>();
+  const contactCols = new Map<number, { index: number; field: keyof ImportContact }>();
   let progressCol: number | null = null;
   let idCol: number | null = null;
 
@@ -225,7 +225,7 @@ export function rowToInput(
 
   // Parse contacts
   if (colMaps.contactCols.size > 0) {
-    const contactMap = new Map<number, Partial<Contact>>();
+    const contactMap = new Map<number, Partial<ImportContact>>();
     for (const [colIndex, { index, field }] of colMaps.contactCols) {
       const value = (row[colIndex] ?? '').trim();
       if (value) {
@@ -234,7 +234,7 @@ export function rowToInput(
       }
     }
 
-    const contacts: Contact[] = [];
+    const contacts: ImportContact[] = [];
     for (let i = 1; i <= MAX_CONTACT_COLUMNS; i++) {
       const c = contactMap.get(i);
       if (c && (c.name || c.phone || c.postalCode || c.address || c.memo)) {
