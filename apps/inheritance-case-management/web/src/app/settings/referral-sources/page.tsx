@@ -6,12 +6,13 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { useToast } from "@/components/ui/Toast"
-import type { Company, CompanyBranch, Referrer } from "@/types/shared"
-import { getCompanies, createCompany, updateCompany, deleteCompany } from "@/lib/api/companies"
+import type { Company, CompanyBranch, Referrer, MergeResult } from "@/types/shared"
+import { getCompanies, createCompany, updateCompany, deleteCompany, mergeCompanies } from "@/lib/api/companies"
 import { getCompanyBranches, createCompanyBranch, updateCompanyBranch, deleteCompanyBranch } from "@/lib/api/company-branches"
 import { getReferrers, createReferrer, deleteReferrer } from "@/lib/api/referrers"
+import { Modal } from "@/components/ui/Modal"
 import {
-    ChevronRight, ChevronDown, Building2, GitBranch, Plus, Trash2, Pencil, Check, X, Network,
+    ChevronRight, ChevronDown, Building2, GitBranch, Plus, Trash2, Pencil, Check, X, Network, GitMerge,
 } from "lucide-react"
 
 type TreeNode =
@@ -37,6 +38,11 @@ function ReferralSourcesContent() {
 
     const [editingNode, setEditingNode] = useState<TreeNode | null>(null)
     const [editName, setEditName] = useState("")
+
+    const [mergeSource, setMergeSource] = useState<Company | null>(null)
+    const [mergeTargetId, setMergeTargetId] = useState<number | null>(null)
+    const [merging, setMerging] = useState(false)
+    const [mergeResult, setMergeResult] = useState<MergeResult | null>(null)
 
     const reload = useCallback(async () => {
         try {
@@ -181,6 +187,28 @@ function ReferralSourcesContent() {
         } catch {
             toast.error("削除に失敗しました。案件で使用中の可能性があります。")
         }
+    }
+
+    const handleMerge = async () => {
+        if (!mergeSource || !mergeTargetId) return
+        setMerging(true)
+        try {
+            const result = await mergeCompanies(mergeSource.id, mergeTargetId)
+            setMergeResult(result)
+            setSelected(null)
+            await reload()
+        } catch {
+            toast.error("マージに失敗しました")
+            setMergeSource(null)
+        } finally {
+            setMerging(false)
+        }
+    }
+
+    const closeMergeModal = () => {
+        setMergeSource(null)
+        setMergeTargetId(null)
+        setMergeResult(null)
     }
 
     const isEditingThis = (node: TreeNode) => {
@@ -437,6 +465,8 @@ function ReferralSourcesContent() {
                             isBranchReferrer={(branchId) => isBranchReferrer(selected.company.id, branchId)}
                             onToggleCompanyReferrer={() => handleToggleCompanyReferrer(selected.company)}
                             onToggleBranchReferrer={(branch) => handleToggleBranchReferrer(branch)}
+                            onMerge={() => { setMergeSource(selected.company); setMergeTargetId(null); setMergeResult(null) }}
+                            canMerge={companies.length >= 2}
                         />
                     ) : (
                         <BranchDetail
@@ -448,24 +478,81 @@ function ReferralSourcesContent() {
                     )}
                 </div>
             </div>
+
+            <Modal isOpen={!!mergeSource} onClose={closeMergeModal} title="会社のマージ">
+                {mergeResult ? (
+                    <div className="space-y-4">
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm space-y-1">
+                            <p className="font-semibold text-emerald-800">マージが完了しました</p>
+                            <p className="text-emerald-700">「{mergeResult.sourceCompany}」→「{mergeResult.targetCompany}」</p>
+                            <ul className="text-emerald-600 text-xs mt-2 space-y-0.5">
+                                <li>移動した部門: {mergeResult.branchesMoved}件</li>
+                                <li>統合した部門: {mergeResult.branchesMerged}件</li>
+                                <li>移動した紹介者: {mergeResult.referrersMoved}件</li>
+                                <li>再割当した案件: {mergeResult.casesReassigned}件</li>
+                            </ul>
+                        </div>
+                        <div className="flex justify-end">
+                            <Button onClick={closeMergeModal}>閉じる</Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                            <p className="font-semibold mb-1">マージ元: {mergeSource?.name}</p>
+                            <p className="text-xs text-amber-600">この会社の部門・紹介者・案件紐付きをすべてマージ先に移動し、この会社を無効化します。</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1.5">マージ先の会社</label>
+                            <select
+                                value={mergeTargetId ?? ""}
+                                onChange={e => setMergeTargetId(e.target.value ? Number(e.target.value) : null)}
+                                className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                            >
+                                <option value="">選択してください</option>
+                                {companies.filter(c => c.id !== mergeSource?.id).map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <Button variant="ghost" onClick={closeMergeModal} disabled={merging}>キャンセル</Button>
+                            <Button onClick={handleMerge} disabled={!mergeTargetId || merging}>
+                                {merging ? "処理中..." : "マージ実行"}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     )
 }
 
-function CompanyDetail({ company, branches, isCompanyReferrer, isBranchReferrer, onToggleCompanyReferrer, onToggleBranchReferrer }: {
+function CompanyDetail({ company, branches, isCompanyReferrer, isBranchReferrer, onToggleCompanyReferrer, onToggleBranchReferrer, onMerge, canMerge }: {
     company: Company
     branches: CompanyBranch[]
     isCompanyReferrer: boolean
     isBranchReferrer: (branchId: number) => boolean
     onToggleCompanyReferrer: () => void
     onToggleBranchReferrer: (branch: CompanyBranch) => void
+    onMerge: () => void
+    canMerge: boolean
 }) {
     return (
         <div className="space-y-6">
             <div>
-                <div className="flex items-center gap-2 mb-1">
-                    <Building2 className="h-5 w-5 text-amber-600" />
-                    <h2 className="text-lg font-bold">{company.name}</h2>
+                <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-amber-600" />
+                        <h2 className="text-lg font-bold">{company.name}</h2>
+                    </div>
+                    {canMerge && (
+                        <Button variant="outline" size="sm" className="text-xs" onClick={onMerge}>
+                            <GitMerge className="h-3.5 w-3.5 mr-1" />他社にマージ
+                        </Button>
+                    )}
                 </div>
                 <p className="text-xs text-muted-foreground">会社の紹介者設定を管理します</p>
             </div>

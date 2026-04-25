@@ -175,6 +175,16 @@ export interface AuditLogEntry {
   changedAt: string;
 }
 
+// Company Merge Result
+export interface MergeResult {
+  sourceCompany: string;
+  targetCompany: string;
+  branchesMoved: number;
+  branchesMerged: number;
+  referrersMoved: number;
+  casesReassigned: number;
+}
+
 // Format ID as 4-digit padded string for display
 export function formatId(id: number): string {
   return String(id).padStart(4, '0');
