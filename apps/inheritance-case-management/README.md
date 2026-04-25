@@ -66,19 +66,25 @@
   - ステータスが先行しているが進捗に日付がない場合 → 警告トースト表示
   - 進捗に日付があるがステータスが追いついていない場合 → ステータス変更を提案
 
-### 連絡先管理
+### 連絡先管理（人物マスタ連携）
 
-- 案件ごとに最大10件の連絡先（氏名・電話番号・郵便番号・住所・メモ）を管理
+- 案件ごとに最大10件の連絡先を管理（CaseContact ジャンクションテーブル経由で Person マスタを参照）
+- 連絡先追加時: 既存の Person を名前・電話・住所で検索して選択、または新規 Person をインライン作成
 - 郵便番号から住所を自動検索（zipcloud API、7桁入力時に自動補完）
+- 案件固有のメモを CaseContact に保持（Person マスタとは独立）
+- 「外す」操作は案件との紐付けのみ解除（Person マスタは削除しない）
+- CSV インポート時の後方互換: `{ name, phone, ... }` 形式のインポートデータから自動で Person を find-or-create（`resolveContacts`）
 - 並び順の保持（sortOrder）
 
 ### マスタ管理
 
 - **部署**: 部署名、表示順（設定画面でCRUD管理）
 - **会社**: 会社名（設定画面でCRUD管理、紹介者の所属先）
+  - 会社マージ機能: 重複会社を統合（部門・紹介者・案件リンクを移行し、ソース会社を無効化）
 - **担当者**: 社員番号（3桁）、部署（Departmentマスタからセレクト）、氏名
 - **部門（紹介元）**: 会社（Companyマスタからセレクト）、部門名（CompanyBranchマスタ、会社名でグループ表示）
 - **紹介者**（社外専用）: 会社（Companyマスタからセレクト）、部門（CompanyBranchマスタからセレクト、会社名でグループ表示）
+- **人物マスタ**: 氏名・電話番号・郵便番号・住所・メモ（連絡先として案件から参照される共有マスタ、設定画面でCRUD管理）
 - 一括編集・一括保存、ソフトデリート（active フラグ）
 
 ### 経営分析ダッシュボード（4タブ）
@@ -142,7 +148,7 @@
 
 ### JSONバックアップ / リストア
 
-- 全9テーブルのデータをJSON形式でエクスポート（`itcm-backup-YYYY-MM-DD.json`、UTF-8 BOM付き）
+- 全10テーブルのデータをJSON形式でエクスポート（`itcm-backup-YYYY-MM-DD.json`、UTF-8 BOM付き）
 - JSONファイルからの全データリストア（プレビュー + 確認入力付き、BOM自動除去対応）
 - リストアはトランザクション内で全削除→全挿入→シーケンスリセットをアトミックに実行
 - リストアエラー時はサーバーからの具体的なエラーメッセージを表示
@@ -208,11 +214,9 @@
 | `/new` | 新規案件登録 |
 | `/[id]` | 案件詳細編集（基本情報/金額/進捗/連絡先の4セクション） |
 | `/settings` | 設定メニュー |
-| `/settings/departments` | 部署マスタ管理 |
-| `/settings/assignees` | 担当者マスタ管理 |
-| `/settings/companies` | 会社マスタ管理 |
-| `/settings/company-branches` | 部門マスタ管理（紹介元） |
-| `/settings/referrers` | 紹介者マスタ管理 |
+| `/settings/staff` | 担当者管理（部署 + 担当者の統合ページ） |
+| `/settings/referral-sources` | 紹介元管理（会社・部門・紹介者のツリー表示、会社マージ機能） |
+| `/settings/persons` | 人物マスタ管理（連絡先として使用される人物情報） |
 | `/settings/backup` | バックアップ / リストア |
 | `/analytics` | 経営分析ダッシュボード（売上・件数/年計表/部門・担当者/紹介者の4タブ） |
 
@@ -233,7 +237,7 @@ inheritance-case-management/
     ├── package.json
     ├── next.config.ts          # basePath: /itcm
     ├── prisma/
-    │   └── schema.prisma       # DBスキーマ（9モデル: Department, Company, CompanyBranch, Assignee, Referrer, InheritanceCase, CaseContact, CaseProgress, CaseExpense）
+    │   └── schema.prisma       # DBスキーマ（10モデル: Department, Company, CompanyBranch, Assignee, Referrer, Person, InheritanceCase, CaseContact, CaseProgress, CaseExpense）
     └── src/
         ├── app/
         │   ├── page.tsx                # 案件一覧
@@ -248,12 +252,10 @@ inheritance-case-management/
         │   │   ├── ProgressEditor.tsx  # タイムライン進捗UI（D&D対応）
         │   │   └── ContactListEditor.tsx
         │   ├── settings/               # マスタ管理
-        │   │   ├── page.tsx
-        │   │   ├── departments/page.tsx
-        │   │   ├── assignees/page.tsx
-        │   │   ├── companies/page.tsx
-        │   │   ├── company-branches/page.tsx
-        │   │   ├── referrers/page.tsx
+        │   │   ├── page.tsx            # 設定メニュー
+        │   │   ├── staff/page.tsx      # 担当者管理（部署 + 担当者）
+        │   │   ├── referral-sources/page.tsx  # 紹介元管理（会社・部門・紹介者、マージ機能）
+        │   │   ├── persons/page.tsx    # 人物マスタ管理（MasterListPage + useMasterList）
         │   │   └── backup/page.tsx
         │   ├── analytics/              # 経営分析
         │   │   ├── page.tsx
@@ -279,6 +281,7 @@ inheritance-case-management/
         │       ├── companies/
         │       │   ├── route.ts
         │       │   ├── handlers.ts     # ファクトリベースCRUD
+        │       │   ├── merge/route.ts  # 会社マージAPI
         │       │   └── [id]/route.ts
         │       ├── company-branches/
         │       │   ├── route.ts
@@ -291,6 +294,10 @@ inheritance-case-management/
         │       ├── referrers/
         │       │   ├── route.ts
         │       │   ├── handlers.ts     # ファクトリベースCRUD（include対応）
+        │       │   └── [id]/route.ts
+        │       ├── persons/
+        │       │   ├── route.ts
+        │       │   ├── handlers.ts     # ファクトリベースCRUD
         │       │   └── [id]/route.ts
         │       └── templates/
         │           ├── route.ts        # GET → template-service.getTemplateBase64()
@@ -348,8 +355,10 @@ inheritance-case-management/
         │   └── use-unsaved-changes.ts  # 未保存変更検知（beforeunload + dirty state）
         ├── lib/
         │   ├── services/               # ビジネスロジック層（APIルートから分離）
-        │   │   ├── case-service.ts     # 案件CRUD・where句構築・楽観ロック・一括削除・一括作成更新・ステータス⇔完了日自動連動
-        │   │   ├── backup-service.ts   # 全テーブルエクスポート・リストア（TABLE_DEFS）
+        │   │   ├── case-service.ts     # 案件CRUD・where句構築・楽観ロック・一括削除・一括作成更新・ステータス⇔完了日自動連動・連絡先resolveContacts
+        │   │   ├── backup-service.ts   # 全テーブルエクスポート・リストア（TABLE_DEFS、10テーブル）
+        │   │   ├── merge-service.ts    # 会社マージ（部門・紹介者・案件FKの移行、ソース無効化）
+        │   │   ├── audit-service.ts    # 監査ログ（案件変更の差分記録）
         │   │   └── template-service.ts # Excelテンプレート取得・生成（ExcelJS）
         │   ├── prisma.ts               # Prisma クライアントシングルトン
         │   ├── prisma-includes.ts      # Prisma include定義（CASE/ASSIGNEE/REFERRER）
@@ -381,12 +390,13 @@ inheritance-case-management/
         │   └── api/                    # クライアントサイドAPI
         │       ├── client.ts           # fetchラッパー（baseURL: /itcm/api）
         │       ├── cases.ts            # 案件CRUD + 一括削除 + 一括作成更新
-        │       ├── masters.ts          # 5マスタAPI統合（companies/company-branches/departments/assignees/referrers）
+        │       ├── masters.ts          # 6マスタAPI統合（companies/company-branches/departments/assignees/referrers/persons）
         │       ├── company-branches.ts # re-export（→ masters.ts）
         │       ├── companies.ts        # re-export（→ masters.ts）
         │       ├── departments.ts      # re-export（→ masters.ts）
         │       ├── assignees.ts        # re-export（→ masters.ts）
         │       ├── referrers.ts        # re-export（→ masters.ts）
+        │       ├── persons.ts         # re-export（→ masters.ts）
         │       ├── backup.ts           # バックアップ/リストア
         │       ├── crud-factory.ts     # 汎用CRUDクライアントファクトリ
         │       └── index.ts
@@ -450,6 +460,9 @@ inheritance-case-management/
 | GET/PUT/DELETE | `/api/company-branches/:id` | 部門取得 / 更新 / 削除 |
 | GET/POST | `/api/referrers` | 紹介者一覧 / 作成（Company, Branch include付き） |
 | GET/PUT/DELETE | `/api/referrers/:id` | 紹介者取得 / 更新 / 削除 |
+| GET/POST | `/api/persons` | 人物一覧 / 作成 |
+| GET/PUT/DELETE | `/api/persons/:id` | 人物取得 / 更新 / 削除 |
+| POST | `/api/companies/merge` | 会社マージ（sourceId→targetIdに統合、部門・紹介者・案件リンク移行） |
 
 ### バックアップ
 
@@ -491,6 +504,7 @@ erDiagram
     Assignee ||--o{ InheritanceCase : "担当"
     Assignee ||--o{ InheritanceCase : "社内紹介"
     Referrer ||--o{ InheritanceCase : "社外紹介"
+    Person ||--o{ CaseContact : "連絡先"
     InheritanceCase ||--o{ CaseContact : "連絡先"
     InheritanceCase ||--o{ CaseProgress : "進捗"
     InheritanceCase ||--o{ CaseExpense : "立替金"
@@ -540,6 +554,18 @@ erDiagram
         datetime updatedAt "@updatedAt"
     }
 
+    Person {
+        int id PK "SERIAL"
+        string name "氏名"
+        string phone "電話番号（default: 空文字）"
+        string postalCode "郵便番号（default: 空文字）"
+        string address "住所（default: 空文字）"
+        string memo "メモ（default: 空文字）"
+        boolean active "有効フラグ（default: true）"
+        datetime createdAt "default: now()"
+        datetime updatedAt "@updatedAt"
+    }
+
     InheritanceCase {
         int id PK "SERIAL"
         string deceasedName "被相続人氏名"
@@ -576,12 +602,9 @@ erDiagram
     CaseContact {
         int id PK "SERIAL"
         int caseId FK "CASCADE on delete"
+        int personId FK "Person参照（RESTRICT on delete）"
         int sortOrder "表示順（default: 0）"
-        string name "連絡先氏名"
-        string phone "電話番号（default: 空文字）"
-        string postalCode "郵便番号（default: 空文字）"
-        string address "住所（default: 空文字）"
-        string memo "メモ（default: 空文字）"
+        string memo "案件固有メモ（default: 空文字）"
     }
 
     CaseProgress {
@@ -617,6 +640,7 @@ erDiagram
 | Assignee | InheritanceCase | 1対多（担当） | SET NULL（FKをnullに） |
 | Assignee | InheritanceCase | 1対多（社内紹介） | SET NULL（FKをnullに） |
 | Referrer | InheritanceCase | 1対多 | SET NULL（FKをnullに） |
+| Person | CaseContact | 1対多 | RESTRICT（削除不可） |
 | InheritanceCase | CaseContact | 1対多 | CASCADE（子も削除） |
 | InheritanceCase | CaseProgress | 1対多 | CASCADE（子も削除） |
 | InheritanceCase | CaseExpense | 1対多 | CASCADE（子も削除） |
@@ -625,8 +649,8 @@ erDiagram
 
 - **サービス層分離**: APIルートはバリデーション+レスポンス生成のみの薄いラッパーとし、ビジネスロジックを `lib/services/`（case-service / backup-service / template-service）に集約
 - **CRUDルートファクトリ**: `createCrudRouteHandlers()` で部署・会社・担当者・紹介者のAPIルートを共通生成（`include`オプション対応）
-- **CRUDクライアントファクトリ**: `crud-factory.ts` でフロントエンドAPIクライアントを共通生成、`masters.ts` で4マスタ（会社/部署/担当者/紹介者）を統合
-- **マスタ編集共通化**: `MasterListPage` + `useMasterList` で4つのマスタ管理画面の編集UIを共通化（groupByによるグループ表示対応）
+- **CRUDクライアントファクトリ**: `crud-factory.ts` でフロントエンドAPIクライアントを共通生成、`masters.ts` で6マスタ（会社/部署/担当者/紹介者/部門/人物）を統合
+- **マスタ編集共通化**: `MasterListPage` + `useMasterList` でマスタ管理画面の編集UIを共通化（groupByによるグループ表示対応）。人物マスタは `MasterListPage` パターンで実装
 - **where句ビルダー共通化**: `buildCaseWhereClause()` で案件一覧取得と一括削除のフィルタ条件構築を共通化
 - **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/CompanyBranch/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成（`lib/import/master-resolver.ts` に分離）。プレビュー画面で自動作成対象を一覧表示
 - **リストアのデータ駆動化**: `TABLE_DEFS` 配列でテーブル定義・行変換・シーケンス名を一元管理し、ループで全テーブルを処理
@@ -640,7 +664,10 @@ erDiagram
 - **セルファクトリ**: `statusCell()` でステータスバッジ列の定義を共通化、`formatDate()` で日付フォーマットを統一
 - **マスタ取得共通化**: `useAsyncMasters` フックで担当者・部署の非同期取得パターンを一元化
 - **モジュール分割**: `import-csv.ts`（629行）→ `lib/import/`（types/parser/converters/validator/master-resolver）、`analytics-utils.ts`（217行）→ `lib/analytics/`（calculations/aggregations）に分割し、旧ファイルは後方互換re-exportとして維持。ファイルデコード（`decodeCSVFile`）はparser.tsに、マスタ解決関数群はmaster-resolver.tsに責務分離
-- **DB正規化**: Department・Company・CompanyBranch テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId + branchId でFK参照。紹介元の部門はCompanyBranchマスタで管理（表記ゆれ防止）。社内紹介者はAssigneeテーブルで一元管理（InheritanceCase.internalReferrerId → Assignee）
+- **人物マスタ分離（CRM化）**: 連絡先データを Person マスタに集約し、CaseContact をジャンクションテーブルに変更。CSV インポートの後方互換性を `resolveContacts()` で維持（`{ name, phone, ... }` 形式から自動で Person を find-or-create）
+- **会社マージ**: `merge-service.ts` でトランザクション内の3段階処理（部門移行→紹介者移行→ソース無効化）。部門名重複時はIDマッピングで紹介者を再割当て、紹介者重複時は案件FKを付替え
+- **監査ログ**: `audit-service.ts` で案件の CREATE/UPDATE/DELETE をスカラー差分付きで記録（`diffScalar` で変更前後を比較）
+- **DB正規化**: Department・Company・CompanyBranch・Person テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId + branchId / CaseContact.personId でFK参照。紹介元の部門はCompanyBranchマスタで管理（表記ゆれ防止）。社内紹介者はAssigneeテーブルで一元管理（InheritanceCase.internalReferrerId → Assignee）
 - **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
 - **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
