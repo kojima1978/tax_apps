@@ -229,6 +229,10 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     <ProgressEditor
                         progress={toProgressSteps(formData.progress)}
                         onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
+                        caseAddedDate={formData.caseAddedDate}
+                        caseCompletedDate={formData.caseCompletedDate}
+                        isCreateMode={isCreateMode}
+                        onDateChange={handleChange}
                     />
                 </CollapsibleSection>
             )}

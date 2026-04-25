@@ -40,6 +40,8 @@
 - 未保存変更検知: フォーム変更時に離脱確認ダイアログを表示、ブラウザタブ閉じ・リロード時の警告（beforeunload）
 - 保存後は一覧に遷移せずフォームに留まり、ベースラインをリセット
 - 特記事項（10文字以内の短い概要）・メモ（フリーテキスト）の管理
+- 受託日（caseAddedDate）: 案件作成時に自動設定（手動編集可）、CSVインポート時にも設定可
+- 申告完了日（caseCompletedDate）: ステータスが完了系（申告済/請求済/入金済）に変更されると自動設定、非完了に戻すとクリア（読み取り専用表示）
 - 申告期限の自動計算（死亡日 + 10ヶ月）
 - 和暦表示: 相続開始日・年度・申告期限・進捗完了日のラベルに和暦を自動表示（令和/平成/昭和/大正/明治対応）
 - フィルタ状態のURL同期: 絞り込み条件がURLクエリパラメータに保持され、ブラウザバック・URL共有で復元可能
@@ -120,6 +122,7 @@
 - 存在しないIDの案件は新規作成にフォールバック
 - ファイル選択時にマスターデータを最新に再読込
 - テンプレート・エクスポートの列順はUIフォーム入力順に統一（受託状況→進み具合→対応状況→特記事項→担当者→社内紹介者→紹介者→メモ→金額系→連絡先）
+- エクスポートに「受託日」「申告完了日」列を含む、インポートでは「受託日」を取込可能（「申告完了日」はステータス連動のため読み取り専用・スキップ）
 - インポートはヘッダー名ベースで列を判定するため、列の順序に依存しない
 
 ### 見積書・請求書・請求書発行依頼票Excel出力
@@ -150,7 +153,9 @@
 
 ### KPIダッシュボード
 
-- 案件総数 / 進行中 / 期限間近（30日以内）/ 完了の4指標をカード表示
+- 案件総数 / 進行中 / 期限間近（30日以内）/ 完了 / 当月追加 / 当月完了の6指標をカード表示
+- 当月追加: `caseAddedDate`（受託日）が当月の案件数
+- 当月完了: `caseCompletedDate`（申告完了日）が当月の案件数
 - フィルター連動: フィルタ適用時はフィルタ後の件数を反映
 
 ### ソート
@@ -340,7 +345,7 @@ inheritance-case-management/
         │   └── use-unsaved-changes.ts  # 未保存変更検知（beforeunload + dirty state）
         ├── lib/
         │   ├── services/               # ビジネスロジック層（APIルートから分離）
-        │   │   ├── case-service.ts     # 案件CRUD・where句構築・楽観ロック・一括削除・一括作成更新
+        │   │   ├── case-service.ts     # 案件CRUD・where句構築・楽観ロック・一括削除・一括作成更新・ステータス⇔完了日自動連動
         │   │   ├── backup-service.ts   # 全テーブルエクスポート・リストア（TABLE_DEFS）
         │   │   └── template-service.ts # Excelテンプレート取得・生成（ExcelJS）
         │   ├── prisma.ts               # Prisma クライアントシングルトン
@@ -539,13 +544,15 @@ erDiagram
         string status "未着手|手続中|申告済|請求済|入金済"
         string handlingStatus "対応中|対応終了|未分割"
         string acceptanceStatus "受託可|受託不可|未判定|保留"
+        date caseAddedDate "受託日（nullable）"
+        date caseCompletedDate "申告完了日（nullable、ステータス連動）"
         int taxAmount "相続税額（default: 0）"
         int feeAmount "報酬額（default: 0）"
         int fiscalYear "年度"
         int estimateAmount "見積額（default: 0）"
         int propertyValue "遺産総額（default: 0）"
         float referralFeeRate "紹介料率（%）"
-        int referralFeeAmount "��介料額（確定）"
+        int referralFeeAmount "紹介料額（確定）"
         int estimateReferralFeeAmount "紹介料額（見積）"
         int landRosenkaCount "土地数・路線価（default: 0）"
         int landBairitsuCount "土地数・倍率（default: 0）"
@@ -621,6 +628,7 @@ erDiagram
 - **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/CompanyBranch/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成（`lib/import/master-resolver.ts` に分離）。プレビュー画面で自動作成対象を一覧表示
 - **リストアのデータ駆動化**: `TABLE_DEFS` 配列でテーブル定義・行変換・シーケンス名を一元管理し、ループで全テーブルを処理
 - **ステータス⇔進捗連動**: `STATUS_STEP_MAP` + `STATUS_ORDER` + `STEP_NAMES` で一元管理、進捗モーダル保存時・案件詳細保存時の双方向整合性チェック
+- **ステータス⇔完了日自動連動**: `COMPLETED_STATUSES` に基づき、ステータスが完了系に変更されると `caseCompletedDate` を自動設定（既設定時は保持）、非完了に戻すとクリア。案件作成時は `caseAddedDate` を自動設定
 - **TanStack Query**: サーバーステート管理（キャッシュ・再取得・楽観的更新）
 - **Zodバリデーション**: リクエストボディの型安全な検証
 - **フィルタ定数一元管理**: `FILTER_KEYS` でフィルタキーを一元管理し、hasFilters判定・KPI依存・フィルタUI定義を自動化
@@ -635,7 +643,7 @@ erDiagram
 - **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
 - **和暦変換**: `toWareki()` / `formatDateWithWareki()` で令和/平成/昭和/大正/明治を自動判定し、日付表示に和暦を併記
 - **未保存変更検知**: `useUnsavedChanges` フックでJSON比較によるdirty state管理 + `beforeunload` 警告。保存後は `resetBaseline()` でベースラインリセット
-- **Excel出力テンプレート方式**: `estimate_template.xlsx` で見積書・請求書を共通生成（請求書は7セル上��き + シートタブ名変更）、`invoice_request_template.xlsx` で請求書発行依頼票を生成（担当者・請求先・紹介者・売上/紹介料・立替金をセル転記）。TEMPLATE_FILESマップでdocType→テンプレート���ァイルを管理。テンプレート未配置時はエラー
+- **Excel出力テンプレート方式**: `estimate_template.xlsx` で見積書・請求書を共通生成（請求書は7セル上書き + シートタブ名変更）、`invoice_request_template.xlsx` で請求書発行依頼票を生成（担当者・請求先・紹介者・売上/紹介料・立替金をセル転記）。TEMPLATE_FILESマップでdocType→テンプレートファイルを管理。テンプレート未配置時はエラー
 - **報酬計算ロジック**: `calcEstimate()` で基本報酬+各種加算を算出、「見積額に反映」「報酬額に反映」ボタンで明示的に転記（自動転記なし）
 - **フィルタURL同期**: `useSearchParams` + `router.replace` でフィルタ状態をURLクエリパラメータに双方向同期、`popstate` リスナーでブラウザバック復元
 - **紹介者2段階解決**: `buildResolverMaps` で会社+部署 / 会社（一意時のみ）の2段階キーを構築、CSV取込時の社外紹介者マッチングの正確性を向上
