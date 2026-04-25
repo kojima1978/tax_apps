@@ -49,7 +49,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
     const addresseeNames = useMemo(() => {
         const names: string[] = []
         for (const idx of selectedContacts) {
-            if (contacts[idx]) names.push(contacts[idx].name)
+            if (contacts[idx]) names.push(contacts[idx].person.name)
         }
         if (customName.trim()) names.push(customName.trim())
         return names
@@ -106,8 +106,8 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
                                         onChange={() => toggleContact(i)}
                                         className="rounded"
                                     />
-                                    <span className="text-sm">{c.name}</span>
-                                    {c.phone && <span className="text-xs text-muted-foreground">{c.phone}</span>}
+                                    <span className="text-sm">{c.person.name}</span>
+                                    {c.person.phone && <span className="text-xs text-muted-foreground">{c.person.phone}</span>}
                                 </label>
                             ))}
                         </div>

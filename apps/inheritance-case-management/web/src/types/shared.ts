@@ -15,12 +15,9 @@ export interface ProgressStep {
 }
 
 // Contact (input shape for API — used by editors)
-export interface Contact {
-  name: string;
-  phone: string;
-  postalCode: string;
-  address: string;
-  memo: string;
+export interface ContactInput {
+  personId: number;
+  memo?: string;
 }
 
 // Expense (input shape for API — used by editors)
@@ -41,13 +38,23 @@ export interface CaseExpenseItem {
   memo?: string;
 }
 
-export interface CaseContact {
+export interface Person {
   id: number;
-  sortOrder: number;
   name: string;
   phone: string;
   postalCode: string;
   address: string;
+  memo: string;
+  active: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface CaseContact {
+  id: number;
+  sortOrder: number;
+  personId: number;
+  person: Person;
   memo: string;
 }
 

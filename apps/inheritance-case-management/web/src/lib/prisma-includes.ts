@@ -1,5 +1,5 @@
 export const CASE_INCLUDE = {
-  contacts: { orderBy: { sortOrder: 'asc' as const } },
+  contacts: { include: { person: true }, orderBy: { sortOrder: 'asc' as const } },
   progress: { orderBy: { sortOrder: 'asc' as const } },
   expenses: { orderBy: { sortOrder: 'asc' as const } },
   assignee: { include: { department: true } },
@@ -17,12 +17,9 @@ export const REFERRER_INCLUDE = {
 } as const;
 
 /** POST/PUT 用: contacts 配列を Prisma create 入力に変換 */
-export function toContactCreateData(contacts: { name: string; phone: string; postalCode?: string; address?: string; memo?: string }[]) {
+export function toContactCreateData(contacts: { personId: number; memo?: string }[]) {
   return contacts.map((c, i) => ({
-    name: c.name,
-    phone: c.phone,
-    postalCode: c.postalCode ?? '',
-    address: c.address ?? '',
+    personId: c.personId,
     memo: c.memo ?? '',
     sortOrder: i,
   }));

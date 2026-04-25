@@ -160,18 +160,35 @@ model AuditLog {
   @@index([changedAt])
 }
 
-model CaseContact {
-  id         Int             @id @default(autoincrement())
-  caseId     Int
-  case       InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  sortOrder  Int             @default(0)
+model Person {
+  id         Int           @id @default(autoincrement())
   name       String
-  phone      String          @default("")
-  postalCode String          @default("")
-  address    String          @default("")
-  memo       String          @default("")
+  phone      String        @default("")
+  postalCode String        @default("")
+  address    String        @default("")
+  memo       String        @default("")
+  active     Boolean       @default(true)
+  caseLinks  CaseContact[]
 
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([name])
+  @@index([active])
+}
+
+model CaseContact {
+  id        Int             @id @default(autoincrement())
+  caseId    Int
+  case      InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  personId  Int
+  person    Person          @relation(fields: [personId], references: [id], onDelete: Restrict)
+  sortOrder Int             @default(0)
+  memo      String          @default("")
+
+  @@unique([caseId, personId])
   @@index([caseId])
+  @@index([personId])
 }
 
 model CaseProgress {
