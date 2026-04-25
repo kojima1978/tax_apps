@@ -25,6 +25,7 @@ import { checkStatusProgressConsistency } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { useSectionState } from "@/hooks/use-section-state"
+import { COMPLETED_STATUSES } from "@/types/constants"
 
 const SECTION_IDS = ["basicInfo", "financial", "progress", "expenses", "contacts", "memo"] as const
 
@@ -77,6 +78,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         const { name, value } = e.target
         const numericFields = ["taxAmount", "feeAmount", "fiscalYear"]
         const fkFields = ["assigneeId", "internalReferrerId", "referrerId"]
+        if (name === "status" && (COMPLETED_STATUSES as readonly string[]).includes(value) && !formData.feeAmount) {
+            sections.open("financial")
+        }
         setFormData((prev) => ({
             ...prev,
             [name]: numericFields.includes(name) ? Number(value)
@@ -177,6 +181,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     }
 
     const returnToPath = isCreateMode ? '/new' : `/${formData.id}`
+    const highlightFee = (COMPLETED_STATUSES as readonly string[]).includes(formData.status) && !formData.feeAmount
 
     const netRevenue = useMemo(() =>
         (formData.feeAmount || 0) - (formData.referralFeeAmount || 0),
@@ -222,6 +227,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 onToggle={() => sections.toggle("financial")}
                 currencyChange={currencyChange}
                 setFormData={setFormData}
+                highlightFee={highlightFee}
             />
 
             {formData.progress && (
