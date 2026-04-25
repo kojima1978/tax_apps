@@ -16,6 +16,10 @@ import { CSS } from "@dnd-kit/utilities"
 interface ProgressEditorProps {
     progress: ProgressStep[]
     onChange: (progress: ProgressStep[]) => void
+    caseAddedDate?: string | null
+    caseCompletedDate?: string | null
+    isCreateMode?: boolean
+    onDateChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
 }
 
 function SortableStep({
@@ -81,7 +85,7 @@ function SortableStep({
     )
 }
 
-export function ProgressEditor({ progress, onChange }: ProgressEditorProps) {
+export function ProgressEditor({ progress, onChange, caseAddedDate, caseCompletedDate, isCreateMode, onDateChange }: ProgressEditorProps) {
     const {
         sensors, stepIds, checkedIds,
         handleStepChange, toggleCheck, setTodayForChecked, handleDragEnd,
@@ -92,19 +96,38 @@ export function ProgressEditor({ progress, onChange }: ProgressEditorProps) {
         onChange(removeVisitStep(progress, index))
     }
 
+    const dateSummary = (
+        <div className="grid grid-cols-2 gap-4 mb-5 p-3 border rounded-lg bg-card/50">
+            <div className="space-y-1">
+                <Label htmlFor="caseAddedDate" className="text-xs">受託日</Label>
+                <Input id="caseAddedDate" name="caseAddedDate" type="date" value={caseAddedDate || ""} onChange={onDateChange} />
+            </div>
+            {!isCreateMode && caseCompletedDate && (
+                <div className="space-y-1">
+                    <Label htmlFor="caseCompletedDate" className="text-xs">申告完了日（自動）</Label>
+                    <Input id="caseCompletedDate" value={caseCompletedDate} disabled className="bg-muted" />
+                </div>
+            )}
+        </div>
+    )
+
     if (progress.length === 0) {
         return (
-            <div className="text-center py-6 border rounded-lg bg-muted/30">
-                <p className="text-sm text-muted-foreground mb-2">進捗データがありません</p>
-                <Button type="button" variant="outline" size="sm" onClick={() => onChange([...DEFAULT_PROGRESS_STEPS])}>
-                    + デフォルトステップを追加
-                </Button>
-            </div>
+            <>
+                {dateSummary}
+                <div className="text-center py-6 border rounded-lg bg-muted/30">
+                    <p className="text-sm text-muted-foreground mb-2">進捗データがありません</p>
+                    <Button type="button" variant="outline" size="sm" onClick={() => onChange([...DEFAULT_PROGRESS_STEPS])}>
+                        + デフォルトステップを追加
+                    </Button>
+                </div>
+            </>
         )
     }
 
     return (
         <div className="relative">
+            {dateSummary}
             {checkedIds.size > 0 && (
                 <div className="mb-4">
                     <SetTodayButton count={checkedIds.size} onClick={setTodayForChecked} />
