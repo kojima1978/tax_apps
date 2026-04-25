@@ -66,7 +66,7 @@ tax_apps/
 │   │   ├── start-prod.bat             # ワンクリック本番モード起動
 │   │   ├── stop.bat                   # ワンクリック停止
 │   │   ├── status.bat                 # ワンクリック状態確認
-│   │   └── backup-db.bat              # ITCM PostgreSQLバックアップ（7日間保持）
+│   │   └── backup-db.bat              # ITCM PostgreSQL + Excelテンプレート バックアップ（7日間保持）
 │   ├── data/                          # 永続化データ（git管理外）
 │   ├── backups/                       # バックアップ保存先
 │   ├── postgres/                      # PostgreSQL初期化SQL
