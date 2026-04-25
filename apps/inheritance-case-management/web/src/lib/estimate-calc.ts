@@ -25,12 +25,12 @@ export interface EstimateBreakdown {
   total: number;              // 合計
 }
 
-const BASE_RATE = 0.008;          // 0.8%
-const ROSENKA_UNIT = 10000;       // 路線価 1区分あたり
-const BAIRITSU_UNIT = 3000;       // 倍率 1区分あたり
-const STOCK_UNIT = 100000;        // 非上場株式 1社あたり
-const HEIR_UNIT = 50000;          // 相続人加算 1人あたり
-const HEIR_MAX_ADDITIONAL = 4;    // 加算上限（5名以上は4人分まで）
+export const BASE_RATE = 0.008;          // 0.8%
+export const ROSENKA_UNIT = 10000;       // 路線価 1区分あたり
+export const BAIRITSU_UNIT = 3000;       // 倍率 1区分あたり
+export const STOCK_UNIT = 100000;        // 非上場株式 1社あたり
+export const HEIR_UNIT = 50000;          // 相続人加算 1人あたり
+export const HEIR_MAX_ADDITIONAL = 4;    // 加算上限（5名以上は4人分まで）
 
 export function calcEstimate(params: EstimateParams): EstimateBreakdown {
   const baseFee = Math.floor(params.propertyValue * BASE_RATE);
@@ -42,4 +42,46 @@ export function calcEstimate(params: EstimateParams): EstimateBreakdown {
   const total = baseFee + landRosenkaFee + landBairitsuFee + unlistedStockFee + heirFee;
 
   return { baseFee, landRosenkaFee, landBairitsuFee, unlistedStockFee, heirFee, total };
+}
+
+export interface FeeCalcSnapshot {
+  calculatedAt: string;
+  appliedTo: 'estimate' | 'fee';
+  params: EstimateParams;
+  rates: {
+    baseRate: number;
+    rosenkaUnit: number;
+    bairitsuUnit: number;
+    stockUnit: number;
+    heirUnit: number;
+    heirMaxAdditional: number;
+  };
+  breakdown: EstimateBreakdown;
+  discountAmount: number;
+  netAmount: number;
+}
+
+export function createFeeCalcSnapshot(
+  params: EstimateParams,
+  discountAmount: number,
+  appliedTo: 'estimate' | 'fee',
+): FeeCalcSnapshot {
+  const breakdown = calcEstimate(params);
+  const netAmount = breakdown.total - discountAmount;
+  return {
+    calculatedAt: new Date().toISOString(),
+    appliedTo,
+    params,
+    rates: {
+      baseRate: BASE_RATE,
+      rosenkaUnit: ROSENKA_UNIT,
+      bairitsuUnit: BAIRITSU_UNIT,
+      stockUnit: STOCK_UNIT,
+      heirUnit: HEIR_UNIT,
+      heirMaxAdditional: HEIR_MAX_ADDITIONAL,
+    },
+    breakdown,
+    discountAmount,
+    netAmount,
+  };
 }

@@ -20,6 +20,7 @@ import { BasicInfoSection } from "./BasicInfoSection"
 import { FinancialSection } from "./FinancialSection"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { DocumentExportModal } from "./DocumentExportModal"
+import { AuditLogSection } from "./AuditLogSection"
 import { ListChecks, Receipt, Phone, StickyNote, FileText, ChevronsUpDown } from "lucide-react"
 import { checkStatusProgressConsistency } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
@@ -27,7 +28,7 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { useSectionState } from "@/hooks/use-section-state"
 import { COMPLETED_STATUSES } from "@/types/constants"
 
-const SECTION_IDS = ["basicInfo", "financial", "progress", "expenses", "contacts", "memo"] as const
+const SECTION_IDS = ["basicInfo", "financial", "progress", "expenses", "contacts", "memo", "auditLog"] as const
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -39,8 +40,8 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const sections = useSectionState(
         [...SECTION_IDS],
         isCreateMode
-            ? { basicInfo: true, financial: false, progress: false, expenses: false, contacts: false, memo: false }
-            : { basicInfo: false, financial: false, progress: false, expenses: false, contacts: false, memo: false },
+            ? { basicInfo: true, financial: false, progress: false, expenses: false, contacts: false, memo: false, auditLog: false }
+            : { basicInfo: false, financial: false, progress: false, expenses: false, contacts: false, memo: false, auditLog: false },
         { persist: !isCreateMode },
     )
     const [showLeaveModal, setShowLeaveModal] = useState(false)
@@ -69,6 +70,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     }, [searchParams])
 
     const [isSaving, setIsSaving] = useState(false)
+    const [auditRefreshKey, setAuditRefreshKey] = useState(0)
     const [pendingSuggestion, setPendingSuggestion] = useState<{ status: CaseStatus; message: string } | null>(null)
 
     const currencyChange = (field: keyof InheritanceCase) => (value: string | undefined) =>
@@ -113,6 +115,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             unlistedStockCount: formData.unlistedStockCount || 0,
             heirCount: formData.heirCount || 0,
             discountAmount: formData.discountAmount || 0,
+            feeCalcSnapshot: formData.feeCalcSnapshot ?? null,
             summary: formData.summary || null,
             memo: formData.memo || null,
             caseAddedDate: formData.caseAddedDate || null,
@@ -146,6 +149,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
                 setFormData(updated)
                 resetBaseline(updated)
+                setAuditRefreshKey(k => k + 1)
                 toast.success("保存しました")
             }
         } catch (e) {
@@ -266,6 +270,15 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px]"
                 />
             </CollapsibleSection>
+
+            {!isCreateMode && (
+                <AuditLogSection
+                    caseId={formData.id}
+                    isOpen={sections.isOpen("auditLog")}
+                    onToggle={() => sections.toggle("auditLog")}
+                    refreshKey={auditRefreshKey}
+                />
+            )}
 
             <StickyActionBar>
                 <Button

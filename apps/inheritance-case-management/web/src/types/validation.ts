@@ -55,6 +55,7 @@ export const createCaseSchema = z.object({
   unlistedStockCount: z.number().int().min(0, '非上場株式数は0以上を入力してください').optional().default(0),
   heirCount: z.number().int().min(0, '相続人数は0以上を入力してください').optional().default(0),
   discountAmount: z.number().int().min(0, '値引額は0以上を入力してください').optional().default(0),
+  feeCalcSnapshot: z.record(z.unknown()).nullable().optional(),
   summary: z.string().max(MAX_SUMMARY_LENGTH, `特記事項は${MAX_SUMMARY_LENGTH}文字以内で入力してください`).nullable().optional(),
   memo: z.string().nullable().optional(),
   caseAddedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
