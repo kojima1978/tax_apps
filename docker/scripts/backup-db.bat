@@ -1,9 +1,10 @@
 @echo off
 REM ============================================================
-REM  All Database Backup
+REM  All Database & File Backup
 REM  - ITCM PostgreSQL (pg_dump)
 REM  - Bank Analyzer PostgreSQL (pg_dump)
 REM  - Medical Stock SQLite (docker cp)
+REM  - ITCM Excel Templates (robocopy)
 REM  - 7 days retention (auto cleanup)
 REM  - Task Scheduler or double-click
 REM ============================================================
@@ -31,7 +32,7 @@ set PG1_DB=inheritance_tax_db
 set PG1_DIR=%~dp0..\backups\itcm-db
 set PG1_FILE=itcm-db_%YMD%_%HM%.sql
 
-echo [1/3] ITCM PostgreSQL
+echo [1/4] ITCM PostgreSQL
 if not exist "%PG1_DIR%" mkdir "%PG1_DIR%"
 
 docker inspect -f "{{.State.Running}}" %PG1_CONTAINER% >nul 2>&1
@@ -59,7 +60,7 @@ set PG2_DB=bank_analyzer
 set PG2_DIR=%~dp0..\backups\bank-analyzer-db
 set PG2_FILE=bank-analyzer-db_%YMD%_%HM%.sql
 
-echo [2/3] Bank Analyzer PostgreSQL
+echo [2/4] Bank Analyzer PostgreSQL
 if not exist "%PG2_DIR%" mkdir "%PG2_DIR%"
 
 docker inspect -f "{{.State.Running}}" %PG2_CONTAINER% >nul 2>&1
@@ -86,7 +87,7 @@ set SQ1_SRC=/app/data/doctor.db
 set SQ1_DIR=%~dp0..\backups\medical-stock-db
 set SQ1_FILE=medical-stock-db_%YMD%_%HM%.db
 
-echo [3/3] Medical Stock SQLite
+echo [3/4] Medical Stock SQLite
 if not exist "%SQ1_DIR%" mkdir "%SQ1_DIR%"
 
 docker inspect -f "{{.State.Running}}" %SQ1_CONTAINER% >nul 2>&1
@@ -101,6 +102,30 @@ if errorlevel 1 (
     ) else (
         for %%f in ("%SQ1_DIR%\%SQ1_FILE%") do echo   OK: %%~zf bytes -^> %SQ1_FILE%
         forfiles /p "%SQ1_DIR%" /m "medical-stock-db_*.db" /d -%RETENTION_DAYS% /c "cmd /c echo   Deleting: @file && del @path" 2>nul
+    )
+)
+echo.
+
+REM ============================================================
+REM  4. ITCM Excel Templates
+REM ============================================================
+set TPL_SRC=%~dp0..\..\apps\inheritance-case-management\templates
+set TPL_DIR=%~dp0..\backups\itcm-templates
+set TPL_FOLDER=itcm-templates_%YMD%_%HM%
+
+echo [4/4] ITCM Excel Templates
+if not exist "%TPL_SRC%\*.xlsx" (
+    echo   [SKIP] No .xlsx files found in templates folder.
+) else (
+    if not exist "%TPL_DIR%\%TPL_FOLDER%" mkdir "%TPL_DIR%\%TPL_FOLDER%"
+    robocopy "%TPL_SRC%" "%TPL_DIR%\%TPL_FOLDER%" *.xlsx /njh /njs /ndl /nc /ns >nul 2>&1
+    set RC=!errorlevel!
+    if !RC! LSS 8 (
+        echo   OK: Copied to %TPL_FOLDER%\
+        forfiles /p "%TPL_DIR%" /m "itcm-templates_*" /d -%RETENTION_DAYS% /c "cmd /c if @isdir==TRUE echo   Deleting: @file && rd /s /q @path" 2>nul
+    ) else (
+        echo   [ERROR] robocopy failed with code !RC!.
+        set /a ERRORS+=1
     )
 )
 echo.
