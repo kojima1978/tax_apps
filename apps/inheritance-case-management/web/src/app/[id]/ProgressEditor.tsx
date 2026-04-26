@@ -167,6 +167,29 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
 
     const dateSummary = (
         <div className="mb-5 grid gap-4 rounded-lg border bg-card/50 p-3 md:grid-cols-2">
+            <div className="space-y-1 md:col-span-2">
+                <Label htmlFor="status" className="text-xs">進み具合</Label>
+                <SelectField
+                    id="status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    disabled={acceptance === "見送り"}
+                >
+                    {CASE_STATUS_OPTIONS.map(s => (
+                        <option key={s} value={s} disabled={!STATUS_ENABLED_WHEN[s].includes(acceptance)}>
+                            {s}
+                        </option>
+                    ))}
+                </SelectField>
+                {hint && (
+                    <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-600">
+                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        {hint}
+                    </p>
+                )}
+            </div>
+
             <div className="space-y-1">
                 <Label htmlFor="acceptanceStatus" className="text-xs">受託</Label>
                 <SelectField
@@ -204,29 +227,6 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
                     <Input id="caseCompletedDate" value={formData.caseCompletedDate || ""} disabled className="bg-muted" />
                 </div>
             )}
-
-            <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="status" className="text-xs">進み具合</Label>
-                <SelectField
-                    id="status"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    disabled={acceptance === "見送り"}
-                >
-                    {CASE_STATUS_OPTIONS.map(s => (
-                        <option key={s} value={s} disabled={!STATUS_ENABLED_WHEN[s].includes(acceptance)}>
-                            {s}
-                        </option>
-                    ))}
-                </SelectField>
-                {hint && (
-                    <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-600">
-                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        {hint}
-                    </p>
-                )}
-            </div>
         </div>
     )
 
