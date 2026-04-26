@@ -155,7 +155,7 @@ function InheritanceMockupPageContent() {
         return { confirmed, estimate, total: confirmed + estimate }
     }, [cases])
 
-    const tableColumns = useMemo(() => createColumns({ amountSort, toggleAmountSort, queryAssigneeId: queryParams.assigneeId, queryInternalReferrerId: queryParams.internalReferrerId, queryStaffId: queryParams.staffId }), [amountSort, toggleAmountSort, queryParams.assigneeId, queryParams.internalReferrerId, queryParams.staffId])
+    const tableColumns = useMemo(() => createColumns({ amountSort, toggleAmountSort }), [amountSort, toggleAmountSort])
 
     // KPI data & assignees
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
