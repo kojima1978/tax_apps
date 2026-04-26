@@ -64,7 +64,7 @@ export type RollingAnnualPoint = {
 export function computeRollingAnnual(cases: InheritanceCase[]): RollingAnnualPoint[] {
     const monthlyMap = new Map<string, { fee: number; count: number }>()
     cases.forEach(c => {
-        if (c.acceptanceStatus !== "受託可" || !isCompleted(c.status)) return
+        if (c.acceptanceStatus !== "受託" || !isCompleted(c.status)) return
         const billingStep = c.progress?.find(p => p.name === STEP_NAMES.BILLING)
         if (!billingStep?.date) return
         const d = new Date(billingStep.date)
@@ -131,7 +131,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         }
         const annual = annualMap.get(year)!
 
-        if (c.acceptanceStatus === "受託可") {
+        if (c.acceptanceStatus === "受託") {
             if (isCompleted(c.status)) {
                 annual.feeTotal += calcNet(c, "fee")
                 annual.count++
@@ -141,15 +141,15 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
             }
         }
 
-        if (c.acceptanceStatus === "受託可") {
+        if (c.acceptanceStatus === "受託") {
             if (isCompleted(c.status)) annual.statusCounts.completed++
             else if (c.status === "手続中") annual.statusCounts.ongoing++
             else if (c.status === "未着手") annual.statusCounts.notStarted++
         }
 
         const acceptance = c.acceptanceStatus || "未判定"
-        if (acceptance === "受託可") annual.acceptanceCounts.accepted++
-        else if (acceptance === "受託不可") annual.acceptanceCounts.rejected++
+        if (acceptance === "受託") annual.acceptanceCounts.accepted++
+        else if (acceptance === "見送り") annual.acceptanceCounts.rejected++
         else annual.acceptanceCounts.undecided++
 
         let personalNet = 0
@@ -159,7 +159,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
             baseType = "fee"
             personalNet = calcNetPersonal(c, "fee")
             referralFee = calcReferralFee(c, "fee")
-        } else if (c.status === "手続中" && c.acceptanceStatus === "受託可") {
+        } else if (c.status === "手続中" && c.acceptanceStatus === "受託") {
             baseType = "estimate"
             personalNet = calcNetPersonal(c, "estimate")
             referralFee = calcReferralFee(c, "estimate")

@@ -11,7 +11,7 @@ const FIELD_GUIDE = {
   ],
   withDefaults: [
     { name: "進み具合", note: CASE_STATUS_OPTIONS.join(" / ") },
-    { name: "対応状況", note: "対応中 / 対応終了 / 未分割" },
+    { name: "対応状況", note: "対応中 / 対応終了 / 対応終了（未分割） / 対応外" },
     { name: "受託状況", note: ACCEPTANCE_STATUS_OPTIONS.join(" / ") },
     { name: "財産評価額・相続税額・見積額・報酬額", note: "0以上の整数" },
   ],

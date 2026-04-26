@@ -88,7 +88,7 @@ export function DataTable<TData, TValue>({
                         {rows.length ? (
                             rows.map((row, index) => {
                                 const caseRow = row.original as InheritanceCase
-                                const isEnded = caseRow.handlingStatus === "対応終了"
+                                const isEnded = !!caseRow.handlingStatus && caseRow.handlingStatus !== "対応中"
                                 return (
                                 <TableRow
                                     key={row.id}

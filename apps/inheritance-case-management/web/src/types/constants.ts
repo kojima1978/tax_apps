@@ -14,44 +14,43 @@ export const STATUS_STYLES: Record<CaseStatus, { dot: string; bg: string; text: 
 
 export const HANDLING_STATUS_STYLES: Record<HandlingStatus, { dot: string; bg: string; text: string }> = {
     '対応中': { dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
-    '対応終了': { dot: 'bg-red-400', bg: 'bg-red-50', text: 'text-red-600' },
-    '未分割': { dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700' },
+    '対応終了': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
+    '対応終了（未分割）': { dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700' },
+    '対応外': { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' },
 }
 
 export const ACCEPTANCE_STYLES: Record<AcceptanceStatus, { dot: string; bg: string; text: string }> = {
-    '受託可': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
-    '受託不可': { dot: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700' },
     '未判定': { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' },
-    '保留': { dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700' },
+    '受託': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
+    '見送り': { dot: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700' },
 }
 
 // Status options for filters and selects
 export const CASE_STATUS_OPTIONS: readonly CaseStatus[] = ["未着手", "手続中", "申告済", "請求済", "入金済"] as const
-export const HANDLING_STATUS_OPTIONS: readonly HandlingStatus[] = ["対応中", "対応終了", "未分割"] as const
-export const ACCEPTANCE_STATUS_OPTIONS: readonly AcceptanceStatus[] = ["受託可", "受託不可", "未判定", "保留"] as const
+export const HANDLING_STATUS_OPTIONS: readonly HandlingStatus[] = ["対応中", "対応終了", "対応終了（未分割）", "対応外"] as const
+export const ACCEPTANCE_STATUS_OPTIONS: readonly AcceptanceStatus[] = ["未判定", "受託", "見送り"] as const
 
 // Form-specific ordering (default value first)
-export const ACCEPTANCE_FORM_OPTIONS: readonly AcceptanceStatus[] = ["未判定", "受託可", "受託不可", "保留"] as const
+export const ACCEPTANCE_FORM_OPTIONS: readonly AcceptanceStatus[] = ["未判定", "受託", "見送り"] as const
 
 // Which acceptance statuses enable each case status in the form
 export const STATUS_ENABLED_WHEN: Record<CaseStatus, readonly AcceptanceStatus[]> = {
-    '未着手': ['未判定', '受託可', '保留'],
-    '手続中': ['受託可'],
-    '申告済': ['受託可'],
-    '請求済': ['受託可'],
-    '入金済': ['受託可'],
+    '未着手': ['未判定', '受託'],
+    '手続中': ['受託'],
+    '申告済': ['受託'],
+    '請求済': ['受託'],
+    '入金済': ['受託'],
 }
 
 // Auto-set handlingStatus when acceptance status changes
 export const ACCEPTANCE_AUTO_HANDLING: Partial<Record<AcceptanceStatus, HandlingStatus>> = {
-    '受託不可': '対応終了',
+    '見送り': '対応外',
 }
 
 // Hint messages for restricted status options
 export const ACCEPTANCE_HINTS: Partial<Record<AcceptanceStatus, string>> = {
-    '未判定': '「手続中」「申告済」を選択するには、受託を「受託可」に変更してください',
-    '受託不可': '受託不可のため対応状況が自動的に「対応終了」に設定されます',
-    '保留': '保留中のため「手続中」「申告済」「入金済」を選択するには、受託を変更してください',
+    '未判定': '「手続中」「申告済」を選択するには、受託を「受託」に変更してください',
+    '見送り': '見送りのため対応状況が自動的に「対応外」に設定されます',
 }
 
 // Status category helpers — used by KPI, analytics, deadline, columns
@@ -59,9 +58,12 @@ export const ACCEPTANCE_HINTS: Partial<Record<AcceptanceStatus, string>> = {
 export const COMPLETED_STATUSES: readonly CaseStatus[] = ['申告済', '請求済', '入金済'] as const
 /** ステータス判定ヘルパー */
 export const isCompleted = (status: string): boolean => (COMPLETED_STATUSES as readonly string[]).includes(status)
-/** 期限チェック対象外（完了系 or 対応終了） */
+/** 対応中以外（対応終了・対応終了（未分割）・対応外）はすべて非アクティブ */
+export const isHandlingEnded = (handlingStatus?: string): boolean =>
+    !!handlingStatus && handlingStatus !== '対応中'
+/** 期限チェック対象外（完了系 or 非アクティブ） */
 export const isDeadlineSkip = (status: string, handlingStatus?: string): boolean =>
-    isCompleted(status) || handlingStatus === '対応終了'
+    isCompleted(status) || isHandlingEnded(handlingStatus)
 
 // Filter-specific labels
 export const CASE_STATUS_FILTER_OPTIONS = CASE_STATUS_OPTIONS.map(s => ({ value: s, label: s }))

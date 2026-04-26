@@ -22,12 +22,12 @@
 
 - 相続税案件の作成・閲覧・編集・削除
 - 進み具合（status）管理: 未着手 / 手続中 / 申告済 / 請求済 / 入金済
-- 対応状況（handlingStatus）管理: 対応中 / 対応終了 / 未分割
-- 受託状況管理: 受託可 / 受託不可 / 未判定 / 保留
+- 対応状況（handlingStatus）管理: 対応中 / 対応終了 / 対応終了（未分割） / 対応外
+- 受託状況管理: 未判定 / 受託 / 見送り
 - 受託状況と進み具合の連動ルール:
-  - 未判定・保留 → 進み具合は「未着手」のみ選択可
-  - 受託不可 → 対応状況は自動的に「対応終了」に設定
-  - 受託可 → 未着手 / 手続中 / 申告済 / 請求済 / 入金済 を選択可
+  - 未判定 → 進み具合は「未着手」のみ選択可
+  - 見送り → 対応状況は自動的に「対応外」に設定
+  - 受託 → 未着手 / 手続中 / 申告済 / 請求済 / 入金済 を選択可
 - 担当者・社内紹介者・社外紹介者のリレーション（FK）、担当者・社内紹介者は部門別optgroupグループ化で選択（sortOrder順）
 - 報酬・見積・遺産総額・紹介料（率/額、見積・確定それぞれ）の管理
 - 報酬計算パラメータ: 土地数（路線価/倍率）、非上場株式数、相続人数の管理
@@ -103,7 +103,7 @@
   - 年度フィルタの引き継ぎ（1年度選択時のみ）
 - **紹介者**: 会社別実績に部門小計表示、確定/見込内訳を常時表示、「なし」は常に最下部に表示
   - 凡例バッジ: 確定/見込/対象外の集計ルールを常時表示
-  - 集計対象: 完了案件（報酬額ベース）＋手続中案件（見積額ベース）のみ（未着手・受託不可は対象外）
+  - 集計対象: 完了案件（報酬額ベース）＋手続中案件（見積額ベース）のみ（未着手・見送りは対象外）
   - 会社名はリンク（クリックで一覧画面に遷移、`referrerCompany`パラメータでその会社の紹介案件を表示）
   - 「なし」もリンク化（`noReferrer`パラメータで紹介者未設定案件を表示）
   - 年度フィルタの引き継ぎ
@@ -173,7 +173,7 @@
 
 ### UI/UX
 
-- **ステータスバッジ**: 進み具合（灰=未着手/青=手続中/緑=申告済/橙=請求済/紫=入金済）、対応状況（対応中/対応終了/未分割）、受託状況（緑/赤/灰/琥珀）を色付きバッジで表示
+- **ステータスバッジ**: 進み具合（灰=未着手/青=手続中/緑=申告済/橙=請求済/紫=入金済）、対応状況（青=対応中/緑=対応終了/琥珀=対応終了（未分割）/灰=対応外）、受託状況（灰=未判定/緑=受託/赤=見送り）を色付きバッジで表示
 - **期限インジケーター**: 期限切れ（赤）/ 期限間近（琥珀）を視覚的に警告、完了系は「申告済」バッジ、対応終了は取消線表示
 - **申告期限2段表示**: ステータスバッジ + 日付を2段で表示
 - **売上列ソート**: クライアントサイドでソート可能
@@ -571,10 +571,10 @@ erDiagram
         string deceasedName "被相続人氏名"
         date dateOfDeath "相続開始日（YYYY-MM-DD）"
         string status "未着手|手続中|申告済|請求済|入金済"
-        string handlingStatus "対応中|対応終了|未分割"
-        string acceptanceStatus "受託可|受託不可|未判定|保留"
+        string handlingStatus "対応中|対応終了|対応終了（未分割）|対応外"
+        string acceptanceStatus "未判定|受託|見送り"
         date caseAddedDate "受託日（nullable）"
-        date caseCompletedDate "申告完了日（nullable、ステータス連動）"
+        date caseCompletedDate "申告完了日（nullable、ステータス完了系 or 対応終了/対応終了（未分割）で自動設定）"
         int taxAmount "相続税額（default: 0）"
         int feeAmount "報酬額（default: 0）"
         int fiscalYear "年度"
@@ -655,7 +655,7 @@ erDiagram
 - **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/CompanyBranch/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成（`lib/import/master-resolver.ts` に分離）。プレビュー画面で自動作成対象を一覧表示
 - **リストアのデータ駆動化**: `TABLE_DEFS` 配列でテーブル定義・行変換・シーケンス名を一元管理し、ループで全テーブルを処理
 - **ステータス⇔進捗連動**: `STATUS_STEP_MAP` + `STATUS_ORDER` + `STEP_NAMES` で一元管理、進捗モーダル保存時・案件詳細保存時の双方向整合性チェック
-- **ステータス⇔完了日自動連動**: `COMPLETED_STATUSES` に基づき、ステータスが完了系に変更されると `caseCompletedDate` を自動設定（既設定時は保持）、非完了に戻すとクリア。案件作成時は `caseAddedDate` を自動設定
+- **ステータス⇔完了日自動連動**: ステータスが完了系（`COMPLETED_STATUSES`）または対応状況が対応終了/対応終了（未分割）に変更されると `caseCompletedDate` を自動設定（既設定時は保持）、非完了に戻すとクリア。受託状況を「受託」に変更すると `caseAddedDate` を自動設定（既設定時は保持）。「対応外」は完了日トリガーの対象外
 - **TanStack Query**: サーバーステート管理（キャッシュ・再取得・楽観的更新）
 - **Zodバリデーション**: リクエストボディの型安全な検証
 - **フィルタ定数一元管理**: `FILTER_KEYS` でフィルタキーを一元管理し、hasFilters判定・KPI依存・フィルタUI定義を自動化
@@ -668,7 +668,7 @@ erDiagram
 - **会社マージ**: `merge-service.ts` でトランザクション内の3段階処理（部門移行→紹介者移行→ソース無効化）。部門名重複時はIDマッピングで紹介者を再割当て、紹介者重複時は案件FKを付替え
 - **監査ログ**: `audit-service.ts` で案件の CREATE/UPDATE/DELETE をスカラー差分付きで記録（`diffScalar` で変更前後を比較）
 - **DB正規化**: Department・Company・CompanyBranch・Person テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId + branchId / CaseContact.personId でFK参照。紹介元の部門はCompanyBranchマスタで管理（表記ゆれ防止）。社内紹介者はAssigneeテーブルで一元管理（InheritanceCase.internalReferrerId → Assignee）
-- **CHECK制約**: status / acceptanceStatus の有効値をDB レベルで強制
+- **CHECK制約**: status / handlingStatus / acceptanceStatus の有効値をDBレベルで強制
 - **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
 - **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
 - **和暦変換**: `toWareki()` / `formatDateWithWareki()` で令和/平成/昭和/大正/明治を自動判定し、日付表示に和暦を併記
@@ -681,7 +681,7 @@ erDiagram
 - **紹介者2段階解決**: `buildResolverMaps` で会社+部署 / 会社（一意時のみ）の2段階キーを構築、CSV取込時の社外紹介者マッチングの正確性を向上
 - **社内/社外紹介者分離**: 社内紹介者は `Assignee` テーブルで管理（`internalReferrerId`）、社外紹介者は `Referrer` テーブルで管理（`referrerId`）。同一人物の重複管理を排除
 - **紹介料の社内/社外分離**: `calcReferralFee` で紹介料算出、`calcNet` は社外紹介料のみ控除（会社純売上）、担当者個人集計では全紹介料を控除
-- **集計の確定/見込分離**: 担当者・部門・紹介者の集計で確定額（完了案件の報酬額ベース）と見込額（手続中案件の見積額ベース）を分けて積み上げ、UIで内訳表示。未着手・受託不可は集計対象外
+- **集計の確定/見込分離**: 担当者・部門・紹介者の集計で確定額（完了案件の報酬額ベース）と見込額（手続中案件の見積額ベース）を分けて積み上げ、UIで内訳表示。未着手・見送りは集計対象外
 - **MasterSelect groupBy**: `groupBy` プロパティでoptgroupグループ化を汎用対応（`key`でグループ名、`sortOrder`で表示順を指定）
 - **年度ピルUI**: `selectedYears: Set<number>` で複数年度をトグル選択、`isAllYears` フラグで全期間表示を制御
 - **部門→担当者階層構築**: `assigneesData` と `assigneeRanking` をマージし、部門sortOrder順・担当者id順で階層グループを構築

@@ -28,7 +28,7 @@ export function ReferrerTab({ sortedCompanyRanking, companySort, onCompanySort, 
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
                     <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />確定 = 完了案件の報酬額ベース</span>
                     <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />見込 = 手続中案件の見積額ベース</span>
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />未着手・受託不可は集計対象外</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />未着手・見送りは集計対象外</span>
                 </div>
                 <div className="space-y-2">
                     <h3 className="text-lg font-medium">会社別 実績</h3>

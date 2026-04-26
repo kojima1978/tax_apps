@@ -86,7 +86,7 @@ export function createColumns({ amountSort, toggleAmountSort }: ColumnOptions): 
             const deadline = getDeadlineDate(c.dateOfDeath)
             const dateStr = `${deadline.toLocaleDateString("ja-JP")}（${toWareki(deadline)}）`
 
-            if (c.handlingStatus === "対応終了") {
+            if (c.handlingStatus && c.handlingStatus !== "対応中") {
                 return (
                     <div>
                         <div className="text-muted-foreground line-through text-sm">{dateStr}</div>
