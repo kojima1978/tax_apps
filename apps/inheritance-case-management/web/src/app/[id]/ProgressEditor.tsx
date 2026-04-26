@@ -9,19 +9,43 @@ import type { AcceptanceStatus, InheritanceCase, ProgressStep } from "@/types/sh
 import { addVisitStep, removeVisitStep, shouldShowAddVisit, DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
 import { cn } from "@/lib/utils"
-import { GripVertical, Info, Plus, Trash2 } from "lucide-react"
+import { CalendarCheck, GripVertical, Info, Plus, Trash2, X } from "lucide-react"
 import { toWareki } from "@/lib/analytics-utils"
 import {
     ACCEPTANCE_AUTO_HANDLING,
     ACCEPTANCE_FORM_OPTIONS,
     ACCEPTANCE_HINTS,
     CASE_STATUS_OPTIONS,
+    COMPLETED_STATUSES,
     HANDLING_STATUS_OPTIONS,
     STATUS_ENABLED_WHEN,
 } from "@/types/constants"
 import { DndContext, closestCenter } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+
+function FieldBadge({ children, variant = "required" }: { children: React.ReactNode; variant?: "required" | "info" }) {
+    return (
+        <span
+            className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-medium leading-none",
+                variant === "required" ? "bg-red-50 text-red-600" : "bg-muted text-muted-foreground",
+            )}
+        >
+            {children}
+        </span>
+    )
+}
+
+function todayIsoDate() {
+    const today = new Date()
+    today.setMinutes(today.getMinutes() - today.getTimezoneOffset())
+    return today.toISOString().slice(0, 10)
+}
+
+function isCompletedHandlingStatus(value: string) {
+    return value === "対応終了" || value === "対応終了（未分割）"
+}
 
 interface ProgressEditorProps {
     progress: ProgressStep[]
@@ -161,19 +185,48 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
         setFormData(prev => ({
             ...prev,
             acceptanceStatus: val,
+            ...(val === "受託" && !prev.caseAddedDate ? { caseAddedDate: todayIsoDate() } : {}),
             ...(autoHandling ? { handlingStatus: autoHandling } : {}),
         }))
     }
 
-    const dateSummary = (
-        <div className="mb-5 grid gap-4 rounded-lg border bg-card/50 p-3 md:grid-cols-2">
+    const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value
+        handleChange(e)
+        if ((COMPLETED_STATUSES as readonly string[]).includes(val)) {
+            setFormData(prev => (prev.caseCompletedDate ? prev : { ...prev, caseCompletedDate: todayIsoDate() }))
+        }
+    }
+
+    const handleHandlingStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value
+        handleChange(e)
+        if (isCompletedHandlingStatus(val)) {
+            setFormData(prev => (prev.caseCompletedDate ? prev : { ...prev, caseCompletedDate: todayIsoDate() }))
+        }
+    }
+
+    const setDateField = (field: "caseAddedDate" | "caseCompletedDate", value: string | null) => {
+        setFormData(prev => ({ ...prev, [field]: value }))
+    }
+
+    const statusSummary = (
+        <div className="mb-5 rounded-lg border bg-card/50 p-4">
+            <div className="mb-3">
+                <h3 className="text-sm font-semibold">必須ステータス・関連日付</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">進み具合・受託・対応状況は最終的に必ず確認してください</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="status" className="text-xs">進み具合</Label>
+                <Label htmlFor="status" className="flex items-center gap-1.5 text-xs">
+                    進み具合
+                    <FieldBadge>必須</FieldBadge>
+                </Label>
                 <SelectField
                     id="status"
                     name="status"
                     value={formData.status}
-                    onChange={handleChange}
+                    onChange={handleStatusChange}
                     disabled={acceptance === "見送り"}
                 >
                     {CASE_STATUS_OPTIONS.map(s => (
@@ -191,7 +244,10 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
             </div>
 
             <div className="space-y-1">
-                <Label htmlFor="acceptanceStatus" className="text-xs">受託</Label>
+                <Label htmlFor="acceptanceStatus" className="flex items-center gap-1.5 text-xs">
+                    受託
+                    <FieldBadge>必須</FieldBadge>
+                </Label>
                 <SelectField
                     id="acceptanceStatus"
                     name="acceptanceStatus"
@@ -204,17 +260,45 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
                 </SelectField>
             </div>
             <div className="space-y-1">
-                <Label htmlFor="caseAddedDate" className="text-xs">受託日</Label>
-                <Input id="caseAddedDate" name="caseAddedDate" type="date" value={formData.caseAddedDate || ""} onChange={handleChange} />
+                <Label htmlFor="caseAddedDate" className="flex items-center gap-1.5 text-xs">
+                    受託日
+                    <FieldBadge variant="info">手動修正可</FieldBadge>
+                </Label>
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                    <Input id="caseAddedDate" name="caseAddedDate" type="date" value={formData.caseAddedDate || ""} onChange={handleChange} />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10"
+                        onClick={() => setDateField("caseAddedDate", todayIsoDate())}
+                    >
+                        <CalendarCheck className="mr-1.5 h-3.5 w-3.5" />
+                        今日
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-10 text-muted-foreground"
+                        onClick={() => setDateField("caseAddedDate", null)}
+                    >
+                        <X className="mr-1.5 h-3.5 w-3.5" />
+                        クリア
+                    </Button>
+                </div>
             </div>
 
             <div className="space-y-1">
-                <Label htmlFor="handlingStatus" className="text-xs">対応状況</Label>
+                <Label htmlFor="handlingStatus" className="flex items-center gap-1.5 text-xs">
+                    対応状況
+                    <FieldBadge>必須</FieldBadge>
+                </Label>
                 <SelectField
                     id="handlingStatus"
                     name="handlingStatus"
                     value={formData.handlingStatus || "対応中"}
-                    onChange={handleChange}
+                    onChange={handleHandlingStatusChange}
                 >
                     {HANDLING_STATUS_OPTIONS.map(s => (
                         <option key={s} value={s}>{s}</option>
@@ -223,17 +307,54 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
             </div>
             {!isCreateMode && (
                 <div className="space-y-1">
-                    <Label htmlFor="caseCompletedDate" className="text-xs">申告完了日（自動）</Label>
-                    <Input id="caseCompletedDate" value={formData.caseCompletedDate || ""} disabled className="bg-muted" />
+                    <Label htmlFor="caseCompletedDate" className="flex items-center gap-1.5 text-xs">
+                        申告完了日
+                        <FieldBadge variant="info">手動修正可</FieldBadge>
+                    </Label>
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                        <Input
+                            id="caseCompletedDate"
+                            name="caseCompletedDate"
+                            type="date"
+                            value={formData.caseCompletedDate || ""}
+                            onChange={handleChange}
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-10"
+                            onClick={() => setDateField("caseCompletedDate", todayIsoDate())}
+                        >
+                            <CalendarCheck className="mr-1.5 h-3.5 w-3.5" />
+                            今日
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-10 text-muted-foreground"
+                            onClick={() => setDateField("caseCompletedDate", null)}
+                        >
+                            <X className="mr-1.5 h-3.5 w-3.5" />
+                            クリア
+                        </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">進み具合・対応状況が完了になった時、未入力なら今日の日付を入れます。</p>
                 </div>
             )}
+            </div>
         </div>
     )
 
     if (progress.length === 0) {
         return (
             <>
-                {dateSummary}
+                {statusSummary}
+                <div className="mb-2">
+                    <h3 className="text-sm font-semibold">工程日付</h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">発生した工程から順に入力してください</p>
+                </div>
                 <div className="text-center py-6 border rounded-lg bg-muted/30">
                     <p className="text-sm text-muted-foreground mb-2">進捗データがありません</p>
                     <Button type="button" variant="outline" size="sm" onClick={() => onChange([...DEFAULT_PROGRESS_STEPS])}>
@@ -246,7 +367,11 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
 
     return (
         <div className="relative">
-            {dateSummary}
+            {statusSummary}
+            <div className="mb-3">
+                <h3 className="text-sm font-semibold">工程日付</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">発生した工程から順に入力してください</p>
+            </div>
             {checkedIds.size > 0 && (
                 <div className="mb-4">
                     <SetTodayButton count={checkedIds.size} onClick={setTodayForChecked} />

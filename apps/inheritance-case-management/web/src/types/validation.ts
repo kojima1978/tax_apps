@@ -55,6 +55,7 @@ export const createCaseSchema = z.object({
   summary: z.string().max(MAX_SUMMARY_LENGTH, `特記事項は${MAX_SUMMARY_LENGTH}文字以内で入力してください`).nullable().optional(),
   memo: z.string().nullable().optional(),
   caseAddedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
+  caseCompletedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
   contacts: z.array(contactSchema).max(10, '連絡先は最大10件までです').optional(),
   progress: z.array(progressStepSchema).optional(),
   expenses: z.array(expenseSchema).optional(),
