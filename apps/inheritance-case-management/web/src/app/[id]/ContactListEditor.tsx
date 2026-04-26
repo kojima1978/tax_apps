@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Modal } from "@/components/ui/Modal"
-import { UserPlus, Search, Loader2, X, Plus } from "lucide-react"
+import { Edit3, UserPlus, Search, Loader2, X, Plus } from "lucide-react"
 import type { CaseContact, Person } from "@/types/shared"
-import { createPerson } from "@/lib/api/persons"
+import { createPerson, updatePerson } from "@/lib/api/persons"
 
 interface ContactListEditorProps {
     caseContacts: CaseContact[]
@@ -34,10 +34,14 @@ async function fetchAddress(postalCode: string): Promise<string | null> {
 export function ContactListEditor({ caseContacts, persons, onChange, onPersonsChange }: ContactListEditorProps) {
     const [showAddModal, setShowAddModal] = useState(false)
     const [showCreateForm, setShowCreateForm] = useState(false)
+    const [editingContactIndex, setEditingContactIndex] = useState<number | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [newPerson, setNewPerson] = useState({ name: "", phone: "", postalCode: "", address: "", memo: "" })
+    const [editPerson, setEditPerson] = useState({ name: "", phone: "", postalCode: "", address: "", memo: "" })
     const [creating, setCreating] = useState(false)
+    const [updating, setUpdating] = useState(false)
     const [searching, setSearching] = useState(false)
+    const [editSearching, setEditSearching] = useState(false)
     const searchInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -65,6 +69,18 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         setSearchQuery("")
     }
 
+    const openEditModal = (index: number) => {
+        const person = caseContacts[index].person
+        setEditingContactIndex(index)
+        setEditPerson({
+            name: person.name,
+            phone: person.phone,
+            postalCode: person.postalCode,
+            address: person.address,
+            memo: person.memo,
+        })
+    }
+
     const handleCreateAndAdd = async () => {
         if (!newPerson.name.trim()) return
         setCreating(true)
@@ -81,6 +97,20 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         }
     }
 
+    const handleUpdatePerson = async () => {
+        if (editingContactIndex == null || !editPerson.name.trim()) return
+        const contact = caseContacts[editingContactIndex]
+        setUpdating(true)
+        try {
+            const updated = await updatePerson(contact.personId, editPerson)
+            onPersonsChange(persons.map(p => p.id === updated.id ? updated : p))
+            onChange(caseContacts.map((cc, i) => i === editingContactIndex ? { ...cc, person: updated } : cc))
+            setEditingContactIndex(null)
+        } finally {
+            setUpdating(false)
+        }
+    }
+
     const handlePostalCodeChange = async (value: string) => {
         setNewPerson(prev => ({ ...prev, postalCode: value }))
         const cleaned = value.replace(/[^\d]/g, "")
@@ -91,6 +121,19 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                 setNewPerson(prev => ({ ...prev, postalCode: value, address }))
             }
             setSearching(false)
+        }
+    }
+
+    const handleEditPostalCodeChange = async (value: string) => {
+        setEditPerson(prev => ({ ...prev, postalCode: value }))
+        const cleaned = value.replace(/[^\d]/g, "")
+        if (cleaned.length === 7) {
+            setEditSearching(true)
+            const address = await fetchAddress(cleaned)
+            if (address) {
+                setEditPerson(prev => ({ ...prev, postalCode: value, address }))
+            }
+            setEditSearching(false)
         }
     }
 
@@ -130,14 +173,24 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{cc.person.memo}</p>
                             )}
                         </div>
-                        <button
-                            type="button"
-                            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
-                            onClick={() => handleRemove(index)}
-                            title="この連絡先を外す"
-                        >
-                            <X className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                            <button
+                                type="button"
+                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                                onClick={() => openEditModal(index)}
+                                title="連絡先を編集"
+                            >
+                                <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                                type="button"
+                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleRemove(index)}
+                                title="この連絡先を外す"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
                     </div>
                     <div className="mt-2">
                         <Input
@@ -158,6 +211,64 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                     action={{ label: "+ 追加", onClick: () => setShowAddModal(true) }}
                 />
             )}
+
+            <Modal isOpen={editingContactIndex != null} onClose={() => setEditingContactIndex(null)} title="連絡先を編集">
+                <div className="space-y-4">
+                    <div className="space-y-3">
+                        <div className="text-sm font-semibold">人物マスタ情報</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label>氏名 *</Label>
+                                <Input value={editPerson.name} onChange={e => setEditPerson(p => ({ ...p, name: e.target.value }))} placeholder="氏名" autoFocus />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>電話番号</Label>
+                                <Input value={editPerson.phone} onChange={e => setEditPerson(p => ({ ...p, phone: e.target.value }))} placeholder="090-0000-0000" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3">
+                            <div className="space-y-1.5">
+                                <Label>郵便番号</Label>
+                                <div className="flex gap-1">
+                                    <Input value={editPerson.postalCode} onChange={e => handleEditPostalCodeChange(e.target.value)} placeholder="000-0000" className="flex-1" />
+                                    <Button type="button" variant="ghost" size="sm" className="px-2 h-9 shrink-0" disabled={editSearching}
+                                        onClick={async () => { setEditSearching(true); const a = await fetchAddress(editPerson.postalCode); if (a) setEditPerson(p => ({ ...p, address: a })); setEditSearching(false) }}>
+                                        {editSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>住所</Label>
+                                <Input value={editPerson.address} onChange={e => setEditPerson(p => ({ ...p, address: e.target.value }))} placeholder="都道府県 市区町村 番地" />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>人物メモ</Label>
+                            <textarea value={editPerson.memo} onChange={e => setEditPerson(p => ({ ...p, memo: e.target.value }))}
+                                placeholder="備考・メールアドレス等" rows={2}
+                                className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[56px]" />
+                        </div>
+                    </div>
+
+                    {editingContactIndex != null && (
+                        <div className="space-y-1.5 border-t pt-4">
+                            <Label>この案件でのメモ</Label>
+                            <Input
+                                value={caseContacts[editingContactIndex]?.memo || ""}
+                                onChange={(e) => handleMemoChange(editingContactIndex, e.target.value)}
+                                placeholder="案件固有のメモ"
+                            />
+                        </div>
+                    )}
+
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="ghost" onClick={() => setEditingContactIndex(null)} disabled={updating}>キャンセル</Button>
+                        <Button onClick={handleUpdatePerson} disabled={!editPerson.name.trim() || updating}>
+                            {updating ? "保存中..." : "保存"}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="連絡先を追加">
                 {showCreateForm ? (

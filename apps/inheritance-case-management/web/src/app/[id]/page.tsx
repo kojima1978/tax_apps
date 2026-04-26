@@ -4,7 +4,6 @@ import { useEffect, useState, use, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import type { InheritanceCase } from "@/types/shared"
-import { formatId } from "@/types/shared"
 import { Button } from "@/components/ui/Button"
 import Link from "next/link"
 import { EditCaseForm } from "./edit-case-form"
@@ -85,11 +84,6 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
             </div>
 
             <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-6">
-                <div className="mb-8 border-b pb-4">
-                    <h1 className="text-2xl font-bold tracking-tight">案件詳細</h1>
-                    <p className="text-muted-foreground">案件ID: {formatId(caseItem.id)}</p>
-                </div>
-
                 <Suspense fallback={<div>Loading...</div>}>
                     <EditCaseForm initialData={caseItem} />
                 </Suspense>
