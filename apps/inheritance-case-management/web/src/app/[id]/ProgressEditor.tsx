@@ -340,7 +340,6 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
                             クリア
                         </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">進み具合・対応状況が完了になった時、未入力なら今日の日付を入れます。</p>
                 </div>
             )}
             </div>

@@ -1,16 +1,20 @@
 import * as React from "react";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "./Button";
+import { cn } from "@/lib/utils";
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  panelClassName?: string;
+  bodyClassName?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, panelClassName, bodyClassName }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = React.useId();
 
@@ -63,9 +67,9 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 p-4"
       onClick={onClose}
     >
       <div
@@ -74,10 +78,14 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="bg-background rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto border outline-none"
+        className={cn(
+          "isolate flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-950 opacity-100 shadow-2xl outline-none",
+          panelClassName,
+        )}
+        style={{ backgroundColor: "#ffffff" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white p-4" style={{ backgroundColor: "#ffffff" }}>
           <h2 id={titleId} className="text-lg font-semibold">{title}</h2>
           <Button
             variant="ghost"
@@ -89,8 +97,9 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className={cn("overflow-y-auto bg-white p-4", bodyClassName)} style={{ backgroundColor: "#ffffff" }}>{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

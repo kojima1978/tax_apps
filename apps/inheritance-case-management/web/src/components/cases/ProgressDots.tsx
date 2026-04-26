@@ -22,7 +22,14 @@ export function ProgressDots({ caseData }: { caseData: InheritanceCase }) {
         if (currentSteps.length === 0) return
 
         const target = currentSteps[stepIndex]
-        const newDate = target.date ? null : todayStr()
+        const today = todayStr()
+        const newDate = target.date ? null : today
+        const message = target.date
+            ? `${target.name} の完了日（${target.date}）を削除しますか？`
+            : `${target.name} に今日の日付（${today}）を入力しますか？`
+
+        if (!window.confirm(message)) return
+
         const newSteps: ProgressStep[] = currentSteps.map((s, i) =>
             i === stepIndex ? { ...s, date: newDate } : s
         )
