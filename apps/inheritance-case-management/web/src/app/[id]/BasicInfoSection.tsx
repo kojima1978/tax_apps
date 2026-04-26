@@ -3,13 +3,12 @@ import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { MasterSelect } from "@/components/ui/MasterSelect"
-import { User, Info } from "lucide-react"
+import { User } from "lucide-react"
 import { toWareki } from "@/lib/analytics-utils"
-import type { InheritanceCase, Assignee, Referrer, AcceptanceStatus } from "@/types/shared"
+import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
 import { formatId } from "@/types/shared"
 import {
-    FISCAL_YEARS, CASE_STATUS_OPTIONS, HANDLING_STATUS_OPTIONS, ACCEPTANCE_FORM_OPTIONS,
-    STATUS_ENABLED_WHEN, ACCEPTANCE_AUTO_HANDLING, ACCEPTANCE_HINTS,
+    FISCAL_YEARS,
     MAX_SUMMARY_LENGTH,
 } from "@/types/constants"
 import { ReferrerToggleSelect } from "./ReferrerToggleSelect"
@@ -29,9 +28,6 @@ interface BasicInfoSectionProps {
 export function BasicInfoSection({
     formData, isCreateMode, assignees, referrers, returnToPath, isOpen, onToggle, handleChange, setFormData
 }: BasicInfoSectionProps) {
-    const acceptance = formData.acceptanceStatus || "未判定"
-    const hint = ACCEPTANCE_HINTS[acceptance]
-
     return (
         <CollapsibleSection title="基本情報" icon={User} isOpen={isOpen} onToggle={onToggle}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -59,65 +55,6 @@ export function BasicInfoSection({
                 <div className="space-y-2">
                     <Label htmlFor="dateOfDeath">相続開始日{formData.dateOfDeath ? `（${toWareki(formData.dateOfDeath)}）` : ""}</Label>
                     <Input id="dateOfDeath" name="dateOfDeath" type="date" value={formData.dateOfDeath} onChange={handleChange} />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="acceptanceStatus">受託</Label>
-                    <SelectField
-                        id="acceptanceStatus"
-                        name="acceptanceStatus"
-                        value={acceptance}
-                        onChange={(e) => {
-                            const val = e.target.value as AcceptanceStatus
-                            const autoHandling = ACCEPTANCE_AUTO_HANDLING[val]
-                            setFormData(prev => ({
-                                ...prev,
-                                acceptanceStatus: val,
-                                ...(autoHandling ? { handlingStatus: autoHandling } : {}),
-                            }))
-                        }}
-                    >
-                        {ACCEPTANCE_FORM_OPTIONS.map(s => (
-                            <option key={s} value={s}>{s}</option>
-                        ))}
-                    </SelectField>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="status">進み具合</Label>
-                    <SelectField
-                        id="status"
-                        name="status"
-                        value={formData.status}
-                        onChange={handleChange}
-                        disabled={acceptance === "見送り"}
-                    >
-                        {CASE_STATUS_OPTIONS.map(s => (
-                            <option key={s} value={s} disabled={!STATUS_ENABLED_WHEN[s].includes(acceptance)}>
-                                {s}
-                            </option>
-                        ))}
-                    </SelectField>
-                    {hint && (
-                        <p className="flex items-start gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            {hint}
-                        </p>
-                    )}
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="handlingStatus">対応状況</Label>
-                    <SelectField
-                        id="handlingStatus"
-                        name="handlingStatus"
-                        value={formData.handlingStatus || "対応中"}
-                        onChange={handleChange}
-                    >
-                        {HANDLING_STATUS_OPTIONS.map(s => (
-                            <option key={s} value={s}>{s}</option>
-                        ))}
-                    </SelectField>
                 </div>
 
                 <div className="space-y-2">

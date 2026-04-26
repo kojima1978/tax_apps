@@ -3,13 +3,22 @@
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
+import { SelectField } from "@/components/ui/SelectField"
 import { SetTodayButton } from "@/components/ui/SetTodayButton"
-import type { ProgressStep } from "@/types/shared"
+import type { AcceptanceStatus, InheritanceCase, ProgressStep } from "@/types/shared"
 import { addVisitStep, removeVisitStep, shouldShowAddVisit, DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
 import { cn } from "@/lib/utils"
-import { GripVertical, Plus, Trash2 } from "lucide-react"
+import { GripVertical, Info, Plus, Trash2 } from "lucide-react"
 import { toWareki } from "@/lib/analytics-utils"
+import {
+    ACCEPTANCE_AUTO_HANDLING,
+    ACCEPTANCE_FORM_OPTIONS,
+    ACCEPTANCE_HINTS,
+    CASE_STATUS_OPTIONS,
+    HANDLING_STATUS_OPTIONS,
+    STATUS_ENABLED_WHEN,
+} from "@/types/constants"
 import { DndContext, closestCenter } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -17,10 +26,10 @@ import { CSS } from "@dnd-kit/utilities"
 interface ProgressEditorProps {
     progress: ProgressStep[]
     onChange: (progress: ProgressStep[]) => void
-    caseAddedDate?: string | null
-    caseCompletedDate?: string | null
+    formData: InheritanceCase
     isCreateMode?: boolean
-    onDateChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+    handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
+    setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
 }
 
 function SortableStep({
@@ -133,29 +142,91 @@ function SortableStep({
     )
 }
 
-export function ProgressEditor({ progress, onChange, caseAddedDate, caseCompletedDate, isCreateMode, onDateChange }: ProgressEditorProps) {
+export function ProgressEditor({ progress, onChange, formData, isCreateMode, handleChange, setFormData }: ProgressEditorProps) {
     const {
         sensors, stepIds, checkedIds,
         handleStepChange, toggleCheck, setTodayForChecked, handleDragEnd,
     } = useProgressSteps({ steps: progress, onChange })
+    const acceptance = formData.acceptanceStatus || "未判定"
+    const hint = ACCEPTANCE_HINTS[acceptance]
 
     const handleDeleteStep = (index: number) => {
         if (!confirm("この訪問日時を削除してもよろしいですか？")) return
         onChange(removeVisitStep(progress, index))
     }
 
+    const handleAcceptanceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value as AcceptanceStatus
+        const autoHandling = ACCEPTANCE_AUTO_HANDLING[val]
+        setFormData(prev => ({
+            ...prev,
+            acceptanceStatus: val,
+            ...(autoHandling ? { handlingStatus: autoHandling } : {}),
+        }))
+    }
+
     const dateSummary = (
-        <div className="grid grid-cols-2 gap-4 mb-5 p-3 border rounded-lg bg-card/50">
+        <div className="mb-5 grid gap-4 rounded-lg border bg-card/50 p-3 md:grid-cols-2">
+            <div className="space-y-1">
+                <Label htmlFor="acceptanceStatus" className="text-xs">受託</Label>
+                <SelectField
+                    id="acceptanceStatus"
+                    name="acceptanceStatus"
+                    value={acceptance}
+                    onChange={handleAcceptanceChange}
+                >
+                    {ACCEPTANCE_FORM_OPTIONS.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                    ))}
+                </SelectField>
+            </div>
             <div className="space-y-1">
                 <Label htmlFor="caseAddedDate" className="text-xs">受託日</Label>
-                <Input id="caseAddedDate" name="caseAddedDate" type="date" value={caseAddedDate || ""} onChange={onDateChange} />
+                <Input id="caseAddedDate" name="caseAddedDate" type="date" value={formData.caseAddedDate || ""} onChange={handleChange} />
             </div>
-            {!isCreateMode && caseCompletedDate && (
+
+            <div className="space-y-1">
+                <Label htmlFor="handlingStatus" className="text-xs">対応状況</Label>
+                <SelectField
+                    id="handlingStatus"
+                    name="handlingStatus"
+                    value={formData.handlingStatus || "対応中"}
+                    onChange={handleChange}
+                >
+                    {HANDLING_STATUS_OPTIONS.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                    ))}
+                </SelectField>
+            </div>
+            {!isCreateMode && (
                 <div className="space-y-1">
                     <Label htmlFor="caseCompletedDate" className="text-xs">申告完了日（自動）</Label>
-                    <Input id="caseCompletedDate" value={caseCompletedDate} disabled className="bg-muted" />
+                    <Input id="caseCompletedDate" value={formData.caseCompletedDate || ""} disabled className="bg-muted" />
                 </div>
             )}
+
+            <div className="space-y-1 md:col-span-2">
+                <Label htmlFor="status" className="text-xs">進み具合</Label>
+                <SelectField
+                    id="status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    disabled={acceptance === "見送り"}
+                >
+                    {CASE_STATUS_OPTIONS.map(s => (
+                        <option key={s} value={s} disabled={!STATUS_ENABLED_WHEN[s].includes(acceptance)}>
+                            {s}
+                        </option>
+                    ))}
+                </SelectField>
+                {hint && (
+                    <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-600">
+                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        {hint}
+                    </p>
+                )}
+            </div>
         </div>
     )
 

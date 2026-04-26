@@ -45,6 +45,7 @@ export function calcEstimate(params: EstimateParams): EstimateBreakdown {
 }
 
 export interface FeeCalcSnapshot {
+  [key: string]: unknown;
   calculatedAt: string;
   appliedTo: 'estimate' | 'fee';
   params: EstimateParams;
