@@ -11,10 +11,18 @@ function todayStr(): string {
     return new Date().toISOString().slice(0, 10)
 }
 
+function isOptionalVisitStep(stepName: string): boolean {
+    const match = stepName.match(/^(\d+)回目訪問$/)
+    return !!match && Number(match[1]) >= 2
+}
+
 export function ProgressDots({ caseData }: { caseData: InheritanceCase }) {
     const toast = useToast()
     const [isSaving, setIsSaving] = useState(false)
     const steps = caseData.progress ?? []
+    const visibleSteps = steps
+        .map((step, originalIndex) => ({ step, originalIndex }))
+        .filter(({ step }) => !isOptionalVisitStep(step.name))
 
     const handleToggle = useCallback(async (stepIndex: number) => {
         if (isSaving) return
@@ -55,15 +63,15 @@ export function ProgressDots({ caseData }: { caseData: InheritanceCase }) {
         }
     }, [caseData, isSaving, toast])
 
-    if (steps.length === 0) return null
+    if (visibleSteps.length === 0) return null
 
-    const firstIncompleteIdx = steps.findIndex(s => !s.date)
+    const firstIncompleteIdx = visibleSteps.find(({ step }) => !step.date)?.originalIndex ?? -1
 
     return (
         <div className="flex items-center gap-0.5">
-            {steps.map((step, i) => {
+            {visibleSteps.map(({ step, originalIndex }) => {
                 const isComplete = !!step.date
-                const isCurrent = i === firstIncompleteIdx
+                const isCurrent = originalIndex === firstIncompleteIdx
                 return (
                     <button
                         key={step.stepId}
@@ -79,7 +87,7 @@ export function ProgressDots({ caseData }: { caseData: InheritanceCase }) {
                         title={`${step.name}${step.date ? ` (${step.date})` : ""}\nクリックで切替`}
                         onClick={(e) => {
                             e.stopPropagation()
-                            handleToggle(i)
+                            handleToggle(originalIndex)
                         }}
                     />
                 )
