@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer, Person, CaseStatus } from "@/types/shared"
+import { formatId } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
 import { toProgressSteps, toProgressItems, toContactInputs, toExpenses, toExpenseItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
@@ -203,6 +204,23 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     return (
         <div className="space-y-4">
+            {!isCreateMode && (
+                <div className="mb-8 border-b pb-4">
+                    <h1 className="text-2xl font-bold tracking-tight">案件詳細</h1>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                        <p className="text-muted-foreground">案件ID: {formatId(formData.id)}</p>
+                        <button
+                            type="button"
+                            onClick={sections.toggleAll}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            <ChevronsUpDown className="h-3.5 w-3.5" />
+                            {sections.allOpen ? "すべて閉じる" : "すべて開く"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <BasicInfoSection
                 formData={formData}
                 isCreateMode={isCreateMode}
@@ -214,17 +232,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 handleChange={handleChange}
                 setFormData={setFormData}
             />
-
-            <div className="flex justify-end">
-                <button
-                    type="button"
-                    onClick={sections.toggleAll}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                    <ChevronsUpDown className="h-3.5 w-3.5" />
-                    {sections.allOpen ? "すべて閉じる" : "すべて開く"}
-                </button>
-            </div>
 
             <FinancialSection
                 formData={formData}
