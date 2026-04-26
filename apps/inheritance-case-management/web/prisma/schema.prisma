@@ -13,8 +13,8 @@ model InheritanceCase {
   deceasedName      String
   dateOfDeath       DateTime @db.Date // YYYY-MM-DD（CHECK制約で検証済み）
   status            String   @default("未着手") // CHECK制約: 未着手/手続中/申告済/請求済/入金済
-  handlingStatus    String   @default("対応中") // CHECK制約: 対応中/対応終了/未分割
-  acceptanceStatus  String?  @default("未判定") // CHECK制約: 受託可/受託不可/未判定/保留
+  handlingStatus    String   @default("対応中") // CHECK制約: 対応中/対応終了/対応終了（未分割）/対応外
+  acceptanceStatus  String?  @default("未判定") // CHECK制約: 未判定/受託/見送り
   taxAmount         Int?     @default(0)
   feeAmount         Int?     @default(0)
   fiscalYear        Int

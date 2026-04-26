@@ -32,7 +32,7 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
 
 export async function getCase(id: number): Promise<InheritanceCase | null> {
   try {
-    return await apiClient<InheritanceCase>(`/cases/${id}`);
+    return await apiClient<InheritanceCase>(`/cases/${id}/`);
   } catch (error) {
     if (error instanceof Error && 'status' in error && (error as { status: number }).status === 404) {
       return null;
@@ -42,21 +42,21 @@ export async function getCase(id: number): Promise<InheritanceCase | null> {
 }
 
 export async function createCase(data: CreateCaseInput): Promise<InheritanceCase> {
-  return apiClient<InheritanceCase>('/cases', {
+  return apiClient<InheritanceCase>('/cases/', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
 export async function updateCase(id: number, data: UpdateCaseInput, updatedAt?: string): Promise<InheritanceCase> {
-  return apiClient<InheritanceCase>(`/cases/${id}`, {
+  return apiClient<InheritanceCase>(`/cases/${id}/`, {
     method: 'PUT',
     body: JSON.stringify({ ...data, ...(updatedAt && { updatedAt }) }),
   });
 }
 
 export async function deleteCase(id: number): Promise<void> {
-  await apiClient<void>(`/cases/${id}`, { method: 'DELETE' });
+  await apiClient<void>(`/cases/${id}/`, { method: 'DELETE' });
 }
 
 export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortOrder'>): Promise<{ deleted: number }> {
@@ -122,5 +122,5 @@ export async function getAllCases(
 }
 
 export async function getCaseAuditLogs(caseId: number): Promise<AuditLogEntry[]> {
-  return apiClient<AuditLogEntry[]>(`/cases/${caseId}/audit-log`);
+  return apiClient<AuditLogEntry[]>(`/audit-logs/${caseId}/`);
 }

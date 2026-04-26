@@ -5,7 +5,7 @@ export function createCrudApi<T, C, U>(endpoint: string) {
     getAll: () => apiClient<T[]>(endpoint),
     getById: async (id: number): Promise<T | null> => {
       try {
-        return await apiClient<T>(`${endpoint}/${id}`);
+        return await apiClient<T>(`${endpoint}/${id}/`);
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
           return null;
@@ -14,10 +14,10 @@ export function createCrudApi<T, C, U>(endpoint: string) {
       }
     },
     create: (data: C) =>
-      apiClient<T>(endpoint, { method: 'POST', body: JSON.stringify(data) }),
+      apiClient<T>(`${endpoint}/`, { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: U) =>
-      apiClient<T>(`${endpoint}/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      apiClient<T>(`${endpoint}/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: number) =>
-      apiClient<void>(`${endpoint}/${id}`, { method: 'DELETE' }),
+      apiClient<void>(`${endpoint}/${id}/`, { method: 'DELETE' }),
   };
 }

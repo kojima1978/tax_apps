@@ -3,8 +3,8 @@ import { MAX_SUMMARY_LENGTH } from './constants';
 
 // Status Schemas (internal - used by createCaseSchema/listQuerySchema)
 const caseStatusSchema = z.enum(['未着手', '手続中', '申告済', '請求済', '入金済']);
-const handlingStatusSchema = z.enum(['対応中', '対応終了', '未分割']);
-const acceptanceStatusSchema = z.enum(['受託可', '受託不可', '未判定', '保留']);
+const handlingStatusSchema = z.enum(['対応中', '対応終了', '対応終了（未分割）', '対応外']);
+const acceptanceStatusSchema = z.enum(['未判定', '受託', '見送り']);
 
 // Contact Schema (supports both personId reference and inline import format)
 const contactByIdSchema = z.object({ personId: z.number().int(), memo: z.string().optional() });

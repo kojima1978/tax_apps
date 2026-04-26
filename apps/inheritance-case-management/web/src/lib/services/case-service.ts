@@ -177,7 +177,9 @@ export async function createCase(data: {
         summary: data.summary || null,
         memo: data.memo || null,
         caseAddedDate: data.caseAddedDate ? toDate(data.caseAddedDate) : todayDate(),
-        caseCompletedDate: (COMPLETED_STATUSES as readonly string[]).includes(data.status ?? '未着手') ? todayDate() : null,
+        caseCompletedDate: (COMPLETED_STATUSES as readonly string[]).includes(data.status ?? '未着手')
+          || (data.handlingStatus === '対応終了' || data.handlingStatus === '対応終了（未分割）')
+          ? todayDate() : null,
         assigneeId: data.assigneeId || null,
         internalReferrerId: data.internalReferrerId || null,
         referrerId: data.referrerId || null,
@@ -214,10 +216,10 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       'taxAmount', 'feeAmount', 'estimateAmount', 'propertyValue',
       'referralFeeRate', 'referralFeeAmount', 'estimateReferralFeeAmount', 'summary', 'memo',
       'landRosenkaCount', 'landBairitsuCount', 'unlistedStockCount', 'heirCount', 'discountAmount',
-      'feeCalcSnapshot', 'caseAddedDate',
+      'feeCalcSnapshot', 'caseAddedDate', 'caseCompletedDate',
     ] as const;
 
-    const dateFields = new Set(['dateOfDeath', 'caseAddedDate']);
+    const dateFields = new Set(['dateOfDeath', 'caseAddedDate', 'caseCompletedDate']);
     for (const field of scalarFields) {
       if (field in data) {
         if (dateFields.has(field)) {
@@ -228,15 +230,28 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       }
     }
 
-    if ('status' in data) {
-      const newStatus = data.status as string;
-      const isNowCompleted = (COMPLETED_STATUSES as readonly string[]).includes(newStatus);
-      if (isNowCompleted) {
-        if (!before.caseCompletedDate) {
+    // 受託 → caseAddedDate 自動セット
+    if ('acceptanceStatus' in data && data.acceptanceStatus === '受託') {
+      if (!before.caseAddedDate && !('caseAddedDate' in data)) {
+        updateData.caseAddedDate = todayDate();
+      }
+    }
+
+    // caseCompletedDate 自動セット: status完了系 or handlingStatus対応終了系
+    {
+      const newStatus = ('status' in data ? data.status : before.status) as string;
+      const newHandling = ('handlingStatus' in data ? data.handlingStatus : before.handlingStatus) as string;
+      const statusCompleted = (COMPLETED_STATUSES as readonly string[]).includes(newStatus);
+      const handlingCompleted = newHandling === '対応終了' || newHandling === '対応終了（未分割）';
+
+      if (statusCompleted || handlingCompleted) {
+        if (!before.caseCompletedDate && !('caseCompletedDate' in data)) {
           updateData.caseCompletedDate = todayDate();
         }
-      } else {
-        updateData.caseCompletedDate = null;
+      } else if ('status' in data || 'handlingStatus' in data) {
+        if (before.caseCompletedDate && !('caseCompletedDate' in data)) {
+          updateData.caseCompletedDate = null;
+        }
       }
     }
 

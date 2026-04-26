@@ -90,7 +90,7 @@ export function BasicInfoSection({
                         name="status"
                         value={formData.status}
                         onChange={handleChange}
-                        disabled={acceptance === "受託不可"}
+                        disabled={acceptance === "見送り"}
                     >
                         {CASE_STATUS_OPTIONS.map(s => (
                             <option key={s} value={s} disabled={!STATUS_ENABLED_WHEN[s].includes(acceptance)}>

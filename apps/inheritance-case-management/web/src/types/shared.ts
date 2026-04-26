@@ -2,8 +2,8 @@ import type { FeeCalcSnapshot } from '@/lib/estimate-calc';
 
 // Case Status Types
 export type CaseStatus = '未着手' | '手続中' | '申告済' | '請求済' | '入金済';
-export type HandlingStatus = '対応中' | '対応終了' | '未分割';
-export type AcceptanceStatus = '受託可' | '受託不可' | '未判定' | '保留';
+export type HandlingStatus = '対応中' | '対応終了' | '対応終了（未分割）' | '対応外';
+export type AcceptanceStatus = '未判定' | '受託' | '見送り';
 
 // Progress Step (input shape for API — used by editors)
 export interface ProgressStep {

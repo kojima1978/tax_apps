@@ -125,7 +125,7 @@ export default function AnalyticsPage() {
     }, [aggregation.assigneeRanking, assigneesData])
 
     const summaryTotals = useMemo(() => {
-        const acceptedCases = filteredData.filter(c => c.acceptanceStatus === "受託可")
+        const acceptedCases = filteredData.filter(c => c.acceptanceStatus === "受託")
         const completedCases = acceptedCases.filter(c => isCompleted(c.status))
         const ongoingCases = acceptedCases.filter(c => c.status === "手続中")
 

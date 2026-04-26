@@ -10,7 +10,7 @@ type StatusTableConfig = {
 const STATUS_TABLES: StatusTableConfig[] = [
     {
         title: "年度別 受託状況内訳",
-        columns: [{ label: "受託可", highlight: true }, { label: "受託不可" }, { label: "未判定" }],
+        columns: [{ label: "受託", highlight: true }, { label: "見送り" }, { label: "未判定" }],
         getValues: (d) => [d.acceptanceCounts.accepted, d.acceptanceCounts.rejected, d.acceptanceCounts.undecided],
     },
     {

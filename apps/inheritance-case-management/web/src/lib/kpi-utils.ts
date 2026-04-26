@@ -27,7 +27,7 @@ export function computeKPI(allCases: InheritanceCase[]): KPIData {
     const now = new Date()
     const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-    const accepted = allCases.filter(c => c.acceptanceStatus === "受託可")
+    const accepted = allCases.filter(c => c.acceptanceStatus === "受託")
 
     const ongoing = accepted.filter(c => c.status === "手続中").length
 
