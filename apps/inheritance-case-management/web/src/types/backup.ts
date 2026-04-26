@@ -9,10 +9,12 @@ export interface BackupData {
     companyBranches: unknown[];
     assignees: unknown[];
     referrers: unknown[];
+    persons: unknown[];
     cases: unknown[];
     caseContacts: unknown[];
     caseProgress: unknown[];
     caseExpenses: unknown[];
+    auditLogs: unknown[];
   };
 }
 
@@ -25,9 +27,11 @@ export const backupDataSchema = z.object({
     companyBranches: z.array(z.unknown()).optional().default([]),
     assignees: z.array(z.unknown()),
     referrers: z.array(z.unknown()),
+    persons: z.array(z.unknown()).optional().default([]),
     cases: z.array(z.unknown()),
     caseContacts: z.array(z.unknown()),
     caseProgress: z.array(z.unknown()),
     caseExpenses: z.array(z.unknown()).optional().default([]),
+    auditLogs: z.array(z.unknown()).optional().default([]),
   }),
 });

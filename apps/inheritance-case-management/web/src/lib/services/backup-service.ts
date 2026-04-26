@@ -4,7 +4,8 @@ import { toDateStr } from '@/lib/prisma-includes';
 type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
 
 function toDateOnly(s: string): Date {
-  return new Date(s + 'T00:00:00.000Z');
+  const dateStr = s.includes('T') ? s.split('T')[0] : s;
+  return new Date(dateStr + 'T00:00:00.000Z');
 }
 
 type Rec = Record<string, unknown>;
@@ -99,6 +100,8 @@ const TABLE_DEFS = [
       heirCount: (c.heirCount as number) ?? 0,
       discountAmount: (c.discountAmount as number) ?? 0,
       feeCalcSnapshot: (c.feeCalcSnapshot as Record<string, unknown>) ?? null,
+      caseAddedDate: c.caseAddedDate ? toDateOnly(c.caseAddedDate as string) : null,
+      caseCompletedDate: c.caseCompletedDate ? toDateOnly(c.caseCompletedDate as string) : null,
       summary: (c.summary as string) ?? null,
       memo: (c.memo as string) ?? null,
       assigneeId: (c.assigneeId as number) ?? null,
@@ -225,6 +228,8 @@ export async function exportBackup() {
       cases: cases.map(c => ({
         ...serializeTimestamps(c),
         dateOfDeath: toDateStr(c.dateOfDeath) ?? '',
+        caseAddedDate: toDateStr(c.caseAddedDate),
+        caseCompletedDate: toDateStr(c.caseCompletedDate),
       })),
       caseContacts,
       caseProgress: caseProgress.map(p => ({
@@ -259,7 +264,7 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
       await tx.department.deleteMany();
 
       for (const def of TABLE_DEFS as unknown as TableDef[]) {
-        const rows = data[def.key as keyof typeof data] as Rec[];
+        const rows = (data[def.key as keyof typeof data] ?? []) as Rec[];
         if (rows.length > 0) {
           await def.model(tx).createMany({ data: rows.map(def.map) });
         }
@@ -272,6 +277,6 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
   );
 
   return Object.fromEntries(
-    TABLE_DEFS.map((def) => [def.key, (data[def.key as keyof typeof data] as Rec[]).length])
+    TABLE_DEFS.map((def) => [def.key, ((data[def.key as keyof typeof data] ?? []) as Rec[]).length])
   );
 }
