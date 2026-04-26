@@ -7,7 +7,8 @@ import { SetTodayButton } from "@/components/ui/SetTodayButton"
 import type { ProgressStep } from "@/types/shared"
 import { addVisitStep, removeVisitStep, shouldShowAddVisit, DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
 import { useProgressSteps } from "@/hooks/use-progress-steps"
-import { GripVertical } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { GripVertical, Plus, Trash2 } from "lucide-react"
 import { toWareki } from "@/lib/analytics-utils"
 import { DndContext, closestCenter } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
@@ -46,37 +47,84 @@ function SortableStep({
     const isLast = index === progress.length - 1
 
     return (
-        <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }} className="relative pl-8">
-            {!isLast && <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-border" />}
-            <div className={`absolute left-1 top-[18px] h-3 w-3 rounded-full border-2 transition-colors ${
-                isCompleted ? 'bg-green-500 border-green-500' : 'bg-background border-muted-foreground/40'
-            }`} />
-            <div className="pb-5">
-                <div className="p-3 border rounded-lg bg-card/50">
-                    <div className="flex items-center gap-2 mb-2">
-                        <button type="button" aria-label="ドラッグして順序変更" className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none" {...attributes} {...listeners}>
+        <div
+            ref={setNodeRef}
+            style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
+            className="relative pl-9"
+        >
+            {!isLast && <div className="absolute left-[17px] top-12 bottom-0 w-0.5 bg-border" />}
+            <div
+                className={cn(
+                    "absolute left-[7px] top-6 h-4 w-4 rounded-full border-2 transition-colors",
+                    isCompleted ? "border-green-500 bg-green-500" : "border-muted-foreground/40 bg-background",
+                )}
+            />
+            <div className="pb-4">
+                <div
+                    className={cn(
+                        "rounded-lg border bg-card/60 p-3 transition-colors",
+                        checked && "border-primary/60 bg-primary/5",
+                        isDragging && "shadow-md",
+                    )}
+                >
+                    <div className="mb-3 flex items-start gap-2">
+                        <button
+                            type="button"
+                            aria-label={`${step.name}をドラッグして順序変更`}
+                            className="flex h-11 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted hover:text-muted-foreground active:cursor-grabbing"
+                            {...attributes}
+                            {...listeners}
+                        >
                             <GripVertical className="h-4 w-4" />
                         </button>
-                        <input type="checkbox" checked={checked} onChange={onToggle} className="h-3.5 w-3.5 rounded border-gray-300 accent-primary" />
-                        <Label className="font-medium text-sm">{step.name}</Label>
+                        <label className="flex min-h-11 flex-1 cursor-pointer items-start gap-3 rounded-md px-1 py-1.5">
+                            <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={onToggle}
+                                className="mt-1 h-4 w-4 rounded border-gray-300 accent-primary"
+                                aria-label={`${step.name}を一括日付設定の対象にする`}
+                            />
+                            <span className="min-w-0 flex-1">
+                                <span className="flex flex-wrap items-center gap-2">
+                                    <span className="font-semibold text-sm">{step.name}</span>
+                                </span>
+                                {step.date && <span className="mt-1 block text-xs text-muted-foreground">{toWareki(step.date)}</span>}
+                            </span>
+                        </label>
                         {step.isDynamic && (
-                            <Button type="button" variant="ghost" size="sm" className="text-red-500 hover:text-red-700 h-6 px-1.5 text-xs" onClick={() => onDelete(index)}>
-                                削除
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-10 w-10 shrink-0 text-red-500 hover:bg-red-50 hover:text-red-700"
+                                onClick={() => onDelete(index)}
+                                aria-label={`${step.name}を削除`}
+                            >
+                                <Trash2 className="h-4 w-4" />
                             </Button>
                         )}
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <Input type="date" value={step.date || ""} onChange={(e) => onStepChange(index, "date", e.target.value)} />
-                            {step.date && <p className="text-[10px] text-muted-foreground mt-0.5">{toWareki(step.date)}</p>}
-                        </div>
-                        <Input placeholder="備考（場所、結果など）" value={step.memo || ""} onChange={(e) => onStepChange(index, "memo", e.target.value)} />
+                    <div className="grid gap-3 sm:grid-cols-[minmax(150px,0.75fr)_minmax(0,1fr)]">
+                        <Input
+                            type="date"
+                            value={step.date || ""}
+                            onChange={(e) => onStepChange(index, "date", e.target.value)}
+                            aria-label={`${step.name}の完了日`}
+                        />
+                        <Input
+                            placeholder="備考（場所、結果など）"
+                            value={step.memo || ""}
+                            onChange={(e) => onStepChange(index, "memo", e.target.value)}
+                            aria-label={`${step.name}の備考`}
+                        />
                     </div>
                 </div>
                 {shouldShowAddVisit(progress, step, index) && (
                     <div className="pt-2 pl-4">
                         <Button type="button" variant="outline" size="sm" onClick={() => onAddVisit(index)}>
-                            + 訪問日を追加
+                            <Plus className="mr-1.5 h-3.5 w-3.5" />
+                            訪問日を追加
                         </Button>
                     </div>
                 )}
