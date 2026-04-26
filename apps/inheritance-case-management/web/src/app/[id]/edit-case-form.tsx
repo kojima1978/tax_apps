@@ -233,17 +233,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 setFormData={setFormData}
             />
 
-            <FinancialSection
-                formData={formData}
-                netRevenue={netRevenue}
-                estimateNetRevenue={estimateNetRevenue}
-                isOpen={sections.isOpen("financial")}
-                onToggle={() => sections.toggle("financial")}
-                currencyChange={currencyChange}
-                setFormData={setFormData}
-                highlightFee={highlightFee}
-            />
-
             {formData.progress && (
                 <CollapsibleSection title="進捗管理" icon={ListChecks} isOpen={sections.isOpen("progress")} onToggle={() => sections.toggle("progress")} badge={`${formData.progress.filter(s => s.date).length}/${formData.progress.length}`}>
                     <ProgressEditor
@@ -256,6 +245,17 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     />
                 </CollapsibleSection>
             )}
+
+            <FinancialSection
+                formData={formData}
+                netRevenue={netRevenue}
+                estimateNetRevenue={estimateNetRevenue}
+                isOpen={sections.isOpen("financial")}
+                onToggle={() => sections.toggle("financial")}
+                currencyChange={currencyChange}
+                setFormData={setFormData}
+                highlightFee={highlightFee}
+            />
 
             <CollapsibleSection title="立替金" icon={Receipt} isOpen={sections.isOpen("expenses")} onToggle={() => sections.toggle("expenses")} badge={`${(formData.expenses || []).length}件`}>
                 <ExpenseEditor
