@@ -18,6 +18,7 @@ import { isCompleted } from "@/types/constants"
 interface ColumnOptions {
     amountSort: "asc" | "desc" | null
     toggleAmountSort: () => void
+    rowNumberOffset: number
 }
 
 // ── Status color bar (left border) ──────────────────────────
@@ -51,8 +52,18 @@ function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onT
     )
 }
 
-export function createColumns({ amountSort, toggleAmountSort }: ColumnOptions): ColumnDef<InheritanceCase>[] {
+export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }: ColumnOptions): ColumnDef<InheritanceCase>[] {
     return [
+    // ── NO列 ──────────────────────────────────────────────────
+    {
+        id: "rowNumber",
+        header: () => <span className="inline-flex items-center h-8">NO</span>,
+        cell: ({ row }) => (
+            <div className="text-center text-muted-foreground tabular-nums">
+                {rowNumberOffset + row.index + 1}
+            </div>
+        ),
+    },
     // ── 第1列：識別と基本属性 ─────────────────────────────────
     {
         accessorKey: "deceasedName",
