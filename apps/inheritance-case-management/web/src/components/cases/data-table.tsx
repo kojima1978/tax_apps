@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Search, FolderOpen } from "lucide-react"
 import { useKeyboardNavigation } from "@/hooks/use-keyboard-navigation"
+import type { InheritanceCase } from "@/types/shared"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -85,13 +86,17 @@ export function DataTable<TData, TValue>({
                     </TableHeader>
                     <TableBody>
                         {rows.length ? (
-                            rows.map((row, index) => (
+                            rows.map((row, index) => {
+                                const caseRow = row.original as InheritanceCase
+                                const isEnded = caseRow.handlingStatus === "対応終了"
+                                return (
                                 <TableRow
                                     key={row.id}
                                     data-state={row.getIsSelected() && "selected"}
                                     className={cn(
                                         "cursor-pointer transition-colors",
-                                        focusedRowIndex === index && "bg-muted/50 ring-2 ring-inset ring-primary/20"
+                                        focusedRowIndex === index && "bg-muted/50 ring-2 ring-inset ring-primary/20",
+                                        isEnded && "opacity-50"
                                     )}
                                     onClick={() => {
                                         const caseData = row.original as { id?: number }
@@ -108,7 +113,7 @@ export function DataTable<TData, TValue>({
                                         </TableCell>
                                     ))}
                                 </TableRow>
-                            ))
+                            )})
                         ) : (
                             <TableRow>
                                 <TableCell

@@ -2,36 +2,44 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import type { InheritanceCase, CaseStatus, AcceptanceStatus, HandlingStatus } from "@/types/shared"
-import { formatCurrency, formatDateWithWareki, calcBestNet, toWareki } from "@/lib/analytics-utils"
-import { STATUS_STYLES, HANDLING_STATUS_STYLES, ACCEPTANCE_STYLES, MAX_SUMMARY_LENGTH, isCompleted } from "@/types/constants"
+import { formatCurrency, formatDateWithWareki, calcNet, toWareki } from "@/lib/analytics-utils"
+import { STATUS_STYLES, HANDLING_STATUS_STYLES, ACCEPTANCE_STYLES } from "@/types/constants"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SortableHeader, SortIcon } from "@/components/ui/SortableHeader"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
 import { Button } from "@/components/ui/Button"
 import Link from "next/link"
 import { ProgressModalButton } from "./ProgressModal"
+import { ProgressDots } from "./ProgressDots"
 import { InlineSummaryCell } from "./InlineSummaryCell"
+import { FileText } from "lucide-react"
+import { isCompleted } from "@/types/constants"
 
 interface ColumnOptions {
     amountSort: "asc" | "desc" | null
     toggleAmountSort: () => void
-    queryAssigneeId?: number
-    queryInternalReferrerId?: number
-    queryStaffId?: number
 }
 
-// ── Cell factory helpers ──────────────────────────────────
-
-function statusCell<T extends string>(
-    getValue: (row: InheritanceCase) => T,
-    styleMap: Record<T, { dot: string; bg: string; text: string }>,
-) {
-    return ({ row }: { row: { original: InheritanceCase; getValue: (key: string) => unknown } }) => {
-        const value = getValue(row.original)
-        return <StatusBadge label={value} style={styleMap[value]} />
-    }
+// ── Status color bar (left border) ──────────────────────────
+const STATUS_BORDER_COLORS: Record<CaseStatus, string> = {
+    '未着手': 'border-l-gray-400',
+    '手続中': 'border-l-blue-500',
+    '申告済': 'border-l-green-500',
+    '請求済': 'border-l-orange-500',
+    '入金済': 'border-l-purple-500',
 }
 
+// ── Mini badge for stacked cells ─────────────────────────────
+function MiniBadge({ label, style }: { label: string; style: { dot: string; bg: string; text: string } }) {
+    return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${style.bg} ${style.text}`}>
+            <span className={`h-1 w-1 rounded-full ${style.dot}`} />
+            {label}
+        </span>
+    )
+}
+
+// ── Amount sort header ───────────────────────────────────────
 function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onToggle: () => void }) {
     return (
         <div className="flex justify-end">
@@ -43,150 +51,169 @@ function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onT
     )
 }
 
-export function createColumns({ amountSort, toggleAmountSort, queryAssigneeId, queryInternalReferrerId, queryStaffId }: ColumnOptions): ColumnDef<InheritanceCase>[] {
-    const showRoleColumn = queryAssigneeId || queryInternalReferrerId || queryStaffId
+export function createColumns({ amountSort, toggleAmountSort }: ColumnOptions): ColumnDef<InheritanceCase>[] {
     return [
+    // ── 第1列：識別と基本属性 ─────────────────────────────────
     {
         accessorKey: "deceasedName",
-        header: ({ column }) => <SortableHeader column={column}>被相続人氏名</SortableHeader>,
-        cell: ({ row }) => (
-            <Link href={`/${row.original.id}`} className="text-blue-600 hover:underline">
-                {row.getValue("deceasedName") || "(氏名未入力)"}
-            </Link>
-        ),
+        header: ({ column }) => <SortableHeader column={column}>被相続人</SortableHeader>,
+        cell: ({ row }) => {
+            const c = row.original
+            const handlingStatus = (c.handlingStatus || "対応中") as HandlingStatus
+            const acceptanceStatus = (c.acceptanceStatus || "未判定") as AcceptanceStatus
+            const borderColor = STATUS_BORDER_COLORS[c.status as CaseStatus] || "border-l-gray-300"
+            return (
+                <div className={`border-l-3 pl-2 ${borderColor}`}>
+                    <div className="font-bold">
+                        <Link href={`/${c.id}`} className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
+                            {c.deceasedName || "(氏名未入力)"}
+                        </Link>
+                    </div>
+                    <div className="flex gap-1 mt-0.5">
+                        <MiniBadge label={handlingStatus} style={HANDLING_STATUS_STYLES[handlingStatus]} />
+                        <MiniBadge label={acceptanceStatus} style={ACCEPTANCE_STYLES[acceptanceStatus]} />
+                    </div>
+                </div>
+            )
+        },
     },
-    {
-        accessorKey: "fiscalYear",
-        filterFn: "equals",
-        header: ({ column }) => <SortableHeader column={column}>年度</SortableHeader>,
-        cell: ({ row }) => (
-            <div className="text-center font-medium">{row.getValue("fiscalYear")}年度</div>
-        ),
-    },
+    // ── 第2列：時間管理（デッドライン） ───────────────────────
     {
         accessorKey: "dateOfDeath",
-        header: ({ column }) => <SortableHeader column={column}>相続開始日</SortableHeader>,
-        cell: ({ row }) => <div>{formatDateWithWareki(row.getValue("dateOfDeath"))}</div>,
-    },
-    {
-        id: "declarationDeadline",
-        header: () => <span className="inline-flex items-center h-8">申告期限</span>,
+        header: ({ column }) => <SortableHeader column={column}>期限</SortableHeader>,
         cell: ({ row }) => {
-            const deadline = getDeadlineDate(row.getValue("dateOfDeath"))
+            const c = row.original
+            const deadline = getDeadlineDate(c.dateOfDeath)
             const dateStr = `${deadline.toLocaleDateString("ja-JP")}（${toWareki(deadline)}）`
 
-            if (row.original.handlingStatus === "対応終了") {
+            if (c.handlingStatus === "対応終了") {
                 return (
-                    <div className="text-muted-foreground">
-                        <div className="text-xs mb-0.5 line-through">対応終了</div>
-                        <div className="line-through">{dateStr}</div>
+                    <div>
+                        <div className="text-muted-foreground line-through text-sm">{dateStr}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                            {formatDateWithWareki(c.dateOfDeath)}
+                        </div>
                     </div>
                 )
             }
-            if (isCompleted(row.original.status)) {
+            if (isCompleted(c.status)) {
                 return (
-                    <div className="text-muted-foreground">
-                        <div className="text-xs mb-0.5"><span className="px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">申告済</span></div>
-                        <div>{dateStr}</div>
+                    <div>
+                        <div className="text-sm">
+                            <span className="px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs mr-1">申告済</span>
+                            {dateStr}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                            {formatDateWithWareki(c.dateOfDeath)}
+                        </div>
                     </div>
                 )
             }
 
             const status = getDeadlineStatus(deadline)
             return (
-                <div className={status.className}>
-                    <div className="text-xs mb-0.5"><span className={`px-1.5 py-0.5 rounded-full ${status.badgeClassName}`}>{status.badge}</span></div>
-                    <div>{dateStr}</div>
+                <div>
+                    <div className={`text-sm ${status.className}`}>
+                        <span className={`px-1.5 py-0.5 rounded-full text-xs mr-1 ${status.badgeClassName}`}>{status.badge}</span>
+                        {dateStr}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                        {formatDateWithWareki(c.dateOfDeath)}
+                    </div>
                 </div>
             )
         },
     },
-    {
-        accessorKey: "acceptanceStatus",
-        header: ({ column }) => <SortableHeader column={column}>受託</SortableHeader>,
-        cell: statusCell(
-            (c) => (c.acceptanceStatus || "未判定") as AcceptanceStatus,
-            ACCEPTANCE_STYLES,
-        ),
-    },
+    // ── 第3列：フェーズと詳細進捗 ─────────────────────────────
     {
         accessorKey: "status",
-        header: ({ column }) => <SortableHeader column={column}>進み具合</SortableHeader>,
-        cell: statusCell(
-            (c) => c.status as CaseStatus,
-            STATUS_STYLES,
-        ),
-    },
-    {
-        accessorKey: "handlingStatus",
-        header: ({ column }) => <SortableHeader column={column}>対応状況</SortableHeader>,
-        cell: statusCell(
-            (c) => (c.handlingStatus || "対応中") as HandlingStatus,
-            HANDLING_STATUS_STYLES,
-        ),
-    },
-    {
-        id: "assignee",
-        header: ({ column }) => <SortableHeader column={column}>担当者</SortableHeader>,
-        cell: ({ row }) => <div>{row.original.assignee?.name || ""}</div>,
-    },
-    ...(showRoleColumn ? [{
-        id: "role",
-        header: () => <span className="inline-flex items-center h-8">役割</span>,
-        cell: ({ row }: { row: { original: InheritanceCase } }) => {
+        header: ({ column }) => <SortableHeader column={column}>進捗</SortableHeader>,
+        cell: ({ row }) => {
             const c = row.original
-            const targetId = queryStaffId || queryAssigneeId
-            const isAssigned = targetId && c.assigneeId === targetId
-            const isReferrer = queryInternalReferrerId
-                ? c.internalReferrerId === queryInternalReferrerId
-                : targetId && c.internalReferrerId === targetId
             return (
-                <div className="flex gap-1">
-                    {isAssigned && <span className="px-1.5 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700">担当</span>}
-                    {isReferrer && <span className="px-1.5 py-0.5 rounded-full text-xs bg-orange-50 text-orange-700">紹介</span>}
+                <div>
+                    <div>
+                        <StatusBadge label={c.status} style={STATUS_STYLES[c.status as CaseStatus]} />
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                        <ProgressDots caseData={c} />
+                        <ProgressModalButton caseData={c} />
+                    </div>
                 </div>
             )
         },
-    } as ColumnDef<InheritanceCase>] : []),
+    },
+    // ── 第4列：担当・リレーション ──────────────────────────────
+    {
+        id: "assignee",
+        header: ({ column }) => <SortableHeader column={column}>担当</SortableHeader>,
+        cell: ({ row }) => {
+            const c = row.original
+            return (
+                <div>
+                    <div className="text-sm text-blue-700 font-medium">
+                        {c.assignee?.name || <span className="text-muted-foreground">-</span>}
+                    </div>
+                    {c.internalReferrer?.name && (
+                        <div className="text-xs text-orange-600 mt-0.5">
+                            {c.internalReferrer.name}
+                        </div>
+                    )}
+                </div>
+            )
+        },
+    },
+    // ── 第5列：報酬・売上管理 ──────────────────────────────────
     {
         id: "amount",
         header: () => <AmountSortHeader sort={amountSort} onToggle={toggleAmountSort} />,
         cell: ({ row }) => {
             const c = row.original
             const hasFee = (c.feeAmount || 0) > 0
-            const amount = calcBestNet(c)
+            const feeNet = calcNet(c, "fee")
+            const estNet = calcNet(c, "estimate")
             return (
-                <div className="text-right font-medium">
-                    <div className={`text-xs mb-0.5 ${hasFee ? "text-green-700" : "text-blue-700"}`}>
-                        {hasFee ? "確定" : "見込"}
-                    </div>
-                    <div>{formatCurrency(amount)}</div>
-                </div>
-            )
-        },
-    },
-    {
-        id: "actions",
-        header: () => <span className="inline-flex items-center justify-center h-8 w-full">進捗</span>,
-        cell: ({ row }) => {
-            const progress = row.original.progress ?? []
-            const lastCompleted = [...progress].reverse().find(s => s.date)
-            return (
-                <div className="flex items-center justify-center gap-1.5">
-                    {lastCompleted && (
-                        <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-                            {lastCompleted.name}
-                        </span>
+                <div className="text-right">
+                    {hasFee ? (
+                        <>
+                            <div className="text-sm font-medium text-green-700">
+                                <span className="text-[10px] mr-0.5">確定</span>
+                                {formatCurrency(feeNet)}
+                            </div>
+                            {estNet > 0 && (
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                    <span className="text-[10px] mr-0.5">見込</span>
+                                    {formatCurrency(estNet)}
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="text-sm font-medium text-blue-700">
+                            <span className="text-[10px] mr-0.5">見込</span>
+                            {formatCurrency(estNet)}
+                        </div>
                     )}
-                    <ProgressModalButton caseData={row.original} />
                 </div>
             )
         },
     },
+    // ── 第6列：補足と年度 ──────────────────────────────────────
     {
         accessorKey: "summary",
-        header: () => <span className="inline-flex items-center h-8">特記事項（{MAX_SUMMARY_LENGTH}文字まで）</span>,
-        cell: ({ row }) => <InlineSummaryCell caseData={row.original} />,
+        header: () => <span className="inline-flex items-center h-8">補足</span>,
+        cell: ({ row }) => {
+            const c = row.original
+            const hasMemo = !!c.memo
+            return (
+                <div>
+                    <div><InlineSummaryCell caseData={c} /></div>
+                    <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+                        <span>{c.fiscalYear}年度</span>
+                        {hasMemo && <FileText className="h-3 w-3 text-muted-foreground/60" />}
+                    </div>
+                </div>
+            )
+        },
     },
     ]
 }
