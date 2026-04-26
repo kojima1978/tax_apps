@@ -223,7 +223,8 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
     for (const field of scalarFields) {
       if (field in data) {
         if (dateFields.has(field)) {
-          updateData[field] = toDate(data[field] as string);
+          const value = data[field];
+          updateData[field] = value ? toDate(value as string) : null;
         } else {
           updateData[field] = data[field as keyof typeof data];
         }
