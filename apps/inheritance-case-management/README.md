@@ -148,9 +148,12 @@
 
 ### JSONバックアップ / リストア
 
-- 全10テーブルのデータをJSON形式でエクスポート（`itcm-backup-YYYY-MM-DD.json`、UTF-8 BOM付き）
+- 全11テーブルのデータをJSON形式でエクスポート（`itcm-backup-YYYY-MM-DD.json`、UTF-8 BOM付き）
+- エクスポート対象: departments, companies, companyBranches, assignees, referrers, persons, cases, caseContacts, caseProgress, caseExpenses, auditLogs
 - JSONファイルからの全データリストア（プレビュー + 確認入力付き、BOM自動除去対応）
 - リストアはトランザクション内で全削除→全挿入→シーケンスリセットをアトミックに実行
+- 旧バックアップファイル互換: persons / auditLogs / caseExpenses / companyBranches が未含の場合は空配列としてリストア
+- 日付フィールド（dateOfDeath, caseAddedDate, caseCompletedDate）はISO文字列・日付文字列の両形式に対応
 - リストアエラー時はサーバーからの具体的なエラーメッセージを表示
 
 ### 案件一括削除
