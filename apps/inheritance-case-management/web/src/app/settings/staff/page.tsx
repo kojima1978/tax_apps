@@ -11,7 +11,7 @@ import type { Department, Assignee } from "@/types/shared"
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from "@/lib/api/departments"
 import { getAssignees, createAssignee, updateAssignee, deleteAssignee } from "@/lib/api/assignees"
 import {
-    ChevronRight, Users, Plus, Trash2, Pencil, Check, X, Building2, Ban, RotateCcw,
+    ChevronRight, ChevronDown, Users, Plus, Trash2, Pencil, Check, X, Building2, Ban, RotateCcw, ChevronsUpDown,
 } from "lucide-react"
 
 const formatEmployeeId = (val: string) => {
@@ -45,6 +45,7 @@ function StaffContent() {
     const [editingAssignee, setEditingAssignee] = useState<EditingAssignee | null>(null)
 
     const [filterDept, setFilterDept] = useState<string>("")
+    const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set())
 
     const reload = useCallback(async () => {
         try {
@@ -84,6 +85,25 @@ function StaffContent() {
         }
         return groups
     }, [assignees, departments, activeDepts, showInactive, filterDept])
+
+    const toggleDeptExpanded = useCallback((key: string) => {
+        setExpandedDepts(prev => {
+            const next = new Set(prev)
+            if (next.has(key)) next.delete(key)
+            else next.add(key)
+            return next
+        })
+    }, [])
+
+    const expandAll = useCallback(() => {
+        setExpandedDepts(new Set(groupedAssignees.map(({ dept }) => dept ? String(dept.id) : "none")))
+    }, [groupedAssignees])
+
+    const collapseAll = useCallback(() => {
+        setExpandedDepts(new Set())
+    }, [])
+
+    const allExpanded = groupedAssignees.length > 0 && groupedAssignees.every(({ dept }) => expandedDepts.has(dept ? String(dept.id) : "none"))
 
     const handleAddDept = async () => {
         const name = newDeptName.trim()
@@ -259,6 +279,11 @@ function StaffContent() {
                     {showInactive ? "有効のみ表示" : "すべて表示"}
                 </Button>
 
+                <Button variant="outline" size="sm" onClick={allExpanded ? collapseAll : expandAll}>
+                    <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
+                    {allExpanded ? "全て閉じる" : "全て開く"}
+                </Button>
+
                 <div className="ml-auto flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => { setAddingDept(true); setAddingAssigneeForDept(null) }}>
                         <Plus className="h-3.5 w-3.5 mr-1" />部署追加
@@ -293,48 +318,54 @@ function StaffContent() {
                     const deptKey = dept ? `dept-${dept.id}` : "no-dept"
                     const isEditingDept = editingDeptId !== null && dept?.id === editingDeptId
                     const addKey = dept ? dept.id : "none"
+                    const expandKey = dept ? String(dept.id) : "none"
+                    const isExpanded = expandedDepts.has(expandKey)
 
                     return (
                         <div key={deptKey} className="border rounded-lg bg-card overflow-hidden">
                             {/* Department header */}
-                            <div className="group flex items-center gap-2 px-4 py-2.5 bg-muted/40 border-b">
-                                <Building2 className="h-4 w-4 text-purple-600 shrink-0" />
-                                {isEditingDept ? (
-                                    <div className="flex items-center gap-1 flex-1">
-                                        <Input
-                                            value={editDeptName}
-                                            onChange={e => setEditDeptName(e.target.value)}
-                                            onKeyDown={e => { if (e.key === "Enter") handleSaveDeptEdit(); if (e.key === "Escape") setEditingDeptId(null) }}
-                                            className="h-8 text-sm max-w-xs"
-                                            autoFocus
-                                        />
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={handleSaveDeptEdit}>
-                                            <Check className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingDeptId(null)}>
-                                            <X className="h-3.5 w-3.5" />
-                                        </Button>
+                            <div className={`group flex items-center gap-2 px-4 py-2.5 bg-muted/40 ${isExpanded ? "border-b" : ""}`}>
+                                <button
+                                    className="flex items-center gap-2 flex-1 min-w-0"
+                                    onClick={() => toggleDeptExpanded(expandKey)}
+                                >
+                                    <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? "" : "-rotate-90"}`} />
+                                    <Building2 className="h-4 w-4 text-purple-600 shrink-0" />
+                                    {isEditingDept ? (
+                                        <div className="flex items-center gap-1 flex-1" onClick={e => e.stopPropagation()}>
+                                            <Input
+                                                value={editDeptName}
+                                                onChange={e => setEditDeptName(e.target.value)}
+                                                onKeyDown={e => { if (e.key === "Enter") handleSaveDeptEdit(); if (e.key === "Escape") setEditingDeptId(null) }}
+                                                className="h-8 text-sm max-w-xs"
+                                                autoFocus
+                                            />
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={handleSaveDeptEdit}>
+                                                <Check className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingDeptId(null)}>
+                                                <X className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <span className="text-sm font-semibold truncate">{dept?.name || "部署なし"}</span>
+                                    )}
+                                </button>
+                                <span className="text-xs text-muted-foreground shrink-0">{members.length}名</span>
+                                {dept && !isEditingDept && (
+                                    <div className="hidden group-hover:flex items-center gap-0.5 ml-1 shrink-0" onClick={e => e.stopPropagation()}>
+                                        <button className="p-1 rounded hover:bg-muted" onClick={() => { setEditingDeptId(dept.id); setEditDeptName(dept.name) }}>
+                                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                                        </button>
+                                        <button className="p-1 rounded hover:bg-destructive/10" onClick={() => handleDeleteDept(dept)}>
+                                            <Trash2 className="h-3 w-3 text-destructive" />
+                                        </button>
                                     </div>
-                                ) : (
-                                    <>
-                                        <span className="text-sm font-semibold flex-1">{dept?.name || "部署なし"}</span>
-                                        <span className="text-xs text-muted-foreground">{members.length}名</span>
-                                        {dept && (
-                                            <div className="hidden group-hover:flex items-center gap-0.5 ml-1">
-                                                <button className="p-1 rounded hover:bg-muted" onClick={() => { setEditingDeptId(dept.id); setEditDeptName(dept.name) }}>
-                                                    <Pencil className="h-3 w-3 text-muted-foreground" />
-                                                </button>
-                                                <button className="p-1 rounded hover:bg-destructive/10" onClick={() => handleDeleteDept(dept)}>
-                                                    <Trash2 className="h-3 w-3 text-destructive" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </>
                                 )}
                             </div>
 
-                            {/* Assignee rows */}
-                            <div className="divide-y">
+                            {/* Assignee rows (collapsible) */}
+                            {isExpanded && <div className="divide-y">
                                 {members.map(a => (
                                     <div key={a.id} className={`group flex items-center gap-3 px-4 py-2 ${a.active === false ? "bg-muted/50 opacity-60" : "hover:bg-muted/20"}`}>
                                         {editingAssignee?.id === a.id ? (
@@ -397,41 +428,42 @@ function StaffContent() {
                                     </div>
                                 ))}
 
-                                {/* Add assignee inline */}
-                                {addingAssigneeForDept === addKey ? (
-                                    <div className="flex items-center gap-2 px-4 py-2 bg-muted/10">
-                                        <Input
-                                            value={newAssignee.employeeId}
-                                            onChange={e => setNewAssignee(prev => ({ ...prev, employeeId: e.target.value }))}
-                                            onBlur={e => setNewAssignee(prev => ({ ...prev, employeeId: formatEmployeeId(e.target.value) }))}
-                                            placeholder="社員ID"
-                                            className="h-8 text-sm w-20"
-                                        />
-                                        <Input
-                                            value={newAssignee.name}
-                                            onChange={e => setNewAssignee(prev => ({ ...prev, name: e.target.value }))}
-                                            onKeyDown={e => e.key === "Enter" && handleAddAssignee(dept?.id ?? null)}
-                                            placeholder="氏名"
-                                            className="h-8 text-sm flex-1"
-                                            autoFocus
-                                        />
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => handleAddAssignee(dept?.id ?? null)}>
-                                            <Check className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setAddingAssigneeForDept(null); setNewAssignee({ name: "", employeeId: "" }) }}>
-                                            <X className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        className="flex items-center gap-1.5 px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors w-full"
-                                        onClick={() => { setAddingAssigneeForDept(addKey); setAddingDept(false); setNewAssignee({ name: "", employeeId: "" }) }}
-                                    >
-                                        <Plus className="h-3 w-3" />
-                                        担当者を追加
-                                    </button>
-                                )}
-                            </div>
+                            </div>}
+
+                            {/* Add assignee (always visible) */}
+                            {addingAssigneeForDept === addKey ? (
+                                <div className="flex items-center gap-2 px-4 py-2 bg-muted/10 border-t">
+                                    <Input
+                                        value={newAssignee.employeeId}
+                                        onChange={e => setNewAssignee(prev => ({ ...prev, employeeId: e.target.value }))}
+                                        onBlur={e => setNewAssignee(prev => ({ ...prev, employeeId: formatEmployeeId(e.target.value) }))}
+                                        placeholder="社員ID"
+                                        className="h-8 text-sm w-20"
+                                    />
+                                    <Input
+                                        value={newAssignee.name}
+                                        onChange={e => setNewAssignee(prev => ({ ...prev, name: e.target.value }))}
+                                        onKeyDown={e => e.key === "Enter" && handleAddAssignee(dept?.id ?? null)}
+                                        placeholder="氏名"
+                                        className="h-8 text-sm flex-1"
+                                        autoFocus
+                                    />
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => handleAddAssignee(dept?.id ?? null)}>
+                                        <Check className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setAddingAssigneeForDept(null); setNewAssignee({ name: "", employeeId: "" }) }}>
+                                        <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <button
+                                    className={`flex items-center gap-1.5 px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors w-full ${isExpanded ? "border-t" : ""}`}
+                                    onClick={() => { setAddingAssigneeForDept(addKey); setAddingDept(false); setNewAssignee({ name: "", employeeId: "" }); if (!isExpanded) toggleDeptExpanded(expandKey) }}
+                                >
+                                    <Plus className="h-3 w-3" />
+                                    担当者を追加
+                                </button>
+                            )}
                         </div>
                     )
                 })}
