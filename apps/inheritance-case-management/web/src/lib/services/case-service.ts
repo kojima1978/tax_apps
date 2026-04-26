@@ -145,7 +145,7 @@ export async function createCase(data: {
   referralFeeRate?: number | null;
   referralFeeAmount?: number | null;
   estimateReferralFeeAmount?: number | null;
-  feeCalcSnapshot?: Record<string, unknown> | null;
+  feeCalcSnapshot?: Prisma.InputJsonValue | null;
   summary?: string | null;
   memo?: string | null;
   caseAddedDate?: string | null;

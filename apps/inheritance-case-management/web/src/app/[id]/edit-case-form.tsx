@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer, Person, CaseStatus } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
-import { toProgressSteps, toProgressItems, toContactInputs, toContactItems, toExpenses, toExpenseItems } from "@/lib/case-converters"
+import { toProgressSteps, toProgressItems, toContactInputs, toExpenses, toExpenseItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { getAssignees } from "@/lib/api/assignees"
 import { getReferrers } from "@/lib/api/referrers"
@@ -242,10 +242,10 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     <ProgressEditor
                         progress={toProgressSteps(formData.progress)}
                         onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
-                        caseAddedDate={formData.caseAddedDate}
-                        caseCompletedDate={formData.caseCompletedDate}
+                        formData={formData}
                         isCreateMode={isCreateMode}
-                        onDateChange={handleChange}
+                        handleChange={handleChange}
+                        setFormData={setFormData}
                     />
                 </CollapsibleSection>
             )}

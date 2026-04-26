@@ -7,6 +7,7 @@ async function main() {
 
   // 既存データをクリア（子テーブルはCASCADEで自動削除）
   await prisma.inheritanceCase.deleteMany();
+  await prisma.person.deleteMany();
   await prisma.referrer.deleteMany();
   await prisma.company.deleteMany();
   await prisma.assignee.deleteMany();
@@ -20,6 +21,7 @@ async function main() {
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "InheritanceCase_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "CaseContact_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "CaseProgress_id_seq" RESTART WITH 1`);
+  await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Person_id_seq" RESTART WITH 1`);
 
   // 部署データ
   const departments = await Promise.all([
@@ -104,8 +106,8 @@ async function main() {
         deceasedName: '相続 太郎',
         dateOfDeath: '2025-01-15',
         fiscalYear: 2025,
-        status: '進行中',
-        acceptanceStatus: '受託可',
+        status: '手続中',
+        acceptanceStatus: '受託',
         taxAmount: 50000000,
         feeAmount: 2000000,
         estimateAmount: 2500000,
@@ -120,8 +122,8 @@ async function main() {
         referrerId: referrers[0].id,
         contacts: {
           create: [
-            { name: '相続 一郎', phone: '090-1234-5678', postalCode: '100-0001', address: '東京都千代田区千代田1-1', memo: '', sortOrder: 0 },
-            { name: '相続 二郎', phone: '090-2345-6789', postalCode: '160-0023', address: '東京都新宿区西新宿2-8-1', memo: '', sortOrder: 1 },
+            { person: { create: { name: '相続 一郎', phone: '090-1234-5678', postalCode: '100-0001', address: '東京都千代田区千代田1-1', memo: '' } }, memo: '', sortOrder: 0 },
+            { person: { create: { name: '相続 二郎', phone: '090-2345-6789', postalCode: '160-0023', address: '東京都新宿区西新宿2-8-1', memo: '' } }, memo: '', sortOrder: 1 },
           ],
         },
         progress: {
@@ -154,7 +156,7 @@ async function main() {
         referrerId: null,
         contacts: {
           create: [
-            { name: '遺産 三郎', phone: '080-1111-2222', postalCode: '', address: '', memo: '', sortOrder: 0 },
+            { person: { create: { name: '遺産 三郎', phone: '080-1111-2222', postalCode: '', address: '', memo: '' } }, memo: '', sortOrder: 0 },
           ],
         },
       },
@@ -164,8 +166,8 @@ async function main() {
         deceasedName: '財産 次郎',
         dateOfDeath: '2024-11-10',
         fiscalYear: 2024,
-        status: '完了（税務申告済）',
-        acceptanceStatus: '受託可',
+        status: '申告済',
+        acceptanceStatus: '受託',
         taxAmount: 80000000,
         feeAmount: 3500000,
         estimateAmount: 3500000,
@@ -180,7 +182,7 @@ async function main() {
         referrerId: referrers[1].id,
         contacts: {
           create: [
-            { name: '財産 四郎', phone: '03-1234-5678', postalCode: '530-0001', address: '大阪府大阪市北区梅田1-1', memo: '', sortOrder: 0 },
+            { person: { create: { name: '財産 四郎', phone: '03-1234-5678', postalCode: '530-0001', address: '大阪府大阪市北区梅田1-1', memo: '' } }, memo: '', sortOrder: 0 },
           ],
         },
         progress: {
@@ -199,8 +201,8 @@ async function main() {
         deceasedName: '相続 三郎',
         dateOfDeath: '2024-12-25',
         fiscalYear: 2024,
-        status: '進行中',
-        acceptanceStatus: '受託可',
+        status: '手続中',
+        acceptanceStatus: '受託',
         taxAmount: 20000000,
         feeAmount: 800000,
         estimateAmount: 1000000,
@@ -226,7 +228,7 @@ async function main() {
         dateOfDeath: '2024-08-15',
         fiscalYear: 2024,
         status: '入金済',
-        acceptanceStatus: '受託可',
+        acceptanceStatus: '受託',
         taxAmount: 35000000,
         feeAmount: 1500000,
         estimateAmount: 1500000,
@@ -241,7 +243,7 @@ async function main() {
         referrerId: null,
         contacts: {
           create: [
-            { name: '遺贈 六郎', phone: '090-9999-8888', postalCode: '460-0008', address: '愛知県名古屋市中区栄3-1', memo: '', sortOrder: 0 },
+            { person: { create: { name: '遺贈 六郎', phone: '090-9999-8888', postalCode: '460-0008', address: '愛知県名古屋市中区栄3-1', memo: '' } }, memo: '', sortOrder: 0 },
           ],
         },
         progress: {
