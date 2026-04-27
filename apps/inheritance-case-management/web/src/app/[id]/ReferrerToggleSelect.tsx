@@ -61,9 +61,9 @@ export function ReferrerToggleSelect({
     }
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
             <div className="flex items-baseline gap-2">
-                <Label className="shrink-0">紹介者</Label>
+                <Label className="shrink-0 text-xs">紹介者</Label>
                 <div className="inline-flex gap-px bg-muted rounded p-px">
                     {REFERRER_MODE_OPTIONS.map(({ value: m, label }) => (
                         <button
@@ -98,7 +98,7 @@ export function ReferrerToggleSelect({
                             </optgroup>
                         ))}
                     </SelectField>
-                    <div className="text-right text-xs">
+                    <div className="text-right text-[11px]">
                         <Link href={`/settings/staff?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
                             担当者を追加・編集
                         </Link>
@@ -124,7 +124,7 @@ export function ReferrerToggleSelect({
                             </optgroup>
                         ))}
                     </SelectField>
-                    <div className="text-right text-xs">
+                    <div className="text-right text-[11px]">
                         <Link href={`/settings/referral-sources?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
                             紹介元を追加・編集
                         </Link>

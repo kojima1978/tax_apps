@@ -9,8 +9,8 @@ import type { CasesQueryParams } from "@/lib/api/cases"
 import { CASE_STATUS_FILTER_OPTIONS, HANDLING_STATUS_FILTER_OPTIONS, ACCEPTANCE_STATUS_FILTER_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
 import type { Assignee, Department } from "@/types/shared"
 
-const FILTER_SELECT_WRAPPER = "h-10 w-auto"
-const REFERRER_SELECT_WRAPPER = "h-10 w-auto border-orange-300"
+const FILTER_SELECT_WRAPPER = "h-9 w-auto px-2 py-1 text-xs"
+const REFERRER_SELECT_WRAPPER = "h-9 w-auto border-orange-300 px-2 py-1 text-xs"
 
 type OptGroupDef = { label: string; options: readonly { value: string | number; label: string }[] }
 type FilterableKey = Exclude<keyof CasesQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortOrder' | 'unassigned' | 'noReferrer'>
@@ -110,16 +110,16 @@ export function FilterBar({
         }))
 
     return (
-        <div className="space-y-3 mb-4">
+        <div className="space-y-2 mb-3">
             {/* Row 1: 検索 + 件数表示 */}
-            <div className="flex items-center gap-3 flex-wrap">
-                <div className="relative flex-1 min-w-48 max-w-sm">
+            <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative flex-1 min-w-44 max-w-xs">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="被相続人名で検索..."
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
-                        className="pl-9 pr-8"
+                        className="h-9 pl-9 pr-8 text-xs"
                     />
                     {searchInput && (
                         <button
@@ -133,7 +133,7 @@ export function FilterBar({
                 </div>
 
                 {hasFilters && totalCount !== undefined && (
-                    <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         <Filter className="h-3 w-3" />
                         {totalCount}件表示
                     </span>
@@ -142,27 +142,27 @@ export function FilterBar({
 
             {/* フィルターチップ */}
             {activeFilters.length > 0 && (
-                <div className="flex gap-2 flex-wrap items-center">
+                <div className="flex gap-1.5 flex-wrap items-center">
                     {activeFilters.map(f => (
-                        <span key={f.key} className={`inline-flex items-center gap-1 text-xs pl-2.5 pr-1 py-1 rounded-full font-medium ${f.chipStyle}`}>
+                        <span key={f.key} className={`inline-flex items-center gap-1 rounded-full py-0.5 pl-2 pr-0.5 text-[11px] font-medium ${f.chipStyle}`}>
                             {f.label}
                             <button
                                 onClick={() => f.key === 'search' ? setSearchInput('') : onFilterChange(f.key as keyof CasesQueryParams, undefined)}
-                                className="hover:bg-black/10 rounded-full p-1.5 transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center"
+                                className="hover:bg-black/10 rounded-full p-1 transition-colors min-w-[24px] min-h-[24px] flex items-center justify-center"
                                 aria-label={`${f.label}を解除`}
                             >
                                 <X className="h-3 w-3" />
                             </button>
                         </span>
                     ))}
-                    <button onClick={onClearAll} className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                    <button onClick={onClearAll} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                         すべてクリア
                     </button>
                 </div>
             )}
 
             {/* Row 2: フィルター + ソート */}
-            <div className="flex gap-2 flex-wrap items-center">
+            <div className="flex gap-1.5 flex-wrap items-center">
                 {filterDefs.map(({ key, placeholder, options, optGroups, multiSelect, wrapperClassName }) => {
                     if (multiSelect) {
                         const raw = queryParams[key] as string | undefined

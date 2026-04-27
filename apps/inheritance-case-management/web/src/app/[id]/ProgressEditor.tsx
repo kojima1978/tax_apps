@@ -211,13 +211,13 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
     }
 
     const statusSummary = (
-        <div className="mb-5 rounded-lg border bg-card/50 p-4">
-            <div className="mb-3">
+        <div className="mb-4 rounded-lg border bg-card/50 p-3">
+            <div className="mb-2.5">
                 <h3 className="text-sm font-semibold">必須ステータス・関連日付</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">進み具合・受託・対応状況は最終的に必ず確認してください</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1 md:col-span-2">
+            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1 sm:col-span-2">
                 <Label htmlFor="status" className="flex items-center gap-1.5 text-xs">
                     進み具合
                     <FieldBadge>必須</FieldBadge>

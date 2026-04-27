@@ -13,14 +13,14 @@ const KPI_CARD_DEFS: readonly { key: keyof KPIData; label: string; icon: LucideI
 
 export function KPICards({ data }: { data: KPIData }) {
     return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-2 mb-3 lg:grid-cols-6">
             {KPI_CARD_DEFS.map(({ key, label, icon: Icon, color }) => (
-                <div key={key} className="flex items-center gap-3 p-4 rounded-lg border bg-card">
-                    <div className={`p-2 rounded-lg ${color}`}>
-                        <Icon className="h-5 w-5" />
+                <div key={key} className="flex items-center gap-2 rounded-lg border bg-card px-2.5 py-2">
+                    <div className={`rounded-md p-1.5 ${color}`}>
+                        <Icon className="h-4 w-4" />
                     </div>
-                    <div>
-                        <div className="text-2xl font-bold">{data[key]}</div>
+                    <div className="min-w-0">
+                        <div className="text-lg font-bold leading-none">{data[key]}</div>
                         <div className="text-xs text-muted-foreground">{label}</div>
                     </div>
                 </div>

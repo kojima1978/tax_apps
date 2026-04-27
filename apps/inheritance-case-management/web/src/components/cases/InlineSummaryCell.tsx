@@ -63,7 +63,7 @@ export function InlineSummaryCell({ caseData }: { caseData: InheritanceCase }) {
                             setIsEditing(false)
                         }
                     }}
-                    className="w-full text-xs border rounded px-1.5 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded border bg-background px-1.5 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary"
                     disabled={isSaving}
                 />
                 <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground">
@@ -75,7 +75,7 @@ export function InlineSummaryCell({ caseData }: { caseData: InheritanceCase }) {
 
     return (
         <div
-            className="text-xs cursor-pointer hover:bg-muted/50 rounded px-1.5 py-1 min-h-[28px] flex items-center min-w-[80px]"
+            className="flex min-h-[22px] min-w-[72px] cursor-pointer items-center rounded px-1.5 py-0.5 text-[11px] hover:bg-muted/50"
             onClick={(e) => {
                 e.stopPropagation()
                 setIsEditing(true)

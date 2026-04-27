@@ -30,21 +30,21 @@ export function BasicInfoSection({
 }: BasicInfoSectionProps) {
     return (
         <CollapsibleSection title="基本情報" icon={User} isOpen={isOpen} onToggle={onToggle}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                 {!isCreateMode && (
-                    <div className="space-y-2">
-                        <Label htmlFor="id">案件ID (変更不可)</Label>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="id" className="text-xs">案件ID (変更不可)</Label>
                         <Input id="id" value={formatId(formData.id)} disabled className="bg-muted" />
                     </div>
                 )}
 
-                <div className="space-y-2">
-                    <Label htmlFor="deceasedName">被相続人氏名 <span className="text-red-500">*</span></Label>
+                <div className="space-y-1.5">
+                    <Label htmlFor="deceasedName" className="text-xs">被相続人氏名 <span className="text-red-500">*</span></Label>
                     <Input id="deceasedName" name="deceasedName" value={formData.deceasedName} onChange={handleChange} placeholder="例：山田 太郎" />
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="fiscalYear">年度（{toWareki(new Date(formData.fiscalYear, 0, 1))}度）</Label>
+                <div className="space-y-1.5">
+                    <Label htmlFor="fiscalYear" className="text-xs">年度（{toWareki(new Date(formData.fiscalYear, 0, 1))}度）</Label>
                     <SelectField id="fiscalYear" name="fiscalYear" value={formData.fiscalYear} onChange={handleChange}>
                         {FISCAL_YEARS.map(year => (
                             <option key={year} value={year}>{year}年度</option>
@@ -52,13 +52,13 @@ export function BasicInfoSection({
                     </SelectField>
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="dateOfDeath">相続開始日{formData.dateOfDeath ? `（${toWareki(formData.dateOfDeath)}）` : ""}</Label>
+                <div className="space-y-1.5">
+                    <Label htmlFor="dateOfDeath" className="text-xs">相続開始日{formData.dateOfDeath ? `（${toWareki(formData.dateOfDeath)}）` : ""}</Label>
                     <Input id="dateOfDeath" name="dateOfDeath" type="date" value={formData.dateOfDeath} onChange={handleChange} />
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="summary">特記事項（{MAX_SUMMARY_LENGTH}文字まで）</Label>
+                <div className="space-y-1.5">
+                    <Label htmlFor="summary" className="text-xs">特記事項（{MAX_SUMMARY_LENGTH}文字まで）</Label>
                     <div className="relative">
                         <Input
                             id="summary"

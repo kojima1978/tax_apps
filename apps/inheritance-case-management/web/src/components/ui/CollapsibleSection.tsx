@@ -26,7 +26,7 @@ export function CollapsibleSection({ title, icon: Icon, defaultOpen = true, isOp
             <button
                 type="button"
                 onClick={handleToggle}
-                className="w-full flex items-center justify-between px-5 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors"
                 aria-expanded={isOpen}
             >
                 <div className="flex items-center gap-2">
@@ -45,7 +45,7 @@ export function CollapsibleSection({ title, icon: Icon, defaultOpen = true, isOp
                 )}
             >
                 <div className="overflow-hidden">
-                    <div className="px-5 py-4">
+                    <div className="px-4 py-3">
                         {children}
                     </div>
                 </div>

@@ -34,18 +34,18 @@ export function MultiSelectDropdown({ placeholder, options, selected, onChange }
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className={`h-10 px-3 text-sm border rounded-md bg-background flex items-center gap-1.5 min-w-[100px] ${selected.size > 0 ? "border-primary text-foreground" : "text-muted-foreground"}`}
+                className={`h-9 px-2 text-xs border rounded-md bg-background flex items-center gap-1.5 min-w-[88px] ${selected.size > 0 ? "border-primary text-foreground" : "text-muted-foreground"}`}
             >
                 <span className="truncate">{label}</span>
                 <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
             </button>
             {open && (
-                <div className="absolute z-50 mt-1 bg-white border rounded-md shadow-md py-1 min-w-[180px]">
+                <div className="absolute z-50 mt-1 bg-white border rounded-md shadow-md py-1 min-w-[168px]">
                     {options.map(({ value, label: optLabel }) => {
                         const val = String(value)
                         const checked = selected.has(val)
                         return (
-                            <label key={val} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted cursor-pointer">
+                            <label key={val} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted cursor-pointer">
                                 <input
                                     type="checkbox"
                                     checked={checked}

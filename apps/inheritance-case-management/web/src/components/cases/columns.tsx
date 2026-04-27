@@ -33,9 +33,9 @@ const STATUS_BORDER_COLORS: Record<CaseStatus, string> = {
 // ── Mini badge for stacked cells ─────────────────────────────
 function MiniBadge({ label, style }: { label: string; style: { dot: string; bg: string; text: string } }) {
     return (
-        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${style.bg} ${style.text}`}>
+        <span className={`inline-flex max-w-[92px] items-center gap-1 truncate rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${style.bg} ${style.text}`}>
             <span className={`h-1 w-1 rounded-full ${style.dot}`} />
-            {label}
+            <span className="truncate">{label}</span>
         </span>
     )
 }
@@ -44,7 +44,7 @@ function MiniBadge({ label, style }: { label: string; style: { dot: string; bg: 
 function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onToggle: () => void }) {
     return (
         <div className="flex justify-end">
-            <Button variant="ghost" onClick={onToggle} className="h-8 text-xs px-2">
+            <Button variant="ghost" onClick={onToggle} className="h-7 px-1.5 text-[11px]">
                 売上
                 <SortIcon direction={sort || false} />
             </Button>
@@ -57,9 +57,10 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
     // ── NO列 ──────────────────────────────────────────────────
     {
         id: "rowNumber",
+        size: 42,
         header: () => <span className="inline-flex items-center h-8">NO</span>,
         cell: ({ row }) => (
-            <div className="text-center text-muted-foreground tabular-nums">
+            <div className="text-center text-[11px] text-muted-foreground tabular-nums">
                 {rowNumberOffset + row.index + 1}
             </div>
         ),
@@ -67,6 +68,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
     // ── 第1列：識別と基本属性 ─────────────────────────────────
     {
         accessorKey: "deceasedName",
+        size: 210,
         header: ({ column }) => <SortableHeader column={column}>被相続人</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
@@ -74,13 +76,13 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             const acceptanceStatus = (c.acceptanceStatus || "未判定") as AcceptanceStatus
             const borderColor = STATUS_BORDER_COLORS[c.status as CaseStatus] || "border-l-gray-300"
             return (
-                <div className={`border-l-3 pl-2 ${borderColor}`}>
-                    <div className="font-bold">
-                        <Link href={`/${c.id}`} className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
+                <div className={`min-w-0 border-l-3 pl-2 ${borderColor}`}>
+                    <div className="min-w-0 font-bold leading-tight">
+                        <Link href={`/${c.id}`} className="block truncate text-[13px] text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
                             {c.deceasedName || "(氏名未入力)"}
                         </Link>
                     </div>
-                    <div className="flex gap-1 mt-0.5">
+                    <div className="mt-0.5 flex min-w-0 gap-1 overflow-hidden">
                         <MiniBadge label={handlingStatus} style={HANDLING_STATUS_STYLES[handlingStatus]} />
                         <MiniBadge label={acceptanceStatus} style={ACCEPTANCE_STYLES[acceptanceStatus]} />
                     </div>
@@ -91,6 +93,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
     // ── 第2列：時間管理（デッドライン） ───────────────────────
     {
         accessorKey: "dateOfDeath",
+        size: 210,
         header: ({ column }) => <SortableHeader column={column}>期限</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
@@ -99,9 +102,9 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
 
             if (c.handlingStatus && c.handlingStatus !== "対応中") {
                 return (
-                    <div>
-                        <div className="text-muted-foreground line-through text-sm">{dateStr}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
+                    <div className="leading-tight">
+                        <div className="truncate text-xs text-muted-foreground line-through">{dateStr}</div>
+                        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
                             {formatDateWithWareki(c.dateOfDeath)}
                         </div>
                     </div>
@@ -109,12 +112,12 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             }
             if (isCompleted(c.status)) {
                 return (
-                    <div>
-                        <div className="text-sm">
-                            <span className="px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs mr-1">申告済</span>
+                    <div className="leading-tight">
+                        <div className="truncate text-xs">
+                            <span className="mr-1 rounded-full bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700">申告済</span>
                             {dateStr}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
+                        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
                             {formatDateWithWareki(c.dateOfDeath)}
                         </div>
                     </div>
@@ -123,12 +126,12 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
 
             const status = getDeadlineStatus(deadline)
             return (
-                <div>
-                    <div className={`text-sm ${status.className}`}>
-                        <span className={`px-1.5 py-0.5 rounded-full text-xs mr-1 ${status.badgeClassName}`}>{status.badge}</span>
+                <div className="leading-tight">
+                    <div className={`truncate text-xs ${status.className}`}>
+                        <span className={`mr-1 rounded-full px-1.5 py-0.5 text-[11px] ${status.badgeClassName}`}>{status.badge}</span>
                         {dateStr}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
+                    <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
                         {formatDateWithWareki(c.dateOfDeath)}
                     </div>
                 </div>
@@ -138,15 +141,16 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
     // ── 第3列：フェーズと詳細進捗 ─────────────────────────────
     {
         accessorKey: "status",
+        size: 130,
         header: ({ column }) => <SortableHeader column={column}>進捗</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
             return (
-                <div>
+                <div className="leading-tight">
                     <div>
                         <StatusBadge label={c.status} style={STATUS_STYLES[c.status as CaseStatus]} />
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1">
+                    <div className="mt-0.5 flex items-center gap-1">
                         <ProgressDots caseData={c} />
                         <ProgressModalButton caseData={c} />
                     </div>
@@ -157,16 +161,17 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
     // ── 第4列：担当・リレーション ──────────────────────────────
     {
         id: "assignee",
+        size: 135,
         header: ({ column }) => <SortableHeader column={column}>担当</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
             return (
-                <div>
-                    <div className="text-sm text-blue-700 font-medium">
+                <div className="min-w-0 leading-tight">
+                    <div className="truncate text-xs font-medium text-blue-700">
                         {c.assignee?.name || <span className="text-muted-foreground">-</span>}
                     </div>
                     {c.internalReferrer?.name && (
-                        <div className="text-xs text-orange-600 mt-0.5">
+                        <div className="mt-0.5 truncate text-[11px] text-orange-600">
                             {c.internalReferrer.name}
                         </div>
                     )}
@@ -177,6 +182,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
     // ── 第5列：報酬・売上管理 ──────────────────────────────────
     {
         id: "amount",
+        size: 145,
         header: () => <AmountSortHeader sort={amountSort} onToggle={toggleAmountSort} />,
         cell: ({ row }) => {
             const c = row.original
@@ -184,22 +190,22 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             const feeNet = calcNet(c, "fee")
             const estNet = calcNet(c, "estimate")
             return (
-                <div className="text-right">
+                <div className="text-right leading-tight">
                     {hasFee ? (
                         <>
-                            <div className="text-sm font-medium text-green-700">
+                            <div className="text-xs font-medium text-green-700">
                                 <span className="text-[10px] mr-0.5">確定</span>
                                 {formatCurrency(feeNet)}
                             </div>
                             {estNet > 0 && (
-                                <div className="text-xs text-muted-foreground mt-0.5">
+                                <div className="mt-0.5 text-[11px] text-muted-foreground">
                                     <span className="text-[10px] mr-0.5">見込</span>
                                     {formatCurrency(estNet)}
                                 </div>
                             )}
                         </>
                     ) : (
-                        <div className="text-sm font-medium text-blue-700">
+                        <div className="text-xs font-medium text-blue-700">
                             <span className="text-[10px] mr-0.5">見込</span>
                             {formatCurrency(estNet)}
                         </div>
@@ -211,14 +217,15 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
     // ── 第6列：補足と年度 ──────────────────────────────────────
     {
         accessorKey: "summary",
+        size: 140,
         header: () => <span className="inline-flex items-center h-8">補足</span>,
         cell: ({ row }) => {
             const c = row.original
             const hasMemo = !!c.memo
             return (
-                <div>
+                <div className="min-w-0 leading-tight">
                     <div><InlineSummaryCell caseData={c} /></div>
-                    <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+                    <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                         <span>{c.fiscalYear}年度</span>
                         {hasMemo && <FileText className="h-3 w-3 text-muted-foreground/60" />}
                     </div>

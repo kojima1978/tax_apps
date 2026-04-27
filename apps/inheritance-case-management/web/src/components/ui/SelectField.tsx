@@ -9,7 +9,7 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(
     ({ className, wrapperClassName, children, ...props }, ref) => {
         return (
             <div className={cn(
-                "flex h-11 w-full rounded-xl border-2 border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+                "flex h-11 w-full rounded-lg border-2 border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:h-10",
                 wrapperClassName,
             )}>
                 <select

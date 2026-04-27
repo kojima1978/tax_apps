@@ -207,10 +207,10 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     }, [formData.estimateAmount, formData.estimateReferralFeeAmount, formData.referralFeeRate])
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             {!isCreateMode && (
-                <div className="mb-8 border-b pb-4">
-                    <h1 className="text-2xl font-bold tracking-tight">案件詳細</h1>
+                <div className="mb-4 border-b pb-3">
+                    <h1 className="text-xl font-bold tracking-tight">案件詳細</h1>
                     <div className="mt-1 flex items-center justify-between gap-3">
                         <p className="text-muted-foreground">案件ID: {formatId(formData.id)}</p>
                         <button
@@ -283,7 +283,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
                     placeholder="自由にメモを記載できます"
                     rows={4}
-                    className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px]"
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[84px]"
                 />
             </CollapsibleSection>
 

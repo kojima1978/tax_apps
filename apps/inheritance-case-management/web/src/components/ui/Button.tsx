@@ -20,10 +20,10 @@ const buttonVariants = cva(
         subtle: "bg-muted text-muted-foreground hover:bg-muted/80",
       },
       size: {
-        default: "h-11 px-6 py-2",
+        default: "h-11 px-5 py-2 sm:h-10",
         sm: "h-9 rounded-lg px-4",
         lg: "h-14 rounded-2xl px-10 text-lg",
-        icon: "h-11 w-11",
+        icon: "h-11 w-11 sm:h-10 sm:w-10",
       },
     },
     defaultVariants: {
