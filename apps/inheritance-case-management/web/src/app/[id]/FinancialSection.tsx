@@ -11,7 +11,9 @@ import type { FeeCalcSnapshot } from "@/lib/estimate-calc"
 import { isCompleted } from "@/types/constants"
 import type { InheritanceCase } from "@/types/shared"
 
-const ESTIMATE_COUNT_FIELDS: { key: keyof InheritanceCase; label: string; suffix: string }[] = [
+type EstimateCountKey = "landRosenkaCount" | "landBairitsuCount" | "unlistedStockCount" | "heirCount"
+
+const ESTIMATE_COUNT_FIELDS: { key: EstimateCountKey; label: string; suffix: string }[] = [
     { key: "landRosenkaCount", label: "土地数（路線価）", suffix: "区分" },
     { key: "landBairitsuCount", label: "土地数（倍率）", suffix: "区分" },
     { key: "unlistedStockCount", label: "非上場株式", suffix: "社" },
@@ -41,10 +43,21 @@ export function FinancialSection({
     }
     const breakdown = calcEstimate(estimateParams)
     const netEstimate = breakdown.total - (formData.discountAmount || 0)
+    const updateEstimateCount = (key: EstimateCountKey, rawValue: string) => {
+        const value = rawValue === "" ? 0 : Math.max(0, Number.parseInt(rawValue, 10) || 0)
+        setFormData(prev => ({ ...prev, [key]: value }))
+    }
 
     const applyToEstimate = () => {
+        const rate = formData.referralFeeRate || 0
+        const newEstimateReferral = Math.floor(netEstimate * (rate / 100))
         const snapshot = createFeeCalcSnapshot(estimateParams, formData.discountAmount || 0, 'estimate')
-        setFormData(prev => ({ ...prev, estimateAmount: netEstimate, feeCalcSnapshot: snapshot }))
+        setFormData(prev => ({
+            ...prev,
+            estimateAmount: netEstimate,
+            estimateReferralFeeAmount: newEstimateReferral,
+            feeCalcSnapshot: snapshot,
+        }))
     }
 
     const applyToFee = () => {
@@ -96,11 +109,8 @@ export function FinancialSection({
                                         type="number"
                                         min="0"
                                         className="w-full"
-                                        value={(formData[key] as number) || 0}
-                                        onChange={(e) => {
-                                            const val = Math.max(0, parseInt(e.target.value) || 0)
-                                            setFormData(prev => ({ ...prev, [key]: val }))
-                                        }}
+                                        value={estimateParams[key]}
+                                        onChange={(e) => updateEstimateCount(key, e.target.value)}
                                     />
                                     <span className="text-xs text-muted-foreground whitespace-nowrap">{suffix}</span>
                                 </div>

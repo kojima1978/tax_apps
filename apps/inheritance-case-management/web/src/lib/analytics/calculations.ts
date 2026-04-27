@@ -11,8 +11,7 @@ export function calcReferralFee(c: InheritanceCase, baseType: "fee" | "estimate"
         return c.referralFeeAmount || 0
     }
     const base = c.estimateAmount || 0
-    const referral = c.estimateReferralFeeAmount || 0
-    if (referral > 0) return referral
+    if (c.estimateReferralFeeAmount != null) return c.estimateReferralFeeAmount
     if (c.referralFeeRate && c.referralFeeRate > 0) {
         return Math.floor(base * (c.referralFeeRate / 100))
     }
