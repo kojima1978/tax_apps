@@ -157,7 +157,7 @@ function BackupContent() {
 
         {/* Parse Error */}
         {parseError && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm mb-4">
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-white text-black border border-black/10 text-sm mb-4">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             {parseError}
           </div>
@@ -188,7 +188,7 @@ function BackupContent() {
             </table>
 
             {/* Warning */}
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 text-amber-800 text-sm">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-white text-black border border-black/10 text-sm">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>リストアを実行すると、現在の全データが削除され、アップロードしたデータに置き換わります。</span>
             </div>
@@ -223,7 +223,7 @@ function BackupContent() {
         {result && (
           <div
             className={`flex items-center gap-2 p-3 rounded-lg text-sm mt-4 ${
-              result.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+              result.success ? "bg-white text-black border border-black/10" : "bg-white text-black border border-black/10"
             }`}
           >
             {result.success ? (

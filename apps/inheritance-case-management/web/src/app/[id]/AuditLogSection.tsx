@@ -39,9 +39,9 @@ function getFieldLabel(field: string): string {
 }
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-    CREATE: { label: "作成", color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-    UPDATE: { label: "更新", color: "text-blue-700 bg-blue-50 border-blue-200" },
-    DELETE: { label: "削除", color: "text-red-700 bg-red-50 border-red-200" },
+    CREATE: { label: "作成", color: "text-black bg-white border-black/20" },
+    UPDATE: { label: "更新", color: "text-black bg-white border-black/10" },
+    DELETE: { label: "削除", color: "text-black bg-white border-black/10" },
 }
 
 function formatValue(value: unknown): string {
@@ -109,9 +109,9 @@ export function AuditLogSection({ caseId, isOpen, onToggle, refreshKey }: AuditL
                                         {log.changes.map((c, i) => (
                                             <div key={i} className="flex items-baseline gap-1 text-slate-600">
                                                 <span className="font-medium text-slate-700 shrink-0">{getFieldLabel(c.field)}</span>
-                                                <span className="text-red-500 line-through truncate max-w-[120px]" title={formatValue(c.old)}>{formatValue(c.old)}</span>
+                                                <span className="text-gray-500 line-through truncate max-w-[120px]" title={formatValue(c.old)}>{formatValue(c.old)}</span>
                                                 <span className="text-muted-foreground">→</span>
-                                                <span className="text-emerald-600 truncate max-w-[120px]" title={formatValue(c.new)}>{formatValue(c.new)}</span>
+                                                <span className="text-gray-800 truncate max-w-[120px]" title={formatValue(c.new)}>{formatValue(c.new)}</span>
                                             </div>
                                         ))}
                                     </div>

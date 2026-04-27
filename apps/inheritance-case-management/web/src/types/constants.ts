@@ -5,24 +5,24 @@ export const MAX_SUMMARY_LENGTH = 10
 
 // Badge styles for status display
 export const STATUS_STYLES: Record<CaseStatus, { dot: string; bg: string; text: string }> = {
-    '未着手': { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' },
-    '手続中': { dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
-    '申告済': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
-    '請求済': { dot: 'bg-orange-500', bg: 'bg-orange-50', text: 'text-orange-700' },
-    '入金済': { dot: 'bg-purple-500', bg: 'bg-purple-50', text: 'text-purple-700' },
+    '未着手': { dot: 'bg-gray-400', bg: 'bg-white', text: 'text-black' },
+    '手続中': { dot: 'bg-white0', bg: 'bg-white', text: 'text-black' },
+    '申告済': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
+    '請求済': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
+    '入金済': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
 }
 
 export const HANDLING_STATUS_STYLES: Record<HandlingStatus, { dot: string; bg: string; text: string }> = {
-    '対応中': { dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
-    '対応終了': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
-    '対応終了（未分割）': { dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700' },
-    '対応外': { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' },
+    '対応中': { dot: 'bg-white0', bg: 'bg-white', text: 'text-black' },
+    '対応終了': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
+    '対応終了（未分割）': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
+    '対応外': { dot: 'bg-gray-400', bg: 'bg-white', text: 'text-black' },
 }
 
 export const ACCEPTANCE_STYLES: Record<AcceptanceStatus, { dot: string; bg: string; text: string }> = {
-    '未判定': { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' },
-    '受託': { dot: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
-    '見送り': { dot: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700' },
+    '未判定': { dot: 'bg-gray-400', bg: 'bg-white', text: 'text-black' },
+    '受託': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
+    '見送り': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
 }
 
 // Status options for filters and selects

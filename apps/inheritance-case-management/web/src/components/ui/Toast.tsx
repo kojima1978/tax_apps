@@ -30,20 +30,20 @@ export function useToast() {
 
 const TOAST_STYLES: Record<ToastType, { container: string; icon: ReactNode }> = {
   success: {
-    container: 'bg-green-50 border-green-300 text-green-800',
-    icon: <Check className="w-5 h-5 text-green-500" />,
+    container: 'bg-white border-black/20 text-black',
+    icon: <Check className="w-5 h-5 text-gray-500" />,
   },
   error: {
-    container: 'bg-red-50 border-red-300 text-red-800',
-    icon: <X className="w-5 h-5 text-red-500" />,
+    container: 'bg-white border-black/20 text-black',
+    icon: <X className="w-5 h-5 text-gray-600" />,
   },
   warning: {
-    container: 'bg-yellow-50 border-yellow-300 text-yellow-800',
-    icon: <AlertTriangle className="w-5 h-5 text-yellow-500" />,
+    container: 'bg-white border-black/20 text-black',
+    icon: <AlertTriangle className="w-5 h-5 text-gray-500" />,
   },
   info: {
-    container: 'bg-blue-50 border-blue-300 text-blue-800',
-    icon: <Info className="w-5 h-5 text-blue-500" />,
+    container: 'bg-white border-black/20 text-black',
+    icon: <Info className="w-5 h-5 text-gray-500" />,
   },
 };
 

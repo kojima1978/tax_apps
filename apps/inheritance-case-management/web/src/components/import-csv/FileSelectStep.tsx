@@ -25,8 +25,8 @@ const FIELD_GUIDE = {
 } as const;
 
 const GUIDE_SECTIONS = [
-  { items: FIELD_GUIDE.required, label: "必須項目（最低限これだけでOK）", labelClass: "text-red-600", noteClass: "text-red-600" },
-  { items: FIELD_GUIDE.withDefaults, label: "任意（空欄ならデフォルト値）", labelClass: "text-sky-600", noteClass: "" },
+  { items: FIELD_GUIDE.required, label: "必須項目（最低限これだけでOK）", labelClass: "text-black", noteClass: "text-black" },
+  { items: FIELD_GUIDE.withDefaults, label: "任意（空欄ならデフォルト値）", labelClass: "text-gray-600", noteClass: "" },
   { items: FIELD_GUIDE.optional, label: "任意", labelClass: "text-muted-foreground", noteClass: "" },
 ] as const;
 
@@ -115,7 +115,7 @@ export function FileSelectStep({ fileError, onFileSelect }: FileSelectStepProps)
         </div>
       </details>
       {fileError && (
-        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+        <div className="flex items-center gap-2 text-sm text-black bg-white p-3 rounded-lg">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {fileError}
         </div>

@@ -36,9 +36,9 @@ export function BulkDeleteModal({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="一括削除">
       <div className="space-y-4">
-        <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <AlertTriangle className="h-6 w-6 text-red-500 shrink-0" />
-          <p className="text-sm text-red-700 font-medium">
+        <div className="flex items-center gap-3 p-3 bg-white border border-black/10 rounded-lg">
+          <AlertTriangle className="h-6 w-6 text-gray-600 shrink-0" />
+          <p className="text-sm text-black font-medium">
             {filterDescription} の {totalCount}件 を削除します
           </p>
         </div>
@@ -56,7 +56,7 @@ export function BulkDeleteModal({
             value={confirmInput}
             onChange={(e) => setConfirmInput(e.target.value)}
             placeholder={String(totalCount)}
-            className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
             disabled={isDeleting}
           />
         </div>
@@ -68,7 +68,7 @@ export function BulkDeleteModal({
           <Button
             onClick={onConfirm}
             disabled={!isConfirmed || isDeleting}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className="bg-black hover:bg-black/90 text-white"
           >
             {isDeleting ? (
               <>

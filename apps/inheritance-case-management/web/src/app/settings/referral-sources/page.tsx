@@ -251,7 +251,7 @@ function ReferralSourcesContent() {
             </nav>
 
             <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 rounded-lg bg-emerald-100 text-emerald-600">
+                <div className="p-2.5 rounded-lg bg-white text-black border border-black/10">
                     <Network className="h-6 w-6" />
                 </div>
                 <h1 className="text-2xl font-bold">紹介元管理</h1>
@@ -283,7 +283,7 @@ function ReferralSourcesContent() {
                                 className="h-8 text-sm"
                                 autoFocus
                             />
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={handleAddCompany}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-black/70" onClick={handleAddCompany}>
                                 <Check className="h-3.5 w-3.5" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setAddingCompany(false); setNewCompanyName("") }}>
@@ -321,7 +321,7 @@ function ReferralSourcesContent() {
                                             : <ChevronRight className="h-3.5 w-3.5" />
                                         }
                                     </button>
-                                    <Building2 className="h-4 w-4 text-amber-600 shrink-0" />
+                                    <Building2 className="h-4 w-4 text-black/70 shrink-0" />
 
                                     {isEditingThis(companyNode) ? (
                                         <div className="flex items-center gap-1 flex-1 min-w-0" onClick={e => e.stopPropagation()}>
@@ -332,7 +332,7 @@ function ReferralSourcesContent() {
                                                 className="h-7 text-sm flex-1"
                                                 autoFocus
                                             />
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600" onClick={handleSaveEdit}>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-black/70" onClick={handleSaveEdit}>
                                                 <Check className="h-3 w-3" />
                                             </Button>
                                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingNode(null)}>
@@ -344,10 +344,10 @@ function ReferralSourcesContent() {
                                             <span className="text-sm font-medium truncate flex-1">{company.name}</span>
                                             <div className="flex items-center gap-1">
                                                 {hasCompanyRef && (
-                                                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium">会社</span>
+                                                    <span className="text-[10px] bg-white text-black border border-black/10 px-1.5 py-0.5 rounded-full font-medium">会社</span>
                                                 )}
                                                 {branchRefCount > 0 && (
-                                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">{branchRefCount}部門</span>
+                                                    <span className="text-[10px] bg-white text-black border border-black/10 px-1.5 py-0.5 rounded-full font-medium">{branchRefCount}部門</span>
                                                 )}
                                             </div>
                                             <div className="hidden group-hover:flex items-center gap-0.5">
@@ -377,7 +377,7 @@ function ReferralSourcesContent() {
                                                     }`}
                                                     onClick={() => setSelected(branchNode)}
                                                 >
-                                                    <GitBranch className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                                                    <GitBranch className="h-3.5 w-3.5 text-black/70 shrink-0" />
 
                                                     {isEditingThis(branchNode) ? (
                                                         <div className="flex items-center gap-1 flex-1 min-w-0" onClick={e => e.stopPropagation()}>
@@ -388,7 +388,7 @@ function ReferralSourcesContent() {
                                                                 className="h-7 text-sm flex-1"
                                                                 autoFocus
                                                             />
-                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600" onClick={handleSaveEdit}>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-black/70" onClick={handleSaveEdit}>
                                                                 <Check className="h-3 w-3" />
                                                             </Button>
                                                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingNode(null)}>
@@ -399,7 +399,7 @@ function ReferralSourcesContent() {
                                                         <>
                                                             <span className="text-sm truncate flex-1">{branch.name}</span>
                                                             {hasBranchRef && (
-                                                                <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                                                <Check className="h-3.5 w-3.5 text-black/70 shrink-0" />
                                                             )}
                                                             <div className="hidden group-hover:flex items-center gap-0.5">
                                                                 <button className="p-1 rounded hover:bg-muted" onClick={e => { e.stopPropagation(); handleStartEdit(branchNode) }}>
@@ -427,7 +427,7 @@ function ReferralSourcesContent() {
                                                     className="h-7 text-sm flex-1"
                                                     autoFocus
                                                 />
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600" onClick={() => handleAddBranch(company.id)}>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-black/70" onClick={() => handleAddBranch(company.id)}>
                                                     <Check className="h-3 w-3" />
                                                 </Button>
                                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingBranchFor(null); setNewBranchName("") }}>
@@ -482,10 +482,10 @@ function ReferralSourcesContent() {
             <Modal isOpen={!!mergeSource} onClose={closeMergeModal} title="会社のマージ">
                 {mergeResult ? (
                     <div className="space-y-4">
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm space-y-1">
-                            <p className="font-semibold text-emerald-800">マージが完了しました</p>
-                            <p className="text-emerald-700">「{mergeResult.sourceCompany}」→「{mergeResult.targetCompany}」</p>
-                            <ul className="text-emerald-600 text-xs mt-2 space-y-0.5">
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm space-y-1">
+                            <p className="font-semibold text-gray-800">マージが完了しました</p>
+                            <p className="text-gray-700">「{mergeResult.sourceCompany}」→「{mergeResult.targetCompany}」</p>
+                            <ul className="text-black/70 text-xs mt-2 space-y-0.5">
                                 <li>移動した部門: {mergeResult.branchesMoved}件</li>
                                 <li>統合した部門: {mergeResult.branchesMerged}件</li>
                                 <li>移動した紹介者: {mergeResult.referrersMoved}件</li>
@@ -498,9 +498,9 @@ function ReferralSourcesContent() {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-800">
                             <p className="font-semibold mb-1">マージ元: {mergeSource?.name}</p>
-                            <p className="text-xs text-amber-600">この会社の部門・紹介者・案件紐付きをすべてマージ先に移動し、この会社を無効化します。</p>
+                            <p className="text-xs text-black/70">この会社の部門・紹介者・案件紐付きをすべてマージ先に移動し、この会社を無効化します。</p>
                         </div>
 
                         <div>
@@ -545,7 +545,7 @@ function CompanyDetail({ company, branches, isCompanyReferrer, isBranchReferrer,
             <div>
                 <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-amber-600" />
+                        <Building2 className="h-5 w-5 text-black/70" />
                         <h2 className="text-lg font-bold">{company.name}</h2>
                     </div>
                     {canMerge && (
@@ -567,7 +567,7 @@ function CompanyDetail({ company, branches, isCompanyReferrer, isBranchReferrer,
                     <button
                         onClick={onToggleCompanyReferrer}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            isCompanyReferrer ? "bg-emerald-500" : "bg-gray-300"
+                            isCompanyReferrer ? "bg-black" : "bg-white border border-black/20"
                         }`}
                     >
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -587,13 +587,13 @@ function CompanyDetail({ company, branches, isCompanyReferrer, isBranchReferrer,
                             return (
                                 <div key={branch.id} className="flex items-center justify-between px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <GitBranch className="h-4 w-4 text-teal-600" />
+                                        <GitBranch className="h-4 w-4 text-black/70" />
                                         <span className="text-sm">{branch.name}</span>
                                     </div>
                                     <button
                                         onClick={() => onToggleBranchReferrer(branch)}
                                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                            hasRef ? "bg-emerald-500" : "bg-gray-300"
+                                            hasRef ? "bg-black" : "bg-white border border-black/20"
                                         }`}
                                     >
                                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -621,7 +621,7 @@ function BranchDetail({ branch, company, isReferrer, onToggleReferrer }: {
             <div>
                 <p className="text-xs text-muted-foreground mb-1">{company.name}</p>
                 <div className="flex items-center gap-2 mb-1">
-                    <GitBranch className="h-5 w-5 text-teal-600" />
+                    <GitBranch className="h-5 w-5 text-black/70" />
                     <h2 className="text-lg font-bold">{branch.name}</h2>
                 </div>
                 <p className="text-xs text-muted-foreground">部門の紹介者設定を管理します</p>
@@ -636,7 +636,7 @@ function BranchDetail({ branch, company, isReferrer, onToggleReferrer }: {
                     <button
                         onClick={onToggleReferrer}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            isReferrer ? "bg-emerald-500" : "bg-gray-300"
+                            isReferrer ? "bg-black" : "bg-white border border-black/20"
                         }`}
                     >
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${

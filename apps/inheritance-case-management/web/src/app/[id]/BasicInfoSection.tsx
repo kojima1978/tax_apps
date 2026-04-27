@@ -39,7 +39,7 @@ export function BasicInfoSection({
                 )}
 
                 <div className="space-y-1.5">
-                    <Label htmlFor="deceasedName" className="text-xs">被相続人氏名 <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="deceasedName" className="text-xs">被相続人氏名 <span className="text-gray-500">*</span></Label>
                     <Input id="deceasedName" name="deceasedName" value={formData.deceasedName} onChange={handleChange} placeholder="例：山田 太郎" />
                 </div>
 

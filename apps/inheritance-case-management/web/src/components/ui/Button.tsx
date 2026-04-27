@@ -8,11 +8,11 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[0_4px_0_0_#1d4ed8] hover:bg-primary/90 hover:shadow-[0_2px_0_0_#1d4ed8] hover:translate-y-[2px]",
+          "bg-black text-white shadow-[0_4px_0_0_#000000] hover:bg-black/90 hover:shadow-[0_2px_0_0_#000000] hover:translate-y-[2px]",
         destructive:
-          "bg-red-500 text-white shadow-[0_4px_0_0_#b91c1c] hover:bg-red-600 hover:shadow-[0_2px_0_0_#b91c1c] hover:translate-y-[2px]",
+          "bg-black text-white shadow-[0_4px_0_0_#000000] hover:bg-black/90 hover:shadow-[0_2px_0_0_#000000] hover:translate-y-[2px]",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-[0_4px_0_0_#2A9D8F] hover:bg-secondary/80 hover:shadow-[0_2px_0_0_#2A9D8F] hover:translate-y-[2px]",
+          "border-2 border-black bg-white text-black shadow-[0_4px_0_0_#000000] hover:bg-gray-50 hover:shadow-[0_2px_0_0_#000000] hover:translate-y-[2px]",
         outline:
           "border-2 border-input bg-background hover:bg-accent hover:text-accent-foreground shadow-sm",
         ghost: "hover:bg-accent hover:text-accent-foreground",

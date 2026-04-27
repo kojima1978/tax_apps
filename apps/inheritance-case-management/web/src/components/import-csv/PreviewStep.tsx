@@ -14,10 +14,10 @@ const PREVIEW_COLUMNS = [
 ] as const;
 
 const SUMMARY_BADGES = [
-  { countKey: "new", icon: CheckCircle2, bgClass: "bg-green-50 text-green-700", labelFn: (n: number) => `新規作成: ${n}件` },
-  { countKey: "update", icon: RefreshCw, bgClass: "bg-blue-50 text-blue-700", labelFn: (n: number) => `更新: ${n}件` },
-  { countKey: "errors", icon: XCircle, bgClass: "bg-red-50 text-red-700", labelFn: (n: number) => `エラー: ${n}件` },
-  { countKey: "warnings", icon: AlertTriangle, bgClass: "bg-amber-50 text-amber-700", labelFn: (n: number) => `警告: ${n}件` },
+  { countKey: "new", icon: CheckCircle2, bgClass: "bg-white text-black", labelFn: (n: number) => `新規作成: ${n}件` },
+  { countKey: "update", icon: RefreshCw, bgClass: "bg-white text-black", labelFn: (n: number) => `更新: ${n}件` },
+  { countKey: "errors", icon: XCircle, bgClass: "bg-white text-black", labelFn: (n: number) => `エラー: ${n}件` },
+  { countKey: "warnings", icon: AlertTriangle, bgClass: "bg-white text-black", labelFn: (n: number) => `警告: ${n}件` },
 ] as const;
 
 interface PreviewStepProps {
@@ -87,7 +87,7 @@ export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProp
 
       {/* デフォルト値通知 */}
       {parseResult.validRows.some((r) => r.defaultedFields.length > 0) && (
-        <div className="flex items-start gap-2 text-xs bg-sky-50 text-sky-700 border border-sky-200 p-2.5 rounded-lg">
+        <div className="flex items-start gap-2 text-xs bg-white text-black border border-black/10 p-2.5 rounded-lg">
           <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">空欄の項目にデフォルト値が適用されます:</p>
@@ -104,7 +104,7 @@ export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProp
 
       {/* マスタ自動作成通知 */}
       {pendingMasterData.length > 0 && (
-        <div className="flex items-start gap-2 text-xs bg-orange-50 text-orange-700 border border-orange-200 p-2.5 rounded-lg">
+        <div className="flex items-start gap-2 text-xs bg-white text-black border border-black/10 p-2.5 rounded-lg">
           <UserPlus className="h-3.5 w-3.5 shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">以下のマスタデータが自動作成されます（タイプミスにご注意ください）:</p>
@@ -141,9 +141,9 @@ export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProp
                       <td key={col.key} className="px-2 py-1.5 whitespace-nowrap">
                         {col.key === "mode" ? (
                           row.mode === "update" ? (
-                            <span className="text-blue-600 font-medium">更新</span>
+                            <span className="text-gray-700 font-medium">更新</span>
                           ) : (
-                            <span className="text-green-600 font-medium">新規</span>
+                            <span className="text-gray-700 font-medium">新規</span>
                           )
                         ) : (
                           String((row.data as Record<string, unknown>)[col.key] ?? "")
@@ -161,10 +161,10 @@ export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProp
       {/* 警告 */}
       {parseResult.warnings.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium mb-2 text-amber-700">警告</h3>
-          <div className="max-h-32 overflow-y-auto border border-amber-200 rounded-lg bg-amber-50 p-2 space-y-1">
+          <h3 className="text-sm font-medium mb-2 text-gray-700">警告</h3>
+          <div className="max-h-32 overflow-y-auto border border-black/10 rounded-lg bg-gray-50 p-2 space-y-1">
             {parseResult.warnings.map((w, i) => (
-              <p key={i} className="text-xs text-amber-700">
+              <p key={i} className="text-xs text-gray-700">
                 {w.row > 0 ? `${w.row}行目: ` : ""}{w.message}
               </p>
             ))}
@@ -175,10 +175,10 @@ export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProp
       {/* エラー詳細 */}
       {parseResult.errors.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium mb-2 text-red-700">エラー行</h3>
-          <div className="max-h-32 overflow-y-auto border border-red-200 rounded-lg bg-red-50 p-2 space-y-1">
+          <h3 className="text-sm font-medium mb-2 text-gray-700">エラー行</h3>
+          <div className="max-h-32 overflow-y-auto border border-black/10 rounded-lg bg-gray-50 p-2 space-y-1">
             {parseResult.errors.map((err, i) => (
-              <p key={i} className="text-xs text-red-700">
+              <p key={i} className="text-xs text-gray-700">
                 {err.row > 0 ? `${err.row}行目: ` : ""}{err.message}
               </p>
             ))}
