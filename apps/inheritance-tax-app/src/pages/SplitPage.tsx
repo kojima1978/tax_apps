@@ -5,6 +5,7 @@ import { EstateInput } from '../components/EstateInput';
 import { AcquisitionInputs } from '../components/split/AcquisitionInputs';
 import { SimulationSettings } from '../components/split/SimulationSettings';
 import { SplitResultTable } from '../components/split/SplitResultTable';
+import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
 import { useScrollToResult } from '../hooks/useScrollToResult';
@@ -127,6 +128,7 @@ export const SplitPage: React.FC = () => {
         <>
           {result && result.rows.length > 0 && (
             <div className="result-fade-in">
+              <PrintHeader title="分割シミュレーション" />
               <SplitResultTable result={result} />
             </div>
           )}
