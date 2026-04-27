@@ -29,7 +29,7 @@ function FieldBadge({ children, variant = "required" }: { children: React.ReactN
         <span
             className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] font-medium leading-none",
-                variant === "required" ? "bg-red-50 text-red-600" : "bg-muted text-muted-foreground",
+                variant === "required" ? "bg-white text-black border border-black/10" : "bg-muted text-muted-foreground",
             )}
         >
             {children}
@@ -89,7 +89,7 @@ function SortableStep({
             <div
                 className={cn(
                     "absolute left-[7px] top-6 h-4 w-4 rounded-full border-2 transition-colors",
-                    isCompleted ? "border-green-500 bg-green-500" : "border-muted-foreground/40 bg-background",
+                    isCompleted ? "border-black bg-black" : "border-muted-foreground/40 bg-background",
                 )}
             />
             <div className="pb-4">
@@ -130,7 +130,7 @@ function SortableStep({
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-10 w-10 shrink-0 text-red-500 hover:bg-red-50 hover:text-red-700"
+                                className="h-10 w-10 shrink-0 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
                                 onClick={() => onDelete(index)}
                                 aria-label={`${step.name}を削除`}
                             >
@@ -236,7 +236,7 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
                     ))}
                 </SelectField>
                 {hint && (
-                    <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-600">
+                    <p className="flex items-start gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs text-gray-700">
                         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                         {hint}
                     </p>

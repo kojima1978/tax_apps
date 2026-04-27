@@ -9,8 +9,8 @@ import Link from "next/link"
 import { Trash2, Plus, Pencil, Check, X, ArrowUpDown, Ban, RotateCcw, ChevronRight } from "lucide-react"
 
 const ICON_BTN_MUTED = "h-8 w-8 text-muted-foreground hover:text-foreground"
-const ICON_BTN_GREEN = "h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
-const ICON_BTN_ORANGE = "h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-100"
+const ICON_BTN_GREEN = "h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+const ICON_BTN_ORANGE = "h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
 const ICON_BTN_DESTRUCTIVE = "h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
 
 export interface ColumnDef<T> {
@@ -137,7 +137,7 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
 
             <div className="flex items-center gap-4 mb-6">
                 <h1 className="text-2xl font-bold">{title}</h1>
-                {isDirty && <span className="text-sm text-amber-600 font-bold">※ 未保存の変更あり</span>}
+                {isDirty && <span className="text-sm text-gray-700 font-bold">※ 未保存の変更あり</span>}
             </div>
 
             <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-6 space-y-6">

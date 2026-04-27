@@ -79,10 +79,10 @@ export function ProgressDots({ caseData }: { caseData: InheritanceCase }) {
                         disabled={isSaving}
                         className={`h-2 w-2 rounded-full transition-colors ${
                             isComplete
-                                ? "bg-green-500 hover:bg-green-400"
+                                ? "bg-black hover:bg-black/80"
                                 : isCurrent
-                                    ? "bg-blue-400 animate-pulse hover:bg-blue-300"
-                                    : "bg-gray-300 hover:bg-gray-400"
+                                    ? "bg-black/60 animate-pulse hover:bg-black/50"
+                                    : "bg-white border border-black/20 hover:bg-gray-50"
                         } ${isSaving ? "opacity-50 cursor-wait" : "cursor-pointer"}`}
                         title={`${step.name}${step.date ? ` (${step.date})` : ""}\nクリックで切替`}
                         onClick={(e) => {

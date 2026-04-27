@@ -152,7 +152,7 @@ export function FinancialSection({
                         </Button>
                     </div>
                     {netEstimate > 0 && netEstimate !== (formData.feeAmount || 0) && netEstimate !== (formData.estimateAmount || 0) && (
-                        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        <div className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs text-black">
                             <Lightbulb className="h-3.5 w-3.5 shrink-0" />
                             <span>概算報酬額 <strong>{formatCurrency(netEstimate)}</strong> が算出されています。上のボタンで見積額・報酬額に反映できます。</span>
                         </div>
@@ -221,10 +221,10 @@ export function FinancialSection({
                             </div>
                         </div>
                         {/* 確定ベース */}
-                        <div className={`border-2 rounded-lg bg-background p-3 space-y-2.5 transition-colors duration-500 ${highlightFee ? "border-amber-400 bg-amber-50/50" : "border-primary/20"}`}>
+                        <div className={`border-2 rounded-lg bg-background p-3 space-y-2.5 transition-colors duration-500 ${highlightFee ? "border-black bg-white" : "border-primary/20"}`}>
                             <Label className="text-sm font-semibold">確定ベース</Label>
                             <div className="space-y-1.5">
-                                <Label htmlFor="feeAmount" className="text-xs">報酬額（税抜）{highlightFee && <span className="text-amber-600 ml-1">← 入力してください</span>}</Label>
+                                <Label htmlFor="feeAmount" className="text-xs">報酬額（税抜）{highlightFee && <span className="text-black ml-1">← 入力してください</span>}</Label>
                                 <CurrencyField
                                     id="feeAmount"
                                     name="feeAmount"
@@ -283,7 +283,7 @@ function SnapshotDisplay({ snapshot, currentBreakdown, currentDiscount }: {
                     前回の計算根拠（{new Date(snapshot.calculatedAt).toLocaleDateString("ja-JP")}
                     ・{snapshot.appliedTo === "fee" ? "報酬額" : "見積額"}に反映）
                 </span>
-                {hasChanged && <span className="ml-auto text-amber-600 font-medium">現在と差異あり</span>}
+                {hasChanged && <span className="ml-auto text-black font-medium">現在と差異あり</span>}
                 {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0 ml-auto" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 ml-auto" />}
             </button>
             {isOpen && (
@@ -310,7 +310,7 @@ function SnapshotDisplay({ snapshot, currentBreakdown, currentDiscount }: {
                         <div className="flex justify-between font-semibold"><span>転記額</span><span>{formatCurrency(snapshot.netAmount)}</span></div>
                     </div>
                     {hasChanged && (
-                        <div className="flex items-center gap-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-700">
+                        <div className="flex items-center gap-1.5 rounded border border-black/10 bg-white px-2 py-1.5 text-black">
                             <Lightbulb className="h-3 w-3 shrink-0" />
                             <span>現在の差引額 {formatCurrency(currentNet)} と転記時 {formatCurrency(snapshot.netAmount)} に差異があります</span>
                         </div>
@@ -328,7 +328,7 @@ function AggregationStatus({ formData }: { formData: InheritanceCase }) {
     if (completed) {
         const amount = formData.feeAmount || 0
         return (
-            <div className="col-span-1 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800 sm:col-span-2">
+            <div className="col-span-1 flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-black sm:col-span-2">
                 <BarChart3 className="h-4 w-4 shrink-0" />
                 <span>ダッシュボード集計: <strong>確定額 {formatCurrency(amount)}</strong> として集計中</span>
             </div>
@@ -338,7 +338,7 @@ function AggregationStatus({ formData }: { formData: InheritanceCase }) {
     if (ongoing) {
         const amount = formData.estimateAmount || 0
         return (
-            <div className="col-span-1 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-800 sm:col-span-2">
+            <div className="col-span-1 flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-black sm:col-span-2">
                 <BarChart3 className="h-4 w-4 shrink-0" />
                 <span>ダッシュボード集計: <strong>見込額 {formatCurrency(amount)}</strong> として集計中</span>
             </div>
@@ -346,7 +346,7 @@ function AggregationStatus({ formData }: { formData: InheritanceCase }) {
     }
 
     return (
-        <div className="col-span-1 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-muted-foreground sm:col-span-2">
+        <div className="col-span-1 flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-muted-foreground sm:col-span-2">
             <BarChart3 className="h-4 w-4 shrink-0" />
             <span>ダッシュボード集計: 集計対象外（進み具合が「手続中」以降、かつ受託の場合に集計されます）</span>
         </div>

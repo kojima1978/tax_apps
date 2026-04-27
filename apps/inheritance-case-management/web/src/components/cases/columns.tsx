@@ -24,16 +24,16 @@ interface ColumnOptions {
 // ── Status color bar (left border) ──────────────────────────
 const STATUS_BORDER_COLORS: Record<CaseStatus, string> = {
     '未着手': 'border-l-gray-400',
-    '手続中': 'border-l-blue-500',
-    '申告済': 'border-l-green-500',
-    '請求済': 'border-l-orange-500',
-    '入金済': 'border-l-purple-500',
+    '手続中': 'border-l-gray-500',
+    '申告済': 'border-l-gray-600',
+    '請求済': 'border-l-neutral-500',
+    '入金済': 'border-l-neutral-600',
 }
 
 // ── Mini badge for stacked cells ─────────────────────────────
 function MiniBadge({ label, style }: { label: string; style: { dot: string; bg: string; text: string } }) {
     return (
-        <span className={`inline-flex max-w-[92px] items-center gap-1 truncate rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${style.bg} ${style.text}`}>
+        <span className={`inline-flex max-w-[92px] items-center gap-1 truncate rounded-full border border-black/10 px-1.5 py-0.5 text-[10px] font-medium leading-none ${style.bg} ${style.text}`}>
             <span className={`h-1 w-1 rounded-full ${style.dot}`} />
             <span className="truncate">{label}</span>
         </span>
@@ -78,7 +78,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             return (
                 <div className={`min-w-0 border-l-3 pl-2 ${borderColor}`}>
                     <div className="min-w-0 font-bold leading-tight">
-                        <Link href={`/${c.id}`} className="block truncate text-[13px] text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
+                        <Link href={`/${c.id}`} className="block truncate text-[13px] text-foreground hover:underline" onClick={(e) => e.stopPropagation()}>
                             {c.deceasedName || "(氏名未入力)"}
                         </Link>
                     </div>
@@ -114,7 +114,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                 return (
                     <div className="leading-tight">
                         <div className="truncate text-xs">
-                            <span className="mr-1 rounded-full bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700">申告済</span>
+                            <span className="mr-1 rounded-full bg-white border border-black/10 px-1.5 py-0.5 text-[11px] text-black">申告済</span>
                             {dateStr}
                         </div>
                         <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
@@ -167,11 +167,11 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             const c = row.original
             return (
                 <div className="min-w-0 leading-tight">
-                    <div className="truncate text-xs font-medium text-blue-700">
+                    <div className="truncate text-xs font-medium text-foreground">
                         {c.assignee?.name || <span className="text-muted-foreground">-</span>}
                     </div>
                     {c.internalReferrer?.name && (
-                        <div className="mt-0.5 truncate text-[11px] text-orange-600">
+                        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
                             {c.internalReferrer.name}
                         </div>
                     )}
@@ -193,7 +193,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                 <div className="text-right leading-tight">
                     {hasFee ? (
                         <>
-                            <div className="text-xs font-medium text-green-700">
+                            <div className="text-xs font-medium text-black">
                                 <span className="text-[10px] mr-0.5">確定</span>
                                 {formatCurrency(feeNet)}
                             </div>
@@ -205,7 +205,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                             )}
                         </>
                     ) : (
-                        <div className="text-xs font-medium text-blue-700">
+                        <div className="text-xs font-medium text-foreground">
                             <span className="text-[10px] mr-0.5">見込</span>
                             {formatCurrency(estNet)}
                         </div>

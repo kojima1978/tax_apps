@@ -165,7 +165,7 @@ function SortableExpenseRow({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-10 px-2 text-red-500 hover:text-red-700"
+                    className="h-10 px-2 text-gray-500 hover:text-gray-800"
                     onClick={() => onDelete(index)}
                 >
                     削除

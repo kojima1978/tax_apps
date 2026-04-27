@@ -257,7 +257,7 @@ function StaffContent() {
             </nav>
 
             <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 rounded-lg bg-blue-100 text-blue-600">
+                <div className="p-2.5 rounded-lg bg-white text-black border border-black/10">
                     <Users className="h-6 w-6" />
                 </div>
                 <h1 className="text-2xl font-bold">担当者管理</h1>
@@ -294,7 +294,7 @@ function StaffContent() {
             {/* Add department inline */}
             {addingDept && (
                 <div className="flex items-center gap-2 mb-4 p-3 border rounded-lg bg-card">
-                    <Building2 className="h-4 w-4 text-purple-600 shrink-0" />
+                    <Building2 className="h-4 w-4 text-black/70 shrink-0" />
                     <Input
                         value={newDeptName}
                         onChange={e => setNewDeptName(e.target.value)}
@@ -303,7 +303,7 @@ function StaffContent() {
                         className="h-9 text-sm max-w-xs"
                         autoFocus
                     />
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={handleAddDept}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-black/70" onClick={handleAddDept}>
                         <Check className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setAddingDept(false); setNewDeptName("") }}>
@@ -330,7 +330,7 @@ function StaffContent() {
                                     onClick={() => toggleDeptExpanded(expandKey)}
                                 >
                                     <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? "" : "-rotate-90"}`} />
-                                    <Building2 className="h-4 w-4 text-purple-600 shrink-0" />
+                                    <Building2 className="h-4 w-4 text-black/70 shrink-0" />
                                     {isEditingDept ? (
                                         <div className="flex items-center gap-1 flex-1" onClick={e => e.stopPropagation()}>
                                             <Input
@@ -340,7 +340,7 @@ function StaffContent() {
                                                 className="h-8 text-sm max-w-xs"
                                                 autoFocus
                                             />
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={handleSaveDeptEdit}>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-black/70" onClick={handleSaveDeptEdit}>
                                                 <Check className="h-3.5 w-3.5" />
                                             </Button>
                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingDeptId(null)}>
@@ -393,7 +393,7 @@ function StaffContent() {
                                                     className="h-8 text-sm flex-1 min-w-[100px]"
                                                     autoFocus
                                                 />
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={handleSaveAssigneeEdit}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-black/70" onClick={handleSaveAssigneeEdit}>
                                                     <Check className="h-3.5 w-3.5" />
                                                 </Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingAssignee(null)}>
@@ -410,16 +410,16 @@ function StaffContent() {
                                                     </button>
                                                     {a.active === false ? (
                                                         <>
-                                                            <button className="p-1 rounded hover:bg-green-100" onClick={() => handleToggleActive(a)} title="有効化">
-                                                                <RotateCcw className="h-3.5 w-3.5 text-green-600" />
+                                                            <button className="p-1 rounded hover:bg-gray-100" onClick={() => handleToggleActive(a)} title="有効化">
+                                                                <RotateCcw className="h-3.5 w-3.5 text-black/70" />
                                                             </button>
                                                             <button className="p-1 rounded hover:bg-destructive/10" onClick={() => handleDeleteAssignee(a)} title="完全削除">
                                                                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                                             </button>
                                                         </>
                                                     ) : (
-                                                        <button className="p-1 rounded hover:bg-orange-100" onClick={() => handleToggleActive(a)} title="無効化">
-                                                            <Ban className="h-3.5 w-3.5 text-orange-600" />
+                                                        <button className="p-1 rounded hover:bg-gray-100" onClick={() => handleToggleActive(a)} title="無効化">
+                                                            <Ban className="h-3.5 w-3.5 text-black/70" />
                                                         </button>
                                                     )}
                                                 </div>
@@ -448,7 +448,7 @@ function StaffContent() {
                                         className="h-8 text-sm flex-1"
                                         autoFocus
                                     />
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => handleAddAssignee(dept?.id ?? null)}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-black/70" onClick={() => handleAddAssignee(dept?.id ?? null)}>
                                         <Check className="h-3.5 w-3.5" />
                                     </Button>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setAddingAssigneeForDept(null); setNewAssignee({ name: "", employeeId: "" }) }}>

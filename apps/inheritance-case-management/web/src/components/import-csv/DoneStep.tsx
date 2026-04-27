@@ -8,9 +8,9 @@ interface DoneStepProps {
 }
 
 const RESULT_ITEMS = [
-  { key: "createdCount", label: "新規", colorClass: "text-green-600" },
-  { key: "updatedCount", label: "更新", colorClass: "text-blue-600" },
-  { key: "failed", label: "失敗", colorClass: "text-red-600" },
+  { key: "createdCount", label: "新規", colorClass: "text-black" },
+  { key: "updatedCount", label: "更新", colorClass: "text-black" },
+  { key: "failed", label: "失敗", colorClass: "text-black" },
   { key: "skipped", label: "スキップ", colorClass: "text-gray-500" },
 ] as const;
 
@@ -21,9 +21,9 @@ export function DoneStep({ importResult, onClose }: DoneStepProps) {
     <div className="space-y-4">
       <div className="text-center py-2">
         {isClean ? (
-          <CheckCircle2 className="h-10 w-10 mx-auto text-green-600 mb-2" />
+          <CheckCircle2 className="h-10 w-10 mx-auto text-black mb-2" />
         ) : (
-          <AlertTriangle className="h-10 w-10 mx-auto text-amber-500 mb-2" />
+          <AlertTriangle className="h-10 w-10 mx-auto text-gray-600 mb-2" />
         )}
         <p className="text-sm font-medium">
           {importResult.skipped > 0 ? "取り込み中止" : "取り込み完了"}
@@ -42,9 +42,9 @@ export function DoneStep({ importResult, onClose }: DoneStepProps) {
       </div>
 
       {importResult.failedRows.length > 0 && (
-        <div className="max-h-32 overflow-y-auto border border-red-200 rounded-lg bg-red-50 p-2 space-y-1">
+        <div className="max-h-32 overflow-y-auto border border-black/10 rounded-lg bg-white p-2 space-y-1">
           {importResult.failedRows.map((row, i) => (
-            <p key={i} className="text-xs text-red-700">
+            <p key={i} className="text-xs text-black">
               {row.index}番目「{row.deceasedName}」: {row.error}
             </p>
           ))}

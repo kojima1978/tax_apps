@@ -189,7 +189,7 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
                     </div>
 
                     {statusPrompt && (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
                             <p className="text-sm whitespace-pre-line">{statusPrompt.message}</p>
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={() => { setStatusPrompt(null); doSave() }}>

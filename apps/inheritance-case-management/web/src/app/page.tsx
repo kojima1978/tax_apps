@@ -269,7 +269,7 @@ function InheritanceMockupPageContent() {
                             variant="outline"
                             size="sm"
                             onClick={() => setShowBulkDelete(true)}
-                            className="text-red-600 border-red-200 hover:bg-red-50"
+                            className="text-black border-gray-300 hover:bg-gray-100"
                         >
                             <Trash2 className="mr-2 h-4 w-4" />
                             一括削除 ({pagination.total}件)
@@ -311,8 +311,8 @@ function InheritanceMockupPageContent() {
                         <div className="flex items-center justify-end gap-2 px-2 py-1 text-xs border rounded-t-md bg-muted/50">
                             <span className="text-muted-foreground">売上合計:</span>
                             <span className="font-bold">{formatCurrency(amountTotals.total)}</span>
-                            <span className="text-xs text-green-700">確定 {formatCurrency(amountTotals.confirmed)}</span>
-                            <span className="text-xs text-blue-700">見込 {formatCurrency(amountTotals.estimate)}</span>
+                            <span className="text-xs text-black">確定 {formatCurrency(amountTotals.confirmed)}</span>
+                            <span className="text-xs text-black/70">見込 {formatCurrency(amountTotals.estimate)}</span>
                             <span className="text-muted-foreground">/ {sortedCases.length}件</span>
                         </div>
                     )}

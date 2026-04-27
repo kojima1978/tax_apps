@@ -76,7 +76,7 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
                     variant="outline"
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                    className="text-black hover:text-black hover:bg-white border-black/20"
                 >
                     <Trash2 className="mr-2 h-4 w-4" />
                     {isDeleting ? "削除中..." : "この案件を削除"}

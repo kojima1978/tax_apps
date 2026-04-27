@@ -10,7 +10,7 @@ import { CASE_STATUS_FILTER_OPTIONS, HANDLING_STATUS_FILTER_OPTIONS, ACCEPTANCE_
 import type { Assignee, Department } from "@/types/shared"
 
 const FILTER_SELECT_WRAPPER = "h-9 w-auto px-2 py-1 text-xs"
-const REFERRER_SELECT_WRAPPER = "h-9 w-auto border-orange-300 px-2 py-1 text-xs"
+const REFERRER_SELECT_WRAPPER = "h-9 w-auto border-input px-2 py-1 text-xs"
 
 type OptGroupDef = { label: string; options: readonly { value: string | number; label: string }[] }
 type FilterableKey = Exclude<keyof CasesQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortOrder' | 'unassigned' | 'noReferrer'>
@@ -97,9 +97,9 @@ export function FilterBar({
     }
 
     const CHIP_STYLES: Record<string, string> = {
-        internalReferrerId: "bg-orange-100 text-orange-800",
+        internalReferrerId: "border border-black/10 bg-white text-black",
     }
-    const DEFAULT_CHIP_STYLE = "bg-primary/10 text-primary"
+    const DEFAULT_CHIP_STYLE = "border border-black/10 bg-white text-black"
 
     const activeFilters = Object.entries(CHIP_LABELS)
         .filter(([key]) => queryParams[key as keyof CasesQueryParams])

@@ -21,7 +21,7 @@ const STATUS_TABLES: StatusTableConfig[] = [
 ]
 
 const SUMMARY_CARDS = [
-    { title: "売上（確定＋見積）", cardClass: "bg-white border-2 border-primary/20", valueClass: "text-3xl font-bold text-primary", isPrimary: true, footnote: "※請求総額" },
+    { title: "売上（確定＋見積）", cardClass: "bg-white border", valueClass: "text-3xl font-bold text-foreground", isPrimary: true, footnote: "※請求総額" },
     { title: "売上（確定）", cardClass: "bg-card border", valueClass: "text-2xl font-bold", footnote: "※請求総額" },
     { title: "売上（見積）", cardClass: "bg-card border", valueClass: "text-2xl font-bold", footnote: "※見積総額" },
 ] as const

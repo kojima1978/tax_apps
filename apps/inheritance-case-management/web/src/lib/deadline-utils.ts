@@ -20,28 +20,28 @@ export function getDeadlineStatus(deadline: Date): { className: string; badge: s
 
     if (daysLeft < 0) {
         return {
-            className: "text-red-600 font-bold",
+            className: "text-black font-bold",
             badge: "期限超過",
-            badgeClassName: "bg-red-100 text-red-700",
+            badgeClassName: "border border-black bg-white text-black",
         }
     }
     if (daysLeft <= DEADLINE_URGENT_DAYS) {
         return {
-            className: "text-red-600 font-semibold",
+            className: "text-black font-semibold",
             badge: `残${daysLeft}日`,
-            badgeClassName: "bg-red-50 text-red-600",
+            badgeClassName: "border border-black/20 bg-white text-black",
         }
     }
     if (daysLeft <= DEADLINE_WARNING_DAYS) {
         return {
-            className: "text-amber-600 font-medium",
+            className: "text-black font-medium",
             badge: `残${daysLeft}日`,
-            badgeClassName: "bg-amber-50 text-amber-600",
+            badgeClassName: "border border-black/10 bg-white text-black",
         }
     }
     return {
         className: "",
         badge: `残${daysLeft}日`,
-        badgeClassName: "bg-gray-100 text-gray-500",
+        badgeClassName: "border border-black/10 bg-white text-black",
     }
 }
