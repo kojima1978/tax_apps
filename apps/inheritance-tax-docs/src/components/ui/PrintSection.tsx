@@ -87,6 +87,7 @@ export const PrintSection = ({
   if (printCategories.length === 0) return null;
 
   const l = PRINT_LAYOUTS[isTwoColumnPrint ? 'twoColumn' : 'oneColumn'];
+  const usesSimpleCaution = docListType === 'simplified' || docListType === 'unlisted-stock';
 
   return (
     <div className="hidden print:block bg-white p-0">
@@ -228,7 +229,23 @@ export const PrintSection = ({
       <div className={`mt-12 pt-6 border-t border-slate-300 ${l.footer}`}>
         <div className={`flex items-start bg-slate-50 p-4 rounded-lg border border-slate-200 ${l.footerBox}`}>
           <AlertCircle className={`w-5 h-5 text-slate-500 mr-2 mt-0.5 flex-shrink-0 ${l.footerIcon}`} aria-hidden="true" />
-          <div className="text-sm text-slate-600 space-y-1">
+          {usesSimpleCaution && (
+            <div className="text-sm text-slate-600 space-y-1">
+              <p><strong>ご留意事項</strong></p>
+              <p className={l.caution}>資料につきましては、一度にすべて揃わなくとも問題ございません。</p>
+              <p className={l.caution}>ご準備できたものからお送りください。</p>
+            </div>
+          )}
+          {docListType === 'inheritance-tax' && (
+            <div className="text-sm text-slate-600 space-y-1">
+              <p><strong>ご留意事項</strong></p>
+              <p className={l.caution}>・原本が必要な書類と、コピーで対応可能な書類がございます。ご不明な点は担当者にご確認ください。</p>
+              <p className={`text-red-600 font-bold ${l.caution}`}>・電子申告を行う場合、原本資料はご返却いたします。</p>
+              <p className={l.caution}>・資料につきましては、一度にすべて揃わなくとも問題ございません。</p>
+              <p className={l.caution}>ご準備できたものからお送りください。</p>
+            </div>
+          )}
+          <div className={`text-sm text-slate-600 space-y-1 ${usesSimpleCaution || docListType === 'inheritance-tax' ? 'hidden' : ''}`}>
             <p><strong>ご留意事項</strong></p>
             <p className={l.caution}>・原本が必要な書類と、コピーで対応可能な書類がございます。ご不明な点は担当者にご確認ください。</p>
             <p className={`text-red-600 font-bold ${l.caution}`}>・電子申告を行う場合、原本資料はご返却いたします。</p>
