@@ -133,7 +133,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         }
     }
 
-    const doSave = async (statusOverride?: CaseStatus) => {
+    const doSave = async (statusOverride?: CaseStatus): Promise<boolean> => {
         let finalStatus = formData.status
         if (statusOverride) {
             finalStatus = statusOverride
@@ -148,6 +148,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
                 toast.success("新規登録しました")
                 router.push("/")
+                return true
             } else {
                 const updatedAt = formData.updatedAt ? new Date(formData.updatedAt).toISOString() : undefined
                 const updated = await updateCase(formData.id, payload, updatedAt)
@@ -156,14 +157,16 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 resetBaseline(updated)
                 setAuditRefreshKey(k => k + 1)
                 toast.success("保存しました")
+                return true
             }
         } catch (e) {
             console.error(e)
             if (isConflictError(e)) {
                 toast.error(CONFLICT_MESSAGE)
-                return
+                return false
             }
             toast.error("エラーが発生しました: " + String(e))
+            return false
         } finally {
             setIsSaving(false)
         }
@@ -199,7 +202,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     const estimateNetRevenue = useMemo(() => {
         const base = formData.estimateAmount || 0
-        const referral = formData.estimateReferralFeeAmount || Math.floor(base * ((formData.referralFeeRate || 0) / 100))
+        const referral = formData.estimateReferralFeeAmount ?? Math.floor(base * ((formData.referralFeeRate || 0) / 100))
         return base - referral
     }, [formData.estimateAmount, formData.estimateReferralFeeAmount, formData.referralFeeRate])
 
@@ -354,10 +357,19 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             >
                 <p className="text-sm mb-6">変更内容が保存されていません。保存してから戻りますか？</p>
                 <div className="flex justify-end gap-3">
-                    <Button variant="ghost" onClick={() => { setShowLeaveModal(false); router.back() }}>
+                    <Button variant="ghost" onClick={() => { setShowLeaveModal(false); router.back() }} disabled={isSaving}>
                         保存せず戻る
                     </Button>
-                    <Button onClick={async () => { setShowLeaveModal(false); await doSave(); router.back() }}>
+                    <Button
+                        disabled={isSaving}
+                        onClick={async () => {
+                            const saved = await doSave()
+                            if (saved) {
+                                setShowLeaveModal(false)
+                                router.back()
+                            }
+                        }}
+                    >
                         保存して戻る
                     </Button>
                 </div>

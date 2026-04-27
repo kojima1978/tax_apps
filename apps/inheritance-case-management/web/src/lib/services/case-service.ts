@@ -145,6 +145,11 @@ export async function createCase(data: {
   referralFeeRate?: number | null;
   referralFeeAmount?: number | null;
   estimateReferralFeeAmount?: number | null;
+  landRosenkaCount?: number;
+  landBairitsuCount?: number;
+  unlistedStockCount?: number;
+  heirCount?: number;
+  discountAmount?: number;
   feeCalcSnapshot?: Prisma.InputJsonValue | null;
   summary?: string | null;
   memo?: string | null;
@@ -173,6 +178,11 @@ export async function createCase(data: {
         referralFeeRate: data.referralFeeRate,
         referralFeeAmount: data.referralFeeAmount,
         estimateReferralFeeAmount: data.estimateReferralFeeAmount,
+        landRosenkaCount: data.landRosenkaCount ?? 0,
+        landBairitsuCount: data.landBairitsuCount ?? 0,
+        unlistedStockCount: data.unlistedStockCount ?? 0,
+        heirCount: data.heirCount ?? 0,
+        discountAmount: data.discountAmount ?? 0,
         feeCalcSnapshot: data.feeCalcSnapshot ?? undefined,
         summary: data.summary || null,
         memo: data.memo || null,
