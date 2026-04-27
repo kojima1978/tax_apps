@@ -74,9 +74,9 @@ export function FinancialSection({
 
     return (
         <CollapsibleSection title="金額情報" icon={Banknote} isOpen={isOpen} onToggle={onToggle}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <Label htmlFor="propertyValue">遺産総額 <span className="text-[10px] font-normal text-muted-foreground">（生前贈与加算額を含み、債務控除、非課税及び各種特例適用前）</span></Label>
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                    <Label htmlFor="propertyValue" className="text-xs">遺産総額 <span className="text-[10px] font-normal text-muted-foreground">（生前贈与加算額を含み、債務控除、非課税及び各種特例適用前）</span></Label>
                     <CurrencyField
                         id="propertyValue"
                         name="propertyValue"
@@ -85,8 +85,8 @@ export function FinancialSection({
                     />
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="taxAmount">申告納税額</Label>
+                <div className="space-y-1.5">
+                    <Label htmlFor="taxAmount" className="text-xs">申告納税額</Label>
                     <CurrencyField
                         id="taxAmount"
                         name="taxAmount"
@@ -96,9 +96,9 @@ export function FinancialSection({
                 </div>
 
                 {/* 報酬計算 */}
-                <div className="space-y-4 col-span-1 md:col-span-2 border rounded-lg p-4 bg-muted/30">
+                <div className="space-y-3 col-span-1 border rounded-lg bg-muted/30 p-3 sm:col-span-2">
                     <Label className="text-base font-semibold">報酬計算</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                         {ESTIMATE_COUNT_FIELDS.map(({ key, label, suffix }) => (
                             <div key={key} className="space-y-1">
                                 <Label htmlFor={key} className="text-xs">{label}</Label>
@@ -126,7 +126,7 @@ export function FinancialSection({
                         <div className="flex justify-between font-semibold border-t pt-1"><span>小計</span><span>{formatCurrency(breakdown.total)}</span></div>
                     </div>
                     {/* 値引額 */}
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                         <Label htmlFor="discountAmount" className="text-xs">値引額</Label>
                         <CurrencyField
                             id="discountAmount"
@@ -143,7 +143,7 @@ export function FinancialSection({
                         </div>
                     </div>
                     {/* 転記ボタン */}
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex flex-wrap gap-2 pt-1">
                         <Button type="button" variant="outline" size="sm" onClick={applyToEstimate}>
                             <ArrowDown className="mr-1.5 h-3.5 w-3.5" />見積額に反映
                         </Button>
@@ -163,10 +163,10 @@ export function FinancialSection({
                 </div>
 
                 {/* 紹介料・担当者売上 */}
-                <div className="space-y-4 col-span-1 md:col-span-2 border rounded-lg p-4 bg-muted/30">
+                <div className="space-y-3 col-span-1 border rounded-lg bg-muted/30 p-3 sm:col-span-2">
                     <Label className="text-base font-semibold">紹介料・担当者売上</Label>
-                    <div className="max-w-xs space-y-2">
-                        <Label htmlFor="referralFeeRate">紹介料率 (%)</Label>
+                    <div className="max-w-xs space-y-1.5">
+                        <Label htmlFor="referralFeeRate" className="text-xs">紹介料率 (%)</Label>
                         <Input
                             id="referralFeeRate"
                             name="referralFeeRate"
@@ -186,11 +186,11 @@ export function FinancialSection({
                             }}
                         />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
                         {/* 見積ベース */}
-                        <div className="border rounded-lg p-4 bg-background space-y-3">
+                        <div className="border rounded-lg bg-background p-3 space-y-2.5">
                             <Label className="text-sm font-semibold text-muted-foreground">見積ベース</Label>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 <Label htmlFor="estimateAmount" className="text-xs">見積額（税抜）</Label>
                                 <CurrencyField
                                     id="estimateAmount"
@@ -204,7 +204,7 @@ export function FinancialSection({
                                     }}
                                 />
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 <Label htmlFor="estimateReferralFeeAmount" className="text-xs">紹介料額</Label>
                                 <CurrencyField
                                     id="estimateReferralFeeAmount"
@@ -221,9 +221,9 @@ export function FinancialSection({
                             </div>
                         </div>
                         {/* 確定ベース */}
-                        <div className={`border-2 rounded-lg p-4 bg-background space-y-3 transition-colors duration-500 ${highlightFee ? "border-amber-400 bg-amber-50/50" : "border-primary/20"}`}>
+                        <div className={`border-2 rounded-lg bg-background p-3 space-y-2.5 transition-colors duration-500 ${highlightFee ? "border-amber-400 bg-amber-50/50" : "border-primary/20"}`}>
                             <Label className="text-sm font-semibold">確定ベース</Label>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 <Label htmlFor="feeAmount" className="text-xs">報酬額（税抜）{highlightFee && <span className="text-amber-600 ml-1">← 入力してください</span>}</Label>
                                 <CurrencyField
                                     id="feeAmount"
@@ -237,7 +237,7 @@ export function FinancialSection({
                                     }}
                                 />
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 <Label htmlFor="referralFeeAmount" className="text-xs">紹介料額</Label>
                                 <CurrencyField
                                     id="referralFeeAmount"
@@ -328,7 +328,7 @@ function AggregationStatus({ formData }: { formData: InheritanceCase }) {
     if (completed) {
         const amount = formData.feeAmount || 0
         return (
-            <div className="col-span-1 md:col-span-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <div className="col-span-1 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800 sm:col-span-2">
                 <BarChart3 className="h-4 w-4 shrink-0" />
                 <span>ダッシュボード集計: <strong>確定額 {formatCurrency(amount)}</strong> として集計中</span>
             </div>
@@ -338,7 +338,7 @@ function AggregationStatus({ formData }: { formData: InheritanceCase }) {
     if (ongoing) {
         const amount = formData.estimateAmount || 0
         return (
-            <div className="col-span-1 md:col-span-2 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            <div className="col-span-1 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-800 sm:col-span-2">
                 <BarChart3 className="h-4 w-4 shrink-0" />
                 <span>ダッシュボード集計: <strong>見込額 {formatCurrency(amount)}</strong> として集計中</span>
             </div>
@@ -346,7 +346,7 @@ function AggregationStatus({ formData }: { formData: InheritanceCase }) {
     }
 
     return (
-        <div className="col-span-1 md:col-span-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-muted-foreground">
+        <div className="col-span-1 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-muted-foreground sm:col-span-2">
             <BarChart3 className="h-4 w-4 shrink-0" />
             <span>ダッシュボード集計: 集計対象外（進み具合が「手続中」以降、かつ受託の場合に集計されます）</span>
         </div>

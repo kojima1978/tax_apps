@@ -235,10 +235,10 @@ function InheritanceMockupPageContent() {
     const hasFilters = FILTER_KEYS.some(k => queryParams[k])
 
     return (
-        <div className="container mx-auto py-10 px-4">
-            <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
-                <h1 className="text-2xl font-bold">相続税申告案件一覧</h1>
-                <div className="flex gap-2 items-center">
+        <div className="container mx-auto max-w-[1600px] px-3 py-6 lg:px-4">
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <h1 className="text-xl font-bold">相続税申告案件一覧</h1>
+                <div className="flex gap-1.5 items-center">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -249,6 +249,7 @@ function InheritanceMockupPageContent() {
                     </Button>
                     <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => setShowImportModal(true)}
                     >
                         <Upload className="mr-2 h-4 w-4" />
@@ -256,6 +257,7 @@ function InheritanceMockupPageContent() {
                     </Button>
                     <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => exportCSV(hasFilters ? queryParams : undefined)}
                         disabled={isExporting}
                     >
@@ -265,6 +267,7 @@ function InheritanceMockupPageContent() {
                     {hasFilters && pagination?.total != null && pagination.total > 0 && (
                         <Button
                             variant="outline"
+                            size="sm"
                             onClick={() => setShowBulkDelete(true)}
                             className="text-red-600 border-red-200 hover:bg-red-50"
                         >
@@ -305,7 +308,7 @@ function InheritanceMockupPageContent() {
                         </div>
                     )}
                     {sortedCases.length > 0 && (
-                        <div className="flex items-center justify-end gap-3 px-2 py-1.5 text-sm border rounded-t-md bg-muted/50">
+                        <div className="flex items-center justify-end gap-2 px-2 py-1 text-xs border rounded-t-md bg-muted/50">
                             <span className="text-muted-foreground">売上合計:</span>
                             <span className="font-bold">{formatCurrency(amountTotals.total)}</span>
                             <span className="text-xs text-green-700">確定 {formatCurrency(amountTotals.confirmed)}</span>

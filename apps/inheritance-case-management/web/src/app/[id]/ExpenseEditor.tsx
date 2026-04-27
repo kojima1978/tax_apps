@@ -73,7 +73,7 @@ function DescriptionField({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-11 px-2 text-muted-foreground hover:text-foreground whitespace-nowrap"
+                    className="h-10 px-2 text-muted-foreground hover:text-foreground whitespace-nowrap"
                     onClick={() => { setFreeInput(false); onChange("") }}
                 >
                     一覧
@@ -94,7 +94,7 @@ function DescriptionField({
                     onChange(v)
                 }
             }}
-            className="flex h-11 w-full rounded-xl border-2 border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-11 w-full rounded-lg border-2 border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-10"
         >
             <option value="" disabled>選択...</option>
             {EXPENSE_DESCRIPTION_PRESETS.map((opt) => (
@@ -122,7 +122,7 @@ function SortableExpenseRow({
         <div
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-            className="grid grid-cols-[auto_120px_140px_1fr_1fr_auto] gap-3 items-start p-3 border rounded-lg"
+            className="grid grid-cols-1 gap-2 items-start rounded-lg border p-3 lg:grid-cols-[auto_120px_130px_minmax(180px,1fr)_minmax(160px,1fr)_auto] lg:gap-3"
         >
             <button
                 type="button"
@@ -165,7 +165,7 @@ function SortableExpenseRow({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-red-500 hover:text-red-700 h-11 px-2"
+                    className="h-10 px-2 text-red-500 hover:text-red-700"
                     onClick={() => onDelete(index)}
                 >
                     削除
@@ -218,7 +218,7 @@ export function ExpenseEditor({ expenses, onChange }: ExpenseEditorProps) {
     const total = expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             <div className="flex items-center justify-end">
                 <Button type="button" variant="outline" size="sm" onClick={handleAdd}>
                     + 追加

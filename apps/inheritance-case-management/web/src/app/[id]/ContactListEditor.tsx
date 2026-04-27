@@ -216,7 +216,7 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                 <div className="space-y-4">
                     <div className="space-y-3">
                         <div className="text-sm font-semibold">人物マスタ情報</div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>氏名 *</Label>
                                 <Input value={editPerson.name} onChange={e => setEditPerson(p => ({ ...p, name: e.target.value }))} placeholder="氏名" autoFocus />
@@ -226,7 +226,7 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                 <Input value={editPerson.phone} onChange={e => setEditPerson(p => ({ ...p, phone: e.target.value }))} placeholder="090-0000-0000" />
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[150px_1fr]">
                             <div className="space-y-1.5">
                                 <Label>郵便番号</Label>
                                 <div className="flex gap-1">
@@ -273,7 +273,7 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
             <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="連絡先を追加">
                 {showCreateForm ? (
                     <div className="space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>氏名 *</Label>
                                 <Input value={newPerson.name} onChange={e => setNewPerson(p => ({ ...p, name: e.target.value }))} placeholder="氏名" autoFocus />
@@ -283,7 +283,7 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                 <Input value={newPerson.phone} onChange={e => setNewPerson(p => ({ ...p, phone: e.target.value }))} placeholder="090-0000-0000" />
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[150px_1fr]">
                             <div className="space-y-1.5">
                                 <Label>郵便番号</Label>
                                 <div className="flex gap-1">

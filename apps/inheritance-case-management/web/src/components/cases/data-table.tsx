@@ -67,12 +67,16 @@ export function DataTable<TData, TValue>({
         >
             <div className="rounded-md border overflow-x-auto">
                 <p className="text-xs text-muted-foreground px-2 py-1 md:hidden">← 横にスクロールできます →</p>
-                <Table>
+                <Table className="min-w-[1120px] table-fixed text-xs">
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => (
-                                    <TableHead key={header.id} className="px-2 py-1 h-8 text-xs">
+                                    <TableHead
+                                        key={header.id}
+                                        className="h-7 px-1.5 py-1 text-[11px]"
+                                        style={{ width: header.getSize() }}
+                                    >
                                         {header.isPlaceholder
                                             ? null
                                             : flexRender(
@@ -105,7 +109,11 @@ export function DataTable<TData, TValue>({
                                     onMouseEnter={() => setFocusedRowIndex(index)}
                                 >
                                     {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id} className="px-2 py-1 text-sm">
+                                        <TableCell
+                                            key={cell.id}
+                                            className="px-1.5 py-1 align-top text-xs leading-tight"
+                                            style={{ width: cell.column.getSize() }}
+                                        >
                                             {flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext()

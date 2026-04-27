@@ -40,8 +40,8 @@ export function MasterSelect<T extends { id: number; active: boolean }>({
     }, [activeItems, groupBy])
 
     return (
-        <div className="space-y-2">
-            <Label htmlFor={id}>{label}</Label>
+        <div className="space-y-1.5">
+            <Label htmlFor={id} className="text-xs">{label}</Label>
             <SelectField id={id} name={id} value={value || ""} onChange={onChange}>
                 <option value="">{placeholder}</option>
                 {grouped ? grouped.map(([group, { members }]) => (
@@ -56,7 +56,7 @@ export function MasterSelect<T extends { id: number; active: boolean }>({
                     return <option key={item.id} value={opt.value}>{opt.label}</option>
                 })}
             </SelectField>
-            <div className="text-right text-xs">
+            <div className="text-right text-[11px]">
                 <Link href={editHref} className="text-muted-foreground hover:underline hover:text-primary">
                     {editLabel}
                 </Link>

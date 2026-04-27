@@ -65,8 +65,8 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
     }
 
     return (
-        <div className="container mx-auto py-10 max-w-5xl px-4">
-            <div className="mb-6 flex justify-between items-center flex-wrap gap-2">
+        <div className="container mx-auto max-w-7xl px-3 py-6 lg:px-4">
+            <div className="mb-4 flex justify-between items-center flex-wrap gap-2">
                 <nav className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Link href="/" className="hover:text-foreground transition-colors">案件一覧</Link>
                     <ChevronRight className="h-3.5 w-3.5" />
@@ -83,7 +83,7 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
                 </Button>
             </div>
 
-            <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-6">
+            <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-4 lg:p-5">
                 <Suspense fallback={<div>Loading...</div>}>
                     <EditCaseForm initialData={caseItem} />
                 </Suspense>

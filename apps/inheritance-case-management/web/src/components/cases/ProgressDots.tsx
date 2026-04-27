@@ -68,7 +68,7 @@ export function ProgressDots({ caseData }: { caseData: InheritanceCase }) {
     const firstIncompleteIdx = visibleSteps.find(({ step }) => !step.date)?.originalIndex ?? -1
 
     return (
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-[2px]">
             {visibleSteps.map(({ step, originalIndex }) => {
                 const isComplete = !!step.date
                 const isCurrent = originalIndex === firstIncompleteIdx
@@ -77,7 +77,7 @@ export function ProgressDots({ caseData }: { caseData: InheritanceCase }) {
                         key={step.stepId}
                         type="button"
                         disabled={isSaving}
-                        className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                        className={`h-2 w-2 rounded-full transition-colors ${
                             isComplete
                                 ? "bg-green-500 hover:bg-green-400"
                                 : isCurrent
