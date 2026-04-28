@@ -109,6 +109,7 @@ export function FilterBar({
         internalReferrerId: (v) => `紹介者: ${assignees.find(a => a.id === v)?.name || v}`,
         staffId: (v) => `担当・紹介: ${assignees.find(a => a.id === v)?.name || v}`,
         referrerCompany: (v) => `紹介会社: ${v}`,
+        deadlineSoon: () => `期限間近`,
         unassigned: () => `担当者: 未設定`,
         noReferrer: () => `紹介者: なし`,
     }

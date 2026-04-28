@@ -20,6 +20,7 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.referrerCompany) searchParams.set('referrerCompany', params.referrerCompany);
   if (params?.unassigned) searchParams.set('unassigned', 'true');
   if (params?.noReferrer) searchParams.set('noReferrer', 'true');
+  if (params?.deadlineSoon) searchParams.set('deadlineSoon', 'true');
   if (params?.department) searchParams.set('department', params.department);
   if (params?.caseAddedFrom) searchParams.set('caseAddedFrom', params.caseAddedFrom);
   if (params?.caseAddedTo) searchParams.set('caseAddedTo', params.caseAddedTo);
@@ -76,6 +77,7 @@ export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | '
   if (params?.referrerCompany) searchParams.set('referrerCompany', params.referrerCompany);
   if (params?.unassigned) searchParams.set('unassigned', 'true');
   if (params?.noReferrer) searchParams.set('noReferrer', 'true');
+  if (params?.deadlineSoon) searchParams.set('deadlineSoon', 'true');
   if (params?.department) searchParams.set('department', params.department);
   if (params?.caseAddedFrom) searchParams.set('caseAddedFrom', params.caseAddedFrom);
   if (params?.caseAddedTo) searchParams.set('caseAddedTo', params.caseAddedTo);

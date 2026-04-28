@@ -1,8 +1,16 @@
 import type { InheritanceCase } from "@/types/shared"
+import { isCompleted } from "@/types/constants"
 
 /** 確定/見込のうち適切な方のネット売上を返す */
 export function calcBestNet(c: InheritanceCase): number {
     return (c.feeAmount || 0) > 0 ? calcNet(c, "fee") : calcNet(c, "estimate")
+}
+
+export function getAnalyticsBaseType(c: InheritanceCase): "fee" | "estimate" | null {
+    if (c.acceptanceStatus !== "受託") return null
+    if (isCompleted(c.status)) return (c.feeAmount || 0) > 0 ? "fee" : "estimate"
+    if (c.status === "手続中") return "estimate"
+    return null
 }
 
 /** 紹介手数料額を返す */
