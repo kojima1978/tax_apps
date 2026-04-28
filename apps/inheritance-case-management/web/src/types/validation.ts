@@ -162,6 +162,7 @@ export const listQuerySchema = z.object({
   referrerCompany: z.string().optional(),
   unassigned: z.coerce.boolean().optional(),
   noReferrer: z.coerce.boolean().optional(),
+  deadlineSoon: z.coerce.boolean().optional(),
   department: z.string().optional(),
   caseAddedFrom: dateQuerySchema,
   caseAddedTo: dateQuerySchema,

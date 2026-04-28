@@ -75,6 +75,10 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
 
     const allNames = useMemo(() => departmentGroups.map(g => g.departmentName), [departmentGroups])
     const isAllExpanded = expanded.size === allNames.length
+    const staffTotal = useMemo(
+        () => calcDeptTotals(departmentGroups.flatMap(group => group.assignees)).feeTotal,
+        [departmentGroups],
+    )
 
     const toggleAll = () => {
         setExpanded(isAllExpanded ? new Set() : new Set(allNames))
@@ -92,11 +96,16 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="space-y-4 pt-4">
-                <div className="flex items-center justify-between border-b pb-2">
-                    <h2 className="text-xl font-semibold">担当者合計</h2>
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,180px)_minmax(56px,80px)] items-end gap-3 border-b pb-2">
+                    <div>
+                        <h2 className="text-xl font-semibold">部門・担当者</h2>
+                    </div>
+                    <div className="text-right text-sm font-semibold text-foreground">
+                        合計 {formatCurrency(staffTotal)}
+                    </div>
                     <button
                         onClick={toggleAll}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        className="flex items-center justify-self-end gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                     >
                         <ChevronsUpDown className="h-3.5 w-3.5" />
                         {isAllExpanded ? "すべて閉じる" : "すべて開く"}
@@ -109,6 +118,11 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
                 </div>
                 <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
                     <table className="w-full text-sm text-left">
+                        <colgroup>
+                            <col />
+                            <col className="w-[180px]" />
+                            <col className="w-[80px]" />
+                        </colgroup>
                         <thead className="bg-muted text-muted-foreground">
                             <tr>
                                 <th className="p-3">部門 / 担当者</th>

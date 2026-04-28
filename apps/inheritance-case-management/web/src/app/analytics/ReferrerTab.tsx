@@ -1,4 +1,6 @@
+import { useMemo } from "react"
 import { RankingTable } from "./RankingTable"
+import { formatCurrency } from "@/lib/analytics-utils"
 
 interface ReferrerTabProps {
     sortedCompanyRanking: { name: string; feeTotal: number; count: number; departments?: { name: string; feeTotal: number; count: number }[] }[]
@@ -21,17 +23,26 @@ function buildCompanyHref(companyName: string, selectedYears: Set<number>): stri
 }
 
 export function ReferrerTab({ sortedCompanyRanking, companySort, onCompanySort, selectedYears }: ReferrerTabProps) {
+    const referrerTotal = useMemo(
+        () => sortedCompanyRanking.reduce((sum, row) => sum + row.feeTotal, 0),
+        [sortedCompanyRanking],
+    )
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="space-y-4 pt-4">
-                <h2 className="text-xl font-semibold border-b pb-2">紹介者分析</h2>
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,180px)_minmax(56px,80px)] items-end gap-3 border-b pb-2">
+                    <h2 className="text-xl font-semibold">紹介者</h2>
+                    <div className="text-right text-sm font-semibold text-foreground">
+                        合計 {formatCurrency(referrerTotal)}
+                    </div>
+                </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
                     <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black" />確定 = 完了案件の報酬額ベース</span>
                     <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black/60" />見込 = 手続中案件の見積額ベース</span>
                     <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />未着手・見送りは集計対象外</span>
                 </div>
                 <div className="space-y-2">
-                    <h3 className="text-lg font-medium">会社別 実績</h3>
                     <RankingTable
                         data={sortedCompanyRanking}
                         columns={[

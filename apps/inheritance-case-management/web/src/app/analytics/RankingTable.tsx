@@ -132,6 +132,11 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
     return (
         <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
             <table className="w-full text-sm text-left">
+                <colgroup>
+                    <col />
+                    <col className="w-[180px]" />
+                    <col className="w-[80px]" />
+                </colgroup>
                 <thead className="bg-muted text-muted-foreground">
                     <tr>
                         {renderTh(nameCol)}

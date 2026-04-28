@@ -1,797 +1,368 @@
-# 相続税案件管理システム
+# 相続税申告案件管理
 
-## 概要
+相続税申告案件の一覧、詳細、進捗、売上、紹介者、連絡先、帳票、経営分析を管理する Next.js アプリです。
 
-相続税申告案件を管理するシステムです。案件の進捗管理、担当者・紹介者のマスタ管理、経営分析ダッシュボード、CSV取込・出力、JSONバックアップ・リストア機能を提供します。
+Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 
-## 技術スタック
+## 主な画面
 
-| レイヤー | 技術 |
-|---------|------|
-| Frontend | Next.js 16.1.1, React 19.2.3, TypeScript 5.9.3, Tailwind CSS v4 |
-| Data | TanStack Query 5.64, TanStack Table 8.21, react-currency-input-field, @dnd-kit, xlsx-js-style |
-| Backend | Next.js API Routes, Prisma 6.2, Zod 3.24 |
-| Database | PostgreSQL 16 Alpine |
-| Charts | recharts 2.15 |
-| Other | @react-pdf/renderer, lucide-react, @radix-ui/react-label |
-| Infrastructure | Docker, Docker Compose |
+| 画面 | パス | 概要 |
+| --- | --- | --- |
+| 案件一覧 | `/itcm/` | 案件検索、フィルター、KPI、売上合計、一括削除、CSV取込/出力 |
+| 新規案件 | `/itcm/new` | 相続税申告案件の新規登録 |
+| 案件詳細 | `/itcm/[id]` | 基本情報、進捗、報酬/見積、立替金、連絡先、帳票出力、監査ログ |
+| 経営分析 | `/itcm/analytics` | 売上、年計表、部門・担当者、紹介者分析 |
+| 設定 | `/itcm/settings` | マスタ管理、バックアップ/リストア |
+| 担当者設定 | `/itcm/settings/staff` | 部署、担当者、社内紹介者に使う担当者マスタ |
+| 紹介者設定 | `/itcm/settings/referral-sources` | 会社、部門、社外紹介者マスタ |
+| 人物設定 | `/itcm/settings/persons` | 連絡先として使う人物マスタ |
+| バックアップ | `/itcm/settings/backup` | JSONバックアップ、リストア |
 
-## 機能
+## 主な機能
 
-### 案件管理（CRUD）
+### 案件一覧
 
-- 相続税案件の作成・閲覧・編集・削除
-- 進み具合（status）管理: 未着手 / 手続中 / 申告済 / 請求済 / 入金済
-- 対応状況（handlingStatus）管理: 対応中 / 対応終了 / 対応終了（未分割） / 対応外
-- 受託状況管理: 未判定 / 受託 / 見送り
-- 受託状況と進み具合の連動ルール:
-  - 未判定 → 進み具合は「未着手」のみ選択可
-  - 見送り → 対応状況は自動的に「対応外」に設定
-  - 受託 → 未着手 / 手続中 / 申告済 / 請求済 / 入金済 を選択可
-- 担当者・社内紹介者・社外紹介者のリレーション（FK）、担当者・社内紹介者は部門別optgroupグループ化で選択（sortOrder順）
-- 報酬・見積・遺産総額・紹介料（率/額、見積・確定それぞれ）の管理
-- 報酬計算パラメータ: 土地数（路線価/倍率）、非上場株式数、相続人数の管理（各入力は独立して更新、新規登録時も保存）
-- 報酬計算ロジック: 基本報酬（遺産総額×0.8%）+ 土地評価加算 + 非上場株式加算 + 相続人加算
-- 計算結果の転記: 「見積額に反映」「報酬額に反映」ボタンで明示的に転記（自動転記なし）
-- 見積額・報酬額転記時の紹介料自動再計算（紹介料率が設定されている場合）
-- 紹介料・担当者売上の2カラム比較表示（見積ベース / 確定ベース）: 紹介料率は共通、各ベースに紹介料額（編集可能）・手取りを表示
-- 見積紹介料額は0円の手入力も明示値として扱い、手取り表示・集計で料率計算に戻さない
-- 値引き・調整に対応（転記後の金額を直接編集可能）
-- 動的入力ガイド: 進み具合が完了系（申告済/請求済/入金済）かつ報酬額未入力の場合、金額情報セクションを自動展開し確定ベースをアンバーハイライト＋「← 入力してください」で案内
-- 概算報酬サジェスト: 報酬計算から概算額が算出されている場合、「見積額に反映」「報酬額に反映」ボタンの下にサジェストバナーを表示
-- ダッシュボード集計ステータス表示: 案件のステータスに応じて「確定額として集計中」（緑）/「見込額として集計中」（青）/「集計対象外」（グレー）をリアルタイム表示
-- 未保存変更検知: フォーム変更時に離脱確認ダイアログを表示、ブラウザタブ閉じ・リロード時の警告（beforeunload）
-- 保存後は一覧に遷移せずフォームに留まり、ベースラインをリセット
-- 未保存変更ダイアログの「保存して戻る」は保存成功時のみ戻る（保存失敗時は詳細画面に留まる）
-- 案件削除後は削除済み詳細へ戻らないよう案件一覧へ置換遷移
-- 特記事項（10文字以内の短い概要）・メモ（フリーテキスト）の管理
-- 受託日（caseAddedDate）: 案件作成時に自動設定（手動編集可）、CSVインポート時にも設定可
-- 申告完了日（caseCompletedDate）: ステータスが完了系（申告済/請求済/入金済）に変更されると自動設定、非完了に戻すとクリア（読み取り専用表示）
-- 申告期限の自動計算（死亡日 + 10ヶ月）
-- 和暦表示: 相続開始日・年度・申告期限・進捗完了日のラベルに和暦を自動表示（令和/平成/昭和/大正/明治対応）
-- フィルタ状態のURL同期: 絞り込み条件がURLクエリパラメータに保持され、ブラウザバック・URL共有で復元可能
+- 年度、進み具合、対応状況、受託状況、部門、担当者、社内紹介者、紹介会社、キーワードで絞り込み
+- フィルター状態を URL クエリへ同期し、ブラウザバックや URL 共有に対応
+- KPI カード表示
+  - 案件総数
+  - 進行中
+  - 期限間近
+  - 完了
+  - 当月追加
+  - 当月完了
+- `期限間近`、`当月追加`、`当月完了` の KPI クリックによるクイック絞り込み
+- 売上合計バー
+  - 報酬額がある案件は報酬額
+  - 報酬額がない案件は見積額
+  - 一覧上は紹介料控除前の金額を表示
+- ページネーション、ソート、行番号表示
+- 特記事項のインライン編集
+- 進捗モーダルによる日付の簡易編集
+- 条件に一致する案件の一括削除
+
+### 案件詳細
+
+- 基本情報、進捗、報酬/見積、立替金、連絡先、メモをセクションごとに編集
+- 未保存変更の検知と離脱確認
+- 受託日に基づく当月追加集計
+- 申告完了日に基づく当月完了集計
+- 申告完了日が入力され、確定ベースの報酬額が未入力の場合は財務セクションを開いて入力を促す
+- 進み具合や対応状況の完了系ステータスに応じて申告完了日を自動設定
+- 申告期限を相続開始日から 10 か月で自動計算
+- 日付表示は和暦併記に対応
+- 楽観ロックにより同時編集の競合を検知
+- 監査ログで案件の作成、更新、削除履歴を確認
 
 ### 進捗管理
 
-- 8段階の進捗ステップをタイムラインUIで管理
-- 各ステップに完了日・メモを記録
-- 訪問ステップの動的追加・削除・再番号付け（isDynamic）
-- ドラッグ&ドロップで工程の並べ替え（@dnd-kit）
-- チェックボックスで複数工程を選択し、今日の日付を一括設定
-- 一覧画面からモーダルで進捗日付をクイック編集
-- 一覧画面の進捗列に最終完了工程名を表示
-- 進捗が空の案件に「デフォルトステップを追加」ボタン（モーダル・詳細画面両方）
-- 進捗ステップの日付入力に応じたステータス自動変更提案（`STATUS_STEP_MAP` + `STEP_NAMES` 定数）:
-  - 「申告済」に日付入力 → 「申告済」への変更を確認
-  - 「請求済」に日付入力 → 「請求済」への変更を確認
-  - 「入金済」に日付入力 → 「入金済」への変更を確認
-- ステータスと進捗の整合性チェック（案件詳細の保存時）:
-  - ステータスが先行しているが進捗に日付がない場合 → 警告トースト表示
-  - 進捗に日付があるがステータスが追いついていない場合 → ステータス変更を提案
+- 標準工程をタイムライン UI で管理
+- 工程ごとに完了日とメモを入力
+- 訪問日などの動的工程を追加、削除、並べ替え
+- 複数工程に今日の日付を一括設定
+- 進捗日付とステータスの整合性を保存時にチェック
+- 進捗に応じたステータス変更を提案
 
-### 連絡先管理（人物マスタ連携）
+### 報酬・見積・売上
 
-- 案件ごとに最大10件の連絡先を管理（CaseContact ジャンクションテーブル経由で Person マスタを参照）
-- 連絡先追加時: 既存の Person を名前・電話・住所で検索して選択、または新規 Person をインライン作成
-- 郵便番号から住所を自動検索（zipcloud API、7桁入力時に自動補完）
-- 案件固有のメモを CaseContact に保持（Person マスタとは独立）
-- 「外す」操作は案件との紐付けのみ解除（Person マスタは削除しない）
-- CSV インポート時の後方互換: `{ name, phone, ... }` 形式のインポートデータから自動で Person を find-or-create（`resolveContacts`）
-- 並び順の保持（sortOrder）
+- 見積額、報酬額、相続税額、遺産総額、紹介料率、紹介料額を管理
+- 見積ベースと確定ベースの紹介料、手取りを別々に表示
+- 報酬計算パラメータ
+  - 土地数（路線価）
+  - 土地数（倍率）
+  - 非上場株式数
+  - 相続人数
+  - 値引額
+- 概算報酬を計算し、見積額または報酬額へ明示的に反映
+- 経営分析では完了案件で報酬額が未入力の場合、見積額を見込売上として扱う
+- 社外紹介料は会社売上から控除し、社内紹介料は会社売上から控除しない
+- 担当者別の個人集計では紹介料を控除した担当分と、社内紹介分を分けて表示
+
+### 経営分析
+
+- 売上（確定＋見積）、確定売上、見込売上、件数、紹介料内訳を表示
+- 年度別業績とステータス内訳を表示
+- 年計表で直近 12 か月累計の売上、件数を可視化
+- 部門・担当者タブ
+  - 部門ごとの小計
+  - 担当者ごとの担当分、社内紹介分
+  - 見出しに売上合計を表示
+  - 担当者クリックで案件一覧へ遷移
+- 紹介者タブ
+  - 紹介会社ごとの紹介料合計
+  - 会社内の部門小計
+  - 見出しに紹介料合計を表示
+  - 会社クリックで案件一覧へ遷移
+- 年度ピルで単年度、複数年度、全期間を切り替え
 
 ### マスタ管理
 
-- **部署**: 部署名、表示順（設定画面でCRUD管理）
-- **会社**: 会社名（設定画面でCRUD管理、紹介者の所属先）
-  - 会社マージ機能: 重複会社を統合（部門・紹介者・案件リンクを移行し、ソース会社を無効化）
-- **担当者**: 社員番号（3桁）、部署（Departmentマスタからセレクト）、氏名、部門別アコーディオン（開閉可能、デフォルト閉、全て開く/閉じるボタン）
-- **部門（紹介元）**: 会社（Companyマスタからセレクト）、部門名（CompanyBranchマスタ、会社名でグループ表示）
-- **紹介者**（社外専用）: 会社（Companyマスタからセレクト）、部門（CompanyBranchマスタからセレクト、会社名でグループ表示）
-- **人物マスタ**: 氏名・電話番号・郵便番号・住所・メモ（連絡先として案件から参照される共有マスタ、設定画面でCRUD管理）
-- 一括編集・一括保存、ソフトデリート（active フラグ）
+- 部署
+- 担当者
+- 会社
+- 会社部門
+- 社外紹介者
+- 人物
+- 会社マージ
+- 有効/無効によるソフト削除
 
-### 経営分析ダッシュボード（4タブ）
+### 連絡先管理
 
-- **売上・件数**: 売上（確定＋見積）サマリーカード（紹介手数料の社内/社外内訳表示、社外紹介手数料控除後の純売上表示）、年度別業績テーブル、ステータス内訳
-- **年計表**: 移動年計（直近12ヶ月累計）の売上・件数を折れ線グラフで表示（recharts）
-- **部門・担当者（担当者合計）**: 部門→担当者の階層テーブル（部門=大分類、担当者=中分類）
-  - 凡例バッジ: 確定（緑●）/見込（青●）/対象外（灰●）の集計ルールを常時表示
-  - 売上合計ヘッダーにツールチップ（ⓘアイコン）で集計基準を説明
-  - 部門行: クリックで担当者の展開/折りたたみ（デフォルト: 閉じた状態）、部門合計（売上・件数・担当/紹介内訳・確定/見込内訳）を常時表示
-  - 担当者行: 担当売上＋社内紹介売上の内訳＋確定/見込内訳を常時表示
-  - 部門はsortOrder順、担当者はid（登録順）、未設定部門は末尾
-  - 「すべて開く/すべて閉じる」一括切替ボタン
-  - 担当者名はリンク（クリックで一覧画面に遷移、`staffId`パラメータで担当＋紹介の全案件を表示）
-  - 「未設定」もリンク化（`unassigned`パラメータで担当者未設定案件を表示）
-  - 年度フィルタの引き継ぎ（1年度選択時のみ）
-- **紹介者**: 会社別実績に部門小計表示、確定/見込内訳を常時表示、「なし」は常に最下部に表示
-  - 凡例バッジ: 確定/見込/対象外の集計ルールを常時表示
-  - 集計対象: 完了案件（報酬額ベース）＋手続中案件（見積額ベース）のみ（未着手・見送りは対象外）
-  - 会社名はリンク（クリックで一覧画面に遷移、`referrerCompany`パラメータでその会社の紹介案件を表示）
-  - 「なし」もリンク化（`noReferrer`パラメータで紹介者未設定案件を表示）
-  - 年度フィルタの引き継ぎ
-- 年度ピルUI: 全期間 + 個別年度をトグルボタンで複数選択可能（デフォルト: 現在年度、データに現在年度がなければ最新年度にフォールバック）
+- 案件ごとに人物マスタから連絡先を紐付け
+- 既存人物の検索、選択
+- 新規人物のインライン作成
+- 郵便番号から住所を自動補完
+- 案件固有メモを `CaseContact` に保持
 
-### CSV取込・出力
+### CSV・Excel
 
-- 案件データのCSVエクスポート（担当者・社内紹介者・社外紹介者は複数列形式）
-- CSVインポートによる一括登録・更新（バリデーション付き）
-- 担当者・社内紹介者・社外紹介者の複数列方式取込（`担当者_氏名`/`担当者_部署名`、`社内紹介者_氏名`/`社内紹介者_部署名`、`紹介者_会社名`/`紹介者_部署名`）
-- 社内紹介者: Assignee名でマッチング、未登録時は部署指定付きで自動作成
-- 未登録のマスタデータ（部署・会社・担当者・紹介者）をインポート時に自動作成
-- 旧形式（`担当者`/`紹介者` 1列）も後方互換で対応
-- インポート時に進捗データが空なら自動でデフォルトステップをセット
-- 日付の正規化（Excel形式 YYYY/M/D 対応）
-- 社外紹介者の2段階フォールバック解決: 会社+部署 → 会社（一意の場合のみ）
-- 重複検出（被相続人氏名＋死亡日＋年度）で既存案件を自動的に更新モードに切替（再インポート時の重複登録を防止）
-- 同一CSV内の重複行検出・警告（IDなし行同士の複合キー一致を検知）
-- 特記事項が10文字超の場合、切り詰め警告をプレビューに表示
-- 進捗データのJSON形式が不正な場合、警告をプレビューに表示（無音スキップしない）
-- 未登録マスタデータ（担当者・社内紹介者・紹介者）の自動作成一覧をプレビューに表示（タイプミス防止）
-- Shift-JIS（CP932）フォールバック時にエンコーディング警告を表示
-- バッチAPI（`/api/cases/bulk-upsert`）による一括作成・更新（50件ずつチャンク送信、サーバー側は20件並列処理）
-- 存在しないIDの案件は新規作成にフォールバック
-- ファイル選択時にマスターデータを最新に再読込
-- テンプレート・エクスポートの列順はUIフォーム入力順に統一（受託状況→進み具合→対応状況→特記事項→担当者→社内紹介者→紹介者→メモ→金額系→連絡先）
-- エクスポートに「受託日」「申告完了日」列を含む、インポートでは「受託日」を取込可能（「申告完了日」はステータス連動のため読み取り専用・スキップ）
-- インポートはヘッダー名ベースで列を判定するため、列の順序に依存しない
+- 案件 CSV エクスポート
+- 案件 CSV インポート
+- 未登録マスタの自動作成
+- 同一 CSV 内の重複チェック
+- 既存案件の自動更新判定
+- Shift-JIS / CP932 フォールバック
+- 見積書、請求書、請求書発行依頼票の Excel 出力
+- テンプレートは `templates/` から読み込み、Docker では `/app/templates` に読み取り専用マウント
 
-### 見積書・請求書・請求書発行依頼票Excel出力
+### バックアップ・リストア
 
-- 見積書（御見積書）・請求書（御請求書）・請求書発行依頼票をExcelファイル（.xlsx）でダウンロード
-- 案件詳細画面の「見積書」「請求書」「依頼票」ボタンから出力
-- 宛先選択: 案件の連絡先から複数選択（連名対応）＋カスタム入力
-- 発行日入力
-- テンプレート方式: 見積書・請求書は `estimate_template.xlsx`、依頼票は `invoice_request_template.xlsx` を使用
-- 見積書はテンプレートをそのまま使用、請求書は生成時に7セル（タイトル・金額ラベル・振込先等）をコードで上書き + シートタブ名を「請求書」に変更
-- 請求書発行依頼票: 担当者名(W3)・請求先+被相続人名(C5)・紹介者名(A18)・手取り額/紹介料内訳(A19)・報酬額税抜(V18)・立替金(H15)をセルに転記。紹介者は社内（部門/氏名）・社外（会社/支店）の両方に対応
-- テンプレートが存在しない場合はエラー（フォールバックなし）
-- ファイル名: `見積書_被相続人名_YYYYMMDD.xlsx` / `請求書_被相続人名_YYYYMMDD.xlsx` / `請求書発行依頼票_被相続人名_YYYYMMDD.xlsx`
-- テンプレートファイルはGit管理対象外（`.gitignore`）、Dockerコンテナ内では `/app/templates/` にマウント
+- JSON 形式で全主要テーブルをバックアップ
+- BOM 付き UTF-8 で出力
+- リストア前プレビュー
+- トランザクション内で全削除、再挿入、シーケンスリセット
+- 古いバックアップ形式への互換対応
 
-### JSONバックアップ / リストア
+## 技術スタック
 
-- 全11テーブルのデータをJSON形式でエクスポート（`itcm-backup-YYYY-MM-DD.json`、UTF-8 BOM付き）
-- エクスポート対象: departments, companies, companyBranches, assignees, referrers, persons, cases, caseContacts, caseProgress, caseExpenses, auditLogs
-- JSONファイルからの全データリストア（プレビュー + 確認入力付き、BOM自動除去対応）
-- リストアはトランザクション内で全削除→全挿入→シーケンスリセットをアトミックに実行
-- 旧バックアップファイル互換: persons / auditLogs / caseExpenses / companyBranches が未含の場合は空配列としてリストア
-- 日付フィールド（dateOfDeath, caseAddedDate, caseCompletedDate）はISO文字列・日付文字列の両形式に対応
-- リストアエラー時はサーバーからの具体的なエラーメッセージを表示
-
-### 案件一括削除
-
-- フィルタ条件（年度・ステータス・受託状況・部門・担当者・紹介者・紹介会社・検索）で絞り込んだ案件を一括削除
-- 削除件数の手入力による確認（誤操作防止）
-- フィルタ適用時のみ一括削除ボタンを表示
-
-### KPIダッシュボード
-
-- 案件総数 / 進行中 / 期限間近（30日以内）/ 完了 / 当月追加 / 当月完了の6指標をカード表示
-- 当月追加: `caseAddedDate`（受託日）が当月の案件数
-- 当月完了: `caseCompletedDate`（申告完了日）が当月の案件数
-- フィルター連動: フィルタ適用時はフィルタ後の件数を反映
-
-### ソート
-
-- デフォルト: 年度降順（新しい年度が上）→ 死亡日昇順（古い日付が上）
-- 年度ソートは常に最優先（ユーザーが選択するソートは第2ソートキー）
-
-### UI/UX
-
-- **ステータスバッジ**: 進み具合（灰=未着手/青=手続中/緑=申告済/橙=請求済/紫=入金済）、対応状況（青=対応中/緑=対応終了/琥珀=対応終了（未分割）/灰=対応外）、受託状況（灰=未判定/緑=受託/赤=見送り）を色付きバッジで表示
-- **期限インジケーター**: 期限切れ（赤）/ 期限間近（琥珀）を視覚的に警告、完了系は「申告済」バッジ、対応終了は取消線表示
-- **申告期限2段表示**: ステータスバッジ + 日付を2段で表示
-- **NO列**: 表示行の連番（1, 2, 3...）、ページネーション対応（ページ2は101〜）
-- **売上列ソート**: クライアントサイドでソート可能
-- **売上合計バー**: テーブル上部に常時表示（確定/見込内訳付き）
-- **進捗タイムライン**: 縦タイムラインUI（完了=緑ドット、未完了=グレードット）
-- **インライン編集**: 一覧画面で特記事項をクリックして即時編集・保存
-- **売上列**: 報酬額入力済→確定（緑）、未入力→見込額（青）のラベルを金額の上に配置
-- **フィルターチップ**: 適用中のフィルターをチップ表示し、個別に解除可能
-- **フィルター**: 年度（2015〜2035）・受託状況（複数選択）・ステータス（複数選択）・対応状況・部門・担当者・紹介者（社内）・紹介会社をdata-driven定義（`FILTER_KEYS`/`STATIC_FILTER_DEFS`）
-  - 担当者・紹介者（社内）セレクトボックスは部門別 `<optgroup>` でグループ化（sortOrder順）
-  - 紹介者（社内）セレクトボックスはオレンジボーダーで担当者と視覚的に区別
-  - フィルタチップの色分け: 紹介者=オレンジ系、その他=プライマリ系
-  - `staffId` パラメータ: 経営分析からの遷移用、担当＋紹介の全案件を OR 条件で取得
-  - `referrerCompany` パラメータ: 経営分析からの遷移用、紹介会社名でフィルタ
-  - `unassigned` パラメータ: 担当者未設定案件の絞り込み
-  - `noReferrer` パラメータ: 紹介者未設定案件の絞り込み
-- **役割列**: 担当者・紹介者・staffIdフィルタ適用時に自動表示、担当=青バッジ、紹介=オレンジバッジ
-- **フィルタURL同期**: フィルタ条件をURLクエリパラメータに同期（`?fiscalYear=2023&status=手続中`）、ブラウザバック・共有URL対応
-- **表示件数**: デフォルト100件
-- **キーボードナビゲーション**: テーブル行の矢印キー移動・Enterで詳細遷移
-- **スティッキーアクションバー**: 保存/キャンセル/削除ボタンがスクロール時も表示
-- **折りたたみセクション**: フォーム各セクションの展開/折りたたみ（localStorage永続化、すべて開く/閉じるボタン、ステータス変更時の自動展開）
-- **ローディングスケルトン**: データ取得中のプレースホルダーUI
-- **トースト通知**: 成功/エラー/警告メッセージ
-- **空状態メッセージ**: 検索結果なし時の案内表示
-- **モーダルダイアログ**: CSV取込、進捗編集、一括削除確認、確認ダイアログ
-- **案件詳細の保存後動作**: 保存完了後はフォームに留まりベースラインをリセット（離脱は「戻る」ボタンで、未保存時は確認ダイアログ。「保存して戻る」は保存成功時のみ遷移）
-- **案件詳細の削除後動作**: 削除成功後は履歴に依存せず案件一覧へ置換遷移
-- **ポータルに戻るボタン**: aタグで外部遷移（クライアントサイドルーティング外）
-- **年度セレクトボックス**: 降順表示（新しい年度が上）
-- **MasterSelectリンク**: Link化によるクライアントサイドルーティング
-- **MasterSelect表示**: 担当者・社内紹介者を部門別optgroupグループ化（MasterSelectのgroupByプロパティで汎用対応）
-
-## ページ構成
-
-| パス | 内容 |
-|------|------|
-| `/` | 案件一覧（KPI + フィルター + テーブル + ページネーション + 一括削除） |
-| `/new` | 新規案件登録 |
-| `/[id]` | 案件詳細編集（基本情報/金額/進捗/連絡先の4セクション） |
-| `/settings` | 設定メニュー |
-| `/settings/staff` | 担当者管理（部署 + 担当者の統合ページ） |
-| `/settings/referral-sources` | 紹介元管理（会社・部門・紹介者のツリー表示、会社マージ機能） |
-| `/settings/persons` | 人物マスタ管理（連絡先として使用される人物情報） |
-| `/settings/backup` | バックアップ / リストア |
-| `/analytics` | 経営分析ダッシュボード（売上・件数/年計表/部門・担当者/紹介者の4タブ） |
+| 分類 | 内容 |
+| --- | --- |
+| フレームワーク | Next.js 16.1.1 |
+| UI | React 19.2.3, Tailwind CSS v4 |
+| 言語 | TypeScript 5.9.3 |
+| API | Next.js API Routes |
+| DB | PostgreSQL 16 |
+| ORM | Prisma 6.2 |
+| バリデーション | Zod 3.24 |
+| データ取得 | TanStack Query 5 |
+| テーブル | TanStack Table 8 |
+| DnD | dnd-kit |
+| グラフ | Recharts |
+| Excel | exceljs, xlsx-js-style |
+| PDF | @react-pdf/renderer |
+| アイコン | lucide-react |
+| 実行環境 | Docker, Docker Compose |
 
 ## ディレクトリ構成
 
-```
+```text
 inheritance-case-management/
-├── .env                        # PostgreSQL認証情報
-├── docker-compose.yml          # 開発用（PostgreSQL + Web）
-├── docker-compose.prod.yml     # 本番オーバーライド
-├── templates/                  # 見積書・請求書Excelテンプレート（Git管理外、Dockerマウント）
-│   ├── .gitignore              # *.xlsx除外
-│   └── README.md               # テンプレート配置手順
-└── web/                        # Next.js（フロントエンド + API Routes）
-    ├── Dockerfile              # マルチステージビルド（dev/builder/runner）
-    ├── Dockerfile.dev
-    ├── docker-entrypoint.sh
-    ├── package.json
-    ├── next.config.ts          # basePath: /itcm
+├── docker-compose.yml
+├── docker-compose.prod.yml
+├── templates/                       # 帳票テンプレート
+└── web/
     ├── prisma/
-    │   └── schema.prisma       # DBスキーマ（10モデル: Department, Company, CompanyBranch, Assignee, Referrer, Person, InheritanceCase, CaseContact, CaseProgress, CaseExpense）
+    │   ├── schema.prisma
+    │   └── migrations/
     └── src/
-        ├── app/
-        │   ├── page.tsx                # 案件一覧
-        │   ├── new/page.tsx            # 新規案件登録
-        │   ├── [id]/                   # 案件詳細
-        │   │   ├── page.tsx
-        │   │   ├── edit-case-form.tsx  # メインフォーム
-        │   │   ├── BasicInfoSection.tsx
-        │   │   ├── FinancialSection.tsx  # 報酬計算・転記ボタン
-        │   │   ├── ExpenseEditor.tsx   # 立替金エディタ
-        │   │   ├── DocumentExportModal.tsx  # 見積書・請求書・依頼票出力モーダル
-        │   │   ├── ProgressEditor.tsx  # タイムライン進捗UI（D&D対応）
-        │   │   └── ContactListEditor.tsx
-        │   ├── settings/               # マスタ管理
-        │   │   ├── page.tsx            # 設定メニュー
-        │   │   ├── staff/page.tsx      # 担当者管理（部署 + 担当者）
-        │   │   ├── referral-sources/page.tsx  # 紹介元管理（会社・部門・紹介者、マージ機能）
-        │   │   ├── persons/page.tsx    # 人物マスタ管理（MasterListPage + useMasterList）
-        │   │   └── backup/page.tsx
-        │   ├── analytics/              # 経営分析
-        │   │   ├── page.tsx
-        │   │   ├── OverviewTab.tsx
-        │   │   ├── BreakdownTab.tsx
-        │   │   ├── ReferrerTab.tsx
-        │   │   ├── AnnualTrendTab.tsx  # 年計表（移動年計グラフ、recharts）
-        │   │   └── RankingTable.tsx
-        │   └── api/                    # API Routes（薄いラッパー、ロジックはlib/services/に委譲）
-        │       ├── health/route.ts
-        │       ├── backup/
-        │       │   ├── route.ts        # GET → backup-service.exportBackup()
-        │       │   └── restore/route.ts # POST → backup-service.restoreBackup()
-        │       ├── cases/
-        │       │   ├── route.ts        # GET/POST → case-service
-        │       │   ├── [id]/route.ts   # GET/PUT/DELETE → case-service
-        │       │   ├── bulk-delete/route.ts # DELETE → case-service.bulkDeleteCases()
-        │       │   └── bulk-upsert/route.ts # POST → case-service.bulkUpsertCases()
-        │       ├── departments/
-        │       │   ├── route.ts
-        │       │   ├── handlers.ts     # ファクトリベースCRUD
-        │       │   └── [id]/route.ts
-        │       ├── companies/
-        │       │   ├── route.ts
-        │       │   ├── handlers.ts     # ファクトリベースCRUD
-        │       │   ├── merge/route.ts  # 会社マージAPI
-        │       │   └── [id]/route.ts
-        │       ├── company-branches/
-        │       │   ├── route.ts
-        │       │   ├── handlers.ts     # ファクトリベースCRUD（Company include付き）
-        │       │   └── [id]/route.ts
-        │       ├── assignees/
-        │       │   ├── route.ts
-        │       │   ├── handlers.ts     # ファクトリベースCRUD（include対応）
-        │       │   └── [id]/route.ts
-        │       ├── referrers/
-        │       │   ├── route.ts
-        │       │   ├── handlers.ts     # ファクトリベースCRUD（include対応）
-        │       │   └── [id]/route.ts
-        │       ├── persons/
-        │       │   ├── route.ts
-        │       │   ├── handlers.ts     # ファクトリベースCRUD
-        │       │   └── [id]/route.ts
-        │       └── templates/
-        │           ├── route.ts        # GET → template-service.getTemplateBase64()
-        │           └── generate/route.ts # POST → template-service.generateTemplate()
-        ├── components/
-        │   ├── cases/                  # 案件一覧ページ用コンポーネント
-        │   │   ├── columns.tsx         # TanStack Table カラム定義
-        │   │   ├── data-table.tsx      # DataTable コンポーネント
-        │   │   ├── FilterBar.tsx       # フィルターUI
-        │   │   ├── KPICards.tsx        # KPI指標カード
-        │   │   ├── Pagination.tsx      # ページネーション
-        │   │   ├── InlineSummaryCell.tsx # 特記事項インライン編集セル
-        │   │   └── ProgressModal.tsx   # 進捗クイック編集モーダル（D&D対応）
-        │   ├── AppHeader.tsx           # ヘッダーナビゲーション
-        │   ├── BulkDeleteModal.tsx     # 一括削除確認ダイアログ
-        │   ├── ClientLayout.tsx        # QueryClient + Toast プロバイダー
-        │   ├── ImportCSVModal.tsx       # CSV取込ダイアログ（ステップ別コンポーネントを統合）
-        │   ├── import-csv/             # CSV取込ステップ別コンポーネント
-        │   │   ├── FileSelectStep.tsx  # ファイル選択（D&D・テンプレDL・項目ガイド）
-        │   │   ├── PreviewStep.tsx     # プレビュー（サマリーバッジ・テーブル・警告/エラー）
-        │   │   ├── ImportingStep.tsx   # 取り込み中（プログレスバー・中止）
-        │   │   └── DoneStep.tsx        # 完了（結果サマリー・失敗行詳細）
-        │   ├── MasterListPage.tsx      # マスタ編集UI（共通）
-        │   └── ui/                     # 汎用UIコンポーネント
-        │       ├── Button.tsx
-        │       ├── CollapsibleSection.tsx
-        │       ├── CurrencyField.tsx
-        │       ├── EmptyState.tsx
-        │       ├── ErrorDisplay.tsx
-        │       ├── Input.tsx / Label.tsx
-        │       ├── MasterSelect.tsx        # マスタセレクター（optgroup対応）
-        │       ├── Modal.tsx
-        │       ├── MultiSelectDropdown.tsx # チェックボックス式複数選択ドロップダウン
-        │       ├── SelectField.tsx
-        │       ├── Skeleton.tsx
-        │       ├── SortableHeader.tsx
-        │       ├── StatusBadge.tsx
-        │       ├── SetTodayButton.tsx
-        │       ├── StickyActionBar.tsx
-        │       ├── Toast.tsx
-        │       └── table.tsx           # TanStack Table ラッパー
-        ├── hooks/
-        │   ├── index.ts                # barrel export
-        │   ├── use-async-masters.ts    # 担当者・部署マスタ非同期取得（共通フック）
-        │   ├── use-cases.ts            # 案件一覧クエリ（TanStack Query）
-        │   ├── use-click-outside.ts    # 要素外クリック検知フック
-        │   ├── use-error-handler.ts
-        │   ├── use-export-csv.ts       # CSVエクスポート
-        │   ├── use-import-csv.ts       # CSVインポート（マスタ自動作成対応）
-        │   ├── use-keyboard-navigation.ts
-        │   ├── use-master-list.ts      # マスタ編集ステート管理
-        │   ├── use-progress-steps.ts   # 進捗チェック・D&D・一括日付設定
-        │   ├── use-ranking-sort.ts     # 経営分析ランキングソート
-        │   ├── use-section-state.ts   # セクション開閉状態管理（localStorage永続化 + 全開閉 + 自動展開）
-        │   └── use-unsaved-changes.ts  # 未保存変更検知（beforeunload + dirty state）
-        ├── lib/
-        │   ├── services/               # ビジネスロジック層（APIルートから分離）
-        │   │   ├── case-service.ts     # 案件CRUD・where句構築・楽観ロック・一括削除・一括作成更新・ステータス⇔完了日自動連動・連絡先resolveContacts
-        │   │   ├── backup-service.ts   # 全テーブルエクスポート・リストア（TABLE_DEFS、10テーブル）
-        │   │   ├── merge-service.ts    # 会社マージ（部門・紹介者・案件FKの移行、ソース無効化）
-        │   │   ├── audit-service.ts    # 監査ログ（案件変更の差分記録）
-        │   │   └── template-service.ts # Excelテンプレート取得・生成（ExcelJS）
-        │   ├── prisma.ts               # Prisma クライアントシングルトン
-        │   ├── prisma-includes.ts      # Prisma include定義（CASE/ASSIGNEE/REFERRER）
-        │   ├── prisma-utils.ts
-        │   ├── api-error-handler.ts    # 統一エラーレスポンス
-        │   ├── case-converters.ts      # 案件データ変換ユーティリティ
-        │   ├── create-crud-route-handlers.ts  # CRUD APIルートファクトリ（include対応）
-        │   ├── error-utils.ts          # エラーユーティリティ
-        │   ├── analytics/              # 集計・分析ロジック（モジュール分割）
-        │   │   ├── calculations.ts     # calcNet, calcReferralFee, formatCurrency, formatDate, toWareki, formatDateWithWareki, pinBottomCompare
-        │   │   ├── aggregations.ts     # aggregateCases, computeRollingAnnual, 型定義
-        │   │   └── index.ts            # re-export
-        │   ├── analytics-utils.ts      # 後方互換re-export（→ analytics/）
-        │   ├── import/                 # CSVインポートロジック（モジュール分割）
-        │   │   ├── types.ts            # 型定義・定数（CSV_HEADER_MAP, DEFAULTABLE_FIELDS等）
-        │   │   ├── parser.ts           # CSVテキストパーサー・日付正規化・数値パース・ファイルエンコーディング検出
-        │   │   ├── converters.ts       # ヘッダー→カラムマップ構築・行→入力オブジェクト変換（切り詰め/JSON警告付き）
-        │   │   ├── validator.ts        # パース&バリデーション・重複検出（DB既存+CSV内）・リゾルバー構築
-        │   │   ├── master-resolver.ts  # マスタデータ自動作成（担当者・紹介者・部署・会社・部門）
-        │   │   └── index.ts            # re-export
-        │   ├── import-csv.ts           # 後方互換re-export（→ import/）
-        │   ├── kpi-utils.ts            # KPI計算
-        │   ├── deadline-utils.ts       # 申告期限計算（死亡日+10ヶ月）
-        │   ├── progress-utils.ts       # 訪問ステップ追加/削除
-        │   ├── estimate-calc.ts        # 報酬計算ロジック（基本報酬+各種加算）
-        │   ├── export-excel.ts         # 見積書・請求書・依頼票Excel出力（テンプレート必須）
-        │   ├── export-csv.ts
-        │   ├── utils.ts
-        │   └── api/                    # クライアントサイドAPI
-        │       ├── client.ts           # fetchラッパー（baseURL: /itcm/api）
-        │       ├── cases.ts            # 案件CRUD + 一括削除 + 一括作成更新
-        │       ├── masters.ts          # 6マスタAPI統合（companies/company-branches/departments/assignees/referrers/persons）
-        │       ├── company-branches.ts # re-export（→ masters.ts）
-        │       ├── companies.ts        # re-export（→ masters.ts）
-        │       ├── departments.ts      # re-export（→ masters.ts）
-        │       ├── assignees.ts        # re-export（→ masters.ts）
-        │       ├── referrers.ts        # re-export（→ masters.ts）
-        │       ├── persons.ts         # re-export（→ masters.ts）
-        │       ├── backup.ts           # バックアップ/リストア
-        │       ├── crud-factory.ts     # 汎用CRUDクライアントファクトリ
-        │       └── index.ts
-        └── types/
-            ├── shared.ts               # TypeScript型定義（Department, Company, Assignee, Referrer等）
-            ├── validation.ts           # Zodバリデーションスキーマ
-            ├── backup.ts               # バックアップJSON型定義
-            └── constants.ts            # UI定数（ステータス色、ソート、年度等）
+        ├── app/                     # Next.js App Router
+        │   ├── page.tsx             # 案件一覧
+        │   ├── new/                 # 新規登録
+        │   ├── [id]/                # 案件詳細
+        │   ├── analytics/           # 経営分析
+        │   ├── settings/            # 設定
+        │   └── api/                 # API Routes
+        ├── components/              # UI、一覧、CSV取込など
+        ├── hooks/                   # React hooks
+        ├── lib/                     # APIクライアント、サービス、集計、CSV/Excel
+        └── types/                   # 型、定数、バリデーション
 ```
 
-## API エンドポイント
+## Docker 開発
 
-### 案件 `/api/cases`
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/cases` | 案件一覧取得（ページネーション・フィルタ・ソート） |
-| POST | `/api/cases` | 案件作成（連絡先・進捗含む） |
-| GET | `/api/cases/:id` | 案件詳細取得（リレーション含む） |
-| PUT | `/api/cases/:id` | 案件更新（連絡先・進捗の洗い替え、楽観ロック対応） |
-| DELETE | `/api/cases/:id` | 案件削除（連絡先・進捗もカスケード削除） |
-| DELETE | `/api/cases/bulk-delete` | フィルタ条件に一致する案件を一括削除 |
-| POST | `/api/cases/bulk-upsert` | 案件の一括作成・更新（CSVインポート用、最大500件） |
-
-**GET /api/cases クエリパラメータ:**
-
-| パラメータ | 型 | 説明 |
-|-----------|-----|------|
-| page | int | ページ番号（デフォルト: 1） |
-| pageSize | int | 1ページあたりの件数（デフォルト: 100） |
-| status | string | 進み具合フィルタ（カンマ区切りで複数指定可） |
-| handlingStatus | string | 対応状況フィルタ（カンマ区切りで複数指定可） |
-| acceptanceStatus | string | 受託状況フィルタ |
-| fiscalYear | int | 年度フィルタ |
-| department | string | 部門フィルタ（担当者の部署でリレーション経由フィルタ） |
-| assigneeId | int | 担当者フィルタ |
-| internalReferrerId | int | 社内紹介者フィルタ |
-| staffId | int | 担当者OR社内紹介者フィルタ（担当＋紹介の全案件をOR条件で取得） |
-| referrerCompany | string | 紹介会社名フィルタ（社外紹介者の会社でリレーション経由フィルタ） |
-| unassigned | boolean | 担当者未設定フィルタ（`true`で`assigneeId=null`の案件のみ） |
-| noReferrer | boolean | 紹介者未設定フィルタ（`true`で社内・社外とも紹介者なしの案件のみ） |
-| search | string | 被相続人氏名の部分一致検索 |
-| sortBy | string | ソートキー（デフォルト: dateOfDeath） |
-| sortOrder | string | ソート順（デフォルト: asc）※年度降順は常に最優先 |
-
-**PUT /api/cases/:id 楽観ロック（Optimistic Locking）:**
-
-リクエストボディに `updatedAt`（ISO 8601）を含めると、DBの `updatedAt` と比較し、不一致の場合は **409 Conflict** を返す。
-
-### マスタ管理
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET/POST | `/api/departments` | 部署一覧 / 作成 |
-| GET/PUT/DELETE | `/api/departments/:id` | 部署取得 / 更新 / 削除 |
-| GET/POST | `/api/companies` | 会社一覧 / 作成 |
-| GET/PUT/DELETE | `/api/companies/:id` | 会社取得 / 更新 / 削除 |
-| GET/POST | `/api/assignees` | 担当者一覧 / 作成（Department include付き） |
-| GET/PUT/DELETE | `/api/assignees/:id` | 担当者取得 / 更新 / 削除 |
-| GET/POST | `/api/company-branches` | 部門一覧 / 作成（Company include付き） |
-| GET/PUT/DELETE | `/api/company-branches/:id` | 部門取得 / 更新 / 削除 |
-| GET/POST | `/api/referrers` | 紹介者一覧 / 作成（Company, Branch include付き） |
-| GET/PUT/DELETE | `/api/referrers/:id` | 紹介者取得 / 更新 / 削除 |
-| GET/POST | `/api/persons` | 人物一覧 / 作成 |
-| GET/PUT/DELETE | `/api/persons/:id` | 人物取得 / 更新 / 削除 |
-| POST | `/api/companies/merge` | 会社マージ（sourceId→targetIdに統合、部門・紹介者・案件リンク移行） |
-
-### バックアップ
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/backup` | 全データJSONエクスポート |
-| POST | `/api/backup/restore` | JSONからの全データリストア |
-
-### テンプレート
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/templates?type=estimate` | 見積書テンプレート取得（Base64） |
-| GET | `/api/templates?type=invoice` | 請求書テンプレート取得（Base64） |
-| GET | `/api/templates?type=invoice-request` | 請求書発行依頼票テンプレート取得（Base64） |
-
-テンプレートファイルが存在しない場合は `{ exists: false }` を返す。
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| POST | `/api/templates/generate` | テンプレートにデータを埋め込みExcelファイルを生成（ExcelJS） |
-
-リクエストボディに `docType`（estimate/invoice/invoice-request）と案件データを含める。`invoice` の場合はタイトル等7セルを上書き、`invoice-request` の場合は担当者・請求先・紹介者・売上/紹介料・立替金をセルに転記。
-
-### その他
-
-| メソッド | パス | 説明 |
-|---------|------|------|
-| GET | `/api/health` | ヘルスチェック |
-
-## データベーススキーマ
-
-```mermaid
-erDiagram
-    Department ||--o{ Assignee : "所属"
-    Company ||--o{ CompanyBranch : "部門"
-    Company ||--o{ Referrer : "所属"
-    CompanyBranch ||--o{ Referrer : "部門"
-    Assignee ||--o{ InheritanceCase : "担当"
-    Assignee ||--o{ InheritanceCase : "社内紹介"
-    Referrer ||--o{ InheritanceCase : "社外紹介"
-    Person ||--o{ CaseContact : "連絡先"
-    InheritanceCase ||--o{ CaseContact : "連絡先"
-    InheritanceCase ||--o{ CaseProgress : "進捗"
-    InheritanceCase ||--o{ CaseExpense : "立替金"
-
-    Department {
-        int id PK "SERIAL"
-        string name UK "部署名（ユニーク）"
-        int sortOrder "表示順（default: 0）"
-        boolean active "有効フラグ（default: true）"
-        datetime createdAt "default: now()"
-        datetime updatedAt "@updatedAt"
-    }
-
-    Company {
-        int id PK "SERIAL"
-        string name UK "会社名（ユニーク）"
-        boolean active "有効フラグ（default: true）"
-        datetime createdAt "default: now()"
-        datetime updatedAt "@updatedAt"
-    }
-
-    CompanyBranch {
-        int id PK "SERIAL"
-        int companyId FK "会社（RESTRICT on delete）"
-        string name "部門名"
-        boolean active "有効フラグ（default: true）"
-        datetime createdAt "default: now()"
-        datetime updatedAt "@updatedAt"
-    }
-
-    Assignee {
-        int id PK "SERIAL"
-        string name "氏名"
-        string employeeId "社員番号（任意）"
-        int departmentId FK "部署（SET NULL on delete）"
-        boolean active "有効フラグ（default: true）"
-        datetime createdAt "default: now()"
-        datetime updatedAt "@updatedAt"
-    }
-
-    Referrer {
-        int id PK "SERIAL"
-        int companyId FK "会社（RESTRICT on delete）"
-        int branchId FK "部門（SET NULL on delete）"
-        boolean active "有効フラグ（default: true）"
-        datetime createdAt "default: now()"
-        datetime updatedAt "@updatedAt"
-    }
-
-    Person {
-        int id PK "SERIAL"
-        string name "氏名"
-        string phone "電話番号（default: 空文字）"
-        string postalCode "郵便番号（default: 空文字）"
-        string address "住所（default: 空文字）"
-        string memo "メモ（default: 空文字）"
-        boolean active "有効フラグ（default: true）"
-        datetime createdAt "default: now()"
-        datetime updatedAt "@updatedAt"
-    }
-
-    InheritanceCase {
-        int id PK "SERIAL"
-        string deceasedName "被相続人氏名"
-        date dateOfDeath "相続開始日（YYYY-MM-DD）"
-        string status "未着手|手続中|申告済|請求済|入金済"
-        string handlingStatus "対応中|対応終了|対応終了（未分割）|対応外"
-        string acceptanceStatus "未判定|受託|見送り"
-        date caseAddedDate "受託日（nullable）"
-        date caseCompletedDate "申告完了日（nullable、ステータス完了系 or 対応終了/対応終了（未分割）で自動設定）"
-        int taxAmount "相続税額（default: 0）"
-        int feeAmount "報酬額（default: 0）"
-        int fiscalYear "年度"
-        int estimateAmount "見積額（default: 0）"
-        int propertyValue "遺産総額（default: 0）"
-        float referralFeeRate "紹介料率（%）"
-        int referralFeeAmount "紹介料額（確定）"
-        int estimateReferralFeeAmount "紹介料額（見積）"
-        int landRosenkaCount "土地数・路線価（default: 0）"
-        int landBairitsuCount "土地数・倍率（default: 0）"
-        int unlistedStockCount "非上場株式数（default: 0）"
-        int heirCount "相続人数（default: 0）"
-        int discountAmount "値引額（default: 0）"
-        string summary "特記事項（最大10文字）"
-        string memo "メモ（フリーテキスト）"
-        int assigneeId FK "担当者（SET NULL on delete）"
-        int internalReferrerId FK "社内紹介者（SET NULL on delete）"
-        int referrerId FK "社外紹介者（SET NULL on delete）"
-        string createdBy "作成者"
-        string updatedBy "更新者"
-        datetime createdAt "default: now()"
-        datetime updatedAt "@updatedAt"
-    }
-
-    CaseContact {
-        int id PK "SERIAL"
-        int caseId FK "CASCADE on delete"
-        int personId FK "Person参照（RESTRICT on delete）"
-        int sortOrder "表示順（default: 0）"
-        string memo "案件固有メモ（default: 空文字）"
-    }
-
-    CaseProgress {
-        int id PK "SERIAL"
-        int caseId FK "CASCADE on delete"
-        string stepId "ステップ識別子"
-        string name "ステップ名"
-        int sortOrder "表示順（default: 0）"
-        date date "完了日（nullable）"
-        string memo "メモ（nullable）"
-        boolean isDynamic "動的追加（default: false）"
-    }
-
-    CaseExpense {
-        int id PK "SERIAL"
-        int caseId FK "CASCADE on delete"
-        int sortOrder "並び順（default: 0）"
-        date date "日付（YYYY-MM-DD）"
-        string description "内容"
-        int amount "金額（円）"
-        string memo "備考（nullable）"
-    }
-```
-
-### リレーション概要
-
-| 親テーブル | 子テーブル | 関係 | 削除時の動作 |
-|-----------|-----------|------|-------------|
-| Department | Assignee | 1対多 | SET NULL（FKをnullに） |
-| Company | CompanyBranch | 1対多 | RESTRICT（削除不可） |
-| Company | Referrer | 1対多 | RESTRICT（削除不可） |
-| CompanyBranch | Referrer | 1対多 | SET NULL（FKをnullに） |
-| Assignee | InheritanceCase | 1対多（担当） | SET NULL（FKをnullに） |
-| Assignee | InheritanceCase | 1対多（社内紹介） | SET NULL（FKをnullに） |
-| Referrer | InheritanceCase | 1対多 | SET NULL（FKをnullに） |
-| Person | CaseContact | 1対多 | RESTRICT（削除不可） |
-| InheritanceCase | CaseContact | 1対多 | CASCADE（子も削除） |
-| InheritanceCase | CaseProgress | 1対多 | CASCADE（子も削除） |
-| InheritanceCase | CaseExpense | 1対多 | CASCADE（子も削除） |
-
-## 設計パターン
-
-- **サービス層分離**: APIルートはバリデーション+レスポンス生成のみの薄いラッパーとし、ビジネスロジックを `lib/services/`（case-service / backup-service / template-service）に集約
-- **CRUDルートファクトリ**: `createCrudRouteHandlers()` で部署・会社・担当者・紹介者のAPIルートを共通生成（`include`オプション対応）
-- **CRUDクライアントファクトリ**: `crud-factory.ts` でフロントエンドAPIクライアントを共通生成、`masters.ts` で6マスタ（会社/部署/担当者/紹介者/部門/人物）を統合
-- **マスタ編集共通化**: `MasterListPage` + `useMasterList` でマスタ管理画面の編集UIを共通化（groupByによるグループ表示対応）。人物マスタは `MasterListPage` パターンで実装
-- **where句ビルダー共通化**: `buildCaseWhereClause()` で案件一覧取得と一括削除のフィルタ条件構築を共通化
-- **マスタ自動作成**: CSVインポート時に未登録のDepartment/Company/CompanyBranch/Assignee/Referrerを `resolveOrCreateByName` ジェネリック関数で自動作成（`lib/import/master-resolver.ts` に分離）。プレビュー画面で自動作成対象を一覧表示
-- **リストアのデータ駆動化**: `TABLE_DEFS` 配列でテーブル定義・行変換・シーケンス名を一元管理し、ループで全テーブルを処理
-- **ステータス⇔進捗連動**: `STATUS_STEP_MAP` + `STATUS_ORDER` + `STEP_NAMES` で一元管理、進捗モーダル保存時・案件詳細保存時の双方向整合性チェック
-- **ステータス⇔完了日自動連動**: ステータスが完了系（`COMPLETED_STATUSES`）または対応状況が対応終了/対応終了（未分割）に変更されると `caseCompletedDate` を自動設定（既設定時は保持）、非完了に戻すとクリア。受託状況を「受託」に変更すると `caseAddedDate` を自動設定（既設定時は保持）。「対応外」は完了日トリガーの対象外
-- **TanStack Query**: サーバーステート管理（キャッシュ・再取得・楽観的更新）
-- **Zodバリデーション**: リクエストボディの型安全な検証
-- **フィルタ定数一元管理**: `FILTER_KEYS` でフィルタキーを一元管理し、hasFilters判定・KPI依存・フィルタUI定義を自動化
-- **ステータスカテゴリ定数**: `COMPLETED_STATUSES`（申告完了系）/ `DEADLINE_SKIP_STATUSES`（期限チェック対象外）/ `HANDLING_STATUS_VALUES`（対応状況）で判定ロジックを一元管理
-- **コンポーネント分割**: フォームを4セクション（BasicInfo/Financial/Progress/Contact）に分割、CSV取込モーダルを4ステップコンポーネント（FileSelect/Preview/Importing/Done）に分割
-- **セルファクトリ**: `statusCell()` でステータスバッジ列の定義を共通化、`formatDate()` で日付フォーマットを統一
-- **マスタ取得共通化**: `useAsyncMasters` フックで担当者・部署の非同期取得パターンを一元化
-- **モジュール分割**: `import-csv.ts`（629行）→ `lib/import/`（types/parser/converters/validator/master-resolver）、`analytics-utils.ts`（217行）→ `lib/analytics/`（calculations/aggregations）に分割し、旧ファイルは後方互換re-exportとして維持。ファイルデコード（`decodeCSVFile`）はparser.tsに、マスタ解決関数群はmaster-resolver.tsに責務分離
-- **人物マスタ分離（CRM化）**: 連絡先データを Person マスタに集約し、CaseContact をジャンクションテーブルに変更。CSV インポートの後方互換性を `resolveContacts()` で維持（`{ name, phone, ... }` 形式から自動で Person を find-or-create）
-- **会社マージ**: `merge-service.ts` でトランザクション内の3段階処理（部門移行→紹介者移行→ソース無効化）。部門名重複時はIDマッピングで紹介者を再割当て、紹介者重複時は案件FKを付替え
-- **監査ログ**: `audit-service.ts` で案件の CREATE/UPDATE/DELETE をスカラー差分付きで記録（`diffScalar` で変更前後を比較）
-- **DB正規化**: Department・Company・CompanyBranch・Person テーブル分離（3NF）、Assignee.departmentId / Referrer.companyId + branchId / CaseContact.personId でFK参照。紹介元の部門はCompanyBranchマスタで管理（表記ゆれ防止）。社内紹介者はAssigneeテーブルで一元管理（InheritanceCase.internalReferrerId → Assignee）
-- **CHECK制約**: status / handlingStatus / acceptanceStatus の有効値をDBレベルで強制
-- **Date変換ヘルパー**: `toDate` / `toDateStr` / `serializeCase` でAPI境界のDate↔文字列変換を一元化
-- **楽観ロック**: `updatedAt` ベースの Optimistic Locking で同時編集を検知
-- **和暦変換**: `toWareki()` / `formatDateWithWareki()` で令和/平成/昭和/大正/明治を自動判定し、日付表示に和暦を併記
-- **未保存変更検知**: `useUnsavedChanges` フックでJSON比較によるdirty state管理 + `beforeunload` 警告。保存後は `resetBaseline()` でベースラインリセット
-- **セクション開閉管理**: `useSectionState` フックでフォームセクションの展開/折りたたみを管理（localStorage永続化、すべて開く/閉じる一括切替、プログラム的な `open` メソッドでステータス変更時の自動展開に対応）
-- **動的入力ガイド**: 完了ステータス＋報酬額未入力を導出状態として検出し、金額セクション自動展開＋アンバーハイライト＋ヒントテキストで入力を誘導。概算報酬算出時はサジェストバナーも表示
-- **Excel出力テンプレート方式**: `estimate_template.xlsx` で見積書・請求書を共通生成（請求書は7セル上書き + シートタブ名変更）、`invoice_request_template.xlsx` で請求書発行依頼票を生成（担当者・請求先・紹介者・売上/紹介料・立替金をセル転記）。TEMPLATE_FILESマップでdocType→テンプレートファイルを管理。テンプレート未配置時はエラー
-- **報酬計算ロジック**: `calcEstimate()` で基本報酬+各種加算を算出、「見積額に反映」「報酬額に反映」ボタンで明示的に転記（自動転記なし）。転記時は紹介料率から対象ベースの紹介料額も再計算し、見積紹介料0円の手入力は明示値として尊重
-- **フィルタURL同期**: `useSearchParams` + `router.replace` でフィルタ状態をURLクエリパラメータに双方向同期、`popstate` リスナーでブラウザバック復元
-- **紹介者2段階解決**: `buildResolverMaps` で会社+部署 / 会社（一意時のみ）の2段階キーを構築、CSV取込時の社外紹介者マッチングの正確性を向上
-- **社内/社外紹介者分離**: 社内紹介者は `Assignee` テーブルで管理（`internalReferrerId`）、社外紹介者は `Referrer` テーブルで管理（`referrerId`）。同一人物の重複管理を排除
-- **紹介料の社内/社外分離**: `calcReferralFee` で紹介料算出、`calcNet` は社外紹介料のみ控除（会社純売上）、担当者個人集計では全紹介料を控除
-- **集計の確定/見込分離**: 担当者・部門・紹介者の集計で確定額（完了案件の報酬額ベース）と見込額（手続中案件の見積額ベース）を分けて積み上げ、UIで内訳表示。未着手・見送りは集計対象外
-- **MasterSelect groupBy**: `groupBy` プロパティでoptgroupグループ化を汎用対応（`key`でグループ名、`sortOrder`で表示順を指定）
-- **年度ピルUI**: `selectedYears: Set<number>` で複数年度をトグル選択、`isAllYears` フラグで全期間表示を制御
-- **部門→担当者階層構築**: `assigneesData` と `assigneeRanking` をマージし、部門sortOrder順・担当者id順で階層グループを構築
-- **ランキングソートフック**: `useRankingSort` で汎用的なソート状態管理（key/direction切替）を提供
-
-## クイックスタート
-
-### 前提条件
-
-- Docker & Docker Compose
-
-### 開発環境の起動
+### 単体起動
 
 ```bash
-# 1. 環境変数を設定
-cp .env.example .env
-
-# 2. 開発環境を起動
-docker compose up --build
-
-# 3. ブラウザでアクセス
-# Web + API: http://localhost:3020
+cd C:\Users\sashi\Desktop\dev\tax_apps\apps\inheritance-case-management
+docker compose up -d
 ```
 
-### 本番環境の起動
+アクセス:
 
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+```text
+http://localhost:3020/itcm/
 ```
 
-> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/itcm/ からアクセスできます。
+PostgreSQL:
 
-## ポート設定
+```text
+localhost:3022
+```
 
-| サービス | ポート | URL |
-|---------|--------|-----|
-| Web + API | 3020 | http://localhost:3020 |
-| PostgreSQL | 3022 | localhost:3022 |
-
-## 開発コマンド
+事前に共有ネットワークが必要です。
 
 ```bash
-# コンテナに入ってコマンド実行
-docker exec -it itcm-frontend sh
+docker network create tax-apps-network
+```
 
-# Prisma Studio（DB GUI）
-docker exec -it itcm-frontend npx prisma studio
+すでに存在する場合、このコマンドは不要です。
 
-# マイグレーション実行
-docker exec -it itcm-frontend npx prisma migrate deploy
+### 統合管理スクリプト
 
-# ログ確認
+`tax_apps/docker/scripts/manage.bat` または `manage.sh` から操作できます。
+
+```bash
+cd C:\Users\sashi\Desktop\dev\tax_apps
+docker\scripts\manage.bat build inheritance-case-management
+docker\scripts\manage.bat restart inheritance-case-management
+docker\scripts\manage.bat logs inheritance-case-management
+```
+
+Git Bash 経由:
+
+```bash
+"C:\Program Files\Git\bin\bash.exe" "C:\Users\sashi\Desktop\dev\tax_apps\docker\scripts\manage.sh" build inheritance-case-management
+```
+
+Gateway 経由で起動している場合:
+
+```text
+http://localhost/itcm/
+```
+
+## よく使う Docker コマンド
+
+```bash
+# 起動
+docker compose up -d
+
+# 再ビルド
+docker compose up -d --build
+
+# ログ
 docker compose logs -f web
 
-# コンテナ停止
+# 停止
 docker compose down
 
-# データも含めて削除
+# DBボリュームも含めて削除
 docker compose down -v
+
+# Webコンテナに入る
+docker exec -it itcm-frontend sh
+
+# Prisma migrate deploy
+docker exec -it itcm-frontend npx prisma migrate deploy
+
+# Prisma Studio
+docker exec -it itcm-frontend npx prisma studio
 ```
 
-## マイグレーション運用ルール
+## 変更反映の目安
 
-### 基本方針
+| 変更内容 | 開発モード |
+| --- | --- |
+| `web/src/` | コンテナ内 Next.js が反映 |
+| `web/public/` | コンテナ内 Next.js が反映 |
+| `web/prisma/` | マイグレーションまたは Prisma generate が必要 |
+| `templates/` | コンテナへ読み取り専用マウント |
+| `web/package.json` | 再ビルド |
+| `Dockerfile`, `docker-compose.yml` | 再ビルド |
 
-スキーマ変更は必ず **マイグレーションファイル経由** で行う。`prisma db push` は使用しない。
+## 型チェック
+
+ローカルを汚さず Docker イメージ内で確認する例:
 
 ```bash
-# スキーマ変更の手順
-# 1. schema.prisma を編集
-# 2. マイグレーションファイルを生成（Docker内で実行）
-docker exec -it itcm-frontend npx prisma migrate dev --name <変更内容>
-# 3. 生成されたSQLを確認し、コミット
+docker run --rm --entrypoint sh ^
+  -v C:\Users\sashi\Desktop\dev\tax_apps\apps\inheritance-case-management\web\src:/app/src:ro ^
+  -v C:\Users\sashi\Desktop\dev\tax_apps\apps\inheritance-case-management\web\prisma:/app/prisma:ro ^
+  -w /app inheritance-case-management-web ^
+  -c "npx tsc --noEmit --incremental false"
 ```
 
-### 禁止事項
+PowerShell では行継続をバッククォートに置き換えてください。
+
+## Prisma 運用ルール
+
+スキーマ変更は必ずマイグレーションファイル経由で行います。`prisma db push` は使いません。
+
+```bash
+# 1. web/prisma/schema.prisma を変更
+# 2. コンテナ内でマイグレーション生成
+docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
+
+# 3. 生成されたSQLを確認
+# 4. migration ファイルをコミット
+```
+
+禁止事項:
 
 | 操作 | 理由 |
-|------|------|
-| `prisma db push` | マイグレーション履歴に記録されず、他環境で `migrate deploy` 時にエラーになる |
-| マイグレーションSQLの手動編集（生成後） | 履歴のチェックサムと不一致になり、全環境でエラーになる |
-| マイグレーションファイルの削除 | 適用済み環境との履歴不整合が発生する |
+| --- | --- |
+| `prisma db push` | マイグレーション履歴に残らず、他環境で不整合が起きる |
+| 適用済み migration の削除 | 本番/共有環境の履歴と合わなくなる |
+| 生成後 migration SQL の不用意な手編集 | checksum 不一致の原因になる |
 
-### docker-entrypoint.sh のエラー診断
+## 主要 API
 
-コンテナ起動時に `prisma migrate deploy` が自動実行される。失敗した場合、エラー種別に応じた対処法が表示される。
+| API | 概要 |
+| --- | --- |
+| `GET /itcm/api/health` | ヘルスチェック |
+| `/itcm/api/cases` | 案件一覧、作成 |
+| `/itcm/api/cases/[id]` | 案件詳細、更新、削除 |
+| `/itcm/api/cases/bulk-upsert` | CSV取込用の一括作成/更新 |
+| `/itcm/api/cases/bulk-delete` | フィルター条件に一致する案件の一括削除 |
+| `/itcm/api/assignees` | 担当者 |
+| `/itcm/api/departments` | 部署 |
+| `/itcm/api/companies` | 会社 |
+| `/itcm/api/company-branches` | 会社部門 |
+| `/itcm/api/referrers` | 社外紹介者 |
+| `/itcm/api/persons` | 人物 |
+| `/itcm/api/backup` | JSONバックアップ |
+| `/itcm/api/backup/restore` | JSONリストア |
+| `/itcm/api/templates/generate` | 帳票生成 |
 
-| エラー | 原因 | 表示される対処法 |
-|--------|------|-----------------|
-| DB接続エラー | PostgreSQL未起動 | `docker compose ps` で確認 → `docker compose up -d postgres` |
-| カラム/テーブル既存（42701/42P07） | `db push` で先にスキーマが適用済み | `prisma migrate resolve --applied <マイグレーション名>` で履歴を同期 |
-| 履歴不整合（P3009/P3012） | マイグレーションファイルの編集・削除 | `prisma migrate reset`（開発環境のみ、全データ削除） |
+## データモデル概要
 
-**対処例（カラム既存エラー）:**
+| モデル | 役割 |
+| --- | --- |
+| `InheritanceCase` | 案件本体 |
+| `CaseProgress` | 案件の進捗工程 |
+| `CaseExpense` | 立替金 |
+| `CaseContact` | 案件と人物の紐付け |
+| `Person` | 連絡先人物マスタ |
+| `Assignee` | 担当者、社内紹介者 |
+| `Department` | 担当者の部署 |
+| `Company` | 紹介会社 |
+| `CompanyBranch` | 紹介会社の部門 |
+| `Referrer` | 社外紹介者 |
+| `AuditLog` | 監査ログ |
 
-```bash
-# エラーログでマイグレーション名を確認
-docker logs itcm-frontend
+主な関連:
 
-# 履歴を同期
-docker exec itcm-frontend npx prisma migrate resolve --applied <マイグレーション名>
+- `InheritanceCase.assigneeId` -> `Assignee`
+- `InheritanceCase.internalReferrerId` -> `Assignee`
+- `InheritanceCase.referrerId` -> `Referrer`
+- `Assignee.departmentId` -> `Department`
+- `Referrer.companyId` -> `Company`
+- `Referrer.branchId` -> `CompanyBranch`
+- `CaseContact.personId` -> `Person`
 
-# コンテナを再起動
-docker compose restart itcm-frontend
-```
+## 関連ファイル
+
+| ファイル | 役割 |
+| --- | --- |
+| `web/src/lib/services/case-service.ts` | 案件取得、更新、検索条件構築 |
+| `web/src/lib/analytics/` | 経営分析の計算、集計 |
+| `web/src/lib/import/` | CSV取込、検証、マスタ解決 |
+| `web/src/lib/export-csv.ts` | CSV出力 |
+| `web/src/lib/services/template-service.ts` | Excel帳票生成 |
+| `web/src/lib/services/backup-service.ts` | バックアップ、リストア |
+| `web/src/types/constants.ts` | ステータス、フィルター、選択肢定義 |
+| `web/src/types/validation.ts` | Zodスキーマ |
+| `web/prisma/schema.prisma` | DBスキーマ |
+
+## ライセンス
+
+(C) 2026 税理士法人マスエージェント

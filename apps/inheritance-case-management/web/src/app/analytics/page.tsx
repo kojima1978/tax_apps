@@ -5,8 +5,7 @@ import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
 import type { InheritanceCase, Assignee } from "@/types/shared"
 import type { RankingData } from "@/lib/analytics-utils"
-import { calcNet, calcReferralFee, aggregateCases, computeRollingAnnual } from "@/lib/analytics-utils"
-import { isCompleted } from "@/types/constants"
+import { calcNet, calcReferralFee, getAnalyticsBaseType, aggregateCases, computeRollingAnnual } from "@/lib/analytics-utils"
 import { RefreshCw } from "lucide-react"
 import { useRankingSort } from "@/hooks/use-ranking-sort"
 import { OverviewTab } from "./OverviewTab"
@@ -126,41 +125,46 @@ export default function AnalyticsPage() {
 
     const summaryTotals = useMemo(() => {
         const acceptedCases = filteredData.filter(c => c.acceptanceStatus === "受託")
-        const completedCases = acceptedCases.filter(c => isCompleted(c.status))
-        const ongoingCases = acceptedCases.filter(c => c.status === "手続中")
 
-        const salesTotalNet = completedCases.reduce((sum, c) => sum + calcNet(c, "fee"), 0)
-        const salesTotalGross = completedCases.reduce((sum, c) => sum + (c.feeAmount || 0), 0)
-        const estimateTotalNet = ongoingCases.reduce((sum, c) => sum + calcNet(c, "estimate"), 0)
-        const estimateTotalGross = ongoingCases.reduce((sum, c) => sum + (c.estimateAmount || 0), 0)
+        let salesTotalNet = 0, salesTotalGross = 0, salesCount = 0
+        let estimateTotalNet = 0, estimateTotalGross = 0, estimateCount = 0
+        let salesReferralInternal = 0, salesReferralExternal = 0
+        let estimateReferralInternal = 0, estimateReferralExternal = 0
 
-        const calcInternalExternal = (cases: InheritanceCase[], baseType: "fee" | "estimate") => {
-            let internal = 0, external = 0
-            for (const c of cases) {
-                const fee = calcReferralFee(c, baseType)
-                if (fee === 0) continue
-                if (c.internalReferrerId != null) {
-                    internal += fee
-                } else {
-                    external += fee
-                }
+        for (const c of acceptedCases) {
+            const baseType = getAnalyticsBaseType(c)
+            if (!baseType) continue
+
+            const net = calcNet(c, baseType)
+            const gross = baseType === "fee" ? (c.feeAmount || 0) : (c.estimateAmount || 0)
+            const referral = calcReferralFee(c, baseType)
+            const isInternal = c.internalReferrerId != null
+
+            if (baseType === "fee") {
+                salesTotalNet += net
+                salesTotalGross += gross
+                salesCount++
+                if (isInternal) salesReferralInternal += referral
+                else salesReferralExternal += referral
+            } else {
+                estimateTotalNet += net
+                estimateTotalGross += gross
+                estimateCount++
+                if (isInternal) estimateReferralInternal += referral
+                else estimateReferralExternal += referral
             }
-            return { internal, external }
         }
 
-        const salesReferral = calcInternalExternal(completedCases, "fee")
-        const estimateReferral = calcInternalExternal(ongoingCases, "estimate")
-
         return {
-            salesTotalNet, salesTotalGross, salesCount: completedCases.length,
-            salesReferralInternal: salesReferral.internal, salesReferralExternal: salesReferral.external,
-            estimateTotalNet, estimateTotalGross, estimateCount: ongoingCases.length,
-            estimateReferralInternal: estimateReferral.internal, estimateReferralExternal: estimateReferral.external,
+            salesTotalNet, salesTotalGross, salesCount,
+            salesReferralInternal, salesReferralExternal,
+            estimateTotalNet, estimateTotalGross, estimateCount,
+            estimateReferralInternal, estimateReferralExternal,
             grandTotalNet: salesTotalNet + estimateTotalNet,
             grandTotalGross: salesTotalGross + estimateTotalGross,
-            grandCount: completedCases.length + ongoingCases.length,
-            grandReferralInternal: salesReferral.internal + estimateReferral.internal,
-            grandReferralExternal: salesReferral.external + estimateReferral.external,
+            grandCount: salesCount + estimateCount,
+            grandReferralInternal: salesReferralInternal + estimateReferralInternal,
+            grandReferralExternal: salesReferralExternal + estimateReferralExternal,
         }
     }, [filteredData])
 

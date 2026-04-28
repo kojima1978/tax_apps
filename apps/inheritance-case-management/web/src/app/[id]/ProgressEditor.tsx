@@ -54,6 +54,7 @@ interface ProgressEditorProps {
     isCreateMode?: boolean
     handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
+    onNeedsConfirmedFee?: () => void
 }
 
 function SortableStep({
@@ -166,7 +167,15 @@ function SortableStep({
     )
 }
 
-export function ProgressEditor({ progress, onChange, formData, isCreateMode, handleChange, setFormData }: ProgressEditorProps) {
+export function ProgressEditor({
+    progress,
+    onChange,
+    formData,
+    isCreateMode,
+    handleChange,
+    setFormData,
+    onNeedsConfirmedFee,
+}: ProgressEditorProps) {
     const {
         sensors, stepIds, checkedIds,
         handleStepChange, toggleCheck, setTodayForChecked, handleDragEnd,
@@ -194,6 +203,7 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
         const val = e.target.value
         handleChange(e)
         if ((COMPLETED_STATUSES as readonly string[]).includes(val)) {
+            if (!formData.feeAmount) onNeedsConfirmedFee?.()
             setFormData(prev => (prev.caseCompletedDate ? prev : { ...prev, caseCompletedDate: todayIsoDate() }))
         }
     }
@@ -202,11 +212,15 @@ export function ProgressEditor({ progress, onChange, formData, isCreateMode, han
         const val = e.target.value
         handleChange(e)
         if (isCompletedHandlingStatus(val)) {
+            if (!formData.feeAmount) onNeedsConfirmedFee?.()
             setFormData(prev => (prev.caseCompletedDate ? prev : { ...prev, caseCompletedDate: todayIsoDate() }))
         }
     }
 
     const setDateField = (field: "caseAddedDate" | "caseCompletedDate", value: string | null) => {
+        if (field === "caseCompletedDate" && value && !formData.feeAmount) {
+            onNeedsConfirmedFee?.()
+        }
         setFormData(prev => ({ ...prev, [field]: value }))
     }
 

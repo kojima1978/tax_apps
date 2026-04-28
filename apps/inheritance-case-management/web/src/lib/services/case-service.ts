@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
-import { COMPLETED_STATUSES } from '@/types/constants';
+import { ACCEPTANCE_STATUS_OPTIONS, COMPLETED_STATUSES, HANDLING_STATUS_OPTIONS } from '@/types/constants';
 import { writeAuditLog, diffScalar } from './audit-service';
 
 type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
@@ -9,6 +9,12 @@ type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$trans
 function todayDate(): Date {
   const d = new Date();
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
+function addMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
 }
 
 type ContactInput = { personId: number; memo?: string };
@@ -50,6 +56,7 @@ export function buildCaseWhereClause(params: {
   referrerCompany?: string;
   unassigned?: boolean;
   noReferrer?: boolean;
+  deadlineSoon?: boolean;
   department?: string;
   caseAddedFrom?: string;
   caseAddedTo?: string;
@@ -69,6 +76,7 @@ export function buildCaseWhereClause(params: {
     referrerCompany,
     unassigned,
     noReferrer,
+    deadlineSoon,
     department,
     caseAddedFrom,
     caseAddedTo,
@@ -114,6 +122,23 @@ export function buildCaseWhereClause(params: {
   }
   if (department) {
     where.assignee = { department: { name: department } };
+  }
+  if (deadlineSoon) {
+    const now = new Date();
+    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const existingAnd = Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : [];
+    where.AND = [
+      ...existingAnd,
+      { acceptanceStatus: ACCEPTANCE_STATUS_OPTIONS[1] },
+      { status: { notIn: [...COMPLETED_STATUSES] } },
+      { handlingStatus: HANDLING_STATUS_OPTIONS[0] },
+      {
+        dateOfDeath: {
+          gt: addMonths(now, -10),
+          lte: addMonths(in30Days, -10),
+        },
+      },
+    ];
   }
   if (caseAddedFrom || caseAddedTo) {
     where.caseAddedDate = {

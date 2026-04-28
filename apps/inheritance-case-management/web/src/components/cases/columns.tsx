@@ -2,7 +2,8 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import type { InheritanceCase, CaseStatus, AcceptanceStatus, HandlingStatus } from "@/types/shared"
-import { formatCurrency, formatDateWithWareki, calcNet, toWareki } from "@/lib/analytics-utils"
+import { formatCurrency, formatDateWithWareki, toWareki } from "@/lib/analytics-utils"
+import { calcGrossAmount } from "@/lib/case-amount-utils"
 import { STATUS_STYLES, HANDLING_STATUS_STYLES, ACCEPTANCE_STYLES } from "@/types/constants"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SortableHeader, SortIcon } from "@/components/ui/SortableHeader"
@@ -187,27 +188,27 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
         cell: ({ row }) => {
             const c = row.original
             const hasFee = (c.feeAmount || 0) > 0
-            const feeNet = calcNet(c, "fee")
-            const estNet = calcNet(c, "estimate")
+            const feeGross = calcGrossAmount(c, "fee")
+            const estGross = calcGrossAmount(c, "estimate")
             return (
                 <div className="text-right leading-tight">
                     {hasFee ? (
                         <>
                             <div className="text-xs font-medium text-black">
                                 <span className="text-[10px] mr-0.5">確定</span>
-                                {formatCurrency(feeNet)}
+                                {formatCurrency(feeGross)}
                             </div>
-                            {estNet > 0 && (
+                            {estGross > 0 && (
                                 <div className="mt-0.5 text-[11px] text-muted-foreground">
                                     <span className="text-[10px] mr-0.5">見込</span>
-                                    {formatCurrency(estNet)}
+                                    {formatCurrency(estGross)}
                                 </div>
                             )}
                         </>
                     ) : (
                         <div className="text-xs font-medium text-foreground">
                             <span className="text-[10px] mr-0.5">見込</span>
-                            {formatCurrency(estNet)}
+                            {formatCurrency(estGross)}
                         </div>
                     )}
                 </div>

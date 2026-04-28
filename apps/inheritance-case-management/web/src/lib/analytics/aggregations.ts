@@ -2,7 +2,7 @@ import type { InheritanceCase } from "@/types/shared"
 import { formatReferrerLabel } from "@/types/shared"
 import { isCompleted } from "@/types/constants"
 import { STEP_NAMES } from "../progress-utils"
-import { calcNet, calcNetPersonal, calcReferralFee, LABEL_NONE, LABEL_UNSET } from "./calculations"
+import { calcNet, calcNetPersonal, calcReferralFee, getAnalyticsBaseType, LABEL_NONE, LABEL_UNSET } from "./calculations"
 
 export type AnnualData = {
     year: number
@@ -131,14 +131,14 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
         }
         const annual = annualMap.get(year)!
 
-        if (c.acceptanceStatus === "受託") {
-            if (isCompleted(c.status)) {
-                annual.feeTotal += calcNet(c, "fee")
-                annual.count++
-            } else if (c.status === "手続中") {
-                annual.estimateTotal += calcNet(c, "estimate")
-                annual.count++
-            }
+        const baseType = getAnalyticsBaseType(c)
+
+        if (baseType === "fee") {
+            annual.feeTotal += calcNet(c, "fee")
+            annual.count++
+        } else if (baseType === "estimate") {
+            annual.estimateTotal += calcNet(c, "estimate")
+            annual.count++
         }
 
         if (c.acceptanceStatus === "受託") {
@@ -154,15 +154,9 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
 
         let personalNet = 0
         let referralFee = 0
-        let baseType: "fee" | "estimate" | null = null
-        if (isCompleted(c.status)) {
-            baseType = "fee"
-            personalNet = calcNetPersonal(c, "fee")
-            referralFee = calcReferralFee(c, "fee")
-        } else if (c.status === "手続中" && c.acceptanceStatus === "受託") {
-            baseType = "estimate"
-            personalNet = calcNetPersonal(c, "estimate")
-            referralFee = calcReferralFee(c, "estimate")
+        if (baseType) {
+            personalNet = calcNetPersonal(c, baseType)
+            referralFee = calcReferralFee(c, baseType)
         }
 
         const initRanking = (name: string): RankingData => ({ name, feeTotal: 0, count: 0, assignedFee: 0, assignedCount: 0, referralFee: 0, referralCount: 0, confirmedFee: 0, estimateFee: 0, assignedConfirmedFee: 0, assignedEstimateFee: 0, referralConfirmedFee: 0, referralEstimateFee: 0 })

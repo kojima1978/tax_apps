@@ -12,7 +12,8 @@ import type { InheritanceCase } from "@/types/shared"
 import { useAsyncMasters } from "@/hooks/use-async-masters"
 import { computeKPI } from "@/lib/kpi-utils"
 import { FILTER_KEYS } from "@/types/constants"
-import { calcNet, calcBestNet, formatCurrency } from "@/lib/analytics-utils"
+import { formatCurrency } from "@/lib/analytics-utils"
+import { calcBestGrossAmount, calcGrossAmount } from "@/lib/case-amount-utils"
 import { Button } from "@/components/ui/Button"
 import { RefreshCw, Download, Upload, Trash2 } from "lucide-react"
 import { TableSkeleton } from "@/components/ui/Skeleton"
@@ -26,6 +27,7 @@ import { ImportCSVModal } from "@/components/ImportCSVModal"
 import { BulkDeleteModal } from "@/components/BulkDeleteModal"
 
 const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedFrom", "caseCompletedTo"] as const
+const KPI_QUICK_FILTER_KEYS = ["deadlineSoon", ...DATE_FILTER_KEYS] as const
 
 function formatDateOnly(date: Date): string {
     const year = date.getFullYear()
@@ -42,14 +44,15 @@ function getThisMonthRange(): { from: string; to: string } {
 }
 
 function getActiveKpiFilter(params: CasesQueryParams): KPICardFilterKey | null {
+    if (params.deadlineSoon) return "deadlineSoon"
     const { from, to } = getThisMonthRange()
     if (params.caseAddedFrom === from && params.caseAddedTo === to) return "addedThisMonth"
     if (params.caseCompletedFrom === from && params.caseCompletedTo === to) return "completedThisMonth"
     return null
 }
 
-function isDateFilterKey(key: keyof CasesQueryParams): key is (typeof DATE_FILTER_KEYS)[number] {
-    return (DATE_FILTER_KEYS as readonly string[]).includes(key as string)
+function isKpiQuickFilterKey(key: keyof CasesQueryParams): key is (typeof KPI_QUICK_FILTER_KEYS)[number] {
+    return (KPI_QUICK_FILTER_KEYS as readonly string[]).includes(key as string)
 }
 
 /** URLクエリパラメータからCasesQueryParamsを復元 */
@@ -77,6 +80,7 @@ function parseUrlParams(searchParams: URLSearchParams): CasesQueryParams {
     if (referrerCompany) params.referrerCompany = referrerCompany
     if (searchParams.get("unassigned") === "true") params.unassigned = true
     if (searchParams.get("noReferrer") === "true") params.noReferrer = true
+    if (searchParams.get("deadlineSoon") === "true") params.deadlineSoon = true
     for (const key of DATE_FILTER_KEYS) {
         const val = searchParams.get(key)
         if (val) params[key] = val
@@ -111,6 +115,7 @@ function toUrlSearch(params: CasesQueryParams): string {
     if (params.referrerCompany) sp.set("referrerCompany", params.referrerCompany)
     if (params.unassigned) sp.set("unassigned", "true")
     if (params.noReferrer) sp.set("noReferrer", "true")
+    if (params.deadlineSoon) sp.set("deadlineSoon", "true")
     for (const key of DATE_FILTER_KEYS) {
         if (params[key]) sp.set(key, params[key])
     }
@@ -171,17 +176,17 @@ function InheritanceMockupPageContent() {
     const sortedCases = useMemo(() => {
         if (!amountSort) return cases
         return [...cases].sort((a, b) => {
-            const aNet = calcBestNet(a)
-            const bNet = calcBestNet(b)
-            return amountSort === "asc" ? aNet - bNet : bNet - aNet
+            const aAmount = calcBestGrossAmount(a)
+            const bAmount = calcBestGrossAmount(b)
+            return amountSort === "asc" ? aAmount - bAmount : bAmount - aAmount
         })
     }, [cases, amountSort])
 
     const amountTotals = useMemo(() => {
         let confirmed = 0, estimate = 0
         cases.forEach(c => {
-            if ((c.feeAmount || 0) > 0) confirmed += calcNet(c, "fee")
-            else estimate += calcNet(c, "estimate")
+            if ((c.feeAmount || 0) > 0) confirmed += calcGrossAmount(c, "fee")
+            else estimate += calcGrossAmount(c, "estimate")
         })
         return { confirmed, estimate, total: confirmed + estimate }
     }, [cases])
@@ -192,7 +197,7 @@ function InheritanceMockupPageContent() {
     // KPI data & assignees
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
     const dataVersion = data?.pagination?.total
-    const kpiFilters = Object.fromEntries(FILTER_KEYS.filter(k => !isDateFilterKey(k) && queryParams[k]).map(k => [k, queryParams[k]]))
+    const kpiFilters = Object.fromEntries(FILTER_KEYS.filter(k => !isKpiQuickFilterKey(k) && queryParams[k]).map(k => [k, queryParams[k]]))
     const kpiDepsKey = JSON.stringify(kpiFilters)
     const refreshKPI = () => getAllCases(Object.keys(kpiFilters).length > 0 ? kpiFilters : undefined).then(setAllCases).catch(() => {})
     useEffect(() => {
@@ -228,10 +233,14 @@ function InheritanceMockupPageContent() {
                 caseAddedTo: undefined,
                 caseCompletedFrom: undefined,
                 caseCompletedTo: undefined,
+                deadlineSoon: undefined,
                 page: 1,
             }
 
             if (isActive) return next
+            if (filter === "deadlineSoon") {
+                return { ...next, deadlineSoon: true }
+            }
             if (filter === "addedThisMonth") {
                 return { ...next, caseAddedFrom: from, caseAddedTo: to }
             }

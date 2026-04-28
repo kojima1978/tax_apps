@@ -84,7 +84,13 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         const { name, value } = e.target
         const numericFields = ["taxAmount", "feeAmount", "fiscalYear"]
         const fkFields = ["assigneeId", "internalReferrerId", "referrerId"]
-        if (name === "status" && (COMPLETED_STATUSES as readonly string[]).includes(value) && !formData.feeAmount) {
+        if (
+            (
+                name === "status" && (COMPLETED_STATUSES as readonly string[]).includes(value)
+                || name === "caseCompletedDate" && value
+            )
+            && !formData.feeAmount
+        ) {
             sections.open("financial")
         }
         setFormData((prev) => ({
@@ -193,7 +199,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     }
 
     const returnToPath = isCreateMode ? '/new' : `/${formData.id}`
-    const highlightFee = (COMPLETED_STATUSES as readonly string[]).includes(formData.status) && !formData.feeAmount
+    const needsConfirmedFee =
+        ((COMPLETED_STATUSES as readonly string[]).includes(formData.status) || !!formData.caseCompletedDate)
+        && !formData.feeAmount
 
     const netRevenue = useMemo(() =>
         (formData.feeAmount || 0) - (formData.referralFeeAmount || 0),
@@ -246,6 +254,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         isCreateMode={isCreateMode}
                         handleChange={handleChange}
                         setFormData={setFormData}
+                        onNeedsConfirmedFee={() => sections.open("financial")}
                     />
                 </CollapsibleSection>
             )}
@@ -258,7 +267,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 onToggle={() => sections.toggle("financial")}
                 currencyChange={currencyChange}
                 setFormData={setFormData}
-                highlightFee={highlightFee}
+                highlightFee={needsConfirmedFee}
             />
 
             <CollapsibleSection title="立替金" icon={Receipt} isOpen={sections.isOpen("expenses")} onToggle={() => sections.toggle("expenses")} badge={`${(formData.expenses || []).length}件`}>
