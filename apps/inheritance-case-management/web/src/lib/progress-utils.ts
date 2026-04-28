@@ -2,9 +2,9 @@ import type { ProgressStep, CaseStatus } from '@/types/shared';
 
 /** 進捗ステップ名定数（ProgressModal, analytics-utils, edit-case-form で参照） */
 export const STEP_NAMES = {
-  FILING: '申告済',
-  BILLING: '請求済',
-  PAYMENT: '入金済',
+  FILING: '税務申告完了',
+  BILLING: '請求書発送完了',
+  PAYMENT: '入金確認完了',
 } as const;
 
 /** ステータスと進捗ステップの対応マッピング（整合性チェック・自動変更提案で使用） */
@@ -23,7 +23,7 @@ export const DEFAULT_PROGRESS_STEPS: readonly ProgressStep[] = [
   { id: "step-2", name: "初回面談", date: null },
   { id: "step-3", name: "2回目訪問", date: null },
   { id: "step-8", name: "最終チェック完了", date: null },
-  { id: "step-4", name: "遺産分割（済）", date: null },
+  { id: "step-4", name: "遺産分割協議完了", date: null },
   { id: "step-5", name: STEP_NAMES.FILING, date: null },
   { id: "step-6", name: STEP_NAMES.BILLING, date: null },
   { id: "step-7", name: STEP_NAMES.PAYMENT, date: null },

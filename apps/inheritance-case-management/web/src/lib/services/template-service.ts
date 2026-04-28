@@ -45,6 +45,7 @@ export interface GenerateTemplateInput {
   discount: number;
   expensesTotal: number;
   specialAdditions?: { description: string; amount: number }[];
+  documentAmount?: number;
   // invoice-request 用
   assigneeName?: string;
   referrerName?: string;
@@ -66,6 +67,7 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
 
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(templatePath);
+  workbook.calcProperties.fullCalcOnLoad = true;
 
   const tmpPath = path.join('/tmp', `_tmp_${Date.now()}.xlsx`);
   const ws = workbook.getWorksheet(1);
@@ -80,6 +82,9 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
       for (const [cell, value] of Object.entries(INVOICE_OVERRIDES)) {
         ws.getCell(cell).value = value;
       }
+      const expenseTitleCell = ws.getCell('B42');
+      expenseTitleCell.value = ' ４．立替金費用';
+      expenseTitleCell.font = { ...expenseTitleCell.font, name: 'ＭＳ 明朝', size: 10, bold: true };
       ws.name = '請求書';
     }
 
@@ -100,8 +105,11 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
     specialAdditionDescription2.value = specialAdditions[1]?.description ? `    ${specialAdditions[1].description}` : null;
     specialAdditionDescription2.font = { ...specialAdditionDescription2.font, ...specialAdditionDescriptionFont };
     ws.getCell('M36').value = specialAdditions[1]?.amount || null;
-    ws.getCell('M37').value = input.discount ? -Math.abs(input.discount) : null;
-    ws.getCell('M42').value = input.expensesTotal;
+    ws.getCell('M38').value = input.discount ? -Math.abs(input.discount) : null;
+    ws.getCell('M39').value = input.documentAmount ?? null;
+    if (input.docType === 'invoice') {
+      ws.getCell('M42').value = input.expensesTotal;
+    }
   }
 
   try {
