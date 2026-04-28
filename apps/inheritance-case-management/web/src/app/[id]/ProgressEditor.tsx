@@ -122,8 +122,12 @@ function SortableStep({
                             <span className="min-w-0 flex-1">
                                 <span className="flex flex-wrap items-center gap-2">
                                     <span className="font-semibold text-sm">{step.name}</span>
+                                    {step.date && (
+                                        <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+                                            {toWareki(step.date)}
+                                        </span>
+                                    )}
                                 </span>
-                                {step.date && <span className="mt-1 block text-xs text-muted-foreground">{toWareki(step.date)}</span>}
                             </span>
                         </label>
                         {step.isDynamic && (
