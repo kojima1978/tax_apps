@@ -99,7 +99,12 @@ export function FinancialSection({
         <CollapsibleSection title="金額情報" icon={Banknote} isOpen={isOpen} onToggle={onToggle}>
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                    <Label htmlFor="propertyValue" className="text-xs">遺産総額 <span className="text-[10px] font-normal text-muted-foreground">（生前贈与加算額を含み、債務控除、非課税及び各種特例適用前）</span></Label>
+                    <Label htmlFor="propertyValue" className="text-xs">
+                        遺産総額
+                        <span className="ml-1 text-[6px] font-normal leading-tight text-muted-foreground">
+                            （生前贈与加算額を含み、債務控除、非課税及び各種特例適用前）
+                        </span>
+                    </Label>
                     <CurrencyField
                         id="propertyValue"
                         name="propertyValue"
@@ -256,9 +261,9 @@ export function FinancialSection({
                         />
                     </div>
                     <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
-                        {/* 見積ベース */}
+                        {/* 見積書 */}
                         <div className="border rounded-lg bg-background p-3 space-y-2.5">
-                            <Label className="text-sm font-semibold text-muted-foreground">見積ベース</Label>
+                            <Label className="text-sm font-semibold text-muted-foreground">見積書</Label>
                             <div className="space-y-1.5">
                                 <Label htmlFor="estimateAmount" className="text-xs">見積額（税抜）</Label>
                                 <CurrencyField
@@ -289,9 +294,9 @@ export function FinancialSection({
                                 </div>
                             </div>
                         </div>
-                        {/* 確定ベース */}
+                        {/* 請求書 */}
                         <div className={`border-2 rounded-lg bg-background p-3 space-y-2.5 transition-colors duration-500 ${highlightFee ? "border-black bg-white" : "border-primary/20"}`}>
-                            <Label className="text-sm font-semibold">確定ベース</Label>
+                            <Label className="text-sm font-semibold">請求書</Label>
                             <div className="space-y-1.5">
                                 <Label htmlFor="feeAmount" className="text-xs">報酬額（税抜）{highlightFee && <span className="text-black ml-1">← 入力してください</span>}</Label>
                                 <CurrencyField

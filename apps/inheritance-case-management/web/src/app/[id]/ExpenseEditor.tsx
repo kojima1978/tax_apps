@@ -13,29 +13,44 @@ import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { useSensors, useSensor, PointerSensor, KeyboardSensor } from "@dnd-kit/core"
+import * as XLSX from "xlsx-js-style"
 
-function escapeCsvField(value: string): string {
-    if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-        return `"${value.replace(/"/g, '""')}"`
+function exportExpensesExcel(expenses: Expense[], total: number) {
+    const rows = [
+        ["日付", "内容", "金額", "備考（購入場所など）"],
+        ...expenses.map(e => [e.date, e.description, e.amount || 0, e.memo || ""]),
+        ["", "合計", total, ""],
+    ]
+    const worksheet = XLSX.utils.aoa_to_sheet(rows)
+    worksheet["!cols"] = [
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 28 },
+    ]
+
+    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:D1")
+    const thinBorder = { style: "thin", color: { rgb: "000000" } }
+    for (let column = 0; column <= 3; column++) {
+        const headerCell = worksheet[XLSX.utils.encode_cell({ r: 0, c: column })]
+        if (headerCell) {
+            headerCell.s = { border: { bottom: thinBorder } }
+        }
+        const totalCell = worksheet[XLSX.utils.encode_cell({ r: range.e.r, c: column })]
+        if (totalCell) {
+            totalCell.s = { ...totalCell.s, border: { top: thinBorder } }
+        }
     }
-    return value
-}
+    for (let row = 1; row <= range.e.r; row++) {
+        const amountCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 2 })]
+        if (amountCell) {
+            amountCell.z = "#,##0"
+        }
+    }
 
-function exportExpensesCsv(expenses: Expense[], total: number) {
-    const BOM = "\uFEFF"
-    const header = "日付,内容,金額,備考"
-    const rows = expenses.map(e =>
-        [e.date, escapeCsvField(e.description), String(e.amount), escapeCsvField(e.memo || "")].join(",")
-    )
-    rows.push(["", "合計", String(total), ""].join(","))
-    const csv = BOM + [header, ...rows].join("\r\n")
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `立替金_${new Date().toISOString().split("T")[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "立替金")
+    XLSX.writeFile(workbook, `立替金_${new Date().toISOString().split("T")[0]}.xlsx`)
 }
 
 const OTHER_VALUE = "__other__"
@@ -155,7 +170,7 @@ function SortableExpenseRow({
             </div>
             <div>
                 <Input
-                    placeholder="備考"
+                    placeholder="備考（購入場所など）"
                     value={expense.memo || ""}
                     onChange={(e) => onFieldChange(index, "memo", e.target.value)}
                 />
@@ -250,9 +265,9 @@ export function ExpenseEditor({ expenses, onChange }: ExpenseEditorProps) {
 
             {expenses.length > 0 && (
                 <div className="flex justify-between items-center pt-2 border-t">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => exportExpensesCsv(expenses, total)}>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => exportExpensesExcel(expenses, total)}>
                         <Download className="h-4 w-4 mr-1" />
-                        CSV出力
+                        Excel出力
                     </Button>
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-muted-foreground">合計</span>

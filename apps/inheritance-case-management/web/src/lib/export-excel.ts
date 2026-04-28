@@ -43,6 +43,7 @@ async function generateFromTemplate(
     discount: number;
     expensesTotal: number;
     specialAdditions?: { description: string; amount: number }[];
+    documentAmount?: number;
     assigneeName?: string;
     referrerName?: string;
     revenueAmount?: number;
@@ -81,6 +82,14 @@ export async function exportDocument(params: ExportParams): Promise<void> {
   }
 
   const expensesTotal = (caseData.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+  const documentAmount =
+    docType === 'estimate'
+      ? caseData.estimateAmount || 0
+      : docType === 'invoice'
+        ? caseData.feeAmount || 0
+        : undefined;
+  const revenueAmount = caseData.feeAmount || 0;
+  const referralFeeAmount = caseData.referralFeeAmount || 0;
   const blob = await generateFromTemplate(docType, {
     addresseeName: addresseeNames[0] || '',
     deceasedName: caseData.deceasedName,
@@ -91,6 +100,7 @@ export async function exportDocument(params: ExportParams): Promise<void> {
     heirCount: caseData.heirCount || 0,
     discount: caseData.discountAmount || 0,
     expensesTotal,
+    documentAmount,
     specialAdditions: (caseData.specialAdditions || []).slice(0, 2).map(a => ({
       description: a.description,
       amount: a.amount || 0,
@@ -101,8 +111,8 @@ export async function exportDocument(params: ExportParams): Promise<void> {
       : caseData.internalReferrer
         ? `（社内）${caseData.internalReferrer.department?.name ? caseData.internalReferrer.department.name + ' / ' : ''}${caseData.internalReferrer.name}`
         : undefined,
-    revenueAmount: caseData.feeAmount || 0,
-    referralFeeAmount: caseData.referralFeeAmount || 0,
+    revenueAmount,
+    referralFeeAmount,
   });
 
   const url = URL.createObjectURL(blob);
