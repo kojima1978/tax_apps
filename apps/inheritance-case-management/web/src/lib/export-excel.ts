@@ -42,6 +42,7 @@ async function generateFromTemplate(
     heirCount: number;
     discount: number;
     expensesTotal: number;
+    specialAdditions?: { description: string; amount: number }[];
     assigneeName?: string;
     referrerName?: string;
     revenueAmount?: number;
@@ -90,6 +91,10 @@ export async function exportDocument(params: ExportParams): Promise<void> {
     heirCount: caseData.heirCount || 0,
     discount: caseData.discountAmount || 0,
     expensesTotal,
+    specialAdditions: (caseData.specialAdditions || []).slice(0, 2).map(a => ({
+      description: a.description,
+      amount: a.amount || 0,
+    })),
     assigneeName: caseData.assignee?.name,
     referrerName: caseData.referrer
       ? formatReferrerLabel(caseData.referrer)

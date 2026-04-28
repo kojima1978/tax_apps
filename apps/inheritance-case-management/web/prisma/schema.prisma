@@ -46,6 +46,7 @@ model InheritanceCase {
   contacts          CaseContact[]
   progress          CaseProgress[]
   expenses          CaseExpense[]
+  specialAdditions  CaseSpecialAddition[]
 
   // Audit fields
   createdBy         String?
@@ -215,6 +216,18 @@ model CaseExpense {
   description String          // 内容（自由入力）
   amount      Int             // 金額（円）
   memo        String?         // 備考
+
+  @@index([caseId])
+  @@index([caseId, sortOrder])
+}
+
+model CaseSpecialAddition {
+  id          Int             @id @default(autoincrement())
+  caseId      Int
+  case        InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sortOrder   Int             @default(0)
+  description String          @db.VarChar(100)
+  amount      Int             @default(0)
 
   @@index([caseId])
   @@index([caseId, sortOrder])

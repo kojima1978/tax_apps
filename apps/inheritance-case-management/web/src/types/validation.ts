@@ -28,6 +28,11 @@ const expenseSchema = z.object({
   memo: z.string().max(500, '備考は500文字以内で入力してください').nullable().optional(),
 });
 
+const specialAdditionSchema = z.object({
+  description: z.string().min(1, '特別業務報酬額の内容は必須です').max(100, '特別業務報酬額の内容は100文字以内で入力してください'),
+  amount: z.number().int().min(0, '特別業務報酬額は0以上を入力してください'),
+});
+
 // Case Schemas
 export const createCaseSchema = z.object({
   deceasedName: z.string().min(1, '被相続人氏名は必須です').max(100, '被相続人氏名は100文字以内で入力してください'),
@@ -59,6 +64,7 @@ export const createCaseSchema = z.object({
   contacts: z.array(contactSchema).max(10, '連絡先は最大10件までです').optional(),
   progress: z.array(progressStepSchema).optional(),
   expenses: z.array(expenseSchema).optional(),
+  specialAdditions: z.array(specialAdditionSchema).max(2, '特別業務報酬額は最大2行までです').optional(),
 });
 
 export const updateCaseSchema = createCaseSchema.partial().extend({

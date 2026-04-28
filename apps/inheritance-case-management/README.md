@@ -72,8 +72,10 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
   - 土地数（倍率）
   - 非上場株式数
   - 相続人数
+  - 特別業務報酬額（内容・金額を案件ごとに最大 2 行）
   - 値引額
-- 概算報酬を計算し、見積額または報酬額へ明示的に反映
+- 概算報酬を `小計 + 特別業務報酬額合計 - 値引額` で計算し、見積額または報酬額へ明示的に反映
+- 特別業務報酬額は `CaseSpecialAddition` として正規化して保存
 - 経営分析では完了案件で報酬額が未入力の場合、見積額を見込売上として扱う
 - 社外紹介料は会社売上から控除し、社内紹介料は会社売上から控除しない
 - 担当者別の個人集計では紹介料を控除した担当分と、社内紹介分を分けて表示
@@ -124,6 +126,15 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 - Shift-JIS / CP932 フォールバック
 - 見積書、請求書、請求書発行依頼票の Excel 出力
 - テンプレートは `templates/` から読み込み、Docker では `/app/templates` に読み取り専用マウント
+- `estimate_template.xlsx` への主な転記セル:
+  - 土地数（路線価）: `K27`
+  - 土地数（倍率）: `K28`
+  - 非上場株式数: `K30`
+  - 相続人数: `J32`
+  - 特別業務報酬額の内容: `B35`, `B36`（半角スペース 4 つで字下げ、MS 明朝 9pt 太字）
+  - 特別業務報酬額の金額: `M35`, `M36`
+  - 値引額: `M37`（マイナス値で転記）
+  - 立替金合計: `M42`
 
 ### バックアップ・リストア
 
@@ -330,6 +341,7 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 | `InheritanceCase` | 案件本体 |
 | `CaseProgress` | 案件の進捗工程 |
 | `CaseExpense` | 立替金 |
+| `CaseSpecialAddition` | 特別業務報酬額 |
 | `CaseContact` | 案件と人物の紐付け |
 | `Person` | 連絡先人物マスタ |
 | `Assignee` | 担当者、社内紹介者 |
@@ -348,6 +360,8 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 - `Referrer.companyId` -> `Company`
 - `Referrer.branchId` -> `CompanyBranch`
 - `CaseContact.personId` -> `Person`
+- `CaseExpense.caseId` -> `InheritanceCase`
+- `CaseSpecialAddition.caseId` -> `InheritanceCase`
 
 ## 関連ファイル
 

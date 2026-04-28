@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
+import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toSpecialAdditionCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
 import { ACCEPTANCE_STATUS_OPTIONS, COMPLETED_STATUSES, HANDLING_STATUS_OPTIONS } from '@/types/constants';
 import { writeAuditLog, diffScalar } from './audit-service';
 
@@ -218,6 +218,7 @@ export async function createCase(data: {
   contacts?: unknown[];
   progress?: { id: string; name: string; date: string | null; memo?: string; isDynamic?: boolean }[];
   expenses?: { date: string; description: string; amount: number; memo?: string | null }[];
+  specialAdditions?: { description: string; amount: number }[];
 }) {
   const newCase = await prisma.$transaction(async (tx) => {
     const resolvedContacts = await resolveContacts(tx, data.contacts ?? []);
@@ -254,6 +255,7 @@ export async function createCase(data: {
         contacts: { create: toContactCreateData(resolvedContacts) },
         progress: { create: toProgressCreateData(data.progress ?? []) },
         expenses: { create: toExpenseCreateData(data.expenses ?? []) },
+        specialAdditions: { create: toSpecialAdditionCreateData(data.specialAdditions ?? []) },
       },
       include: CASE_INCLUDE,
     });
@@ -345,6 +347,12 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       updateData.expenses = {
         deleteMany: {},
         create: toExpenseCreateData(data.expenses as Parameters<typeof toExpenseCreateData>[0]),
+      };
+    }
+    if (data.specialAdditions !== undefined) {
+      updateData.specialAdditions = {
+        deleteMany: {},
+        create: toSpecialAdditionCreateData(data.specialAdditions as Parameters<typeof toSpecialAdditionCreateData>[0]),
       };
     }
 

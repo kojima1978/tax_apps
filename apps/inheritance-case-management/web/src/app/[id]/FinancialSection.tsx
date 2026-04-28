@@ -9,7 +9,7 @@ import { formatCurrency } from "@/lib/analytics-utils"
 import { calcEstimate, createFeeCalcSnapshot } from "@/lib/estimate-calc"
 import type { FeeCalcSnapshot } from "@/lib/estimate-calc"
 import { isCompleted } from "@/types/constants"
-import type { InheritanceCase } from "@/types/shared"
+import type { InheritanceCase, SpecialAddition } from "@/types/shared"
 
 type EstimateCountKey = "landRosenkaCount" | "landBairitsuCount" | "unlistedStockCount" | "heirCount"
 
@@ -42,16 +42,39 @@ export function FinancialSection({
         heirCount: formData.heirCount || 0,
     }
     const breakdown = calcEstimate(estimateParams)
-    const netEstimate = breakdown.total - (formData.discountAmount || 0)
+    const specialAdditions = (formData.specialAdditions || []).slice(0, 2)
+    const specialAdditionsTotal = specialAdditions.reduce((sum, a) => sum + (a.amount || 0), 0)
+    const netEstimate = breakdown.total + specialAdditionsTotal - (formData.discountAmount || 0)
     const updateEstimateCount = (key: EstimateCountKey, rawValue: string) => {
         const value = rawValue === "" ? 0 : Math.max(0, Number.parseInt(rawValue, 10) || 0)
         setFormData(prev => ({ ...prev, [key]: value }))
     }
 
+    const updateSpecialAddition = <K extends keyof SpecialAddition>(index: number, key: K, value: SpecialAddition[K]) => {
+        const updated = [...specialAdditions]
+        updated[index] = { ...updated[index], [key]: value }
+        setFormData(prev => ({ ...prev, specialAdditions: updated.map((a, i) => ({ ...a, id: a.id || 0, sortOrder: i })) }))
+    }
+
+    const addSpecialAddition = () => {
+        if (specialAdditions.length >= 2) return
+        setFormData(prev => ({
+            ...prev,
+            specialAdditions: [...specialAdditions, { id: 0, sortOrder: specialAdditions.length, description: "", amount: 0 }],
+        }))
+    }
+
+    const deleteSpecialAddition = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            specialAdditions: specialAdditions.filter((_, i) => i !== index).map((a, i) => ({ ...a, sortOrder: i })),
+        }))
+    }
+
     const applyToEstimate = () => {
         const rate = formData.referralFeeRate || 0
         const newEstimateReferral = Math.floor(netEstimate * (rate / 100))
-        const snapshot = createFeeCalcSnapshot(estimateParams, formData.discountAmount || 0, 'estimate')
+        const snapshot = createFeeCalcSnapshot(estimateParams, formData.discountAmount || 0, 'estimate', specialAdditions)
         setFormData(prev => ({
             ...prev,
             estimateAmount: netEstimate,
@@ -63,7 +86,7 @@ export function FinancialSection({
     const applyToFee = () => {
         const rate = formData.referralFeeRate || 0
         const newReferralAmount = Math.floor(netEstimate * (rate / 100))
-        const snapshot = createFeeCalcSnapshot(estimateParams, formData.discountAmount || 0, 'fee')
+        const snapshot = createFeeCalcSnapshot(estimateParams, formData.discountAmount || 0, 'fee', specialAdditions)
         setFormData(prev => ({
             ...prev,
             feeAmount: netEstimate,
@@ -125,6 +148,52 @@ export function FinancialSection({
                         {breakdown.heirFee > 0 && <div className="flex justify-between"><span>加算：相続人 {Math.min((formData.heirCount || 0) - 1, 4)}人 × ¥50,000</span><span>{formatCurrency(breakdown.heirFee)}</span></div>}
                         <div className="flex justify-between font-semibold border-t pt-1"><span>小計</span><span>{formatCurrency(breakdown.total)}</span></div>
                     </div>
+                    <div className="space-y-2 rounded-lg border bg-background p-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <Label className="text-sm font-semibold">特別業務報酬額</Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={addSpecialAddition}
+                                disabled={specialAdditions.length >= 2}
+                            >
+                                + 追加
+                            </Button>
+                        </div>
+                        {specialAdditions.length === 0 && (
+                            <p className="text-xs text-muted-foreground">必要な場合のみ、内容と金額を最大2行まで追加できます。</p>
+                        )}
+                        {specialAdditions.map((addition, index) => (
+                            <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto]">
+                                <Input
+                                    value={addition.description}
+                                    onChange={(e) => updateSpecialAddition(index, "description", e.target.value)}
+                                    placeholder="内容"
+                                />
+                                <CurrencyField
+                                    value={addition.amount || undefined}
+                                    onValueChange={(value) => updateSpecialAddition(index, "amount", value ? Number(value) : 0)}
+                                    placeholder="金額"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-10 px-2 text-gray-500 hover:text-gray-800"
+                                    onClick={() => deleteSpecialAddition(index)}
+                                >
+                                    削除
+                                </Button>
+                            </div>
+                        ))}
+                        {specialAdditionsTotal > 0 && (
+                            <div className="flex justify-between border-t pt-2 text-xs font-semibold text-muted-foreground">
+                                <span>特別業務報酬額合計</span>
+                                <span>{formatCurrency(specialAdditionsTotal)}</span>
+                            </div>
+                        )}
+                    </div>
                     {/* 値引額 */}
                     <div className="space-y-1.5">
                         <Label htmlFor="discountAmount" className="text-xs">値引額</Label>
@@ -139,7 +208,7 @@ export function FinancialSection({
                     <div className="text-xs text-muted-foreground border-t pt-2">
                         <div className="flex justify-between font-semibold text-sm">
                             <span>差引額</span>
-                            <span>{formatCurrency(breakdown.total - (formData.discountAmount || 0))}</span>
+                            <span>{formatCurrency(netEstimate)}</span>
                         </div>
                     </div>
                     {/* 転記ボタン */}
@@ -158,7 +227,7 @@ export function FinancialSection({
                         </div>
                     )}
                     {formData.feeCalcSnapshot && (
-                        <SnapshotDisplay snapshot={formData.feeCalcSnapshot} currentBreakdown={breakdown} currentDiscount={formData.discountAmount || 0} />
+                        <SnapshotDisplay snapshot={formData.feeCalcSnapshot} currentBreakdown={breakdown} currentSpecialAdditionsTotal={specialAdditionsTotal} currentDiscount={formData.discountAmount || 0} />
                     )}
                 </div>
 
@@ -262,13 +331,14 @@ export function FinancialSection({
     )
 }
 
-function SnapshotDisplay({ snapshot, currentBreakdown, currentDiscount }: {
+function SnapshotDisplay({ snapshot, currentBreakdown, currentSpecialAdditionsTotal, currentDiscount }: {
     snapshot: FeeCalcSnapshot;
     currentBreakdown: { baseFee: number; landRosenkaFee: number; landBairitsuFee: number; unlistedStockFee: number; heirFee: number; total: number };
+    currentSpecialAdditionsTotal: number;
     currentDiscount: number;
 }) {
     const [isOpen, setIsOpen] = useState(false)
-    const currentNet = currentBreakdown.total - currentDiscount
+    const currentNet = currentBreakdown.total + currentSpecialAdditionsTotal - currentDiscount
     const hasChanged = snapshot.netAmount !== currentNet
 
     return (
@@ -306,6 +376,15 @@ function SnapshotDisplay({ snapshot, currentBreakdown, currentDiscount }: {
                         {snapshot.breakdown.unlistedStockFee > 0 && <div className="flex justify-between"><span>加算：非上場株式 {snapshot.params.unlistedStockCount}社</span><span>{formatCurrency(snapshot.breakdown.unlistedStockFee)}</span></div>}
                         {snapshot.breakdown.heirFee > 0 && <div className="flex justify-between"><span>加算：相続人</span><span>{formatCurrency(snapshot.breakdown.heirFee)}</span></div>}
                         <div className="flex justify-between border-t pt-1"><span>小計</span><span>{formatCurrency(snapshot.breakdown.total)}</span></div>
+                        {(snapshot.specialAdditions || []).map((addition, index) => (
+                            <div key={index} className="flex justify-between">
+                                <span>特別業務報酬：{addition.description}</span>
+                                <span>{formatCurrency(addition.amount)}</span>
+                            </div>
+                        ))}
+                        {(snapshot.specialAdditionsTotal || 0) > 0 && (
+                            <div className="flex justify-between"><span>特別業務報酬額合計</span><span>{formatCurrency(snapshot.specialAdditionsTotal || 0)}</span></div>
+                        )}
                         {snapshot.discountAmount > 0 && <div className="flex justify-between"><span>値引額</span><span>-{formatCurrency(snapshot.discountAmount)}</span></div>}
                         <div className="flex justify-between font-semibold"><span>転記額</span><span>{formatCurrency(snapshot.netAmount)}</span></div>
                     </div>

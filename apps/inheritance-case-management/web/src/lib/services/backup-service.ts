@@ -172,6 +172,18 @@ const TABLE_DEFS = [
     seqTable: 'CaseExpense',
   },
   {
+    key: 'caseSpecialAdditions' as const,
+    model: (tx: TxClient) => tx.caseSpecialAddition,
+    map: (a: Rec) => ({
+      id: a.id as number,
+      caseId: a.caseId as number,
+      sortOrder: (a.sortOrder as number) ?? 0,
+      description: a.description as string,
+      amount: (a.amount as number) ?? 0,
+    }),
+    seqTable: 'CaseSpecialAddition',
+  },
+  {
     key: 'auditLogs' as const,
     model: (tx: TxClient) => tx.auditLog,
     map: (a: Rec) => ({
@@ -195,7 +207,7 @@ interface TableDef {
 }
 
 export async function exportBackup() {
-  const [departments, companies, companyBranches, assignees, referrers, persons, cases, caseContacts, caseProgress, caseExpenses, auditLogs] = await Promise.all([
+  const [departments, companies, companyBranches, assignees, referrers, persons, cases, caseContacts, caseProgress, caseExpenses, caseSpecialAdditions, auditLogs] = await Promise.all([
     prisma.department.findMany(),
     prisma.company.findMany(),
     prisma.companyBranch.findMany(),
@@ -206,6 +218,7 @@ export async function exportBackup() {
     prisma.caseContact.findMany(),
     prisma.caseProgress.findMany(),
     prisma.caseExpense.findMany(),
+    prisma.caseSpecialAddition.findMany(),
     prisma.auditLog.findMany(),
   ]);
 
@@ -240,6 +253,7 @@ export async function exportBackup() {
         ...e,
         date: toDateStr(e.date),
       })),
+      caseSpecialAdditions,
       auditLogs: auditLogs.map(a => ({
         ...a,
         changedAt: a.changedAt.toISOString(),
@@ -252,6 +266,7 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
   await prisma.$transaction(
     async (tx: TxClient) => {
       await tx.auditLog.deleteMany();
+      await tx.caseSpecialAddition.deleteMany();
       await tx.caseExpense.deleteMany();
       await tx.caseProgress.deleteMany();
       await tx.caseContact.deleteMany();

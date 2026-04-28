@@ -28,6 +28,11 @@ export interface Expense {
   memo?: string;
 }
 
+export interface SpecialAddition {
+  description: string;
+  amount: number;
+}
+
 // Normalized DB entities
 export interface CaseExpenseItem {
   id: number;
@@ -36,6 +41,13 @@ export interface CaseExpenseItem {
   description: string;
   amount: number;
   memo?: string;
+}
+
+export interface CaseSpecialAdditionItem {
+  id: number;
+  sortOrder: number;
+  description: string;
+  amount: number;
 }
 
 export interface Person {
@@ -106,6 +118,7 @@ export interface InheritanceCase {
   progress?: CaseProgressItem[];
   contacts?: CaseContact[];
   expenses?: CaseExpenseItem[];
+  specialAdditions?: CaseSpecialAdditionItem[];
   createdAt?: Date;
   updatedAt?: Date;
 }

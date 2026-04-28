@@ -44,6 +44,7 @@ export interface GenerateTemplateInput {
   heirCount: number;
   discount: number;
   expensesTotal: number;
+  specialAdditions?: { description: string; amount: number }[];
   // invoice-request 用
   assigneeName?: string;
   referrerName?: string;
@@ -89,8 +90,18 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
     ws.getCell('K28').value = input.landBairitsuCount;
     ws.getCell('K30').value = input.unlistedStockCount;
     ws.getCell('J32').value = input.heirCount;
-    ws.getCell('M37').value = input.discount;
-    ws.getCell('M41').value = input.expensesTotal;
+    const specialAdditions = (input.specialAdditions || []).slice(0, 2);
+    const specialAdditionDescriptionFont: Partial<ExcelJS.Font> = { name: 'ＭＳ 明朝', size: 9, bold: true };
+    const specialAdditionDescription1 = ws.getCell('B35');
+    const specialAdditionDescription2 = ws.getCell('B36');
+    specialAdditionDescription1.value = specialAdditions[0]?.description ? `    ${specialAdditions[0].description}` : null;
+    specialAdditionDescription1.font = { ...specialAdditionDescription1.font, ...specialAdditionDescriptionFont };
+    ws.getCell('M35').value = specialAdditions[0]?.amount || null;
+    specialAdditionDescription2.value = specialAdditions[1]?.description ? `    ${specialAdditions[1].description}` : null;
+    specialAdditionDescription2.font = { ...specialAdditionDescription2.font, ...specialAdditionDescriptionFont };
+    ws.getCell('M36').value = specialAdditions[1]?.amount || null;
+    ws.getCell('M37').value = input.discount ? -Math.abs(input.discount) : null;
+    ws.getCell('M42').value = input.expensesTotal;
   }
 
   try {

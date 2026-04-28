@@ -24,6 +24,8 @@ const emptyCase: InheritanceCase = {
         id: 0, stepId: step.id, name: step.name, sortOrder: i, date: null,
     })),
     contacts: [],
+    expenses: [],
+    specialAdditions: [],
 }
 
 export default function NewCasePage() {
