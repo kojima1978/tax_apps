@@ -19,11 +19,38 @@ import { TableSkeleton } from "@/components/ui/Skeleton"
 import { ErrorDisplay } from "@/components/ui/ErrorDisplay"
 import { parseError } from "@/hooks/use-error-handler"
 import { useToast } from "@/components/ui/Toast"
-import { KPICards } from "@/components/cases/KPICards"
+import { KPICards, type KPICardFilterKey } from "@/components/cases/KPICards"
 import { FilterBar } from "@/components/cases/FilterBar"
 import { Pagination } from "@/components/cases/Pagination"
 import { ImportCSVModal } from "@/components/ImportCSVModal"
 import { BulkDeleteModal } from "@/components/BulkDeleteModal"
+
+const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedFrom", "caseCompletedTo"] as const
+
+function formatDateOnly(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
+function getThisMonthRange(): { from: string; to: string } {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    return { from: formatDateOnly(start), to: formatDateOnly(end) }
+}
+
+function getActiveKpiFilter(params: CasesQueryParams): KPICardFilterKey | null {
+    const { from, to } = getThisMonthRange()
+    if (params.caseAddedFrom === from && params.caseAddedTo === to) return "addedThisMonth"
+    if (params.caseCompletedFrom === from && params.caseCompletedTo === to) return "completedThisMonth"
+    return null
+}
+
+function isDateFilterKey(key: keyof CasesQueryParams): key is (typeof DATE_FILTER_KEYS)[number] {
+    return (DATE_FILTER_KEYS as readonly string[]).includes(key as string)
+}
 
 /** URLクエリパラメータからCasesQueryParamsを復元 */
 function parseUrlParams(searchParams: URLSearchParams): CasesQueryParams {
@@ -50,6 +77,10 @@ function parseUrlParams(searchParams: URLSearchParams): CasesQueryParams {
     if (referrerCompany) params.referrerCompany = referrerCompany
     if (searchParams.get("unassigned") === "true") params.unassigned = true
     if (searchParams.get("noReferrer") === "true") params.noReferrer = true
+    for (const key of DATE_FILTER_KEYS) {
+        const val = searchParams.get(key)
+        if (val) params[key] = val
+    }
 
     // fiscalYearがURLに明示されている場合はその値を使用
     // 他のフィルタ経由の遷移（staffId, referrerCompany等）でfiscalYear未指定なら全期間
@@ -57,10 +88,7 @@ function parseUrlParams(searchParams: URLSearchParams): CasesQueryParams {
     if (fiscalYear) {
         params.fiscalYear = Number(fiscalYear)
     } else {
-        const hasAnyFilter = params.search || params.status || params.handlingStatus
-            || params.acceptanceStatus || params.department || params.assigneeId
-            || params.internalReferrerId || params.staffId || params.referrerCompany
-            || params.unassigned || params.noReferrer
+        const hasAnyFilter = FILTER_KEYS.some((key) => params[key])
         if (!hasAnyFilter) {
             params.fiscalYear = new Date().getFullYear()
         }
@@ -83,6 +111,9 @@ function toUrlSearch(params: CasesQueryParams): string {
     if (params.referrerCompany) sp.set("referrerCompany", params.referrerCompany)
     if (params.unassigned) sp.set("unassigned", "true")
     if (params.noReferrer) sp.set("noReferrer", "true")
+    for (const key of DATE_FILTER_KEYS) {
+        if (params[key]) sp.set(key, params[key])
+    }
     if (params.page && params.page > 1) sp.set("page", String(params.page))
     return sp.toString()
 }
@@ -161,7 +192,7 @@ function InheritanceMockupPageContent() {
     // KPI data & assignees
     const [allCases, setAllCases] = useState<InheritanceCase[]>([])
     const dataVersion = data?.pagination?.total
-    const kpiFilters = Object.fromEntries(FILTER_KEYS.filter(k => queryParams[k]).map(k => [k, queryParams[k]]))
+    const kpiFilters = Object.fromEntries(FILTER_KEYS.filter(k => !isDateFilterKey(k) && queryParams[k]).map(k => [k, queryParams[k]]))
     const kpiDepsKey = JSON.stringify(kpiFilters)
     const refreshKPI = () => getAllCases(Object.keys(kpiFilters).length > 0 ? kpiFilters : undefined).then(setAllCases).catch(() => {})
     useEffect(() => {
@@ -172,6 +203,7 @@ function InheritanceMockupPageContent() {
     const { assignees, departments } = useAsyncMasters([dataVersion, kpiDepsKey])
 
     const kpiData = useMemo(() => computeKPI(allCases), [allCases])
+    const activeKpiFilter = useMemo(() => getActiveKpiFilter(queryParams), [queryParams])
 
     const handleSearch = () => {
         setQueryParams(prev => ({ ...prev, search: searchInput, page: 1 }))
@@ -185,6 +217,27 @@ function InheritanceMockupPageContent() {
                 : (value || undefined)
         setQueryParams(prev => ({ ...prev, [key]: parsed, page: 1 }))
     }
+
+    const handleKpiFilterClick = useCallback((filter: KPICardFilterKey) => {
+        const { from, to } = getThisMonthRange()
+        setQueryParams(prev => {
+            const isActive = getActiveKpiFilter(prev) === filter
+            const next: CasesQueryParams = {
+                ...prev,
+                caseAddedFrom: undefined,
+                caseAddedTo: undefined,
+                caseCompletedFrom: undefined,
+                caseCompletedTo: undefined,
+                page: 1,
+            }
+
+            if (isActive) return next
+            if (filter === "addedThisMonth") {
+                return { ...next, caseAddedFrom: from, caseAddedTo: to }
+            }
+            return { ...next, caseCompletedFrom: from, caseCompletedTo: to }
+        })
+    }, [])
 
     const handleClearAll = () => {
         setQueryParams({ page: 1, pageSize: 100 })
@@ -278,7 +331,13 @@ function InheritanceMockupPageContent() {
                 </div>
             </div>
 
-            {allCases.length > 0 && <KPICards data={kpiData} />}
+            {allCases.length > 0 && (
+                <KPICards
+                    data={kpiData}
+                    activeFilter={activeKpiFilter}
+                    onFilterClick={handleKpiFilterClick}
+                />
+            )}
 
             <FilterBar
                 queryParams={queryParams}

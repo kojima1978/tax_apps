@@ -145,6 +145,7 @@ const sortFieldSchema = z.enum([
 ]);
 
 const sortOrderSchema = z.enum(['asc', 'desc']);
+const dateQuerySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
 
 // Query Params Schema
 export const listQuerySchema = z.object({
@@ -162,6 +163,10 @@ export const listQuerySchema = z.object({
   unassigned: z.coerce.boolean().optional(),
   noReferrer: z.coerce.boolean().optional(),
   department: z.string().optional(),
+  caseAddedFrom: dateQuerySchema,
+  caseAddedTo: dateQuerySchema,
+  caseCompletedFrom: dateQuerySchema,
+  caseCompletedTo: dateQuerySchema,
   sortBy: sortFieldSchema.optional().default('dateOfDeath'),
   sortOrder: sortOrderSchema.optional().default('asc'),
 });
