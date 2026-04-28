@@ -6,10 +6,10 @@ import { buildCaseWhereClause, bulkDeleteCases } from '@/lib/services/case-servi
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const { status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department } =
+    const { status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department, caseAddedFrom, caseAddedTo, caseCompletedFrom, caseCompletedTo } =
       listQuerySchema.parse(searchParams);
 
-    const where = buildCaseWhereClause({ status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department });
+    const where = buildCaseWhereClause({ status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department, caseAddedFrom, caseAddedTo, caseCompletedFrom, caseCompletedTo });
     const deleted = await bulkDeleteCases(where);
 
     return NextResponse.json({ deleted });

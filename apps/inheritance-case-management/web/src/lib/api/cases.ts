@@ -21,6 +21,10 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.unassigned) searchParams.set('unassigned', 'true');
   if (params?.noReferrer) searchParams.set('noReferrer', 'true');
   if (params?.department) searchParams.set('department', params.department);
+  if (params?.caseAddedFrom) searchParams.set('caseAddedFrom', params.caseAddedFrom);
+  if (params?.caseAddedTo) searchParams.set('caseAddedTo', params.caseAddedTo);
+  if (params?.caseCompletedFrom) searchParams.set('caseCompletedFrom', params.caseCompletedFrom);
+  if (params?.caseCompletedTo) searchParams.set('caseCompletedTo', params.caseCompletedTo);
   if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
 
@@ -73,6 +77,10 @@ export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | '
   if (params?.unassigned) searchParams.set('unassigned', 'true');
   if (params?.noReferrer) searchParams.set('noReferrer', 'true');
   if (params?.department) searchParams.set('department', params.department);
+  if (params?.caseAddedFrom) searchParams.set('caseAddedFrom', params.caseAddedFrom);
+  if (params?.caseAddedTo) searchParams.set('caseAddedTo', params.caseAddedTo);
+  if (params?.caseCompletedFrom) searchParams.set('caseCompletedFrom', params.caseCompletedFrom);
+  if (params?.caseCompletedTo) searchParams.set('caseCompletedTo', params.caseCompletedTo);
 
   const queryString = searchParams.toString();
   const url = queryString ? `/cases/bulk-delete?${queryString}` : '/cases/bulk-delete';

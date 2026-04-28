@@ -15,6 +15,23 @@ const REFERRER_SELECT_WRAPPER = "h-9 w-auto border-input px-2 py-1 text-xs"
 type OptGroupDef = { label: string; options: readonly { value: string | number; label: string }[] }
 type FilterableKey = Exclude<keyof CasesQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortOrder' | 'unassigned' | 'noReferrer'>
 type FilterDef = { key: FilterableKey; placeholder: string; options: readonly { value: string | number; label: string }[]; optGroups?: OptGroupDef[]; multiSelect?: boolean; wrapperClassName?: string }
+type ActiveFilterChip = { key: string; label: string; chipStyle: string; onClear: () => void }
+
+function formatDateLabel(value: string | undefined): string {
+    if (!value) return ""
+    return value.replaceAll("-", "/")
+}
+
+function formatExclusiveDateRange(from: string | undefined, to: string | undefined): string {
+    const fromLabel = formatDateLabel(from)
+    if (!to) return fromLabel ? `${fromLabel}〜` : ""
+
+    const endDate = new Date(`${to}T00:00:00.000Z`)
+    endDate.setUTCDate(endDate.getUTCDate() - 1)
+    const endLabel = formatDateLabel(endDate.toISOString().slice(0, 10))
+    if (!fromLabel) return `〜${endLabel}`
+    return `${fromLabel}〜${endLabel}`
+}
 interface FilterBarProps {
     queryParams: CasesQueryParams
     searchInput: string
@@ -101,13 +118,40 @@ export function FilterBar({
     }
     const DEFAULT_CHIP_STYLE = "border border-black/10 bg-white text-black"
 
-    const activeFilters = Object.entries(CHIP_LABELS)
+    const activeFilters: ActiveFilterChip[] = []
+
+    if (queryParams.caseAddedFrom || queryParams.caseAddedTo) {
+        activeFilters.push({
+            key: "caseAddedRange",
+            label: `受託日: ${formatExclusiveDateRange(queryParams.caseAddedFrom, queryParams.caseAddedTo)}`,
+            chipStyle: DEFAULT_CHIP_STYLE,
+            onClear: () => {
+                onFilterChange("caseAddedFrom", undefined)
+                onFilterChange("caseAddedTo", undefined)
+            },
+        })
+    }
+
+    if (queryParams.caseCompletedFrom || queryParams.caseCompletedTo) {
+        activeFilters.push({
+            key: "caseCompletedRange",
+            label: `申告完了日: ${formatExclusiveDateRange(queryParams.caseCompletedFrom, queryParams.caseCompletedTo)}`,
+            chipStyle: DEFAULT_CHIP_STYLE,
+            onClear: () => {
+                onFilterChange("caseCompletedFrom", undefined)
+                onFilterChange("caseCompletedTo", undefined)
+            },
+        })
+    }
+
+    activeFilters.push(...Object.entries(CHIP_LABELS)
         .filter(([key]) => queryParams[key as keyof CasesQueryParams])
         .map(([key, label]) => ({
             key,
             label: label(queryParams[key as keyof CasesQueryParams] as string | number),
             chipStyle: CHIP_STYLES[key] || DEFAULT_CHIP_STYLE,
-        }))
+            onClear: () => key === 'search' ? setSearchInput('') : onFilterChange(key as keyof CasesQueryParams, undefined),
+        })))
 
     return (
         <div className="space-y-2 mb-3">
@@ -147,7 +191,7 @@ export function FilterBar({
                         <span key={f.key} className={`inline-flex items-center gap-1 rounded-full py-0.5 pl-2 pr-0.5 text-[11px] font-medium ${f.chipStyle}`}>
                             {f.label}
                             <button
-                                onClick={() => f.key === 'search' ? setSearchInput('') : onFilterChange(f.key as keyof CasesQueryParams, undefined)}
+                                onClick={f.onClear}
                                 className="hover:bg-black/10 rounded-full p-1 transition-colors min-w-[24px] min-h-[24px] flex items-center justify-center"
                                 aria-label={`${f.label}を解除`}
                             >

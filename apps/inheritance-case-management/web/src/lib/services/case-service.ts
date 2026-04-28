@@ -51,9 +51,30 @@ export function buildCaseWhereClause(params: {
   unassigned?: boolean;
   noReferrer?: boolean;
   department?: string;
+  caseAddedFrom?: string;
+  caseAddedTo?: string;
+  caseCompletedFrom?: string;
+  caseCompletedTo?: string;
 }): Prisma.InheritanceCaseWhereInput {
   const where: Prisma.InheritanceCaseWhereInput = {};
-  const { status, handlingStatus, acceptanceStatus, fiscalYear, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, department } = params;
+  const {
+    status,
+    handlingStatus,
+    acceptanceStatus,
+    fiscalYear,
+    search,
+    assigneeId,
+    internalReferrerId,
+    staffId,
+    referrerCompany,
+    unassigned,
+    noReferrer,
+    department,
+    caseAddedFrom,
+    caseAddedTo,
+    caseCompletedFrom,
+    caseCompletedTo,
+  } = params;
 
   if (status) {
     where.status = status.includes(',') ? { in: status.split(',') } : status;
@@ -93,6 +114,18 @@ export function buildCaseWhereClause(params: {
   }
   if (department) {
     where.assignee = { department: { name: department } };
+  }
+  if (caseAddedFrom || caseAddedTo) {
+    where.caseAddedDate = {
+      ...(caseAddedFrom ? { gte: toDate(caseAddedFrom) } : {}),
+      ...(caseAddedTo ? { lt: toDate(caseAddedTo) } : {}),
+    };
+  }
+  if (caseCompletedFrom || caseCompletedTo) {
+    where.caseCompletedDate = {
+      ...(caseCompletedFrom ? { gte: toDate(caseCompletedFrom) } : {}),
+      ...(caseCompletedTo ? { lt: toDate(caseCompletedTo) } : {}),
+    };
   }
   return where;
 }
