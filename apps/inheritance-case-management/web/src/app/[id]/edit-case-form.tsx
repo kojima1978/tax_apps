@@ -8,7 +8,7 @@ import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer, Person, CaseStatus } from "@/types/shared"
 import { formatId } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
-import { toProgressSteps, toProgressItems, toContactInputs, toExpenses, toExpenseItems } from "@/lib/case-converters"
+import { toProgressSteps, toProgressItems, toContactInputs, toExpenses, toExpenseItems, toSpecialAdditions } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { getAssignees } from "@/lib/api/assignees"
 import { getReferrers } from "@/lib/api/referrers"
@@ -106,6 +106,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         const contacts = formData.contacts ? toContactInputs(formData.contacts) : undefined
         const progress = formData.progress ? toProgressSteps(formData.progress) : undefined
         const expenses = formData.expenses ? toExpenses(formData.expenses).filter(e => e.description) : undefined
+        const specialAdditions = formData.specialAdditions
+            ? toSpecialAdditions(formData.specialAdditions).filter(a => a.description.trim() !== "")
+            : undefined
         return {
             deceasedName: formData.deceasedName,
             dateOfDeath: formData.dateOfDeath,
@@ -136,6 +139,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             contacts,
             progress,
             expenses,
+            specialAdditions,
         }
     }
 
@@ -181,6 +185,14 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const handleSave = async () => {
         if (!formData.deceasedName || formData.deceasedName.trim() === "") {
             toast.warning("被相続人氏名を入力してください")
+            return
+        }
+
+        const invalidSpecialAddition = (formData.specialAdditions || []).some(
+            (a) => !a.description.trim() && (a.amount || 0) > 0,
+        )
+        if (invalidSpecialAddition) {
+            toast.warning("特別業務報酬額の内容を入力してください")
             return
         }
 

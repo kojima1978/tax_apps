@@ -2,6 +2,7 @@ export const CASE_INCLUDE = {
   contacts: { include: { person: true }, orderBy: { sortOrder: 'asc' as const } },
   progress: { orderBy: { sortOrder: 'asc' as const } },
   expenses: { orderBy: { sortOrder: 'asc' as const } },
+  specialAdditions: { orderBy: { sortOrder: 'asc' as const } },
   assignee: { include: { department: true } },
   internalReferrer: { include: { department: true } },
   referrer: { include: { company: true, branch: true } },
@@ -44,6 +45,14 @@ export function toExpenseCreateData(expenses: { date: string; description: strin
     description: e.description,
     amount: e.amount,
     memo: e.memo ?? null,
+    sortOrder: i,
+  }));
+}
+
+export function toSpecialAdditionCreateData(additions: { description: string; amount: number }[]) {
+  return additions.slice(0, 2).map((a, i) => ({
+    description: a.description.trim(),
+    amount: a.amount,
     sortOrder: i,
   }));
 }

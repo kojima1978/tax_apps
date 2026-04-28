@@ -16,6 +16,11 @@ export interface EstimateParams {
   heirCount: number;          // 相続人の数
 }
 
+export interface EstimateSpecialAddition {
+  description: string;
+  amount: number;
+}
+
 export interface EstimateBreakdown {
   baseFee: number;            // 基本報酬
   landRosenkaFee: number;     // 加算①路線価
@@ -58,17 +63,29 @@ export interface FeeCalcSnapshot {
     heirMaxAdditional: number;
   };
   breakdown: EstimateBreakdown;
+  specialAdditions?: EstimateSpecialAddition[];
+  specialAdditionsTotal?: number;
   discountAmount: number;
   netAmount: number;
+}
+
+export function calcSpecialAdditionsTotal(additions: EstimateSpecialAddition[] = []): number {
+  return additions.slice(0, 2).reduce((sum, a) => sum + (a.amount || 0), 0);
 }
 
 export function createFeeCalcSnapshot(
   params: EstimateParams,
   discountAmount: number,
   appliedTo: 'estimate' | 'fee',
+  specialAdditions: EstimateSpecialAddition[] = [],
 ): FeeCalcSnapshot {
   const breakdown = calcEstimate(params);
-  const netAmount = breakdown.total - discountAmount;
+  const normalizedAdditions = specialAdditions
+    .slice(0, 2)
+    .filter((a) => a.description.trim() !== '')
+    .map((a) => ({ description: a.description.trim(), amount: a.amount || 0 }));
+  const specialAdditionsTotal = calcSpecialAdditionsTotal(normalizedAdditions);
+  const netAmount = breakdown.total + specialAdditionsTotal - discountAmount;
   return {
     calculatedAt: new Date().toISOString(),
     appliedTo,
@@ -82,6 +99,8 @@ export function createFeeCalcSnapshot(
       heirMaxAdditional: HEIR_MAX_ADDITIONAL,
     },
     breakdown,
+    specialAdditions: normalizedAdditions,
+    specialAdditionsTotal,
     discountAmount,
     netAmount,
   };
