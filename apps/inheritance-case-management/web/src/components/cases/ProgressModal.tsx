@@ -138,9 +138,9 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
 
     return (
         <>
-            <Button variant="ghost" className="h-7 w-7 p-0" onClick={(e) => { e.stopPropagation(); openModal() }}>
+            <Button variant="ghost" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); openModal() }}>
                 <span className="sr-only">進捗を開く</span>
-                <MoreHorizontal className="h-3.5 w-3.5" />
+                <MoreHorizontal className="h-3 w-3" />
             </Button>
 
             <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={`${caseData.deceasedName} 様 - 進捗`}>

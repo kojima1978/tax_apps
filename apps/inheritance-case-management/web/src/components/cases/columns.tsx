@@ -147,11 +147,11 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
         cell: ({ row }) => {
             const c = row.original
             return (
-                <div className="leading-tight">
-                    <div>
+                <div className="space-y-[1px] leading-none">
+                    <div className="flex h-5 items-center">
                         <StatusBadge label={c.status} style={STATUS_STYLES[c.status as CaseStatus]} />
                     </div>
-                    <div className="mt-0.5 flex items-center gap-1">
+                    <div className="flex h-5 items-center gap-1">
                         <ProgressDots caseData={c} />
                         <ProgressModalButton caseData={c} />
                     </div>
