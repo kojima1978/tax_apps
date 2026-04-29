@@ -27,14 +27,21 @@ export function ReferrerTab({ sortedCompanyRanking, companySort, onCompanySort, 
         () => sortedCompanyRanking.reduce((sum, row) => sum + row.feeTotal, 0),
         [sortedCompanyRanking],
     )
+    const referrerCountTotal = useMemo(
+        () => sortedCompanyRanking.reduce((sum, row) => sum + row.count, 0),
+        [sortedCompanyRanking],
+    )
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="space-y-4 pt-4">
                 <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,180px)_minmax(56px,80px)] items-end gap-3 border-b pb-2">
-                    <h2 className="text-xl font-semibold">紹介者</h2>
+                    <h2 className="text-xl font-semibold">外部紹介者</h2>
                     <div className="text-right text-sm font-semibold text-foreground">
                         合計 {formatCurrency(referrerTotal)}
+                    </div>
+                    <div className="text-center text-sm font-semibold text-foreground">
+                        件数 {referrerCountTotal}件
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
