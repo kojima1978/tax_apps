@@ -25,8 +25,6 @@ PG_TARGETS=(
 )
 
 SQLITE_TARGETS=(
-  "bank-analyzer-sqlite:bank-analyzer-sqlite"
-  "tax-docs-data:tax-docs-data"
   "medical-stock-valuation-data:medical-stock-valuation-data"
 )
 
