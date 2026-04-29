@@ -5,9 +5,10 @@
 ## システム構成
 
 ### インフラストラクチャ
-- **Docker Compose**: 各アプリが独自の `docker-compose.yml` を持ち、`manage.bat` / `manage.sh` で一括管理
+- **Docker Compose**: 各アプリが独自の `docker-compose.yml` を持ち、`manage.sh` で一括管理
 - **Nginx Gateway**: リバースプロキシによるルーティング（ポート80）
-- **manage.sh**: 全アプリの起動・停止・バックアップ等を一括管理するスクリプト（`manage.bat` は Git Bash 経由で `manage.sh` を実行するラッパー）
+- **manage.sh**: 全アプリの起動・停止・ログ確認等を一括管理する本体スクリプト
+- **backup.sh**: 全体バックアップ/リストア + ITCM定期バックアップ本体（`.bat` は Windows 補助ラッパー）
 
 ### アプリケーション一覧
 
@@ -61,12 +62,13 @@ tax_apps/
 ├── docker/                            # Docker共通設定
 │   ├── gateway/                       # Nginx Gateway の docker-compose.yml
 │   ├── scripts/                       # 管理スクリプト
-│   │   ├── manage.bat                 # Windows ラッパー（ダブルクリックで開発モード起動）
-│   │   ├── manage.sh                  # 管理スクリプト本体（全機能）
+│   │   ├── manage.sh                  # 管理スクリプト本体（起動・停止・ログ等）
+│   │   ├── manage.bat                 # Windows 補助ラッパー（ダブルクリックで開発モード起動）
+│   │   ├── backup.sh                  # 全体バックアップ/リストア + ITCM定期バックアップ本体
 │   │   ├── start-prod.bat             # ワンクリック本番モード起動
 │   │   ├── stop.bat                   # ワンクリック停止
 │   │   ├── status.bat                 # ワンクリック状態確認
-│   │   └── backup-db.bat              # ITCM PostgreSQL + Excelテンプレート バックアップ（7日間保持）
+│   │   └── backup-db.bat              # backup.sh itcm を呼び出す Windows 補助ラッパー
 │   ├── data/                          # 永続化データ（git管理外）
 │   ├── backups/                       # バックアップ保存先
 │   ├── postgres/                      # PostgreSQL初期化SQL
@@ -100,7 +102,7 @@ apps/<アプリ名>/
 ## セットアップ
 
 ### 前提条件
-- [Git for Windows](https://gitforwindows.org/)（`manage.bat` が Git Bash を使用）
+- [Git for Windows](https://gitforwindows.org/)（`.bat` 補助ラッパーが Git Bash を使用）
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
 ### 一括起動（推奨）
@@ -119,16 +121,16 @@ cd tax_apps
 | 本番モード起動 | `start-prod.bat` | `docker\scripts\start-prod.bat` をダブルクリック |
 | 停止 | `stop.bat` | `docker\scripts\stop.bat` をダブルクリック |
 | 状態確認 | `status.bat` | `docker\scripts\status.bat` をダブルクリック |
-| DBバックアップ | `backup-db.bat` | `docker\scripts\backup-db.bat` をダブルクリック |
+| 自動バックアップ | `backup-db.bat` | `docker\scripts\backup-db.bat` をダブルクリック |
 
-#### コマンドプロンプトでの操作
+#### Git Bashでの操作
 
 ```bash
 # 開発モードで全アプリを起動
-docker\scripts\manage.bat start
+./docker/scripts/manage.sh start
 
 # 本番モードで全アプリを起動
-docker\scripts\manage.bat start --prod
+./docker/scripts/manage.sh start --prod
 ```
 
 > `.env` ファイルは `.env.example` から自動作成されます。
@@ -161,21 +163,22 @@ docker\scripts\manage.bat start --prod
 
 > **注意**: ホストPCのIPアドレスが変わった場合は、ブラウザのURLを新しいIPに変更するだけで対応できます（Docker・nginx・アプリ側の設定変更は不要）。
 
-### manage.bat コマンド一覧
+### manage.sh コマンド一覧
 
 ```
-manage.bat start              全アプリを開発モードで起動
-manage.bat start --prod       全アプリを本番モードで起動（ビルド付き）
-manage.bat stop               全アプリを停止
-manage.bat down               全アプリを停止しコンテナを削除
-manage.bat restart <app>      特定アプリを再起動
-manage.bat build <app>        特定アプリをビルドして起動
-manage.bat logs <app>         特定アプリのログを表示
-manage.bat status             全アプリの状態を表示
-manage.bat backup             全データベース・データをバックアップ
-manage.bat restore [dir]      バックアップからリストア
-manage.bat clean              不要なコンテナ・イメージを削除
-manage.bat preflight          起動前チェック（Docker, ポート等）
+./docker/scripts/manage.sh start             全アプリを開発モードで起動
+./docker/scripts/manage.sh start --prod      全アプリを本番モードで起動（ビルド付き）
+./docker/scripts/manage.sh stop              全アプリを停止
+./docker/scripts/manage.sh down              全アプリを停止しコンテナを削除
+./docker/scripts/manage.sh restart <app>     特定アプリを再起動
+./docker/scripts/manage.sh build <app>       特定アプリをビルドして起動
+./docker/scripts/manage.sh logs <app>        特定アプリのログを表示
+./docker/scripts/manage.sh status            全アプリの状態を表示
+./docker/scripts/manage.sh backup            全データベース・データをバックアップ（backup.sh に委譲）
+./docker/scripts/manage.sh restore [dir]     バックアップからリストア（backup.sh に委譲）
+./docker/scripts/manage.sh clean             不要なコンテナ・イメージを削除
+./docker/scripts/manage.sh preflight         起動前チェック（Docker, ポート等）
+./docker/scripts/backup.sh itcm              ITCM定期バックアップ（JSONエクスポート含む）
 ```
 
 ### 開発モード vs 本番モード
@@ -198,13 +201,15 @@ docker compose up -d
 # http://localhost:3003/inheritance-tax-docs/ にアクセス
 ```
 
-### 個別アプリのローカル開発
+### 個別アプリの開発
 
 ```bash
 cd apps/<アプリ名>
-npm install
-npm run dev
+docker compose up -d
+docker compose logs -f
 ```
+
+> ローカル環境を汚さないため、`npm install` や `npm run dev` はホスト側では実行しません。必要な作業は Docker コンテナ内または Docker Compose 経由で行います。
 
 ## 環境変数
 
@@ -249,13 +254,13 @@ Nginx が 502 エラーを返す場合、バックエンドアプリが起動し
 
 ```bash
 # コンテナの状態を確認
-manage.bat status
+./docker/scripts/manage.sh status
 
 # 特定アプリのログを確認
-manage.bat logs bank-analyzer
+./docker/scripts/manage.sh logs bank-analyzer
 
 # 特定アプリを再起動
-manage.bat restart bank-analyzer
+./docker/scripts/manage.sh restart bank-analyzer
 
 # gateway を再起動（全アプリ起動後にDNS解決エラーが出る場合）
 docker restart tax-apps-gateway

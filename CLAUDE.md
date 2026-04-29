@@ -26,34 +26,46 @@ cd apps/<app-name> && docker compose -f docker-compose.yml -f docker-compose.pro
 cd apps/<app-name> && docker compose logs -f
 ```
 
-### manage.bat / manage.sh（全アプリ統合管理）
+### manage.sh / backup.sh（全アプリ統合管理）
 
-`manage.bat` は Git Bash 経由で `manage.sh` を実行する薄いラッパー。ダブルクリックで開発モード起動。Windows CMD からも Git Bash からも同じように使用可能。
+コマンド例は `.sh` を本体として記載する。`.bat` は Windows のダブルクリック用・タスクスケジューラ用の補助ラッパーとして扱う。
+
+- `manage.sh`: 起動、停止、再ビルド、ログ、状態確認などの管理本体
+- `backup.sh`: 全体バックアップ/リストア + ITCM定期バックアップ本体
+- `manage.bat`: Git Bash 経由で `manage.sh` を呼ぶ補助ラッパー
+- `backup-db.bat`: Git Bash 経由で `backup.sh itcm` を呼ぶ補助ラッパー
 
 ヘルパースクリプト（ダブルクリック用）:
-- `start-prod.bat` — ワンクリックで本番モード起動
-- `stop.bat` — ワンクリックで停止
-- `status.bat` — ワンクリックで状態確認
-- `backup-db.bat` — ITCM PostgreSQLダンプ + Excelテンプレートバックアップ（7日間保持、タスクスケジューラ対応）
+- `start-prod.bat`: ワンクリックで本番モード起動
+- `stop.bat`: ワンクリックで停止
+- `status.bat`: ワンクリックで状態確認
+- `backup-db.bat`: ITCM PostgreSQLダンプ + JSONエクスポート + Excelテンプレート等（7日間保持、タスクスケジューラ対応）
 
 ```bash
-# 全アプリ起動（開発モード）— manage.bat ダブルクリックでも可
-docker/scripts/manage.bat start
+# 全アプリ起動（開発モード）
+docker/scripts/manage.sh start
 
-# 全アプリ本番モード起動 — start-prod.bat ダブルクリックでも可
-docker/scripts/manage.bat start --prod
+# 全アプリ本番モード起動
+docker/scripts/manage.sh start --prod
 
 # 特定アプリのみ再ビルド
-docker/scripts/manage.bat build <app-name>
+docker/scripts/manage.sh build <app-name>
 
 # ログ確認
-docker/scripts/manage.bat logs <app-name>
+docker/scripts/manage.sh logs <app-name>
 
-# 全アプリ停止 — stop.bat ダブルクリックでも可
-docker/scripts/manage.bat stop
+# 全アプリ停止
+docker/scripts/manage.sh stop
 
-# 状態確認 — status.bat ダブルクリックでも可
-docker/scripts/manage.bat status
+# 状態確認
+docker/scripts/manage.sh status
+
+# 全体バックアップ / リストア
+docker/scripts/manage.sh backup
+docker/scripts/manage.sh restore [dir]
+
+# ITCM定期バックアップ（画面のJSONエクスポート相当も含む）
+docker/scripts/backup.sh itcm
 ```
 
 ### 個別アプリのスクリプト（Docker内で実行）
