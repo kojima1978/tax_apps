@@ -35,6 +35,7 @@ BIND_TARGETS=(
 
 SETTINGS_TARGETS=(
   "ITCM .env:apps/inheritance-case-management/.env:itcm-.env"
+  "Bank Analyzer .env:apps/bank-analyzer-django/.env:bank-analyzer-.env"
 )
 
 warn() { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
@@ -209,7 +210,9 @@ restore_postgres() {
 }
 
 backup_sqlite_volumes() {
-  echo "[3/5] SQLite volumes ..."
+  local step_label="$1"
+  shift
+  echo "$step_label SQLite volumes ..."
   local sqlite_ok=0 sqlite_skip=0
   local backup_dir_win
   backup_dir_win="$(to_win_path "$backup_dir")"
@@ -238,7 +241,9 @@ backup_sqlite_volumes() {
 }
 
 restore_sqlite_volumes() {
-  echo "[3/5] SQLite volumes ..."
+  local step_label="$1"
+  shift
+  echo "$step_label SQLite volumes ..."
   local sqlite_ok=0
   local backup_dir_win
   backup_dir_win="$(to_win_path "$backup_dir")"
@@ -355,7 +360,7 @@ cmd_backup() {
   done
 
   (( step++ )) || true
-  backup_sqlite_volumes "${SQLITE_TARGETS[@]}"
+  backup_sqlite_volumes "[$step/$total]" "${SQLITE_TARGETS[@]}"
 
   for target in "${BIND_TARGETS[@]}"; do
     (( step++ )) || true
@@ -472,7 +477,7 @@ cmd_restore() {
     local vol="${target%%:*}"
     sqlite_restore_pairs+=("$fname.tar.gz:$vol")
   done
-  restore_sqlite_volumes "${sqlite_restore_pairs[@]}"
+  restore_sqlite_volumes "[$step/$total]" "${sqlite_restore_pairs[@]}"
 
   for target in "${BIND_TARGETS[@]}"; do
     (( step++ )) || true
