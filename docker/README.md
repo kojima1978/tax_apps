@@ -374,7 +374,7 @@ docker exec tax-apps-gateway nginx -s reload
 ./manage.sh backup
 ```
 
-`docker\backups\2026-02-22_153000\` のようなタイムスタンプ付きフォルダに保存されます。
+`docker\backups\2026-02-22_153000\` のようなタイムスタンプ付きフォルダに7日間保存されます。
 あわせて、リポジトリと同じ階層の `tax_apps_backup_latest\full\` に最新1日分だけ追加コピーされます。
 
 | # | データ | 方式 | 備考 |
@@ -384,6 +384,9 @@ docker exec tax-apps-gateway nginx -s reload
 | 3 | SQLite ボリューム（2つ） | `docker run alpine tar` | bank-analyzer-sqlite, medical-stock-valuation-data |
 | 4 | アップロードデータ | `cp` | bank-analyzer/data/ |
 | 5 | 設定ファイル | `copy` | ITCM .env, Bank Analyzer .env |
+| 6 | Bank Analyzer 案件別JSON | `manage.py export_case_json_backups` | 画面のJSONバックアップと同じ形式 |
+
+> 全体バックアップの保持期間は既定で7日間です。変更する場合は `FULL_BACKUP_RETENTION_DAYS` を指定して `backup.sh` を実行してください。
 
 ### リストア
 
