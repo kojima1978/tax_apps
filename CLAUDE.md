@@ -34,6 +34,7 @@ cd apps/<app-name> && docker compose logs -f
 - `backup.sh`: 全体バックアップ/リストア + ITCM定期バックアップ本体
 - `manage.bat`: Git Bash 経由で `manage.sh` を呼ぶ補助ラッパー
 - `backup-db.bat`: Git Bash 経由で `backup.sh itcm` を呼ぶ補助ラッパー
+- バックアップは `docker/backups/` を主保存先とし、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/` に追加コピーする
 
 ヘルパースクリプト（ダブルクリック用）:
 - `start-prod.bat`: ワンクリックで本番モード起動

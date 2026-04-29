@@ -3,8 +3,9 @@
 # Tax Apps - Full Backup / Restore
 # ============================================
 # Main script for:
-#   ./backup-restore.sh backup
-#   ./backup-restore.sh restore [dir]
+#   ./backup.sh backup
+#   ./backup.sh restore [dir]
+#   ./backup.sh itcm
 #
 # manage.sh delegates backup / restore here.
 # ============================================
@@ -13,7 +14,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-BACKUP_BASE="$SCRIPT_DIR/../backups"
+BACKUP_BASE="${BACKUP_BASE:-$SCRIPT_DIR/../backups}"
+LATEST_BACKUP_BASE="${LATEST_BACKUP_BASE:-$(cd "$PROJECT_ROOT/.." && pwd)/tax_apps_backup_latest}"
+LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
 
 PG_TARGETS=(
   "ITCM PostgreSQL:itcm-postgres:postgres:inheritance_tax_db:inheritance-case-management_postgres_data:itcm-postgres:inheritance-case-management"
@@ -72,6 +75,50 @@ to_win_path() {
     cygpath -w "$path"
   else
     printf '%s\n' "$path"
+  fi
+}
+
+copy_latest_backup_item() {
+  local src="$1"
+  local dest_dir="$2"
+  [[ -e "$src" ]] || return 1
+  mkdir -p "$dest_dir"
+  if cp -R "$src" "$dest_dir/"; then
+    return 0
+  fi
+  warn "Latest backup copy failed: $src"
+  return 1
+}
+
+remove_old_latest_items() {
+  local dir="$1"
+  local retention_days="${2:-$LATEST_BACKUP_RETENTION_DAYS}"
+  [[ -d "$dir" ]] || return 0
+  case "$dir" in
+    "$LATEST_BACKUP_BASE"/*) ;;
+    *)
+      warn "Skip latest-backup cleanup outside latest backup base: $dir"
+      return 0
+      ;;
+  esac
+  find "$dir" -mindepth 1 -maxdepth 1 -mtime +"$((retention_days - 1))" -print -exec rm -rf {} + 2>/dev/null |
+    while IFS= read -r item; do
+      echo "  Deleting latest copy: $(basename "$item")"
+    done
+}
+
+copy_latest_backup_set() {
+  local dest_dir="$1"
+  shift
+  local copied=0
+  for src in "$@"; do
+    if copy_latest_backup_item "$src" "$dest_dir"; then
+      (( copied++ )) || true
+    fi
+  done
+  remove_old_latest_items "$dest_dir" "$LATEST_BACKUP_RETENTION_DAYS"
+  if [[ $copied -gt 0 ]]; then
+    echo "  Latest copy: $(to_win_path "$dest_dir")  ($copied item(s), ${LATEST_BACKUP_RETENTION_DAYS} day retention)"
   fi
 }
 
@@ -331,6 +378,7 @@ cmd_backup() {
     warn "No data was backed up. Removing empty directory."
     rm -rf "$backup_dir"
   else
+    copy_latest_backup_set "$LATEST_BACKUP_BASE/full" "$backup_dir"
     echo "  To restore: ./manage.sh restore $timestamp"
   fi
   echo ""
@@ -494,6 +542,12 @@ cmd_itcm_backup() {
   local stamp
   stamp="$(date +"%Y%m%d_%H%M%S")"
   local errors=0
+  local -a latest_itcm_db_sources=()
+  local -a latest_json_sources=()
+  local -a latest_bank_analyzer_sources=()
+  local -a latest_medical_stock_sources=()
+  local -a latest_template_sources=()
+  local -a latest_app_sources=()
 
   echo "============================================================"
   echo " Data Backup - $(date)"
@@ -524,6 +578,7 @@ cmd_itcm_backup() {
       pg1_dir_win="$(to_win_path "$pg1_dir")"
       if MSYS_NO_PATHCONV=1 docker run --rm -v "$pg1_volume:/data" -v "$pg1_dir_win:/backup" alpine tar czf "/backup/$pg1_volume_file" -C /data .; then
         log_file_ok "$pg1_dir/$pg1_volume_file" "$pg1_volume_file"
+        latest_itcm_db_sources+=("$pg1_dir/$pg1_volume_file")
       else
         echo "  [ERROR] PostgreSQL volume backup failed."
         (( errors++ )) || true
@@ -532,6 +587,7 @@ cmd_itcm_backup() {
   else
     if docker exec "$pg1_container" pg_dump -U "$pg1_user" -d "$pg1_db" --clean --if-exists > "$pg1_dir/$pg1_file"; then
       log_file_ok "$pg1_dir/$pg1_file" "$pg1_file"
+      latest_itcm_db_sources+=("$pg1_dir/$pg1_file")
     else
       echo "  [ERROR] plain pg_dump failed."
       rm -f "$pg1_dir/$pg1_file"
@@ -540,6 +596,7 @@ cmd_itcm_backup() {
 
     if docker exec "$pg1_container" pg_dump -U "$pg1_user" -d "$pg1_db" --clean --if-exists -Fc > "$pg1_dir/$pg1_dump_file"; then
       log_file_ok "$pg1_dir/$pg1_dump_file" "$pg1_dump_file"
+      latest_itcm_db_sources+=("$pg1_dir/$pg1_dump_file")
     else
       echo "  [ERROR] custom pg_dump failed."
       rm -f "$pg1_dir/$pg1_dump_file"
@@ -548,6 +605,7 @@ cmd_itcm_backup() {
 
     if docker exec "$pg1_container" pg_dumpall -U "$pg1_user" --globals-only > "$pg1_dir/$pg1_globals_file"; then
       log_file_ok "$pg1_dir/$pg1_globals_file" "$pg1_globals_file"
+      latest_itcm_db_sources+=("$pg1_dir/$pg1_globals_file")
     else
       echo "  [ERROR] globals dump failed."
       rm -f "$pg1_dir/$pg1_globals_file"
@@ -589,6 +647,7 @@ cmd_itcm_backup() {
       (( errors++ )) || true
     else
       log_file_ok "$json_dir/$json_file" "$json_file"
+      latest_json_sources+=("$json_dir/$json_file")
     fi
   fi
   remove_old_files "$json_dir" "itcm-json_*.json" "$retention_days"
@@ -608,6 +667,7 @@ cmd_itcm_backup() {
   else
     if docker exec "$pg2_container" pg_dump -U "$pg2_user" -d "$pg2_db" --clean --if-exists > "$pg2_dir/$pg2_file"; then
       log_file_ok "$pg2_dir/$pg2_file" "$pg2_file"
+      latest_bank_analyzer_sources+=("$pg2_dir/$pg2_file")
     else
       echo "  [ERROR] pg_dump failed."
       rm -f "$pg2_dir/$pg2_file"
@@ -630,6 +690,7 @@ cmd_itcm_backup() {
   else
     if docker cp "$sq1_container:$sq1_src" "$sq1_dir/$sq1_file"; then
       log_file_ok "$sq1_dir/$sq1_file" "$sq1_file"
+      latest_medical_stock_sources+=("$sq1_dir/$sq1_file")
     else
       echo "  [ERROR] docker cp failed."
       rm -f "$sq1_dir/$sq1_file"
@@ -650,6 +711,7 @@ cmd_itcm_backup() {
   else
     copy_xlsx_templates "$tpl_src" "$tpl_dest"
     echo "  OK: Copied to $tpl_folder\\"
+    latest_template_sources+=("$tpl_dest")
   fi
   remove_old_dirs "$tpl_dir" "itcm-templates_*" "$retention_days"
   echo
@@ -680,8 +742,18 @@ cmd_itcm_backup() {
       echo "json_export=$json_file"
     } > "$itcm_dest/manifest.txt"
     echo "  OK: Copied to $itcm_folder\\"
+    latest_app_sources+=("$itcm_dest")
   fi
   remove_old_dirs "$itcm_dir" "itcm-app_*" "$retention_days"
+  echo
+
+  echo "[Latest Copy] Saving one-day copy outside repository"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/itcm-db" "${latest_itcm_db_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/itcm-json" "${latest_json_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/bank-analyzer-db" "${latest_bank_analyzer_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/medical-stock-db" "${latest_medical_stock_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/itcm-templates" "${latest_template_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/itcm-app" "${latest_app_sources[@]}"
   echo
 
   if [[ "$errors" -eq 0 ]]; then

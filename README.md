@@ -181,6 +181,8 @@ cd tax_apps
 ./docker/scripts/backup.sh itcm              ITCM定期バックアップ（JSONエクスポート含む）
 ```
 
+バックアップは `docker/backups/` に保存し、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/` に追加コピーします。
+
 ### 開発モード vs 本番モード
 
 | | 開発モード (`start`) | 本番モード (`start --prod`) |
