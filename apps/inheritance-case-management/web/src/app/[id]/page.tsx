@@ -20,16 +20,22 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
     const [caseItem, setCaseItem] = useState<InheritanceCase | undefined>(undefined)
     const [isLoading, setIsLoading] = useState(true)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     useEffect(() => {
         const load = async () => {
+            setLoadError(null)
             try {
                 const item = await getCase(Number(id))
                 if (item) {
                     setCaseItem(item)
+                } else {
+                    setCaseItem(undefined)
                 }
             } catch (e) {
-                console.error(e)
+                const message = e instanceof Error ? e.message : "案件詳細の取得に失敗しました"
+                setLoadError(message)
+                setCaseItem(undefined)
             } finally {
                 setIsLoading(false)
             }
@@ -49,8 +55,8 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
             toast.success("案件を削除しました")
             router.replace("/")
         } catch (e) {
-            console.error(e)
-            toast.error("削除に失敗しました: " + String(e))
+            const message = e instanceof Error ? e.message : String(e)
+            toast.error("削除に失敗しました: " + message)
         } finally {
             setIsDeleting(false)
         }
@@ -61,7 +67,7 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
     }
 
     if (!caseItem) {
-        return <div className="container mx-auto py-10">案件が見つかりません。</div>
+        return <div className="container mx-auto py-10">{loadError || "案件が見つかりません。"}</div>
     }
 
     return (
