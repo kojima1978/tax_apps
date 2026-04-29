@@ -254,7 +254,7 @@ docker/scripts/manage.sh restart bank-analyzer-django
 | 環境変数 | `bank-analyzer-.env` |
 | レガシーSQLite | `bank-analyzer-sqlite` ボリュームが存在する場合のみ |
 
-保存先は `docker/backups/<日時>/` です。通常保存は7日間保持され、最新1日分は `tax_apps` と同じ階層の `tax_apps_backup_latest/full/` にも追加コピーされます。
+保存先は `docker/backups/<日時>/` です。通常保存は7日間保持され、最新1日分は `tax_apps` と同じ階層の `tax_apps_backup_latest/all-apps/` にも追加コピーされます。
 案件別JSONは画面の「JSONバックアップ」と同じ形式で、画面の「JSONから復元」でも利用できます。
 
 ### 本番環境
