@@ -426,7 +426,7 @@ cmd_backup() {
     warn "No data was backed up. Removing empty directory."
     rm -rf "$backup_dir"
   else
-    copy_latest_backup_set "$LATEST_BACKUP_BASE/full" "$backup_dir"
+    copy_latest_backup_set "$LATEST_BACKUP_BASE/all-apps" "$backup_dir"
     echo "  Retention: ${FULL_BACKUP_RETENTION_DAYS} days in $(to_win_path "$BACKUP_BASE")"
     remove_old_dirs "$BACKUP_BASE" "????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
     echo "  To restore: ./manage.sh restore $timestamp"
@@ -798,12 +798,12 @@ cmd_itcm_backup() {
   echo
 
   echo "[Latest Copy] Saving one-day copy outside repository"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/itcm-db" "${latest_itcm_db_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/itcm-json" "${latest_json_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/bank-analyzer-db" "${latest_bank_analyzer_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/medical-stock-db" "${latest_medical_stock_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/itcm-templates" "${latest_template_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm/itcm-app" "${latest_app_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-db" "${latest_itcm_db_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-json" "${latest_json_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/bank-analyzer-db" "${latest_bank_analyzer_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/medical-stock-db" "${latest_medical_stock_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-templates" "${latest_template_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-app" "${latest_app_sources[@]}"
   echo
 
   if [[ "$errors" -eq 0 ]]; then

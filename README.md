@@ -181,7 +181,7 @@ cd tax_apps
 ./docker/scripts/backup.sh itcm              ITCM定期バックアップ（JSONエクスポート含む）
 ```
 
-バックアップは `docker/backups/` に7日間保存し、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/` に追加コピーします。
+バックアップは `docker/backups/` に7日間保存し、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/` に追加コピーします。全体バックアップは `all-apps/`、ITCM定期バックアップは `itcm-daily/` に分けて保存します。
 
 ### 開発モード vs 本番モード
 
