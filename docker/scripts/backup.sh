@@ -17,6 +17,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BACKUP_BASE="${BACKUP_BASE:-$SCRIPT_DIR/../backups}"
 LATEST_BACKUP_BASE="${LATEST_BACKUP_BASE:-$(cd "$PROJECT_ROOT/.." && pwd)/tax_apps_backup_latest}"
 LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
+FULL_BACKUP_RETENTION_DAYS="${FULL_BACKUP_RETENTION_DAYS:-${RETENTION_DAYS:-7}}"
 
 PG_TARGETS=(
   "ITCM PostgreSQL:itcm-postgres:postgres:inheritance_tax_db:inheritance-case-management_postgres_data:itcm-postgres:inheritance-case-management"
@@ -337,6 +338,45 @@ restore_settings_file() {
   fi
 }
 
+backup_bank_analyzer_json() {
+  local step_label="$1"
+  local container="bank-analyzer"
+  local dest_dir="$backup_dir/bank-analyzer-json"
+  local temp_dir="/tmp/bank-analyzer-json-$(basename "$backup_dir")"
+
+  echo "$step_label Bank Analyzer JSON exports ..."
+  if ! is_container_running "$container"; then
+    warn "$container container is not running"
+    (( backup_skip++ )) || true
+    return
+  fi
+
+  if ! docker exec "$container" sh -c "rm -rf '$temp_dir' && mkdir -p '$temp_dir' && python manage.py export_case_json_backups --output-dir '$temp_dir'" >/dev/null 2>&1; then
+    err "Bank Analyzer JSON export failed"
+    (( backup_fail++ )) || true
+    return
+  fi
+
+  mkdir -p "$dest_dir"
+  if ! docker cp "$container:$temp_dir/." "$dest_dir/" >/dev/null 2>&1; then
+    docker exec "$container" rm -rf "$temp_dir" >/dev/null 2>&1 || true
+    err "Bank Analyzer JSON copy failed"
+    (( backup_fail++ )) || true
+    return
+  fi
+  docker exec "$container" rm -rf "$temp_dir" >/dev/null 2>&1 || true
+
+  local json_count
+  json_count=$(find "$dest_dir" -maxdepth 1 -type f -name '*.json' | wc -l | tr -d ' ')
+  if [[ "$json_count" -gt 0 ]]; then
+    ok "bank-analyzer-json/ ($json_count files)"
+    (( backup_ok++ )) || true
+  else
+    warn "No Bank Analyzer cases to export"
+    (( backup_skip++ )) || true
+  fi
+}
+
 cmd_backup() {
   print_banner "Tax Apps - Backup"
 
@@ -351,7 +391,7 @@ cmd_backup() {
   backup_ok=0
   backup_fail=0
   backup_skip=0
-  local step=0 total=$(( ${#PG_TARGETS[@]} + 1 + ${#BIND_TARGETS[@]} + ${#SETTINGS_TARGETS[@]} ))
+  local step=0 total=$(( ${#PG_TARGETS[@]} + 1 + ${#BIND_TARGETS[@]} + ${#SETTINGS_TARGETS[@]} + 1 ))
 
   for target in "${PG_TARGETS[@]}"; do
     (( step++ )) || true
@@ -374,6 +414,9 @@ cmd_backup() {
     backup_settings_file "[$step/$total]" "$label" "$PROJECT_ROOT/$src_path" "$backup_dir/$backup_filename"
   done
 
+  (( step++ )) || true
+  backup_bank_analyzer_json "[$step/$total]"
+
   print_summary_banner "Backup Complete" "$backup_fail"
   echo "  Destination: $backup_dir/"
   echo "  Size: $(format_size "$(dir_size "$backup_dir")")"
@@ -384,6 +427,8 @@ cmd_backup() {
     rm -rf "$backup_dir"
   else
     copy_latest_backup_set "$LATEST_BACKUP_BASE/full" "$backup_dir"
+    echo "  Retention: ${FULL_BACKUP_RETENTION_DAYS} days in $(to_win_path "$BACKUP_BASE")"
+    remove_old_dirs "$BACKUP_BASE" "????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
     echo "  To restore: ./manage.sh restore $timestamp"
   fi
   echo ""
