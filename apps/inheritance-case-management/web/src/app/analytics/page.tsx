@@ -20,7 +20,7 @@ const TABS: { id: TabId; label: string }[] = [
     { id: "overview", label: "売上・件数" },
     { id: "trend", label: "年計表" },
     { id: "breakdown", label: "部門・担当者" },
-    { id: "referrer", label: "紹介者" },
+    { id: "referrer", label: "外部紹介者" },
 ]
 
 export default function AnalyticsPage() {
