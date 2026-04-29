@@ -234,6 +234,27 @@ docker compose down
 
 > **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/bank-analyzer/ からアクセスできます。
 
+### バックアップ / リストア
+
+Bank Analyzer を復元できる形で保存する場合は、リポジトリ直下から全体バックアップを実行します。
+
+```bash
+docker/scripts/manage.sh backup
+docker/scripts/manage.sh restore <日時>
+docker/scripts/manage.sh restart bank-analyzer-django
+```
+
+保存対象:
+
+| 対象 | 保存内容 |
+|------|----------|
+| PostgreSQL | `bank-analyzer-postgres.sql` |
+| ユーザーデータ | `apps/bank-analyzer-django/data/` |
+| 環境変数 | `bank-analyzer-.env` |
+| レガシーSQLite | `bank-analyzer-sqlite` ボリュームが存在する場合のみ |
+
+保存先は `docker/backups/<日時>/` です。最新1日分は `tax_apps` と同じ階層の `tax_apps_backup_latest/full/` にも追加コピーされます。
+
 ### 本番環境
 
 ```bash

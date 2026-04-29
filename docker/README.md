@@ -383,7 +383,7 @@ docker exec tax-apps-gateway nginx -s reload
 | 2 | Bank Analyzer PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
 | 3 | SQLite ボリューム（2つ） | `docker run alpine tar` | bank-analyzer-sqlite, medical-stock-valuation-data |
 | 4 | アップロードデータ | `cp` | bank-analyzer/data/ |
-| 5 | 設定ファイル | `copy` | ITCM .env |
+| 5 | 設定ファイル | `copy` | ITCM .env, Bank Analyzer .env |
 
 ### リストア
 
