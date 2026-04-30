@@ -161,7 +161,7 @@ export function FilterBar({
                 <div className="relative flex-1 min-w-44 max-w-xs">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="被相続人名で検索..."
+                        placeholder="被相続人・相続人名で検索..."
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         className="h-9 pl-9 pr-8 text-xs"
