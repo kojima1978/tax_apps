@@ -97,7 +97,16 @@ export function buildCaseWhereClause(params: {
     where.fiscalYear = fiscalYear;
   }
   if (search) {
-    where.deceasedName = { contains: search, mode: 'insensitive' };
+    const existingAnd = Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : [];
+    where.AND = [
+      ...existingAnd,
+      {
+        OR: [
+          { deceasedName: { contains: search, mode: 'insensitive' } },
+          { contacts: { some: { person: { name: { contains: search, mode: 'insensitive' } } } } },
+        ],
+      },
+    ];
   }
   if (unassigned) {
     where.assigneeId = null;
