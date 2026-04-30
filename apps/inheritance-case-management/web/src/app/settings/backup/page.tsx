@@ -2,7 +2,7 @@
 
 import { useState, useRef, Suspense, type DragEvent, type ChangeEvent } from "react"
 import Link from "next/link"
-import { Download, Upload, AlertTriangle, CheckCircle2, ChevronRight } from "lucide-react"
+import { Download, Upload, AlertTriangle, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { backupDataSchema, type BackupData } from "@/types/backup"
 import { exportBackup, restoreBackup } from "@/lib/api/backup"
@@ -14,10 +14,12 @@ const TABLE_LABELS: { key: keyof BackupData["data"]; label: string }[] = [
   { key: "companyBranches", label: "支店" },
   { key: "assignees", label: "担当者" },
   { key: "referrers", label: "紹介者" },
+  { key: "persons", label: "連絡先マスタ" },
   { key: "cases", label: "案件" },
-  { key: "caseContacts", label: "連絡先" },
+  { key: "caseContacts", label: "案件連絡先" },
   { key: "caseProgress", label: "進捗" },
   { key: "caseExpenses", label: "立替経費" },
+  { key: "caseSpecialAdditions", label: "特別業務報酬額" },
 ]
 
 function BackupContent() {
@@ -28,7 +30,6 @@ function BackupContent() {
   const [fileName, setFileName] = useState("")
   const [parseError, setParseError] = useState("")
   const [confirmInput, setConfirmInput] = useState("")
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
   const [dragging, setDragging] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -46,7 +47,6 @@ function BackupContent() {
   const parseFile = (file: File) => {
     setParseError("")
     setBackupData(null)
-    setResult(null)
     setConfirmInput("")
     setFileName(file.name)
 
@@ -79,12 +79,11 @@ function BackupContent() {
   const handleRestore = async () => {
     if (!backupData) return
     setRestoring(true)
-    setResult(null)
     try {
       const res = await restoreBackup(backupData)
       if (res.success) {
         const total = Object.values(res.counts).reduce((a, b) => a + b, 0)
-        setResult({ success: true, message: `リストアが完了しました。合計 ${total} 件のレコードを復元しました。` })
+        toast.success(`リストアが完了しました。合計 ${total} 件のレコードを復元しました。`)
         setBackupData(null)
         setFileName("")
         setConfirmInput("")
@@ -92,7 +91,7 @@ function BackupContent() {
       }
     } catch (err) {
       const detail = err instanceof Error ? err.message : ""
-      setResult({ success: false, message: detail ? `リストアに失敗しました: ${detail}` : "リストアに失敗しました。データを確認してください。" })
+      toast.error(detail ? `リストアに失敗しました: ${detail}` : "リストアに失敗しました。データを確認してください。")
     } finally {
       setRestoring(false)
     }
@@ -219,21 +218,6 @@ function BackupContent() {
           </div>
         )}
 
-        {/* Result */}
-        {result && (
-          <div
-            className={`flex items-center gap-2 p-3 rounded-lg text-sm mt-4 ${
-              result.success ? "bg-white text-black border border-black/10" : "bg-white text-black border border-black/10"
-            }`}
-          >
-            {result.success ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-            ) : (
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-            )}
-            {result.message}
-          </div>
-        )}
       </section>
     </div>
   )
