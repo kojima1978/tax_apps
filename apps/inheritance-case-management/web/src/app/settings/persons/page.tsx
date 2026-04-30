@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense } from "react"
+import { AddressCell } from "@/components/AddressCell"
 import { Input } from "@/components/ui/Input"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 import { useMasterList, nextTempId, type MasterListConfig } from "@/hooks/use-master-list"
@@ -13,14 +14,13 @@ import { useState } from "react"
 const COLUMNS: ColumnDef<Person>[] = [
     { key: "name", label: "氏名", width: "160px" },
     { key: "phone", label: "電話番号", width: "140px" },
-    { key: "address", label: "住所", renderCell: (item) => {
-        const parts = [item.postalCode && `〒${item.postalCode}`, item.address].filter(Boolean)
-        return parts.length > 0 ? (
-            <span className="text-sm">{parts.join(" ")}</span>
-        ) : (
-            <span className="text-muted-foreground">-</span>
-        )
-    }},
+    {
+        key: "address",
+        label: "住所",
+        width: "380px",
+        cellClassName: "align-top",
+        renderCell: (item) => <AddressCell postalCode={item.postalCode} address={item.address} />,
+    },
     { key: "memo", label: "メモ", renderCell: (item) =>
         item.memo ? (
             <span className="text-sm text-muted-foreground truncate max-w-[200px] block">{item.memo}</span>

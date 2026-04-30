@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button"
 import { Label } from "@/components/ui/Label"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { Trash2, Plus, Pencil, Check, X, ArrowUpDown, Ban, RotateCcw, ChevronRight } from "lucide-react"
 
@@ -17,6 +18,7 @@ export interface ColumnDef<T> {
     key: string
     label: string
     width?: string
+    cellClassName?: string
     renderCell?: (item: T) => ReactNode
 }
 
@@ -117,7 +119,7 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
     groupBy,
 }: MasterListPageProps<T>) {
     return (
-        <div className="container mx-auto py-10 max-w-2xl relative pb-24 px-4">
+        <div className="container mx-auto py-10 max-w-5xl relative pb-24 px-4">
             <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
                 <Link href="/" className="hover:text-foreground transition-colors">案件一覧</Link>
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -162,11 +164,11 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                         <p className="text-muted-foreground text-sm">{entityLabel}が登録されていません。</p>
                     ) : (
                         <div className="border rounded-md">
-                            <Table>
+                            <Table className="table-fixed">
                                 <TableHeader>
                                     <TableRow>
                                         {columns.map(col => (
-                                            <TableHead key={col.key} className={col.width ? `w-[${col.width}]` : ""}>
+                                            <TableHead key={col.key} style={col.width ? { width: col.width } : undefined}>
                                                 <button
                                                     onClick={() => onSort(col.key)}
                                                     className="flex items-center gap-1 hover:text-foreground"
@@ -196,7 +198,7 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                                             {editingId === item.id ? (
                                                 <>
                                                     {columns.map(col => (
-                                                        <TableCell key={col.key}>
+                                                        <TableCell key={col.key} className={col.cellClassName}>
                                                             {renderEditCell(col)}
                                                         </TableCell>
                                                     ))}
@@ -224,7 +226,7 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                                             ) : (
                                                 <>
                                                     {columns.map((col, i) => (
-                                                        <TableCell key={col.key} className={i === 0 ? "font-medium" : ""}>
+                                                        <TableCell key={col.key} className={cn(i === 0 && "font-medium", col.cellClassName)}>
                                                             {col.renderCell ? col.renderCell(item) : String((item as Record<string, unknown>)[col.key] ?? "-")}
                                                         </TableCell>
                                                     ))}
