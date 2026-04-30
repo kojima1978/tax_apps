@@ -14,6 +14,7 @@ export interface BackupData {
     caseContacts: unknown[];
     caseProgress: unknown[];
     caseExpenses: unknown[];
+    caseSpecialAdditions: unknown[];
     auditLogs: unknown[];
   };
 }
@@ -32,6 +33,7 @@ export const backupDataSchema = z.object({
     caseContacts: z.array(z.unknown()),
     caseProgress: z.array(z.unknown()),
     caseExpenses: z.array(z.unknown()).optional().default([]),
+    caseSpecialAdditions: z.array(z.unknown()).optional().default([]),
     auditLogs: z.array(z.unknown()).optional().default([]),
   }),
 });

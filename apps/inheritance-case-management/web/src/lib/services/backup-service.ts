@@ -10,6 +10,17 @@ function toDateOnly(s: string): Date {
 
 type Rec = Record<string, unknown>;
 
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toNumOr(v: unknown, fallback: number): number {
+  const n = toNum(v);
+  return n === null ? fallback : n;
+}
+
 const TABLE_DEFS = [
   {
     key: 'departments' as const,
@@ -86,19 +97,19 @@ const TABLE_DEFS = [
       status: (c.status as string) ?? '未着手',
       handlingStatus: (c.handlingStatus as string) ?? '対応中',
       acceptanceStatus: (c.acceptanceStatus as string) ?? '未判定',
-      taxAmount: (c.taxAmount as number) ?? 0,
-      feeAmount: (c.feeAmount as number) ?? 0,
-      fiscalYear: c.fiscalYear as number,
-      estimateAmount: (c.estimateAmount as number) ?? 0,
-      propertyValue: (c.propertyValue as number) ?? 0,
-      referralFeeRate: (c.referralFeeRate as number) ?? null,
-      referralFeeAmount: (c.referralFeeAmount as number) ?? null,
-      estimateReferralFeeAmount: (c.estimateReferralFeeAmount as number) ?? null,
-      landRosenkaCount: (c.landRosenkaCount as number) ?? 0,
-      landBairitsuCount: (c.landBairitsuCount as number) ?? 0,
-      unlistedStockCount: (c.unlistedStockCount as number) ?? 0,
-      heirCount: (c.heirCount as number) ?? 0,
-      discountAmount: (c.discountAmount as number) ?? 0,
+      taxAmount: toNumOr(c.taxAmount, 0),
+      feeAmount: toNumOr(c.feeAmount, 0),
+      fiscalYear: toNumOr(c.fiscalYear, new Date().getFullYear()),
+      estimateAmount: toNumOr(c.estimateAmount, 0),
+      propertyValue: toNumOr(c.propertyValue, 0),
+      referralFeeRate: toNum(c.referralFeeRate),
+      referralFeeAmount: toNum(c.referralFeeAmount),
+      estimateReferralFeeAmount: toNum(c.estimateReferralFeeAmount),
+      landRosenkaCount: toNumOr(c.landRosenkaCount, 0),
+      landBairitsuCount: toNumOr(c.landBairitsuCount, 0),
+      unlistedStockCount: toNumOr(c.unlistedStockCount, 0),
+      heirCount: toNumOr(c.heirCount, 0),
+      discountAmount: toNumOr(c.discountAmount, 0),
       feeCalcSnapshot: (c.feeCalcSnapshot as Record<string, unknown>) ?? null,
       caseAddedDate: c.caseAddedDate ? toDateOnly(c.caseAddedDate as string) : null,
       caseCompletedDate: c.caseCompletedDate ? toDateOnly(c.caseCompletedDate as string) : null,
