@@ -5,6 +5,7 @@ import { AddressCell } from "@/components/AddressCell"
 import { Input } from "@/components/ui/Input"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 import { useMasterList, nextTempId, type MasterListConfig } from "@/hooks/use-master-list"
+import { formatPersonDeleteBlockedMessage } from "@/lib/person-delete-message"
 import type { Person } from "@/types/shared"
 import type { CreatePersonInput, UpdatePersonInput } from "@/types/validation"
 import { getPersons, createPerson, updatePerson, deletePerson } from "@/lib/api/masters"
@@ -64,6 +65,10 @@ const MASTER_CONFIG: MasterListConfig<Person, CreatePersonInput, UpdatePersonInp
         }
     },
     getDeleteLabel: (item) => item.name,
+    getPermanentDeleteBlockMessage: (item) => {
+        const caseLinkCount = item._count?.caseLinks ?? 0
+        return caseLinkCount > 0 ? formatPersonDeleteBlockedMessage(caseLinkCount) : null
+    },
 }
 
 function PersonsContent() {

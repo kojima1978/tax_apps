@@ -19,6 +19,7 @@ export interface MasterListConfig<T extends { id: number; active: boolean }, C, 
     defaultSortField?: string
     getSortValue: (item: T, field: string) => string
     getDeleteLabel: (item: T) => string
+    getPermanentDeleteBlockMessage?: (item: T) => string | null
 }
 
 // Counter for temporary IDs (negative numbers indicate unsaved items)
@@ -124,7 +125,7 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
             }
         } catch (e) {
             console.error(e)
-            toast.error("保存中にエラーが発生しました")
+            toast.error(e instanceof Error && e.message ? e.message : "保存中にエラーが発生しました")
         } finally {
             setIsSaving(false)
         }
@@ -146,6 +147,12 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
 
         if (!isTempId(id) && item.active !== false) {
             toast.warning("完全削除するには、まず無効化してください。")
+            return
+        }
+
+        const blockMessage = configRef.current.getPermanentDeleteBlockMessage?.(item)
+        if (blockMessage) {
+            toast.warning(blockMessage)
             return
         }
 

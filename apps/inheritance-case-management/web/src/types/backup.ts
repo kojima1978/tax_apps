@@ -1,5 +1,23 @@
 import { z } from 'zod';
 
+export const BACKUP_TABLES = [
+  { key: 'departments', label: '部署' },
+  { key: 'companies', label: '会社' },
+  { key: 'companyBranches', label: '支店' },
+  { key: 'assignees', label: '担当者' },
+  { key: 'referrers', label: '紹介者' },
+  { key: 'persons', label: '連絡先マスタ' },
+  { key: 'cases', label: '案件' },
+  { key: 'caseContacts', label: '案件連絡先' },
+  { key: 'caseProgress', label: '進捗' },
+  { key: 'caseExpenses', label: '立替経費' },
+  { key: 'caseSpecialAdditions', label: '特別業務報酬額' },
+  { key: 'auditLogs', label: '操作履歴' },
+] as const;
+
+export type BackupTableKey = (typeof BACKUP_TABLES)[number]['key'];
+export type BackupTableCounts = Record<BackupTableKey, number>;
+
 export interface BackupData {
   version: number;
   exportedAt: string;
@@ -17,6 +35,14 @@ export interface BackupData {
     caseSpecialAdditions: unknown[];
     auditLogs: unknown[];
   };
+}
+
+export function getBackupDataTotal(data: BackupData['data']): number {
+  return BACKUP_TABLES.reduce((sum, { key }) => sum + data[key].length, 0);
+}
+
+export function getBackupCountsTotal(counts: Partial<BackupTableCounts>): number {
+  return BACKUP_TABLES.reduce((sum, { key }) => sum + (counts[key] ?? 0), 0);
 }
 
 export const backupDataSchema = z.object({

@@ -60,6 +60,9 @@ export interface Person {
   active: boolean;
   createdAt?: Date;
   updatedAt?: Date;
+  _count?: {
+    caseLinks: number;
+  };
 }
 
 export interface CaseContact {

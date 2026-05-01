@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { BackupData } from '@/types/backup';
+import type { BackupData, BackupTableCounts } from '@/types/backup';
 
 export async function exportBackup(): Promise<void> {
   const data = await apiClient<BackupData>('/backup');
@@ -17,7 +17,7 @@ export async function exportBackup(): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
-export async function restoreBackup(data: BackupData): Promise<{ success: boolean; counts: Record<string, number> }> {
+export async function restoreBackup(data: BackupData): Promise<{ success: boolean; counts: BackupTableCounts }> {
   return apiClient('/backup/restore', {
     method: 'POST',
     body: JSON.stringify(data),
