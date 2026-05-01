@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { toDateStr } from '@/lib/prisma-includes';
+import type { BackupTableCounts } from '@/types/backup';
 
 type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
 
@@ -304,5 +305,5 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
 
   return Object.fromEntries(
     TABLE_DEFS.map((def) => [def.key, ((data[def.key as keyof typeof data] ?? []) as Rec[]).length])
-  );
+  ) as BackupTableCounts;
 }

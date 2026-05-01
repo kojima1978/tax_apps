@@ -4,23 +4,9 @@ import { useState, useRef, Suspense, type DragEvent, type ChangeEvent } from "re
 import Link from "next/link"
 import { Download, Upload, AlertTriangle, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/Button"
-import { backupDataSchema, type BackupData } from "@/types/backup"
+import { BACKUP_TABLES, backupDataSchema, getBackupCountsTotal, getBackupDataTotal, type BackupData } from "@/types/backup"
 import { exportBackup, restoreBackup } from "@/lib/api/backup"
 import { useToast } from "@/components/ui/Toast"
-
-const TABLE_LABELS: { key: keyof BackupData["data"]; label: string }[] = [
-  { key: "departments", label: "部署" },
-  { key: "companies", label: "会社" },
-  { key: "companyBranches", label: "支店" },
-  { key: "assignees", label: "担当者" },
-  { key: "referrers", label: "紹介者" },
-  { key: "persons", label: "連絡先マスタ" },
-  { key: "cases", label: "案件" },
-  { key: "caseContacts", label: "案件連絡先" },
-  { key: "caseProgress", label: "進捗" },
-  { key: "caseExpenses", label: "立替経費" },
-  { key: "caseSpecialAdditions", label: "特別業務報酬額" },
-]
 
 function BackupContent() {
   const toast = useToast()
@@ -82,7 +68,7 @@ function BackupContent() {
     try {
       const res = await restoreBackup(backupData)
       if (res.success) {
-        const total = Object.values(res.counts).reduce((a, b) => a + b, 0)
+        const total = getBackupCountsTotal(res.counts)
         toast.success(`リストアが完了しました。合計 ${total} 件のレコードを復元しました。`)
         setBackupData(null)
         setFileName("")
@@ -98,6 +84,7 @@ function BackupContent() {
   }
 
   const caseCount = backupData?.data.cases.length ?? 0
+  const previewTotal = backupData ? getBackupDataTotal(backupData.data) : 0
   const confirmValid = confirmInput === String(caseCount)
 
   return (
@@ -177,13 +164,19 @@ function BackupContent() {
                 </tr>
               </thead>
               <tbody>
-                {TABLE_LABELS.map(({ key, label }) => (
+                {BACKUP_TABLES.map(({ key, label }) => (
                   <tr key={key} className="border-t">
                     <td className="px-4 py-2">{label}</td>
                     <td className="px-4 py-2 text-right font-mono">{backupData.data[key].length}</td>
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="border-t bg-muted/30 font-medium">
+                  <td className="px-4 py-2">合計</td>
+                  <td className="px-4 py-2 text-right font-mono">{previewTotal}</td>
+                </tr>
+              </tfoot>
             </table>
 
             {/* Warning */}

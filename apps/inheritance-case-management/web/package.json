@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -p 3020",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "prisma generate && tsc --noEmit",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",

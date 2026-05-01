@@ -16,6 +16,8 @@ interface CrudRouteConfig {
   updateSchema: z.ZodType;
   /** Optional Prisma include for relation loading */
   include?: Record<string, unknown>;
+  /** Optional guard that can block deletion with a custom response */
+  beforeDelete?: (id: number) => Promise<NextResponse | void> | NextResponse | void;
 }
 
 type PrismaDelegate = {
@@ -31,7 +33,7 @@ function getDelegate(model: string): PrismaDelegate {
 }
 
 export function createCrudRouteHandlers(config: CrudRouteConfig) {
-  const { model, orderBy, entityLabel, createSchema, updateSchema, include } = config;
+  const { model, orderBy, entityLabel, createSchema, updateSchema, include, beforeDelete } = config;
   const delegate = getDelegate(model);
 
   // GET /api/{resource} + POST /api/{resource}
@@ -90,6 +92,8 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
       try {
         const { id: rawId } = await params;
         const id = Number(rawId);
+        const blocked = await beforeDelete?.(id);
+        if (blocked) return blocked;
         await delegate.delete({ where: { id } });
         return new NextResponse(null, { status: 204 });
       } catch (e) {
