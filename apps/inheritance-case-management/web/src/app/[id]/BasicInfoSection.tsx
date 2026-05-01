@@ -6,7 +6,6 @@ import { MasterSelect } from "@/components/ui/MasterSelect"
 import { User } from "lucide-react"
 import { toWareki } from "@/lib/analytics-utils"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
-import { formatId } from "@/types/shared"
 import {
     FISCAL_YEARS,
     MAX_SUMMARY_LENGTH,
@@ -15,7 +14,6 @@ import { ReferrerToggleSelect } from "./ReferrerToggleSelect"
 
 interface BasicInfoSectionProps {
     formData: InheritanceCase
-    isCreateMode: boolean
     assignees: Assignee[]
     referrers: Referrer[]
     returnToPath: string
@@ -26,18 +24,11 @@ interface BasicInfoSectionProps {
 }
 
 export function BasicInfoSection({
-    formData, isCreateMode, assignees, referrers, returnToPath, isOpen, onToggle, handleChange, setFormData
+    formData, assignees, referrers, returnToPath, isOpen, onToggle, handleChange, setFormData
 }: BasicInfoSectionProps) {
     return (
         <CollapsibleSection title="基本情報" icon={User} isOpen={isOpen} onToggle={onToggle}>
             <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-                {!isCreateMode && (
-                    <div className="space-y-1.5">
-                        <Label htmlFor="id" className="text-xs">案件ID (変更不可)</Label>
-                        <Input id="id" value={formatId(formData.id)} disabled className="bg-muted" />
-                    </div>
-                )}
-
                 <div className="space-y-1.5">
                     <Label htmlFor="deceasedName" className="text-xs">被相続人氏名 <span className="text-gray-500">*</span></Label>
                     <Input id="deceasedName" name="deceasedName" value={formData.deceasedName} onChange={handleChange} placeholder="例：山田 太郎" />

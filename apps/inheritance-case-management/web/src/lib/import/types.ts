@@ -6,6 +6,8 @@ export interface ImportContact {
   phone: string;
   postalCode: string;
   address: string;
+  addressFromPostalCode?: string;
+  addressManual?: string;
   memo: string;
 }
 

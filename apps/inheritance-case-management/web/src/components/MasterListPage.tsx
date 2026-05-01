@@ -2,12 +2,13 @@
 
 import React, { type ReactNode } from "react"
 import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
-import { Trash2, Plus, Pencil, Check, X, ArrowUpDown, Ban, RotateCcw, ChevronRight } from "lucide-react"
+import { Trash2, Plus, Pencil, Check, X, ArrowUpDown, Ban, RotateCcw, ChevronRight, Search } from "lucide-react"
 
 const ICON_BTN_MUTED = "h-8 w-8 text-muted-foreground hover:text-foreground"
 const ICON_BTN_GREEN = "h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
@@ -31,6 +32,9 @@ interface MasterListPageProps<T extends { id: number; active: boolean }> {
     isLoading: boolean
     items: T[]
     filteredItems: T[]
+    searchValue?: string
+    searchPlaceholder?: string
+    onSearchChange?: (value: string) => void
     showInactive: boolean
     onToggleShowInactive: () => void
     editingId: number | null
@@ -39,7 +43,8 @@ interface MasterListPageProps<T extends { id: number; active: boolean }> {
     newItemForm: ReactNode
     onAdd: () => void
     // Editing
-    renderEditCell: (column: ColumnDef<T>) => ReactNode
+    renderEditCell?: (column: ColumnDef<T>) => ReactNode
+    renderEditRow?: (item: T) => ReactNode
     // Actions
     onStartEdit: (item: T) => void
     onSaveEdit: () => void
@@ -61,7 +66,9 @@ export function getMasterListPageProps<T extends { id: number; active: boolean }
         isLoading: boolean
         items: T[]
         filteredAndSortedItems: T[]
+        searchQuery: string
         showInactive: boolean
+        handleSearchChange: (value: string) => void
         handleToggleShowInactive: () => void
         editingId: number | null
         handleCancelEdit: () => void
@@ -72,7 +79,7 @@ export function getMasterListPageProps<T extends { id: number; active: boolean }
     }
 ): Pick<MasterListPageProps<T>,
     'returnTo' | 'isDirty' | 'isSaving' | 'isLoading' | 'items' | 'filteredItems' |
-    'showInactive' | 'onToggleShowInactive' | 'editingId' | 'onCancelEdit' |
+    'searchValue' | 'onSearchChange' | 'showInactive' | 'onToggleShowInactive' | 'editingId' | 'onCancelEdit' |
     'onToggleActive' | 'onPermanentDelete' | 'onSave' | 'onSort'
 > {
     return {
@@ -82,6 +89,8 @@ export function getMasterListPageProps<T extends { id: number; active: boolean }
         isLoading: ml.isLoading,
         items: ml.items,
         filteredItems: ml.filteredAndSortedItems,
+        searchValue: ml.searchQuery,
+        onSearchChange: ml.handleSearchChange,
         showInactive: ml.showInactive,
         onToggleShowInactive: ml.handleToggleShowInactive,
         editingId: ml.editingId,
@@ -102,6 +111,9 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
     isLoading,
     items,
     filteredItems,
+    searchValue,
+    searchPlaceholder = "検索",
+    onSearchChange,
     showInactive,
     onToggleShowInactive,
     editingId,
@@ -109,6 +121,7 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
     newItemForm,
     onAdd,
     renderEditCell,
+    renderEditRow,
     onStartEdit,
     onSaveEdit,
     onCancelEdit,
@@ -118,8 +131,30 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
     onSort,
     groupBy,
 }: MasterListPageProps<T>) {
+    const searchControl = onSearchChange ? (
+        <div className="relative w-full sm:w-[420px] lg:w-[460px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+                value={searchValue ?? ""}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="h-10 w-full pl-9 pr-8 text-sm"
+            />
+            {searchValue && (
+                <button
+                    type="button"
+                    onClick={() => onSearchChange("")}
+                    className="absolute right-2 top-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label="検索条件をクリア"
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            )}
+        </div>
+    ) : null
+
     return (
-        <div className="container mx-auto py-10 max-w-5xl relative pb-24 px-4">
+        <div className="container mx-auto py-10 max-w-[1180px] relative pb-24 px-4">
             <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
                 <Link href="/" className="hover:text-foreground transition-colors">案件一覧</Link>
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -137,33 +172,43 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                 <span className="text-foreground font-medium">{title}</span>
             </nav>
 
-            <div className="flex items-center gap-4 mb-6">
-                <h1 className="text-2xl font-bold">{title}</h1>
-                {isDirty && <span className="text-sm text-gray-700 font-bold">※ 未保存の変更あり</span>}
-            </div>
-
-            <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-6 space-y-6">
-                <div className="flex items-end gap-2">
-                    {newItemForm}
-                    <Button onClick={onAdd} variant="outline">
-                        <Plus className="h-4 w-4 mr-2" />
-                        追加
+            <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <h1 className="text-2xl font-bold">{title}</h1>
+                    {isDirty && <span className="text-sm text-gray-700 font-bold">※ 未保存の変更あり</span>}
+                </div>
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto">
+                    {searchControl}
+                    <Button variant="outline" size="sm" onClick={onToggleShowInactive} className="h-10 shrink-0 rounded-md px-4">
+                        {showInactive ? "有効のみ表示" : "すべて表示"}
                     </Button>
                 </div>
+            </div>
 
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <Label>登録済み{entityLabel}</Label>
-                        <Button variant="outline" size="sm" onClick={onToggleShowInactive}>
-                            {showInactive ? "有効のみ表示" : "すべて表示"}
+            <div className="space-y-5">
+                <div className="border-y py-3">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                        {newItemForm}
+                        <Button onClick={onAdd} variant="outline" className="h-10 shrink-0 rounded-md px-5 lg:self-end">
+                            <Plus className="h-4 w-4 mr-2" />
+                            追加
                         </Button>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <Label>登録済み{entityLabel}</Label>
+                        <span className="shrink-0 text-xs text-muted-foreground">{filteredItems.length} / {items.length} 件</span>
                     </div>
                     {isLoading ? (
                         <p className="text-muted-foreground text-sm">読み込み中...</p>
                     ) : items.length === 0 ? (
                         <p className="text-muted-foreground text-sm">{entityLabel}が登録されていません。</p>
+                    ) : filteredItems.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">条件に一致する{entityLabel}がありません。</p>
                     ) : (
-                        <div className="border rounded-md">
+                        <div className="border-y">
                             <Table className="table-fixed">
                                 <TableHeader>
                                     <TableRow>
@@ -195,7 +240,11 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                                             </TableRow>
                                         )}
                                         <TableRow className={item.active === false ? "bg-muted/50" : ""}>
-                                            {editingId === item.id ? (
+                                            {editingId === item.id && renderEditRow ? (
+                                                <TableCell colSpan={columns.length + 1} className="bg-muted/10 p-0 align-top">
+                                                    {renderEditRow(item)}
+                                                </TableCell>
+                                            ) : editingId === item.id && renderEditCell ? (
                                                 <>
                                                     {columns.map(col => (
                                                         <TableCell key={col.key} className={col.cellClassName}>
@@ -286,7 +335,7 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                 </div>
             </div>
 
-            <StickyActionBar className="rounded-b-lg">
+            <StickyActionBar>
                 <Button
                     onClick={onSave}
                     disabled={isSaving || !isDirty}

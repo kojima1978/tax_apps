@@ -53,9 +53,12 @@ export interface CaseSpecialAdditionItem {
 export interface Person {
   id: number;
   name: string;
+  nameKana: string;
   phone: string;
   postalCode: string;
   address: string;
+  addressFromPostalCode: string;
+  addressManual: string;
   memo: string;
   active: boolean;
   createdAt?: Date;

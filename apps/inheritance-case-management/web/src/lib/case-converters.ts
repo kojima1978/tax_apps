@@ -40,7 +40,18 @@ export function toContactItems(contacts: ContactInput[], existingContacts?: Case
       id: existing?.id ?? 0,
       sortOrder: i,
       personId: c.personId,
-      person: existing?.person ?? { id: c.personId, name: '', phone: '', postalCode: '', address: '', memo: '', active: true },
+      person: existing?.person ?? {
+        id: c.personId,
+        name: '',
+        nameKana: '',
+        phone: '',
+        postalCode: '',
+        address: '',
+        addressFromPostalCode: '',
+        addressManual: '',
+        memo: '',
+        active: true,
+      },
       memo: c.memo ?? '',
     };
   });

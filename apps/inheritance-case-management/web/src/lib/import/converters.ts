@@ -243,6 +243,7 @@ export function rowToInput(
           phone: c.phone || '',
           postalCode: c.postalCode || '',
           address: c.address || '',
+          addressManual: c.address || '',
           memo: c.memo || '',
         });
       }

@@ -8,7 +8,16 @@ const acceptanceStatusSchema = z.enum(['未判定', '受託', '見送り']);
 
 // Contact Schema (supports both personId reference and inline import format)
 const contactByIdSchema = z.object({ personId: z.number().int(), memo: z.string().optional() });
-const contactImportSchema = z.object({ name: z.string(), phone: z.string().optional(), postalCode: z.string().optional(), address: z.string().optional(), memo: z.string().optional() });
+const contactImportSchema = z.object({
+  name: z.string(),
+  nameKana: z.string().optional(),
+  phone: z.string().optional(),
+  postalCode: z.string().optional(),
+  address: z.string().optional(),
+  addressFromPostalCode: z.string().optional(),
+  addressManual: z.string().optional(),
+  memo: z.string().optional(),
+});
 const contactSchema = z.union([contactByIdSchema, contactImportSchema]);
 
 // Progress Step Schema (internal - used by createCaseSchema)
@@ -128,9 +137,12 @@ export const updateReferrerSchema = createReferrerSchema.partial().extend({
 // Person Schemas
 export const createPersonSchema = z.object({
   name: z.string().min(1, '氏名は必須です').max(100, '氏名は100文字以内で入力してください'),
+  nameKana: z.string().max(100, 'フリガナは100文字以内で入力してください').optional().default(''),
   phone: z.string().max(30).optional().default(''),
   postalCode: z.string().max(10).optional().default(''),
   address: z.string().max(200).optional().default(''),
+  addressFromPostalCode: z.string().max(200).optional().default(''),
+  addressManual: z.string().max(200).optional().default(''),
   memo: z.string().max(500).optional().default(''),
 });
 

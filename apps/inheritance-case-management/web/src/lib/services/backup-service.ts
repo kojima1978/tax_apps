@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma';
+import { normalizePersonAddressParts } from '@/lib/person-address';
 import { toDateStr } from '@/lib/prisma-includes';
+import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import type { BackupTableCounts } from '@/types/backup';
 
 type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
@@ -129,17 +131,32 @@ const TABLE_DEFS = [
   {
     key: 'persons' as const,
     model: (tx: TxClient) => tx.person,
-    map: (p: Rec) => ({
-      id: p.id as number,
-      name: p.name as string,
-      phone: (p.phone as string) ?? '',
-      postalCode: (p.postalCode as string) ?? '',
-      address: (p.address as string) ?? '',
-      memo: (p.memo as string) ?? '',
-      active: (p.active as boolean) ?? true,
-      createdAt: new Date(p.createdAt as string),
-      updatedAt: new Date(p.updatedAt as string),
-    }),
+    map: (p: Rec) => {
+      const nameKana = normalizeNameKanaForStorage((p.nameKana as string) ?? '');
+      const nameKanaNormalized = typeof p.nameKanaNormalized === 'string' && p.nameKanaNormalized
+        ? p.nameKanaNormalized
+        : normalizePersonSearchText(nameKana);
+      const addressParts = normalizePersonAddressParts({
+        address: (p.address as string) ?? '',
+        addressFromPostalCode: (p.addressFromPostalCode as string) ?? '',
+        addressManual: (p.addressManual as string) ?? '',
+      });
+      return {
+        id: p.id as number,
+        name: p.name as string,
+        nameKana,
+        nameKanaNormalized,
+        phone: (p.phone as string) ?? '',
+        postalCode: (p.postalCode as string) ?? '',
+        address: addressParts.address,
+        addressFromPostalCode: addressParts.addressFromPostalCode,
+        addressManual: addressParts.addressManual,
+        memo: (p.memo as string) ?? '',
+        active: (p.active as boolean) ?? true,
+        createdAt: new Date(p.createdAt as string),
+        updatedAt: new Date(p.updatedAt as string),
+      };
+    },
     seqTable: 'Person',
   },
   {

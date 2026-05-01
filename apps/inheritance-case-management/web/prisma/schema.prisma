@@ -162,19 +162,25 @@ model AuditLog {
 }
 
 model Person {
-  id         Int           @id @default(autoincrement())
-  name       String
-  phone      String        @default("")
-  postalCode String        @default("")
-  address    String        @default("")
-  memo       String        @default("")
-  active     Boolean       @default(true)
-  caseLinks  CaseContact[]
+  id                  Int           @id @default(autoincrement())
+  name                String
+  nameKana            String        @default("")
+  nameKanaNormalized  String        @default("")
+  phone               String        @default("")
+  postalCode          String        @default("")
+  address             String        @default("")
+  addressFromPostalCode String      @default("")
+  addressManual       String        @default("")
+  memo                String        @default("")
+  active              Boolean       @default(true)
+  caseLinks           CaseContact[]
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([name])
+  @@index([nameKana])
+  @@index([nameKanaNormalized])
   @@index([active])
 }
 
