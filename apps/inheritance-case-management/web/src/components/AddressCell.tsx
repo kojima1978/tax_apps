@@ -1,14 +1,21 @@
 import { cn } from "@/lib/utils"
+import { normalizePersonAddressParts } from "@/lib/person-address"
 
 interface AddressCellProps {
     postalCode?: string | null
     address?: string | null
+    addressFromPostalCode?: string | null
+    addressManual?: string | null
     className?: string
 }
 
-export function AddressCell({ postalCode, address, className }: AddressCellProps) {
+export function AddressCell({ postalCode, address, addressFromPostalCode, addressManual, className }: AddressCellProps) {
     const normalizedPostalCode = postalCode?.trim()
-    const normalizedAddress = address?.trim()
+    const { address: normalizedAddress } = normalizePersonAddressParts({
+        address,
+        addressFromPostalCode,
+        addressManual,
+    })
     const title = [normalizedPostalCode && `〒${normalizedPostalCode}`, normalizedAddress]
         .filter(Boolean)
         .join(" ")

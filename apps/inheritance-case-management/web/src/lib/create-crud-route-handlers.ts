@@ -16,9 +16,15 @@ interface CrudRouteConfig {
   updateSchema: z.ZodType;
   /** Optional Prisma include for relation loading */
   include?: Record<string, unknown>;
+  /** Optional data mapper after create validation */
+  mapCreateData?: (data: CrudData) => CrudData;
+  /** Optional data mapper after update validation */
+  mapUpdateData?: (data: CrudData) => CrudData;
   /** Optional guard that can block deletion with a custom response */
   beforeDelete?: (id: number) => Promise<NextResponse | void> | NextResponse | void;
 }
+
+type CrudData = Record<string, unknown>;
 
 type PrismaDelegate = {
   findMany: (args: unknown) => Promise<unknown>;
@@ -33,7 +39,7 @@ function getDelegate(model: string): PrismaDelegate {
 }
 
 export function createCrudRouteHandlers(config: CrudRouteConfig) {
-  const { model, orderBy, entityLabel, createSchema, updateSchema, include, beforeDelete } = config;
+  const { model, orderBy, entityLabel, createSchema, updateSchema, include, mapCreateData, mapUpdateData, beforeDelete } = config;
   const delegate = getDelegate(model);
 
   // GET /api/{resource} + POST /api/{resource}
@@ -50,7 +56,8 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
     async POST(request: NextRequest) {
       try {
         const body = await request.json();
-        const data = createSchema.parse(body);
+        const parsed = createSchema.parse(body) as CrudData;
+        const data = mapCreateData ? mapCreateData(parsed) : parsed;
         const created = await delegate.create({ data: { ...data, active: true }, ...(include && { include }) });
         return NextResponse.json(created, { status: 201 });
       } catch (e) {
@@ -80,7 +87,8 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
         const { id: rawId } = await params;
         const id = Number(rawId);
         const body = await request.json();
-        const data = updateSchema.parse(body);
+        const parsed = updateSchema.parse(body) as CrudData;
+        const data = mapUpdateData ? mapUpdateData(parsed) : parsed;
         const updated = await delegate.update({ where: { id }, data, ...(include && { include }) });
         return NextResponse.json(updated);
       } catch (e) {

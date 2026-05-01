@@ -9,6 +9,9 @@ import { Modal } from "@/components/ui/Modal"
 import { Edit3, UserPlus, Search, Loader2, X, Plus } from "lucide-react"
 import type { CaseContact, Person } from "@/types/shared"
 import { createPerson, updatePerson } from "@/lib/api/persons"
+import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
+import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
+import { fetchAddressFromPostalCode } from "@/lib/postal-code"
 
 interface ContactListEditorProps {
     caseContacts: CaseContact[]
@@ -17,18 +20,40 @@ interface ContactListEditorProps {
     onPersonsChange: (persons: Person[]) => void
 }
 
-async function fetchAddress(postalCode: string): Promise<string | null> {
-    const cleaned = postalCode.replace(/[^\d]/g, "")
-    if (cleaned.length !== 7) return null
-    try {
-        const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${cleaned}`)
-        const data = await res.json()
-        if (data.results && data.results.length > 0) {
-            const r = data.results[0]
-            return `${r.address1}${r.address2}${r.address3}`
-        }
-    } catch { /* ignore */ }
-    return null
+const emptyPersonForm = {
+    name: "",
+    nameKana: "",
+    phone: "",
+    postalCode: "",
+    address: "",
+    addressFromPostalCode: "",
+    addressManual: "",
+    memo: "",
+}
+
+function getDisplayAddress(parts: Parameters<typeof normalizePersonAddressParts>[0]): string {
+    return normalizePersonAddressParts(parts).address
+}
+
+function withAddressFromPostalCode<T extends typeof emptyPersonForm>(person: T, addressFromPostalCode: string): T {
+    return {
+        ...person,
+        ...normalizePersonAddressParts({ ...person, addressFromPostalCode }),
+    }
+}
+
+function withPostalCodeLookupAddress<T extends typeof emptyPersonForm>(person: T, addressFromPostalCode: string): T {
+    return {
+        ...person,
+        ...applyPostalCodeAddress(person, addressFromPostalCode),
+    }
+}
+
+function withAddressManual<T extends typeof emptyPersonForm>(person: T, addressManual: string): T {
+    return {
+        ...person,
+        ...normalizePersonAddressParts({ ...person, addressManual }),
+    }
 }
 
 export function ContactListEditor({ caseContacts, persons, onChange, onPersonsChange }: ContactListEditorProps) {
@@ -36,8 +61,8 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [editingContactIndex, setEditingContactIndex] = useState<number | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
-    const [newPerson, setNewPerson] = useState({ name: "", phone: "", postalCode: "", address: "", memo: "" })
-    const [editPerson, setEditPerson] = useState({ name: "", phone: "", postalCode: "", address: "", memo: "" })
+    const [newPerson, setNewPerson] = useState(emptyPersonForm)
+    const [editPerson, setEditPerson] = useState(emptyPersonForm)
     const [creating, setCreating] = useState(false)
     const [updating, setUpdating] = useState(false)
     const [searching, setSearching] = useState(false)
@@ -54,7 +79,7 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
 
     const filteredPersons = persons
         .filter(p => p.active && !linkedPersonIds.has(p.id))
-        .filter(p => !searchQuery || p.name.includes(searchQuery) || p.phone.includes(searchQuery) || p.address.includes(searchQuery))
+        .filter(p => personMatchesSearch(p, searchQuery))
 
     const handleAddPerson = (person: Person) => {
         const newContact: CaseContact = {
@@ -74,9 +99,10 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         setEditingContactIndex(index)
         setEditPerson({
             name: person.name,
+            nameKana: person.nameKana || "",
             phone: person.phone,
             postalCode: person.postalCode,
-            address: person.address,
+            ...normalizePersonAddressParts(person),
             memo: person.memo,
         })
     }
@@ -85,10 +111,16 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         if (!newPerson.name.trim()) return
         setCreating(true)
         try {
-            const created = await createPerson(newPerson)
+            const payload = {
+                ...newPerson,
+                ...normalizePersonAddressParts(newPerson),
+                name: newPerson.name.trim(),
+                nameKana: normalizeNameKanaForStorage(newPerson.nameKana),
+            }
+            const created = await createPerson(payload)
             onPersonsChange([...persons, created])
             handleAddPerson(created)
-            setNewPerson({ name: "", phone: "", postalCode: "", address: "", memo: "" })
+            setNewPerson(emptyPersonForm)
             setShowCreateForm(false)
         } catch {
             // error handled by caller
@@ -102,7 +134,13 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         const contact = caseContacts[editingContactIndex]
         setUpdating(true)
         try {
-            const updated = await updatePerson(contact.personId, editPerson)
+            const payload = {
+                ...editPerson,
+                ...normalizePersonAddressParts(editPerson),
+                name: editPerson.name.trim(),
+                nameKana: normalizeNameKanaForStorage(editPerson.nameKana),
+            }
+            const updated = await updatePerson(contact.personId, payload)
             onPersonsChange(persons.map(p => p.id === updated.id ? updated : p))
             onChange(caseContacts.map((cc, i) => i === editingContactIndex ? { ...cc, person: updated } : cc))
             setEditingContactIndex(null)
@@ -116,9 +154,9 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         const cleaned = value.replace(/[^\d]/g, "")
         if (cleaned.length === 7) {
             setSearching(true)
-            const address = await fetchAddress(cleaned)
+            const address = await fetchAddressFromPostalCode(cleaned)
             if (address) {
-                setNewPerson(prev => ({ ...prev, postalCode: value, address }))
+                setNewPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: value }, address))
             }
             setSearching(false)
         }
@@ -129,9 +167,9 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         const cleaned = value.replace(/[^\d]/g, "")
         if (cleaned.length === 7) {
             setEditSearching(true)
-            const address = await fetchAddress(cleaned)
+            const address = await fetchAddressFromPostalCode(cleaned)
             if (address) {
-                setEditPerson(prev => ({ ...prev, postalCode: value, address }))
+                setEditPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: value }, address))
             }
             setEditSearching(false)
         }
@@ -161,12 +199,17 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-1">
-                                <span className="font-medium text-sm">{cc.person.name}</span>
+                                <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium">{cc.person.name}</div>
+                                    {cc.person.nameKana && (
+                                        <div className="truncate text-xs text-muted-foreground">{cc.person.nameKana}</div>
+                                    )}
+                                </div>
                                 {cc.person.phone && <span className="text-xs text-muted-foreground">{cc.person.phone}</span>}
                             </div>
-                            {(cc.person.postalCode || cc.person.address) && (
+                            {(cc.person.postalCode || getDisplayAddress(cc.person)) && (
                                 <p className="text-xs text-muted-foreground truncate">
-                                    {cc.person.postalCode && `〒${cc.person.postalCode} `}{cc.person.address}
+                                    {cc.person.postalCode && `〒${cc.person.postalCode} `}{getDisplayAddress(cc.person)}
                                 </p>
                             )}
                             {cc.person.memo && (
@@ -222,6 +265,10 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                 <Input value={editPerson.name} onChange={e => setEditPerson(p => ({ ...p, name: e.target.value }))} placeholder="氏名" autoFocus />
                             </div>
                             <div className="space-y-1.5">
+                                <Label>フリガナ</Label>
+                                <Input value={editPerson.nameKana} onChange={e => setEditPerson(p => ({ ...p, nameKana: e.target.value }))} placeholder="ヤマダ タロウ" />
+                            </div>
+                            <div className="space-y-1.5">
                                 <Label>電話番号</Label>
                                 <Input value={editPerson.phone} onChange={e => setEditPerson(p => ({ ...p, phone: e.target.value }))} placeholder="090-0000-0000" />
                             </div>
@@ -232,15 +279,19 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                 <div className="flex gap-1">
                                     <Input value={editPerson.postalCode} onChange={e => handleEditPostalCodeChange(e.target.value)} placeholder="000-0000" className="flex-1" />
                                     <Button type="button" variant="ghost" size="sm" className="px-2 h-9 shrink-0" disabled={editSearching}
-                                        onClick={async () => { setEditSearching(true); const a = await fetchAddress(editPerson.postalCode); if (a) setEditPerson(p => ({ ...p, address: a })); setEditSearching(false) }}>
+                                        onClick={async () => { setEditSearching(true); const a = await fetchAddressFromPostalCode(editPerson.postalCode); if (a) setEditPerson(p => withPostalCodeLookupAddress(p, a)); setEditSearching(false) }}>
                                         {editSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                                     </Button>
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <Label>住所</Label>
-                                <Input value={editPerson.address} onChange={e => setEditPerson(p => ({ ...p, address: e.target.value }))} placeholder="都道府県 市区町村 番地" />
+                                <Label>住所（郵便番号から自動入力）</Label>
+                                <Input value={editPerson.addressFromPostalCode} onChange={e => setEditPerson(p => withAddressFromPostalCode(p, e.target.value))} placeholder="都道府県 市区町村 町名" />
                             </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>住所補足（番地・建物名など手入力）</Label>
+                            <Input value={editPerson.addressManual} onChange={e => setEditPerson(p => withAddressManual(p, e.target.value))} placeholder="番地・建物名・部屋番号" />
                         </div>
                         <div className="space-y-1.5">
                             <Label>人物メモ</Label>
@@ -279,6 +330,10 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                 <Input value={newPerson.name} onChange={e => setNewPerson(p => ({ ...p, name: e.target.value }))} placeholder="氏名" autoFocus />
                             </div>
                             <div className="space-y-1.5">
+                                <Label>フリガナ</Label>
+                                <Input value={newPerson.nameKana} onChange={e => setNewPerson(p => ({ ...p, nameKana: e.target.value }))} placeholder="ヤマダ タロウ" />
+                            </div>
+                            <div className="space-y-1.5">
                                 <Label>電話番号</Label>
                                 <Input value={newPerson.phone} onChange={e => setNewPerson(p => ({ ...p, phone: e.target.value }))} placeholder="090-0000-0000" />
                             </div>
@@ -289,15 +344,19 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                 <div className="flex gap-1">
                                     <Input value={newPerson.postalCode} onChange={e => handlePostalCodeChange(e.target.value)} placeholder="000-0000" className="flex-1" />
                                     <Button type="button" variant="ghost" size="sm" className="px-2 h-9 shrink-0" disabled={searching}
-                                        onClick={async () => { setSearching(true); const a = await fetchAddress(newPerson.postalCode); if (a) setNewPerson(p => ({ ...p, address: a })); setSearching(false) }}>
+                                        onClick={async () => { setSearching(true); const a = await fetchAddressFromPostalCode(newPerson.postalCode); if (a) setNewPerson(p => withPostalCodeLookupAddress(p, a)); setSearching(false) }}>
                                         {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                                     </Button>
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <Label>住所</Label>
-                                <Input value={newPerson.address} onChange={e => setNewPerson(p => ({ ...p, address: e.target.value }))} placeholder="都道府県 市区町村 番地" />
+                                <Label>住所（郵便番号から自動入力）</Label>
+                                <Input value={newPerson.addressFromPostalCode} onChange={e => setNewPerson(p => withAddressFromPostalCode(p, e.target.value))} placeholder="都道府県 市区町村 町名" />
                             </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>住所補足（番地・建物名など手入力）</Label>
+                            <Input value={newPerson.addressManual} onChange={e => setNewPerson(p => withAddressManual(p, e.target.value))} placeholder="番地・建物名・部屋番号" />
                         </div>
                         <div className="space-y-1.5">
                             <Label>メモ</Label>
@@ -315,8 +374,8 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                 ) : (
                     <div className="space-y-3">
                         <div className="flex gap-2">
-                            <Input ref={searchInputRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="氏名・電話番号・住所で検索" className="flex-1" />
-                            <Button variant="outline" size="sm" onClick={() => { setShowCreateForm(true); setNewPerson({ name: searchQuery, phone: "", postalCode: "", address: "", memo: "" }) }}>
+                            <Input ref={searchInputRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="氏名・フリガナ・電話番号・住所で検索" className="flex-1" />
+                            <Button variant="outline" size="sm" onClick={() => { setShowCreateForm(true); setNewPerson({ ...emptyPersonForm, name: searchQuery }) }}>
                                 <UserPlus className="h-3.5 w-3.5 mr-1" />新規作成
                             </Button>
                         </div>
@@ -334,11 +393,16 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                         onClick={() => handleAddPerson(person)}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <span className="text-sm font-medium">{person.name}</span>
+                                            <div className="min-w-0">
+                                                <div className="truncate text-sm font-medium">{person.name}</div>
+                                                {person.nameKana && (
+                                                    <div className="truncate text-xs text-muted-foreground">{person.nameKana}</div>
+                                                )}
+                                            </div>
                                             {person.phone && <span className="text-xs text-muted-foreground">{person.phone}</span>}
                                         </div>
-                                        {person.address && (
-                                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{person.address}</p>
+                                        {getDisplayAddress(person) && (
+                                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{getDisplayAddress(person)}</p>
                                         )}
                                     </button>
                                 ))

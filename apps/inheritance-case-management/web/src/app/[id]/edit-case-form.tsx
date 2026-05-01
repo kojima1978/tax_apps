@@ -6,7 +6,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer, Person, CaseStatus } from "@/types/shared"
-import { formatId } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
 import { toProgressSteps, toProgressItems, toContactInputs, toExpenses, toExpenseItems, toSpecialAdditions } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
@@ -231,8 +230,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             {!isCreateMode && (
                 <div className="mb-4 border-b pb-3">
                     <h1 className="text-xl font-bold tracking-tight">案件詳細</h1>
-                    <div className="mt-1 flex items-center justify-between gap-3">
-                        <p className="text-muted-foreground">案件ID: {formatId(formData.id)}</p>
+                    <div className="mt-1 flex justify-end">
                         <button
                             type="button"
                             onClick={sections.toggleAll}
@@ -247,7 +245,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
             <BasicInfoSection
                 formData={formData}
-                isCreateMode={isCreateMode}
                 assignees={assignees}
                 referrers={referrers}
                 returnToPath={returnToPath}

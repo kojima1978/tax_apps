@@ -18,6 +18,7 @@ export interface MasterListConfig<T extends { id: number; active: boolean }, C, 
     sortFields: string[]
     defaultSortField?: string
     getSortValue: (item: T, field: string) => string
+    matchesSearch?: (item: T, query: string) => boolean
     getDeleteLabel: (item: T) => string
     getPermanentDeleteBlockMessage?: (item: T) => string | null
 }
@@ -49,6 +50,7 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
     const [sortField, setSortField] = useState<string | null>(config.defaultSortField ?? null)
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
     const [showInactive, setShowInactive] = useState(true)
+    const [searchQuery, setSearchQuery] = useState("")
 
     const [editingId, setEditingId] = useState<number | null>(null)
     const [editingFields, setEditingFields] = useState<Record<string, string>>({})
@@ -194,6 +196,10 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
         setShowInactive(prev => !prev)
     }, [])
 
+    const handleSearchChange = useCallback((value: string) => {
+        setSearchQuery(value)
+    }, [])
+
     const handleSort = useCallback((field: string) => {
         setSortField(prev => {
             if (prev === field) {
@@ -210,6 +216,11 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
         if (!showInactive) {
             filtered = items.filter(item => item.active !== false)
         }
+        const trimmedQuery = searchQuery.trim()
+        const matchesSearch = configRef.current.matchesSearch
+        if (trimmedQuery && matchesSearch) {
+            filtered = filtered.filter(item => matchesSearch(item, trimmedQuery))
+        }
         if (!sortField) return filtered
 
         const getSortValue = configRef.current.getSortValue
@@ -219,7 +230,7 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
             const comparison = aValue.localeCompare(bValue, "ja")
             return sortOrder === "asc" ? comparison : -comparison
         })
-    }, [items, sortField, sortOrder, showInactive])
+    }, [items, searchQuery, sortField, sortOrder, showInactive])
 
     /** 指定IDのアイテムを一括更新する（会社名一括変更等） */
     const updateItems = useCallback((updater: (items: T[]) => T[]) => {
@@ -233,7 +244,9 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
         isDirty,
         isSaving,
         isLoading,
+        searchQuery,
         showInactive,
+        handleSearchChange,
         handleToggleShowInactive,
         editingId,
         editingFields,

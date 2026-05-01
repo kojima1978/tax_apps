@@ -1,5 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { normalizePersonAddressParts } from '@/lib/person-address';
+import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toSpecialAdditionCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
 import { ACCEPTANCE_STATUS_OPTIONS, COMPLETED_STATUSES, HANDLING_STATUS_OPTIONS } from '@/types/constants';
 import { writeAuditLog, diffScalar } from './audit-service';
@@ -18,7 +20,16 @@ function addMonths(date: Date, months: number): Date {
 }
 
 type ContactInput = { personId: number; memo?: string };
-type ImportContactInput = { name: string; phone?: string; postalCode?: string; address?: string; memo?: string };
+type ImportContactInput = {
+  name: string;
+  nameKana?: string;
+  phone?: string;
+  postalCode?: string;
+  address?: string;
+  addressFromPostalCode?: string;
+  addressManual?: string;
+  memo?: string;
+};
 
 function isImportContact(c: unknown): c is ImportContactInput {
   return c != null && typeof c === 'object' && 'name' in c && !('personId' in c);
@@ -28,12 +39,30 @@ async function resolveContacts(tx: TxClient, contacts: unknown[]): Promise<Conta
   const result: ContactInput[] = [];
   for (const c of contacts) {
     if (isImportContact(c)) {
+      const nameKana = normalizeNameKanaForStorage(c.nameKana ?? '');
+      const addressParts = normalizePersonAddressParts(c);
       let person = await tx.person.findFirst({
-        where: { name: c.name, phone: c.phone ?? '', postalCode: c.postalCode ?? '', address: c.address ?? '' },
+        where: {
+          name: c.name,
+          ...(nameKana ? { nameKana } : {}),
+          phone: c.phone ?? '',
+          postalCode: c.postalCode ?? '',
+          address: addressParts.address,
+        },
       });
       if (!person) {
         person = await tx.person.create({
-          data: { name: c.name, phone: c.phone ?? '', postalCode: c.postalCode ?? '', address: c.address ?? '', memo: c.memo ?? '' },
+          data: {
+            name: c.name,
+            nameKana,
+            nameKanaNormalized: normalizePersonSearchText(nameKana),
+            phone: c.phone ?? '',
+            postalCode: c.postalCode ?? '',
+            address: addressParts.address,
+            addressFromPostalCode: addressParts.addressFromPostalCode,
+            addressManual: addressParts.addressManual,
+            memo: c.memo ?? '',
+          },
         });
       }
       result.push({ personId: person.id, memo: c.memo });
@@ -98,12 +127,17 @@ export function buildCaseWhereClause(params: {
   }
   if (search) {
     const existingAnd = Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : [];
+    const normalizedSearch = normalizePersonSearchText(search);
     where.AND = [
       ...existingAnd,
       {
         OR: [
           { deceasedName: { contains: search, mode: 'insensitive' } },
           { contacts: { some: { person: { name: { contains: search, mode: 'insensitive' } } } } },
+          { contacts: { some: { person: { nameKana: { contains: search, mode: 'insensitive' } } } } },
+          ...(normalizedSearch
+            ? [{ contacts: { some: { person: { nameKanaNormalized: { contains: normalizedSearch } } } } }]
+            : []),
         ],
       },
     ];
