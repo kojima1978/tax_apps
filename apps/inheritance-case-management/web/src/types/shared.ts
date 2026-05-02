@@ -14,9 +14,17 @@ export interface ProgressStep {
   isDynamic?: boolean;
 }
 
-// Contact (input shape for API — used by editors)
-export interface ContactInput {
+// Heir (input shape for API — used by editors)
+export interface HeirInput {
   personId: number;
+  relationship?: string;
+  memo?: string;
+}
+
+// Related party (input shape for API — used by editors)
+export interface RelatedPartyInput {
+  personId: number;
+  role: string;
   memo?: string;
 }
 
@@ -64,13 +72,25 @@ export interface Person {
   createdAt?: Date;
   updatedAt?: Date;
   _count?: {
-    caseLinks: number;
+    heirLinks: number;
+    relatedPartyLinks: number;
   };
 }
 
-export interface CaseContact {
+export interface CaseHeir {
   id: number;
   sortOrder: number;
+  relationship: string;
+  relationshipSortOrder: number;
+  personId: number;
+  person: Person;
+  memo: string;
+}
+
+export interface CaseRelatedParty {
+  id: number;
+  sortOrder: number;
+  role: string;
   personId: number;
   person: Person;
   memo: string;
@@ -122,7 +142,8 @@ export interface InheritanceCase {
   referrer?: Referrer | null;
   // Normalized child records
   progress?: CaseProgressItem[];
-  contacts?: CaseContact[];
+  heirs?: CaseHeir[];
+  relatedParties?: CaseRelatedParty[];
   expenses?: CaseExpenseItem[];
   specialAdditions?: CaseSpecialAdditionItem[];
   createdAt?: Date;

@@ -2,7 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { normalizePersonAddressParts } from '@/lib/person-address';
 import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
-import { CASE_INCLUDE, toContactCreateData, toProgressCreateData, toExpenseCreateData, toSpecialAdditionCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
+import { CASE_INCLUDE, toHeirCreateData, toRelatedPartyCreateData, toProgressCreateData, toExpenseCreateData, toSpecialAdditionCreateData, toDate, serializeCase } from '@/lib/prisma-includes';
 import { ACCEPTANCE_STATUS_OPTIONS, COMPLETED_STATUSES, HANDLING_STATUS_OPTIONS } from '@/types/constants';
 import { writeAuditLog, diffScalar } from './audit-service';
 
@@ -19,8 +19,9 @@ function addMonths(date: Date, months: number): Date {
   return next;
 }
 
-type ContactInput = { personId: number; memo?: string };
-type ImportContactInput = {
+type HeirInput = { personId: number; relationship?: string; memo?: string };
+type RelatedPartyInput = { personId: number; role?: string; memo?: string };
+type ImportHeirInput = {
   name: string;
   nameKana?: string;
   phone?: string;
@@ -28,17 +29,18 @@ type ImportContactInput = {
   address?: string;
   addressFromPostalCode?: string;
   addressManual?: string;
+  relationship?: string;
   memo?: string;
 };
 
-function isImportContact(c: unknown): c is ImportContactInput {
+function isImportHeir(c: unknown): c is ImportHeirInput {
   return c != null && typeof c === 'object' && 'name' in c && !('personId' in c);
 }
 
-async function resolveContacts(tx: TxClient, contacts: unknown[]): Promise<ContactInput[]> {
-  const result: ContactInput[] = [];
-  for (const c of contacts) {
-    if (isImportContact(c)) {
+async function resolveHeirs(tx: TxClient, heirs: unknown[]): Promise<HeirInput[]> {
+  const result: HeirInput[] = [];
+  for (const c of heirs) {
+    if (isImportHeir(c)) {
       const nameKana = normalizeNameKanaForStorage(c.nameKana ?? '');
       const addressParts = normalizePersonAddressParts(c);
       let person = await tx.person.findFirst({
@@ -65,12 +67,16 @@ async function resolveContacts(tx: TxClient, contacts: unknown[]): Promise<Conta
           },
         });
       }
-      result.push({ personId: person.id, memo: c.memo });
+      result.push({ personId: person.id, relationship: c.relationship, memo: c.memo });
     } else {
-      result.push(c as ContactInput);
+      result.push(c as HeirInput);
     }
   }
   return result;
+}
+
+function resolveRelatedParties(parties: unknown[]): RelatedPartyInput[] {
+  return parties.map(p => p as RelatedPartyInput);
 }
 
 export function buildCaseWhereClause(params: {
@@ -133,10 +139,10 @@ export function buildCaseWhereClause(params: {
       {
         OR: [
           { deceasedName: { contains: search, mode: 'insensitive' } },
-          { contacts: { some: { person: { name: { contains: search, mode: 'insensitive' } } } } },
-          { contacts: { some: { person: { nameKana: { contains: search, mode: 'insensitive' } } } } },
+          { heirs: { some: { person: { name: { contains: search, mode: 'insensitive' } } } } },
+          { heirs: { some: { person: { nameKana: { contains: search, mode: 'insensitive' } } } } },
           ...(normalizedSearch
-            ? [{ contacts: { some: { person: { nameKanaNormalized: { contains: normalizedSearch } } } } }]
+            ? [{ heirs: { some: { person: { nameKanaNormalized: { contains: normalizedSearch } } } } }]
             : []),
         ],
       },
@@ -258,13 +264,15 @@ export async function createCase(data: {
   assigneeId?: number | null;
   internalReferrerId?: number | null;
   referrerId?: number | null;
-  contacts?: unknown[];
+  heirs?: unknown[];
+  relatedParties?: unknown[];
   progress?: { id: string; name: string; date: string | null; memo?: string; isDynamic?: boolean }[];
   expenses?: { date: string; description: string; amount: number; memo?: string | null }[];
   specialAdditions?: { description: string; amount: number }[];
 }) {
   const newCase = await prisma.$transaction(async (tx) => {
-    const resolvedContacts = await resolveContacts(tx, data.contacts ?? []);
+    const resolvedHeirs = await resolveHeirs(tx, data.heirs ?? []);
+    const resolvedRelatedParties = resolveRelatedParties(data.relatedParties ?? []);
     const created = await tx.inheritanceCase.create({
       data: {
         deceasedName: data.deceasedName,
@@ -295,7 +303,8 @@ export async function createCase(data: {
         assigneeId: data.assigneeId || null,
         internalReferrerId: data.internalReferrerId || null,
         referrerId: data.referrerId || null,
-        contacts: { create: toContactCreateData(resolvedContacts) },
+        heirs: { create: toHeirCreateData(resolvedHeirs) },
+        relatedParties: { create: toRelatedPartyCreateData(resolvedRelatedParties) },
         progress: { create: toProgressCreateData(data.progress ?? []) },
         expenses: { create: toExpenseCreateData(data.expenses ?? []) },
         specialAdditions: { create: toSpecialAdditionCreateData(data.specialAdditions ?? []) },
@@ -373,11 +382,18 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
     if ('internalReferrerId' in data) updateData.internalReferrerId = data.internalReferrerId || null;
     if ('referrerId' in data) updateData.referrerId = data.referrerId || null;
 
-    if (data.contacts !== undefined) {
-      const resolvedContacts = await resolveContacts(tx, data.contacts as unknown[]);
-      updateData.contacts = {
+    if (data.heirs !== undefined) {
+      const resolvedHeirs = await resolveHeirs(tx, data.heirs as unknown[]);
+      updateData.heirs = {
         deleteMany: {},
-        create: toContactCreateData(resolvedContacts),
+        create: toHeirCreateData(resolvedHeirs),
+      };
+    }
+    if (data.relatedParties !== undefined) {
+      const resolvedRelatedParties = resolveRelatedParties(data.relatedParties as unknown[]);
+      updateData.relatedParties = {
+        deleteMany: {},
+        create: toRelatedPartyCreateData(resolvedRelatedParties),
       };
     }
     if (data.progress !== undefined) {
@@ -477,7 +493,8 @@ export async function bulkDeleteCases(where: Prisma.InheritanceCaseWhereInput) {
 
   await prisma.$transaction([
     prisma.caseProgress.deleteMany({ where: { caseId: { in: idList } } }),
-    prisma.caseContact.deleteMany({ where: { caseId: { in: idList } } }),
+    prisma.caseHeir.deleteMany({ where: { caseId: { in: idList } } }),
+    prisma.caseRelatedParty.deleteMany({ where: { caseId: { in: idList } } }),
     prisma.inheritanceCase.deleteMany({ where: { id: { in: idList } } }),
   ]);
 

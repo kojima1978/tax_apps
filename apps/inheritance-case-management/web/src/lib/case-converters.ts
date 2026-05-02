@@ -1,4 +1,5 @@
-import type { CaseProgressItem, CaseContact, CaseExpenseItem, CaseSpecialAdditionItem, ProgressStep, ContactInput, Expense, SpecialAddition } from '@/types/shared';
+import type { CaseProgressItem, CaseHeir, CaseRelatedParty, CaseExpenseItem, CaseSpecialAdditionItem, ProgressStep, HeirInput, RelatedPartyInput, Expense, SpecialAddition } from '@/types/shared';
+import { relationshipSortFor } from '@/lib/constants/heir-relationships';
 
 /** DB の CaseProgressItem[] → API 入力の ProgressStep[] */
 export function toProgressSteps(items: CaseProgressItem[]): ProgressStep[] {
@@ -24,24 +25,28 @@ export function toProgressItems(steps: ProgressStep[]): CaseProgressItem[] {
   }));
 }
 
-/** DB の CaseContact[] → API 入力の ContactInput[] */
-export function toContactInputs(items: CaseContact[]): ContactInput[] {
-  return items.map((c) => ({
-    personId: c.personId,
-    memo: c.memo || undefined,
+/** DB の CaseHeir[] → API 入力の HeirInput[] */
+export function toHeirInputs(items: CaseHeir[]): HeirInput[] {
+  return items.map((h) => ({
+    personId: h.personId,
+    relationship: h.relationship || undefined,
+    memo: h.memo || undefined,
   }));
 }
 
-/** API 入力の ContactInput[] → DB 形状の CaseContact[] (sortOrder付与) */
-export function toContactItems(contacts: ContactInput[], existingContacts?: CaseContact[]): CaseContact[] {
-  return contacts.map((c, i) => {
-    const existing = existingContacts?.find(ec => ec.personId === c.personId);
+/** API 入力の HeirInput[] → DB 形状の CaseHeir[] (sortOrder付与) */
+export function toHeirItems(heirs: HeirInput[], existingHeirs?: CaseHeir[]): CaseHeir[] {
+  return heirs.map((h, i) => {
+    const existing = existingHeirs?.find(e => e.personId === h.personId);
+    const relationship = h.relationship ?? '';
     return {
       id: existing?.id ?? 0,
       sortOrder: i,
-      personId: c.personId,
+      relationship,
+      relationshipSortOrder: relationshipSortFor(relationship),
+      personId: h.personId,
       person: existing?.person ?? {
-        id: c.personId,
+        id: h.personId,
         name: '',
         nameKana: '',
         phone: '',
@@ -52,7 +57,42 @@ export function toContactItems(contacts: ContactInput[], existingContacts?: Case
         memo: '',
         active: true,
       },
-      memo: c.memo ?? '',
+      memo: h.memo ?? '',
+    };
+  });
+}
+
+/** DB の CaseRelatedParty[] → API 入力の RelatedPartyInput[] */
+export function toRelatedPartyInputs(items: CaseRelatedParty[]): RelatedPartyInput[] {
+  return items.map((r) => ({
+    personId: r.personId,
+    role: r.role,
+    memo: r.memo || undefined,
+  }));
+}
+
+/** API 入力の RelatedPartyInput[] → DB 形状の CaseRelatedParty[] (sortOrder付与) */
+export function toRelatedPartyItems(parties: RelatedPartyInput[], existingParties?: CaseRelatedParty[]): CaseRelatedParty[] {
+  return parties.map((p, i) => {
+    const existing = existingParties?.find(e => e.personId === p.personId && e.role === p.role);
+    return {
+      id: existing?.id ?? 0,
+      sortOrder: i,
+      role: p.role,
+      personId: p.personId,
+      person: existing?.person ?? {
+        id: p.personId,
+        name: '',
+        nameKana: '',
+        phone: '',
+        postalCode: '',
+        address: '',
+        addressFromPostalCode: '',
+        addressManual: '',
+        memo: '',
+        active: true,
+      },
+      memo: p.memo ?? '',
     };
   });
 }

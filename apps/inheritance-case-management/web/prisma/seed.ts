@@ -120,10 +120,10 @@ async function main() {
         referralFeeAmount: 200000,
         assigneeId: assignees[0].id,
         referrerId: referrers[0].id,
-        contacts: {
+        heirs: {
           create: [
-            { person: { create: { name: '相続 一郎', phone: '090-1234-5678', postalCode: '100-0001', address: '東京都千代田区千代田1-1', memo: '' } }, memo: '', sortOrder: 0 },
-            { person: { create: { name: '相続 二郎', phone: '090-2345-6789', postalCode: '160-0023', address: '東京都新宿区西新宿2-8-1', memo: '' } }, memo: '', sortOrder: 1 },
+            { person: { create: { name: '相続 一郎', phone: '090-1234-5678', postalCode: '100-0001', address: '東京都千代田区千代田1-1', memo: '' } }, relationship: '配偶者', relationshipSortOrder: 10, memo: '', sortOrder: 0 },
+            { person: { create: { name: '相続 二郎', phone: '090-2345-6789', postalCode: '160-0023', address: '東京都新宿区西新宿2-8-1', memo: '' } }, relationship: '長男', relationshipSortOrder: 20, memo: '', sortOrder: 1 },
           ],
         },
         progress: {
@@ -154,9 +154,9 @@ async function main() {
         referralFeeAmount: null,
         assigneeId: assignees[1].id,
         referrerId: null,
-        contacts: {
+        heirs: {
           create: [
-            { person: { create: { name: '遺産 三郎', phone: '080-1111-2222', postalCode: '', address: '', memo: '' } }, memo: '', sortOrder: 0 },
+            { person: { create: { name: '遺産 三郎', phone: '080-1111-2222', postalCode: '', address: '', memo: '' } }, relationship: '長男', relationshipSortOrder: 20, memo: '', sortOrder: 0 },
           ],
         },
       },
@@ -180,9 +180,9 @@ async function main() {
         referralFeeAmount: 525000,
         assigneeId: assignees[0].id,
         referrerId: referrers[1].id,
-        contacts: {
+        heirs: {
           create: [
-            { person: { create: { name: '財産 四郎', phone: '03-1234-5678', postalCode: '530-0001', address: '大阪府大阪市北区梅田1-1', memo: '' } }, memo: '', sortOrder: 0 },
+            { person: { create: { name: '財産 四郎', phone: '03-1234-5678', postalCode: '530-0001', address: '大阪府大阪市北区梅田1-1', memo: '' } }, relationship: '長男', relationshipSortOrder: 20, memo: '', sortOrder: 0 },
           ],
         },
         progress: {
@@ -241,9 +241,9 @@ async function main() {
         referralFeeAmount: null,
         assigneeId: assignees[1].id,
         referrerId: null,
-        contacts: {
+        heirs: {
           create: [
-            { person: { create: { name: '遺贈 六郎', phone: '090-9999-8888', postalCode: '460-0008', address: '愛知県名古屋市中区栄3-1', memo: '' } }, memo: '', sortOrder: 0 },
+            { person: { create: { name: '遺贈 六郎', phone: '090-9999-8888', postalCode: '460-0008', address: '愛知県名古屋市中区栄3-1', memo: '' } }, relationship: '受遺者', relationshipSortOrder: 100, memo: '', sortOrder: 0 },
           ],
         },
         progress: {

@@ -23,7 +23,8 @@ const emptyCase: InheritanceCase = {
     progress: DEFAULT_PROGRESS_STEPS.map((step, i) => ({
         id: 0, stepId: step.id, name: step.name, sortOrder: i, date: null,
     })),
-    contacts: [],
+    heirs: [],
+    relatedParties: [],
     expenses: [],
     specialAdditions: [],
 }

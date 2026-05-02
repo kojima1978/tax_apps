@@ -43,7 +43,8 @@ model InheritanceCase {
   referrer              Referrer?      @relation(fields: [referrerId], references: [id], onDelete: SetNull)
 
   // Normalized child tables
-  contacts          CaseContact[]
+  heirs             CaseHeir[]
+  relatedParties    CaseRelatedParty[]
   progress          CaseProgress[]
   expenses          CaseExpense[]
   specialAdditions  CaseSpecialAddition[]
@@ -173,7 +174,8 @@ model Person {
   addressManual       String        @default("")
   memo                String        @default("")
   active              Boolean       @default(true)
-  caseLinks           CaseContact[]
+  heirLinks           CaseHeir[]            @relation("PersonHeirs")
+  relatedPartyLinks   CaseRelatedParty[]    @relation("PersonRelatedParties")
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -184,16 +186,33 @@ model Person {
   @@index([active])
 }
 
-model CaseContact {
+model CaseHeir {
+  id                    Int             @id @default(autoincrement())
+  caseId                Int
+  case                  InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  personId              Int
+  person                Person          @relation("PersonHeirs", fields: [personId], references: [id], onDelete: Restrict)
+  relationship          String          @default("")  // 続柄: 配偶者/長男など、自由入力可
+  relationshipSortOrder Int             @default(999) // 続柄ソート用（HEIR_RELATIONSHIPS の sort 値）
+  sortOrder             Int             @default(0)   // 手動上書き用
+  memo                  String          @default("")
+
+  @@unique([caseId, personId])
+  @@index([caseId])
+  @@index([personId])
+}
+
+model CaseRelatedParty {
   id        Int             @id @default(autoincrement())
   caseId    Int
   case      InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
   personId  Int
-  person    Person          @relation(fields: [personId], references: [id], onDelete: Restrict)
+  person    Person          @relation("PersonRelatedParties", fields: [personId], references: [id], onDelete: Restrict)
+  role      String          @default("")  // 税理士/司法書士など、自由入力可
   sortOrder Int             @default(0)
   memo      String          @default("")
 
-  @@unique([caseId, personId])
+  @@unique([caseId, personId, role])
   @@index([caseId])
   @@index([personId])
 }

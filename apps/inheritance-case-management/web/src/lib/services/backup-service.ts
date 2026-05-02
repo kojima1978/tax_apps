@@ -160,16 +160,31 @@ const TABLE_DEFS = [
     seqTable: 'Person',
   },
   {
-    key: 'caseContacts' as const,
-    model: (tx: TxClient) => tx.caseContact,
+    key: 'caseHeirs' as const,
+    model: (tx: TxClient) => tx.caseHeir,
     map: (c: Rec) => ({
       id: c.id as number,
       caseId: c.caseId as number,
       personId: c.personId as number,
+      relationship: (c.relationship as string) ?? '',
+      relationshipSortOrder: (c.relationshipSortOrder as number) ?? 999,
       sortOrder: (c.sortOrder as number) ?? 0,
       memo: (c.memo as string) ?? '',
     }),
-    seqTable: 'CaseContact',
+    seqTable: 'CaseHeir',
+  },
+  {
+    key: 'caseRelatedParties' as const,
+    model: (tx: TxClient) => tx.caseRelatedParty,
+    map: (c: Rec) => ({
+      id: c.id as number,
+      caseId: c.caseId as number,
+      personId: c.personId as number,
+      role: (c.role as string) ?? '',
+      sortOrder: (c.sortOrder as number) ?? 0,
+      memo: (c.memo as string) ?? '',
+    }),
+    seqTable: 'CaseRelatedParty',
   },
   {
     key: 'caseProgress' as const,
@@ -236,7 +251,7 @@ interface TableDef {
 }
 
 export async function exportBackup() {
-  const [departments, companies, companyBranches, assignees, referrers, persons, cases, caseContacts, caseProgress, caseExpenses, caseSpecialAdditions, auditLogs] = await Promise.all([
+  const [departments, companies, companyBranches, assignees, referrers, persons, cases, caseHeirs, caseRelatedParties, caseProgress, caseExpenses, caseSpecialAdditions, auditLogs] = await Promise.all([
     prisma.department.findMany(),
     prisma.company.findMany(),
     prisma.companyBranch.findMany(),
@@ -244,7 +259,8 @@ export async function exportBackup() {
     prisma.referrer.findMany(),
     prisma.person.findMany(),
     prisma.inheritanceCase.findMany(),
-    prisma.caseContact.findMany(),
+    prisma.caseHeir.findMany(),
+    prisma.caseRelatedParty.findMany(),
     prisma.caseProgress.findMany(),
     prisma.caseExpense.findMany(),
     prisma.caseSpecialAddition.findMany(),
@@ -273,7 +289,8 @@ export async function exportBackup() {
         caseAddedDate: toDateStr(c.caseAddedDate),
         caseCompletedDate: toDateStr(c.caseCompletedDate),
       })),
-      caseContacts,
+      caseHeirs,
+      caseRelatedParties,
       caseProgress: caseProgress.map(p => ({
         ...p,
         date: toDateStr(p.date),
@@ -298,7 +315,8 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
       await tx.caseSpecialAddition.deleteMany();
       await tx.caseExpense.deleteMany();
       await tx.caseProgress.deleteMany();
-      await tx.caseContact.deleteMany();
+      await tx.caseRelatedParty.deleteMany();
+      await tx.caseHeir.deleteMany();
       await tx.inheritanceCase.deleteMany();
       await tx.person.deleteMany();
       await tx.referrer.deleteMany();

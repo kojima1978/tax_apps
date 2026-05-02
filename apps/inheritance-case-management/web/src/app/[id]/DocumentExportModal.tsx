@@ -28,14 +28,14 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
     const toast = useToast()
     const today = new Date().toISOString().split("T")[0]
     const [issueDate, setIssueDate] = useState(today)
-    const [selectedContacts, setSelectedContacts] = useState<Set<number>>(new Set())
+    const [selectedHeirs, setSelectedHeirs] = useState<Set<number>>(new Set())
     const [customName, setCustomName] = useState("")
     const [isExporting, setIsExporting] = useState(false)
 
-    const contacts = useMemo(() => caseData.contacts || [], [caseData.contacts])
+    const heirs = useMemo(() => caseData.heirs || [], [caseData.heirs])
 
-    const toggleContact = (index: number) => {
-        setSelectedContacts(prev => {
+    const toggleHeir = (index: number) => {
+        setSelectedHeirs(prev => {
             const next = new Set(prev)
             if (next.has(index)) {
                 next.delete(index)
@@ -48,12 +48,12 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
 
     const addresseeNames = useMemo(() => {
         const names: string[] = []
-        for (const idx of selectedContacts) {
-            if (contacts[idx]) names.push(contacts[idx].person.name)
+        for (const idx of selectedHeirs) {
+            if (heirs[idx]) names.push(heirs[idx].person.name)
         }
         if (customName.trim()) names.push(customName.trim())
         return names
-    }, [selectedContacts, customName, contacts])
+    }, [selectedHeirs, customName, heirs])
 
     const handleExport = async () => {
         if (addresseeNames.length === 0) {
@@ -95,24 +95,25 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
 
                 {/* 宛先選択 */}
                 <div className="space-y-2">
-                    <Label>宛先（連絡先から選択）</Label>
-                    {contacts.length > 0 ? (
+                    <Label>宛先（相続人から選択）</Label>
+                    {heirs.length > 0 ? (
                         <div className="space-y-1">
-                            {contacts.map((c, i) => (
+                            {heirs.map((h, i) => (
                                 <label key={i} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
                                     <input
                                         type="checkbox"
-                                        checked={selectedContacts.has(i)}
-                                        onChange={() => toggleContact(i)}
+                                        checked={selectedHeirs.has(i)}
+                                        onChange={() => toggleHeir(i)}
                                         className="rounded"
                                     />
-                                    <span className="text-sm">{c.person.name}</span>
-                                    {c.person.phone && <span className="text-xs text-muted-foreground">{c.person.phone}</span>}
+                                    <span className="text-sm">{h.person.name}</span>
+                                    {h.relationship && <span className="text-xs text-muted-foreground">（{h.relationship}）</span>}
+                                    {h.person.phone && <span className="text-xs text-muted-foreground">{h.person.phone}</span>}
                                 </label>
                             ))}
                         </div>
                     ) : (
-                        <p className="text-sm text-muted-foreground">連絡先が登録されていません</p>
+                        <p className="text-sm text-muted-foreground">相続人が登録されていません</p>
                     )}
                 </div>
 

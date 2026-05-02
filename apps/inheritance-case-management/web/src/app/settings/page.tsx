@@ -24,7 +24,7 @@ const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; 
         href: "/settings/persons",
         icon: Contact,
         iconClass: "bg-white text-black border border-black/10",
-        title: "人物マスタ管理",
+        title: "相続人マスタ管理",
         description: "案件の連絡先として登録される人物情報を一元管理します。氏名・電話番号・住所の編集や有効/無効の切り替えができます。",
     },
     {
