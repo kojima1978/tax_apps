@@ -6,7 +6,8 @@ export const BACKUP_TABLES = [
   { key: 'companyBranches', label: '支店' },
   { key: 'assignees', label: '担当者' },
   { key: 'referrers', label: '紹介者' },
-  { key: 'persons', label: '連絡先マスタ' },
+  { key: 'heirPersons', label: '相続人マスタ' },
+  { key: 'relatedPartyPersons', label: '関係者マスタ' },
   { key: 'cases', label: '案件' },
   { key: 'caseHeirs', label: '案件相続人' },
   { key: 'caseRelatedParties', label: '案件関係者' },
@@ -28,7 +29,8 @@ export interface BackupData {
     companyBranches: unknown[];
     assignees: unknown[];
     referrers: unknown[];
-    persons: unknown[];
+    heirPersons: unknown[];
+    relatedPartyPersons: unknown[];
     cases: unknown[];
     caseHeirs: unknown[];
     caseRelatedParties: unknown[];
@@ -56,7 +58,8 @@ export const backupDataSchema = z.object({
     companyBranches: z.array(z.unknown()).optional().default([]),
     assignees: z.array(z.unknown()),
     referrers: z.array(z.unknown()),
-    persons: z.array(z.unknown()).optional().default([]),
+    heirPersons: z.array(z.unknown()).optional().default([]),
+    relatedPartyPersons: z.array(z.unknown()).optional().default([]),
     cases: z.array(z.unknown()),
     caseHeirs: z.array(z.unknown()),
     caseRelatedParties: z.array(z.unknown()).optional().default([]),

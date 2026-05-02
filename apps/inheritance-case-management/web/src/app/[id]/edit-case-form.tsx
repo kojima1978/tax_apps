@@ -5,13 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
-import type { InheritanceCase, Assignee, Referrer, Person, CaseStatus } from "@/types/shared"
+import type { InheritanceCase, Assignee, Referrer, HeirPerson, RelatedPartyPerson, CaseStatus } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
 import { toProgressSteps, toProgressItems, toHeirInputs, toRelatedPartyInputs, toExpenses, toExpenseItems, toSpecialAdditions } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { getAssignees } from "@/lib/api/assignees"
 import { getReferrers } from "@/lib/api/referrers"
-import { getPersons } from "@/lib/api/persons"
+import { getHeirPersons } from "@/lib/api/heir-persons"
+import { getRelatedPartyPersons } from "@/lib/api/related-party-persons"
 import { useToast } from "@/components/ui/Toast"
 import { Modal } from "@/components/ui/Modal"
 import { ProgressEditor } from "./ProgressEditor"
@@ -50,14 +51,21 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const [exportDocType, setExportDocType] = useState<"estimate" | "invoice" | "invoice-request" | null>(null)
     const [assignees, setAssignees] = useState<Assignee[]>([])
     const [referrers, setReferrers] = useState<Referrer[]>([])
-    const [persons, setPersons] = useState<Person[]>([])
+    const [heirPersons, setHeirPersons] = useState<HeirPerson[]>([])
+    const [relatedPartyPersons, setRelatedPartyPersons] = useState<RelatedPartyPerson[]>([])
     useEffect(() => {
         const loadMasters = async () => {
             try {
-                const [as, rs, ps] = await Promise.all([getAssignees(), getReferrers(), getPersons()])
+                const [as, rs, hps, rpps] = await Promise.all([
+                    getAssignees(),
+                    getReferrers(),
+                    getHeirPersons(),
+                    getRelatedPartyPersons(),
+                ])
                 setAssignees(as)
                 setReferrers(rs)
-                setPersons(ps)
+                setHeirPersons(hps)
+                setRelatedPartyPersons(rpps)
             } catch (e) {
                 console.error("Failed to load masters", e)
             }
@@ -292,18 +300,18 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             <CollapsibleSection title="相続人" icon={Users} isOpen={sections.isOpen("heirs")} onToggle={() => sections.toggle("heirs")} badge={`${(formData.heirs || []).length}件`}>
                 <HeirListEditor
                     heirs={formData.heirs || []}
-                    persons={persons}
+                    persons={heirPersons}
                     onChange={(heirs) => setFormData(prev => ({ ...prev, heirs }))}
-                    onPersonsChange={setPersons}
+                    onPersonsChange={setHeirPersons}
                 />
             </CollapsibleSection>
 
             <CollapsibleSection title="関係者" icon={Briefcase} isOpen={sections.isOpen("relatedParties")} onToggle={() => sections.toggle("relatedParties")} badge={`${(formData.relatedParties || []).length}件`}>
                 <RelatedPartyListEditor
                     parties={formData.relatedParties || []}
-                    persons={persons}
+                    persons={relatedPartyPersons}
                     onChange={(relatedParties) => setFormData(prev => ({ ...prev, relatedParties }))}
-                    onPersonsChange={setPersons}
+                    onPersonsChange={setRelatedPartyPersons}
                 />
             </CollapsibleSection>
 

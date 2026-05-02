@@ -156,8 +156,8 @@ export const updateReferrerSchema = createReferrerSchema.partial().extend({
   active: z.boolean().optional(),
 });
 
-// Person Schemas
-export const createPersonSchema = z.object({
+// Person Schemas（HeirPerson / RelatedPartyPerson 共通の項目構造）
+const personBaseSchema = z.object({
   name: z.string().min(1, '氏名は必須です').max(100, '氏名は100文字以内で入力してください'),
   nameKana: z.string().max(100, 'フリガナは100文字以内で入力してください').optional().default(''),
   phone: z.string().max(30).optional().default(''),
@@ -168,7 +168,13 @@ export const createPersonSchema = z.object({
   memo: z.string().max(500).optional().default(''),
 });
 
-export const updatePersonSchema = createPersonSchema.partial().extend({
+export const createHeirPersonSchema = personBaseSchema;
+export const updateHeirPersonSchema = createHeirPersonSchema.partial().extend({
+  active: z.boolean().optional(),
+});
+
+export const createRelatedPartyPersonSchema = personBaseSchema;
+export const updateRelatedPartyPersonSchema = createRelatedPartyPersonSchema.partial().extend({
   active: z.boolean().optional(),
 });
 
@@ -225,6 +231,8 @@ export type CreateCompanyBranchInput = z.infer<typeof createCompanyBranchSchema>
 export type UpdateCompanyBranchInput = z.infer<typeof updateCompanyBranchSchema>;
 export type CreateReferrerInput = z.infer<typeof createReferrerSchema>;
 export type UpdateReferrerInput = z.infer<typeof updateReferrerSchema>;
-export type CreatePersonInput = z.infer<typeof createPersonSchema>;
-export type UpdatePersonInput = z.infer<typeof updatePersonSchema>;
+export type CreateHeirPersonInput = z.infer<typeof createHeirPersonSchema>;
+export type UpdateHeirPersonInput = z.infer<typeof updateHeirPersonSchema>;
+export type CreateRelatedPartyPersonInput = z.infer<typeof createRelatedPartyPersonSchema>;
+export type UpdateRelatedPartyPersonInput = z.infer<typeof updateRelatedPartyPersonSchema>;
 export type ListQueryInput = z.infer<typeof listQuerySchema>;

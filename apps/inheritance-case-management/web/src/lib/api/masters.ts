@@ -1,11 +1,12 @@
-import type { Company, CompanyBranch, Department, Assignee, Referrer, Person } from '@/types/shared';
+import type { Company, CompanyBranch, Department, Assignee, Referrer, HeirPerson, RelatedPartyPerson } from '@/types/shared';
 import type {
   CreateCompanyInput, UpdateCompanyInput,
   CreateCompanyBranchInput, UpdateCompanyBranchInput,
   CreateDepartmentInput, UpdateDepartmentInput,
   CreateAssigneeInput, UpdateAssigneeInput,
   CreateReferrerInput, UpdateReferrerInput,
-  CreatePersonInput, UpdatePersonInput,
+  CreateHeirPersonInput, UpdateHeirPersonInput,
+  CreateRelatedPartyPersonInput, UpdateRelatedPartyPersonInput,
 } from '@/types/validation';
 import { createCrudApi } from './crud-factory';
 
@@ -39,8 +40,14 @@ export const createReferrer = referrerApi.create;
 export const updateReferrer = referrerApi.update;
 export const deleteReferrer = referrerApi.remove;
 
-const personApi = createCrudApi<Person, CreatePersonInput, UpdatePersonInput>('/persons');
-export const getPersons = personApi.getAll;
-export const createPerson = personApi.create;
-export const updatePerson = personApi.update;
-export const deletePerson = personApi.remove;
+const heirPersonApi = createCrudApi<HeirPerson, CreateHeirPersonInput, UpdateHeirPersonInput>('/heir-persons');
+export const getHeirPersons = heirPersonApi.getAll;
+export const createHeirPerson = heirPersonApi.create;
+export const updateHeirPerson = heirPersonApi.update;
+export const deleteHeirPerson = heirPersonApi.remove;
+
+const relatedPartyPersonApi = createCrudApi<RelatedPartyPerson, CreateRelatedPartyPersonInput, UpdateRelatedPartyPersonInput>('/related-party-persons');
+export const getRelatedPartyPersons = relatedPartyPersonApi.getAll;
+export const createRelatedPartyPerson = relatedPartyPersonApi.create;
+export const updateRelatedPartyPerson = relatedPartyPersonApi.update;
+export const deleteRelatedPartyPerson = relatedPartyPersonApi.remove;

@@ -8,8 +8,8 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { Modal } from "@/components/ui/Modal"
 import { SelectWithOther } from "@/components/ui/SelectWithOther"
 import { Edit3, UserPlus, Search, Loader2, X, Plus, ArrowDownAZ } from "lucide-react"
-import type { CaseHeir, Person } from "@/types/shared"
-import { createPerson, updatePerson } from "@/lib/api/persons"
+import type { CaseHeir, HeirPerson } from "@/types/shared"
+import { createHeirPerson, updateHeirPerson } from "@/lib/api/heir-persons"
 import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
 import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
 import { fetchAddressFromPostalCode } from "@/lib/postal-code"
@@ -18,9 +18,9 @@ import { HEIR_RELATIONSHIP_LABELS, relationshipSortFor } from "@/lib/constants/h
 
 interface HeirListEditorProps {
     heirs: CaseHeir[]
-    persons: Person[]
+    persons: HeirPerson[]
     onChange: (heirs: CaseHeir[]) => void
-    onPersonsChange: (persons: Person[]) => void
+    onPersonsChange: (persons: HeirPerson[]) => void
 }
 
 const emptyPersonForm = {
@@ -73,7 +73,7 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
         .filter(p => p.active && !linkedPersonIds.has(p.id))
         .filter(p => personMatchesSearch(p, searchQuery))
 
-    const handleAddPerson = (person: Person) => {
+    const handleAddPerson = (person: HeirPerson) => {
         const newHeir: CaseHeir = {
             id: 0,
             sortOrder: heirs.length,
@@ -111,7 +111,7 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
                 name: newPerson.name.trim(),
                 nameKana: normalizeNameKanaForStorage(newPerson.nameKana),
             }
-            const created = await createPerson(payload)
+            const created = await createHeirPerson(payload)
             onPersonsChange([...persons, created])
             handleAddPerson(created)
             setNewPerson(emptyPersonForm)
@@ -134,7 +134,7 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
                 name: editPerson.name.trim(),
                 nameKana: normalizeNameKanaForStorage(editPerson.nameKana),
             }
-            const updated = await updatePerson(heir.personId, payload)
+            const updated = await updateHeirPerson(heir.personId, payload)
             onPersonsChange(persons.map(p => p.id === updated.id ? updated : p))
             onChange(heirs.map((h, i) => i === editingIndex ? { ...h, person: updated } : h))
             setEditingIndex(null)

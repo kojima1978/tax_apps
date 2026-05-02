@@ -162,7 +162,7 @@ model AuditLog {
   @@index([changedAt])
 }
 
-model Person {
+model HeirPerson {
   id                  Int           @id @default(autoincrement())
   name                String
   nameKana            String        @default("")
@@ -174,8 +174,30 @@ model Person {
   addressManual       String        @default("")
   memo                String        @default("")
   active              Boolean       @default(true)
-  heirLinks           CaseHeir[]            @relation("PersonHeirs")
-  relatedPartyLinks   CaseRelatedParty[]    @relation("PersonRelatedParties")
+  caseLinks           CaseHeir[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([name])
+  @@index([nameKana])
+  @@index([nameKanaNormalized])
+  @@index([active])
+}
+
+model RelatedPartyPerson {
+  id                  Int                   @id @default(autoincrement())
+  name                String
+  nameKana            String                @default("")
+  nameKanaNormalized  String                @default("")
+  phone               String                @default("")
+  postalCode          String                @default("")
+  address             String                @default("")
+  addressFromPostalCode String              @default("")
+  addressManual       String                @default("")
+  memo                String                @default("")
+  active              Boolean               @default(true)
+  caseLinks           CaseRelatedParty[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -191,7 +213,7 @@ model CaseHeir {
   caseId                Int
   case                  InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
   personId              Int
-  person                Person          @relation("PersonHeirs", fields: [personId], references: [id], onDelete: Restrict)
+  person                HeirPerson      @relation(fields: [personId], references: [id], onDelete: Restrict)
   relationship          String          @default("")  // 続柄: 配偶者/長男など、自由入力可
   relationshipSortOrder Int             @default(999) // 続柄ソート用（HEIR_RELATIONSHIPS の sort 値）
   sortOrder             Int             @default(0)   // 手動上書き用
@@ -203,14 +225,14 @@ model CaseHeir {
 }
 
 model CaseRelatedParty {
-  id        Int             @id @default(autoincrement())
+  id        Int                @id @default(autoincrement())
   caseId    Int
-  case      InheritanceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  case      InheritanceCase    @relation(fields: [caseId], references: [id], onDelete: Cascade)
   personId  Int
-  person    Person          @relation("PersonRelatedParties", fields: [personId], references: [id], onDelete: Restrict)
-  role      String          @default("")  // 税理士/司法書士など、自由入力可
-  sortOrder Int             @default(0)
-  memo      String          @default("")
+  person    RelatedPartyPerson @relation(fields: [personId], references: [id], onDelete: Restrict)
+  role      String             @default("")  // 税理士/司法書士など、自由入力可
+  sortOrder Int                @default(0)
+  memo      String             @default("")
 
   @@unique([caseId, personId, role])
   @@index([caseId])

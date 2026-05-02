@@ -43,7 +43,7 @@ async function resolveHeirs(tx: TxClient, heirs: unknown[]): Promise<HeirInput[]
     if (isImportHeir(c)) {
       const nameKana = normalizeNameKanaForStorage(c.nameKana ?? '');
       const addressParts = normalizePersonAddressParts(c);
-      let person = await tx.person.findFirst({
+      let person = await tx.heirPerson.findFirst({
         where: {
           name: c.name,
           ...(nameKana ? { nameKana } : {}),
@@ -53,7 +53,7 @@ async function resolveHeirs(tx: TxClient, heirs: unknown[]): Promise<HeirInput[]
         },
       });
       if (!person) {
-        person = await tx.person.create({
+        person = await tx.heirPerson.create({
           data: {
             name: c.name,
             nameKana,

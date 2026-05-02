@@ -2,7 +2,7 @@
 "use client"
 
 import Link from "next/link"
-import { Users, Network, HardDriveDownload, Contact } from "lucide-react"
+import { Users, Network, HardDriveDownload, Contact, Briefcase } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; title: string; description: string }[] = [
@@ -21,11 +21,18 @@ const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; 
         description: "紹介元の会社・部門をツリー形式で一元管理します。紹介者としての有効/無効もこの画面で設定できます。",
     },
     {
-        href: "/settings/persons",
+        href: "/settings/heir-persons",
         icon: Contact,
         iconClass: "bg-white text-black border border-black/10",
         title: "相続人マスタ管理",
-        description: "案件の連絡先として登録される人物情報を一元管理します。氏名・電話番号・住所の編集や有効/無効の切り替えができます。",
+        description: "案件に紐づく相続人として登録される人物情報を一元管理します。氏名・電話番号・住所の編集や有効/無効の切り替えができます。",
+    },
+    {
+        href: "/settings/related-party-persons",
+        icon: Briefcase,
+        iconClass: "bg-white text-black border border-black/10",
+        title: "関係者マスタ管理",
+        description: "税理士・弁護士・司法書士・葬儀社など、案件に関わる外部関係者の人物情報を一元管理します。",
     },
     {
         href: "/settings/backup",
