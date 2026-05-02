@@ -1,5 +1,14 @@
 import { z } from 'zod';
 import { MAX_SUMMARY_LENGTH } from './constants';
+import { normalizePostalCodeDigits } from '@/lib/postal-code-format';
+
+/** 入力された郵便番号を 7 桁数字に正規化 + バリデート（空 OR 7 桁数字のみ許可） */
+const postalCodeSchema = z
+  .string()
+  .optional()
+  .default('')
+  .transform(v => normalizePostalCodeDigits(v))
+  .refine(v => v === '' || /^\d{7}$/.test(v), '郵便番号は7桁の数字で入力してください');
 
 // Status Schemas (internal - used by createCaseSchema/listQuerySchema)
 const caseStatusSchema = z.enum(['未着手', '手続中', '申告済', '請求済', '入金済']);
@@ -16,7 +25,7 @@ const heirImportSchema = z.object({
   name: z.string(),
   nameKana: z.string().optional(),
   phone: z.string().optional(),
-  postalCode: z.string().optional(),
+  postalCode: postalCodeSchema,
   address: z.string().optional(),
   addressFromPostalCode: z.string().optional(),
   addressManual: z.string().optional(),
@@ -152,7 +161,7 @@ export const createPersonSchema = z.object({
   name: z.string().min(1, '氏名は必須です').max(100, '氏名は100文字以内で入力してください'),
   nameKana: z.string().max(100, 'フリガナは100文字以内で入力してください').optional().default(''),
   phone: z.string().max(30).optional().default(''),
-  postalCode: z.string().max(10).optional().default(''),
+  postalCode: postalCodeSchema,
   address: z.string().max(200).optional().default(''),
   addressFromPostalCode: z.string().max(200).optional().default(''),
   addressManual: z.string().max(200).optional().default(''),

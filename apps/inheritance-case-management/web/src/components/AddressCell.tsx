@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 import { normalizePersonAddressParts } from "@/lib/person-address"
+import { formatPostalCodeForDisplay } from "@/lib/postal-code-format"
 
 interface AddressCellProps {
     postalCode?: string | null
@@ -10,13 +11,13 @@ interface AddressCellProps {
 }
 
 export function AddressCell({ postalCode, address, addressFromPostalCode, addressManual, className }: AddressCellProps) {
-    const normalizedPostalCode = postalCode?.trim()
+    const formattedPostalCode = formatPostalCodeForDisplay(postalCode)
     const { address: normalizedAddress } = normalizePersonAddressParts({
         address,
         addressFromPostalCode,
         addressManual,
     })
-    const title = [normalizedPostalCode && `〒${normalizedPostalCode}`, normalizedAddress]
+    const title = [formattedPostalCode, normalizedAddress]
         .filter(Boolean)
         .join(" ")
 
@@ -30,9 +31,9 @@ export function AddressCell({ postalCode, address, addressFromPostalCode, addres
             title={title}
             aria-label={title}
         >
-            {normalizedPostalCode && (
+            {formattedPostalCode && (
                 <div className="truncate text-xs leading-4 text-muted-foreground">
-                    〒{normalizedPostalCode}
+                    {formattedPostalCode}
                 </div>
             )}
             {normalizedAddress && (

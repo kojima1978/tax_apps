@@ -13,6 +13,7 @@ import { createPerson, updatePerson } from "@/lib/api/persons"
 import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
 import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
 import { fetchAddressFromPostalCode } from "@/lib/postal-code"
+import { formatPostalCodeForDisplay, formatPostalCodeForInput, normalizePostalCodeDigits } from "@/lib/postal-code-format"
 import { RELATED_PARTY_ROLES } from "@/lib/constants/related-party-roles"
 
 interface RelatedPartyListEditorProps {
@@ -140,23 +141,23 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
     }
 
     const handlePostalCodeChange = async (value: string) => {
-        setNewPerson(prev => ({ ...prev, postalCode: value }))
-        const cleaned = value.replace(/[^\d]/g, "")
-        if (cleaned.length === 7) {
+        const digits = normalizePostalCodeDigits(value)
+        setNewPerson(prev => ({ ...prev, postalCode: digits }))
+        if (digits.length === 7) {
             setSearching(true)
-            const address = await fetchAddressFromPostalCode(cleaned)
-            if (address) setNewPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: value }, address))
+            const address = await fetchAddressFromPostalCode(digits)
+            if (address) setNewPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: digits }, address))
             setSearching(false)
         }
     }
 
     const handleEditPostalCodeChange = async (value: string) => {
-        setEditPerson(prev => ({ ...prev, postalCode: value }))
-        const cleaned = value.replace(/[^\d]/g, "")
-        if (cleaned.length === 7) {
+        const digits = normalizePostalCodeDigits(value)
+        setEditPerson(prev => ({ ...prev, postalCode: digits }))
+        if (digits.length === 7) {
             setEditSearching(true)
-            const address = await fetchAddressFromPostalCode(cleaned)
-            if (address) setEditPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: value }, address))
+            const address = await fetchAddressFromPostalCode(digits)
+            if (address) setEditPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: digits }, address))
             setEditSearching(false)
         }
     }
@@ -201,7 +202,7 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                             </div>
                             {(p.person.postalCode || getDisplayAddress(p.person)) && (
                                 <p className="text-xs text-muted-foreground truncate">
-                                    {p.person.postalCode && `〒${p.person.postalCode} `}{getDisplayAddress(p.person)}
+                                    {p.person.postalCode && `${formatPostalCodeForDisplay(p.person.postalCode)} `}{getDisplayAddress(p.person)}
                                 </p>
                             )}
                             {p.person.memo && (
@@ -281,7 +282,7 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                             <div className="space-y-1.5">
                                 <Label>郵便番号</Label>
                                 <div className="flex gap-1">
-                                    <Input value={editPerson.postalCode} onChange={e => handleEditPostalCodeChange(e.target.value)} placeholder="000-0000" className="flex-1" />
+                                    <Input value={formatPostalCodeForInput(editPerson.postalCode)} onChange={e => handleEditPostalCodeChange(e.target.value)} placeholder="000-0000" inputMode="numeric" maxLength={8} className="flex-1" />
                                     <Button type="button" variant="ghost" size="sm" className="px-2 h-9 shrink-0" disabled={editSearching}
                                         onClick={async () => { setEditSearching(true); const a = await fetchAddressFromPostalCode(editPerson.postalCode); if (a) setEditPerson(p => withPostalCodeLookupAddress(p, a)); setEditSearching(false) }}>
                                         {editSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
@@ -335,7 +336,7 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                             <div className="space-y-1.5">
                                 <Label>郵便番号</Label>
                                 <div className="flex gap-1">
-                                    <Input value={newPerson.postalCode} onChange={e => handlePostalCodeChange(e.target.value)} placeholder="000-0000" className="flex-1" />
+                                    <Input value={formatPostalCodeForInput(newPerson.postalCode)} onChange={e => handlePostalCodeChange(e.target.value)} placeholder="000-0000" inputMode="numeric" maxLength={8} className="flex-1" />
                                     <Button type="button" variant="ghost" size="sm" className="px-2 h-9 shrink-0" disabled={searching}
                                         onClick={async () => { setSearching(true); const a = await fetchAddressFromPostalCode(newPerson.postalCode); if (a) setNewPerson(p => withPostalCodeLookupAddress(p, a)); setSearching(false) }}>
                                         {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}

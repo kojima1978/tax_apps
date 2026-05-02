@@ -11,6 +11,7 @@ import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/perso
 import { formatPersonDeleteBlockedMessage } from "@/lib/person-delete-message"
 import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
 import { fetchAddressFromPostalCode } from "@/lib/postal-code"
+import { formatPostalCodeForInput, normalizePostalCodeDigits } from "@/lib/postal-code-format"
 import type { Person } from "@/types/shared"
 import type { CreatePersonInput, UpdatePersonInput } from "@/types/validation"
 import { getPersons, createPerson, updatePerson, deletePerson } from "@/lib/api/masters"
@@ -198,17 +199,17 @@ function PersonsContent() {
     }
 
     const handleEditPostalCodeChange = async (value: string) => {
-        ml.setEditingFields(f => ({ ...f, postalCode: value }))
-        const cleaned = value.replace(/[^\d]/g, "")
-        if (cleaned.length !== 7) return
+        const digits = normalizePostalCodeDigits(value)
+        ml.setEditingFields(f => ({ ...f, postalCode: digits }))
+        if (digits.length !== 7) return
 
         setEditAddressSearching(true)
         try {
-            const address = await fetchAddressFromPostalCode(cleaned)
+            const address = await fetchAddressFromPostalCode(digits)
             if (address) {
                 ml.setEditingFields(f => ({
                     ...f,
-                    postalCode: value,
+                    postalCode: digits,
                     ...applyPostalCodeAddress(f, address),
                 }))
             }
@@ -266,10 +267,12 @@ function PersonsContent() {
                         <div className="flex gap-1">
                             <Input
                                 id={fieldId("postalCode")}
-                                value={ml.editingFields.postalCode || ""}
+                                value={formatPostalCodeForInput(ml.editingFields.postalCode || "")}
                                 onChange={(e) => handleEditPostalCodeChange(e.target.value)}
                                 onKeyDown={handleEditKeyDown}
                                 placeholder="000-0000"
+                                inputMode="numeric"
+                                maxLength={8}
                                 className={EDIT_INPUT_CLASS}
                             />
                             <Button

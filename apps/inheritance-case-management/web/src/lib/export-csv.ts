@@ -1,6 +1,7 @@
 import type { InheritanceCase, ProgressStep } from "@/types/shared";
 import { formatId } from "@/types/shared";
 import { MAX_HEIR_COLUMNS } from "./import-csv";
+import { formatPostalCodeForInput } from "./postal-code-format";
 
 function downloadCSVBlob(csvContent: string, filename: string) {
   const bom = "\uFEFF";
@@ -197,7 +198,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
       row.push(
         person?.name || "",
         person?.phone || "",
-        person?.postalCode || "",
+        formatPostalCodeForInput(person?.postalCode || ""),
         person?.address || "",
         heir?.relationship || "",
         heir?.memo || ""
