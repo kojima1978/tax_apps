@@ -129,8 +129,8 @@ const TABLE_DEFS = [
     seqTable: 'InheritanceCase',
   },
   {
-    key: 'persons' as const,
-    model: (tx: TxClient) => tx.person,
+    key: 'heirPersons' as const,
+    model: (tx: TxClient) => tx.heirPerson,
     map: (p: Rec) => {
       const nameKana = normalizeNameKanaForStorage((p.nameKana as string) ?? '');
       const nameKanaNormalized = typeof p.nameKanaNormalized === 'string' && p.nameKanaNormalized
@@ -157,7 +157,38 @@ const TABLE_DEFS = [
         updatedAt: new Date(p.updatedAt as string),
       };
     },
-    seqTable: 'Person',
+    seqTable: 'HeirPerson',
+  },
+  {
+    key: 'relatedPartyPersons' as const,
+    model: (tx: TxClient) => tx.relatedPartyPerson,
+    map: (p: Rec) => {
+      const nameKana = normalizeNameKanaForStorage((p.nameKana as string) ?? '');
+      const nameKanaNormalized = typeof p.nameKanaNormalized === 'string' && p.nameKanaNormalized
+        ? p.nameKanaNormalized
+        : normalizePersonSearchText(nameKana);
+      const addressParts = normalizePersonAddressParts({
+        address: (p.address as string) ?? '',
+        addressFromPostalCode: (p.addressFromPostalCode as string) ?? '',
+        addressManual: (p.addressManual as string) ?? '',
+      });
+      return {
+        id: p.id as number,
+        name: p.name as string,
+        nameKana,
+        nameKanaNormalized,
+        phone: (p.phone as string) ?? '',
+        postalCode: (p.postalCode as string) ?? '',
+        address: addressParts.address,
+        addressFromPostalCode: addressParts.addressFromPostalCode,
+        addressManual: addressParts.addressManual,
+        memo: (p.memo as string) ?? '',
+        active: (p.active as boolean) ?? true,
+        createdAt: new Date(p.createdAt as string),
+        updatedAt: new Date(p.updatedAt as string),
+      };
+    },
+    seqTable: 'RelatedPartyPerson',
   },
   {
     key: 'caseHeirs' as const,
@@ -251,13 +282,14 @@ interface TableDef {
 }
 
 export async function exportBackup() {
-  const [departments, companies, companyBranches, assignees, referrers, persons, cases, caseHeirs, caseRelatedParties, caseProgress, caseExpenses, caseSpecialAdditions, auditLogs] = await Promise.all([
+  const [departments, companies, companyBranches, assignees, referrers, heirPersons, relatedPartyPersons, cases, caseHeirs, caseRelatedParties, caseProgress, caseExpenses, caseSpecialAdditions, auditLogs] = await Promise.all([
     prisma.department.findMany(),
     prisma.company.findMany(),
     prisma.companyBranch.findMany(),
     prisma.assignee.findMany(),
     prisma.referrer.findMany(),
-    prisma.person.findMany(),
+    prisma.heirPerson.findMany(),
+    prisma.relatedPartyPerson.findMany(),
     prisma.inheritanceCase.findMany(),
     prisma.caseHeir.findMany(),
     prisma.caseRelatedParty.findMany(),
@@ -282,7 +314,8 @@ export async function exportBackup() {
       companyBranches: companyBranches.map(serializeTimestamps),
       assignees: assignees.map(serializeTimestamps),
       referrers: referrers.map(serializeTimestamps),
-      persons: persons.map(serializeTimestamps),
+      heirPersons: heirPersons.map(serializeTimestamps),
+      relatedPartyPersons: relatedPartyPersons.map(serializeTimestamps),
       cases: cases.map(c => ({
         ...serializeTimestamps(c),
         dateOfDeath: toDateStr(c.dateOfDeath) ?? '',
@@ -318,7 +351,8 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
       await tx.caseRelatedParty.deleteMany();
       await tx.caseHeir.deleteMany();
       await tx.inheritanceCase.deleteMany();
-      await tx.person.deleteMany();
+      await tx.relatedPartyPerson.deleteMany();
+      await tx.heirPerson.deleteMany();
       await tx.referrer.deleteMany();
       await tx.companyBranch.deleteMany();
       await tx.assignee.deleteMany();

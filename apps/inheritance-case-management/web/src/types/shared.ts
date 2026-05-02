@@ -58,7 +58,7 @@ export interface CaseSpecialAdditionItem {
   amount: number;
 }
 
-export interface Person {
+interface PersonBase {
   id: number;
   name: string;
   nameKana: string;
@@ -72,10 +72,12 @@ export interface Person {
   createdAt?: Date;
   updatedAt?: Date;
   _count?: {
-    heirLinks: number;
-    relatedPartyLinks: number;
+    caseLinks: number;
   };
 }
+
+export type HeirPerson = PersonBase;
+export type RelatedPartyPerson = PersonBase;
 
 export interface CaseHeir {
   id: number;
@@ -83,7 +85,7 @@ export interface CaseHeir {
   relationship: string;
   relationshipSortOrder: number;
   personId: number;
-  person: Person;
+  person: HeirPerson;
   memo: string;
 }
 
@@ -92,7 +94,7 @@ export interface CaseRelatedParty {
   sortOrder: number;
   role: string;
   personId: number;
-  person: Person;
+  person: RelatedPartyPerson;
   memo: string;
 }
 

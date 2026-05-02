@@ -7,7 +7,8 @@ async function main() {
 
   // 既存データをクリア（子テーブルはCASCADEで自動削除）
   await prisma.inheritanceCase.deleteMany();
-  await prisma.person.deleteMany();
+  await prisma.relatedPartyPerson.deleteMany();
+  await prisma.heirPerson.deleteMany();
   await prisma.referrer.deleteMany();
   await prisma.company.deleteMany();
   await prisma.assignee.deleteMany();
@@ -19,9 +20,11 @@ async function main() {
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Company_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Referrer_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "InheritanceCase_id_seq" RESTART WITH 1`);
-  await prisma.$executeRawUnsafe(`ALTER SEQUENCE "CaseContact_id_seq" RESTART WITH 1`);
+  await prisma.$executeRawUnsafe(`ALTER SEQUENCE "CaseHeir_id_seq" RESTART WITH 1`);
+  await prisma.$executeRawUnsafe(`ALTER SEQUENCE "CaseRelatedParty_id_seq" RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE "CaseProgress_id_seq" RESTART WITH 1`);
-  await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Person_id_seq" RESTART WITH 1`);
+  await prisma.$executeRawUnsafe(`ALTER SEQUENCE "HeirPerson_id_seq" RESTART WITH 1`);
+  await prisma.$executeRawUnsafe(`ALTER SEQUENCE "RelatedPartyPerson_id_seq" RESTART WITH 1`);
 
   // 部署データ
   const departments = await Promise.all([

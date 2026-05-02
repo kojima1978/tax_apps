@@ -12,14 +12,14 @@ import { formatPersonDeleteBlockedMessage } from "@/lib/person-delete-message"
 import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
 import { fetchAddressFromPostalCode } from "@/lib/postal-code"
 import { formatPostalCodeForInput, normalizePostalCodeDigits } from "@/lib/postal-code-format"
-import type { Person } from "@/types/shared"
-import type { CreatePersonInput, UpdatePersonInput } from "@/types/validation"
-import { getPersons, createPerson, updatePerson, deletePerson } from "@/lib/api/masters"
+import type { HeirPerson } from "@/types/shared"
+import type { CreateHeirPersonInput, UpdateHeirPersonInput } from "@/types/validation"
+import { getHeirPersons, createHeirPerson, updateHeirPerson, deleteHeirPerson } from "@/lib/api/masters"
 import { useToast } from "@/components/ui/Toast"
 import { Check, Loader2, Search, X } from "lucide-react"
 import { useState } from "react"
 
-const COLUMNS: ColumnDef<Person>[] = [
+const COLUMNS: ColumnDef<HeirPerson>[] = [
     {
         key: "name",
         label: "氏名",
@@ -60,11 +60,11 @@ const COLUMNS: ColumnDef<Person>[] = [
 
 const EDIT_INPUT_CLASS = "h-10 rounded-md border text-sm focus-visible:ring-1 focus-visible:ring-offset-0"
 
-const MASTER_CONFIG: MasterListConfig<Person, CreatePersonInput, UpdatePersonInput> = {
-    fetchAll: getPersons,
-    create: createPerson,
-    update: updatePerson,
-    remove: deletePerson,
+const MASTER_CONFIG: MasterListConfig<HeirPerson, CreateHeirPersonInput, UpdateHeirPersonInput> = {
+    fetchAll: getHeirPersons,
+    create: createHeirPerson,
+    update: updateHeirPerson,
+    remove: deleteHeirPerson,
     getCreatePayload: (item) => ({
         name: item.name,
         nameKana: item.nameKana || "",
@@ -86,8 +86,8 @@ const MASTER_CONFIG: MasterListConfig<Person, CreatePersonInput, UpdatePersonInp
         memo: item.memo || "",
         active: item.active,
     }),
-    entityLabel: "人物",
-    savedParam: "persons",
+    entityLabel: "相続人",
+    savedParam: "heir-persons",
     sortFields: ["name", "phone", "address"],
     defaultSortField: "name",
     getSortValue: (item, field) => {
@@ -102,14 +102,12 @@ const MASTER_CONFIG: MasterListConfig<Person, CreatePersonInput, UpdatePersonInp
     matchesSearch: personMatchesSearch,
     getDeleteLabel: (item) => item.name,
     getPermanentDeleteBlockMessage: (item) => {
-        const heirCount = item._count?.heirLinks ?? 0
-        const relatedPartyCount = item._count?.relatedPartyLinks ?? 0
-        const total = heirCount + relatedPartyCount
-        return total > 0 ? formatPersonDeleteBlockedMessage(total) : null
+        const total = item._count?.caseLinks ?? 0
+        return total > 0 ? formatPersonDeleteBlockedMessage(total, "相続人") : null
     },
 }
 
-function PersonsContent() {
+function HeirPersonsContent() {
     const toast = useToast()
     const ml = useMasterList(MASTER_CONFIG)
 
@@ -141,7 +139,7 @@ function PersonsContent() {
         setNewPhone("")
     }
 
-    const handleStartEdit = (item: Person) => {
+    const handleStartEdit = (item: HeirPerson) => {
         ml.handleStartEdit(item, {
             name: item.name,
             nameKana: item.nameKana || "",
@@ -223,8 +221,8 @@ function PersonsContent() {
         if (e.key === "Escape") ml.handleCancelEdit()
     }
 
-    const renderEditRow = (item: Person) => {
-        const fieldId = (field: string) => `person-${item.id}-${field}`
+    const renderEditRow = (item: HeirPerson) => {
+        const fieldId = (field: string) => `heir-person-${item.id}-${field}`
         return (
             <div className="px-2 py-3">
                 <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[160px_minmax(240px,1fr)_minmax(240px,1fr)_130px]">
@@ -365,9 +363,9 @@ function PersonsContent() {
     const newItemForm = (
         <div className="grid min-w-0 flex-1 items-end gap-3 md:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(150px,180px)]">
             <div className="space-y-1">
-                <Label htmlFor="person-new-name" className="text-xs text-muted-foreground">氏名</Label>
+                <Label htmlFor="heir-person-new-name" className="text-xs text-muted-foreground">氏名</Label>
                 <Input
-                    id="person-new-name"
+                    id="heir-person-new-name"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAdd()}
@@ -376,9 +374,9 @@ function PersonsContent() {
                 />
             </div>
             <div className="space-y-1">
-                <Label htmlFor="person-new-name-kana" className="text-xs text-muted-foreground">フリガナ</Label>
+                <Label htmlFor="heir-person-new-name-kana" className="text-xs text-muted-foreground">フリガナ</Label>
                 <Input
-                    id="person-new-name-kana"
+                    id="heir-person-new-name-kana"
                     value={newNameKana}
                     onChange={(e) => setNewNameKana(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAdd()}
@@ -387,9 +385,9 @@ function PersonsContent() {
                 />
             </div>
             <div className="space-y-1">
-                <Label htmlFor="person-new-phone" className="text-xs text-muted-foreground">電話番号</Label>
+                <Label htmlFor="heir-person-new-phone" className="text-xs text-muted-foreground">電話番号</Label>
                 <Input
-                    id="person-new-phone"
+                    id="heir-person-new-phone"
                     value={newPhone}
                     onChange={(e) => setNewPhone(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAdd()}
@@ -401,7 +399,7 @@ function PersonsContent() {
     )
 
     return (
-        <MasterListPage<Person>
+        <MasterListPage<HeirPerson>
             {...getMasterListPageProps(ml)}
             title="相続人マスタ管理"
             entityLabel="相続人"
@@ -416,10 +414,10 @@ function PersonsContent() {
     )
 }
 
-export default function PersonsPage() {
+export default function HeirPersonsPage() {
     return (
         <Suspense fallback={<div className="container mx-auto py-10 px-4"><p className="text-muted-foreground">読み込み中...</p></div>}>
-            <PersonsContent />
+            <HeirPersonsContent />
         </Suspense>
     )
 }

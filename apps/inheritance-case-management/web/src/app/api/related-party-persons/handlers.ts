@@ -4,7 +4,7 @@ import { normalizePersonAddressParts } from '@/lib/person-address';
 import { formatPersonDeleteBlockedMessage } from '@/lib/person-delete-message';
 import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import { prisma } from '@/lib/prisma';
-import { createPersonSchema, updatePersonSchema } from '@/types/validation';
+import { createRelatedPartyPersonSchema, updateRelatedPartyPersonSchema } from '@/types/validation';
 
 function mapPersonData(data: Record<string, unknown>): Record<string, unknown> {
   const next = { ...data };
@@ -30,23 +30,19 @@ function mapPersonData(data: Record<string, unknown>): Record<string, unknown> {
 }
 
 export const { listAndCreate, byId } = createCrudRouteHandlers({
-  model: 'person',
+  model: 'relatedPartyPerson',
   orderBy: 'name',
-  entityLabel: '人物',
-  createSchema: createPersonSchema,
-  updateSchema: updatePersonSchema,
+  entityLabel: '関係者',
+  createSchema: createRelatedPartyPersonSchema,
+  updateSchema: updateRelatedPartyPersonSchema,
   mapCreateData: mapPersonData,
   mapUpdateData: mapPersonData,
-  include: { _count: { select: { heirLinks: true, relatedPartyLinks: true } } },
+  include: { _count: { select: { caseLinks: true } } },
   beforeDelete: async (id) => {
-    const [heirCount, relatedPartyCount] = await Promise.all([
-      prisma.caseHeir.count({ where: { personId: id } }),
-      prisma.caseRelatedParty.count({ where: { personId: id } }),
-    ]);
-    const caseLinkCount = heirCount + relatedPartyCount;
+    const caseLinkCount = await prisma.caseRelatedParty.count({ where: { personId: id } });
     if (caseLinkCount === 0) return;
 
-    const message = formatPersonDeleteBlockedMessage(caseLinkCount);
+    const message = formatPersonDeleteBlockedMessage(caseLinkCount, '関係者');
     return NextResponse.json(
       {
         error: message,

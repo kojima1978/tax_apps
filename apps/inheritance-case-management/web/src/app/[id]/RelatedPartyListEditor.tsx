@@ -8,8 +8,8 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { Modal } from "@/components/ui/Modal"
 import { SelectWithOther } from "@/components/ui/SelectWithOther"
 import { Edit3, UserPlus, Search, Loader2, X, Plus } from "lucide-react"
-import type { CaseRelatedParty, Person } from "@/types/shared"
-import { createPerson, updatePerson } from "@/lib/api/persons"
+import type { CaseRelatedParty, RelatedPartyPerson } from "@/types/shared"
+import { createRelatedPartyPerson, updateRelatedPartyPerson } from "@/lib/api/related-party-persons"
 import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
 import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
 import { fetchAddressFromPostalCode } from "@/lib/postal-code"
@@ -18,9 +18,9 @@ import { RELATED_PARTY_ROLES } from "@/lib/constants/related-party-roles"
 
 interface RelatedPartyListEditorProps {
     parties: CaseRelatedParty[]
-    persons: Person[]
+    persons: RelatedPartyPerson[]
     onChange: (parties: CaseRelatedParty[]) => void
-    onPersonsChange: (persons: Person[]) => void
+    onPersonsChange: (persons: RelatedPartyPerson[]) => void
 }
 
 const emptyPersonForm = {
@@ -71,7 +71,7 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
         .filter(p => p.active)
         .filter(p => personMatchesSearch(p, searchQuery))
 
-    const handleAddPerson = (person: Person) => {
+    const handleAddPerson = (person: RelatedPartyPerson) => {
         const newParty: CaseRelatedParty = {
             id: 0,
             sortOrder: parties.length,
@@ -108,7 +108,7 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                 name: newPerson.name.trim(),
                 nameKana: normalizeNameKanaForStorage(newPerson.nameKana),
             }
-            const created = await createPerson(payload)
+            const created = await createRelatedPartyPerson(payload)
             onPersonsChange([...persons, created])
             handleAddPerson(created)
             setNewPerson(emptyPersonForm)
@@ -131,7 +131,7 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                 name: editPerson.name.trim(),
                 nameKana: normalizeNameKanaForStorage(editPerson.nameKana),
             }
-            const updated = await updatePerson(party.personId, payload)
+            const updated = await updateRelatedPartyPerson(party.personId, payload)
             onPersonsChange(persons.map(p => p.id === updated.id ? updated : p))
             onChange(parties.map((rp, i) => i === editingIndex ? { ...rp, person: updated } : rp))
             setEditingIndex(null)
