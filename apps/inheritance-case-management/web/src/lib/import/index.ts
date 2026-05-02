@@ -3,7 +3,7 @@ export type {
   PendingReferrer, PendingAssignee, ImportRow,
   ImportParseResult, ResolverMaps, ColumnMaps, RowParseResult,
 } from './types';
-export { MAX_CONTACT_COLUMNS, MAX_IMPORT_FILE_SIZE, DEFAULTABLE_FIELDS } from './types';
+export { MAX_HEIR_COLUMNS, MAX_IMPORT_FILE_SIZE, DEFAULTABLE_FIELDS } from './types';
 export { parseCSVText, decodeCSVFile } from './parser';
 export type { DecodeResult } from './parser';
 export { buildColumnMaps, rowToInput } from './converters';

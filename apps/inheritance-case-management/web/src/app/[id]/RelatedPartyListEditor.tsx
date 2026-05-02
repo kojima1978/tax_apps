@@ -6,17 +6,19 @@ import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Modal } from "@/components/ui/Modal"
+import { SelectWithOther } from "@/components/ui/SelectWithOther"
 import { Edit3, UserPlus, Search, Loader2, X, Plus } from "lucide-react"
-import type { CaseContact, Person } from "@/types/shared"
+import type { CaseRelatedParty, Person } from "@/types/shared"
 import { createPerson, updatePerson } from "@/lib/api/persons"
 import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
 import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
 import { fetchAddressFromPostalCode } from "@/lib/postal-code"
+import { RELATED_PARTY_ROLES } from "@/lib/constants/related-party-roles"
 
-interface ContactListEditorProps {
-    caseContacts: CaseContact[]
+interface RelatedPartyListEditorProps {
+    parties: CaseRelatedParty[]
     persons: Person[]
-    onChange: (contacts: CaseContact[]) => void
+    onChange: (parties: CaseRelatedParty[]) => void
     onPersonsChange: (persons: Person[]) => void
 }
 
@@ -36,30 +38,21 @@ function getDisplayAddress(parts: Parameters<typeof normalizePersonAddressParts>
 }
 
 function withAddressFromPostalCode<T extends typeof emptyPersonForm>(person: T, addressFromPostalCode: string): T {
-    return {
-        ...person,
-        ...normalizePersonAddressParts({ ...person, addressFromPostalCode }),
-    }
+    return { ...person, ...normalizePersonAddressParts({ ...person, addressFromPostalCode }) }
 }
 
 function withPostalCodeLookupAddress<T extends typeof emptyPersonForm>(person: T, addressFromPostalCode: string): T {
-    return {
-        ...person,
-        ...applyPostalCodeAddress(person, addressFromPostalCode),
-    }
+    return { ...person, ...applyPostalCodeAddress(person, addressFromPostalCode) }
 }
 
 function withAddressManual<T extends typeof emptyPersonForm>(person: T, addressManual: string): T {
-    return {
-        ...person,
-        ...normalizePersonAddressParts({ ...person, addressManual }),
-    }
+    return { ...person, ...normalizePersonAddressParts({ ...person, addressManual }) }
 }
 
-export function ContactListEditor({ caseContacts, persons, onChange, onPersonsChange }: ContactListEditorProps) {
+export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsChange }: RelatedPartyListEditorProps) {
     const [showAddModal, setShowAddModal] = useState(false)
     const [showCreateForm, setShowCreateForm] = useState(false)
-    const [editingContactIndex, setEditingContactIndex] = useState<number | null>(null)
+    const [editingIndex, setEditingIndex] = useState<number | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [newPerson, setNewPerson] = useState(emptyPersonForm)
     const [editPerson, setEditPerson] = useState(emptyPersonForm)
@@ -70,33 +63,30 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
     const searchInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
-        if (showAddModal && searchInputRef.current) {
-            searchInputRef.current.focus()
-        }
+        if (showAddModal && searchInputRef.current) searchInputRef.current.focus()
     }, [showAddModal])
 
-    const linkedPersonIds = new Set(caseContacts.map(c => c.personId))
-
     const filteredPersons = persons
-        .filter(p => p.active && !linkedPersonIds.has(p.id))
+        .filter(p => p.active)
         .filter(p => personMatchesSearch(p, searchQuery))
 
     const handleAddPerson = (person: Person) => {
-        const newContact: CaseContact = {
+        const newParty: CaseRelatedParty = {
             id: 0,
-            sortOrder: caseContacts.length,
+            sortOrder: parties.length,
             personId: person.id,
             person,
+            role: "",
             memo: "",
         }
-        onChange([...caseContacts, newContact])
+        onChange([...parties, newParty])
         setShowAddModal(false)
         setSearchQuery("")
     }
 
     const openEditModal = (index: number) => {
-        const person = caseContacts[index].person
-        setEditingContactIndex(index)
+        const person = parties[index].person
+        setEditingIndex(index)
         setEditPerson({
             name: person.name,
             nameKana: person.nameKana || "",
@@ -130,8 +120,8 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
     }
 
     const handleUpdatePerson = async () => {
-        if (editingContactIndex == null || !editPerson.name.trim()) return
-        const contact = caseContacts[editingContactIndex]
+        if (editingIndex == null || !editPerson.name.trim()) return
+        const party = parties[editingIndex]
         setUpdating(true)
         try {
             const payload = {
@@ -140,10 +130,10 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                 name: editPerson.name.trim(),
                 nameKana: normalizeNameKanaForStorage(editPerson.nameKana),
             }
-            const updated = await updatePerson(contact.personId, payload)
+            const updated = await updatePerson(party.personId, payload)
             onPersonsChange(persons.map(p => p.id === updated.id ? updated : p))
-            onChange(caseContacts.map((cc, i) => i === editingContactIndex ? { ...cc, person: updated } : cc))
-            setEditingContactIndex(null)
+            onChange(parties.map((rp, i) => i === editingIndex ? { ...rp, person: updated } : rp))
+            setEditingIndex(null)
         } finally {
             setUpdating(false)
         }
@@ -155,9 +145,7 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         if (cleaned.length === 7) {
             setSearching(true)
             const address = await fetchAddressFromPostalCode(cleaned)
-            if (address) {
-                setNewPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: value }, address))
-            }
+            if (address) setNewPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: value }, address))
             setSearching(false)
         }
     }
@@ -168,21 +156,25 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         if (cleaned.length === 7) {
             setEditSearching(true)
             const address = await fetchAddressFromPostalCode(cleaned)
-            if (address) {
-                setEditPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: value }, address))
-            }
+            if (address) setEditPerson(prev => withPostalCodeLookupAddress({ ...prev, postalCode: value }, address))
             setEditSearching(false)
         }
     }
 
     const handleRemove = (index: number) => {
-        if (!confirm("この連絡先を案件から外しますか？（人物マスタからは削除されません）")) return
-        onChange(caseContacts.filter((_, i) => i !== index))
+        if (!confirm("この関係者を案件から外しますか？（人物マスタからは削除されません）")) return
+        onChange(parties.filter((_, i) => i !== index))
     }
 
     const handleMemoChange = (index: number, memo: string) => {
-        const updated = [...caseContacts]
+        const updated = [...parties]
         updated[index] = { ...updated[index], memo }
+        onChange(updated)
+    }
+
+    const handleRoleChange = (index: number, role: string) => {
+        const updated = [...parties]
+        updated[index] = { ...updated[index], role }
         onChange(updated)
     }
 
@@ -190,30 +182,30 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
         <div className="space-y-3">
             <div className="flex items-center justify-end">
                 <Button type="button" variant="outline" size="sm" onClick={() => { setShowAddModal(true); setShowCreateForm(false); setSearchQuery("") }}>
-                    <Plus className="h-3.5 w-3.5 mr-1" />連絡先を追加
+                    <Plus className="h-3.5 w-3.5 mr-1" />関係者を追加
                 </Button>
             </div>
 
-            {caseContacts.map((cc, index) => (
-                <div key={cc.personId} className="p-3 border rounded-lg">
+            {parties.map((p, index) => (
+                <div key={`${p.personId}-${index}`} className="p-3 border rounded-lg space-y-2">
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-1">
                                 <div className="min-w-0">
-                                    <div className="truncate text-sm font-medium">{cc.person.name}</div>
-                                    {cc.person.nameKana && (
-                                        <div className="truncate text-xs text-muted-foreground">{cc.person.nameKana}</div>
+                                    <div className="truncate text-sm font-medium">{p.person.name}</div>
+                                    {p.person.nameKana && (
+                                        <div className="truncate text-xs text-muted-foreground">{p.person.nameKana}</div>
                                     )}
                                 </div>
-                                {cc.person.phone && <span className="text-xs text-muted-foreground">{cc.person.phone}</span>}
+                                {p.person.phone && <span className="text-xs text-muted-foreground">{p.person.phone}</span>}
                             </div>
-                            {(cc.person.postalCode || getDisplayAddress(cc.person)) && (
+                            {(p.person.postalCode || getDisplayAddress(p.person)) && (
                                 <p className="text-xs text-muted-foreground truncate">
-                                    {cc.person.postalCode && `〒${cc.person.postalCode} `}{getDisplayAddress(cc.person)}
+                                    {p.person.postalCode && `〒${p.person.postalCode} `}{getDisplayAddress(p.person)}
                                 </p>
                             )}
-                            {cc.person.memo && (
-                                <p className="text-xs text-muted-foreground mt-0.5 truncate">{cc.person.memo}</p>
+                            {p.person.memo && (
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">{p.person.memo}</p>
                             )}
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
@@ -221,7 +213,7 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                 type="button"
                                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
                                 onClick={() => openEditModal(index)}
-                                title="連絡先を編集"
+                                title="人物情報を編集"
                             >
                                 <Edit3 className="h-3.5 w-3.5" />
                             </button>
@@ -229,33 +221,45 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                                 type="button"
                                 className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                                 onClick={() => handleRemove(index)}
-                                title="この連絡先を外す"
+                                title="この関係者を外す"
                             >
                                 <X className="h-3.5 w-3.5" />
                             </button>
                         </div>
                     </div>
-                    <div className="mt-2">
-                        <Input
-                            value={cc.memo}
-                            onChange={(e) => handleMemoChange(index, e.target.value)}
-                            placeholder="案件固有のメモ"
-                            className="h-8 text-xs"
-                        />
+                    <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-2">
+                        <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">役割</Label>
+                            <SelectWithOther
+                                options={RELATED_PARTY_ROLES}
+                                value={p.role || ""}
+                                onChange={(v) => handleRoleChange(index, v)}
+                                placeholder="役割を選択"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">この案件でのメモ</Label>
+                            <Input
+                                value={p.memo}
+                                onChange={(e) => handleMemoChange(index, e.target.value)}
+                                placeholder="案件固有のメモ"
+                                className="h-9 text-xs"
+                            />
+                        </div>
                     </div>
                 </div>
             ))}
 
-            {caseContacts.length === 0 && (
+            {parties.length === 0 && (
                 <EmptyState
                     icon={UserPlus}
-                    title="連絡先が登録されていません"
-                    description="「連絡先を追加」ボタンで人物マスタから追加できます"
+                    title="関係者が登録されていません"
+                    description="税理士・司法書士・不動産業者など、案件に関わる外部の関係者を登録できます"
                     action={{ label: "+ 追加", onClick: () => setShowAddModal(true) }}
                 />
             )}
 
-            <Modal isOpen={editingContactIndex != null} onClose={() => setEditingContactIndex(null)} title="連絡先を編集">
+            <Modal isOpen={editingIndex != null} onClose={() => setEditingIndex(null)} title="関係者の人物情報を編集">
                 <div className="space-y-4">
                     <div className="space-y-3">
                         <div className="text-sm font-semibold">人物マスタ情報</div>
@@ -301,19 +305,8 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                         </div>
                     </div>
 
-                    {editingContactIndex != null && (
-                        <div className="space-y-1.5 border-t pt-4">
-                            <Label>この案件でのメモ</Label>
-                            <Input
-                                value={caseContacts[editingContactIndex]?.memo || ""}
-                                onChange={(e) => handleMemoChange(editingContactIndex, e.target.value)}
-                                placeholder="案件固有のメモ"
-                            />
-                        </div>
-                    )}
-
                     <div className="flex justify-end gap-2 pt-2">
-                        <Button variant="ghost" onClick={() => setEditingContactIndex(null)} disabled={updating}>キャンセル</Button>
+                        <Button variant="ghost" onClick={() => setEditingIndex(null)} disabled={updating}>キャンセル</Button>
                         <Button onClick={handleUpdatePerson} disabled={!editPerson.name.trim() || updating}>
                             {updating ? "保存中..." : "保存"}
                         </Button>
@@ -321,7 +314,7 @@ export function ContactListEditor({ caseContacts, persons, onChange, onPersonsCh
                 </div>
             </Modal>
 
-            <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="連絡先を追加">
+            <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="関係者を追加">
                 {showCreateForm ? (
                     <div className="space-y-3">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

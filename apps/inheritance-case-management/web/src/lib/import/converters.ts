@@ -1,9 +1,9 @@
 import type { ProgressStep, CaseStatus, AcceptanceStatus } from '@/types/shared';
-import type { ImportContact, ColumnMaps, ResolverMaps, RowParseResult, PendingReferrer, PendingAssignee } from './types';
+import type { ImportHeir, ColumnMaps, ResolverMaps, RowParseResult, PendingReferrer, PendingAssignee } from './types';
 // Note: PendingAssignee is reused for pendingInternalReferrer (same shape: name + optional department)
 import {
-  CSV_HEADER_MAP, IGNORED_HEADERS, CONTACT_HEADER_RE, CONTACT_FIELD_MAP,
-  MAX_CONTACT_COLUMNS, VALID_STATUSES, VALID_HANDLING, VALID_ACCEPTANCE,
+  CSV_HEADER_MAP, IGNORED_HEADERS, HEIR_HEADER_RE, HEIR_FIELD_MAP,
+  MAX_HEIR_COLUMNS, VALID_STATUSES, VALID_HANDLING, VALID_ACCEPTANCE,
 } from './types';
 import { normalizeDate, parseOptionalNumber } from './parser';
 
@@ -11,7 +11,7 @@ import { normalizeDate, parseOptionalNumber } from './parser';
 
 export function buildColumnMaps(headers: string[]): ColumnMaps {
   const fieldMap = new Map<number, string>();
-  const contactCols = new Map<number, { index: number; field: keyof ImportContact }>();
+  const heirCols = new Map<number, { index: number; field: keyof ImportHeir }>();
   let progressCol: number | null = null;
   let idCol: number | null = null;
 
@@ -30,12 +30,12 @@ export function buildColumnMaps(headers: string[]): ColumnMaps {
 
     if (IGNORED_HEADERS.has(h)) continue;
 
-    const contactMatch = CONTACT_HEADER_RE.exec(h);
-    if (contactMatch) {
-      const contactIndex = parseInt(contactMatch[1], 10);
-      const field = CONTACT_FIELD_MAP[contactMatch[2]];
-      if (field && contactIndex >= 1 && contactIndex <= MAX_CONTACT_COLUMNS) {
-        contactCols.set(i, { index: contactIndex, field });
+    const heirMatch = HEIR_HEADER_RE.exec(h);
+    if (heirMatch) {
+      const heirIndex = parseInt(heirMatch[1], 10);
+      const field = HEIR_FIELD_MAP[heirMatch[2]];
+      if (field && heirIndex >= 1 && heirIndex <= MAX_HEIR_COLUMNS) {
+        heirCols.set(i, { index: heirIndex, field });
       }
       continue;
     }
@@ -46,7 +46,7 @@ export function buildColumnMaps(headers: string[]): ColumnMaps {
     }
   }
 
-  return { fieldMap, contactCols, progressCol, idCol };
+  return { fieldMap, heirCols, progressCol, idCol };
 }
 
 // ── Row converter ──────────────────────────────────
@@ -223,34 +223,35 @@ export function rowToInput(
     }
   }
 
-  // Parse contacts
-  if (colMaps.contactCols.size > 0) {
-    const contactMap = new Map<number, Partial<ImportContact>>();
-    for (const [colIndex, { index, field }] of colMaps.contactCols) {
+  // Parse heirs
+  if (colMaps.heirCols.size > 0) {
+    const heirMap = new Map<number, Partial<ImportHeir>>();
+    for (const [colIndex, { index, field }] of colMaps.heirCols) {
       const value = (row[colIndex] ?? '').trim();
       if (value) {
-        if (!contactMap.has(index)) contactMap.set(index, {});
-        contactMap.get(index)![field] = value;
+        if (!heirMap.has(index)) heirMap.set(index, {});
+        heirMap.get(index)![field] = value;
       }
     }
 
-    const contacts: ImportContact[] = [];
-    for (let i = 1; i <= MAX_CONTACT_COLUMNS; i++) {
-      const c = contactMap.get(i);
-      if (c && (c.name || c.phone || c.postalCode || c.address || c.memo)) {
-        contacts.push({
+    const heirs: ImportHeir[] = [];
+    for (let i = 1; i <= MAX_HEIR_COLUMNS; i++) {
+      const c = heirMap.get(i);
+      if (c && (c.name || c.phone || c.postalCode || c.address || c.relationship || c.memo)) {
+        heirs.push({
           name: c.name || '',
           phone: c.phone || '',
           postalCode: c.postalCode || '',
           address: c.address || '',
           addressManual: c.address || '',
+          ...(c.relationship ? { relationship: c.relationship } : {}),
           memo: c.memo || '',
         });
       }
     }
 
-    if (contacts.length > 0) {
-      obj.contacts = contacts;
+    if (heirs.length > 0) {
+      obj.heirs = heirs;
     }
   }
 

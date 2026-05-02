@@ -1,12 +1,22 @@
+import type { Prisma } from '@prisma/client';
+import { relationshipSortFor } from '@/lib/constants/heir-relationships';
+
 export const CASE_INCLUDE = {
-  contacts: { include: { person: true }, orderBy: { sortOrder: 'asc' as const } },
-  progress: { orderBy: { sortOrder: 'asc' as const } },
-  expenses: { orderBy: { sortOrder: 'asc' as const } },
-  specialAdditions: { orderBy: { sortOrder: 'asc' as const } },
+  heirs: {
+    include: { person: true },
+    orderBy: [
+      { relationshipSortOrder: 'asc' },
+      { sortOrder: 'asc' },
+    ],
+  },
+  relatedParties: { include: { person: true }, orderBy: { sortOrder: 'asc' } },
+  progress: { orderBy: { sortOrder: 'asc' } },
+  expenses: { orderBy: { sortOrder: 'asc' } },
+  specialAdditions: { orderBy: { sortOrder: 'asc' } },
   assignee: { include: { department: true } },
   internalReferrer: { include: { department: true } },
   referrer: { include: { company: true, branch: true } },
-} as const;
+} satisfies Prisma.InheritanceCaseInclude;
 
 export const ASSIGNEE_INCLUDE = {
   department: true,
@@ -17,11 +27,26 @@ export const REFERRER_INCLUDE = {
   branch: true,
 } as const;
 
-/** POST/PUT 用: contacts 配列を Prisma create 入力に変換 */
-export function toContactCreateData(contacts: { personId: number; memo?: string }[]) {
-  return contacts.map((c, i) => ({
-    personId: c.personId,
-    memo: c.memo ?? '',
+/** POST/PUT 用: heirs 配列を Prisma create 入力に変換 */
+export function toHeirCreateData(heirs: { personId: number; relationship?: string; memo?: string }[]) {
+  return heirs.map((h, i) => {
+    const relationship = h.relationship ?? '';
+    return {
+      personId: h.personId,
+      relationship,
+      relationshipSortOrder: relationshipSortFor(relationship),
+      memo: h.memo ?? '',
+      sortOrder: i,
+    };
+  });
+}
+
+/** POST/PUT 用: relatedParties 配列を Prisma create 入力に変換 */
+export function toRelatedPartyCreateData(parties: { personId: number; role?: string; memo?: string }[]) {
+  return parties.map((p, i) => ({
+    personId: p.personId,
+    role: p.role ?? '',
+    memo: p.memo ?? '',
     sortOrder: i,
   }));
 }

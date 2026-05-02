@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase, Assignee, Referrer, Person, CaseStatus } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
-import { toProgressSteps, toProgressItems, toContactInputs, toExpenses, toExpenseItems, toSpecialAdditions } from "@/lib/case-converters"
+import { toProgressSteps, toProgressItems, toHeirInputs, toRelatedPartyInputs, toExpenses, toExpenseItems, toSpecialAdditions } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { getAssignees } from "@/lib/api/assignees"
 import { getReferrers } from "@/lib/api/referrers"
@@ -16,20 +16,21 @@ import { useToast } from "@/components/ui/Toast"
 import { Modal } from "@/components/ui/Modal"
 import { ProgressEditor } from "./ProgressEditor"
 import { ExpenseEditor } from "./ExpenseEditor"
-import { ContactListEditor } from "./ContactListEditor"
+import { HeirListEditor } from "./HeirListEditor"
+import { RelatedPartyListEditor } from "./RelatedPartyListEditor"
 import { BasicInfoSection } from "./BasicInfoSection"
 import { FinancialSection } from "./FinancialSection"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { DocumentExportModal } from "./DocumentExportModal"
 import { AuditLogSection } from "./AuditLogSection"
-import { ListChecks, Receipt, Phone, StickyNote, FileText, ChevronsUpDown } from "lucide-react"
+import { ListChecks, Receipt, Users, Briefcase, StickyNote, FileText, ChevronsUpDown } from "lucide-react"
 import { checkStatusProgressConsistency } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { useSectionState } from "@/hooks/use-section-state"
 import { COMPLETED_STATUSES } from "@/types/constants"
 
-const SECTION_IDS = ["basicInfo", "financial", "progress", "expenses", "contacts", "memo", "auditLog"] as const
+const SECTION_IDS = ["basicInfo", "financial", "progress", "expenses", "heirs", "relatedParties", "memo", "auditLog"] as const
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -41,8 +42,8 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const sections = useSectionState(
         [...SECTION_IDS],
         isCreateMode
-            ? { basicInfo: true, financial: false, progress: false, expenses: false, contacts: false, memo: false, auditLog: false }
-            : { basicInfo: false, financial: false, progress: false, expenses: false, contacts: false, memo: false, auditLog: false },
+            ? { basicInfo: true, financial: false, progress: false, expenses: false, heirs: false, relatedParties: false, memo: false, auditLog: false }
+            : { basicInfo: false, financial: false, progress: false, expenses: false, heirs: false, relatedParties: false, memo: false, auditLog: false },
         { persist: !isCreateMode },
     )
     const [showLeaveModal, setShowLeaveModal] = useState(false)
@@ -102,7 +103,8 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     // Convert normalized DB shapes to API input shapes
     const toApiPayload = () => {
-        const contacts = formData.contacts ? toContactInputs(formData.contacts) : undefined
+        const heirs = formData.heirs ? toHeirInputs(formData.heirs) : undefined
+        const relatedParties = formData.relatedParties ? toRelatedPartyInputs(formData.relatedParties) : undefined
         const progress = formData.progress ? toProgressSteps(formData.progress) : undefined
         const expenses = formData.expenses ? toExpenses(formData.expenses).filter(e => e.description) : undefined
         const specialAdditions = formData.specialAdditions
@@ -135,7 +137,8 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             assigneeId: formData.assigneeId || null,
             internalReferrerId: formData.internalReferrerId || null,
             referrerId: formData.referrerId || null,
-            contacts,
+            heirs,
+            relatedParties,
             progress,
             expenses,
             specialAdditions,
@@ -286,11 +289,20 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 />
             </CollapsibleSection>
 
-            <CollapsibleSection title="連絡先" icon={Phone} isOpen={sections.isOpen("contacts")} onToggle={() => sections.toggle("contacts")} badge={`${(formData.contacts || []).length}件`}>
-                <ContactListEditor
-                    caseContacts={formData.contacts || []}
+            <CollapsibleSection title="相続人" icon={Users} isOpen={sections.isOpen("heirs")} onToggle={() => sections.toggle("heirs")} badge={`${(formData.heirs || []).length}件`}>
+                <HeirListEditor
+                    heirs={formData.heirs || []}
                     persons={persons}
-                    onChange={(contacts) => setFormData(prev => ({ ...prev, contacts }))}
+                    onChange={(heirs) => setFormData(prev => ({ ...prev, heirs }))}
+                    onPersonsChange={setPersons}
+                />
+            </CollapsibleSection>
+
+            <CollapsibleSection title="関係者" icon={Briefcase} isOpen={sections.isOpen("relatedParties")} onToggle={() => sections.toggle("relatedParties")} badge={`${(formData.relatedParties || []).length}件`}>
+                <RelatedPartyListEditor
+                    parties={formData.relatedParties || []}
+                    persons={persons}
+                    onChange={(relatedParties) => setFormData(prev => ({ ...prev, relatedParties }))}
                     onPersonsChange={setPersons}
                 />
             </CollapsibleSection>

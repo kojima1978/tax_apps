@@ -101,8 +101,10 @@ const MASTER_CONFIG: MasterListConfig<Person, CreatePersonInput, UpdatePersonInp
     matchesSearch: personMatchesSearch,
     getDeleteLabel: (item) => item.name,
     getPermanentDeleteBlockMessage: (item) => {
-        const caseLinkCount = item._count?.caseLinks ?? 0
-        return caseLinkCount > 0 ? formatPersonDeleteBlockedMessage(caseLinkCount) : null
+        const heirCount = item._count?.heirLinks ?? 0
+        const relatedPartyCount = item._count?.relatedPartyLinks ?? 0
+        const total = heirCount + relatedPartyCount
+        return total > 0 ? formatPersonDeleteBlockedMessage(total) : null
     },
 }
 

@@ -1,13 +1,14 @@
 import type { CreateCaseInput } from '@/types/validation';
 import { CASE_STATUS_OPTIONS, HANDLING_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from '@/types/constants';
 
-export interface ImportContact {
+export interface ImportHeir {
   name: string;
   phone: string;
   postalCode: string;
   address: string;
   addressFromPostalCode?: string;
   addressManual?: string;
+  relationship?: string;
   memo: string;
 }
 
@@ -50,16 +51,17 @@ export const VALID_STATUSES = CASE_STATUS_OPTIONS as readonly string[];
 export const VALID_HANDLING = HANDLING_STATUS_OPTIONS as readonly string[];
 export const VALID_ACCEPTANCE = ACCEPTANCE_STATUS_OPTIONS as readonly string[];
 
-export const MAX_CONTACT_COLUMNS = 10;
+export const MAX_HEIR_COLUMNS = 10;
 export const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 
-// ── Contact column detection ──────────────────────────────────
-export const CONTACT_HEADER_RE = /^連絡先(\d+)_(氏名|電話|郵便番号|住所|メモ|メール)$/;
-export const CONTACT_FIELD_MAP: Record<string, keyof ImportContact> = {
+// ── Heir column detection ──────────────────────────────────
+export const HEIR_HEADER_RE = /^相続人(\d+)_(氏名|電話|郵便番号|住所|続柄|メモ|メール)$/;
+export const HEIR_FIELD_MAP: Record<string, keyof ImportHeir> = {
   '氏名': 'name',
   '電話': 'phone',
   '郵便番号': 'postalCode',
   '住所': 'address',
+  '続柄': 'relationship',
   'メモ': 'memo',
   'メール': 'memo', // 旧形式の後方互換（メール→メモに変換）
 };
@@ -123,7 +125,7 @@ export interface ResolverMaps {
 
 export interface ColumnMaps {
   fieldMap: Map<number, string>;
-  contactCols: Map<number, { index: number; field: keyof ImportContact }>;
+  heirCols: Map<number, { index: number; field: keyof ImportHeir }>;
   progressCol: number | null;
   idCol: number | null;
 }

@@ -1,6 +1,6 @@
 import type { InheritanceCase, ProgressStep } from "@/types/shared";
 import { formatId } from "@/types/shared";
-import { MAX_CONTACT_COLUMNS } from "./import-csv";
+import { MAX_HEIR_COLUMNS } from "./import-csv";
 
 function downloadCSVBlob(csvContent: string, filename: string) {
   const bom = "\uFEFF";
@@ -44,11 +44,12 @@ const TEMPLATE_HEADERS = [
   "非上場株式数",
   "相続人数",
   "受託日",
-  "連絡先1_氏名",
-  "連絡先1_電話",
-  "連絡先1_郵便番号",
-  "連絡先1_住所",
-  "連絡先1_メモ",
+  "相続人1_氏名",
+  "相続人1_電話",
+  "相続人1_郵便番号",
+  "相続人1_住所",
+  "相続人1_続柄",
+  "相続人1_メモ",
 ];
 
 const TEMPLATE_SAMPLE_ROW = [
@@ -83,6 +84,7 @@ const TEMPLATE_SAMPLE_ROW = [
   "03-1234-5678",
   "100-0001",
   "東京都千代田区千代田1-1",
+  "配偶者",
   "",
 ];
 
@@ -104,10 +106,10 @@ function escapeCSVCell(value: string | number): string {
 }
 
 export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
-  // Determine max contacts across all cases (capped)
-  const maxContacts = Math.min(
-    cases.reduce((max, c) => Math.max(max, c.contacts?.length ?? 0), 0),
-    MAX_CONTACT_COLUMNS
+  // Determine max heirs across all cases (capped)
+  const maxHeirs = Math.min(
+    cases.reduce((max, c) => Math.max(max, c.heirs?.length ?? 0), 0),
+    MAX_HEIR_COLUMNS
   );
 
   // Check if any case has progress data
@@ -145,8 +147,8 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
     "申告完了日",
   ];
 
-  for (let i = 1; i <= maxContacts; i++) {
-    headers.push(`連絡先${i}_氏名`, `連絡先${i}_電話`, `連絡先${i}_郵便番号`, `連絡先${i}_住所`, `連絡先${i}_メモ`);
+  for (let i = 1; i <= maxHeirs; i++) {
+    headers.push(`相続人${i}_氏名`, `相続人${i}_電話`, `相続人${i}_郵便番号`, `相続人${i}_住所`, `相続人${i}_続柄`, `相続人${i}_メモ`);
   }
 
   if (hasProgress) {
@@ -188,16 +190,17 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
       c.caseCompletedDate || "",
     ];
 
-    // Contact columns
-    for (let i = 0; i < maxContacts; i++) {
-      const contact = c.contacts?.[i];
-      const person = contact?.person;
+    // Heir columns
+    for (let i = 0; i < maxHeirs; i++) {
+      const heir = c.heirs?.[i];
+      const person = heir?.person;
       row.push(
         person?.name || "",
         person?.phone || "",
         person?.postalCode || "",
         person?.address || "",
-        contact?.memo || ""
+        heir?.relationship || "",
+        heir?.memo || ""
       );
     }
 

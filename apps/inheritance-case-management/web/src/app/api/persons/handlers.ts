@@ -37,9 +37,13 @@ export const { listAndCreate, byId } = createCrudRouteHandlers({
   updateSchema: updatePersonSchema,
   mapCreateData: mapPersonData,
   mapUpdateData: mapPersonData,
-  include: { _count: { select: { caseLinks: true } } },
+  include: { _count: { select: { heirLinks: true, relatedPartyLinks: true } } },
   beforeDelete: async (id) => {
-    const caseLinkCount = await prisma.caseContact.count({ where: { personId: id } });
+    const [heirCount, relatedPartyCount] = await Promise.all([
+      prisma.caseHeir.count({ where: { personId: id } }),
+      prisma.caseRelatedParty.count({ where: { personId: id } }),
+    ]);
+    const caseLinkCount = heirCount + relatedPartyCount;
     if (caseLinkCount === 0) return;
 
     const message = formatPersonDeleteBlockedMessage(caseLinkCount);
