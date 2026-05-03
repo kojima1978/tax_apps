@@ -91,6 +91,9 @@ export function rowToInput(
       case 'deceasedName':
         obj[fieldName] = value;
         break;
+      case 'deceasedNameKana':
+        if (value) obj[fieldName] = value;
+        break;
       case 'dateOfDeath':
         obj[fieldName] = normalizeDate(value);
         break;
@@ -237,13 +240,15 @@ export function rowToInput(
     const heirs: ImportHeir[] = [];
     for (let i = 1; i <= MAX_HEIR_COLUMNS; i++) {
       const c = heirMap.get(i);
-      if (c && (c.name || c.phone || c.postalCode || c.address || c.relationship || c.memo)) {
+      if (c && (c.name || c.phone || c.postalCode || c.address || c.dateOfBirth || c.relationship || c.memo)) {
+        const dob = c.dateOfBirth ? normalizeDate(c.dateOfBirth) : '';
         heirs.push({
           name: c.name || '',
           phone: c.phone || '',
           postalCode: c.postalCode || '',
           address: c.address || '',
           addressManual: c.address || '',
+          ...(dob ? { dateOfBirth: dob } : {}),
           ...(c.relationship ? { relationship: c.relationship } : {}),
           memo: c.memo || '',
         });

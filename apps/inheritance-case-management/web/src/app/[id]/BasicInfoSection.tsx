@@ -35,6 +35,11 @@ export function BasicInfoSection({
                 </div>
 
                 <div className="space-y-1.5">
+                    <Label htmlFor="deceasedNameKana" className="text-xs">被相続人フリガナ</Label>
+                    <Input id="deceasedNameKana" name="deceasedNameKana" value={formData.deceasedNameKana || ""} onChange={handleChange} placeholder="例：ヤマダ タロウ" />
+                </div>
+
+                <div className="space-y-1.5">
                     <Label htmlFor="fiscalYear" className="text-xs">年度（{toWareki(new Date(formData.fiscalYear, 0, 1))}度）</Label>
                     <SelectField id="fiscalYear" name="fiscalYear" value={formData.fiscalYear} onChange={handleChange}>
                         {FISCAL_YEARS.map(year => (

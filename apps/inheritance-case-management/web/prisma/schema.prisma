@@ -11,6 +11,8 @@ datasource db {
 model InheritanceCase {
   id                Int      @id @default(autoincrement())
   deceasedName      String
+  deceasedNameKana            String   @default("")
+  deceasedNameKanaNormalized  String   @default("")
   dateOfDeath       DateTime @db.Date // YYYY-MM-DD（CHECK制約で検証済み）
   status            String   @default("未着手") // CHECK制約: 未着手/手続中/申告済/請求済/入金済
   handlingStatus    String   @default("対応中") // CHECK制約: 対応中/対応終了/対応終了（未分割）/対応外
@@ -66,6 +68,8 @@ model InheritanceCase {
   @@index([assigneeId])
   @@index([internalReferrerId])
   @@index([referrerId])
+  @@index([deceasedNameKana])
+  @@index([deceasedNameKanaNormalized])
 }
 
 model Department {
@@ -167,6 +171,7 @@ model HeirPerson {
   name                String
   nameKana            String        @default("")
   nameKanaNormalized  String        @default("")
+  dateOfBirth         DateTime?     @db.Date  // 生年月日（YYYY-MM-DD、未入力可）
   phone               String        @default("")
   postalCode          String        @default("")
   address             String        @default("")
@@ -190,6 +195,7 @@ model RelatedPartyPerson {
   name                String
   nameKana            String                @default("")
   nameKanaNormalized  String                @default("")
+  profession          String                @default("")  // 業種: 税理士/司法書士/土地家屋調査士など、自由入力可
   phone               String                @default("")
   postalCode          String                @default("")
   address             String                @default("")
@@ -205,6 +211,7 @@ model RelatedPartyPerson {
   @@index([name])
   @@index([nameKana])
   @@index([nameKanaNormalized])
+  @@index([profession])
   @@index([active])
 }
 
@@ -230,11 +237,10 @@ model CaseRelatedParty {
   case      InheritanceCase    @relation(fields: [caseId], references: [id], onDelete: Cascade)
   personId  Int
   person    RelatedPartyPerson @relation(fields: [personId], references: [id], onDelete: Restrict)
-  role      String             @default("")  // 税理士/司法書士など、自由入力可
   sortOrder Int                @default(0)
   memo      String             @default("")
 
-  @@unique([caseId, personId, role])
+  @@unique([caseId, personId])
   @@index([caseId])
   @@index([personId])
 }

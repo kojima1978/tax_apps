@@ -1,6 +1,7 @@
 type SearchablePerson = {
   name?: string;
   nameKana?: string;
+  profession?: string;
   phone?: string;
   postalCode?: string;
   address?: string;
@@ -32,6 +33,7 @@ export function personMatchesSearch(person: SearchablePerson, query: string): bo
   return [
     person.name,
     person.nameKana,
+    person.profession,
     person.phone,
     person.postalCode,
     person.address,

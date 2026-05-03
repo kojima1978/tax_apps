@@ -120,6 +120,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             : undefined
         return {
             deceasedName: formData.deceasedName,
+            deceasedNameKana: formData.deceasedNameKana || "",
             dateOfDeath: formData.dateOfDeath,
             fiscalYear: formData.fiscalYear,
             status: formData.status,
@@ -301,6 +302,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 <HeirListEditor
                     heirs={formData.heirs || []}
                     persons={heirPersons}
+                    dateOfDeath={formData.dateOfDeath}
                     onChange={(heirs) => setFormData(prev => ({ ...prev, heirs }))}
                     onPersonsChange={setHeirPersons}
                 />

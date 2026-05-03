@@ -24,7 +24,6 @@ export interface HeirInput {
 // Related party (input shape for API — used by editors)
 export interface RelatedPartyInput {
   personId: number;
-  role: string;
   memo?: string;
 }
 
@@ -76,8 +75,12 @@ interface PersonBase {
   };
 }
 
-export type HeirPerson = PersonBase;
-export type RelatedPartyPerson = PersonBase;
+export interface HeirPerson extends PersonBase {
+  dateOfBirth?: string | null;
+}
+export interface RelatedPartyPerson extends PersonBase {
+  profession: string;
+}
 
 export interface CaseHeir {
   id: number;
@@ -92,7 +95,6 @@ export interface CaseHeir {
 export interface CaseRelatedParty {
   id: number;
   sortOrder: number;
-  role: string;
   personId: number;
   person: RelatedPartyPerson;
   memo: string;
@@ -112,6 +114,8 @@ export interface CaseProgressItem {
 export interface InheritanceCase {
   id: number;
   deceasedName: string;
+  deceasedNameKana?: string;
+  deceasedNameKanaNormalized?: string;
   dateOfDeath: string;
   status: CaseStatus;
   handlingStatus?: HandlingStatus;

@@ -20,6 +20,8 @@ interface CrudRouteConfig {
   mapCreateData?: (data: CrudData) => CrudData;
   /** Optional data mapper after update validation */
   mapUpdateData?: (data: CrudData) => CrudData;
+  /** Optional response serializer (e.g. Date → 'YYYY-MM-DD') applied to GET/POST/PUT results */
+  serializeResult?: (item: Record<string, unknown>) => Record<string, unknown>;
   /** Optional guard that can block deletion with a custom response */
   beforeDelete?: (id: number) => Promise<NextResponse | void> | NextResponse | void;
 }
@@ -39,15 +41,18 @@ function getDelegate(model: string): PrismaDelegate {
 }
 
 export function createCrudRouteHandlers(config: CrudRouteConfig) {
-  const { model, orderBy, entityLabel, createSchema, updateSchema, include, mapCreateData, mapUpdateData, beforeDelete } = config;
+  const { model, orderBy, entityLabel, createSchema, updateSchema, include, mapCreateData, mapUpdateData, serializeResult, beforeDelete } = config;
   const delegate = getDelegate(model);
+  const serialize = (item: unknown) =>
+    serializeResult && item && typeof item === 'object' ? serializeResult(item as Record<string, unknown>) : item;
 
   // GET /api/{resource} + POST /api/{resource}
   const listAndCreate = {
     async GET() {
       try {
         const items = await delegate.findMany({ orderBy: { [orderBy]: 'asc' }, ...(include && { include }) });
-        return NextResponse.json(items);
+        const out = Array.isArray(items) ? items.map(serialize) : items;
+        return NextResponse.json(out);
       } catch (e) {
         return handleApiError(e);
       }
@@ -59,7 +64,7 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
         const parsed = createSchema.parse(body) as CrudData;
         const data = mapCreateData ? mapCreateData(parsed) : parsed;
         const created = await delegate.create({ data: { ...data, active: true }, ...(include && { include }) });
-        return NextResponse.json(created, { status: 201 });
+        return NextResponse.json(serialize(created), { status: 201 });
       } catch (e) {
         return handleApiError(e);
       }
@@ -76,7 +81,7 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
         if (!item) {
           return NextResponse.json({ error: `${entityLabel}が見つかりません`, code: 'NOT_FOUND' }, { status: 404 });
         }
-        return NextResponse.json(item);
+        return NextResponse.json(serialize(item));
       } catch (e) {
         return handleApiError(e);
       }
@@ -90,7 +95,7 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
         const parsed = updateSchema.parse(body) as CrudData;
         const data = mapUpdateData ? mapUpdateData(parsed) : parsed;
         const updated = await delegate.update({ where: { id }, data, ...(include && { include }) });
-        return NextResponse.json(updated);
+        return NextResponse.json(serialize(updated));
       } catch (e) {
         return handleApiError(e);
       }

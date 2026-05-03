@@ -82,6 +82,9 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                         <Link href={`/${c.id}`} className="block truncate text-[13px] text-foreground hover:underline" onClick={(e) => e.stopPropagation()}>
                             {c.deceasedName || "(氏名未入力)"}
                         </Link>
+                        {c.deceasedNameKana && (
+                            <div className="truncate text-[10px] text-muted-foreground font-normal">{c.deceasedNameKana}</div>
+                        )}
                     </div>
                     <div className="mt-0.5 flex min-w-0 gap-1 overflow-hidden">
                         <MiniBadge label={handlingStatus} style={HANDLING_STATUS_STYLES[handlingStatus]} />

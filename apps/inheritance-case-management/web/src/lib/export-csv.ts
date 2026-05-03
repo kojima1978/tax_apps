@@ -21,6 +21,7 @@ function downloadCSVBlob(csvContent: string, filename: string) {
 const TEMPLATE_HEADERS = [
   "ID",
   "被相続人氏名",
+  "被相続人フリガナ",
   "年度",
   "死亡日",
   "受託状況",
@@ -49,6 +50,7 @@ const TEMPLATE_HEADERS = [
   "相続人1_電話",
   "相続人1_郵便番号",
   "相続人1_住所",
+  "相続人1_生年月日",
   "相続人1_続柄",
   "相続人1_メモ",
 ];
@@ -56,6 +58,7 @@ const TEMPLATE_HEADERS = [
 const TEMPLATE_SAMPLE_ROW = [
   "",
   "山田太郎",
+  "ヤマダタロウ",
   "2025",
   "2025-01-15",
   "未判定",
@@ -85,6 +88,7 @@ const TEMPLATE_SAMPLE_ROW = [
   "03-1234-5678",
   "100-0001",
   "東京都千代田区千代田1-1",
+  "1955-04-12",
   "配偶者",
   "",
 ];
@@ -120,6 +124,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
   const headers = [
     "ID",
     "被相続人氏名",
+    "被相続人フリガナ",
     "年度",
     "死亡日",
     "受託状況",
@@ -149,7 +154,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
   ];
 
   for (let i = 1; i <= maxHeirs; i++) {
-    headers.push(`相続人${i}_氏名`, `相続人${i}_電話`, `相続人${i}_郵便番号`, `相続人${i}_住所`, `相続人${i}_続柄`, `相続人${i}_メモ`);
+    headers.push(`相続人${i}_氏名`, `相続人${i}_電話`, `相続人${i}_郵便番号`, `相続人${i}_住所`, `相続人${i}_生年月日`, `相続人${i}_続柄`, `相続人${i}_メモ`);
   }
 
   if (hasProgress) {
@@ -163,6 +168,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
     const row: (string | number)[] = [
       formatId(c.id),
       c.deceasedName,
+      c.deceasedNameKana || "",
       c.fiscalYear,
       c.dateOfDeath,
       c.acceptanceStatus || "",
@@ -200,6 +206,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
         person?.phone || "",
         formatPostalCodeForInput(person?.postalCode || ""),
         person?.address || "",
+        person?.dateOfBirth || "",
         heir?.relationship || "",
         heir?.memo || ""
       );

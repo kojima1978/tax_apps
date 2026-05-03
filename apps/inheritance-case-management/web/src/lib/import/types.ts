@@ -8,6 +8,7 @@ export interface ImportHeir {
   address: string;
   addressFromPostalCode?: string;
   addressManual?: string;
+  dateOfBirth?: string;
   relationship?: string;
   memo: string;
 }
@@ -15,6 +16,7 @@ export interface ImportHeir {
 // ── Header → field mapping ──────────────────────────────────
 export const CSV_HEADER_MAP: Record<string, string> = {
   '被相続人氏名': 'deceasedName',
+  '被相続人フリガナ': 'deceasedNameKana',
   '死亡日': 'dateOfDeath',
   '年度': 'fiscalYear',
   '進み具合': 'status',
@@ -55,12 +57,13 @@ export const MAX_HEIR_COLUMNS = 10;
 export const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 
 // ── Heir column detection ──────────────────────────────────
-export const HEIR_HEADER_RE = /^相続人(\d+)_(氏名|電話|郵便番号|住所|続柄|メモ|メール)$/;
+export const HEIR_HEADER_RE = /^相続人(\d+)_(氏名|電話|郵便番号|住所|生年月日|続柄|メモ|メール)$/;
 export const HEIR_FIELD_MAP: Record<string, keyof ImportHeir> = {
   '氏名': 'name',
   '電話': 'phone',
   '郵便番号': 'postalCode',
   '住所': 'address',
+  '生年月日': 'dateOfBirth',
   '続柄': 'relationship',
   'メモ': 'memo',
   'メール': 'memo', // 旧形式の後方互換（メール→メモに変換）

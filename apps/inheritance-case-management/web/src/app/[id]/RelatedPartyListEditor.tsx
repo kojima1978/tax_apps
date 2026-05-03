@@ -14,7 +14,7 @@ import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/perso
 import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
 import { fetchAddressFromPostalCode } from "@/lib/postal-code"
 import { formatPostalCodeForDisplay, formatPostalCodeForInput, normalizePostalCodeDigits } from "@/lib/postal-code-format"
-import { RELATED_PARTY_ROLES } from "@/lib/constants/related-party-roles"
+import { RELATED_PARTY_PROFESSIONS } from "@/lib/constants/related-party-professions"
 
 interface RelatedPartyListEditorProps {
     parties: CaseRelatedParty[]
@@ -26,6 +26,7 @@ interface RelatedPartyListEditorProps {
 const emptyPersonForm = {
     name: "",
     nameKana: "",
+    profession: "",
     phone: "",
     postalCode: "",
     address: "",
@@ -77,7 +78,6 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
             sortOrder: parties.length,
             personId: person.id,
             person,
-            role: "",
             memo: "",
         }
         onChange([...parties, newParty])
@@ -91,6 +91,7 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
         setEditPerson({
             name: person.name,
             nameKana: person.nameKana || "",
+            profession: person.profession || "",
             phone: person.phone,
             postalCode: person.postalCode,
             ...normalizePersonAddressParts(person),
@@ -173,12 +174,6 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
         onChange(updated)
     }
 
-    const handleRoleChange = (index: number, role: string) => {
-        const updated = [...parties]
-        updated[index] = { ...updated[index], role }
-        onChange(updated)
-    }
-
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-end">
@@ -193,7 +188,12 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-1">
                                 <div className="min-w-0">
-                                    <div className="truncate text-sm font-medium">{p.person.name}</div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="truncate text-sm font-medium">{p.person.name}</span>
+                                        {p.person.profession && (
+                                            <span className="inline-flex shrink-0 items-center rounded border border-border bg-muted/40 px-1.5 py-0 text-[10px] text-muted-foreground">{p.person.profession}</span>
+                                        )}
+                                    </div>
                                     {p.person.nameKana && (
                                         <div className="truncate text-xs text-muted-foreground">{p.person.nameKana}</div>
                                     )}
@@ -228,25 +228,14 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                             </button>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-2">
-                        <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">役割</Label>
-                            <SelectWithOther
-                                options={RELATED_PARTY_ROLES}
-                                value={p.role || ""}
-                                onChange={(v) => handleRoleChange(index, v)}
-                                placeholder="役割を選択"
-                            />
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">この案件でのメモ</Label>
-                            <Input
-                                value={p.memo}
-                                onChange={(e) => handleMemoChange(index, e.target.value)}
-                                placeholder="案件固有のメモ"
-                                className="h-9 text-xs"
-                            />
-                        </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">この案件でのメモ</Label>
+                        <Input
+                            value={p.memo}
+                            onChange={(e) => handleMemoChange(index, e.target.value)}
+                            placeholder="案件固有のメモ"
+                            className="h-9 text-xs"
+                        />
                     </div>
                 </div>
             ))}
@@ -272,6 +261,16 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                             <div className="space-y-1.5">
                                 <Label>フリガナ</Label>
                                 <Input value={editPerson.nameKana} onChange={e => setEditPerson(p => ({ ...p, nameKana: e.target.value }))} placeholder="ヤマダ タロウ" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>業種</Label>
+                                <SelectWithOther
+                                    options={RELATED_PARTY_PROFESSIONS}
+                                    value={editPerson.profession}
+                                    onChange={v => setEditPerson(p => ({ ...p, profession: v }))}
+                                    placeholder="業種を選択"
+                                    otherPlaceholder="業種を入力"
+                                />
                             </div>
                             <div className="space-y-1.5">
                                 <Label>電話番号</Label>
@@ -328,6 +327,16 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                                 <Input value={newPerson.nameKana} onChange={e => setNewPerson(p => ({ ...p, nameKana: e.target.value }))} placeholder="ヤマダ タロウ" />
                             </div>
                             <div className="space-y-1.5">
+                                <Label>業種</Label>
+                                <SelectWithOther
+                                    options={RELATED_PARTY_PROFESSIONS}
+                                    value={newPerson.profession}
+                                    onChange={v => setNewPerson(p => ({ ...p, profession: v }))}
+                                    placeholder="業種を選択"
+                                    otherPlaceholder="業種を入力"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
                                 <Label>電話番号</Label>
                                 <Input value={newPerson.phone} onChange={e => setNewPerson(p => ({ ...p, phone: e.target.value }))} placeholder="090-0000-0000" />
                             </div>
@@ -368,7 +377,7 @@ export function RelatedPartyListEditor({ parties, persons, onChange, onPersonsCh
                 ) : (
                     <div className="space-y-3">
                         <div className="flex gap-2">
-                            <Input ref={searchInputRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="氏名・フリガナ・電話番号・住所で検索" className="flex-1" />
+                            <Input ref={searchInputRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="氏名・フリガナ・業種・電話番号・住所で検索" className="flex-1" />
                             <Button variant="outline" size="sm" onClick={() => { setShowCreateForm(true); setNewPerson({ ...emptyPersonForm, name: searchQuery }) }}>
                                 <UserPlus className="h-3.5 w-3.5 mr-1" />新規作成
                             </Button>

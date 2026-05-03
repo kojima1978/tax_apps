@@ -93,9 +93,16 @@ const TABLE_DEFS = [
   {
     key: 'cases' as const,
     model: (tx: TxClient) => tx.inheritanceCase,
-    map: (c: Rec) => ({
+    map: (c: Rec) => {
+      const deceasedNameKana = normalizeNameKanaForStorage((c.deceasedNameKana as string) ?? '');
+      const deceasedNameKanaNormalized = typeof c.deceasedNameKanaNormalized === 'string' && c.deceasedNameKanaNormalized
+        ? c.deceasedNameKanaNormalized
+        : normalizePersonSearchText(deceasedNameKana);
+      return {
       id: c.id as number,
       deceasedName: c.deceasedName as string,
+      deceasedNameKana,
+      deceasedNameKanaNormalized,
       dateOfDeath: toDateOnly(c.dateOfDeath as string),
       status: (c.status as string) ?? '未着手',
       handlingStatus: (c.handlingStatus as string) ?? '対応中',
@@ -125,7 +132,8 @@ const TABLE_DEFS = [
       updatedBy: (c.updatedBy as string) ?? null,
       createdAt: new Date(c.createdAt as string),
       updatedAt: new Date(c.updatedAt as string),
-    }),
+      };
+    },
     seqTable: 'InheritanceCase',
   },
   {
@@ -146,6 +154,7 @@ const TABLE_DEFS = [
         name: p.name as string,
         nameKana,
         nameKanaNormalized,
+        dateOfBirth: p.dateOfBirth ? toDateOnly(p.dateOfBirth as string) : null,
         phone: (p.phone as string) ?? '',
         postalCode: (p.postalCode as string) ?? '',
         address: addressParts.address,
@@ -177,6 +186,7 @@ const TABLE_DEFS = [
         name: p.name as string,
         nameKana,
         nameKanaNormalized,
+        profession: (p.profession as string) ?? '',
         phone: (p.phone as string) ?? '',
         postalCode: (p.postalCode as string) ?? '',
         address: addressParts.address,
@@ -211,7 +221,6 @@ const TABLE_DEFS = [
       id: c.id as number,
       caseId: c.caseId as number,
       personId: c.personId as number,
-      role: (c.role as string) ?? '',
       sortOrder: (c.sortOrder as number) ?? 0,
       memo: (c.memo as string) ?? '',
     }),
@@ -314,7 +323,10 @@ export async function exportBackup() {
       companyBranches: companyBranches.map(serializeTimestamps),
       assignees: assignees.map(serializeTimestamps),
       referrers: referrers.map(serializeTimestamps),
-      heirPersons: heirPersons.map(serializeTimestamps),
+      heirPersons: heirPersons.map(p => ({
+        ...serializeTimestamps(p),
+        dateOfBirth: toDateStr(p.dateOfBirth),
+      })),
       relatedPartyPersons: relatedPartyPersons.map(serializeTimestamps),
       cases: cases.map(c => ({
         ...serializeTimestamps(c),
