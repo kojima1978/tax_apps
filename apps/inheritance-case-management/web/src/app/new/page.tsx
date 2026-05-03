@@ -10,6 +10,7 @@ import { ChevronRight } from "lucide-react"
 const emptyCase: InheritanceCase = {
     id: 0,
     deceasedName: "",
+    deceasedNameKana: "",
     dateOfDeath: new Date().toISOString().split("T")[0],
     status: "未着手",
     taxAmount: 0,

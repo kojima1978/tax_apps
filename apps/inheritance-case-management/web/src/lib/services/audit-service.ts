@@ -11,6 +11,7 @@ export interface FieldChange {
 
 const FIELD_LABELS: Record<string, string> = {
   deceasedName: '被相続人氏名',
+  deceasedNameKana: '被相続人フリガナ',
   dateOfDeath: '死亡日',
   status: '進み具合',
   handlingStatus: '対応状況',

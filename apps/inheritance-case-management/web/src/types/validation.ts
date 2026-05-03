@@ -29,6 +29,7 @@ const heirImportSchema = z.object({
   address: z.string().optional(),
   addressFromPostalCode: z.string().optional(),
   addressManual: z.string().optional(),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '生年月日はYYYY-MM-DD形式で入力してください').optional(),
   relationship: z.string().max(20).optional(),
   memo: z.string().optional(),
 });
@@ -37,7 +38,6 @@ const heirSchema = z.union([heirByIdSchema, heirImportSchema]);
 // Related party Schema
 const relatedPartySchema = z.object({
   personId: z.number().int(),
-  role: z.string().max(30, '役割は30文字以内で入力してください').optional().default(''),
   memo: z.string().optional(),
 });
 
@@ -66,6 +66,7 @@ const specialAdditionSchema = z.object({
 // Case Schemas
 export const createCaseSchema = z.object({
   deceasedName: z.string().min(1, '被相続人氏名は必須です').max(100, '被相続人氏名は100文字以内で入力してください'),
+  deceasedNameKana: z.string().max(100, '被相続人フリガナは100文字以内で入力してください').optional().default(''),
   dateOfDeath: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）'),
   fiscalYear: z.number().int('年度は整数で入力してください').min(2000, '年度は2000年以上を入力してください').max(2100, '年度は2100年以下を入力してください'),
   status: caseStatusSchema.optional().default('未着手'),
@@ -168,12 +169,21 @@ const personBaseSchema = z.object({
   memo: z.string().max(500).optional().default(''),
 });
 
-export const createHeirPersonSchema = personBaseSchema;
+export const createHeirPersonSchema = personBaseSchema.extend({
+  dateOfBirth: z
+    .string()
+    .optional()
+    .nullable()
+    .transform(v => (v && v.trim() !== '' ? v : null))
+    .refine(v => v === null || /^\d{4}-\d{2}-\d{2}$/.test(v), '生年月日はYYYY-MM-DD形式で入力してください'),
+});
 export const updateHeirPersonSchema = createHeirPersonSchema.partial().extend({
   active: z.boolean().optional(),
 });
 
-export const createRelatedPartyPersonSchema = personBaseSchema;
+export const createRelatedPartyPersonSchema = personBaseSchema.extend({
+  profession: z.string().max(50, '業種は50文字以内で入力してください').optional().default(''),
+});
 export const updateRelatedPartyPersonSchema = createRelatedPartyPersonSchema.partial().extend({
   active: z.boolean().optional(),
 });

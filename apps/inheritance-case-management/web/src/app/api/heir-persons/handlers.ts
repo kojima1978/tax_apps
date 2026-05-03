@@ -4,6 +4,7 @@ import { normalizePersonAddressParts } from '@/lib/person-address';
 import { formatPersonDeleteBlockedMessage } from '@/lib/person-delete-message';
 import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import { prisma } from '@/lib/prisma';
+import { toDateStr } from '@/lib/prisma-includes';
 import { createHeirPersonSchema, updateHeirPersonSchema } from '@/types/validation';
 
 function mapPersonData(data: Record<string, unknown>): Record<string, unknown> {
@@ -26,7 +27,23 @@ function mapPersonData(data: Record<string, unknown>): Record<string, unknown> {
     next.addressManual = addressParts.addressManual;
   }
 
+  if ('dateOfBirth' in next) {
+    const v = next.dateOfBirth;
+    if (v && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      next.dateOfBirth = new Date(v + 'T00:00:00.000Z');
+    } else {
+      next.dateOfBirth = null;
+    }
+  }
+
   return next;
+}
+
+function serializeHeirPerson(item: Record<string, unknown>): Record<string, unknown> {
+  if ('dateOfBirth' in item) {
+    return { ...item, dateOfBirth: toDateStr(item.dateOfBirth as Date | string | null) };
+  }
+  return item;
 }
 
 export const { listAndCreate, byId } = createCrudRouteHandlers({
@@ -37,6 +54,7 @@ export const { listAndCreate, byId } = createCrudRouteHandlers({
   updateSchema: updateHeirPersonSchema,
   mapCreateData: mapPersonData,
   mapUpdateData: mapPersonData,
+  serializeResult: serializeHeirPerson,
   include: { _count: { select: { caseLinks: true } } },
   beforeDelete: async (id) => {
     const caseLinkCount = await prisma.caseHeir.count({ where: { personId: id } });

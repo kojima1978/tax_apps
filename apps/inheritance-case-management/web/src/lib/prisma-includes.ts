@@ -42,10 +42,9 @@ export function toHeirCreateData(heirs: { personId: number; relationship?: strin
 }
 
 /** POST/PUT 用: relatedParties 配列を Prisma create 入力に変換 */
-export function toRelatedPartyCreateData(parties: { personId: number; role?: string; memo?: string }[]) {
+export function toRelatedPartyCreateData(parties: { personId: number; memo?: string }[]) {
   return parties.map((p, i) => ({
     personId: p.personId,
-    role: p.role ?? '',
     memo: p.memo ?? '',
     sortOrder: i,
   }));
@@ -97,7 +96,14 @@ export function toDateStr(date: Date | string | null): string | null {
 }
 
 /** Prisma の案件データを API レスポンス形式に変換（Date→文字列） */
-export function serializeCase<T extends { dateOfDeath: Date | string; caseAddedDate?: Date | string | null; caseCompletedDate?: Date | string | null; progress?: { date: Date | string | null }[]; expenses?: { date: Date | string }[] }>(c: T): T {
+export function serializeCase<T extends {
+  dateOfDeath: Date | string;
+  caseAddedDate?: Date | string | null;
+  caseCompletedDate?: Date | string | null;
+  progress?: { date: Date | string | null }[];
+  expenses?: { date: Date | string }[];
+  heirs?: { person?: { dateOfBirth?: Date | string | null } | null }[];
+}>(c: T): T {
   return {
     ...c,
     dateOfDeath: toDateStr(c.dateOfDeath as Date) ?? '',
@@ -111,5 +117,9 @@ export function serializeCase<T extends { dateOfDeath: Date | string; caseAddedD
       ...e,
       date: toDateStr(e.date as Date) ?? '',
     })),
+    heirs: c.heirs?.map(h => h.person ? {
+      ...h,
+      person: { ...h.person, dateOfBirth: toDateStr(h.person.dateOfBirth ?? null) },
+    } : h),
   };
 }

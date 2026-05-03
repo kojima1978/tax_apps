@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { JpDateInput } from "@/components/ui/JpDateInput"
 import { Label } from "@/components/ui/Label"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Modal } from "@/components/ui/Modal"
@@ -10,6 +11,7 @@ import { SelectWithOther } from "@/components/ui/SelectWithOther"
 import { Edit3, UserPlus, Search, Loader2, X, Plus, ArrowDownAZ } from "lucide-react"
 import type { CaseHeir, HeirPerson } from "@/types/shared"
 import { createHeirPerson, updateHeirPerson } from "@/lib/api/heir-persons"
+import { ageOnDate } from "@/lib/age"
 import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
 import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
 import { fetchAddressFromPostalCode } from "@/lib/postal-code"
@@ -19,6 +21,7 @@ import { HEIR_RELATIONSHIP_LABELS, relationshipSortFor } from "@/lib/constants/h
 interface HeirListEditorProps {
     heirs: CaseHeir[]
     persons: HeirPerson[]
+    dateOfDeath?: string
     onChange: (heirs: CaseHeir[]) => void
     onPersonsChange: (persons: HeirPerson[]) => void
 }
@@ -26,6 +29,7 @@ interface HeirListEditorProps {
 const emptyPersonForm = {
     name: "",
     nameKana: "",
+    dateOfBirth: "",
     phone: "",
     postalCode: "",
     address: "",
@@ -50,7 +54,7 @@ function withAddressManual<T extends typeof emptyPersonForm>(person: T, addressM
     return { ...person, ...normalizePersonAddressParts({ ...person, addressManual }) }
 }
 
-export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: HeirListEditorProps) {
+export function HeirListEditor({ heirs, persons, dateOfDeath, onChange, onPersonsChange }: HeirListEditorProps) {
     const [showAddModal, setShowAddModal] = useState(false)
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [editingIndex, setEditingIndex] = useState<number | null>(null)
@@ -94,6 +98,7 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
         setEditPerson({
             name: person.name,
             nameKana: person.nameKana || "",
+            dateOfBirth: person.dateOfBirth || "",
             phone: person.phone,
             postalCode: person.postalCode,
             ...normalizePersonAddressParts(person),
@@ -110,6 +115,7 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
                 ...normalizePersonAddressParts(newPerson),
                 name: newPerson.name.trim(),
                 nameKana: normalizeNameKanaForStorage(newPerson.nameKana),
+                dateOfBirth: newPerson.dateOfBirth || null,
             }
             const created = await createHeirPerson(payload)
             onPersonsChange([...persons, created])
@@ -133,6 +139,7 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
                 ...normalizePersonAddressParts(editPerson),
                 name: editPerson.name.trim(),
                 nameKana: normalizeNameKanaForStorage(editPerson.nameKana),
+                dateOfBirth: editPerson.dateOfBirth || null,
             }
             const updated = await updateHeirPerson(heir.personId, payload)
             onPersonsChange(persons.map(p => p.id === updated.id ? updated : p))
@@ -208,15 +215,22 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
                 </Button>
             </div>
 
-            {heirs.map((h, index) => (
+            {heirs.map((h, index) => {
+                const age = ageOnDate(h.person.dateOfBirth, dateOfDeath)
+                return (
                 <div key={h.personId} className="p-3 border rounded-lg space-y-2">
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-1">
                                 <div className="min-w-0">
                                     <div className="truncate text-sm font-medium">{h.person.name}</div>
-                                    {h.person.nameKana && (
-                                        <div className="truncate text-xs text-muted-foreground">{h.person.nameKana}</div>
+                                    {(h.person.nameKana || age != null) && (
+                                        <div className="truncate text-xs text-muted-foreground">
+                                            {h.person.nameKana}
+                                            {age != null && (
+                                                <span className={h.person.nameKana ? "ml-1" : ""}>（{age}歳）</span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                                 {h.person.phone && <span className="text-xs text-muted-foreground">{h.person.phone}</span>}
@@ -270,7 +284,8 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
                         </div>
                     </div>
                 </div>
-            ))}
+                )
+            })}
 
             {heirs.length === 0 && (
                 <EmptyState
@@ -298,6 +313,10 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
                                 <Label>電話番号</Label>
                                 <Input value={editPerson.phone} onChange={e => setEditPerson(p => ({ ...p, phone: e.target.value }))} placeholder="090-0000-0000" />
                             </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>生年月日</Label>
+                            <JpDateInput value={editPerson.dateOfBirth} onChange={(v) => setEditPerson(p => ({ ...p, dateOfBirth: v }))} />
                         </div>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[150px_1fr]">
                             <div className="space-y-1.5">
@@ -352,6 +371,10 @@ export function HeirListEditor({ heirs, persons, onChange, onPersonsChange }: He
                                 <Label>電話番号</Label>
                                 <Input value={newPerson.phone} onChange={e => setNewPerson(p => ({ ...p, phone: e.target.value }))} placeholder="090-0000-0000" />
                             </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>生年月日</Label>
+                            <JpDateInput value={newPerson.dateOfBirth} onChange={(v) => setNewPerson(p => ({ ...p, dateOfBirth: v }))} />
                         </div>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[150px_1fr]">
                             <div className="space-y-1.5">

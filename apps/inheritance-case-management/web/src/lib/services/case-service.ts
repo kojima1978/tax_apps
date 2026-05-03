@@ -20,7 +20,7 @@ function addMonths(date: Date, months: number): Date {
 }
 
 type HeirInput = { personId: number; relationship?: string; memo?: string };
-type RelatedPartyInput = { personId: number; role?: string; memo?: string };
+type RelatedPartyInput = { personId: number; memo?: string };
 type ImportHeirInput = {
   name: string;
   nameKana?: string;
@@ -29,6 +29,7 @@ type ImportHeirInput = {
   address?: string;
   addressFromPostalCode?: string;
   addressManual?: string;
+  dateOfBirth?: string;
   relationship?: string;
   memo?: string;
 };
@@ -52,12 +53,16 @@ async function resolveHeirs(tx: TxClient, heirs: unknown[]): Promise<HeirInput[]
           address: addressParts.address,
         },
       });
+      const dob = c.dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(c.dateOfBirth)
+        ? new Date(c.dateOfBirth + 'T00:00:00.000Z')
+        : null;
       if (!person) {
         person = await tx.heirPerson.create({
           data: {
             name: c.name,
             nameKana,
             nameKanaNormalized: normalizePersonSearchText(nameKana),
+            dateOfBirth: dob,
             phone: c.phone ?? '',
             postalCode: c.postalCode ?? '',
             address: addressParts.address,
@@ -65,6 +70,11 @@ async function resolveHeirs(tx: TxClient, heirs: unknown[]): Promise<HeirInput[]
             addressManual: addressParts.addressManual,
             memo: c.memo ?? '',
           },
+        });
+      } else if (dob && !person.dateOfBirth) {
+        person = await tx.heirPerson.update({
+          where: { id: person.id },
+          data: { dateOfBirth: dob },
         });
       }
       result.push({ personId: person.id, relationship: c.relationship, memo: c.memo });
@@ -139,6 +149,10 @@ export function buildCaseWhereClause(params: {
       {
         OR: [
           { deceasedName: { contains: search, mode: 'insensitive' } },
+          { deceasedNameKana: { contains: search, mode: 'insensitive' } },
+          ...(normalizedSearch
+            ? [{ deceasedNameKanaNormalized: { contains: normalizedSearch } }]
+            : []),
           { heirs: { some: { person: { name: { contains: search, mode: 'insensitive' } } } } },
           { heirs: { some: { person: { nameKana: { contains: search, mode: 'insensitive' } } } } },
           ...(normalizedSearch
@@ -240,6 +254,7 @@ export async function getCase(id: number) {
 
 export async function createCase(data: {
   deceasedName: string;
+  deceasedNameKana?: string;
   dateOfDeath: string;
   fiscalYear: number;
   status?: string;
@@ -273,9 +288,13 @@ export async function createCase(data: {
   const newCase = await prisma.$transaction(async (tx) => {
     const resolvedHeirs = await resolveHeirs(tx, data.heirs ?? []);
     const resolvedRelatedParties = resolveRelatedParties(data.relatedParties ?? []);
+    const deceasedNameKana = normalizeNameKanaForStorage(data.deceasedNameKana ?? '');
+    const deceasedNameKanaNormalized = normalizePersonSearchText(deceasedNameKana);
     const created = await tx.inheritanceCase.create({
       data: {
         deceasedName: data.deceasedName,
+        deceasedNameKana,
+        deceasedNameKanaNormalized,
         dateOfDeath: toDate(data.dateOfDeath),
         fiscalYear: data.fiscalYear,
         status: data.status ?? '未着手',
@@ -334,7 +353,7 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
     const updateData: Record<string, unknown> = {};
 
     const scalarFields = [
-      'deceasedName', 'dateOfDeath', 'fiscalYear', 'status', 'handlingStatus', 'acceptanceStatus',
+      'deceasedName', 'deceasedNameKana', 'dateOfDeath', 'fiscalYear', 'status', 'handlingStatus', 'acceptanceStatus',
       'taxAmount', 'feeAmount', 'estimateAmount', 'propertyValue',
       'referralFeeRate', 'referralFeeAmount', 'estimateReferralFeeAmount', 'summary', 'memo',
       'landRosenkaCount', 'landBairitsuCount', 'unlistedStockCount', 'heirCount', 'discountAmount',
@@ -351,6 +370,12 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
           updateData[field] = data[field as keyof typeof data];
         }
       }
+    }
+
+    if ('deceasedNameKana' in data) {
+      const normalized = normalizeNameKanaForStorage((data.deceasedNameKana as string) ?? '');
+      updateData.deceasedNameKana = normalized;
+      updateData.deceasedNameKanaNormalized = normalizePersonSearchText(normalized);
     }
 
     // 受託 → caseAddedDate 自動セット

@@ -4,9 +4,11 @@ import { Suspense, type KeyboardEvent } from "react"
 import { AddressCell } from "@/components/AddressCell"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { JpDateInput } from "@/components/ui/JpDateInput"
 import { Label } from "@/components/ui/Label"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
 import { useMasterList, nextTempId, type MasterListConfig } from "@/hooks/use-master-list"
+import { formatWareki } from "@/lib/japanese-era"
 import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
 import { formatPersonDeleteBlockedMessage } from "@/lib/person-delete-message"
 import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
@@ -18,6 +20,7 @@ import { getHeirPersons, createHeirPerson, updateHeirPerson, deleteHeirPerson } 
 import { useToast } from "@/components/ui/Toast"
 import { Check, Loader2, Search, X } from "lucide-react"
 import { useState } from "react"
+import { RelatedCasesPopover } from "./RelatedCasesPopover"
 
 const COLUMNS: ColumnDef<HeirPerson>[] = [
     {
@@ -34,6 +37,16 @@ const COLUMNS: ColumnDef<HeirPerson>[] = [
             </div>
         ),
     },
+    {
+        key: "dateOfBirth",
+        label: "生年月日",
+        width: "150px",
+        renderCell: (item) => item.dateOfBirth ? (
+            <span className="text-sm">{formatWareki(item.dateOfBirth)}</span>
+        ) : (
+            <span className="text-muted-foreground">-</span>
+        ),
+    },
     { key: "phone", label: "電話番号", width: "140px" },
     {
         key: "address",
@@ -46,6 +59,18 @@ const COLUMNS: ColumnDef<HeirPerson>[] = [
                 address={item.address}
                 addressFromPostalCode={item.addressFromPostalCode}
                 addressManual={item.addressManual}
+            />
+        ),
+    },
+    {
+        key: "relatedCases",
+        label: "関連案件",
+        width: "110px",
+        renderCell: (item) => (
+            <RelatedCasesPopover
+                personId={item.id}
+                count={item._count?.caseLinks ?? 0}
+                personName={item.name}
             />
         ),
     },
@@ -68,6 +93,7 @@ const MASTER_CONFIG: MasterListConfig<HeirPerson, CreateHeirPersonInput, UpdateH
     getCreatePayload: (item) => ({
         name: item.name,
         nameKana: item.nameKana || "",
+        dateOfBirth: item.dateOfBirth || null,
         phone: item.phone || "",
         postalCode: item.postalCode || "",
         address: item.address || "",
@@ -78,6 +104,7 @@ const MASTER_CONFIG: MasterListConfig<HeirPerson, CreateHeirPersonInput, UpdateH
     getUpdatePayload: (item) => ({
         name: item.name,
         nameKana: item.nameKana || "",
+        dateOfBirth: item.dateOfBirth || null,
         phone: item.phone || "",
         postalCode: item.postalCode || "",
         address: item.address || "",
@@ -126,6 +153,7 @@ function HeirPersonsContent() {
             id: nextTempId(),
             name,
             nameKana: normalizeNameKanaForStorage(newNameKana),
+            dateOfBirth: null,
             phone: newPhone.trim(),
             postalCode: "",
             address: "",
@@ -143,6 +171,7 @@ function HeirPersonsContent() {
         ml.handleStartEdit(item, {
             name: item.name,
             nameKana: item.nameKana || "",
+            dateOfBirth: item.dateOfBirth || "",
             phone: item.phone || "",
             postalCode: item.postalCode || "",
             address: item.address || "",
@@ -171,6 +200,7 @@ function HeirPersonsContent() {
                     ...item,
                     name: ml.editingFields.name.trim(),
                     nameKana: normalizeNameKanaForStorage(ml.editingFields.nameKana || ""),
+                    dateOfBirth: ml.editingFields.dateOfBirth?.trim() || null,
                     phone: ml.editingFields.phone?.trim() || "",
                     postalCode: ml.editingFields.postalCode?.trim() || "",
                     ...addressParts,
@@ -260,7 +290,15 @@ function HeirPersonsContent() {
                             className={EDIT_INPUT_CLASS}
                         />
                     </div>
-                    <div className="space-y-1 lg:col-start-1 lg:row-start-2">
+                    <div className="space-y-1 sm:col-span-2 lg:col-span-3 lg:col-start-1 lg:row-start-2">
+                        <Label htmlFor={fieldId("dateOfBirth")} className="text-xs text-muted-foreground">生年月日</Label>
+                        <JpDateInput
+                            id={fieldId("dateOfBirth")}
+                            value={ml.editingFields.dateOfBirth || ""}
+                            onChange={(v) => ml.setEditingFields(f => ({ ...f, dateOfBirth: v }))}
+                        />
+                    </div>
+                    <div className="space-y-1 lg:col-start-1 lg:row-start-3">
                         <Label htmlFor={fieldId("postalCode")} className="text-xs text-muted-foreground">郵便番号</Label>
                         <div className="flex gap-1">
                             <Input
@@ -300,7 +338,7 @@ function HeirPersonsContent() {
                             </Button>
                         </div>
                     </div>
-                    <div className="space-y-1 sm:col-span-2 lg:col-span-3 lg:col-start-2 lg:row-start-2">
+                    <div className="space-y-1 sm:col-span-2 lg:col-span-3 lg:col-start-2 lg:row-start-3">
                         <Label htmlFor={fieldId("addressFromPostalCode")} className="text-xs text-muted-foreground">住所（郵便番号から自動入力）</Label>
                         <Input
                             id={fieldId("addressFromPostalCode")}
@@ -311,7 +349,7 @@ function HeirPersonsContent() {
                             className={EDIT_INPUT_CLASS}
                         />
                     </div>
-                    <div className="space-y-1 sm:col-span-2 lg:col-span-3 lg:col-start-1 lg:row-start-3">
+                    <div className="space-y-1 sm:col-span-2 lg:col-span-3 lg:col-start-1 lg:row-start-4">
                         <Label htmlFor={fieldId("addressManual")} className="text-xs text-muted-foreground">住所補足（番地・建物名など手入力）</Label>
                         <Input
                             id={fieldId("addressManual")}
@@ -333,7 +371,7 @@ function HeirPersonsContent() {
                             className={EDIT_INPUT_CLASS}
                         />
                     </div>
-                    <div className="flex justify-end gap-1 sm:col-span-2 lg:col-span-1 lg:col-start-4 lg:row-start-3">
+                    <div className="flex justify-end gap-1 sm:col-span-2 lg:col-span-1 lg:col-start-4 lg:row-start-4">
                         <Button
                             variant="outline"
                             size="icon"

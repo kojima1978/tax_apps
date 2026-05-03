@@ -66,7 +66,6 @@ export function toHeirItems(heirs: HeirInput[], existingHeirs?: CaseHeir[]): Cas
 export function toRelatedPartyInputs(items: CaseRelatedParty[]): RelatedPartyInput[] {
   return items.map((r) => ({
     personId: r.personId,
-    role: r.role,
     memo: r.memo || undefined,
   }));
 }
@@ -74,16 +73,16 @@ export function toRelatedPartyInputs(items: CaseRelatedParty[]): RelatedPartyInp
 /** API 入力の RelatedPartyInput[] → DB 形状の CaseRelatedParty[] (sortOrder付与) */
 export function toRelatedPartyItems(parties: RelatedPartyInput[], existingParties?: CaseRelatedParty[]): CaseRelatedParty[] {
   return parties.map((p, i) => {
-    const existing = existingParties?.find(e => e.personId === p.personId && e.role === p.role);
+    const existing = existingParties?.find(e => e.personId === p.personId);
     return {
       id: existing?.id ?? 0,
       sortOrder: i,
-      role: p.role,
       personId: p.personId,
       person: existing?.person ?? {
         id: p.personId,
         name: '',
         nameKana: '',
+        profession: '',
         phone: '',
         postalCode: '',
         address: '',
