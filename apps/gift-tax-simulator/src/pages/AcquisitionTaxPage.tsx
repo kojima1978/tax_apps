@@ -7,6 +7,11 @@ import { useAcquisitionTaxForm } from '@/hooks/useAcquisitionTaxForm';
 export default function AcquisitionTaxPage() {
     const form = useAcquisitionTaxForm();
 
+    const lN = Math.max(1, parseInt(form.landShareNumerator) || 1);
+    const lD = Math.max(1, parseInt(form.landShareDenominator) || 1);
+    const bN = Math.max(1, parseInt(form.buildingShareNumerator) || 1);
+    const bD = Math.max(1, parseInt(form.buildingShareDenominator) || 1);
+
     const resultConfig = useMemo(() => form.results ? {
         groups: [
             {
@@ -29,7 +34,22 @@ export default function AcquisitionTaxPage() {
         totalValue: form.results.totalAcq,
         taxType: 'acquisition' as const,
         disclaimer: '※この計算は概算です。実際の税額は、自治体の条例や端数処理のルールにより異なる場合があります。',
-    } : null, [form.results, form.includeLand, form.includeBuilding, form.resLandValuation, form.otherLandValuation]);
+        shareNote: [
+            (lN !== lD ? `土地持ち分 ${lN}/${lD}` : ''),
+            (bN !== bD ? `建物持ち分 ${bN}/${bD}` : ''),
+        ].filter(Boolean).join('　') || undefined,
+    } : null, [form.results, form.includeLand, form.includeBuilding, form.resLandValuation, form.otherLandValuation, lN, lD, bN, bD]);
+
+    const inputNotice = useMemo(() => {
+        const notices = [];
+        if (form.transactionType === 'inheritance') {
+            notices.push(<p key="inh" className="notice-primary">※ 相続の場合、不動産取得税は非課税です。</p>);
+        }
+        if (form.areaWarning) {
+            notices.push(<p key="area" className="notice-warning">{form.areaWarning}</p>);
+        }
+        return notices.length > 0 ? <>{notices}</> : undefined;
+    }, [form.transactionType, form.areaWarning]);
 
     return (
         <RealEstatePageLayout
@@ -39,9 +59,7 @@ export default function AcquisitionTaxPage() {
             setIncludeLand={form.setIncludeLand}
             includeBuilding={form.includeBuilding}
             setIncludeBuilding={form.setIncludeBuilding}
-            inputNotice={form.transactionType === 'inheritance' ? (
-                <p className="notice-primary">※ 相続の場合、不動産取得税は非課税です。</p>
-            ) : undefined}
+            inputNotice={inputNotice}
             importConfig={{
                 sourceLabel: '登録免許税ページ',
                 sourcePage: 'registration-tax',
@@ -56,8 +74,12 @@ export default function AcquisitionTaxPage() {
                         resArea={form.resLandArea}
                         otherValuation={form.otherLandValuation}
                         onResValuationChange={(e) => form.handleFormattedInput(e, form.setResLandValuation)}
-                        onResAreaChange={(e) => form.handleFormattedInput(e, form.setResLandArea)}
+                        onResAreaChange={(e) => form.handleDecimalInput(e, form.setResLandArea)}
                         onOtherValuationChange={(e) => form.handleFormattedInput(e, form.setOtherLandValuation)}
+                        shareNumerator={form.landShareNumerator}
+                        shareDenominator={form.landShareDenominator}
+                        onShareNumeratorChange={form.setLandShareNumerator}
+                        onShareDenominatorChange={form.setLandShareDenominator}
                     />
                     <BuildingInput
                         disabled={!form.includeBuilding}
@@ -67,16 +89,23 @@ export default function AcquisitionTaxPage() {
                         selMonth={form.selMonth}
                         selDay={form.selDay}
                         isResidential={form.isResidential}
+                        isLongLifeQuality={form.isLongLifeQuality}
                         acquisitionDeduction={form.acquisitionDeduction}
                         deductionMessage={form.deductionMessage}
                         yearOptions={form.yearOptions}
+                        transactionType={form.transactionType}
                         onValuationChange={(e) => form.handleFormattedInput(e, form.setBuildingValuation)}
-                        onAreaChange={(e) => form.handleFormattedInput(e, form.setBuildingArea)}
+                        onAreaChange={(e) => form.handleDecimalInput(e, form.setBuildingArea)}
                         setSelYear={form.setSelYear}
                         setSelMonth={form.setSelMonth}
                         setSelDay={form.setSelDay}
                         setIsResidential={form.setIsResidential}
+                        setIsLongLifeQuality={form.setIsLongLifeQuality}
                         onDeductionChange={(e) => form.handleFormattedInput(e, form.setAcquisitionDeduction)}
+                        shareNumerator={form.buildingShareNumerator}
+                        shareDenominator={form.buildingShareDenominator}
+                        onShareNumeratorChange={form.setBuildingShareNumerator}
+                        onShareDenominatorChange={form.setBuildingShareDenominator}
                     />
                 </>
             }

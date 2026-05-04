@@ -3,8 +3,32 @@ import RealEstatePageLayout from '@/components/shared/RealEstatePageLayout';
 import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
 import { useRegistrationTaxForm } from '@/hooks/useRegistrationTaxForm';
 
+const ShareInput = ({
+    numerator, denominator, onNumeratorChange, onDenominatorChange, disabled,
+}: {
+    numerator: string; denominator: string;
+    onNumeratorChange: (v: string) => void; onDenominatorChange: (v: string) => void;
+    disabled: boolean;
+}) => (
+    <div className="input-item share-input-row">
+        <label>持ち分</label>
+        <div className="share-fraction">
+            <input type="number" min="1" max="100" value={numerator}
+                onChange={e => onNumeratorChange(e.target.value)} disabled={disabled} />
+            <span>/</span>
+            <input type="number" min="1" max="100" value={denominator}
+                onChange={e => onDenominatorChange(e.target.value)} disabled={disabled} />
+        </div>
+    </div>
+);
+
 export default function RegistrationTaxPage() {
     const form = useRegistrationTaxForm();
+
+    const lN = Math.max(1, parseInt(form.landShareNumerator) || 1);
+    const lD = Math.max(1, parseInt(form.landShareDenominator) || 1);
+    const bN = Math.max(1, parseInt(form.buildingShareNumerator) || 1);
+    const bD = Math.max(1, parseInt(form.buildingShareDenominator) || 1);
 
     const resultConfig = useMemo(() => form.results ? {
         items: [
@@ -15,7 +39,11 @@ export default function RegistrationTaxPage() {
         totalValue: form.results.totalReg,
         taxType: 'registration' as const,
         disclaimer: '※この計算は概算です。実際の税額は、端数処理のルールにより異なる場合があります。',
-    } : null, [form.results, form.includeLand, form.includeBuilding]);
+        shareNote: [
+            (lN !== lD ? `土地持ち分 ${lN}/${lD}` : ''),
+            (bN !== bD ? `建物持ち分 ${bN}/${bD}` : ''),
+        ].filter(Boolean).join('　') || undefined,
+    } : null, [form.results, form.includeLand, form.includeBuilding, lN, lD, bN, bD]);
 
     return (
         <RealEstatePageLayout
@@ -33,7 +61,7 @@ export default function RegistrationTaxPage() {
             }}
             inputColumns={
                 <>
-                    {/* 土地: 評価額のみ */}
+                    {/* 土地: 評価額 + 持ち分 */}
                     <div className={`re-column ${!form.includeLand ? 'disabled' : ''}`}>
                         <h3 className="re-column-title">土地の情報</h3>
                         <FormattedNumberInput
@@ -43,9 +71,16 @@ export default function RegistrationTaxPage() {
                             onChange={(e) => form.handleFormattedInput(e, form.setLandValuation)}
                             disabled={!form.includeLand}
                         />
+                        <ShareInput
+                            numerator={form.landShareNumerator}
+                            denominator={form.landShareDenominator}
+                            onNumeratorChange={form.setLandShareNumerator}
+                            onDenominatorChange={form.setLandShareDenominator}
+                            disabled={!form.includeLand}
+                        />
                     </div>
 
-                    {/* 建物: 評価額 + 居住用 + 住宅用家屋証明 */}
+                    {/* 建物: 評価額 + 居住用 + 住宅用家屋証明 + 持ち分 */}
                     <div className={`re-column ${!form.includeBuilding ? 'disabled' : ''}`}>
                         <h3 className="re-column-title">建物の情報</h3>
                         <FormattedNumberInput
@@ -79,6 +114,13 @@ export default function RegistrationTaxPage() {
                                 </label>
                             </div>
                         )}
+                        <ShareInput
+                            numerator={form.buildingShareNumerator}
+                            denominator={form.buildingShareDenominator}
+                            onNumeratorChange={form.setBuildingShareNumerator}
+                            onDenominatorChange={form.setBuildingShareDenominator}
+                            disabled={!form.includeBuilding}
+                        />
                     </div>
                 </>
             }

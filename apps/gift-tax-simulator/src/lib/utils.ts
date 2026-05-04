@@ -70,3 +70,36 @@ export const formatDate = (date: Date): string =>
  */
 export const hasInvalidTax = <T extends { totalTax: number }>(rows: T[]): boolean =>
     rows.some(r => !isFinite(r.totalTax) || isNaN(r.totalTax));
+
+/**
+ * 小数点を保持しながら正規化（面積入力用）
+ */
+export const normalizeDecimalString = (val: string): string => {
+    let s = val
+        .replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/,/g, '')
+        .replace(/[^0-9.]/g, '');
+    const first = s.indexOf('.');
+    if (first >= 0) s = s.slice(0, first + 1) + s.slice(first + 1).replace(/\./g, '');
+    return s;
+};
+
+/**
+ * 小数点2位でフォーマット（面積入力表示用）
+ */
+export const formatDecimalInputValue = (val: string | number | null | undefined): string => {
+    if (val === '' || val === null || val === undefined) return '';
+    const s = normalizeDecimalString(String(val));
+    const [int, dec] = s.split('.');
+    const formattedInt = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return dec !== undefined ? `${formattedInt}.${dec.slice(0, 2)}` : formattedInt;
+};
+
+/**
+ * 小数対応パース（面積値取得用）
+ */
+export const parseDecimalNumber = (val: string): number => {
+    if (!val) return 0;
+    const n = parseFloat(normalizeDecimalString(val));
+    return isNaN(n) ? 0 : n;
+};

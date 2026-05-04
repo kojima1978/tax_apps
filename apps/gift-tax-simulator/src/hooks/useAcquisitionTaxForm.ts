@@ -3,12 +3,13 @@ import {
     calculateRealEstateTax,
     type TaxResults,
 } from '@/lib/real-estate-tax';
-import { formatInputValue, parseFormattedNumber } from '@/lib/utils';
-import { validateRealEstateInput, validateResult } from '@/lib/validate-real-estate';
+import { formatInputValue, parseFormattedNumber, parseDecimalNumber } from '@/lib/utils';
+import { validateRealEstateInput, validateResult, validateBuildingArea } from '@/lib/validate-real-estate';
 import { saveValuations } from '@/lib/valuation-storage';
 import { useValuationImport } from './useValuationImport';
 import { useBuildingDate, YEAR_OPTIONS } from './useBuildingDate';
 import { useRealEstateFormBase } from './useRealEstateFormBase';
+import { useDecimalInput } from './useFormattedInput';
 
 export type AcquisitionResults = TaxResults & {
     resLandAcq: number;
@@ -30,9 +31,22 @@ export const useAcquisitionTaxForm = () => {
     const [buildingValuation, setBuildingValuation] = useState('');
     const [buildingArea, setBuildingArea] = useState('');
     const [isResidential, setIsResidential] = useState(true);
+    const [isLongLifeQuality, setIsLongLifeQuality] = useState(false);
+
+    // 持ち分
+    const [landShareNumerator, setLandShareNumerator] = useState('1');
+    const [landShareDenominator, setLandShareDenominator] = useState('1');
+    const [buildingShareNumerator, setBuildingShareNumerator] = useState('1');
+    const [buildingShareDenominator, setBuildingShareDenominator] = useState('1');
+
+    // 面積警告
+    const [areaWarning, setAreaWarning] = useState('');
 
     // 建築年月日・控除額
-    const buildingDate = useBuildingDate(transactionType, isResidential);
+    const buildingDate = useBuildingDate(transactionType, isResidential, isLongLifeQuality);
+
+    // 面積decimal入力ハンドラ
+    const handleDecimalInput = useDecimalInput();
 
     // 評価額をlocalStorageに保存（土地は宅地+その他の合計値を保存）
     useEffect(() => {
@@ -51,7 +65,8 @@ export const useAcquisitionTaxForm = () => {
         const resVal = parseFormattedNumber(resLandValuation);
         const otherVal = parseFormattedNumber(otherLandValuation);
         const bldgVal = parseFormattedNumber(buildingValuation);
-        const bArea = parseFormattedNumber(buildingArea);
+        const bArea = parseDecimalNumber(buildingArea);
+        const rArea = parseDecimalNumber(resLandArea);
 
         const validation = validateRealEstateInput(
             includeLand && (resVal > 0 || otherVal > 0),
@@ -64,6 +79,9 @@ export const useAcquisitionTaxForm = () => {
             return;
         }
 
+        // 面積要件チェック（警告のみ、計算は続行）
+        setAreaWarning(validateBuildingArea(bArea) ?? '');
+
         // 宅地の計算
         const resResult = (includeLand && resVal > 0) ? calculateRealEstateTax({
             includeLand: true,
@@ -72,7 +90,7 @@ export const useAcquisitionTaxForm = () => {
             buildingValuation: 0,
             transactionType,
             landType: 'residential',
-            landArea: parseFormattedNumber(resLandArea),
+            landArea: rArea,
             buildingArea: bArea,
             isResidential: true,
             hasHousingCertificate: false,
@@ -109,9 +127,15 @@ export const useAcquisitionTaxForm = () => {
             acquisitionDeduction: parseFormattedNumber(buildingDate.acquisitionDeduction),
         }) : null;
 
-        const resLandAcq = resResult?.landAcq ?? 0;
-        const otherLandAcq = otherResult?.landAcq ?? 0;
-        const bldgAcq = bldgResult?.bldgAcq ?? 0;
+        // 持ち分適用
+        const lN = Math.max(1, parseInt(landShareNumerator) || 1);
+        const lD = Math.max(1, parseInt(landShareDenominator) || 1);
+        const bN = Math.max(1, parseInt(buildingShareNumerator) || 1);
+        const bD = Math.max(1, parseInt(buildingShareDenominator) || 1);
+
+        const resLandAcq = Math.floor((resResult?.landAcq ?? 0) * lN / lD);
+        const otherLandAcq = Math.floor((otherResult?.landAcq ?? 0) * lN / lD);
+        const bldgAcq = Math.floor((bldgResult?.bldgAcq ?? 0) * bN / bD);
 
         // 計算過程を結合
         const landAcqProcess: string[] = [];
@@ -123,6 +147,12 @@ export const useAcquisitionTaxForm = () => {
             if (landAcqProcess.length > 0) landAcqProcess.push('');
             landAcqProcess.push('【その他（宅地以外）】');
             landAcqProcess.push(...otherResult.process.landAcq);
+        }
+        if (lN !== lD) {
+            landAcqProcess.push(`持ち分 ${lN}/${lD} 適用`);
+        }
+        if (bldgResult && bN !== bD) {
+            bldgResult.process.bldgAcq.push(`持ち分 ${bN}/${bD} 適用`);
         }
 
         const total = resLandAcq + otherLandAcq + bldgAcq;
@@ -154,7 +184,10 @@ export const useAcquisitionTaxForm = () => {
         resLandValuation, resLandArea,
         otherLandValuation,
         buildingValuation, buildingArea,
-        transactionType, isResidential, buildingDate.acquisitionDeduction
+        transactionType, isResidential, isLongLifeQuality,
+        buildingDate.acquisitionDeduction,
+        landShareNumerator, landShareDenominator,
+        buildingShareNumerator, buildingShareDenominator,
     ]);
 
     return {
@@ -166,8 +199,15 @@ export const useAcquisitionTaxForm = () => {
         buildingArea, setBuildingArea,
         ...buildingDate,
         isResidential, setIsResidential,
+        isLongLifeQuality, setIsLongLifeQuality,
+        landShareNumerator, setLandShareNumerator,
+        landShareDenominator, setLandShareDenominator,
+        buildingShareNumerator, setBuildingShareNumerator,
+        buildingShareDenominator, setBuildingShareDenominator,
+        areaWarning,
         yearOptions: YEAR_OPTIONS,
         calculateTax,
+        handleDecimalInput,
         importLandValuation, importBuildingValuation,
     };
 };

@@ -21,6 +21,12 @@ export const useRegistrationTaxForm = () => {
     const [isResidential, setIsResidential] = useState(true);
     const [hasHousingCertificate, setHasHousingCertificate] = useState(true);
 
+    // 持ち分
+    const [landShareNumerator, setLandShareNumerator] = useState('1');
+    const [landShareDenominator, setLandShareDenominator] = useState('1');
+    const [buildingShareNumerator, setBuildingShareNumerator] = useState('1');
+    const [buildingShareDenominator, setBuildingShareDenominator] = useState('1');
+
     // 評価額をlocalStorageに保存
     useEffect(() => {
         saveValuations('registration-tax', { landValuation, buildingValuation });
@@ -58,16 +64,32 @@ export const useRegistrationTaxForm = () => {
             hasHousingCertificate,
             acquisitionDeduction: 0,
         });
-        const resultError = validateResult(result.total);
+
+        // 持ち分適用
+        const lN = Math.max(1, parseInt(landShareNumerator) || 1);
+        const lD = Math.max(1, parseInt(landShareDenominator) || 1);
+        const bN = Math.max(1, parseInt(buildingShareNumerator) || 1);
+        const bD = Math.max(1, parseInt(buildingShareDenominator) || 1);
+
+        const landReg = Math.floor(result.landReg * lN / lD);
+        const bldgReg = Math.floor(result.bldgReg * bN / bD);
+
+        if (lN !== lD) result.process.landReg.push(`持ち分 ${lN}/${lD} 適用`);
+        if (bN !== bD) result.process.bldgReg.push(`持ち分 ${bN}/${bD} 適用`);
+
+        const totalReg = landReg + bldgReg;
+        const resultError = validateResult(totalReg);
         if (resultError) {
             setErrorMsg(resultError);
             setResults(null);
             return;
         }
-        setResults(result);
+        setResults({ ...result, landReg, bldgReg, totalReg, total: totalReg });
     }, [
         includeLand, includeBuilding, landValuation, buildingValuation,
-        transactionType, isResidential, hasHousingCertificate
+        transactionType, isResidential, hasHousingCertificate,
+        landShareNumerator, landShareDenominator,
+        buildingShareNumerator, buildingShareDenominator,
     ]);
 
     return {
@@ -76,6 +98,10 @@ export const useRegistrationTaxForm = () => {
         buildingValuation, setBuildingValuation,
         isResidential, setIsResidential,
         hasHousingCertificate, setHasHousingCertificate,
+        landShareNumerator, setLandShareNumerator,
+        landShareDenominator, setLandShareDenominator,
+        buildingShareNumerator, setBuildingShareNumerator,
+        buildingShareDenominator, setBuildingShareDenominator,
         calculateTax,
         importLandValuation, importBuildingValuation,
     };

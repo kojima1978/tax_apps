@@ -1,8 +1,41 @@
-import { getWareki } from '@/lib/real-estate-tax';
+import { type TransactionType, getWareki } from '@/lib/real-estate-tax';
 import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
+
+type ShareInputProps = {
+    numerator: string;
+    denominator: string;
+    onNumeratorChange: (v: string) => void;
+    onDenominatorChange: (v: string) => void;
+    disabled: boolean;
+};
+
+const ShareInput = ({ numerator, denominator, onNumeratorChange, onDenominatorChange, disabled }: ShareInputProps) => (
+    <div className="input-item share-input-row">
+        <label>持ち分</label>
+        <div className="share-fraction">
+            <input
+                type="number"
+                min="1"
+                max="100"
+                value={numerator}
+                onChange={e => onNumeratorChange(e.target.value)}
+                disabled={disabled}
+            />
+            <span>/</span>
+            <input
+                type="number"
+                min="1"
+                max="100"
+                value={denominator}
+                onChange={e => onDenominatorChange(e.target.value)}
+                disabled={disabled}
+            />
+        </div>
+    </div>
+);
 
 type BuildingInputProps = {
     disabled: boolean;
@@ -12,16 +45,23 @@ type BuildingInputProps = {
     selMonth: string;
     selDay: string;
     isResidential: boolean;
+    isLongLifeQuality: boolean;
     acquisitionDeduction: string;
     deductionMessage: string;
     yearOptions: number[];
+    transactionType: TransactionType;
     onValuationChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onAreaChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     setSelYear: (v: string) => void;
     setSelMonth: (v: string) => void;
     setSelDay: (v: string) => void;
     setIsResidential: (v: boolean) => void;
+    setIsLongLifeQuality: (v: boolean) => void;
     onDeductionChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    shareNumerator: string;
+    shareDenominator: string;
+    onShareNumeratorChange: (v: string) => void;
+    onShareDenominatorChange: (v: string) => void;
 };
 
 const BuildingInput = ({
@@ -32,16 +72,23 @@ const BuildingInput = ({
     selMonth,
     selDay,
     isResidential,
+    isLongLifeQuality,
     acquisitionDeduction,
     deductionMessage,
     yearOptions,
+    transactionType,
     onValuationChange,
     onAreaChange,
     setSelYear,
     setSelMonth,
     setSelDay,
     setIsResidential,
+    setIsLongLifeQuality,
     onDeductionChange,
+    shareNumerator,
+    shareDenominator,
+    onShareNumeratorChange,
+    onShareDenominatorChange,
 }: BuildingInputProps) => (
     <div className={`re-column ${disabled ? 'disabled' : ''}`}>
         <h3 className="re-column-title">建物の情報</h3>
@@ -54,11 +101,12 @@ const BuildingInput = ({
         />
         <FormattedNumberInput
             label="建物床面積 (m²)"
-            placeholder="例: 90"
+            placeholder="例: 90.00"
             value={area}
             onChange={onAreaChange}
             disabled={disabled}
             hint="※土地の税額軽減にも影響"
+            decimal
         />
         <div className="input-item">
             <label>建築年月日</label>
@@ -109,6 +157,19 @@ const BuildingInput = ({
                 居住用である
             </label>
         </div>
+        {isResidential && transactionType === 'new_build' && (
+            <div className="input-item">
+                <label className="checkbox-label">
+                    <input
+                        type="checkbox"
+                        checked={isLongLifeQuality}
+                        onChange={(e) => setIsLongLifeQuality(e.target.checked)}
+                        disabled={disabled}
+                    />
+                    認定長期優良住宅
+                </label>
+            </div>
+        )}
         {isResidential && (
             <FormattedNumberInput
                 label="建物不動産取得税の控除額"
@@ -120,6 +181,13 @@ const BuildingInput = ({
                 hintClassName="text-primary"
             />
         )}
+        <ShareInput
+            numerator={shareNumerator}
+            denominator={shareDenominator}
+            onNumeratorChange={onShareNumeratorChange}
+            onDenominatorChange={onShareDenominatorChange}
+            disabled={disabled}
+        />
     </div>
 );
 

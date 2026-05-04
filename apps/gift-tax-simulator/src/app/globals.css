@@ -449,6 +449,60 @@ tr.row-optimal td {
   margin-top: 0.5rem;
 }
 
+.notice-warning {
+  color: #b45309;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background-color: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 3px;
+}
+
+/* ===================== 計算過程の非表示制御 ===================== */
+.details-content.details-hidden {
+  display: none;
+}
+
+/* ===================== 持ち分入力 ===================== */
+.share-input-row {
+  margin-top: 0.75rem;
+}
+
+.share-fraction {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.share-fraction input[type="number"] {
+  width: 3.5rem;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.share-fraction input[type="number"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.share-fraction span {
+  font-size: 1.2rem;
+  color: var(--text-color);
+  font-weight: bold;
+}
+
+.re-result-share-note {
+  font-size: 0.8rem;
+  color: #bbf7d0;
+  margin: 0.25rem 0 0;
+  text-align: right;
+}
+
 .input-section-flat {
   border-bottom: none;
 }
@@ -1043,7 +1097,7 @@ tr.rate-row-highlight td {
 
   @page {
     size: A4 portrait;
-    margin: 5mm;
+    margin: 8mm;
   }
 
   html,
@@ -1192,9 +1246,9 @@ tr.rate-row-highlight td {
 
   /* シミュレーターページ用縮小（A4 1枚に収める） */
   body:not(:has(.table-page)) {
-    transform: scale(0.97);
+    transform: scale(0.92);
     transform-origin: top left;
-    width: 103%;
+    width: 108.7%;
   }
 
   /* 早見表ページ（A4横・2テーブル横並び） */
@@ -1323,13 +1377,13 @@ tr.rate-row-highlight td {
   .real-estate-page .re-two-column {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 2rem !important;
+    gap: 1rem !important;
     width: 100% !important;
   }
 
   .real-estate-page .re-column {
     background: transparent !important;
-    padding: 10px !important;
+    padding: 6px !important;
     box-sizing: border-box !important;
     width: 100% !important;
   }
@@ -1360,10 +1414,11 @@ tr.rate-row-highlight td {
   }
 
   .real-estate-page .re-result-box {
-    background-color: var(--primary-dark) !important;
-    color: var(--white) !important;
-    padding: 10px !important;
-    border: none !important;
+    background-color: #fff !important;
+    color: #000 !important;
+    padding: 8px !important;
+    border: 1.5px solid var(--primary-color) !important;
+    border-left: 5px solid var(--primary-color) !important;
   }
 
   .real-estate-page .re-result-groups {
@@ -1372,26 +1427,37 @@ tr.rate-row-highlight td {
 
   .real-estate-page .re-result-group-title {
     font-size: 9pt !important;
+    color: var(--primary-dark) !important;
+    border-bottom-color: #ccc !important;
   }
 
   .real-estate-page .re-result-label {
-    color: #bbf7d0 !important;
+    color: #444 !important;
     font-size: 9pt !important;
   }
 
   .real-estate-page .re-result-sub {
-    color: #d4d4d4 !important;
+    color: #666 !important;
     font-size: 8pt !important;
   }
 
   .real-estate-page .re-result-value {
     font-size: 11pt !important;
-    color: var(--white) !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+  }
+
+  .real-estate-page .re-result-total {
+    border-top-color: var(--primary-color) !important;
   }
 
   .real-estate-page .re-result-total .total-value {
     font-size: 14pt !important;
-    color: var(--white) !important;
+    color: var(--primary-dark) !important;
+  }
+
+  .re-result-share-note {
+    color: var(--primary-dark) !important;
   }
 
   .real-estate-page .details-toggle {
@@ -1407,11 +1473,40 @@ tr.rate-row-highlight td {
   .real-estate-page .detail-box {
     box-shadow: none !important;
     border: 1px solid #ccc !important;
-    padding: 5px !important;
+    padding: 4px 6px !important;
   }
 
   .real-estate-page .detail-box li {
+    font-size: 7.5pt !important;
+    line-height: 1.4 !important;
+  }
+
+  /* 印刷時: 入力値の視認性向上 */
+  .real-estate-page .input-item input[type="text"],
+  .real-estate-page .input-item select {
+    border: none !important;
+    border-bottom: 1px solid #999 !important;
+    padding: 0 2px !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+    font-size: 10pt !important;
+    background: transparent !important;
+    width: auto !important;
+  }
+
+  .real-estate-page .input-item label {
     font-size: 8pt !important;
+    color: #555 !important;
+  }
+
+  /* 持ち分入力は印刷不要 */
+  .share-input-row {
+    display: none !important;
+  }
+
+  /* 結果セクションのコンパクト化 */
+  .result-section {
+    padding: 8px 0 !important;
   }
 
   /* 計算過程セクション印刷用 */

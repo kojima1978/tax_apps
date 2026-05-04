@@ -17,6 +17,7 @@ type TaxResultBoxProps = {
     groups?: ResultGroup[];
     totalLabel: string;
     totalValue: number;
+    shareNote?: string;
 };
 
 const ResultItems = ({ items }: { items: ResultItem[] }) => (
@@ -32,7 +33,7 @@ const ResultItems = ({ items }: { items: ResultItem[] }) => (
     </>
 );
 
-const TaxResultBox = ({ items, groups, totalLabel, totalValue }: TaxResultBoxProps) => (
+const TaxResultBox = ({ items, groups, totalLabel, totalValue, shareNote }: TaxResultBoxProps) => (
     <div className="re-result-box">
         {groups ? (
             <div className="re-result-groups">
@@ -56,6 +57,7 @@ const TaxResultBox = ({ items, groups, totalLabel, totalValue }: TaxResultBoxPro
             <span>{totalLabel}</span>
             <span className="total-value">{formatYen(totalValue)}</span>
         </div>
+        {shareNote && <p className="re-result-share-note">（{shareNote} 適用済み）</p>}
     </div>
 );
 
