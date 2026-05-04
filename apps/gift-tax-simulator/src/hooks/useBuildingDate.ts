@@ -8,7 +8,11 @@ export const YEAR_OPTIONS: number[] = Array.from(
     (_, i) => currentYear - i,
 );
 
-export const useBuildingDate = (transactionType: TransactionType, isResidential: boolean) => {
+export const useBuildingDate = (
+    transactionType: TransactionType,
+    isResidential: boolean,
+    isLongLifeQuality: boolean,
+) => {
     const [selYear, setSelYear] = useState('');
     const [selMonth, setSelMonth] = useState('');
     const [selDay, setSelDay] = useState('');
@@ -29,14 +33,14 @@ export const useBuildingDate = (transactionType: TransactionType, isResidential:
 
     // 建物控除額の自動計算
     useEffect(() => {
-        const result = calculateBuildingDeduction(buildingDate, transactionType, isResidential);
+        const result = calculateBuildingDeduction(buildingDate, transactionType, isResidential, isLongLifeQuality);
         setAcquisitionDeduction(formatInputValue(result.deduction));
         if (result.deduction > 0) {
             setDeductionMessage(`建築時期により自動設定: ${formatYen(result.deduction)} (${result.message})`);
         } else {
             setDeductionMessage(result.message);
         }
-    }, [buildingDate, transactionType, isResidential]);
+    }, [buildingDate, transactionType, isResidential, isLongLifeQuality]);
 
     return {
         selYear, setSelYear,

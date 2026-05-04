@@ -21,6 +21,7 @@ type ResultConfig = {
     totalValue: number;
     taxType: 'acquisition' | 'registration';
     disclaimer: string;
+    shareNote?: string;
 };
 
 type Props = {
@@ -55,6 +56,9 @@ const RealEstatePageLayout = ({
     printTitle,
 }: Props) => (
     <PageLayout className="real-estate-page">
+        {/* 印刷時のみ表示: ページ先頭に会社情報 */}
+        <PrintHeader title={printTitle} />
+
         <CommonInputSection
             transactionType={transactionType}
             setTransactionType={setTransactionType}
@@ -93,12 +97,12 @@ const RealEstatePageLayout = ({
 
         {results !== null && resultConfig && (
             <div className="result-section">
-                <PrintHeader title={printTitle} />
                 <TaxResultBox
                     items={resultConfig.items}
                     groups={resultConfig.groups}
                     totalLabel={resultConfig.totalLabel}
                     totalValue={resultConfig.totalValue}
+                    shareNote={resultConfig.shareNote}
                 />
                 <CalculationDetails
                     results={results}

@@ -1,5 +1,38 @@
 import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
 
+type ShareInputProps = {
+    numerator: string;
+    denominator: string;
+    onNumeratorChange: (v: string) => void;
+    onDenominatorChange: (v: string) => void;
+    disabled: boolean;
+};
+
+const ShareInput = ({ numerator, denominator, onNumeratorChange, onDenominatorChange, disabled }: ShareInputProps) => (
+    <div className="input-item share-input-row">
+        <label>持ち分</label>
+        <div className="share-fraction">
+            <input
+                type="number"
+                min="1"
+                max="100"
+                value={numerator}
+                onChange={e => onNumeratorChange(e.target.value)}
+                disabled={disabled}
+            />
+            <span>/</span>
+            <input
+                type="number"
+                min="1"
+                max="100"
+                value={denominator}
+                onChange={e => onDenominatorChange(e.target.value)}
+                disabled={disabled}
+            />
+        </div>
+    </div>
+);
+
 type LandInputProps = {
     disabled: boolean;
     resValuation: string;
@@ -8,6 +41,10 @@ type LandInputProps = {
     onResValuationChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onResAreaChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onOtherValuationChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    shareNumerator: string;
+    shareDenominator: string;
+    onShareNumeratorChange: (v: string) => void;
+    onShareDenominatorChange: (v: string) => void;
 };
 
 const LandInput = ({
@@ -18,6 +55,10 @@ const LandInput = ({
     onResValuationChange,
     onResAreaChange,
     onOtherValuationChange,
+    shareNumerator,
+    shareDenominator,
+    onShareNumeratorChange,
+    onShareDenominatorChange,
 }: LandInputProps) => (
     <div className={`re-column ${disabled ? 'disabled' : ''}`}>
         <h3 className="re-column-title">土地の情報</h3>
@@ -33,11 +74,12 @@ const LandInput = ({
             />
             <FormattedNumberInput
                 label="土地面積 (m²)"
-                placeholder="例: 100"
+                placeholder="例: 100.00"
                 value={resArea}
                 onChange={onResAreaChange}
                 disabled={disabled}
                 hint="※税額軽減の計算に使用"
+                decimal
             />
         </div>
 
@@ -51,6 +93,14 @@ const LandInput = ({
                 disabled={disabled}
             />
         </div>
+
+        <ShareInput
+            numerator={shareNumerator}
+            denominator={shareDenominator}
+            onNumeratorChange={onShareNumeratorChange}
+            onDenominatorChange={onShareDenominatorChange}
+            disabled={disabled}
+        />
     </div>
 );
 

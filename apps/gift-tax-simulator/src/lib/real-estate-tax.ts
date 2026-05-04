@@ -41,6 +41,7 @@ export interface RealEstateTaxInput {
     isResidential: boolean;
     hasHousingCertificate: boolean;
     acquisitionDeduction: number;
+    isLongLifeQuality?: boolean;
 }
 
 
@@ -60,19 +61,25 @@ const BUILDING_DEDUCTION_THRESHOLDS = [
     { since: new Date('1985-07-01'), deduction: 4_500_000, message: '1985年7月1日～ (450万円控除)' },
     { since: new Date('1981-07-01'), deduction: 4_200_000, message: '1981年7月1日～ (420万円控除)' },
     { since: new Date('1976-01-01'), deduction: 3_500_000, message: '1976年1月1日～ (350万円控除)' },
+    { since: new Date('1973-01-01'), deduction: 2_300_000, message: '1973年1月1日～ (230万円控除)' },
+    { since: new Date('1964-01-01'), deduction: 1_500_000, message: '1964年1月1日～ (150万円控除)' },
+    { since: new Date('1954-07-01'), deduction: 1_000_000, message: '1954年7月1日～ (100万円控除)' },
 ];
 
 // 建築年月日から控除額を計算
 export const calculateBuildingDeduction = (
     buildingDate: string,
     transactionType: TransactionType,
-    isResidential: boolean
+    isResidential: boolean,
+    isLongLifeQuality = false,
 ): { deduction: number; message: string } => {
     if (!isResidential) {
         return { deduction: 0, message: '住宅用ではないため控除なし' };
     }
     if (transactionType === 'new_build') {
-        return { deduction: 12_000_000, message: '新築住宅 (原則1,200万円控除)' };
+        return isLongLifeQuality
+            ? { deduction: 13_000_000, message: '認定長期優良住宅 (1,300万円控除)' }
+            : { deduction: 12_000_000, message: '新築住宅 (原則1,200万円控除)' };
     }
     if (!buildingDate) {
         return { deduction: 0, message: '建築年月日を指定すると自動判定します' };

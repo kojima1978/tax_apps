@@ -22,3 +22,11 @@ export const validateResult = (total: number): string | null => {
     }
     return null;
 };
+
+// R8.4.1(2026-04-01)以降は40㎡下限
+export const validateBuildingArea = (area: number): string | null => {
+    if (area <= 0) return null;
+    if (area < 40 || area > 240)
+        return `※建物床面積 ${area}㎡ は軽減措置の適用要件（40〜240㎡）外のため、軽減措置が適用されない場合があります。`;
+    return null;
+};

@@ -6,6 +6,7 @@ type FormattedNumberInputProps = {
     disabled?: boolean;
     hint?: string;
     hintClassName?: string;
+    decimal?: boolean;
 };
 
 const FormattedNumberInput = ({
@@ -16,12 +17,13 @@ const FormattedNumberInput = ({
     disabled,
     hint,
     hintClassName,
+    decimal,
 }: FormattedNumberInputProps) => (
     <div className="input-item">
         <label>{label}</label>
         <input
             type="text"
-            inputMode="decimal"
+            inputMode={decimal ? 'decimal' : 'numeric'}
             placeholder={placeholder}
             value={value}
             onChange={onChange}

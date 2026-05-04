@@ -50,18 +50,17 @@ const CalculationDetails = ({
                 {showDetails ? '▲ 計算過程を隠す' : '▼ 計算過程の詳細を表示'}
             </button>
 
-            {showDetails && (
-                <div className="details-content">
-                    {SECTIONS[taxType].map(({ key, label, includeKey, processKey }) => {
-                        const steps = results.process[processKey];
-                        return includes[includeKey] && steps.length > 0 && (
-                            <div key={key} className="detail-section">
-                                <ProcessList title={label} steps={steps} />
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+            {/* 常時DOMに存在させ、印刷時はCSSで強制表示 */}
+            <div className={`details-content${showDetails ? '' : ' details-hidden'}`}>
+                {SECTIONS[taxType].map(({ key, label, includeKey, processKey }) => {
+                    const steps = results.process[processKey];
+                    return includes[includeKey] && steps.length > 0 && (
+                        <div key={key} className="detail-section">
+                            <ProcessList title={label} steps={steps} />
+                        </div>
+                    );
+                })}
+            </div>
         </>
     );
 };
