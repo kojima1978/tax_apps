@@ -1,5 +1,5 @@
 import React from 'react';
-import type { CashGiftSimulationResult, GiftScenarioResult, GiftRecipientResult } from '../../types';
+import type { CashGiftSimulationResult, GiftScenarioResult, GiftRecipientResult, HeirTaxBreakdown } from '../../types';
 import { formatCurrency, formatDelta, heirLabelColumn, currencyColumn } from '../../utils';
 import { CARD, TH, TD } from '../tableStyles';
 import { HeirScenarioTable, type HeirColumn } from '../HeirScenarioTable';
@@ -75,28 +75,17 @@ function formatCurrencyOrDash(value: number): string {
   return value > 0 ? formatCurrency(value) : '—';
 }
 
-const AmountWithBreakdown: React.FC<{
-  total: number;
-  own: number;
-  related: number;
-  showBreakdown?: boolean;
-  reserveBreakdownSpace?: boolean;
-}> = ({ total, own, related, showBreakdown, reserveBreakdownSpace }) => {
-  const shouldShowBreakdown = showBreakdown ?? related > 0;
-  if (!shouldShowBreakdown && !reserveBreakdownSpace) return <>{formatCurrencyOrDash(total)}</>;
+function isOwnGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
+  if (!r.isHeir) return false;
+  return (!!b.heirId && r.heirId === b.heirId) || r.heirLabel === b.label;
+}
 
-  return (
-    <div className="leading-tight">
-      <div>{formatCurrencyOrDash(total)}</div>
-      <div className={`mt-1 text-[11px] md:text-xs leading-snug text-gray-500 ${shouldShowBreakdown ? '' : 'invisible'}`}>
-        <div>本人 {formatCurrencyOrDash(own)}</div>
-        <div>関係者 {formatCurrencyOrDash(related)}</div>
-      </div>
-    </div>
-  );
-};
+function isSourcedGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
+  if (r.isHeir) return false;
+  return (!!b.heirId && r.sourceHeirId === b.heirId) || r.sourceHeirLabel === b.label;
+}
 
-function getGiftGroupTotals(rr: GiftRecipientResult[], label: string | undefined): GiftGroupTotals {
+function getGiftGroupTotals(rr: GiftRecipientResult[], breakdown: HeirTaxBreakdown | undefined): GiftGroupTotals {
   const totals: GiftGroupTotals = {
     ownGift: 0,
     relatedGift: 0,
@@ -109,14 +98,14 @@ function getGiftGroupTotals(rr: GiftRecipientResult[], label: string | undefined
     totalNetGift: 0,
   };
 
-  if (!label) return totals;
+  if (!breakdown) return totals;
 
   for (const r of rr) {
-    if (r.isHeir && r.heirLabel === label) {
+    if (isOwnGiftForBreakdown(r, breakdown)) {
       totals.ownGift += r.totalGift;
       totals.ownGiftTax += r.totalGiftTax;
       totals.ownNetGift += r.netGift;
-    } else if (!r.isHeir && r.sourceHeirLabel === label) {
+    } else if (isSourcedGiftForBreakdown(r, breakdown)) {
       totals.relatedGift += r.totalGift;
       totals.relatedGiftTax += r.totalGiftTax;
       totals.relatedNetGift += r.netGift;
@@ -132,10 +121,9 @@ function getGiftGroupTotals(rr: GiftRecipientResult[], label: string | undefined
 function buildGiftColumns(
   scenario: GiftScenarioResult,
   rr: GiftRecipientResult[],
-  reserveBreakdownSpace = false,
 ): HeirColumn[] {
   const { taxResult } = scenario;
-  const giftGroups = taxResult.heirBreakdowns.map(b => getGiftGroupTotals(rr, b.label));
+  const giftGroups = taxResult.heirBreakdowns.map(b => getGiftGroupTotals(rr, b));
   const acqTotal = taxResult.heirBreakdowns.reduce((s, b) => s + b.acquisitionAmount, 0);
   const giftTotal = giftGroups.reduce((s, g) => s + g.totalGift, 0);
   const giftTaxTotal = giftGroups.reduce((s, g) => s + g.totalGiftTax, 0);
@@ -153,43 +141,19 @@ function buildGiftColumns(
     currencyColumn('遺産取得額', i => taxResult.heirBreakdowns[i]?.acquisitionAmount ?? 0, acqTotal),
     {
       label: '贈与額',
-      getValue: i => (
-        <AmountWithBreakdown
-          total={giftGroups[i]?.totalGift ?? 0}
-          own={giftGroups[i]?.ownGift ?? 0}
-          related={giftGroups[i]?.relatedGift ?? 0}
-          showBreakdown={(giftGroups[i]?.relatedGift ?? 0) > 0}
-          reserveBreakdownSpace={reserveBreakdownSpace}
-        />
-      ),
+      getValue: i => formatCurrencyOrDash(giftGroups[i]?.totalGift ?? 0),
       getTotalValue: () => formatCurrencyOrDash(giftTotal),
     },
     {
       label: '贈与税負担',
-      getValue: i => (
-        <AmountWithBreakdown
-          total={giftGroups[i]?.totalGiftTax ?? 0}
-          own={giftGroups[i]?.ownGiftTax ?? 0}
-          related={giftGroups[i]?.relatedGiftTax ?? 0}
-          showBreakdown={(giftGroups[i]?.relatedGift ?? 0) > 0}
-          reserveBreakdownSpace={reserveBreakdownSpace}
-        />
-      ),
+      getValue: i => formatCurrencyOrDash(giftGroups[i]?.totalGiftTax ?? 0),
       getTotalValue: () => formatCurrencyOrDash(giftTaxTotal),
     },
     currencyColumn('納付相続税', i => taxResult.heirBreakdowns[i]?.finalTax ?? 0, taxResult.totalFinalTax),
     {
       label: '税引後',
       bold: true,
-      getValue: i => (
-        <AmountWithBreakdown
-          total={getNetProceeds(i)}
-          own={getOwnNetProceeds(i)}
-          related={giftGroups[i]?.relatedNetGift ?? 0}
-          showBreakdown={(giftGroups[i]?.relatedGift ?? 0) > 0}
-          reserveBreakdownSpace={reserveBreakdownSpace}
-        />
-      ),
+      getValue: i => formatCurrency(getNetProceeds(i)),
       getTotalValue: () => formatCurrency(netTotal),
     },
   ];
@@ -260,7 +224,6 @@ const CalcProcessMatrix: React.FC<{ result: CashGiftSimulationResult }> = ({ res
 export const CashGiftHeirTable: React.FC<CashGiftHeirTableProps> = ({ result }) => {
   const { current, proposed, recipientResults } = result;
   const heirCount = current.taxResult.heirBreakdowns.length;
-  const hasRelatedGiftGroups = recipientResults.some(r => !r.isHeir && !!r.sourceHeirLabel);
 
   return (
     <div className={CARD}>
@@ -270,14 +233,14 @@ export const CashGiftHeirTable: React.FC<CashGiftHeirTableProps> = ({ result }) 
         <RecipientDetailTable recipientResults={recipientResults} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch gap-6 mb-6">
+      <div className="cash-gift-heir-scenarios grid grid-cols-1 lg:grid-cols-2 items-stretch gap-6 mb-6">
         <HeirScenarioTable
           label={current.label}
           taxTotal={current.taxResult.totalFinalTax}
           headerBg="bg-green-600"
           heirCount={heirCount}
           getHeirKey={i => current.taxResult.heirBreakdowns[i]?.label || String(i)}
-          columns={buildGiftColumns(current, [], hasRelatedGiftGroups)}
+          columns={buildGiftColumns(current, [])}
         />
         <HeirScenarioTable
           label={proposed.label}
@@ -286,7 +249,7 @@ export const CashGiftHeirTable: React.FC<CashGiftHeirTableProps> = ({ result }) 
           headerBg="bg-green-600"
           heirCount={heirCount}
           getHeirKey={i => proposed.taxResult.heirBreakdowns[i]?.label || String(i)}
-          columns={buildGiftColumns(proposed, recipientResults, hasRelatedGiftGroups)}
+          columns={buildGiftColumns(proposed, recipientResults)}
         />
       </div>
 

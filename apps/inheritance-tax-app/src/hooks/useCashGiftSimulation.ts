@@ -22,9 +22,26 @@ export function useCashGiftSimulation() {
   const heirRecipientsRaw = useMemo(() => recipients.filter(r => r.isHeir), [recipients]);
   const nonHeirRecipients = useMemo(() => recipients.filter(r => !r.isHeir), [recipients]);
   const cleanedHeirRecipients = useCleanOptions(heirRecipientsRaw, recipientOptions, getRecipientId, setRecipientId);
+  const cleanedNonHeirRecipients = useMemo(
+    () => nonHeirRecipients.map(r => {
+      const fallbackSource = recipientOptions[0];
+      if (!r.sourceHeirId) {
+        return fallbackSource
+          ? { ...r, sourceHeirId: fallbackSource.id, sourceHeirLabel: fallbackSource.label }
+          : r;
+      }
+      const source = recipientOptions.find(opt => opt.id === r.sourceHeirId);
+      return source
+        ? { ...r, sourceHeirLabel: source.label }
+        : fallbackSource
+          ? { ...r, sourceHeirId: fallbackSource.id, sourceHeirLabel: fallbackSource.label }
+          : { ...r, sourceHeirId: undefined, sourceHeirLabel: undefined };
+    }),
+    [nonHeirRecipients, recipientOptions],
+  );
   const cleanedRecipients = useMemo(
-    () => [...cleanedHeirRecipients, ...nonHeirRecipients],
-    [cleanedHeirRecipients, nonHeirRecipients],
+    () => [...cleanedHeirRecipients, ...cleanedNonHeirRecipients],
+    [cleanedHeirRecipients, cleanedNonHeirRecipients],
   );
 
   const [result, setResult] = useState<CashGiftSimulationResult | null>(null);

@@ -4,6 +4,7 @@ import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { CashGiftRecipientList } from '../components/gift/CashGiftRecipientList';
+import { CashGiftPrintConditions } from '../components/gift/CashGiftPrintConditions';
 import { TaxBeforeAfterTable } from '../components/gift/TaxBeforeAfterTable';
 import { CashGiftHeirTable } from '../components/gift/CashGiftHeirTable';
 import { CashGiftYearComparison } from '../components/gift/CashGiftYearComparison';
@@ -38,10 +39,12 @@ export const CashGiftPage: React.FC = () => {
   const recipientsInvalid =
     cleanedRecipients.length === 0 ||
     cleanedRecipients.every(r => r.annualAmount <= 0 || r.years <= 0);
+  const missingSourceHeir = cleanedRecipients.some(r => !r.isHeir && !r.sourceHeirId);
 
   const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
     { condition: estateValue <= 0, ref: estateRef, message: '遺産総額を入力してください' },
     { condition: recipientsInvalid, ref: recipientsRef, message: '受取人を追加し、贈与額・年数を入力してください' },
+    { condition: missingSourceHeir, ref: recipientsRef, message: '関係者贈与は財源相続人を選択してください' },
     { condition: estateValue > 0 && totalGiftsInput > estateValue, ref: recipientsRef, message: '贈与総額が遺産総額を超えています。贈与額を見直してください' },
   ], executeCalculate);
 
@@ -112,6 +115,11 @@ export const CashGiftPage: React.FC = () => {
           {result && (
             <div className="result-fade-in">
               <PrintHeader title="現金贈与シミュレーション" />
+              <CashGiftPrintConditions
+                result={result}
+                composition={calcInputs?.composition ?? composition}
+                spouseMode={calcInputs?.spouseMode ?? spouseMode}
+              />
               <div className="space-y-4 md:space-y-6">
                 <TaxBeforeAfterTable result={result} />
                 <CashGiftHeirTable result={result} />

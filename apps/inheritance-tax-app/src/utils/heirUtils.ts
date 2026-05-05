@@ -18,6 +18,7 @@ function countEffectiveHeirs(heirs: Heir[]): number {
 
 /** 有効相続人の個別割合（代襲相続考慮） */
 export interface EffectiveHeirShare {
+  id: string;
   type: HeirType;
   /** othersグループ内での割合（合計 = 1.0） */
   ratio: number;
@@ -43,6 +44,7 @@ export function getEffectiveHeirShares(composition: HeirComposition): EffectiveH
       const count = composition.rank2Ascendants.length;
       if (count === 0) return [];
       return composition.rank2Ascendants.map((_, i) => ({
+        id: composition.rank2Ascendants[i].id,
         type: 'parent' as HeirType,
         ratio: 1 / count,
         label: getHeirLabel('parent', i, count),
@@ -61,16 +63,16 @@ export function getEffectiveHeirShares(composition: HeirComposition): EffectiveH
   if (originalCount === 0) return [];
 
   const perOriginal = 1 / originalCount;
-  const raw: { type: HeirType; ratio: number }[] = [];
+  const raw: { id: string; type: HeirType; ratio: number }[] = [];
 
   for (const heir of heirs) {
     if (heir.isDeceased && heir.representatives && heir.representatives.length > 0) {
       const perRep = perOriginal / heir.representatives.length;
       for (let j = 0; j < heir.representatives.length; j++) {
-        raw.push({ type: repType, ratio: perRep });
+        raw.push({ id: heir.representatives[j].id, type: repType, ratio: perRep });
       }
     } else if (!heir.isDeceased) {
-      raw.push({ type: baseType, ratio: perOriginal });
+      raw.push({ id: heir.id, type: baseType, ratio: perOriginal });
     }
   }
 

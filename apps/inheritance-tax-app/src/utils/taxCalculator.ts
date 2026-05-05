@@ -201,6 +201,7 @@ export function calculateDetailedInheritanceTax(
   if (composition.hasSpouse) {
     const legalShareAmount = Math.floor(taxableAmount * spouseLegalRatio);
     breakdowns.push({
+      heirId: 'spouse',
       label: '配偶者',
       type: 'spouse',
       legalShareRatio: spouseLegalRatio,
@@ -221,6 +222,7 @@ export function calculateDetailedInheritanceTax(
       const legalShareRatio = othersLegalRatio * share.ratio;
       const legalShareAmount = Math.floor(taxableAmount * legalShareRatio);
       breakdowns.push({
+        heirId: share.id,
         label: share.label,
         type: share.type,
         legalShareRatio,
