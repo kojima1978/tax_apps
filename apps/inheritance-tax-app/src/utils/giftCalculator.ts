@@ -6,21 +6,22 @@ import type {
   GiftScenarioResult,
   CashGiftSimulationResult,
 } from '../types';
-import { SPECIAL_GIFT_TAX_BRACKETS, GIFT_TAX_BASIC_EXEMPTION } from '../constants';
+import { SPECIAL_GIFT_TAX_BRACKETS, GENERAL_GIFT_TAX_BRACKETS, GIFT_TAX_BASIC_EXEMPTION } from '../constants';
 import { calculateDetailedInheritanceTax } from './taxCalculator';
 import { getBeneficiaryOptions } from './heirUtils';
 import { reapportionTax } from './reapportionTax';
 
 /**
- * 特例贈与税を計算（1年分・1人分）
+ * 贈与税を計算（1年分・1人分）
  * @param annualAmount 年間贈与額（万円）
+ * @param taxType 贈与税率区分（デフォルト: 特例）
  * @returns 贈与税額（万円）
  */
-export function calculateGiftTaxPerYear(annualAmount: number): number {
+export function calculateGiftTaxPerYear(annualAmount: number, taxType: 'special' | 'general' = 'special'): number {
+  const brackets = taxType === 'general' ? GENERAL_GIFT_TAX_BRACKETS : SPECIAL_GIFT_TAX_BRACKETS;
   const taxableAmount = Math.max(0, annualAmount - GIFT_TAX_BASIC_EXEMPTION);
   if (taxableAmount <= 0) return 0;
-  const bracket = SPECIAL_GIFT_TAX_BRACKETS.find(b => taxableAmount <= b.threshold)
-    || SPECIAL_GIFT_TAX_BRACKETS[SPECIAL_GIFT_TAX_BRACKETS.length - 1];
+  const bracket = brackets.find(b => taxableAmount <= b.threshold) ?? brackets[brackets.length - 1];
   return Math.floor(Math.max(0, taxableAmount * (bracket.rate / 100) - bracket.deduction));
 }
 
@@ -29,7 +30,7 @@ export function calculateGiftTaxPerYear(annualAmount: number): number {
  */
 export function calculateRecipientResult(recipient: GiftRecipient): GiftRecipientResult {
   const taxableAmountPerYear = Math.max(0, recipient.annualAmount - GIFT_TAX_BASIC_EXEMPTION);
-  const giftTaxPerYear = calculateGiftTaxPerYear(recipient.annualAmount);
+  const giftTaxPerYear = calculateGiftTaxPerYear(recipient.annualAmount, recipient.taxType);
   const totalGift = recipient.annualAmount * recipient.years;
   const totalGiftTax = giftTaxPerYear * recipient.years;
   return {
@@ -43,6 +44,10 @@ export function calculateRecipientResult(recipient: GiftRecipient): GiftRecipien
     totalGift,
     totalGiftTax,
     netGift: totalGift - totalGiftTax,
+    isHeir: recipient.isHeir,
+    taxType: recipient.taxType,
+    sourceHeirId: recipient.sourceHeirId,
+    sourceHeirLabel: recipient.sourceHeirLabel,
   };
 }
 
@@ -88,11 +93,17 @@ function reapportionForGiftModel(
     (breakdowns) => {
       for (let i = 0; i < breakdowns.length; i++) {
         const label = breakdowns[i].label;
-        const totalGiftsToHeir = recipientResults
-          .filter(r => r.heirLabel === label)
+        // 相続人自身への贈与
+        const totalHeirGifts = recipientResults
+          .filter(r => r.isHeir && r.heirLabel === label)
           .reduce((s, r) => s + r.totalGift, 0);
-        if (totalGiftsToHeir > 0) {
-          breakdowns[i].acquisitionAmount = Math.max(0, breakdowns[i].acquisitionAmount - totalGiftsToHeir);
+        // 非相続人へのうち、この相続人を財源に指定したもの
+        const totalSourcedGifts = recipientResults
+          .filter(r => !r.isHeir && r.sourceHeirLabel === label)
+          .reduce((s, r) => s + r.totalGift, 0);
+        const totalDeduction = totalHeirGifts + totalSourcedGifts;
+        if (totalDeduction > 0) {
+          breakdowns[i].acquisitionAmount = Math.max(0, breakdowns[i].acquisitionAmount - totalDeduction);
         }
       }
     },
@@ -143,6 +154,19 @@ export function calculateCashGiftSimulation(
   const inheritanceTaxSaving = currentTax.totalFinalTax - proposedTax.totalFinalTax;
   const netProceedsDiff = proposed.totalNetProceeds - current.totalNetProceeds;
 
+  // 相続分を超えた贈与が発生している相続人を検出
+  const overAllocatedHeirs = currentTax.heirBreakdowns
+    .filter(b => {
+      const ownGifts = recipientResults
+        .filter(r => r.isHeir && r.heirLabel === b.label)
+        .reduce((s, r) => s + r.totalGift, 0);
+      const sourcedGifts = recipientResults
+        .filter(r => !r.isHeir && r.sourceHeirLabel === b.label)
+        .reduce((s, r) => s + r.totalGift, 0);
+      return ownGifts + sourcedGifts > b.acquisitionAmount;
+    })
+    .map(b => b.label);
+
   return {
     current,
     proposed,
@@ -152,6 +176,7 @@ export function calculateCashGiftSimulation(
     inheritanceTaxSaving,
     netProceedsDiff,
     baseEstate: estateValue,
+    overAllocatedHeirs,
   };
 }
 

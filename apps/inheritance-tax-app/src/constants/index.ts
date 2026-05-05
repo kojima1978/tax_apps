@@ -76,6 +76,21 @@ export const SPECIAL_GIFT_TAX_BRACKETS: TaxBracket[] = [
 ];
 
 /**
+ * 一般贈与税率テーブル（特例以外）
+ * 金額は万円単位
+ */
+export const GENERAL_GIFT_TAX_BRACKETS: TaxBracket[] = [
+  { threshold: 200,    rate: 10, deduction: 0 },
+  { threshold: 300,    rate: 15, deduction: 10 },
+  { threshold: 400,    rate: 20, deduction: 25 },
+  { threshold: 600,    rate: 30, deduction: 65 },
+  { threshold: 1000,   rate: 40, deduction: 125 },
+  { threshold: 1500,   rate: 45, deduction: 175 },
+  { threshold: 3000,   rate: 50, deduction: 250 },
+  { threshold: Infinity, rate: 55, deduction: 400 },
+];
+
+/**
  * 贈与税の基礎控除額（万円単位）: 110万円/年/人
  */
 export const GIFT_TAX_BASIC_EXEMPTION = 110;

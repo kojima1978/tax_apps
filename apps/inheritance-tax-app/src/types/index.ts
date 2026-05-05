@@ -177,10 +177,14 @@ export interface SplitSimulationResult {
 // 贈与受取人（入力モデル）
 export interface GiftRecipient {
   id: string;
-  heirId: string;          // 相続人ID
-  heirLabel: string;       // '子1', '孫1' etc.
+  heirId: string;          // 相続人ID or non-heir固有ID
+  heirLabel: string;       // '子1', '孫1' or フリーテキスト
   annualAmount: number;    // 年間贈与額（万円）
   years: number;           // 贈与年数
+  isHeir: boolean;         // 相続人かどうか
+  taxType: 'special' | 'general'; // 贈与税率区分（特例/一般）
+  sourceHeirId?: string;   // 非相続人受贈者のみ: 財源相続人ID
+  sourceHeirLabel?: string; // 非相続人受贈者のみ: 財源相続人ラベル
 }
 
 // 受取人別の贈与税計算結果
@@ -195,6 +199,10 @@ export interface GiftRecipientResult {
   totalGift: number;             // 総贈与額
   totalGiftTax: number;          // 総贈与税額
   netGift: number;               // 差引贈与 = totalGift - totalGiftTax
+  isHeir: boolean;
+  taxType: 'special' | 'general';
+  sourceHeirId?: string;
+  sourceHeirLabel?: string;
 }
 
 // シナリオ別結果
@@ -215,6 +223,7 @@ export interface CashGiftSimulationResult {
   inheritanceTaxSaving: number;   // 相続税の節減額
   netProceedsDiff: number;        // 財産額の増減
   baseEstate: number;
+  overAllocatedHeirs: string[];   // 相続分を超えた贈与が発生した相続人ラベル
 }
 
 // ── 2次相続タイムライン・シミュレーション ──

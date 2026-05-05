@@ -4,8 +4,7 @@ import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { CashGiftRecipientList } from '../components/gift/CashGiftRecipientList';
-import { CashGiftSummaryCard } from '../components/gift/CashGiftSummaryCard';
-import { CashGiftFlowSteps } from '../components/gift/CashGiftFlowSteps';
+import { TaxBeforeAfterTable } from '../components/gift/TaxBeforeAfterTable';
 import { CashGiftHeirTable } from '../components/gift/CashGiftHeirTable';
 import { CashGiftYearComparison } from '../components/gift/CashGiftYearComparison';
 import { PrintHeader } from '../components/PrintHeader';
@@ -29,21 +28,21 @@ export const CashGiftPage: React.FC = () => {
     calcInputs,
     handleCalculate: executeCalculate,
     totalGiftsInput,
-    noEligibleRecipients,
+    overAllocatedHeirsError,
   } = useCashGiftSimulation();
 
   const estateRef = useRef<HTMLDivElement>(null);
   const recipientsRef = useRef<HTMLDivElement>(null);
   const resultRef = useScrollToResult(!!result);
 
-  const recipientsInvalid = !noEligibleRecipients && (
+  const recipientsInvalid =
     cleanedRecipients.length === 0 ||
-    cleanedRecipients.every(r => r.annualAmount <= 0 || r.years <= 0)
-  );
+    cleanedRecipients.every(r => r.annualAmount <= 0 || r.years <= 0);
 
   const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
     { condition: estateValue <= 0, ref: estateRef, message: '遺産総額を入力してください' },
     { condition: recipientsInvalid, ref: recipientsRef, message: '受取人を追加し、贈与額・年数を入力してください' },
+    { condition: estateValue > 0 && totalGiftsInput > estateValue, ref: recipientsRef, message: '贈与総額が遺産総額を超えています。贈与額を見直してください' },
   ], executeCalculate);
 
   return (
@@ -72,38 +71,36 @@ export const CashGiftPage: React.FC = () => {
         </>
       }
       middleSection={
-        !noEligibleRecipients ? (
-          <div
-            ref={recipientsRef}
-            className={`mb-8 no-print ${hasAttempted && recipientsInvalid ? 'ring-2 ring-red-400 rounded-lg p-1' : ''}`}
-          >
-            <CashGiftRecipientList
-              recipients={recipients}
-              recipientOptions={recipientOptions}
-              onChange={setRecipients}
-            />
-          </div>
-        ) : undefined
+        <div
+          ref={recipientsRef}
+          className={`mb-8 no-print ${hasAttempted && recipientsInvalid ? 'ring-2 ring-red-400 rounded-lg p-1' : ''}`}
+        >
+          <CashGiftRecipientList
+            recipients={recipients}
+            recipientOptions={recipientOptions}
+            onChange={setRecipients}
+          />
+        </div>
       }
       validationErrors={validationErrors}
       hasAttempted={hasAttempted}
       onCalculate={handleCalculate}
       belowButton={
         <>
+          {overAllocatedHeirsError.length > 0 && (
+            <StatusCard
+              variant="error"
+              title={`${overAllocatedHeirsError.join('・')}の贈与総額が相続分を超えています`}
+              description="財源相続人の贈与総額（直接贈与＋関係者贈与の財源分）を相続分以内に調整してください"
+              className="mb-8 no-print"
+            />
+          )}
           {estateValue > 0 && totalGiftsInput > estateValue && (
             <StatusCard
               variant="error"
               title={`贈与総額（${formatCurrency(totalGiftsInput)}）が遺産総額（${formatCurrency(estateValue)}）を超えています`}
               description="贈与額を見直してください"
               compact
-              className="mb-8 no-print"
-            />
-          )}
-          {noEligibleRecipients && (
-            <StatusCard
-              variant="warning"
-              title="特例贈与の対象者がいません"
-              description="特例贈与税率は直系尊属（親・祖父母）から18歳以上の子・孫への贈与に適用されます。第1順位（子）を選択してください。"
               className="mb-8 no-print"
             />
           )}
@@ -116,8 +113,7 @@ export const CashGiftPage: React.FC = () => {
             <div className="result-fade-in">
               <PrintHeader title="現金贈与シミュレーション" />
               <div className="space-y-4 md:space-y-6">
-                <CashGiftSummaryCard result={result} />
-                <CashGiftFlowSteps result={result} />
+                <TaxBeforeAfterTable result={result} />
                 <CashGiftHeirTable result={result} />
                 {calcInputs && (
                   <CashGiftYearComparison
@@ -130,7 +126,7 @@ export const CashGiftPage: React.FC = () => {
               </div>
             </div>
           )}
-          {!result && estateValue > 0 && !noEligibleRecipients && !hasAttempted && (
+          {!result && estateValue > 0 && !hasAttempted && (
             <StatusCard
               variant="success"
               title="贈与受取人を追加してください"
