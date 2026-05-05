@@ -9,15 +9,12 @@ export function useCleanOptions<T>(
   getItemId: (item: T) => string,
   setItemId: (item: T, id: string, label: string) => T,
 ): T[] {
-  const validIds = useMemo(() => new Set(options.map(o => o.id)), [options]);
-
   return useMemo(() => {
     if (options.length === 0) return [];
     const defaultOpt = options[0];
-    return items.map(item =>
-      validIds.has(getItemId(item))
-        ? item
-        : setItemId(item, defaultOpt.id, defaultOpt.label),
-    );
-  }, [items, validIds, options, getItemId, setItemId]);
+    return items.map(item => {
+      const option = options.find(o => o.id === getItemId(item)) ?? defaultOpt;
+      return setItemId(item, option.id, option.label);
+    });
+  }, [items, options, getItemId, setItemId]);
 }

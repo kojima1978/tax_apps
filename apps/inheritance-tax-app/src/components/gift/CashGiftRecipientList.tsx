@@ -41,6 +41,8 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
   };
 
   const addExternalRecipient = () => {
+    const source = recipientOptions[0];
+    if (!source) return;
     const newId = generateId();
     onChange([
       ...recipients,
@@ -52,6 +54,8 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
         years: 0,
         isHeir: false,
         taxType: 'general',
+        sourceHeirId: source.id,
+        sourceHeirLabel: source.label,
       },
     ]);
   };
@@ -81,6 +85,8 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
         <div className="space-y-4">
           {recipients.map((recipient, index) => {
             const availableOptions = recipient.isHeir ? getAvailableFor(recipient.id) : [];
+            const selectedSource = recipientOptions.find(opt => opt.id === recipient.sourceHeirId);
+            const selectedSourceId = selectedSource?.id ?? recipientOptions[0]?.id ?? '';
             const giftTaxPerYear = calculateGiftTaxPerYear(recipient.annualAmount, recipient.taxType);
             const totalGift = recipient.annualAmount * recipient.years;
             const totalGiftTax = giftTaxPerYear * recipient.years;
@@ -143,7 +149,7 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">財源相続人</label>
                       <select
-                        value={recipient.sourceHeirId ?? ''}
+                        value={selectedSourceId}
                         onChange={e => {
                           const opt = recipientOptions.find(o => o.id === e.target.value);
                           updateRecipient(recipient.id, {
@@ -153,7 +159,6 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                         }}
                         className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${INPUT_FOCUS} text-right text-lg`}
                       >
-                        <option value="">（按分）</option>
                         {recipientOptions.map(opt => (
                           <option key={opt.id} value={opt.id}>{opt.label}の相続分から</option>
                         ))}
@@ -251,7 +256,8 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
         <button
           type="button"
           onClick={addExternalRecipient}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2 border-dashed border-orange-300 text-orange-600 hover:bg-orange-50"
+          disabled={recipientOptions.length === 0}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2 border-dashed border-orange-300 text-orange-600 hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Users className="w-4 h-4" />
           関係者を追加

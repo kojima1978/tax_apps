@@ -5,11 +5,12 @@ import type {
   GiftRecipientResult,
   GiftScenarioResult,
   CashGiftSimulationResult,
+  DetailedTaxCalculationResult,
+  HeirTaxBreakdown,
 } from '../types';
 import { SPECIAL_GIFT_TAX_BRACKETS, GENERAL_GIFT_TAX_BRACKETS, GIFT_TAX_BASIC_EXEMPTION } from '../constants';
 import { calculateDetailedInheritanceTax } from './taxCalculator';
 import { getBeneficiaryOptions } from './heirUtils';
-import { reapportionTax } from './reapportionTax';
 
 /**
  * 贈与税を計算（1年分・1人分）
@@ -73,43 +74,88 @@ export function getGiftHeirNetProceeds(
   const taxBreakdown = scenario.taxResult.heirBreakdowns[heirIndex];
   if (!taxBreakdown) return 0;
   let net = taxBreakdown.acquisitionAmount - taxBreakdown.finalTax;
-  for (const g of recipientResults.filter(r => r.heirLabel === taxBreakdown.label)) {
+  for (const g of recipientResults.filter(r => isOwnGiftForBreakdown(r, taxBreakdown))) {
     net += g.totalGift - g.totalGiftTax;
   }
   return net;
 }
 
-/** 受贈者帰属モデルで税の按分を再計算（共通reapportionTaxのラッパー） */
-function reapportionForGiftModel(
-  taxResult: Parameters<typeof reapportionTax>[0],
-  baseEstate: number,
-  recipientResults: GiftRecipientResult[],
-  composition: HeirComposition,
-  spouseMode: SpouseAcquisitionMode,
+function isOwnGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
+  if (!r.isHeir) return false;
+  return (!!b.heirId && r.heirId === b.heirId) || r.heirLabel === b.label;
+}
+
+function isSourcedGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
+  if (r.isHeir) return false;
+  return (!!b.heirId && r.sourceHeirId === b.heirId) || r.sourceHeirLabel === b.label;
+}
+
+function assignFinalTaxByAcquisition(
+  breakdowns: HeirTaxBreakdown[],
+  indices: number[],
+  taxPool: number,
 ) {
-  return reapportionTax(
-    taxResult, baseEstate, composition, spouseMode,
-    // 受贈者帰属: 基本取得額 − 贈与額（0下限）
-    (breakdowns) => {
-      for (let i = 0; i < breakdowns.length; i++) {
-        const label = breakdowns[i].label;
-        // 相続人自身への贈与
-        const totalHeirGifts = recipientResults
-          .filter(r => r.isHeir && r.heirLabel === label)
-          .reduce((s, r) => s + r.totalGift, 0);
-        // 非相続人へのうち、この相続人を財源に指定したもの
-        const totalSourcedGifts = recipientResults
-          .filter(r => !r.isHeir && r.sourceHeirLabel === label)
-          .reduce((s, r) => s + r.totalGift, 0);
-        const totalDeduction = totalHeirGifts + totalSourcedGifts;
-        if (totalDeduction > 0) {
-          breakdowns[i].acquisitionAmount = Math.max(0, breakdowns[i].acquisitionAmount - totalDeduction);
-        }
-      }
-    },
-    // 分母: 取得額合計（贈与控除後）
-    (breakdowns) => breakdowns.reduce((s, b) => s + b.acquisitionAmount, 0),
-  );
+  const denominator = indices.reduce((s, idx) => s + breakdowns[idx].acquisitionAmount, 0);
+  let assigned = 0;
+
+  indices.forEach((idx, order) => {
+    const isLast = order === indices.length - 1;
+    const finalTax = denominator > 0
+      ? (isLast ? taxPool - assigned : Math.floor(taxPool * (breakdowns[idx].acquisitionAmount / denominator)))
+      : 0;
+    breakdowns[idx].proportionalTax = finalTax;
+    breakdowns[idx].surchargeAmount = 0;
+    breakdowns[idx].spouseDeduction = 0;
+    breakdowns[idx].finalTax = finalTax;
+    assigned += finalTax;
+  });
+}
+
+/** 受贈者帰属モデルで税の按分を再計算 */
+function reapportionForGiftModel(
+  taxResult: DetailedTaxCalculationResult,
+  currentBreakdowns: HeirTaxBreakdown[],
+  recipientResults: GiftRecipientResult[],
+): DetailedTaxCalculationResult {
+  const breakdowns = taxResult.heirBreakdowns.map((b, i) => ({
+    ...b,
+    acquisitionAmount: currentBreakdowns[i]?.acquisitionAmount ?? b.acquisitionAmount,
+  }));
+
+  for (const b of breakdowns) {
+    const ownGifts = recipientResults
+      .filter(r => isOwnGiftForBreakdown(r, b))
+      .reduce((s, r) => s + r.totalGift, 0);
+    const sourcedGifts = recipientResults
+      .filter(r => isSourcedGiftForBreakdown(r, b))
+      .reduce((s, r) => s + r.totalGift, 0);
+    b.acquisitionAmount = Math.max(0, b.acquisitionAmount - ownGifts - sourcedGifts);
+  }
+
+  const spouseIdx = breakdowns.findIndex(b => b.type === 'spouse');
+  const nonSpouseIndices = breakdowns.map((_, i) => i).filter(i => i !== spouseIdx);
+  const spouseTax = spouseIdx >= 0 ? taxResult.heirBreakdowns[spouseIdx]?.finalTax ?? 0 : 0;
+  const distributableTax = Math.max(0, taxResult.totalFinalTax - spouseTax);
+
+  for (const b of breakdowns) {
+    b.proportionalTax = 0;
+    b.surchargeAmount = 0;
+    b.spouseDeduction = 0;
+    b.finalTax = 0;
+  }
+
+  if (spouseIdx >= 0) {
+    breakdowns[spouseIdx].finalTax = spouseTax;
+    assignFinalTaxByAcquisition(breakdowns, nonSpouseIndices, distributableTax);
+  } else {
+    assignFinalTaxByAcquisition(breakdowns, breakdowns.map((_, i) => i), taxResult.totalFinalTax);
+  }
+
+  return {
+    ...taxResult,
+    heirBreakdowns: breakdowns,
+    totalFinalTax: breakdowns.reduce((s, b) => s + b.finalTax, 0),
+  };
 }
 
 /**
@@ -142,7 +188,7 @@ export function calculateCashGiftSimulation(
   const baseTaxResult = calculateDetailedInheritanceTax(reducedEstate, composition, spouseMode);
   // 受贈者帰属モデル: 贈与額を受贈者の取得額から直接控除して按分を再計算
   const proposedTax = reapportionForGiftModel(
-    baseTaxResult, estateValue, recipientResults, composition, spouseMode,
+    baseTaxResult, currentTax.heirBreakdowns, recipientResults,
   );
   const proposed: GiftScenarioResult = {
     label: '提案',
@@ -158,10 +204,10 @@ export function calculateCashGiftSimulation(
   const overAllocatedHeirs = currentTax.heirBreakdowns
     .filter(b => {
       const ownGifts = recipientResults
-        .filter(r => r.isHeir && r.heirLabel === b.label)
+        .filter(r => isOwnGiftForBreakdown(r, b))
         .reduce((s, r) => s + r.totalGift, 0);
       const sourcedGifts = recipientResults
-        .filter(r => !r.isHeir && r.sourceHeirLabel === b.label)
+        .filter(r => isSourcedGiftForBreakdown(r, b))
         .reduce((s, r) => s + r.totalGift, 0);
       return ownGifts + sourcedGifts > b.acquisitionAmount;
     })

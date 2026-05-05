@@ -44,6 +44,7 @@ export type SpouseAcquisitionMode =
 
 // 個別相続人の税額内訳
 export interface HeirTaxBreakdown {
+  heirId?: string;
   label: string;
   type: HeirType;
   legalShareRatio: number;
