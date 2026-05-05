@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import LandInput from '@/components/acquisition-tax/LandInput';
 import BuildingInput from '@/components/acquisition-tax/BuildingInput';
 import RealEstatePageLayout from '@/components/shared/RealEstatePageLayout';
+import PrintReference from '@/components/acquisition-tax/PrintReference';
 import { useAcquisitionTaxForm } from '@/hooks/useAcquisitionTaxForm';
 
 export default function AcquisitionTaxPage() {
@@ -116,6 +117,7 @@ export default function AcquisitionTaxPage() {
             showDetails={form.showDetails}
             setShowDetails={form.setShowDetails}
             printTitle="不動産取得税シミュレーション"
+            printReference={<PrintReference />}
         />
     );
 }

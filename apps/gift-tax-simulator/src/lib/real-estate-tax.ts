@@ -42,6 +42,8 @@ export interface RealEstateTaxInput {
     hasHousingCertificate: boolean;
     acquisitionDeduction: number;
     isLongLifeQuality?: boolean;
+    landShare?: { n: number; d: number };
+    buildingShare?: { n: number; d: number };
 }
 
 
@@ -87,7 +89,7 @@ export const calculateBuildingDeduction = (
 
     const date = new Date(buildingDate);
     const match = BUILDING_DEDUCTION_THRESHOLDS.find(t => date >= t.since);
-    return match ?? { deduction: 0, message: '1975年以前' };
+    return match ?? { deduction: 0, message: '1954年6月30日以前 (控除なし)' };
 };
 
 // 不動産税計算メイン関数
@@ -105,6 +107,13 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
         hasHousingCertificate,
         acquisitionDeduction,
     } = input;
+
+    const lN = input.landShare?.n ?? 1;
+    const lD = input.landShare?.d ?? 1;
+    const bN = input.buildingShare?.n ?? 1;
+    const bD = input.buildingShare?.d ?? 1;
+    const hasLandShare = lN !== lD;
+    const hasBldgShare = bN !== bD;
 
     const result: TaxResults = {
         landAcq: 0,
@@ -124,20 +133,29 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
             result.landAcq = 0;
             result.process.landAcq.push('相続のため不動産取得税は非課税 (0円)');
         } else {
-            let landAcqBase = landValuation;
-            let landBaseNote = '';
-            if (landType === 'residential') {
-                landAcqBase = Math.floor(landValuation / 2);
-                landBaseNote = ' (宅地特例 1/2)';
-            }
+            // 持ち分適用前の課税標準（Q14軽減の単価計算用）
+            const landAcqBasePreShare = landType === 'residential'
+                ? Math.floor(landValuation / 2)
+                : landValuation;
+            // 持ち分を適用した課税標準
+            const landAcqBase = hasLandShare
+                ? Math.floor(landAcqBasePreShare * lN / lD)
+                : landAcqBasePreShare;
 
-            const landAcqRate = 0.03;
-            const originalTax = Math.floor(landAcqBase * landAcqRate);
+            const originalTax = Math.floor(landAcqBase * 0.03);
 
             result.process.landAcq.push(`評価額: ${formatYen(landValuation)}`);
-            if (landType === 'residential') {
+            if (landType === 'residential' && hasLandShare) {
                 result.process.landAcq.push(
-                    `課税標準額: ${formatYen(landAcqBase)}${landBaseNote}`
+                    `課税標準額: ${formatYen(landValuation)} × ${lN}/${lD} (持ち分) × 1/2 (宅地特例) = ${formatYen(landAcqBase)}`
+                );
+            } else if (landType === 'residential') {
+                result.process.landAcq.push(
+                    `課税標準額: ${formatYen(landAcqBasePreShare)} (宅地特例 1/2)`
+                );
+            } else if (hasLandShare) {
+                result.process.landAcq.push(
+                    `課税標準額: ${formatYen(landValuation)} × ${lN}/${lD} (持ち分) = ${formatYen(landAcqBase)}`
                 );
             }
             result.process.landAcq.push(
@@ -148,7 +166,9 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
 
             if (isResidential && landArea > 0 && buildingArea > 0) {
                 const reductionA = 45_000;
-                const unitPrice = landAcqBase / landArea;
+                // 単価はQ14の「取得した宅地等の1m²当たりの価格」= 課税標準÷取得面積。
+                // 持ち分が分子・分母で打ち消し合うため、持ち分適用前の課税標準÷全体面積と等しい。
+                const unitPrice = landAcqBasePreShare / landArea;
                 const cappedArea = Math.min(buildingArea * 2, 200);
                 const reductionB = Math.floor(unitPrice * cappedArea * 0.03);
 
@@ -181,14 +201,15 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
             }
         }
 
-        // 登録免許税
-        const landRegBase = Math.floor(landValuation / 1000) * 1000;
+        // 登録免許税（課税標準 = 評価額 × 持ち分、1,000円未満切捨）
+        const landValWithShare = hasLandShare ? Math.floor(landValuation * lN / lD) : landValuation;
+        const landRegBase = Math.floor(landValWithShare / 1000) * 1000;
         let landRegRate = 0.02;
         let landRegRateNote = '本則税率';
 
         if (transactionType === 'purchase') {
-            landRegRate = 0.015;
-            landRegRateNote = '売買の特例税率';
+            landRegRate = 0.02;
+            landRegRateNote = '売買 (R8.4.1以降 本則2%・軽減1.5%は期限切れ)';
         } else if (transactionType === 'inheritance') {
             landRegRate = 0.004;
             landRegRateNote = '相続';
@@ -196,15 +217,21 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
             landRegRate = 0.02;
             landRegRateNote = '贈与';
         } else if (transactionType === 'new_build') {
-            landRegRate = 0.004;
-            landRegRateNote = '所有権移転(仮)';
+            landRegRate = 0.02;
+            landRegRateNote = '売買（土地取得 本則2%）';
         }
 
         const rawLandReg = Math.floor(landRegBase * landRegRate);
         result.landReg = Math.floor(rawLandReg / 100) * 100;
         if (result.landReg < 1000) result.landReg = 1000;
 
-        result.process.landReg.push(`課税標準額: ${formatYen(landRegBase)}`);
+        if (hasLandShare) {
+            result.process.landReg.push(
+                `課税標準額: ${formatYen(landValuation)} × ${lN}/${lD} (持ち分) = ${formatYen(landValWithShare)} → ${formatYen(landRegBase)} (1,000円未満切捨)`
+            );
+        } else {
+            result.process.landReg.push(`課税標準額: ${formatYen(landRegBase)}`);
+        }
         result.process.landReg.push(
             `税額: ${formatYen(landRegBase)} × ${(landRegRate * 100).toFixed(2)}% (${landRegRateNote}) = ${formatYen(rawLandReg)} → ${formatYen(result.landReg)}`
         );
@@ -217,16 +244,27 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
             result.bldgAcq = 0;
             result.process.bldgAcq.push('相続のため不動産取得税は非課税 (0円)');
         } else {
-            const bldgAcqBase = Math.max(0, buildingValuation - acquisitionDeduction);
+            const bldgBasePreShare = Math.max(0, buildingValuation - acquisitionDeduction);
+            const bldgAcqBase = hasBldgShare
+                ? Math.floor(bldgBasePreShare * bN / bD)
+                : bldgBasePreShare;
             const bldgAcqRate = isResidential ? 0.03 : 0.04;
             const bldgRateNote = isResidential ? '住宅用' : '非住宅';
 
             result.bldgAcq = Math.floor(bldgAcqBase * bldgAcqRate);
 
             result.process.bldgAcq.push(`評価額: ${formatYen(buildingValuation)}`);
-            if (acquisitionDeduction > 0) {
+            if (acquisitionDeduction > 0 && hasBldgShare) {
+                result.process.bldgAcq.push(
+                    `課税標準額: (${formatYen(buildingValuation)} - ${formatYen(acquisitionDeduction)}(控除)) × ${bN}/${bD} (持ち分) = ${formatYen(bldgAcqBase)}`
+                );
+            } else if (acquisitionDeduction > 0) {
                 result.process.bldgAcq.push(
                     `課税標準額: ${formatYen(buildingValuation)} - ${formatYen(acquisitionDeduction)}(控除) = ${formatYen(bldgAcqBase)}`
+                );
+            } else if (hasBldgShare) {
+                result.process.bldgAcq.push(
+                    `課税標準額: ${formatYen(buildingValuation)} × ${bN}/${bD} (持ち分) = ${formatYen(bldgAcqBase)}`
                 );
             } else {
                 result.process.bldgAcq.push(`課税標準額: ${formatYen(bldgAcqBase)}`);
@@ -236,8 +274,9 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
             );
         }
 
-        // 登録免許税
-        const bldgRegBase = Math.floor(buildingValuation / 1000) * 1000;
+        // 登録免許税（課税標準 = 評価額 × 持ち分、1,000円未満切捨）
+        const bldgValWithShare = hasBldgShare ? Math.floor(buildingValuation * bN / bD) : buildingValuation;
+        const bldgRegBase = Math.floor(bldgValWithShare / 1000) * 1000;
         let bldgRegRate = 0.02;
         let bldgRegRateNote = '本則';
 
@@ -268,7 +307,13 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
         result.bldgReg = Math.floor(rawBldgReg / 100) * 100;
         if (result.bldgReg < 1000) result.bldgReg = 1000;
 
-        result.process.bldgReg.push(`課税標準額: ${formatYen(bldgRegBase)}`);
+        if (hasBldgShare) {
+            result.process.bldgReg.push(
+                `課税標準額: ${formatYen(buildingValuation)} × ${bN}/${bD} (持ち分) = ${formatYen(bldgValWithShare)} → ${formatYen(bldgRegBase)} (1,000円未満切捨)`
+            );
+        } else {
+            result.process.bldgReg.push(`課税標準額: ${formatYen(bldgRegBase)}`);
+        }
         result.process.bldgReg.push(
             `税額: ${formatYen(bldgRegBase)} × ${(bldgRegRate * 100).toFixed(2)}% (${bldgRegRateNote}) = ${formatYen(rawBldgReg)} → ${formatYen(result.bldgReg)}`
         );

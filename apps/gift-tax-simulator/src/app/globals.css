@@ -1089,6 +1089,11 @@ tr.rate-row-highlight td {
   }
 }
 
+/* 印刷参照ページは画面では非表示 */
+.print-reference {
+  display: none;
+}
+
 /* ===================== 印刷用スタイル ===================== */
 @media print {
   .table-container::before {
@@ -1103,7 +1108,7 @@ tr.rate-row-highlight td {
   html,
   body {
     width: 100%;
-    height: 100%;
+    height: auto;
     margin: 0 !important;
     padding: 0 !important;
     background-color: #fff;
@@ -1244,11 +1249,9 @@ tr.rate-row-highlight td {
     font-size: 8pt !important;
   }
 
-  /* シミュレーターページ用縮小（A4 1枚に収める） */
+  /* シミュレーターページ用縮小（zoom はレイアウト自体を縮小するためページブレーク計算が正確） */
   body:not(:has(.table-page)) {
-    transform: scale(0.92);
-    transform-origin: top left;
-    width: 108.7%;
+    zoom: 0.82;
   }
 
   /* 早見表ページ（A4横・2テーブル横並び） */
@@ -1419,6 +1422,8 @@ tr.rate-row-highlight td {
     padding: 8px !important;
     border: 1.5px solid var(--primary-color) !important;
     border-left: 5px solid var(--primary-color) !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .real-estate-page .re-result-groups {
@@ -1499,14 +1504,46 @@ tr.rate-row-highlight td {
     color: #555 !important;
   }
 
-  /* 持ち分入力は印刷不要 */
+  /* 持ち分入力を印刷表示 */
   .share-input-row {
-    display: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    margin-top: 4px !important;
+  }
+
+  .share-fraction input[type="number"] {
+    width: auto !important;
+    min-width: 1.2rem !important;
+    max-width: 2.5rem !important;
+    padding: 0 !important;
+    border: none !important;
+    border-bottom: 1px solid #999 !important;
+    font-size: 9pt !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+    text-align: center !important;
+    background: transparent !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: textfield !important;
+  }
+
+  .share-fraction span {
+    font-size: 10pt !important;
+    color: #000 !important;
+    font-weight: bold !important;
   }
 
   /* 結果セクションのコンパクト化 */
   .result-section {
     padding: 8px 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .real-estate-page .detail-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* 計算過程セクション印刷用 */
@@ -1614,5 +1651,100 @@ tr.rate-row-highlight td {
 
   .no-print {
     display: none !important;
+  }
+
+  /* 印刷参照ページ（2P目） */
+  .print-reference {
+    display: block !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    padding-top: 4px;
+  }
+
+  .print-ref-section {
+    margin-bottom: 1rem;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .print-ref-h2 {
+    font-size: 10pt !important;
+    font-weight: bold;
+    color: var(--primary-dark);
+    border-bottom: 1.5px solid var(--primary-color);
+    padding-bottom: 3px;
+    margin: 0.75rem 0 0.4rem;
+  }
+
+  .print-ref-h3 {
+    font-size: 8.5pt !important;
+    font-weight: bold;
+    margin: 0.4rem 0 0.2rem;
+    color: #222;
+  }
+
+  .print-ref-formula-block {
+    background: #f8f8f8;
+    border-left: 3px solid var(--primary-color);
+    padding: 4px 8px;
+    margin: 0.3rem 0;
+    font-size: 8pt !important;
+    line-height: 1.6;
+  }
+
+  .print-ref-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .print-ref-ul {
+    margin: 0.2rem 0 0.2rem 1rem;
+    padding: 0;
+    font-size: 7.5pt !important;
+    line-height: 1.5;
+  }
+
+  .print-reference p {
+    font-size: 7.5pt !important;
+    margin: 0.15rem 0;
+    line-height: 1.5;
+  }
+
+  .print-ref-note {
+    font-size: 7pt !important;
+    color: #555 !important;
+  }
+
+  .print-ref-src {
+    font-size: 6.5pt !important;
+    color: #888 !important;
+    margin-top: 0.3rem !important;
+  }
+
+  .print-ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.25rem 0;
+    font-size: 7.5pt !important;
+  }
+
+  .print-ref-table th,
+  .print-ref-table td {
+    border: 1px solid #bbb;
+    padding: 2px 6px !important;
+    font-size: 7.5pt !important;
+    white-space: nowrap;
+  }
+
+  .print-ref-table th {
+    background: #f0f7f0;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  .print-ref-td-right {
+    text-align: right;
+    font-weight: bold;
   }
 }
