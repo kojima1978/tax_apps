@@ -3,6 +3,10 @@ export type PageKey = 'acquisition-tax' | 'registration-tax';
 type ValuationData = {
     landValuation: string;
     buildingValuation: string;
+    landShareNumerator?: string;
+    landShareDenominator?: string;
+    buildingShareNumerator?: string;
+    buildingShareDenominator?: string;
 };
 
 const STORAGE_KEY = 'gift-tax-sim:valuations';

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import RealEstatePageLayout from '@/components/shared/RealEstatePageLayout';
 import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
+import PrintReference from '@/components/registration-tax/PrintReference';
 import { useRegistrationTaxForm } from '@/hooks/useRegistrationTaxForm';
 
 const ShareInput = ({
@@ -131,6 +132,7 @@ export default function RegistrationTaxPage() {
             showDetails={form.showDetails}
             setShowDetails={form.setShowDetails}
             printTitle="登録免許税シミュレーション"
+            printReference={<PrintReference />}
         />
     );
 }

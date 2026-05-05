@@ -41,6 +41,7 @@ type Props = {
     showDetails: boolean;
     setShowDetails: (v: boolean) => void;
     printTitle: string;
+    printReference?: React.ReactNode;
 };
 
 const RealEstatePageLayout = ({
@@ -54,6 +55,7 @@ const RealEstatePageLayout = ({
     results, resultConfig,
     showDetails, setShowDetails,
     printTitle,
+    printReference,
 }: Props) => (
     <PageLayout className="real-estate-page">
         {/* 印刷時のみ表示: ページ先頭に会社情報 */}
@@ -115,6 +117,7 @@ const RealEstatePageLayout = ({
                 <p className="disclaimer no-print">{resultConfig.disclaimer}</p>
             </div>
         )}
+        {printReference}
     </PageLayout>
 );
 

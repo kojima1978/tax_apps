@@ -29,11 +29,20 @@ export const useRegistrationTaxForm = () => {
 
     // 評価額をlocalStorageに保存
     useEffect(() => {
-        saveValuations('registration-tax', { landValuation, buildingValuation });
-    }, [landValuation, buildingValuation]);
+        saveValuations('registration-tax', {
+            landValuation,
+            buildingValuation,
+            landShareNumerator,
+            landShareDenominator,
+            buildingShareNumerator,
+            buildingShareDenominator,
+        });
+    }, [landValuation, buildingValuation,
+        landShareNumerator, landShareDenominator, buildingShareNumerator, buildingShareDenominator]);
 
     const { importLandValuation, importBuildingValuation } =
-        useValuationImport('acquisition-tax', setLandValuation, setBuildingValuation);
+        useValuationImport('acquisition-tax', setLandValuation, setBuildingValuation,
+            setLandShareNumerator, setLandShareDenominator, setBuildingShareNumerator, setBuildingShareDenominator);
 
     const calculateTax = useCallback(() => {
         setErrorMsg('');
@@ -51,6 +60,11 @@ export const useRegistrationTaxForm = () => {
             return;
         }
 
+        const lN = Math.max(1, parseInt(landShareNumerator) || 1);
+        const lD = Math.max(1, parseInt(landShareDenominator) || 1);
+        const bN = Math.max(1, parseInt(buildingShareNumerator) || 1);
+        const bD = Math.max(1, parseInt(buildingShareDenominator) || 1);
+
         const result = calculateRealEstateTax({
             includeLand,
             includeBuilding,
@@ -63,28 +77,17 @@ export const useRegistrationTaxForm = () => {
             isResidential,
             hasHousingCertificate,
             acquisitionDeduction: 0,
+            landShare: { n: lN, d: lD },
+            buildingShare: { n: bN, d: bD },
         });
 
-        // 持ち分適用
-        const lN = Math.max(1, parseInt(landShareNumerator) || 1);
-        const lD = Math.max(1, parseInt(landShareDenominator) || 1);
-        const bN = Math.max(1, parseInt(buildingShareNumerator) || 1);
-        const bD = Math.max(1, parseInt(buildingShareDenominator) || 1);
-
-        const landReg = Math.floor(result.landReg * lN / lD);
-        const bldgReg = Math.floor(result.bldgReg * bN / bD);
-
-        if (lN !== lD) result.process.landReg.push(`持ち分 ${lN}/${lD} 適用`);
-        if (bN !== bD) result.process.bldgReg.push(`持ち分 ${bN}/${bD} 適用`);
-
-        const totalReg = landReg + bldgReg;
-        const resultError = validateResult(totalReg);
+        const resultError = validateResult(result.totalReg);
         if (resultError) {
             setErrorMsg(resultError);
             setResults(null);
             return;
         }
-        setResults({ ...result, landReg, bldgReg, totalReg, total: totalReg });
+        setResults({ ...result, total: result.totalReg });
     }, [
         includeLand, includeBuilding, landValuation, buildingValuation,
         transactionType, isResidential, hasHousingCertificate,
