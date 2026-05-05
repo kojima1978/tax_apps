@@ -13,6 +13,7 @@ export type HeirColumn = {
 interface HeirScenarioTableProps {
   label: string;
   taxTotal: number;
+  taxLabel?: string;
   headerBg: string;
   heirCount: number;
   getHeirKey: (i: number) => string;
@@ -22,17 +23,18 @@ interface HeirScenarioTableProps {
 export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
   label,
   taxTotal,
+  taxLabel = '税額合計',
   headerBg,
   heirCount,
   getHeirKey,
   columns,
 }) => (
-  <div>
-    <h4 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
+  <div className="h-full flex flex-col">
+    <h4 className="min-h-10 text-base font-bold text-gray-700 mb-2 flex flex-wrap items-center gap-2">
       <span className="inline-block w-3 h-3 rounded-full bg-green-600" />
       {label}
       <span className="text-sm font-normal text-gray-500">
-        （税額合計: {formatCurrency(taxTotal)}）
+        （{taxLabel}: {formatCurrency(taxTotal)}）
       </span>
     </h4>
     <div className="overflow-x-auto table-scroll-hint">
@@ -40,13 +42,13 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
         <thead>
           <tr className={`${headerBg} text-white`}>
             {columns.map(col => (
-              <th key={col.label} className={TH}>{col.label}</th>
+              <th key={col.label} className={`${TH} whitespace-nowrap`}>{col.label}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {Array.from({ length: heirCount }, (_, i) => (
-            <tr key={getHeirKey(i)} className="hover:bg-green-50">
+            <tr key={getHeirKey(i)} className="hover:bg-green-50 align-top">
               {columns.map(col => (
                 <td
                   key={col.label}
@@ -57,7 +59,7 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
               ))}
             </tr>
           ))}
-          <tr className="bg-gray-50 font-semibold">
+          <tr className="bg-gray-50 font-semibold align-top">
             {columns.map(col => (
               <td
                 key={col.label}

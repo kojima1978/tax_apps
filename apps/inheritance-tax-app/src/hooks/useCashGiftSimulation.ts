@@ -17,7 +17,15 @@ export function useCashGiftSimulation() {
 
   const getRecipientId = useCallback((r: GiftRecipient) => r.heirId, []);
   const setRecipientId = useCallback((r: GiftRecipient, id: string, label: string) => ({ ...r, heirId: id, heirLabel: label }), []);
-  const cleanedRecipients = useCleanOptions(recipients, recipientOptions, getRecipientId, setRecipientId);
+
+  // 相続人のみ cleanOptions でクリーン、相続人以外はそのまま保持
+  const heirRecipientsRaw = useMemo(() => recipients.filter(r => r.isHeir), [recipients]);
+  const nonHeirRecipients = useMemo(() => recipients.filter(r => !r.isHeir), [recipients]);
+  const cleanedHeirRecipients = useCleanOptions(heirRecipientsRaw, recipientOptions, getRecipientId, setRecipientId);
+  const cleanedRecipients = useMemo(
+    () => [...cleanedHeirRecipients, ...nonHeirRecipients],
+    [cleanedHeirRecipients, nonHeirRecipients],
+  );
 
   const [result, setResult] = useState<CashGiftSimulationResult | null>(null);
   const [calcInputs, setCalcInputs] = useState<{
@@ -26,14 +34,24 @@ export function useCashGiftSimulation() {
     recipients: GiftRecipient[];
     spouseMode: typeof spouseMode;
   } | null>(null);
+  const [overAllocatedHeirsError, setOverAllocatedHeirsError] = useState<string[]>([]);
 
   const handleCalculate = useCallback(() => {
     if (estateValue <= 0 || cleanedRecipients.length === 0 || cleanedRecipients.every(r => r.annualAmount <= 0 || r.years <= 0)) {
       setResult(null);
       setCalcInputs(null);
+      setOverAllocatedHeirsError([]);
       return;
     }
-    setResult(calculateCashGiftSimulation(estateValue, composition, cleanedRecipients, spouseMode));
+    const simResult = calculateCashGiftSimulation(estateValue, composition, cleanedRecipients, spouseMode);
+    if (simResult.overAllocatedHeirs.length > 0) {
+      setResult(null);
+      setCalcInputs(null);
+      setOverAllocatedHeirsError(simResult.overAllocatedHeirs);
+      return;
+    }
+    setOverAllocatedHeirsError([]);
+    setResult(simResult);
     setCalcInputs({ estateValue, composition, recipients: cleanedRecipients, spouseMode });
   }, [estateValue, composition, cleanedRecipients, spouseMode]);
 
@@ -41,8 +59,6 @@ export function useCashGiftSimulation() {
     () => cleanedRecipients.reduce((s, r) => s + r.annualAmount * r.years, 0),
     [cleanedRecipients],
   );
-
-  const noEligibleRecipients = composition.selectedRank !== 'rank1' && composition.selectedRank !== 'none';
 
   return {
     ...base,
@@ -53,6 +69,6 @@ export function useCashGiftSimulation() {
     calcInputs,
     handleCalculate,
     totalGiftsInput,
-    noEligibleRecipients,
+    overAllocatedHeirsError,
   };
 }
