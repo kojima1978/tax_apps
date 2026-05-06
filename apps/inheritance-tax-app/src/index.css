@@ -118,6 +118,449 @@
   color: #16a34a;
 }
 
+/* ===================== 現金贈与 帳票型レイアウト ===================== */
+.cash-gift-report-sheet {
+  color: #1f2937;
+}
+
+.cash-gift-report-section + .cash-gift-report-section {
+  margin-top: 1.5rem;
+}
+
+.cash-gift-workbook-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.cash-gift-workbook-heading h3,
+.cash-gift-caution-notes h3 {
+  margin: 0;
+  color: #166534;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.cash-gift-workbook-heading span {
+  color: #4b5563;
+  font-size: 0.875rem;
+}
+
+.cash-gift-condition-table {
+  border-top: 1px solid #9ca3af;
+  border-bottom: 1px solid #9ca3af;
+}
+
+.cash-gift-condition-table tr + tr {
+  border-top: 1px solid #d1d5db;
+}
+
+.cash-gift-condition-table td {
+  padding: 0.35rem 0.45rem;
+  font-size: 0.875rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.cash-gift-condition-index {
+  width: 2rem;
+  text-align: center;
+}
+
+.cash-gift-condition-group {
+  min-width: 8rem;
+  color: #166534;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.cash-gift-condition-label {
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 500;
+}
+
+.cash-gift-condition-value {
+  text-align: right;
+  font-weight: 700;
+}
+
+.cash-gift-condition-note {
+  color: #4b5563;
+  text-align: center;
+}
+
+.cash-gift-conclusion-band {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(280px, 1.55fr) minmax(260px, 1.4fr);
+  margin: 1rem 0;
+  overflow: hidden;
+  border-radius: 2px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+}
+
+.cash-gift-conclusion-band > div {
+  min-height: 4.25rem;
+  padding: 0.65rem 1rem;
+}
+
+.cash-gift-conclusion-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.cash-gift-conclusion-title strong {
+  color: #166534;
+  font-size: 0.95rem;
+}
+
+.cash-gift-conclusion-content {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.cash-gift-conclusion-content span,
+.cash-gift-conclusion-impact span {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.cash-gift-conclusion-content strong {
+  font-size: 1.65rem;
+  line-height: 1;
+  text-align: right;
+}
+
+.cash-gift-conclusion-content small,
+.cash-gift-conclusion-impact small {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.cash-gift-conclusion-impact {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 0.65rem;
+  background: #16a34a;
+  color: #f0fdf4;
+}
+
+.cash-gift-conclusion-impact strong {
+  color: #ffffff;
+  font-size: 1.75rem;
+  line-height: 1;
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .cash-gift-conclusion-band {
+    grid-template-columns: 1fr;
+  }
+
+  .cash-gift-conclusion-content,
+  .cash-gift-conclusion-impact {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .cash-gift-conclusion-content strong,
+  .cash-gift-conclusion-impact strong {
+    text-align: left;
+  }
+}
+
+.cash-gift-year-total-table {
+  border: 1px solid #9ca3af;
+  font-size: 0.8125rem;
+}
+
+.cash-gift-year-total-table th {
+  background: #dcfce7;
+  border-right: 1px solid #d1d5db;
+  border-bottom: 1px solid #9ca3af;
+  color: #166534;
+  font-weight: 600;
+  padding: 0.25rem 0.4rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cash-gift-year-total-table td {
+  border-top: 1px dotted #d1d5db;
+  padding: 0.25rem 0.4rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cash-gift-year-total-table tbody th {
+  background: #ffffff;
+  border-top: 1px dotted #d1d5db;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.cash-gift-year-total-table tbody th:first-child {
+  color: #166534;
+  min-width: 8.5rem;
+  text-align: left;
+}
+
+.cash-gift-year-total-table tbody th.cash-gift-second-line-cell,
+.cash-gift-year-total-table tbody th.cash-gift-second-line-label {
+  background: #ffffff;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.cash-gift-year-total-table tbody th.cash-gift-second-line-cell {
+  border-right: 1px solid #d1d5db;
+}
+
+.cash-gift-year-total-summary th,
+.cash-gift-year-total-summary td {
+  background: #ffffff;
+  font-weight: 800;
+}
+
+.cash-gift-year-total-summary-start th,
+.cash-gift-year-total-summary-start td {
+  border-top: 1px solid #9ca3af;
+}
+
+.cash-gift-year-total-summary th.cash-gift-second-line-cell,
+.cash-gift-year-total-summary th.cash-gift-second-line-label {
+  background: #ffffff;
+  color: #4b5563;
+}
+
+.cash-gift-unit-cell {
+  min-width: 7rem;
+  text-align: left !important;
+}
+
+.cash-gift-tax-flow-grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 24px minmax(160px, 1fr) 24px minmax(190px, 1.15fr) 24px minmax(180px, 0.9fr);
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.cash-gift-tax-flow-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.cash-gift-tax-flow-box h4 {
+  margin: 0 0 0.35rem;
+  color: #166534;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.cash-gift-tax-flow-body {
+  flex: 1;
+  min-height: 9.5rem;
+}
+
+.cash-gift-tax-flow-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #d1d5db;
+  padding: 0.35rem 0.2rem;
+  font-size: 0.875rem;
+}
+
+.cash-gift-tax-flow-row span {
+  color: #4b5563;
+}
+
+.cash-gift-tax-flow-row strong {
+  font-weight: 600;
+  text-align: right;
+}
+
+.cash-gift-tax-flow-arrow {
+  color: #9ca3af;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+}
+
+.cash-gift-tax-flow-result {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 2px solid #16a34a;
+  padding: 0.3rem 0.45rem;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.cash-gift-tax-flow-result-accent {
+  border-color: #166534;
+}
+
+.cash-gift-side-arrow {
+  align-self: end;
+  color: #9ca3af;
+  font-size: 1.4rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.cash-gift-impact-box {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.cash-gift-impact-title {
+  margin-bottom: 0.35rem;
+  border-top: 1px solid #d1d5db;
+  padding-top: 0.35rem;
+  color: #166534;
+  font-size: 0.875rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.cash-gift-impact-box dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 0.75rem;
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.cash-gift-impact-box dt {
+  color: #4b5563;
+}
+
+.cash-gift-impact-box dd {
+  margin: 0;
+  text-align: right;
+}
+
+.cash-gift-impact-result {
+  border: 2px solid #166534;
+  padding: 0.35rem 0.45rem;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.cash-gift-impact-result span {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.cash-gift-caution-notes {
+  color: #4b5563;
+}
+
+.cash-gift-caution-notes p {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.cash-gift-print-gift-summary h4 {
+  margin: 0 0 0.4rem;
+  color: #166534;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.cash-gift-print-recipient-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background: #ffffff;
+  font-size: 0.8125rem;
+}
+
+.cash-gift-print-recipient-table col.recipient { width: 16%; }
+.cash-gift-print-recipient-table col.kind { width: 10%; }
+.cash-gift-print-recipient-table col.source { width: 16%; }
+.cash-gift-print-recipient-table col.tax-type { width: 8%; }
+.cash-gift-print-recipient-table col.amount { width: 14%; }
+.cash-gift-print-recipient-table col.years { width: 8%; }
+
+.cash-gift-print-recipient-table th {
+  background: #dcfce7;
+  border: 1px solid #d1d5db;
+  color: #166534;
+  font-weight: 800;
+  padding: 0.35rem 0.45rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cash-gift-print-recipient-table td {
+  border: 1px solid #d1d5db;
+  color: #1f2937;
+  padding: 0.35rem 0.45rem;
+  vertical-align: middle;
+}
+
+.cash-gift-print-recipient-table .recipient-name {
+  color: #166534;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.cash-gift-print-recipient-table .recipient-kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  border: 1px solid #86efac;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.1rem 0.45rem;
+}
+
+.cash-gift-print-recipient-table .number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cash-gift-print-recipient-table .total-row td {
+  background: #f0fdf4;
+  color: #166534;
+  font-weight: 800;
+}
+
+@media (max-width: 1279px) {
+  .cash-gift-tax-flow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cash-gift-side-arrow {
+    transform: rotate(90deg);
+  }
+}
+
 .print-only,
 .print-only-block {
   display: none !important;
@@ -678,5 +1121,144 @@
     break-after: avoid;
     font-size: 11px !important;
     margin-bottom: 3px !important;
+  }
+
+  .cash-gift-print .cash-gift-report-sheet {
+    padding: 6px 10px !important;
+    border: none !important;
+  }
+
+  .cash-gift-print .cash-gift-report-section + .cash-gift-report-section {
+    margin-top: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-workbook-heading {
+    gap: 18px !important;
+    margin-bottom: 3px !important;
+  }
+
+  .cash-gift-print .cash-gift-workbook-heading h3,
+  .cash-gift-print .cash-gift-caution-notes h3 {
+    font-size: 11px !important;
+    margin: 0 !important;
+  }
+
+  .cash-gift-print .cash-gift-workbook-heading span,
+  .cash-gift-print .cash-gift-caution-notes p {
+    font-size: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-condition-table td {
+    padding: 2px 5px !important;
+    font-size: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-conclusion-band {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.45fr) minmax(0, 1.35fr) !important;
+    margin: 5px 0 !important;
+    box-shadow: none !important;
+  }
+
+  .cash-gift-print .cash-gift-conclusion-band > div {
+    min-height: 34px !important;
+    padding: 4px 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-conclusion-title strong,
+  .cash-gift-print .cash-gift-conclusion-content span,
+  .cash-gift-print .cash-gift-conclusion-impact span {
+    font-size: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-conclusion-content strong,
+  .cash-gift-print .cash-gift-conclusion-impact strong {
+    font-size: 13px !important;
+  }
+
+  .cash-gift-print .cash-gift-conclusion-content small,
+  .cash-gift-print .cash-gift-conclusion-impact small {
+    font-size: 7px !important;
+  }
+
+  .cash-gift-print .cash-gift-year-total-table {
+    font-size: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-year-total-table th,
+  .cash-gift-print .cash-gift-year-total-table td {
+    padding: 2px 4px !important;
+    font-size: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-flow-grid {
+    grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr) 14px minmax(0, 1.12fr) 14px minmax(0, 0.9fr) !important;
+    gap: 4px !important;
+    align-items: stretch !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-flow-body {
+    min-height: 65px !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-flow-box h4 {
+    font-size: 9px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-flow-row {
+    padding: 2px !important;
+    font-size: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-flow-arrow {
+    font-size: 9px !important;
+  }
+
+  .cash-gift-print .cash-gift-side-arrow {
+    font-size: 10px !important;
+    transform: none !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-flow-result,
+  .cash-gift-print .cash-gift-impact-result {
+    padding: 2px 4px !important;
+    font-size: 8px !important;
+    border-width: 1px !important;
+  }
+
+  .cash-gift-print .cash-gift-impact-title,
+  .cash-gift-print .cash-gift-impact-box dl {
+    font-size: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-impact-box dl {
+    gap: 1px 5px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .cash-gift-print .cash-gift-inheritance-tax-section {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  .cash-gift-print .cash-gift-print-gift-summary h4 {
+    font-size: 9px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .cash-gift-print .cash-gift-print-recipient-table {
+    font-size: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-print-recipient-table th,
+  .cash-gift-print .cash-gift-print-recipient-table td {
+    padding: 2px 4px !important;
+    font-size: 8px !important;
+  }
+
+  .cash-gift-print .cash-gift-print-recipient-table .recipient-kind {
+    min-width: 0 !important;
+    font-size: 7px !important;
+    padding: 0 3px !important;
   }
 }

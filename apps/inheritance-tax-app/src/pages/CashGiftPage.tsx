@@ -5,9 +5,7 @@ import { EstateInput } from '../components/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { CashGiftRecipientList } from '../components/gift/CashGiftRecipientList';
 import { CashGiftPrintConditions } from '../components/gift/CashGiftPrintConditions';
-import { TaxBeforeAfterTable } from '../components/gift/TaxBeforeAfterTable';
 import { CashGiftHeirTable } from '../components/gift/CashGiftHeirTable';
-import { CashGiftYearComparison } from '../components/gift/CashGiftYearComparison';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
@@ -121,16 +119,7 @@ export const CashGiftPage: React.FC = () => {
                 spouseMode={calcInputs?.spouseMode ?? spouseMode}
               />
               <div className="space-y-4 md:space-y-6">
-                <TaxBeforeAfterTable result={result} />
                 <CashGiftHeirTable result={result} />
-                {calcInputs && (
-                  <CashGiftYearComparison
-                    estateValue={calcInputs.estateValue}
-                    composition={calcInputs.composition}
-                    recipients={calcInputs.recipients}
-                    spouseMode={calcInputs.spouseMode}
-                  />
-                )}
               </div>
             </div>
           )}
