@@ -4,7 +4,6 @@ import Trash2 from 'lucide-react/icons/trash-2';
 import Gift from 'lucide-react/icons/gift';
 import Users from 'lucide-react/icons/users';
 import { SectionHeader } from '../SectionHeader';
-import { CurrencyInput } from '../CurrencyInput';
 import type { GiftRecipient } from '../../types';
 import { generateId, formatCurrency, calculateGiftTaxPerYear } from '../../utils';
 import { useUniqueOptions } from '../../hooks/useUniqueOptions';
@@ -15,6 +14,9 @@ interface CashGiftRecipientListProps {
   recipientOptions: { id: string; label: string }[];
   onChange: (recipients: GiftRecipient[]) => void;
 }
+
+const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
+const CONTROL_CLASS = `h-11 w-full border border-gray-300 rounded-lg ${INPUT_FOCUS} bg-white text-base transition-colors hover:border-green-400`;
 
 export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
   recipients,
@@ -120,6 +122,13 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                 </div>
 
                 <div className="space-y-3">
+                  <div
+                    className={
+                      recipient.isHeir
+                        ? 'grid grid-cols-1 md:grid-cols-[160px_220px_140px] gap-3 items-start justify-start'
+                        : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[210px_220px_180px_190px_140px] gap-3 items-start justify-start'
+                    }
+                  >
                   {/* 受贈者 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">受贈者</label>
@@ -127,7 +136,7 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                       <select
                         value={recipient.heirId}
                         onChange={e => updateRecipient(recipient.id, { heirId: e.target.value })}
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${INPUT_FOCUS} text-right text-lg`}
+                        className={`${CONTROL_CLASS} px-3 text-right font-medium`}
                       >
                         {availableOptions.map(opt => (
                           <option key={opt.id} value={opt.id}>{opt.label}</option>
@@ -139,7 +148,7 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                         value={recipient.heirLabel}
                         onChange={e => updateRecipient(recipient.id, { heirLabel: e.target.value })}
                         placeholder="例: 長男の配偶者"
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${INPUT_FOCUS} text-lg`}
+                        className={`${CONTROL_CLASS} px-3`}
                       />
                     )}
                   </div>
@@ -157,7 +166,7 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                             sourceHeirLabel: opt?.label ?? undefined,
                           });
                         }}
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${INPUT_FOCUS} text-right text-lg`}
+                        className={`${CONTROL_CLASS} px-3 text-right`}
                       >
                         {recipientOptions.map(opt => (
                           <option key={opt.id} value={opt.id}>{opt.label}の相続分から</option>
@@ -170,19 +179,26 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                   {!recipient.isHeir && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">贈与税率</label>
-                      <div className="flex gap-4">
+                      <div className="grid h-11 grid-cols-2 gap-1 rounded-lg border border-gray-300 bg-white p-1">
                         {(['general', 'special'] as const).map(type => (
-                          <label key={type} className="flex items-center gap-2 cursor-pointer">
+                          <label
+                            key={type}
+                            className={`flex cursor-pointer items-center justify-center rounded-md px-2 text-sm font-medium transition-colors ${
+                              recipient.taxType === type
+                                ? 'bg-green-600 text-white shadow-sm'
+                                : 'text-gray-600 hover:bg-green-50'
+                            }`}
+                          >
                             <input
                               type="radio"
                               name={`taxType-${recipient.id}`}
                               value={type}
                               checked={recipient.taxType === type}
                               onChange={() => updateRecipient(recipient.id, { taxType: type })}
-                              className="accent-green-600"
+                              className="sr-only"
                             />
-                            <span className="text-sm">
-                              {type === 'general' ? '一般（子の配偶者など）' : '特例（孫など直系）'}
+                            <span>
+                              {type === 'general' ? '一般' : '特例'}
                             </span>
                           </label>
                         ))}
@@ -191,30 +207,41 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
                   )}
 
                   {/* 年間贈与額 */}
-                  <CurrencyInput
-                    label="年間贈与額"
-                    value={recipient.annualAmount}
-                    onChange={v => updateRecipient(recipient.id, { annualAmount: v })}
-                    placeholder="例: 500"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">年間贈与額</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={recipient.annualAmount || ''}
+                        onChange={e => updateRecipient(recipient.id, { annualAmount: Number(e.target.value) || 0 })}
+                        onWheel={e => e.currentTarget.blur()}
+                        min={0}
+                        step={100}
+                        inputMode="numeric"
+                        placeholder="例: 500"
+                        className={`${CONTROL_CLASS} px-3 text-right font-medium`}
+                      />
+                      <span className="text-gray-600 whitespace-nowrap font-medium">万円</span>
+                    </div>
+                  </div>
 
                   {/* 贈与年数 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">贈与年数</label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        step={1}
+                    <div className="flex items-center gap-2">
+                      <select
                         value={recipient.years || ''}
-                        onChange={e => updateRecipient(recipient.id, { years: Math.min(30, Math.max(0, parseInt(e.target.value) || 0)) })}
-                        onWheel={e => e.currentTarget.blur()}
-                        placeholder="例: 10"
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${INPUT_FOCUS} text-right text-lg`}
-                      />
+                        onChange={e => updateRecipient(recipient.id, { years: Number(e.target.value) || 0 })}
+                        className={`${CONTROL_CLASS} px-3 text-right font-medium`}
+                      >
+                        <option value="">選択</option>
+                        {YEAR_OPTIONS.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
                       <span className="text-gray-600 whitespace-nowrap font-medium">年</span>
                     </div>
+                  </div>
                   </div>
 
                   {/* プレビュー行 */}
