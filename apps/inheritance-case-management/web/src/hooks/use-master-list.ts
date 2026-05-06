@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useToast } from "@/components/ui/Toast"
 
 type SortOrder = "asc" | "desc"
+type MasterListItem = { id: number; active: boolean }
 
-export interface MasterListConfig<T extends { id: number; active: boolean }, C, U> {
+export interface MasterListConfig<T extends MasterListItem, C, U> {
     fetchAll: () => Promise<T[]>
     create: (data: C) => Promise<T>
     update: (id: number, data: U) => Promise<T>
@@ -23,6 +24,57 @@ export interface MasterListConfig<T extends { id: number; active: boolean }, C, 
     getPermanentDeleteBlockMessage?: (item: T) => string | null
 }
 
+function serializeItem(item: unknown): string {
+    return JSON.stringify(item)
+}
+
+function hasUnsavedChanges<T extends MasterListItem>(
+    originalItems: T[],
+    items: T[],
+    deletedIds: Set<number>,
+): boolean {
+    return deletedIds.size > 0 || serializeItem(originalItems) !== serializeItem(items)
+}
+
+function indexItemsById<T extends MasterListItem>(items: T[]): Map<number, T> {
+    return new Map(items.map(item => [item.id, item]))
+}
+
+function collectSaveOperations<T extends MasterListItem, C, U>({
+    config,
+    deletedIds,
+    items,
+    originalItems,
+}: {
+    config: MasterListConfig<T, C, U>
+    deletedIds: Set<number>
+    items: T[]
+    originalItems: T[]
+}): Promise<unknown>[] {
+    const originalById = indexItemsById(originalItems)
+    const operations: Promise<unknown>[] = []
+
+    for (const id of deletedIds) {
+        if (!isTempId(id)) {
+            operations.push(config.remove(id))
+        }
+    }
+
+    for (const item of items) {
+        if (isTempId(item.id)) {
+            operations.push(config.create(config.getCreatePayload(item)))
+            continue
+        }
+
+        const original = originalById.get(item.id)
+        if (original && serializeItem(original) !== serializeItem(item)) {
+            operations.push(config.update(item.id, config.getUpdatePayload(item)))
+        }
+    }
+
+    return operations
+}
+
 // Counter for temporary IDs (negative numbers indicate unsaved items)
 let tempIdCounter = 0;
 export function nextTempId(): number {
@@ -32,7 +84,7 @@ export function isTempId(id: number): boolean {
     return id < 0;
 }
 
-export function useMasterList<T extends { id: number; active: boolean }, C, U>(
+export function useMasterList<T extends MasterListItem, C, U>(
     config: MasterListConfig<T, C, U>
 ) {
     const router = useRouter()
@@ -56,8 +108,11 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
     const [editingFields, setEditingFields] = useState<Record<string, string>>({})
 
     const [isSaving, setIsSaving] = useState(false)
-    const [isDirty, setIsDirty] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
+    const isDirty = useMemo(
+        () => hasUnsavedChanges(originalItems, items, deletedIds),
+        [deletedIds, items, originalItems],
+    )
 
     useEffect(() => {
         const load = async () => {
@@ -75,49 +130,26 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
     }, [])
 
     useEffect(() => {
-        const isModified = JSON.stringify(originalItems) !== JSON.stringify(items) || deletedIds.size > 0
-        setIsDirty(isModified)
+        if (!isDirty) return
 
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (isModified) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
+            e.preventDefault()
+            e.returnValue = ''
         }
         window.addEventListener('beforeunload', handleBeforeUnload)
         return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-    }, [items, originalItems, deletedIds])
+    }, [isDirty])
 
     const handleSave = useCallback(async () => {
         setIsSaving(true)
         try {
             const cfg = configRef.current
-            const promises: Promise<unknown>[] = []
-
-            for (const id of deletedIds) {
-                if (!isTempId(id)) {
-                    promises.push(cfg.remove(id))
-                }
-            }
-
-            for (const item of items) {
-                if (isTempId(item.id)) {
-                    promises.push(cfg.create(cfg.getCreatePayload(item)))
-                } else {
-                    const original = originalItems.find(o => o.id === item.id)
-                    if (original && JSON.stringify(original) !== JSON.stringify(item)) {
-                        promises.push(cfg.update(item.id, cfg.getUpdatePayload(item)))
-                    }
-                }
-            }
-
-            await Promise.all(promises)
+            await Promise.all(collectSaveOperations({ config: cfg, deletedIds, items, originalItems }))
 
             const newData = await cfg.fetchAll()
             setOriginalItems(newData)
             setItems(newData)
             setDeletedIds(new Set())
-            setIsDirty(false)
 
             router.refresh()
             if (returnTo) {
@@ -178,7 +210,7 @@ export function useMasterList<T extends { id: number; active: boolean }, C, U>(
     }, [])
 
     const handleSaveEdit = useCallback((validate: () => boolean, applyEdit: (item: T) => T) => {
-        if (!editingId || !validate()) return
+        if (editingId === null || !validate()) return
 
         setItems(prev => prev.map(item =>
             item.id === editingId ? applyEdit(item) : item

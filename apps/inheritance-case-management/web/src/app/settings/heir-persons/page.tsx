@@ -7,18 +7,18 @@ import { Input } from "@/components/ui/Input"
 import { JpDateInput } from "@/components/ui/JpDateInput"
 import { Label } from "@/components/ui/Label"
 import { MasterListPage, getMasterListPageProps, type ColumnDef } from "@/components/MasterListPage"
+import { PersonAddressFields } from "@/components/person-master/PersonAddressFields"
 import { useMasterList, nextTempId, type MasterListConfig } from "@/hooks/use-master-list"
 import { formatWareki } from "@/lib/japanese-era"
-import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
+import { createPersonMasterDraft, getPersonMasterEditingFields, getPersonMasterPayload } from "@/lib/person-master-utils"
 import { formatPersonDeleteBlockedMessage } from "@/lib/person-delete-message"
-import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
-import { fetchAddressFromPostalCode } from "@/lib/postal-code"
-import { formatPostalCodeForInput, normalizePostalCodeDigits } from "@/lib/postal-code-format"
+import { personMatchesSearch } from "@/lib/person-search"
+import { usePersonAddressEditing } from "@/hooks/use-person-address-editing"
 import type { HeirPerson } from "@/types/shared"
 import type { CreateHeirPersonInput, UpdateHeirPersonInput } from "@/types/validation"
 import { getHeirPersons, createHeirPerson, updateHeirPerson, deleteHeirPerson } from "@/lib/api/masters"
 import { useToast } from "@/components/ui/Toast"
-import { Check, Loader2, Search, X } from "lucide-react"
+import { Check, X } from "lucide-react"
 import { useState } from "react"
 import { RelatedCasesPopover } from "./RelatedCasesPopover"
 
@@ -91,26 +91,12 @@ const MASTER_CONFIG: MasterListConfig<HeirPerson, CreateHeirPersonInput, UpdateH
     update: updateHeirPerson,
     remove: deleteHeirPerson,
     getCreatePayload: (item) => ({
-        name: item.name,
-        nameKana: item.nameKana || "",
+        ...getPersonMasterPayload(item),
         dateOfBirth: item.dateOfBirth || null,
-        phone: item.phone || "",
-        postalCode: item.postalCode || "",
-        address: item.address || "",
-        addressFromPostalCode: item.addressFromPostalCode || "",
-        addressManual: item.addressManual || "",
-        memo: item.memo || "",
     }),
     getUpdatePayload: (item) => ({
-        name: item.name,
-        nameKana: item.nameKana || "",
+        ...getPersonMasterPayload(item),
         dateOfBirth: item.dateOfBirth || null,
-        phone: item.phone || "",
-        postalCode: item.postalCode || "",
-        address: item.address || "",
-        addressFromPostalCode: item.addressFromPostalCode || "",
-        addressManual: item.addressManual || "",
-        memo: item.memo || "",
         active: item.active,
     }),
     entityLabel: "相続人",
@@ -141,7 +127,7 @@ function HeirPersonsContent() {
     const [newName, setNewName] = useState("")
     const [newNameKana, setNewNameKana] = useState("")
     const [newPhone, setNewPhone] = useState("")
-    const [editAddressSearching, setEditAddressSearching] = useState(false)
+    const addressEditing = usePersonAddressEditing(ml.setEditingFields)
 
     const handleAdd = () => {
         const name = newName.trim()
@@ -151,15 +137,8 @@ function HeirPersonsContent() {
         }
         ml.handleAdd({
             id: nextTempId(),
-            name,
-            nameKana: normalizeNameKanaForStorage(newNameKana),
+            ...createPersonMasterDraft({ name, nameKana: newNameKana, phone: newPhone }),
             dateOfBirth: null,
-            phone: newPhone.trim(),
-            postalCode: "",
-            address: "",
-            addressFromPostalCode: "",
-            addressManual: "",
-            memo: "",
             active: true,
         })
         setNewName("")
@@ -168,17 +147,7 @@ function HeirPersonsContent() {
     }
 
     const handleStartEdit = (item: HeirPerson) => {
-        ml.handleStartEdit(item, {
-            name: item.name,
-            nameKana: item.nameKana || "",
-            dateOfBirth: item.dateOfBirth || "",
-            phone: item.phone || "",
-            postalCode: item.postalCode || "",
-            address: item.address || "",
-            addressFromPostalCode: item.addressFromPostalCode || "",
-            addressManual: item.addressManual || "",
-            memo: item.memo || "",
-        })
+        ml.handleStartEdit(item, getPersonMasterEditingFields(item, { dateOfBirth: item.dateOfBirth }))
     }
 
     const handleSaveEdit = () => {
@@ -191,59 +160,13 @@ function HeirPersonsContent() {
                 return true
             },
             (item) => {
-                const addressParts = normalizePersonAddressParts({
-                    address: ml.editingFields.address,
-                    addressFromPostalCode: ml.editingFields.addressFromPostalCode,
-                    addressManual: ml.editingFields.addressManual,
-                })
                 return {
                     ...item,
-                    name: ml.editingFields.name.trim(),
-                    nameKana: normalizeNameKanaForStorage(ml.editingFields.nameKana || ""),
+                    ...getPersonMasterPayload(ml.editingFields),
                     dateOfBirth: ml.editingFields.dateOfBirth?.trim() || null,
-                    phone: ml.editingFields.phone?.trim() || "",
-                    postalCode: ml.editingFields.postalCode?.trim() || "",
-                    ...addressParts,
-                    memo: ml.editingFields.memo?.trim() || "",
                 }
             }
         )
-    }
-
-    const updateEditingAddressFromPostalCode = (addressFromPostalCode: string) => {
-        ml.setEditingFields(f => ({
-            ...f,
-            addressFromPostalCode,
-            address: normalizePersonAddressParts({ ...f, addressFromPostalCode }).address,
-        }))
-    }
-
-    const updateEditingAddressManual = (addressManual: string) => {
-        ml.setEditingFields(f => ({
-            ...f,
-            addressManual,
-            address: normalizePersonAddressParts({ ...f, addressManual }).address,
-        }))
-    }
-
-    const handleEditPostalCodeChange = async (value: string) => {
-        const digits = normalizePostalCodeDigits(value)
-        ml.setEditingFields(f => ({ ...f, postalCode: digits }))
-        if (digits.length !== 7) return
-
-        setEditAddressSearching(true)
-        try {
-            const address = await fetchAddressFromPostalCode(digits)
-            if (address) {
-                ml.setEditingFields(f => ({
-                    ...f,
-                    postalCode: digits,
-                    ...applyPostalCodeAddress(f, address),
-                }))
-            }
-        } finally {
-            setEditAddressSearching(false)
-        }
     }
 
     const handleEditKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -298,68 +221,23 @@ function HeirPersonsContent() {
                             onChange={(v) => ml.setEditingFields(f => ({ ...f, dateOfBirth: v }))}
                         />
                     </div>
-                    <div className="space-y-1 lg:col-start-1 lg:row-start-3">
-                        <Label htmlFor={fieldId("postalCode")} className="text-xs text-muted-foreground">郵便番号</Label>
-                        <div className="flex gap-1">
-                            <Input
-                                id={fieldId("postalCode")}
-                                value={formatPostalCodeForInput(ml.editingFields.postalCode || "")}
-                                onChange={(e) => handleEditPostalCodeChange(e.target.value)}
-                                onKeyDown={handleEditKeyDown}
-                                placeholder="000-0000"
-                                inputMode="numeric"
-                                maxLength={8}
-                                className={EDIT_INPUT_CLASS}
-                            />
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-10 w-10 shrink-0 rounded-md"
-                                disabled={editAddressSearching}
-                                onClick={async () => {
-                                    setEditAddressSearching(true)
-                                    try {
-                                        const address = await fetchAddressFromPostalCode(ml.editingFields.postalCode || "")
-                                        if (address) {
-                                            ml.setEditingFields(f => ({
-                                                ...f,
-                                                ...applyPostalCodeAddress(f, address),
-                                            }))
-                                        }
-                                    } finally {
-                                        setEditAddressSearching(false)
-                                    }
-                                }}
-                                title="郵便番号から住所を検索"
-                                aria-label="郵便番号から住所を検索"
-                            >
-                                {editAddressSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                            </Button>
-                        </div>
-                    </div>
-                    <div className="space-y-1 sm:col-span-2 lg:col-span-3 lg:col-start-2 lg:row-start-3">
-                        <Label htmlFor={fieldId("addressFromPostalCode")} className="text-xs text-muted-foreground">住所（郵便番号から自動入力）</Label>
-                        <Input
-                            id={fieldId("addressFromPostalCode")}
-                            value={ml.editingFields.addressFromPostalCode || ""}
-                            onChange={(e) => updateEditingAddressFromPostalCode(e.target.value)}
-                            onKeyDown={handleEditKeyDown}
-                            placeholder="都道府県 市区町村 町名"
-                            className={EDIT_INPUT_CLASS}
-                        />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2 lg:col-span-3 lg:col-start-1 lg:row-start-4">
-                        <Label htmlFor={fieldId("addressManual")} className="text-xs text-muted-foreground">住所補足（番地・建物名など手入力）</Label>
-                        <Input
-                            id={fieldId("addressManual")}
-                            value={ml.editingFields.addressManual || ""}
-                            onChange={(e) => updateEditingAddressManual(e.target.value)}
-                            onKeyDown={handleEditKeyDown}
-                            placeholder="番地・建物名・部屋番号"
-                            className={EDIT_INPUT_CLASS}
-                        />
-                    </div>
+                    <PersonAddressFields
+                        fieldId={fieldId}
+                        postalCode={ml.editingFields.postalCode || ""}
+                        addressFromPostalCode={ml.editingFields.addressFromPostalCode || ""}
+                        addressManual={ml.editingFields.addressManual || ""}
+                        inputClassName={EDIT_INPUT_CLASS}
+                        isSearching={addressEditing.isAddressSearching}
+                        onPostalCodeChange={addressEditing.handlePostalCodeChange}
+                        onSearchPostalCode={() => addressEditing.searchAddressByPostalCode(ml.editingFields.postalCode || "")}
+                        onAddressFromPostalCodeChange={addressEditing.updateAddressFromPostalCode}
+                        onAddressManualChange={addressEditing.updateAddressManual}
+                        onKeyDown={handleEditKeyDown}
+                        postalCodeFieldClassName="lg:col-start-1 lg:row-start-3"
+                        addressFromPostalCodeFieldClassName="sm:col-span-2 lg:col-span-3 lg:col-start-2 lg:row-start-3"
+                        addressManualFieldClassName="sm:col-span-2 lg:col-span-3 lg:col-start-1 lg:row-start-4"
+                        addressManualLabel="住所補足（番地・建物名など手入力）"
+                    />
                     <div className="space-y-1 lg:col-start-4 lg:row-start-1">
                         <Label htmlFor={fieldId("memo")} className="text-xs text-muted-foreground">メモ</Label>
                         <Input
