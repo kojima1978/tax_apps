@@ -9,7 +9,7 @@ import Gift from 'lucide-react/icons/gift';
 import Sliders from 'lucide-react/icons/sliders-horizontal';
 import Clock from 'lucide-react/icons/clock';
 import Printer from 'lucide-react/icons/printer';
-import { useStaffInfo } from '../contexts/StaffContext';
+import { useStaffInfo } from '../contexts/useStaffInfo';
 import { COMPANY_INFO } from '../constants';
 
 const NAV_ITEMS = [

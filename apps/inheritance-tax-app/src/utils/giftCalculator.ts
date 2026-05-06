@@ -12,6 +12,32 @@ import { SPECIAL_GIFT_TAX_BRACKETS, GENERAL_GIFT_TAX_BRACKETS, GIFT_TAX_BASIC_EX
 import { calculateDetailedInheritanceTax } from './taxCalculator';
 import { getBeneficiaryOptions } from './heirUtils';
 
+export type GiftBreakdownTotals = {
+  ownGift: number;
+  relatedGift: number;
+  totalGift: number;
+  ownGiftTax: number;
+  relatedGiftTax: number;
+  totalGiftTax: number;
+  ownNetGift: number;
+  relatedNetGift: number;
+  totalNetGift: number;
+};
+
+function createEmptyGiftBreakdownTotals(): GiftBreakdownTotals {
+  return {
+    ownGift: 0,
+    relatedGift: 0,
+    totalGift: 0,
+    ownGiftTax: 0,
+    relatedGiftTax: 0,
+    totalGiftTax: 0,
+    ownNetGift: 0,
+    relatedNetGift: 0,
+    totalNetGift: 0,
+  };
+}
+
 /**
  * 贈与税を計算（1年分・1人分）
  * @param annualAmount 年間贈与額（万円）
@@ -63,6 +89,41 @@ export function getGiftRecipientOptions(
   return getBeneficiaryOptions(composition).filter(opt => opt.id !== 'spouse');
 }
 
+function isOwnGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
+  if (!r.isHeir) return false;
+  return (!!b.heirId && r.heirId === b.heirId) || r.heirLabel === b.label;
+}
+
+function isSourcedGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
+  if (r.isHeir) return false;
+  return (!!b.heirId && r.sourceHeirId === b.heirId) || r.sourceHeirLabel === b.label;
+}
+
+export function getGiftBreakdownTotals(
+  recipientResults: GiftRecipientResult[],
+  breakdown: HeirTaxBreakdown | undefined,
+): GiftBreakdownTotals {
+  const totals = createEmptyGiftBreakdownTotals();
+  if (!breakdown) return totals;
+
+  for (const recipient of recipientResults) {
+    if (isOwnGiftForBreakdown(recipient, breakdown)) {
+      totals.ownGift += recipient.totalGift;
+      totals.ownGiftTax += recipient.totalGiftTax;
+      totals.ownNetGift += recipient.netGift;
+    } else if (isSourcedGiftForBreakdown(recipient, breakdown)) {
+      totals.relatedGift += recipient.totalGift;
+      totals.relatedGiftTax += recipient.totalGiftTax;
+      totals.relatedNetGift += recipient.netGift;
+    }
+  }
+
+  totals.totalGift = totals.ownGift + totals.relatedGift;
+  totals.totalGiftTax = totals.ownGiftTax + totals.relatedGiftTax;
+  totals.totalNetGift = totals.ownNetGift + totals.relatedNetGift;
+  return totals;
+}
+
 /**
  * 相続人別の税引後取得額を算出（贈与シミュレーション用）
  */
@@ -73,21 +134,8 @@ export function getGiftHeirNetProceeds(
 ): number {
   const taxBreakdown = scenario.taxResult.heirBreakdowns[heirIndex];
   if (!taxBreakdown) return 0;
-  let net = taxBreakdown.acquisitionAmount - taxBreakdown.finalTax;
-  for (const g of recipientResults.filter(r => isOwnGiftForBreakdown(r, taxBreakdown))) {
-    net += g.totalGift - g.totalGiftTax;
-  }
-  return net;
-}
-
-function isOwnGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
-  if (!r.isHeir) return false;
-  return (!!b.heirId && r.heirId === b.heirId) || r.heirLabel === b.label;
-}
-
-function isSourcedGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
-  if (r.isHeir) return false;
-  return (!!b.heirId && r.sourceHeirId === b.heirId) || r.sourceHeirLabel === b.label;
+  const giftTotals = getGiftBreakdownTotals(recipientResults, taxBreakdown);
+  return taxBreakdown.acquisitionAmount - taxBreakdown.finalTax + giftTotals.ownNetGift;
 }
 
 function assignFinalTaxByAcquisition(
@@ -123,13 +171,8 @@ function reapportionForGiftModel(
   }));
 
   for (const b of breakdowns) {
-    const ownGifts = recipientResults
-      .filter(r => isOwnGiftForBreakdown(r, b))
-      .reduce((s, r) => s + r.totalGift, 0);
-    const sourcedGifts = recipientResults
-      .filter(r => isSourcedGiftForBreakdown(r, b))
-      .reduce((s, r) => s + r.totalGift, 0);
-    b.acquisitionAmount = Math.max(0, b.acquisitionAmount - ownGifts - sourcedGifts);
+    const giftTotals = getGiftBreakdownTotals(recipientResults, b);
+    b.acquisitionAmount = Math.max(0, b.acquisitionAmount - giftTotals.totalGift);
   }
 
   const spouseIdx = breakdowns.findIndex(b => b.type === 'spouse');
@@ -202,15 +245,7 @@ export function calculateCashGiftSimulation(
 
   // 相続分を超えた贈与が発生している相続人を検出
   const overAllocatedHeirs = currentTax.heirBreakdowns
-    .filter(b => {
-      const ownGifts = recipientResults
-        .filter(r => isOwnGiftForBreakdown(r, b))
-        .reduce((s, r) => s + r.totalGift, 0);
-      const sourcedGifts = recipientResults
-        .filter(r => isSourcedGiftForBreakdown(r, b))
-        .reduce((s, r) => s + r.totalGift, 0);
-      return ownGifts + sourcedGifts > b.acquisitionAmount;
-    })
+    .filter(b => getGiftBreakdownTotals(recipientResults, b).totalGift > b.acquisitionAmount)
     .map(b => b.label);
 
   return {

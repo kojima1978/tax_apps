@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, type RefObject } from 'react';
+import { useState, useCallback, type RefObject } from 'react';
 
 export interface ValidationRule {
   condition: boolean;
@@ -19,25 +19,19 @@ export function useFormValidation(
 ) {
   const [hasAttempted, setHasAttempted] = useState(false);
 
-  // refs で最新値を保持し、handleCalculate を安定化
-  const rulesRef = useRef(rules);
-  const onValidRef = useRef(onValid);
-  rulesRef.current = rules;
-  onValidRef.current = onValid;
-
   const validationErrors = rules.filter(r => r.condition).map(r => r.message);
 
   const handleCalculate = useCallback(() => {
     setHasAttempted(true);
-    for (const rule of rulesRef.current) {
+    for (const rule of rules) {
       if (rule.condition && rule.ref) {
         rule.ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
     }
-    if (rulesRef.current.some(r => r.condition)) return;
-    onValidRef.current();
-  }, []);
+    if (rules.some(r => r.condition)) return;
+    onValid();
+  }, [onValid, rules]);
 
   return { validationErrors, hasAttempted, handleCalculate };
 }

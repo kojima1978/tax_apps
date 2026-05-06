@@ -1,6 +1,6 @@
 import React from 'react';
 import { COMPANY_INFO } from '../constants';
-import { useStaffInfo } from '../contexts/StaffContext';
+import { useStaffInfo } from '../contexts/useStaffInfo';
 
 interface PrintHeaderProps {
   title: string;

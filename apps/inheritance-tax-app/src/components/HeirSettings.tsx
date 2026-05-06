@@ -5,7 +5,8 @@ import { SectionHeader } from './SectionHeader';
 import { RadioGroup } from './RadioGroup';
 import { SpouseSettings } from './heirs/SpouseSettings';
 import { Rank2Settings } from './heirs/Rank2Settings';
-import { RankHeirSettings, RANK1_CONFIG, RANK3_CONFIG } from './heirs/RankHeirSettings';
+import { RankHeirSettings } from './heirs/RankHeirSettings';
+import { RANK1_CONFIG, RANK3_CONFIG } from './heirs/rankConfig';
 import { CARD } from './tableStyles';
 
 const RANK_OPTIONS = [

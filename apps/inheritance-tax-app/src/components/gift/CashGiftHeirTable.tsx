@@ -1,216 +1,25 @@
-import React from 'react';
-import type { CashGiftSimulationResult, GiftScenarioResult, GiftRecipientResult, HeirTaxBreakdown } from '../../types';
-import { formatCurrency, heirLabelColumn, currencyColumn } from '../../utils';
+import React, { useMemo } from 'react';
+import type { CashGiftSimulationResult } from '../../types';
+import { formatCurrency } from '../../utils';
 import { CARD } from '../tableStyles';
-import { HeirScenarioTable, type HeirColumn } from '../HeirScenarioTable';
+import { HeirScenarioTable } from '../HeirScenarioTable';
+import {
+  addYearsAndDays,
+  buildGiftColumns,
+  CIRCLED_NUMBERS,
+  formatCurrencyOrDash,
+  formatManNumber,
+  formatManTotal,
+  formatSignedDeduction,
+  formatWarekiDate,
+  getGiftConditionGroups,
+  getGiftTimelineTotals,
+  getGiftYearLabels,
+  GIFT_YEAR_COLUMN_COUNT,
+} from './cashGiftReportUtils';
 
 interface CashGiftHeirTableProps {
   result: CashGiftSimulationResult;
-}
-
-type GiftGroupTotals = {
-  ownGift: number;
-  relatedGift: number;
-  totalGift: number;
-  ownGiftTax: number;
-  relatedGiftTax: number;
-  totalGiftTax: number;
-  ownNetGift: number;
-  relatedNetGift: number;
-  totalNetGift: number;
-};
-
-type GiftConditionGroup = {
-  key: string;
-  groupLabel: string;
-  annualAmount: number;
-  years: number;
-  generalCount: number;
-  specialCount: number;
-  totalCount: number;
-  giftTaxPerYear: number;
-  totalGift: number;
-  totalGiftTax: number;
-};
-
-const CIRCLED_NUMBERS = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'];
-const GIFT_YEAR_COLUMN_COUNT = 15;
-
-function formatCurrencyOrDash(value: number): string {
-  return value > 0 ? formatCurrency(value) : '—';
-}
-
-function formatSignedDeduction(value: number): string {
-  return value > 0 ? `−${formatCurrency(value)}` : '—';
-}
-
-function formatManNumber(value: number): string {
-  return Math.round(value).toLocaleString();
-}
-
-function formatManTotal(value: number): string {
-  return `${formatManNumber(value)}万円`;
-}
-
-function addYears(date: Date, years: number): Date {
-  const next = new Date(date);
-  next.setFullYear(next.getFullYear() + years);
-  return next;
-}
-
-function addYearsAndDays(date: Date, years: number, days: number): Date {
-  const next = addYears(date, years);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function getReiwaYear(date: Date): number {
-  return date.getFullYear() - 2018;
-}
-
-function formatWarekiDate(date: Date): string {
-  const year = String(getReiwaYear(date)).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `令和${year}年${month}月${day}日`;
-}
-
-function formatReiwaShortYear(date: Date): string {
-  return `R${String(getReiwaYear(date)).padStart(2, '0')}`;
-}
-
-function isOwnGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
-  if (!r.isHeir) return false;
-  return (!!b.heirId && r.heirId === b.heirId) || r.heirLabel === b.label;
-}
-
-function isSourcedGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {
-  if (r.isHeir) return false;
-  return (!!b.heirId && r.sourceHeirId === b.heirId) || r.sourceHeirLabel === b.label;
-}
-
-function getGiftGroupTotals(rr: GiftRecipientResult[], breakdown: HeirTaxBreakdown | undefined): GiftGroupTotals {
-  const totals: GiftGroupTotals = {
-    ownGift: 0,
-    relatedGift: 0,
-    totalGift: 0,
-    ownGiftTax: 0,
-    relatedGiftTax: 0,
-    totalGiftTax: 0,
-    ownNetGift: 0,
-    relatedNetGift: 0,
-    totalNetGift: 0,
-  };
-
-  if (!breakdown) return totals;
-
-  for (const r of rr) {
-    if (isOwnGiftForBreakdown(r, breakdown)) {
-      totals.ownGift += r.totalGift;
-      totals.ownGiftTax += r.totalGiftTax;
-      totals.ownNetGift += r.netGift;
-    } else if (isSourcedGiftForBreakdown(r, breakdown)) {
-      totals.relatedGift += r.totalGift;
-      totals.relatedGiftTax += r.totalGiftTax;
-      totals.relatedNetGift += r.netGift;
-    }
-  }
-
-  totals.totalGift = totals.ownGift + totals.relatedGift;
-  totals.totalGiftTax = totals.ownGiftTax + totals.relatedGiftTax;
-  totals.totalNetGift = totals.ownNetGift + totals.relatedNetGift;
-  return totals;
-}
-
-function buildGiftColumns(
-  scenario: GiftScenarioResult,
-  rr: GiftRecipientResult[],
-): HeirColumn[] {
-  const { taxResult } = scenario;
-  const giftGroups = taxResult.heirBreakdowns.map(b => getGiftGroupTotals(rr, b));
-  const acqTotal = taxResult.heirBreakdowns.reduce((s, b) => s + b.acquisitionAmount, 0);
-  const giftTotal = giftGroups.reduce((s, g) => s + g.totalGift, 0);
-  const giftTaxTotal = giftGroups.reduce((s, g) => s + g.totalGiftTax, 0);
-
-  const getOwnNetProceeds = (i: number) => {
-    const b = taxResult.heirBreakdowns[i];
-    if (!b) return 0;
-    return b.acquisitionAmount - b.finalTax + (giftGroups[i]?.ownNetGift ?? 0);
-  };
-  const getNetProceeds = (i: number) => getOwnNetProceeds(i) + (giftGroups[i]?.relatedNetGift ?? 0);
-  const netTotal = taxResult.heirBreakdowns.reduce((s, _, i) => s + getNetProceeds(i), 0);
-
-  return [
-    heirLabelColumn(i => taxResult.heirBreakdowns[i]?.label),
-    currencyColumn('遺産取得額', i => taxResult.heirBreakdowns[i]?.acquisitionAmount ?? 0, acqTotal),
-    {
-      label: '贈与額',
-      getValue: i => formatCurrencyOrDash(giftGroups[i]?.totalGift ?? 0),
-      getTotalValue: () => formatCurrencyOrDash(giftTotal),
-    },
-    {
-      label: '贈与税負担',
-      getValue: i => formatCurrencyOrDash(giftGroups[i]?.totalGiftTax ?? 0),
-      getTotalValue: () => formatCurrencyOrDash(giftTaxTotal),
-    },
-    currencyColumn('納付相続税', i => taxResult.heirBreakdowns[i]?.finalTax ?? 0, taxResult.totalFinalTax),
-    {
-      label: '税引後',
-      bold: true,
-      getValue: i => formatCurrency(getNetProceeds(i)),
-      getTotalValue: () => formatCurrency(netTotal),
-    },
-  ];
-}
-
-function getRecipientGroupLabel(recipient: GiftRecipientResult): string {
-  return recipient.isHeir
-    ? recipient.heirLabel
-    : (recipient.sourceHeirLabel ?? recipient.heirLabel);
-}
-
-function getRecipientGroupId(recipient: GiftRecipientResult): string {
-  return recipient.isHeir
-    ? recipient.heirId
-    : (recipient.sourceHeirId ?? recipient.heirId);
-}
-
-function getGiftConditionGroups(recipients: GiftRecipientResult[]): GiftConditionGroup[] {
-  const groups = new Map<string, GiftConditionGroup>();
-
-  for (const r of recipients) {
-    const groupId = getRecipientGroupId(r);
-    const groupLabel = getRecipientGroupLabel(r);
-    const key = `${groupId}:${r.years}`;
-    const existing = groups.get(key);
-    const addSpecial = r.taxType === 'special' ? 1 : 0;
-    const addGeneral = r.taxType === 'general' ? 1 : 0;
-
-    if (existing) {
-      existing.annualAmount += r.annualAmount;
-      existing.specialCount += addSpecial;
-      existing.generalCount += addGeneral;
-      existing.totalCount += 1;
-      existing.giftTaxPerYear += r.giftTaxPerYear;
-      existing.totalGift += r.totalGift;
-      existing.totalGiftTax += r.totalGiftTax;
-    } else {
-      groups.set(key, {
-        key,
-        groupLabel,
-        annualAmount: r.annualAmount,
-        years: r.years,
-        generalCount: addGeneral,
-        specialCount: addSpecial,
-        totalCount: 1,
-        giftTaxPerYear: r.giftTaxPerYear,
-        totalGift: r.totalGift,
-        totalGiftTax: r.totalGiftTax,
-      });
-    }
-  }
-
-  return Array.from(groups.values());
 }
 
 const GiftConclusionBand: React.FC<{ result: CashGiftSimulationResult }> = ({ result }) => {
@@ -239,17 +48,18 @@ const GiftConclusionBand: React.FC<{ result: CashGiftSimulationResult }> = ({ re
 
 const GiftTaxCalculationWorkbook: React.FC<{ result: CashGiftSimulationResult }> = ({ result }) => {
   const recipients = result.recipientResults;
-  const startDate = new Date();
-  const conditionGroups = getGiftConditionGroups(recipients);
-  const yearLabels = Array.from({ length: GIFT_YEAR_COLUMN_COUNT }, (_, i) => formatReiwaShortYear(addYears(startDate, i)));
-  const amountByYear = Array.from({ length: GIFT_YEAR_COLUMN_COUNT }, (_, i) =>
-    recipients.reduce((s, r) => s + (i < r.years ? r.annualAmount : 0), 0),
+  const startDate = useMemo(() => new Date(), []);
+  const conditionGroups = useMemo(() => getGiftConditionGroups(recipients), [recipients]);
+  const yearLabels = useMemo(
+    () => getGiftYearLabels(startDate),
+    [startDate],
   );
-  const taxByYear = Array.from({ length: GIFT_YEAR_COLUMN_COUNT }, (_, i) =>
-    recipients.reduce((s, r) => s + (i < r.years ? r.giftTaxPerYear : 0), 0),
-  );
-  const amountAfterTimeline = recipients.reduce((s, r) => s + (r.years > GIFT_YEAR_COLUMN_COUNT ? r.annualAmount : 0), 0);
-  const taxAfterTimeline = recipients.reduce((s, r) => s + (r.years > GIFT_YEAR_COLUMN_COUNT ? r.giftTaxPerYear : 0), 0);
+  const {
+    amountByYear,
+    taxByYear,
+    amountAfterTimeline,
+    taxAfterTimeline,
+  } = useMemo(() => getGiftTimelineTotals(recipients), [recipients]);
 
   return (
     <section className="cash-gift-report-section">
@@ -272,7 +82,7 @@ const GiftTaxCalculationWorkbook: React.FC<{ result: CashGiftSimulationResult }>
                 <td className="cash-gift-condition-label">人数</td>
                 <td className="cash-gift-condition-value">{group.totalCount}人</td>
                 <td className="cash-gift-condition-note">
-                  （ 特例贈与： {group.specialCount}人　一般贈与： {group.generalCount}人 ）
+                  （ 特例贈与： {group.specialCount}人 一般贈与： {group.generalCount}人 ）
                 </td>
                 <td className="cash-gift-condition-label">期間</td>
                 <td className="cash-gift-condition-value">{group.years}年</td>
@@ -384,7 +194,7 @@ const ImpactBox: React.FC<{ result: CashGiftSimulationResult }> = ({ result }) =
       </dl>
       <div className="cash-gift-impact-result">
         <span>④ 影響</span>
-        <strong>{reduction >= 0 ? '減少額' : '増加額'}　{formatCurrency(Math.abs(reduction))}</strong>
+        <strong>{reduction >= 0 ? '減少額' : '増加額'} {formatCurrency(Math.abs(reduction))}</strong>
       </div>
     </div>
   );
@@ -395,9 +205,15 @@ const InheritanceTaxWorkbookMatrix: React.FC<{ result: CashGiftSimulationResult 
   const currentTax = current.taxResult.totalFinalTax;
   const proposedTax = proposed.taxResult.totalFinalTax;
   const proposedTotalTax = proposedTax + totalGiftTax;
-  const maxGiftYears = Math.max(...result.recipientResults.map(r => r.years), 0);
-  const startDate = new Date();
-  const inheritanceTaxDate = addYearsAndDays(startDate, maxGiftYears, 1);
+  const maxGiftYears = useMemo(
+    () => Math.max(...result.recipientResults.map(r => r.years), 0),
+    [result.recipientResults],
+  );
+  const startDate = useMemo(() => new Date(), []);
+  const inheritanceTaxDate = useMemo(
+    () => addYearsAndDays(startDate, maxGiftYears, 1),
+    [maxGiftYears, startDate],
+  );
 
   return (
     <section className="cash-gift-report-section cash-gift-inheritance-tax-section">
@@ -451,6 +267,11 @@ const InheritanceTaxWorkbookMatrix: React.FC<{ result: CashGiftSimulationResult 
 const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }> = ({ result }) => {
   const { current, proposed, recipientResults } = result;
   const heirCount = current.taxResult.heirBreakdowns.length;
+  const currentColumns = useMemo(() => buildGiftColumns(current, []), [current]);
+  const proposedColumns = useMemo(
+    () => buildGiftColumns(proposed, recipientResults),
+    [proposed, recipientResults],
+  );
 
   return (
     <section className="cash-gift-report-section">
@@ -464,7 +285,7 @@ const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }
           headerBg="bg-green-700"
           heirCount={heirCount}
           getHeirKey={i => current.taxResult.heirBreakdowns[i]?.label || String(i)}
-          columns={buildGiftColumns(current, [])}
+          columns={currentColumns}
         />
         <HeirScenarioTable
           label={proposed.label}
@@ -473,7 +294,7 @@ const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }
           headerBg="bg-green-700"
           heirCount={heirCount}
           getHeirKey={i => proposed.taxResult.heirBreakdowns[i]?.label || String(i)}
-          columns={buildGiftColumns(proposed, recipientResults)}
+          columns={proposedColumns}
         />
       </div>
     </section>
