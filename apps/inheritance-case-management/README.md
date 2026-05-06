@@ -1,6 +1,6 @@
 # 相続税申告案件管理
 
-相続税申告案件の一覧、詳細、進捗、売上、紹介者、連絡先、帳票、経営分析を管理する Next.js アプリです。
+相続税申告案件の一覧、詳細、進捗、売上、紹介者、相続人/関係者、帳票、経営分析を管理する Next.js アプリです。
 
 Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 
@@ -10,12 +10,13 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 | --- | --- | --- |
 | 案件一覧 | `/itcm/` | 案件検索、フィルター、KPI、売上合計、一括削除、CSV取込/出力 |
 | 新規案件 | `/itcm/new` | 相続税申告案件の新規登録 |
-| 案件詳細 | `/itcm/[id]` | 基本情報、進捗、報酬/見積、立替金、連絡先、帳票出力、監査ログ |
+| 案件詳細 | `/itcm/[id]` | 基本情報、進捗、報酬/見積、立替金、相続人/関係者、帳票出力、監査ログ |
 | 経営分析 | `/itcm/analytics` | 売上、年計表、部門・担当者、紹介者分析 |
 | 設定 | `/itcm/settings` | マスタ管理、バックアップ/リストア |
 | 担当者設定 | `/itcm/settings/staff` | 部署、担当者、社内紹介者に使う担当者マスタ |
 | 紹介者設定 | `/itcm/settings/referral-sources` | 会社、部門、社外紹介者マスタ |
-| 人物設定 | `/itcm/settings/persons` | 連絡先として使う人物マスタ |
+| 相続人マスタ | `/itcm/settings/heir-persons` | 案件に紐づく相続人の人物マスタ |
+| 関係者マスタ | `/itcm/settings/related-party-persons` | 税理士、司法書士、不動産業者など外部関係者の人物マスタ |
 | バックアップ | `/itcm/settings/backup` | JSONバックアップ、リストア |
 
 ## 主な機能
@@ -43,7 +44,7 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 
 ### 案件詳細
 
-- 基本情報、進捗、報酬/見積、立替金、連絡先、メモをセクションごとに編集
+- 基本情報、進捗、報酬/見積、立替金、相続人/関係者、メモをセクションごとに編集
 - 未保存変更の検知と離脱確認
 - 受託日に基づく当月追加集計
 - 申告完了日に基づく当月完了集計
@@ -108,17 +109,20 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 - 会社
 - 会社部門
 - 社外紹介者
-- 人物
+- 相続人マスタ
+- 関係者マスタ
 - 会社マージ
 - 有効/無効によるソフト削除
 
-### 連絡先管理
+### 相続人・関係者管理
 
-- 案件ごとに人物マスタから連絡先を紐付け
+- 案件ごとに相続人マスタ、関係者マスタから人物を紐付け
 - 既存人物の検索、選択
 - 新規人物のインライン作成
 - 郵便番号から住所を自動補完
-- 案件固有メモを `CaseContact` に保持
+- 相続人は続柄、案件固有メモを `CaseHeir` に保持
+- 関係者は案件固有メモを `CaseRelatedParty` に保持
+- 相続人と関係者の人物入力フォームは共通部品を使い、氏名、電話番号、住所、メモの入力挙動を揃える
 
 ### CSV・Excel
 
@@ -199,6 +203,25 @@ inheritance-case-management/
         ├── lib/                     # APIクライアント、サービス、集計、CSV/Excel
         └── types/                   # 型、定数、バリデーション
 ```
+
+### 案件詳細画面の主な分割
+
+`web/src/app/[id]/` は、案件編集フォーム本体を薄く保つため、入力領域ごとに責務を分けています。
+
+| ファイル | 役割 |
+| --- | --- |
+| `edit-case-form.tsx` | 案件編集画面の組み立て、保存、未保存変更、帳票モーダル |
+| `edit-case-form-utils.ts` | API payload 変換、派生値計算、保存前チェック補助 |
+| `use-edit-case-masters.ts` | 担当者、紹介元、相続人、関係者マスタの取得 |
+| `FinancialSection.tsx` | 金額情報セクションの枠 |
+| `FinancialEstimatePanel.tsx` | 報酬計算、特別業務報酬額、見積額/報酬額への反映 |
+| `FinancialRevenuePanel.tsx` | 紹介料率、見積書/請求書別の紹介料と手取り |
+| `FeeSnapshotDisplay.tsx` | 前回計算根拠の表示 |
+| `ProgressEditor.tsx` | 進捗管理の組み立て |
+| `ProgressStatusSummary.tsx` | 進み具合、受託、対応状況、関連日付 |
+| `SortableProgressStep.tsx` | 並べ替え可能な工程行 |
+| `CasePersonForm.tsx` | 相続人/関係者で共通の人物入力フォーム |
+| `HeirListEditor.tsx`, `RelatedPartyListEditor.tsx` | 案件内の相続人/関係者の紐付け編集 |
 
 ## Docker 開発
 
@@ -340,7 +363,8 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 | `/itcm/api/companies` | 会社 |
 | `/itcm/api/company-branches` | 会社部門 |
 | `/itcm/api/referrers` | 社外紹介者 |
-| `/itcm/api/persons` | 人物 |
+| `/itcm/api/heir-persons` | 相続人マスタ |
+| `/itcm/api/related-party-persons` | 関係者マスタ |
 | `/itcm/api/backup` | JSONバックアップ |
 | `/itcm/api/backup/restore` | JSONリストア |
 | `/itcm/api/templates/generate` | 帳票生成 |
@@ -353,8 +377,10 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 | `CaseProgress` | 案件の進捗工程 |
 | `CaseExpense` | 立替金 |
 | `CaseSpecialAddition` | 特別業務報酬額 |
-| `CaseContact` | 案件と人物の紐付け |
-| `Person` | 連絡先人物マスタ |
+| `CaseHeir` | 案件と相続人マスタの紐付け |
+| `CaseRelatedParty` | 案件と関係者マスタの紐付け |
+| `HeirPerson` | 相続人マスタ |
+| `RelatedPartyPerson` | 関係者マスタ |
 | `Assignee` | 担当者、社内紹介者 |
 | `Department` | 担当者の部署 |
 | `Company` | 紹介会社 |
@@ -370,7 +396,8 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 - `Assignee.departmentId` -> `Department`
 - `Referrer.companyId` -> `Company`
 - `Referrer.branchId` -> `CompanyBranch`
-- `CaseContact.personId` -> `Person`
+- `CaseHeir.personId` -> `HeirPerson`
+- `CaseRelatedParty.personId` -> `RelatedPartyPerson`
 - `CaseExpense.caseId` -> `InheritanceCase`
 - `CaseSpecialAddition.caseId` -> `InheritanceCase`
 
@@ -378,6 +405,10 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 
 | ファイル | 役割 |
 | --- | --- |
+| `web/src/app/[id]/edit-case-form.tsx` | 案件編集画面の組み立て |
+| `web/src/app/[id]/edit-case-form-utils.ts` | 案件編集の payload 変換、派生値、保存前チェック |
+| `web/src/app/[id]/Financial*.tsx` | 金額情報、報酬計算、紹介料/売上表示 |
+| `web/src/app/[id]/Progress*.tsx` | 進捗ステータス、工程タイムライン、並べ替え |
 | `web/src/lib/services/case-service.ts` | 案件取得、更新、検索条件構築 |
 | `web/src/lib/analytics/` | 経営分析の計算、集計 |
 | `web/src/lib/import/` | CSV取込、検証、マスタ解決 |
