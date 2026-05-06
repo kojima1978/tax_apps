@@ -1,29 +1,18 @@
 "use client"
 
-import React, { type ReactNode } from "react"
+import type { ReactNode } from "react"
+import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/Button"
-import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { cn } from "@/lib/utils"
-import Link from "next/link"
-import { Trash2, Plus, Pencil, Check, X, ArrowUpDown, Ban, RotateCcw, ChevronRight, Search } from "lucide-react"
+import { MasterBreadcrumb } from "@/components/master-list/MasterBreadcrumb"
+import { MasterListTable } from "@/components/master-list/MasterListTable"
+import { MasterSearchControl } from "@/components/master-list/MasterSearchControl"
+import type { ColumnDef, MasterListItem } from "@/components/master-list/types"
 
-const ICON_BTN_MUTED = "h-8 w-8 text-muted-foreground hover:text-foreground"
-const ICON_BTN_GREEN = "h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-const ICON_BTN_ORANGE = "h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-const ICON_BTN_DESTRUCTIVE = "h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+export type { ColumnDef } from "@/components/master-list/types"
 
-export interface ColumnDef<T> {
-    key: string
-    label: string
-    width?: string
-    cellClassName?: string
-    renderCell?: (item: T) => ReactNode
-}
-
-interface MasterListPageProps<T extends { id: number; active: boolean }> {
+interface MasterListPageProps<T extends MasterListItem> {
     title: string
     entityLabel: string
     returnTo: string | null
@@ -39,13 +28,10 @@ interface MasterListPageProps<T extends { id: number; active: boolean }> {
     onToggleShowInactive: () => void
     editingId: number | null
     columns: ColumnDef<T>[]
-    // New item form
     newItemForm: ReactNode
     onAdd: () => void
-    // Editing
     renderEditCell?: (column: ColumnDef<T>) => ReactNode
     renderEditRow?: (item: T) => ReactNode
-    // Actions
     onStartEdit: (item: T) => void
     onSaveEdit: () => void
     onCancelEdit: () => void
@@ -53,12 +39,11 @@ interface MasterListPageProps<T extends { id: number; active: boolean }> {
     onPermanentDelete: (id: number) => void
     onSave: () => void
     onSort: (field: string) => void
-    /** Optional: key extractor for grouping rows. When provided, a group header row is inserted when the value changes. */
     groupBy?: (item: T) => string
 }
 
 /** useMasterList の返り値から MasterListPage の共通 props を抽出するヘルパー */
-export function getMasterListPageProps<T extends { id: number; active: boolean }>(
+export function getMasterListPageProps<T extends MasterListItem>(
     ml: {
         returnTo: string | null
         isDirty: boolean
@@ -102,7 +87,7 @@ export function getMasterListPageProps<T extends { id: number; active: boolean }
     }
 }
 
-export function MasterListPage<T extends { id: number; active: boolean }>({
+export function MasterListPage<T extends MasterListItem>({
     title,
     entityLabel,
     returnTo,
@@ -131,46 +116,9 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
     onSort,
     groupBy,
 }: MasterListPageProps<T>) {
-    const searchControl = onSearchChange ? (
-        <div className="relative w-full sm:w-[420px] lg:w-[460px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-                value={searchValue ?? ""}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="h-10 w-full pl-9 pr-8 text-sm"
-            />
-            {searchValue && (
-                <button
-                    type="button"
-                    onClick={() => onSearchChange("")}
-                    className="absolute right-2 top-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label="検索条件をクリア"
-                >
-                    <X className="h-3.5 w-3.5" />
-                </button>
-            )}
-        </div>
-    ) : null
-
     return (
         <div className="container mx-auto py-10 max-w-[1180px] relative pb-24 px-4">
-            <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
-                <Link href="/" className="hover:text-foreground transition-colors">案件一覧</Link>
-                <ChevronRight className="h-3.5 w-3.5" />
-                {returnTo ? (
-                    <>
-                        <Link href={returnTo} className="hover:text-foreground transition-colors">前の画面</Link>
-                        <ChevronRight className="h-3.5 w-3.5" />
-                    </>
-                ) : (
-                    <>
-                        <Link href="/settings" className="hover:text-foreground transition-colors">設定</Link>
-                        <ChevronRight className="h-3.5 w-3.5" />
-                    </>
-                )}
-                <span className="text-foreground font-medium">{title}</span>
-            </nav>
+            <MasterBreadcrumb returnTo={returnTo} title={title} />
 
             <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -178,7 +126,13 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                     {isDirty && <span className="text-sm text-gray-700 font-bold">※ 未保存の変更あり</span>}
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto">
-                    {searchControl}
+                    {onSearchChange && (
+                        <MasterSearchControl
+                            value={searchValue ?? ""}
+                            placeholder={searchPlaceholder}
+                            onChange={onSearchChange}
+                        />
+                    )}
                     <Button variant="outline" size="sm" onClick={onToggleShowInactive} className="h-10 shrink-0 rounded-md px-4">
                         {showInactive ? "有効のみ表示" : "すべて表示"}
                     </Button>
@@ -208,129 +162,20 @@ export function MasterListPage<T extends { id: number; active: boolean }>({
                     ) : filteredItems.length === 0 ? (
                         <p className="text-muted-foreground text-sm">条件に一致する{entityLabel}がありません。</p>
                     ) : (
-                        <div className="border-y">
-                            <Table className="table-fixed">
-                                <TableHeader>
-                                    <TableRow>
-                                        {columns.map(col => (
-                                            <TableHead key={col.key} style={col.width ? { width: col.width } : undefined}>
-                                                <button
-                                                    onClick={() => onSort(col.key)}
-                                                    className="flex items-center gap-1 hover:text-foreground"
-                                                >
-                                                    {col.label}
-                                                    <ArrowUpDown className="h-3 w-3" />
-                                                </button>
-                                            </TableHead>
-                                        ))}
-                                        <TableHead className="w-[100px]"></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredItems.map((item, idx) => {
-                                        const groupLabel = groupBy?.(item)
-                                        const prevGroupLabel = idx > 0 ? groupBy?.(filteredItems[idx - 1]) : undefined
-                                        const showGroupHeader = groupBy && groupLabel !== prevGroupLabel
-                                        return (<React.Fragment key={item.id}>
-                                        {showGroupHeader && (
-                                            <TableRow className="bg-muted/30">
-                                                <TableCell colSpan={columns.length + 1} className="py-1.5 px-3 text-xs font-semibold text-muted-foreground tracking-wide">
-                                                    {groupLabel}
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                        <TableRow className={item.active === false ? "bg-muted/50" : ""}>
-                                            {editingId === item.id && renderEditRow ? (
-                                                <TableCell colSpan={columns.length + 1} className="bg-muted/10 p-0 align-top">
-                                                    {renderEditRow(item)}
-                                                </TableCell>
-                                            ) : editingId === item.id && renderEditCell ? (
-                                                <>
-                                                    {columns.map(col => (
-                                                        <TableCell key={col.key} className={col.cellClassName}>
-                                                            {renderEditCell(col)}
-                                                        </TableCell>
-                                                    ))}
-                                                    <TableCell className="text-right">
-                                                        <div className="flex items-center justify-end gap-1">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={ICON_BTN_GREEN}
-                                                                onClick={onSaveEdit}
-                                                            >
-                                                                <Check className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={ICON_BTN_MUTED}
-                                                                onClick={onCancelEdit}
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {columns.map((col, i) => (
-                                                        <TableCell key={col.key} className={cn(i === 0 && "font-medium", col.cellClassName)}>
-                                                            {col.renderCell ? col.renderCell(item) : String((item as Record<string, unknown>)[col.key] ?? "-")}
-                                                        </TableCell>
-                                                    ))}
-                                                    <TableCell className="text-right">
-                                                        <div className="flex items-center justify-end gap-1">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={ICON_BTN_MUTED}
-                                                                onClick={() => onStartEdit(item)}
-                                                            >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                            {item.active === false ? (
-                                                                <>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className={ICON_BTN_GREEN}
-                                                                        onClick={() => onToggleActive(item.id)}
-                                                                        title="有効化"
-                                                                    >
-                                                                        <RotateCcw className="h-4 w-4" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className={ICON_BTN_DESTRUCTIVE}
-                                                                        onClick={() => onPermanentDelete(item.id)}
-                                                                        title="完全削除"
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                </>
-                                                            ) : (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className={ICON_BTN_ORANGE}
-                                                                    onClick={() => onToggleActive(item.id)}
-                                                                    title="無効化"
-                                                                >
-                                                                    <Ban className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                </>
-                                            )}
-                                        </TableRow>
-                                        </React.Fragment>)
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        <MasterListTable
+                            columns={columns}
+                            filteredItems={filteredItems}
+                            editingId={editingId}
+                            renderEditCell={renderEditCell}
+                            renderEditRow={renderEditRow}
+                            onStartEdit={onStartEdit}
+                            onSaveEdit={onSaveEdit}
+                            onCancelEdit={onCancelEdit}
+                            onToggleActive={onToggleActive}
+                            onPermanentDelete={onPermanentDelete}
+                            onSort={onSort}
+                            groupBy={groupBy}
+                        />
                     )}
                 </div>
             </div>
