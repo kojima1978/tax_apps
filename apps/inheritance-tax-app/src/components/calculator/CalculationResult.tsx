@@ -13,6 +13,11 @@ interface CalculationResultProps {
   weightedRate: number;
 }
 
+type HighlightItem = {
+  label: string;
+  getValue: (values: { result: DetailedTaxCalculationResult; weightedRate: number }) => string;
+};
+
 const SUMMARY_ITEMS = [
   { label: '遺産総額', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.estateValue) },
   { label: '基礎控除', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.basicDeduction) },
@@ -20,11 +25,11 @@ const SUMMARY_ITEMS = [
   { label: '相続税の総額', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.totalTax) },
 ] as const;
 
-const HIGHLIGHT_ITEMS = [
-  { label: '納付税額合計', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.totalFinalTax) },
-  { label: '相続税負担率', getValue: (r: DetailedTaxCalculationResult, _w: number) => formatPercent(r.effectiveTaxRate) },
-  { label: '加重平均適用税率', getValue: (_r: DetailedTaxCalculationResult, w: number) => formatPercent(w) },
-] as const;
+const HIGHLIGHT_ITEMS: HighlightItem[] = [
+  { label: '納付税額合計', getValue: ({ result }) => formatCurrency(result.totalFinalTax) },
+  { label: '相続税負担率', getValue: ({ result }) => formatPercent(result.effectiveTaxRate) },
+  { label: '加重平均適用税率', getValue: ({ weightedRate }) => formatPercent(weightedRate) },
+];
 
 export const CalculationResult: React.FC<CalculationResultProps> = ({ result, weightedRate }) => {
   return (
@@ -50,7 +55,7 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result, we
             {HIGHLIGHT_ITEMS.map(({ label, getValue }) => (
               <div key={label} className="text-center p-3 md:p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 shadow-sm">
                 <p className="text-xs md:text-sm text-green-600 font-medium mb-0.5 md:mb-1">{label}</p>
-                <p className="text-xl md:text-2xl font-bold text-green-800">{getValue(result, weightedRate)}</p>
+                <p className="text-xl md:text-2xl font-bold text-green-800">{getValue({ result, weightedRate })}</p>
               </div>
             ))}
           </div>
