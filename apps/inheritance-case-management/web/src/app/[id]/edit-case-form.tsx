@@ -5,14 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
-import type { InheritanceCase, Assignee, Referrer, HeirPerson, RelatedPartyPerson, CaseStatus } from "@/types/shared"
+import type { InheritanceCase, CaseStatus } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
-import { toProgressSteps, toProgressItems, toHeirInputs, toRelatedPartyInputs, toExpenses, toExpenseItems, toSpecialAdditions } from "@/lib/case-converters"
+import { toProgressSteps, toProgressItems, toExpenses, toExpenseItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
-import { getAssignees } from "@/lib/api/assignees"
-import { getReferrers } from "@/lib/api/referrers"
-import { getHeirPersons } from "@/lib/api/heir-persons"
-import { getRelatedPartyPersons } from "@/lib/api/related-party-persons"
 import { useToast } from "@/components/ui/Toast"
 import { Modal } from "@/components/ui/Modal"
 import { ProgressEditor } from "./ProgressEditor"
@@ -29,9 +25,18 @@ import { checkStatusProgressConsistency } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { useSectionState } from "@/hooks/use-section-state"
-import { COMPLETED_STATUSES } from "@/types/constants"
-
-const SECTION_IDS = ["basicInfo", "financial", "progress", "expenses", "heirs", "relatedParties", "memo", "auditLog"] as const
+import {
+    calculateEstimateNetRevenue,
+    calculateNetRevenue,
+    getCaseApiPayload,
+    getCaseReturnPath,
+    getNeedsConfirmedFee,
+    hasInvalidSpecialAddition,
+    parseCaseFieldValue,
+    SECTION_IDS,
+    shouldPromptForConfirmedFee,
+} from "./edit-case-form-utils"
+import { useEditCaseMasters } from "./use-edit-case-masters"
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -49,29 +54,16 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     )
     const [showLeaveModal, setShowLeaveModal] = useState(false)
     const [exportDocType, setExportDocType] = useState<"estimate" | "invoice" | "invoice-request" | null>(null)
-    const [assignees, setAssignees] = useState<Assignee[]>([])
-    const [referrers, setReferrers] = useState<Referrer[]>([])
-    const [heirPersons, setHeirPersons] = useState<HeirPerson[]>([])
-    const [relatedPartyPersons, setRelatedPartyPersons] = useState<RelatedPartyPerson[]>([])
-    useEffect(() => {
-        const loadMasters = async () => {
-            try {
-                const [as, rs, hps, rpps] = await Promise.all([
-                    getAssignees(),
-                    getReferrers(),
-                    getHeirPersons(),
-                    getRelatedPartyPersons(),
-                ])
-                setAssignees(as)
-                setReferrers(rs)
-                setHeirPersons(hps)
-                setRelatedPartyPersons(rpps)
-            } catch (e) {
-                console.error("Failed to load masters", e)
-            }
-        }
-        loadMasters()
+    const {
+        assignees,
+        referrers,
+        heirPersons,
+        relatedPartyPersons,
+        setHeirPersons,
+        setRelatedPartyPersons,
+    } = useEditCaseMasters()
 
+    useEffect(() => {
         const saved = searchParams.get("saved")
         if (saved === "assignees" || saved === "referrers") {
             toast.success(saved === "assignees" ? "担当者設定を保存しました" : "紹介者設定を保存しました")
@@ -90,68 +82,13 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
-        const numericFields = ["taxAmount", "feeAmount", "fiscalYear"]
-        const fkFields = ["assigneeId", "internalReferrerId", "referrerId"]
-        if (
-            (
-                name === "status" && (COMPLETED_STATUSES as readonly string[]).includes(value)
-                || name === "caseCompletedDate" && value
-            )
-            && !formData.feeAmount
-        ) {
+        if (shouldPromptForConfirmedFee(name, value, formData)) {
             sections.open("financial")
         }
         setFormData((prev) => ({
             ...prev,
-            [name]: numericFields.includes(name) ? Number(value)
-                : fkFields.includes(name) ? (value ? Number(value) : null)
-                : value,
+            [name]: parseCaseFieldValue(name, value),
         }))
-    }
-
-    // Convert normalized DB shapes to API input shapes
-    const toApiPayload = () => {
-        const heirs = formData.heirs ? toHeirInputs(formData.heirs) : undefined
-        const relatedParties = formData.relatedParties ? toRelatedPartyInputs(formData.relatedParties) : undefined
-        const progress = formData.progress ? toProgressSteps(formData.progress) : undefined
-        const expenses = formData.expenses ? toExpenses(formData.expenses).filter(e => e.description) : undefined
-        const specialAdditions = formData.specialAdditions
-            ? toSpecialAdditions(formData.specialAdditions).filter(a => a.description.trim() !== "")
-            : undefined
-        return {
-            deceasedName: formData.deceasedName,
-            deceasedNameKana: formData.deceasedNameKana || "",
-            dateOfDeath: formData.dateOfDeath,
-            fiscalYear: formData.fiscalYear,
-            status: formData.status,
-            handlingStatus: formData.handlingStatus || "対応中",
-            acceptanceStatus: formData.acceptanceStatus || "未判定",
-            taxAmount: formData.taxAmount,
-            feeAmount: formData.feeAmount,
-            estimateAmount: formData.estimateAmount,
-            propertyValue: formData.propertyValue,
-            referralFeeRate: formData.referralFeeRate,
-            referralFeeAmount: formData.referralFeeAmount,
-            estimateReferralFeeAmount: formData.estimateReferralFeeAmount,
-            landRosenkaCount: formData.landRosenkaCount || 0,
-            landBairitsuCount: formData.landBairitsuCount || 0,
-            unlistedStockCount: formData.unlistedStockCount || 0,
-            heirCount: formData.heirCount || 0,
-            discountAmount: formData.discountAmount || 0,
-            feeCalcSnapshot: formData.feeCalcSnapshot ?? null,
-            summary: formData.summary || null,
-            memo: formData.memo || null,
-            caseAddedDate: formData.caseAddedDate || null,
-            caseCompletedDate: formData.caseCompletedDate || null,
-            assigneeId: formData.assigneeId || null,
-            internalReferrerId: formData.internalReferrerId || null,
-            referrerId: formData.referrerId || null,
-            heirs,
-            relatedParties,
-            progress,
-            expenses,
-            specialAdditions,
-        }
     }
 
     const doSave = async (statusOverride?: CaseStatus): Promise<boolean> => {
@@ -163,7 +100,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
         setIsSaving(true)
         try {
-            const payload = { ...toApiPayload(), status: finalStatus }
+            const payload = { ...getCaseApiPayload(formData), status: finalStatus }
             if (isCreateMode) {
                 await createCase(payload)
                 await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
@@ -199,10 +136,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             return
         }
 
-        const invalidSpecialAddition = (formData.specialAdditions || []).some(
-            (a) => !a.description.trim() && (a.amount || 0) > 0,
-        )
-        if (invalidSpecialAddition) {
+        if (hasInvalidSpecialAddition(formData)) {
             toast.warning("特別業務報酬額の内容を入力してください")
             return
         }
@@ -221,21 +155,15 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         await doSave()
     }
 
-    const returnToPath = isCreateMode ? '/new' : `/${formData.id}`
-    const needsConfirmedFee =
-        ((COMPLETED_STATUSES as readonly string[]).includes(formData.status) || !!formData.caseCompletedDate)
-        && !formData.feeAmount
+    const returnToPath = getCaseReturnPath(formData, isCreateMode)
+    const needsConfirmedFee = getNeedsConfirmedFee(formData)
 
     const netRevenue = useMemo(() =>
-        (formData.feeAmount || 0) - (formData.referralFeeAmount || 0),
-        [formData.feeAmount, formData.referralFeeAmount]
+        calculateNetRevenue(formData),
+        [formData]
     )
 
-    const estimateNetRevenue = useMemo(() => {
-        const base = formData.estimateAmount || 0
-        const referral = formData.estimateReferralFeeAmount ?? Math.floor(base * ((formData.referralFeeRate || 0) / 100))
-        return base - referral
-    }, [formData.estimateAmount, formData.estimateReferralFeeAmount, formData.referralFeeRate])
+    const estimateNetRevenue = useMemo(() => calculateEstimateNetRevenue(formData), [formData])
 
     return (
         <div className="space-y-3">
