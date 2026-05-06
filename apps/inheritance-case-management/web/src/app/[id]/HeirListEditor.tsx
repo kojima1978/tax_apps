@@ -20,8 +20,8 @@ import {
     sortHeirsByRelationship,
     updateHeirMemo,
     updateHeirRelationship,
-    withPostalCodeLookupAddress,
 } from "./heir-list-utils"
+import { withPostalCodeLookupAddress } from "./case-person-utils"
 
 interface HeirListEditorProps {
     heirs: CaseHeir[]

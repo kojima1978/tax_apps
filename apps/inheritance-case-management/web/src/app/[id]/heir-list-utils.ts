@@ -1,37 +1,21 @@
 import type { CaseHeir, HeirPerson } from "@/types/shared"
 import type { CreateHeirPersonInput } from "@/types/validation"
 import { HEIR_RELATIONSHIP_LABELS, relationshipSortFor } from "@/lib/constants/heir-relationships"
-import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
-import { normalizeNameKanaForStorage, personMatchesSearch } from "@/lib/person-search"
+import { normalizePersonAddressParts } from "@/lib/person-address"
+import { personMatchesSearch } from "@/lib/person-search"
+import {
+    type BasePersonFormState,
+    emptyBasePersonForm,
+    getBasePersonPayload,
+} from "./case-person-utils"
 
-export interface HeirPersonFormState {
-    name: string
-    nameKana: string
+export interface HeirPersonFormState extends BasePersonFormState {
     dateOfBirth: string
-    phone: string
-    postalCode: string
-    address: string
-    addressFromPostalCode: string
-    addressManual: string
-    memo: string
 }
 
 export const emptyHeirPersonForm: HeirPersonFormState = {
-    name: "",
-    nameKana: "",
+    ...emptyBasePersonForm,
     dateOfBirth: "",
-    phone: "",
-    postalCode: "",
-    address: "",
-    addressFromPostalCode: "",
-    addressManual: "",
-    memo: "",
-}
-
-type PersonAddressInput = Parameters<typeof normalizePersonAddressParts>[0]
-
-export function getDisplayAddress(parts: PersonAddressInput): string {
-    return normalizePersonAddressParts(parts).address
 }
 
 export function getHeirPersonFormState(person: HeirPerson): HeirPersonFormState {
@@ -48,26 +32,9 @@ export function getHeirPersonFormState(person: HeirPerson): HeirPersonFormState 
 
 export function getHeirPersonPayload(person: HeirPersonFormState): CreateHeirPersonInput {
     return {
-        name: person.name.trim(),
-        nameKana: normalizeNameKanaForStorage(person.nameKana),
+        ...getBasePersonPayload(person),
         dateOfBirth: person.dateOfBirth || null,
-        phone: person.phone,
-        postalCode: person.postalCode,
-        memo: person.memo,
-        ...normalizePersonAddressParts(person),
     }
-}
-
-export function withAddressFromPostalCode<T extends HeirPersonFormState>(person: T, addressFromPostalCode: string): T {
-    return { ...person, ...normalizePersonAddressParts({ ...person, addressFromPostalCode }) }
-}
-
-export function withPostalCodeLookupAddress<T extends HeirPersonFormState>(person: T, addressFromPostalCode: string): T {
-    return { ...person, ...applyPostalCodeAddress(person, addressFromPostalCode) }
-}
-
-export function withAddressManual<T extends HeirPersonFormState>(person: T, addressManual: string): T {
-    return { ...person, ...normalizePersonAddressParts({ ...person, addressManual }) }
 }
 
 export function createCaseHeir(person: HeirPerson, sortOrder: number): CaseHeir {

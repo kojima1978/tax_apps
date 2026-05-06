@@ -5,7 +5,8 @@ import { SelectWithOther } from "@/components/ui/SelectWithOther"
 import { ageOnDate } from "@/lib/age"
 import { formatPostalCodeForDisplay } from "@/lib/postal-code-format"
 import type { CaseHeir } from "@/types/shared"
-import { getDisplayAddress, HEIR_RELATIONSHIP_LABELS } from "./heir-list-utils"
+import { getDisplayAddress } from "./case-person-utils"
+import { HEIR_RELATIONSHIP_LABELS } from "./heir-list-utils"
 
 interface HeirCardProps {
     heir: CaseHeir

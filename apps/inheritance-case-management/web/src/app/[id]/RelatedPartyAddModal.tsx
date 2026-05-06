@@ -3,34 +3,34 @@ import { UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Modal } from "@/components/ui/Modal"
-import type { HeirPerson } from "@/types/shared"
-import { HeirPersonForm } from "./HeirPersonForm"
+import type { RelatedPartyPerson } from "@/types/shared"
 import { getDisplayAddress } from "./case-person-utils"
+import { RelatedPartyPersonForm } from "./RelatedPartyPersonForm"
 import {
-    emptyHeirPersonForm,
-    type HeirPersonFormState,
-} from "./heir-list-utils"
+    emptyRelatedPartyPersonForm,
+    type RelatedPartyPersonFormState,
+} from "./related-party-list-utils"
 
-interface HeirAddModalProps {
+interface RelatedPartyAddModalProps {
     isOpen: boolean
     showCreateForm: boolean
     searchInputRef: RefObject<HTMLInputElement | null>
     searchQuery: string
-    filteredPersons: HeirPerson[]
-    newPerson: HeirPersonFormState
+    filteredPersons: RelatedPartyPerson[]
+    newPerson: RelatedPartyPersonFormState
     isCreating: boolean
     isSearching: boolean
     onClose: () => void
     onSearchQueryChange: (value: string) => void
     onShowCreateFormChange: (show: boolean) => void
-    onNewPersonChange: Dispatch<SetStateAction<HeirPersonFormState>>
-    onAddPerson: (person: HeirPerson) => void
+    onNewPersonChange: Dispatch<SetStateAction<RelatedPartyPersonFormState>>
+    onAddPerson: (person: RelatedPartyPerson) => void
     onCreateAndAdd: () => void
     onPostalCodeChange: (value: string) => void
     onSearchPostalCode: () => void
 }
 
-export function HeirAddModal({
+export function RelatedPartyAddModal({
     isOpen,
     showCreateForm,
     searchInputRef,
@@ -47,17 +47,17 @@ export function HeirAddModal({
     onCreateAndAdd,
     onPostalCodeChange,
     onSearchPostalCode,
-}: HeirAddModalProps) {
+}: RelatedPartyAddModalProps) {
     const handleStartCreate = () => {
         onShowCreateFormChange(true)
-        onNewPersonChange({ ...emptyHeirPersonForm, name: searchQuery })
+        onNewPersonChange({ ...emptyRelatedPartyPersonForm, name: searchQuery })
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="相続人を追加">
+        <Modal isOpen={isOpen} onClose={onClose} title="関係者を追加">
             {showCreateForm ? (
                 <div className="space-y-3">
-                    <HeirPersonForm
+                    <RelatedPartyPersonForm
                         value={newPerson}
                         onChange={onNewPersonChange}
                         isSearching={isSearching}
@@ -80,7 +80,7 @@ export function HeirAddModal({
                             ref={searchInputRef}
                             value={searchQuery}
                             onChange={e => onSearchQueryChange(e.target.value)}
-                            placeholder="氏名・フリガナ・電話番号・住所で検索"
+                            placeholder="氏名・フリガナ・業種・電話番号・住所で検索"
                             className="flex-1"
                         />
                         <Button variant="outline" size="sm" onClick={handleStartCreate}>
