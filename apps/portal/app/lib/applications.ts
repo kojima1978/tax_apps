@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Activity, Banknote, Briefcase, Building, Calculator,
+  Activity, Briefcase, Building, Calculator,
   Clock, CreditCard, FileCheck, FileSpreadsheet, FileText, Gift, Landmark, Package, Receipt, TrendingUp,
 } from 'lucide-react';
 
@@ -26,7 +26,6 @@ export const applications: Application[] = [
   { title: '退職金税額計算', description: '退職金の所得税・住民税を計算', url: '/retirement-tax-calc/', icon: CreditCard, category: '計算・評価' },
   { title: '減価償却ツール', description: '耐用年数・簿価・期間償却を計算', url: '/depreciation-calc/', icon: Clock, category: '計算・評価' },
   { title: '減価償却資産評価', description: '相続税の減価償却資産を一括評価', url: '/asset-valuation/', icon: Package, category: '計算・評価' },
-  { title: '給与手取り計算', description: '給与・賞与の手取り額を計算', url: '/salary-calc/', icon: Banknote, category: '計算・評価' },
   { title: '株式評価明細書', description: '取引相場のない株式の評価明細書', url: '/stock-valuation-form/', icon: FileSpreadsheet, category: '計算・評価' },
   { title: '預貯金分析', description: '預金移動の分析ツール', url: '/bank-analyzer/', icon: Building, category: '分析・管理' },
   { title: '案件管理', description: '相続税案件の進捗管理', url: '/itcm/', icon: Briefcase, category: '分析・管理' },

@@ -88,7 +88,6 @@ nginx/
 | `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター (Vite) |
 | `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 (Vite) |
 | `/depreciation-calc/` | `depreciation-calc:3015` | 減価償却計算 (Vite) |
-| `/salary-calc/` | `salary-calc:3016` | 給与手取り計算 (Vite) |
 | `/asset-valuation/` | `asset-valuation:3017` | 減価償却資産評価 (Vite) |
 | `/stock-valuation-form/` | `stock-valuation-form:3014` | 株式評価明細書 (Vite) |
 | `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Django + PostgreSQL) |
