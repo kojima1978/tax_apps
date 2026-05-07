@@ -22,20 +22,24 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+x-autoheal-labels: &autoheal-labels
+  tax-apps.autoheal: "true"
+
 x-common: &common
   networks:
     - tax-apps-network
   restart: unless-stopped
   logging: *default-logging
   init: true
+  labels: *autoheal-labels
   security_opt:
     - no-new-privileges:true
   deploy:
     resources:
       limits:
-        memory: 128M
+        memory: 256M
       reservations:
-        memory: 32M
+        memory: 64M
 
 services:
   # ===========================================
@@ -79,6 +83,25 @@ services:
       timeout: 10s
       retries: 5
       start_period: 5s
+
+  # ===========================================
+  # Autoheal (restart unhealthy containers)
+  # ===========================================
+  autoheal:
+    image: willfarrell/autoheal@sha256:cdb6271bea1fedd140e0629c01248a5712591032c424185e578b336791a4534d
+    container_name: tax-apps-autoheal
+    restart: unless-stopped
+    network_mode: none
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: tax-apps.autoheal
+      AUTOHEAL_INTERVAL: "15"
+      AUTOHEAL_START_PERIOD: "60"
+      AUTOHEAL_DEFAULT_STOP_TIMEOUT: "30"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
 
 networks:
   tax-apps-network:

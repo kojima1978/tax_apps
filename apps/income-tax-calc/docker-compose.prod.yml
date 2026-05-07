@@ -1,12 +1,4 @@
 services:
   income-tax-calc:
-    build:
-      target: runner
+    # Keep the dev target while the app is under active development.
     init: false
-    volumes: []
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 64M

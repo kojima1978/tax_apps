@@ -15,6 +15,7 @@
 #   ./manage.sh backup             全データベース・データをバックアップ
 #   ./manage.sh restore [dir]      バックアップからリストア
 #   ./manage.sh clean              コンテナ・イメージのクリーンアップ
+#   ./manage.sh clean-cache        古い Docker Build Cache の削除
 #   ./manage.sh preflight          起動前チェック
 #
 # ============================================
@@ -48,7 +49,6 @@ APPS=(
   "apps/salary-calc"
   "apps/asset-valuation"
   "apps/stock-valuation-form"
-  "apps/income-tax-calc"
   "docker/gateway"
 )
 
@@ -91,6 +91,20 @@ ensure_network() {
   if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
     log "ネットワーク $NETWORK_NAME を作成..."
     docker network create "$NETWORK_NAME"
+  fi
+}
+
+preflight_quick() {
+  if ! docker info >/dev/null 2>&1; then
+    err "Docker Desktop is not running"
+    echo "  Please start Docker Desktop and try again."
+    return 1
+  fi
+
+  if ! docker compose version >/dev/null 2>&1; then
+    err "docker compose command not available"
+    echo "  Please install Docker Compose V2."
+    return 1
   fi
 }
 
@@ -208,6 +222,7 @@ _do_compose_action() {
 cmd_start() {
   local prod_mode=0
   [[ "${1:-}" == "--prod" ]] && prod_mode=1
+  preflight_quick
   ensure_network
   if [[ $prod_mode -eq 1 ]]; then
     log "全アプリを本番モードで起動します..."
@@ -254,10 +269,16 @@ cmd_logs() {
 
 _do_status() {
   local dir="$1" name="$2"
-  docker compose -f "$dir/docker-compose.yml" ps --format \
+  docker compose -f "$dir/docker-compose.yml" ps -a --format \
     "{{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null | \
     while IFS=$'\t' read -r cname cstatus cports; do
-      printf "%-35s %-15s %-10s\n" "$cname" "$cstatus" "$cports"
+      local inspect health restarts oom
+      inspect=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}-{{end}}	{{.RestartCount}}	{{.State.OOMKilled}}' "$cname" 2>/dev/null || true)
+      IFS=$'\t' read -r health restarts oom <<< "$inspect"
+      health=${health:-unknown}
+      restarts=${restarts:-?}
+      oom=${oom:-?}
+      printf "%-35s %-28s %-10s %-8s %-10s %s\n" "$cname" "$cstatus" "$health" "$restarts" "$oom" "$cports"
     done
 }
 
@@ -270,8 +291,8 @@ cmd_status() {
     echo "  状態: 存在しない"
   fi
   echo ""
-  printf "%-35s %-15s %-10s\n" "CONTAINER" "STATUS" "PORTS"
-  echo "----------------------------------------"
+  printf "%-35s %-28s %-10s %-8s %-10s %s\n" "CONTAINER" "STATUS" "HEALTH" "RESTARTS" "OOMKILLED" "PORTS"
+  echo "----------------------------------------------------------------------------------------------------"
   for_each_app _do_status
   echo "========================================"
   echo ""
@@ -293,6 +314,68 @@ _print_clean_done() {
   echo ""
 }
 
+print_docker_disk_usage() {
+  if docker system df >/dev/null 2>&1; then
+    docker system df
+  else
+    warn "Docker disk usage could not be checked"
+  fi
+}
+
+port_is_listening() {
+  local port="$1"
+
+  if ss -tlnH 2>/dev/null | grep -Eq "[:.]${port}[[:space:]]" 2>/dev/null; then
+    return 0
+  fi
+
+  if netstat -tln 2>/dev/null | grep -Eq "[:.]${port}[[:space:]]"; then
+    return 0
+  fi
+
+  if netstat -ano -p tcp 2>/dev/null | grep -Eq "[:.]${port}[[:space:]]"; then
+    return 0
+  fi
+
+  if command -v powershell.exe >/dev/null 2>&1; then
+    powershell.exe -NoProfile -Command "if (Get-NetTCPConnection -State Listen -LocalPort ${port} -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >/dev/null 2>&1 && return 0
+  fi
+
+  return 1
+}
+
+is_managed_compose_project() {
+  local project="$1"
+  local app name
+
+  for app in "${APPS[@]}"; do
+    name=$(basename "$app")
+    if [[ "$project" == "$name" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+tax_apps_container_for_port() {
+  local port="$1"
+  local cname cports project
+
+  while IFS=$'\t' read -r cname cports; do
+    [[ -z "$cname" ]] && continue
+    [[ "$cports" == *":${port}->"* ]] || continue
+
+    project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$cname" 2>/dev/null || true)
+    if is_managed_compose_project "$project"; then
+      echo "$cname"
+      return 0
+    fi
+  done < <(docker ps --format '{{.Names}}	{{.Ports}}' 2>/dev/null || true)
+
+  return 1
+}
+
 cmd_clean() {
   print_banner "Tax Apps - Clean Up"
   echo "  * Backup recommendation: ./manage.sh backup"
@@ -307,6 +390,7 @@ cmd_clean() {
   echo ""
 
   read -rp "  削除してよろしいですか？ (Y/N): " confirm1
+  confirm1="${confirm1//$'\r'/}"
   if [[ "${confirm1,,}" != "y" ]]; then
     echo ""
     echo "キャンセルしました。"
@@ -336,8 +420,10 @@ cmd_clean() {
   done
   echo ""
 
-  read -rp "  本当に削除してよろしいですか？ (Y/N): " confirm2
-  if [[ "${confirm2,,}" != "y" ]]; then
+  echo "  続行するには DELETE DATA と入力してください。"
+  read -rp "  入力: " confirm2
+  confirm2="${confirm2//$'\r'/}"
+  if [[ "$confirm2" != "DELETE DATA" ]]; then
     echo ""
     echo "データの削除をスキップしました。"
     echo "コンテナ・イメージのみ削除済みです。"
@@ -363,6 +449,60 @@ cmd_clean() {
 }
 
 # ------------------------------------
+# clean-cache - Docker Build Cache の安全な削除
+# ------------------------------------
+cmd_clean_cache() {
+  local mode="${1:-}"
+  local prune_args=(builder prune --force --filter "until=168h")
+
+  print_banner "Tax Apps - Docker Build Cache Cleanup"
+  echo "  削除対象: Docker Build Cache のみ"
+  echo "  保持対象: コンテナ、イメージ、ボリューム、DBデータ"
+  echo ""
+
+  case "$mode" in
+    "")
+      echo "  モード: 7日以上使われていない Build Cache を削除"
+      ;;
+    --all)
+      warn "モード: 未使用の Build Cache をすべて削除"
+      warn "次回ビルドは少し遅くなる可能性があります。"
+      prune_args=(builder prune --all --force)
+      ;;
+    *)
+      err "Unknown option: $mode"
+      echo "Usage: $0 clean-cache [--all]"
+      return 1
+      ;;
+  esac
+
+  echo ""
+  echo "Before:"
+  print_docker_disk_usage
+  echo ""
+
+  local confirm
+  if ! read -rp "  Build Cache を削除してよろしいですか？ (Y/N): " confirm; then
+    echo ""
+    echo "キャンセルしました。"
+    return 1
+  fi
+
+  confirm="${confirm//$'\r'/}"
+  if [[ "${confirm,,}" != "y" ]]; then
+    echo ""
+    echo "キャンセルしました。"
+    return 0
+  fi
+
+  echo ""
+  docker "${prune_args[@]}"
+  echo ""
+  echo "After:"
+  print_docker_disk_usage
+}
+
+# ------------------------------------
 # preflight - 起動前チェック
 # ------------------------------------
 cmd_preflight() {
@@ -374,7 +514,7 @@ cmd_preflight() {
   if ! docker info >/dev/null 2>&1; then
     err "Docker Desktop is not running"
     echo "  Please start Docker Desktop and try again."
-    (( pf_err++ ))
+    ((++pf_err))
     # Summary (early exit)
     print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
     echo "Errors detected. Please fix them before starting."
@@ -382,17 +522,17 @@ cmd_preflight() {
     return 1
   else
     ok "Docker Desktop is running"
-    (( pf_ok++ ))
+    ((++pf_ok))
   fi
 
   # 2. docker compose
   if ! docker compose version >/dev/null 2>&1; then
     err "docker compose command not available"
     echo "  Please install Docker Compose V2."
-    (( pf_err++ ))
+    ((++pf_err))
   else
     ok "docker compose is available"
-    (( pf_ok++ ))
+    ((++pf_ok))
   fi
 
   # 3. Compose files
@@ -400,35 +540,58 @@ cmd_preflight() {
   for app in "${APPS[@]}"; do
     local dir="$PROJECT_ROOT/$app"
     if [[ -f "$dir/docker-compose.yml" ]]; then
-      (( compose_found++ ))
+      ((++compose_found))
     else
       local name
       name=$(basename "$app")
       warn "Missing: $name/docker-compose.yml"
-      (( compose_missing++ ))
-      (( pf_warn++ ))
+      ((++compose_missing))
+      ((++pf_warn))
     fi
   done
   if [[ $compose_missing -eq 0 ]]; then
     ok "All $compose_found docker-compose.yml files present"
-    (( pf_ok++ ))
+    ((++pf_ok))
   fi
 
-  # 4. Nginx configs
+  # 4. Compose config validation
+  local compose_invalid=0
+  for app in "${APPS[@]}"; do
+    local dir="$PROJECT_ROOT/$app"
+    local name
+    name=$(basename "$app")
+    if [[ -f "$dir/docker-compose.yml" ]]; then
+      local compose_files=(-f "$dir/docker-compose.yml")
+      if [[ -f "$dir/docker-compose.prod.yml" ]]; then
+        compose_files+=(-f "$dir/docker-compose.prod.yml")
+      fi
+      if ! docker compose "${compose_files[@]}" config --quiet >/dev/null; then
+        warn "Compose config validation failed: $name"
+        compose_invalid=1
+        ((++pf_warn))
+      fi
+    fi
+  done
+  if [[ $compose_invalid -eq 0 ]]; then
+    ok "Compose config validation passed"
+    ((++pf_ok))
+  fi
+
+  # 5. Nginx configs
   local nginx_ok=1
-  for cfg in "nginx/nginx.conf" "nginx/default.conf" "nginx/includes/upstreams.conf" "nginx/includes/maps.conf"; do
+  for cfg in "nginx/nginx.conf" "nginx/default.conf" "nginx/includes/upstreams.conf" "nginx/includes/maps.conf" "nginx/includes/proxy_params.conf"; do
     if [[ ! -f "$PROJECT_ROOT/$cfg" ]]; then
       warn "Missing: $cfg"
       nginx_ok=0
-      (( pf_warn++ ))
+      ((++pf_warn))
     fi
   done
   if [[ $nginx_ok -eq 1 ]]; then
     ok "Nginx config files present"
-    (( pf_ok++ ))
+    ((++pf_ok))
   fi
 
-  # 5. ITCM .env
+  # 6. ITCM .env
   local itcm_env="$PROJECT_ROOT/apps/inheritance-case-management/.env"
   if [[ ! -f "$itcm_env" ]]; then
     if [[ -f "$PROJECT_ROOT/apps/inheritance-case-management/.env.example" ]]; then
@@ -437,36 +600,73 @@ cmd_preflight() {
     else
       warn "ITCM .env not found"
     fi
-    (( pf_warn++ ))
+    ((++pf_warn))
   else
     ok "ITCM .env file exists"
-    (( pf_ok++ ))
+    ((++pf_ok))
   fi
 
-  # 6. Port conflicts
+  # 7. Port conflicts
   local port_conflict=0
+  local tax_apps_ports=()
   local ports=(80 3000 3001 3002 3003 3004 3007 3010 3012 3013 3014 3015 3016 3017 3020 3022 5432)
   for p in "${ports[@]}"; do
-    if ss -tlnH 2>/dev/null | grep -q ":$p " 2>/dev/null || netstat -tln 2>/dev/null | grep -q ":$p "; then
+    local owner
+    if owner=$(tax_apps_container_for_port "$p"); then
+      tax_apps_ports+=("$p/$owner")
+    elif port_is_listening "$p"; then
       warn "Port $p is already in use"
       port_conflict=1
-      (( pf_warn++ ))
+      ((++pf_warn))
     fi
   done
+  if [[ ${#tax_apps_ports[@]} -gt 0 ]]; then
+    ok "Ports already used by Tax Apps: ${tax_apps_ports[*]}"
+  fi
   if [[ $port_conflict -eq 0 ]]; then
-    ok "No port conflicts detected"
-    (( pf_ok++ ))
+    ok "No external port conflicts detected"
+    ((++pf_ok))
   fi
 
-  # 7. Disk space
+  # 8. Host disk space
   local free_kb
   free_kb=$(df -k "$PROJECT_ROOT" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0")
   if [[ $free_kb -lt $((5*1024*1024)) ]]; then
     warn "Low disk space (less than 5GB free)"
-    (( pf_warn++ ))
+    ((++pf_warn))
   else
     ok "Disk space OK"
-    (( pf_ok++ ))
+    ((++pf_ok))
+  fi
+
+  # 9. Docker daemon memory
+  local docker_mem_bytes
+  docker_mem_bytes=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo "0")
+  if [[ "$docker_mem_bytes" =~ ^[0-9]+$ && "$docker_mem_bytes" -gt 0 ]]; then
+    local min_mem_bytes=$((4*1024*1024*1024))
+    local docker_mem_gb=$((docker_mem_bytes / 1024 / 1024 / 1024))
+    if [[ "$docker_mem_bytes" -lt "$min_mem_bytes" ]]; then
+      warn "Docker memory is low (${docker_mem_gb}GB). 4GB+ is recommended for local all-app startup."
+      ((++pf_warn))
+    else
+      ok "Docker memory OK (${docker_mem_gb}GB)"
+      ((++pf_ok))
+    fi
+  else
+    warn "Docker memory could not be checked"
+    ((++pf_warn))
+  fi
+
+  # 10. Docker disk usage
+  if docker system df >/dev/null 2>&1; then
+    echo ""
+    echo "Docker disk usage:"
+    print_docker_disk_usage
+    ok "Docker disk usage checked"
+    ((++pf_ok))
+  else
+    warn "Docker disk usage could not be checked"
+    ((++pf_warn))
   fi
 
   # Summary
@@ -501,9 +701,10 @@ case "${1:-help}" in
   backup)    "$SCRIPT_DIR/backup.sh" backup ;;
   restore)   "$SCRIPT_DIR/backup.sh" restore "${2:-}" ;;
   clean)     cmd_clean ;;
+  clean-cache) cmd_clean_cache "${2:-}" ;;
   preflight) cmd_preflight ;;
   *)
-    echo "Usage: $0 {start|stop|down|restart|build|logs|status|backup|restore|clean|preflight} [app-name]"
+    echo "Usage: $0 {start|stop|down|restart|build|logs|status|backup|restore|clean|clean-cache|preflight} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start              全アプリを起動（ネットワーク自動作成）"
@@ -519,6 +720,7 @@ case "${1:-help}" in
     echo "  backup             全データベース・データをバックアップ"
     echo "  restore [dir]      バックアップからリストア"
     echo "  clean              コンテナ・イメージのクリーンアップ"
+    echo "  clean-cache [--all] Docker Build Cache の削除（通常は7日以上未使用のみ）"
     echo "  preflight          起動前チェック"
     echo ""
     echo "Apps:"

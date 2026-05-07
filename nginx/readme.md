@@ -143,12 +143,12 @@ limit_req_zone $binary_remote_addr zone=general_limit:10m rate=1000r/s;
 
 ### タイムアウトの調整
 
-`default.conf` の以下の部分を変更:
+`includes/proxy_params.conf` の以下の部分を変更:
 
 ```nginx
-proxy_connect_timeout 60s;
-proxy_send_timeout 60s;
-proxy_read_timeout 60s;
+proxy_connect_timeout 120s;
+proxy_send_timeout 120s;
+proxy_read_timeout 120s;
 ```
 
 **注意**: `bank-analyzer` は CSV解析・RapidFuzz分類処理のため `proxy_read_timeout 300s` に設定済み

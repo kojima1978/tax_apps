@@ -123,7 +123,7 @@ EXPOSE 3007
 
 # Healthcheck using curl (more reliable than Python urllib)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl --fail --silent --show-error http://localhost:3007/health/ || exit 1
+    CMD curl --fail --silent --show-error http://127.0.0.1:3007/health/ || exit 1
 
 # Run as non-root user for security
 USER appuser
