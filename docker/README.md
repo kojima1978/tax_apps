@@ -285,7 +285,6 @@ docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-anal
 | Shares Valuation | `runner` | nginx:1.27-alpine | あり |
 | Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
 | Depreciation Calc | `runner` | nginx:1.27-alpine | あり |
-| Salary Calc | `runner` | nginx:1.27-alpine | あり |
 | Asset Valuation | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
 | Stock Valuation Form | `runner` | nginx:1.27-alpine | あり |
@@ -530,7 +529,6 @@ docker network create tax-apps-network
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
 | Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書 |
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
-| Salary Calc | http://localhost/salary-calc/ | 3016 | Vite | 給与・賞与 手取り計算 |
 | Asset Valuation | http://localhost/asset-valuation/ | 3017 | Vite | 減価償却資産評価 |
 | Income Tax Calc | http://localhost/income-tax-calc/ | 3018 | Vite | 所得税計算（個別起動のみ・全体管理対象外） |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
@@ -558,10 +556,9 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 8 | inheritance-tax-docs | Vite |
 | 9 | retirement-tax-calc | Vite |
 | 10 | depreciation-calc | Vite |
-| 11 | salary-calc | Vite |
-| 12 | asset-valuation | Vite |
-| 13 | stock-valuation-form | Vite |
-| 14 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
+| 11 | asset-valuation | Vite |
+| 12 | stock-valuation-form | Vite |
+| 13 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -579,7 +576,6 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3015 | Depreciation Calc | apps/depreciation-calc |
-| 3016 | Salary Calc | apps/salary-calc |
 | 3017 | Asset Valuation | apps/asset-valuation |
 | 3018 | Income Tax Calc | apps/income-tax-calc（個別起動のみ） |
 | 3020 | ITCM Web | apps/inheritance-case-management |
@@ -594,11 +590,11 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | docker-compose.yml ファイル存在確認（14個、income-tax-calc 除外） | OK / WARN |
+| 3 | docker-compose.yml ファイル存在確認（13個、income-tax-calc 除外） | OK / WARN |
 | 4 | Compose config 検証 | OK / WARN |
 | 5 | Nginx 設定ファイル存在確認 | OK / WARN |
 | 6 | ITCM `.env` ファイル存在確認 | OK / WARN |
-| 7 | ポート競合検出（17ポート、Tax Apps 自身の使用ポートは除外） | OK / WARN |
+| 7 | ポート競合検出（16ポート、Tax Apps 自身の使用ポートは除外） | OK / WARN |
 | 8 | ホストディスク空き容量（5GB未満で警告） | OK / WARN |
 | 9 | Docker daemon メモリ（4GB未満で警告） | OK / WARN |
 | 10 | Docker ディスク使用量表示 | OK / WARN |
@@ -682,7 +678,6 @@ tax_apps/
 │   │   └── docker-compose.yml
 │   ├── depreciation-calc/      # 減価償却計算
 │   │   └── docker-compose.yml
-│   ├── salary-calc/            # 給与・賞与 手取り計算
 │   │   └── docker-compose.yml
 │   ├── asset-valuation/        # 減価償却資産評価
 │   │   ├── docker-compose.yml

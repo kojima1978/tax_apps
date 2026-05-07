@@ -65,7 +65,6 @@ app/
 | 退職金税額計算 | /retirement-tax-calc/ | 退職金の所得税・住民税を計算 |
 | 減価償却ツール | /depreciation-calc/ | 耐用年数・簿価・期間償却を計算 |
 | 減価償却資産評価 | /asset-valuation/ | 相続税の減価償却資産を一括評価 |
-| 給与手取り計算 | /salary-calc/ | 給与・賞与の手取り額を計算 |
 | 株式評価明細書 | /stock-valuation-form/ | 取引相場のない株式の評価明細書 |
 | 預貯金分析 | /bank-analyzer/ | 預金移動の分析ツール |
 | 案件管理 | /itcm/ | 相続税案件の進捗管理 |

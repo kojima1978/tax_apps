@@ -46,7 +46,6 @@ APPS=(
   "apps/inheritance-tax-docs"
   "apps/retirement-tax-calc"
   "apps/depreciation-calc"
-  "apps/salary-calc"
   "apps/asset-valuation"
   "apps/stock-valuation-form"
   "docker/gateway"
@@ -609,7 +608,7 @@ cmd_preflight() {
   # 7. Port conflicts
   local port_conflict=0
   local tax_apps_ports=()
-  local ports=(80 3000 3001 3002 3003 3004 3007 3010 3012 3013 3014 3015 3016 3017 3020 3022 5432)
+  local ports=(80 3000 3001 3002 3003 3004 3007 3010 3012 3013 3014 3015 3017 3020 3022 5432)
   for p in "${ports[@]}"; do
     local owner
     if owner=$(tax_apps_container_for_port "$p"); then

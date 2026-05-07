@@ -24,7 +24,6 @@
 | 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人の株式評価 |
 | 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Prisma + PostgreSQL | 相続税案件管理 |
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
-| 給与手取り計算 | `/salary-calc/` | http://localhost/salary-calc/ | 3016 | Vite + React | 給与・賞与の手取り計算シミュレーション |
 | 減価償却資産評価 | `/asset-valuation/` | http://localhost/asset-valuation/ | 3017 | Vite + React | 相続税申告の減価償却資産評価 |
 | 株式評価明細書 | `/stock-valuation-form/` | http://localhost/stock-valuation-form/ | 3014 | Vite + React | 取引相場のない株式の評価明細書 |
 | 所得税計算 | `/income-tax-calc/` | http://localhost/income-tax-calc/ | 3018 | Vite + React | 所得税計算ツール |
@@ -34,7 +33,7 @@
 
 | 種別 | アプリ | イメージサイズ |
 |------|--------|--------------|
-| nginx (静的) | 15 Vite/Next.js アプリ + gateway | ~59-60MB |
+| nginx (静的) | Vite/Next.js アプリ + gateway | ~59-60MB |
 | Next.js standalone | 医療法人株式評価 | ~240MB |
 | Next.js + Prisma | 案件管理 | ~333MB |
 | Django + Gunicorn | 銀行分析 | ~465MB |
@@ -53,7 +52,6 @@ tax_apps/
 │   ├── shares-valuation/              # 非上場株式評価 (Vite)
 │   ├── tax-docs/                      # 確定申告必要書類 (Vite)
 │   ├── depreciation-calc/             # 減価償却計算 (Vite)
-│   ├── salary-calc/                   # 給与手取り計算 (Vite)
 │   ├── asset-valuation/              # 減価償却資産評価 (Vite)
 │   ├── stock-valuation-form/          # 株式評価明細書 (Vite)
 │   ├── medical-stock-valuation/       # 医療法人株式評価 (Next.js + SQLite)
