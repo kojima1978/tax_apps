@@ -18,6 +18,9 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+x-autoheal-labels: &autoheal-labels
+  tax-apps.autoheal: "true"
+
 x-healthcheck-defaults: &healthcheck-defaults
   interval: 30s
   timeout: 10s
@@ -46,6 +49,7 @@ services:
       - "${DB_PORT:-3022}:5432"
     shm_size: 128m
     logging: *default-logging
+    labels: *autoheal-labels
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-inheritance_tax_db}"]
       interval: 5s
@@ -99,6 +103,7 @@ services:
     init: true
     stop_grace_period: 15s
     logging: *default-logging
+    labels: *autoheal-labels
     healthcheck:
       test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
       <<: *healthcheck-defaults

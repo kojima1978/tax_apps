@@ -125,7 +125,7 @@ http://localhost を開くとポータル画面が表示されます。
 | Step | 削除対象 | 確認 |
 |:-----|:---------|:-----|
 | Step 1 | コンテナ、Docker イメージ、ネットワーク | Y/N |
-| Step 2 | Docker ボリューム（PostgreSQL, SQLite データ） | Y/N |
+| Step 2 | Docker ボリューム（PostgreSQL, SQLite データ） | `DELETE DATA` 入力 |
 
 > Step 1 のみ実行して Step 2 をスキップすれば、データを残したままコンテナだけ削除できます。
 > 削除後に `./manage.sh start` を実行すれば、再セットアップされます。
@@ -182,6 +182,7 @@ rd /s /q tax_apps
 | `./manage.sh backup` | 全データベース・データをバックアップ |
 | `./manage.sh restore [dir]` | バックアップからリストア |
 | `./manage.sh clean` | コンテナ・イメージ・ボリュームのクリーンアップ |
+| `./manage.sh clean-cache [--all]` | Docker Build Cache の安全な削除 |
 | `./manage.sh preflight` | 起動前環境チェック |
 
 ### アプリ名の指定
@@ -207,6 +208,7 @@ rd /s /q tax_apps
 ./manage.sh logs inheritance-tax-docs      # ログ確認
 ./manage.sh restart retirement-tax-calc   # 再起動
 ./manage.sh backup                        # バックアップ
+./manage.sh clean-cache                   # 7日以上未使用の Build Cache だけ削除
 ./manage.sh preflight                     # 起動前チェック
 ```
 
@@ -287,7 +289,7 @@ docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-anal
 | Asset Valuation | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
 | Stock Valuation Form | `runner` | nginx:1.27-alpine | あり |
-| Income Tax Calc | `runner` | nginx:1.27-alpine | あり |
+| Income Tax Calc | 全体本番ビルド対象外 | 開発中のため個別 Compose で起動 | あり |
 | Bank Analyzer | `production` | Gunicorn | あり |
 | ITCM | `runner` | Node.js standalone + tini | あり |
 
@@ -398,6 +400,8 @@ DBなどの永続データは Docker Named Volume またはバインドマウン
 ```
 
 PostgreSQL はコンテナ起動中に `psql` でリストア、SQLite はボリュームに `tar` で復元します。
+リストアを承認すると、上書き前に現在データの `pre-restore_YYYY-MM-DD_HHMMSS` バックアップを自動作成します。事前バックアップに失敗した場合、リストアは中止されます。
+リストア対象として選べるのは、全体バックアップ形式の `YYYY-MM-DD_HHMMSS` と `pre-restore_YYYY-MM-DD_HHMMSS` だけです。
 
 リストア後はアプリの再起動が必要です:
 
@@ -528,7 +532,7 @@ docker network create tax-apps-network
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
 | Salary Calc | http://localhost/salary-calc/ | 3016 | Vite | 給与・賞与 手取り計算 |
 | Asset Valuation | http://localhost/asset-valuation/ | 3017 | Vite | 減価償却資産評価 |
-| Income Tax Calc | http://localhost/income-tax-calc/ | 3018 | Vite | 所得税計算 |
+| Income Tax Calc | http://localhost/income-tax-calc/ | 3018 | Vite | 所得税計算（個別起動のみ・全体管理対象外） |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
 
 ### バックエンドサービス
@@ -557,8 +561,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 11 | salary-calc | Vite |
 | 12 | asset-valuation | Vite |
 | 13 | stock-valuation-form | Vite |
-| 14 | income-tax-calc | Vite |
-| 15 | gateway | Nginx + Portal（全アプリ起動後に起動） |
+| 14 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -578,23 +581,36 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3015 | Depreciation Calc | apps/depreciation-calc |
 | 3016 | Salary Calc | apps/salary-calc |
 | 3017 | Asset Valuation | apps/asset-valuation |
-| 3018 | Income Tax Calc | apps/income-tax-calc |
+| 3018 | Income Tax Calc | apps/income-tax-calc（個別起動のみ） |
 | 3020 | ITCM Web | apps/inheritance-case-management |
 | 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
 
 ### Preflight Check
 
 `./manage.sh preflight` で起動前の環境チェックを実行できます。`start` コマンドからも Docker 起動確認が自動実行されます。
+既に Tax Apps が起動中の場合、そのポートは外部競合ではなく Tax Apps 使用中として扱われます。
 
 | # | チェック項目 | 判定 |
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | docker-compose.yml ファイル存在確認（15個） | OK / WARN |
-| 4 | Nginx 設定ファイル存在確認 | OK / WARN |
-| 5 | ITCM `.env` ファイル存在確認 | OK / WARN |
-| 6 | ポート競合検出（18ポート） | OK / WARN |
-| 7 | ディスク空き容量（5GB未満で警告） | OK / WARN |
+| 3 | docker-compose.yml ファイル存在確認（14個、income-tax-calc 除外） | OK / WARN |
+| 4 | Compose config 検証 | OK / WARN |
+| 5 | Nginx 設定ファイル存在確認 | OK / WARN |
+| 6 | ITCM `.env` ファイル存在確認 | OK / WARN |
+| 7 | ポート競合検出（17ポート、Tax Apps 自身の使用ポートは除外） | OK / WARN |
+| 8 | ホストディスク空き容量（5GB未満で警告） | OK / WARN |
+| 9 | Docker daemon メモリ（4GB未満で警告） | OK / WARN |
+| 10 | Docker ディスク使用量表示 | OK / WARN |
+
+### Docker Build Cache Cleanup
+
+`./manage.sh clean-cache` はコンテナ、イメージ、ボリューム、DBデータを削除せず、Docker Build Cache だけを確認付きで削除します。
+
+| コマンド | 内容 |
+|:---------|:-----|
+| `./manage.sh clean-cache` | 7日以上使われていない Build Cache を削除 |
+| `./manage.sh clean-cache --all` | 未使用の Build Cache をすべて削除（次回ビルドは遅くなる可能性あり） |
 
 ### Gateway 機能
 
@@ -611,8 +627,9 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 設定 | 内容 |
 |:-----|:-----|
 | ログローテーション | 10MB × 3ファイル |
-| リソース制限 | deploy.resources による memory limit/reservation |
-| ヘルスチェック | 全サービスに設定 |
+| リソース制限 | deploy.resources による memory limit/reservation（Gateway/Portal は 256M/64M） |
+| ヘルスチェック | 全サービスに設定。コンテナ内の自己診断は IPv6 誤判定を避けるため `127.0.0.1` を使用 |
+| 自動復旧 | `tax-apps.autoheal=true` ラベル付きの unhealthy コンテナを、動作確認済み digest 固定の `tax-apps-autoheal` が再起動 |
 | 依存関係管理 | service_healthy 条件 |
 | 外部ネットワーク | `tax-apps-network` で全コンテナ間通信 |
 

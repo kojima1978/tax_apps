@@ -155,7 +155,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3014/stock-valuation-form/ || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3014/stock-valuation-form/ || exit 1"]
       <<: *healthcheck-defaults
       start_period: 60s
     deploy:

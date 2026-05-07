@@ -126,6 +126,15 @@ is_container_running() {
   docker ps --filter "name=$1" --filter "status=running" --format "{{.Names}}" 2>/dev/null | grep -q "$1"
 }
 
+strip_cr() {
+  printf '%s' "${1//$'\r'/}"
+}
+
+is_full_backup_name() {
+  local name="$1"
+  [[ "$name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}$ || "$name" =~ ^pre-restore_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}$ ]]
+}
+
 print_summary_banner() {
   local title="$1" fail_count="$2"
   if [[ $fail_count -gt 0 ]]; then
@@ -376,11 +385,20 @@ backup_bank_analyzer_json() {
 }
 
 cmd_backup() {
-  print_banner "Tax Apps - Backup"
+  local backup_label="${1:-}"
+  if [[ -n "$backup_label" ]]; then
+    print_banner "Tax Apps - Backup ($backup_label)"
+  else
+    print_banner "Tax Apps - Backup"
+  fi
 
   local timestamp
   timestamp=$(date +"%Y-%m-%d_%H%M%S")
-  backup_dir="$BACKUP_BASE/$timestamp"
+  local backup_name="$timestamp"
+  if [[ -n "$backup_label" ]]; then
+    backup_name="${backup_label}_${timestamp}"
+  fi
+  backup_dir="$BACKUP_BASE/$backup_name"
   mkdir -p "$backup_dir"
 
   echo "Destination: $backup_dir/"
@@ -423,13 +441,21 @@ cmd_backup() {
   if [[ $backup_ok -eq 0 ]]; then
     warn "No data was backed up. Removing empty directory."
     rm -rf "$backup_dir"
+    return 1
   else
     copy_latest_backup_set "$LATEST_BACKUP_BASE/all-apps" "$backup_dir"
-    echo "  Retention: ${FULL_BACKUP_RETENTION_DAYS} days in $(to_win_path "$BACKUP_BASE")"
-    remove_old_dirs "$BACKUP_BASE" "????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
-    echo "  To restore: ./manage.sh restore $timestamp"
+    if [[ "$backup_label" == "pre-restore" ]]; then
+      echo "  Retention cleanup skipped during pre-restore safety backup."
+    else
+      echo "  Retention: ${FULL_BACKUP_RETENTION_DAYS} days in $(to_win_path "$BACKUP_BASE")"
+      remove_old_dirs "$BACKUP_BASE" "????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
+      remove_old_dirs "$BACKUP_BASE" "pre-restore_????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
+    fi
+    echo "  To restore: ./manage.sh restore $backup_name"
   fi
   echo ""
+
+  [[ $backup_fail -eq 0 ]]
 }
 
 cmd_restore() {
@@ -443,7 +469,11 @@ cmd_restore() {
   backup_dir=""
 
   if [[ -n "${1:-}" ]]; then
-    if [[ -d "$BACKUP_BASE/$1" ]]; then
+    if ! is_full_backup_name "$1"; then
+      err "$1 is not a full backup set."
+      echo "  Use a directory like 2026-02-22_153000 or pre-restore_2026-02-22_153000."
+      echo ""
+    elif [[ -d "$BACKUP_BASE/$1" ]]; then
       backup_dir="$BACKUP_BASE/$1"
     else
       err "$BACKUP_BASE/$1 not found."
@@ -454,8 +484,8 @@ cmd_restore() {
   if [[ -z "$backup_dir" ]]; then
     local -a backups=()
     while IFS= read -r d; do
-      backups+=("$d")
-    done < <(ls -1r "$BACKUP_BASE" 2>/dev/null)
+      backups+=("$(basename "$d")")
+    done < <(find "$BACKUP_BASE" -mindepth 1 -maxdepth 1 -type d \( -name '????-??-??_??????' -o -name 'pre-restore_????-??-??_??????' \) -print 2>/dev/null | sort -r)
 
     if [[ ${#backups[@]} -eq 0 ]]; then
       err "No backups found. Run: ./manage.sh backup"
@@ -475,6 +505,7 @@ cmd_restore() {
     echo ""
 
     read -rp "Select number: " choice
+    choice=$(strip_cr "$choice")
     if [[ "$choice" == "0" || -z "$choice" ]]; then
       echo "Cancelled."
       return 0
@@ -496,9 +527,27 @@ cmd_restore() {
   warn "This will overwrite current data!"
   echo ""
   read -rp "Proceed? (Y/N): " confirm
+  confirm=$(strip_cr "$confirm")
   if [[ "${confirm,,}" != "y" ]]; then
     echo "Cancelled."
     return 0
+  fi
+  echo ""
+
+  local restore_source="$backup_dir"
+  echo "[Safety] Creating pre-restore backup of current data..."
+  if cmd_backup "pre-restore"; then
+    local pre_restore_backup="$backup_dir"
+    backup_dir="$restore_source"
+    ok "Pre-restore backup completed: $pre_restore_backup"
+  elif [[ ${backup_fail:-0} -eq 0 && ${backup_ok:-0} -eq 0 ]]; then
+    backup_dir="$restore_source"
+    warn "No current data was found for pre-restore backup. Continuing restore."
+  else
+    backup_dir="$restore_source"
+    err "Pre-restore backup failed. Restore aborted."
+    echo "  Current data was not overwritten."
+    return 1
   fi
   echo ""
 
