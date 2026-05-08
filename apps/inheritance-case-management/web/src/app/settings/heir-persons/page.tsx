@@ -18,8 +18,10 @@ import type { HeirPerson } from "@/types/shared"
 import type { CreateHeirPersonInput, UpdateHeirPersonInput } from "@/types/validation"
 import { getHeirPersons, createHeirPerson, updateHeirPerson, deleteHeirPerson } from "@/lib/api/masters"
 import { useToast } from "@/components/ui/Toast"
-import { Check, X } from "lucide-react"
-import { useState } from "react"
+import { exportHeirPersonsToCSV } from "@/lib/export-csv"
+import { getHeirPersonRelatedCases } from "@/lib/api/heir-persons"
+import { Check, Download, X } from "lucide-react"
+import { useCallback, useState } from "react"
 import { RelatedCasesPopover } from "./RelatedCasesPopover"
 
 const COLUMNS: ColumnDef<HeirPerson>[] = [
@@ -127,7 +129,32 @@ function HeirPersonsContent() {
     const [newName, setNewName] = useState("")
     const [newNameKana, setNewNameKana] = useState("")
     const [newPhone, setNewPhone] = useState("")
+    const [isExporting, setIsExporting] = useState(false)
     const addressEditing = usePersonAddressEditing(ml.setEditingFields)
+
+    const handleExportCSV = useCallback(async () => {
+        setIsExporting(true)
+        try {
+            const persons = ml.filteredAndSortedItems
+            const withCases = persons.filter(p => (p._count?.caseLinks ?? 0) > 0)
+            const relatedCaseNames = new Map<number, string[]>()
+
+            if (withCases.length > 0) {
+                const results = await Promise.all(
+                    withCases.map(p => getHeirPersonRelatedCases(p.id).then(cases => ({ id: p.id, cases })))
+                )
+                for (const { id, cases } of results) {
+                    relatedCaseNames.set(id, cases.map(c => c.deceasedName))
+                }
+            }
+
+            exportHeirPersonsToCSV(persons, relatedCaseNames)
+        } catch {
+            toast.error("CSV出力に失敗しました")
+        } finally {
+            setIsExporting(false)
+        }
+    }, [ml.filteredAndSortedItems, toast])
 
     const handleAdd = () => {
         const name = newName.trim()
@@ -322,6 +349,17 @@ function HeirPersonsContent() {
             renderEditRow={renderEditRow}
             onStartEdit={handleStartEdit}
             onSaveEdit={handleSaveEdit}
+            listToolbar={
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-3 text-xs rounded"
+                    disabled={isExporting}
+                    onClick={() => { void handleExportCSV() }}
+                >
+                    <Download className="h-3 w-3 mr-1" />{isExporting ? "出力中..." : "CSV出力"}
+                </Button>
+            }
         />
     )
 }

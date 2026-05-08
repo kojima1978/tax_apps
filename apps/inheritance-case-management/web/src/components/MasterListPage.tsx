@@ -46,6 +46,7 @@ interface MasterListPageProps<T extends MasterListItem> {
     onPageChange: (page: number) => void
     onPageSizeChange: (size: number) => void
     groupBy?: (item: T) => string
+    listToolbar?: ReactNode
 }
 
 /** useMasterList の返り値から MasterListPage の共通 props を抽出するヘルパー */
@@ -137,6 +138,7 @@ export function MasterListPage<T extends MasterListItem>({
     onPageChange,
     onPageSizeChange,
     groupBy,
+    listToolbar,
 }: MasterListPageProps<T>) {
     const paginatedItems = useMemo(() => {
         const start = (page - 1) * pageSize
@@ -179,7 +181,10 @@ export function MasterListPage<T extends MasterListItem>({
 
                 <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
-                        <Label>登録済み{entityLabel}</Label>
+                        <div className="flex items-center gap-3">
+                            <Label>登録済み{entityLabel}</Label>
+                            {listToolbar}
+                        </div>
                         <div className="flex items-center gap-3">
                             <select
                                 value={pageSize}

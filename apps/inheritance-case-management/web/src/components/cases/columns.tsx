@@ -78,13 +78,13 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             const borderColor = STATUS_BORDER_COLORS[c.status as CaseStatus] || "border-l-gray-300"
             return (
                 <div className={`min-w-0 border-l-3 pl-2 ${borderColor}`}>
-                    <div className="min-w-0 font-bold leading-tight">
-                        <Link href={`/${c.id}`} className="block truncate text-[13px] text-foreground hover:underline" onClick={(e) => e.stopPropagation()}>
+                    <div className="min-w-0 leading-tight">
+                        {c.deceasedNameKana && (
+                            <div className="truncate text-[10px] text-muted-foreground">{c.deceasedNameKana}</div>
+                        )}
+                        <Link href={`/${c.id}`} className="block truncate text-[13px] font-bold text-foreground hover:underline" onClick={(e) => e.stopPropagation()}>
                             {c.deceasedName || "(氏名未入力)"}
                         </Link>
-                        {c.deceasedNameKana && (
-                            <div className="truncate text-[10px] text-muted-foreground font-normal">{c.deceasedNameKana}</div>
-                        )}
                     </div>
                     <div className="mt-0.5 flex min-w-0 gap-1 overflow-hidden">
                         <MiniBadge label={handlingStatus} style={HANDLING_STATUS_STYLES[handlingStatus]} />

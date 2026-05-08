@@ -99,6 +99,7 @@ export function DataTable<TData, TValue>({
                                     data-state={row.getIsSelected() && "selected"}
                                     className={cn(
                                         "cursor-pointer transition-colors",
+                                        index % 2 === 1 && "bg-muted/30",
                                         focusedRowIndex === index && "bg-muted/50 ring-2 ring-inset ring-primary/20",
                                         isEnded && "opacity-50"
                                     )}
