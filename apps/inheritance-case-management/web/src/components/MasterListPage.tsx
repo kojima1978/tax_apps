@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Label } from "@/components/ui/Label"
@@ -8,6 +8,7 @@ import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import { MasterBreadcrumb } from "@/components/master-list/MasterBreadcrumb"
 import { MasterListTable } from "@/components/master-list/MasterListTable"
 import { MasterSearchControl } from "@/components/master-list/MasterSearchControl"
+import { Pagination } from "@/components/cases/Pagination"
 import type { ColumnDef, MasterListItem } from "@/components/master-list/types"
 
 export type { ColumnDef } from "@/components/master-list/types"
@@ -39,6 +40,11 @@ interface MasterListPageProps<T extends MasterListItem> {
     onPermanentDelete: (id: number) => void
     onSave: () => void
     onSort: (field: string) => void
+    page: number
+    pageSize: number
+    totalPages: number
+    onPageChange: (page: number) => void
+    onPageSizeChange: (size: number) => void
     groupBy?: (item: T) => string
 }
 
@@ -61,11 +67,17 @@ export function getMasterListPageProps<T extends MasterListItem>(
         handlePermanentDelete: (id: number) => void
         handleSave: () => void
         handleSort: (field: string) => void
+        page: number
+        pageSize: number
+        totalPages: number
+        handlePageChange: (page: number) => void
+        handlePageSizeChange: (size: number) => void
     }
 ): Pick<MasterListPageProps<T>,
     'returnTo' | 'isDirty' | 'isSaving' | 'isLoading' | 'items' | 'filteredItems' |
     'searchValue' | 'onSearchChange' | 'showInactive' | 'onToggleShowInactive' | 'editingId' | 'onCancelEdit' |
-    'onToggleActive' | 'onPermanentDelete' | 'onSave' | 'onSort'
+    'onToggleActive' | 'onPermanentDelete' | 'onSave' | 'onSort' |
+    'page' | 'pageSize' | 'totalPages' | 'onPageChange' | 'onPageSizeChange'
 > {
     return {
         returnTo: ml.returnTo,
@@ -84,6 +96,11 @@ export function getMasterListPageProps<T extends MasterListItem>(
         onPermanentDelete: ml.handlePermanentDelete,
         onSave: ml.handleSave,
         onSort: ml.handleSort,
+        page: ml.page,
+        pageSize: ml.pageSize,
+        totalPages: ml.totalPages,
+        onPageChange: ml.handlePageChange,
+        onPageSizeChange: ml.handlePageSizeChange,
     }
 }
 
@@ -114,8 +131,18 @@ export function MasterListPage<T extends MasterListItem>({
     onPermanentDelete,
     onSave,
     onSort,
+    page,
+    pageSize,
+    totalPages,
+    onPageChange,
+    onPageSizeChange,
     groupBy,
 }: MasterListPageProps<T>) {
+    const paginatedItems = useMemo(() => {
+        const start = (page - 1) * pageSize
+        return filteredItems.slice(start, start + pageSize)
+    }, [filteredItems, page, pageSize])
+
     return (
         <div className="container mx-auto py-10 max-w-[1180px] relative pb-24 px-4">
             <MasterBreadcrumb returnTo={returnTo} title={title} />
@@ -153,7 +180,18 @@ export function MasterListPage<T extends MasterListItem>({
                 <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
                         <Label>登録済み{entityLabel}</Label>
-                        <span className="shrink-0 text-xs text-muted-foreground">{filteredItems.length} / {items.length} 件</span>
+                        <div className="flex items-center gap-3">
+                            <select
+                                value={pageSize}
+                                onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                                className="h-7 rounded border text-xs bg-background pl-1.5 pr-5"
+                            >
+                                <option value={25}>25件</option>
+                                <option value={50}>50件</option>
+                                <option value={100}>100件</option>
+                            </select>
+                            <span className="shrink-0 text-xs text-muted-foreground">{filteredItems.length} / {items.length} 件</span>
+                        </div>
                     </div>
                     {isLoading ? (
                         <p className="text-muted-foreground text-sm">読み込み中...</p>
@@ -162,20 +200,29 @@ export function MasterListPage<T extends MasterListItem>({
                     ) : filteredItems.length === 0 ? (
                         <p className="text-muted-foreground text-sm">条件に一致する{entityLabel}がありません。</p>
                     ) : (
-                        <MasterListTable
-                            columns={columns}
-                            filteredItems={filteredItems}
-                            editingId={editingId}
-                            renderEditCell={renderEditCell}
-                            renderEditRow={renderEditRow}
-                            onStartEdit={onStartEdit}
-                            onSaveEdit={onSaveEdit}
-                            onCancelEdit={onCancelEdit}
-                            onToggleActive={onToggleActive}
-                            onPermanentDelete={onPermanentDelete}
-                            onSort={onSort}
-                            groupBy={groupBy}
-                        />
+                        <>
+                            <MasterListTable
+                                columns={columns}
+                                filteredItems={paginatedItems}
+                                editingId={editingId}
+                                renderEditCell={renderEditCell}
+                                renderEditRow={renderEditRow}
+                                onStartEdit={onStartEdit}
+                                onSaveEdit={onSaveEdit}
+                                onCancelEdit={onCancelEdit}
+                                onToggleActive={onToggleActive}
+                                onPermanentDelete={onPermanentDelete}
+                                onSort={onSort}
+                                groupBy={groupBy}
+                            />
+                            <Pagination
+                                page={page}
+                                pageSize={pageSize}
+                                total={filteredItems.length}
+                                totalPages={totalPages}
+                                onPageChange={onPageChange}
+                            />
+                        </>
                     )}
                 </div>
             </div>

@@ -178,7 +178,7 @@ function HeirPersonsContent() {
         const fieldId = (field: string) => `heir-person-${item.id}-${field}`
         return (
             <div className="px-2 py-3">
-                <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[160px_minmax(240px,1fr)_minmax(240px,1fr)_130px]">
+                <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[160px_minmax(240px,1fr)_minmax(240px,1fr)]">
                     <div className="space-y-1">
                         <Label htmlFor={fieldId("name")} className="text-xs text-muted-foreground">氏名</Label>
                         <Input
@@ -234,22 +234,22 @@ function HeirPersonsContent() {
                         onAddressManualChange={addressEditing.updateAddressManual}
                         onKeyDown={handleEditKeyDown}
                         postalCodeFieldClassName="lg:col-start-1 lg:row-start-3"
-                        addressFromPostalCodeFieldClassName="sm:col-span-2 lg:col-span-3 lg:col-start-2 lg:row-start-3"
+                        addressFromPostalCodeFieldClassName="sm:col-span-2 lg:col-span-2 lg:col-start-2 lg:row-start-3"
                         addressManualFieldClassName="sm:col-span-2 lg:col-span-3 lg:col-start-1 lg:row-start-4"
                         addressManualLabel="住所補足（番地・建物名など手入力）"
                     />
-                    <div className="space-y-1 lg:col-start-4 lg:row-start-1">
+                    <div className="space-y-1 sm:col-span-2 lg:col-span-2 lg:col-start-1 lg:row-start-5">
                         <Label htmlFor={fieldId("memo")} className="text-xs text-muted-foreground">メモ</Label>
-                        <Input
+                        <textarea
                             id={fieldId("memo")}
                             value={ml.editingFields.memo || ""}
                             onChange={(e) => ml.setEditingFields(f => ({ ...f, memo: e.target.value }))}
-                            onKeyDown={handleEditKeyDown}
-                            placeholder="メモ"
-                            className={EDIT_INPUT_CLASS}
+                            placeholder="備考・メールアドレス等"
+                            rows={3}
+                            className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[56px]"
                         />
                     </div>
-                    <div className="flex justify-end gap-1 sm:col-span-2 lg:col-span-1 lg:col-start-4 lg:row-start-4">
+                    <div className="flex items-end justify-end gap-1 sm:col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-5">
                         <Button
                             variant="outline"
                             size="icon"
