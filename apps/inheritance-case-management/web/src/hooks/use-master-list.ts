@@ -104,6 +104,9 @@ export function useMasterList<T extends MasterListItem, C, U>(
     const [showInactive, setShowInactive] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
 
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(25)
+
     const [editingId, setEditingId] = useState<number | null>(null)
     const [editingFields, setEditingFields] = useState<Record<string, string>>({})
 
@@ -264,6 +267,21 @@ export function useMasterList<T extends MasterListItem, C, U>(
         })
     }, [items, searchQuery, sortField, sortOrder, showInactive])
 
+    // ── Pagination ──────────────────────────────────────────
+    const totalPages = Math.max(1, Math.ceil(filteredAndSortedItems.length / pageSize))
+    const currentPage = Math.min(page, totalPages)
+
+    useEffect(() => { setPage(1) }, [searchQuery, showInactive, sortField, sortOrder])
+
+    const handlePageChange = useCallback((newPage: number) => {
+        setPage(newPage)
+    }, [])
+
+    const handlePageSizeChange = useCallback((newSize: number) => {
+        setPageSize(newSize)
+        setPage(1)
+    }, [])
+
     /** 指定IDのアイテムを一括更新する（会社名一括変更等） */
     const updateItems = useCallback((updater: (items: T[]) => T[]) => {
         setItems(updater)
@@ -292,5 +310,10 @@ export function useMasterList<T extends MasterListItem, C, U>(
         handleSaveEdit,
         handleCancelEdit,
         handleSort,
+        page: currentPage,
+        pageSize,
+        totalPages,
+        handlePageChange,
+        handlePageSizeChange,
     }
 }

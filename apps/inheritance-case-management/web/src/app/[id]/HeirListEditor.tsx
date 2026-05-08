@@ -17,7 +17,7 @@ import {
     getAvailableHeirPersons,
     getHeirPersonFormState,
     getHeirPersonPayload,
-    sortHeirsByRelationship,
+    sortHeirsByDateOfBirth,
     updateHeirMemo,
     updateHeirRelationship,
 } from "./heir-list-utils"
@@ -143,16 +143,16 @@ export function HeirListEditor({ heirs, persons, dateOfDeath, onChange, onPerson
         onChange(updateHeirRelationship(heirs, index, relationship))
     }
 
-    const handleResortByRelationship = () => {
-        onChange(sortHeirsByRelationship(heirs))
+    const handleResortByDateOfBirth = () => {
+        onChange(sortHeirsByDateOfBirth(heirs))
     }
 
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-end gap-2">
                 {heirs.length > 1 && (
-                    <Button type="button" variant="ghost" size="sm" onClick={handleResortByRelationship} title="続柄順に並べ直します">
-                        <ArrowDownAZ className="h-3.5 w-3.5 mr-1" />続柄順に並べ直す
+                    <Button type="button" variant="ghost" size="sm" onClick={handleResortByDateOfBirth} title="生年月日順に並びなおします">
+                        <ArrowDownAZ className="h-3.5 w-3.5 mr-1" />生年月日順に並びなおす
                     </Button>
                 )}
                 <Button type="button" variant="outline" size="sm" onClick={() => { setShowAddModal(true); setShowCreateForm(false); setSearchQuery("") }}>

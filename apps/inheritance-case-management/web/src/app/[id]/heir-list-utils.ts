@@ -68,14 +68,17 @@ export function updateHeirRelationship(heirs: CaseHeir[], index: number, relatio
     } : heir)
 }
 
-export function sortHeirsByRelationship(heirs: CaseHeir[]): CaseHeir[] {
+export function sortHeirsByDateOfBirth(heirs: CaseHeir[]): CaseHeir[] {
     return [...heirs]
-        .sort((a, b) => relationshipSortFor(a.relationship || "") - relationshipSortFor(b.relationship || ""))
-        .map((heir, index) => ({
-            ...heir,
-            sortOrder: index,
-            relationshipSortOrder: relationshipSortFor(heir.relationship || ""),
-        }))
+        .sort((a, b) => {
+            const da = a.person.dateOfBirth
+            const db = b.person.dateOfBirth
+            if (!da && !db) return 0
+            if (!da) return 1
+            if (!db) return -1
+            return da.localeCompare(db)
+        })
+        .map((heir, index) => ({ ...heir, sortOrder: index }))
 }
 
 export { HEIR_RELATIONSHIP_LABELS }
