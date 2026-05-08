@@ -24,6 +24,7 @@ interface PersonAddressFieldsProps {
     addressFromPostalCodeFieldClassName?: string
     addressManualFieldClassName?: string
     addressManualLabel?: string
+    searchButtonClassName?: string
 }
 
 export function PersonAddressFields({
@@ -42,6 +43,7 @@ export function PersonAddressFields({
     addressFromPostalCodeFieldClassName,
     addressManualFieldClassName,
     addressManualLabel = "住所補足（番地・建物名など）",
+    searchButtonClassName = "h-10 w-10 shrink-0 rounded-md",
 }: PersonAddressFieldsProps) {
     return (
         <>
@@ -62,7 +64,7 @@ export function PersonAddressFields({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-10 w-10 shrink-0 rounded-md"
+                        className={searchButtonClassName}
                         disabled={isSearching}
                         onClick={() => { void onSearchPostalCode() }}
                         title="郵便番号から住所を検索"

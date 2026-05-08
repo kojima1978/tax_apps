@@ -30,10 +30,10 @@ const COLUMNS: ColumnDef<HeirPerson>[] = [
         cellClassName: "align-top",
         renderCell: (item) => (
             <div className="min-w-0 leading-tight">
-                <div className="truncate font-medium">{item.name}</div>
                 {item.nameKana && (
-                    <div className="mt-0.5 truncate text-xs font-normal text-muted-foreground">{item.nameKana}</div>
+                    <div className="truncate text-[11px] font-normal text-muted-foreground">{item.nameKana}</div>
                 )}
+                <div className="truncate font-medium">{item.name}</div>
             </div>
         ),
     },
@@ -177,99 +177,95 @@ function HeirPersonsContent() {
     const renderEditRow = (item: HeirPerson) => {
         const fieldId = (field: string) => `heir-person-${item.id}-${field}`
         return (
-            <div className="px-2 py-3">
-                <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[160px_minmax(240px,1fr)_minmax(240px,1fr)]">
-                    <div className="space-y-1">
-                        <Label htmlFor={fieldId("name")} className="text-xs text-muted-foreground">氏名</Label>
-                        <Input
-                            id={fieldId("name")}
-                            value={ml.editingFields.name || ""}
-                            onChange={(e) => ml.setEditingFields(f => ({ ...f, name: e.target.value }))}
-                            onKeyDown={handleEditKeyDown}
-                            placeholder="氏名"
-                            className={EDIT_INPUT_CLASS}
-                            autoFocus
-                        />
+            <div className="py-3 px-2">
+                <div className="max-w-[740px] mx-auto rounded-lg border shadow-sm bg-background">
+                    <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30 rounded-t-lg">
+                        <span className="text-xs font-medium text-muted-foreground">人物情報を編集</span>
+                        <div className="flex items-center gap-1.5">
+                            <Button variant="outline" size="sm" className="h-7 px-3 text-xs rounded" onClick={handleSaveEdit} title="保存">
+                                <Check className="h-3 w-3 mr-1" />保存
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded text-muted-foreground hover:text-foreground" onClick={ml.handleCancelEdit} title="キャンセル">
+                                <X className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
                     </div>
-                    <div className="space-y-1">
-                        <Label htmlFor={fieldId("nameKana")} className="text-xs text-muted-foreground">フリガナ</Label>
-                        <Input
-                            id={fieldId("nameKana")}
-                            value={ml.editingFields.nameKana || ""}
-                            onChange={(e) => ml.setEditingFields(f => ({ ...f, nameKana: e.target.value }))}
-                            onKeyDown={handleEditKeyDown}
-                            placeholder="ヤマダ ハナコ"
-                            className={EDIT_INPUT_CLASS}
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <Label htmlFor={fieldId("phone")} className="text-xs text-muted-foreground">電話番号</Label>
-                        <Input
-                            id={fieldId("phone")}
-                            value={ml.editingFields.phone || ""}
-                            onChange={(e) => ml.setEditingFields(f => ({ ...f, phone: e.target.value }))}
-                            onKeyDown={handleEditKeyDown}
-                            placeholder="03-1234-5678"
-                            className={EDIT_INPUT_CLASS}
-                        />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2 lg:col-span-3 lg:col-start-1 lg:row-start-2">
-                        <Label htmlFor={fieldId("dateOfBirth")} className="text-xs text-muted-foreground">生年月日</Label>
-                        <JpDateInput
-                            id={fieldId("dateOfBirth")}
-                            value={ml.editingFields.dateOfBirth || ""}
-                            onChange={(v) => ml.setEditingFields(f => ({ ...f, dateOfBirth: v }))}
-                        />
-                    </div>
-                    <PersonAddressFields
-                        fieldId={fieldId}
-                        postalCode={ml.editingFields.postalCode || ""}
-                        addressFromPostalCode={ml.editingFields.addressFromPostalCode || ""}
-                        addressManual={ml.editingFields.addressManual || ""}
-                        inputClassName={EDIT_INPUT_CLASS}
-                        isSearching={addressEditing.isAddressSearching}
-                        onPostalCodeChange={addressEditing.handlePostalCodeChange}
-                        onSearchPostalCode={() => addressEditing.searchAddressByPostalCode(ml.editingFields.postalCode || "")}
-                        onAddressFromPostalCodeChange={addressEditing.updateAddressFromPostalCode}
-                        onAddressManualChange={addressEditing.updateAddressManual}
-                        onKeyDown={handleEditKeyDown}
-                        postalCodeFieldClassName="lg:col-start-1 lg:row-start-3"
-                        addressFromPostalCodeFieldClassName="sm:col-span-2 lg:col-span-2 lg:col-start-2 lg:row-start-3"
-                        addressManualFieldClassName="sm:col-span-2 lg:col-span-3 lg:col-start-1 lg:row-start-4"
-                        addressManualLabel="住所補足（番地・建物名など手入力）"
-                    />
-                    <div className="space-y-1 sm:col-span-2 lg:col-span-2 lg:col-start-1 lg:row-start-5">
-                        <Label htmlFor={fieldId("memo")} className="text-xs text-muted-foreground">メモ</Label>
-                        <textarea
-                            id={fieldId("memo")}
-                            value={ml.editingFields.memo || ""}
-                            onChange={(e) => ml.setEditingFields(f => ({ ...f, memo: e.target.value }))}
-                            placeholder="備考・メールアドレス等"
-                            rows={3}
-                            className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[56px]"
-                        />
-                    </div>
-                    <div className="flex items-end justify-end gap-1 sm:col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-5">
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-10 w-10 rounded-md"
-                            onClick={handleSaveEdit}
-                            title="保存"
-                            aria-label="保存"
-                        >
-                            <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-10 w-10 rounded-md text-muted-foreground hover:text-foreground"
-                            onClick={ml.handleCancelEdit}
-                            title="キャンセル"
-                            aria-label="キャンセル"
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
+                    <div className="px-4 py-3 space-y-3">
+                        <div className="grid items-end gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                            <div className="space-y-0.5">
+                                <Label htmlFor={fieldId("nameKana")} className="text-[10px] text-muted-foreground">フリガナ</Label>
+                                <Input
+                                    id={fieldId("nameKana")}
+                                    value={ml.editingFields.nameKana || ""}
+                                    onChange={(e) => ml.setEditingFields(f => ({ ...f, nameKana: e.target.value }))}
+                                    onKeyDown={handleEditKeyDown}
+                                    placeholder="ヤマダ ハナコ"
+                                    className="h-6 rounded border text-xs focus-visible:ring-1 focus-visible:ring-offset-0"
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="space-y-0.5">
+                                <Label htmlFor={fieldId("phone")} className="text-xs text-muted-foreground">電話番号</Label>
+                                <Input
+                                    id={fieldId("phone")}
+                                    value={ml.editingFields.phone || ""}
+                                    onChange={(e) => ml.setEditingFields(f => ({ ...f, phone: e.target.value }))}
+                                    onKeyDown={handleEditKeyDown}
+                                    placeholder="03-1234-5678"
+                                    className={EDIT_INPUT_CLASS}
+                                />
+                            </div>
+                            <div className="space-y-0.5">
+                                <Label htmlFor={fieldId("name")} className="text-xs text-muted-foreground">氏名</Label>
+                                <Input
+                                    id={fieldId("name")}
+                                    value={ml.editingFields.name || ""}
+                                    onChange={(e) => ml.setEditingFields(f => ({ ...f, name: e.target.value }))}
+                                    onKeyDown={handleEditKeyDown}
+                                    placeholder="山田 花子"
+                                    className={EDIT_INPUT_CLASS}
+                                />
+                            </div>
+                            <div className="space-y-0.5">
+                                <Label htmlFor={fieldId("dateOfBirth")} className="text-xs text-muted-foreground">生年月日</Label>
+                                <JpDateInput
+                                    id={fieldId("dateOfBirth")}
+                                    value={ml.editingFields.dateOfBirth || ""}
+                                    onChange={(v) => ml.setEditingFields(f => ({ ...f, dateOfBirth: v }))}
+                                />
+                            </div>
+                        </div>
+                        <hr className="border-muted" />
+                        <div className="grid items-end gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                            <PersonAddressFields
+                                fieldId={fieldId}
+                                postalCode={ml.editingFields.postalCode || ""}
+                                addressFromPostalCode={ml.editingFields.addressFromPostalCode || ""}
+                                addressManual={ml.editingFields.addressManual || ""}
+                                inputClassName={EDIT_INPUT_CLASS}
+                                isSearching={addressEditing.isAddressSearching}
+                                onPostalCodeChange={addressEditing.handlePostalCodeChange}
+                                onSearchPostalCode={() => addressEditing.searchAddressByPostalCode(ml.editingFields.postalCode || "")}
+                                onAddressFromPostalCodeChange={addressEditing.updateAddressFromPostalCode}
+                                onAddressManualChange={addressEditing.updateAddressManual}
+                                onKeyDown={handleEditKeyDown}
+                                searchButtonClassName="h-10 w-10 shrink-0 rounded"
+                                addressManualFieldClassName="sm:col-span-2"
+                                addressManualLabel="住所補足（番地・建物名など手入力）"
+                            />
+                        </div>
+                        <hr className="border-muted" />
+                        <div className="space-y-0.5">
+                            <Label htmlFor={fieldId("memo")} className="text-xs text-muted-foreground">メモ</Label>
+                            <textarea
+                                id={fieldId("memo")}
+                                value={ml.editingFields.memo || ""}
+                                onChange={(e) => ml.setEditingFields(f => ({ ...f, memo: e.target.value }))}
+                                placeholder="備考・メールアドレス等"
+                                rows={2}
+                                className="w-full border rounded px-2.5 py-1.5 text-sm bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[40px]"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
