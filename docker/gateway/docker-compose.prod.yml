@@ -6,7 +6,7 @@
 
 services:
   gateway:
-    init: false
+    init: true
 
   portal-app:
-    init: false
+    init: true

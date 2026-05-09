@@ -13,32 +13,28 @@ LABEL org.opencontainers.image.title="Tax Apps Gateway" \
       org.opencontainers.image.licenses="Private" \
       org.opencontainers.image.source="https://github.com/kojima1978/tax_apps"
 
-# タイムゾーン設定
 ENV TZ=Asia/Tokyo
 
-# セキュリティ更新 + タイムゾーン + non-root 準備
 RUN apk upgrade --no-cache && \
     apk add --no-cache tzdata && \
-    # non-root ユーザー用のディレクトリ権限設定
-    chown -R nginx:nginx /var/cache/nginx /var/log/nginx && \
-    touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
+    mkdir -p /tmp/nginx-cache /tmp/nginx-client-body /tmp/nginx-proxy-temp \
+        /tmp/nginx-fastcgi-temp /tmp/nginx-uwsgi-temp /tmp/nginx-scgi-temp && \
+    chown -R nginx:nginx /var/cache/nginx /var/log/nginx /tmp/nginx-cache \
+        /tmp/nginx-client-body /tmp/nginx-proxy-temp /tmp/nginx-fastcgi-temp \
+        /tmp/nginx-uwsgi-temp /tmp/nginx-scgi-temp
 
-# カスタムエラーページ + 設定ファイル
 COPY --link html/ /usr/share/nginx/html/
 COPY --link nginx.conf /etc/nginx/nginx.conf
 COPY --link includes/ /etc/nginx/includes/
 COPY --link default.conf /etc/nginx/conf.d/default.conf
 
-# ヘルスチェック（Alpine BusyBox内蔵のwgetを使用）
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget -qO /dev/null http://127.0.0.1/health || exit 1
 
-# non-root ユーザーで実行
 USER nginx
 
 EXPOSE 80
 
-# グレースフルシャットダウン（NginxはSIGQUITで graceful stop）
 STOPSIGNAL SIGQUIT
 
 CMD ["nginx", "-g", "daemon off;"]
