@@ -477,10 +477,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-t
 |:-----|:-----|
 | タスク名 | `Tax Apps Docker Watchdog` |
 | 実行間隔 | 60分ごと |
-| 実行条件 | ログオン中の現在ユーザーで実行 |
+| 実行条件 | ログオン中の現在ユーザーで実行（`RunLevel=Highest` で管理者権限） |
 | 多重起動 | 新しいインスタンスを開始しない |
 | ログ | `docker\logs\docker-watchdog.log` |
-| 復旧判定 | `docker info` が2回連続で失敗したら Docker Desktop を再起動 |
+| 状態ファイル | `docker\logs\docker-watchdog.state.json`（直近の再起動時刻を記録） |
+| 監視判定 | `docker info` が2回連続で失敗（タイムアウト or 非0終了）したら復旧処理を実行 |
+| 復旧手順 | ① Docker関連プロセス kill（`Docker Desktop`, `com.docker.backend`, `com.docker.build`, `docker-sandbox`, `docker`） → ② `com.docker.service` 再起動（管理者権限が必要） → ③ `wsl --shutdown` で WSL バックエンドをリセット → ④ `Docker Desktop.exe` 起動 → ⑤ 最大300秒間 healthy 待機 |
+| クールダウン | 直近45分以内に再起動済みなら復旧処理をスキップ（`docker-watchdog.state.json` を削除すれば即座に解除） |
 
 手動確認:
 
