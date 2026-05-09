@@ -44,7 +44,7 @@ $settings = New-ScheduledTaskSettingsSet `
 $principal = New-ScheduledTaskPrincipal `
     -UserId ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name) `
     -LogonType Interactive `
-    -RunLevel Limited
+    -RunLevel Highest
 
 $description = "Checks Docker Desktop every $IntervalMinutes minutes and restarts it when docker info does not respond."
 
