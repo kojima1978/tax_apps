@@ -3,27 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サーバーエラー - Tax Apps</title>
+    <title>サーバーで問題が発生しました - Tax Apps</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="/error-common.css">
 </head>
-<body>
-    <div class="card">
-        <div class="icon-wrap icon-red">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m10.29 3.86-6.43 11.14A2 2 0 0 0 5.6 18h12.8a2 2 0 0 0 1.74-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+<body class="accent-server-error">
+    <main class="card" role="alert" aria-labelledby="page-title">
+        <header class="brand">
+            <div class="brand-mark" aria-label="Tax Apps">
+                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 5h16"/>
+                    <path d="M6 9h12"/>
+                    <path d="M8 13h8"/>
+                    <path d="M10 17h4"/>
+                </svg>
+                <span>Tax Apps</span>
+            </div>
+            <span class="status-chip">Server Error</span>
+        </header>
+
+        <section class="hero-row">
+            <div class="icon-wrap" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 9v4"/>
+                    <path d="M12 17h.01"/>
+                    <path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z"/>
+                </svg>
+            </div>
+            <div>
+                <p class="code">Error 50x</p>
+                <h1 id="page-title">サーバーで問題が発生しました</h1>
+                <p class="lead">リクエストを処理できませんでした。一時的な障害の可能性があります。時間をおいて再読み込みしてください。</p>
+            </div>
+        </section>
+
+        <div class="notice">
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4v16h16"/>
+                <path d="M8 16h8"/>
+                <path d="M8 12h5"/>
+                <path d="M8 8h8"/>
             </svg>
+            <span>入力済みの内容がある場合は、ブラウザの戻る操作で画面に戻れることがあります。</span>
         </div>
-        <div class="code">500</div>
-        <h1>サーバーエラー</h1>
-        <p>申し訳ございません。<br>サーバーで問題が発生しました。</p>
-        <div class="actions">
-            <button onclick="location.reload()" class="btn btn-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+
+        <div class="actions" aria-label="操作">
+            <button type="button" class="btn btn-primary" onclick="location.reload()">
+                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 0 0-15.2-6.5L3 8"/>
+                    <path d="M3 3v5h5"/>
+                    <path d="M3 12a9 9 0 0 0 15.2 6.5L21 16"/>
+                    <path d="M16 16h5v5"/>
+                </svg>
                 再読み込み
             </button>
-            <a href="/" class="btn btn-ghost">トップページへ</a>
+            <a href="/" class="btn btn-ghost">
+                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m3 10 9-7 9 7"/>
+                    <path d="M5 10v10h14V10"/>
+                    <path d="M9 20v-6h6v6"/>
+                </svg>
+                トップへ戻る
+            </a>
         </div>
-    </div>
+    </main>
 </body>
 </html>
