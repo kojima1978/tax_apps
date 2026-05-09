@@ -221,7 +221,13 @@ function Restart-DockerDesktop {
         return
     }
 
-    $processNames = @("Docker Desktop", "com.docker.backend")
+    $processNames = @(
+        "Docker Desktop",
+        "com.docker.backend",
+        "com.docker.build",
+        "docker-sandbox",
+        "docker"
+    )
     foreach ($name in $processNames) {
         Get-Process -Name $name -ErrorAction SilentlyContinue |
             Stop-Process -Force -ErrorAction SilentlyContinue
@@ -236,6 +242,22 @@ function Restart-DockerDesktop {
         catch {
             Write-WatchdogLog "WARN" "Could not restart com.docker.service. $($_.Exception.Message)"
         }
+    }
+
+    try {
+        $wslResult = Invoke-ProcessWithTimeout `
+            -FilePath "wsl.exe" `
+            -ArgumentList @("--shutdown") `
+            -TimeoutSeconds 30
+        if (-not $wslResult.TimedOut -and $wslResult.ExitCode -eq 0) {
+            Write-WatchdogLog "INFO" "WSL shutdown completed."
+        }
+        else {
+            Write-WatchdogLog "WARN" "WSL shutdown did not complete cleanly."
+        }
+    }
+    catch {
+        Write-WatchdogLog "WARN" "wsl --shutdown failed. $($_.Exception.Message)"
     }
 
     $desktopExe = Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe"
