@@ -1,110 +1,49 @@
-# エラーページ仕様書
+# Error Pages Spec
 
-## 概要
+Tax Apps Gateway で配信する Nginx カスタムエラーページの仕様です。
 
-Tax Apps の Nginx ゲートウェイで使用するカスタムエラーページ。
-ポータルサイトのデザインシステムに準拠した統一デザインで構築。
+## Files
 
-## ファイル構成
-
-| ファイル | 用途 |
-|---------|------|
-| `error-common.css` | 全エラーページ共通スタイル |
+| File | Purpose |
+| --- | --- |
+| `error-common.css` | 共通スタイル |
 | `404.html` | 404 Not Found |
 | `429.html` | 429 Too Many Requests |
-| `50x.html` | 500 / 502 / 504 サーバーエラー |
-| `503.html` | 503 Service Unavailable（メンテナンス） |
+| `50x.html` | 500 / 502 / 504 gateway or server error |
+| `503.html` | 503 Service Unavailable / maintenance |
 
-## デザイン仕様
+## Design Direction
 
-### 共通デザイン（`error-common.css`）
+- Professional SaaS/admin tone for tax and finance workflows.
+- Light neutral canvas with a subtle grid texture.
+- Compact, readable single-card layout with 8px radius.
+- Status-specific accent colors: orange, gold, rose, and navy.
+- Inline SVG icons only; no emoji or remote image/font dependency.
+- Keyboard-visible focus rings and `prefers-reduced-motion` support.
 
-| 項目 | 仕様 |
-|------|------|
-| 背景 | グリーン〜エメラルドのグラデーション (`#f0fdf4` → `#ecfdf5` → `#f0fdfa`) |
-| カード | グラスモーフィズム — `rgba(255,255,255,0.8)` + `backdrop-filter: blur(12px)` |
-| 角丸 | `border-radius: 24px` |
-| パディング | `48px 40px` |
-| 最大幅 | `480px` |
-| アニメーション | フェードアップ (`fadeUp`) — 0.5秒 ease-out |
-| フォント | system-ui + "Hiragino Sans" + "Noto Sans JP" |
+## Shared Structure
 
-### ステータスコード表示
+Each page uses:
 
-| 項目 | 仕様 |
-|------|------|
-| フォントサイズ | `56px` |
-| フォントウェイト | `800` |
-| カラー | `#d1d5db`（薄いグレー — 補助的な背景テキスト） |
+- `<main class="card" role="alert" aria-labelledby="page-title">`
+- A small `Tax Apps` brand mark.
+- A status chip such as `Not Found` or `Server Error`.
+- A page-specific SVG icon.
+- A clear Japanese headline and short recovery message.
+- Primary and secondary actions where useful.
 
-### アイコン
+## Page Content
 
-各ページのアイコンはSVG（lucide-react準拠）を使用。グラデーション背景の角丸ボックス内に配置。
+| Page | Title | Main action |
+| --- | --- | --- |
+| `404.html` | ページが見つかりません | トップへ戻る |
+| `429.html` | アクセスが集中しています | 再読み込み |
+| `50x.html` | サーバーで問題が発生しました | 再読み込み |
+| `503.html` | メンテナンス中です | 再読み込み |
 
-| ページ | アイコン | グラデーション色 | CSSクラス |
-|--------|---------|----------------|-----------|
-| 404 | 検索 + コード | オレンジ (`#f97316` → `#ea580c`) | `.icon-orange` |
-| 429 | 時計 | イエロー (`#eab308` → `#ca8a04`) | `.icon-yellow` |
-| 503 | クリップ | ブルー (`#3b82f6` → `#2563eb`) | `.icon-blue` |
-| 50x | 三角警告 | レッド (`#ef4444` → `#dc2626`) | `.icon-red` |
+## Nginx Integration
 
-アイコンボックス: `72px × 72px`、`border-radius: 16px`、色付きドロップシャドウ
-
-### ボタン
-
-| 種別 | クラス | スタイル |
-|------|--------|---------|
-| プライマリ | `.btn-primary` | グリーングラデーション (`#16a34a` → `#059669`)、白文字、ホバーで影拡大+微上昇 |
-| ゴースト | `.btn-ghost` | 半透明白背景、グレー枠線、ホバーで不透明度上昇 |
-
-共通: `border-radius: 12px`、`padding: 10px 22px`、`font-weight: 600`、SVGアイコン付き
-
-## ページ別仕様
-
-### 404 — ページが見つかりません
-
-| 項目 | 内容 |
-|------|------|
-| タイトル | ページが見つかりません |
-| メッセージ | お探しのページは存在しないか、移動した可能性があります。 |
-| アクション | 「トップページへ」(primary) / 「戻る」(ghost, `history.back()`) |
-| nginx設定 | `error_page 404 /404.html` |
-
-### 429 — リクエスト制限
-
-| 項目 | 内容 |
-|------|------|
-| タイトル | リクエスト制限 |
-| メッセージ | 短時間にリクエストが集中したため、一時的にアクセスを制限しています。 |
-| 追加要素 | タイマーヒントバッジ（黄色背景、時計アイコン付き） |
-| アクション | 「再読み込み」(primary, `location.reload()`) / 「トップページへ」(ghost) |
-| nginx設定 | `error_page 429 /429.html` |
-
-### 50x — サーバーエラー
-
-| 項目 | 内容 |
-|------|------|
-| タイトル | サーバーエラー |
-| 表示コード | 500（500/502/504 共用） |
-| メッセージ | 申し訳ございません。サーバーで問題が発生しました。 |
-| アクション | 「再読み込み」(primary, `location.reload()`) / 「トップページへ」(ghost) |
-| nginx設定 | `error_page 500 502 504 /50x.html` |
-
-### 503 — メンテナンス中
-
-| 項目 | 内容 |
-|------|------|
-| タイトル | メンテナンス中 |
-| メッセージ | 現在システムメンテナンスを実施しております。ご不便をおかけし申し訳ございません。 |
-| 追加要素 | ステータスバッジ（青背景、パルスアニメーション付きドット） |
-| アクション | 「再読み込み」(primary, `location.reload()`) のみ |
-| nginx設定 | `error_page 503 /503.html` |
-
-## nginx設定
-
-### CSS配信
-
-`error-common.css` はエラーページHTMLから外部参照されるため、専用のlocationブロックで配信:
+`error-common.css` is served as a public static asset:
 
 ```nginx
 location = /error-common.css {
@@ -114,9 +53,7 @@ location = /error-common.css {
 }
 ```
 
-### エラーページ配信
-
-各HTMLは `internal` ディレクティブで保護され、nginx のエラーハンドリング経由でのみ配信:
+HTML error pages are served through internal error handling:
 
 ```nginx
 error_page 500 502 504 /50x.html;
@@ -126,9 +63,17 @@ location = /50x.html {
 }
 ```
 
-## レスポンシブ対応
+## Verification
 
-- `min-height: 100vh` + flexbox中央配置で全画面サイズに対応
-- `max-width: 480px` + `width: 100%` でモバイルでも適切に表示
-- `padding: 24px` でスマートフォンの端寄りを防止
-- ボタンは `flex-wrap: wrap` で狭い画面では縦並びに
+Preview from this directory with a local static server:
+
+```bash
+python -m http.server 8088 --directory nginx/html
+```
+
+Then check:
+
+- `http://127.0.0.1:8088/404.html`
+- `http://127.0.0.1:8088/429.html`
+- `http://127.0.0.1:8088/50x.html`
+- `http://127.0.0.1:8088/503.html`
