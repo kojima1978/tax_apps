@@ -1,5 +1,7 @@
 # Nginx Gateway Configuration
 
+堅牢化後の確認手順は [`robustness-checklist.md`](./robustness-checklist.md) を参照してください。
+
 Tax Apps プロジェクトのゲートウェイ（リバースプロキシ）として機能する Nginx の設定ファイルです。
 
 ## 概要
@@ -133,11 +135,11 @@ docker network create tax-apps-network
 `nginx.conf` の以下の部分を変更:
 
 ```nginx
-# APIエンドポイント: 300リクエスト/秒
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=300r/s;
+# APIエンドポイント: 60リクエスト/秒
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=60r/s;
 
-# 一般ページ: 1000リクエスト/秒
-limit_req_zone $binary_remote_addr zone=general_limit:10m rate=1000r/s;
+# 一般ページ: 300リクエスト/秒
+limit_req_zone $binary_remote_addr zone=general_limit:10m rate=300r/s;
 ```
 
 ### タイムアウトの調整
@@ -145,9 +147,9 @@ limit_req_zone $binary_remote_addr zone=general_limit:10m rate=1000r/s;
 `includes/proxy_params.conf` の以下の部分を変更:
 
 ```nginx
-proxy_connect_timeout 120s;
-proxy_send_timeout 120s;
-proxy_read_timeout 120s;
+proxy_connect_timeout 10s;
+proxy_send_timeout 60s;
+proxy_read_timeout 60s;
 ```
 
 **注意**: `bank-analyzer` は CSV解析・RapidFuzz分類処理のため `proxy_read_timeout 300s` に設定済み
@@ -212,6 +214,7 @@ curl http://localhost/nginx-status
 ```bash
 # ヘルスチェック
 curl -I http://localhost/health
+curl -I http://localhost/ready
 
 # 各サービスへの疎通確認
 curl -I http://localhost/bank-analyzer/
