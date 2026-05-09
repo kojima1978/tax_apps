@@ -153,7 +153,7 @@ rd /s /q tax_apps
 | `stop.bat` | Windows (CMD) | ワンクリックで全アプリ停止 |
 | `status.bat` | Windows (CMD) | ワンクリックで状態確認 |
 | `docker-watchdog.ps1` | Windows PowerShell | Docker Desktop の応答確認と自動再起動 |
-| `docker-watchdog.bat` | Windows (CMD) | タスクスケジューラ/手動実行用の watchdog ラッパー |
+| `docker-watchdog.bat` | Windows (CMD) | 手動実行用の watchdog ラッパー（`-DryRun` 等の動作確認用。タスクスケジューラからは `.ps1` が直接呼ばれる） |
 | `register-docker-watchdog-task.ps1` | Windows PowerShell | 60分ごとの Docker watchdog タスクを登録 |
 | `register-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク登録の自己昇格ラッパー（ダブルクリックで UAC 昇格 → 登録） |
 
