@@ -22,9 +22,28 @@
 
 set -euo pipefail
 
+bootstrap_path() {
+  case ":$PATH:" in
+    *":/usr/bin:"*) ;;
+    *) PATH="/usr/local/bin:/usr/bin:/bin:$PATH" ;;
+  esac
+
+  local docker_bin="/c/Program Files/Docker/Docker/resources/bin"
+  if [[ -d "$docker_bin" ]]; then
+    case ":$PATH:" in
+      *":$docker_bin:"*) ;;
+      *) PATH="$PATH:$docker_bin" ;;
+    esac
+  fi
+}
+
+bootstrap_path
+
 # プロジェクトルート（docker/ の親ディレクトリ）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+LOCK_DIR="${TMPDIR:-/tmp}/tax-apps-docker-ops.lock"
+LOCK_HELD=0
 
 # 外部ネットワーク名
 NETWORK_NAME="tax-apps-network"
@@ -77,6 +96,47 @@ log() { echo -e "\033[1;36m[manage]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
 err() { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
 ok() { echo -e "\033[1;32m[OK]\033[0m    $*"; }
+
+release_operation_lock() {
+  if [[ "$LOCK_HELD" -eq 1 ]]; then
+    rm -rf "$LOCK_DIR"
+    LOCK_HELD=0
+  fi
+}
+
+acquire_operation_lock() {
+  local action="${1:-operation}"
+  local owner_pid=""
+
+  if [[ -f "$LOCK_DIR/owner" ]]; then
+    owner_pid="$(sed -n 's/^pid=//p' "$LOCK_DIR/owner" | head -1)"
+  fi
+
+  if [[ -n "$owner_pid" ]] && ! kill -0 "$owner_pid" 2>/dev/null; then
+    warn "Removing stale operation lock: $LOCK_DIR"
+    rm -rf "$LOCK_DIR"
+  fi
+
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    LOCK_HELD=1
+    {
+      echo "pid=$$"
+      echo "action=$action"
+      echo "started_at=$(date -Is 2>/dev/null || date)"
+      echo "script=$0"
+    } > "$LOCK_DIR/owner"
+    trap release_operation_lock EXIT INT TERM
+    return 0
+  fi
+
+  err "Another Tax Apps Docker operation is already running."
+  if [[ -f "$LOCK_DIR/owner" ]]; then
+    sed 's/^/  /' "$LOCK_DIR/owner" >&2 || true
+  else
+    err "Lock directory: $LOCK_DIR"
+  fi
+  return 1
+}
 
 print_banner() {
   echo ""
@@ -689,7 +749,14 @@ cmd_preflight() {
 # ------------------------------------
 check_dependencies
 
-case "${1:-help}" in
+COMMAND="${1:-help}"
+case "$COMMAND" in
+  start|stop|down|restart|build|clean|clean-cache)
+    acquire_operation_lock "$COMMAND"
+    ;;
+esac
+
+case "$COMMAND" in
   start)     cmd_start "${2:-}" ;;
   stop)      cmd_stop ;;
   down)      cmd_down ;;

@@ -24,5 +24,5 @@ if "%GIT_BASH%"=="" (
     exit /b 1
 )
 
-"%GIT_BASH%" "%~dp0backup.sh" itcm %*
+"%GIT_BASH%" --login "%~dp0backup.sh" itcm %*
 exit /b %ERRORLEVEL%

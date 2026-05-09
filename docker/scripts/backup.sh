@@ -12,8 +12,27 @@
 
 set -euo pipefail
 
+bootstrap_path() {
+  case ":$PATH:" in
+    *":/usr/bin:"*) ;;
+    *) PATH="/usr/local/bin:/usr/bin:/bin:$PATH" ;;
+  esac
+
+  local docker_bin="/c/Program Files/Docker/Docker/resources/bin"
+  if [[ -d "$docker_bin" ]]; then
+    case ":$PATH:" in
+      *":$docker_bin:"*) ;;
+      *) PATH="$PATH:$docker_bin" ;;
+    esac
+  fi
+}
+
+bootstrap_path
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+LOCK_DIR="${TMPDIR:-/tmp}/tax-apps-docker-ops.lock"
+LOCK_HELD=0
 BACKUP_BASE="${BACKUP_BASE:-$SCRIPT_DIR/../backups}"
 LATEST_BACKUP_BASE="${LATEST_BACKUP_BASE:-$(cd "$PROJECT_ROOT/.." && pwd)/tax_apps_backup_latest}"
 LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
@@ -40,6 +59,58 @@ SETTINGS_TARGETS=(
 warn() { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
 err() { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
 ok() { echo -e "\033[1;32m[OK]\033[0m    $*"; }
+
+check_dependencies() {
+  if ! command -v docker >/dev/null 2>&1; then
+    err "docker command not found"
+    exit 1
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    err "docker compose command not available"
+    exit 1
+  fi
+}
+
+release_operation_lock() {
+  if [[ "$LOCK_HELD" -eq 1 ]]; then
+    rm -rf "$LOCK_DIR"
+    LOCK_HELD=0
+  fi
+}
+
+acquire_operation_lock() {
+  local action="${1:-backup}"
+  local owner_pid=""
+
+  if [[ -f "$LOCK_DIR/owner" ]]; then
+    owner_pid="$(sed -n 's/^pid=//p' "$LOCK_DIR/owner" | head -1)"
+  fi
+
+  if [[ -n "$owner_pid" ]] && ! kill -0 "$owner_pid" 2>/dev/null; then
+    warn "Removing stale operation lock: $LOCK_DIR"
+    rm -rf "$LOCK_DIR"
+  fi
+
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    LOCK_HELD=1
+    {
+      echo "pid=$$"
+      echo "action=$action"
+      echo "started_at=$(date -Is 2>/dev/null || date)"
+      echo "script=$0"
+    } > "$LOCK_DIR/owner"
+    trap release_operation_lock EXIT INT TERM
+    return 0
+  fi
+
+  err "Another Tax Apps Docker operation is already running."
+  if [[ -f "$LOCK_DIR/owner" ]]; then
+    sed 's/^/  /' "$LOCK_DIR/owner" >&2 || true
+  else
+    err "Lock directory: $LOCK_DIR"
+  fi
+  return 1
+}
 
 print_banner() {
   echo ""
@@ -142,6 +213,46 @@ print_summary_banner() {
   else
     print_banner "$title"
   fi
+}
+
+write_backup_manifest() {
+  local manifest="$backup_dir/manifest.sha256"
+
+  if ! command -v sha256sum >/dev/null 2>&1; then
+    warn "sha256sum not found; backup integrity manifest was skipped."
+    return 0
+  fi
+
+  (
+    cd "$backup_dir"
+    find . -type f ! -name 'manifest.sha256' -print0 |
+      sort -z |
+      while IFS= read -r -d '' file; do
+        sha256sum "$file"
+      done
+  ) > "$manifest"
+  ok "manifest.sha256"
+}
+
+verify_backup_manifest() {
+  local dir="$1"
+  local manifest="$dir/manifest.sha256"
+
+  if [[ ! -f "$manifest" ]]; then
+    warn "No manifest.sha256 found; legacy backup integrity check skipped."
+    return 0
+  fi
+
+  if (
+    cd "$dir"
+    sha256sum -c manifest.sha256 >/dev/null
+  ); then
+    ok "Backup integrity check passed"
+    return 0
+  fi
+
+  err "Backup integrity check failed. Restore aborted."
+  return 1
 }
 
 backup_postgres() {
@@ -433,6 +544,10 @@ cmd_backup() {
   (( step++ )) || true
   backup_bank_analyzer_json "[$step/$total]"
 
+  if [[ $backup_ok -gt 0 ]]; then
+    write_backup_manifest
+  fi
+
   print_summary_banner "Backup Complete" "$backup_fail"
   echo "  Destination: $backup_dir/"
   echo "  Size: $(format_size "$(dir_size "$backup_dir")")"
@@ -520,6 +635,8 @@ cmd_restore() {
   fi
 
   echo "Restore from: $backup_dir/"
+  echo ""
+  verify_backup_manifest "$backup_dir" || return 1
   echo ""
   echo "Contents:"
   ls -1 "$backup_dir" 2>/dev/null
@@ -862,7 +979,15 @@ cmd_itcm_backup() {
   return "$errors"
 }
 
-case "${1:-help}" in
+COMMAND="${1:-help}"
+case "$COMMAND" in
+  backup|restore|itcm)
+    check_dependencies
+    acquire_operation_lock "$COMMAND"
+    ;;
+esac
+
+case "$COMMAND" in
   backup)  cmd_backup ;;
   restore) cmd_restore "${2:-}" ;;
   itcm)    cmd_itcm_backup ;;
