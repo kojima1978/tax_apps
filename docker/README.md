@@ -156,6 +156,7 @@ rd /s /q tax_apps
 | `docker-watchdog.bat` | Windows (CMD) | 手動実行用の watchdog ラッパー（`-DryRun` 等の動作確認用。タスクスケジューラからは `.ps1` が直接呼ばれる） |
 | `register-docker-watchdog-task.ps1` | Windows PowerShell | 60分ごとの Docker watchdog タスクを登録（`-Unregister` で解除） |
 | `register-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク登録の自己昇格ラッパー（ダブルクリックで UAC 昇格 → 登録） |
+| `unregister-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク解除の自己昇格ラッパー（ダブルクリックで UAC 昇格 → 解除） |
 
 > **前提**: [Git for Windows](https://gitforwindows.org/) がインストールされていること（`bash` コマンドが必要）。
 
@@ -469,7 +470,9 @@ cd C:\Users\sashi\Desktop\dev\tax_apps\docker\scripts
 powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-task.ps1
 ```
 
-**タスク解除**:
+**かんたん解除**: `unregister-docker-watchdog-task.bat` をダブルクリック → UAC で「はい」をクリックするだけ。
+
+**手動解除**:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-task.ps1 -Unregister
