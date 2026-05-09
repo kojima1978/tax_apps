@@ -284,8 +284,7 @@ docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-anal
 | Gift Tax Simulator | `runner` | nginx:1.27-alpine | あり |
 | Inheritance Tax Docs | `runner` | nginx:1.27-alpine | あり |
 | Inheritance Tax App | `runner` | nginx:1.27-alpine | あり |
-| Tax Docs (frontend) | `runner` | nginx:1.27-alpine | あり |
-| Tax Docs (backend) | `runner` | Node.js + tini | あり |
+| Tax Docs | `runner` | nginx:1.27-alpine | あり |
 | Shares Valuation | `runner` | nginx:1.27-alpine | あり |
 | Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
 | Depreciation Calc | `runner` | nginx:1.27-alpine | あり |
@@ -293,7 +292,7 @@ docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-anal
 | Medical Stock | `runner` | Node.js standalone | あり |
 | Stock Valuation Form | `runner` | nginx:1.27-alpine | あり |
 | Income Tax Calc | 全体本番ビルド対象外 | 開発中のため個別 Compose で起動 | あり |
-| Bank Analyzer | `production` | Gunicorn | あり |
+| Bank Analyzer | `production` | Gunicorn | なし（`--profile production` で起動） |
 | ITCM | `runner` | Node.js standalone + tini | あり |
 
 ### Dockerfile マルチステージ構成
@@ -649,7 +648,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | Gzip圧縮 | CSS, JS, JSON等を自動圧縮 |
 | レート制限 | API 300req/s (burst=10), 一般 1000req/s (burst=200) |
 | セキュリティヘッダー | X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
-| ヘルスチェック | `/health` エンドポイント |
+| ヘルスチェック | `/health`（liveness）、`/ready`（readiness）エンドポイント |
 
 ### Docker Compose 共通設定
 
@@ -677,7 +676,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 
 | カテゴリ | 技術 |
 |:---------|:-----|
-| Frontend | Next.js 16, React 19, Vite 6〜7 |
+| Frontend | Next.js 16.1, React 19, Vite 6.3〜7.3 |
 | Backend | Next.js API Routes, Django 5.x |
 | Database | PostgreSQL 16 Alpine, SQLite |
 | Infrastructure | Docker, Nginx 1.27 |
@@ -724,7 +723,7 @@ tax_apps/
 │       ├── data/               #   アップロードデータ（バインドマウント）
 │       └── docker-compose.yml  #   PostgreSQL + Django + テスト
 ├── docker/                     # Docker 管理
-│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（10アプリ共有）
+│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（9アプリ共有）
 │   ├── gateway/                # Gateway Compose プロジェクト
 │   │   ├── docker-compose.yml  #   Nginx + Portal
 │   │   └── docker-compose.prod.yml  #   本番オーバーライド
@@ -744,9 +743,11 @@ tax_apps/
 │   ├── backups/                # バックアップ保存先（git管理外）
 │   └── README.md               # このファイル
 └── nginx/                      # Nginx 設定
+    ├── .dockerignore           # Docker ビルド除外
     ├── Dockerfile              # Nginx イメージ
     ├── nginx.conf              # グローバル設定
     ├── default.conf            # ルーティング設定
+    ├── robustness-checklist.md # 堅牢性チェックリスト
     ├── includes/               # 共通設定ファイル
     │   ├── proxy_params.conf       # プロキシ共通パラメータ
     │   ├── upstreams.conf          # アップストリーム参照情報
@@ -754,6 +755,8 @@ tax_apps/
     │   ├── rate_limit_general.conf # 一般レート制限
     │   └── rate_limit_api.conf     # APIレート制限
     ├── html/                   # カスタムエラーページ
+    │   ├── error-common.css    # エラーページ共通CSS
+    │   ├── error-pages-spec.md # エラーページ仕様書
     │   ├── 404.html            # ページ未検出
     │   ├── 429.html            # Rate Limit超過
     │   ├── 50x.html            # サーバーエラー
