@@ -25,8 +25,10 @@ if "%GIT_BASH%"=="" (
 )
 
 if "%~1"=="" (
-    "%GIT_BASH%" "%~dp0manage.sh" start
+    "%GIT_BASH%" --login "%~dp0manage.sh" start
 ) else (
-    "%GIT_BASH%" "%~dp0manage.sh" %*
+    "%GIT_BASH%" --login "%~dp0manage.sh" %*
 )
-pause
+set "EXIT_CODE=%ERRORLEVEL%"
+if not defined TAX_APPS_NO_PAUSE pause
+exit /b %EXIT_CODE%
