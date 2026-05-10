@@ -14,15 +14,15 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "ポータルランチャー",
-  description: "税理士業務支援アプリケーション - すべてのアプリへのゲートウェイ",
+  title: "業務支援ポータル",
+  description: "税理士業務支援アプリケーション",
   robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#10b981",
+  themeColor: "#059669",
 };
 
 export default function RootLayout({
