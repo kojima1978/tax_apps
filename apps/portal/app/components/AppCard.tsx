@@ -2,10 +2,10 @@ import type { Application } from '@/lib/applications';
 import { ExternalLink } from 'lucide-react';
 
 const CARD_CLASS = [
-  'group relative h-full bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-md p-6',
-  'hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]',
-  'focus-within:shadow-2xl focus-within:-translate-y-1',
-  'transition-[shadow,transform] duration-300 cursor-pointer',
+  'group relative h-full bg-white border border-gray-200 rounded-xl shadow-sm p-5',
+  'hover:shadow-lg hover:border-emerald-300',
+  'focus-within:shadow-lg focus-within:border-emerald-300',
+  'transition-all duration-200 cursor-pointer',
 ].join(' ');
 
 export default function AppCard({ app }: { app: Application }) {
@@ -19,21 +19,20 @@ export default function AppCard({ app }: { app: Application }) {
       className="h-full"
     >
       <div className={CARD_CLASS}>
-        <div className="flex flex-col space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-              <Icon className="w-7 h-7" />
-            </div>
-            {external && (
-              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-colors" />
-            )}
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-sm group-hover:shadow-md transition-shadow duration-200">
+            <Icon className="w-5 h-5" />
           </div>
-          <div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">{app.title}</h3>
-            <p className="text-sm text-gray-600">{app.description}</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-base font-semibold text-gray-900 truncate">{app.title}</h3>
+              {external && (
+                <ExternalLink className="flex-shrink-0 w-4 h-4 text-gray-400 group-hover:text-emerald-600 transition-colors" />
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mt-1 line-clamp-2">{app.description}</p>
           </div>
         </div>
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
     </a>
   );

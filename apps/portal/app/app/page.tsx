@@ -4,19 +4,19 @@ import AppGrid from '@/components/AppGrid';
 export default function Home() {
   return (
     <>
-      <header className="sticky top-0 z-30 w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 shadow-sm no-print">
-        <PageContainer className="py-6">
+      <header className="sticky top-0 z-30 w-full bg-gradient-to-r from-emerald-800 to-green-900 shadow-lg no-print">
+        <PageContainer className="py-5">
           <a href="/" aria-label="ホームへ戻る">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              ポータルランチャー
+            <h1 className="text-2xl font-bold text-white">
+              業務支援ポータル
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              すべてのアプリケーションへのゲートウェイ
+            <p className="text-sm text-emerald-300 mt-1">
+              税理士業務支援ツール
             </p>
           </a>
         </PageContainer>
       </header>
-      <main className="py-12">
+      <main className="py-10">
         <PageContainer>
           <AppGrid />
         </PageContainer>

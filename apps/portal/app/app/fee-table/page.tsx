@@ -5,7 +5,7 @@ import PrintButton from '@/components/PrintButton';
 import { FEE_SECTIONS, type FeeRow } from '@/lib/fee-data';
 
 export const metadata: Metadata = {
-  title: '報酬表（税抜き） - ポータルランチャー',
+  title: '報酬表（税抜き） - 業務支援ポータル',
 };
 
 function renderRow(row: FeeRow, i: number) {
@@ -44,17 +44,17 @@ function renderRow(row: FeeRow, i: number) {
 export default function FeeTablePage() {
   return (
     <>
-      <header className="w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-        <PageContainer className="py-6 flex items-center justify-between">
+      <header className="w-full bg-gradient-to-r from-emerald-800 to-green-900 shadow-lg">
+        <PageContainer className="py-5 flex items-center justify-between">
           <div>
             <a
               href="/"
-              className="inline-flex items-center gap-1.5 text-sm text-green-600 hover:text-green-800 transition-colors no-print"
+              className="inline-flex items-center gap-1.5 text-sm text-emerald-300 hover:text-white transition-colors no-print"
             >
               <ArrowLeft className="w-4 h-4" />
               ポータルに戻る
             </a>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mt-1 print-title">
+            <h1 className="text-2xl font-bold text-white mt-1 print-title">
               報酬表（税抜き）
             </h1>
           </div>
@@ -64,15 +64,15 @@ export default function FeeTablePage() {
 
       <main className="py-8">
         <PageContainer>
-          <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-md overflow-hidden">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
             <table className="w-full">
               {FEE_SECTIONS.map((section) => (
                 <tbody key={section.title}>
-                  <tr className="bg-gradient-to-r from-green-600 to-emerald-600">
+                  <tr className="bg-gradient-to-r from-emerald-700 to-green-700">
                     <td colSpan={2} className="py-2.5 px-4 text-white font-semibold text-sm tracking-wide">
                       {section.title}
                       {section.subtitle && (
-                        <span className="ml-2 font-normal text-green-100">
+                        <span className="ml-2 font-normal text-emerald-200">
                           {section.subtitle}
                         </span>
                       )}
