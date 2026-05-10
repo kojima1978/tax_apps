@@ -1,7 +1,7 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$TaskName = "Tax Apps Docker Watchdog",
-    [int]$IntervalMinutes = 60,
+    [int]$IntervalMinutes = 15,
     [switch]$StartAppsAfterRecovery,
     [switch]$Unregister
 )
