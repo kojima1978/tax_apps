@@ -25,7 +25,6 @@ const INVOICE_OVERRIDES: Record<string, string> = {
   B11: '相 続 税 申 告 報 酬 請 求 書',
   B14: '下記計算書の通り御請求申し上げます。',
   B17: '御請求額',
-  B41: ' ４．立替金費用（戸籍謄本・不動産登記事項閲覧・残高証明書発行手数料等）',
   B43: '御　請　求　額',
   B44: '振　込　先',
   E44: '　阿波銀行（銀行コード：0172）蔵本支店（店番号：117）\n　普通預金 №１１３５４１７　ゼイ）マスエージェント\n　（振込手数料はお客様にてご負担をお願い致します。）',
@@ -45,7 +44,6 @@ export interface GenerateTemplateInput {
   discount: number;
   expensesTotal: number;
   specialAdditions?: { description: string; amount: number }[];
-  documentAmount?: number;
   // invoice-request 用
   assigneeName?: string;
   referrerName?: string;
@@ -83,7 +81,7 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
         ws.getCell(cell).value = value;
       }
       const expenseTitleCell = ws.getCell('B42');
-      expenseTitleCell.value = ' ４．立替金費用';
+      expenseTitleCell.value = ' ４．立替金費用（戸籍謄本・不動産登記事項閲覧・残高証明書発行手数料等）';
       expenseTitleCell.font = { ...expenseTitleCell.font, name: 'ＭＳ 明朝', size: 10, bold: true };
       ws.name = '請求書';
     }
@@ -106,7 +104,6 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
     specialAdditionDescription2.font = { ...specialAdditionDescription2.font, ...specialAdditionDescriptionFont };
     ws.getCell('M36').value = specialAdditions[1]?.amount || null;
     ws.getCell('M38').value = input.discount ? -Math.abs(input.discount) : null;
-    ws.getCell('M39').value = input.documentAmount ?? null;
     if (input.docType === 'invoice') {
       ws.getCell('M42').value = input.expensesTotal;
     }
