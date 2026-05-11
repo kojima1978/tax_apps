@@ -67,6 +67,7 @@ APPS=(
   "apps/depreciation-calc"
   "apps/asset-valuation"
   "apps/stock-valuation-form"
+  "apps/insurance-analyzer"
   "docker/gateway"
 )
 
