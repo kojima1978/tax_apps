@@ -200,7 +200,7 @@ export const CATEGORIES: CategoryData[] = [
       {
         id: 'cash_zandaka',
         name: '預金残高証明書',
-        description: '相続開始日時点の被相続人（亡くなった方）名義のすべての預貯金の残高。',
+        description: '相続開始日時点の被相続人（亡くなった方）名義のすべての預貯金の残高。注意事項：預貯金の取引が停止されます。',
         howToGet: 'お取引金融機関へお問い合わせください。信用金庫やJA等は出資金の金額も記載。',
         canDelegate: true,
       },
