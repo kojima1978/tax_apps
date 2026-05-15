@@ -54,7 +54,7 @@
                         <td class="text-end text-danger">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% elif tx.amount_in == 0 %}0{% endif %}</td>
                         <td class="text-end text-success">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% elif tx.amount_out == 0 %}0{% endif %}</td>
                         <td><span class="badge bg-secondary">{{ tx.category|default:"-" }}</span></td>
-                        <td style="max-width: 150px;" class="text-truncate" title="{{ tx.memo|default:'' }}">
+                        <td style="max-width: 150px;" class="text-truncate memo-cell" title="{{ tx.memo|default:'' }}" data-tx-id="{{ tx.id }}">
                             <small class="text-muted">{{ tx.memo|default:"-"|truncatechars:30 }}</small>
                         </td>
                         <td class="row-actions">

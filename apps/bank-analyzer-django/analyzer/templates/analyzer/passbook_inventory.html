@@ -1,0 +1,145 @@
+{% extends 'analyzer/base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}通帳有無一覧表 - {{ case.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-1 mb-3">
+    <h1 class="h5 mb-0"><i class="bi bi-table" aria-hidden="true"></i> 通帳有無一覧表: {{ case.name }}</h1>
+    <div class="d-flex gap-1 flex-wrap">
+        <a href="{% url 'analysis-dashboard' case.pk %}" class="btn btn-outline-secondary btn-sm py-0 px-2">
+            <i class="bi bi-arrow-left"></i><span class="d-none d-md-inline ms-1">分析に戻る</span>
+        </a>
+        <a href="{% url 'export-passbook-inventory' case.pk %}" class="btn btn-outline-success btn-sm py-0 px-2">
+            <i class="bi bi-file-earmark-excel"></i><span class="d-none d-md-inline ms-1">Excel出力</span>
+        </a>
+    </div>
+</div>
+
+{% if not case.reference_date %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    基準日が未設定です。通帳残高の自動取得は最後の取引の残高を使用します。
+    <a href="{% url 'analysis-dashboard' case.pk %}">分析ページ</a>で基準日を設定してください。
+</div>
+{% endif %}
+
+<div class="glass-card p-3 mb-4">
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm align-middle mb-0" id="inventoryTable">
+            <thead>
+                <tr class="table-light">
+                    <th rowspan="2" class="text-center" style="width:3rem"></th>
+                    <th rowspan="2" class="text-center">銀行名</th>
+                    <th rowspan="2" class="text-center">支店名</th>
+                    <th rowspan="2" class="text-center">種類</th>
+                    <th rowspan="2" class="text-center">口座番号</th>
+                    {% for yl in years %}
+                    <th class="text-center year-col">{{ yl.year }}</th>
+                    {% endfor %}
+                    <th rowspan="2" class="text-center col-bal">通帳残高</th>
+                    <th rowspan="2" class="text-center">残高<br>一致</th>
+                    <th rowspan="2" class="text-center col-bal">残証残高</th>
+                    <th rowspan="2" class="text-center">既経過<br>利息</th>
+                    <th rowspan="2" class="text-center">備考</th>
+                </tr>
+                <tr class="table-light">
+                    {% for yl in years %}
+                    <th class="text-center year-col small text-muted">{{ yl.wareki }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr data-account-id="{{ row.id }}">
+                    <td class="text-center text-muted">{{ forloop.counter }}</td>
+                    <td>{{ row.bank_name }}</td>
+                    <td>{{ row.branch_name }}</td>
+                    <td>{{ row.account_type }}</td>
+                    <td>{{ row.account_number }}</td>
+                    {% for yd in row.year_list %}
+                    <td class="text-center year-toggle"
+                        data-year="{{ yd.year }}"
+                        data-value="{{ yd.has|yesno:'true,false' }}"
+                        role="button" tabindex="0">{% if yd.has %}○{% endif %}</td>
+                    {% endfor %}
+                    <td class="text-end">
+                        <input type="text" class="form-control form-control-sm text-end inv-input"
+                               data-field="passbook_balance"
+                               value="{% if row.passbook_balance is not None %}{{ row.passbook_balance|intcomma }}{% endif %}"
+                               placeholder="{% if row.auto_balance is not None %}{{ row.auto_balance|intcomma }}{% endif %}">
+                    </td>
+                    <td class="text-center balance-match-cell">
+                        <span class="{% if row.balance_match == '○' %}text-success fw-bold{% elif row.balance_match == '×' %}text-danger fw-bold{% else %}text-muted small{% endif %}">
+                            {{ row.balance_match }}
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <input type="text" class="form-control form-control-sm text-end inv-input"
+                               data-field="certificate_balance"
+                               value="{% if row.certificate_balance is not None %}{{ row.certificate_balance|intcomma }}{% endif %}">
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input inv-checkbox"
+                               data-field="has_accrued_interest"
+                               {% if row.has_accrued_interest %}checked{% endif %}>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm inv-input inv-remarks"
+                               data-field="inventory_remarks"
+                               value="{{ row.inventory_remarks }}">
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ years|length|add:10 }}" class="text-center text-muted py-4">
+                        口座データがありません。CSVを取り込んでください。
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if rows %}
+            <tfoot>
+                <tr class="table-light fw-bold">
+                    <td colspan="{{ years|length|add:5 }}" class="text-end">計</td>
+                    <td class="text-end" id="totalPassbook">{{ total_passbook|intcomma }}</td>
+                    <td></td>
+                    <td class="text-end" id="totalCertificate">{{ total_certificate|intcomma }}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<style>
+#inventoryTable { font-size: 0.78rem; }
+#inventoryTable th { white-space: nowrap; font-size: 0.75rem; }
+.year-col { min-width: 3rem; }
+.year-toggle { cursor: pointer; user-select: none; }
+.year-toggle:hover { background-color: #e9ecef !important; }
+.col-bal { width: 5.5rem; }
+.inv-input { width: 5rem; border: 1px solid #dee2e6; font-size: 0.75rem; padding: .15rem .3rem; }
+.inv-remarks { width: 100%; min-width: 10rem; }
+.inv-input:focus { border-color: #10b981; box-shadow: 0 0 0 0.15rem rgba(16,185,129,.25); }
+.inv-checkbox { cursor: pointer; }
+@media print {
+    .btn, .alert, header { display: none !important; }
+    .glass-card { box-shadow: none !important; border: none !important; }
+    .inv-input { border: none !important; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'analyzer/js/passbook_inventory.js' %}"></script>
+<script>
+    PassbookInventory.init({
+        caseId: {{ case.pk }},
+        csrfToken: '{{ csrf_token }}',
+        apiUrl: '{% url "api-save-passbook-inventory" case.pk %}',
+    });
+</script>
+{% endblock %}

@@ -16,6 +16,9 @@ urlpatterns = [
     path('case/<int:pk>/export-filtered/', views.export_csv_filtered, name='export-csv-filtered'),
     path('case/<int:pk>/export-json/', views.export_json, name='export-json'),
     path('case/<int:pk>/export-xlsx-by-category/', views.export_xlsx_by_category, name='export-xlsx-by-category'),
+    # 通帳有無一覧表
+    path('case/<int:pk>/passbook-inventory/', views.passbook_inventory, name='passbook-inventory'),
+    path('case/<int:pk>/export-passbook-inventory/', views.export_passbook_inventory, name='export-passbook-inventory'),
     # API Endpoints (AJAX)
     path('case/<int:pk>/api/toggle-flag/', views.api_toggle_flag, name='api-toggle-flag'),
     path('case/<int:pk>/api/create-transaction/', views.api_create_transaction, name='api-create-transaction'),
@@ -23,6 +26,7 @@ urlpatterns = [
     path('case/<int:pk>/api/transaction/', views.api_get_transaction, name='api-get-transaction'),
     path('case/<int:pk>/api/field-values/', views.api_get_field_values, name='api-field-values'),
     path('case/<int:pk>/api/reference-date/', views.api_update_reference_date, name='api-reference-date'),
+    path('case/<int:pk>/api/save-passbook-inventory/', views.api_save_passbook_inventory, name='api-save-passbook-inventory'),
     # 印刷用ページ
     path('customer-letter/', views.customer_letter, name='customer-letter'),
 ]

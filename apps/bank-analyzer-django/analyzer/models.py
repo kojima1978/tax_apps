@@ -58,6 +58,13 @@ class Account(models.Model):
     account_type = models.CharField(max_length=50, null=True, blank=True, verbose_name="種別")
     holder = models.CharField(max_length=255, null=True, blank=True, verbose_name="名義人")
 
+    # 通帳有無一覧表
+    passbook_balance = models.IntegerField(null=True, blank=True, verbose_name="通帳残高")
+    certificate_balance = models.IntegerField(null=True, blank=True, verbose_name="残証残高")
+    has_accrued_interest = models.BooleanField(default=False, verbose_name="既経過利息計算")
+    passbook_years = models.JSONField(default=dict, blank=True, verbose_name="通帳有無(年別)")
+    inventory_remarks = models.TextField(blank=True, default='', verbose_name="備考/利用状況")
+
     def __str__(self):
         parts = [self.bank_name or '', self.branch_name or '', self.account_number]
         return ' '.join(p for p in parts if p)

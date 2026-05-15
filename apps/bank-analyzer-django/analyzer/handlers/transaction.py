@@ -216,9 +216,13 @@ def handle_update_memo(request: HttpRequest, case, pk: int) -> HttpResponse:
 
     if tx_id:
         success = TransactionService.update_memo(case, int(tx_id), memo)
+        if is_ajax(request):
+            return JsonResponse({'success': bool(success), 'memo': memo, 'tx_id': tx_id})
         if success:
             messages.success(request, "メモを更新しました。")
 
+    if is_ajax(request):
+        return json_error('tx_id が指定されていません')
     return redirect(build_redirect_url('analysis-dashboard', pk, source_tab))
 
 
