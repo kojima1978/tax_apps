@@ -9,6 +9,9 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <h1 class="h2 mb-0"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> 編集・分析: {{ case.name }}</h1>
     <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'passbook-inventory' case.pk %}" class="btn btn-outline-info btn-sm">
+            <i class="bi bi-table"></i><span class="d-none d-md-inline ms-1">通帳有無一覧表</span>
+        </a>
         <a href="{% url 'import-wizard' case.pk %}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-file-earmark-arrow-up"></i><span class="d-none d-md-inline ms-1">CSV追加取込</span>
         </a>
@@ -418,6 +421,45 @@
     </div>
 </div>
 
+<!-- メモ定型文コンテキストメニュー -->
+<div id="memoTemplateMenu" class="memo-ctx-menu" style="display:none;">
+    <div class="memo-ctx-header">定型文を挿入</div>
+    <button class="memo-ctx-item" data-tpl="expense_usage">
+        <span class="memo-ctx-label">出金：使途の質問</span>
+    </button>
+    <button class="memo-ctx-item" data-tpl="securities">
+        <span class="memo-ctx-label">出金：証券残高の質問</span>
+    </button>
+    <button class="memo-ctx-item" data-tpl="income_source">
+        <span class="memo-ctx-label">入金：入金元の質問</span>
+    </button>
+    <button class="memo-ctx-item" data-tpl="pre_death_expense">
+        <span class="memo-ctx-label">直前の出金：使途＋手許現金</span>
+    </button>
+</div>
+
+<style>
+.memo-ctx-menu {
+    position: fixed; z-index: 9999;
+    min-width: 240px;
+    background: #fff; border: 1px solid #dee2e6;
+    border-radius: .375rem; box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+    padding: .25rem 0;
+}
+.memo-ctx-header {
+    padding: .35rem .75rem; font-size: .75rem;
+    color: #6c757d; border-bottom: 1px solid #eee;
+}
+.memo-ctx-item {
+    display: block; width: 100%; border: none; background: none;
+    padding: .45rem .75rem; text-align: left;
+    font-size: .85rem; cursor: pointer; color: #212529;
+}
+.memo-ctx-item:hover { background-color: #e9f5ee; }
+.memo-ctx-label { pointer-events: none; }
+.memo-cell { cursor: context-menu; }
+</style>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -428,6 +470,8 @@
 <script src="{% static 'analyzer/js/analysis_patterns.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_tabs.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_filters.js' %}"></script>
+<script>window.REFERENCE_DATE_WAREKI = '{{ case.reference_date|wareki:"full"|default:"" }}';</script>
+<script src="{% static 'analyzer/js/memo_templates.js' %}"></script>
 <script>
 document.addEventListener('click', function(e) {
     var link = e.target.closest('th a[href*="sort="]');

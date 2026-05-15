@@ -33,6 +33,13 @@ from .dashboard import (
     classify_preview,
 )
 
+# 通帳有無一覧表
+from .passbook_inventory import (
+    passbook_inventory,
+    api_save_passbook_inventory,
+    export_passbook_inventory,
+)
+
 # 設定
 from .settings import settings_view
 
