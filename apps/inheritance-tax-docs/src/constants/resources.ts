@@ -90,4 +90,22 @@ export const RESOURCES: Resource[] = [
     description: 'e-Taxで使用する利用者識別番号の概要と取得方法の解説（国税庁）',
     url: 'https://www.keisan.nta.go.jp/r7yokuaru_sp/cat1/cat12/cat122/cat1221/scid1437.html',
   },
+  {
+    title: '税務調査について',
+    description: '相続税の税務調査に関する確認事項と対応の流れをまとめた資料',
+    filename: 'tax-audit.docx',
+    downloadName: '税務調査について.docx',
+  },
+  {
+    title: '生前対策・遺言書',
+    description: '生前対策と遺言書作成に関するポイントをまとめた参考資料',
+    filename: 'lifetime-planning-will.pdf',
+    downloadName: '生前対策_遺言書.pdf',
+  },
+  {
+    title: '名義財産検討シート',
+    description: '名義財産の有無や検討事項を整理するためのチェックシート',
+    filename: 'nominee-property-review-sheet.xlsx',
+    downloadName: '名義財産検討シート_20210317.xlsx',
+  },
 ];
