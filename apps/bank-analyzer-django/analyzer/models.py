@@ -64,6 +64,7 @@ class Account(models.Model):
     has_accrued_interest = models.BooleanField(default=False, verbose_name="既経過利息計算")
     passbook_years = models.JSONField(default=dict, blank=True, verbose_name="通帳有無(年別)")
     inventory_remarks = models.TextField(blank=True, default='', verbose_name="備考/利用状況")
+    print_order = models.IntegerField(default=0, verbose_name="印刷順序")
 
     def __str__(self):
         parts = [self.bank_name or '', self.branch_name or '', self.account_number]
@@ -75,7 +76,7 @@ class Account(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['case', 'account_number'], name='unique_case_account'),
         ]
-        ordering = ['bank_name', 'branch_name']
+        ordering = ['print_order', 'bank_name', 'branch_name']
 
 
 class TransactionQuerySet(models.QuerySet):

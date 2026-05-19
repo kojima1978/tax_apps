@@ -42,11 +42,11 @@
                 </div>
             </form>
             <div class="btn-group btn-group-sm" id="viewToggle">
-                <button type="button" class="btn btn-outline-primary active" data-view="grouped" title="グループ表示">
-                    <i class="bi bi-collection"></i> グループ
-                </button>
-                <button type="button" class="btn btn-outline-primary" data-view="flat" title="一覧表示">
+                <button type="button" class="btn btn-outline-primary active" data-view="flat" title="一覧表示">
                     <i class="bi bi-list-ul"></i> 一覧
+                </button>
+                <button type="button" class="btn btn-outline-primary" data-view="grouped" title="グループ表示">
+                    <i class="bi bi-collection"></i> グループ
                 </button>
             </div>
         </div>
@@ -54,7 +54,7 @@
         {% if unclassified_txs %}
 
         <!-- ===== グループ表示 ===== -->
-        <div id="groupedView">
+        <div id="groupedView" style="display: none;">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0">
                     <i class="bi bi-collection text-warning me-1"></i>
@@ -157,7 +157,7 @@
         </div>
 
         <!-- ===== フラット表示（既存） ===== -->
-        <div id="flatView" style="display: none;">
+        <div id="flatView">
             <form method="post" id="unclassifiedTxForm" class="bulk-form" data-bulk-label="分類を保存中...">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="bulk_update_categories">

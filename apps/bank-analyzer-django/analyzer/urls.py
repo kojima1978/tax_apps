@@ -27,6 +27,7 @@ urlpatterns = [
     path('case/<int:pk>/api/field-values/', views.api_get_field_values, name='api-field-values'),
     path('case/<int:pk>/api/reference-date/', views.api_update_reference_date, name='api-reference-date'),
     path('case/<int:pk>/api/save-passbook-inventory/', views.api_save_passbook_inventory, name='api-save-passbook-inventory'),
+    path('case/<int:pk>/api/reorder-passbook-inventory/', views.api_reorder_passbook_inventory, name='api-reorder-passbook-inventory'),
     # 印刷用ページ
     path('customer-letter/', views.customer_letter, name='customer-letter'),
 ]

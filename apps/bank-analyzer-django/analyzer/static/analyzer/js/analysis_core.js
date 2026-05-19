@@ -152,7 +152,7 @@ const ProgressBar = {
 
 // ===== インライン分類の即時保存（SaveQueue使用） =====
 
-var _categorySelectPattern = /^(cat-|uncat-|transfer-src-|transfer-dest-|transfer-src-tbl-|transfer-dest-tbl-)/;
+var _categorySelectPattern = /^(cat-|uncat-|transfer-src-tbl-|transfer-dest-tbl-|transfer-src-|transfer-dest-)/;
 
 document.addEventListener('change', function(e) {
     var select = e.target;

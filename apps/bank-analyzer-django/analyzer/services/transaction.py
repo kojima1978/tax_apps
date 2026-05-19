@@ -592,7 +592,7 @@ class TransactionService:
             ValueError: バージョン不正・案件名生成失敗時
         """
         version = data.get('version', '1.0')
-        if version not in ['1.0']:
+        if version not in ('1.0', '1.1'):
             raise ValueError(f"未対応のバージョン: {version}")
 
         case_data = data.get('case', {})
@@ -615,6 +615,18 @@ class TransactionService:
             raise ValueError("案件名の生成に失敗しました。別の名前でインポートしてください。")
 
         with db_transaction.atomic():
+            # 基準日の復元
+            ref_date = case_data.get('reference_date')
+            if ref_date:
+                new_case.reference_date = parse_date_value(ref_date)
+                new_case.save(update_fields=['reference_date'])
+
+            # 口座情報の復元 (v1.1)
+            account_inventory = {}
+            for acc_data in data.get('accounts', []):
+                acct_number = acc_data.get('account_number', 'unknown')
+                account_inventory[acct_number] = acc_data
+
             transactions_data = data.get('transactions', [])
             new_transactions = []
             account_cache = {}
@@ -641,6 +653,27 @@ class TransactionService:
 
             if new_transactions:
                 Transaction.objects.bulk_create(new_transactions)
+
+            # 口座の通帳有無一覧表データを復元
+            if account_inventory:
+                for acct_number, acc_data in account_inventory.items():
+                    try:
+                        account = Account.objects.get(case=new_case, account_number=acct_number)
+                    except Account.DoesNotExist:
+                        continue
+                    if acc_data.get('passbook_balance') is not None:
+                        account.passbook_balance = acc_data['passbook_balance']
+                    if acc_data.get('certificate_balance') is not None:
+                        account.certificate_balance = acc_data['certificate_balance']
+                    account.has_accrued_interest = acc_data.get('has_accrued_interest', False)
+                    if acc_data.get('passbook_years'):
+                        account.passbook_years = acc_data['passbook_years']
+                    if acc_data.get('inventory_remarks'):
+                        account.inventory_remarks = acc_data['inventory_remarks']
+                    if acc_data.get('print_order') is not None:
+                        account.print_order = acc_data['print_order']
+                    account.save()
+                logger.info(f"口座情報を復元: {len(account_inventory)}件")
 
             if restore_settings and 'settings' in data:
                 config.save_user_settings(data['settings'])

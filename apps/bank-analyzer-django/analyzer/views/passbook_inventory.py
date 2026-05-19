@@ -72,7 +72,7 @@ def _balance_match_status(passbook_bal, certificate_bal) -> str:
 
 def _build_account_rows(case: Case, years: list[int]) -> list[dict]:
     """口座ごとの一覧データを構築"""
-    accounts = case.accounts.all().order_by('bank_name', 'branch_name', 'account_number')
+    accounts = case.accounts.all().order_by('print_order', 'bank_name', 'branch_name', 'account_number')
     rows = []
     for acc in accounts:
         tx_years = _get_transaction_years(acc)
@@ -384,3 +384,24 @@ def export_passbook_inventory(request: HttpRequest, pk: int) -> HttpResponse:
     filename = f"{sanitize_filename(case.name)}_通帳有無一覧表.xlsx"
     set_download_filename(response, filename)
     return response
+
+
+def api_reorder_passbook_inventory(request: HttpRequest, pk: int) -> JsonResponse:
+    """通帳有無一覧表の並び順を保存（AJAX）"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    case = get_object_or_404(Case, pk=pk)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    order = data.get('order', [])
+    if not order:
+        return JsonResponse({'error': 'order required'}, status=400)
+
+    for i, account_id in enumerate(order):
+        Account.objects.filter(pk=account_id, case=case).update(print_order=i)
+
+    return JsonResponse({'ok': True})

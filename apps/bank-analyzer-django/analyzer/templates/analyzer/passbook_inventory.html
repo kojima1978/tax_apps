@@ -30,6 +30,7 @@
         <table class="table table-bordered table-sm align-middle mb-0" id="inventoryTable">
             <thead>
                 <tr class="table-light">
+                    <th rowspan="2" class="text-center no-print" style="width:2rem"></th>
                     <th rowspan="2" class="text-center" style="width:3rem"></th>
                     <th rowspan="2" class="text-center">銀行名</th>
                     <th rowspan="2" class="text-center">支店名</th>
@@ -53,7 +54,10 @@
             <tbody>
                 {% for row in rows %}
                 <tr data-account-id="{{ row.id }}">
-                    <td class="text-center text-muted">{{ forloop.counter }}</td>
+                    <td class="text-center no-print drag-handle" role="button" title="ドラッグで並び替え">
+                        <i class="bi bi-grip-vertical text-muted"></i>
+                    </td>
+                    <td class="text-center text-muted row-number">{{ forloop.counter }}</td>
                     <td>{{ row.bank_name }}</td>
                     <td>{{ row.branch_name }}</td>
                     <td>{{ row.account_type }}</td>
@@ -93,7 +97,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="{{ years|length|add:10 }}" class="text-center text-muted py-4">
+                    <td colspan="{{ years|length|add:11 }}" class="text-center text-muted py-4">
                         口座データがありません。CSVを取り込んでください。
                     </td>
                 </tr>
@@ -102,7 +106,7 @@
             {% if rows %}
             <tfoot>
                 <tr class="table-light fw-bold">
-                    <td colspan="{{ years|length|add:5 }}" class="text-end">計</td>
+                    <td colspan="{{ years|length|add:6 }}" class="text-end">計</td>
                     <td class="text-end" id="totalPassbook">{{ total_passbook|intcomma }}</td>
                     <td></td>
                     <td class="text-end" id="totalCertificate">{{ total_certificate|intcomma }}</td>
@@ -125,21 +129,56 @@
 .inv-remarks { width: 100%; min-width: 10rem; }
 .inv-input:focus { border-color: #10b981; box-shadow: 0 0 0 0.15rem rgba(16,185,129,.25); }
 .inv-checkbox { cursor: pointer; }
+.drag-handle { cursor: grab; }
+.drag-handle:active { cursor: grabbing; }
+.sortable-ghost { opacity: 0.4; background-color: #d1ecf1 !important; }
+.sortable-ghost td:nth-child(-n+6) { background-color: #d1ecf1 !important; }
+.sortable-chosen { background-color: #f8f9fa; }
+
+/* Frozen columns (1:☰ 2:No 3:銀行名 4:支店名 5:種類 6:口座番号) */
+#inventoryTable thead tr:first-child th:nth-child(-n+6) {
+    position: sticky;
+    z-index: 3;
+    background-color: #f8f9fa;
+}
+#inventoryTable tbody td:nth-child(-n+6) {
+    position: sticky;
+    z-index: 1;
+    background-color: #fff;
+}
+#inventoryTable thead tr:first-child th:nth-child(1),
+#inventoryTable tbody td:nth-child(1) { left: 0; min-width: 2rem; }
+#inventoryTable thead tr:first-child th:nth-child(2),
+#inventoryTable tbody td:nth-child(2) { left: 2rem; min-width: 3rem; }
+#inventoryTable thead tr:first-child th:nth-child(3),
+#inventoryTable tbody td:nth-child(3) { left: 5rem; min-width: 7rem; max-width: 7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#inventoryTable thead tr:first-child th:nth-child(4),
+#inventoryTable tbody td:nth-child(4) { left: 12rem; min-width: 5rem; max-width: 5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#inventoryTable thead tr:first-child th:nth-child(5),
+#inventoryTable tbody td:nth-child(5) { left: 17rem; min-width: 3rem; }
+#inventoryTable thead tr:first-child th:nth-child(6),
+#inventoryTable tbody td:nth-child(6) { left: 20rem; min-width: 5rem; max-width: 5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-right: 2px solid #c8ccd0; }
+
 @media print {
-    .btn, .alert, header { display: none !important; }
+    .btn, .alert, header, .no-print { display: none !important; }
     .glass-card { box-shadow: none !important; border: none !important; }
     .inv-input { border: none !important; }
+    #inventoryTable thead tr:first-child th:nth-child(-n+6),
+    #inventoryTable tbody td:nth-child(-n+6) { position: static; }
+    #inventoryTable tbody td:nth-child(6) { border-right: 1px solid #dee2e6; }
 }
 </style>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script src="{% static 'analyzer/js/passbook_inventory.js' %}"></script>
 <script>
     PassbookInventory.init({
         caseId: {{ case.pk }},
         csrfToken: '{{ csrf_token }}',
         apiUrl: '{% url "api-save-passbook-inventory" case.pk %}',
+        reorderUrl: '{% url "api-reorder-passbook-inventory" case.pk %}',
     });
 </script>
 {% endblock %}
