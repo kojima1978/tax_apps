@@ -37,6 +37,7 @@ from .dashboard import (
 from .passbook_inventory import (
     passbook_inventory,
     api_save_passbook_inventory,
+    api_reorder_passbook_inventory,
     export_passbook_inventory,
 )
 

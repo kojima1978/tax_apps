@@ -62,13 +62,31 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
             tx_dict['date'] = tx_dict['date'].isoformat()
         transactions_data.append(tx_dict)
 
+    accounts_data = []
+    for acc in case.accounts.all().order_by('print_order', 'bank_name', 'branch_name'):
+        accounts_data.append({
+            'account_number': acc.account_number,
+            'bank_name': acc.bank_name,
+            'branch_name': acc.branch_name,
+            'account_type': acc.account_type,
+            'holder': acc.holder,
+            'passbook_balance': acc.passbook_balance,
+            'certificate_balance': acc.certificate_balance,
+            'has_accrued_interest': acc.has_accrued_interest,
+            'passbook_years': acc.passbook_years,
+            'inventory_remarks': acc.inventory_remarks,
+            'print_order': acc.print_order,
+        })
+
     export_data = {
-        'version': '1.0',
+        'version': '1.1',
         'exported_at': datetime.now().isoformat(),
         'case': {
             'name': case.name,
             'created_at': case.created_at.isoformat() if case.created_at else None,
+            'reference_date': case.reference_date.isoformat() if case.reference_date else None,
         },
+        'accounts': accounts_data,
         'transactions': transactions_data,
         'statistics': {
             'total_transactions': len(transactions_data),

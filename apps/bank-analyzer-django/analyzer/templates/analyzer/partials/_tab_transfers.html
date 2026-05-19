@@ -131,17 +131,17 @@
                 {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
             </h5>
             <div class="btn-group btn-group-sm" id="transferViewToggle">
-                <button type="button" class="btn btn-outline-primary active" data-view="card" title="カード表示">
-                    <i class="bi bi-card-list"></i> カード
-                </button>
-                <button type="button" class="btn btn-outline-primary" data-view="table" title="テーブル表示">
+                <button type="button" class="btn btn-outline-primary active" data-view="table" title="テーブル表示">
                     <i class="bi bi-table"></i> テーブル
+                </button>
+                <button type="button" class="btn btn-outline-primary" data-view="card" title="カード表示">
+                    <i class="bi bi-card-list"></i> カード
                 </button>
             </div>
         </div>
 
         <!-- ===== カード表示 ===== -->
-        <div id="transferCardView">
+        <div id="transferCardView" style="display: none;">
             {% for pair in transfer_pairs %}
             <div class="transfer-pair-card mb-3"
                  data-src-id="{{ pair.source.id }}"
@@ -218,7 +218,7 @@
         </div>
 
         <!-- ===== テーブル表示（既存） ===== -->
-        <div id="transferTableView" style="display: none;">
+        <div id="transferTableView">
             <form method="post" id="transferForm" class="bulk-form" data-bulk-label="分類を保存中...">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="bulk_update_transfer_categories">

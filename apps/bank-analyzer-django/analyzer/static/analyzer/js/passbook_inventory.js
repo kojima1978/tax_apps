@@ -9,6 +9,7 @@ const PassbookInventory = (() => {
         _bindYearToggles();
         _bindInputs();
         _bindCheckboxes();
+        _initSortable();
     }
 
     // -------------------------------------------------------
@@ -140,6 +141,47 @@ const PassbookInventory = (() => {
         const certEl = document.getElementById('totalCertificate');
         if (pbEl) pbEl.textContent = totalPb.toLocaleString();
         if (certEl) certEl.textContent = totalCert.toLocaleString();
+    }
+
+    // -------------------------------------------------------
+    // ドラッグ＆ドロップ並び替え
+    // -------------------------------------------------------
+    function _initSortable() {
+        const tbody = document.querySelector('#inventoryTable tbody');
+        if (!tbody || !tbody.children.length || typeof Sortable === 'undefined') return;
+
+        Sortable.create(tbody, {
+            handle: '.drag-handle',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            onEnd: () => {
+                _renumberRows();
+                _saveOrder();
+            },
+        });
+    }
+
+    function _renumberRows() {
+        document.querySelectorAll('#inventoryTable tbody tr').forEach((tr, i) => {
+            const numCell = tr.querySelector('.row-number');
+            if (numCell) numCell.textContent = i + 1;
+        });
+    }
+
+    function _saveOrder() {
+        const order = Array.from(document.querySelectorAll('#inventoryTable tbody tr'))
+            .map(tr => Number(tr.dataset.accountId))
+            .filter(id => !isNaN(id));
+
+        fetch(_config.reorderUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': _config.csrfToken,
+            },
+            body: JSON.stringify({ order }),
+        }).catch(err => console.error('Reorder error:', err));
     }
 
     return { init };
