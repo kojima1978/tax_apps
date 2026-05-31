@@ -38,37 +38,37 @@ services:
   #   - 書類の編集・追加・削除（統合ビュー）
   #   - Excel出力 / 印刷
   #   - JSON形式での設定保存・読込
+  #   - 参考資料の登録・管理・ファイルアップロード
   # ===========================================
   inheritance-tax-docs:
     build:
       context: .
-      dockerfile: ../../docker/Dockerfile.vite-static
+      dockerfile: Dockerfile
       target: dev
       args:
         APP_PORT: "3003"
-        APP_PATH: inheritance-tax-docs
-        APP_TITLE: "Inheritance Tax Docs"
-        APP_DESCRIPTION: "相続税申告 資料準備ガイド"
-        NPM_CACHE_ID: npm-store-inheritance-tax-docs
     container_name: inheritance-tax-docs
     networks:
       - tax-apps-network
     ports:
       - "3003:3003"
     volumes:
-      # ソースコードをマウント（ホットリロード用）
       - ./src:/app/src:ro
+      - ./server:/app/server:ro
       - ./public:/app/public:ro
       - ./index.html:/app/index.html:ro
+      - inheritance_tax_docs_data:/app/data
     environment:
       <<: *common-env
       NODE_ENV: development
+      DATABASE_PATH: "/app/data/resources.sqlite"
+      DATA_DIR: "/app/data"
     init: true
     restart: unless-stopped
     logging: *default-logging
     labels: *autoheal-labels
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3003/inheritance-tax-docs/ || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3003/inheritance-tax-docs/api/health || exit 1"]
       <<: *healthcheck-defaults
       start_period: 60s
     deploy:
@@ -81,3 +81,7 @@ services:
 networks:
   tax-apps-network:
     external: true
+
+volumes:
+  inheritance_tax_docs_data:
+    name: inheritance-tax-docs-data

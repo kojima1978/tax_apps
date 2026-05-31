@@ -5,6 +5,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/inheritance-tax-docs/',
+  server: {
+    proxy: {
+      '/inheritance-tax-docs/api': 'http://localhost:3003',
+      '/inheritance-tax-docs/files': 'http://localhost:3003',
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

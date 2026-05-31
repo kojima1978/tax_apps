@@ -7,7 +7,7 @@
 x-prod-deploy: &prod-deploy
   resources:
     limits:
-      memory: 256M
+      memory: 192M
     reservations:
       memory: 64M
 
@@ -15,6 +15,19 @@ services:
   inheritance-tax-docs:
     build:
       target: runner
+    environment:
+      TZ: Asia/Tokyo
+      NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=128"
+      DATABASE_PATH: "/app/data/resources.sqlite"
+      DATA_DIR: "/app/data"
     init: false
-    volumes: []
+    volumes:
+      - inheritance_tax_docs_data:/app/data
+    healthcheck:
+      start_period: 10s
     deploy: *prod-deploy
+
+volumes:
+  inheritance_tax_docs_data:
+    name: inheritance-tax-docs-data

@@ -7,9 +7,9 @@
 x-prod-deploy: &prod-deploy
   resources:
     limits:
-      memory: 256M
-    reservations:
       memory: 64M
+    reservations:
+      memory: 16M
 
 services:
   gift-tax-simulator:

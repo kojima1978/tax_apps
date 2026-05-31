@@ -16,7 +16,7 @@ import ToastContainer, { type ToastMessage } from '@/components/Toast';
 import type { Policy, FamilyMember, Agency, AppState } from '@/types';
 import { fetchAppState, saveAppState as apiSave, resetAppState, clearAppState, getExportUrl, getBackupUrl, restoreBackup } from '@/lib/api';
 
-import { AlertTriangle, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, ArrowLeft, DatabaseBackup } from 'lucide-react';
+import { AlertTriangle, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, ArrowLeft, DatabaseBackup, Home } from 'lucide-react';
 
 const VALID_POLICY_TYPES = ['個人年金保険', '収入保障保険', '変額終身保険', '医療保険', '終身保険', '養老保険'] as const;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
@@ -374,6 +374,9 @@ export default function Page() {
       <header className="app-header">
         <div>
           <h1>
+            <a href="/" className="back-to-list-btn" title="ポータルに戻る" style={{ marginRight: '0.25rem' }}>
+              <Home size={20} />
+            </a>
             <button className="back-to-list-btn" onClick={handleBackToList} title="お客様一覧に戻る">
               <ArrowLeft size={20} />
             </button>
