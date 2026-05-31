@@ -59,7 +59,7 @@ APPS=(
   "apps/bank-analyzer-django"
   "apps/tax-docs"
   "apps/medical-stock-valuation"
-  "apps/shares-valuation"
+  "apps/insurance-app"
   "apps/inheritance-tax-app"
   "apps/gift-tax-simulator"
   "apps/inheritance-tax-docs"

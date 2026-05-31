@@ -1,0 +1,81 @@
+# ============================================
+# 保険管理アプリ - Docker Compose
+# ============================================
+# Usage:
+#   開発:     docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:     docker compose logs -f
+#   停止:     docker compose down
+# ============================================
+
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-autoheal-labels: &autoheal-labels
+  tax-apps.autoheal: "true"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s
+
+services:
+  # ===========================================
+  # 保険管理アプリ
+  # Port: 3030
+  # ===========================================
+  insurance-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        APP_PORT: "3030"
+    container_name: insurance-app
+    networks:
+      - tax-apps-network
+    ports:
+      - "3030:3030"
+    volumes:
+      - ./app:/app/app:ro
+      - ./components:/app/components:ro
+      - ./lib:/app/lib:ro
+      - ./services:/app/services:ro
+      - ./validators:/app/validators:ro
+      - ./utils:/app/utils:ro
+      - insurance_data:/app/data
+      - ./public:/app/public:ro
+      - ./types.ts:/app/types.ts:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      DATABASE_PATH: "/app/data/insurance.sqlite"
+    init: true
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *autoheal-labels
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3030/insurance/api/health || exit 1"]
+      <<: *healthcheck-defaults
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true
+
+volumes:
+  insurance_data:
+    name: insurance-app-data

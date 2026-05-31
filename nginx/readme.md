@@ -84,7 +84,7 @@ nginx/
 | `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Next.js + API Routes) |
 | `/itcm/api/` | `itcm-frontend:3020` | 相続税案件管理 API（同一サービス内） |
 | `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価 (Next.js) |
-| `/shares/` | `shares-valuation:3012` | 非上場株式評価 (Vite) |
+| `/insurance/` | `insurance-app:3030` | 保険管理 (Next.js) |
 | `/inheritance-tax-app/` | `inheritance-tax-app:3004` | 相続税計算 (Vite) |
 | `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド (Vite) |
 | `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター (Vite) |

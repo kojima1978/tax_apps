@@ -49,7 +49,7 @@ tax_apps/
 │   ├── retirement-tax-calc/           # 退職金税額計算 (Vite)
 │   ├── income-tax-calc/               # 所得税計算 (Vite)
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
-│   ├── shares-valuation/              # 非上場株式評価 (Vite)
+│   ├── insurance-app/                 # 保険管理 (Next.js)
 │   ├── tax-docs/                      # 確定申告必要書類 (Vite)
 │   ├── depreciation-calc/             # 減価償却計算 (Vite)
 │   ├── asset-valuation/              # 減価償却資産評価 (Vite)

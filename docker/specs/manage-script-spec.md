@@ -85,7 +85,7 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 | 2 | `APP_2` | `apps\bank-analyzer-django` | 銀行分析 (PostgreSQL + Django) | 3007 |
 | 3 | `APP_3` | `apps\tax-docs` | 所得税・贈与税書類リスト (Vite) | 3002 |
 | 4 | `APP_4` | `apps\medical-stock-valuation` | 医療法人株式 (SQLite + Next.js) | 3010 |
-| 5 | `APP_5` | `apps\shares-valuation` | 非上場株式 (Vite) | 3012 |
+| 5 | `APP_5` | `apps\insurance-app` | 保険管理 (SQLite + Next.js) | 3030 |
 | 6 | `APP_6` | `apps\inheritance-tax-app` | 相続税計算 (Vite) | 3004 |
 | 7 | `APP_7` | `apps\gift-tax-simulator` | 贈与税計算 (Vite) | 3001 |
 | 8 | `APP_8` | `apps\inheritance-tax-docs` | 相続税資料ガイド (Vite) | 3003 |
