@@ -602,7 +602,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 2 | bank-analyzer-django | PostgreSQL + Django |
 | 3 | tax-docs | Vite |
 | 4 | medical-stock-valuation | SQLite + Next.js |
-| 5 | shares-valuation | Vite |
+| 5 | insurance-app | SQLite + Next.js |
 | 6 | inheritance-tax-app | Vite |
 | 7 | gift-tax-simulator | Vite |
 | 8 | inheritance-tax-docs | Vite |
@@ -624,8 +624,8 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3004 | Inheritance Tax App | apps/inheritance-tax-app |
 | 3007 | Bank Analyzer | apps/bank-analyzer-django |
 | 3010 | Medical Stock Valuation | apps/medical-stock-valuation |
-| 3012 | Shares Valuation | apps/shares-valuation |
 | 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
+| 3030 | Insurance App | apps/insurance-app |
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3015 | Depreciation Calc | apps/depreciation-calc |
 | 3017 | Asset Valuation | apps/asset-valuation |
@@ -724,7 +724,7 @@ tax_apps/
 │   │   └── docker-compose.prod.yml  #   本番オーバーライド
 │   ├── medical-stock-valuation/ # 医療法人株式
 │   │   └── docker-compose.yml
-│   ├── shares-valuation/       # 非上場株式
+│   ├── insurance-app/          # 保険管理
 │   │   └── docker-compose.yml
 │   ├── retirement-tax-calc/    # 退職金税額計算
 │   │   └── docker-compose.yml

@@ -1,0 +1,34 @@
+# ============================================
+# 保険管理アプリ - Production Override
+# ============================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# ============================================
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 192M
+    reservations:
+      memory: 64M
+
+services:
+  insurance-app:
+    build:
+      target: runner
+    environment:
+      TZ: Asia/Tokyo
+      NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=128"
+      NEXT_TELEMETRY_DISABLED: "1"
+    user: root
+    init: false
+    mem_limit: 192m
+    volumes:
+      - insurance_data:/app/data
+    healthcheck:
+      start_period: 10s
+    deploy: *prod-deploy
+
+volumes:
+  insurance_data:
+    name: insurance-app-data
