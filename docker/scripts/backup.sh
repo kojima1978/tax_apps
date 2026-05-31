@@ -45,6 +45,8 @@ PG_TARGETS=(
 
 SQLITE_TARGETS=(
   "medical-stock-valuation-data:medical-stock-valuation-data"
+  "insurance-app-data:insurance-app-data"
+  "inheritance-tax-docs-data:inheritance-tax-docs-data"
 )
 
 BIND_TARGETS=(
@@ -778,7 +780,7 @@ cmd_itcm_backup() {
   local pg1_globals_file="itcm-globals_${stamp}.sql"
   local pg1_volume_file="itcm-postgres-volume_${stamp}.tar.gz"
 
-  echo "[1/6] ITCM PostgreSQL"
+  echo "[1/8] ITCM PostgreSQL"
   mkdir -p "$pg1_dir"
 
   if ! is_container_running "$pg1_container"; then
@@ -837,7 +839,7 @@ cmd_itcm_backup() {
   local json_file="itcm-json_${stamp}.json"
   local json_url="http://127.0.0.1:3020/itcm/api/backup/"
 
-  echo "[2/6] ITCM JSON Export"
+  echo "[2/8] ITCM JSON Export"
   mkdir -p "$json_dir"
 
   if ! is_container_running "$itcm_web_container"; then
@@ -873,7 +875,7 @@ cmd_itcm_backup() {
   local pg2_dir="$BACKUP_BASE/bank-analyzer-db"
   local pg2_file="bank-analyzer-db_${stamp}.sql"
 
-  echo "[3/6] Bank Analyzer PostgreSQL"
+  echo "[3/8] Bank Analyzer PostgreSQL"
   mkdir -p "$pg2_dir"
   if ! is_container_running "$pg2_container"; then
     echo "  [SKIP] Container $pg2_container is not running."
@@ -896,7 +898,7 @@ cmd_itcm_backup() {
   local sq1_dir="$BACKUP_BASE/medical-stock-db"
   local sq1_file="medical-stock-db_${stamp}.db"
 
-  echo "[4/6] Medical Stock SQLite"
+  echo "[4/8] Medical Stock SQLite"
   mkdir -p "$sq1_dir"
   if ! is_container_running "$sq1_container"; then
     echo "  [SKIP] Container $sq1_container is not running."
@@ -914,12 +916,60 @@ cmd_itcm_backup() {
   remove_old_files "$sq1_dir" "medical-stock-db_*.db" "$retention_days"
   echo
 
+  local sq2_container="insurance-app"
+  local sq2_src="/app/data/insurance.sqlite"
+  local sq2_dir="$BACKUP_BASE/insurance-db"
+  local sq2_file="insurance-db_${stamp}.sqlite"
+  local -a latest_insurance_sources=()
+
+  echo "[5/8] Insurance App SQLite"
+  mkdir -p "$sq2_dir"
+  if ! is_container_running "$sq2_container"; then
+    echo "  [SKIP] Container $sq2_container is not running."
+    (( errors++ )) || true
+  else
+    if docker cp "$sq2_container:$sq2_src" "$sq2_dir/$sq2_file"; then
+      log_file_ok "$sq2_dir/$sq2_file" "$sq2_file"
+      latest_insurance_sources+=("$sq2_dir/$sq2_file")
+    else
+      echo "  [ERROR] docker cp failed."
+      rm -f "$sq2_dir/$sq2_file"
+      (( errors++ )) || true
+    fi
+  fi
+  remove_old_files "$sq2_dir" "insurance-db_*.sqlite" "$retention_days"
+  echo
+
+  local sq3_container="inheritance-tax-docs"
+  local sq3_src="/app/data"
+  local sq3_dir="$BACKUP_BASE/inheritance-tax-docs-data"
+  local sq3_file="inheritance-tax-docs-data_${stamp}.tar.gz"
+  local -a latest_inheritance_docs_sources=()
+
+  echo "[6/8] Inheritance Tax Docs Data (SQLite + uploads)"
+  mkdir -p "$sq3_dir"
+  if ! is_container_running "$sq3_container"; then
+    echo "  [SKIP] Container $sq3_container is not running."
+    (( errors++ )) || true
+  else
+    if docker exec "$sq3_container" tar czf - -C /app/data . > "$sq3_dir/$sq3_file" 2>/dev/null; then
+      log_file_ok "$sq3_dir/$sq3_file" "$sq3_file"
+      latest_inheritance_docs_sources+=("$sq3_dir/$sq3_file")
+    else
+      echo "  [ERROR] backup failed."
+      rm -f "$sq3_dir/$sq3_file"
+      (( errors++ )) || true
+    fi
+  fi
+  remove_old_files "$sq3_dir" "inheritance-tax-docs-data_*.tar.gz" "$retention_days"
+  echo
+
   local tpl_src="$PROJECT_ROOT/apps/inheritance-case-management/templates"
   local tpl_dir="$BACKUP_BASE/itcm-templates"
   local tpl_folder="itcm-templates_${stamp}"
   local tpl_dest="$tpl_dir/$tpl_folder"
 
-  echo "[5/6] ITCM Excel Templates"
+  echo "[7/8] ITCM Excel Templates"
   if ! find "$tpl_src" -maxdepth 1 -type f -name '*.xlsx' | grep -q .; then
     echo "  [SKIP] No .xlsx files found in templates folder."
   else
@@ -935,7 +985,7 @@ cmd_itcm_backup() {
   local itcm_folder="itcm-app_${stamp}"
   local itcm_dest="$itcm_dir/$itcm_folder"
 
-  echo "[6/6] ITCM App Restore Files"
+  echo "[8/8] ITCM App Restore Files"
   if [[ ! -d "$itcm_src" ]]; then
     echo "  [SKIP] ITCM app folder was not found."
     (( errors++ )) || true
@@ -966,6 +1016,8 @@ cmd_itcm_backup() {
   copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-json" "${latest_json_sources[@]}"
   copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/bank-analyzer-db" "${latest_bank_analyzer_sources[@]}"
   copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/medical-stock-db" "${latest_medical_stock_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/insurance-db" "${latest_insurance_sources[@]}"
+  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/inheritance-tax-docs-data" "${latest_inheritance_docs_sources[@]}"
   copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-templates" "${latest_template_sources[@]}"
   copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-app" "${latest_app_sources[@]}"
   echo

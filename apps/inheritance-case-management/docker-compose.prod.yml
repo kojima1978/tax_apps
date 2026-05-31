@@ -14,9 +14,9 @@ x-prod-deploy: &prod-deploy
 x-prod-db-deploy: &prod-db-deploy
   resources:
     limits:
-      memory: 1G
-    reservations:
       memory: 256M
+    reservations:
+      memory: 64M
 
 services:
   postgres:
@@ -32,5 +32,6 @@ services:
     environment:
       TZ: Asia/Tokyo
       NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=256"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
     deploy: *prod-deploy

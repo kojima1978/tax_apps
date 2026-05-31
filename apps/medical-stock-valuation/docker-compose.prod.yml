@@ -7,9 +7,9 @@
 x-prod-deploy: &prod-deploy
   resources:
     limits:
-      memory: 512M
+      memory: 192M
     reservations:
-      memory: 128M
+      memory: 64M
 
 services:
   medical-stock-valuation:
@@ -20,6 +20,7 @@ services:
       - medical_stock_data:/app/data
     environment:
       NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=128"
     deploy: *prod-deploy
 
 volumes:

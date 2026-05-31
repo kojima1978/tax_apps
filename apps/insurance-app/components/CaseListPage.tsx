@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2 } from 'lucide-react';
+import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2, Home } from 'lucide-react';
 import AgencyMasterModal from '@/components/AgencyMasterModal';
 import { fetchCases, createCase, deleteCase } from '@/lib/api';
 import type { CaseSummary } from '@/lib/api';
@@ -127,7 +127,12 @@ export default function CaseListPage({ onSelect }: Props) {
     <div className="case-list-page">
       <header className="case-list-header">
         <div className="case-list-title-block">
-          <h1>保険証券分析・診断ダッシュボード</h1>
+          <h1>
+            <a href="/" className="back-to-list-btn" title="ポータルに戻る">
+              <Home size={20} />
+            </a>
+            保険証券分析・診断ダッシュボード
+          </h1>
           <p className="case-list-subtitle">
             お客様を選択してください
             {cases.length > 0 && <span className="case-list-total">（全 {cases.length} 件）</span>}
