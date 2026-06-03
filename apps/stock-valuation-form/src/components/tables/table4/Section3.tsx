@@ -10,7 +10,7 @@ interface Props {
 
 /* ---- 類似業種ブロック (共通レンダラー) ---- */
 
-function IndustryBlock({ prefix, g, u }: { prefix: string; resultNum: string; g: GFn; u: UFn }) {
+function IndustryBlock({ prefix, marks, g, u }: { prefix: string; marks: string[]; g: GFn; u: UFn }) {
   const p = (f: string) => `${prefix}_${f}`;
   const rows = [
     { label: '課税時期の属する月', sub: '月' },
@@ -44,8 +44,8 @@ function IndustryBlock({ prefix, g, u }: { prefix: string; resultNum: string; g:
               )}
             </div>
           ))}
-          <div style={{ padding: '1px 2px', fontSize: 6 }}>
-            Ａ　上記のうち最も低いもの
+          <div style={{ padding: '1px 2px', fontSize: 5 }}>
+            Ａ（{marks[0]}、{marks[1]}、{marks[2]}、{marks[3]}及び{marks[4]}のうち最も低いもの）
           </div>
         </div>
         {/* 株価列 */}
@@ -55,11 +55,13 @@ function IndustryBlock({ prefix, g, u }: { prefix: string; resultNum: string; g:
           </div>
           <div style={{ ...bb, padding: '1px 2px', fontSize: 6.5, textAlign: 'center' }}>&nbsp;</div>
           {rows.map((_, i) => (
-            <div key={i} style={{ ...bb, padding: '1px 2px' }}>
+            <div key={i} style={{ ...bb, padding: '1px 2px', display: 'flex', alignItems: 'center' }}>
+              <span style={{ marginRight: 2 }}>{marks[i]}</span>
               <NumberField value={g(p(`price_${i}`))} onChange={(v) => u(p(`price_${i}`), v)} unit="円" />
             </div>
           ))}
           <div style={{ padding: '1px 2px', display: 'flex', alignItems: 'center' }}>
+            <span style={{ marginRight: 2 }}>{marks[5]}</span>
             <NumberField value={g(p('price_a'))} onChange={(v) => u(p('price_a'), v)} unit="円" />
           </div>
         </div>
@@ -161,6 +163,10 @@ function IndustryBlock({ prefix, g, u }: { prefix: string; resultNum: string; g:
   );
 }
 
+/** 株価行の丸付き記号（A行含む6個） */
+const BLK1_MARKS = ['㋷', '㋦', '㋸', '㋾', '㋻', '⑳'];
+const BLK2_MARKS = ['', '', '', '', '', '㉓'];
+
 /** ３　類似業種比準価額の計算 */
 export function Table4Section3({ g, u }: Props) {
   return (
@@ -179,7 +185,7 @@ export function Table4Section3({ g, u }: Props) {
             <span style={{ ...vt, fontSize: 6 }}>１株当たりの</span>
           </div>
           <div style={{ flex: 1 }}>
-            <IndustryBlock prefix="blk1" resultNum="⑳" g={g} u={u} />
+            <IndustryBlock prefix="blk1" marks={BLK1_MARKS} g={g} u={u} />
           </div>
         </div>
 
@@ -189,7 +195,7 @@ export function Table4Section3({ g, u }: Props) {
             <span style={{ ...vt, fontSize: 6 }}>比準価額の計算</span>
           </div>
           <div style={{ flex: 1 }}>
-            <IndustryBlock prefix="blk2" resultNum="㉕" g={g} u={u} />
+            <IndustryBlock prefix="blk2" marks={BLK2_MARKS} g={g} u={u} />
           </div>
         </div>
 

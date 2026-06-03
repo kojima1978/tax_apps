@@ -81,8 +81,8 @@ export function Table4Section2({ g, u }: Props) {
 /* ---- 配当金額テーブル ---- */
 
 const DIV_YEARS = [
-  { label: '直 前 期', suffix: 'y1', kana: 'イ', judgeLabel: '⑨÷⑤：Ⓑ1', judgeKey: 'judge_b1' },
-  { label: '直前々期', suffix: 'y2', kana: 'ロ', judgeLabel: '⑩÷⑤：Ⓑ2', judgeKey: 'judge_b2' },
+  { label: '直 前 期', suffix: 'y1', kana: 'イ', formula: '⑨／⑤', bLabel: 'Ⓑ①', judgeKey: 'judge_b1' },
+  { label: '直前々期', suffix: 'y2', kana: 'ロ', formula: '⑩／⑤', bLabel: 'Ⓑ②', judgeKey: 'judge_b2' },
   { label: <>直前々前期<br />の前期</>, suffix: 'y3', kana: 'ハ', labelFontSize: 5.5 },
 ] as const;
 
@@ -143,26 +143,40 @@ function DividendTable({ g, u, divRegY1, divRegY2, divRegY3, avgDiv, avgDiv10 }:
               </td>
             )}
             {'judgeKey' in yr ? (
-              <td style={{ fontSize: 6 }}>
-                <div style={{ marginBottom: 1 }}>{yr.judgeLabel}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'flex-end' }}>
-                  <NumberField value={g(yr.judgeKey)} onChange={(v) => u(yr.judgeKey, v)} className="w-8" />
-                  <span>円</span>
-                  <NumberField value={g(`${yr.judgeKey}_sen`)} onChange={(v) => u(`${yr.judgeKey}_sen`, v)} className="w-6" />
-                  <span>銭</span>
+              <td style={{ fontSize: 6, padding: 0 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 44px 30px', height: '100%' }}>
+                  {/* 1列目: ⑨/⑤ */}
+                  <div style={{ padding: '1px 3px', display: 'flex', alignItems: 'center' }}>{yr.formula}</div>
+                  {/* 2列目: Ⓑ① + 円 */}
+                  <div style={{ borderLeft: '0.5px solid #000', display: 'flex', alignItems: 'center', gap: 1, padding: '0 1px' }}>
+                    <span>{yr.bLabel}</span>
+                    <NumberField value={g(yr.judgeKey)} onChange={(v) => u(yr.judgeKey, v)} />
+                    <span>円</span>
+                  </div>
+                  {/* 3列目: 銭 */}
+                  <div style={{ borderLeft: '0.5px solid #000', display: 'flex', alignItems: 'center', gap: 1, padding: '0 1px' }}>
+                    <NumberField value={g(`${yr.judgeKey}_sen`)} onChange={(v) => u(`${yr.judgeKey}_sen`, v)} />
+                    <span>銭</span>
+                  </div>
                 </div>
               </td>
             ) : (
               <td style={{ padding: 0, fontSize: 5 }}>
-                <div style={{ ...hdr, textAlign: 'center', padding: '1px', borderBottom: '0.5px solid #000', whiteSpace: 'nowrap', fontSize: 4.5 }}>
-                  1株(50円)当たりの年配当金額（Ⓑ1の金額）
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 44px 30px', borderBottom: '0.5px solid #000' }}>
+                  <div style={{ ...hdr, textAlign: 'center', padding: '1px', whiteSpace: 'nowrap', fontSize: 4.5 }}>
+                    1株(50円)当たりの年配当金額（Ⓑ1の金額）
+                  </div>
+                  <div style={{ ...hdr, borderLeft: '0.5px solid #000' }} />
+                  <div style={{ ...hdr, borderLeft: '0.5px solid #000' }} />
                 </div>
-                <div style={{ padding: '2px 3px' }}>
-                  <div style={{ marginBottom: 1 }}>Ⓑ</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'flex-end' }}>
-                    <NumberField value={g('judge_b')} onChange={(v) => u('judge_b', v)} className="w-8" />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 44px 30px', fontSize: 6 }}>
+                  <div style={{ padding: '1px 3px', display: 'flex', alignItems: 'center' }}>Ⓑ</div>
+                  <div style={{ borderLeft: '0.5px solid #000', display: 'flex', alignItems: 'center', gap: 1, padding: '0 1px', justifyContent: 'flex-end' }}>
+                    <NumberField value={g('judge_b')} onChange={(v) => u('judge_b', v)} />
                     <span>円</span>
-                    <NumberField value={g('judge_b_sen')} onChange={(v) => u('judge_b_sen', v)} className="w-6" />
+                  </div>
+                  <div style={{ borderLeft: '0.5px solid #000', display: 'flex', alignItems: 'center', gap: 1, padding: '0 1px', justifyContent: 'flex-end' }}>
+                    <NumberField value={g('judge_b_sen')} onChange={(v) => u('judge_b_sen', v)} />
                     <span>銭</span>
                   </div>
                 </div>

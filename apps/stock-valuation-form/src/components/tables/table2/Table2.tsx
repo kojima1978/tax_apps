@@ -22,12 +22,18 @@ export function Table2({ getField, updateField }: TableProps) {
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-        <Section1 g={g} u={u} />
-        <Section2 g={g} u={u} />
-        <Section3 g={g} u={u} />
-        <Section4 g={g} u={u} />
-        <Section56 />
-        <Section7 />
+        {([
+          { el: <Section1 g={g} u={u} />, flex: 13 },
+          { el: <Section2 g={g} u={u} />, flex: 9 },
+          { el: <Section3 g={g} u={u} />, flex: 19 },
+          { el: <Section4 g={g} u={u} />, flex: 16 },
+          { el: <Section56 g={g} u={u} />, flex: 5 },
+          { el: <Section7 />, flex: 38 },
+        ]).map((s, i) => (
+          <div key={i} style={{ flex: s.flex, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            {s.el}
+          </div>
+        ))}
       </div>
     </div>
   );

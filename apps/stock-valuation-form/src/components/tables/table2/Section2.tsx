@@ -34,7 +34,7 @@ export function Section2({ g, u }: { g: GFn; u: UFn }) {
   const judge = g('judgment2');
 
   return (
-    <table className="gov-table" style={{ tableLayout: 'fixed', fontSize: 7 }}>
+    <table className="gov-table" style={{ tableLayout: 'fixed', fontSize: 7, height: '100%' }}>
       <colgroup>
         <col style={{ width: '90px' }} />{/* 左ラベル */}
         <col style={{ width: '21%' }} />{/* 1: 総資産価額 */}

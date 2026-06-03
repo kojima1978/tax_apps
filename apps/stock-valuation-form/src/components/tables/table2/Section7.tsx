@@ -2,9 +2,9 @@ import { br } from '../shared';
 
 export function Section7() {
   return (
-    <div style={{ display: 'flex', fontSize: 7, flex: 1 }}>
+    <div style={{ display: 'flex', fontSize: 7, height: '100%' }}>
       {/* 左ラベル */}
-      <div style={{ width: 85, ...br, padding: '2px 3px', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+      <div style={{ width: 85, ...br, padding: '2px 3px', fontWeight: 700, display: 'flex', alignItems: 'flex-start' }}>
         ７．特定の評価会社の判定結果
       </div>
 
