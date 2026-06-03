@@ -36,15 +36,15 @@ export function Section4({ g, u }: { g: GFn; u: UFn }) {
   const judge2 = g('judgment4_2');
 
   return (
-    <div style={{ display: 'flex', borderBottom: '0.5px solid #000' }}>
+    <div style={{ display: 'flex', borderBottom: '0.5px solid #000', height: '100%' }}>
       {/* 左縦ラベル「4．開業後3年未満の会社等」 */}
       <div style={{ width: 16, ...br, ...vt, background: '#f5f5f0', fontWeight: 700, fontSize: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 0' }}>
         ４．開業後３年未満の会社等
       </div>
 
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* ===== (1) 開業後3年未満の会社 ===== */}
-        <table className="gov-table" style={{ tableLayout: 'fixed', fontSize: 7 }}>
+        <table className="gov-table" style={{ tableLayout: 'fixed', fontSize: 7, flex: 1 }}>
           <colgroup>
             <col style={{ width: '13%' }} />{/* (1)ラベル */}
             <col style={{ width: '12%' }} />{/* 開業年月日ラベル */}
@@ -87,7 +87,7 @@ export function Section4({ g, u }: { g: GFn; u: UFn }) {
         </table>
 
         {/* ===== (2) 比準要素数0の会社 ===== */}
-        <table className="gov-table" style={{ tableLayout: 'fixed', fontSize: 7 }}>
+        <table className="gov-table" style={{ tableLayout: 'fixed', fontSize: 7, flex: 1 }}>
           <colgroup>
             <col style={{ width: '12%' }} />{/* (2)ラベル */}
             <col style={{ width: '7%' }} />{/* 判定要素 横 */}
@@ -108,11 +108,9 @@ export function Section4({ g, u }: { g: GFn; u: UFn }) {
               <td rowSpan={4} style={{ fontWeight: 500, fontSize: 6.5, lineHeight: 1.3 }}>判定要素</td>
               <td colSpan={4} style={{ fontSize: 6.5 }}>直前期末を基とした判定要素</td>
               <td rowSpan={3} style={{ fontWeight: 500, fontSize: 6.5, lineHeight: 1.2 }}>判定<br />基準</td>
-              <td rowSpan={3} style={{ fontSize: 6.5, lineHeight: 1.4, padding: '2px 3px' }}>
-                直前期末を基とした判定要素がいずれも０
-              </td>
-              <td rowSpan={3} style={{ fontSize: 6.5, lineHeight: 1.4, padding: '2px 3px' }}>
-                である（該当）・でない（非該当）
+              <td colSpan={2} rowSpan={3} style={{ fontSize: 6.5, lineHeight: 1.6, padding: '2px 4px' }}>
+                <div>直前期末を基とした判定要素がいずれも０</div>
+                <div>である（該当）　・　でない（非該当）</div>
               </td>
             </tr>
             {/* R2: 第4表の⑧⑨⑩の金額（2行表示） */}

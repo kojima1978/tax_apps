@@ -3,28 +3,18 @@ import { CircledNumber } from '@/components/ui/CircledNumber';
 import { br } from '../shared';
 import type { GFn, UFn } from './types';
 
-/* 縦書きラベル */
-const vt: React.CSSProperties = {
-  writingMode: 'vertical-rl',
-  textOrientation: 'mixed',
-  letterSpacing: '0.1em',
-  fontWeight: 500,
-  whiteSpace: 'nowrap',
-  background: '#f5f5f0',
-};
-
 const inputCell: React.CSSProperties = { padding: '1px 3px' };
 
 export function Section3({ g, u }: { g: GFn; u: UFn }) {
   return (
-    <div style={{ display: 'flex', borderBottom: '0.5px solid #000' }}>
+    <div style={{ display: 'flex', borderBottom: '0.5px solid #000', height: '100%' }}>
       {/* 左ラベル（上下段を縦断） */}
       <div style={{ width: 85, ...br, fontSize: 7.5, padding: '2px 3px', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
         ３．土地保有特定会社
       </div>
 
       {/* 右: 上段テーブル + 下段マトリクス */}
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* ===== 上段: 判定要素 + 会社の規模の判定（3行） ===== */}
         <table className="gov-table" style={{ tableLayout: 'fixed', fontSize: 7 }}>
           <colgroup>
@@ -86,10 +76,10 @@ export function Section3({ g, u }: { g: GFn; u: UFn }) {
         </table>
 
         {/* ===== 下段: 判定基準マトリクス（大2・中2・小4 = 8データ列） ===== */}
-        <table className="gov-table" style={{ tableLayout: 'fixed', fontSize: 6.5 }}>
+        <table className="gov-table" style={{ tableLayout: 'fixed', fontSize: 6.5, flex: 1 }}>
           <colgroup>
-            <col style={{ width: '16px' }} />{/* 判定基準 縦 */}
-            <col style={{ width: '13%' }} />{/* 行ラベル */}
+            <col style={{ width: '5%' }} />{/* 判定基準 横 */}
+            <col style={{ width: '12%' }} />{/* 行ラベル */}
             <col style={{ width: '9%' }} />{/* 大: 70%以上 */}
             <col style={{ width: '9%' }} />{/* 大: 70%未満 */}
             <col style={{ width: '9%' }} />{/* 中: 90%以上 */}
@@ -102,7 +92,7 @@ export function Section3({ g, u }: { g: GFn; u: UFn }) {
           <tbody>
             {/* R1: 会社の規模ヘッダー（大会社・中会社はR1+R2結合 / 小会社に注記） */}
             <tr>
-              <td rowSpan={3} style={{ ...vt }}>判定基準</td>
+              <td rowSpan={3} style={{ fontWeight: 500, fontSize: 6.5, lineHeight: 1.2 }}>判定<br />基準</td>
               <td rowSpan={2}>会社の規模</td>
               <td rowSpan={2} colSpan={2} style={{ verticalAlign: 'middle' }}>大　会　社</td>
               <td rowSpan={2} colSpan={2} style={{ verticalAlign: 'middle' }}>中　会　社</td>
