@@ -1,0 +1,106 @@
+import { GridForm, type GridCell } from '@/components/ui/GridForm';
+import type { TableProps } from '@/types/form';
+
+const T = 'table3' as const;
+
+/** 第3表のグリッドセル（ピッカーで測定・確定したもの／ピッカー出力をそのまま保存） */
+const CELLS: GridCell[] = [
+  // ── 外枠・4区分 ──
+  { kind: 'cell', text: '外枠', top: 8.71, left: 8.71, width: 84.01, height: 84.63 },
+  { kind: 'cell', text: '１原則的評価方法による価額', top: 8.71, left: 8.44, width: 84.28, height: 36.92 },
+  { kind: 'cell', text: '２配当還元方式による価額', top: 45.52, left: 8.44, width: 84.28, height: 29.3 },
+  { kind: 'cell', text: '３株式に関する権利の価額', top: 74.73, left: 8.44, width: 63.01, height: 18.51 },
+  { kind: 'cell', text: '４株式及び株式に関する権利の価額', top: 74.73, left: 71.45, width: 21.14, height: 18.51 },
+  // ── 1 原則的評価方法による価額 ──
+  { kind: 'label', text: '１原則的評価方法による価額', top: 8.61, left: 8.44, width: 3.55, height: 37.01 },
+  { kind: 'label', text: '一株当たりの価格の基となる金額', top: 8.61, left: 11.92, width: 10.5, height: 8.48 },
+  { kind: 'label', text: '類似業種比準価額（第４表の㉖、㉗又は㉘の金額）', top: 8.61, left: 22.55, width: 23.19, height: 3.86 },
+  { kind: 'label', text: '一株当たりの純資産価額（第５表の⑪の金額）', top: 8.61, left: 46.01, width: 23.19, height: 3.86 },
+  { kind: 'label', text: '１株当たりの純資産価額の80％相当額（第5表の⑫の記載がある場合その金額）', top: 8.51, left: 69.2, width: 23.59, height: 3.86 },
+  { field: '①', kind: 'input', top: 12.27, left: 22.14, width: 23.73, height: 4.92 },
+  { field: '②', kind: 'input', top: 12.37, left: 45.74, width: 23.46, height: 4.72 },
+  { field: '③', kind: 'input', top: 12.47, left: 69.2, width: 23.46, height: 4.53 },
+  { kind: 'label', text: '1株当たりの価額の計算', top: 16.9, left: 11.78, width: 3.68, height: 16.19 },
+  { kind: 'label', text: '区分', top: 16.9, left: 15.33, width: 7.09, height: 2.51 },
+  { kind: 'label', text: '１株当たりの価額の算定方法', top: 17, left: 22.28, width: 49.23, height: 2.31 },
+  { kind: 'label', text: '１株当たりの価額', top: 16.8, left: 71.38, width: 21.14, height: 2.51 },
+  { kind: 'label', text: '大会社の株式の価額', top: 19.21, left: 15.33, width: 7.09, height: 4.72 },
+  { kind: 'label', text: '次のうちいずれか低い方の金額（②の記載がないときは①の金額）イ　①の金額　ロ　②の金額', top: 19.12, left: 22.28, width: 49.23, height: 4.92 },
+  { field: '④', kind: 'input', top: 19.02, left: 71.38, width: 21.41, height: 5.11 },
+  { kind: 'label', text: '中会社の株式の価額', top: 23.84, left: 15.19, width: 7.23, height: 4.72 },
+  { kind: 'label', text: '（①と②とのいずれか低い金額×Lの割合0.＿）＋（②の金額（③の金額があるときは③の金額）×（1ーLの割合0.＿））', top: 23.93, left: 22.14, width: 49.51, height: 4.72 },
+  { field: '⑤', kind: 'input', top: 23.84, left: 71.38, width: 21.41, height: 4.82 },
+  { kind: 'label', text: '小会社の株式の価額', top: 28.37, left: 15.33, width: 7.09, height: 4.92 },
+  { kind: 'label', text: '次のうちいずれか低い方の金額　イ　②の金額（③の金額があるときは③の金額）　ロ　（①の金額×0.5）＋（イの金額×0.5）', top: 28.56, left: 22.28, width: 49.37, height: 4.82 },
+  { field: '⑥', kind: 'input', top: 28.56, left: 71.52, width: 21.14, height: 4.72 },
+  { kind: 'label', text: '株式の価額の修正', top: 33.19, left: 11.92, width: 3.41, height: 12.43 },
+  { kind: 'label', text: '課税時期において配当期待権の発生している場合', top: 33.09, left: 15.05, width: 14.32, height: 6.26 },
+  { kind: 'label', text: '株式の価額[④、⑤又は⑥の金額]ー１株当たりの配当金額＿円＿銭', top: 33.19, left: 29.24, width: 42.28, height: 6.36 },
+  { kind: 'label', text: '修正後の株式の価額', top: 33.19, left: 71.52, width: 21.14, height: 2.51 },
+  { field: '⑦＿円', kind: 'input', top: 35.69, left: 71.38, width: 21.41, height: 3.86 },
+  { kind: 'label', text: '課税時期において株式の割当てを受ける権利、株式となる権利または株式無償交付期待権の発生している場合', top: 39.36, left: 15.19, width: 14.18, height: 6.17 },
+  { kind: 'label', text: '株式の価額', top: 39.26, left: 29.24, width: 42.42, height: 6.17 },
+  { kind: 'label', text: '修正後の株式の価額', top: 39.16, left: 71.38, width: 21.41, height: 2.51 },
+  { field: '⑧＿円', kind: 'input', top: 41.57, left: 71.38, width: 21.14, height: 3.86 },
+  // ── 2 配当還元方式による価額 ──
+  { kind: 'label', text: '２ 配 当 還 元 方 式 に よ る 価 額', top: 45.43, left: 8.51, width: 3.55, height: 29.4 },
+  { kind: 'label', text: '１ 株 当 た り の 資本金等の額、 発行済株式数等', top: 45.33, left: 11.78, width: 11.73, height: 8.67 },
+  { kind: 'label', text: '直 前 期 末 の 資 本 金 等 の 額', top: 45.38, left: 23.29, width: 14.32, height: 4.72 },
+  { kind: 'label', text: '直 前 期 末 の 発 行 済 株 式 数', top: 45.38, left: 37.47, width: 14.18, height: 4.72 },
+  { kind: 'label', text: '直 前 期 末 の 自 己 株 式 数', top: 45.38, left: 51.52, width: 12.96, height: 4.82 },
+  { kind: 'label', text: '１株当たりの資本金等 の額を50円とした場合 の 発 行 済 株 式 数 （ ⑨ ÷ 50 円 ）', top: 45.38, left: 64.39, width: 14.18, height: 4.92 },
+  { kind: 'label', text: '１ 株 当 た り の 資 本 金 等 の 額 （⑨÷（⑩－⑪））', top: 45.28, left: 78.3, width: 14.18, height: 4.92 },
+  { field: '⑨', kind: 'input', top: 50.01, left: 23.34, width: 14.32, height: 3.95 },
+  { field: '⑩', kind: 'input', top: 50.1, left: 37.39, width: 14.32, height: 3.95 },
+  { field: '⑪', kind: 'input', top: 50.1, left: 51.57, width: 12.96, height: 3.86 },
+  { field: '⑫', kind: 'input', top: 50.1, left: 64.39, width: 14.18, height: 3.76 },
+  { field: '⑬', kind: 'input', top: 50.1, left: 78.3, width: 14.18, height: 3.95 },
+  { kind: 'label', text: '直 前 期 末 以 前 ２ 年 間 の 配 当 金 額', top: 53.86, left: 11.74, width: 3.68, height: 10.99 },
+  { kind: 'label', text: '事 業 年 度', top: 53.77, left: 15.15, width: 8.46, height: 3.28 },
+  { kind: 'label', text: '⑭ 年 配 当 金 額', top: 53.77, left: 23.47, width: 16.5, height: 3.37 },
+  { kind: 'label', text: '⑮左 の う ち 非 経 常 的 な 配 当 金 額', top: 53.86, left: 39.84, width: 17.59, height: 3.37 },
+  { kind: 'label', text: '⑯差引経常的な年配当金額 （ ⑭ － ⑮ ）', top: 53.96, left: 57.43, width: 17.73, height: 3.18 },
+  { kind: 'label', text: '年 平 均 配 当 金 額', top: 54.15, left: 75.03, width: 17.59, height: 2.89 },
+  { kind: 'label', text: '直 前 期', top: 56.95, left: 15.15, width: 8.46, height: 3.95 },
+  { field: 'f55', kind: 'input', top: 56.95, left: 23.34, width: 16.64, height: 4.05 },
+  { field: 'f56', kind: 'input', top: 57.04, left: 39.84, width: 17.59, height: 3.86 },
+  { field: 'イ', kind: 'input', top: 57.04, left: 57.3, width: 17.73, height: 3.86 },
+  { kind: 'label', text: '直 前 々 期', top: 60.75, left: 15.29, width: 8.32, height: 4.05 },
+  { field: 'f59', kind: 'input', top: 60.85, left: 23.47, width: 16.5, height: 3.86 },
+  { field: 'f60', kind: 'input', top: 60.85, left: 39.98, width: 17.59, height: 3.95 },
+  { field: 'ロ', kind: 'input', top: 60.85, left: 57.43, width: 17.59, height: 3.95 },
+  { field: '⑰（イ＋ロ）÷２ ', kind: 'input', top: 56.9, left: 75.03, width: 17.59, height: 7.81 },
+  { kind: 'label', text: '１株(50円)当たり の 年 配 当 金 額', top: 64.61, left: 11.74, width: 11.73, height: 4.05 },
+  { field: '⑱', kind: 'input', top: 64.8, left: 23.34, width: 69.28, height: 3.95 },
+  { kind: 'label', text: '配 当 還 元 価 額', top: 68.56, left: 11.74, width: 11.87, height: 6.26 },
+  { field: '⑲', kind: 'input', top: 68.46, left: 23.47, width: 38.87, height: 6.26 },
+  { field: '⑳', kind: 'input', top: 68.56, left: 62.21, width: 30.41, height: 6.17 },
+  // ── 3 株式に関する権利の価額 ──
+  { kind: 'label', text: '３ 株 式 に 関 す る 権 利 の 価 額', top: 74.63, left: 8.34, width: 3.68, height: 18.51 },
+  { kind: 'label', text: '配 当 期 待 権', top: 74.73, left: 11.88, width: 15.27, height: 4.63 },
+  { field: 'f70', kind: 'input', top: 74.73, left: 26.88, width: 30.69, height: 4.82 },
+  { field: '㉑', kind: 'input', top: 74.73, left: 57.3, width: 9.55, height: 4.63 },
+  { field: 'f72', kind: 'input', top: 74.73, left: 66.57, width: 4.91, height: 4.63 },
+  { kind: 'label', text: '株式の割当てを受ける権利 (割当株式１株当たりの価額)', top: 79.45, left: 11.88, width: 15.27, height: 4.53 },
+  { field: 'f74', kind: 'input', top: 79.26, left: 26.88, width: 30.55, height: 4.82 },
+  { field: '㉒', kind: 'input', top: 79.36, left: 57.3, width: 14.18, height: 4.72 },
+  { kind: 'label', text: '株 主 と な る 権 利 (割当株式１株当たりの価額', top: 83.98, left: 11.88, width: 15.14, height: 4.63 },
+  { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額 （課税時期後にその株主となる権利につき払い込むべ き金額があるときは、その金額を控除した金額）', top: 83.89, left: 27.02, width: 30.55, height: 4.82 },
+  { field: '㉓', kind: 'input', top: 83.98, left: 57.43, width: 13.91, height: 4.63 },
+  { kind: 'label', text: '株 式 無 償 交 付 期 待 権 (交付される株式１株当たりの価額)', top: 88.51, left: 11.88, width: 15.14, height: 4.63 },
+  { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額', top: 88.51, left: 26.88, width: 30.69, height: 4.63 },
+  { field: '㉔', kind: 'input', top: 88.42, left: 57.16, width: 14.18, height: 4.72 },
+  // ── 4 株式及び株式に関する権利の価額 ──
+  { kind: 'label', text: '４．株式及び株式に関する 権利の価額 （１．及び２．に共通）', top: 74.73, left: 71.34, width: 21.28, height: 4.72 },
+  { kind: 'label', text: '株式の評価額', top: 79.26, left: 71.48, width: 8.32, height: 6.26 },
+  { field: 'f84', kind: 'input', top: 79.36, left: 79.66, width: 12.82, height: 6.26 },
+  { kind: 'label', text: '株式に関する 権利の評価額', top: 85.43, left: 71.48, width: 8.32, height: 7.81 },
+  { field: 'f86', kind: 'input', top: 85.43, left: 79.39, width: 13.09, height: 7.71 },
+];
+
+/** 第3表（CSSグリッド方式・完成版） */
+export function Table3Grid({ getField, updateField }: TableProps) {
+  const g = (f: string) => getField(T, f);
+  const u = (f: string, v: string) => updateField(T, f, v);
+  return <GridForm cells={CELLS} g={g} u={u} width="100%" title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" />;
+}
