@@ -21,17 +21,20 @@ export function RelatedCasesPopover({ personId, count, personName }: RelatedCase
     const router = useRouter()
     const toast = useToast()
     const [isOpen, setIsOpen] = useState(false)
-    const [loading, setLoading] = useState(false)
     const [cases, setCases] = useState<RelatedCase[] | null>(null)
+    const loading = isOpen && cases === null
 
     useEffect(() => {
         if (!isOpen || cases !== null) return
         let cancelled = false
-        setLoading(true)
         getHeirPersonRelatedCases(personId)
             .then((data) => { if (!cancelled) setCases(data) })
-            .catch(() => { if (!cancelled) toast.error("関連案件の取得に失敗しました") })
-            .finally(() => { if (!cancelled) setLoading(false) })
+            .catch(() => {
+                if (!cancelled) {
+                    toast.error("関連案件の取得に失敗しました")
+                    setCases([])
+                }
+            })
         return () => { cancelled = true }
     }, [isOpen, cases, personId, toast])
 

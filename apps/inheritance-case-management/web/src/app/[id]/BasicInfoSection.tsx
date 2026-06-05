@@ -21,10 +21,11 @@ interface BasicInfoSectionProps {
     onToggle?: () => void
     handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
+    onMasterEditNavigate?: () => void
 }
 
 export function BasicInfoSection({
-    formData, assignees, referrers, returnToPath, isOpen, onToggle, handleChange, setFormData
+    formData, assignees, referrers, returnToPath, isOpen, onToggle, handleChange, setFormData, onMasterEditNavigate
 }: BasicInfoSectionProps) {
     return (
         <CollapsibleSection title="基本情報" icon={User} isOpen={isOpen} onToggle={onToggle}>
@@ -84,6 +85,7 @@ export function BasicInfoSection({
                         sortOrder: (a) => a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER,
                     }}
                     onChange={handleChange}
+                    onEditNavigate={onMasterEditNavigate}
                 />
 
                 <ReferrerToggleSelect
@@ -92,6 +94,7 @@ export function BasicInfoSection({
                     referrers={referrers}
                     returnToPath={returnToPath}
                     setFormData={setFormData}
+                    onMasterEditNavigate={onMasterEditNavigate}
                 />
             </div>
         </CollapsibleSection>

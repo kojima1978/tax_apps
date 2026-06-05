@@ -12,8 +12,9 @@ export function useExportCSV() {
     setIsExporting(true);
 
     try {
-      // Extract filter-only params (exclude pagination)
-      const { page, pageSize, ...filters } = filterParams || {};
+      const filters = { ...filterParams };
+      delete filters.page;
+      delete filters.pageSize;
       const hasFilters = Object.values(filters).some((v) => v !== undefined);
       const allCases = await getAllCases(hasFilters ? filters : undefined);
       const filename = hasFilters

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, use, Suspense } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import type { InheritanceCase } from "@/types/shared"
 import { Button } from "@/components/ui/Button"
@@ -11,6 +11,14 @@ import { getCase, deleteCase } from "@/lib/api/cases"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { useToast } from "@/components/ui/Toast"
 import { Trash2, ChevronRight } from "lucide-react"
+import { shouldCloseCaseDetailSections } from "@/lib/case-detail-section-state"
+
+function EditCaseFormPanel({ caseItem }: { caseItem: InheritanceCase }) {
+    const searchParams = useSearchParams()
+    const sectionStateKey = shouldCloseCaseDetailSections(searchParams) ? "closed" : "default"
+
+    return <EditCaseForm key={`${caseItem.id}-${sectionStateKey}`} initialData={caseItem} />
+}
 
 export default function InheritanceCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
@@ -91,7 +99,7 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
 
             <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-4 lg:p-5">
                 <Suspense fallback={<div>Loading...</div>}>
-                    <EditCaseForm initialData={caseItem} />
+                    <EditCaseFormPanel caseItem={caseItem} />
                 </Suspense>
             </div>
         </div>

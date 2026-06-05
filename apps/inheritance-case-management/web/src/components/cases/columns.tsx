@@ -15,6 +15,7 @@ import { ProgressDots } from "./ProgressDots"
 import { InlineSummaryCell } from "./InlineSummaryCell"
 import { FileText } from "lucide-react"
 import { isCompleted } from "@/types/constants"
+import { getCaseDetailHrefWithClosedSections } from "@/lib/case-detail-section-state"
 
 interface ColumnOptions {
     amountSort: "asc" | "desc" | null
@@ -82,7 +83,11 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                         {c.deceasedNameKana && (
                             <div className="truncate text-[10px] text-muted-foreground">{c.deceasedNameKana}</div>
                         )}
-                        <Link href={`/${c.id}`} className="block truncate text-[13px] font-bold text-foreground hover:underline" onClick={(e) => e.stopPropagation()}>
+                        <Link
+                            href={getCaseDetailHrefWithClosedSections(c.id)}
+                            className="block truncate text-[13px] font-bold text-foreground hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             {c.deceasedName || "(氏名未入力)"}
                         </Link>
                     </div>

@@ -49,53 +49,52 @@ export function ProgressEditor({
         />
     )
 
-    if (progress.length === 0) {
-        return (
-            <>
-                {statusSummary}
-                <div className="mb-2">
-                    <h3 className="text-sm font-semibold">工程日付</h3>
-                    <p className="mt-0.5 text-xs text-muted-foreground">発生した工程から順に入力してください</p>
-                </div>
-                <div className="text-center py-6 border rounded-lg bg-muted/30">
-                    <p className="text-sm text-muted-foreground mb-2">進捗データがありません</p>
-                    <Button type="button" variant="outline" size="sm" onClick={() => onChange([...DEFAULT_PROGRESS_STEPS])}>
-                        + デフォルトステップを追加
-                    </Button>
-                </div>
-            </>
-        )
-    }
-
     return (
-        <div className="relative">
+        <div className="space-y-4">
             {statusSummary}
-            <div className="mb-3">
-                <h3 className="text-sm font-semibold">工程日付</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">発生した工程から順に入力してください</p>
-            </div>
-            {checkedIds.size > 0 && (
-                <div className="mb-4">
-                    <SetTodayButton count={checkedIds.size} onClick={setTodayForChecked} />
+
+            <section className="rounded-lg border bg-card/50 p-3">
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h3 className="text-sm font-semibold">工程日付</h3>
+                        <p className="mt-0.5 text-xs text-muted-foreground">発生した工程から順に入力してください</p>
+                    </div>
+                    {checkedIds.size > 0 && (
+                        <div className="shrink-0">
+                            <SetTodayButton count={checkedIds.size} onClick={setTodayForChecked} />
+                        </div>
+                    )}
                 </div>
-            )}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={stepIds} strategy={verticalListSortingStrategy}>
-                    {progress.map((step, index) => (
-                        <SortableProgressStep
-                            key={step.id}
-                            step={step}
-                            index={index}
-                            progress={progress}
-                            checked={checkedIds.has(step.id)}
-                            onToggle={() => toggleCheck(step.id)}
-                            onStepChange={handleStepChange}
-                            onDelete={handleDeleteStep}
-                            onAddVisit={(i) => onChange(addVisitStep(progress, i))}
-                        />
-                    ))}
-                </SortableContext>
-            </DndContext>
+
+                {progress.length === 0 ? (
+                    <div className="rounded-lg border bg-muted/30 py-6 text-center">
+                        <p className="mb-2 text-sm text-muted-foreground">進捗データがありません</p>
+                        <Button type="button" variant="outline" size="sm" onClick={() => onChange([...DEFAULT_PROGRESS_STEPS])}>
+                            + デフォルトステップを追加
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="relative">
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={stepIds} strategy={verticalListSortingStrategy}>
+                                {progress.map((step, index) => (
+                                    <SortableProgressStep
+                                        key={step.id}
+                                        step={step}
+                                        index={index}
+                                        progress={progress}
+                                        checked={checkedIds.has(step.id)}
+                                        onToggle={() => toggleCheck(step.id)}
+                                        onStepChange={handleStepChange}
+                                        onDelete={handleDeleteStep}
+                                        onAddVisit={(i) => onChange(addVisitStep(progress, i))}
+                                    />
+                                ))}
+                            </SortableContext>
+                        </DndContext>
+                    </div>
+                )}
+            </section>
         </div>
     )
 }

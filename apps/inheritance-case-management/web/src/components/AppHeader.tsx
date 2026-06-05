@@ -9,6 +9,7 @@ const NAV_LINKS = [
     { href: "/analytics", label: "経営分析", icon: BarChart3 },
     { href: "/settings", label: "設定", icon: Settings },
 ] as const
+const PORTAL_HREF = "/"
 
 export function AppHeader() {
     const pathname = usePathname()
@@ -23,7 +24,7 @@ export function AppHeader() {
             <div className="container mx-auto flex h-14 items-center justify-between px-4">
                 {/* Left: Home + App Name */}
                 <div className="flex items-center gap-3">
-                    <a href="/" className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
+                    <a href={PORTAL_HREF} className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
                         <Home className="h-5 w-5" />
                         <span className="hidden md:inline text-sm font-medium">ポータル</span>
                     </a>

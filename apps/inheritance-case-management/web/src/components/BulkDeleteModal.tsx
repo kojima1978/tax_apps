@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -22,15 +22,16 @@ export function BulkDeleteModal({
 }: BulkDeleteModalProps) {
   const [confirmInput, setConfirmInput] = useState("");
 
-  useEffect(() => {
-    if (isOpen) setConfirmInput("");
-  }, [isOpen]);
-
   const isConfirmed = confirmInput === String(totalCount);
 
   const handleClose = () => {
     setConfirmInput("");
     onClose();
+  };
+
+  const handleConfirm = () => {
+    setConfirmInput("");
+    onConfirm();
   };
 
   return (
@@ -66,7 +67,7 @@ export function BulkDeleteModal({
             キャンセル
           </Button>
           <Button
-            onClick={onConfirm}
+            onClick={handleConfirm}
             disabled={!isConfirmed || isDeleting}
             className="bg-black hover:bg-black/90 text-white"
           >

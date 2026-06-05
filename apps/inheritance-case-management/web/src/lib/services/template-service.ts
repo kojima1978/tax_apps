@@ -55,6 +55,41 @@ function formatYen(n: number): string {
   return n.toLocaleString('ja-JP');
 }
 
+const ESTIMATE_INVOICE_ADDRESSEE_SLOTS = [
+  { nameCell: 'D2', honorificCell: 'H2' },
+  { nameCell: 'D4', honorificCell: 'H4' },
+  { nameCell: 'D6', honorificCell: 'H6' },
+] as const;
+
+function splitAddresseeLine(line: string): { name: string; honorific: string | null } {
+  const trimmed = line.trim();
+  const match = trimmed.match(/^(.*?)[\s　]*(様|御中)$/);
+  if (match?.[1]) {
+    return { name: match[1].trim(), honorific: match[2] };
+  }
+  return { name: trimmed, honorific: null };
+}
+
+function fillEstimateInvoiceAddressee(ws: ExcelJS.Worksheet, addresseeName: string) {
+  for (const slot of ESTIMATE_INVOICE_ADDRESSEE_SLOTS) {
+    ws.getCell(slot.nameCell).value = null;
+    ws.getCell(slot.honorificCell).value = null;
+  }
+
+  const lines = addresseeName
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .slice(0, ESTIMATE_INVOICE_ADDRESSEE_SLOTS.length);
+
+  for (let i = 0; i < lines.length; i++) {
+    const slot = ESTIMATE_INVOICE_ADDRESSEE_SLOTS[i];
+    const { name, honorific } = splitAddresseeLine(lines[i]);
+    ws.getCell(slot.nameCell).value = name;
+    ws.getCell(slot.honorificCell).value = honorific;
+  }
+}
+
 export async function generateTemplate(input: GenerateTemplateInput): Promise<Buffer> {
   const fileName = TEMPLATE_FILES[input.docType];
   if (!fileName) throw new Error('TEMPLATE_NOT_FOUND');
@@ -86,7 +121,7 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
       ws.name = '請求書';
     }
 
-    ws.getCell('D2').value = input.addresseeName;
+    fillEstimateInvoiceAddressee(ws, input.addresseeName);
     ws.getCell('H15').value = input.deceasedName;
     ws.getCell('H22').value = input.propertyValue;
     ws.getCell('K27').value = input.landRosenkaCount;
