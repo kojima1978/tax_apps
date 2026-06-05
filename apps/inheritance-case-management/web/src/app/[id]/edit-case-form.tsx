@@ -37,20 +37,43 @@ import {
     shouldPromptForConfirmedFee,
 } from "./edit-case-form-utils"
 import { useEditCaseMasters } from "./use-edit-case-masters"
+import {
+    consumeCaseFormDraft,
+    discardCaseFormDraft,
+    getCaseFormDraftKey,
+    saveCaseFormDraft,
+} from "./case-form-draft"
+import { shouldCloseCaseDetailSections } from "@/lib/case-detail-section-state"
+
+const CLOSED_SECTION_DEFAULTS = Object.fromEntries(
+    SECTION_IDS.map((id) => [id, false]),
+) as Record<string, boolean>
+
+const CREATE_SECTION_DEFAULTS = {
+    ...CLOSED_SECTION_DEFAULTS,
+    basicInfo: true,
+}
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
     const queryClient = useQueryClient()
     const toast = useToast()
     const searchParams = useSearchParams()
-    const [formData, setFormData] = useState<InheritanceCase>(initialData)
+    const draftKey = getCaseFormDraftKey(initialData, isCreateMode)
+    const [formData, setFormData] = useState<InheritanceCase>(() =>
+        consumeCaseFormDraft(draftKey, initialData, isCreateMode) ?? initialData
+    )
     const { isDirty, resetBaseline } = useUnsavedChanges(formData)
     const sections = useSectionState(
         [...SECTION_IDS],
-        isCreateMode
-            ? { basicInfo: true, financial: false, progress: false, expenses: false, heirs: false, relatedParties: false, memo: false, auditLog: false }
-            : { basicInfo: false, financial: false, progress: false, expenses: false, heirs: false, relatedParties: false, memo: false, auditLog: false },
-        { persist: !isCreateMode },
+        isCreateMode ? CREATE_SECTION_DEFAULTS : CLOSED_SECTION_DEFAULTS,
+        {
+            persist: !isCreateMode,
+            getInitialStates: () => {
+                if (isCreateMode || !shouldCloseCaseDetailSections(searchParams)) return undefined
+                return CLOSED_SECTION_DEFAULTS
+            },
+        },
     )
     const [showLeaveModal, setShowLeaveModal] = useState(false)
     const [exportDocType, setExportDocType] = useState<"estimate" | "invoice" | "invoice-request" | null>(null)
@@ -65,10 +88,12 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     useEffect(() => {
         const saved = searchParams.get("saved")
+        const closeSections = shouldCloseCaseDetailSections(searchParams)
         if (saved === "assignees" || saved === "referrers") {
             toast.success(saved === "assignees" ? "担当者設定を保存しました" : "紹介者設定を保存しました")
-            const currentPath = window.location.pathname
-            router.replace(currentPath)
+        }
+        if (saved === "assignees" || saved === "referrers" || closeSections) {
+            router.replace(getCaseReturnPath(formData, isCreateMode))
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams])
@@ -91,6 +116,10 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         }))
     }
 
+    const preserveDraftBeforeMasterNavigation = () => {
+        saveCaseFormDraft(draftKey, formData, isCreateMode)
+    }
+
     const doSave = async (statusOverride?: CaseStatus): Promise<boolean> => {
         let finalStatus = formData.status
         if (statusOverride) {
@@ -104,6 +133,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             if (isCreateMode) {
                 await createCase(payload)
                 await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
+                discardCaseFormDraft(draftKey)
                 toast.success("新規登録しました")
                 router.push("/")
                 return true
@@ -113,6 +143,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
                 setFormData(updated)
                 resetBaseline(updated)
+                discardCaseFormDraft(draftKey)
                 setAuditRefreshKey(k => k + 1)
                 toast.success("保存しました")
                 return true
@@ -192,6 +223,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 onToggle={() => sections.toggle("basicInfo")}
                 handleChange={handleChange}
                 setFormData={setFormData}
+                onMasterEditNavigate={preserveDraftBeforeMasterNavigation}
             />
 
             {formData.progress && (

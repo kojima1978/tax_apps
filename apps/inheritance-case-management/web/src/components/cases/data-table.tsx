@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { Search, FolderOpen } from "lucide-react"
 import { useKeyboardNavigation } from "@/hooks/use-keyboard-navigation"
 import type { InheritanceCase } from "@/types/shared"
+import { getCaseDetailHrefWithClosedSections } from "@/lib/case-detail-section-state"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -38,7 +39,11 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
     const router = useRouter()
     const tableRef = React.useRef<HTMLDivElement>(null)
+    const navigateToCaseDetail = React.useCallback((caseId: number) => {
+        router.push(getCaseDetailHrefWithClosedSections(caseId))
+    }, [router])
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
         columns,
@@ -51,7 +56,7 @@ export function DataTable<TData, TValue>({
         rowCount: rows.length,
         onEnter: (index) => {
             const caseData = rows[index].original as { id?: number }
-            if (caseData.id) router.push(`/${caseData.id}`)
+            if (caseData.id) navigateToCaseDetail(caseData.id)
         },
         onEscape: () => tableRef.current?.blur(),
         resetDeps: [data],
@@ -105,7 +110,7 @@ export function DataTable<TData, TValue>({
                                     )}
                                     onClick={() => {
                                         const caseData = row.original as { id?: number }
-                                        if (caseData.id) router.push(`/${caseData.id}`)
+                                        if (caseData.id) navigateToCaseDetail(caseData.id)
                                     }}
                                     onMouseEnter={() => setFocusedRowIndex(index)}
                                 >

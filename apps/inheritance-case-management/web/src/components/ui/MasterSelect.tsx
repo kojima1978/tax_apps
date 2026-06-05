@@ -18,11 +18,12 @@ interface MasterSelectProps<T extends { id: number; active: boolean }> {
     editLabel: string
     renderOption: (item: T) => { value: string | number; label: string }
     onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
+    onEditNavigate?: () => void
     groupBy?: GroupConfig<T>
 }
 
 export function MasterSelect<T extends { id: number; active: boolean }>({
-    id, label, value, items, placeholder, editHref, editLabel, renderOption, onChange, groupBy,
+    id, label, value, items, placeholder, editHref, editLabel, renderOption, onChange, onEditNavigate, groupBy,
 }: MasterSelectProps<T>) {
     const activeItems = useMemo(() => items.filter(item => item.active !== false), [items])
 
@@ -57,7 +58,7 @@ export function MasterSelect<T extends { id: number; active: boolean }>({
                 })}
             </SelectField>
             <div className="text-right text-[11px]">
-                <Link href={editHref} className="text-muted-foreground hover:underline hover:text-primary">
+                <Link href={editHref} onClick={onEditNavigate} className="text-muted-foreground hover:underline hover:text-primary">
                     {editLabel}
                 </Link>
             </div>

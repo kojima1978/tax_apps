@@ -16,6 +16,7 @@ import Link from "next/link"
 import { DndContext, closestCenter } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { getCaseDetailHrefWithClosedSections } from "@/lib/case-detail-section-state"
 
 function SortableRow({
     step,
@@ -203,7 +204,10 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
                     )}
 
                     <div className="flex justify-between pt-4 border-t">
-                        <Link href={`/${caseData.id}`} onClick={(e) => e.stopPropagation()}>
+                        <Link
+                            href={getCaseDetailHrefWithClosedSections(caseData.id)}
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             <Button variant="outline" size="sm">詳細を編集</Button>
                         </Link>
                         <div className="flex gap-2">

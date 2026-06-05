@@ -12,9 +12,6 @@ const DEPARTMENTS = ['会計部','医療部','建設部','資産税部'] as cons
 const COMPANIES = ['○○銀行','△△証券','□□不動産','◎◎信託銀行','★★保険','◆◆税理士法人','●●会計事務所','▲▲ファイナンス','■■信用金庫','☆☆投資顧問','◇◇法律事務所','○△銀行','□◎信託','★◆アドバイザリー','●▲コンサルティング'];
 const COMPANY_DEPTS = ['営業部','信託部','法人部','資産運用部','相続対策室','プライベートバンキング部',null];
 
-const STATUSES = ['未着手','進行中','完了（税務申告済）','入金済'] as const;
-const ACCEPTANCE_STATUSES = ['受託可','受託不可','未判定','保留'] as const;
-
 const DEFAULT_STEPS = [
   { stepId: 'step-1', name: '初回連絡' },
   { stepId: 'step-2', name: '初回面談' },

@@ -22,7 +22,7 @@ interface ExportParams {
 /** テンプレートが存在するか確認 */
 async function checkTemplateExists(docType: DocumentType): Promise<boolean> {
   try {
-    const res = await apiClient<{ exists: boolean }>(`/templates?type=${docType}`);
+    const res = await apiClient<{ exists: boolean }>(`/templates/?type=${docType}`);
     return res.exists;
   } catch {
     return false;
@@ -50,7 +50,7 @@ async function generateFromTemplate(
   },
 ): Promise<Blob> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/itcm/api';
-  const res = await fetch(`${apiUrl}/templates/generate`, {
+  const res = await fetch(`${apiUrl}/templates/generate/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ docType, ...data }),
@@ -68,6 +68,25 @@ const DOC_TYPE_FILE_LABELS: Record<DocumentType, string> = {
   'invoice-request': '請求書発行依頼票',
 };
 
+const MAX_ESTIMATE_INVOICE_ADDRESSEES = 3;
+const HONORIFIC_SUFFIX_PATTERN = /(?:様|御中|各位)$/;
+
+function formatAddresseeWithHonorific(name: string): string {
+  return HONORIFIC_SUFFIX_PATTERN.test(name) ? name : `${name} 様`;
+}
+
+function formatEstimateInvoiceAddressee(addresseeNames: string[]): string {
+  const names = addresseeNames
+    .map(name => name.trim())
+    .filter(Boolean);
+  if (names.length > MAX_ESTIMATE_INVOICE_ADDRESSEES) {
+    throw new Error(`宛先は最大${MAX_ESTIMATE_INVOICE_ADDRESSEES}人まで選択できます`);
+  }
+  return names
+    .map(name => name === '相続人各位' ? name : formatAddresseeWithHonorific(name))
+    .join('\n');
+}
+
 export async function exportDocument(params: ExportParams): Promise<void> {
   const { caseData, docType, addresseeNames } = params;
 
@@ -83,8 +102,11 @@ export async function exportDocument(params: ExportParams): Promise<void> {
   const expensesTotal = (caseData.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
   const revenueAmount = caseData.feeAmount || 0;
   const referralFeeAmount = caseData.referralFeeAmount || 0;
+  const addresseeName = docType === 'invoice-request'
+    ? (addresseeNames[0] || '')
+    : formatEstimateInvoiceAddressee(addresseeNames);
   const blob = await generateFromTemplate(docType, {
-    addresseeName: addresseeNames[0] || '',
+    addresseeName,
     deceasedName: caseData.deceasedName,
     propertyValue: caseData.propertyValue || 0,
     landRosenkaCount: caseData.landRosenkaCount || 0,

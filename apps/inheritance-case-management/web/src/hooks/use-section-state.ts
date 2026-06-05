@@ -9,6 +9,8 @@ type SectionStates = Record<string, boolean>
 interface SectionStateOptions {
     /** localStorage に保存するか（デフォルト: true） */
     persist?: boolean
+    /** 保存済み状態より優先する初期状態 */
+    getInitialStates?: () => Record<string, boolean> | undefined
 }
 
 /**
@@ -23,9 +25,18 @@ export function useSectionState(
     defaults: Record<string, boolean>,
     options: SectionStateOptions = {},
 ) {
-    const { persist = true } = options
+    const { persist = true, getInitialStates } = options
 
     const [states, setStates] = useState<SectionStates>(() => {
+        const initialStates = getInitialStates?.()
+        if (initialStates) {
+            const merged: SectionStates = {}
+            for (const id of sectionIds) {
+                merged[id] = initialStates[id] ?? (defaults[id] ?? false)
+            }
+            return merged
+        }
+
         if (persist) {
             try {
                 const stored = localStorage.getItem(STORAGE_KEY)

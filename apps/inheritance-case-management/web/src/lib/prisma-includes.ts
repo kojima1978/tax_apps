@@ -5,8 +5,8 @@ export const CASE_INCLUDE = {
   heirs: {
     include: { person: true },
     orderBy: [
-      { relationshipSortOrder: 'asc' },
       { sortOrder: 'asc' },
+      { relationshipSortOrder: 'asc' },
     ],
   },
   relatedParties: { include: { person: true }, orderBy: { sortOrder: 'asc' } },

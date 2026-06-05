@@ -13,10 +13,11 @@ interface ReferrerToggleSelectProps {
     referrers: Referrer[]
     returnToPath: string
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
+    onMasterEditNavigate?: () => void
 }
 
 export function ReferrerToggleSelect({
-    formData, assignees, referrers, returnToPath, setFormData
+    formData, assignees, referrers, returnToPath, setFormData, onMasterEditNavigate
 }: ReferrerToggleSelectProps) {
     const initialMode: ReferrerMode = formData.referrerId ? "external"
         : formData.internalReferrerId ? "internal" : "none"
@@ -99,7 +100,7 @@ export function ReferrerToggleSelect({
                         ))}
                     </SelectField>
                     <div className="text-right text-[11px]">
-                        <Link href={`/settings/staff?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
+                        <Link href={`/settings/staff?returnTo=${returnToPath}`} onClick={onMasterEditNavigate} className="text-muted-foreground hover:underline hover:text-primary">
                             担当者を追加・編集
                         </Link>
                     </div>
@@ -125,7 +126,7 @@ export function ReferrerToggleSelect({
                         ))}
                     </SelectField>
                     <div className="text-right text-[11px]">
-                        <Link href={`/settings/referral-sources?returnTo=${returnToPath}`} className="text-muted-foreground hover:underline hover:text-primary">
+                        <Link href={`/settings/referral-sources?returnTo=${returnToPath}`} onClick={onMasterEditNavigate} className="text-muted-foreground hover:underline hover:text-primary">
                             紹介元を追加・編集
                         </Link>
                     </div>

@@ -96,19 +96,30 @@ export function useImportCSV() {
     const branchCache = new Map<string, number>();
     const assigneeCache = new Map<string, number>();
     const referrerCache = new Map<string, number>();
+    const resolvedRows: typeof rows = [];
 
     for (let i = 0; i < rows.length; i++) {
       if (abortRef.current) break;
       const row = rows[i];
+      let data = row.data;
       try {
         if (row.pendingAssignee) {
-          row.data.assigneeId = await resolveOrCreateAssignee(row.pendingAssignee, departments, assigneeCache, departmentCache);
+          data = {
+            ...data,
+            assigneeId: await resolveOrCreateAssignee(row.pendingAssignee, departments, assigneeCache, departmentCache),
+          };
         }
         if (row.pendingInternalReferrer) {
-          row.data.internalReferrerId = await resolveOrCreateAssignee(row.pendingInternalReferrer, departments, assigneeCache, departmentCache);
+          data = {
+            ...data,
+            internalReferrerId: await resolveOrCreateAssignee(row.pendingInternalReferrer, departments, assigneeCache, departmentCache),
+          };
         }
         if (row.pendingReferrer) {
-          row.data.referrerId = await resolveOrCreateReferrer(row.pendingReferrer, companies, branches, referrerCache, companyCache, branchCache);
+          data = {
+            ...data,
+            referrerId: await resolveOrCreateReferrer(row.pendingReferrer, companies, branches, referrerCache, companyCache, branchCache),
+          };
         }
       } catch (e) {
         failedRows.push({
@@ -117,6 +128,7 @@ export function useImportCSV() {
           error: `マスタ作成エラー: ${e instanceof Error ? e.message : '不明なエラー'}`,
         });
       }
+      resolvedRows.push({ ...row, data });
     }
 
     if (abortRef.current) {
@@ -129,16 +141,17 @@ export function useImportCSV() {
     const failedIndices = new Set(failedRows.map(r => r.index));
     const batchItems: (BulkUpsertPayload & { originalIndex: number; deceasedName: string })[] = [];
 
-    for (let i = 0; i < rows.length; i++) {
+    for (let i = 0; i < resolvedRows.length; i++) {
       if (failedIndices.has(i + 1)) continue;
-      const row = rows[i];
-      if (row.mode === 'create' && (!row.data.progress || row.data.progress.length === 0)) {
-        row.data.progress = [...DEFAULT_PROGRESS_STEPS];
-      }
+      const row = resolvedRows[i];
+      const data =
+        row.mode === 'create' && (!row.data.progress || row.data.progress.length === 0)
+          ? { ...row.data, progress: [...DEFAULT_PROGRESS_STEPS] }
+          : row.data;
       batchItems.push({
         mode: row.mode,
         id: row.id,
-        data: row.data,
+        data,
         originalIndex: i + 1,
         deceasedName: row.deceasedName,
       });

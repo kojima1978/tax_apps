@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 /**
  * フォームの未保存変更を検知し、ブラウザ離脱時に警告を表示するフック
  */
 export function useUnsavedChanges<T>(currentData: T) {
   const [baseline, setBaseline] = useState<string>(() => JSON.stringify(currentData));
-  const baselineRef = useRef(baseline);
-  baselineRef.current = baseline;
 
   const isDirty = JSON.stringify(currentData) !== baseline;
 
@@ -16,7 +14,6 @@ export function useUnsavedChanges<T>(currentData: T) {
   const resetBaseline = useCallback((newData: T) => {
     const serialized = JSON.stringify(newData);
     setBaseline(serialized);
-    baselineRef.current = serialized;
   }, []);
 
   // ブラウザ離脱警告（タブを閉じる・リロード時）

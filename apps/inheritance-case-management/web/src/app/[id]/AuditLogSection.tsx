@@ -68,16 +68,17 @@ interface AuditLogSectionProps {
 
 export function AuditLogSection({ caseId, isOpen, onToggle, refreshKey }: AuditLogSectionProps) {
     const [logs, setLogs] = useState<AuditLogEntry[]>([])
-    const [isLoading, setIsLoading] = useState(false)
     const [hasLoaded, setHasLoaded] = useState(false)
+    const isLoading = !!isOpen && !hasLoaded
 
     useEffect(() => {
         if (!isOpen || hasLoaded) return
-        setIsLoading(true)
+        let cancelled = false
         getCaseAuditLogs(caseId)
-            .then(setLogs)
+            .then((data) => { if (!cancelled) setLogs(data) })
             .catch(console.error)
-            .finally(() => { setIsLoading(false); setHasLoaded(true) })
+            .finally(() => { if (!cancelled) setHasLoaded(true) })
+        return () => { cancelled = true }
     }, [isOpen, caseId, hasLoaded])
 
     useEffect(() => {

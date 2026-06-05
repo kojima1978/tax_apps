@@ -84,7 +84,7 @@ export function ProgressStatusSummary({
     }
 
     return (
-        <div className="mb-4 rounded-lg border bg-card/50 p-3">
+        <div className="rounded-lg border bg-card/50 p-3">
             <div className="mb-2.5">
                 <h3 className="text-sm font-semibold">必須ステータス・関連日付</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">進み具合・受託・対応状況は最終的に必ず確認してください</p>
