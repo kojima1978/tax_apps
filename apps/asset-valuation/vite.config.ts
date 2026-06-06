@@ -11,6 +11,8 @@ export default defineConfig({
     },
   },
   build: {
+    // xlsx-js-style is isolated and loaded only when Excel export is requested.
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
         manualChunks: {

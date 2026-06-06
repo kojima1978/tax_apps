@@ -8,7 +8,6 @@ import { ResultStep } from '@/components/step4/ResultStep';
 import { useAssetData } from '@/hooks/useAssetData';
 import { usePresets } from '@/hooks/usePresets';
 import { Home } from 'lucide-react';
-import { exportToExcel } from '@/utils/excelExport';
 import { exportCaseJson } from '@/utils/fileDownload';
 import type { CsvData } from '@/utils/csvParser';
 
@@ -107,7 +106,8 @@ export default function App() {
   };
 
   // Excel出力
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const { exportToExcel } = await import('@/utils/excelExport');
     exportToExcel(caseName, taxDate, assets);
   };
 
