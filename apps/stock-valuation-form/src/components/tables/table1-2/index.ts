@@ -1,4 +1,5 @@
-export { Table1_2 } from './Table1_2';
+// 測定中はピッカー(Table1_2Overlay)。完成後 Table1_2Grid に切替。
+export { Table1_2 } from './Table1_2Overlay';
 export { SectionTitle } from './SectionTitle';
 export { InputLeft } from './InputLeft';
 export { InputRight } from './InputRight';

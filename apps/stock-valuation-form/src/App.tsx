@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { useFormData } from '@/hooks/useFormData';
-import { Table1_1 } from '@/components/tables/Table1_1';
+// 完成版（CSSグリッド）。ピッカーで再測定したい場合は Table1_1Overlay に戻す。
+import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
 import { Table1_2 } from '@/components/tables/table1-2';
 import { Table2 } from '@/components/tables/table2';
 import { Table3 } from '@/components/tables/table3';
