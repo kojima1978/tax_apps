@@ -13,7 +13,7 @@ const COLUMN_HEADERS = [
   '経過年数',
   '耐用年数',
   '取得価額',
-  '', // 償却額 or 償却率（カテゴリで変動）
+  '', // 償却額 or 残価率（カテゴリで変動）
   '相続税評価額',
   '期末簿価',
   'その他',
@@ -165,7 +165,7 @@ export function exportToExcel(
 
     // カラムヘッダー行
     const headers = [...COLUMN_HEADERS];
-    headers[7] = config.headerLabel; // 償却額 or 償却率
+    headers[7] = config.headerLabel; // 償却額 or 残価率
     for (let c = 0; c < headers.length; c++) {
       ws[XLSX.utils.encode_cell({ r: row, c })] = textCell(headers[c]!, {
         bold: true,
@@ -203,7 +203,7 @@ export function exportToExcel(
       // G: 取得価額
       ws[XLSX.utils.encode_cell({ r: row, c: 6 })] = numberCell(asset.acquisitionCost);
 
-      // H: 償却額 or 償却率
+      // H: 償却額 or 残価率
       if (category === '無形固定資産' || category === '繰延資産' || category === '一括償却資産') {
         // 償却計算なし → 空欄
         ws[XLSX.utils.encode_cell({ r: row, c: 7 })] = textCell('-', {
@@ -215,7 +215,7 @@ export function exportToExcel(
           asset.depreciationAmountOrRate
         );
       } else {
-        // 他は償却率（小数）
+        // 他は残価率（小数）
         ws[XLSX.utils.encode_cell({ r: row, c: 7 })] = numberCell(
           asset.depreciationAmountOrRate,
           { format: '0.000' }

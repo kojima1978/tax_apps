@@ -56,7 +56,7 @@ function calcBuildingDepreciation(
   return acquisitionCost * 0.9 * (elapsedYears / usefulLife);
 }
 
-/** カテゴリに応じた償却額/償却率を取得 */
+/** カテゴリに応じた償却額/残価率を取得 */
 function getDepRate(
   category: AssetCategory,
   acquisitionCost: number,
