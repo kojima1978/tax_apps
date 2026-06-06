@@ -11,7 +11,7 @@ interface Props {
   caseName: string;
   taxDate: string;
   assets: Asset[];
-  onExportExcel: () => void;
+  onExportExcel: () => Promise<void>;
   onExportJson: () => void;
   onExportPresets: () => void;
   onBack: () => void;
@@ -30,16 +30,14 @@ export function ResultStep({
 }: Props) {
   const [excelLoading, setExcelLoading] = useState(false);
 
-  const handleExcelExport = useCallback(() => {
+  const handleExcelExport = useCallback(async () => {
     setExcelLoading(true);
-    // requestAnimationFrameでUIを更新してから同期処理を実行
-    requestAnimationFrame(() => {
-      try {
-        onExportExcel();
-      } finally {
-        setExcelLoading(false);
-      }
-    });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    try {
+      await onExportExcel();
+    } finally {
+      setExcelLoading(false);
+    }
   }, [onExportExcel]);
   const grandTotalAcquisition = assets.reduce(
     (s, a) => s + a.acquisitionCost,
