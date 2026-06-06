@@ -56,7 +56,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
     hasFixedAssetTaxRecord: true,
     hasWithin3Years: true,
     hasRental: true,
-    headerLabel: '償却率',
+    headerLabel: '残価率',
   },
   構築物: {
     label: '構築物',
@@ -66,7 +66,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
     hasFixedAssetTaxRecord: false,
     hasWithin3Years: true,
     hasRental: false,
-    headerLabel: '償却率',
+    headerLabel: '残価率',
   },
   機械装置: {
     label: '機械装置',
@@ -76,7 +76,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
     hasFixedAssetTaxRecord: false,
     hasWithin3Years: false,
     hasRental: false,
-    headerLabel: '償却率',
+    headerLabel: '残価率',
   },
   車両: {
     label: '車両及び運搬具',
@@ -86,7 +86,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
     hasFixedAssetTaxRecord: false,
     hasWithin3Years: false,
     hasRental: false,
-    headerLabel: '償却率',
+    headerLabel: '残価率',
   },
   器具備品: {
     label: '器具及び備品',
@@ -96,7 +96,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
     hasFixedAssetTaxRecord: false,
     hasWithin3Years: false,
     hasRental: false,
-    headerLabel: '償却率',
+    headerLabel: '残価率',
   },
   ソフトウェア: {
     label: 'ソフトウェア',
@@ -106,7 +106,7 @@ export const CATEGORY_CONFIG: Record<AssetCategory, CategoryConfig> = {
     hasFixedAssetTaxRecord: false,
     hasWithin3Years: false,
     hasRental: false,
-    headerLabel: '償却率',
+    headerLabel: '残価率',
   },
   無形固定資産: {
     label: '無形固定資産',
