@@ -39,7 +39,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '修正後の１株当たりの純資産価額（相続税評価額） （⑪の金額）', top: 38.1, left: 46.69, width: 20.59, height: 4.24 },
   { field: '⑫', kind: 'input', top: 42.25, left: 26.37, width: 20.59, height: 4.14 },
   { field: '⑬', kind: 'input', top: 42.06, left: 46.69, width: 20.46, height: 4.34 },
-  { kind: 'label', text: '', top: 38.1, left: 67.01, width: 23.32, height: 8.29 },
+  { kind: 'cell', diagonal: 'bltr', top: 38.1, left: 67.01, width: 23.32, height: 8.29 },
   // 1株当たりのS1の金額の計算
   { kind: 'label', text: '１株当たりのS1の金額の計算', top: 46.3, left: 10.96, width: 2.63, height: 22.84 },
   { kind: 'label', text: '区 分', top: 46.2, left: 13.28, width: 8.59, height: 2.89 },
