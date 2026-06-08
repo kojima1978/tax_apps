@@ -1,2 +1,2 @@
-// 測定中はピッカー(Table8Overlay)。完成後 Table8Grid に切替。
-export { Table8 } from './Table8Overlay';
+// 完成版（CSSグリッド）。ピッカーで再測定したい場合は ./Table8Overlay に戻す。
+export { Table8Grid as Table8 } from './Table8Grid';
