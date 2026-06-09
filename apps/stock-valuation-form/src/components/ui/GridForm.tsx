@@ -16,6 +16,9 @@ export interface GridCell {
   topRightLabel?: string;            // セルの右上に表示する固定ラベル
   rightLabel?: string;               // セルの右端中央に表示する固定ラベル
   integerDigits?: number;            // 数字のみの最大桁数
+  commaInteger?: boolean;            // 整数を3桁区切りカンマで表示
+  decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
+  readOnly?: boolean;                 // 自動計算などの編集不可欄
   diagonal?: 'tlbr' | 'bltr'; // 斜線（入力不可セル: tlbr=＼ 左上→右下, bltr=／ 左下→右上）
   date?: boolean; // 和暦◯年◯月◯日の複合入力（fieldを接頭辞に _g/_y/_m/_d を付与）
   dateRange?: boolean; // 自◯年◯月◯日／至◯年◯月◯日 の期間入力（field_from_*, field_to_*）
@@ -45,6 +48,24 @@ function nearestIndex(lines: number[], v: number): number {
   let best = 0, bd = Infinity;
   lines.forEach((l, i) => { const d = Math.abs(l - v); if (d < bd) { bd = d; best = i; } });
   return best;
+}
+
+function formatCommaInteger(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function sanitizeDecimal(value: string, places: number): string {
+  const normalized = value.replace(/[^\d.]/g, '');
+  const [integer = '', ...fractions] = normalized.split('.');
+  const fraction = fractions.join('').slice(0, places);
+  return normalized.includes('.') ? `${integer}.${fraction}` : integer;
+}
+
+function formatFixedDecimal(value: string, places: number): string {
+  const sanitized = sanitizeDecimal(value, places);
+  if (!sanitized || sanitized === '.') return '';
+  return Number(sanitized).toFixed(places);
 }
 
 /** 和暦日付の複合入力ボックス共通スタイル */
@@ -151,7 +172,7 @@ export function GridForm({ cells, g, u, width = '100%', title }: GridFormProps) 
             ) : c.kind === 'input' && c.field
               ? <>
                   {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
-                  <input value={g(c.field)} onChange={(e) => u(c.field!, c.integerDigits ? e.target.value.replace(/\D/g, '').slice(0, c.integerDigits) : e.target.value)} onKeyDown={onEnterNext} inputMode={c.integerDigits ? 'numeric' : undefined} maxLength={c.integerDigits} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                  <input value={c.commaInteger ? formatCommaInteger(g(c.field)) : g(c.field)} onChange={(e) => u(c.field!, c.commaInteger ? formatCommaInteger(e.target.value) : c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.integerDigits ? e.target.value.replace(/\D/g, '').slice(0, c.integerDigits) : e.target.value)} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} inputMode={c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
                 </>
               : c.kind === 'label' ? (text.includes('\n') ? <span style={{ whiteSpace: 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span> : text) : null}
           </div>

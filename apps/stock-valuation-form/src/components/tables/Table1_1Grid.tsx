@@ -30,7 +30,7 @@ function shareholderRows(): GridCell[] {
         out.push({ kind: 'label', text: '納税\n義務者', top, left: c.left, width: c.width, height, fontSize: 8 });
       } else {
         const topRightLabel = r === 0 ? ['株', '個', '％'][ci - 3] : undefined;
-        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', topRightLabel, top, left: c.left, width: c.width, height, align: ci <= 2 ? 'left' : 'right' });
+        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', topRightLabel, commaInteger: ci === 3 || ci === 4, readOnly: ci === 5, top, left: c.left, width: c.width, height, align: ci <= 2 ? 'left' : 'right' });
       }
     });
   }
@@ -52,27 +52,27 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '代 表 者 氏 名', top: 13.72, left: 8.23, width: 12.96, height: 3.47 },
   { kind: 'label', text: '課 税 時 期', top: 16.9, left: 8.1, width: 13.09, height: 5.2, fontSize: 9 },
   { kind: 'label', text: '直 前 期', top: 21.81, left: 8.1, width: 13.23, height: 5.11, fontSize: 9 },
-  { field: 'f12', kind: 'input', top: 8.61, left: 21.05, width: 29.87, height: 5.2 },
-  { field: 'f13', kind: 'input', top: 13.72, left: 20.92, width: 29.87, height: 3.47 },
+  { field: 'f12', kind: 'input', top: 8.61, left: 21.05, width: 29.87, height: 5.2, align: 'left' },
+  { field: 'f13', kind: 'input', top: 13.72, left: 20.92, width: 29.87, height: 3.47, align: 'left' },
   { field: 'f14', kind: 'input', date: true, top: 17.09, left: 21.05, width: 29.87, height: 5.01 },
   { field: 'f15', kind: 'input', dateRange: true, top: 22.01, left: 20.92, width: 29.87, height: 4.92 },
   // ── 会社情報ヘッダー（右：本店所在地・事業内容） ──
   { kind: 'label', text: '本店の所在地', top: 8.61, left: 50.65, width: 8.86, height: 5.2 },
   { kind: 'label', text: '事　業\n内　容', top: 13.81, left: 50.65, width: 8.86, height: 13.01 },
-  { field: 'f18', kind: 'input', top: 8.42, left: 59.51, width: 34.1, height: 5.49 },
+  { field: 'f18', kind: 'input', top: 8.42, left: 59.51, width: 34.1, height: 5.49, align: 'left' },
   { kind: 'label', text: '取扱品目及び製造、卸売、\n小売等の区分', top: 13.72, left: 59.24, width: 18.28, height: 3.47 },
   { kind: 'label', text: '業 種 目番号', top: 13.81, left: 77.38, width: 7.64, height: 3.28 },
   { kind: 'label', text: '取引金額の\n構成比', top: 13.72, left: 84.88, width: 8.59, height: 3.28 },
-  { field: 'f22', kind: 'input', top: 17.09, left: 59.24, width: 18.28, height: 2.6 },
+  { field: 'f22', kind: 'input', top: 17.09, left: 59.24, width: 18.28, height: 2.6, align: 'left' },
   { field: 'f23', kind: 'input', integerDigits: 3, top: 17, left: 77.24, width: 7.77, height: 2.6 },
   { field: 'f24', kind: 'input', rightLabel: '％', top: 17, left: 84.74, width: 8.73, height: 2.6 },
-  { field: 'f25', kind: 'input', top: 19.6, left: 59.38, width: 18.14, height: 2.41 },
+  { field: 'f25', kind: 'input', top: 19.6, left: 59.38, width: 18.14, height: 2.41, align: 'left' },
   { field: 'f26', kind: 'input', integerDigits: 3, top: 19.5, left: 77.38, width: 7.64, height: 2.51 },
   { field: 'f27', kind: 'input', rightLabel: '％', top: 19.4, left: 84.74, width: 8.86, height: 2.7 },
-  { field: 'f28', kind: 'input', top: 22.01, left: 59.38, width: 18.14, height: 2.51 },
+  { field: 'f28', kind: 'input', top: 22.01, left: 59.38, width: 18.14, height: 2.51, align: 'left' },
   { field: 'f29', kind: 'input', integerDigits: 3, top: 21.91, left: 77.24, width: 7.77, height: 2.6 },
   { field: 'f30', kind: 'input', rightLabel: '％', top: 21.91, left: 85.02, width: 8.59, height: 2.51 },
-  { field: 'f31', kind: 'input', top: 24.42, left: 59.24, width: 18.28, height: 2.41 },
+  { field: 'f31', kind: 'input', top: 24.42, left: 59.24, width: 18.28, height: 2.41, align: 'left' },
   { field: 'f32', kind: 'input', integerDigits: 3, top: 24.42, left: 77.38, width: 7.64, height: 2.41 },
   { field: 'f33', kind: 'input', rightLabel: '％', top: 24.32, left: 84.88, width: 8.46, height: 2.6 },
   // ── 1. 株主及び評価方式の判定（株主テーブル） ──
@@ -90,21 +90,21 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '自己株式', top: 76.37, left: 10.28, width: 10.77, height: 3.47 },
   { kind: 'cell', diagonal: 'bltr', top: 76.46, left: 20.92, width: 5.18, height: 3.37 },
   { kind: 'cell', diagonal: 'bltr', top: 76.56, left: 25.83, width: 7.91, height: 3.28 },
-  { field: 'f63', kind: 'input', top: 76.37, left: 33.46, width: 8.86, height: 3.47 },
+  { field: 'f63', kind: 'input', commaInteger: true, top: 76.37, left: 33.46, width: 8.86, height: 3.47 },
   { kind: 'cell', diagonal: 'bltr', top: 76.46, left: 42.06, width: 8.86, height: 3.37 },
   { kind: 'cell', diagonal: 'bltr', top: 76.46, left: 50.65, width: 8.73, height: 3.28 },
   // 合計行（②⑤ / ③⑥ / ①④）
   { kind: 'label', text: '納税義務者の属する同族関係者グループの議決権の合計数', top: 79.64, left: 10.42, width: 23.32, height: 4.24 },
   { kind: 'cell', diagonal: 'bltr', top: 79.64, left: 33.33, width: 9, height: 4.24 },
-  { field: '②', kind: 'input', cornerLabel: '②', top: 79.64, left: 42.19, width: 8.59, height: 4.14 },
-  { field: '⑤', kind: 'input', cornerLabel: '⑤', topRightLabel: '（②/④）', top: 79.64, left: 50.65, width: 8.86, height: 4.24 },
+  { field: '②', kind: 'input', commaInteger: true, readOnly: true, cornerLabel: '②', top: 79.64, left: 42.19, width: 8.59, height: 4.14 },
+  { field: '⑤', kind: 'input', readOnly: true, cornerLabel: '⑤', topRightLabel: '（②/④）', top: 79.64, left: 50.65, width: 8.86, height: 4.24 },
   { kind: 'label', text: '筆頭株主グループの議決権の合計数', top: 83.79, left: 10.28, width: 23.32, height: 4.05 },
   { kind: 'cell', diagonal: 'bltr', top: 83.69, left: 33.33, width: 8.86, height: 4.05 },
-  { field: '③', kind: 'input', cornerLabel: '③', top: 83.69, left: 42.19, width: 8.73, height: 4.14 },
-  { field: '⑥', kind: 'input', cornerLabel: '⑥', topRightLabel: '（③/④）', top: 83.69, left: 50.51, width: 8.86, height: 4.14 },
+  { field: '③', kind: 'input', commaInteger: true, cornerLabel: '③', top: 83.69, left: 42.19, width: 8.73, height: 4.14 },
+  { field: '⑥', kind: 'input', readOnly: true, cornerLabel: '⑥', topRightLabel: '（③/④）', top: 83.69, left: 50.51, width: 8.86, height: 4.14 },
   { kind: 'label', text: '評価会社の発行済株式又は議決権の総数', top: 87.64, left: 10.28, width: 23.32, height: 4.14 },
-  { field: '①', kind: 'input', cornerLabel: '①', top: 87.64, left: 33.33, width: 9.14, height: 4.14 },
-  { field: '④', kind: 'input', cornerLabel: '④', top: 87.74, left: 42.19, width: 8.59, height: 4.05 },
+  { field: '①', kind: 'input', commaInteger: true, cornerLabel: '①', top: 87.64, left: 33.33, width: 9.14, height: 4.14 },
+  { field: '④', kind: 'input', commaInteger: true, cornerLabel: '④', top: 87.74, left: 42.19, width: 8.59, height: 4.05 },
   { kind: 'label', text: '100', top: 87.64, left: 50.65, width: 8.59, height: 4.14 },
   // ── 判定基準・判定マトリクス（右上） ──
   { kind: 'label', text: '判定基準', top: 26.83, left: 59.38, width: 1.77, height: 19.08, align: 'center' },
@@ -147,7 +147,31 @@ const CELLS: GridCell[] = [
 
 /** 第1表の1（CSSグリッド方式・完成版） */
 export function Table1_1Grid({ getField, updateField }: TableProps) {
-  const g = (f: string) => getField(T, f);
+  const sumShareholderVotes = () => {
+    let total = 0;
+    for (let row = 1; row <= SH_ROWS; row++) {
+      total += Number(getField(T, `sh_${row}_5`).replace(/,/g, '')) || 0;
+    }
+    return total > 0 ? String(total) : '';
+  };
+
+  const percentage = (numeratorField: string, denominatorField: string, roundUpOver50 = false) => {
+    const numeratorRaw = numeratorField === '②' ? sumShareholderVotes() : getField(T, numeratorField);
+    const denominator = Number(getField(T, denominatorField).replace(/,/g, ''));
+    if (numeratorRaw === '' || denominator <= 0) return '';
+    const raw = (Number(numeratorRaw.replace(/,/g, '')) / denominator) * 100;
+    if (roundUpOver50 && raw > 50 && raw < 51) return '51';
+    return String(Math.floor(raw));
+  };
+
+  const g = (f: string) => {
+    const ratioMatch = /^sh_(\d+)_6$/.exec(f);
+    if (ratioMatch) return percentage(`sh_${ratioMatch[1]}_5`, '④');
+    if (f === '②') return sumShareholderVotes();
+    if (f === '⑤') return percentage('②', '④', true);
+    if (f === '⑥') return percentage('③', '④', true);
+    return getField(T, f);
+  };
   const u = (f: string, v: string) => updateField(T, f, v);
   return <GridForm cells={CELLS} g={g} u={u} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" />;
 }
