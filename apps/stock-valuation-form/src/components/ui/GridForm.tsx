@@ -12,6 +12,7 @@ export interface GridCell {
   align?: 'left' | 'center' | 'right';
   fontSize?: number;
   bold?: boolean;
+  cornerLabel?: string;             // 入力欄の左上に表示する固定ラベル
   diagonal?: 'tlbr' | 'bltr'; // 斜線（入力不可セル: tlbr=＼ 左上→右下, bltr=／ 左下→右上）
   date?: boolean; // 和暦◯年◯月◯日の複合入力（fieldを接頭辞に _g/_y/_m/_d を付与）
   dateRange?: boolean; // 自◯年◯月◯日／至◯年◯月◯日 の期間入力（field_from_*, field_to_*）
@@ -119,10 +120,10 @@ export function GridForm({ cells, g, u, width = '100%', title }: GridFormProps) 
             gridColumn: `${cs} / ${ce}`,
             gridRow: `${rs} / ${re}`,
             border: '0.5px solid #000',
-            position: c.diagonal ? 'relative' : undefined,
+            position: c.diagonal || c.cornerLabel ? 'relative' : undefined,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: isVertical ? 'flex-start' : justify,
+            justifyContent: isVertical ? (c.align === 'center' ? 'center' : 'flex-start') : justify,
             writingMode: isVertical ? 'vertical-rl' : undefined,
             fontSize,
             fontWeight: c.bold ? 700 : 400,
@@ -143,8 +144,11 @@ export function GridForm({ cells, g, u, width = '100%', title }: GridFormProps) 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, whiteSpace: 'nowrap' }}>至<DateFields field={`${c.field}_to`} g={g} u={u} onKeyDown={onEnterNext} /></div>
               </div>
             ) : c.kind === 'input' && c.field
-              ? <input value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: 'transparent', padding: 0, fontFamily: 'inherit' }} />
-              : c.kind === 'label' ? (text.includes('\n') ? <span style={{ whiteSpace: 'pre-line' }}>{text}</span> : text) : null}
+              ? <>
+                  {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
+                  <input value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: 'transparent', padding: 0, fontFamily: 'inherit' }} />
+                </>
+              : c.kind === 'label' ? (text.includes('\n') ? <span style={{ whiteSpace: 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span> : text) : null}
           </div>
         );
       })}

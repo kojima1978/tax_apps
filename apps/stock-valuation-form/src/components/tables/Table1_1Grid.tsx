@@ -27,7 +27,7 @@ function shareholderRows(): GridCell[] {
     SH_COLS.forEach((c, ci) => {
       if (r === 0 && ci === 1) {
         // 1行目の続柄欄は「納税義務者」固定
-        out.push({ kind: 'label', text: '納税義務者', top, left: c.left, width: c.width, height, fontSize: 8 });
+        out.push({ kind: 'label', text: '納税\n義務者', top, left: c.left, width: c.width, height, fontSize: 8 });
       } else {
         out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', top, left: c.left, width: c.width, height, align: ci <= 2 ? 'left' : 'right' });
       }
@@ -59,7 +59,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '本店の所在地', top: 8.61, left: 50.65, width: 8.86, height: 5.2 },
   { kind: 'label', text: '事　業\n内　容', top: 13.81, left: 50.65, width: 8.86, height: 13.01 },
   { field: 'f18', kind: 'input', top: 8.42, left: 59.51, width: 34.1, height: 5.49 },
-  { kind: 'label', text: '取扱品目及び製造、卸売、小売等の区分', top: 13.72, left: 59.24, width: 18.28, height: 3.47 },
+  { kind: 'label', text: '取扱品目及び製造、卸売、\n小売等の区分', top: 13.72, left: 59.24, width: 18.28, height: 3.47 },
   { kind: 'label', text: '業 種 目番号', top: 13.81, left: 77.38, width: 7.64, height: 3.28 },
   { kind: 'label', text: '取引金額の\n構成比', top: 13.72, left: 84.88, width: 8.59, height: 3.28 },
   { field: 'f22', kind: 'input', top: 17.09, left: 59.24, width: 18.28, height: 2.6 },
@@ -75,14 +75,14 @@ const CELLS: GridCell[] = [
   { field: 'f32', kind: 'input', top: 24.42, left: 77.38, width: 7.64, height: 2.41 },
   { field: 'f33', kind: 'input', top: 24.32, left: 84.88, width: 8.46, height: 2.6 },
   // ── 1. 株主及び評価方式の判定（株主テーブル） ──
-  { kind: 'label', text: '１．株主及び評価方式の判定', top: 26.63, left: 8.1, width: 51.42, height: 4.05 },
-  { kind: 'label', text: '判定要素（課税時期現在の株式等の所在状況）', top: 30.49, left: 8.1, width: 2.45, height: 61.4 },
+  { kind: 'label', text: '１．株主及び評価方式の判定', top: 26.63, left: 8.1, width: 51.42, height: 4.05, align: 'left' },
+  { kind: 'label', text: '判定要素（課税時期現在の株式等の所在状況）', top: 30.49, left: 8.1, width: 2.45, height: 61.4, align: 'center' },
   { kind: 'label', text: '氏名又は名称', top: 30.39, left: 10.14, width: 11.05, height: 3.76 },
   { kind: 'label', text: '続 柄', top: 30.49, left: 20.92, width: 4.91, height: 3.76 },
   { kind: 'label', text: '会社における 役 職 名', top: 30.39, left: 25.69, width: 7.91, height: 3.86 },
-  { kind: 'label', text: '㋑株 式 数（株式の種類）', top: 30.39, left: 33.33, width: 9, height: 3.86 },
+  { kind: 'label', text: '㋑株 式 数\n（株式の種類）', top: 30.39, left: 33.33, width: 9, height: 3.86 },
   { kind: 'label', text: '㋺議 決 権 数', top: 30.39, left: 42.19, width: 8.73, height: 3.86 },
-  { kind: 'label', text: '㋩議決権割合( ㋺ /④)', top: 30.39, left: 50.78, width: 8.73, height: 3.76 },
+  { kind: 'label', text: '㋩議決権割合\n( ㋺ /④)', top: 30.39, left: 50.78, width: 8.73, height: 3.76 },
   // 株主データ行（自動生成・1行目続柄=納税義務者）
   ...shareholderRows(),
   // 自己株式行
@@ -102,19 +102,19 @@ const CELLS: GridCell[] = [
   { field: '③', kind: 'input', top: 83.69, left: 42.19, width: 8.73, height: 4.14 },
   { field: '⑥', kind: 'input', top: 83.69, left: 50.51, width: 8.86, height: 4.14 },
   { kind: 'label', text: '評価会社の発行済株式又は議決権の総数', top: 87.64, left: 10.28, width: 23.32, height: 4.14 },
-  { field: '①', kind: 'input', top: 87.64, left: 33.33, width: 9.14, height: 4.14 },
-  { field: '④', kind: 'input', top: 87.74, left: 42.19, width: 8.59, height: 4.05 },
+  { field: '①', kind: 'input', cornerLabel: '①', top: 87.64, left: 33.33, width: 9.14, height: 4.14 },
+  { field: '④', kind: 'input', cornerLabel: '④', top: 87.74, left: 42.19, width: 8.59, height: 4.05 },
   { kind: 'label', text: '100', top: 87.64, left: 50.65, width: 8.59, height: 4.14 },
   // ── 判定基準・判定マトリクス（右上） ──
-  { kind: 'label', text: '判定基準', top: 26.83, left: 59.38, width: 1.77, height: 19.08 },
-  { kind: 'label', text: '納税義務者の属する同族関係者グループの議決権割合（⑤の割合）を基として、区分します。', top: 26.92, left: 60.88, width: 32.87, height: 3.66 },
-  { kind: 'label', text: '区分', top: 30.49, left: 60.88, width: 1.5, height: 7.81 },
+  { kind: 'label', text: '判定基準', top: 26.83, left: 59.38, width: 1.77, height: 19.08, align: 'center' },
+  { kind: 'label', text: '納税義務者の属する同族関係者グループの議決権割合\n（⑤の割合）を基として、区分します。', top: 26.92, left: 60.88, width: 32.87, height: 3.66, align: 'left' },
+  { kind: 'label', text: '区分', top: 30.49, left: 60.88, width: 1.5, height: 7.81, align: 'center' },
   { kind: 'label', text: '筆頭株主グループの議決権割合（⑥の割合）', top: 30.49, left: 62.38, width: 22.78, height: 3.76 },
   { kind: 'label', text: '５０％超の場 合', top: 33.96, left: 62.38, width: 7.77, height: 4.24 },
   { kind: 'label', text: '３０%以上５０%以 下 の 場 合', top: 33.96, left: 69.88, width: 7.64, height: 4.24 },
   { kind: 'label', text: '３０％未満の場 合', top: 33.96, left: 77.38, width: 7.77, height: 4.24 },
   { kind: 'label', text: '株主の区分', top: 30.39, left: 84.88, width: 8.59, height: 7.81 },
-  { kind: 'label', text: '⑤の割合', top: 38.01, left: 60.88, width: 1.64, height: 8 },
+  { kind: 'label', text: '⑤の割合', top: 38.01, left: 60.88, width: 1.64, height: 8, align: 'center' },
   { kind: 'label', text: '５０％超', top: 38.1, left: 62.38, width: 7.64, height: 4.05 },
   { kind: 'label', text: '３０％以上', top: 38.01, left: 69.88, width: 7.64, height: 4.05 },
   { kind: 'label', text: '１５％以上', top: 37.91, left: 77.38, width: 7.64, height: 4.24 },
@@ -122,13 +122,13 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '５０％未満', top: 41.86, left: 62.38, width: 7.77, height: 4.14 },
   { kind: 'label', text: '３０％未満', top: 41.96, left: 69.88, width: 7.64, height: 4.05 },
   { kind: 'label', text: '１５％未満', top: 42.06, left: 77.24, width: 7.77, height: 3.86 },
-  { kind: 'label', text: '同族株主等 以外の株主', top: 41.96, left: 84.88, width: 8.59, height: 4.05 },
-  { kind: 'label', text: '判定', top: 45.91, left: 59.38, width: 1.64, height: 7.9 },
-  { kind: 'label', text: '同 族 株 主 等 (原則的評価方式等)', top: 45.81, left: 60.88, width: 16.64, height: 4.24 },
-  { kind: 'label', text: '同族株主等以外の株主（配 当 還 元 方 式）', top: 45.81, left: 77.38, width: 16.09, height: 4.24 },
+  { kind: 'label', text: '同族株主等\n以外の株主', top: 41.96, left: 84.88, width: 8.59, height: 4.05 },
+  { kind: 'label', text: '判定', top: 45.91, left: 59.38, width: 1.64, height: 7.9, align: 'center' },
+  { kind: 'label', text: '同族株主等\n(原則的評価方式等)', top: 45.81, left: 60.88, width: 16.64, height: 4.24 },
+  { kind: 'label', text: '同族株主等以外の株主\n（配当還元方式）', top: 45.81, left: 77.38, width: 16.09, height: 4.24 },
   { kind: 'label', text: '｢同族株主等に該当する納税義務者のうち、議決権割合( ㋩ の割合）が５％未満の者の評価方式は、「２．少数株式所有者の評価方式の判定」欄により判定します。', top: 49.77, left: 60.74, width: 32.87, height: 4.24 },
   // ── 2. 少数株式所有者の評価方式の判定（右下） ──
-  { kind: 'label', text: '２．少数株式所有者の評価方式の判定', top: 53.72, left: 59.38, width: 34.23, height: 4.14 },
+  { kind: 'label', text: '２．少数株式所有者の評価方式の判定', top: 53.72, left: 59.38, width: 34.23, height: 4.14, align: 'left' },
   { kind: 'label', text: '判定要素', top: 57.77, left: 59.24, width: 1.91, height: 20.43 },
   { kind: 'label', text: '項 目', top: 57.57, left: 60.74, width: 9.41, height: 4.14 },
   { kind: 'label', text: '判 定 内 容', top: 57.77, left: 70.01, width: 23.46, height: 3.95 },
