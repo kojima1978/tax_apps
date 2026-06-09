@@ -101,7 +101,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '筆頭株主グループの議決権の合計数', top: 83.79, left: 10.28, width: 23.32, height: 4.05 },
   { kind: 'cell', diagonal: 'bltr', top: 83.69, left: 33.33, width: 8.86, height: 4.05 },
   { field: '③', kind: 'input', cornerLabel: '③', top: 83.69, left: 42.19, width: 8.73, height: 4.14 },
-  { field: '⑥', kind: 'input', top: 83.69, left: 50.51, width: 8.86, height: 4.14 },
+  { field: '⑥', kind: 'input', cornerLabel: '⑥', topRightLabel: '（③/④）', top: 83.69, left: 50.51, width: 8.86, height: 4.14 },
   { kind: 'label', text: '評価会社の発行済株式又は議決権の総数', top: 87.64, left: 10.28, width: 23.32, height: 4.14 },
   { field: '①', kind: 'input', cornerLabel: '①', top: 87.64, left: 33.33, width: 9.14, height: 4.14 },
   { field: '④', kind: 'input', cornerLabel: '④', top: 87.74, left: 42.19, width: 8.59, height: 4.05 },
