@@ -144,7 +144,7 @@ export function GridForm({ cells, g, u, width = '100%', title }: GridFormProps) 
                 <DateFields field={c.field} g={g} u={u} onKeyDown={onEnterNext} />
               </div>
             ) : c.dateRange && c.field ? (
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1, width: '100%', height: '100%', fontSize: '0.78em' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1, width: '100%', height: '100%', fontSize: '0.95em' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, whiteSpace: 'nowrap' }}>自<DateFields field={`${c.field}_from`} g={g} u={u} onKeyDown={onEnterNext} /></div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, whiteSpace: 'nowrap' }}>至<DateFields field={`${c.field}_to`} g={g} u={u} onKeyDown={onEnterNext} /></div>
               </div>
