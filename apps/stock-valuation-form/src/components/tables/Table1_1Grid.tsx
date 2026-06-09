@@ -29,7 +29,8 @@ function shareholderRows(): GridCell[] {
         // 1行目の続柄欄は「納税義務者」固定
         out.push({ kind: 'label', text: '納税\n義務者', top, left: c.left, width: c.width, height, fontSize: 8 });
       } else {
-        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', top, left: c.left, width: c.width, height, align: ci <= 2 ? 'left' : 'right' });
+        const topRightLabel = r === 0 ? ['株', '個', '％'][ci - 3] : undefined;
+        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', topRightLabel, top, left: c.left, width: c.width, height, align: ci <= 2 ? 'left' : 'right' });
       }
     });
   }
@@ -64,16 +65,16 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '取引金額の\n構成比', top: 13.72, left: 84.88, width: 8.59, height: 3.28 },
   { field: 'f22', kind: 'input', top: 17.09, left: 59.24, width: 18.28, height: 2.6 },
   { field: 'f23', kind: 'input', top: 17, left: 77.24, width: 7.77, height: 2.6 },
-  { field: 'f24', kind: 'input', top: 17, left: 84.74, width: 8.73, height: 2.6 },
+  { field: 'f24', kind: 'input', rightLabel: '％', top: 17, left: 84.74, width: 8.73, height: 2.6 },
   { field: 'f25', kind: 'input', top: 19.6, left: 59.38, width: 18.14, height: 2.41 },
   { field: 'f26', kind: 'input', top: 19.5, left: 77.38, width: 7.64, height: 2.51 },
-  { field: 'f27', kind: 'input', top: 19.4, left: 84.74, width: 8.86, height: 2.7 },
+  { field: 'f27', kind: 'input', rightLabel: '％', top: 19.4, left: 84.74, width: 8.86, height: 2.7 },
   { field: 'f28', kind: 'input', top: 22.01, left: 59.38, width: 18.14, height: 2.51 },
   { field: 'f29', kind: 'input', top: 21.91, left: 77.24, width: 7.77, height: 2.6 },
-  { field: 'f30', kind: 'input', top: 21.91, left: 85.02, width: 8.59, height: 2.51 },
+  { field: 'f30', kind: 'input', rightLabel: '％', top: 21.91, left: 85.02, width: 8.59, height: 2.51 },
   { field: 'f31', kind: 'input', top: 24.42, left: 59.24, width: 18.28, height: 2.41 },
   { field: 'f32', kind: 'input', top: 24.42, left: 77.38, width: 7.64, height: 2.41 },
-  { field: 'f33', kind: 'input', top: 24.32, left: 84.88, width: 8.46, height: 2.6 },
+  { field: 'f33', kind: 'input', rightLabel: '％', top: 24.32, left: 84.88, width: 8.46, height: 2.6 },
   // ── 1. 株主及び評価方式の判定（株主テーブル） ──
   { kind: 'label', text: '１．株主及び評価方式の判定', top: 26.63, left: 8.1, width: 51.42, height: 4.05, align: 'left' },
   { kind: 'label', text: '判定要素（課税時期現在の株式等の所在状況）', top: 30.49, left: 8.1, width: 2.45, height: 61.4, align: 'center' },

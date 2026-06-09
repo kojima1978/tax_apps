@@ -13,6 +13,8 @@ export interface GridCell {
   fontSize?: number;
   bold?: boolean;
   cornerLabel?: string;             // 入力欄の左上に表示する固定ラベル
+  topRightLabel?: string;            // セルの右上に表示する固定ラベル
+  rightLabel?: string;               // セルの右端中央に表示する固定ラベル
   diagonal?: 'tlbr' | 'bltr'; // 斜線（入力不可セル: tlbr=＼ 左上→右下, bltr=／ 左下→右上）
   date?: boolean; // 和暦◯年◯月◯日の複合入力（fieldを接頭辞に _g/_y/_m/_d を付与）
   dateRange?: boolean; // 自◯年◯月◯日／至◯年◯月◯日 の期間入力（field_from_*, field_to_*）
@@ -120,7 +122,7 @@ export function GridForm({ cells, g, u, width = '100%', title }: GridFormProps) 
             gridColumn: `${cs} / ${ce}`,
             gridRow: `${rs} / ${re}`,
             border: '0.5px solid #000',
-            position: c.diagonal || c.cornerLabel ? 'relative' : undefined,
+            position: c.diagonal || c.cornerLabel || c.topRightLabel || c.rightLabel ? 'relative' : undefined,
             display: 'flex',
             alignItems: 'center',
             justifyContent: isVertical ? (c.align === 'center' ? 'center' : 'flex-start') : justify,
@@ -130,6 +132,8 @@ export function GridForm({ cells, g, u, width = '100%', title }: GridFormProps) 
             padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
             lineHeight: 1.15, wordBreak: 'break-all', whiteSpace: 'normal', textAlign: 'center',
           }}>
+            {c.topRightLabel && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.topRightLabel}</span>}
+            {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
             {c.diagonal ? (
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
                 <line x1="0" y1={c.diagonal === 'bltr' ? 100 : 0} x2="100" y2={c.diagonal === 'bltr' ? 0 : 100} stroke="#000" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
