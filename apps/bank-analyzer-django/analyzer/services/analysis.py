@@ -88,6 +88,11 @@ class AnalysisService:
                 queryset = queryset.exclude(category__in=filter_state['category'])
             else:
                 queryset = queryset.filter(category__in=filter_state['category'])
+        if filter_state.get('keyword'):
+            matching_ids = [
+                tx.pk for tx in filter_by_keyword(queryset, filter_state['keyword'])
+            ]
+            queryset = queryset.filter(pk__in=matching_ids)
         # 日付フィルター
         if filter_state.get('date_from'):
             queryset = queryset.filter(date__gte=filter_state['date_from'])

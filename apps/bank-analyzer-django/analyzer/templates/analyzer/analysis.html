@@ -21,6 +21,16 @@
     </div>
 </div>
 
+{% if no_data %}
+<div class="alert alert-info" role="alert">
+    <h2 class="h5"><i class="bi bi-info-circle me-1"></i>取引データがありません</h2>
+    <p class="mb-2">CSVまたはExcelファイルを追加取込すると、取引の編集・分析を開始できます。</p>
+    <a href="{% url 'import-wizard' case.pk %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-file-earmark-arrow-up me-1"></i>CSV追加取込
+    </a>
+</div>
+{% else %}
+
 <!-- 基準日設定 -->
 <div class="glass-card px-4 py-3 mb-4">
     <div class="d-flex align-items-center gap-3 flex-wrap">
@@ -460,9 +470,11 @@
 .memo-cell { cursor: context-menu; }
 </style>
 
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
+{% if not no_data %}
 <script src="{% static 'analyzer/js/utils.js' %}"></script>
 <script>window.BANK_TO_ACCOUNTS = {{ bank_to_accounts_json|safe }};</script>
 <script src="{% static 'analyzer/js/analysis_core.js' %}"></script>
@@ -632,4 +644,5 @@ document.addEventListener('click', function(e) {
 })();
 </script>
 
+{% endif %}
 {% endblock %}

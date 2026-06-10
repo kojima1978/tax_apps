@@ -9,7 +9,7 @@ from django.test import TestCase, Client, override_settings
 from django.urls import reverse, set_script_prefix
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from .models import Case, Transaction
+from .models import Account, Case, Transaction
 from .forms import CaseForm, SettingsForm
 from .services import TransactionService, AnalysisService, parse_int_ids
 from .templatetags.japanese_date import wareki, wareki_short, wareki_year, get_japanese_era
@@ -110,31 +110,32 @@ class CaseFormTest(TestCase):
 class SettingsFormTest(TestCase):
     """SettingsFormのテスト"""
 
-    def test_valid_settings(self):
-        """有効な設定値"""
-        form = SettingsForm(data={
+    def _valid_data(self, **overrides):
+        data = {
             "large_amount_threshold": 500000,
             "transfer_days_window": 3,
             "transfer_amount_tolerance": 1000,
-        })
+            "transfer_date_mode": "after_only",
+            "gift_threshold": 1_000_000,
+            "fuzzy_enabled": True,
+            "fuzzy_threshold": 90,
+        }
+        data.update(overrides)
+        return data
+
+    def test_valid_settings(self):
+        """有効な設定値"""
+        form = SettingsForm(data=self._valid_data())
         self.assertTrue(form.is_valid())
 
     def test_negative_threshold(self):
         """負の閾値は無効"""
-        form = SettingsForm(data={
-            "large_amount_threshold": -1,
-            "transfer_days_window": 3,
-            "transfer_amount_tolerance": 1000,
-        })
+        form = SettingsForm(data=self._valid_data(large_amount_threshold=-1))
         self.assertFalse(form.is_valid())
 
     def test_max_threshold(self):
         """最大値を超える閾値は無効"""
-        form = SettingsForm(data={
-            "large_amount_threshold": 2_000_000_000,  # 20億
-            "transfer_days_window": 3,
-            "transfer_amount_tolerance": 1000,
-        })
+        form = SettingsForm(data=self._valid_data(large_amount_threshold=2_000_000_000))
         self.assertFalse(form.is_valid())
 
 
@@ -186,8 +187,9 @@ class TransactionServiceTest(TestCase):
 
     def test_delete_account_transactions(self):
         """口座取引の削除"""
-        self.tx1.account_id = "123-456"
-        self.tx1.save()
+        account = Account.objects.create(case=self.case, account_number="123-456")
+        self.tx1.account = account
+        self.tx1.save(update_fields=["account"])
         count = TransactionService.delete_account_transactions(self.case, "123-456")
         self.assertEqual(count, 1)
         self.assertFalse(Transaction.objects.filter(id=self.tx1.id).exists())
@@ -228,6 +230,83 @@ class TransactionServiceTest(TestCase):
             self.case, ["invalid", "ids"]
         )
         self.assertEqual(count, 0)
+
+    def test_bulk_replace_account_number(self):
+        account = Account.objects.create(case=self.case, account_number="old")
+        self.tx1.account = account
+        self.tx1.save(update_fields=["account"])
+
+        count = TransactionService.bulk_replace_field_value(
+            self.case, "account_number", "old", "new"
+        )
+
+        self.assertEqual(count, 1)
+        account.refresh_from_db()
+        self.assertEqual(account.account_number, "new")
+
+    def test_bulk_replace_account_number_merges_existing_account(self):
+        source = Account.objects.create(
+            case=self.case,
+            account_number="old",
+            bank_name="Source Bank",
+            passbook_balance=100,
+            has_accrued_interest=True,
+            passbook_years={"2025": True},
+        )
+        target = Account.objects.create(
+            case=self.case,
+            account_number="new",
+            branch_name="Target Branch",
+            certificate_balance=0,
+            passbook_years={"2026": False},
+        )
+        self.tx1.account = source
+        self.tx1.save(update_fields=["account"])
+
+        count = TransactionService.bulk_replace_field_value(
+            self.case, "account_number", "old", "new"
+        )
+
+        self.assertEqual(count, 1)
+        self.assertFalse(Account.objects.filter(pk=source.pk).exists())
+        self.tx1.refresh_from_db()
+        target.refresh_from_db()
+        self.assertEqual(self.tx1.account, target)
+        self.assertEqual(target.bank_name, "Source Bank")
+        self.assertEqual(target.branch_name, "Target Branch")
+        self.assertEqual(target.passbook_balance, 100)
+        self.assertEqual(target.certificate_balance, 0)
+        self.assertTrue(target.has_accrued_interest)
+        self.assertEqual(target.passbook_years, {"2025": True, "2026": False})
+
+    def test_bulk_replace_description(self):
+        self.tx2.description = self.tx1.description
+        self.tx2.save(update_fields=["description"])
+        other_case = Case.objects.create(name="Other Case")
+        other_tx = Transaction.objects.create(
+            case=other_case,
+            description=self.tx1.description,
+        )
+
+        count = TransactionService.bulk_replace_field_value(
+            self.case, "description", self.tx1.description, "New Description"
+        )
+
+        self.assertEqual(count, 2)
+        self.tx1.refresh_from_db()
+        self.tx2.refresh_from_db()
+        other_tx.refresh_from_db()
+        self.assertEqual(self.tx1.description, "New Description")
+        self.assertEqual(self.tx2.description, "New Description")
+        self.assertNotEqual(other_tx.description, "New Description")
+
+    def test_get_unique_description_values(self):
+        self.tx2.description = self.tx1.description
+        self.tx2.save(update_fields=["description"])
+
+        values = TransactionService.get_unique_field_values(self.case, "description")
+
+        self.assertEqual(values, [{"value": self.tx1.description, "count": 2}])
 
 
 class AnalysisServiceTest(TestCase):
@@ -323,6 +402,7 @@ class ViewsTest(TestCase):
         """分析ダッシュボード（データなし）"""
         response = self.client.get(reverse('analysis-dashboard', args=[self.case.pk]))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "取引データがありません")
 
     def test_analysis_dashboard_with_data(self):
         """分析ダッシュボード（データあり）"""
@@ -566,22 +646,28 @@ class ApplyFiltersTest(TestCase):
 
     def setUp(self):
         self.case = Case.objects.create(name="フィルターテスト")
+        mizuho = Account.objects.create(
+            case=self.case, bank_name="みずほ銀行", account_number="1234567"
+        )
+        smbc = Account.objects.create(
+            case=self.case, bank_name="三井住友銀行", account_number="7654321"
+        )
         Transaction.objects.create(
             case=self.case, date=date(2024, 1, 15),
             description="イオン 買い物", amount_out=5000,
-            bank_name="みずほ銀行", account_id="1234567",
+            account=mizuho,
             category="生活費", balance=95000,
         )
         Transaction.objects.create(
             case=self.case, date=date(2024, 2, 1),
             description="給与振込", amount_in=300000,
-            bank_name="三井住友銀行", account_id="7654321",
+            account=smbc,
             category="給与", balance=395000,
         )
         Transaction.objects.create(
             case=self.case, date=date(2024, 3, 1),
             description="家賃", amount_out=100000,
-            bank_name="みずほ銀行", account_id="1234567",
+            account=mizuho,
             category="生活費", balance=295000,
         )
 
