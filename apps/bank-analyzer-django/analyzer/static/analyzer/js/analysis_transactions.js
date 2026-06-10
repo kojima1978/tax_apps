@@ -671,7 +671,8 @@ const bulkReplaceForm = document.getElementById('bulkReplaceForm');
 const fieldLabels = {
     'bank_name': '銀行名',
     'branch_name': '支店名',
-    'account_number': '口座番号'
+    'account_number': '口座番号',
+    'description': '摘要'
 };
 
 function updateReplaceFormState() {

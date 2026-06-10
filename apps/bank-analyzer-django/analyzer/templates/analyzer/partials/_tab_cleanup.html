@@ -45,7 +45,7 @@
             <div class="card-body">
                 <h6 class="card-title text-info"><i class="bi bi-pencil-square"></i> フィールド値の一括置換</h6>
                 <p class="small text-muted mb-3">
-                    銀行名・支店名・口座番号の誤字を一括で修正できます。例: 「百十四銀＿行」→「百十四銀行」
+                    銀行名・支店名・口座番号・摘要の誤字を一括で修正できます。例: 「百十四銀＿行」→「百十四銀行」
                 </p>
                 <form method="post" id="bulkReplaceForm">
                     {% csrf_token %}
@@ -58,6 +58,7 @@
                                 <option value="bank_name">銀行名</option>
                                 <option value="branch_name">支店名</option>
                                 <option value="account_number">口座番号</option>
+                                <option value="description">摘要</option>
                             </select>
                         </div>
                         <div class="col-auto">

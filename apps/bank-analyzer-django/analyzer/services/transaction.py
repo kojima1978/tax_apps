@@ -81,8 +81,8 @@ def _get_cached_account(account_cache: dict, case: Case, row: dict) -> Account:
 class TransactionService:
     """取引データに関するビジネスロジック"""
 
-    # 一括置換が許可されるフィールド（Account モデルのフィールド）
-    REPLACEABLE_FIELDS = {'bank_name', 'branch_name', 'account_number'}
+    # 一括置換が許可されるフィールド
+    REPLACEABLE_FIELDS = {'bank_name', 'branch_name', 'account_number', 'description'}
 
     # update_transactionで直接代入するフィールド
     _DIRECT_FIELDS = ('description', 'amount_out', 'amount_in', 'category')
@@ -517,7 +517,7 @@ class TransactionService:
         new_value: str
     ) -> int:
         """
-        指定フィールドの値を一括置換（Account モデルのフィールドを更新）
+        指定フィールドの値を一括置換
 
         Args:
             case: 対象の案件
@@ -526,7 +526,7 @@ class TransactionService:
             new_value: 置換後の値
 
         Returns:
-            影響を受けた口座数
+            影響を受けたレコード数
         """
         if field_name not in TransactionService.REPLACEABLE_FIELDS:
             logger.warning(f"不正なフィールド名: {field_name}")
@@ -535,8 +535,64 @@ class TransactionService:
         if not old_value or old_value == new_value:
             return 0
 
-        filter_kwargs = {field_name: old_value}
-        count = case.accounts.filter(**filter_kwargs).update(**{field_name: new_value})
+        if field_name == 'description':
+            count = case.transactions.filter(description=old_value).update(description=new_value)
+        elif field_name == 'account_number':
+            with db_transaction.atomic():
+                source = (
+                    case.accounts
+                    .select_for_update()
+                    .filter(account_number=old_value)
+                    .first()
+                )
+                if source is None:
+                    return 0
+
+                target = (
+                    case.accounts
+                    .select_for_update()
+                    .filter(account_number=new_value)
+                    .first()
+                )
+                if target is not None:
+                    # Replacing with an existing account number consolidates
+                    # the duplicate accounts without discarding source metadata.
+                    update_fields = []
+                    for account_field in (
+                        'bank_name', 'branch_name', 'account_type', 'holder',
+                        'inventory_remarks',
+                    ):
+                        if not getattr(target, account_field) and getattr(source, account_field):
+                            setattr(target, account_field, getattr(source, account_field))
+                            update_fields.append(account_field)
+
+                    for balance_field in ('passbook_balance', 'certificate_balance'):
+                        if getattr(target, balance_field) is None and getattr(source, balance_field) is not None:
+                            setattr(target, balance_field, getattr(source, balance_field))
+                            update_fields.append(balance_field)
+
+                    if source.has_accrued_interest and not target.has_accrued_interest:
+                        target.has_accrued_interest = True
+                        update_fields.append('has_accrued_interest')
+
+                    merged_years = {**source.passbook_years, **target.passbook_years}
+                    if merged_years != target.passbook_years:
+                        target.passbook_years = merged_years
+                        update_fields.append('passbook_years')
+
+                    if update_fields:
+                        target.save(update_fields=update_fields)
+
+                    source.transactions.update(account=target)
+                    source.delete()
+                    count = 1
+                else:
+                    source.account_number = new_value
+                    source.save(update_fields=['account_number'])
+                    count = 1
+        else:
+            filter_kwargs = {field_name: old_value}
+            count = case.accounts.filter(**filter_kwargs).update(**{field_name: new_value})
 
         logger.info(
             f"一括置換完了: case_id={case.id}, field={field_name}, "
@@ -547,7 +603,7 @@ class TransactionService:
     @staticmethod
     def get_unique_field_values(case: Case, field_name: str) -> list[dict]:
         """
-        指定フィールドのユニーク値と件数を取得（Account モデルから）
+        指定フィールドのユニーク値と件数を取得
 
         Args:
             case: 対象の案件
@@ -559,8 +615,9 @@ class TransactionService:
         if field_name not in TransactionService.REPLACEABLE_FIELDS:
             return []
 
+        source = case.transactions if field_name == 'description' else case.accounts
         qs = (
-            case.accounts
+            source
             .values(field_name)
             .annotate(count=Count('id'))
             .order_by('-count')

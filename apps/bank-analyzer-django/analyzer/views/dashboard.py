@@ -191,7 +191,11 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     analysis_data = AnalysisService.get_analysis_data(case, filter_state)
 
     if analysis_data.get('no_data'):
-        return render(request, 'analyzer/analysis.html', {'case': case, 'no_data': True})
+        return render(request, 'analyzer/analysis.html', {
+            'case': case,
+            'no_data': True,
+            'filter_state': filter_state,
+        })
 
     keyword = filter_state.get('keyword', '')
     per_page = get_per_page(request)
