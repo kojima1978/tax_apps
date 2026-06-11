@@ -9,6 +9,42 @@ const SH_TOP = 33.96;        // 1行目の上端%
 const SH_SELF = 76.37;       // 自己株式行の上端（データ行はここまで）
 const SH_PITCH = (SH_SELF - SH_TOP) / SH_ROWS;
 
+// ── 計算の根拠（参考リンク） ──
+const REFERENCES = [
+  { label: '評価通達188（同族株主以外の株主等が取得した株式）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-188' },
+  { label: '評価通達188-2（同族株主以外の株主等が取得した株式の評価）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-188_2' },
+];
+
+// ── 判定マトリクスの自動ハイライト（⑤と⑥に基づく） ──
+// ⑥列の区分: 50%超 / 30%以上50%以下 / 30%未満 → 各列での⑤の閾値は 50 / 30 / 15
+const col6Threshold = (r6: number): 50 | 30 | 15 | null => (r6 > 50 ? 50 : r6 >= 30 ? 30 : r6 >= 0 ? 15 : null);
+const r5r6 = (g: (f: string) => string): { r5: number; r6: number; valid: boolean } => {
+  const s5 = g('⑤'), s6 = g('⑥');
+  const r5 = Number(s5), r6 = Number(s6);
+  return { r5, r6, valid: s5 !== '' && s6 !== '' && !isNaN(r5) && !isNaN(r6) };
+};
+// 同族株主等の各列（閾値）：その列が選択されていて、かつ⑤≥閾値
+const dozokuMatch = (th: 50 | 30 | 15) => (g: (f: string) => string) => {
+  const { r5, r6, valid } = r5r6(g);
+  return valid && col6Threshold(r6) === th && r5 >= th;
+};
+// 同族株主等以外の各列：その列が選択されていて、かつ⑤<閾値
+const nonDozokuMatch = (th: 50 | 30 | 15) => (g: (f: string) => string) => {
+  const { r5, r6, valid } = r5r6(g);
+  return valid && col6Threshold(r6) === th && r5 < th;
+};
+// 最終判定（行全体）
+const isDozokuJudge = (g: (f: string) => string) => {
+  const { r5, r6, valid } = r5r6(g);
+  const th = col6Threshold(r6);
+  return valid && th !== null && r5 >= th;
+};
+const isNonDozokuJudge = (g: (f: string) => string) => {
+  const { r5, r6, valid } = r5r6(g);
+  const th = col6Threshold(r6);
+  return valid && th !== null && r5 < th;
+};
+
 type Col = { left: number; width: number };
 const SH_COLS: Col[] = [
   { left: 10.14, width: 11.05 }, // 氏名又は名称
@@ -116,18 +152,20 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '３０％未満の場 合', highlightWhen: (g) => g('⑥') !== '' && Number(g('⑥')) < 30, top: 33.96, left: 77.38, width: 7.77, height: 4.24 },
   { kind: 'label', text: '株主の区分', top: 30.39, left: 84.88, width: 8.59, height: 7.81 },
   { kind: 'label', text: '⑤の割合', top: 38.01, left: 60.88, width: 1.64, height: 8, align: 'center' },
-  { kind: 'label', text: '５０％超', top: 38.1, left: 62.38, width: 7.64, height: 4.05 },
-  { kind: 'label', text: '３０％以上', top: 38.01, left: 69.88, width: 7.64, height: 4.05 },
-  { kind: 'label', text: '１５％以上', top: 37.91, left: 77.38, width: 7.64, height: 4.24 },
-  { kind: 'label', text: ' 同族株主等', top: 38.01, left: 84.88, width: 8.59, height: 4.05 },
-  { kind: 'label', text: '５０％未満', top: 41.86, left: 62.38, width: 7.77, height: 4.14 },
-  { kind: 'label', text: '３０％未満', top: 41.96, left: 69.88, width: 7.64, height: 4.05 },
-  { kind: 'label', text: '１５％未満', top: 42.06, left: 77.24, width: 7.77, height: 3.86 },
-  { kind: 'label', text: '同族株主等\n以外の株主', top: 41.96, left: 84.88, width: 8.59, height: 4.05 },
+  // 同族株主等の行：列ごとに「⑥の区分」かつ「⑤≥列の閾値」のときハイライト
+  { kind: 'label', text: '５０％超', highlightWhen: dozokuMatch(50), top: 38.1, left: 62.38, width: 7.64, height: 4.05 },
+  { kind: 'label', text: '３０％以上', highlightWhen: dozokuMatch(30), top: 38.01, left: 69.88, width: 7.64, height: 4.05 },
+  { kind: 'label', text: '１５％以上', highlightWhen: dozokuMatch(15), top: 37.91, left: 77.38, width: 7.64, height: 4.24 },
+  { kind: 'label', text: ' 同族株主等', highlightWhen: isDozokuJudge, top: 38.01, left: 84.88, width: 8.59, height: 4.05 },
+  // 同族株主等以外の行：⑤<列の閾値のときハイライト
+  { kind: 'label', text: '５０％未満', highlightWhen: nonDozokuMatch(50), top: 41.86, left: 62.38, width: 7.77, height: 4.14 },
+  { kind: 'label', text: '３０％未満', highlightWhen: nonDozokuMatch(30), top: 41.96, left: 69.88, width: 7.64, height: 4.05 },
+  { kind: 'label', text: '１５％未満', highlightWhen: nonDozokuMatch(15), top: 42.06, left: 77.24, width: 7.77, height: 3.86 },
+  { kind: 'label', text: '同族株主等\n以外の株主', highlightWhen: isNonDozokuJudge, top: 41.96, left: 84.88, width: 8.59, height: 4.05 },
   { kind: 'label', text: '判定', top: 45.91, left: 59.38, width: 1.64, height: 7.9, align: 'center' },
-  { kind: 'label', text: '同族株主等\n(原則的評価方式等)', top: 45.81, left: 60.88, width: 16.64, height: 4.24 },
-  { kind: 'label', text: '同族株主等以外の株主\n（配当還元方式）', top: 45.81, left: 77.38, width: 16.09, height: 4.24 },
-  { kind: 'label', text: '｢同族株主等に該当する納税義務者のうち、議決権割合( ㋩ の割合）が５％未満の者の評価方式は、「２．少数株式所有者の評価方式の判定」欄により判定します。', top: 49.77, left: 60.74, width: 32.87, height: 4.24 },
+  { kind: 'label', text: '同族株主等\n(原則的評価方式等)', highlightWhen: isDozokuJudge, top: 45.81, left: 60.88, width: 16.64, height: 4.24 },
+  { kind: 'label', text: '同族株主等以外の株主\n（配当還元方式）', highlightWhen: isNonDozokuJudge, top: 45.81, left: 77.38, width: 16.09, height: 4.24 },
+  { kind: 'label', text: '｢同族株主等に該当する納税義務者のうち、議決権割合( ㋩ の割合）が５％未満の者の評価方式は、「２．少数株式所有者の評価方式の判定」欄により判定します。', top: 49.77, left: 60.74, width: 32.87, height: 4.24, align: 'left' },
   // ── 2. 少数株式所有者の評価方式の判定（右下） ──
   { kind: 'label', text: '２．少数株式所有者の評価方式の判定', top: 53.72, left: 59.38, width: 34.23, height: 4.14, align: 'left', fontSize: 10 },
   { kind: 'label', text: '判定要素', top: 57.77, left: 59.24, width: 1.91, height: 20.43, align: 'center' },
@@ -173,5 +211,5 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     return getField(T, f);
   };
   const u = (f: string, v: string) => updateField(T, f, v);
-  return <GridForm cells={CELLS} g={g} u={u} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" />;
+  return <GridForm cells={CELLS} g={g} u={u} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" references={REFERENCES} />;
 }
