@@ -317,6 +317,8 @@ class AnalysisServiceTest(TestCase):
         categories = AnalysisService.STANDARD_CATEGORIES
         self.assertIn("生活費", categories)
         self.assertIn("贈与", categories)
+        self.assertIn("税金", categories)
+        self.assertIn("修繕・資本", categories)
         self.assertIn("未分類", categories)
 
 
