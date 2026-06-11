@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback, type CSSProperties, type KeyboardEvent } from 'react';
+import { useMemo, useRef, useCallback, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 
 /** グリッドセル定義（座標・サイズは％） */
 export interface GridCell {
@@ -19,10 +19,12 @@ export interface GridCell {
   commaInteger?: boolean;            // 整数を3桁区切りカンマで表示
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                 // 自動計算などの編集不可欄
+  options?: string[];                 // 選択式入力の候補（空文字は未選択）
   highlightWhen?: (g: (field: string) => string) => boolean; // 自動判定時の強調条件
   diagonal?: 'tlbr' | 'bltr'; // 斜線（入力不可セル: tlbr=＼ 左上→右下, bltr=／ 左下→右上）
   date?: boolean; // 和暦◯年◯月◯日の複合入力（fieldを接頭辞に _g/_y/_m/_d を付与）
   dateRange?: boolean; // 自◯年◯月◯日／至◯年◯月◯日 の期間入力（field_from_*, field_to_*）
+  link?: string; // ラベルをリンクとして表示（外部URL）
 }
 
 interface GridFormProps {
@@ -32,6 +34,10 @@ interface GridFormProps {
   width?: string;
   /** 枠外上部に表示する様式タイトル */
   title?: string;
+  /** 枠外下部に表示する参考リンク（計算の根拠等） */
+  references?: { label: string; url: string }[];
+  /** タイトル行の右側に表示する操作UI（業種選択など） */
+  toolbar?: ReactNode;
 }
 
 /** 近接する境界線を統合（tol％以内は同一線とみなす） */
@@ -100,7 +106,7 @@ function DateFields({ field, g, u, onKeyDown }: DateFieldsProps) {
  * 各矩形の left/right を縦線、top/bottom を横線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, width = '100%', title }: GridFormProps) {
+export function GridForm({ cells, g, u, width = '100%', title, references, toolbar }: GridFormProps) {
   const { colTmpl, rowTmpl, placed } = useMemo(() => {
     const xs = snapLines(cells.flatMap((c) => [c.left, c.left + c.width]));
     const ys = snapLines(cells.flatMap((c) => [c.top, c.top + c.height]));
@@ -128,7 +134,12 @@ export function GridForm({ cells, g, u, width = '100%', title }: GridFormProps) 
 
   return (
     <div style={{ width, margin: '0 auto' }}>
-      {title && <div style={{ fontWeight: 700, fontSize: 13, padding: '2px 0 4px', fontFamily: '"Noto Sans JP", sans-serif', lineHeight: 1.3 }}>{title}</div>}
+      {title && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '2px 0 4px', fontFamily: '"Noto Sans JP", sans-serif' }}>
+          <span style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3 }}>{title}</span>
+          {toolbar}
+        </div>
+      )}
       <div ref={gridRef} style={{ width: '100%', aspectRatio: '210 / 297', display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif' }}>
       {placed.map(({ c, cs, ce, rs, re }, i) => {
         // 縦長のラベルは縦書き（帯見出し）。スペースは縦書き時に除去。
@@ -173,16 +184,34 @@ export function GridForm({ cells, g, u, width = '100%', title }: GridFormProps) 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, whiteSpace: 'nowrap' }}>自<DateFields field={`${c.field}_from`} g={g} u={u} onKeyDown={onEnterNext} /></div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, whiteSpace: 'nowrap' }}>至<DateFields field={`${c.field}_to`} g={g} u={u} onKeyDown={onEnterNext} /></div>
               </div>
-            ) : c.kind === 'input' && c.field
+            ) : c.kind === 'input' && c.field && c.options
+              ? <select value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: 'left', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px' }}>
+                  {c.options.map((option) => <option key={option || 'blank'} value={option}>{option}</option>)}
+                </select>
+              : c.kind === 'input' && c.field
               ? <>
                   {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
                   <input value={c.commaInteger ? formatCommaInteger(g(c.field)) : g(c.field)} onChange={(e) => u(c.field!, c.commaInteger ? formatCommaInteger(e.target.value) : c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.integerDigits ? e.target.value.replace(/\D/g, '').slice(0, c.integerDigits) : e.target.value)} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} inputMode={c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
                 </>
-              : c.kind === 'label' ? (text.includes('\n') ? <span style={{ whiteSpace: 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span> : text) : null}
+              : c.kind === 'label' ? (
+                c.link ? (
+                  <a href={c.link} target="_blank" rel="noopener noreferrer" style={{ color: '#1d4ed8', textDecoration: 'underline', whiteSpace: text.includes('\n') ? 'pre-line' : 'normal', width: '100%', textAlign: c.align ?? 'center', display: 'block' }}>{text}</a>
+                ) : (
+                  text.includes('\n') ? <span style={{ whiteSpace: 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span> : text
+                )
+              ) : null}
           </div>
         );
       })}
       </div>
+      {references && references.length > 0 && (
+        <div style={{ padding: '4px 0 0', fontSize: 10, fontFamily: '"Noto Sans JP", sans-serif', color: '#555', display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
+          <span style={{ fontWeight: 600 }}>計算の根拠：</span>
+          {references.map((r, i) => (
+            <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: '#1d4ed8', textDecoration: 'underline' }}>{r.label}</a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
