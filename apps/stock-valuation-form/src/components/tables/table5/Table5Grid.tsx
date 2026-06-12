@@ -129,8 +129,8 @@ const CALCULATED_CELLS = CELLS.map((cell) => (
     : cell
 ));
 
-/** 第5表（CSSグリッド方式・完成版） */
-export function Table5Grid({ getField, updateField }: TableProps) {
+/** 第5表の自動計算（第3表の②③などからも参照する） */
+export function calcTable5(getField: TableProps['getField']) {
   let assetEval = 0;
   let assetBook = 0;
   let stockEval = 0;
@@ -220,6 +220,12 @@ export function Table5Grid({ getField, updateField }: TableProps) {
     '⑪': netPerShare,
     '⑫': netPerShare80,
   };
+  return calculated;
+}
+
+/** 第5表（CSSグリッド方式・完成版） */
+export function Table5Grid({ getField, updateField }: TableProps) {
+  const calculated = calcTable5(getField);
 
   const g = (f: string) => {
     if (COMPUTED_FIELDS.has(f)) {

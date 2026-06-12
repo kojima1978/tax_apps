@@ -12,6 +12,7 @@ export interface GridCell {
   align?: 'left' | 'center' | 'right';
   fontSize?: number;
   bold?: boolean;
+  noWrap?: boolean;                  // 明示改行以外では折り返さない
   cornerLabel?: string;             // 入力欄の左上に表示する固定ラベル
   topRightLabel?: string;            // セルの右上に表示する固定ラベル
   rightLabel?: string;               // セルの右端中央に表示する固定ラベル
@@ -25,6 +26,24 @@ export interface GridCell {
   date?: boolean; // 和暦◯年◯月◯日の複合入力（fieldを接頭辞に _g/_y/_m/_d を付与）
   dateRange?: boolean; // 自◯年◯月◯日／至◯年◯月◯日 の期間入力（field_from_*, field_to_*）
   link?: string; // ラベルをリンクとして表示（外部URL）
+  multiline?: boolean; // 計算結果を複数行で表示（readOnly前提。\n区切り）
+  fractionExpression?: {
+    terms: { numerator: string; denominator: string }[];
+    denominator: string;
+  }; // 複数の分数を加算し、さらに共通分母で割る式
+  productFractionExpression?: {
+    prefixLines: string[];
+    numerator: string;
+    denominator: string;
+  }; // 説明文 × 分数の式
+  simpleFraction?: {
+    numerator: string;
+    denominator: string;
+  }; // 単純な分数
+  alternativeFractions?: {
+    left: { numerator: string; denominator: string };
+    right: { numerator: string; denominator: string };
+  }; // 2つの分数を「又は」で並べる式
 }
 
 interface GridFormProps {
@@ -167,7 +186,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
             background: highlighted ? '#fff3b0' : undefined,
             boxShadow: highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
             padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
-            lineHeight: 1.15, wordBreak: 'break-all', whiteSpace: 'normal', textAlign: 'center',
+            lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: 'center',
           }}>
             {c.topRightLabel && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.topRightLabel}</span>}
             {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
@@ -184,6 +203,10 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, whiteSpace: 'nowrap' }}>自<DateFields field={`${c.field}_from`} g={g} u={u} onKeyDown={onEnterNext} /></div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, whiteSpace: 'nowrap' }}>至<DateFields field={`${c.field}_to`} g={g} u={u} onKeyDown={onEnterNext} /></div>
               </div>
+            ) : c.kind === 'input' && c.field && c.multiline ? (
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: c.align === 'left' ? 'flex-start' : 'flex-end', whiteSpace: 'pre-line', textAlign: 'right', overflow: 'hidden', background: c.readOnly ? '#f7f7f7' : undefined, lineHeight: 1.4 }}>
+                {g(c.field)}
+              </div>
             ) : c.kind === 'input' && c.field && c.options
               ? <select value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: 'left', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px' }}>
                   {c.options.map((option) => <option key={option || 'blank'} value={option}>{option}</option>)}
@@ -193,11 +216,54 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                   {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
                   <input value={c.commaInteger ? formatCommaInteger(g(c.field)) : g(c.field)} onChange={(e) => u(c.field!, c.commaInteger ? formatCommaInteger(e.target.value) : c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.integerDigits ? e.target.value.replace(/\D/g, '').slice(0, c.integerDigits) : e.target.value)} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} inputMode={c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
                 </>
-              : c.kind === 'label' ? (
+              : c.kind === 'label' && c.alternativeFractions ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35em', width: '98%', lineHeight: 1, whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '2em' }}>
+                    <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.25em 1px' }}>{c.alternativeFractions.left.numerator}</span>
+                    <span style={{ paddingTop: 1 }}>{c.alternativeFractions.left.denominator}</span>
+                  </span>
+                  <span>又は</span>
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '5.5em' }}>
+                    <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.25em 1px' }}>{c.alternativeFractions.right.numerator}</span>
+                    <span style={{ paddingTop: 1 }}>{c.alternativeFractions.right.denominator}</span>
+                  </span>
+                </span>
+              ) : c.kind === 'label' && c.simpleFraction ? (
+                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', minWidth: '2.5em', lineHeight: 1 }}>
+                  <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.45em 1px' }}>{c.simpleFraction.numerator}</span>
+                  <span style={{ paddingTop: 1 }}>{c.simpleFraction.denominator}</span>
+                </span>
+              ) : c.kind === 'label' && c.productFractionExpression ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '1.6em', width: '96%', height: '100%', lineHeight: 1.05, whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    {c.productFractionExpression.prefixLines.map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}
+                  </span>
+                  <span>×</span>
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '8em' }}>
+                    <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.6em 1px' }}>{c.productFractionExpression.numerator}</span>
+                    <span style={{ paddingTop: 1 }}>{c.productFractionExpression.denominator}</span>
+                  </span>
+                </span>
+              ) : c.kind === 'label' && c.fractionExpression ? (
+                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', width: '94%', height: '100%', lineHeight: 1 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.55em', borderBottom: '0.7px solid #000', padding: '0 0.35em 1px' }}>
+                    {c.fractionExpression.terms.map((term, index) => (
+                      <span key={`${term.numerator}-${term.denominator}-${index}`} style={{ display: 'contents' }}>
+                        {index > 0 && <span>＋</span>}
+                        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '2em' }}>
+                          <span style={{ borderBottom: '0.7px solid #000', paddingBottom: 1 }}>{term.numerator}</span>
+                          <span style={{ paddingTop: 1 }}>{term.denominator}</span>
+                        </span>
+                      </span>
+                    ))}
+                  </span>
+                  <span style={{ paddingTop: 1 }}>{c.fractionExpression.denominator}</span>
+                </span>
+              ) : c.kind === 'label' ? (
                 c.link ? (
                   <a href={c.link} target="_blank" rel="noopener noreferrer" style={{ color: '#1d4ed8', textDecoration: 'underline', whiteSpace: text.includes('\n') ? 'pre-line' : 'normal', width: '100%', textAlign: c.align ?? 'center', display: 'block' }}>{text}</a>
                 ) : (
-                  text.includes('\n') ? <span style={{ whiteSpace: 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span> : text
+                  text.includes('\n') ? <span style={{ whiteSpace: c.noWrap ? 'pre' : 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span> : text
                 )
               ) : null}
           </div>
