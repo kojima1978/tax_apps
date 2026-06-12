@@ -51,6 +51,9 @@ function calc(g: G) {
   return { gyo, emp, assetRank, txRank, empBand, result };
 }
 
+/** 会社規模の判定結果（第4表の斟酌率などで他表からも参照） */
+export const calcCompanySize = calc;
+
 const assetHL = (gyo: Gyo, r: number) => (g: G) => { const c = calc(g); return c.gyo === gyo && c.assetRank === r; };
 const txHL = (gyo: Gyo, r: number) => (g: G) => { const c = calc(g); return c.gyo === gyo && c.txRank === r; };
 const empHL = (band: Band) => (g: G) => calc(g).empBand === band;
