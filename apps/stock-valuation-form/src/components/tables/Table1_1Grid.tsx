@@ -45,6 +45,26 @@ const isNonDozokuJudge = (g: (f: string) => string) => {
   return valid && th !== null && r5 < th;
 };
 
+/** 第1表の1の株主判定（⑤⑥と同族株主等の判定。第3表の適用方式などから参照） */
+export function calcShareholderJudgment(getField: TableProps['getField']) {
+  const gf = (f: string) => getField('table1_1', f);
+  const n = (s: string) => Number(s.replace(/,/g, '')) || 0;
+  let votes = 0;
+  for (let r = 1; r <= SH_ROWS; r++) votes += n(gf(`sh_${r}_5`));
+  const denom = n(gf('④'));
+  const pct = (v: number, has: boolean): number | null => {
+    if (!has || denom <= 0) return null;
+    const rawPct = (v / denom) * 100;
+    if (rawPct > 50 && rawPct < 51) return 51; // 50%超51%未満は切り上げて51
+    return Math.floor(rawPct);
+  };
+  const ratio5 = pct(votes, votes > 0);
+  const ratio6 = pct(n(gf('③')), gf('③') !== '');
+  const th = ratio6 === null ? null : ratio6 > 50 ? 50 : ratio6 >= 30 ? 30 : 15;
+  const isDozoku = ratio5 !== null && th !== null ? ratio5 >= th : null;
+  return { ratio5, ratio6, isDozoku };
+}
+
 type Col = { left: number; width: number };
 const SH_COLS: Col[] = [
   { left: 10.14, width: 11.05 }, // 氏名又は名称
