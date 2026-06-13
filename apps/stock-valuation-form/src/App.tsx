@@ -138,7 +138,7 @@ export default function App() {
                   {tool.label}
                 </button>
               ))}
-              <input ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+              <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
             </div>
           </aside>
         )}

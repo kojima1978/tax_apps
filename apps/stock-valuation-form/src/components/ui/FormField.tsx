@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface FormFieldProps {
   value: string;
   onChange: (value: string) => void;
@@ -6,6 +8,8 @@ interface FormFieldProps {
   textAlign?: 'left' | 'center' | 'right';
   unit?: string;
   ariaLabel?: string;
+  id?: string;
+  name?: string;
 }
 
 export function FormField({
@@ -16,7 +20,11 @@ export function FormField({
   textAlign = 'left',
   unit,
   ariaLabel,
+  id,
+  name,
 }: FormFieldProps) {
+  const generatedId = `form-field-${useId().replace(/:/g, '')}`;
+  const inputId = id ?? generatedId;
   const alignClass =
     textAlign === 'right'
       ? 'text-right'
@@ -27,6 +35,8 @@ export function FormField({
   return (
     <span className={`flex items-center ${className || 'w-full'}`}>
       <input
+        id={inputId}
+        name={name ?? inputId}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}

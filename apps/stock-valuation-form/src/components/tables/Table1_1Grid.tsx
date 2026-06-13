@@ -231,5 +231,5 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     return getField(T, f);
   };
   const u = (f: string, v: string) => updateField(T, f, v);
-  return <GridForm cells={CELLS} g={g} u={u} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" references={REFERENCES} />;
+  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" references={REFERENCES} />;
 }

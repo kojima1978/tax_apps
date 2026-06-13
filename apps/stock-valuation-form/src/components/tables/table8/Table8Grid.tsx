@@ -89,5 +89,5 @@ const CELLS: GridCell[] = [
 export function Table8Grid({ getField, updateField }: TableProps) {
   const g = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
-  return <GridForm cells={CELLS} g={g} u={u} width="100%" title="第８表　株式等保有特定会社の株式の価額の計算明細書（続）" />;
+  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第８表　株式等保有特定会社の株式の価額の計算明細書（続）" />;
 }
