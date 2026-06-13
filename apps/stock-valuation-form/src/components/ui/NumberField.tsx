@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface NumberFieldProps {
   value: string;
   onChange: (value: string) => void;
@@ -6,6 +8,8 @@ interface NumberFieldProps {
   placeholder?: string;
   ariaLabel?: string;
   allowNegative?: boolean;
+  id?: string;
+  name?: string;
 }
 
 function addCommas(v: string): string {
@@ -25,7 +29,11 @@ export function NumberField({
   placeholder,
   ariaLabel,
   allowNegative = false,
+  id,
+  name,
 }: NumberFieldProps) {
+  const generatedId = `number-field-${useId().replace(/:/g, '')}`;
+  const inputId = id ?? generatedId;
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/,/g, '');
     if (raw === '' || raw === '-') {
@@ -41,6 +49,8 @@ export function NumberField({
   return (
     <span className={`flex items-center ${className || 'w-full'}`}>
       <input
+        id={inputId}
+        name={name ?? inputId}
         type="text"
         inputMode="numeric"
         value={addCommas(value)}

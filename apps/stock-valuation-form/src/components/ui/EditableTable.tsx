@@ -161,7 +161,7 @@ function CellRenderer({ col, prefix, rowIndex, isLast, g, u }: {
   if (col.type === 'select') {
     return (
       <div style={cellStyle}>
-        <select value={value} onChange={(e) => u(fieldKey, e.target.value)} className="gov-input" style={{ fontSize: 'inherit', padding: '1px 0' }} aria-label={col.header}>
+        <select id={fieldKey} name={fieldKey} value={value} onChange={(e) => u(fieldKey, e.target.value)} className="gov-input" style={{ fontSize: 'inherit', padding: '1px 0' }} aria-label={col.header}>
           {(col.options ?? []).map((opt) => <option key={opt} value={opt}>{opt || '\u2014'}</option>)}
         </select>
       </div>
@@ -179,7 +179,7 @@ function CellRenderer({ col, prefix, rowIndex, isLast, g, u }: {
     };
     return (
       <div style={cellStyle}>
-        <NumberField value={value} onChange={handleChange} ariaLabel={col.header} />
+        <NumberField id={fieldKey} name={fieldKey} value={value} onChange={handleChange} ariaLabel={col.header} />
       </div>
     );
   }

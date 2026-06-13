@@ -30,25 +30,56 @@ const CELLS: GridCell[] = [
   { kind: 'cell', text: '４株式及び株式に関する権利の価額', top: 74.73, left: 71.45, width: 21.14, height: 18.51 },
   // ── 1 原則的評価方法による価額 ──
   { kind: 'label', text: '１原則的評価方法による価額', top: 8.61, left: 8.44, width: 3.55, height: 37.01 },
-  { kind: 'label', text: '一株当たりの価格の基となる金額', top: 8.61, left: 11.92, width: 10.5, height: 8.48 },
-  { kind: 'label', text: '類 似 業 種 比 準 価 額（第４表の㉖、㉗又は㉘の金額）', top: 8.61, left: 22.55, width: 23.19, height: 3.86 },
-  { kind: 'label', text: '１株当たりの純資産価額（第５表の⑪の金額）', top: 8.61, left: 46.01, width: 23.19, height: 3.86 },
-  { kind: 'label', text: '１株当たりの純資産価額の80％相当額（第5表の⑫の記載がある場合のその金額）', top: 8.51, left: 69.2, width: 23.59, height: 3.86 },
+  { kind: 'label', text: '一株当たりの\n価格の基となる金額', top: 8.61, left: 11.92, width: 10.5, height: 8.48 },
+  { kind: 'label', text: '類似業種比準価額\n（第４表の㉖、㉗又は㉘の金額）', top: 8.61, left: 22.55, width: 23.19, height: 3.86 },
+  { kind: 'label', text: '１株当たりの純資産価額\n（第５表の⑪の金額）', top: 8.61, left: 46.01, width: 23.19, height: 3.86 },
+  { kind: 'label', text: '１株当たりの純資産価額の80％相当額\n（第5表の⑫の記載がある場合のその金額）', top: 8.51, left: 69.2, width: 23.59, height: 3.86 },
   { field: '①', kind: 'input', readOnly: true, cornerLabel: '①', topRightLabel: '円', top: 12.27, left: 22.14, width: 23.73, height: 4.92 },
   { field: '②', kind: 'input', readOnly: true, cornerLabel: '②', topRightLabel: '円', top: 12.37, left: 45.74, width: 23.46, height: 4.72 },
   { field: '③', kind: 'input', readOnly: true, cornerLabel: '③', topRightLabel: '円', top: 12.47, left: 69.2, width: 23.46, height: 4.53 },
-  { kind: 'label', text: '1株当たりの価額の計算', top: 16.9, left: 11.78, width: 3.68, height: 16.19 },
+  { kind: 'label', text: '1株当たりの価額の計算', verticalSectionHeading: { number: '1', text: '株当たりの価額の計算', compact: true }, top: 16.9, left: 11.78, width: 3.68, height: 16.19 },
   { kind: 'label', text: '区分', top: 16.9, left: 15.33, width: 7.09, height: 2.51 },
   { kind: 'label', text: '１株当たりの価額の算定方法', top: 17, left: 22.28, width: 49.23, height: 2.31 },
   { kind: 'label', text: '１株当たりの価額', top: 16.8, left: 71.38, width: 21.14, height: 2.51 },
-  { kind: 'label', text: '大会社の株式の価額', top: 19.21, left: 15.33, width: 7.09, height: 4.72 },
-  { kind: 'label', text: '次のうちいずれか低い方の金額（②の記載がないときは①の金額）イ　①の金額　ロ　②の金額', top: 19.12, left: 22.28, width: 49.23, height: 4.92, align: 'left' },
+  { kind: 'label', text: '大会社の\n株式の価額', top: 19.21, left: 15.33, width: 7.09, height: 4.72 },
+  {
+    kind: 'label',
+    text: '次のうちいずれか低い方の金額（②の記載がないときは①の金額）\n\nイ　①の金額\nロ　②の金額',
+    align: 'left',
+    highlightLinePrefixes: (g) => g('大会社の採用値').split('・').filter(Boolean),
+    top: 19.12,
+    left: 22.28,
+    width: 49.23,
+    height: 4.92,
+  },
   { field: '④', kind: 'input', readOnly: true, cornerLabel: '④', topRightLabel: '円', top: 19.02, left: 71.38, width: 21.41, height: 5.11 },
-  { kind: 'label', text: '中会社の株式の価額', top: 23.84, left: 15.19, width: 7.23, height: 4.72 },
-  { kind: 'label', text: '（①と②とのいずれか低い方の金額×Lの割合）＋（②の金額（③の金額があるときは③の金額）×（1－Lの割合））\n※Lの割合は第1表の2の判定から自動適用', top: 23.93, left: 22.14, width: 49.51, height: 4.72, align: 'left', fontSize: 6.5 },
+  { kind: 'label', text: '中会社の\n株式の価額', top: 23.84, left: 15.19, width: 7.23, height: 4.72 },
+  {
+    kind: 'label',
+    text: '（①と②とのいずれか低い方の金額×Lの割合）＋（②の金額（③の金額があるときは③の金額）×（1－Lの割合））',
+    weightedAverageExpression: {
+      leftLines: ['①と②とのいずれか', '低い方の金額'],
+      rightLines: ['②の金額（③の金額が', 'あるときは③の金額）'],
+      rateField: 'L割合',
+    },
+    top: 23.93,
+    left: 22.14,
+    width: 49.51,
+    height: 4.72,
+    fontSize: 5.5,
+  },
   { field: '⑤', kind: 'input', readOnly: true, cornerLabel: '⑤', topRightLabel: '円', top: 23.84, left: 71.38, width: 21.41, height: 4.82 },
   { kind: 'label', text: '小会社の株式の価額', top: 28.37, left: 15.33, width: 7.09, height: 4.92 },
-  { kind: 'label', text: '次のうちいずれか低い方の金額　イ　②の金額（③の金額があるときは③の金額）　ロ　（①の金額×0.5）＋（イの金額×0.5）', top: 28.56, left: 22.28, width: 49.37, height: 4.82, align: 'left' },
+  {
+    kind: 'label',
+    text: '次のうちいずれか低い方の金額\n\nイ　②の金額（③の金額があるときは③の金額）\nロ　（①の金額×0.5）＋（㋑の金額×0.5）',
+    align: 'left',
+    highlightLinePrefixes: (g) => g('小会社の採用値').split('・').filter(Boolean),
+    top: 28.56,
+    left: 22.28,
+    width: 49.37,
+    height: 4.82,
+  },
   { field: '⑥', kind: 'input', readOnly: true, cornerLabel: '⑥', topRightLabel: '円', top: 28.56, left: 71.52, width: 21.14, height: 4.72 },
   // 株式の価額の修正
   { kind: 'label', text: '株式の価額の修正', top: 33.19, left: 11.92, width: 3.41, height: 12.43 },
@@ -69,12 +100,12 @@ const CELLS: GridCell[] = [
   { field: '⑧', kind: 'input', readOnly: true, cornerLabel: '⑧', topRightLabel: '円', top: 41.57, left: 71.38, width: 21.14, height: 3.86 },
   // ── 2 配当還元方式による価額 ──
   { kind: 'label', text: '２ 配 当 還 元 方 式 に よ る 価 額', top: 45.43, left: 8.51, width: 3.55, height: 29.4 },
-  { kind: 'label', text: '１ 株 当 た り の 資本金等の額、 発行済株式数等', top: 45.33, left: 11.78, width: 11.73, height: 8.67 },
+  { kind: 'label', text: '１株当たりの資本金等の額、\n発行済株式数等', top: 45.33, left: 11.78, width: 11.73, height: 8.67 },
   { kind: 'label', text: '直 前 期 末 の 資 本 金 等 の 額', top: 45.38, left: 23.29, width: 14.32, height: 4.72 },
   { kind: 'label', text: '直 前 期 末 の 発 行 済 株 式 数', top: 45.38, left: 37.47, width: 14.18, height: 4.72 },
   { kind: 'label', text: '直 前 期 末 の 自 己 株 式 数', top: 45.38, left: 51.52, width: 12.96, height: 4.82 },
-  { kind: 'label', text: '１株当たりの資本金等 の額を50円とした場合 の 発 行 済 株 式 数 （ ⑨ ÷ 50 円 ）', top: 45.38, left: 64.39, width: 14.18, height: 4.92 },
-  { kind: 'label', text: '１ 株 当 た り の 資 本 金 等 の 額 （⑨÷（⑩－⑪））', top: 45.28, left: 78.3, width: 14.18, height: 4.92 },
+  { kind: 'label', text: '１株当たりの資本金等の額を\n50円とした場合の発済株式数\n（⑨÷50円）', top: 45.38, left: 64.39, width: 14.18, height: 4.92 },
+  { kind: 'label', text: '１株当たりの資本金等の額\n（⑨÷（⑩－⑪））', top: 45.28, left: 78.3, width: 14.18, height: 4.92 },
   { field: '⑨', kind: 'input', commaInteger: true, cornerLabel: '⑨', topRightLabel: '千円', top: 50.01, left: 23.34, width: 14.32, height: 3.95 },
   { field: '⑩', kind: 'input', commaInteger: true, cornerLabel: '⑩', topRightLabel: '株', top: 50.1, left: 37.39, width: 14.32, height: 3.95 },
   { field: '⑪', kind: 'input', commaInteger: true, cornerLabel: '⑪', topRightLabel: '株', top: 50.1, left: 51.57, width: 12.96, height: 3.86 },
@@ -84,7 +115,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '事 業 年 度', top: 53.77, left: 15.15, width: 8.46, height: 3.28 },
   { kind: 'label', text: '⑭ 年 配 当 金 額', top: 53.77, left: 23.47, width: 16.5, height: 3.37 },
   { kind: 'label', text: '⑮左 の う ち 非 経 常 的 な 配 当 金 額', top: 53.86, left: 39.84, width: 17.59, height: 3.37 },
-  { kind: 'label', text: '⑯差引経常的な年配当金額 （ ⑭ － ⑮ ）', top: 53.96, left: 57.43, width: 17.73, height: 3.18 },
+  { kind: 'label', text: '⑯差引経常的な年配当金額\n（ ⑭－⑮ ）', top: 53.96, left: 57.43, width: 17.73, height: 3.18 },
   { kind: 'label', text: '年 平 均 配 当 金 額', top: 54.15, left: 75.03, width: 17.59, height: 2.89 },
   { kind: 'label', text: '直 前 期', top: 56.95, left: 15.15, width: 8.46, height: 3.95 },
   { field: 'f55', kind: 'input', commaInteger: true, topRightLabel: '千円', top: 56.95, left: 23.34, width: 16.64, height: 4.05 },
@@ -95,7 +126,7 @@ const CELLS: GridCell[] = [
   { field: 'f60', kind: 'input', commaInteger: true, top: 60.85, left: 39.98, width: 17.59, height: 3.95 },
   { field: 'ロ', kind: 'input', readOnly: true, cornerLabel: 'ロ', top: 60.85, left: 57.43, width: 17.59, height: 3.95 },
   { field: '⑰（イ＋ロ）÷２ ', kind: 'input', readOnly: true, cornerLabel: '⑰(イ＋ロ)÷2', top: 56.9, left: 75.03, width: 17.59, height: 7.81 },
-  { kind: 'label', text: '１株(50円)当たり の 年 配 当 金 額\n（⑰÷⑫、2円50銭未満は2円50銭）', top: 64.61, left: 11.74, width: 11.73, height: 4.05, fontSize: 6.5 },
+  { kind: 'label', text: '１株(50円)当たりの\n年配当金額', top: 64.61, left: 11.74, width: 11.73, height: 4.05, fontSize: 6.5 },
   { field: '⑱', kind: 'input', readOnly: true, cornerLabel: '⑱', top: 64.8, left: 23.34, width: 69.28, height: 3.95 },
   { kind: 'label', text: '配 当 還 元 価 額', top: 68.56, left: 11.74, width: 11.87, height: 6.26 },
   { field: '⑲', kind: 'input', readOnly: true, cornerLabel: '⑲ ⑱÷10%×⑬÷50円', topRightLabel: '円', top: 68.46, left: 23.47, width: 38.87, height: 6.26 },
@@ -109,22 +140,22 @@ const CELLS: GridCell[] = [
   { field: 'exp_tax', kind: 'input', decimalPlaces: 2, topRightLabel: '円', top: 74.73, left: 50.88, width: 6.45, height: 4.82 },
   { field: '㉑', kind: 'input', readOnly: true, cornerLabel: '㉑', topRightLabel: '円', top: 74.73, left: 57.3, width: 9.55, height: 4.63 },
   { field: 'f72', kind: 'input', readOnly: true, topRightLabel: '銭', top: 74.73, left: 66.57, width: 4.91, height: 4.63 },
-  { kind: 'label', text: '株式の割当てを受ける権利 (割当株式１株当たりの価額)', top: 79.45, left: 11.88, width: 15.27, height: 4.53 },
-  { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額　－　割当株式1株当たりの払込金額', top: 79.26, left: 26.88, width: 22, height: 4.82, fontSize: 6.5 },
+  { kind: 'label', text: '株式の割当てを受ける権利\n(割当株式１株当たりの価額)', top: 79.45, left: 11.88, width: 15.27, height: 4.53 },
+  { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額　－　割当株式1株当たりの払込金額', align: 'left', top: 79.26, left: 26.88, width: 22, height: 4.82, fontSize: 6.5 },
   { field: 'r22_pay', kind: 'input', decimalPlaces: 2, topRightLabel: '円', top: 79.26, left: 48.88, width: 8.55, height: 4.82 },
   { field: '㉒', kind: 'input', readOnly: true, cornerLabel: '㉒', topRightLabel: '円', top: 79.36, left: 57.3, width: 14.18, height: 4.72 },
-  { kind: 'label', text: '株 主 と な る 権 利 (割当株式１株当たりの価額)', top: 83.98, left: 11.88, width: 15.14, height: 4.63 },
-  { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額（課税時期後に払い込むべき金額があるときは控除）', top: 83.89, left: 27.02, width: 21.86, height: 4.82, fontSize: 6 },
+  { kind: 'label', text: '株主となる権利\n(割当株式１株当たりの価額)', top: 83.98, left: 11.88, width: 15.14, height: 4.63 },
+  { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額（課税時期後に払い込むべき金額があるときは控除）', align: 'left', top: 83.89, left: 27.02, width: 21.86, height: 4.82, fontSize: 6 },
   { field: 'r23_pay', kind: 'input', decimalPlaces: 2, topRightLabel: '円', top: 83.89, left: 48.88, width: 8.55, height: 4.82 },
   { field: '㉓', kind: 'input', readOnly: true, cornerLabel: '㉓', topRightLabel: '円', top: 83.98, left: 57.43, width: 13.91, height: 4.63 },
-  { kind: 'label', text: '株 式 無 償 交 付 期 待 権 (交付される株式１株当たりの価額)', top: 88.51, left: 11.88, width: 15, height: 4.63 },
-  { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額', top: 88.51, left: 26.88, width: 30.69, height: 4.63 },
+  { kind: 'label', text: '株式無償交付期待権\n(交付される株式１株当たりの価額)', top: 88.51, left: 11.88, width: 15, height: 4.63 },
+  { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額', align: 'left', top: 88.51, left: 26.88, width: 30.69, height: 4.63 },
   { field: '㉔', kind: 'input', readOnly: true, cornerLabel: '㉔', topRightLabel: '円', top: 88.42, left: 57.16, width: 14.18, height: 4.72 },
   // ── 4 株式及び株式に関する権利の価額 ──
-  { kind: 'label', text: '４．株式及び株式に関する 権利の価額 （１．及び２．に共通）', top: 74.73, left: 71.34, width: 21.28, height: 4.72 },
+  { kind: 'label', text: '４．株式及び株式に関する権利の価額\n（１．及び２．に共通）', top: 74.73, left: 71.34, width: 21.28, height: 4.72 },
   { kind: 'label', text: '株式の評価額', top: 79.26, left: 71.48, width: 8.32, height: 6.26 },
   { field: 'f84', kind: 'input', readOnly: true, topRightLabel: '円', top: 79.36, left: 79.66, width: 12.82, height: 6.26 },
-  { kind: 'label', text: '株式に関する 権利の評価額', top: 85.43, left: 71.48, width: 8.32, height: 7.81 },
+  { kind: 'label', text: '株式に関する権利\nの評価額', top: 85.43, left: 71.48, width: 8.32, height: 7.81 },
   { field: 'f86', kind: 'input', readOnly: true, multiline: true, fontSize: 7.5, top: 85.43, left: 79.39, width: 13.09, height: 7.71 },
 ];
 
@@ -171,11 +202,12 @@ export function Table3Grid({ getField, updateField }: TableProps) {
   const v8 = base8 !== null && mod2Ratio2 !== null ? fl((base8 + (mod2Pay ?? 0) * (mod2Ratio ?? 0)) / (1 + mod2Ratio2)) : null;
   const gensoku = v8 ?? v7 ?? base; // 原則的評価方式の最終価額
 
-  // 2. 配当還元方式（⑨⑩⑪は第4表①②③を初期表示・手入力で上書き可）
+  // 2. 配当還元方式（⑨⑩は第4表①②、⑪は第1表の1の自己株式数を初期表示・手入力で上書き可）
   const effStr = (own: string, fb: string) => (raw(own).trim() !== '' ? raw(own) : getField('table4', fb));
+  const linkedTreasuryShares = getField('table1_1', 'f63') || getField('table1_1', 'treasury_shares');
   const v9c = numOf(effStr('⑨', '①'));
   const v10c = numOf(effStr('⑩', '②'));
-  const v11c = numOf(effStr('⑪', '③'));
+  const v11c = numOf(raw('⑪').trim() !== '' ? raw('⑪') : linkedTreasuryShares);
   const v12 = v9c !== null ? fl(v9c * 20) : null; // ⑫=⑨×1000÷50
   // ⑬: 円未満切捨て。0となる場合は(⑩－⑪)の桁数の小数（記載要領3⑴ロ）
   const sharesNet3 = v10c !== null ? v10c - (v11c ?? 0) : null;
@@ -230,13 +262,29 @@ export function Table3Grid({ getField, updateField }: TableProps) {
       case '②': return fmt(v2);
       case '③': return fmt(v3);
       case '④': return fmt(v4);
+      case '大会社の採用値':
+        if (v1 === null && v2 === null) return '';
+        if (v2 === null) return 'イ';
+        if (v1 === null) return 'ロ';
+        if (v1 === v2) return 'イ・ロ';
+        return v1 < v2 ? 'イ' : 'ロ';
+      case '小会社の採用値': {
+        if (iSmall === null) return '';
+        if (v1 === null) return 'イ';
+        const blended = v1 * 0.5 + iSmall * 0.5;
+        if (iSmall === blended) return 'イ・ロ';
+        return iSmall < blended ? 'イ' : 'ロ';
+      }
       case '⑤': return fmt(v5);
       case '⑥': return fmt(v6);
+      case 'L割合': return lRate === null ? '' : lRate.toFixed(2);
       case '⑦': return fmt(v7);
       case '⑧': return fmt(v8);
       case '⑨': return raw('⑨').trim() !== '' ? raw('⑨') : getField('table4', '①');
       case '⑩': return raw('⑩').trim() !== '' ? raw('⑩') : getField('table4', '②');
-      case '⑪': return raw('⑪').trim() !== '' ? raw('⑪') : getField('table4', '③');
+      case '⑪': return raw('⑪').trim() !== ''
+        ? raw('⑪')
+        : linkedTreasuryShares;
       case '⑫': return fmt(v12);
       case '⑬': return v13disp;
       case 'イ': return fmtDec1(ia);
@@ -259,7 +307,7 @@ export function Table3Grid({ getField, updateField }: TableProps) {
     <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, whiteSpace: 'nowrap', flexWrap: 'wrap' }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         適用方式：
-        <select value={raw('hoshiki')} onChange={(e) => u('hoshiki', e.target.value)} style={{ fontSize: 11, padding: '1px 2px' }}>
+        <select id="table3-hoshiki-toolbar" name="table3.hoshiki" value={raw('hoshiki')} onChange={(e) => u('hoshiki', e.target.value)} style={{ fontSize: 11, padding: '1px 2px' }}>
           <option value="">自動（第1表の1の判定に連動）</option>
           <option value="gensoku">原則的評価方式</option>
           <option value="haito">配当還元方式</option>
@@ -269,12 +317,12 @@ export function Table3Grid({ getField, updateField }: TableProps) {
         発生している権利：
         {RIGHTS.map((r) => (
           <label key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <input type="checkbox" checked={raw(r.key) === '1'} onChange={(e) => u(r.key, e.target.checked ? '1' : '')} />
+            <input id={`table3-${r.key}-toolbar`} name={`table3.${r.key}`} type="checkbox" checked={raw(r.key) === '1'} onChange={(e) => u(r.key, e.target.checked ? '1' : '')} />
             {r.label}
           </label>
         ))}
       </span>
     </span>
   );
-  return <GridForm cells={CELLS} g={g} u={u} width="100%" title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" toolbar={toolbar} references={REFERENCES} />;
+  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" toolbar={toolbar} references={REFERENCES} />;
 }

@@ -109,7 +109,7 @@ const CELLS: GridCell[] = [
   { field: '⑥', kind: 'input', cornerLabel: '⑥', top: 84.08, left: 34.69, width: 16.5, height: 3.47 },
   { kind: 'label', text: '評価差額に相当する金額\n（⑤－⑥、マイナスの場合は０）', top: 87.36, left: 8.51, width: 26.46, height: 3.47, align: 'left' },
   { field: '⑦', kind: 'input', cornerLabel: '⑦', top: 87.26, left: 34.56, width: 16.64, height: 3.66 },
-  { kind: 'label', text: '評価差額に対する法人税額等相当額\n（⑦×38％）', top: 90.63, left: 8.51, width: 26.46, height: 3.57, align: 'left' },
+  { kind: 'label', text: '評価差額に対する法人税額等相当額\n（⑦×37％）', top: 90.63, left: 8.51, width: 26.46, height: 3.57, align: 'left' },
   { field: '⑧', kind: 'input', cornerLabel: '⑧', top: 90.63, left: 34.56, width: 16.64, height: 3.57 },
   // ── 3. 1株当たりの純資産価額の計算 ──
   { kind: 'label', text: '３．１株当たりの純資産価額の計算', top: 77.33, left: 50.78, width: 42.55, height: 3.57, align: 'left' },
@@ -235,5 +235,5 @@ export function Table5Grid({ getField, updateField }: TableProps) {
     return getField(T, f);
   };
   const u = (f: string, v: string) => updateField(T, f, v);
-  return <GridForm cells={CALCULATED_CELLS} g={g} u={u} width="100%" title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書" />;
+  return <GridForm cells={CALCULATED_CELLS} g={g} u={u} formId={T} width="100%" title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書" />;
 }

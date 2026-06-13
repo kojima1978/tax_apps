@@ -38,7 +38,7 @@ export function HeaderLeft({ g, u }: Props) {
             <td style={lbl}>課税時期</td>
             <td style={{ padding: '1px 3px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                <input type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g('taxDate')} onChange={(e) => u('taxDate', e.target.value)} />
+                <input id="table1_1-taxDate" name="table1_1.taxDate" type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g('taxDate')} onChange={(e) => u('taxDate', e.target.value)} />
                 <span style={{ fontSize: 8, color: '#333' }}>{formatWareki(g('taxDate'))}</span>
               </div>
             </td>
@@ -49,7 +49,7 @@ export function HeaderLeft({ g, u }: Props) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span>自</span>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                  <input type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g('fiscalStart')} onChange={(e) => u('fiscalStart', e.target.value)} />
+                  <input id="table1_1-fiscalStart" name="table1_1.fiscalStart" type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g('fiscalStart')} onChange={(e) => u('fiscalStart', e.target.value)} />
                   <span style={{ fontSize: 7.5, color: '#333' }}>{formatWareki(g('fiscalStart'))}</span>
                 </div>
               </div>
@@ -60,7 +60,7 @@ export function HeaderLeft({ g, u }: Props) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span>至</span>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                  <input type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g('fiscalEnd')} onChange={(e) => u('fiscalEnd', e.target.value)} />
+                  <input id="table1_1-fiscalEnd" name="table1_1.fiscalEnd" type="date" className="gov-input" style={{ width: 'auto', flex: '0 0 auto' }} value={g('fiscalEnd')} onChange={(e) => u('fiscalEnd', e.target.value)} />
                   <span style={{ fontSize: 7.5, color: '#333' }}>{formatWareki(g('fiscalEnd'))}</span>
                 </div>
               </div>

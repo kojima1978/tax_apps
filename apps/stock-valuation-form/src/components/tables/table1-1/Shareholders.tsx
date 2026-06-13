@@ -64,10 +64,10 @@ function ShareholderRow({ id, index, g, u, totalVotesSum, rowCount, onRemove }: 
       <td style={{ textAlign: 'center', fontSize: 8, color: '#666', cursor: 'grab' }} {...attributes} {...listeners}>{i + 1}</td>
       <td><FormField value={g(`sh_name_${i}`)} onChange={(v) => u(`sh_name_${i}`, v)} /></td>
       <td style={{ textAlign: 'center' }}>
-        <input type="checkbox" checked={g(`sh_dozoku_${i}`) === '1'} onChange={(e) => u(`sh_dozoku_${i}`, e.target.checked ? '1' : '')} style={{ cursor: 'pointer' }} />
+        <input id={`table1_1-sh_dozoku_${i}`} name={`table1_1.sh_dozoku_${i}`} type="checkbox" checked={g(`sh_dozoku_${i}`) === '1'} onChange={(e) => u(`sh_dozoku_${i}`, e.target.checked ? '1' : '')} style={{ cursor: 'pointer' }} />
       </td>
       <td style={{ textAlign: 'center' }}>
-        <input type="checkbox" checked={g(`sh_hittou_${i}`) === '1'} onChange={(e) => { u(`sh_hittou_${i}`, e.target.checked ? '1' : ''); if (e.target.checked) u(`sh_dozoku_${i}`, '1'); }} style={{ cursor: 'pointer' }} />
+        <input id={`table1_1-sh_hittou_${i}`} name={`table1_1.sh_hittou_${i}`} type="checkbox" checked={g(`sh_hittou_${i}`) === '1'} onChange={(e) => { u(`sh_hittou_${i}`, e.target.checked ? '1' : ''); if (e.target.checked) u(`sh_dozoku_${i}`, '1'); }} style={{ cursor: 'pointer' }} />
       </td>
       <td><FormField value={g(`sh_rel_${i}`)} onChange={(v) => u(`sh_rel_${i}`, v)} textAlign="center" /></td>
       <td><NumberField value={g(`sh_shares_${i}`)} onChange={(v) => { const votes = g(`sh_votes_${i}`); u(`sh_shares_${i}`, v); if (!votes || votes === g(`sh_shares_${i}`)) u(`sh_votes_${i}`, v); }} /></td>

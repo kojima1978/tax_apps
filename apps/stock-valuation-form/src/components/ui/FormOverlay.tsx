@@ -136,7 +136,7 @@ export function FormOverlay({ image, width = '210mm', fields, g, u, picker = fal
       return <div key={f.field} style={{ ...common, display: 'flex', alignItems: 'center', justifyContent: f.align === 'left' ? 'flex-start' : f.align === 'center' ? 'center' : 'flex-end' }}>{f.value ?? g(f.field)}</div>;
     }
     return (
-      <input key={f.field} value={g(f.field)} onChange={(e) => u(f.field, e.target.value)}
+      <input key={f.field} id={`overlay-${f.field}`} name={`overlay.${f.field}`} value={g(f.field)} onChange={(e) => u(f.field, e.target.value)}
         inputMode={f.type === 'number' ? 'numeric' : undefined} style={common}
         onMouseDown={(e) => { if (!picker) e.stopPropagation(); }} />
     );
@@ -192,7 +192,7 @@ export function FormOverlay({ image, width = '210mm', fields, g, u, picker = fal
               const numCell = (key: 'top' | 'left' | 'width' | 'height', label: string) => (
                 <span style={{ display: 'inline-flex', alignItems: 'center' }}>
                   <span style={{ color: '#999' }}>{label}</span>
-                  <input type="number" step={0.1} value={f[key] ?? 0} onChange={(e) => patch(i, key, +e.target.value)} style={{ width: 38, fontSize: 9 }} />
+                  <input id={`overlay-reg-${i}-${key}`} name={`overlay.reg.${i}.${key}`} type="number" step={0.1} value={f[key] ?? 0} onChange={(e) => patch(i, key, +e.target.value)} style={{ width: 38, fontSize: 9 }} />
                 </span>
               );
               return (
@@ -202,9 +202,9 @@ export function FormOverlay({ image, width = '210mm', fields, g, u, picker = fal
                       {kind === 'input' ? '入' : kind === 'label' ? '文' : '枠'}
                     </button>
                     {kind === 'input' ? (
-                      <input value={f.field} placeholder="field" onChange={(e) => setReg((p) => p.map((x, j) => j === i ? { ...x, field: e.target.value } : x))} style={{ flex: 1, fontSize: 10, minWidth: 0 }} />
+                      <input id={`overlay-reg-${i}-field`} name={`overlay.reg.${i}.field`} value={f.field} placeholder="field" onChange={(e) => setReg((p) => p.map((x, j) => j === i ? { ...x, field: e.target.value } : x))} style={{ flex: 1, fontSize: 10, minWidth: 0 }} />
                     ) : (
-                      <input value={f.text ?? ''} placeholder="表示文字" onChange={(e) => setReg((p) => p.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} style={{ flex: 1, fontSize: 10, minWidth: 0 }} />
+                      <input id={`overlay-reg-${i}-text`} name={`overlay.reg.${i}.text`} value={f.text ?? ''} placeholder="表示文字" onChange={(e) => setReg((p) => p.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} style={{ flex: 1, fontSize: 10, minWidth: 0 }} />
                     )}
                     <button onClick={() => setReg((p) => p.filter((_, j) => j !== i))} style={{ cursor: 'pointer', color: '#c00' }}>×</button>
                   </div>

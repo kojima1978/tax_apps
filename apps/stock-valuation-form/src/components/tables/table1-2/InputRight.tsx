@@ -48,6 +48,8 @@ export function InputRight({ g, u, totalEmpDisplay }: Props) {
             <td style={rowTd}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                 <input
+                  id="table1_2-totalEmpDisplay"
+                  name="table1_2.totalEmpDisplay"
                   type="text"
                   readOnly
                   value={totalEmpDisplay}
