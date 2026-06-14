@@ -27,6 +27,7 @@ export interface GridCell {
   readOnly?: boolean;                 // 自動計算などの編集不可欄
   options?: string[];                 // 選択式入力の候補（空文字は未選択）
   highlightWhen?: (g: (field: string) => string) => boolean; // 自動判定時の強調条件
+  selectValue?: { field: string; value: string }; // セルをクリックして指定値を選択
   diagonal?: 'tlbr' | 'bltr'; // 斜線（入力不可セル: tlbr=＼ 左上→右下, bltr=／ 左下→右上）
   date?: boolean; // 和暦◯年◯月◯日の複合入力（fieldを接頭辞に _g/_y/_m/_d を付与）
   dateRange?: boolean; // 自◯年◯月◯日／至◯年◯月◯日 の期間入力（field_from_*, field_to_*）
@@ -273,8 +274,25 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
         const fontSize = c.fontSize ?? (isVertical ? 8 : len > 40 ? 6 : len > 24 ? 6.5 : len > 12 ? 7.5 : 9);
         const justify = c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center';
         const highlighted = c.highlightWhen?.(g) ?? false;
+        const selectable = c.selectValue;
+        const selectCell = () => {
+          if (selectable) u(selectable.field, selectable.value);
+        };
         return (
-          <div key={i} style={{
+          <div
+            key={i}
+            role={selectable ? 'button' : undefined}
+            tabIndex={selectable ? 0 : undefined}
+            aria-label={selectable ? c.ariaLabel ?? `${text}を選択` : undefined}
+            aria-pressed={selectable ? g(selectable.field) === selectable.value : undefined}
+            onClick={selectable ? selectCell : undefined}
+            onKeyDown={selectable ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                selectCell();
+              }
+            } : undefined}
+            style={{
             gridColumn: c.exactPosition ? undefined : `${cs} / ${ce}`,
             gridRow: c.exactPosition ? undefined : `${rs} / ${re}`,
             border: '0.5px solid #000',
@@ -292,6 +310,8 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
             fontWeight: c.bold || highlighted ? 700 : 400,
             background: highlighted ? '#fff3b0' : undefined,
             boxShadow: highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
+            cursor: selectable ? 'pointer' : undefined,
+            userSelect: selectable ? 'none' : undefined,
             padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
             lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: 'center',
           }}>

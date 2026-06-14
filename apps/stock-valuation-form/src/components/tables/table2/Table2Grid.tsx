@@ -34,6 +34,10 @@ function buildCells(j: Judgments, resultName: string): GridCell[] {
   const landTh = j.landCol === 'big' || j.landCol === 'smallA' ? 70 : j.landCol === 'mid' || j.landCol === 'smallB' ? 90 : null;
   const landHit = (col: Judgments['landCol'], over: boolean) =>
     j.landCol === col && j.landRatio !== null && landTh !== null && (over ? j.landRatio >= landTh : j.landRatio < landTh);
+  const fieldIsZero = (g: (field: string) => string, field: string) => {
+    const value = g(field).replace(/,/g, '').trim();
+    return value !== '' && Number(value) === 0;
+  };
   const sizeText = ['大会社', '中会社', '小会社']
     .map((t, i) => ((j.sizeRank === 4 && i === 0) || (j.sizeRank !== null && j.sizeRank >= 1 && j.sizeRank <= 3 && i === 1) || (j.sizeRank === 0 && i === 2) ? `◎${t}` : t))
     .join(' ・ ');
@@ -138,30 +142,30 @@ function buildCells(j: Judgments, resultName: string): GridCell[] {
   { kind: 'label', text: '判 定 要 素', top: 61.52, left: 23.37, width: 7.36, height: 9.54 },
   { kind: 'label', text: '直前期末を基とした判定要素', top: 61.43, left: 30.46, width: 27.28, height: 2.7 },
   { kind: 'label', text: '第４表の\nB１の金額', top: 64.03, left: 30.6, width: 9.96, height: 3.57 },
-  { field: 'f96', kind: 'input', readOnly: true, top: 67.5, left: 30.6, width: 6.14, height: 3.47 },
-  { field: 'f97', kind: 'input', readOnly: true, topRightLabel: '銭', top: 67.5, left: 36.46, width: 4.09, height: 3.57 },
+  { field: 'f96', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f96'), top: 67.5, left: 30.6, width: 6.14, height: 3.47 },
+  { field: 'f97', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f96'), topRightLabel: '銭', top: 67.5, left: 36.46, width: 4.09, height: 3.57 },
   { kind: 'label', text: '第４表の\nC１の金額', top: 63.93, left: 40.28, width: 8.86, height: 3.66 },
-  { field: 'f99', kind: 'input', readOnly: true, topRightLabel: '円', top: 67.5, left: 40.28, width: 8.73, height: 3.57 },
+  { field: 'f99', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f99'), topRightLabel: '円', top: 67.5, left: 40.28, width: 8.73, height: 3.57 },
   { kind: 'label', text: '第４表の\nD１の金額', top: 63.93, left: 48.88, width: 8.86, height: 3.66 },
-  { field: 'f101', kind: 'input', readOnly: true, topRightLabel: '円', top: 67.6, left: 48.88, width: 8.86, height: 3.37 },
+  { field: 'f101', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f101'), topRightLabel: '円', top: 67.6, left: 48.88, width: 8.86, height: 3.37 },
   { kind: 'label', text: '判 定基 準', top: 61.62, left: 57.6, width: 6.27, height: 5.98 },
   { kind: 'label', text: '直前期末を基とした判定要素がいずれも0\nである（該当）・でない（非該当）', top: 61.52, left: 63.6, width: 30.41, height: 6.17 },
   { kind: 'label', text: '判 定 ', top: 67.5, left: 57.6, width: 6.41, height: 3.47 },
   { kind: 'label', text: '該 当', highlightWhen: () => j.s4b === true, top: 67.5, left: 63.74, width: 14.87, height: 3.47 },
   { kind: 'label', text: '非 該 当', highlightWhen: () => j.s4b === false, top: 67.6, left: 78.47, width: 15.55, height: 3.47 },
-  // ── 5. 開業前又は休業中の会社（タイトル右のチェックで指定） ──
+  // ── 5. 開業前又は休業中の会社（判定セルを直接クリックして指定） ──
   { kind: 'label', text: '５. 開業前又は休業中の会社', top: 70.97, left: 8.51, width: 18.68, height: 5.01 },
   { kind: 'label', text: '開業前の会社の判定', top: 70.97, left: 26.92, width: 12.41, height: 2.6 },
-  { kind: 'label', text: '該　当', highlightWhen: () => j.s5a, top: 73.48, left: 26.92, width: 6.14, height: 2.51 },
-  { kind: 'label', text: '非該当', top: 73.48, left: 32.78, width: 6.68, height: 2.51 },
+  { kind: 'label', text: '該　当', ariaLabel: '開業前の会社の判定：該当', selectValue: { field: 's5_kaigyomae', value: '1' }, highlightWhen: () => j.s5a, top: 73.48, left: 26.92, width: 6.14, height: 2.51 },
+  { kind: 'label', text: '非該当', ariaLabel: '開業前の会社の判定：非該当', selectValue: { field: 's5_kaigyomae', value: '' }, highlightWhen: () => !j.s5a, top: 73.48, left: 32.78, width: 6.68, height: 2.51 },
   { kind: 'label', text: ' 休業中の会社の判定', top: 70.97, left: 39.19, width: 12.68, height: 2.6 },
-  { kind: 'label', text: '該　当', highlightWhen: () => j.s5b, top: 73.38, left: 39.19, width: 6.68, height: 2.51 },
-  { kind: 'label', text: '非該当', top: 73.48, left: 45.74, width: 6, height: 2.51 },
+  { kind: 'label', text: '該　当', ariaLabel: '休業中の会社の判定：該当', selectValue: { field: 's5_kyugyo', value: '1' }, highlightWhen: () => j.s5b, top: 73.38, left: 39.19, width: 6.68, height: 2.51 },
+  { kind: 'label', text: '非該当', ariaLabel: '休業中の会社の判定：非該当', selectValue: { field: 's5_kyugyo', value: '' }, highlightWhen: () => !j.s5b, top: 73.48, left: 45.74, width: 6, height: 2.51 },
   // ── 6. 清算中の会社 ──
   { kind: 'label', text: '６． 清 算 中 の 会 社', top: 70.87, left: 51.6, width: 19.91, height: 5.01 },
   { kind: 'label', text: '判 定', top: 70.97, left: 71.38, width: 22.64, height: 2.51 },
-  { kind: 'label', text: '該 当', highlightWhen: () => j.s6, top: 73.38, left: 71.38, width: 11.18, height: 2.51 },
-  { kind: 'label', text: '非 該 当', top: 73.28, left: 82.43, width: 11.46, height: 2.7 },
+  { kind: 'label', text: '該 当', ariaLabel: '清算中の会社の判定：該当', selectValue: { field: 's6_seisan', value: '1' }, highlightWhen: () => j.s6, top: 73.38, left: 71.38, width: 11.18, height: 2.51 },
+  { kind: 'label', text: '非 該 当', ariaLabel: '清算中の会社の判定：非該当', selectValue: { field: 's6_seisan', value: '' }, highlightWhen: () => !j.s6, top: 73.28, left: 82.43, width: 11.46, height: 2.7 },
   // ── 7. 特定の評価会社の判定結果 ──
   { kind: 'label', text: '７. 特定の評価会社の判定結果', top: 75.89, left: 8.51, width: 18.55, height: 13.2 },
   {
@@ -246,9 +250,9 @@ export function calcTable2(getField: TableProps['getField']) {
   const openDate = readDate(raw, 'f85');
   const s4a = taxDate !== null && openDate !== null
     ? taxDate.getTime() < new Date(openDate.getFullYear() + 3, openDate.getMonth(), openDate.getDate()).getTime()
-    : null;
+    : false;
 
-  // 5・6. 開業前/休業中/清算中（チェックで指定）
+  // 5・6. 開業前/休業中/清算中（判定セルを直接クリックして指定）
   const s5a = raw('s5_kaigyomae') === '1';
   const s5b = raw('s5_kyugyo') === '1';
   const s6 = raw('s6_seisan') === '1';
@@ -290,15 +294,5 @@ export function Table2Grid({ getField, updateField }: TableProps) {
     }
   };
 
-  const toolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, whiteSpace: 'nowrap', flexWrap: 'wrap' }}>
-      {([['s5_kaigyomae', '開業前'], ['s5_kyugyo', '休業中'], ['s6_seisan', '清算中']] as const).map(([key, label]) => (
-        <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <input id={`table2-${key}-toolbar`} name={`table2.${key}`} type="checkbox" checked={raw(key) === '1'} onChange={(e) => u(key, e.target.checked ? '1' : '')} />
-          {label}
-        </label>
-      ))}
-    </span>
-  );
-  return <GridForm cells={buildCells(c.j, RESULT_NAMES[c.result] ?? RESULT_NAMES[0]!)} g={g} u={u} formId={T} width="100%" title="第２表　特定の評価会社の判定の明細書" toolbar={toolbar} references={REFERENCES} />;
+  return <GridForm cells={buildCells(c.j, RESULT_NAMES[c.result] ?? RESULT_NAMES[0]!)} g={g} u={u} formId={T} width="100%" title="第２表　特定の評価会社の判定の明細書" references={REFERENCES} />;
 }
