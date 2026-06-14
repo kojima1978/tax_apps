@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { useFormData } from '@/hooks/useFormData';
-// 完成版（CSSグリッド）。ピッカーで再測定したい場合は Table1_1Overlay に戻す。
+// PNG様式変更時の座標測定には Table1_1Overlay と public/forms/table1.png を使用する。
 import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
 import { Table1_2 } from '@/components/tables/table1-2';
 import { Table2 } from '@/components/tables/table2';

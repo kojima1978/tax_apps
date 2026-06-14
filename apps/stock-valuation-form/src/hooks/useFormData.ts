@@ -3,11 +3,88 @@ import { type FormData, type TableId, initialFormData } from '@/types/form';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
 
+const TREASURY_SHARE_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
+  ['table1_1', 'f63'],
+  ['table3', '⑪'],
+  ['table4', '③'],
+  ['table1_1', 'treasury_shares'],
+];
+
+const CAPITAL_AMOUNT_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
+  ['table4', '①'],
+  ['table3', '⑨'],
+  ['table4', 'n52'],
+];
+
+const ISSUED_SHARE_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
+  ['table1_1', '①'],
+  ['table3', '⑩'],
+  ['table4', '②'],
+];
+
+const CURRENT_DIVIDEND_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
+  ['table4', 'f28'],
+  ['table3', 'f55'],
+];
+
+const CURRENT_EXTRAORDINARY_DIVIDEND_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
+  ['table4', 'f29'],
+  ['table3', 'f56'],
+];
+
+const PREVIOUS_DIVIDEND_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
+  ['table4', 'f32'],
+  ['table3', 'f59'],
+];
+
+const PREVIOUS_EXTRAORDINARY_DIVIDEND_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
+  ['table4', 'f33'],
+  ['table3', 'f60'],
+];
+
+const LINKED_FIELD_GROUPS: ReadonlyArray<ReadonlyArray<readonly [TableId, string]>> = [
+  TREASURY_SHARE_FIELDS,
+  CAPITAL_AMOUNT_FIELDS,
+  ISSUED_SHARE_FIELDS,
+  CURRENT_DIVIDEND_FIELDS,
+  CURRENT_EXTRAORDINARY_DIVIDEND_FIELDS,
+  PREVIOUS_DIVIDEND_FIELDS,
+  PREVIOUS_EXTRAORDINARY_DIVIDEND_FIELDS,
+];
+
+function linkedFieldGroup(table: TableId, field: string) {
+  return LINKED_FIELD_GROUPS.find((group) =>
+    group.some(([targetTable, targetField]) => targetTable === table && targetField === field),
+  );
+}
+
+function normalizeLinkedFields(data: FormData): FormData {
+  return LINKED_FIELD_GROUPS.reduce<FormData>((next, group) => {
+    const value = group
+      .map(([table, field]) => next[table]?.[field] ?? '')
+      .find((candidate) => candidate !== '') ?? '';
+
+    return group.reduce<FormData>((linked, [table, field]) => ({
+      ...linked,
+      [table]: { ...linked[table], [field]: value },
+    }), next);
+  }, data);
+}
+
+function normalizeFormData(data: FormData): FormData {
+  const completeData = Object.keys(initialFormData).reduce<FormData>((next, table) => ({
+    ...next,
+    [table]: { ...initialFormData[table as TableId], ...(data[table as TableId] ?? {}) },
+  }), initialFormData);
+
+  return normalizeLinkedFields(completeData);
+}
+
 function loadFromStorage(): FormData {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved) as FormData;
+      return normalizeFormData(JSON.parse(saved) as FormData);
     }
   } catch {
     // ignore parse errors
@@ -24,10 +101,20 @@ export function useFormData() {
 
   const updateField = useCallback(
     (table: TableId, field: string, value: string) => {
-      setFormData((prev) => ({
-        ...prev,
-        [table]: { ...prev[table], [field]: value },
-      }));
+      setFormData((prev) => {
+        const group = linkedFieldGroup(table, field);
+        if (!group) {
+          return {
+            ...prev,
+            [table]: { ...prev[table], [field]: value },
+          };
+        }
+
+        return group.reduce<FormData>((next, [targetTable, targetField]) => ({
+          ...next,
+          [targetTable]: { ...next[targetTable], [targetField]: value },
+        }), prev);
+      });
     },
     [],
   );
@@ -60,7 +147,7 @@ export function useFormData() {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string) as FormData;
-        setFormData(data);
+        setFormData(normalizeFormData(data));
       } catch {
         alert('ファイルの読み込みに失敗しました。');
       }

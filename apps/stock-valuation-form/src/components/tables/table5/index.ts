@@ -1,2 +1,2 @@
-// 完成版（CSSグリッド）。ピッカーで再測定したい場合は ./Table5Overlay に戻す。
+// Keep Table5Overlay and public/forms/table5.png for PNG layout measurement.
 export { Table5Grid as Table5 } from './Table5Grid';

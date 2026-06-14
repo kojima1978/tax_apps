@@ -6,6 +6,7 @@ export interface GridCell {
   left: number;
   width: number;
   height: number;
+  exactPosition?: boolean;          // 近接する罫線へ吸着せず、測定座標をそのまま使用
   kind?: 'cell' | 'input' | 'label'; // cell=枠のみ, input=入力, label=固定文字
   text?: string;                     // label/cell の表示文字
   field?: string;                    // input のフィールドキー
@@ -15,7 +16,9 @@ export interface GridCell {
   bold?: boolean;
   noWrap?: boolean;                  // 明示改行以外では折り返さない
   cornerLabel?: string;             // 入力欄の左上に表示する固定ラベル
+  cornerLabelTop?: number;          // 固定ラベルの上端位置（px）
   topRightLabel?: string;            // セルの右上に表示する固定ラベル
+  bottomLabel?: string;              // セル下部に表示する固定注記
   rightLabel?: string;               // セルの右端中央に表示する固定ラベル
   integerDigits?: number;            // 数字のみの最大桁数
   commaInteger?: boolean;            // 整数を3桁区切りカンマで表示
@@ -31,6 +34,7 @@ export interface GridCell {
   multiline?: boolean; // 計算結果を複数行で表示（readOnly前提。\n区切り）
   emphasizeLinePrefix?: string; // 複数行ラベル内で、この文字列から始まる行を強調表示
   highlightLinePrefixes?: (g: (field: string) => string) => string[]; // 複数行ラベル内で条件に合う行を強調表示
+  highlightLineBadge?: string; // 強調行の右端に表示する採用結果などのバッジ
   fractionExpression?: {
     terms: { numerator: string; denominator: string }[];
     denominator: string;
@@ -49,6 +53,45 @@ export interface GridCell {
     numerator: string;
     denominator: string;
   }; // 単純な分数
+  fractionProductExpression?: {
+    left: { numerator: string; denominator: string; valueField?: string };
+    right: { numerator: string; denominator: string; valueField?: string };
+    suffix?: string;
+  }; // 2つの分数を掛ける式
+  stackedDivisionExpression?: {
+    dividendLines: string[];
+    divisor: string;
+    suffix?: string;
+  }; // 複数行を一塊にした被除数 ÷ 除数の式
+  subtractionAmountExpression?: {
+    leftLabelLines: string[];
+    leftValueField: string;
+    rightLabelLines: string[];
+    rightYenField: string;
+    rightSenField?: string;
+    underlineRight?: boolean;
+    leftLabelNoWrap?: boolean;
+    rightLabelNoWrap?: boolean;
+  }; // 金額（自動転記）－金額（円・銭入力）の式
+  editableSubtractionExpression?: {
+    leftLabelLines: string[];
+    leftYenField: string;
+    leftSenField?: string;
+    rightLabelLines: string[];
+    rightYenField: string;
+    rightSenField?: string;
+    parenthesized?: boolean;
+  }; // 入力金額同士を差し引く式
+  allocationAdjustmentExpression?: {
+    baseLabelLines: string[];
+    baseValueField: string;
+    paymentLabelLines: string[];
+    paymentField: string;
+    allocationLabelLines: string[];
+    allocationField: string;
+    issuedLabelLines: string[];
+    issuedField: string;
+  }; // 株式の割当て等による修正価額の式
   alternativeFractions?: {
     caption?: string;
     prefix?: string;
@@ -111,8 +154,13 @@ function nearestIndex(lines: number[], v: number): number {
   return best;
 }
 
-function formatCommaInteger(value: string): string {
+function normalizeInteger(value: string): string {
   const digits = value.replace(/\D/g, '');
+  return digits.replace(/^0+(?=\d)/, '');
+}
+
+function formatCommaInteger(value: string): string {
+  const digits = normalizeInteger(value);
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
@@ -143,7 +191,7 @@ interface DateFieldsProps {
 /** 和暦(選択)◯年◯月◯日 の入力群（field を接頭辞に _g/_y/_m/_d） */
 function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
   const num = (s: string) => (
-    <input id={`${formId}-${field}_${s}`} name={`${formId}.${field}_${s}`} aria-label={`${field}_${s}`} value={g(`${field}_${s}`)} onChange={(e) => u(`${field}_${s}`, e.target.value.replace(/\D/g, '').slice(0, 2))} onKeyDown={onKeyDown} maxLength={2} inputMode="numeric" style={{ ...DATE_BOX, width: '2em' }} />
+    <input id={`${formId}-${field}_${s}`} name={`${formId}.${field}_${s}`} aria-label={`${field}_${s}`} value={normalizeInteger(g(`${field}_${s}`))} onChange={(e) => u(`${field}_${s}`, normalizeInteger(e.target.value).slice(0, 2))} onKeyDown={onKeyDown} maxLength={2} inputMode="numeric" style={{ ...DATE_BOX, width: '2em' }} />
   );
   return (
     <>
@@ -164,7 +212,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
 export function GridForm({ cells, g, u, width = '100%', title, references, toolbar, enterLoop, formId }: GridFormProps) {
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
-  const { colTmpl, rowTmpl, placed } = useMemo(() => {
+  const { colTmpl, rowTmpl, placed, bounds } = useMemo(() => {
     const xs = snapLines(cells.flatMap((c) => [c.left, c.left + c.width]));
     const ys = snapLines(cells.flatMap((c) => [c.top, c.top + c.height]));
     const colTmpl = xs.slice(1).map((x, i) => `${(x - xs[i]!).toFixed(3)}fr`).join(' ');
@@ -176,7 +224,17 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
       rs: nearestIndex(ys, c.top) + 1,
       re: nearestIndex(ys, c.top + c.height) + 1,
     }));
-    return { colTmpl, rowTmpl, placed };
+    return {
+      colTmpl,
+      rowTmpl,
+      placed,
+      bounds: {
+        left: xs[0]!,
+        top: ys[0]!,
+        width: xs[xs.length - 1]! - xs[0]!,
+        height: ys[ys.length - 1]! - ys[0]!,
+      },
+    };
   }, [cells]);
 
   const gridRef = useRef<HTMLDivElement>(null);
@@ -203,7 +261,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
           {toolbar}
         </div>
       )}
-      <div ref={gridRef} style={{ width: '100%', aspectRatio: '210 / 297', display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif' }}>
+      <div ref={gridRef} style={{ width: '100%', aspectRatio: '210 / 297', display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif', position: 'relative' }}>
       {placed.map(({ c, cs, ce, rs, re }, i) => {
         // 縦長のラベルは縦書き（帯見出し）。スペースは縦書き時に除去。
         const ratio = c.height / c.width;
@@ -217,10 +275,15 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
         const highlighted = c.highlightWhen?.(g) ?? false;
         return (
           <div key={i} style={{
-            gridColumn: `${cs} / ${ce}`,
-            gridRow: `${rs} / ${re}`,
+            gridColumn: c.exactPosition ? undefined : `${cs} / ${ce}`,
+            gridRow: c.exactPosition ? undefined : `${rs} / ${re}`,
             border: '0.5px solid #000',
-            position: c.diagonal || c.cornerLabel || c.topRightLabel || c.rightLabel ? 'relative' : undefined,
+            position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.topRightLabel || c.bottomLabel || c.rightLabel ? 'relative' : undefined,
+            top: c.exactPosition ? `${((c.top - bounds.top) / bounds.height) * 100}%` : undefined,
+            left: c.exactPosition ? `${((c.left - bounds.left) / bounds.width) * 100}%` : undefined,
+            width: c.exactPosition ? `${(c.width / bounds.width) * 100}%` : undefined,
+            height: c.exactPosition ? `${(c.height / bounds.height) * 100}%` : undefined,
+            zIndex: c.exactPosition ? 1 : undefined,
             display: 'flex',
             alignItems: 'center',
             justifyContent: isVertical ? (c.align === 'center' ? 'center' : 'flex-start') : justify,
@@ -233,6 +296,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
             lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: 'center',
           }}>
             {c.topRightLabel && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.topRightLabel}</span>}
+            {c.bottomLabel && <span style={{ position: 'absolute', right: 2, bottom: 2, left: 2, fontSize: 6, lineHeight: 1, textAlign: 'left', pointerEvents: 'none' }}>{c.bottomLabel}</span>}
             {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
             {c.diagonal ? (
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
@@ -247,6 +311,114 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, whiteSpace: 'nowrap' }}>自<DateFields field={`${c.field}_from`} formId={inputPrefix} g={g} u={u} onKeyDown={onEnterNext} /></div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, whiteSpace: 'nowrap' }}>至<DateFields field={`${c.field}_to`} formId={inputPrefix} g={g} u={u} onKeyDown={onEnterNext} /></div>
               </div>
+            ) : c.kind === 'input' && c.subtractionAmountExpression ? (
+              <div style={{ display: 'grid', gridTemplateColumns: c.subtractionAmountExpression.leftLabelNoWrap && c.subtractionAmountExpression.rightLabelNoWrap ? 'minmax(0, 1.45fr) 1.5em minmax(0, 1.2fr)' : c.subtractionAmountExpression.leftLabelNoWrap ? 'minmax(0, 1.65fr) 1.5em minmax(0, 1fr)' : 'minmax(0, 1fr) 2em minmax(0, 1.25fr)', alignItems: 'stretch', width: '100%', height: '100%', fontSize: c.subtractionAmountExpression.leftLabelNoWrap || c.subtractionAmountExpression.rightLabelNoWrap ? 5.5 : 6.5, lineHeight: 1.15 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.45em', minWidth: 0 }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', whiteSpace: c.subtractionAmountExpression.leftLabelNoWrap ? 'nowrap' : undefined }}>
+                    {c.subtractionAmountExpression.leftLabelLines.map((line) => <span key={line}>{line}</span>)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'baseline', justifyContent: 'center', gap: 2, minWidth: 0 }}>
+                    <span aria-label={c.subtractionAmountExpression.leftValueField} style={{ textAlign: 'right', fontWeight: 700 }}>
+                      {g(c.subtractionAmountExpression.leftValueField)}
+                    </span>
+                    <span>円</span>
+                  </span>
+                </div>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>－</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.45em', minWidth: 0 }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', whiteSpace: c.subtractionAmountExpression.rightLabelNoWrap ? 'nowrap' : undefined }}>
+                    {c.subtractionAmountExpression.rightLabelLines.map((line) => <span key={line}>{line}</span>)}
+                  </span>
+                  <span style={{ display: 'grid', gridTemplateColumns: c.subtractionAmountExpression.rightSenField ? '5em auto 2.5em auto' : '5em auto', alignItems: 'end', justifyContent: 'center', gap: 2, minWidth: 0 }}>
+                    <input id={`${inputPrefix}-${c.subtractionAmountExpression.rightYenField}`} name={`${inputPrefix}.${c.subtractionAmountExpression.rightYenField}`} aria-label={c.subtractionAmountExpression.rightYenField} value={formatCommaInteger(g(c.subtractionAmountExpression.rightYenField))} onChange={(e) => u(c.subtractionAmountExpression!.rightYenField, formatCommaInteger(e.target.value))} onKeyDown={onEnterNext} inputMode="numeric" style={{ width: '100%', minWidth: 0, border: 'none', borderBottom: c.subtractionAmountExpression.underlineRight === false ? 'none' : '1px solid #aaa', outline: 'none', textAlign: 'right', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                    <span>円</span>
+                    {c.subtractionAmountExpression.rightSenField && (
+                      <>
+                        <input id={`${inputPrefix}-${c.subtractionAmountExpression.rightSenField}`} name={`${inputPrefix}.${c.subtractionAmountExpression.rightSenField}`} aria-label={c.subtractionAmountExpression.rightSenField} value={normalizeInteger(g(c.subtractionAmountExpression.rightSenField)).slice(0, 2)} onChange={(e) => u(c.subtractionAmountExpression!.rightSenField!, normalizeInteger(e.target.value).slice(0, 2))} onKeyDown={onEnterNext} inputMode="numeric" maxLength={2} style={{ width: '100%', minWidth: 0, border: 'none', borderBottom: '1px solid #aaa', outline: 'none', textAlign: 'right', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                        <span>銭</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
+            ) : c.kind === 'input' && c.editableSubtractionExpression ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 1.6em minmax(0, 1fr)', alignItems: 'stretch', width: '100%', height: '100%', fontSize: 6.5, lineHeight: 1.15 }}>
+                {[
+                  {
+                    labelLines: c.editableSubtractionExpression.leftLabelLines,
+                    yenField: c.editableSubtractionExpression.leftYenField,
+                    senField: c.editableSubtractionExpression.leftSenField,
+                  },
+                  {
+                    labelLines: c.editableSubtractionExpression.rightLabelLines,
+                    yenField: c.editableSubtractionExpression.rightYenField,
+                    senField: c.editableSubtractionExpression.rightSenField,
+                  },
+                ].map((amount, index) => (
+                  <span key={amount.yenField} style={{ display: 'contents' }}>
+                    {index > 0 && <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>－</span>}
+                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.45em', minWidth: 0 }}>
+                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        {amount.labelLines.map((line) => <span key={line}>{line}</span>)}
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'baseline', justifyContent: 'center', gap: 2, whiteSpace: 'nowrap' }}>
+                        {c.editableSubtractionExpression!.parenthesized && <span>（</span>}
+                        <input id={`${inputPrefix}-${amount.yenField}`} name={`${inputPrefix}.${amount.yenField}`} aria-label={amount.yenField} value={formatCommaInteger(g(amount.yenField))} onChange={(e) => u(amount.yenField, formatCommaInteger(e.target.value))} onKeyDown={onEnterNext} inputMode="numeric" style={{ width: '4.5em', minWidth: 0, border: 'none', outline: 'none', textAlign: 'right', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                        <span>円</span>
+                        {amount.senField && (
+                          <>
+                            <input id={`${inputPrefix}-${amount.senField}`} name={`${inputPrefix}.${amount.senField}`} aria-label={amount.senField} value={normalizeInteger(g(amount.senField)).slice(0, 2)} onChange={(e) => u(amount.senField!, normalizeInteger(e.target.value).slice(0, 2))} onKeyDown={onEnterNext} inputMode="numeric" maxLength={2} style={{ width: '2em', minWidth: 0, border: 'none', outline: 'none', textAlign: 'right', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                            <span>銭</span>
+                          </>
+                        )}
+                        {c.editableSubtractionExpression!.parenthesized && <span>）</span>}
+                      </span>
+                    </span>
+                  </span>
+                ))}
+              </div>
+            ) : c.kind === 'input' && c.allocationAdjustmentExpression ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '0.8em minmax(0, 1.2fr) 1.1em minmax(0, 1fr) 1.1em minmax(0, 0.85fr) 0.8em 1.1em minmax(0, 1.15fr)', alignItems: 'stretch', width: '100%', height: '100%', fontSize: 6.2, lineHeight: 1.15 }}>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>（</span>
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4em', minWidth: 0 }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {c.allocationAdjustmentExpression.baseLabelLines.map((line) => <span key={line}>{line}</span>)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2 }}><span>{g(c.allocationAdjustmentExpression.baseValueField)}</span><span>円</span></span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>＋</span>
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4em', minWidth: 0 }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {c.allocationAdjustmentExpression.paymentLabelLines.map((line) => <span key={line}>{line}</span>)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2 }}>
+                    <input id={`${inputPrefix}-${c.allocationAdjustmentExpression.paymentField}`} name={`${inputPrefix}.${c.allocationAdjustmentExpression.paymentField}`} aria-label={c.allocationAdjustmentExpression.paymentField} value={g(c.allocationAdjustmentExpression.paymentField)} onChange={(e) => u(c.allocationAdjustmentExpression!.paymentField, sanitizeDecimal(e.target.value, 2))} onBlur={() => u(c.allocationAdjustmentExpression!.paymentField, formatFixedDecimal(g(c.allocationAdjustmentExpression!.paymentField), 2))} onKeyDown={onEnterNext} inputMode="decimal" style={{ width: '4.5em', minWidth: 0, border: 'none', outline: 'none', textAlign: 'right', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                    <span>円</span>
+                  </span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>×</span>
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4em', minWidth: 0 }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {c.allocationAdjustmentExpression.allocationLabelLines.map((line) => <span key={line}>{line}</span>)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2 }}>
+                    <input id={`${inputPrefix}-${c.allocationAdjustmentExpression.allocationField}`} name={`${inputPrefix}.${c.allocationAdjustmentExpression.allocationField}`} aria-label={c.allocationAdjustmentExpression.allocationField} value={g(c.allocationAdjustmentExpression.allocationField)} onChange={(e) => u(c.allocationAdjustmentExpression!.allocationField, e.target.value)} onKeyDown={onEnterNext} inputMode="decimal" style={{ width: '3.5em', minWidth: 0, border: 'none', outline: 'none', textAlign: 'right', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                    <span>株</span>
+                  </span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>）</span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>÷</span>
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4em', minWidth: 0 }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {c.allocationAdjustmentExpression.issuedLabelLines.map((line) => <span key={line}>{line}</span>)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2, whiteSpace: 'nowrap' }}>
+                    <span>（1株＋</span>
+                    <input id={`${inputPrefix}-${c.allocationAdjustmentExpression.issuedField}`} name={`${inputPrefix}.${c.allocationAdjustmentExpression.issuedField}`} aria-label={c.allocationAdjustmentExpression.issuedField} value={g(c.allocationAdjustmentExpression.issuedField)} onChange={(e) => u(c.allocationAdjustmentExpression!.issuedField, e.target.value)} onKeyDown={onEnterNext} inputMode="decimal" style={{ width: '3.2em', minWidth: 0, border: 'none', outline: 'none', textAlign: 'right', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                    <span>株）</span>
+                  </span>
+                </span>
+              </div>
             ) : c.kind === 'input' && c.employeeBreakdown ? (
               <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateRows: 'repeat(3, minmax(0, 1fr))', alignItems: 'stretch', gap: 0, padding: '2px 3px', boxSizing: 'border-box', fontSize: 6.5, lineHeight: 1.1 }}>
                 <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', alignItems: 'stretch', minHeight: 0 }}>
@@ -254,7 +426,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                     継続従業員 （5時間以上/日）
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '4.5em 1.8em 4em 1em 5em 1em', alignItems: 'center', justifyContent: 'end', gap: 2, padding: '0 3px', whiteSpace: 'nowrap' }}>
-                    <input id={`${inputPrefix}-${c.employeeBreakdown.regularField}`} name={`${inputPrefix}.${c.employeeBreakdown.regularField}`} aria-label="継続従業員数" title="1から9999までの整数を入力してください" value={g(c.employeeBreakdown.regularField)} onChange={(e) => { const digits = e.target.value.replace(/\D/g, ''); if (digits.startsWith('0')) return; u(c.employeeBreakdown!.regularField, digits.slice(0, 4)); }} onKeyDown={onEnterNext} inputMode="numeric" pattern="[1-9][0-9]{0,3}" maxLength={4} style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }} />
+                    <input id={`${inputPrefix}-${c.employeeBreakdown.regularField}`} name={`${inputPrefix}.${c.employeeBreakdown.regularField}`} aria-label="継続従業員数" title="0から9999までの整数を入力してください" value={normalizeInteger(g(c.employeeBreakdown.regularField))} onChange={(e) => u(c.employeeBreakdown!.regularField, normalizeInteger(e.target.value).slice(0, 4))} onKeyDown={onEnterNext} inputMode="numeric" pattern="[0-9]{1,4}" maxLength={4} style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }} />
                     <span>人×</span>
                     <span style={{ textAlign: 'left' }}>1.0</span>
                     <span>=</span>
@@ -267,7 +439,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                     継続従業員以外 （5時間以下/日）
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '4.5em 1.8em 4em 1em 5em 1em', alignItems: 'center', justifyContent: 'end', gap: 2, padding: '0 3px', whiteSpace: 'nowrap' }}>
-                    <input id={`${inputPrefix}-${c.employeeBreakdown.otherField}`} name={`${inputPrefix}.${c.employeeBreakdown.otherField}`} aria-label="継続従業員以外の人数" title="1から9999までの整数を入力してください" value={g(c.employeeBreakdown.otherField)} onChange={(e) => { const digits = e.target.value.replace(/\D/g, ''); if (digits.startsWith('0')) return; u(c.employeeBreakdown!.otherField, digits.slice(0, 4)); }} onKeyDown={onEnterNext} inputMode="numeric" pattern="[1-9][0-9]{0,3}" maxLength={4} style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }} />
+                    <input id={`${inputPrefix}-${c.employeeBreakdown.otherField}`} name={`${inputPrefix}.${c.employeeBreakdown.otherField}`} aria-label="継続従業員以外の人数" title="0から9999までの整数を入力してください" value={normalizeInteger(g(c.employeeBreakdown.otherField))} onChange={(e) => u(c.employeeBreakdown!.otherField, normalizeInteger(e.target.value).slice(0, 4))} onKeyDown={onEnterNext} inputMode="numeric" pattern="[0-9]{1,4}" maxLength={4} style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }} />
                     <span>人×</span>
                     <select id={`${inputPrefix}-${c.employeeBreakdown.otherRateField}`} name={`${inputPrefix}.${c.employeeBreakdown.otherRateField}`} aria-label="継続従業員以外の換算係数" value={g(c.employeeBreakdown.otherRateField)} onChange={(e) => u(c.employeeBreakdown!.otherRateField, e.target.value)} onKeyDown={onEnterNext} style={{ ...DATE_BOX, width: '100%', textAlign: 'left', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', paddingRight: 8, backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '6px' }}>
                       {Array.from({ length: 9 }, (_, index) => ((index + 1) / 10).toFixed(1)).map((rate) => <option key={rate} value={rate}>{rate}</option>)}
@@ -294,13 +466,21 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                 </select>
               : c.kind === 'input' && c.field
               ? <>
-                  {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
-                  <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} value={c.commaInteger ? formatCommaInteger(g(c.field)) : g(c.field)} onChange={(e) => { const digits = e.target.value.replace(/\D/g, ''); if (c.noLeadingZero && digits.startsWith('0')) return; const next = c.commaInteger ? formatCommaInteger(e.target.value) : c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.integerDigits ? digits.slice(0, c.integerDigits) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} inputMode={c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                  {c.cornerLabel && <span style={{ position: 'absolute', top: c.cornerLabelTop ?? 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
+                  <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} value={c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} inputMode={c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
                 </>
               : c.kind === 'label' && c.verticalSectionHeading ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: c.verticalSectionHeading.compact ? undefined : '2.5em', lineHeight: c.verticalSectionHeading.compact ? 1 : undefined, writingMode: 'horizontal-tb' }}>{c.verticalSectionHeading.number}</span>
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, writingMode: 'vertical-rl' }}>{c.verticalSectionHeading.text.replace(/[ 　]/g, '')}</span>
+                  {c.verticalSectionHeading.compact ? (
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, writingMode: 'vertical-rl' }}>
+                      {`${c.verticalSectionHeading.number}${c.verticalSectionHeading.text}`.replace(/[ 　]/g, '')}
+                    </span>
+                  ) : (
+                    <>
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '2.5em', writingMode: 'horizontal-tb' }}>{c.verticalSectionHeading.number}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, writingMode: 'vertical-rl' }}>{c.verticalSectionHeading.text.replace(/[ 　]/g, '')}</span>
+                    </>
+                  )}
                 </span>
               ) : c.kind === 'label' && c.companyRateExpression ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.2em', width: '98%', height: '100%', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
@@ -337,6 +517,31 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                   <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.45em 1px' }}>{c.simpleFraction.numerator}</span>
                   <span style={{ paddingTop: 1 }}>{c.simpleFraction.denominator}</span>
                 </span>
+              ) : c.kind === 'label' && c.stackedDivisionExpression ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.8em', width: '98%', height: '100%', lineHeight: 1.1, whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    {c.stackedDivisionExpression.dividendLines.map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}
+                  </span>
+                  <span>÷</span>
+                  <span>{c.stackedDivisionExpression.divisor}</span>
+                  {c.stackedDivisionExpression.suffix && <span>{c.stackedDivisionExpression.suffix}</span>}
+                </span>
+              ) : c.kind === 'label' && c.fractionProductExpression ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.65em', width: '98%', height: '100%', lineHeight: 1, whiteSpace: 'nowrap' }}>
+                  {[c.fractionProductExpression.left, c.fractionProductExpression.right].map((fraction, index) => (
+                    <span key={`${fraction.numerator}-${fraction.denominator}`} style={{ display: 'contents' }}>
+                      {index > 0 && <span>×</span>}
+                      <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '5em', textAlign: 'center' }}>
+                        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', borderBottom: '0.7px solid #000', padding: '0 0.35em 1px' }}>
+                          <span>{fraction.numerator}</span>
+                          {fraction.valueField && <span>（{g(fraction.valueField)}）</span>}
+                        </span>
+                        <span style={{ paddingTop: 1 }}>{fraction.denominator}</span>
+                      </span>
+                    </span>
+                  ))}
+                  {c.fractionProductExpression.suffix && <span>{c.fractionProductExpression.suffix}</span>}
+                </span>
               ) : c.kind === 'label' && c.productFractionExpression ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '1.6em', width: '96%', height: '100%', lineHeight: 1.05, whiteSpace: 'nowrap' }}>
                   <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -349,7 +554,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                   </span>
                 </span>
               ) : c.kind === 'label' && c.weightedAverageExpression ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3em', width: '99%', height: '100%', lineHeight: 1, whiteSpace: 'nowrap' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.3em', width: '99%', height: '100%', lineHeight: 1, whiteSpace: 'nowrap', textAlign: 'left' }}>
                   <span>（</span>
                   <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
                     {c.weightedAverageExpression.leftLines.map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}
@@ -394,8 +599,13 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                       const prefixes = c.highlightLinePrefixes?.(g) ?? (c.emphasizeLinePrefix ? [c.emphasizeLinePrefix] : []);
                       const emphasized = prefixes.some((prefix) => line.startsWith(prefix));
                       return (
-                        <span key={`${line}-${index}`} style={{ display: 'block', minHeight: '1.15em', padding: emphasized ? '1px 3px' : undefined, boxSizing: 'border-box', fontWeight: emphasized ? 700 : undefined, fontSize: emphasized ? '1.15em' : undefined, background: emphasized ? '#fff3b0' : undefined, boxShadow: emphasized ? 'inset 0 0 0 1px #d97706' : undefined }}>
-                          {line || '\u00a0'}
+                        <span key={`${line}-${index}`} style={{ display: emphasized && c.highlightLineBadge ? 'flex' : 'block', alignItems: 'center', gap: emphasized ? 4 : undefined, minHeight: '1.15em', padding: emphasized ? '1px 3px' : undefined, boxSizing: 'border-box', fontWeight: emphasized ? 700 : undefined, fontSize: emphasized ? '1.15em' : undefined, color: emphasized ? '#7c2d12' : undefined, background: emphasized ? '#ffed99' : undefined, boxShadow: emphasized ? 'inset 0 0 0 1.5px #c2410c' : undefined }}>
+                          <span>{line || '\u00a0'}</span>
+                          {emphasized && c.highlightLineBadge && (
+                            <span style={{ marginLeft: 'auto', flex: '0 0 auto', padding: '0 3px', color: '#fff', background: '#c2410c', fontSize: '0.75em', fontWeight: 700, lineHeight: 1.35 }}>
+                              {c.highlightLineBadge}
+                            </span>
+                          )}
                         </span>
                       );
                     })}

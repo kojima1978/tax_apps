@@ -89,8 +89,8 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '１株当たりの資本金等の額\n（①÷（②－③））', noWrap: true, top: 8.9, left: 62.65, width: 13.09, height: 2.99 },
   { kind: 'label', text: '１株当たりの資本金等の額を50 円とした場合\nの発行済株式数\n(①÷50円）', fontSize: 5.5, noWrap: true, top: 9.09, left: 75.47, width: 14.32, height: 2.8 },
   { field: '①', kind: 'input', commaInteger: true, cornerLabel: '①', topRightLabel: '千円', top: 11.69, left: 24.05, width: 13.23, height: 3.18 },
-  { field: '②', kind: 'input', commaInteger: true, cornerLabel: '②', topRightLabel: '株', top: 11.69, left: 37.01, width: 12.96, height: 3.18 },
-  { field: '③', kind: 'input', commaInteger: true, readOnly: true, cornerLabel: '③', topRightLabel: '株', top: 11.6, left: 49.83, width: 13.09, height: 3.28 },
+  { field: '②', kind: 'input', commaInteger: true, readOnly: true, cornerLabel: '②', topRightLabel: '株', top: 11.69, left: 37.01, width: 12.96, height: 3.18 },
+  { field: '③', kind: 'input', commaInteger: true, cornerLabel: '③', topRightLabel: '株', top: 11.6, left: 49.83, width: 13.09, height: 3.28 },
   { field: '④', kind: 'input', readOnly: true, cornerLabel: '④', topRightLabel: '円', top: 11.6, left: 62.65, width: 13.09, height: 3.28 },
   { field: '⑤', kind: 'input', readOnly: true, cornerLabel: '⑤', topRightLabel: '株', top: 11.6, left: 75.47, width: 14.32, height: 3.28 },
   // ── 2. 比準要素等の金額の計算 ──
@@ -118,8 +118,8 @@ const CELLS: GridCell[] = [
   { field: 'f36', kind: 'input', commaInteger: true, topRightLabel: '千円', top: 24.42, left: 19.28, width: 10.77, height: 2.7 },
   { field: 'f37', kind: 'input', commaInteger: true, topRightLabel: '千円', top: 24.32, left: 29.78, width: 10.77, height: 2.8 },
   { field: '㋩', kind: 'input', readOnly: true, cornerLabel: '㋩', topRightLabel: '千円', top: 24.22, left: 40.42, width: 12, height: 2.89 },
-  { field: '⑨（㋑＋㋺）÷２', kind: 'input', readOnly: true, cornerLabel: '⑨（㋑＋㋺）÷２', topRightLabel: '千円', top: 19.6, left: 52.28, width: 16.5, height: 4.14 },
-  { field: '⑩（㋺＋㋩）÷２', kind: 'input', readOnly: true, cornerLabel: '⑩（㋺＋㋩）÷２', topRightLabel: '千円', top: 23.55, left: 52.15, width: 16.64, height: 3.66 },
+  { field: '⑨（㋑＋㋺）÷２', kind: 'input', readOnly: true, exactPosition: true, cornerLabel: '⑨（㋑＋㋺）÷２', topRightLabel: '千円', top: 19.6, left: 52.01, width: 16.37, height: 3.565 },
+  { field: '⑩（㋺＋㋩）÷２', kind: 'input', readOnly: true, exactPosition: true, cornerLabel: '⑩（㋺＋㋩）÷２', topRightLabel: '千円', top: 23.165, left: 52.01, width: 16.37, height: 3.565 },
   // 比準要素数1/0の会社の判定要素（配当）
   { kind: 'cell', text: '', top: 14.68, left: 68.51, width: 21.55, height: 8.29 },
   { kind: 'label', text: '「比準要素数１の会社」・「比準要素数０」\nの会社の判定要素の金額', noWrap: true, top: 14.68, left: 68.51, width: 21.41, height: 2.22 },
