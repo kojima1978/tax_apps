@@ -35,7 +35,6 @@ export interface GridCell {
   multiline?: boolean; // 計算結果を複数行で表示（readOnly前提。\n区切り）
   emphasizeLinePrefix?: string; // 複数行ラベル内で、この文字列から始まる行を強調表示
   highlightLinePrefixes?: (g: (field: string) => string) => string[]; // 複数行ラベル内で条件に合う行を強調表示
-  highlightLineBadge?: string; // 強調行の右端に表示する採用結果などのバッジ
   fractionExpression?: {
     terms: { numerator: string; denominator: string }[];
     denominator: string;
@@ -619,13 +618,8 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                       const prefixes = c.highlightLinePrefixes?.(g) ?? (c.emphasizeLinePrefix ? [c.emphasizeLinePrefix] : []);
                       const emphasized = prefixes.some((prefix) => line.startsWith(prefix));
                       return (
-                        <span key={`${line}-${index}`} style={{ display: emphasized && c.highlightLineBadge ? 'flex' : 'block', alignItems: 'center', gap: emphasized ? 4 : undefined, minHeight: '1.15em', padding: emphasized ? '1px 3px' : undefined, boxSizing: 'border-box', fontWeight: emphasized ? 700 : undefined, fontSize: emphasized ? '1.15em' : undefined, color: emphasized ? '#7c2d12' : undefined, background: emphasized ? '#ffed99' : undefined, boxShadow: emphasized ? 'inset 0 0 0 1.5px #c2410c' : undefined }}>
+                        <span key={`${line}-${index}`} style={{ display: 'block', minHeight: '1.15em', padding: emphasized ? '1px 3px' : undefined, boxSizing: 'border-box', fontWeight: emphasized ? 700 : undefined, fontSize: emphasized ? '1.15em' : undefined, color: emphasized ? '#7c2d12' : undefined, background: emphasized ? '#ffed99' : undefined, boxShadow: emphasized ? 'inset 0 0 0 1.5px #c2410c' : undefined }}>
                           <span>{line || '\u00a0'}</span>
-                          {emphasized && c.highlightLineBadge && (
-                            <span style={{ marginLeft: 'auto', flex: '0 0 auto', padding: '0 3px', color: '#fff', background: '#c2410c', fontSize: '0.75em', fontWeight: 700, lineHeight: 1.35 }}>
-                              {c.highlightLineBadge}
-                            </span>
-                          )}
                         </span>
                       );
                     })}

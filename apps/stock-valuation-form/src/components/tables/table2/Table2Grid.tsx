@@ -20,6 +20,7 @@ interface Judgments {
   s2: boolean | null;            // 2. 株式等保有特定会社
   landRatio: number | null;      // ⑥ 土地保有割合（1%未満切捨て）
   landCol: 'big' | 'mid' | 'smallA' | 'smallB' | null; // 適用列（大70/中90/小イ70/小ロ90）
+  landIndustryPrefix: '･卸売業' | '･小売・サービス業' | '･上記以外の業種' | null;
   sizeRank: number | null;       // 会社規模（4大/3-1中/0小）
   s3: boolean | null;            // 3. 土地保有特定会社
   s4a: boolean | null;           // 4(1) 開業後3年未満
@@ -59,17 +60,17 @@ function buildCells(j: Judgments, resultName: string): GridCell[] {
   { kind: 'label', text: '第４表の\nB１の金額', top: 13.34, left: 23.24, width: 7.5, height: 3.76 },
   { kind: 'label', text: '第４表の\nC１の金額', top: 13.24, left: 30.46, width: 7.77, height: 3.95 },
   { kind: 'label', text: '第４表の\nD１の金額', top: 13.24, left: 38.1, width: 7.77, height: 3.86 },
-  { field: 'f16', kind: 'input', readOnly: true, top: 16.9, left: 23.24, width: 5.05, height: 3.66 },
-  { field: 'f17', kind: 'input', readOnly: true, topRightLabel: '銭', top: 16.9, left: 28.01, width: 2.73, height: 3.66 },
-  { field: 'f18', kind: 'input', readOnly: true, topRightLabel: '円', top: 17, left: 30.46, width: 7.77, height: 3.57 },
-  { field: 'f19', kind: 'input', readOnly: true, topRightLabel: '円', top: 16.9, left: 38.1, width: 7.77, height: 3.57 },
+  { field: 'f16', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f16'), top: 16.9, left: 23.24, width: 5.05, height: 3.66 },
+  { field: 'f17', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f16'), topRightLabel: '銭', top: 16.9, left: 28.01, width: 2.73, height: 3.66 },
+  { field: 'f18', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f18'), topRightLabel: '円', top: 17, left: 30.46, width: 7.77, height: 3.57 },
+  { field: 'f19', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f19'), topRightLabel: '円', top: 16.9, left: 38.1, width: 7.77, height: 3.57 },
   { kind: 'label', text: '第４表の\nB２の金額', top: 13.24, left: 45.74, width: 7.36, height: 3.86 },
   { kind: 'label', text: '第４表の\nC２の金額', top: 13.33, left: 52.83, width: 7.64, height: 3.76 },
   { kind: 'label', text: '第４表の\nD２の金額', top: 13.24, left: 60.2, width: 7.77, height: 3.86 },
-  { field: 'f23', kind: 'input', readOnly: true, top: 16.9, left: 45.74, width: 4.91, height: 3.66 },
-  { field: 'f24', kind: 'input', readOnly: true, topRightLabel: '銭', top: 16.9, left: 50.38, width: 2.66, height: 3.57 },
-  { field: 'f25', kind: 'input', readOnly: true, topRightLabel: '円', top: 16.8, left: 52.83, width: 7.5, height: 3.76 },
-  { field: 'f26', kind: 'input', readOnly: true, topRightLabel: '円', top: 16.9, left: 60.2, width: 7.77, height: 3.57 },
+  { field: 'f23', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f23'), top: 16.9, left: 45.74, width: 4.91, height: 3.66 },
+  { field: 'f24', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f23'), topRightLabel: '銭', top: 16.9, left: 50.38, width: 2.66, height: 3.57 },
+  { field: 'f25', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f25'), topRightLabel: '円', top: 16.8, left: 52.83, width: 7.5, height: 3.76 },
+  { field: 'f26', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f26'), topRightLabel: '円', top: 16.9, left: 60.2, width: 7.77, height: 3.57 },
   { kind: 'label', text: '判 定 基 準', top: 8.61, left: 67.83, width: 3.68, height: 8.58 },
   { kind: 'label', text: '⑴欄のいずれか２の判定要素が０であり、\nかつ、\n⑵欄のいずれか２以上の判定要素が0\nである（該当）・でない（非該当）', top: 8.51, left: 71.24, width: 22.78, height: 8.48 },
   { kind: 'label', text: '判定', top: 16.9, left: 67.83, width: 3.82, height: 3.66 },
@@ -106,8 +107,8 @@ function buildCells(j: Judgments, resultName: string): GridCell[] {
   { kind: 'label', text: '大 会 社', highlightWhen: () => j.landCol === 'big', top: 39.65, left: 39.16, width: 12.62, height: 11.47 },
   { kind: 'label', text: '中 会 社', highlightWhen: () => j.landCol === 'mid', top: 39.65, left: 51.6, width: 12.27, height: 11.37 },
   { kind: 'label', text: '小会社\n（総資産価額（帳簿価額）が次の基準に該当する会社）', top: 39.74, left: 63.74, width: 30.28, height: 3.37 },
-  { kind: 'label', text: '･卸売業　　　　　：20億円以上\n･小売・サービス業：15億円以上\n･上記以外の業種　：15億円以上', align: 'left', highlightWhen: () => j.landCol === 'smallA', top: 43.02, left: 63.74, width: 14.87, height: 8 },
-  { kind: 'label', text: '･卸売業　　　　　：7,000万円以上20億円未満\n･小売・サービス業：4,000万円以上15億円未満\n･上記以外の業種　：5,000万円以上15億円未満', align: 'left', highlightWhen: () => j.landCol === 'smallB', top: 43.02, left: 78.33, width: 15.68, height: 8 },
+  { kind: 'label', text: '･卸売業　　　　　：20億円以上\n･小売・サービス業：15億円以上\n･上記以外の業種　：15億円以上', align: 'left', highlightWhen: () => j.landCol === 'smallA', highlightLinePrefixes: () => j.landCol === 'smallA' && j.landIndustryPrefix ? [j.landIndustryPrefix] : [], top: 43.02, left: 63.74, width: 14.87, height: 8 },
+  { kind: 'label', text: '･卸売業　　　　　：7,000万円以上20億円未満\n･小売・サービス業：4,000万円以上15億円未満\n･上記以外の業種　：5,000万円以上15億円未満', align: 'left', highlightWhen: () => j.landCol === 'smallB', highlightLinePrefixes: () => j.landCol === 'smallB' && j.landIndustryPrefix ? [j.landIndustryPrefix] : [], top: 43.02, left: 78.33, width: 15.68, height: 8 },
   { kind: 'label', text: '⑥の割合', top: 50.92, left: 31.69, width: 7.77, height: 2.6 },
   { kind: 'label', text: '70％以上', highlightWhen: () => landHit('big', true), top: 50.92, left: 39.19, width: 6.68, height: 2.7 },
   { kind: 'label', text: '70％未満', highlightWhen: () => landHit('big', false), top: 50.92, left: 45.6, width: 6.27, height: 2.6 },
@@ -228,6 +229,11 @@ export function calcTable2(getField: TableProps['getField']) {
   const numOf = (s: string): number | null => { const t = s.replace(/,/g, '').trim(); if (t === '') return null; const n = Number(t); return isNaN(n) ? null : n; };
   const assetBook = numOf(getField('table1_2', 'f22')); // 千円
   const gyo = getField('table1_2', 'gyoshu');
+  const landIndustryPrefix =
+    gyo === '卸売業' ? '･卸売業'
+      : gyo === '小売・サービス業' ? '･小売・サービス業'
+        : gyo === 'その他' ? '･上記以外の業種'
+          : null;
   let landCol: Judgments['landCol'] = null;
   if (sizeRank === 4) landCol = 'big';
   else if (sizeRank !== null && sizeRank >= 1 && sizeRank <= 3) landCol = 'mid';
@@ -257,7 +263,7 @@ export function calcTable2(getField: TableProps['getField']) {
   const s5b = raw('s5_kyugyo') === '1';
   const s6 = raw('s6_seisan') === '1';
 
-  const j: Judgments = { s1, kabuRatio, s2, landRatio, landCol, sizeRank, s3, s4a, s4b, s5a, s5b, s6 };
+  const j: Judgments = { s1, kabuRatio, s2, landRatio, landCol, landIndustryPrefix, sizeRank, s3, s4a, s4b, s5a, s5b, s6 };
 
   // 7. 判定結果（2以上に該当する場合は後の番号）
   const result = s6 ? 6 : s5a || s5b ? 5 : s4a === true || s4b === true ? 4 : s3 === true ? 3 : s2 === true ? 2 : s1 === true ? 1 : 0;
