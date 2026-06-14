@@ -254,21 +254,43 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '１株当たりの比準価額', top: 81.48, left: 11.37, width: 15.27, height: 3.37 },
   { kind: 'label', text: '比準価額（㉒と㉕とのいずれか低い方の金額）×④の金額÷50円', productFractionExpression: { prefixLines: ['比準価額', '（㉒と㉕とのいずれか低い方の金額）'], numerator: '④の金額', denominator: '50円' }, top: 81.48, left: 26.37, width: 47.05, height: 3.37 },
   { field: '㉖', kind: 'input', readOnly: true, cornerLabel: '㉖', topRightLabel: '円', top: 81.48, left: 73.15, width: 16.64, height: 3.28 },
-  { kind: 'label', text: '比 準 価 額 の 修 正', top: 84.75, left: 11.37, width: 2.45, height: 9.25 },
+  { kind: 'label', text: '比\n準\n価\n額\nの\n修\n正', top: 84.75, left: 11.37, width: 2.45, height: 9.25 },
   { kind: 'label', text: '直前期末の翌日から課税時期までの間に\n「配当金交付」の効力が\n発生した場合', fontSize: 5, top: 84.66, left: 13.55, width: 13.09, height: 4.72 },
-  { kind: 'label', text: '比準価額（㉖の金額）　－　１株当たりの配当金額', top: 84.66, left: 26.37, width: 28, height: 4.72, fontSize: 7.5 },
-  { field: 'mod_div', kind: 'input', decimalPlaces: 2, topRightLabel: '円', top: 84.66, left: 54.37, width: 19.05, height: 4.72 },
+  {
+    kind: 'input',
+    subtractionAmountExpression: {
+      leftLabelLines: ['比準価額', '（㉖の金額）'],
+      leftValueField: '㉖',
+      rightLabelLines: ['１株当たりの', '配当金額'],
+      rightYenField: 'mod_div',
+      rightSenField: 'mod_div_sen',
+    },
+    top: 84.66,
+    left: 26.37,
+    width: 47.05,
+    height: 4.72,
+  },
   { kind: 'label', text: '修正比準価額', top: 84.46, left: 73.15, width: 16.64, height: 1.73 },
   { field: '㉗', kind: 'input', readOnly: true, cornerLabel: '㉗', topRightLabel: '円', top: 86.2, left: 73.15, width: 16.64, height: 3.18 },
   { kind: 'label', text: '直前期末の翌日から課税時期までの間に\n「株式の割当て等」の効力が\n発生した場合', fontSize: 5, top: 89.19, left: 13.49, width: 13.09, height: 4.81 },
   // ㉘＝(㉗(なければ㉖)＋払込金額×割当株式数)÷(1＋割当・交付株式数)
-  { kind: 'label', text: '割当株式1株当た\nりの払込金額', top: 89.28, left: 26.37, width: 10, height: 4.82, fontSize: 7 },
-  { field: 'mod_pay', kind: 'input', decimalPlaces: 2, topRightLabel: '円', top: 89.28, left: 36.37, width: 8, height: 4.82 },
-  // 割当株式数は1株未満を切り捨てず実際の株式数を記載（記載要領4⑺ハ）→ 丸めなし
-  { kind: 'label', text: '1株当たりの\n割当株式数', top: 89.28, left: 44.37, width: 10, height: 4.82, fontSize: 7 },
-  { field: 'mod_ratio', kind: 'input', topRightLabel: '株', top: 89.28, left: 54.37, width: 6, height: 4.82 },
-  { kind: 'label', text: '1株当たりの割当\n・交付株式数', top: 89.28, left: 60.37, width: 9, height: 4.82, fontSize: 7 },
-  { field: 'mod_ratio2', kind: 'input', topRightLabel: '株', top: 89.28, left: 69.37, width: 3.78, height: 4.82 },
+  {
+    kind: 'input',
+    allocationAdjustmentExpression: {
+      baseLabelLines: ['比準価額', '（㉖（㉗がある', 'ときは㉗）の金額）'],
+      baseValueField: 'mod2_base',
+      paymentLabelLines: ['割当株式１株当たりの', '払込金額'],
+      paymentField: 'mod_pay',
+      allocationLabelLines: ['１株当たりの', '割当株式数'],
+      allocationField: 'mod_ratio',
+      issuedLabelLines: ['１株当たりの割当株式数', '又は交付株式数'],
+      issuedField: 'mod_ratio2',
+    },
+    top: 89.28,
+    left: 26.37,
+    width: 46.78,
+    height: 4.82,
+  },
   { kind: 'label', text: '修正比準価額', top: 89.28, left: 73.29, width: 16.5, height: 1.73 },
   { field: '㉘', kind: 'input', readOnly: true, cornerLabel: '㉘', topRightLabel: '円', top: 90.73, left: 73.15, width: 16.64, height: 3.37 },
 ];
@@ -372,7 +394,7 @@ export function calcTable4(getField: TableProps['getField']) {
   const v26 = minP !== null && cap4 !== null ? fl((minP * cap4) / 50) : null;
 
   // 比準価額の修正: ㉗=㉖－1株当たりの配当金額、㉘=(㉗(ないときは㉖)＋払込金額×割当株式数)÷(1＋割当・交付株式数)
-  const modDiv = num('mod_div');
+  const modDiv = senPair('mod_div', 'mod_div_sen');
   const v27 = v26 !== null && modDiv !== null ? fl(v26 - modDiv) : null;
   const modPay = num('mod_pay'), modRatio = num('mod_ratio'), modRatio2 = num('mod_ratio2');
   const base28 = v27 ?? v26;
@@ -433,6 +455,7 @@ export function Table4Grid({ getField, updateField }: TableProps) {
       case '㉖': return fmt(c.v26);
       case '㉗': return fmt(c.v27);
       case '㉘': return fmt(c.v28);
+      case 'mod2_base': return fmt(c.v27 ?? c.v26);
       default: return raw(f);
     }
   };
