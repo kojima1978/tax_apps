@@ -254,7 +254,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '１株当たりの比準価額', top: 81.48, left: 11.37, width: 15.27, height: 3.37 },
   { kind: 'label', text: '比準価額（㉒と㉕とのいずれか低い方の金額）×④の金額÷50円', productFractionExpression: { prefixLines: ['比準価額', '（㉒と㉕とのいずれか低い方の金額）'], numerator: '④の金額', denominator: '50円' }, top: 81.48, left: 26.37, width: 47.05, height: 3.37 },
   { field: '㉖', kind: 'input', readOnly: true, cornerLabel: '㉖', topRightLabel: '円', top: 81.48, left: 73.15, width: 16.64, height: 3.28 },
-  { kind: 'label', text: '比\n準\n価\n額\nの\n修\n正', top: 84.75, left: 11.37, width: 2.45, height: 9.25 },
+  { kind: 'label', text: '比 準 価 額 の 修 正', top: 84.75, left: 11.37, width: 2.45, height: 9.25 },
   { kind: 'label', text: '直前期末の翌日から課税時期までの間に\n「配当金交付」の効力が\n発生した場合', fontSize: 5, top: 84.66, left: 13.55, width: 13.09, height: 4.72 },
   {
     kind: 'input',
