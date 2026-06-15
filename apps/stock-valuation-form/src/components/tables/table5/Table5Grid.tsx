@@ -43,6 +43,7 @@ function dataRows(prefix: string, cols: Col[]): GridCell[] {
         field: `${prefix}_${r + 1}_${ci + 1}`,
         kind: 'input',
         options: prefix === 'a' && ci === 3 ? ['', '株式等', '土地等'] : undefined,
+        commaInteger: ci === 1 || ci === 2,
         topRightLabel: r === 0 && (ci === 1 || ci === 2) ? '千円' : undefined,
         top, left: c.left, width: c.width, height: +PITCH.toFixed(2),
         align: ci === 0 ? 'left' : 'right',
