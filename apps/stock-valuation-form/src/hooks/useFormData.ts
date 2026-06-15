@@ -7,39 +7,46 @@ const TREASURY_SHARE_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', 'f63'],
   ['table3', '⑪'],
   ['table4', '③'],
+  ['table6', '⑬'],
   ['table1_1', 'treasury_shares'],
 ];
 
 const CAPITAL_AMOUNT_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table4', '①'],
   ['table3', '⑨'],
+  ['table6', '⑪'],
   ['table4', 'n52'],
 ];
 
 const ISSUED_SHARE_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', '①'],
   ['table3', '⑩'],
+  ['table6', '⑫'],
   ['table4', '②'],
 ];
 
 const CURRENT_DIVIDEND_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table4', 'f28'],
   ['table3', 'f55'],
+  ['table6', 'f61'],
 ];
 
 const CURRENT_EXTRAORDINARY_DIVIDEND_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table4', 'f29'],
   ['table3', 'f56'],
+  ['table6', 'f62'],
 ];
 
 const PREVIOUS_DIVIDEND_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table4', 'f32'],
   ['table3', 'f59'],
+  ['table6', 'f66'],
 ];
 
 const PREVIOUS_EXTRAORDINARY_DIVIDEND_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table4', 'f33'],
   ['table3', 'f60'],
+  ['table6', 'f67'],
 ];
 
 const LINKED_FIELD_GROUPS: ReadonlyArray<ReadonlyArray<readonly [TableId, string]>> = [

@@ -166,7 +166,7 @@ const CELLS: GridCell[] = [
   { field: '⑳', kind: 'input', readOnly: true, cornerLabel: '⑳', topRightLabel: '円', bottomLabel: '（⑲が原則的評価額を超える場合はその価格）', top: 68.56, left: 75.02, width: 17.6, height: 6.17 },
   // ── 3 株式に関する権利の価額 ──
   { kind: 'label', text: '３ 株 式 に 関 す る 権 利 の 価 額', top: 74.63, left: 8.34, width: 3.68, height: 18.51 },
-  { kind: 'label', text: '配 当 期 待 権', top: 74.73, left: 11.88, width: 15.27, height: 4.63 },
+  { kind: 'label', text: '配 当 期 待 権', ariaLabel: '配当期待権を選択', toggleField: 'right_haito', highlightWhen: (g) => g('right_haito') === '1', top: 74.73, left: 11.88, width: 15.27, height: 4.63 },
   {
     kind: 'input',
     editableSubtractionExpression: {
@@ -185,7 +185,7 @@ const CELLS: GridCell[] = [
   },
   { field: '㉑', kind: 'input', readOnly: true, cornerLabel: '㉑', topRightLabel: '円', top: 74.73, left: 57.3, width: 9.55, height: 4.63 },
   { field: 'f72', kind: 'input', readOnly: true, topRightLabel: '銭', top: 74.73, left: 66.57, width: 4.91, height: 4.63 },
-  { kind: 'label', text: '株式の割当てを受ける権利\n(割当株式１株当たりの価額)', top: 79.45, left: 11.88, width: 15.27, height: 4.53 },
+  { kind: 'label', text: '株式の割当てを受ける権利\n(割当株式１株当たりの価額)', ariaLabel: '割当てを受ける権利を選択', toggleField: 'right_wariate', highlightWhen: (g) => g('right_wariate') === '1', top: 79.45, left: 11.88, width: 15.27, height: 4.53 },
   {
     kind: 'input',
     subtractionAmountExpression: {
@@ -203,10 +203,10 @@ const CELLS: GridCell[] = [
     height: 4.82,
   },
   { field: '㉒', kind: 'input', readOnly: true, cornerLabel: '㉒', topRightLabel: '円', top: 79.36, left: 57.3, width: 14.18, height: 4.72 },
-  { kind: 'label', text: '株主となる権利\n(割当株式１株当たりの価額)', top: 83.98, left: 11.88, width: 15.14, height: 4.63 },
+  { kind: 'label', text: '株主となる権利\n(割当株式１株当たりの価額)', ariaLabel: '株主となる権利を選択', toggleField: 'right_kabunushi', highlightWhen: (g) => g('right_kabunushi') === '1', top: 83.98, left: 11.88, width: 15.14, height: 4.63 },
   { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額\n（課税時期後に払い込むべき金額があるときは、\nその金額を控除した金額）', align: 'left', top: 83.89, left: 27.02, width: 30.41, height: 4.82, fontSize: 6 },
   { field: '㉓', kind: 'input', readOnly: true, cornerLabel: '㉓', topRightLabel: '円', top: 83.98, left: 57.43, width: 13.91, height: 4.63 },
-  { kind: 'label', text: '株式無償交付期待権\n(交付される株式１株当たりの価額)', top: 88.51, left: 11.88, width: 15, height: 4.63 },
+  { kind: 'label', text: '株式無償交付期待権\n(交付される株式１株当たりの価額)', ariaLabel: '無償交付期待権を選択', toggleField: 'right_musho', highlightWhen: (g) => g('right_musho') === '1', top: 88.51, left: 11.88, width: 15, height: 4.63 },
   { kind: 'label', text: '⑧（配当還元方式の場合は⑳）の金額', align: 'left', top: 88.51, left: 26.88, width: 30.69, height: 4.63 },
   { field: '㉔', kind: 'input', readOnly: true, cornerLabel: '㉔', topRightLabel: '円', top: 88.42, left: 57.16, width: 14.18, height: 4.72 },
   // ── 4 株式及び株式に関する権利の価額 ──
@@ -382,7 +382,7 @@ export function Table3Grid({ getField, updateField }: TableProps) {
   };
 
   const toolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, whiteSpace: 'nowrap', flexWrap: 'wrap' }}>
+    <span className="no-print" style={{ display: 'flex', alignItems: 'center', fontSize: 11, whiteSpace: 'nowrap' }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         適用方式：
         <select id="table3-hoshiki-toolbar" name="table3.hoshiki" value={raw('hoshiki')} onChange={(e) => u('hoshiki', e.target.value)} style={{ fontSize: 11, padding: '1px 2px' }}>
@@ -391,15 +391,6 @@ export function Table3Grid({ getField, updateField }: TableProps) {
           <option value="haito">配当還元方式</option>
         </select>
       </label>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        発生している権利：
-        {RIGHTS.map((r) => (
-          <label key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <input id={`table3-${r.key}-toolbar`} name={`table3.${r.key}`} type="checkbox" checked={raw(r.key) === '1'} onChange={(e) => u(r.key, e.target.checked ? '1' : '')} />
-            {r.label}
-          </label>
-        ))}
-      </span>
     </span>
   );
   return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" toolbar={toolbar} references={REFERENCES} />;
