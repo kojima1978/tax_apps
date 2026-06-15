@@ -44,6 +44,22 @@ const isNonDozokuJudge = (g: (f: string) => string) => {
   const th = col6Threshold(r6);
   return valid && th !== null && r5 < th;
 };
+// ── 2.少数株式所有者の評価方式の判定（通達188(2)(4)）のハイライト用 ──
+const shosuState = (g: (f: string) => string): { applies: boolean; result: 'gensoku' | 'haito' | null } => {
+  const isDozoku = isDozokuJudge(g);
+  const indiv = g('sh_1_6'); // 納税義務者(1行目)の議決権割合㋩
+  const indivR = Number(indiv);
+  const applies = isDozoku && indiv !== '' && !isNaN(indivR) && indivR < 5;
+  let result: 'gensoku' | 'haito' | null = null;
+  if (applies) {
+    if (g('j_yakuin') === 'yes' || g('j_chushin_self') === 'yes') result = 'gensoku';
+    else if (g('j_chushin_other') === 'yes') result = 'haito';
+    else if (g('j_chushin_other') === 'no') result = 'gensoku';
+  }
+  return { applies, result };
+};
+const shosuGensoku = (g: (f: string) => string) => shosuState(g).result === 'gensoku';
+const shosuHaito = (g: (f: string) => string) => shosuState(g).result === 'haito';
 
 /** 第1表の1の株主判定（⑤⑥と同族株主等の判定。第3表の適用方式などから参照） */
 export function calcShareholderJudgment(getField: TableProps['getField']) {
@@ -61,8 +77,30 @@ export function calcShareholderJudgment(getField: TableProps['getField']) {
   const ratio5 = pct(votes, votes > 0);
   const ratio6 = pct(n(gf('③')), gf('③') !== '');
   const th = ratio6 === null ? null : ratio6 > 50 ? 50 : ratio6 >= 30 ? 30 : 15;
-  const isDozoku = ratio5 !== null && th !== null ? ratio5 >= th : null;
-  return { ratio5, ratio6, isDozoku };
+  const isDozoku = ratio5 !== null && th !== null ? ratio5 >= th : null; // 1.株主及び評価方式の判定（議決権割合）
+
+  // 2.少数株式所有者の評価方式の判定（通達188(2)(4)）
+  // 同族株主等に該当する納税義務者(1行目)のうち、個人の議決権割合(㋩)が5%未満の者に適用
+  const indivRatio = pct(n(gf('sh_1_5')), gf('sh_1_5') !== '');
+  const shosuApplies = isDozoku === true && indivRatio !== null && indivRatio < 5;
+  const yakuin = gf('j_yakuin');           // 役員: yes(である)→原則 / no(でない)→次へ
+  const chushinSelf = gf('j_chushin_self'); // 納税義務者が中心的な同族株主: yes→原則 / no→次へ
+  const chushinOther = gf('j_chushin_other'); // 他に中心的な同族株主(株主): yes(がいる)→配当還元 / no(がいない)→原則
+  let shosuResult: 'gensoku' | 'haito' | null = null;
+  if (shosuApplies) {
+    if (yakuin === 'yes' || chushinSelf === 'yes') shosuResult = 'gensoku';
+    else if (chushinOther === 'yes') shosuResult = 'haito';
+    else if (chushinOther === 'no') shosuResult = 'gensoku';
+  }
+
+  // 最終判定（原則的評価方式等=true / 配当還元方式=false）。区分2が適用される場合はその結果を優先。
+  let isDozokuFinal: boolean | null;
+  if (isDozoku === null) isDozokuFinal = null;
+  else if (isDozoku === false) isDozokuFinal = false;
+  else if (!shosuApplies) isDozokuFinal = true; // 同族株主等かつ5%以上→原則
+  else isDozokuFinal = shosuResult === 'gensoku' ? true : shosuResult === 'haito' ? false : null;
+
+  return { ratio5, ratio6, isDozoku, indivRatio, shosuApplies, shosuResult, isDozokuFinal };
 }
 
 type Col = { left: number; width: number };
@@ -194,13 +232,14 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '氏 名', top: 61.52, left: 60.88, width: 9.14, height: 3.95 },
   { field: 'f6', kind: 'input', top: 61.52, left: 69.74, width: 23.87, height: 4.05 },
   { kind: 'label', text: '㊁役 員', top: 65.28, left: 60.88, width: 9.27, height: 4.05 },
-  { kind: 'label', text: 'である（原則的評価方式等）・でない（次の㋭へ)', top: 65.28, left: 69.88, width: 23.59, height: 3.95 },
+  { kind: 'label', text: 'である（原則的評価方式等）・でない（次の㋭へ)', highlightWhen: (g) => shosuState(g).applies && g('j_yakuin') === 'yes', top: 65.28, left: 69.88, width: 23.59, height: 3.95 },
   { kind: 'label', text: '㋭納税義務者が\n中心的な同族株主', top: 69.33, left: 61.01, width: 9, height: 3.28 },
-  { kind: 'label', text: 'である（原則的評価方式等）・でない（次の㋬へ)', top: 69.04, left: 69.88, width: 23.59, height: 3.76 },
+  { kind: 'label', text: 'である（原則的評価方式等）・でない（次の㋬へ)', highlightWhen: (g) => shosuState(g).applies && g('j_yakuin') === 'no' && g('j_chushin_self') === 'yes', top: 69.04, left: 69.88, width: 23.59, height: 3.76 },
   { kind: 'label', text: '㋬納税義務者以外に中心的な同族株主（又は株主）', top: 72.42, left: 60.88, width: 9.27, height: 5.78 },
-  { kind: 'label', text: 'がいる（配当還元方式）・がいない（原則的評価方式等）', top: 72.51, left: 69.88, width: 23.59, height: 5.78 },
+  { kind: 'label', text: 'がいる（配当還元方式）・がいない（原則的評価方式等）', highlightWhen: (g) => shosuState(g).applies && g('j_yakuin') === 'no' && g('j_chushin_self') === 'no' && (g('j_chushin_other') === 'yes' || g('j_chushin_other') === 'no'), top: 72.51, left: 69.88, width: 23.59, height: 5.78 },
   { kind: 'label', text: '判 定', top: 78.2, left: 59.38, width: 10.64, height: 3.57 },
-  { kind: 'label', text: '原則的評価方式等　　・　　配当還元方式', top: 78.01, left: 70.01, width: 23.46, height: 3.86 },
+  { kind: 'label', text: '原則的評価方式等', highlightWhen: shosuGensoku, top: 78.01, left: 70.01, width: 11.73, height: 3.86 },
+  { kind: 'label', text: '配当還元方式', highlightWhen: shosuHaito, top: 78.01, left: 81.74, width: 11.73, height: 3.86 },
 ];
 
 /** 第1表の1（CSSグリッド方式・完成版） */
@@ -231,5 +270,31 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     return getField(T, f);
   };
   const u = (f: string, v: string) => updateField(T, f, v);
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" references={REFERENCES} />;
+
+  // 2.少数株式所有者の評価方式の判定（役員・中心的同族株主の入力＋最終判定の表示）
+  const judge = calcShareholderJudgment(getField);
+  const SHOSU_SELECTS: { field: string; label: string; yes: string; no: string }[] = [
+    { field: 'j_yakuin', label: '㊁役員', yes: 'である', no: 'でない' },
+    { field: 'j_chushin_self', label: '㋭本人が中心的な同族株主', yes: 'である', no: 'でない' },
+    { field: 'j_chushin_other', label: '㋬他に中心的な同族株主', yes: 'がいる', no: 'がいない' },
+  ];
+  const finalText = judge.isDozokuFinal === null ? '判定不能（要素未入力）' : judge.isDozokuFinal ? '原則的評価方式等' : '配当還元方式';
+  const toolbar = (
+    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, whiteSpace: 'nowrap', flexWrap: 'wrap' }}>
+      <span style={{ fontWeight: 700 }}>2.少数株式判定</span>
+      {SHOSU_SELECTS.map((s) => (
+        <label key={s.field} style={{ display: 'flex', alignItems: 'center', gap: 2, opacity: judge.shosuApplies ? 1 : 0.5 }}>
+          {s.label}：
+          <select id={`table1_1-${s.field}-toolbar`} name={`table1_1.${s.field}`} value={getField(T, s.field)} onChange={(e) => u(s.field, e.target.value)} style={{ fontSize: 11, padding: '1px 2px' }}>
+            <option value="">―</option>
+            <option value="yes">{s.yes}</option>
+            <option value="no">{s.no}</option>
+          </select>
+        </label>
+      ))}
+      {!judge.shosuApplies && <span style={{ color: '#777' }}>※区分2は同族株主等かつ納税義務者の議決権割合5%未満のとき適用</span>}
+      <span style={{ fontWeight: 700, color: judge.isDozokuFinal === false ? '#b45309' : '#2e7d32' }}>最終判定：{finalText}</span>
+    </span>
+  );
+  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" toolbar={toolbar} references={REFERENCES} />;
 }

@@ -30,9 +30,9 @@ const CELLS: GridCell[] = [
   // ── 1. 純資産価額方式等による価額 ──
   { kind: 'label', text: '１ 　 純 資 産 価 額 方 式 等 に よ る 価 額', top: 8.42, left: 8.37, width: 3.68, height: 38.75 },
   { kind: 'label', text: '１ 株 当 た り の 価 額 の 計 算 の 基 と な る 金 額', top: 8.51, left: 11.64, width: 10.37, height: 8.29 },
-  { kind: 'label', text: '類 似 業 種 比 準 価 額（第４表の ㉖ 、 ㉗ 又は ㉘ の金額）', top: 8.51, left: 21.87, width: 23.87, height: 3.86 },
-  { kind: 'label', text: '１ 株 当 た り の 純 資 産 価 額（ 第 ５ 表 の ⑪ の 金 額 ）', top: 8.51, left: 45.6, width: 23.87, height: 3.86 },
-  { kind: 'label', text: '１ 株 当 た り の 純 資 産 価 額 の80 ％ 相 当 額 （ 第 ５ 表 の ⑫ の記載がある場合のその金額）', top: 8.51, left: 69.2, width: 20.73, height: 3.86 },
+  { kind: 'label', text: '類似業種比準価額\n（第４表の㉖、㉗又は㉘の金額）', top: 8.51, left: 21.87, width: 23.87, height: 3.86 },
+  { kind: 'label', text: '１株当たりの純資産価額\n（第５表の⑪の金額）', top: 8.51, left: 45.6, width: 23.87, height: 3.86 },
+  { kind: 'label', text: '１株当たりの純資産価額の80％相当額\n（第５表の⑫の記載がある場合のその金額）', top: 8.51, left: 69.2, width: 20.73, height: 3.86 },
   { field: '①', kind: 'input', readOnly: true, cornerLabel: '①', topRightLabel: '円', top: 12.18, left: 21.87, width: 23.87, height: 4.63 },
   { field: '②', kind: 'input', readOnly: true, cornerLabel: '②', topRightLabel: '円', top: 12.18, left: 45.47, width: 24, height: 4.63 },
   { field: '③', kind: 'input', readOnly: true, cornerLabel: '③', topRightLabel: '円', top: 12.27, left: 69.2, width: 20.73, height: 4.63 },
@@ -40,13 +40,13 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '株 式 の 区 分', top: 16.71, left: 15.05, width: 13.77, height: 2.22 },
   { kind: 'label', text: '１ 株 当 た り の 価 額 の 算 定 方 法 等', top: 16.61, left: 28.69, width: 40.78, height: 2.41 },
   { kind: 'label', text: '１ 株 当 た り の 価 額', top: 16.71, left: 69.33, width: 20.46, height: 2.31 },
-  { kind: 'label', text: '比準要素数１の会社の株式', top: 18.83, left: 15.05, width: 13.77, height: 4.53 },
+  { kind: 'label', text: '比準要素数１の会社\nの株式', top: 18.83, left: 15.05, width: 13.77, height: 4.53 },
   { kind: 'label', text: '次のうちいずれか低い方の金額　イ　②の金額（③の金額があるときは③の金額）　ロ　（ ①の金額 × 0.25 ）＋（ イの金額 × 0.75 ）', top: 18.83, left: 28.55, width: 40.92, height: 4.63, align: 'left', fontSize: 6.5 },
   { field: '④', kind: 'input', readOnly: true, cornerLabel: '④', topRightLabel: '円', top: 18.92, left: 69.33, width: 20.59, height: 4.63 },
-  { kind: 'label', text: '株式等保有特定会社の株式', top: 23.26, left: 15.05, width: 13.77, height: 3.17 },
+  { kind: 'label', text: '株式等保有特定会社\nの株式', top: 23.26, left: 15.05, width: 13.77, height: 3.17 },
   { kind: 'label', text: '（第８表の㉗の金額）', top: 23.26, left: 28.69, width: 40.78, height: 3.18 },
   { field: '⑤', kind: 'input', readOnly: true, cornerLabel: '⑤', topRightLabel: '円', top: 23.26, left: 69.33, width: 20.46, height: 3.18 },
-  { kind: 'label', text: '土地保有特定会社の株式', top: 26.34, left: 15.05, width: 13.77, height: 3.08 },
+  { kind: 'label', text: '土地保有特定会社\nの株式', top: 26.34, left: 15.05, width: 13.77, height: 3.08 },
   { kind: 'label', text: '（②の金額（③の金額があるときはその金額））', top: 26.25, left: 28.69, width: 40.78, height: 3.18, fontSize: 6.5 },
   { field: '⑥', kind: 'input', readOnly: true, cornerLabel: '⑥', topRightLabel: '円', top: 26.34, left: 69.33, width: 20.46, height: 2.99 },
   { kind: 'label', text: '開業後３年未満の会社等の株式', top: 29.24, left: 15.05, width: 13.91, height: 3.18 },
@@ -223,7 +223,7 @@ export function Table6Grid({ getField, updateField }: TableProps) {
 
   // 適用方式（自動=第1表の1の株主判定に連動、toolbarで手動切替可）
   const mode = raw('hoshiki');
-  const useHaito = mode === 'haito' ? true : mode === 'junshisan' ? false : judge.isDozoku === null ? null : !judge.isDozoku;
+  const useHaito = mode === 'haito' ? true : mode === 'junshisan' ? false : judge.isDozokuFinal === null ? null : !judge.isDozokuFinal;
   const finalPrice = useHaito === null ? null : useHaito ? v22 ?? v21 : jun; // f94 株式の評価額
 
   // 3. 株式に関する権利の価額

@@ -300,7 +300,7 @@ export function Table3Grid({ getField, updateField }: TableProps) {
 
   // 適用方式（自動=第1表の1の株主判定に連動、toolbarで手動切替可）
   const mode = raw('hoshiki');
-  const useHaito = mode === 'haito' ? true : mode === 'gensoku' ? false : judge.isDozoku === null ? null : !judge.isDozoku;
+  const useHaito = mode === 'haito' ? true : mode === 'gensoku' ? false : judge.isDozokuFinal === null ? null : !judge.isDozokuFinal;
   const finalPrice = useHaito === null ? null : useHaito ? v20 ?? v19 : gensoku;
 
   // 3. 株式に関する権利の価額
