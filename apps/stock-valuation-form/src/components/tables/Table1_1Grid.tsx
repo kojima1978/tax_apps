@@ -280,9 +280,9 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '氏 名', top: 61.52, left: 60.88, width: 9.14, height: 3.95 },
   { field: 'f6', kind: 'input', top: 61.52, left: 69.74, width: 23.87, height: 4.05 },
   { kind: 'label', text: '㊁役 員', top: 65.28, left: 60.88, width: 9.27, height: 4.05 },
-  // セル内クリックで「である／でない」を選択（j_yakuin）。未選択時は役職名(sh_1_3)から自動判定を表示
-  { kind: 'label', text: 'である（原則的評価方式等）', selectValue: { field: 'j_yakuin', value: 'yes' }, highlightWhen: (g) => effectiveOfficer(g) === true, top: 65.28, left: 69.88, width: 11.8, height: 3.95 },
-  { kind: 'label', text: 'でない（次の㋭へ）', selectValue: { field: 'j_yakuin', value: 'no' }, highlightWhen: (g) => effectiveOfficer(g) === false, top: 65.28, left: 81.68, width: 11.79, height: 3.95 },
+  // ㊁役員は納税義務者の役職名(sh_1_3)から自動判定。クリック選択はせず、結果（である／でない）だけを強調
+  { kind: 'label', text: 'である（原則的評価方式等）', highlightWhen: (g) => effectiveOfficer(g) === true, top: 65.28, left: 69.88, width: 11.8, height: 3.95 },
+  { kind: 'label', text: 'でない（次の㋭へ）', highlightWhen: (g) => effectiveOfficer(g) === false, top: 65.28, left: 81.68, width: 11.79, height: 3.95 },
   { kind: 'label', text: '㋭納税義務者が\n中心的な同族株主', top: 69.33, left: 61.01, width: 9, height: 3.28 },
   // セル内クリックで「である／でない」を選択（j_chushin_self）
   { kind: 'label', text: 'である（原則的評価方式等）', selectValue: { field: 'j_chushin_self', value: 'yes' }, highlightWhen: (g) => g('j_chushin_self') === 'yes', top: 69.04, left: 69.88, width: 11.8, height: 3.76 },
@@ -324,18 +324,5 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     return getField(T, f);
   };
   const u = (f: string, v: string) => updateField(T, f, v);
-
-  // 2.少数株式所有者の評価方式の判定（役員・中心的同族株主の入力＋最終判定の表示）
-  const judge = calcShareholderJudgment(getField);
-  const officerText = judge.officer === null ? '役職名未選択' : judge.officer ? '役員に該当' : '役員に非該当';
-  const finalText = judge.isDozokuFinal === null ? '判定不能（要素未入力）' : judge.isDozokuFinal ? '原則的評価方式等' : '配当還元方式';
-  const toolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, whiteSpace: 'nowrap', flexWrap: 'wrap' }}>
-      <span style={{ fontWeight: 700 }}>2.少数株式判定</span>
-      <span style={{ opacity: judge.shosuApplies ? 1 : 0.5 }}>㊁役員：<b>{officerText}</b>（役職名と連動・㊁㋭㋬は表内で選択）</span>
-      {!judge.shosuApplies && <span style={{ color: '#777' }}>※区分2は同族株主等かつ納税義務者の議決権割合5%未満のとき適用</span>}
-      <span style={{ fontWeight: 700, color: judge.isDozokuFinal === false ? '#b45309' : '#2e7d32' }}>最終判定：{finalText}</span>
-    </span>
-  );
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" toolbar={toolbar} references={REFERENCES} />;
+  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" references={REFERENCES} />;
 }
