@@ -148,7 +148,7 @@ const CELLS: GridCell[] = [
   { kind: 'cell', text: '', top: 9.28, left: 8.78, width: 81.83, height: 84.34 },
   { kind: 'label', text: '1.S1の金額（類似業種比準価額の修正計算）', top: 9.38, left: 8.64, width: 2.53, height: 84.24 },
   // 受取配当金等収受割合の計算
-  { kind: 'label', text: '受取配当金等収受割合の計算', top: 9.28, left: 10.96, width: 11.05, height: 8.67 },
+  { kind: 'label', text: '受取配当金等収受割合\nの計算', top: 9.28, left: 10.96, width: 11.05, height: 8.67 },
   { kind: 'label', text: '事 業 年 度', top: 9.28, left: 21.74, width: 9.55, height: 2.89 },
   { kind: 'label', text: '① 直 前 期', top: 9.28, left: 31.01, width: 14.46, height: 2.89 },
   { kind: 'label', text: '② 直 前 々 期', top: 9.19, left: 45.19, width: 14.59, height: 2.99 },
@@ -164,7 +164,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '受 取 配 当 金 等 収 受 割 合 （㋑÷（㋑＋㋺））※小数点以下３位未満切り捨て', top: 9.19, left: 73.83, width: 16.78, height: 4.14 },
   { field: '㋩', kind: 'input', readOnly: true, top: 13.04, left: 73.83, width: 16.78, height: 4.92 },
   // Ⓑ－ⓑの金額
-  { kind: 'label', text: 'Ⓑ－ⓑの金額', top: 17.67, left: 10.96, width: 10.91, height: 5.88 },
+  { kind: 'label', text: 'Ⓑ－ⓑ\nの金額', top: 17.67, left: 10.96, width: 10.91, height: 5.88 },
   { kind: 'label', text: '１株（50円）当たりの年配当金額\n（第４表のⒷ）', top: 17.67, left: 21.74, width: 16.64, height: 3.08 },
   { kind: 'label', text: 'ⓑの金額\n（③×㋩）', top: 17.67, left: 38.1, width: 18.14, height: 2.99 },
   { kind: 'label', text: 'Ⓑ－ⓑの金額\n（③－④）', top: 17.77, left: 55.97, width: 18.14, height: 2.89 },
@@ -175,7 +175,7 @@ const CELLS: GridCell[] = [
   { field: '⑤', kind: 'input', readOnly: true, top: 20.47, left: 56.1, width: 13.23, height: 2.99 },
   { field: 'f27', kind: 'input', readOnly: true, topRightLabel: '銭', top: 20.56, left: 69.2, width: 4.91, height: 2.99 },
   // 🄫－©の金額
-  { kind: 'label', text: '🄫－©の金額', top: 23.36, left: 10.96, width: 11.05, height: 5.59 },
+  { kind: 'label', text: '🄫－©\nの金額', top: 23.36, left: 10.96, width: 11.05, height: 5.59 },
   { kind: 'label', text: '１株（50円）当たりの年利益金額\n（第４表の🄫）', top: 23.45, left: 21.74, width: 16.64, height: 2.89 },
   { kind: 'label', text: '©の金額\n（⑥×㋩）', top: 23.36, left: 38.1, width: 18.14, height: 2.89 },
   { kind: 'label', text: '🄫－©の金額\n（⑥－⑦）', top: 23.26, left: 55.97, width: 18.14, height: 3.08 },
@@ -184,10 +184,10 @@ const CELLS: GridCell[] = [
   { field: '⑧', kind: 'input', readOnly: true, top: 26.15, left: 55.83, width: 18.28, height: 2.8 },
   { kind: 'cell', diagonal: 'bltr', top: 17.77, left: 73.97, width: 16.78, height: 11.18 },
   // Ⓓ－ⓓの金額
-  { kind: 'label', text: 'Ⓓ－ⓓの金額', top: 28.85, left: 10.82, width: 8.73, height: 18.12 },
+  { kind: 'label', text: 'Ⓓ－ⓓ\nの金額', top: 28.85, left: 10.82, width: 8.73, height: 18.12 },
   { kind: 'label', text: '（イ）の金額', top: 28.85, left: 19.28, width: 2.59, height: 5.98 },
   { kind: 'label', text: '１株（50円）当たりの純資産価額\n（第４表のⒹ）', top: 28.85, left: 21.6, width: 16.81, height: 3.18 },
-  { kind: 'label', text: '直 前 期 末 の 株 式 等 の帳 簿 価 額 の 合 計 額', top: 28.75, left: 38.24, width: 17.83, height: 3.28 },
+  { kind: 'label', text: '直前期末の株式等の帳簿価額\nの合計額', top: 28.75, left: 38.24, width: 17.83, height: 3.28 },
   { kind: 'label', text: '直前期末の総資産価額\n(帳簿価額）', top: 28.75, left: 55.97, width: 18, height: 3.28 },
   { kind: 'label', text: '（イ）の金額\n（⑨×（⑩÷⑪））', top: 28.85, left: 73.83, width: 16.91, height: 3.28 },
   { field: '⑨', kind: 'input', readOnly: true, top: 31.93, left: 21.6, width: 16.78, height: 2.8 },
@@ -206,7 +206,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: 'Ⓓ－ⓓの金額\n（⑨－⑯）', top: 41.09, left: 38.1, width: 18.14, height: 2.89 },
   { field: '⑯', kind: 'input', readOnly: true, top: 43.98, left: 21.74, width: 16.64, height: 2.99 },
   { field: '⑰', kind: 'input', readOnly: true, top: 43.98, left: 38.24, width: 17.87, height: 2.99 },
-  { kind: 'label', text: '（注）１ ㋩の割合は、１を上限とします。２　⑯の金額は、Ⓓの金額（⑨の金額）を上限とします。', top: 40.99, left: 55.97, width: 34.78, height: 5.98 },
+  { kind: 'label', text: '（注）\n１㋩の割合は、１を上限とします。\n２⑯の金額は、Ⓓの金額（⑨の金額）を上限とします。', top: 40.99, left: 55.97, width: 34.78, height: 5.98 },
   // 1株50円当たりの比準価額の計算（縦帯・2ブロック共通）
   { kind: 'label', text: '１株[50円]当たりの比準価額の計算', top: 47.07, left: 10.96, width: 2.59, height: 33.54 },
   // 1回目ブロック（⑱⑲⑳）＝第4表3類似業種比準価額の計算に連動
