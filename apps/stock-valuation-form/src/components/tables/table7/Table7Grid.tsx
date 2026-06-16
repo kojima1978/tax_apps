@@ -17,8 +17,39 @@ const REFERENCES = [
 // ── 端数処理（第7表記載要領＝第4表の記載方法等4に準ずる） ──
 const fl = (v: number) => Math.floor(v + 1e-9);                 // 円未満切捨て
 const fl10sen = (v: number) => Math.floor(v * 10 + 1e-7) / 10;  // 10銭未満切捨て
-const fl2 = (v: number) => Math.floor(v * 100 + 1e-7) / 100;    // 小数点以下2位未満切捨て
 const fl3 = (v: number) => Math.floor(v * 1000 + 1e-7) / 1000;  // 小数点以下3位未満切捨て
+
+const TABLE4_LINKED_FIELDS: Record<string, string> = {
+  f61: 'h5',
+  f66: 'h8',
+  f68: 'h11',
+  f70: 'h13',
+  '㊁': '㋷',
+  '㋭': '㋦',
+  '㋬': '㋸',
+  '㋣': '㋾',
+  '㋠': '㋻',
+  f110: 'r1sB1',
+  f111: 'r1sB2',
+  f113: 'r1sC',
+  f115: 'r1sD',
+  b2_f61: 'h58',
+  b2_f66: 'h61',
+  b2_f68: 'h64',
+  b2_f70: 'h67',
+  'b2_㊁': '㋕',
+  'b2_㋭': '㋵',
+  'b2_㋬': '㋟',
+  'b2_㋣': '㋹',
+  'b2_㋠': '㋞',
+  b2_f110: 'r2sB1',
+  b2_f111: 'r2sB2',
+  b2_f113: 'r2sC',
+  b2_f115: 'r2sD',
+};
+
+const linkInputsToTable4 = (cells: GridCell[]): GridCell[] =>
+  cells.map((cell) => (cell.kind === 'input' ? { ...cell, readOnly: true } : cell));
 
 const minValueHighlight = (fields: string[], target: string) => (g: (field: string) => string) => {
   const values = fields
@@ -134,9 +165,9 @@ const CELLS: GridCell[] = [
   { field: '㋩', kind: 'input', readOnly: true, top: 13.04, left: 73.83, width: 16.78, height: 4.92 },
   // Ⓑ－ⓑの金額
   { kind: 'label', text: 'Ⓑ－ⓑの金額', top: 17.67, left: 10.96, width: 10.91, height: 5.88 },
-  { kind: 'label', text: '１株（50円）当たりの年配当金額（第４表のⒷ）', top: 17.67, left: 21.74, width: 16.64, height: 3.08 },
-  { kind: 'label', text: 'ⓑの金額（③×ハ）', top: 17.67, left: 38.1, width: 18.14, height: 2.99 },
-  { kind: 'label', text: 'Ⓑ－ⓑの金額（③－④）', top: 17.77, left: 55.97, width: 18.14, height: 2.89 },
+  { kind: 'label', text: '１株（50円）当たりの年配当金額\n（第４表のⒷ）', top: 17.67, left: 21.74, width: 16.64, height: 3.08 },
+  { kind: 'label', text: 'ⓑの金額\n（③×㋩）', top: 17.67, left: 38.1, width: 18.14, height: 2.99 },
+  { kind: 'label', text: 'Ⓑ－ⓑの金額\n（③－④）', top: 17.77, left: 55.97, width: 18.14, height: 2.89 },
   { field: '③', kind: 'input', readOnly: true, top: 20.66, left: 21.74, width: 11.87, height: 2.89 },
   { field: 'f23', kind: 'input', readOnly: true, topRightLabel: '銭', top: 20.56, left: 33.33, width: 5.05, height: 2.99 },
   { field: '④', kind: 'input', readOnly: true, top: 20.56, left: 38.24, width: 13.23, height: 2.89 },
@@ -145,9 +176,9 @@ const CELLS: GridCell[] = [
   { field: 'f27', kind: 'input', readOnly: true, topRightLabel: '銭', top: 20.56, left: 69.2, width: 4.91, height: 2.99 },
   // 🄫－©の金額
   { kind: 'label', text: '🄫－©の金額', top: 23.36, left: 10.96, width: 11.05, height: 5.59 },
-  { kind: 'label', text: '１株（50円）当たりの年利益金額（第４表の🄫）', top: 23.45, left: 21.74, width: 16.64, height: 2.89 },
-  { kind: 'label', text: '©の金額（⑥×㋩）', top: 23.36, left: 38.1, width: 18.14, height: 2.89 },
-  { kind: 'label', text: '🄫－©の金額（⑥－⑦）', top: 23.26, left: 55.97, width: 18.14, height: 3.08 },
+  { kind: 'label', text: '１株（50円）当たりの年利益金額\n（第４表の🄫）', top: 23.45, left: 21.74, width: 16.64, height: 2.89 },
+  { kind: 'label', text: '©の金額\n（⑥×㋩）', top: 23.36, left: 38.1, width: 18.14, height: 2.89 },
+  { kind: 'label', text: '🄫－©の金額\n（⑥－⑦）', top: 23.26, left: 55.97, width: 18.14, height: 3.08 },
   { field: '⑥', kind: 'input', readOnly: true, top: 26.25, left: 21.74, width: 16.64, height: 2.8 },
   { field: '⑦', kind: 'input', readOnly: true, top: 26.15, left: 38.1, width: 18, height: 2.8 },
   { field: '⑧', kind: 'input', readOnly: true, top: 26.15, left: 55.83, width: 18.28, height: 2.8 },
@@ -155,33 +186,33 @@ const CELLS: GridCell[] = [
   // Ⓓ－ⓓの金額
   { kind: 'label', text: 'Ⓓ－ⓓの金額', top: 28.85, left: 10.82, width: 8.73, height: 18.12 },
   { kind: 'label', text: '（イ）の金額', top: 28.85, left: 19.28, width: 2.59, height: 5.98 },
-  { kind: 'label', text: '１株（50円）当たりの純資産価額（第４表のⒹ）', top: 28.85, left: 21.6, width: 16.81, height: 3.18 },
+  { kind: 'label', text: '１株（50円）当たりの純資産価額\n（第４表のⒹ）', top: 28.85, left: 21.6, width: 16.81, height: 3.18 },
   { kind: 'label', text: '直 前 期 末 の 株 式 等 の帳 簿 価 額 の 合 計 額', top: 28.75, left: 38.24, width: 17.83, height: 3.28 },
-  { kind: 'label', text: '直前期末の総資産価額(　帳　簿　価　額　）', top: 28.75, left: 55.97, width: 18, height: 3.28 },
-  { kind: 'label', text: '（イ）　の　金　額（⑨×（⑩÷⑪））', top: 28.85, left: 73.83, width: 16.91, height: 3.28 },
+  { kind: 'label', text: '直前期末の総資産価額\n(帳簿価額）', top: 28.75, left: 55.97, width: 18, height: 3.28 },
+  { kind: 'label', text: '（イ）の金額\n（⑨×（⑩÷⑪））', top: 28.85, left: 73.83, width: 16.91, height: 3.28 },
   { field: '⑨', kind: 'input', readOnly: true, top: 31.93, left: 21.6, width: 16.78, height: 2.8 },
   { field: '⑩', kind: 'input', top: 31.93, left: 38.24, width: 18, height: 2.89 },
   { field: '⑪', kind: 'input', top: 31.84, left: 55.97, width: 18.14, height: 2.89 },
   { field: '⑫', kind: 'input', readOnly: true, top: 31.84, left: 73.83, width: 16.91, height: 2.89 },
   { kind: 'label', text: '（ロ）の金額', top: 34.63, left: 19.28, width: 2.73, height: 6.65 },
-  { kind: 'label', text: '利　益　積　立　金　額（第４表の⑱の「直前期」欄の金額）', top: 34.73, left: 21.74, width: 26.05, height: 3.86 },
-  { kind: 'label', text: '１ 株 当 た り の 資 本 金 等 の 額 を 50 円 とし た 場 合 の 発 行 済 株 式 数（第４表の⑤の株式数）', top: 34.73, left: 47.51, width: 26.46, height: 3.86 },
-  { kind: 'label', text: '（ロ）　の　金　額（（⑬÷⑭）×ハ ）', top: 34.54, left: 73.83, width: 16.91, height: 3.95 },
-  { field: '⑬', kind: 'input', top: 38.39, left: 21.87, width: 26.05, height: 2.8 },
+  { kind: 'label', text: '利益積立金額\n（第４表の⑱の「直前期」欄の金額）', top: 34.73, left: 21.74, width: 26.05, height: 3.86 },
+  { kind: 'label', text: '１株当たりの資本金等の額を\n50円とした場合の発行済株式数\n（第４表の⑤の株式数）', top: 34.73, left: 47.51, width: 26.46, height: 3.86 },
+  { kind: 'label', text: '（ロ）の金額\n（（⑬÷⑭）×ハ ）', top: 34.54, left: 73.83, width: 16.91, height: 3.95 },
+  { field: '⑬', kind: 'input', readOnly: true, top: 38.39, left: 21.87, width: 26.05, height: 2.8 },
   { field: '⑭', kind: 'input', readOnly: true, top: 38.39, left: 47.65, width: 26.32, height: 2.8 },
   { field: '⑮', kind: 'input', readOnly: true, top: 38.3, left: 73.97, width: 16.64, height: 2.99 },
   { kind: 'cell', text: '', top: 41.19, left: 19.28, width: 2.59, height: 5.88 },
-  { kind: 'label', text: 'ⓓの金額（⑫＋⑮）', top: 41.09, left: 21.6, width: 16.78, height: 2.99 },
-  { kind: 'label', text: 'Ⓓ－ⓓの金額（⑨－⑯）', top: 41.09, left: 38.1, width: 18.14, height: 2.89 },
+  { kind: 'label', text: 'ⓓの金額\n（⑫＋⑮）', top: 41.09, left: 21.6, width: 16.78, height: 2.99 },
+  { kind: 'label', text: 'Ⓓ－ⓓの金額\n（⑨－⑯）', top: 41.09, left: 38.1, width: 18.14, height: 2.89 },
   { field: '⑯', kind: 'input', readOnly: true, top: 43.98, left: 21.74, width: 16.64, height: 2.99 },
   { field: '⑰', kind: 'input', readOnly: true, top: 43.98, left: 38.24, width: 17.87, height: 2.99 },
   { kind: 'label', text: '（注）１ ㋩の割合は、１を上限とします。２　⑯の金額は、Ⓓの金額（⑨の金額）を上限とします。', top: 40.99, left: 55.97, width: 34.78, height: 5.98 },
   // 1株50円当たりの比準価額の計算（縦帯・2ブロック共通）
   { kind: 'label', text: '１株[50円]当たりの比準価額の計算', top: 47.07, left: 10.96, width: 2.59, height: 33.54 },
-  // 1回目ブロック（⑱⑲⑳）
-  ...BLOCK1_CALC,
-  // 2回目ブロック（㉑㉒㉓）＝別の類似業種を入力
-  ...BLOCK2_CALC,
+  // 1回目ブロック（⑱⑲⑳）＝第4表3類似業種比準価額の計算に連動
+  ...linkInputsToTable4(BLOCK1_CALC),
+  // 2回目ブロック（㉑㉒㉓）＝第4表3類似業種比準価額の計算に連動
+  ...linkInputsToTable4(BLOCK2_CALC),
   // 1株当たりの比準価額（㉔）
   { kind: 'label', text: '１株当たりの比準価額', top: 80.51, left: 10.96, width: 18.14, height: 3.18 },
   {
@@ -237,7 +268,6 @@ export function calcTable7(getField: TableProps['getField']) {
   };
   const num = (f: string) => parseNum(raw(f));
   const senPair = (y: string, s: string) => { const a = num(y); return a === null ? null : a + (num(s) ?? 0) / 100; };
-  const minOf = (fs: string[]) => { const vs = fs.map(num).filter((v): v is number => v !== null); return vs.length ? Math.min(...vs) : null; };
 
   const t4 = calcTable4(getField);
   const t5 = calcTable5(getField);
@@ -268,7 +298,7 @@ export function calcTable7(getField: TableProps['getField']) {
   const totalBook: number | null = num('⑪') ?? t5['②'] ?? null;            // ⑪ 総資産帳簿価額（第5表②）
   const iKin = Dv !== null && kabuBook !== null && totalBook !== null && totalBook > 0
     ? fl(Dv * (kabuBook / totalBook)) : null;                                // ⑫ (イ)
-  const ekiseki = num('⑬') ?? parseNum(getField('table4', 'n53'));           // ⑬ 利益積立金額（第4表⑱直前期）
+  const ekiseki = parseNum(getField('table4', 'n53'));                       // ⑬ 利益積立金額（第4表⑱直前期）
   const shares50 = t4.cap5;                                                   // ⑭ 第4表⑤株式数
   const roKin = ekiseki !== null && shares50 !== null && shares50 > 0 && ha !== null
     ? fl((ekiseki / shares50) * ha) : null;                                   // ⑮ (ロ)
@@ -276,24 +306,16 @@ export function calcTable7(getField: TableProps['getField']) {
   const lowerD = lowerDraw === null ? null : Dv !== null ? Math.min(lowerDraw, Dv) : lowerDraw; // ⑯ ⓓ（⑨上限）
   const adjD = Dv !== null && lowerD !== null ? Dv - lowerD : null;           // ⑰
 
-  // 比準価額（第4表記載要領4に準ずる）: 評価会社=⑤⑧⑰、類似業種=B/C/Dを入力、2ブロックの低い方
-  const elem = (v: number | null, base: number | null) => (v !== null && base !== null && base > 0 ? fl2(v / base) : null);
-  const ratio3 = (a: number | null, b: number | null, c: number | null) => (a !== null && b !== null && c !== null ? fl2((a + b + c) / 3) : null);
-  const price = (A: number | null, r: number | null) => (A !== null && r !== null && shin !== null ? fl10sen(A * r * shin) : null);
-
-  const A1 = minOf(['㊁', '㋭', '㋬', '㋣', '㋠']);
-  const A2 = minOf(['b2_㊁', 'b2_㋭', 'b2_㋬', 'b2_㋣', 'b2_㋠']);
-  const B1 = senPair('f110', 'f111'), C1 = num('f113'), D1 = num('f115');
-  const B2 = senPair('b2_f110', 'b2_f111'), C2 = num('b2_f113'), D2 = num('b2_f115');
-  const e1B = elem(adjB, B1), e1C = elem(adjC, C1), e1D = elem(adjD, D1);
-  const e2B = elem(adjB, B2), e2C = elem(adjC, C2), e2D = elem(adjD, D2);
-  const r19 = ratio3(e1B, e1C, e1D);   // ⑲
-  const r22 = ratio3(e2B, e2C, e2D);   // ㉒
-  const p20 = price(A1, r19);          // ⑳
-  const p23 = price(A2, r22);          // ㉓
-  const minP = p20 !== null && p23 !== null ? Math.min(p20, p23) : p20 ?? p23;
-  const cap4 = t4.cap4;
-  const v24 = minP !== null && cap4 !== null ? fl((minP * cap4) / 50) : null; // ㉔
+  // 比準価額: 第4表3「類似業種比準価額の計算」と同じ値を転記する。
+  const A1 = t4.A1;             // 第4表⑳ → 第7表⑱
+  const A2 = t4.A2;             // 第4表㉓ → 第7表㉑
+  const e1B = t4.e1B, e1C = t4.e1C, e1D = t4.e1D;
+  const e2B = t4.e2B, e2C = t4.e2C, e2D = t4.e2D;
+  const r19 = t4.r21;           // 第4表㉑ → 第7表⑲
+  const r22 = t4.r24;           // 第4表㉔ → 第7表㉒
+  const p20 = t4.p22;           // 第4表㉒ → 第7表⑳
+  const p23 = t4.p25;           // 第4表㉕ → 第7表㉓
+  const v24 = t4.v26;           // 第4表㉖ → 第7表㉔
 
   // 比準価額の修正
   const modDiv = senPair('mod_div', 'mod_div_sen');
@@ -314,6 +336,7 @@ export function calcTable7(getField: TableProps['getField']) {
 /** 第7表（CSSグリッド方式・完成版） */
 export function Table7Grid({ getField, updateField }: TableProps) {
   const raw = (f: string) => getField(T, f);
+  const table4Raw = (f: string) => getField('table4', f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
   const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
@@ -324,6 +347,9 @@ export function Table7Grid({ getField, updateField }: TableProps) {
   const judge = calcTable2(getField).j;
 
   const g = (f: string): string => {
+    const linkedTable4Field = TABLE4_LINKED_FIELDS[f];
+    if (linkedTable4Field) return table4Raw(linkedTable4Field);
+
     switch (f) {
       case '㋑': return fmt(c.ia);
       case '㋺': return fmt(c.ro);
@@ -338,15 +364,15 @@ export function Table7Grid({ getField, updateField }: TableProps) {
       case '⑩': return raw('⑩').trim() !== '' ? raw('⑩') : fmt(c.kabuBook);
       case '⑪': return raw('⑪').trim() !== '' ? raw('⑪') : fmt(c.totalBook);
       case '⑫': return fmt(c.iKin);
-      case '⑬': return raw('⑬').trim() !== '' ? raw('⑬') : fmt(c.ekiseki);
+      case '⑬': return fmt(c.ekiseki);
       case '⑭': return fmt(c.shares50);
       case '⑮': return fmt(c.roKin);
       case '⑯': return fmt(c.lowerD);
       case '⑰': return fmt(c.adjD);
       // 比準価額 1回目ブロック
-      case 'f103': return yenPart(c.adjB); case 'f104': return senPart(c.adjB);
-      case 'f106': return fmt(c.adjC);
-      case 'f108': return fmt(c.adjD);
+      case 'f103': return yenPart(c.Bv); case 'f104': return senPart(c.Bv);
+      case 'f106': return fmt(c.Cv);
+      case 'f108': return fmt(c.Dv);
       case 'f117': return c.e1B === null ? '' : c.e1B.toFixed(2);
       case 'f119': return c.e1C === null ? '' : c.e1C.toFixed(2);
       case 'f121': return c.e1D === null ? '' : c.e1D.toFixed(2);
@@ -354,9 +380,9 @@ export function Table7Grid({ getField, updateField }: TableProps) {
       case '⑲': return c.r19 === null ? '' : c.r19.toFixed(2);
       case '⑳': return yenPart(c.p20); case 'f125': return senPart(c.p20);
       // 比準価額 2回目ブロック（評価会社⑤⑧⑰は共通）
-      case 'b2_f103': return yenPart(c.adjB); case 'b2_f104': return senPart(c.adjB);
-      case 'b2_f106': return fmt(c.adjC);
-      case 'b2_f108': return fmt(c.adjD);
+      case 'b2_f103': return yenPart(c.Bv); case 'b2_f104': return senPart(c.Bv);
+      case 'b2_f106': return fmt(c.Cv);
+      case 'b2_f108': return fmt(c.Dv);
       case 'b2_f117': return c.e2B === null ? '' : c.e2B.toFixed(2);
       case 'b2_f119': return c.e2C === null ? '' : c.e2C.toFixed(2);
       case 'b2_f121': return c.e2D === null ? '' : c.e2D.toFixed(2);
@@ -379,7 +405,6 @@ export function Table7Grid({ getField, updateField }: TableProps) {
       <span style={{ fontWeight: 700, color: judge.s2 === true ? '#b45309' : '#555' }}>
         第2表判定：株式等保有特定会社に{judge.s2 === true ? '該当' : judge.s2 === false ? '非該当' : '未判定'}
       </span>
-      <span style={{ color: '#777' }}>※この表はS1+S2方式で評価する場合のS1（類似業種比準価額の修正計算）に使用します</span>
     </span>
   );
   return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第７表　株式等保有特定会社の株式の価額の計算明細書" toolbar={toolbar} references={REFERENCES} />;
