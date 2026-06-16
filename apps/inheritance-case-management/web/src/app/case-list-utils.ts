@@ -81,6 +81,9 @@ export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQuer
     } else if (!getHasCaseFilters(params)) {
         params.fiscalYear = new Date().getFullYear()
     }
+    if (!params.handlingStatus) {
+        params.handlingStatus = "対応中"
+    }
     return params
 }
 

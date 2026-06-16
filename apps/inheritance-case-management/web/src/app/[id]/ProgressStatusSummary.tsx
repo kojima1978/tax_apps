@@ -47,6 +47,11 @@ export function ProgressStatusSummary({
     const acceptance = formData.acceptanceStatus || "未判定"
     const hint = ACCEPTANCE_HINTS[acceptance]
 
+    const applyCompletionEffects = () => {
+        if (!formData.feeAmount) onNeedsConfirmedFee?.()
+        setFormData(prev => prev.caseCompletedDate ? prev : { ...prev, caseCompletedDate: todayIsoDate() })
+    }
+
     const handleAcceptanceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const val = e.target.value as AcceptanceStatus
         const autoHandling = ACCEPTANCE_AUTO_HANDLING[val]
@@ -59,27 +64,19 @@ export function ProgressStatusSummary({
     }
 
     const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const val = e.target.value
         handleChange(e)
-        if ((COMPLETED_STATUSES as readonly string[]).includes(val)) {
-            if (!formData.feeAmount) onNeedsConfirmedFee?.()
-            setFormData(prev => (prev.caseCompletedDate ? prev : { ...prev, caseCompletedDate: todayIsoDate() }))
-        }
+        const val = e.target.value
+        if ((COMPLETED_STATUSES as readonly string[]).includes(val)) applyCompletionEffects()
+        if (val === "入金済") setFormData(prev => prev.handlingStatus === "対応終了" ? prev : { ...prev, handlingStatus: "対応終了" })
     }
 
     const handleHandlingStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const val = e.target.value
         handleChange(e)
-        if (isCompletedHandlingStatus(val)) {
-            if (!formData.feeAmount) onNeedsConfirmedFee?.()
-            setFormData(prev => (prev.caseCompletedDate ? prev : { ...prev, caseCompletedDate: todayIsoDate() }))
-        }
+        if (isCompletedHandlingStatus(e.target.value)) applyCompletionEffects()
     }
 
     const setDateField = (field: "caseAddedDate" | "caseCompletedDate", value: string | null) => {
-        if (field === "caseCompletedDate" && value && !formData.feeAmount) {
-            onNeedsConfirmedFee?.()
-        }
+        if (field === "caseCompletedDate" && value) applyCompletionEffects()
         setFormData(prev => ({ ...prev, [field]: value }))
     }
 
