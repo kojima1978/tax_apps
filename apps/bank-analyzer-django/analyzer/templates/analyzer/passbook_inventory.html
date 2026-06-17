@@ -25,6 +25,90 @@
 </div>
 {% endif %}
 
+<div class="glass-card p-3 mb-3 no-print">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h2 class="h6 mb-1"><i class="bi bi-patch-plus me-1"></i>残高証明書だけの口座</h2>
+            <p class="small text-muted mb-0">取引履歴がない通帳も、口座情報と残証残高だけで一覧に追加できます。</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#addCertificateAccountForm" aria-expanded="false" aria-controls="addCertificateAccountForm">
+                <i class="bi bi-plus-circle me-1"></i>口座を追加
+            </button>
+            <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#importCertificateAccountsForm" aria-expanded="false" aria-controls="importCertificateAccountsForm">
+                <i class="bi bi-upload me-1"></i>CSV/Excel取込
+            </button>
+        </div>
+    </div>
+
+    <div class="collapse mb-3" id="addCertificateAccountForm">
+        <form method="post" action="{% url 'add-certificate-account' case.pk %}" class="border rounded p-3 bg-light">
+            {% csrf_token %}
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label small">銀行名</label>
+                    <input type="text" name="bank_name" class="form-control form-control-sm" placeholder="例: みずほ銀行">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">支店名</label>
+                    <input type="text" name="branch_name" class="form-control form-control-sm" placeholder="例: 本店">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small">種類</label>
+                    <input type="text" name="account_type" class="form-control form-control-sm" placeholder="普通">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">口座番号 <span class="text-danger">*</span></label>
+                    <input type="text" name="account_number" class="form-control form-control-sm" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">残証残高</label>
+                    <input type="text" name="certificate_balance" class="form-control form-control-sm text-end" inputmode="numeric" placeholder="1,000,000">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">通帳残高</label>
+                    <input type="text" name="passbook_balance" class="form-control form-control-sm text-end" inputmode="numeric">
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-success btn-sm w-100">保存</button>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check mt-2">
+                        <input type="checkbox" name="has_accrued_interest" class="form-check-input" id="addAccruedInterest">
+                        <label for="addAccruedInterest" class="form-check-label small">既経過利息あり</label>
+                    </div>
+                </div>
+                <div class="col-md-10">
+                    <label class="form-label small">備考</label>
+                    <input type="text" name="inventory_remarks" class="form-control form-control-sm" placeholder="取引履歴なし・残高証明書あり">
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="collapse" id="importCertificateAccountsForm">
+        <form method="post" action="{% url 'import-certificate-accounts' case.pk %}" enctype="multipart/form-data" class="border rounded p-3 bg-light">
+            {% csrf_token %}
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label small">口座・残証残高リスト（CSV / Excel）</label>
+                    <input type="file" name="certificate_file" class="form-control form-control-sm" accept=".csv,.xlsx,.xls" required>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-upload me-1"></i>取込実行
+                    </button>
+                </div>
+                <div class="col-md">
+                    <div class="small text-muted">
+                        列名: 銀行名、支店名、種類、口座番号、残証残高、通帳残高、既経過利息、備考。口座番号が既存なら上書き更新します。
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="glass-card p-3 mb-4">
     <div class="table-responsive">
         <table class="table table-bordered table-sm align-middle mb-0" id="inventoryTable">

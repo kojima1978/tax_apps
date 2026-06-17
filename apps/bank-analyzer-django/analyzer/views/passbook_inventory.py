@@ -4,9 +4,11 @@ import logging
 from datetime import date
 from io import BytesIO
 
+import pandas as pd
+from django.contrib import messages
 from django.db.models import Min, Max
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -18,6 +20,17 @@ from ..templatetags.japanese_date import get_japanese_era, wareki as wareki_func
 from ._helpers import sanitize_filename, set_download_filename
 
 logger = logging.getLogger(__name__)
+
+CERTIFICATE_IMPORT_COLUMNS = {
+    'bank_name': ('銀行名', '銀行', '金融機関', '金融機関名'),
+    'branch_name': ('支店名', '支店', '店舗名'),
+    'account_type': ('種類', '種別', '口座種別'),
+    'account_number': ('口座番号', '口座No', '口座No.', '口座'),
+    'certificate_balance': ('残証残高', '残高証明残高', '残高証明書残高', '証明残高', '残高証明書'),
+    'passbook_balance': ('通帳残高', '帳簿残高'),
+    'has_accrued_interest': ('既経過利息', '既経過利息計算'),
+    'inventory_remarks': ('備考', 'メモ', '摘要'),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +80,137 @@ def _balance_match_status(passbook_bal, certificate_bal) -> str:
         return "○"
     if passbook_bal is not None and passbook_bal != certificate_bal:
         return "×"
-    return "残高証明なし"
+    return "証明のみ"
+
+
+def _parse_amount(value) -> int | None:
+    """フォーム/取込値から金額をパース"""
+    if value is None:
+        return None
+    if pd.isna(value):
+        return None
+    if isinstance(value, str):
+        value = value.strip().replace(',', '')
+        if not value:
+            return None
+    return int(float(value))
+
+
+def _normalize_account_number(value) -> str:
+    """Excel数値セルも考慮して口座番号を文字列化"""
+    if value is None or pd.isna(value):
+        return ''
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def _parse_bool(value) -> bool:
+    """取込値を真偽値に変換"""
+    if value is None or pd.isna(value):
+        return False
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    return text in ('1', 'true', 'yes', 'y', '有', 'あり', '○', '〇', '済')
+
+
+def _get_import_value(row: dict, field: str, default=''):
+    """別名を許容して取込行から値を取得"""
+    for col in CERTIFICATE_IMPORT_COLUMNS[field]:
+        if col in row and not pd.isna(row[col]):
+            return row[col]
+    return default
+
+
+def _next_print_order(case: Case) -> int:
+    """新規口座の末尾表示順を取得"""
+    current = case.accounts.aggregate(max_order=Max('print_order')).get('max_order')
+    return (current or 0) + 1
+
+
+def _upsert_certificate_account(case: Case, data: dict) -> tuple[Account, bool]:
+    """残高証明書ベースの口座を作成/更新"""
+    account_number = _normalize_account_number(data.get('account_number'))
+    if not account_number:
+        raise ValueError('口座番号が必要です')
+
+    defaults = {
+        'bank_name': data.get('bank_name') or '',
+        'branch_name': data.get('branch_name') or '',
+        'account_type': data.get('account_type') or '',
+        'certificate_balance': data.get('certificate_balance'),
+        'passbook_balance': data.get('passbook_balance'),
+        'has_accrued_interest': bool(data.get('has_accrued_interest')),
+        'inventory_remarks': data.get('inventory_remarks') or '取引履歴なし・残高証明書あり',
+        'print_order': _next_print_order(case),
+    }
+    account, created = Account.objects.get_or_create(
+        case=case,
+        account_number=account_number,
+        defaults=defaults,
+    )
+    if created:
+        return account, True
+
+    update_fields = []
+    for field in (
+        'bank_name', 'branch_name', 'account_type', 'certificate_balance',
+        'passbook_balance', 'has_accrued_interest', 'inventory_remarks',
+    ):
+        value = defaults[field]
+        if value not in (None, '') or field == 'has_accrued_interest':
+            setattr(account, field, value)
+            update_fields.append(field)
+    if update_fields:
+        account.save(update_fields=update_fields)
+    return account, False
+
+
+def _read_certificate_import(file_obj) -> pd.DataFrame:
+    """CSV/Excelの残高証明書口座リストを読み込む"""
+    name = (file_obj.name or '').lower()
+    content = file_obj.read()
+    if name.endswith(('.xlsx', '.xls')):
+        return pd.read_excel(BytesIO(content), dtype=str)
+
+    for encoding in ('utf-8-sig', 'cp932', 'utf-8'):
+        try:
+            return pd.read_csv(BytesIO(content), encoding=encoding, dtype=str)
+        except UnicodeDecodeError:
+            continue
+    return pd.read_csv(BytesIO(content), encoding='cp932', encoding_errors='replace', dtype=str)
+
+
+def _import_certificate_accounts(case: Case, file_obj) -> tuple[int, int, int]:
+    """残高証明書口座リストを取込"""
+    df = _read_certificate_import(file_obj).fillna('')
+    created_count = updated_count = skipped_count = 0
+
+    for _, row_obj in df.iterrows():
+        row = row_obj.to_dict()
+        account_number = _normalize_account_number(_get_import_value(row, 'account_number'))
+        if not account_number:
+            skipped_count += 1
+            continue
+
+        data = {
+            'bank_name': str(_get_import_value(row, 'bank_name')).strip(),
+            'branch_name': str(_get_import_value(row, 'branch_name')).strip(),
+            'account_type': str(_get_import_value(row, 'account_type')).strip(),
+            'account_number': account_number,
+            'certificate_balance': _parse_amount(_get_import_value(row, 'certificate_balance', None)),
+            'passbook_balance': _parse_amount(_get_import_value(row, 'passbook_balance', None)),
+            'has_accrued_interest': _parse_bool(_get_import_value(row, 'has_accrued_interest', False)),
+            'inventory_remarks': str(_get_import_value(row, 'inventory_remarks', '取引履歴なし・残高証明書あり')).strip(),
+        }
+        _, created = _upsert_certificate_account(case, data)
+        if created:
+            created_count += 1
+        else:
+            updated_count += 1
+
+    return created_count, updated_count, skipped_count
 
 
 def _build_account_rows(case: Case, years: list[int]) -> list[dict]:
@@ -124,6 +267,58 @@ def passbook_inventory(request: HttpRequest, pk: int) -> HttpResponse:
         'total_certificate': total_certificate,
     }
     return render(request, 'analyzer/passbook_inventory.html', context)
+
+
+def add_certificate_account(request: HttpRequest, pk: int) -> HttpResponse:
+    """取引履歴がない残高証明書口座を追加"""
+    case = get_object_or_404(Case, pk=pk)
+    if request.method != 'POST':
+        return redirect('passbook-inventory', pk=pk)
+
+    try:
+        _, created = _upsert_certificate_account(case, {
+            'bank_name': request.POST.get('bank_name', '').strip(),
+            'branch_name': request.POST.get('branch_name', '').strip(),
+            'account_type': request.POST.get('account_type', '').strip(),
+            'account_number': request.POST.get('account_number', '').strip(),
+            'certificate_balance': _parse_amount(request.POST.get('certificate_balance')),
+            'passbook_balance': _parse_amount(request.POST.get('passbook_balance')),
+            'has_accrued_interest': request.POST.get('has_accrued_interest') == 'on',
+            'inventory_remarks': request.POST.get('inventory_remarks', '').strip()
+                or '取引履歴なし・残高証明書あり',
+        })
+    except (TypeError, ValueError) as exc:
+        messages.error(request, f'口座を追加できませんでした: {exc}')
+        return redirect('passbook-inventory', pk=pk)
+
+    verb = '追加' if created else '更新'
+    messages.success(request, f'残高証明書の口座を{verb}しました。')
+    return redirect('passbook-inventory', pk=pk)
+
+
+def import_certificate_accounts(request: HttpRequest, pk: int) -> HttpResponse:
+    """口座・残証残高リストをCSV/Excelから取込"""
+    case = get_object_or_404(Case, pk=pk)
+    if request.method != 'POST':
+        return redirect('passbook-inventory', pk=pk)
+
+    file_obj = request.FILES.get('certificate_file')
+    if not file_obj:
+        messages.error(request, '取込ファイルを選択してください。')
+        return redirect('passbook-inventory', pk=pk)
+
+    try:
+        created, updated, skipped = _import_certificate_accounts(case, file_obj)
+    except Exception as exc:
+        logger.exception('残高証明書口座リスト取込エラー: case_id=%s', pk)
+        messages.error(request, f'取込に失敗しました: {exc}')
+        return redirect('passbook-inventory', pk=pk)
+
+    messages.success(
+        request,
+        f'残高証明書の口座リストを取り込みました。追加{created}件、更新{updated}件、スキップ{skipped}件。',
+    )
+    return redirect('passbook-inventory', pk=pk)
 
 
 def api_save_passbook_inventory(request: HttpRequest, pk: int) -> JsonResponse:

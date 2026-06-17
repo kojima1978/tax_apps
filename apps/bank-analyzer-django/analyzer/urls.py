@@ -18,6 +18,8 @@ urlpatterns = [
     path('case/<int:pk>/export-xlsx-by-category/', views.export_xlsx_by_category, name='export-xlsx-by-category'),
     # 通帳有無一覧表
     path('case/<int:pk>/passbook-inventory/', views.passbook_inventory, name='passbook-inventory'),
+    path('case/<int:pk>/passbook-inventory/add-account/', views.add_certificate_account, name='add-certificate-account'),
+    path('case/<int:pk>/passbook-inventory/import-accounts/', views.import_certificate_accounts, name='import-certificate-accounts'),
     path('case/<int:pk>/export-passbook-inventory/', views.export_passbook_inventory, name='export-passbook-inventory'),
     # API Endpoints (AJAX)
     path('case/<int:pk>/api/toggle-flag/', views.api_toggle_flag, name='api-toggle-flag'),

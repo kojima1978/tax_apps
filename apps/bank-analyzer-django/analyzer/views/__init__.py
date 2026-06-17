@@ -35,6 +35,8 @@ from .dashboard import (
 
 # 通帳有無一覧表
 from .passbook_inventory import (
+    add_certificate_account,
+    import_certificate_accounts,
     passbook_inventory,
     api_save_passbook_inventory,
     api_reorder_passbook_inventory,

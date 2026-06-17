@@ -489,6 +489,78 @@ class ViewsTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+@override_settings(FORCE_SCRIPT_NAME=None, ALLOWED_HOSTS=['*'])
+class PassbookInventoryAccountTest(TestCase):
+    """通帳有無一覧表の口座追加・取込テスト"""
+
+    def setUp(self):
+        set_script_prefix('/')
+        self.client = Client()
+        self.case = Case.objects.create(name="通帳テスト")
+
+    def test_add_certificate_account_without_transactions(self):
+        response = self.client.post(reverse('add-certificate-account', args=[self.case.pk]), {
+            'bank_name': 'みずほ銀行',
+            'branch_name': '本店',
+            'account_type': '普通',
+            'account_number': '9999999',
+            'certificate_balance': '1,234,567',
+            'inventory_remarks': '取引履歴なし・残高証明書あり',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        account = Account.objects.get(case=self.case, account_number='9999999')
+        self.assertEqual(account.certificate_balance, 1234567)
+        self.assertEqual(account.transactions.count(), 0)
+
+        page = self.client.get(reverse('passbook-inventory', args=[self.case.pk]))
+        self.assertContains(page, 'みずほ銀行')
+        self.assertContains(page, '9999999')
+        self.assertContains(page, '証明のみ')
+
+    def test_add_certificate_account_updates_existing_account(self):
+        Account.objects.create(
+            case=self.case,
+            account_number='1111111',
+            bank_name='旧銀行',
+            certificate_balance=100,
+        )
+
+        response = self.client.post(reverse('add-certificate-account', args=[self.case.pk]), {
+            'bank_name': '新銀行',
+            'account_number': '1111111',
+            'certificate_balance': '200',
+            'passbook_balance': '200',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        account = Account.objects.get(case=self.case, account_number='1111111')
+        self.assertEqual(account.bank_name, '新銀行')
+        self.assertEqual(account.certificate_balance, 200)
+        self.assertEqual(account.passbook_balance, 200)
+
+    def test_import_certificate_accounts_csv(self):
+        csv = (
+            '銀行名,支店名,種類,口座番号,残証残高,通帳残高,既経過利息,備考\n'
+            '三井住友銀行,東京支店,普通,0222222,"2,000",,有,証明書のみ\n'
+            'りそな銀行,大阪支店,定期,3333333,3000,3000,,\n'
+        ).encode('utf-8-sig')
+        upload = SimpleUploadedFile('accounts.csv', csv, content_type='text/csv')
+
+        response = self.client.post(
+            reverse('import-certificate-accounts', args=[self.case.pk]),
+            {'certificate_file': upload},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        first = Account.objects.get(case=self.case, account_number='0222222')
+        second = Account.objects.get(case=self.case, account_number='3333333')
+        self.assertEqual(first.certificate_balance, 2000)
+        self.assertTrue(first.has_accrued_interest)
+        self.assertEqual(first.inventory_remarks, '証明書のみ')
+        self.assertEqual(second.passbook_balance, 3000)
+
+
 class ParseAmountTest(TestCase):
     """parse_amount関数のテスト"""
 
