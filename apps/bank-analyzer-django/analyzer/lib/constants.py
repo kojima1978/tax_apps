@@ -24,14 +24,43 @@ ERA_MAP = {abbr: year for _, _, abbr, year in ERA_DATA}
 # --- カテゴリー定数 ---
 UNCATEGORIZED = "未分類"
 
+CATEGORY_RENAMES = {
+    "証券・株式": "証券・株式・配当",
+    "銀行": "銀行・利息・手数料",
+    "贈与": "贈与・教育費",
+}
+
 STANDARD_CATEGORIES = [
-    "生活費", "給与", "年金", "贈与", "税金", "修繕・資本", "事業・不動産", "関連会社",
-    "銀行", "証券・株式", "保険会社", "通帳間移動", "その他", UNCATEGORIZED,
+    "生活費", "給与", "年金", "贈与・教育費", "税金", "修繕・資本", "事業・不動産", "関連会社",
+    "銀行・利息・手数料", "証券・株式・配当", "保険会社", "通帳間移動", "その他", UNCATEGORIZED,
 ]
 
 # カテゴリーの固定順序（STANDARD_CATEGORIESの順序を使用）
 # 未知のカテゴリーは末尾に追加される
 CATEGORY_ORDER = {cat: idx for idx, cat in enumerate(STANDARD_CATEGORIES)}
+
+
+def normalize_category(category: str | None) -> str | None:
+    """古いカテゴリー名を現在の標準カテゴリー名に変換"""
+    if category is None:
+        return None
+    return CATEGORY_RENAMES.get(category, category)
+
+
+def normalize_patterns(patterns: dict | None) -> dict:
+    """分類パターン辞書の古いカテゴリーキーを新カテゴリーへ統合"""
+    if not patterns:
+        return {}
+
+    normalized = {}
+    for category, keywords in patterns.items():
+        new_category = normalize_category(category)
+        if new_category not in normalized:
+            normalized[new_category] = []
+        for keyword in keywords or []:
+            if keyword not in normalized[new_category]:
+                normalized[new_category].append(keyword)
+    return normalized
 
 
 def sort_categories(categories: list | set) -> list:

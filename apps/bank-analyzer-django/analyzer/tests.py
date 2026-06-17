@@ -17,6 +17,7 @@ from .handlers import parse_amount
 from .views import sanitize_filename
 from .lib.importer import _convert_japanese_date
 from .lib.llm_classifier import classify_by_rules
+from .lib.constants import normalize_patterns
 
 
 class CaseModelTest(TestCase):
@@ -207,14 +208,14 @@ class TransactionServiceTest(TestCase):
         """一括カテゴリー更新"""
         updates = {
             str(self.tx1.id): "生活費",
-            str(self.tx2.id): "贈与",
+            str(self.tx2.id): "贈与・教育費",
         }
         count = TransactionService.bulk_update_categories(self.case, updates)
         self.assertEqual(count, 2)
         self.tx1.refresh_from_db()
         self.tx2.refresh_from_db()
         self.assertEqual(self.tx1.category, "生活費")
-        self.assertEqual(self.tx2.category, "贈与")
+        self.assertEqual(self.tx2.category, "贈与・教育費")
 
     def test_delete_duplicates(self):
         """重複削除"""
@@ -230,6 +231,27 @@ class TransactionServiceTest(TestCase):
             self.case, ["invalid", "ids"]
         )
         self.assertEqual(count, 0)
+
+    def test_delete_unclassified_transactions_only_deletes_unclassified(self):
+        """未分類取引だけを削除"""
+        classified = Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 17),
+            description="分類済み",
+            amount_in=1000,
+            balance=96000,
+            category="生活費",
+        )
+
+        count, deleted_ids = TransactionService.delete_unclassified_transactions(
+            self.case,
+            [str(self.tx1.id), str(classified.id)],
+        )
+
+        self.assertEqual(count, 1)
+        self.assertEqual(deleted_ids, [self.tx1.id])
+        self.assertFalse(Transaction.objects.filter(id=self.tx1.id).exists())
+        self.assertTrue(Transaction.objects.filter(id=classified.id).exists())
 
     def test_bulk_replace_account_number(self):
         account = Account.objects.create(case=self.case, account_number="old")
@@ -316,10 +338,30 @@ class AnalysisServiceTest(TestCase):
         """標準カテゴリーの確認"""
         categories = AnalysisService.STANDARD_CATEGORIES
         self.assertIn("生活費", categories)
-        self.assertIn("贈与", categories)
+        self.assertIn("贈与・教育費", categories)
         self.assertIn("税金", categories)
         self.assertIn("修繕・資本", categories)
+        self.assertIn("銀行・利息・手数料", categories)
+        self.assertIn("証券・株式・配当", categories)
+        self.assertNotIn("贈与", categories)
+        self.assertNotIn("銀行", categories)
+        self.assertNotIn("証券・株式", categories)
         self.assertIn("未分類", categories)
+
+    def test_legacy_categories_are_normalized(self):
+        patterns = normalize_patterns({
+            "贈与": ["振込"],
+            "贈与・教育費": ["教育費"],
+            "銀行": ["利息"],
+            "証券・株式": ["配当"],
+        })
+
+        self.assertNotIn("贈与", patterns)
+        self.assertNotIn("銀行", patterns)
+        self.assertNotIn("証券・株式", patterns)
+        self.assertEqual(patterns["贈与・教育費"], ["振込", "教育費"])
+        self.assertEqual(patterns["銀行・利息・手数料"], ["利息"])
+        self.assertEqual(patterns["証券・株式・配当"], ["配当"])
 
 
 class JapaneseDateTest(TestCase):
@@ -487,6 +529,48 @@ class ViewsTest(TestCase):
             {'tx_id': '99999'}
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_api_delete_unclassified_transactions(self):
+        """未分類取引の一括削除API"""
+        unclassified = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="未分類削除", balance=100000,
+            category="未分類",
+        )
+        classified = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 16),
+            description="分類済み維持", balance=100000,
+            category="生活費",
+        )
+
+        response = self.client.post(
+            reverse('api-delete-unclassified-transactions', args=[self.case.pk]),
+            {'tx_ids': [str(unclassified.id), str(classified.id)]}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['deleted_ids'], [unclassified.id])
+        self.assertFalse(Transaction.objects.filter(id=unclassified.id).exists())
+        self.assertTrue(Transaction.objects.filter(id=classified.id).exists())
+
+    def test_api_delete_unclassified_transactions_no_unclassified(self):
+        """未分類取引の一括削除API（削除対象なし）"""
+        classified = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 16),
+            description="分類済み維持", balance=100000,
+            category="生活費",
+        )
+
+        response = self.client.post(
+            reverse('api-delete-unclassified-transactions', args=[self.case.pk]),
+            {'tx_ids': [str(classified.id)]}
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Transaction.objects.filter(id=classified.id).exists())
 
 
 @override_settings(FORCE_SCRIPT_NAME=None, ALLOWED_HOSTS=['*'])
@@ -705,7 +789,7 @@ class ClassifyByRulesTest(TestCase):
     def test_gift_over_threshold(self):
         """贈与（閾値以上）"""
         category, score = classify_by_rules('振込', 1500000, 0)
-        self.assertEqual(category, '贈与')
+        self.assertEqual(category, '贈与・教育費')
         self.assertEqual(score, 100)
 
     def test_gift_under_threshold(self):

@@ -12,6 +12,7 @@ from pathlib import Path
 from django.conf import settings as django_settings
 
 from .defaults import DEFAULT_PATTERNS, DEFAULT_GIFT_THRESHOLD, DEFAULT_FUZZY_CONFIG
+from ..constants import normalize_patterns
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,15 @@ def get_fuzzy_config() -> dict:
 def get_classification_patterns() -> dict:
     """分類パターンを取得（ユーザー設定優先、なければデフォルト）"""
     user_settings = load_user_settings()
-    return user_settings.get("CLASSIFICATION_PATTERNS", DEFAULT_PATTERNS)
+    raw_patterns = user_settings.get("CLASSIFICATION_PATTERNS", DEFAULT_PATTERNS)
+    patterns = normalize_patterns(raw_patterns)
+    if user_settings.get("CLASSIFICATION_PATTERNS") is not None and patterns != raw_patterns:
+        user_settings["CLASSIFICATION_PATTERNS"] = patterns
+        try:
+            save_user_settings(user_settings)
+        except OSError:
+            logger.warning("分類パターンの旧カテゴリー名を保存し直せませんでした", exc_info=True)
+    return patterns
 
 
 def get_gift_threshold() -> int:

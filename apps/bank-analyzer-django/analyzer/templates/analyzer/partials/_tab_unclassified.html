@@ -166,7 +166,7 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="mb-0">
                         <span class="text-warning me-2">&#x2753;</span>
-                        未分類取引: {{ unclassified_txs.paginator.count }}件
+                        未分類取引: <span id="unclassifiedFlatCount">{{ unclassified_txs.paginator.count }}</span>件
                         {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
                         {% if unclassified_txs.paginator.num_pages > 1 %}
                         <small class="text-muted">({{ unclassified_txs.number }} / {{ unclassified_txs.paginator.num_pages }}ページ)</small>
@@ -195,6 +195,9 @@
                             </select>
                             <button type="button" class="btn btn-success btn-sm" id="applyUnclassifiedBulkBtn">
                                 <i class="bi bi-check-lg"></i> 選択を一括変更
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="deleteUnclassifiedSelectedBtn">
+                                <i class="bi bi-trash"></i> 選択を削除
                             </button>
                             <div class="dropdown">
                                 <button class="btn btn-outline-success btn-sm dropdown-toggle" type="button" id="patternDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -287,7 +290,17 @@
                                     {% endwith %}
                                 </td>
                                 <td>
-                                    {% include "analyzer/partials/_edit_button.html" %}
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="取引操作">
+                                        {% include "analyzer/partials/_edit_button.html" %}
+                                        <button type="button"
+                                                class="btn btn-outline-danger delete-unclassified-btn"
+                                                data-tx-id="{{ tx.id }}"
+                                                data-tx-desc="{{ tx.description|default:'' }}"
+                                                title="この未分類取引を削除"
+                                                aria-label="この未分類取引を削除">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                                 <td>
                                     {% with source_tab="unclassified" %}

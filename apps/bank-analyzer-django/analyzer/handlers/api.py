@@ -117,6 +117,31 @@ def api_delete_transaction(request: HttpRequest, pk: int) -> JsonResponse:
         return json_api_error(e, f"取引削除APIエラー: tx_id={tx_id}")
 
 
+@require_POST
+def api_delete_unclassified_transactions(request: HttpRequest, pk: int) -> JsonResponse:
+    """未分類取引の一括削除APIエンドポイント（AJAX用）"""
+    case = get_object_or_404(Case, pk=pk)
+    tx_ids = request.POST.getlist('tx_ids')
+
+    if not tx_ids:
+        return json_error('削除する未分類取引が選択されていません')
+
+    try:
+        count, deleted_ids = TransactionService.delete_unclassified_transactions(case, tx_ids)
+        if count == 0:
+            return json_error('削除できる未分類取引がありませんでした', status=404)
+
+        logger.info(f"未分類取引削除API: case_id={pk}, count={count}")
+        return JsonResponse({
+            'success': True,
+            'count': count,
+            'deleted_ids': deleted_ids,
+            'message': f'{count}件の未分類取引を削除しました',
+        })
+    except Exception as e:
+        return json_api_error(e, f"未分類取引削除APIエラー: tx_ids={tx_ids}")
+
+
 def api_get_transaction(request: HttpRequest, pk: int) -> JsonResponse:
     """取引データ取得APIエンドポイント（保存後の検証用）"""
     case = get_object_or_404(Case, pk=pk)

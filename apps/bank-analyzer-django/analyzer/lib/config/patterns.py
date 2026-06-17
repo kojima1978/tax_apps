@@ -7,13 +7,19 @@ import logging
 
 from .defaults import DEFAULT_PATTERNS
 from .settings import load_user_settings, save_user_settings, get_classification_patterns
+from ..constants import normalize_category, normalize_patterns
 
 logger = logging.getLogger(__name__)
 
 
 def get_case_patterns(case) -> dict:
     """案件固有の分類パターンを取得"""
-    return case.custom_patterns or {}
+    raw_patterns = case.custom_patterns or {}
+    patterns = normalize_patterns(raw_patterns)
+    if patterns != raw_patterns:
+        case.custom_patterns = patterns
+        case.save(update_fields=['custom_patterns'])
+    return patterns
 
 
 def get_merged_patterns(case=None) -> dict:
@@ -23,7 +29,7 @@ def get_merged_patterns(case=None) -> dict:
     if case is None:
         return global_patterns
 
-    case_patterns = case.custom_patterns or {}
+    case_patterns = get_case_patterns(case)
     if not case_patterns:
         return global_patterns
 
@@ -49,8 +55,9 @@ def _modify_patterns(case, modify_fn, log_msg: str) -> bool:
         patterns = settings.get("CLASSIFICATION_PATTERNS")
         if patterns is None:
             patterns = {k: list(v) for k, v in DEFAULT_PATTERNS.items()}
+        patterns = normalize_patterns(patterns)
     else:
-        patterns = case.custom_patterns or {}
+        patterns = get_case_patterns(case)
 
     result, changed = modify_fn(patterns)
 
@@ -68,6 +75,7 @@ def _modify_patterns(case, modify_fn, log_msg: str) -> bool:
 
 def _add_keyword(patterns: dict, category: str, keyword: str) -> tuple[bool, bool]:
     """キーワード追加。戻り値: (成功, 変更あり)"""
+    category = normalize_category(category)
     if category not in patterns:
         patterns[category] = []
     if keyword in patterns[category]:
@@ -78,6 +86,7 @@ def _add_keyword(patterns: dict, category: str, keyword: str) -> tuple[bool, boo
 
 def _delete_keyword(patterns: dict, category: str, keyword: str, remove_empty: bool = False) -> tuple[bool, bool]:
     """キーワード削除。remove_empty=Trueで空カテゴリーも削除。戻り値: (成功, 変更あり)"""
+    category = normalize_category(category)
     if category not in patterns or keyword not in patterns[category]:
         return False, False
     patterns[category].remove(keyword)
@@ -88,6 +97,7 @@ def _delete_keyword(patterns: dict, category: str, keyword: str, remove_empty: b
 
 def _update_keyword(patterns: dict, category: str, old_keyword: str, new_keyword: str) -> tuple[bool, bool]:
     """キーワード更新。戻り値: (成功, 変更あり)"""
+    category = normalize_category(category)
     if category not in patterns or old_keyword not in patterns[category]:
         return False, False
     if new_keyword in patterns[category] and new_keyword != old_keyword:

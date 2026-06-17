@@ -505,6 +505,38 @@ class TransactionService:
         logger.info(f"ID範囲削除: case_id={case.id}, start_id={start_id}, end_id={end_id}, count={count}")
         return count
 
+    @staticmethod
+    def delete_unclassified_transactions(case: Case, tx_ids: list[str]) -> tuple[int, list[int]]:
+        """
+        未分類取引だけを削除
+
+        Args:
+            case: 対象の案件
+            tx_ids: 削除対象の取引IDリスト
+
+        Returns:
+            (削除された件数, 削除された取引IDリスト)
+        """
+        if not tx_ids:
+            return 0, []
+
+        int_ids = parse_int_ids(tx_ids)
+        if int_ids is None:
+            logger.warning(f"不正な未分類削除ID: {tx_ids}")
+            return 0, []
+
+        delete_ids = list(
+            case.transactions
+            .filter(id__in=int_ids, category=UNCATEGORIZED)
+            .values_list('id', flat=True)
+        )
+        if not delete_ids:
+            return 0, []
+
+        count, _ = case.transactions.filter(id__in=delete_ids, category=UNCATEGORIZED).delete()
+        logger.info(f"未分類取引削除: case_id={case.id}, count={count}")
+        return count, delete_ids
+
     # =========================================================================
     # 一括置換
     # =========================================================================

@@ -42,6 +42,97 @@ const UnclassifiedTab = {
         this._showInlinePatternSection(category, checked);
     },
 
+    deleteSelected: function() {
+        const checked = Array.from(document.querySelectorAll('.unclassified-select-check:checked'));
+        if (checked.length === 0) {
+            showToast('削除する未分類取引を選択してください', 'warning');
+            return;
+        }
+
+        const txIds = checked.map(cb => cb.value);
+        ConfirmModal.show({
+            title: '未分類取引の削除',
+            message: `選択した${txIds.length}件の未分類取引を削除します。この操作は取り消せません。`,
+            confirmText: '削除する',
+            confirmClass: 'btn-danger',
+            onConfirm: () => this._deleteTxIds(txIds),
+        });
+    },
+
+    deleteOne: function(button) {
+        const txId = button.getAttribute('data-tx-id');
+        const desc = button.getAttribute('data-tx-desc') || 'この取引';
+        ConfirmModal.show({
+            title: '未分類取引の削除',
+            message: `「${desc}」を削除します。この操作は取り消せません。`,
+            confirmText: '削除する',
+            confirmClass: 'btn-danger',
+            onConfirm: () => this._deleteTxIds([txId], button),
+        });
+    },
+
+    _deleteTxIds: function(txIds, triggerButton) {
+        if (!txIds.length) return;
+
+        const formData = createFormData({});
+        txIds.forEach(id => formData.append('tx_ids', id));
+
+        if (triggerButton) disableButton(triggerButton);
+        StatusIndicator.saving('削除中...');
+
+        postJson(getApiUrl('delete-unclassified-transactions'), formData, {
+            onSuccess: (data) => {
+                const deletedIds = data.deleted_ids || txIds;
+                this._removeDeletedRows(deletedIds);
+                this._afterDelete(data.count || deletedIds.length);
+            },
+            onError: () => {
+                if (triggerButton) enableButton(triggerButton);
+                StatusIndicator.failed();
+            },
+        });
+    },
+
+    _removeDeletedRows: function(txIds) {
+        txIds.forEach(function(id) {
+            const row = document.querySelector(`#unclassifiedTable tr[data-tx-id="${id}"]`);
+            if (row) {
+                const checkbox = row.querySelector('.unclassified-select-check');
+                if (checkbox) checkbox.checked = false;
+                fadeOutRow(row);
+            }
+        });
+    },
+
+    _afterDelete: function(count) {
+        updateUnclassifiedCount(count);
+        if (typeof ProgressBar !== 'undefined' && ProgressBar.removeUnclassified) {
+            ProgressBar.removeUnclassified(count);
+        }
+
+        const selectAll = document.getElementById('selectAllUnclassified');
+        if (selectAll) selectAll.checked = false;
+        this.updateSelectionUI();
+        this._ensureEmptyState();
+        StatusIndicator.saved();
+        showToast(`${count}件の未分類取引を削除しました`, 'success');
+    },
+
+    _ensureEmptyState: function() {
+        const tbody = document.querySelector('#unclassifiedTable tbody');
+        if (!tbody) return;
+        setTimeout(function() {
+            if (tbody.querySelectorAll('tr[data-tx-id]').length > 0) return;
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="12" class="text-center py-4">
+                        <i class="bi bi-check-circle text-success me-1"></i>
+                        未分類取引はありません。
+                    </td>
+                </tr>`;
+        }, 320);
+    },
+
     _showInlinePatternSection: function(category, checkedBoxes) {
         var section = document.getElementById('inlinePatternSection');
         if (!section) return;
@@ -118,6 +209,17 @@ const UnclassifiedTab = {
             applyBulkBtn.addEventListener('click', () => self.applyBulkCategory());
         }
 
+        const deleteSelectedBtn = document.getElementById('deleteUnclassifiedSelectedBtn');
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.addEventListener('click', () => self.deleteSelected());
+        }
+
+        document.querySelectorAll('.delete-unclassified-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                self.deleteOne(this);
+            });
+        });
+
         const addGlobalBtn = document.getElementById('addGlobalPatternBtn');
         if (addGlobalBtn) {
             addGlobalBtn.addEventListener('click', function(e) {
@@ -137,6 +239,8 @@ const UnclassifiedTab = {
         const clearBtn = document.getElementById('clearUnclassifiedSelectionBtn');
         if (clearBtn) {
             clearBtn.addEventListener('click', function() {
+                const checkboxes = document.querySelectorAll('.unclassified-select-check');
+                const selectAllCheckbox = document.getElementById('selectAllUnclassified');
                 checkboxes.forEach(cb => cb.checked = false);
                 if (selectAllCheckbox) selectAllCheckbox.checked = false;
                 self.updateSelectionUI();

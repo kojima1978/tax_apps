@@ -55,6 +55,7 @@ from ..handlers import (
     api_toggle_flag,
     api_create_transaction,
     api_delete_transaction,
+    api_delete_unclassified_transactions,
     api_get_transaction,
     api_get_field_values,
     api_update_reference_date,

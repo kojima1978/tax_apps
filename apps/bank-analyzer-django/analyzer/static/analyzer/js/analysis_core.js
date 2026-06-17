@@ -35,6 +35,8 @@ function appendActiveCategoryFilter(formData) {
 function updateUnclassifiedCount(delta) {
     var countEl = document.getElementById('unclassifiedTxTotal');
     if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent) || 0) - delta);
+    var flatCountEl = document.getElementById('unclassifiedFlatCount');
+    if (flatCountEl) flatCountEl.textContent = Math.max(0, (parseInt(flatCountEl.textContent) || 0) - delta);
     var badge = document.querySelector('#unclassified-tab .badge');
     if (badge) {
         var count = Math.max(0, (parseInt(badge.textContent) || 0) - delta);
@@ -146,6 +148,24 @@ const ProgressBar = {
         }
 
         // バークラス更新
+        this._bar.className = 'progress-bar ' + (pct >= 80 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-danger');
+    },
+
+    removeUnclassified: function(count) {
+        if (!this._bar || !this._total) return;
+        this._total = Math.max(0, this._total - count);
+        if (this._classified > this._total) this._classified = this._total;
+        var pct = this._total > 0 ? Math.round(this._classified / this._total * 10) / 10 : 0;
+
+        this._bar.style.width = pct + '%';
+        this._bar.setAttribute('aria-valuenow', pct);
+        if (this._countEl) this._countEl.textContent = this._classified;
+        if (this._totalEl) this._totalEl.textContent = this._total;
+        if (this._pctEl) {
+            this._pctEl.textContent = pct + '%';
+            this._pctEl.style.color = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+        }
+
         this._bar.className = 'progress-bar ' + (pct >= 80 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-danger');
     }
 };

@@ -4,9 +4,11 @@ from rapidfuzz import process, fuzz
 from typing import Optional
 
 from .config import get_classification_patterns, get_gift_threshold, get_fuzzy_config
-from .constants import UNCATEGORIZED
+from .constants import UNCATEGORIZED, normalize_patterns
 
 logger = logging.getLogger(__name__)
+
+GIFT_CATEGORY = "贈与・教育費"
 
 # ファジーマッチング定数
 _EARLY_EXIT_SCORE = 95  # この信頼度以上なら即座に確定（最適化）
@@ -14,7 +16,7 @@ _SUGGESTION_THRESHOLD_OFFSET = 10  # 候補表示時の閾値引き下げ幅
 _SUGGESTION_THRESHOLD_MIN = 70  # 候補表示時の閾値下限
 
 # 贈与は閾値チェック付きの専用ロジックで処理するため除外
-_FUZZY_EXCLUDE_CATEGORIES = ["その他", UNCATEGORIZED, "贈与"]
+_FUZZY_EXCLUDE_CATEGORIES = ["その他", UNCATEGORIZED, GIFT_CATEGORY]
 
 
 def _fuzzy_extract_one(text: str, keywords: list[str], use_token_set: bool, threshold: int):
@@ -221,6 +223,8 @@ def classify_by_rules(
         global_patterns = patterns if patterns is not None else get_classification_patterns()
     if case_patterns is None:
         case_patterns = {}
+    global_patterns = normalize_patterns(global_patterns)
+    case_patterns = normalize_patterns(case_patterns)
     if gift_threshold is None:
         gift_threshold = get_gift_threshold()
     if fuzzy_config is None:
@@ -264,10 +268,10 @@ def classify_by_rules(
         return result
 
     # 贈与判定（振込など）- 閾値以上の場合のみ
-    all_gift_keywords = _merge_keywords("贈与", case_patterns, global_patterns)
+    all_gift_keywords = _merge_keywords(GIFT_CATEGORY, case_patterns, global_patterns)
     if any(kw.lower() in text_lower for kw in all_gift_keywords):
         if amount_out >= gift_threshold:
-            return "贈与", 100
+            return GIFT_CATEGORY, 100
         # else: 閾値未満の場合はファジーマッチングに進む
 
     # Phase 2: ファジーマッチング（サブストリングマッチング失敗時）
@@ -318,6 +322,8 @@ def get_fuzzy_suggestions(
         global_patterns = patterns if patterns is not None else get_classification_patterns()
     if case_patterns is None:
         case_patterns = {}
+    global_patterns = normalize_patterns(global_patterns)
+    case_patterns = normalize_patterns(case_patterns)
     if fuzzy_config is None:
         fuzzy_config = get_fuzzy_config()
 
@@ -418,6 +424,8 @@ def classify_transactions(
         global_patterns = get_classification_patterns()
     if case_patterns is None:
         case_patterns = {}
+    global_patterns = normalize_patterns(global_patterns)
+    case_patterns = normalize_patterns(case_patterns)
     gift_threshold = get_gift_threshold()
     fuzzy_config = get_fuzzy_config()
 
