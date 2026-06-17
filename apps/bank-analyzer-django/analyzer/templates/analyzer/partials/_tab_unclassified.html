@@ -249,6 +249,7 @@
                                 <th style="width: 40px;">
                                     <input type="checkbox" class="form-check-input" id="selectAllUnclassified" title="全選択">
                                 </th>
+                                <th style="width: 60px;">+/-</th>
                                 <th>{% sort_header "unclassified" "date" "日付" filter_state %}</th>
                                 <th>銀行名</th>
                                 <th>支店名</th>
@@ -267,6 +268,16 @@
                             <tr data-tx-id="{{ tx.id }}" data-description="{{ tx.description|escapejs }}"{% if tx.is_flagged %} class="table-warning"{% endif %}>
                                 <td>
                                     <input type="checkbox" value="{{ tx.id }}" class="form-check-input unclassified-select-check">
+                                </td>
+                                <td class="text-nowrap">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger p-0 px-1 delete-unclassified-btn"
+                                            data-tx-id="{{ tx.id }}"
+                                            data-tx-desc="{{ tx.description|default:'' }}"
+                                            title="この未分類取引を削除"
+                                            aria-label="この未分類取引を削除">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                 </td>
                                 <td class="text-nowrap tx-date-cell" data-date="{{ tx.date|date:'Y-m-d' }}">{{ tx.date|wareki_short }}</td>
                                 <td>{{ tx.bank_name|default:"-" }}</td>
@@ -289,20 +300,10 @@
                                     {% include "analyzer/partials/_category_select.html" %}
                                     {% endwith %}
                                 </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group" aria-label="取引操作">
-                                        {% include "analyzer/partials/_edit_button.html" %}
-                                        <button type="button"
-                                                class="btn btn-outline-danger delete-unclassified-btn"
-                                                data-tx-id="{{ tx.id }}"
-                                                data-tx-desc="{{ tx.description|default:'' }}"
-                                                title="この未分類取引を削除"
-                                                aria-label="この未分類取引を削除">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
+                                <td class="row-actions">
+                                    {% include "analyzer/partials/_edit_button.html" %}
                                 </td>
-                                <td>
+                                <td class="row-actions">
                                     {% with source_tab="unclassified" %}
                                     {% include "analyzer/partials/_flag_button.html" %}
                                     {% endwith %}

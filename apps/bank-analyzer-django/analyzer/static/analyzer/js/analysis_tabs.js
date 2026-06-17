@@ -125,7 +125,7 @@ const UnclassifiedTab = {
             if (tbody.querySelectorAll('tr[data-tx-id]').length > 0) return;
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="12" class="text-center py-4">
+                    <td colspan="13" class="text-center py-4">
                         <i class="bi bi-check-circle text-success me-1"></i>
                         未分類取引はありません。
                     </td>
