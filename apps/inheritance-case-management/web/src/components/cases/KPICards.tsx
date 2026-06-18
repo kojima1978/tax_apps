@@ -2,7 +2,7 @@ import { FileText, Clock, AlertTriangle, CheckCircle, PlusCircle, CheckCircle2 }
 import type { LucideIcon } from "lucide-react"
 import type { KPIData } from "@/lib/kpi-utils"
 
-export type KPICardFilterKey = "deadlineSoon" | "addedThisMonth" | "completedThisMonth"
+export type KPICardFilterKey = "total" | "ongoing" | "completed" | "deadlineSoon" | "addedThisMonth" | "completedThisMonth"
 
 const KPI_CARD_DEFS: readonly {
     key: keyof KPIData
@@ -11,10 +11,10 @@ const KPI_CARD_DEFS: readonly {
     color: string
     filterKey?: KPICardFilterKey
 }[] = [
-    { key: "total", label: "総案件数", icon: FileText, color: "text-black bg-white border border-black/10" },
-    { key: "ongoing", label: "手続中", icon: Clock, color: "text-black bg-white border border-black/10" },
+    { key: "total", label: "総案件数", icon: FileText, color: "text-black bg-white border border-black/10", filterKey: "total" },
+    { key: "ongoing", label: "手続中", icon: Clock, color: "text-black bg-white border border-black/10", filterKey: "ongoing" },
     { key: "deadlineSoon", label: "期限間近", icon: AlertTriangle, color: "text-black bg-white border border-black/10", filterKey: "deadlineSoon" },
-    { key: "completed", label: "完了", icon: CheckCircle, color: "text-black bg-white border border-black/10" },
+    { key: "completed", label: "完了", icon: CheckCircle, color: "text-black bg-white border border-black/10", filterKey: "completed" },
     { key: "addedThisMonth", label: "当月追加", icon: PlusCircle, color: "text-black bg-white border border-black/10", filterKey: "addedThisMonth" },
     { key: "completedThisMonth", label: "当月完了", icon: CheckCircle2, color: "text-black bg-white border border-black/10", filterKey: "completedThisMonth" },
 ] as const

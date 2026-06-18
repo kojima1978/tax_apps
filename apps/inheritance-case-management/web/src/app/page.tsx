@@ -22,12 +22,14 @@ import { CaseListToolbar } from "./CaseListToolbar"
 import {
     calculateCaseListAmountTotals,
     CASE_LIST_PAGE_SIZE,
+    COMPLETED_STATUS_CSV,
     getActiveKpiFilter,
     getCaseListFilterDescription,
     getCaseListFilters,
     getCaseListKpiFilters,
     getHasCaseFilters,
     getThisMonthRange,
+    ONGOING_STATUS,
     parseCaseListFilterValue,
     parseCaseListUrlParams,
     toCaseListUrlSearch,
@@ -139,14 +141,21 @@ function InheritanceMockupPageContent() {
                 page: 1,
             }
 
-            if (isActive) return next
-            if (filter === "deadlineSoon") {
-                return { ...next, deadlineSoon: true }
+            if (isActive) {
+                // トグルOFF: status / 全件表示の指定も解除
+                if (filter === "ongoing" || filter === "completed") return { ...next, status: undefined }
+                if (filter === "total") return { ...next, hideClosed: undefined }
+                return next
             }
-            if (filter === "addedThisMonth") {
-                return { ...next, caseAddedFrom: from, caseAddedTo: to }
+            switch (filter) {
+                case "deadlineSoon": return { ...next, deadlineSoon: true }
+                case "addedThisMonth": return { ...next, caseAddedFrom: from, caseAddedTo: to }
+                case "completedThisMonth": return { ...next, caseCompletedFrom: from, caseCompletedTo: to }
+                case "ongoing": return { ...next, status: ONGOING_STATUS, hideClosed: undefined }
+                case "completed": return { ...next, status: COMPLETED_STATUS_CSV, hideClosed: undefined }
+                case "total": return { ...next, status: undefined, hideClosed: false }
+                default: return next
             }
-            return { ...next, caseCompletedFrom: from, caseCompletedTo: to }
         })
     }, [])
 

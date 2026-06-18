@@ -1,11 +1,15 @@
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { calcGrossAmount } from "@/lib/case-amount-utils"
-import { FILTER_KEYS } from "@/types/constants"
+import { COMPLETED_STATUSES, FILTER_KEYS } from "@/types/constants"
 import type { InheritanceCase } from "@/types/shared"
 import type { KPICardFilterKey } from "@/components/cases/KPICards"
 
 export const CASE_LIST_PAGE_SIZE = 100
 export const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedFrom", "caseCompletedTo"] as const
+
+// KPIカード（手続中・完了）のステータス絞り込み値
+export const ONGOING_STATUS = "手続中"
+export const COMPLETED_STATUS_CSV = [...COMPLETED_STATUSES].join(",")
 
 const KPI_QUICK_FILTER_KEYS = ["deadlineSoon", ...DATE_FILTER_KEYS] as const
 const BOOLEAN_FILTER_KEYS = ["unassigned", "noReferrer", "deadlineSoon"] as const
@@ -39,10 +43,13 @@ export function getThisMonthRange(): { from: string; to: string } {
 }
 
 export function getActiveKpiFilter(params: CasesQueryParams): KPICardFilterKey | null {
+    if (params.status === ONGOING_STATUS) return "ongoing"
+    if (params.status === COMPLETED_STATUS_CSV) return "completed"
     if (params.deadlineSoon) return "deadlineSoon"
     const { from, to } = getThisMonthRange()
     if (params.caseAddedFrom === from && params.caseAddedTo === to) return "addedThisMonth"
     if (params.caseCompletedFrom === from && params.caseCompletedTo === to) return "completedThisMonth"
+    if (params.hideClosed === false) return "total"
     return null
 }
 
@@ -81,8 +88,13 @@ export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQuer
     } else if (!getHasCaseFilters(params)) {
         params.fiscalYear = new Date().getFullYear()
     }
-    // ステータス未指定のときは終了案件（見送り・入金済）を既定で除外（旧「対応中」既定の踏襲）
-    if (!params.status) {
+    // 終了案件（見送り・入金済）の表示制御:
+    //   URLに hideClosed があればそれに従う（総案件数カードで全件表示=false）
+    //   無ければ「ステータス未指定なら既定で除外」（旧「対応中」既定の踏襲）
+    const hideClosedParam = searchParams.get("hideClosed")
+    if (hideClosedParam !== null) {
+        params.hideClosed = hideClosedParam === "true"
+    } else if (!params.status) {
         params.hideClosed = true
     }
     return params
@@ -93,6 +105,7 @@ export function toCaseListUrlSearch(params: CasesQueryParams): string {
     if (params.fiscalYear) sp.set("fiscalYear", String(params.fiscalYear))
     if (params.search) sp.set("search", params.search)
     if (params.status) sp.set("status", params.status)
+    if (params.hideClosed === false) sp.set("hideClosed", "false")
     if (params.department) sp.set("department", params.department)
     if (params.assigneeId) sp.set("assigneeId", String(params.assigneeId))
     if (params.internalReferrerId) sp.set("internalReferrerId", String(params.internalReferrerId))
