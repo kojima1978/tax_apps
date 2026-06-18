@@ -16,6 +16,7 @@ interface ModalProps {
 
 export function Modal({ isOpen, onClose, title, children, panelClassName, bodyClassName }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const pointerDownOnOverlay = useRef(false);
   const titleId = React.useId();
 
   // Escape key handler
@@ -70,7 +71,12 @@ export function Modal({ isOpen, onClose, title, children, panelClassName, bodyCl
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 p-4"
-      onClick={onClose}
+      onMouseDown={(e) => { pointerDownOnOverlay.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        // 背景を直接クリックしたときのみ閉じる（モーダル内で開始したドラッグ選択では閉じない）
+        if (pointerDownOnOverlay.current && e.target === e.currentTarget) onClose();
+        pointerDownOnOverlay.current = false;
+      }}
     >
       <div
         ref={dialogRef}
