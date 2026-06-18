@@ -1,7 +1,5 @@
 "use client"
 
-import * as React from "react"
-import { useRouter } from "next/navigation"
 import {
     ColumnDef,
     flexRender,
@@ -20,10 +18,8 @@ import {
 import { cn } from "@/lib/utils"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Search, FolderOpen } from "lucide-react"
-import { useKeyboardNavigation } from "@/hooks/use-keyboard-navigation"
 import type { InheritanceCase } from "@/types/shared"
 import { isHandlingEnded } from "@/types/constants"
-import { getCaseDetailHrefWithClosedSections } from "@/lib/case-detail-section-state"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -32,18 +28,17 @@ interface DataTableProps<TData, TValue> {
     onClearFilters?: () => void
 }
 
+function getResponsiveColumnClass(columnId: string): string {
+    if (columnId === "assignee" || columnId === "amount") return "hidden md:table-cell"
+    return ""
+}
+
 export function DataTable<TData, TValue>({
     columns,
     data,
     hasFilters,
     onClearFilters,
 }: DataTableProps<TData, TValue>) {
-    const router = useRouter()
-    const tableRef = React.useRef<HTMLDivElement>(null)
-    const navigateToCaseDetail = React.useCallback((caseId: number) => {
-        router.push(getCaseDetailHrefWithClosedSections(caseId))
-    }, [router])
-
     // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
@@ -53,34 +48,20 @@ export function DataTable<TData, TValue>({
 
     const rows = table.getRowModel().rows
 
-    const { focusedRowIndex, setFocusedRowIndex, handleKeyDown, handleFocus } = useKeyboardNavigation({
-        rowCount: rows.length,
-        onEnter: (index) => {
-            const caseData = rows[index].original as { id?: number }
-            if (caseData.id) navigateToCaseDetail(caseData.id)
-        },
-        onEscape: () => tableRef.current?.blur(),
-        resetDeps: [data],
-    })
-
     return (
-        <div
-            ref={tableRef}
-            className="w-full outline-none"
-            tabIndex={0}
-            onKeyDown={handleKeyDown}
-            onFocus={handleFocus}
-        >
-            <div className="rounded-md border overflow-x-auto">
-                <p className="text-xs text-muted-foreground px-2 py-1 md:hidden">← 横にスクロールできます →</p>
-                <Table className="min-w-[1120px] table-fixed text-xs">
+        <div className="w-full">
+            <div className="w-fit max-w-full rounded-md border overflow-hidden">
+                <Table
+                    className="table-fixed text-[10px]"
+                    style={{ width: table.getTotalSize(), maxWidth: "100%" }}
+                >
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => (
                                     <TableHead
                                         key={header.id}
-                                        className="h-7 px-1.5 py-1 text-[11px]"
+                                        className={cn("h-7 px-px py-1 text-[10px]", getResponsiveColumnClass(header.column.id))}
                                         style={{ width: header.getSize() }}
                                     >
                                         {header.isPlaceholder
@@ -104,21 +85,14 @@ export function DataTable<TData, TValue>({
                                     key={row.id}
                                     data-state={row.getIsSelected() && "selected"}
                                     className={cn(
-                                        "cursor-pointer transition-colors",
                                         index % 2 === 1 && "bg-muted/30",
-                                        focusedRowIndex === index && "bg-muted/50 ring-2 ring-inset ring-primary/20",
                                         isEnded && "opacity-50"
                                     )}
-                                    onClick={() => {
-                                        const caseData = row.original as { id?: number }
-                                        if (caseData.id) navigateToCaseDetail(caseData.id)
-                                    }}
-                                    onMouseEnter={() => setFocusedRowIndex(index)}
                                 >
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell
                                             key={cell.id}
-                                            className="px-1.5 py-1 align-top text-xs leading-tight"
+                                            className={cn("px-px py-1 align-top text-[10px] leading-tight", getResponsiveColumnClass(cell.column.id))}
                                             style={{ width: cell.column.getSize() }}
                                         >
                                             {flexRender(
