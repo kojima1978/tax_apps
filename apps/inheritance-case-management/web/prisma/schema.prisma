@@ -14,9 +14,8 @@ model InheritanceCase {
   deceasedNameKana            String   @default("")
   deceasedNameKanaNormalized  String   @default("")
   dateOfDeath       DateTime @db.Date // YYYY-MM-DD（CHECK制約で検証済み）
-  status            String   @default("未着手") // CHECK制約: 未着手/手続中/申告済/請求済/入金済
-  handlingStatus    String   @default("対応中") // CHECK制約: 対応中/対応終了/対応終了（未分割）/対応外
-  acceptanceStatus  String?  @default("未判定") // CHECK制約: 未判定/受託/見送り
+  status            String   @default("見積前") // CHECK制約: 見積前/見積中/見送り/受託/手続中/申告済/請求済/入金済
+  isUndivided       Boolean  @default(false)  // 遺産未分割フラグ（申告済以降で意味を持つ）
   taxAmount         Int?     @default(0)
   feeAmount         Int?     @default(0)
   fiscalYear        Int
@@ -33,8 +32,10 @@ model InheritanceCase {
   feeCalcSnapshot   Json?    // 報酬計算時のパラメータ・料率・内訳スナップショット
   summary           String?  @db.VarChar(10) // 特記事項��短い概要、最大10���字）
   memo              String?  @db.Text        // メモ（フリーテキスト）
-  caseAddedDate     DateTime? @db.Date       // 受託日（業務上の案件追加日）
-  caseCompletedDate DateTime? @db.Date       // 申告完了日（ステータス連動）
+  caseAddedDate     DateTime? @db.Date       // 受託日（ステータス連動: 受託で自動）
+  caseCompletedDate DateTime? @db.Date       // 申告日（ステータス連動: 申告済で自動）
+  billedDate        DateTime? @db.Date       // 請求日（ステータス連動: 請求済で自動）
+  paidDate          DateTime? @db.Date       // 入金日（ステータス連動: 入金済で自動）
 
   // Normalized FK references
   assigneeId            Int?
@@ -59,12 +60,13 @@ model InheritanceCase {
 
   // Indexes for common queries
   @@index([status])
-  @@index([handlingStatus])
   @@index([fiscalYear])
-  @@index([acceptanceStatus])
+  @@index([isUndivided])
   @@index([createdAt])
   @@index([caseAddedDate])
   @@index([caseCompletedDate])
+  @@index([billedDate])
+  @@index([paidDate])
   @@index([assigneeId])
   @@index([internalReferrerId])
   @@index([referrerId])

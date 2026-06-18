@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { Search, FolderOpen } from "lucide-react"
 import { useKeyboardNavigation } from "@/hooks/use-keyboard-navigation"
 import type { InheritanceCase } from "@/types/shared"
+import { isHandlingEnded } from "@/types/constants"
 import { getCaseDetailHrefWithClosedSections } from "@/lib/case-detail-section-state"
 
 interface DataTableProps<TData, TValue> {
@@ -97,7 +98,7 @@ export function DataTable<TData, TValue>({
                         {rows.length ? (
                             rows.map((row, index) => {
                                 const caseRow = row.original as InheritanceCase
-                                const isEnded = !!caseRow.handlingStatus && caseRow.handlingStatus !== "対応中"
+                                const isEnded = isHandlingEnded(caseRow.status, caseRow.isUndivided)
                                 return (
                                 <TableRow
                                     key={row.id}

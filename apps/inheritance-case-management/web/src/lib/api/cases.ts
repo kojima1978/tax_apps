@@ -10,8 +10,8 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.page) searchParams.set('page', String(params.page));
   if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize));
   if (params?.status) searchParams.set('status', params.status);
-  if (params?.handlingStatus) searchParams.set('handlingStatus', params.handlingStatus);
-  if (params?.acceptanceStatus) searchParams.set('acceptanceStatus', params.acceptanceStatus);
+  if (params?.isUndivided !== undefined) searchParams.set('isUndivided', String(params.isUndivided));
+  if (params?.hideClosed) searchParams.set('hideClosed', 'true');
   if (params?.fiscalYear) searchParams.set('fiscalYear', String(params.fiscalYear));
   if (params?.search) searchParams.set('search', params.search);
   if (params?.assigneeId) searchParams.set('assigneeId', String(params.assigneeId));
@@ -67,8 +67,8 @@ export async function deleteCase(id: number): Promise<void> {
 export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortOrder'>): Promise<{ deleted: number }> {
   const searchParams = new URLSearchParams();
   if (params?.status) searchParams.set('status', params.status);
-  if (params?.handlingStatus) searchParams.set('handlingStatus', params.handlingStatus);
-  if (params?.acceptanceStatus) searchParams.set('acceptanceStatus', params.acceptanceStatus);
+  if (params?.isUndivided !== undefined) searchParams.set('isUndivided', String(params.isUndivided));
+  if (params?.hideClosed) searchParams.set('hideClosed', 'true');
   if (params?.fiscalYear) searchParams.set('fiscalYear', String(params.fiscalYear));
   if (params?.search) searchParams.set('search', params.search);
   if (params?.assigneeId) searchParams.set('assigneeId', String(params.assigneeId));

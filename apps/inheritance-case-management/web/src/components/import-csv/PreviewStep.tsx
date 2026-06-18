@@ -9,8 +9,7 @@ const PREVIEW_COLUMNS = [
   { key: "deceasedName", label: "被相続人氏名" },
   { key: "fiscalYear", label: "年度" },
   { key: "dateOfDeath", label: "死亡日" },
-  { key: "acceptanceStatus", label: "受託状況" },
-  { key: "status", label: "進み具合" },
+  { key: "status", label: "ステータス" },
 ] as const;
 
 const SUMMARY_BADGES = [

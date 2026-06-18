@@ -1,9 +1,7 @@
 import type { FeeCalcSnapshot } from '@/lib/estimate-calc';
 
-// Case Status Types
-export type CaseStatus = '未着手' | '手続中' | '申告済' | '請求済' | '入金済';
-export type HandlingStatus = '対応中' | '対応終了' | '対応終了（未分割）' | '対応外';
-export type AcceptanceStatus = '未判定' | '受託' | '見送り';
+// Case Status Types — 統合ステータス（受託判定・進み具合・対応状況を1つに統合）
+export type CaseStatus = '見積前' | '見積中' | '見送り' | '受託' | '手続中' | '申告済' | '請求済' | '入金済';
 
 // Progress Step (input shape for API — used by editors)
 export interface ProgressStep {
@@ -118,8 +116,7 @@ export interface InheritanceCase {
   deceasedNameKanaNormalized?: string;
   dateOfDeath: string;
   status: CaseStatus;
-  handlingStatus?: HandlingStatus;
-  acceptanceStatus?: AcceptanceStatus;
+  isUndivided?: boolean;
   taxAmount: number;
   feeAmount: number;
   fiscalYear: number;
@@ -138,6 +135,8 @@ export interface InheritanceCase {
   memo?: string;
   caseAddedDate?: string | null;
   caseCompletedDate?: string | null;
+  billedDate?: string | null;
+  paidDate?: string | null;
   // Normalized FK references
   assigneeId?: number | null;
   internalReferrerId?: number | null;

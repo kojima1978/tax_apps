@@ -100,6 +100,8 @@ export function serializeCase<T extends {
   dateOfDeath: Date | string;
   caseAddedDate?: Date | string | null;
   caseCompletedDate?: Date | string | null;
+  billedDate?: Date | string | null;
+  paidDate?: Date | string | null;
   progress?: { date: Date | string | null }[];
   expenses?: { date: Date | string }[];
   heirs?: { person?: { dateOfBirth?: Date | string | null } | null }[];
@@ -109,6 +111,8 @@ export function serializeCase<T extends {
     dateOfDeath: toDateStr(c.dateOfDeath as Date) ?? '',
     caseAddedDate: toDateStr(c.caseAddedDate as Date | null) ?? null,
     caseCompletedDate: toDateStr(c.caseCompletedDate as Date | null) ?? null,
+    billedDate: toDateStr(c.billedDate as Date | null) ?? null,
+    paidDate: toDateStr(c.paidDate as Date | null) ?? null,
     progress: c.progress?.map(p => ({
       ...p,
       date: toDateStr(p.date as Date | null),

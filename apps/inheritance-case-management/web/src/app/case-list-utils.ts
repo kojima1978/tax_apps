@@ -57,7 +57,7 @@ export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQuer
     if (pageSize) params.pageSize = Number(pageSize)
     const fiscalYear = searchParams.get("fiscalYear")
 
-    for (const key of ["search", "status", "handlingStatus", "acceptanceStatus", "department"] as const) {
+    for (const key of ["search", "status", "department"] as const) {
         const value = searchParams.get(key)
         if (value) (params as Record<string, unknown>)[key] = value
     }
@@ -81,8 +81,9 @@ export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQuer
     } else if (!getHasCaseFilters(params)) {
         params.fiscalYear = new Date().getFullYear()
     }
-    if (!params.handlingStatus) {
-        params.handlingStatus = "対応中"
+    // ステータス未指定のときは終了案件（見送り・入金済）を既定で除外（旧「対応中」既定の踏襲）
+    if (!params.status) {
+        params.hideClosed = true
     }
     return params
 }
@@ -92,8 +93,6 @@ export function toCaseListUrlSearch(params: CasesQueryParams): string {
     if (params.fiscalYear) sp.set("fiscalYear", String(params.fiscalYear))
     if (params.search) sp.set("search", params.search)
     if (params.status) sp.set("status", params.status)
-    if (params.handlingStatus) sp.set("handlingStatus", params.handlingStatus)
-    if (params.acceptanceStatus) sp.set("acceptanceStatus", params.acceptanceStatus)
     if (params.department) sp.set("department", params.department)
     if (params.assigneeId) sp.set("assigneeId", String(params.assigneeId))
     if (params.internalReferrerId) sp.set("internalReferrerId", String(params.internalReferrerId))
@@ -158,9 +157,7 @@ export function calculateCaseListAmountTotals(cases: InheritanceCase[]): CaseLis
 export function getCaseListFilterDescription(params: CasesQueryParams, assignees: NamedMaster[]): string {
     const parts: string[] = []
     if (params.fiscalYear) parts.push(`${params.fiscalYear}年度`)
-    if (params.status) parts.push(`進み具合: ${params.status}`)
-    if (params.handlingStatus) parts.push(`対応状況: ${params.handlingStatus}`)
-    if (params.acceptanceStatus) parts.push(`受託: ${params.acceptanceStatus}`)
+    if (params.status) parts.push(`ステータス: ${params.status}`)
     if (params.department) parts.push(`部門: ${params.department}`)
     if (params.assigneeId) {
         const matched = assignees.find((item) => item.id === params.assigneeId)

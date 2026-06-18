@@ -5,7 +5,7 @@ import type { InheritanceCase } from "@/types/shared"
 
 export function FinancialAggregationStatus({ formData }: { formData: InheritanceCase }) {
     const completed = isCompleted(formData.status)
-    const ongoing = formData.status === "手続中" && formData.acceptanceStatus === "受託"
+    const ongoing = formData.status === "手続中"
 
     if (completed) {
         const amount = formData.feeAmount || 0
@@ -30,7 +30,7 @@ export function FinancialAggregationStatus({ formData }: { formData: Inheritance
     return (
         <div className="col-span-1 flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-muted-foreground sm:col-span-2">
             <BarChart3 className="h-4 w-4 shrink-0" />
-            <span>ダッシュボード集計: 集計対象外（進み具合が「手続中」以降、かつ受託の場合に集計されます）</span>
+            <span>ダッシュボード集計: 集計対象外（ステータスが「手続中」以降の場合に集計されます）</span>
         </div>
     )
 }

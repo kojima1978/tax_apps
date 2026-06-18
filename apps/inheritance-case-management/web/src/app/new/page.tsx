@@ -12,7 +12,7 @@ const emptyCase: InheritanceCase = {
     deceasedName: "",
     deceasedNameKana: "",
     dateOfDeath: new Date().toISOString().split("T")[0],
-    status: "未着手",
+    status: "見積前",
     taxAmount: 0,
     assigneeId: null,
     feeAmount: 0,

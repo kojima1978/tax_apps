@@ -6,8 +6,8 @@ import { Loader2, ExternalLink } from "lucide-react"
 import { Modal } from "@/components/ui/Modal"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { formatDateWithWareki } from "@/lib/analytics-utils"
-import { STATUS_STYLES, HANDLING_STATUS_STYLES } from "@/types/constants"
-import type { CaseStatus, HandlingStatus } from "@/types/shared"
+import { STATUS_STYLES } from "@/types/constants"
+import type { CaseStatus } from "@/types/shared"
 import { getHeirPersonRelatedCases, type RelatedCase } from "@/lib/api/heir-persons"
 import { useToast } from "@/components/ui/Toast"
 
@@ -78,8 +78,7 @@ export function RelatedCasesPopover({ personId, count, personName }: RelatedCase
                                     <th className="px-2 py-2 font-medium">被相続人</th>
                                     <th className="px-2 py-2 font-medium">死亡日</th>
                                     <th className="px-2 py-2 font-medium">続柄</th>
-                                    <th className="px-2 py-2 font-medium">進み具合</th>
-                                    <th className="px-2 py-2 font-medium">対応状況</th>
+                                    <th className="px-2 py-2 font-medium">ステータス</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -103,12 +102,9 @@ export function RelatedCasesPopover({ personId, count, personName }: RelatedCase
                                         </td>
                                         <td className="px-2 py-2">
                                             <StatusBadge label={c.status} style={STATUS_STYLES[c.status as CaseStatus]} />
-                                        </td>
-                                        <td className="px-2 py-2">
-                                            <StatusBadge
-                                                label={c.handlingStatus}
-                                                style={HANDLING_STATUS_STYLES[c.handlingStatus as HandlingStatus]}
-                                            />
+                                            {c.isUndivided && (
+                                                <span className="ml-1 text-[11px] text-muted-foreground">（未分割）</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

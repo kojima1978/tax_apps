@@ -5,9 +5,9 @@ import { MoreHorizontal, Save, Check, Plus, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Modal } from "@/components/ui/Modal"
 import { SetTodayButton } from "@/components/ui/SetTodayButton"
-import type { InheritanceCase, CaseStatus, ProgressStep } from "@/types/shared"
+import type { InheritanceCase, ProgressStep } from "@/types/shared"
 import { updateCase } from "@/lib/api/cases"
-import { addVisitStep, shouldShowAddVisit, STATUS_STEP_MAP, DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
+import { addVisitStep, shouldShowAddVisit, DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { formatDateWithWareki, toWareki } from "@/lib/analytics-utils"
 import { toProgressSteps, toProgressItems } from "@/lib/case-converters"
@@ -67,26 +67,11 @@ function SortableRow({
     )
 }
 
-/** 進捗ステップの日付入力に応じてステータス変更を提案（STATUS_STEP_MAPから自動生成、優先度: 後ろのステップが優先） */
-function detectStatusPrompt(steps: ProgressStep[], currentStatus: CaseStatus) {
-    for (let i = STATUS_STEP_MAP.length - 1; i >= 0; i--) {
-        const { status, stepName } = STATUS_STEP_MAP[i]
-        const step = steps.find(s => s.name === stepName)
-        // このステータス以上なら提案不要
-        const atOrBeyond = STATUS_STEP_MAP.slice(i).some(m => m.status === currentStatus)
-        if (step?.date && !atOrBeyond) {
-            return { status, message: `「${stepName}」に日付が入力されました。\n進み具合を「${status}」に変更しますか？` }
-        }
-    }
-    return null
-}
-
 export function ProgressModalButton({ caseData }: { caseData: InheritanceCase }) {
     const [showModal, setShowModal] = useState(false)
     const [steps, setSteps] = useState<ProgressStep[]>([])
     const [isSaving, setIsSaving] = useState(false)
     const [saved, setSaved] = useState(false)
-    const [statusPrompt, setStatusPrompt] = useState<{ status: CaseStatus; message: string } | null>(null)
 
     const onChange = useCallback((newSteps: ProgressStep[]) => {
         setSteps(newSteps)
@@ -101,17 +86,15 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
     const openModal = () => {
         setSteps(caseData.progress ? toProgressSteps(caseData.progress) : [])
         setSaved(false)
-        setStatusPrompt(null)
         resetChecked()
         setShowModal(true)
     }
 
-    const doSave = async (newStatus?: CaseStatus) => {
+    const doSave = async () => {
         setIsSaving(true)
         try {
             const updatedAt = caseData.updatedAt ? new Date(caseData.updatedAt).toISOString() : undefined
-            const result = await updateCase(caseData.id, { progress: steps, ...(newStatus && { status: newStatus }) }, updatedAt)
-            if (newStatus) caseData.status = newStatus
+            const result = await updateCase(caseData.id, { progress: steps }, updatedAt)
             caseData.progress = toProgressItems(steps)
             caseData.updatedAt = result.updatedAt
             setSaved(true)
@@ -126,11 +109,6 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
     }
 
     const handleSave = async () => {
-        const prompt = detectStatusPrompt(steps, caseData.status)
-        if (prompt) {
-            setStatusPrompt(prompt)
-            return
-        }
         await doSave()
     }
 
@@ -189,20 +167,6 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
                         )}
                     </div>
 
-                    {statusPrompt && (
-                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
-                            <p className="text-sm whitespace-pre-line">{statusPrompt.message}</p>
-                            <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => { setStatusPrompt(null); doSave() }}>
-                                    変更しない
-                                </Button>
-                                <Button size="sm" onClick={() => { const s = statusPrompt.status; setStatusPrompt(null); doSave(s) }}>
-                                    変更する
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
                     <div className="flex justify-between pt-4 border-t">
                         <Link
                             href={getCaseDetailHrefWithClosedSections(caseData.id)}
@@ -213,7 +177,7 @@ export function ProgressModalButton({ caseData }: { caseData: InheritanceCase })
                         <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => setShowModal(false)}>閉じる</Button>
                             {steps.length > 0 && (
-                                <Button size="sm" onClick={handleSave} disabled={isSaving || !hasChanges || !!statusPrompt}>
+                                <Button size="sm" onClick={handleSave} disabled={isSaving || !hasChanges}>
                                     {saved ? (<><Check className="mr-1.5 h-3.5 w-3.5" />保存済み</>) : (<><Save className="mr-1.5 h-3.5 w-3.5" />{isSaving ? "保存中..." : "保存"}</>)}
                                 </Button>
                             )}

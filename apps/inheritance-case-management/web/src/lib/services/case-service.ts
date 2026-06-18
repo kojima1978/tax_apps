@@ -11,9 +11,9 @@ import {
   toRelatedPartyCreateData,
   toSpecialAdditionCreateData,
 } from '@/lib/prisma-includes';
-import { ACCEPTANCE_STATUS_OPTIONS, CASE_STATUS_OPTIONS, HANDLING_STATUS_OPTIONS } from '@/types/constants';
+import { CASE_STATUS_OPTIONS, MILESTONE_DATES, isMilestoneTriggered } from '@/types/constants';
 import { diffScalar, writeAuditLog } from './audit-service';
-import { isCompletionDateTrigger, todayDate } from './case-date-utils';
+import { todayDate } from './case-date-utils';
 import { resolveHeirs, resolveRelatedParties } from './case-person-resolvers';
 
 export { buildCaseWhereClause } from './case-query';
@@ -24,8 +24,7 @@ type CreateCaseData = {
   dateOfDeath: string;
   fiscalYear: number;
   status?: string;
-  handlingStatus?: string;
-  acceptanceStatus?: string;
+  isUndivided?: boolean;
   taxAmount?: number;
   feeAmount?: number;
   estimateAmount?: number;
@@ -42,6 +41,9 @@ type CreateCaseData = {
   summary?: string | null;
   memo?: string | null;
   caseAddedDate?: string | null;
+  caseCompletedDate?: string | null;
+  billedDate?: string | null;
+  paidDate?: string | null;
   assigneeId?: number | null;
   internalReferrerId?: number | null;
   referrerId?: number | null;
@@ -58,8 +60,7 @@ const CASE_SCALAR_FIELDS = [
   'dateOfDeath',
   'fiscalYear',
   'status',
-  'handlingStatus',
-  'acceptanceStatus',
+  'isUndivided',
   'taxAmount',
   'feeAmount',
   'estimateAmount',
@@ -77,9 +78,11 @@ const CASE_SCALAR_FIELDS = [
   'feeCalcSnapshot',
   'caseAddedDate',
   'caseCompletedDate',
+  'billedDate',
+  'paidDate',
 ] as const;
 
-const CASE_DATE_FIELDS = new Set<string>(['dateOfDeath', 'caseAddedDate', 'caseCompletedDate']);
+const CASE_DATE_FIELDS = new Set<string>(['dateOfDeath', 'caseAddedDate', 'caseCompletedDate', 'billedDate', 'paidDate']);
 
 function applyScalarUpdates(updateData: Record<string, unknown>, data: Record<string, unknown>) {
   for (const field of CASE_SCALAR_FIELDS) {
@@ -140,7 +143,6 @@ export async function createCase(data: CreateCaseData) {
     const deceasedNameKana = normalizeNameKanaForStorage(data.deceasedNameKana ?? '');
     const deceasedNameKanaNormalized = normalizePersonSearchText(deceasedNameKana);
     const status = data.status ?? CASE_STATUS_OPTIONS[0];
-    const handlingStatus = data.handlingStatus ?? HANDLING_STATUS_OPTIONS[0];
 
     const created = await tx.inheritanceCase.create({
       data: {
@@ -150,8 +152,7 @@ export async function createCase(data: CreateCaseData) {
         dateOfDeath: toDate(data.dateOfDeath),
         fiscalYear: data.fiscalYear,
         status,
-        handlingStatus,
-        acceptanceStatus: data.acceptanceStatus ?? ACCEPTANCE_STATUS_OPTIONS[0],
+        isUndivided: data.isUndivided ?? false,
         taxAmount: data.taxAmount ?? 0,
         feeAmount: data.feeAmount ?? 0,
         estimateAmount: data.estimateAmount ?? 0,
@@ -167,8 +168,10 @@ export async function createCase(data: CreateCaseData) {
         feeCalcSnapshot: data.feeCalcSnapshot ?? undefined,
         summary: data.summary || null,
         memo: data.memo || null,
-        caseAddedDate: data.caseAddedDate ? toDate(data.caseAddedDate) : todayDate(),
-        caseCompletedDate: isCompletionDateTrigger(status, handlingStatus) ? todayDate() : null,
+        caseAddedDate: data.caseAddedDate ? toDate(data.caseAddedDate) : (isMilestoneTriggered('caseAddedDate', status) ? todayDate() : null),
+        caseCompletedDate: data.caseCompletedDate ? toDate(data.caseCompletedDate) : (isMilestoneTriggered('caseCompletedDate', status) ? todayDate() : null),
+        billedDate: data.billedDate ? toDate(data.billedDate) : (isMilestoneTriggered('billedDate', status) ? todayDate() : null),
+        paidDate: data.paidDate ? toDate(data.paidDate) : (isMilestoneTriggered('paidDate', status) ? todayDate() : null),
         assigneeId: data.assigneeId || null,
         internalReferrerId: data.internalReferrerId || null,
         referrerId: data.referrerId || null,
@@ -207,24 +210,17 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       normalizeDeceasedNameKana(updateData, data.deceasedNameKana);
     }
 
-    if ('acceptanceStatus' in data && data.acceptanceStatus === ACCEPTANCE_STATUS_OPTIONS[1]) {
-      if (!before.caseAddedDate && !('caseAddedDate' in data)) {
-        updateData.caseAddedDate = todayDate();
-      }
-    }
-
     const statusChanged = 'status' in data;
-    const handlingChanged = 'handlingStatus' in data;
     const newStatus = (statusChanged ? data.status : before.status) as string;
-    const newHandling = (handlingChanged ? data.handlingStatus : before.handlingStatus) as string;
+    const beforeRec = before as unknown as Record<string, unknown>;
 
-    if (isCompletionDateTrigger(newStatus, newHandling)) {
-      if (!before.caseCompletedDate && !('caseCompletedDate' in data)) {
-        updateData.caseCompletedDate = todayDate();
-      }
-    } else if (statusChanged || handlingChanged) {
-      if (before.caseCompletedDate && !('caseCompletedDate' in data)) {
-        updateData.caseCompletedDate = null;
+    // マイルストン日付（受託/申告/請求/入金）をステータス連動で自動セット / 後退時はクリア
+    for (const { field } of MILESTONE_DATES) {
+      if (field in data) continue;
+      if (isMilestoneTriggered(field, newStatus)) {
+        if (!beforeRec[field]) updateData[field] = todayDate();
+      } else if (statusChanged && beforeRec[field]) {
+        updateData[field] = null;
       }
     }
 

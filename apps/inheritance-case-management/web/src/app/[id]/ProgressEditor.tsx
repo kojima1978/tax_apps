@@ -1,5 +1,6 @@
 "use client"
 
+import { ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { SetTodayButton } from "@/components/ui/SetTodayButton"
 import type { InheritanceCase, ProgressStep } from "@/types/shared"
@@ -53,48 +54,52 @@ export function ProgressEditor({
         <div className="space-y-4">
             {statusSummary}
 
-            <section className="rounded-lg border bg-card/50 p-3">
-                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h3 className="text-sm font-semibold">工程日付</h3>
-                        <p className="mt-0.5 text-xs text-muted-foreground">発生した工程から順に入力してください</p>
-                    </div>
+            <details className="group rounded-lg border bg-card/50 p-3">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold">
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" />
+                    工程メモ（任意・手続中の進捗）
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">
+                        {progress.filter(s => s.date).length}/{progress.length}
+                    </span>
+                </summary>
+
+                <div className="mt-3">
                     {checkedIds.size > 0 && (
-                        <div className="shrink-0">
+                        <div className="mb-3 flex justify-end">
                             <SetTodayButton count={checkedIds.size} onClick={setTodayForChecked} />
                         </div>
                     )}
-                </div>
 
-                {progress.length === 0 ? (
-                    <div className="rounded-lg border bg-muted/30 py-6 text-center">
-                        <p className="mb-2 text-sm text-muted-foreground">進捗データがありません</p>
-                        <Button type="button" variant="outline" size="sm" onClick={() => onChange([...DEFAULT_PROGRESS_STEPS])}>
-                            + デフォルトステップを追加
-                        </Button>
-                    </div>
-                ) : (
-                    <div className="relative">
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={stepIds} strategy={verticalListSortingStrategy}>
-                                {progress.map((step, index) => (
-                                    <SortableProgressStep
-                                        key={step.id}
-                                        step={step}
-                                        index={index}
-                                        progress={progress}
-                                        checked={checkedIds.has(step.id)}
-                                        onToggle={() => toggleCheck(step.id)}
-                                        onStepChange={handleStepChange}
-                                        onDelete={handleDeleteStep}
-                                        onAddVisit={(i) => onChange(addVisitStep(progress, i))}
-                                    />
-                                ))}
-                            </SortableContext>
-                        </DndContext>
-                    </div>
-                )}
-            </section>
+                    {progress.length === 0 ? (
+                        <div className="rounded-lg border bg-muted/30 py-6 text-center">
+                            <p className="mb-2 text-sm text-muted-foreground">進捗データがありません</p>
+                            <Button type="button" variant="outline" size="sm" onClick={() => onChange([...DEFAULT_PROGRESS_STEPS])}>
+                                + デフォルトステップを追加
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="relative">
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                <SortableContext items={stepIds} strategy={verticalListSortingStrategy}>
+                                    {progress.map((step, index) => (
+                                        <SortableProgressStep
+                                            key={step.id}
+                                            step={step}
+                                            index={index}
+                                            progress={progress}
+                                            checked={checkedIds.has(step.id)}
+                                            onToggle={() => toggleCheck(step.id)}
+                                            onStepChange={handleStepChange}
+                                            onDelete={handleDeleteStep}
+                                            onAddVisit={(i) => onChange(addVisitStep(progress, i))}
+                                        />
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
+                        </div>
+                    )}
+                </div>
+            </details>
         </div>
     )
 }

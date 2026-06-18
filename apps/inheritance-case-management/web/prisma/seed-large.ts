@@ -18,9 +18,6 @@ const DEFAULT_STEPS = [
   { stepId: 'step-3', name: '2回目訪問' },
   { stepId: 'step-8', name: '最終チェック完了' },
   { stepId: 'step-4', name: '遺産分割（済）' },
-  { stepId: 'step-5', name: '申告（済）' },
-  { stepId: 'step-6', name: '請求（済）' },
-  { stepId: 'step-7', name: '入金確認' },
 ];
 
 function rand(min: number, max: number): number {
@@ -150,52 +147,61 @@ async function main() {
       const deadline = new Date(dateOfDeath);
       deadline.setMonth(deadline.getMonth() + 10);
 
-      // ステータス・受託状況の決定
+      // ステータスの決定（統合ステータス）
       let status: string;
-      let acceptanceStatus: string;
       const monthsSinceDeath = (NOW.getTime() - dateOfDeath.getTime()) / (1000 * 60 * 60 * 24 * 30);
 
       if (monthsSinceDeath > 14) {
         // 古い案件: ほぼ完了or入金済
         const r = Math.random();
-        if (r < 0.05) { acceptanceStatus = '受託不可'; status = '対応終了'; }
-        else if (r < 0.55) { acceptanceStatus = '受託可'; status = '入金済'; }
-        else if (r < 0.90) { acceptanceStatus = '受託可'; status = '完了（税務申告済）'; }
-        else { acceptanceStatus = '受託可'; status = '進行中'; } // 遅延案件
+        if (r < 0.05) status = '見送り';
+        else if (r < 0.55) status = '入金済';
+        else if (r < 0.90) status = '申告済';
+        else status = '手続中'; // 遅延案件
       } else if (monthsSinceDeath > 8) {
         // 期限前後: 混在
         const r = Math.random();
-        if (r < 0.05) { acceptanceStatus = '受託不可'; status = '対応終了'; }
-        else if (r < 0.25) { acceptanceStatus = '受託可'; status = '入金済'; }
-        else if (r < 0.50) { acceptanceStatus = '受託可'; status = '完了（税務申告済）'; }
-        else if (r < 0.85) { acceptanceStatus = '受託可'; status = '進行中'; }
-        else { acceptanceStatus = '未判定'; status = '未着手'; }
+        if (r < 0.05) status = '見送り';
+        else if (r < 0.25) status = '入金済';
+        else if (r < 0.50) status = '申告済';
+        else if (r < 0.85) status = '手続中';
+        else status = '見積中';
       } else if (monthsSinceDeath > 3) {
         // 中盤
         const r = Math.random();
-        if (r < 0.05) { acceptanceStatus = '受託不可'; status = '対応終了'; }
-        else if (r < 0.10) { acceptanceStatus = '保留'; status = '未着手'; }
-        else if (r < 0.15) { acceptanceStatus = '未判定'; status = '未着手'; }
-        else if (r < 0.60) { acceptanceStatus = '受託可'; status = '進行中'; }
-        else if (r < 0.80) { acceptanceStatus = '受託可'; status = '完了（税務申告済）'; }
-        else { acceptanceStatus = '受託可'; status = '入金済'; }
+        if (r < 0.05) status = '見送り';
+        else if (r < 0.10) status = '見積前';
+        else if (r < 0.15) status = '見積中';
+        else if (r < 0.60) status = '手続中';
+        else if (r < 0.80) status = '申告済';
+        else status = '入金済';
       } else {
         // 新しい案件
         const r = Math.random();
-        if (r < 0.30) { acceptanceStatus = '未判定'; status = '未着手'; }
-        else if (r < 0.40) { acceptanceStatus = '保留'; status = '未着手'; }
-        else if (r < 0.50) { acceptanceStatus = '受託不可'; status = '対応終了'; }
-        else if (r < 0.80) { acceptanceStatus = '受託可'; status = '未着手'; }
-        else { acceptanceStatus = '受託可'; status = '進行中'; }
+        if (r < 0.30) status = '見積前';
+        else if (r < 0.40) status = '見積中';
+        else if (r < 0.50) status = '見送り';
+        else if (r < 0.80) status = '受託';
+        else status = '手続中';
       }
+
+      // 未分割フラグ（申告済以降の一部）
+      const isUndivided = (status === '申告済' || status === '請求済' || status === '入金済') && Math.random() < 0.1;
+
+      // マイルストン日付（ステータス連動）
+      const accepted = ['受託', '手続中', '申告済', '請求済', '入金済'].includes(status);
+      const caseAddedDate = accepted ? formatDate(addDays(dateOfDeath, rand(3, 30))) : null;
+      const caseCompletedDate = ['申告済', '請求済', '入金済'].includes(status) ? formatDate(addDays(dateOfDeath, rand(250, 300))) : null;
+      const billedDate = ['請求済', '入金済'].includes(status) ? formatDate(addDays(dateOfDeath, rand(300, 320))) : null;
+      const paidDate = status === '入金済' ? formatDate(addDays(dateOfDeath, rand(320, 360))) : null;
 
       // 金額
       const propertyValue = rand(3, 100) * 10000000; // 3000万〜10億
       const taxRate = Math.random() * 0.3 + 0.05;
-      const taxAmount = (status === '未着手' && acceptanceStatus !== '受託可') ? 0 : Math.round(propertyValue * taxRate);
+      const taxAmount = (status === '見積前' || status === '見積中' || status === '見送り') ? 0 : Math.round(propertyValue * taxRate);
       const feeBase = Math.round(propertyValue * (Math.random() * 0.01 + 0.005));
-      const estimateAmount = acceptanceStatus === '受託不可' ? 0 : feeBase;
-      const feeAmount = (status === '完了（税務申告済）' || status === '入金済') ? feeBase : 0;
+      const estimateAmount = status === '見送り' ? 0 : feeBase;
+      const feeAmount = (status === '申告済' || status === '請求済' || status === '入金済') ? feeBase : 0;
 
       // 紹介者
       const hasReferrer = Math.random() < 0.6;
@@ -204,7 +210,7 @@ async function main() {
       const referralFeeAmount = (hasReferrer && feeBase > 0) ? Math.round(feeBase * (referralFeeRate! / 100)) : null;
 
       // 担当者
-      const hasAssignee = acceptanceStatus !== '未判定' || Math.random() < 0.3;
+      const hasAssignee = status !== '見積前' || Math.random() < 0.3;
       const assigneeId = hasAssignee ? pick(assignees).id : null;
 
       // 被相続人名
@@ -216,8 +222,8 @@ async function main() {
       const progressSteps: { stepId: string; name: string; sortOrder: number; date: string | null; memo: string }[] = [];
       let completedStepCount = 0;
       if (status === '入金済') completedStepCount = 8;
-      else if (status === '完了（税務申告済）') completedStepCount = rand(5, 7);
-      else if (status === '進行中') completedStepCount = rand(1, 4);
+      else if (status === '申告済' || status === '請求済') completedStepCount = rand(5, 7);
+      else if (status === '手続中' || status === '受託') completedStepCount = rand(1, 4);
       else completedStepCount = Math.random() < 0.3 ? 1 : 0;
 
       let stepDate = addDays(dateOfDeath, rand(3, 14));
@@ -242,7 +248,7 @@ async function main() {
             dateOfDeath: deathStr,
             fiscalYear,
             status,
-            acceptanceStatus,
+            isUndivided,
             taxAmount,
             feeAmount,
             estimateAmount,
@@ -253,6 +259,10 @@ async function main() {
             landBairitsuCount: rand(0, 3),
             unlistedStockCount: rand(0, 2),
             heirCount: rand(1, 6),
+            caseAddedDate,
+            caseCompletedDate,
+            billedDate,
+            paidDate,
             assigneeId,
             referrerId,
             progress: { create: progressSteps },

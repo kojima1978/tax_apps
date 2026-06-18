@@ -1,32 +1,12 @@
-import type { ProgressStep, CaseStatus } from '@/types/shared';
+import type { ProgressStep } from '@/types/shared';
 
-/** 進捗ステップ名定数（ProgressModal, analytics-utils, edit-case-form で参照） */
-export const STEP_NAMES = {
-  FILING: '税務申告完了',
-  BILLING: '請求書発送完了',
-  PAYMENT: '入金確認完了',
-} as const;
-
-/** ステータスと進捗ステップの対応マッピング（整合性チェック・自動変更提案で使用） */
-export const STATUS_STEP_MAP: { status: CaseStatus; stepName: string }[] = [
-  { status: '申告済', stepName: STEP_NAMES.FILING },
-  { status: '請求済', stepName: STEP_NAMES.BILLING },
-  { status: '入金済', stepName: STEP_NAMES.PAYMENT },
-];
-
-/** ステータスの進行順（整合性チェックで使用） */
-export const STATUS_ORDER: readonly CaseStatus[] = ['未着手', '手続中', '申告済', '請求済', '入金済'] as const;
-
-/** 新規案件の初期進捗ステップ */
+/** 新規案件の初期進捗ステップ（申告/請求/入金はステータス連動の日付列へ統合済み） */
 export const DEFAULT_PROGRESS_STEPS: readonly ProgressStep[] = [
   { id: "step-1", name: "初回連絡", date: null },
   { id: "step-2", name: "初回面談", date: null },
   { id: "step-3", name: "2回目訪問", date: null },
   { id: "step-8", name: "最終チェック完了", date: null },
   { id: "step-4", name: "遺産分割協議完了", date: null },
-  { id: "step-5", name: STEP_NAMES.FILING, date: null },
-  { id: "step-6", name: STEP_NAMES.BILLING, date: null },
-  { id: "step-7", name: STEP_NAMES.PAYMENT, date: null },
 ] as const;
 
 /**
@@ -81,37 +61,3 @@ export function shouldShowAddVisit(steps: ProgressStep[], step: ProgressStep, in
   return !!nextStep && !nextStep.name.includes('回目訪問');
 }
 
-/** ステータスと進捗ステップの整合性チェック */
-export function checkStatusProgressConsistency(
-  status: CaseStatus,
-  progress: ProgressStep[],
-): { warnings: string[]; suggestion?: { status: CaseStatus; message: string } } {
-  const warnings: string[] = [];
-
-  for (const { status: expectedStatus, stepName } of STATUS_STEP_MAP) {
-    const step = progress.find(s => s.name === stepName);
-    if (status === expectedStatus && !step?.date) {
-      warnings.push(`進み具合が「${expectedStatus}」ですが、進捗の「${stepName}」に日付が入力されていません。`);
-    }
-  }
-
-  const currentIdx = STATUS_ORDER.indexOf(status);
-  if (currentIdx >= 0) {
-    for (let i = STATUS_STEP_MAP.length - 1; i >= 0; i--) {
-      const { status: suggestedStatus, stepName } = STATUS_STEP_MAP[i];
-      const suggestedIdx = STATUS_ORDER.indexOf(suggestedStatus);
-      const step = progress.find(s => s.name === stepName);
-      if (step?.date && suggestedIdx > currentIdx) {
-        return {
-          warnings,
-          suggestion: {
-            status: suggestedStatus,
-            message: `進捗の「${stepName}」に日付が入力されています。\n進み具合を「${suggestedStatus}」に変更しますか？`,
-          },
-        };
-      }
-    }
-  }
-
-  return { warnings };
-}

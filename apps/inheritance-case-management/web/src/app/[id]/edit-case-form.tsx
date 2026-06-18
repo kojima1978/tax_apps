@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
-import type { InheritanceCase, CaseStatus } from "@/types/shared"
+import type { InheritanceCase } from "@/types/shared"
 import { createCase, updateCase } from "@/lib/api/cases"
 import { toProgressSteps, toProgressItems, toExpenses, toExpenseItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
@@ -21,7 +21,6 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { DocumentExportModal } from "./DocumentExportModal"
 import { AuditLogSection } from "./AuditLogSection"
 import { ListChecks, Receipt, Users, Briefcase, StickyNote, FileText, ChevronsUpDown } from "lucide-react"
-import { checkStatusProgressConsistency } from "@/lib/progress-utils"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { useSectionState } from "@/hooks/use-section-state"
@@ -100,7 +99,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     const [isSaving, setIsSaving] = useState(false)
     const [auditRefreshKey, setAuditRefreshKey] = useState(0)
-    const [pendingSuggestion, setPendingSuggestion] = useState<{ status: CaseStatus; message: string } | null>(null)
 
     const currencyChange = (field: keyof InheritanceCase) => (value: string | undefined) =>
         setFormData((prev) => ({ ...prev, [field]: value ? Number(value) : 0 }))
@@ -120,16 +118,10 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         saveCaseFormDraft(draftKey, formData, isCreateMode)
     }
 
-    const doSave = async (statusOverride?: CaseStatus): Promise<boolean> => {
-        let finalStatus = formData.status
-        if (statusOverride) {
-            finalStatus = statusOverride
-            setFormData(prev => ({ ...prev, status: statusOverride }))
-        }
-
+    const doSave = async (): Promise<boolean> => {
         setIsSaving(true)
         try {
-            const payload = { ...getCaseApiPayload(formData), status: finalStatus }
+            const payload = getCaseApiPayload(formData)
             if (isCreateMode) {
                 await createCase(payload)
                 await queryClient.invalidateQueries({ queryKey: CASES_QUERY_KEY })
@@ -169,17 +161,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
         if (hasInvalidSpecialAddition(formData)) {
             toast.warning("特別業務報酬額の内容を入力してください")
-            return
-        }
-
-        const progress = formData.progress ? toProgressSteps(formData.progress) : []
-        const { warnings, suggestion } = checkStatusProgressConsistency(formData.status, progress)
-        for (const w of warnings) {
-            toast.warning(w)
-        }
-
-        if (suggestion) {
-            setPendingSuggestion(suggestion)
             return
         }
 
@@ -330,25 +311,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     </Button>
                 </div>
             </StickyActionBar>
-
-            <Modal
-                isOpen={!!pendingSuggestion}
-                onClose={() => {
-                    setPendingSuggestion(null)
-                    doSave()
-                }}
-                title="進み具合の確認"
-            >
-                <p className="text-sm whitespace-pre-line mb-6">{pendingSuggestion?.message}</p>
-                <div className="flex justify-end gap-3">
-                    <Button variant="ghost" onClick={() => { setPendingSuggestion(null); doSave() }}>
-                        変更しない
-                    </Button>
-                    <Button onClick={() => { const status = pendingSuggestion!.status; setPendingSuggestion(null); doSave(status) }}>
-                        変更する
-                    </Button>
-                </div>
-            </Modal>
 
             <Modal
                 isOpen={showLeaveModal}

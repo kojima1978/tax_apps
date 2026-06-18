@@ -24,6 +24,21 @@ function toNumOr(v: unknown, fallback: number): number {
   return n === null ? fallback : n;
 }
 
+const NEW_STATUSES = ['見積前', '見積中', '見送り', '受託', '手続中', '申告済', '請求済', '入金済'];
+
+/** バックアップ復元時のステータス正規化（旧3フィールド形式のバックアップを統合ステータスへ変換） */
+function normalizeBackupStatus(c: Rec): { status: string; isUndivided: boolean } {
+  const isUndivided = typeof c.isUndivided === 'boolean' ? c.isUndivided : c.handlingStatus === '対応終了（未分割）';
+  const s = (c.status as string) ?? '';
+  if (NEW_STATUSES.includes(s)) return { status: s, isUndivided };
+  // レガシーバックアップ（旧 acceptanceStatus + status）の変換
+  const acc = c.acceptanceStatus as string;
+  if (acc === '見送り' || acc === '受託不可') return { status: '見送り', isUndivided };
+  if (s === '未着手' && acc === '受託') return { status: '受託', isUndivided };
+  if (s === '未着手' || s === '') return { status: '見積中', isUndivided };
+  return { status: s, isUndivided };
+}
+
 const TABLE_DEFS = [
   {
     key: 'departments' as const,
@@ -104,9 +119,7 @@ const TABLE_DEFS = [
       deceasedNameKana,
       deceasedNameKanaNormalized,
       dateOfDeath: toDateOnly(c.dateOfDeath as string),
-      status: (c.status as string) ?? '未着手',
-      handlingStatus: (c.handlingStatus as string) ?? '対応中',
-      acceptanceStatus: (c.acceptanceStatus as string) ?? '未判定',
+      ...normalizeBackupStatus(c),
       taxAmount: toNumOr(c.taxAmount, 0),
       feeAmount: toNumOr(c.feeAmount, 0),
       fiscalYear: toNumOr(c.fiscalYear, new Date().getFullYear()),
@@ -123,6 +136,8 @@ const TABLE_DEFS = [
       feeCalcSnapshot: (c.feeCalcSnapshot as Record<string, unknown>) ?? null,
       caseAddedDate: c.caseAddedDate ? toDateOnly(c.caseAddedDate as string) : null,
       caseCompletedDate: c.caseCompletedDate ? toDateOnly(c.caseCompletedDate as string) : null,
+      billedDate: c.billedDate ? toDateOnly(c.billedDate as string) : null,
+      paidDate: c.paidDate ? toDateOnly(c.paidDate as string) : null,
       summary: (c.summary as string) ?? null,
       memo: (c.memo as string) ?? null,
       assigneeId: (c.assigneeId as number) ?? null,
@@ -333,6 +348,8 @@ export async function exportBackup() {
         dateOfDeath: toDateStr(c.dateOfDeath) ?? '',
         caseAddedDate: toDateStr(c.caseAddedDate),
         caseCompletedDate: toDateStr(c.caseCompletedDate),
+        billedDate: toDateStr(c.billedDate),
+        paidDate: toDateStr(c.paidDate),
       })),
       caseHeirs,
       caseRelatedParties,

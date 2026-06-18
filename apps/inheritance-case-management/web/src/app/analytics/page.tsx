@@ -6,6 +6,7 @@ import { getAssignees } from "@/lib/api/assignees"
 import type { InheritanceCase, Assignee } from "@/types/shared"
 import type { RankingData } from "@/lib/analytics-utils"
 import { calcNet, calcReferralFee, getAnalyticsBaseType, aggregateCases, computeRollingAnnual } from "@/lib/analytics-utils"
+import { isAccepted } from "@/types/constants"
 import { RefreshCw } from "lucide-react"
 import { useRankingSort } from "@/hooks/use-ranking-sort"
 import { OverviewTab } from "./OverviewTab"
@@ -124,7 +125,7 @@ export default function AnalyticsPage() {
     }, [aggregation.assigneeRanking, assigneesData])
 
     const summaryTotals = useMemo(() => {
-        const acceptedCases = filteredData.filter(c => c.acceptanceStatus === "受託")
+        const acceptedCases = filteredData.filter(c => isAccepted(c.status))
 
         let salesTotalNet = 0, salesTotalGross = 0, salesCount = 0
         let estimateTotalNet = 0, estimateTotalGross = 0, estimateCount = 0

@@ -1,7 +1,6 @@
 import type { InheritanceCase } from "@/types/shared"
 import { formatReferrerLabel } from "@/types/shared"
-import { isCompleted } from "@/types/constants"
-import { STEP_NAMES } from "../progress-utils"
+import { isAccepted, isCompleted } from "@/types/constants"
 import { calcNet, calcNetPersonal, calcReferralFee, getAnalyticsBaseType, LABEL_NONE, LABEL_UNSET } from "./calculations"
 
 export type AnnualData = {
@@ -64,10 +63,9 @@ export type RollingAnnualPoint = {
 export function computeRollingAnnual(cases: InheritanceCase[]): RollingAnnualPoint[] {
     const monthlyMap = new Map<string, { fee: number; count: number }>()
     cases.forEach(c => {
-        if (c.acceptanceStatus !== "受託" || !isCompleted(c.status)) return
-        const billingStep = c.progress?.find(p => p.name === STEP_NAMES.BILLING)
-        if (!billingStep?.date) return
-        const d = new Date(billingStep.date)
+        if (!isAccepted(c.status) || !isCompleted(c.status)) return
+        if (!c.billedDate) return
+        const d = new Date(c.billedDate)
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
         if (!monthlyMap.has(key)) monthlyMap.set(key, { fee: 0, count: 0 })
         const m = monthlyMap.get(key)!
@@ -141,15 +139,14 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
             annual.count++
         }
 
-        if (c.acceptanceStatus === "受託") {
+        if (isAccepted(c.status)) {
             if (isCompleted(c.status)) annual.statusCounts.completed++
             else if (c.status === "手続中") annual.statusCounts.ongoing++
-            else if (c.status === "未着手") annual.statusCounts.notStarted++
+            else if (c.status === "受託") annual.statusCounts.notStarted++
         }
 
-        const acceptance = c.acceptanceStatus || "未判定"
-        if (acceptance === "受託") annual.acceptanceCounts.accepted++
-        else if (acceptance === "見送り") annual.acceptanceCounts.rejected++
+        if (isAccepted(c.status)) annual.acceptanceCounts.accepted++
+        else if (c.status === "見送り") annual.acceptanceCounts.rejected++
         else annual.acceptanceCounts.undecided++
 
         let personalNet = 0

@@ -1,7 +1,7 @@
 import { useRef, useState, type DragEvent } from "react";
 import { Upload, AlertTriangle, Download } from "lucide-react";
 import { downloadCSVTemplate } from "@/lib/export-csv";
-import { CASE_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from "@/types/constants";
+import { CASE_STATUS_OPTIONS } from "@/types/constants";
 
 const FIELD_GUIDE = {
   required: [
@@ -10,9 +10,8 @@ const FIELD_GUIDE = {
     { name: "年度", note: "必須 / 2000〜2100" },
   ],
   withDefaults: [
-    { name: "進み具合", note: CASE_STATUS_OPTIONS.join(" / ") },
-    { name: "対応状況", note: "対応中 / 対応終了 / 対応終了（未分割） / 対応外" },
-    { name: "受託状況", note: ACCEPTANCE_STATUS_OPTIONS.join(" / ") },
+    { name: "ステータス", note: CASE_STATUS_OPTIONS.join(" / ") },
+    { name: "遺産未分割", note: "はい / いいえ" },
     { name: "財産評価額・相続税額・見積額・報酬額", note: "0以上の整数" },
   ],
   optional: [

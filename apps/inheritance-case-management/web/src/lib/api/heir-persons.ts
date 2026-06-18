@@ -8,8 +8,7 @@ export interface RelatedCase {
   deceasedNameKana: string;
   dateOfDeath: string;
   status: string;
-  handlingStatus: string;
-  acceptanceStatus: string;
+  isUndivided: boolean;
   fiscalYear: number;
   relationship: string;
 }

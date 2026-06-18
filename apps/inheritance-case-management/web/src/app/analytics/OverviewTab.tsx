@@ -10,12 +10,12 @@ type StatusTableConfig = {
 const STATUS_TABLES: StatusTableConfig[] = [
     {
         title: "年度別 受託状況内訳",
-        columns: [{ label: "受託", highlight: true }, { label: "見送り" }, { label: "未判定" }],
+        columns: [{ label: "受託", highlight: true }, { label: "見送り" }, { label: "見積" }],
         getValues: (d) => [d.acceptanceCounts.accepted, d.acceptanceCounts.rejected, d.acceptanceCounts.undecided],
     },
     {
-        title: "年度別 進み具合内訳",
-        columns: [{ label: "申告済", highlight: true }, { label: "手続中" }, { label: "未着手" }],
+        title: "年度別 ステータス内訳",
+        columns: [{ label: "申告済", highlight: true }, { label: "手続中" }, { label: "受託" }],
         getValues: (d) => [d.statusCounts.completed, d.statusCounts.ongoing, d.statusCounts.notStarted],
     },
 ]

@@ -1,9 +1,9 @@
-import type { ProgressStep, CaseStatus, AcceptanceStatus } from '@/types/shared';
+import type { ProgressStep, CaseStatus } from '@/types/shared';
 import type { ImportHeir, ColumnMaps, ResolverMaps, RowParseResult, PendingReferrer, PendingAssignee } from './types';
 // Note: PendingAssignee is reused for pendingInternalReferrer (same shape: name + optional department)
 import {
   CSV_HEADER_MAP, IGNORED_HEADERS, HEIR_HEADER_RE, HEIR_FIELD_MAP,
-  MAX_HEIR_COLUMNS, VALID_STATUSES, VALID_HANDLING, VALID_ACCEPTANCE,
+  MAX_HEIR_COLUMNS, VALID_STATUSES,
 } from './types';
 import { normalizeDate, parseOptionalNumber } from './parser';
 
@@ -104,13 +104,8 @@ export function rowToInput(
         obj[fieldName] =
           value && VALID_STATUSES.includes(value as CaseStatus) ? value : undefined;
         break;
-      case 'handlingStatus':
-        obj[fieldName] =
-          value && VALID_HANDLING.includes(value) ? value : undefined;
-        break;
-      case 'acceptanceStatus':
-        obj[fieldName] =
-          value && VALID_ACCEPTANCE.includes(value as AcceptanceStatus) ? value : undefined;
+      case 'isUndivided':
+        if (value) obj[fieldName] = value === 'はい' || value === 'true' || value === '1' || value === '○';
         break;
       case 'assigneeName':
         if (value && resolvers) {
@@ -180,6 +175,9 @@ export function rowToInput(
         if (value) obj[fieldName] = value;
         break;
       case 'caseAddedDate':
+      case 'caseCompletedDate':
+      case 'billedDate':
+      case 'paidDate':
         if (value) obj[fieldName] = normalizeDate(value);
         break;
     }

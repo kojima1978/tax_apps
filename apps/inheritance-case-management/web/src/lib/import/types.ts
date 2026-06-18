@@ -1,5 +1,5 @@
 import type { CreateCaseInput } from '@/types/validation';
-import { CASE_STATUS_OPTIONS, HANDLING_STATUS_OPTIONS, ACCEPTANCE_STATUS_OPTIONS } from '@/types/constants';
+import { CASE_STATUS_OPTIONS } from '@/types/constants';
 
 export interface ImportHeir {
   name: string;
@@ -19,9 +19,9 @@ export const CSV_HEADER_MAP: Record<string, string> = {
   '被相続人フリガナ': 'deceasedNameKana',
   '死亡日': 'dateOfDeath',
   '年度': 'fiscalYear',
+  'ステータス': 'status',
   '進み具合': 'status',
-  '対応状況': 'handlingStatus',
-  '受託状況': 'acceptanceStatus',
+  '遺産未分割': 'isUndivided',
   '担当者': 'assigneeName',
   '担当者_氏名': 'assigneePersonName',
   '担当者_部署名': 'assigneeDepartment',
@@ -45,13 +45,15 @@ export const CSV_HEADER_MAP: Record<string, string> = {
   '特記事項': 'summary',
   'メモ': 'memo',
   '受託日': 'caseAddedDate',
+  '申告日': 'caseCompletedDate',
+  '申告完了日': 'caseCompletedDate',
+  '請求日': 'billedDate',
+  '入金日': 'paidDate',
 };
 
-export const IGNORED_HEADERS = new Set(['作成日', '更新日', '申告完了日']);
+export const IGNORED_HEADERS = new Set(['作成日', '更新日']);
 
 export const VALID_STATUSES = CASE_STATUS_OPTIONS as readonly string[];
-export const VALID_HANDLING = HANDLING_STATUS_OPTIONS as readonly string[];
-export const VALID_ACCEPTANCE = ACCEPTANCE_STATUS_OPTIONS as readonly string[];
 
 export const MAX_HEIR_COLUMNS = 10;
 export const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
@@ -101,9 +103,7 @@ export interface ImportRow {
 
 /** Fields that receive Zod defaults when empty */
 export const DEFAULTABLE_FIELDS: Record<string, string> = {
-  status: '進み具合→未着手',
-  handlingStatus: '対応状況→対応中',
-  acceptanceStatus: '受託状況→未判定',
+  status: 'ステータス→見積前',
   taxAmount: '相続税額→0',
   feeAmount: '報酬額→0',
   estimateAmount: '見積額→0',

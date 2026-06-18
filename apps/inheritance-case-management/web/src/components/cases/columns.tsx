@@ -1,10 +1,10 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import type { InheritanceCase, CaseStatus, AcceptanceStatus, HandlingStatus } from "@/types/shared"
+import type { InheritanceCase, CaseStatus } from "@/types/shared"
 import { formatCurrency, formatDateWithWareki, toWareki } from "@/lib/analytics-utils"
 import { calcGrossAmount } from "@/lib/case-amount-utils"
-import { STATUS_STYLES, HANDLING_STATUS_STYLES, ACCEPTANCE_STYLES } from "@/types/constants"
+import { STATUS_STYLES, isHandlingEnded } from "@/types/constants"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SortableHeader, SortIcon } from "@/components/ui/SortableHeader"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
@@ -25,11 +25,14 @@ interface ColumnOptions {
 
 // ── Status color bar (left border) ──────────────────────────
 const STATUS_BORDER_COLORS: Record<CaseStatus, string> = {
-    '未着手': 'border-l-gray-400',
-    '手続中': 'border-l-gray-500',
-    '申告済': 'border-l-gray-600',
+    '見積前': 'border-l-gray-300',
+    '見積中': 'border-l-gray-400',
+    '見送り': 'border-l-gray-300',
+    '受託': 'border-l-gray-500',
+    '手続中': 'border-l-gray-600',
+    '申告済': 'border-l-gray-700',
     '請求済': 'border-l-neutral-500',
-    '入金済': 'border-l-neutral-600',
+    '入金済': 'border-l-neutral-700',
 }
 
 // ── Mini badge for stacked cells ─────────────────────────────
@@ -74,8 +77,6 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
         header: ({ column }) => <SortableHeader column={column}>被相続人</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
-            const handlingStatus = (c.handlingStatus || "対応中") as HandlingStatus
-            const acceptanceStatus = (c.acceptanceStatus || "未判定") as AcceptanceStatus
             const borderColor = STATUS_BORDER_COLORS[c.status as CaseStatus] || "border-l-gray-300"
             return (
                 <div className={`min-w-0 border-l-3 pl-2 ${borderColor}`}>
@@ -91,10 +92,11 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                             {c.deceasedName || "(氏名未入力)"}
                         </Link>
                     </div>
-                    <div className="mt-0.5 flex min-w-0 gap-1 overflow-hidden">
-                        <MiniBadge label={handlingStatus} style={HANDLING_STATUS_STYLES[handlingStatus]} />
-                        <MiniBadge label={acceptanceStatus} style={ACCEPTANCE_STYLES[acceptanceStatus]} />
-                    </div>
+                    {c.isUndivided && (
+                        <div className="mt-0.5 flex min-w-0 gap-1 overflow-hidden">
+                            <MiniBadge label="未分割" style={{ dot: 'bg-gray-500', bg: 'bg-white', text: 'text-muted-foreground' }} />
+                        </div>
+                    )}
                 </div>
             )
         },
@@ -109,7 +111,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             const deadline = getDeadlineDate(c.dateOfDeath)
             const dateStr = `${deadline.toLocaleDateString("ja-JP")}（${toWareki(deadline)}）`
 
-            if (c.handlingStatus && c.handlingStatus !== "対応中") {
+            if (isHandlingEnded(c.status, c.isUndivided)) {
                 return (
                     <div className="leading-tight">
                         <div className="truncate text-xs text-muted-foreground line-through">{dateStr}</div>

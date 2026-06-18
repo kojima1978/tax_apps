@@ -1,13 +1,13 @@
 import type { Prisma } from '@prisma/client';
 import { toDate } from '@/lib/prisma-includes';
 import { normalizePersonSearchText } from '@/lib/person-search';
-import { ACCEPTANCE_STATUS_OPTIONS, COMPLETED_STATUSES, HANDLING_STATUS_OPTIONS } from '@/types/constants';
+import { ACCEPTED_STATUSES, COMPLETED_STATUSES } from '@/types/constants';
 import { addMonths } from './case-date-utils';
 
 export interface CaseWhereParams {
   status?: string;
-  handlingStatus?: string;
-  acceptanceStatus?: string;
+  isUndivided?: boolean;
+  hideClosed?: boolean;
   fiscalYear?: number;
   search?: string;
   assigneeId?: number;
@@ -74,9 +74,12 @@ function applyStaffFilters(where: Prisma.InheritanceCaseWhereInput, params: Case
 function applyDeadlineSoon(where: Prisma.InheritanceCaseWhereInput) {
   const now = new Date();
   const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  appendAnd(where, { acceptanceStatus: ACCEPTANCE_STATUS_OPTIONS[1] });
-  appendAnd(where, { status: { notIn: [...COMPLETED_STATUSES] } });
-  appendAnd(where, { handlingStatus: HANDLING_STATUS_OPTIONS[0] });
+  // 受託済みかつ未完了（受託・手続中）・未分割を除く案件が対象
+  const activeAccepted = (ACCEPTED_STATUSES as readonly string[]).filter(
+    s => !(COMPLETED_STATUSES as readonly string[]).includes(s)
+  );
+  appendAnd(where, { status: { in: activeAccepted } });
+  appendAnd(where, { isUndivided: false });
   appendAnd(where, {
     dateOfDeath: {
       gt: addMonths(now, -10),
@@ -91,11 +94,11 @@ export function buildCaseWhereClause(params: CaseWhereParams): Prisma.Inheritanc
   if (params.status) {
     where.status = csvOrSingle(params.status);
   }
-  if (params.handlingStatus) {
-    where.handlingStatus = csvOrSingle(params.handlingStatus);
+  if (params.isUndivided !== undefined) {
+    where.isUndivided = params.isUndivided;
   }
-  if (params.acceptanceStatus) {
-    where.acceptanceStatus = csvOrSingle(params.acceptanceStatus);
+  if (params.hideClosed) {
+    appendAnd(where, { status: { notIn: ['見送り', '入金済'] } });
   }
   if (params.fiscalYear) {
     where.fiscalYear = params.fiscalYear;

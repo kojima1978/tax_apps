@@ -10,10 +10,8 @@ const postalCodeSchema = z
   .transform(v => normalizePostalCodeDigits(v))
   .refine(v => v === '' || /^\d{7}$/.test(v), '郵便番号は7桁の数字で入力してください');
 
-// Status Schemas (internal - used by createCaseSchema/listQuerySchema)
-const caseStatusSchema = z.enum(['未着手', '手続中', '申告済', '請求済', '入金済']);
-const handlingStatusSchema = z.enum(['対応中', '対応終了', '対応終了（未分割）', '対応外']);
-const acceptanceStatusSchema = z.enum(['未判定', '受託', '見送り']);
+// Status Schema (internal - used by createCaseSchema/listQuerySchema)
+const caseStatusSchema = z.enum(['見積前', '見積中', '見送り', '受託', '手続中', '申告済', '請求済', '入金済']);
 
 // Heir Schema (supports both personId reference and inline import format)
 const heirByIdSchema = z.object({
@@ -69,9 +67,8 @@ export const createCaseSchema = z.object({
   deceasedNameKana: z.string().max(100, '被相続人フリガナは100文字以内で入力してください').optional().default(''),
   dateOfDeath: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）'),
   fiscalYear: z.number().int('年度は整数で入力してください').min(2000, '年度は2000年以上を入力してください').max(2100, '年度は2100年以下を入力してください'),
-  status: caseStatusSchema.optional().default('未着手'),
-  handlingStatus: handlingStatusSchema.optional().default('対応中'),
-  acceptanceStatus: acceptanceStatusSchema.optional().default('未判定'),
+  status: caseStatusSchema.optional().default('見積前'),
+  isUndivided: z.boolean().optional().default(false),
   taxAmount: z.number().int().min(0, '税額は0以上を入力してください').optional().default(0),
   assigneeId: z.number().int().nullable().optional(),
   internalReferrerId: z.number().int().nullable().optional(),
@@ -92,6 +89,8 @@ export const createCaseSchema = z.object({
   memo: z.string().nullable().optional(),
   caseAddedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
   caseCompletedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
+  billedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
+  paidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
   heirs: z.array(heirSchema).max(10, '相続人は最大10件までです').optional(),
   relatedParties: z.array(relatedPartySchema).max(20, '関係者は最大20件までです').optional(),
   progress: z.array(progressStepSchema).optional(),
@@ -208,8 +207,8 @@ export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(200).optional().default(100),
   status: z.string().optional(),
-  handlingStatus: z.string().optional(),
-  acceptanceStatus: z.string().optional(),
+  isUndivided: z.coerce.boolean().optional(),
+  hideClosed: z.coerce.boolean().optional(),
   fiscalYear: z.coerce.number().int().optional(),
   search: z.string().optional(),
   assigneeId: z.coerce.number().int().optional(),
