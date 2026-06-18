@@ -66,11 +66,11 @@ export function CaseListTableSection({
                 </div>
             )}
             {cases.length > 0 && (
-                <div className="flex items-center justify-end gap-2 px-2 py-1 text-xs border rounded-t-md bg-muted/50">
+                <div className="flex w-full flex-wrap items-center justify-end gap-x-2 gap-y-0.5 rounded-t-md border px-2 py-1 text-[10px] bg-muted/50">
                     <span className="text-muted-foreground">売上合計</span>
                     <span className="font-bold">{formatCurrency(amountTotals.total)}</span>
-                    <span className="text-xs text-black">確定 {formatCurrency(amountTotals.confirmed)}</span>
-                    <span className="text-xs text-black/70">見込 {formatCurrency(amountTotals.estimate)}</span>
+                    <span className="text-black">確定 {formatCurrency(amountTotals.confirmed)}</span>
+                    <span className="text-black/70">見込 {formatCurrency(amountTotals.estimate)}</span>
                     <span className="text-muted-foreground">/ {cases.length}件</span>
                 </div>
             )}

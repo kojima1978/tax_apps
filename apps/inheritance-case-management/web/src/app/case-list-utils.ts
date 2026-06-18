@@ -8,7 +8,7 @@ export const CASE_LIST_PAGE_SIZE = 100
 export const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedFrom", "caseCompletedTo"] as const
 
 // KPIカード（手続中・完了）のステータス絞り込み値
-export const ONGOING_STATUS = "手続中"
+export const ONGOING_STATUS = "手続中,最終確認"
 export const COMPLETED_STATUS_CSV = [...COMPLETED_STATUSES].join(",")
 
 const KPI_QUICK_FILTER_KEYS = ["deadlineSoon", ...DATE_FILTER_KEYS] as const

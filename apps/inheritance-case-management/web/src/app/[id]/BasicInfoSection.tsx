@@ -28,8 +28,8 @@ export function BasicInfoSection({
     formData, assignees, referrers, returnToPath, isOpen, onToggle, handleChange, setFormData, onMasterEditNavigate
 }: BasicInfoSectionProps) {
     return (
-        <CollapsibleSection title="基本情報" icon={User} isOpen={isOpen} onToggle={onToggle}>
-            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+        <CollapsibleSection title="基本情報" icon={User} isOpen={isOpen} onToggle={onToggle} compact>
+            <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
                 <div className="space-y-1.5">
                     <Label htmlFor="deceasedName" className="text-xs">被相続人氏名 <span className="text-gray-500">*</span></Label>
                     <Input id="deceasedName" name="deceasedName" value={formData.deceasedName} onChange={handleChange} placeholder="例：山田 太郎" />

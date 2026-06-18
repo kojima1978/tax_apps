@@ -89,7 +89,7 @@ export function AuditLogSection({ caseId, isOpen, onToggle, refreshKey }: AuditL
     }, [refreshKey, caseId, hasLoaded])
 
     return (
-        <CollapsibleSection title="変更履歴" icon={ClipboardList} isOpen={isOpen} onToggle={onToggle} badge={hasLoaded ? `${logs.length}件` : undefined}>
+        <CollapsibleSection title="変更履歴" icon={ClipboardList} isOpen={isOpen} onToggle={onToggle} badge={hasLoaded ? `${logs.length}件` : undefined} compact>
             {isLoading ? (
                 <div className="text-sm text-muted-foreground py-4 text-center">読み込み中...</div>
             ) : logs.length === 0 ? (

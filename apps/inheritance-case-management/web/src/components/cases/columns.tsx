@@ -44,6 +44,7 @@ const STATUS_BORDER_COLORS: Record<CaseStatus, string> = {
     '見送り': 'border-l-gray-300',
     '受託': 'border-l-gray-500',
     '手続中': 'border-l-gray-600',
+    '最終確認': 'border-l-gray-800',
     '申告済': 'border-l-gray-700',
     '請求済': 'border-l-neutral-500',
     '入金済': 'border-l-neutral-700',

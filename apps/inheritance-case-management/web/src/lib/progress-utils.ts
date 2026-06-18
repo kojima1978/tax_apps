@@ -5,7 +5,6 @@ export const DEFAULT_PROGRESS_STEPS: readonly ProgressStep[] = [
   { id: "step-1", name: "初回連絡", date: null },
   { id: "step-2", name: "初回面談", date: null },
   { id: "step-3", name: "2回目訪問", date: null },
-  { id: "step-8", name: "最終チェック完了", date: null },
   { id: "step-4", name: "遺産分割協議完了", date: null },
 ] as const;
 

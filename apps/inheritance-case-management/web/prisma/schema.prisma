@@ -14,7 +14,7 @@ model InheritanceCase {
   deceasedNameKana            String   @default("")
   deceasedNameKanaNormalized  String   @default("")
   dateOfDeath       DateTime @db.Date // YYYY-MM-DD（CHECK制約で検証済み）
-  status            String   @default("見積前") // CHECK制約: 見積前/見積中/見送り/受託/手続中/申告済/請求済/入金済
+  status            String   @default("見積前") // CHECK制約: 見積前/見積中/見送り/受託/手続中/最終確認/申告済/請求済/入金済
   isUndivided       Boolean  @default(false)  // 遺産未分割フラグ（申告済以降で意味を持つ）
   taxAmount         Int?     @default(0)
   feeAmount         Int?     @default(0)

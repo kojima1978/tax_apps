@@ -22,8 +22,8 @@ export function FinancialSection({
     formData, netRevenue, estimateNetRevenue, isOpen, onToggle, currencyChange, setFormData, highlightFee,
 }: FinancialSectionProps) {
     return (
-        <CollapsibleSection title="金額情報" icon={Banknote} isOpen={isOpen} onToggle={onToggle}>
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+        <CollapsibleSection title="金額情報" icon={Banknote} isOpen={isOpen} onToggle={onToggle} compact>
+            <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                     <Label htmlFor="propertyValue" className="text-xs">
                         遺産総額

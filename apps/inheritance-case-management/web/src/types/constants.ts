@@ -10,17 +10,18 @@ export const STATUS_STYLES: Record<CaseStatus, { dot: string; bg: string; text: 
     '見送り': { dot: 'bg-gray-400', bg: 'bg-white', text: 'text-muted-foreground' },
     '受託': { dot: 'bg-gray-600', bg: 'bg-white', text: 'text-black' },
     '手続中': { dot: 'bg-gray-800', bg: 'bg-white', text: 'text-black' },
+    '最終確認': { dot: 'bg-gray-900', bg: 'bg-white', text: 'text-black' },
     '申告済': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
     '請求済': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
     '入金済': { dot: 'bg-black', bg: 'bg-white', text: 'text-black' },
 }
 
 // Status options for filters and selects（統合ステータスの全選択肢・フロー順）
-export const CASE_STATUS_OPTIONS: readonly CaseStatus[] = ["見積前", "見積中", "見送り", "受託", "手続中", "申告済", "請求済", "入金済"] as const
+export const CASE_STATUS_OPTIONS: readonly CaseStatus[] = ["見積前", "見積中", "見送り", "受託", "手続中", "最終確認", "申告済", "請求済", "入金済"] as const
 
 // Status category helpers — used by KPI, analytics, deadline, columns
 /** 受託済みステータス（受託〜入金済） */
-export const ACCEPTED_STATUSES: readonly CaseStatus[] = ['受託', '手続中', '申告済', '請求済', '入金済'] as const
+export const ACCEPTED_STATUSES: readonly CaseStatus[] = ['受託', '手続中', '最終確認', '申告済', '請求済', '入金済'] as const
 /** 受託判定（売上・件数の集計対象） */
 export const isAccepted = (status: string): boolean => (ACCEPTED_STATUSES as readonly string[]).includes(status)
 /** 申告完了済みステータス（期限チェック不要・売上確定） */

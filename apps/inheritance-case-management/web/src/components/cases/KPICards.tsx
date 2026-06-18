@@ -12,7 +12,7 @@ const KPI_CARD_DEFS: readonly {
     filterKey?: KPICardFilterKey
 }[] = [
     { key: "total", label: "総案件数", icon: FileText, color: "text-black bg-white border border-black/10", filterKey: "total" },
-    { key: "ongoing", label: "手続中", icon: Clock, color: "text-black bg-white border border-black/10", filterKey: "ongoing" },
+    { key: "ongoing", label: "進行中", icon: Clock, color: "text-black bg-white border border-black/10", filterKey: "ongoing" },
     { key: "deadlineSoon", label: "期限間近", icon: AlertTriangle, color: "text-black bg-white border border-black/10", filterKey: "deadlineSoon" },
     { key: "completed", label: "完了", icon: CheckCircle, color: "text-black bg-white border border-black/10", filterKey: "completed" },
     { key: "addedThisMonth", label: "当月追加", icon: PlusCircle, color: "text-black bg-white border border-black/10", filterKey: "addedThisMonth" },

@@ -1,7 +1,7 @@
 import type { FeeCalcSnapshot } from '@/lib/estimate-calc';
 
 // Case Status Types — 統合ステータス（受託判定・進み具合・対応状況を1つに統合）
-export type CaseStatus = '見積前' | '見積中' | '見送り' | '受託' | '手続中' | '申告済' | '請求済' | '入金済';
+export type CaseStatus = '見積前' | '見積中' | '見送り' | '受託' | '手続中' | '最終確認' | '申告済' | '請求済' | '入金済';
 
 // Progress Step (input shape for API — used by editors)
 export interface ProgressStep {

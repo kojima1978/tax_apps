@@ -29,7 +29,7 @@ export function computeKPI(allCases: InheritanceCase[]): KPIData {
 
     const accepted = allCases.filter(c => isAccepted(c.status))
 
-    const ongoing = accepted.filter(c => c.status === "手続中").length
+    const ongoing = accepted.filter(c => c.status === "手続中" || c.status === "最終確認").length
 
     const deadlineSoon = accepted.filter(c => {
         if (isDeadlineSkip(c.status, c.isUndivided)) return false

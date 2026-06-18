@@ -24,7 +24,7 @@ function toNumOr(v: unknown, fallback: number): number {
   return n === null ? fallback : n;
 }
 
-const NEW_STATUSES = ['見積前', '見積中', '見送り', '受託', '手続中', '申告済', '請求済', '入金済'];
+const NEW_STATUSES = ['見積前', '見積中', '見送り', '受託', '手続中', '最終確認', '申告済', '請求済', '入金済'];
 
 /** バックアップ復元時のステータス正規化（旧3フィールド形式のバックアップを統合ステータスへ変換） */
 function normalizeBackupStatus(c: Rec): { status: string; isUndivided: boolean } {

@@ -79,25 +79,26 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
     }
 
     return (
-        <div className="container mx-auto max-w-7xl px-3 py-6 lg:px-4">
-            <div className="mb-4 flex justify-between items-center flex-wrap gap-2">
-                <nav className="flex items-center gap-1 text-sm text-muted-foreground">
+        <div className="container mx-auto max-w-7xl px-2.5 py-3 lg:px-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+                <nav className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
                     <Link href="/" className="hover:text-foreground transition-colors">案件一覧</Link>
                     <ChevronRight className="h-3.5 w-3.5" />
-                    <span className="text-foreground font-medium">{caseItem.deceasedName || "案件詳細"}</span>
+                    <span className="truncate text-foreground font-medium">{caseItem.deceasedName || "案件詳細"}</span>
                 </nav>
                 <Button
                     variant="outline"
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className="text-black hover:text-black hover:bg-white border-black/20"
+                    size="sm"
+                    className="h-8 shrink-0 px-2.5 text-xs text-black hover:bg-white hover:text-black border-black/20"
                 >
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                     {isDeleting ? "削除中..." : "この案件を削除"}
                 </Button>
             </div>
 
-            <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-4 lg:p-5">
+            <div className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm lg:p-3.5">
                 <Suspense fallback={<div>Loading...</div>}>
                     <EditCaseFormPanel caseItem={caseItem} />
                 </Suspense>

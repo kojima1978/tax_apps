@@ -141,7 +141,7 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
 
         if (isAccepted(c.status)) {
             if (isCompleted(c.status)) annual.statusCounts.completed++
-            else if (c.status === "手続中") annual.statusCounts.ongoing++
+            else if (c.status === "手続中" || c.status === "最終確認") annual.statusCounts.ongoing++
             else if (c.status === "受託") annual.statusCounts.notStarted++
         }
 

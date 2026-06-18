@@ -11,7 +11,7 @@ const postalCodeSchema = z
   .refine(v => v === '' || /^\d{7}$/.test(v), '郵便番号は7桁の数字で入力してください');
 
 // Status Schema (internal - used by createCaseSchema/listQuerySchema)
-const caseStatusSchema = z.enum(['見積前', '見積中', '見送り', '受託', '手続中', '申告済', '請求済', '入金済']);
+const caseStatusSchema = z.enum(['見積前', '見積中', '見送り', '受託', '手続中', '最終確認', '申告済', '請求済', '入金済']);
 
 // Heir Schema (supports both personId reference and inline import format)
 const heirByIdSchema = z.object({

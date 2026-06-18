@@ -178,11 +178,11 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const estimateNetRevenue = useMemo(() => calculateEstimateNetRevenue(formData), [formData])
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-2 text-xs [&_input:not([type=checkbox])]:h-9 [&_input:not([type=checkbox])]:text-xs [&_select]:text-xs [&_textarea]:text-xs">
             {!isCreateMode && (
-                <div className="mb-4 border-b pb-3">
-                    <h1 className="text-xl font-bold tracking-tight">案件詳細</h1>
-                    <div className="mt-1 flex justify-end">
+                <div className="mb-2 flex items-center justify-between border-b pb-2">
+                    <h1 className="text-lg font-bold tracking-tight">案件詳細</h1>
+                    <div className="flex justify-end">
                         <button
                             type="button"
                             onClick={sections.toggleAll}
@@ -208,7 +208,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             />
 
             {formData.progress && (
-                <CollapsibleSection title="進捗管理" icon={ListChecks} isOpen={sections.isOpen("progress")} onToggle={() => sections.toggle("progress")} badge={`${formData.progress.filter(s => s.date).length}/${formData.progress.length}`}>
+                <CollapsibleSection title="進捗管理" icon={ListChecks} isOpen={sections.isOpen("progress")} onToggle={() => sections.toggle("progress")} badge={formData.status} compact>
                     <ProgressEditor
                         progress={toProgressSteps(formData.progress)}
                         onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
@@ -232,14 +232,14 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 highlightFee={needsConfirmedFee}
             />
 
-            <CollapsibleSection title="立替金" icon={Receipt} isOpen={sections.isOpen("expenses")} onToggle={() => sections.toggle("expenses")} badge={`${(formData.expenses || []).length}件`}>
+            <CollapsibleSection title="立替金" icon={Receipt} isOpen={sections.isOpen("expenses")} onToggle={() => sections.toggle("expenses")} badge={`${(formData.expenses || []).length}件`} compact>
                 <ExpenseEditor
                     expenses={toExpenses(formData.expenses || [])}
                     onChange={(expenses) => setFormData(prev => ({ ...prev, expenses: toExpenseItems(expenses) }))}
                 />
             </CollapsibleSection>
 
-            <CollapsibleSection title="相続人" icon={Users} isOpen={sections.isOpen("heirs")} onToggle={() => sections.toggle("heirs")} badge={`${(formData.heirs || []).length}件`}>
+            <CollapsibleSection title="相続人" icon={Users} isOpen={sections.isOpen("heirs")} onToggle={() => sections.toggle("heirs")} badge={`${(formData.heirs || []).length}件`} compact>
                 <HeirListEditor
                     heirs={formData.heirs || []}
                     persons={heirPersons}
@@ -249,7 +249,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 />
             </CollapsibleSection>
 
-            <CollapsibleSection title="関係者" icon={Briefcase} isOpen={sections.isOpen("relatedParties")} onToggle={() => sections.toggle("relatedParties")} badge={`${(formData.relatedParties || []).length}件`}>
+            <CollapsibleSection title="関係者" icon={Briefcase} isOpen={sections.isOpen("relatedParties")} onToggle={() => sections.toggle("relatedParties")} badge={`${(formData.relatedParties || []).length}件`} compact>
                 <RelatedPartyListEditor
                     parties={formData.relatedParties || []}
                     persons={relatedPartyPersons}
@@ -258,13 +258,13 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 />
             </CollapsibleSection>
 
-            <CollapsibleSection title="メモ" icon={StickyNote} isOpen={sections.isOpen("memo")} onToggle={() => sections.toggle("memo")}>
+            <CollapsibleSection title="メモ" icon={StickyNote} isOpen={sections.isOpen("memo")} onToggle={() => sections.toggle("memo")} compact>
                 <textarea
                     value={formData.memo || ""}
                     onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
                     placeholder="自由にメモを記載できます"
                     rows={4}
-                    className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[84px]"
+                    className="w-full min-h-[64px] resize-y rounded-md border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                 />
             </CollapsibleSection>
 

@@ -5,7 +5,7 @@ import type { InheritanceCase } from "@/types/shared"
 
 export function FinancialAggregationStatus({ formData }: { formData: InheritanceCase }) {
     const completed = isCompleted(formData.status)
-    const ongoing = formData.status === "手続中"
+    const ongoing = formData.status === "手続中" || formData.status === "最終確認"
 
     if (completed) {
         const amount = formData.feeAmount || 0

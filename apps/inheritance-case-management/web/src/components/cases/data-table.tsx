@@ -47,14 +47,12 @@ export function DataTable<TData, TValue>({
     })
 
     const rows = table.getRowModel().rows
+    const totalColumnSize = table.getTotalSize()
 
     return (
         <div className="w-full">
-            <div className="w-fit max-w-full rounded-md border overflow-hidden">
-                <Table
-                    className="table-fixed text-[10px]"
-                    style={{ width: table.getTotalSize(), maxWidth: "100%" }}
-                >
+            <div className="w-full overflow-hidden rounded-md border">
+                <Table className="w-full max-w-full table-fixed text-[10px]">
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
@@ -62,7 +60,7 @@ export function DataTable<TData, TValue>({
                                     <TableHead
                                         key={header.id}
                                         className={cn("h-7 px-px py-1 text-[10px]", getResponsiveColumnClass(header.column.id))}
-                                        style={{ width: header.getSize() }}
+                                        style={{ width: `${(header.getSize() / totalColumnSize) * 100}%` }}
                                     >
                                         {header.isPlaceholder
                                             ? null
@@ -93,7 +91,7 @@ export function DataTable<TData, TValue>({
                                         <TableCell
                                             key={cell.id}
                                             className={cn("px-px py-1 align-top text-[10px] leading-tight", getResponsiveColumnClass(cell.column.id))}
-                                            style={{ width: cell.column.getSize() }}
+                                            style={{ width: `${(cell.column.getSize() / totalColumnSize) * 100}%` }}
                                         >
                                             {flexRender(
                                                 cell.column.columnDef.cell,

@@ -16,7 +16,6 @@ const DEFAULT_STEPS = [
   { stepId: 'step-1', name: '初回連絡' },
   { stepId: 'step-2', name: '初回面談' },
   { stepId: 'step-3', name: '2回目訪問' },
-  { stepId: 'step-8', name: '最終チェック完了' },
   { stepId: 'step-4', name: '遺産分割（済）' },
 ];
 
