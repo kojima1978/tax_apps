@@ -5,7 +5,7 @@ import type { InheritanceCase } from "@/types/shared"
 import type { KPICardFilterKey } from "@/components/cases/KPICards"
 
 export const CASE_LIST_PAGE_SIZE = 100
-export const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedFrom", "caseCompletedTo", "billedFrom", "billedTo"] as const
+export const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedFrom", "caseCompletedTo", "billedFrom", "billedTo", "paidFrom", "paidTo"] as const
 
 // KPIカード（手続中・完了）のステータス絞り込み値
 export const ONGOING_STATUS = "手続中,最終確認"
@@ -183,6 +183,9 @@ export function getCaseListFilterDescription(params: CasesQueryParams, assignees
     if (params.fiscalYears) parts.push(`年度: ${params.fiscalYears.split(',').join('・')}`)
     if (params.billedFrom || params.billedTo) {
         parts.push(`請求日: ${params.billedFrom || ""}〜${params.billedTo || ""}`)
+    }
+    if (params.paidFrom || params.paidTo) {
+        parts.push(`入金日: ${params.paidFrom || ""}〜${params.paidTo || ""}`)
     }
     if (params.status) parts.push(`ステータス: ${params.status}`)
     if (params.department) parts.push(`部門: ${params.department}`)

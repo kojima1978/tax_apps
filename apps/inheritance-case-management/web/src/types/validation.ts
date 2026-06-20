@@ -226,6 +226,8 @@ export const listQuerySchema = z.object({
   caseCompletedTo: dateQuerySchema,
   billedFrom: dateQuerySchema,
   billedTo: dateQuerySchema,
+  paidFrom: dateQuerySchema,
+  paidTo: dateQuerySchema,
   sortBy: sortFieldSchema.optional().default('dateOfDeath'),
   sortOrder: sortOrderSchema.optional().default('asc'),
 });

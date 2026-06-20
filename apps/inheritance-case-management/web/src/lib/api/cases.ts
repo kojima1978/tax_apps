@@ -29,6 +29,8 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.caseCompletedTo) searchParams.set('caseCompletedTo', params.caseCompletedTo);
   if (params?.billedFrom) searchParams.set('billedFrom', params.billedFrom);
   if (params?.billedTo) searchParams.set('billedTo', params.billedTo);
+  if (params?.paidFrom) searchParams.set('paidFrom', params.paidFrom);
+  if (params?.paidTo) searchParams.set('paidTo', params.paidTo);
   if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
 
@@ -89,6 +91,8 @@ export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | '
   if (params?.caseCompletedTo) searchParams.set('caseCompletedTo', params.caseCompletedTo);
   if (params?.billedFrom) searchParams.set('billedFrom', params.billedFrom);
   if (params?.billedTo) searchParams.set('billedTo', params.billedTo);
+  if (params?.paidFrom) searchParams.set('paidFrom', params.paidFrom);
+  if (params?.paidTo) searchParams.set('paidTo', params.paidTo);
 
   const queryString = searchParams.toString();
   const url = queryString ? `/cases/bulk-delete?${queryString}` : '/cases/bulk-delete';

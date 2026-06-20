@@ -154,6 +154,18 @@ export function FilterBar({
         })
     }
 
+    if (queryParams.paidFrom || queryParams.paidTo) {
+        activeFilters.push({
+            key: "paidRange",
+            label: `入金日: ${formatExclusiveDateRange(queryParams.paidFrom, queryParams.paidTo)}`,
+            chipStyle: DEFAULT_CHIP_STYLE,
+            onClear: () => {
+                onFilterChange("paidFrom", undefined)
+                onFilterChange("paidTo", undefined)
+            },
+        })
+    }
+
     activeFilters.push(...Object.entries(CHIP_LABELS)
         .filter(([key]) => queryParams[key as keyof CasesQueryParams])
         .map(([key, label]) => ({

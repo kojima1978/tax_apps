@@ -1,5 +1,7 @@
 # 相続税申告案件管理
 
+[データベースER図](ER_DIAGRAM.md)
+
 相続税申告案件の一覧、詳細、進捗、売上、紹介者、相続人/関係者、帳票、経営分析を管理する Next.js アプリです。
 
 Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
@@ -8,13 +10,13 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 
 | 画面 | パス | 概要 |
 | --- | --- | --- |
-| 案件一覧 | `/itcm/` | 案件検索、フィルター、KPI、売上合計、一括削除、CSV取込/出力 |
+| 案件一覧 | `/itcm/` | 案件検索、フィルター、KPI、売上合計、案件詳細への編集導線、CSV取込/出力 |
 | 新規案件 | `/itcm/new` | 相続税申告案件の新規登録 |
 | 案件詳細 | `/itcm/[id]` | 基本情報、進捗、報酬/見積、立替金、相続人/関係者、帳票出力、監査ログ |
-| 経営分析 | `/itcm/analytics` | 売上、年計表、部門・担当者、紹介者分析 |
+| 経営分析 | `/itcm/analytics` | 売上、入金日基準の年計表、部門・担当者、紹介者分析 |
 | 設定 | `/itcm/settings` | マスタ管理、バックアップ/リストア |
 | 担当者設定 | `/itcm/settings/staff` | 部署、担当者、社内紹介者に使う担当者マスタ |
-| 紹介者設定 | `/itcm/settings/referral-sources` | 会社、部門、社外紹介者マスタ |
+| 紹介者設定 | `/itcm/settings/referral-sources` | 会社、支店、社外紹介者マスタ |
 | 相続人マスタ | `/itcm/settings/heir-persons` | 案件に紐づく相続人の人物マスタ |
 | 関係者マスタ | `/itcm/settings/related-party-persons` | 税理士、司法書士、不動産業者など外部関係者の人物マスタ |
 | バックアップ | `/itcm/settings/backup` | JSONバックアップ、リストア |
@@ -23,7 +25,7 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 
 ### 案件一覧
 
-- 年度、進み具合、対応状況、受託状況、部門、担当者、社内紹介者、紹介会社、キーワードで絞り込み
+- 年度、案件ステータス、部門、担当者、社内紹介者、紹介会社、キーワードで絞り込み
 - フィルター状態を URL クエリへ同期し、ブラウザバックや URL 共有に対応
 - KPI カード表示
   - 案件総数
@@ -37,19 +39,22 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
   - 報酬額がある案件は報酬額
   - 報酬額がない案件は見積額
   - 一覧上は紹介料控除前の金額を表示
-- ページネーション、ソート、行番号表示
-- 特記事項のインライン編集
-- 進捗モーダルによる日付の簡易編集
+- 画面幅に収まるコンパクトなレスポンシブ表、ページネーション、ソート、行番号表示
+- 申告期限・残り日数・相続開始日、案件ステータス進捗、担当、売上、特記事項（最大10文字）を一覧表示
+- 案件詳細へは各行の左端にある編集アイコンから遷移
+- 一覧上の数値、進捗、特記事項は参照専用
 - 条件に一致する案件の一括削除
 
 ### 案件詳細
 
 - 基本情報、進捗、報酬/見積、立替金、相続人/関係者、メモをセクションごとに編集
 - 未保存変更の検知と離脱確認
+- 統合案件ステータス（見積前、見積中、見送り、受託、手続中、最終確認、申告済、請求済、入金済）を管理
 - 受託日に基づく当月追加集計
 - 申告完了日に基づく当月完了集計
 - 申告完了日が入力され、確定ベースの報酬額が未入力の場合は財務セクションを開いて入力を促す
-- 進み具合や対応状況の完了系ステータスに応じて申告完了日を自動設定
+- ステータスに応じて受託日、申告完了日、請求日、入金日の未入力値を自動設定
+- マイルストン日付を手動修正した場合は、その入力値を保存時にも保持
 - 申告期限を相続開始日から 10 か月で自動計算
 - 日付表示は和暦併記に対応
 - 楽観ロックにより同時編集の競合を検知
@@ -70,7 +75,8 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 
 ### 報酬・見積・売上
 
-- 見積額、報酬額、相続税額、遺産総額、紹介料率、紹介料額を管理
+- 見積額、報酬額、相続税額、遺産総額、紹介料率、紹介料額をコンパクトな入力欄で管理
+- 立替金を日付、内容、金額、メモのコンパクトな行形式で管理
 - 見積ベースと確定ベースの紹介料、手取りを別々に表示
 - 報酬計算パラメータ
   - 土地数（路線価）
@@ -81,7 +87,8 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
   - 値引額
 - 概算報酬を `小計 + 特別業務報酬額合計 - 値引額` で計算し、見積額または報酬額へ明示的に反映
 - 特別業務報酬額は `CaseSpecialAddition` として正規化して保存
-- 経営分析では完了案件で報酬額が未入力の場合、見積額を見込売上として扱う
+- 経営分析の見込売上は `受託`、`手続中`、`最終確認`、`申告済` の見積額を集計
+- 経営分析の確定売上は `請求済`、`入金済` の確定報酬額を集計
 - 社外紹介料は会社売上から控除し、社内紹介料は会社売上から控除しない
 - 担当者別の個人集計では紹介料を控除した担当分と、社内紹介分を分けて表示
 
@@ -89,7 +96,11 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 
 - 売上（確定＋見積）、確定売上、見込売上、件数、紹介料内訳を表示
 - 年度別業績とステータス内訳を表示
-- 年計表で直近 12 か月累計の売上、件数を可視化
+- 年計表の基準月をユーザーが選択可能（前月、翌月、当月への移動に対応）
+- 基準月を含む過去24か月の月間売上・件数と、各月時点の直近12か月累計を表示
+- 年計表は `入金済` かつ入金日入力済みの案件を、`paidDate`（入金日）の月で集計
+- データがない月も0円・0件で表示
+- 年計表の月をクリックすると、入金日と入金済ステータスで案件一覧を絞り込み
 - 部門・担当者タブ
   - 部門ごとの小計
   - 担当者ごとの担当分、社内紹介分
@@ -97,7 +108,7 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
   - 担当者クリックで案件一覧へ遷移
 - 紹介者タブ
   - 紹介会社ごとの紹介料合計
-  - 会社内の部門小計
+  - 会社内の支店小計
   - 見出しに紹介料合計を表示
   - 会社クリックで案件一覧へ遷移
 - 年度ピルで単年度、複数年度、全期間を切り替え
@@ -107,7 +118,7 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 - 部署
 - 担当者
 - 会社
-- 会社部門
+- 会社支店
 - 社外紹介者
 - 相続人マスタ
 - 関係者マスタ
@@ -168,7 +179,7 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 | 言語 | TypeScript 5.9.3 |
 | API | Next.js API Routes |
 | DB | PostgreSQL 16 |
-| ORM | Prisma 6.2 |
+| ORM | Prisma 6.19.2 |
 | バリデーション | Zod 3.24 |
 | データ取得 | TanStack Query 5 |
 | テーブル | TanStack Table 8 |
@@ -183,6 +194,7 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 
 ```text
 inheritance-case-management/
+├── ER_DIAGRAM.md                    # Prismaスキーマに対応するER図
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
 ├── templates/                       # 帳票テンプレート
@@ -314,19 +326,15 @@ docker exec -it itcm-frontend npx prisma studio
 | `web/package.json` | 再ビルド |
 | `Dockerfile`, `docker-compose.yml` | 再ビルド |
 
-## 型チェック
+## 品質チェック
 
-ローカルを汚さず Docker イメージ内で確認する例:
+Dockerの一時コンテナで型チェックとlintを実行します。通常の開発コンテナはメモリ制限があるため、検査時だけNode.jsのヒープ上限を拡張します。
 
 ```bash
-docker run --rm --entrypoint sh ^
-  -v C:\Users\sashi\Desktop\dev\tax_apps\apps\inheritance-case-management\web\src:/app/src:ro ^
-  -v C:\Users\sashi\Desktop\dev\tax_apps\apps\inheritance-case-management\web\prisma:/app/prisma:ro ^
-  -w /app inheritance-case-management-web ^
-  -c "npx tsc --noEmit --incremental false"
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run typecheck
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run lint
+docker compose run --rm --no-deps web npx prisma validate
 ```
-
-PowerShell では行継続をバッククォートに置き換えてください。
 
 ## Prisma 運用ルール
 
@@ -361,7 +369,7 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 | `/itcm/api/assignees` | 担当者 |
 | `/itcm/api/departments` | 部署 |
 | `/itcm/api/companies` | 会社 |
-| `/itcm/api/company-branches` | 会社部門 |
+| `/itcm/api/company-branches` | 会社支店 |
 | `/itcm/api/referrers` | 社外紹介者 |
 | `/itcm/api/heir-persons` | 相続人マスタ |
 | `/itcm/api/related-party-persons` | 関係者マスタ |
@@ -387,6 +395,8 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 | `CompanyBranch` | 紹介会社の部門 |
 | `Referrer` | 社外紹介者 |
 | `AuditLog` | 監査ログ |
+
+詳細な属性、カーディナリティ、削除ルールは [データベースER図](ER_DIAGRAM.md) を参照してください。
 
 主な関連:
 
@@ -418,6 +428,7 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 | `web/src/types/constants.ts` | ステータス、フィルター、選択肢定義 |
 | `web/src/types/validation.ts` | Zodスキーマ |
 | `web/prisma/schema.prisma` | DBスキーマ |
+| `ER_DIAGRAM.md` | Prismaスキーマに対応するER図、関連、削除ルール |
 
 ## ライセンス
 

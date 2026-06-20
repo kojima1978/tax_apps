@@ -25,6 +25,8 @@ export interface CaseWhereParams {
   caseCompletedTo?: string;
   billedFrom?: string;
   billedTo?: string;
+  paidFrom?: string;
+  paidTo?: string;
 }
 
 function csvOrSingle(value: string): string | { in: string[] } {
@@ -143,6 +145,12 @@ export function buildCaseWhereClause(params: CaseWhereParams): Prisma.Inheritanc
     where.billedDate = {
       ...(params.billedFrom ? { gte: toDate(params.billedFrom) } : {}),
       ...(params.billedTo ? { lt: toDate(params.billedTo) } : {}),
+    };
+  }
+  if (params.paidFrom || params.paidTo) {
+    where.paidDate = {
+      ...(params.paidFrom ? { gte: toDate(params.paidFrom) } : {}),
+      ...(params.paidTo ? { lt: toDate(params.paidTo) } : {}),
     };
   }
 

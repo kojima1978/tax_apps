@@ -4,7 +4,6 @@ import Link from "next/link"
 import { CalendarDays, ChevronLeft, ChevronRight, Info } from "lucide-react"
 import { formatCurrency } from "@/lib/analytics-utils"
 import type { RollingAnnualPoint } from "@/lib/analytics-utils"
-import { ANALYTICS_CONFIRMED_STATUSES } from "@/types/constants"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 
 interface AnnualTrendTabProps {
@@ -53,9 +52,9 @@ function shiftMonth(value: string, delta: number): string {
 
 function buildMonthHref(point: RollingAnnualPoint): string {
     const params = new URLSearchParams({
-        status: ANALYTICS_CONFIRMED_STATUSES.join(","),
-        billedFrom: point.monthStart,
-        billedTo: point.monthEnd,
+        status: "入金済",
+        paidFrom: point.monthStart,
+        paidTo: point.monthEnd,
     })
     return `/?${params.toString()}`
 }
@@ -124,8 +123,8 @@ export function AnnualTrendTab({ data, baseMonth, onBaseMonthChange }: AnnualTre
                         <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" />
                     </summary>
                     <ul className="list-disc space-y-1 border-t px-4 py-3 pl-8 text-muted-foreground">
-                        <li>対象: 確定売上案件（請求済・入金済）で<span className="font-medium text-foreground">請求日</span>が入力済みのもの</li>
-                        <li>計上月: <span className="font-medium text-foreground">請求日</span>の年月</li>
+                        <li>対象: 入金済案件で<span className="font-medium text-foreground">入金日</span>が入力済みのもの</li>
+                        <li>計上月: <span className="font-medium text-foreground">入金日</span>の年月</li>
                         <li>金額: 確定報酬額 −（社外）紹介料 ※社内紹介は控除なし（見積額ではなく確定額）</li>
                         <li>表示期間: 選択した基準月を含む過去24ヶ月</li>
                         <li>年計値: 各月を基準とした<span className="font-medium text-foreground">直近12ヶ月の累計</span></li>

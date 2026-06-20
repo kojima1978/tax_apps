@@ -63,13 +63,13 @@ export type RollingAnnualPoint = {
     count: number       // 件数の12ヶ月累計
 }
 
-/** 完了案件を月別に集計し、移動年計を算出（基準: 請求日 billedDate） */
+/** 入金済み案件を月別に集計し、移動年計を算出（基準: 入金日 paidDate） */
 export function computeRollingAnnual(cases: InheritanceCase[], baseMonth?: string): RollingAnnualPoint[] {
     const monthlyMap = new Map<string, { fee: number; count: number }>()
     cases.forEach(c => {
         if (!isAnalyticsConfirmedStatus(c.status)) return
-        if (!c.billedDate) return
-        const d = new Date(c.billedDate)
+        if (!c.paidDate) return
+        const d = new Date(c.paidDate)
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
         if (!monthlyMap.has(key)) monthlyMap.set(key, { fee: 0, count: 0 })
         const m = monthlyMap.get(key)!

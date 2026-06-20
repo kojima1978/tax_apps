@@ -64,7 +64,7 @@ export const isMilestoneTriggered = (field: MilestoneDateField, status?: string 
 export const CASE_STATUS_FILTER_OPTIONS = CASE_STATUS_OPTIONS.map(s => ({ value: s, label: s }))
 
 // Filter keys used for hasFilters check and KPI dependency
-export const FILTER_KEYS = ['search', 'status', 'fiscalYear', 'fiscalYears', 'department', 'assigneeId', 'internalReferrerId', 'staffId', 'referrerCompany', 'unassigned', 'noReferrer', 'deadlineSoon', 'caseAddedFrom', 'caseAddedTo', 'caseCompletedFrom', 'caseCompletedTo', 'billedFrom', 'billedTo'] as const
+export const FILTER_KEYS = ['search', 'status', 'fiscalYear', 'fiscalYears', 'department', 'assigneeId', 'internalReferrerId', 'staffId', 'referrerCompany', 'unassigned', 'noReferrer', 'deadlineSoon', 'caseAddedFrom', 'caseAddedTo', 'caseCompletedFrom', 'caseCompletedTo', 'billedFrom', 'billedTo', 'paidFrom', 'paidTo'] as const
 
 // Fiscal year range
 export const FISCAL_YEAR_START = 2015
