@@ -1,10 +1,11 @@
 import { apiClient } from './client';
-import type { InheritanceCase, PaginatedResponse, AuditLogEntry } from '@/types/shared';
+import type { CaseListItem, InheritanceCase, PaginatedResponse, AuditLogEntry } from '@/types/shared';
 import type { CreateCaseInput, UpdateCaseInput, ListQueryInput } from '@/types/validation';
+import type { KPIData } from '@/lib/kpi-utils';
 
 export type CasesQueryParams = Partial<ListQueryInput>;
 
-export async function getCases(params?: CasesQueryParams): Promise<PaginatedResponse<InheritanceCase>> {
+function buildCaseSearchParams(params?: CasesQueryParams): URLSearchParams {
   const searchParams = new URLSearchParams();
 
   if (params?.page) searchParams.set('page', String(params.page));
@@ -34,10 +35,28 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
 
+  return searchParams;
+}
+
+export async function getCases(params?: CasesQueryParams): Promise<PaginatedResponse<InheritanceCase>> {
+  const searchParams = buildCaseSearchParams(params);
+
   const queryString = searchParams.toString();
   const url = queryString ? `/cases?${queryString}` : '/cases';
 
   return apiClient<PaginatedResponse<InheritanceCase>>(url);
+}
+
+export async function getCaseList(params?: CasesQueryParams): Promise<PaginatedResponse<CaseListItem>> {
+  const searchParams = buildCaseSearchParams(params);
+  searchParams.set('view', 'list');
+  return apiClient<PaginatedResponse<CaseListItem>>(`/cases?${searchParams.toString()}`);
+}
+
+export async function getCaseKpis(params?: CasesQueryParams): Promise<KPIData> {
+  const searchParams = buildCaseSearchParams(params);
+  const queryString = searchParams.toString();
+  return apiClient<KPIData>(queryString ? `/cases/kpi?${queryString}` : '/cases/kpi');
 }
 
 export async function getCase(id: number): Promise<InheritanceCase | null> {

@@ -8,7 +8,7 @@ import { ErrorDisplay } from "@/components/ui/ErrorDisplay"
 import { TableSkeleton } from "@/components/ui/Skeleton"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { parseError } from "@/hooks/use-error-handler"
-import type { InheritanceCase } from "@/types/shared"
+import type { CaseListItem } from "@/types/shared"
 import type { CaseListAmountTotals } from "./case-list-utils"
 
 interface CaseListPagination {
@@ -23,8 +23,8 @@ interface CaseListTableSectionProps {
     isError: boolean
     error: unknown
     isFetching: boolean
-    cases: InheritanceCase[]
-    columns: ColumnDef<InheritanceCase>[]
+    cases: CaseListItem[]
+    columns: ColumnDef<CaseListItem>[]
     hasFilters: boolean
     amountTotals: CaseListAmountTotals
     pagination?: CaseListPagination

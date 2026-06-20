@@ -3,20 +3,45 @@ import { prisma } from '@/lib/prisma';
 import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import {
   CASE_INCLUDE,
+  CASE_LIST_SELECT,
   serializeCase,
   toDate,
+  toDateStr,
   toExpenseCreateData,
   toHeirCreateData,
   toProgressCreateData,
   toRelatedPartyCreateData,
   toSpecialAdditionCreateData,
 } from '@/lib/prisma-includes';
+import type { CaseListItem, CaseStatus } from '@/types/shared';
 import { CASE_STATUS_OPTIONS, MILESTONE_DATES, isMilestoneTriggered } from '@/types/constants';
 import { diffScalar, writeAuditLog } from './audit-service';
 import { todayDate } from './case-date-utils';
 import { resolveHeirs, resolveRelatedParties } from './case-person-resolvers';
 
 export { buildCaseWhereClause } from './case-query';
+
+type CaseListRecord = Prisma.InheritanceCaseGetPayload<{ select: typeof CASE_LIST_SELECT }>;
+
+function serializeCaseListItem(caseItem: CaseListRecord): CaseListItem {
+  return {
+    id: caseItem.id,
+    deceasedName: caseItem.deceasedName,
+    deceasedNameKana: caseItem.deceasedNameKana,
+    dateOfDeath: toDateStr(caseItem.dateOfDeath) ?? '',
+    status: caseItem.status as CaseStatus,
+    isUndivided: caseItem.isUndivided,
+    feeAmount: caseItem.feeAmount ?? 0,
+    estimateAmount: caseItem.estimateAmount ?? 0,
+    fiscalYear: caseItem.fiscalYear,
+    summary: caseItem.summary ?? undefined,
+    hasMemo: Boolean(caseItem.memo),
+    caseAddedDate: toDateStr(caseItem.caseAddedDate),
+    caseCompletedDate: toDateStr(caseItem.caseCompletedDate),
+    assignee: caseItem.assignee,
+    internalReferrer: caseItem.internalReferrer,
+  };
+}
 
 type CreateCaseData = {
   deceasedName: string;
@@ -166,22 +191,35 @@ export async function listCases(params: {
   pageSize: number;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
+  view?: 'list';
 }) {
-  const { where, page, pageSize, sortBy, sortOrder } = params;
+  const { where, page, pageSize, sortBy, sortOrder, view } = params;
+
+  const casesPromise = view === 'list'
+    ? prisma.inheritanceCase.findMany({
+        where,
+        select: CASE_LIST_SELECT,
+        orderBy: [{ fiscalYear: 'desc' }, { [sortBy]: sortOrder }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      })
+    : prisma.inheritanceCase.findMany({
+        where,
+        include: CASE_INCLUDE,
+        orderBy: [{ fiscalYear: 'desc' }, { [sortBy]: sortOrder }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      });
 
   const [total, cases] = await Promise.all([
     prisma.inheritanceCase.count({ where }),
-    prisma.inheritanceCase.findMany({
-      where,
-      include: CASE_INCLUDE,
-      orderBy: [{ fiscalYear: 'desc' }, { [sortBy]: sortOrder }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
+    casesPromise,
   ]);
 
   return {
-    data: cases.map(serializeCase),
+    data: view === 'list'
+      ? (cases as CaseListRecord[]).map(serializeCaseListItem)
+      : cases.map(serializeCase),
     pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
   };
 }

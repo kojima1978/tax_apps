@@ -10,13 +10,12 @@ import { ImportCSVModal } from "@/components/ImportCSVModal"
 import { TableSkeleton } from "@/components/ui/Skeleton"
 import { useToast } from "@/components/ui/Toast"
 import { useAsyncMasters } from "@/hooks/use-async-masters"
-import { useCases } from "@/hooks/use-cases"
+import { useCaseKpis, useCases } from "@/hooks/use-cases"
 import { useExportCSV } from "@/hooks/use-export-csv"
-import { bulkDeleteCases, getAllCases } from "@/lib/api/cases"
+import { bulkDeleteCases } from "@/lib/api/cases"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { calcBestGrossAmount } from "@/lib/case-amount-utils"
-import { computeKPI } from "@/lib/kpi-utils"
-import type { InheritanceCase } from "@/types/shared"
+import type { CaseListItem } from "@/types/shared"
 import { CaseListTableSection } from "./CaseListTableSection"
 import { CaseListToolbar } from "./CaseListToolbar"
 import {
@@ -35,7 +34,7 @@ import {
     toCaseListUrlSearch,
 } from "./case-list-utils"
 
-const EMPTY_CASES: InheritanceCase[] = []
+const EMPTY_CASES: CaseListItem[] = []
 
 export default function InheritanceMockupPage() {
     return (
@@ -100,21 +99,14 @@ function InheritanceMockupPageContent() {
         [amountSort, toggleAmountSort, rowNumberOffset]
     )
 
-    const [allCases, setAllCases] = useState<InheritanceCase[]>([])
     const dataVersion = data?.pagination?.total
     const kpiFilters = useMemo(() => getCaseListKpiFilters(queryParams), [queryParams])
     const kpiDepsKey = useMemo(() => JSON.stringify(kpiFilters), [kpiFilters])
-    const refreshKPI = useCallback(() => {
-        const filters = Object.keys(kpiFilters).length > 0 ? kpiFilters : undefined
-        return getAllCases(filters).then(setAllCases).catch(() => {})
-    }, [kpiFilters])
-
-    useEffect(() => {
-        void refreshKPI()
-    }, [dataVersion, refreshKPI])
+    const { data: kpiData, refetch: refetchKpis } = useCaseKpis(
+        Object.keys(kpiFilters).length > 0 ? kpiFilters : undefined
+    )
 
     const { assignees, departments } = useAsyncMasters([dataVersion, kpiDepsKey])
-    const kpiData = useMemo(() => computeKPI(allCases), [allCases])
     const activeKpiFilter = useMemo(() => getActiveKpiFilter(queryParams), [queryParams])
     const hasFilters = useMemo(() => getHasCaseFilters(queryParams), [queryParams])
 
@@ -175,13 +167,13 @@ function InheritanceMockupPageContent() {
             await bulkDeleteCases(getCaseListFilters(queryParams))
             setShowBulkDelete(false)
             void refetch()
-            void refreshKPI()
+            void refetchKpis()
         } catch {
             toast.error("一括削除に失敗しました")
         } finally {
             setIsDeleting(false)
         }
-    }, [queryParams, refetch, refreshKPI, toast])
+    }, [queryParams, refetch, refetchKpis, toast])
 
     const filterDescription = useMemo(
         () => getCaseListFilterDescription(queryParams, assignees),
@@ -199,6 +191,7 @@ function InheritanceMockupPageContent() {
                     totalCount={pagination?.total}
                     onRefresh={() => {
                         void refetch()
+                        void refetchKpis()
                     }}
                     onImport={() => setShowImportModal(true)}
                     onExport={() => {
@@ -208,7 +201,7 @@ function InheritanceMockupPageContent() {
                 />
             </div>
 
-            {allCases.length > 0 && (
+            {kpiData && (
                 <KPICards
                     data={kpiData}
                     activeFilter={activeKpiFilter}
@@ -251,7 +244,7 @@ function InheritanceMockupPageContent() {
                 onClose={() => setShowImportModal(false)}
                 onImportComplete={() => {
                     void refetch()
-                    void refreshKPI()
+                    void refetchKpis()
                 }}
             />
 

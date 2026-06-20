@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import type { InheritanceCase, CaseStatus } from "@/types/shared"
+import type { CaseListItem, CaseStatus } from "@/types/shared"
 import { formatCurrency, toWareki } from "@/lib/analytics-utils"
 import { calcGrossAmount } from "@/lib/case-amount-utils"
 import { isHandlingEnded } from "@/types/constants"
@@ -72,7 +72,7 @@ function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onT
     )
 }
 
-export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }: ColumnOptions): ColumnDef<InheritanceCase>[] {
+export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }: ColumnOptions): ColumnDef<CaseListItem>[] {
     return [
     // ── 操作列：狭い画面でも常に左端に表示 ─────────────────────
     {
@@ -237,7 +237,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
         header: () => <span className="inline-flex items-center h-8">特記事項</span>,
         cell: ({ row }) => {
             const c = row.original
-            const hasMemo = !!c.memo
+            const hasMemo = c.hasMemo
             return (
                 <div className="min-w-0 leading-tight">
                     <div className="whitespace-nowrap text-[10px] font-medium text-foreground">{c.summary || "-"}</div>

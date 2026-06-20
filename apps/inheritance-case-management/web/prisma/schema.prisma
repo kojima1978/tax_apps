@@ -74,6 +74,9 @@ model InheritanceCase {
   @@index([referrerId])
   @@index([deceasedNameKana])
   @@index([deceasedNameKanaNormalized])
+  @@index([fiscalYear, status, dateOfDeath], map: "InheritanceCase_list_status_idx")
+  @@index([fiscalYear, assigneeId, dateOfDeath], map: "InheritanceCase_list_assignee_idx")
+  @@index([fiscalYear, internalReferrerId, dateOfDeath], map: "InheritanceCase_list_internal_referrer_idx")
 }
 
 model Department {

@@ -206,6 +206,7 @@ const dateQuerySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
 
 // Query Params Schema
 export const listQuerySchema = z.object({
+  view: z.enum(['list']).optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(200).optional().default(100),
   status: z.string().optional(),

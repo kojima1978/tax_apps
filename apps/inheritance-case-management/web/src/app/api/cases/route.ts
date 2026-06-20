@@ -6,11 +6,17 @@ import { buildCaseWhereClause, listCases, createCase } from '@/lib/services/case
 export async function GET(request: NextRequest) {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const { page, pageSize, status, isUndivided, hideClosed, fiscalYear, fiscalYears, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, deadlineSoon, department, caseAddedFrom, caseAddedTo, caseCompletedFrom, caseCompletedTo, billedFrom, billedTo, paidFrom, paidTo, sortBy, sortOrder } =
-      listQuerySchema.parse(searchParams);
+    const query = listQuerySchema.parse(searchParams);
 
-    const where = buildCaseWhereClause({ status, isUndivided, hideClosed, fiscalYear, fiscalYears, search, assigneeId, internalReferrerId, staffId, referrerCompany, unassigned, noReferrer, deadlineSoon, department, caseAddedFrom, caseAddedTo, caseCompletedFrom, caseCompletedTo, billedFrom, billedTo, paidFrom, paidTo });
-    const result = await listCases({ where, page, pageSize, sortBy, sortOrder });
+    const where = buildCaseWhereClause(query);
+    const result = await listCases({
+      where,
+      page: query.page,
+      pageSize: query.pageSize,
+      sortBy: query.sortBy,
+      sortOrder: query.sortOrder,
+      view: query.view,
+    });
 
     return NextResponse.json(result);
   } catch (e) {

@@ -1,5 +1,7 @@
 "use client"
 
+import { memo } from "react"
+
 import {
     ColumnDef,
     flexRender,
@@ -18,12 +20,12 @@ import {
 import { cn } from "@/lib/utils"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Search, FolderOpen } from "lucide-react"
-import type { InheritanceCase } from "@/types/shared"
+import type { CaseListItem } from "@/types/shared"
 import { isHandlingEnded } from "@/types/constants"
 
-interface DataTableProps<TData, TValue> {
-    columns: ColumnDef<TData, TValue>[]
-    data: TData[]
+interface DataTableProps {
+    columns: ColumnDef<CaseListItem>[]
+    data: CaseListItem[]
     hasFilters?: boolean
     onClearFilters?: () => void
 }
@@ -33,12 +35,12 @@ function getResponsiveColumnClass(columnId: string): string {
     return ""
 }
 
-export function DataTable<TData, TValue>({
+function DataTableComponent({
     columns,
     data,
     hasFilters,
     onClearFilters,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps) {
     // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
@@ -76,7 +78,7 @@ export function DataTable<TData, TValue>({
                     <TableBody>
                         {rows.length ? (
                             rows.map((row, index) => {
-                                const caseRow = row.original as InheritanceCase
+                                const caseRow = row.original
                                 const isEnded = isHandlingEnded(caseRow.status, caseRow.isUndivided)
                                 return (
                                 <TableRow
@@ -131,3 +133,5 @@ export function DataTable<TData, TValue>({
         </div>
     )
 }
+
+export const DataTable = memo(DataTableComponent)

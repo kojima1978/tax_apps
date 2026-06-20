@@ -1,14 +1,14 @@
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { calcGrossAmount } from "@/lib/case-amount-utils"
-import { COMPLETED_STATUSES, FILTER_KEYS } from "@/types/constants"
-import type { InheritanceCase } from "@/types/shared"
+import { COMPLETED_STATUSES, FILTER_KEYS, ONGOING_STATUSES } from "@/types/constants"
+import type { CaseListItem } from "@/types/shared"
 import type { KPICardFilterKey } from "@/components/cases/KPICards"
 
 export const CASE_LIST_PAGE_SIZE = 100
 export const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedFrom", "caseCompletedTo", "billedFrom", "billedTo", "paidFrom", "paidTo"] as const
 
 // KPIカード（手続中・完了）のステータス絞り込み値
-export const ONGOING_STATUS = "手続中,最終確認"
+export const ONGOING_STATUS = ONGOING_STATUSES.join(",")
 export const COMPLETED_STATUS_CSV = [...COMPLETED_STATUSES].join(",")
 
 const KPI_QUICK_FILTER_KEYS = [
@@ -162,7 +162,7 @@ export function getCaseListKpiFilters(params: CasesQueryParams): FilterOnlyQuery
     ) as FilterOnlyQueryParams
 }
 
-export function calculateCaseListAmountTotals(cases: InheritanceCase[]): CaseListAmountTotals {
+export function calculateCaseListAmountTotals(cases: CaseListItem[]): CaseListAmountTotals {
     return cases.reduce(
         (totals, caseItem) => {
             if ((caseItem.feeAmount || 0) > 0) {

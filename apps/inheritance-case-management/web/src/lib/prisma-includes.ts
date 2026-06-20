@@ -18,6 +18,24 @@ export const CASE_INCLUDE = {
   referrer: { include: { company: true, branch: true } },
 } satisfies Prisma.InheritanceCaseInclude;
 
+export const CASE_LIST_SELECT = {
+  id: true,
+  deceasedName: true,
+  deceasedNameKana: true,
+  dateOfDeath: true,
+  status: true,
+  isUndivided: true,
+  feeAmount: true,
+  estimateAmount: true,
+  fiscalYear: true,
+  summary: true,
+  memo: true,
+  caseAddedDate: true,
+  caseCompletedDate: true,
+  assignee: { select: { id: true, name: true } },
+  internalReferrer: { select: { id: true, name: true } },
+} satisfies Prisma.InheritanceCaseSelect;
+
 export const ASSIGNEE_INCLUDE = {
   department: true,
 } as const;

@@ -157,6 +157,25 @@ export interface InheritanceCase {
   updatedAt?: Date;
 }
 
+// Read model used by the case list and KPI cards. Keep this intentionally small.
+export interface CaseListItem {
+  id: number;
+  deceasedName: string;
+  deceasedNameKana?: string;
+  dateOfDeath: string;
+  status: CaseStatus;
+  isUndivided: boolean;
+  feeAmount: number;
+  estimateAmount: number;
+  fiscalYear: number;
+  summary?: string;
+  hasMemo: boolean;
+  caseAddedDate?: string | null;
+  caseCompletedDate?: string | null;
+  assignee?: Pick<Assignee, 'id' | 'name'> | null;
+  internalReferrer?: Pick<Assignee, 'id' | 'name'> | null;
+}
+
 // Department Entity
 export interface Department {
   id: number;

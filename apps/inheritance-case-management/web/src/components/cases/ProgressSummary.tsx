@@ -1,9 +1,9 @@
-import type { InheritanceCase, CaseStatus } from "@/types/shared"
+import type { CaseListItem, CaseStatus } from "@/types/shared"
 import { STATUS_STYLES } from "@/types/constants"
 
 const STATUS_FLOW: readonly CaseStatus[] = ["見積前", "見積中", "受託", "手続中", "最終確認", "申告済", "請求済", "入金済"]
 
-export function ProgressSummary({ caseData }: { caseData: InheritanceCase }) {
+export function ProgressSummary({ caseData }: { caseData: CaseListItem }) {
     const currentIndex = caseData.status === "見送り"
         ? STATUS_FLOW.indexOf("見積中")
         : STATUS_FLOW.indexOf(caseData.status)
