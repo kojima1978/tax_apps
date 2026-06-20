@@ -123,12 +123,14 @@ export interface InheritanceCase {
   estimateAmount: number;
   propertyValue: number;
   referralFeeRate?: number;
-  referralFeeAmount?: number;
-  estimateReferralFeeAmount?: number;
+  referralFeeAmount: number;
+  estimateReferralFeeAmount: number;
+  isReferralFeeManual?: boolean;
+  isEstimateReferralFeeManual?: boolean;
   landRosenkaCount?: number;
   landBairitsuCount?: number;
   unlistedStockCount?: number;
-  heirCount?: number;
+  feeCalculationHeirCount?: number;
   discountAmount?: number;
   feeCalcSnapshot?: FeeCalcSnapshot | null;
   summary?: string;

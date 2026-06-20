@@ -158,7 +158,7 @@ export function rowToInput(
       case 'landRosenkaCount':
       case 'landBairitsuCount':
       case 'unlistedStockCount':
-      case 'heirCount': {
+      case 'feeCalculationHeirCount': {
         const n = parseOptionalNumber(value, fieldName !== 'referralFeeRate');
         if (n !== undefined) obj[fieldName] = n;
         break;

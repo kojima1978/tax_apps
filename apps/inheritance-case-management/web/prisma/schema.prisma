@@ -22,12 +22,14 @@ model InheritanceCase {
   estimateAmount    Int?     @default(0)
   propertyValue     Int?     @default(0)
   referralFeeRate   Float?
-  referralFeeAmount Int?
-  estimateReferralFeeAmount Int?
+  referralFeeAmount Int      @default(0)
+  estimateReferralFeeAmount Int @default(0)
+  isReferralFeeManual Boolean @default(false)
+  isEstimateReferralFeeManual Boolean @default(false)
   landRosenkaCount  Int?     @default(0) // 土地数（路線価）
   landBairitsuCount Int?     @default(0) // 土地数（倍率）
   unlistedStockCount Int?    @default(0) // 非上場株式の数
-  heirCount         Int?     @default(0) // 相続人の数
+  feeCalculationHeirCount Int? @default(0) // 報酬計算に使用する相続人数（紐付け人数とは別）
   discountAmount    Int?     @default(0) // 値引額（円）
   feeCalcSnapshot   Json?    // 報酬計算時のパラメータ・料率・内訳スナップショット
   summary           String?  @db.VarChar(10) // 特記事項��短い概要、最大10���字）

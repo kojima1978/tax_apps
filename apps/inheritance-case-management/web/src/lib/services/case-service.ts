@@ -32,10 +32,12 @@ type CreateCaseData = {
   referralFeeRate?: number | null;
   referralFeeAmount?: number | null;
   estimateReferralFeeAmount?: number | null;
+  isReferralFeeManual?: boolean;
+  isEstimateReferralFeeManual?: boolean;
   landRosenkaCount?: number;
   landBairitsuCount?: number;
   unlistedStockCount?: number;
-  heirCount?: number;
+  feeCalculationHeirCount?: number;
   discountAmount?: number;
   feeCalcSnapshot?: Prisma.InputJsonValue | null;
   summary?: string | null;
@@ -68,12 +70,14 @@ const CASE_SCALAR_FIELDS = [
   'referralFeeRate',
   'referralFeeAmount',
   'estimateReferralFeeAmount',
+  'isReferralFeeManual',
+  'isEstimateReferralFeeManual',
   'summary',
   'memo',
   'landRosenkaCount',
   'landBairitsuCount',
   'unlistedStockCount',
-  'heirCount',
+  'feeCalculationHeirCount',
   'discountAmount',
   'feeCalcSnapshot',
   'caseAddedDate',
@@ -100,6 +104,60 @@ function normalizeDeceasedNameKana(updateData: Record<string, unknown>, value: u
   const normalized = normalizeNameKanaForStorage((value as string) ?? '');
   updateData.deceasedNameKana = normalized;
   updateData.deceasedNameKanaNormalized = normalizePersonSearchText(normalized);
+}
+
+function calculateReferralFeeAmount(baseAmount: number | null | undefined, rate: number | null | undefined): number {
+  return Math.floor((baseAmount ?? 0) * ((rate ?? 0) / 100));
+}
+
+function resolveReferralFeeState(
+  data: CreateCaseData | Record<string, unknown>,
+  before?: Record<string, unknown>,
+) {
+  const rate = (
+    'referralFeeRate' in data ? data.referralFeeRate : before?.referralFeeRate ?? null
+  ) as number | null;
+  const feeAmount = (data.feeAmount ?? before?.feeAmount ?? 0) as number;
+  const estimateAmount = (data.estimateAmount ?? before?.estimateAmount ?? 0) as number;
+  const calculatedFee = calculateReferralFeeAmount(feeAmount, rate);
+  const calculatedEstimate = calculateReferralFeeAmount(estimateAmount, rate);
+  const suppliedFee = (data.referralFeeAmount ?? before?.referralFeeAmount ?? 0) as number;
+  const suppliedEstimate = (data.estimateReferralFeeAmount ?? before?.estimateReferralFeeAmount ?? 0) as number;
+  const feeAmountWasSupplied = 'referralFeeAmount' in data;
+  const estimateAmountWasSupplied = 'estimateReferralFeeAmount' in data;
+  const isReferralFeeManual = data.isReferralFeeManual !== undefined
+    ? Boolean(data.isReferralFeeManual)
+    : before?.isReferralFeeManual !== undefined
+      ? Boolean(before.isReferralFeeManual)
+      : feeAmountWasSupplied && suppliedFee !== calculatedFee;
+  const isEstimateReferralFeeManual = data.isEstimateReferralFeeManual !== undefined
+    ? Boolean(data.isEstimateReferralFeeManual)
+    : before?.isEstimateReferralFeeManual !== undefined
+      ? Boolean(before.isEstimateReferralFeeManual)
+      : estimateAmountWasSupplied && suppliedEstimate !== calculatedEstimate;
+
+  return {
+    referralFeeAmount: isReferralFeeManual ? suppliedFee : calculatedFee,
+    estimateReferralFeeAmount: isEstimateReferralFeeManual ? suppliedEstimate : calculatedEstimate,
+    isReferralFeeManual,
+    isEstimateReferralFeeManual,
+  };
+}
+
+function normalizeMilestoneDateUpdates(
+  updateData: Record<string, unknown>,
+  status: string,
+  before?: Record<string, unknown>,
+) {
+  for (const { field } of MILESTONE_DATES) {
+    if (!isMilestoneTriggered(field, status)) {
+      updateData[field] = null;
+      continue;
+    }
+    if (!updateData[field]) {
+      updateData[field] = before?.[field] || todayDate();
+    }
+  }
 }
 
 export async function listCases(params: {
@@ -143,6 +201,14 @@ export async function createCase(data: CreateCaseData) {
     const deceasedNameKana = normalizeNameKanaForStorage(data.deceasedNameKana ?? '');
     const deceasedNameKanaNormalized = normalizePersonSearchText(deceasedNameKana);
     const status = data.status ?? CASE_STATUS_OPTIONS[0];
+    const referralFeeState = resolveReferralFeeState(data);
+    const milestoneDates: Record<string, unknown> = {
+      caseAddedDate: data.caseAddedDate ? toDate(data.caseAddedDate) : null,
+      caseCompletedDate: data.caseCompletedDate ? toDate(data.caseCompletedDate) : null,
+      billedDate: data.billedDate ? toDate(data.billedDate) : null,
+      paidDate: data.paidDate ? toDate(data.paidDate) : null,
+    };
+    normalizeMilestoneDateUpdates(milestoneDates, status);
 
     const created = await tx.inheritanceCase.create({
       data: {
@@ -158,20 +224,16 @@ export async function createCase(data: CreateCaseData) {
         estimateAmount: data.estimateAmount ?? 0,
         propertyValue: data.propertyValue ?? 0,
         referralFeeRate: data.referralFeeRate,
-        referralFeeAmount: data.referralFeeAmount,
-        estimateReferralFeeAmount: data.estimateReferralFeeAmount,
+        ...referralFeeState,
         landRosenkaCount: data.landRosenkaCount ?? 0,
         landBairitsuCount: data.landBairitsuCount ?? 0,
         unlistedStockCount: data.unlistedStockCount ?? 0,
-        heirCount: data.heirCount ?? 0,
+        feeCalculationHeirCount: data.feeCalculationHeirCount ?? 0,
         discountAmount: data.discountAmount ?? 0,
         feeCalcSnapshot: data.feeCalcSnapshot ?? undefined,
         summary: data.summary || null,
         memo: data.memo || null,
-        caseAddedDate: data.caseAddedDate ? toDate(data.caseAddedDate) : (isMilestoneTriggered('caseAddedDate', status) ? todayDate() : null),
-        caseCompletedDate: data.caseCompletedDate ? toDate(data.caseCompletedDate) : (isMilestoneTriggered('caseCompletedDate', status) ? todayDate() : null),
-        billedDate: data.billedDate ? toDate(data.billedDate) : (isMilestoneTriggered('billedDate', status) ? todayDate() : null),
-        paidDate: data.paidDate ? toDate(data.paidDate) : (isMilestoneTriggered('paidDate', status) ? todayDate() : null),
+        ...milestoneDates,
         assigneeId: data.assigneeId || null,
         internalReferrerId: data.internalReferrerId || null,
         referrerId: data.referrerId || null,
@@ -210,20 +272,11 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       normalizeDeceasedNameKana(updateData, data.deceasedNameKana);
     }
 
-    const statusChanged = 'status' in data && data.status !== before.status;
-    const newStatus = (statusChanged ? data.status : before.status) as string;
+    const newStatus = ('status' in data ? data.status : before.status) as string;
     const beforeRec = before as unknown as Record<string, unknown>;
 
-    // マイルストン日付（受託/申告/請求/入金）をステータス連動で自動セット / 後退時はクリア
-    for (const { field } of MILESTONE_DATES) {
-      if (field in data) continue;
-      if (!statusChanged) continue;
-      if (isMilestoneTriggered(field, newStatus)) {
-        if (!beforeRec[field]) updateData[field] = todayDate();
-      } else if (statusChanged && beforeRec[field]) {
-        updateData[field] = null;
-      }
-    }
+    Object.assign(updateData, resolveReferralFeeState(data, beforeRec));
+    normalizeMilestoneDateUpdates(updateData, newStatus, beforeRec);
 
     if ('assigneeId' in data) updateData.assigneeId = data.assigneeId || null;
     if ('internalReferrerId' in data) updateData.internalReferrerId = data.internalReferrerId || null;

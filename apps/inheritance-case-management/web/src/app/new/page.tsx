@@ -20,6 +20,10 @@ const emptyCase: InheritanceCase = {
     internalReferrerId: null,
     referrerId: null,
     estimateAmount: 0,
+    referralFeeAmount: 0,
+    estimateReferralFeeAmount: 0,
+    isReferralFeeManual: false,
+    isEstimateReferralFeeManual: false,
     propertyValue: 0,
     progress: DEFAULT_PROGRESS_STEPS.map((step, i) => ({
         id: 0, stepId: step.id, name: step.name, sortOrder: i, date: null,

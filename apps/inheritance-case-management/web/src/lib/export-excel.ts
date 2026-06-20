@@ -112,7 +112,7 @@ export async function exportDocument(params: ExportParams): Promise<void> {
     landRosenkaCount: caseData.landRosenkaCount || 0,
     landBairitsuCount: caseData.landBairitsuCount || 0,
     unlistedStockCount: caseData.unlistedStockCount || 0,
-    heirCount: caseData.heirCount || 0,
+    heirCount: caseData.feeCalculationHeirCount || 0,
     discount: caseData.discountAmount || 0,
     expensesTotal,
     specialAdditions: (caseData.specialAdditions || []).slice(0, 2).map(a => ({

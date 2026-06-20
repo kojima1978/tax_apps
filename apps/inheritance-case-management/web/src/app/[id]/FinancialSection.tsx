@@ -59,7 +59,6 @@ export function FinancialSection({
                     formData={formData}
                     netRevenue={netRevenue}
                     estimateNetRevenue={estimateNetRevenue}
-                    currencyChange={currencyChange}
                     setFormData={setFormData}
                     highlightFee={highlightFee}
                 />

@@ -1,4 +1,4 @@
-import { CalendarCheck, X } from "lucide-react"
+import { CalendarCheck } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
@@ -69,7 +69,6 @@ function MilestoneDate({
     relevant,
     handleChange,
     onSet,
-    onClear,
 }: {
     field: MilestoneDateField
     label: string
@@ -78,23 +77,20 @@ function MilestoneDate({
     relevant: boolean
     handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void
     onSet: () => void
-    onClear: () => void
 }) {
     return (
         <div className={cn("space-y-1", !relevant && "opacity-50")}>
             <Label htmlFor={field} className="flex items-center gap-1.5 text-xs">
                 {label}日
-                <FieldBadge variant="info">手動修正可</FieldBadge>
+                <FieldBadge variant={relevant ? "required" : "info"}>
+                    {relevant ? "必須・手動修正可" : "未到達"}
+                </FieldBadge>
             </Label>
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-                <Input id={field} name={field} type="date" value={value} onChange={handleChange} />
-                <Button type="button" variant="outline" size="sm" className="h-10" onClick={onSet}>
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <Input id={field} name={field} type="date" value={value} onChange={handleChange} disabled={!relevant} />
+                <Button type="button" variant="outline" size="sm" className="h-10" onClick={onSet} disabled={!relevant}>
                     <CalendarCheck className="mr-1.5 h-3.5 w-3.5" />
                     今日
-                </Button>
-                <Button type="button" variant="ghost" size="sm" className="h-10 text-muted-foreground" onClick={onClear}>
-                    <X className="mr-1.5 h-3.5 w-3.5" />
-                    クリア
                 </Button>
             </div>
             {!relevant && <p className="text-[11px] text-muted-foreground">{triggerStatus}で自動入力されます</p>}
@@ -117,6 +113,8 @@ export function ProgressStatusSummary({
             for (const { field } of MILESTONE_DATES) {
                 if (isMilestoneTriggered(field, val) && !prev[field]) {
                     (patch as Record<string, string>)[field] = todayIsoDate()
+                } else if (!isMilestoneTriggered(field, val)) {
+                    (patch as Record<string, string | null>)[field] = null
                 }
             }
             return { ...prev, ...patch }
@@ -176,7 +174,6 @@ export function ProgressStatusSummary({
                         relevant={isMilestoneTriggered(field, formData.status)}
                         handleChange={handleChange}
                         onSet={() => setDateField(field, todayIsoDate())}
-                        onClear={() => setDateField(field, null)}
                     />
                 ))}
             </div>

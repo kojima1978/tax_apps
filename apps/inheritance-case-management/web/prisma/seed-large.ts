@@ -206,7 +206,8 @@ async function main() {
       const hasReferrer = Math.random() < 0.6;
       const referrerId = hasReferrer ? pick(referrers).id : null;
       const referralFeeRate = hasReferrer ? pick([10, 15, 20]) : null;
-      const referralFeeAmount = (hasReferrer && feeBase > 0) ? Math.round(feeBase * (referralFeeRate! / 100)) : null;
+      const referralFeeAmount = (hasReferrer && feeAmount > 0) ? Math.floor(feeAmount * (referralFeeRate! / 100)) : 0;
+      const estimateReferralFeeAmount = hasReferrer ? Math.floor(estimateAmount * (referralFeeRate! / 100)) : 0;
 
       // 担当者
       const hasAssignee = status !== '見積前' || Math.random() < 0.3;
@@ -254,10 +255,11 @@ async function main() {
             propertyValue,
             referralFeeRate,
             referralFeeAmount,
+            estimateReferralFeeAmount,
             landRosenkaCount: rand(0, 5),
             landBairitsuCount: rand(0, 3),
             unlistedStockCount: rand(0, 2),
-            heirCount: rand(1, 6),
+            feeCalculationHeirCount: rand(1, 6),
             caseAddedDate,
             caseCompletedDate,
             billedDate,

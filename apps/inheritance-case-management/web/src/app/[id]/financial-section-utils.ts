@@ -1,12 +1,12 @@
 import type { CaseSpecialAdditionItem, InheritanceCase } from "@/types/shared"
 
-export type EstimateCountKey = "landRosenkaCount" | "landBairitsuCount" | "unlistedStockCount" | "heirCount"
+export type EstimateCountKey = "landRosenkaCount" | "landBairitsuCount" | "unlistedStockCount" | "feeCalculationHeirCount"
 
 export const ESTIMATE_COUNT_FIELDS: { key: EstimateCountKey; label: string; suffix: string }[] = [
     { key: "landRosenkaCount", label: "土地数（路線価）", suffix: "区分" },
     { key: "landBairitsuCount", label: "土地数（倍率）", suffix: "区分" },
     { key: "unlistedStockCount", label: "非上場株式", suffix: "社" },
-    { key: "heirCount", label: "相続人数", suffix: "名" },
+    { key: "feeCalculationHeirCount", label: "報酬計算上の相続人数", suffix: "名" },
 ]
 
 export function getEstimateParams(formData: InheritanceCase) {
@@ -15,7 +15,7 @@ export function getEstimateParams(formData: InheritanceCase) {
         landRosenkaCount: formData.landRosenkaCount || 0,
         landBairitsuCount: formData.landBairitsuCount || 0,
         unlistedStockCount: formData.unlistedStockCount || 0,
-        heirCount: formData.heirCount || 0,
+        heirCount: formData.feeCalculationHeirCount || 0,
     }
 }
 

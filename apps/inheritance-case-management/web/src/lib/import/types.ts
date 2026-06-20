@@ -41,7 +41,8 @@ export const CSV_HEADER_MAP: Record<string, string> = {
   '土地数_路線価': 'landRosenkaCount',
   '土地数_倍率': 'landBairitsuCount',
   '非上場株式数': 'unlistedStockCount',
-  '相続人数': 'heirCount',
+  '相続人数': 'feeCalculationHeirCount',
+  '報酬計算上の相続人数': 'feeCalculationHeirCount',
   '特記事項': 'summary',
   'メモ': 'memo',
   '受託日': 'caseAddedDate',
@@ -111,7 +112,7 @@ export const DEFAULTABLE_FIELDS: Record<string, string> = {
   landRosenkaCount: '土地数（路線価）→0',
   landBairitsuCount: '土地数（倍率）→0',
   unlistedStockCount: '非上場株式数→0',
-  heirCount: '相続人数→0',
+  feeCalculationHeirCount: '報酬計算上の相続人数→0',
 };
 
 export interface ImportParseResult {

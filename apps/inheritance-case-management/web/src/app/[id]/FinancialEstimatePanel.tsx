@@ -64,6 +64,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
             ...prev,
             estimateAmount: netEstimate,
             estimateReferralFeeAmount: getReferralAmount(netEstimate, formData.referralFeeRate),
+            isEstimateReferralFeeManual: false,
             feeCalcSnapshot: snapshot,
         }))
     }
@@ -74,6 +75,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
             ...prev,
             feeAmount: netEstimate,
             referralFeeAmount: getReferralAmount(netEstimate, formData.referralFeeRate),
+            isReferralFeeManual: false,
             feeCalcSnapshot: snapshot,
         }))
     }
@@ -92,7 +94,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
                                 type="number"
                                 min="0"
                                 className="w-full"
-                                value={estimateParams[key]}
+                                value={formData[key] || 0}
                                 onChange={(e) => updateEstimateCount(key, e.target.value)}
                             />
                             <span className="text-xs text-muted-foreground whitespace-nowrap">{suffix}</span>
@@ -105,7 +107,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
                 {breakdown.landRosenkaFee > 0 && <div className="flex justify-between"><span>加算：土地（路線価）{formData.landRosenkaCount}区分 × ¥10,000</span><span>{formatCurrency(breakdown.landRosenkaFee)}</span></div>}
                 {breakdown.landBairitsuFee > 0 && <div className="flex justify-between"><span>加算：土地（倍率）{formData.landBairitsuCount}区分 × ¥3,000</span><span>{formatCurrency(breakdown.landBairitsuFee)}</span></div>}
                 {breakdown.unlistedStockFee > 0 && <div className="flex justify-between"><span>加算：非上場株式 {formData.unlistedStockCount}社 × ¥100,000</span><span>{formatCurrency(breakdown.unlistedStockFee)}</span></div>}
-                {breakdown.heirFee > 0 && <div className="flex justify-between"><span>加算：相続人 {Math.min((formData.heirCount || 0) - 1, 4)}人 × ¥50,000</span><span>{formatCurrency(breakdown.heirFee)}</span></div>}
+                {breakdown.heirFee > 0 && <div className="flex justify-between"><span>加算：相続人 {Math.min((formData.feeCalculationHeirCount || 0) - 1, 4)}人 × ¥50,000</span><span>{formatCurrency(breakdown.heirFee)}</span></div>}
                 <div className="flex justify-between font-semibold border-t pt-1"><span>小計</span><span>{formatCurrency(breakdown.total)}</span></div>
             </div>
             <details

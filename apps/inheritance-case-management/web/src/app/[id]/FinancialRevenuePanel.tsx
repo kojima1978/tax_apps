@@ -1,4 +1,5 @@
 import { CurrencyField } from "@/components/ui/CurrencyField"
+import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { formatCurrency } from "@/lib/analytics-utils"
@@ -9,7 +10,6 @@ interface FinancialRevenuePanelProps {
     formData: InheritanceCase
     netRevenue: number
     estimateNetRevenue: number
-    currencyChange: (field: keyof InheritanceCase) => (value: string | undefined) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
     highlightFee?: boolean
 }
@@ -18,7 +18,6 @@ export function FinancialRevenuePanel({
     formData,
     netRevenue,
     estimateNetRevenue,
-    currencyChange,
     setFormData,
     highlightFee,
 }: FinancialRevenuePanelProps) {
@@ -29,6 +28,8 @@ export function FinancialRevenuePanel({
             referralFeeRate: rate,
             referralFeeAmount: getReferralAmount(prev.feeAmount || 0, rate),
             estimateReferralFeeAmount: getReferralAmount(prev.estimateAmount || 0, rate),
+            isReferralFeeManual: false,
+            isEstimateReferralFeeManual: false,
         }))
     }
 
@@ -37,7 +38,9 @@ export function FinancialRevenuePanel({
         setFormData((prev) => ({
             ...prev,
             estimateAmount,
-            estimateReferralFeeAmount: getReferralAmount(estimateAmount, prev.referralFeeRate),
+            estimateReferralFeeAmount: prev.isEstimateReferralFeeManual
+                ? prev.estimateReferralFeeAmount
+                : getReferralAmount(estimateAmount, prev.referralFeeRate),
         }))
     }
 
@@ -46,8 +49,31 @@ export function FinancialRevenuePanel({
         setFormData((prev) => ({
             ...prev,
             feeAmount,
-            referralFeeAmount: getReferralAmount(feeAmount, prev.referralFeeRate),
+            referralFeeAmount: prev.isReferralFeeManual
+                ? prev.referralFeeAmount
+                : getReferralAmount(feeAmount, prev.referralFeeRate),
         }))
+    }
+
+    const handleReferralAmountChange = (kind: "estimate" | "fee", value: string | undefined) => {
+        const amount = value ? Number(value) : 0
+        setFormData(prev => kind === "estimate"
+            ? { ...prev, estimateReferralFeeAmount: amount, isEstimateReferralFeeManual: true }
+            : { ...prev, referralFeeAmount: amount, isReferralFeeManual: true })
+    }
+
+    const recalculateReferralAmount = (kind: "estimate" | "fee") => {
+        setFormData(prev => kind === "estimate"
+            ? {
+                ...prev,
+                estimateReferralFeeAmount: getReferralAmount(prev.estimateAmount || 0, prev.referralFeeRate),
+                isEstimateReferralFeeManual: false,
+            }
+            : {
+                ...prev,
+                referralFeeAmount: getReferralAmount(prev.feeAmount || 0, prev.referralFeeRate),
+                isReferralFeeManual: false,
+            })
     }
 
     return (
@@ -70,12 +96,24 @@ export function FinancialRevenuePanel({
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="estimateReferralFeeAmount" className="text-xs">紹介料額</Label>
+                        <div className="flex items-center justify-between gap-2">
+                            <Label htmlFor="estimateReferralFeeAmount" className="text-xs">
+                                紹介料額
+                                <span className="ml-1 text-[9px] text-muted-foreground">
+                                    {formData.isEstimateReferralFeeManual ? "手動" : "自動"}
+                                </span>
+                            </Label>
+                            {formData.isEstimateReferralFeeManual && (
+                                <Button type="button" variant="ghost" className="h-6 px-1.5 text-[9px]" onClick={() => recalculateReferralAmount("estimate")}>
+                                    率から再計算
+                                </Button>
+                            )}
+                        </div>
                         <CurrencyField
                             id="estimateReferralFeeAmount"
                             name="estimateReferralFeeAmount"
                             value={formData.estimateReferralFeeAmount || 0}
-                            onValueChange={currencyChange("estimateReferralFeeAmount")}
+                            onValueChange={(value) => handleReferralAmountChange("estimate", value)}
                         />
                     </div>
                     <div className="border-t pt-1.5">
@@ -97,12 +135,24 @@ export function FinancialRevenuePanel({
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="referralFeeAmount" className="text-xs">紹介料額</Label>
+                        <div className="flex items-center justify-between gap-2">
+                            <Label htmlFor="referralFeeAmount" className="text-xs">
+                                紹介料額
+                                <span className="ml-1 text-[9px] text-muted-foreground">
+                                    {formData.isReferralFeeManual ? "手動" : "自動"}
+                                </span>
+                            </Label>
+                            {formData.isReferralFeeManual && (
+                                <Button type="button" variant="ghost" className="h-6 px-1.5 text-[9px]" onClick={() => recalculateReferralAmount("fee")}>
+                                    率から再計算
+                                </Button>
+                            )}
+                        </div>
                         <CurrencyField
                             id="referralFeeAmount"
                             name="referralFeeAmount"
                             value={formData.referralFeeAmount || 0}
-                            onValueChange={currencyChange("referralFeeAmount")}
+                            onValueChange={(value) => handleReferralAmountChange("fee", value)}
                         />
                     </div>
                     <div className="border-t pt-1.5">

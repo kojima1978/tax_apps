@@ -11,6 +11,7 @@
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:verify-normalization": "tsx prisma/verify-normalization.ts",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

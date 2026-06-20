@@ -113,31 +113,47 @@ const TABLE_DEFS = [
       const deceasedNameKanaNormalized = typeof c.deceasedNameKanaNormalized === 'string' && c.deceasedNameKanaNormalized
         ? c.deceasedNameKanaNormalized
         : normalizePersonSearchText(deceasedNameKana);
+      const statusData = normalizeBackupStatus(c);
+      const fallbackDate = toDateOnly((c.updatedAt ?? c.createdAt) as string);
+      const caseAddedDate = statusData.status === '受託' || ['手続中', '最終確認', '申告済', '請求済', '入金済'].includes(statusData.status)
+        ? c.caseAddedDate ? toDateOnly(c.caseAddedDate as string) : fallbackDate
+        : null;
+      const caseCompletedDate = ['申告済', '請求済', '入金済'].includes(statusData.status)
+        ? c.caseCompletedDate ? toDateOnly(c.caseCompletedDate as string) : fallbackDate
+        : null;
+      const billedDate = ['請求済', '入金済'].includes(statusData.status)
+        ? c.billedDate ? toDateOnly(c.billedDate as string) : fallbackDate
+        : null;
+      const paidDate = statusData.status === '入金済'
+        ? c.paidDate ? toDateOnly(c.paidDate as string) : billedDate ?? fallbackDate
+        : null;
       return {
       id: c.id as number,
       deceasedName: c.deceasedName as string,
       deceasedNameKana,
       deceasedNameKanaNormalized,
       dateOfDeath: toDateOnly(c.dateOfDeath as string),
-      ...normalizeBackupStatus(c),
+      ...statusData,
       taxAmount: toNumOr(c.taxAmount, 0),
       feeAmount: toNumOr(c.feeAmount, 0),
       fiscalYear: toNumOr(c.fiscalYear, new Date().getFullYear()),
       estimateAmount: toNumOr(c.estimateAmount, 0),
       propertyValue: toNumOr(c.propertyValue, 0),
       referralFeeRate: toNum(c.referralFeeRate),
-      referralFeeAmount: toNum(c.referralFeeAmount),
-      estimateReferralFeeAmount: toNum(c.estimateReferralFeeAmount),
+      referralFeeAmount: toNumOr(c.referralFeeAmount, 0),
+      estimateReferralFeeAmount: toNumOr(c.estimateReferralFeeAmount, 0),
+      isReferralFeeManual: Boolean(c.isReferralFeeManual),
+      isEstimateReferralFeeManual: Boolean(c.isEstimateReferralFeeManual),
       landRosenkaCount: toNumOr(c.landRosenkaCount, 0),
       landBairitsuCount: toNumOr(c.landBairitsuCount, 0),
       unlistedStockCount: toNumOr(c.unlistedStockCount, 0),
-      heirCount: toNumOr(c.heirCount, 0),
+      feeCalculationHeirCount: toNumOr(c.feeCalculationHeirCount ?? c.heirCount, 0),
       discountAmount: toNumOr(c.discountAmount, 0),
       feeCalcSnapshot: (c.feeCalcSnapshot as Record<string, unknown>) ?? null,
-      caseAddedDate: c.caseAddedDate ? toDateOnly(c.caseAddedDate as string) : null,
-      caseCompletedDate: c.caseCompletedDate ? toDateOnly(c.caseCompletedDate as string) : null,
-      billedDate: c.billedDate ? toDateOnly(c.billedDate as string) : null,
-      paidDate: c.paidDate ? toDateOnly(c.paidDate as string) : null,
+      caseAddedDate,
+      caseCompletedDate,
+      billedDate,
+      paidDate,
       summary: (c.summary as string) ?? null,
       memo: (c.memo as string) ?? null,
       assigneeId: (c.assigneeId as number) ?? null,

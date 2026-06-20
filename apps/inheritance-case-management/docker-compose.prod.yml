@@ -25,6 +25,8 @@ services:
   web:
     build:
       target: runner
+    labels:
+      tax-apps.autoheal: "true"
     init: false
     volumes:
       # テンプレートファイル（見積書・請求書Excel）のみマウント
