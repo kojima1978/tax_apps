@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import { RankingTable } from "./RankingTable"
 import { formatCurrency } from "@/lib/analytics-utils"
+import { appendAnalyticsStatuses, appendSelectedYears } from "./drilldown-utils"
 
 interface ReferrerTabProps {
     sortedCompanyRanking: { name: string; feeTotal: number; count: number; departments?: { name: string; feeTotal: number; count: number }[] }[]
@@ -16,9 +17,8 @@ function buildCompanyHref(companyName: string, selectedYears: Set<number>): stri
     } else {
         params.set("referrerCompany", companyName)
     }
-    if (selectedYears.size === 1) {
-        params.set("fiscalYear", String([...selectedYears][0]))
-    }
+    appendAnalyticsStatuses(params)
+    appendSelectedYears(params, selectedYears)
     return `/?${params.toString()}`
 }
 
@@ -45,9 +45,9 @@ export function ReferrerTab({ sortedCompanyRanking, companySort, onCompanySort, 
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black" />確定 = 完了案件の報酬額ベース</span>
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black/60" />見込 = 手続中案件の見積額ベース</span>
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />受託前・見送りは集計対象外</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black" />確定 = 請求済・入金済の確定報酬額</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black/60" />見込 = 受託〜申告済の見積額</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />見積前・見積中・見送りは集計対象外</span>
                 </div>
                 <div className="space-y-2">
                     <RankingTable

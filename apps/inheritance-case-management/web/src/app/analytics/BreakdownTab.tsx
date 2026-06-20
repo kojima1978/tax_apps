@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ChevronRight, ChevronsUpDown, Info } from "lucide-react"
 import { formatCurrency } from "@/lib/analytics-utils"
 import type { RankingData } from "@/lib/analytics-utils"
+import { appendAnalyticsStatuses, appendSelectedYears } from "./drilldown-utils"
 
 export type AssigneeRankingData = RankingData & { assigneeId: number }
 
@@ -55,18 +56,16 @@ function calcDeptTotals(assignees: RankingData[]): DeptTotals {
 function buildCaseListUrl(assigneeId: number, selectedYears: Set<number>): string {
     const params = new URLSearchParams()
     params.set("staffId", String(assigneeId))
-    if (selectedYears.size === 1) {
-        params.set("fiscalYear", String([...selectedYears][0]))
-    }
+    appendAnalyticsStatuses(params)
+    appendSelectedYears(params, selectedYears)
     return `/?${params.toString()}`
 }
 
 function buildUnassignedUrl(selectedYears: Set<number>): string {
     const params = new URLSearchParams()
     params.set("unassigned", "true")
-    if (selectedYears.size === 1) {
-        params.set("fiscalYear", String([...selectedYears][0]))
-    }
+    appendAnalyticsStatuses(params)
+    appendSelectedYears(params, selectedYears)
     return `/?${params.toString()}`
 }
 
@@ -112,9 +111,9 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
                     </button>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black" />確定 = 完了案件の報酬額ベース</span>
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black/60" />見込 = 手続中案件の見積額ベース</span>
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />受託前・見送りは集計対象外</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black" />確定 = 請求済・入金済の確定報酬額</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black/60" />見込 = 受託〜申告済の見積額</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />見積前・見積中・見送りは集計対象外</span>
                 </div>
                 <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
                     <table className="w-full text-sm text-left">

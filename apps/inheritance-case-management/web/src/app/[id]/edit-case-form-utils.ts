@@ -77,6 +77,8 @@ export function getCaseApiPayload(formData: InheritanceCase) {
         memo: formData.memo || null,
         caseAddedDate: formData.caseAddedDate || null,
         caseCompletedDate: formData.caseCompletedDate || null,
+        billedDate: formData.billedDate || null,
+        paidDate: formData.paidDate || null,
         assigneeId: formData.assigneeId || null,
         internalReferrerId: formData.internalReferrerId || null,
         referrerId: formData.referrerId || null,

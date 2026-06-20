@@ -28,6 +28,17 @@ export const isAccepted = (status: string): boolean => (ACCEPTED_STATUSES as rea
 export const COMPLETED_STATUSES: readonly CaseStatus[] = ['申告済', '請求済', '入金済'] as const
 /** ステータス判定ヘルパー */
 export const isCompleted = (status: string): boolean => (COMPLETED_STATUSES as readonly string[]).includes(status)
+/** 経営分析の見積売上対象 */
+export const ANALYTICS_ESTIMATE_STATUSES: readonly CaseStatus[] = ['受託', '手続中', '最終確認', '申告済'] as const
+/** 経営分析の確定売上対象 */
+export const ANALYTICS_CONFIRMED_STATUSES: readonly CaseStatus[] = ['請求済', '入金済'] as const
+/** 経営分析の売上・紹介料集計対象 */
+export const ANALYTICS_STATUSES: readonly CaseStatus[] = [...ANALYTICS_ESTIMATE_STATUSES, ...ANALYTICS_CONFIRMED_STATUSES] as const
+export const ANALYTICS_STATUS_CSV = ANALYTICS_STATUSES.join(',')
+export const isAnalyticsEstimateStatus = (status: string): boolean =>
+    (ANALYTICS_ESTIMATE_STATUSES as readonly string[]).includes(status)
+export const isAnalyticsConfirmedStatus = (status: string): boolean =>
+    (ANALYTICS_CONFIRMED_STATUSES as readonly string[]).includes(status)
 /** 対応終了（一覧の非アクティブ表示用）: 見送り・入金済・未分割 */
 export const isHandlingEnded = (status: string, isUndivided?: boolean): boolean =>
     status === '見送り' || status === '入金済' || !!isUndivided
@@ -53,7 +64,7 @@ export const isMilestoneTriggered = (field: MilestoneDateField, status?: string 
 export const CASE_STATUS_FILTER_OPTIONS = CASE_STATUS_OPTIONS.map(s => ({ value: s, label: s }))
 
 // Filter keys used for hasFilters check and KPI dependency
-export const FILTER_KEYS = ['search', 'status', 'fiscalYear', 'department', 'assigneeId', 'internalReferrerId', 'staffId', 'referrerCompany', 'unassigned', 'noReferrer', 'deadlineSoon', 'caseAddedFrom', 'caseAddedTo', 'caseCompletedFrom', 'caseCompletedTo'] as const
+export const FILTER_KEYS = ['search', 'status', 'fiscalYear', 'fiscalYears', 'department', 'assigneeId', 'internalReferrerId', 'staffId', 'referrerCompany', 'unassigned', 'noReferrer', 'deadlineSoon', 'caseAddedFrom', 'caseAddedTo', 'caseCompletedFrom', 'caseCompletedTo', 'billedFrom', 'billedTo'] as const
 
 // Fiscal year range
 export const FISCAL_YEAR_START = 2015

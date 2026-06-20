@@ -5,13 +5,19 @@ import type { InheritanceCase } from "@/types/shared"
 import type { KPICardFilterKey } from "@/components/cases/KPICards"
 
 export const CASE_LIST_PAGE_SIZE = 100
-export const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedFrom", "caseCompletedTo"] as const
+export const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedFrom", "caseCompletedTo", "billedFrom", "billedTo"] as const
 
 // KPIカード（手続中・完了）のステータス絞り込み値
 export const ONGOING_STATUS = "手続中,最終確認"
 export const COMPLETED_STATUS_CSV = [...COMPLETED_STATUSES].join(",")
 
-const KPI_QUICK_FILTER_KEYS = ["deadlineSoon", ...DATE_FILTER_KEYS] as const
+const KPI_QUICK_FILTER_KEYS = [
+    "deadlineSoon",
+    "caseAddedFrom",
+    "caseAddedTo",
+    "caseCompletedFrom",
+    "caseCompletedTo",
+] as const
 const BOOLEAN_FILTER_KEYS = ["unassigned", "noReferrer", "deadlineSoon"] as const
 const NUMBER_FILTER_KEYS = ["assigneeId", "internalReferrerId", "staffId", "fiscalYear"] as const
 
@@ -63,6 +69,7 @@ export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQuer
     const pageSize = searchParams.get("pageSize")
     if (pageSize) params.pageSize = Number(pageSize)
     const fiscalYear = searchParams.get("fiscalYear")
+    const fiscalYears = searchParams.get("fiscalYears")
 
     for (const key of ["search", "status", "department"] as const) {
         const value = searchParams.get(key)
@@ -85,6 +92,8 @@ export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQuer
 
     if (fiscalYear) {
         params.fiscalYear = Number(fiscalYear)
+    } else if (fiscalYears) {
+        params.fiscalYears = fiscalYears
     } else if (!getHasCaseFilters(params)) {
         params.fiscalYear = new Date().getFullYear()
     }
@@ -103,6 +112,7 @@ export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQuer
 export function toCaseListUrlSearch(params: CasesQueryParams): string {
     const sp = new URLSearchParams()
     if (params.fiscalYear) sp.set("fiscalYear", String(params.fiscalYear))
+    if (params.fiscalYears) sp.set("fiscalYears", params.fiscalYears)
     if (params.search) sp.set("search", params.search)
     if (params.status) sp.set("status", params.status)
     if (params.hideClosed === false) sp.set("hideClosed", "false")
@@ -170,6 +180,10 @@ export function calculateCaseListAmountTotals(cases: InheritanceCase[]): CaseLis
 export function getCaseListFilterDescription(params: CasesQueryParams, assignees: NamedMaster[]): string {
     const parts: string[] = []
     if (params.fiscalYear) parts.push(`${params.fiscalYear}年度`)
+    if (params.fiscalYears) parts.push(`年度: ${params.fiscalYears.split(',').join('・')}`)
+    if (params.billedFrom || params.billedTo) {
+        parts.push(`請求日: ${params.billedFrom || ""}〜${params.billedTo || ""}`)
+    }
     if (params.status) parts.push(`ステータス: ${params.status}`)
     if (params.department) parts.push(`部門: ${params.department}`)
     if (params.assigneeId) {

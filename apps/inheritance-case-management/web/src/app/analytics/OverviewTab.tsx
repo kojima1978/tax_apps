@@ -21,9 +21,17 @@ const STATUS_TABLES: StatusTableConfig[] = [
 ]
 
 const SUMMARY_CARDS = [
-    { title: "売上（確定＋見積）", cardClass: "bg-white border", valueClass: "text-3xl font-bold text-foreground", isPrimary: true, footnote: "※請求総額" },
-    { title: "売上（確定）", cardClass: "bg-card border", valueClass: "text-2xl font-bold", footnote: "※請求総額" },
-    { title: "売上（見積）", cardClass: "bg-card border", valueClass: "text-2xl font-bold", footnote: "※見積総額" },
+    { title: "売上", detail: "（確定＋見積）", cardClass: "bg-white border", valueClass: "text-2xl font-bold text-foreground", isPrimary: true, footnote: "※請求総額" },
+    { title: "売上", detail: "（確定）", cardClass: "bg-card border", valueClass: "text-xl font-bold", footnote: "※請求総額" },
+    { title: "売上", detail: "（見積）", cardClass: "bg-card border", valueClass: "text-xl font-bold", footnote: "※見積総額" },
+] as const
+
+const PERFORMANCE_HEADERS = [
+    { title: "売上", detail: "（確定＋見積）" },
+    { title: "売上", detail: "（確定）" },
+    { title: "売上", detail: "（見積）" },
+    { title: "件数", detail: "（売上＋見積）" },
+    { title: "平均単価", detail: undefined },
 ] as const
 
 interface SummaryTotals {
@@ -51,23 +59,27 @@ export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTa
     ]
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <div className="animate-in space-y-6 fade-in slide-in-from-bottom-2 duration-500">
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {SUMMARY_CARDS.map((card, i) => (
-                    <div key={card.title} className={`p-6 rounded-lg shadow-sm ${card.cardClass} ${'isPrimary' in card && card.isPrimary ? "relative overflow-hidden" : ""}`}>
+                    <div key={card.detail} className={`rounded-lg p-4 shadow-sm ${card.cardClass} ${'isPrimary' in card && card.isPrimary ? "relative overflow-hidden" : ""}`}>
                         {'isPrimary' in card && card.isPrimary && (
                             <div className="absolute top-0 right-0 p-4 opacity-10">
                                 <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
                             </div>
                         )}
-                        <div className="text-sm font-medium text-muted-foreground mb-2">{card.title}</div>
+                        <div className="mb-1.5 font-medium leading-tight text-muted-foreground">
+                            <span className="block text-xs">{card.title}</span>
+                            <span className="block text-[10px]">{card.detail}</span>
+                        </div>
                         <div className="flex items-baseline gap-2">
                             <div className={card.valueClass}>{formatCurrency(cardData[i].net)}</div>
-                            <div className="text-sm text-muted-foreground">/ {cardData[i].count} 件</div>
+                            <div className="text-xs text-muted-foreground">/ {cardData[i].count} 件</div>
                         </div>
-                        <div className="mt-2 text-xs text-muted-foreground">
-                            {card.footnote}: {formatCurrency(cardData[i].gross)} − 紹介手数料（社外） {formatCurrency(cardData[i].refExternal)}
+                        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1 text-[10px] leading-tight text-muted-foreground">
+                            <span className="whitespace-nowrap">{card.footnote}: {formatCurrency(cardData[i].gross)}</span>
+                            <span className="whitespace-nowrap">− 紹介手数料（社外） {formatCurrency(cardData[i].refExternal)}</span>
                         </div>
                     </div>
                 ))}
@@ -75,30 +87,31 @@ export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTa
 
             {/* Annual Performance */}
             <div className="space-y-4">
-                <h2 className="text-xl font-semibold border-b pb-2">
+                <h2 className="border-b pb-1.5 text-lg font-semibold">
                     {yearLabel === "全期間" ? "年度別 業績推移" : `${yearLabel} 業績詳細`}
                 </h2>
                 <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
-                    <table className="w-full text-sm text-left min-w-[500px]">
+                    <table className="min-w-[680px] w-full text-left text-xs">
                         <thead className="bg-muted text-muted-foreground font-medium">
                             <tr>
-                                <th className="p-3 w-32">年度</th>
-                                <th className="p-3 text-right">売上（確定＋見積）</th>
-                                <th className="p-3 text-right">売上（確定）</th>
-                                <th className="p-3 text-right">売上（見積）</th>
-                                <th className="p-3 text-center">件数（売上＋見積）</th>
-                                <th className="p-3 text-right">平均単価</th>
+                                <th className="w-28 p-2">年度</th>
+                                {PERFORMANCE_HEADERS.map((header) => (
+                                    <th key={`${header.title}-${header.detail || ""}`} className="p-2 text-left align-middle">
+                                        <span className="block whitespace-nowrap text-xs">{header.title}</span>
+                                        {header.detail && <span className="block whitespace-nowrap text-[10px] font-normal">{header.detail}</span>}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y">
                             {annualData.map(d => (
                                 <tr key={d.year}>
-                                    <td className="p-3 font-medium">{d.year}年度<span className="text-muted-foreground text-xs ml-1">({fiscalYearWareki(d.year)})</span></td>
-                                    <td className="p-3 text-right font-bold text-base">{formatCurrency(d.feeTotal + d.estimateTotal)}</td>
-                                    <td className="p-3 text-right">{formatCurrency(d.feeTotal)}</td>
-                                    <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.estimateTotal)}</td>
-                                    <td className="p-3 text-center">{d.count}件</td>
-                                    <td className="p-3 text-right">{formatCurrency(d.count > 0 ? (d.feeTotal + d.estimateTotal) / d.count : 0)}</td>
+                                    <td className="p-2 font-medium">{d.year}年度<span className="ml-1 text-[10px] text-muted-foreground">({fiscalYearWareki(d.year)})</span></td>
+                                    <td className="p-2 text-right text-sm font-bold">{formatCurrency(d.feeTotal + d.estimateTotal)}</td>
+                                    <td className="p-2 text-right">{formatCurrency(d.feeTotal)}</td>
+                                    <td className="p-2 text-right text-muted-foreground">{formatCurrency(d.estimateTotal)}</td>
+                                    <td className="p-2 text-center">{d.count}件</td>
+                                    <td className="p-2 text-right">{formatCurrency(d.count > 0 ? (d.feeTotal + d.estimateTotal) / d.count : 0)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -110,7 +123,7 @@ export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTa
                     {STATUS_TABLES.map((table) => (
                         <div key={table.title} className="bg-card rounded-lg border shadow-sm overflow-hidden">
                             <div className="p-3 bg-muted border-b text-sm font-medium text-muted-foreground">{table.title}</div>
-                            <table className="w-full text-sm text-center">
+                            <table className="w-full text-center text-xs">
                                 <thead className="text-muted-foreground border-b bg-card">
                                     <tr>
                                         <th className="p-2">年度</th>

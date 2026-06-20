@@ -210,13 +210,14 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       normalizeDeceasedNameKana(updateData, data.deceasedNameKana);
     }
 
-    const statusChanged = 'status' in data;
+    const statusChanged = 'status' in data && data.status !== before.status;
     const newStatus = (statusChanged ? data.status : before.status) as string;
     const beforeRec = before as unknown as Record<string, unknown>;
 
     // マイルストン日付（受託/申告/請求/入金）をステータス連動で自動セット / 後退時はクリア
     for (const { field } of MILESTONE_DATES) {
       if (field in data) continue;
+      if (!statusChanged) continue;
       if (isMilestoneTriggered(field, newStatus)) {
         if (!beforeRec[field]) updateData[field] = todayDate();
       } else if (statusChanged && beforeRec[field]) {

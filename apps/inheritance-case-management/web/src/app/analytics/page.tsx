@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
 import type { InheritanceCase, Assignee } from "@/types/shared"
@@ -24,6 +24,11 @@ const TABS: { id: TabId; label: string }[] = [
     { id: "referrer", label: "外部紹介者" },
 ]
 
+function getCurrentMonth(): string {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+}
+
 export default function AnalyticsPage() {
     const [data, setData] = useState<InheritanceCase[]>([])
     const [assigneesData, setAssigneesData] = useState<Assignee[]>([])
@@ -33,6 +38,7 @@ export default function AnalyticsPage() {
     const [activeTab, setActiveTab] = useState<TabId>("overview")
     const [years, setYears] = useState<number[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [annualBaseMonth, setAnnualBaseMonth] = useState(getCurrentMonth)
 
     const isAllYears = selectedYears.size === 0
 
@@ -63,6 +69,13 @@ export default function AnalyticsPage() {
         load()
     }, [])
 
+    useEffect(() => {
+        const value = new URLSearchParams(window.location.search).get("baseMonth")
+        if (value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && value <= getCurrentMonth()) {
+            setAnnualBaseMonth(value)
+        }
+    }, [])
+
     const filteredData = useMemo(() => {
         if (isAllYears) return data
         return data.filter(c => selectedYears.has(c.fiscalYear))
@@ -80,7 +93,21 @@ export default function AnalyticsPage() {
         [filteredData, deptMap]
     )
 
-    const rollingAnnualData = useMemo(() => computeRollingAnnual(data), [data])
+    const rollingAnnualData = useMemo(
+        () => computeRollingAnnual(data, annualBaseMonth),
+        [annualBaseMonth, data]
+    )
+
+    const handleAnnualBaseMonthChange = useCallback((value: string) => {
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return
+        const normalized = value > getCurrentMonth() ? getCurrentMonth() : value
+        setAnnualBaseMonth(normalized)
+
+        const url = new URL(window.location.href)
+        if (normalized === getCurrentMonth()) url.searchParams.delete("baseMonth")
+        else url.searchParams.set("baseMonth", normalized)
+        window.history.replaceState(null, "", `${url.pathname}${url.search}`)
+    }, [])
 
     const { sorted: sortedCompanyRanking, sort: companySort, handleSort: handleCompanySort } = useRankingSort(aggregation.companyRanking)
 
@@ -183,13 +210,13 @@ export default function AnalyticsPage() {
     }
 
     return (
-        <div className="container mx-auto py-10 px-4 space-y-8">
+        <div className="container mx-auto space-y-5 px-3 py-6 text-sm">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <h1 className="text-2xl md:text-3xl font-bold">経営分析ダッシュボード</h1>
+                <h1 className="text-xl font-bold md:text-2xl">経営分析ダッシュボード</h1>
                 <div className="flex items-center gap-1 flex-wrap">
                     <button
                         onClick={() => setSelectedYears(new Set())}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-full border transition-colors cursor-pointer ${isAllYears ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground"}`}
+                        className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${isAllYears ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground"}`}
                     >
                         全期間
                     </button>
@@ -207,7 +234,7 @@ export default function AnalyticsPage() {
                                     }
                                     setSelectedYears(next)
                                 }}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-full border transition-colors cursor-pointer ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground"}`}
+                                className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground"}`}
                             >
                                 {y}
                             </button>
@@ -222,7 +249,7 @@ export default function AnalyticsPage() {
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-ring ${activeTab === tab.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/50"}`}
+                        className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring ${activeTab === tab.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/50"}`}
                     >
                         {tab.label}
                     </button>
@@ -238,7 +265,11 @@ export default function AnalyticsPage() {
             )}
 
             {activeTab === "trend" && (
-                <AnnualTrendTab data={rollingAnnualData} />
+                <AnnualTrendTab
+                    data={rollingAnnualData}
+                    baseMonth={annualBaseMonth}
+                    onBaseMonthChange={handleAnnualBaseMonthChange}
+                />
             )}
 
             {activeTab === "breakdown" && (

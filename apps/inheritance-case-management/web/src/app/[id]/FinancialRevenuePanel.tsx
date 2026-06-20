@@ -51,24 +51,15 @@ export function FinancialRevenuePanel({
     }
 
     return (
-        <div className="space-y-3 col-span-1 border rounded-lg bg-muted/30 p-3 sm:col-span-2">
-            <Label className="text-base font-semibold">紹介料・担当者売上</Label>
-            <div className="max-w-xs space-y-1.5">
-                <Label htmlFor="referralFeeRate" className="text-xs">紹介料率 (%)</Label>
-                <Input
-                    id="referralFeeRate"
-                    name="referralFeeRate"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={formData.referralFeeRate?.toString() ?? ""}
-                    onChange={(e) => handleReferralFeeRateChange(e.target.value)}
-                />
-            </div>
-            <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
-                <div className="border rounded-lg bg-background p-3 space-y-2.5">
-                    <Label className="text-sm font-semibold text-muted-foreground">見積書</Label>
+        <div className="col-span-1 space-y-2 rounded-lg border bg-muted/30 p-2.5 sm:col-span-2">
+            <Label className="text-sm font-semibold">紹介料・担当者売上</Label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[130px_minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="space-y-1 rounded-md border bg-background p-2">
+                    <Label htmlFor="referralFeeRate" className="text-[11px]">紹介料率 (%)</Label>
+                    <Input id="referralFeeRate" name="referralFeeRate" type="number" min="0" max="100" step="0.1" value={formData.referralFeeRate?.toString() ?? ""} onChange={(e) => handleReferralFeeRateChange(e.target.value)} />
+                </div>
+                <div className="space-y-1.5 rounded-md border bg-background p-2">
+                    <Label className="text-xs font-semibold text-muted-foreground">見積書</Label>
                     <div className="space-y-1.5">
                         <Label htmlFor="estimateAmount" className="text-xs">見積額（税抜）</Label>
                         <CurrencyField
@@ -87,15 +78,15 @@ export function FinancialRevenuePanel({
                             onValueChange={currencyChange("estimateReferralFeeAmount")}
                         />
                     </div>
-                    <div className="border-t pt-3">
+                    <div className="border-t pt-1.5">
                         <div className="flex justify-between items-end">
-                            <span className="text-sm font-medium">手取り</span>
-                            <span className="text-lg font-bold">{formatCurrency(estimateNetRevenue)}</span>
+                            <span className="text-[11px] font-medium">手取り</span>
+                            <span className="text-sm font-bold">{formatCurrency(estimateNetRevenue)}</span>
                         </div>
                     </div>
                 </div>
-                <div className={`border-2 rounded-lg bg-background p-3 space-y-2.5 transition-colors duration-500 ${highlightFee ? "border-black bg-white" : "border-primary/20"}`}>
-                    <Label className="text-sm font-semibold">請求書</Label>
+                <div className={`space-y-1.5 rounded-md border-2 bg-background p-2 transition-colors duration-500 ${highlightFee ? "border-black bg-white" : "border-primary/20"}`}>
+                    <Label className="text-xs font-semibold">請求書</Label>
                     <div className="space-y-1.5">
                         <Label htmlFor="feeAmount" className="text-xs">報酬額（税抜）{highlightFee && <span className="text-black ml-1">← 入力してください</span>}</Label>
                         <CurrencyField
@@ -114,10 +105,10 @@ export function FinancialRevenuePanel({
                             onValueChange={currencyChange("referralFeeAmount")}
                         />
                     </div>
-                    <div className="border-t pt-3">
+                    <div className="border-t pt-1.5">
                         <div className="flex justify-between items-end">
-                            <span className="text-sm font-medium">手取り</span>
-                            <span className="text-lg font-bold">{formatCurrency(netRevenue)}</span>
+                            <span className="text-[11px] font-medium">手取り</span>
+                            <span className="text-sm font-bold">{formatCurrency(netRevenue)}</span>
                         </div>
                     </div>
                 </div>

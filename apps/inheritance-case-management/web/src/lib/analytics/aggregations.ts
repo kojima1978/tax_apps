@@ -1,6 +1,6 @@
 import type { InheritanceCase } from "@/types/shared"
 import { formatReferrerLabel } from "@/types/shared"
-import { isAccepted, isCompleted } from "@/types/constants"
+import { isAccepted, isAnalyticsConfirmedStatus, isCompleted } from "@/types/constants"
 import { calcNet, calcNetPersonal, calcReferralFee, getAnalyticsBaseType, LABEL_NONE, LABEL_UNSET } from "./calculations"
 
 export type AnnualData = {
@@ -55,15 +55,19 @@ export type RollingAnnualPoint = {
     label: string       // "2025/04"
     year: number
     month: number
+    monthStart: string  // "2025-04-01"
+    monthEnd: string    // 翌月初日（排他的上限）
+    monthlyFee: number
+    monthlyCount: number
     feeTotal: number    // 確定売上の12ヶ月累計
     count: number       // 件数の12ヶ月累計
 }
 
 /** 完了案件を月別に集計し、移動年計を算出（基準: 請求日 billedDate） */
-export function computeRollingAnnual(cases: InheritanceCase[]): RollingAnnualPoint[] {
+export function computeRollingAnnual(cases: InheritanceCase[], baseMonth?: string): RollingAnnualPoint[] {
     const monthlyMap = new Map<string, { fee: number; count: number }>()
     cases.forEach(c => {
-        if (!isAccepted(c.status) || !isCompleted(c.status)) return
+        if (!isAnalyticsConfirmedStatus(c.status)) return
         if (!c.billedDate) return
         const d = new Date(c.billedDate)
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -73,33 +77,38 @@ export function computeRollingAnnual(cases: InheritanceCase[]): RollingAnnualPoi
         m.count++
     })
 
-    if (monthlyMap.size === 0) return []
-
-    const sortedKeys = Array.from(monthlyMap.keys()).sort()
-    const [startY, startM] = sortedKeys[0].split('-').map(Number)
     const now = new Date()
-    const endY = now.getFullYear()
-    const endM = now.getMonth() + 1
+    const validBaseMonth = baseMonth?.match(/^(\d{4})-(0[1-9]|1[0-2])$/)
+    const baseYear = validBaseMonth ? Number(validBaseMonth[1]) : now.getFullYear()
+    const baseMonthNumber = validBaseMonth ? Number(validBaseMonth[2]) : now.getMonth() + 1
+    const baseDate = new Date(baseYear, baseMonthNumber - 1, 1)
 
-    const allMonths: { year: number; month: number; key: string }[] = []
-    let y = startY, m = startM
-    while (y < endY || (y === endY && m <= endM)) {
-        allMonths.push({ year: y, month: m, key: `${y}-${String(m).padStart(2, '0')}` })
-        m++
-        if (m > 12) { m = 1; y++ }
+    const toMonth = (date: Date) => {
+        const year = date.getFullYear()
+        const month = date.getMonth() + 1
+        return { year, month, key: `${year}-${String(month).padStart(2, '0')}` }
     }
 
     const result: RollingAnnualPoint[] = []
-    for (let i = 11; i < allMonths.length; i++) {
+    for (let offset = -23; offset <= 0; offset++) {
+        const pointDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + offset, 1)
+        const point = toMonth(pointDate)
+        const monthly = monthlyMap.get(point.key) || { fee: 0, count: 0 }
         let feeTotal = 0, count = 0
-        for (let j = i - 11; j <= i; j++) {
-            const data = monthlyMap.get(allMonths[j].key)
+        for (let windowOffset = -11; windowOffset <= 0; windowOffset++) {
+            const windowDate = new Date(point.year, point.month - 1 + windowOffset, 1)
+            const data = monthlyMap.get(toMonth(windowDate).key)
             if (data) { feeTotal += data.fee; count += data.count }
         }
-        const { year: py, month: pm } = allMonths[i]
+        const nextMonth = toMonth(new Date(point.year, point.month, 1))
         result.push({
-            label: `${py}/${String(pm).padStart(2, '0')}`,
-            year: py, month: pm,
+            label: `${point.year}/${String(point.month).padStart(2, '0')}`,
+            year: point.year,
+            month: point.month,
+            monthStart: `${point.key}-01`,
+            monthEnd: `${nextMonth.key}-01`,
+            monthlyFee: monthly.fee,
+            monthlyCount: monthly.count,
             feeTotal, count,
         })
     }
@@ -174,33 +183,33 @@ export function aggregateCases(cases: InheritanceCase[], deptMap: Map<string, st
             else if (baseType === "estimate") { entry.estimateFee! += amount; entry.referralEstimateFee! += amount }
         }
 
-        // 担当者の担当売上
-        const assigneeName = c.assignee?.name || LABEL_UNSET
-        if (!assigneeMap.has(assigneeName)) assigneeMap.set(assigneeName, initRanking(assigneeName))
-        const assigneeEntry = assigneeMap.get(assigneeName)!
-        addAssigned(assigneeEntry, personalNet)
-        assigneeEntry.count++
+        // 担当者・部門別も売上集計と同じ対象ステータスだけを数える
+        if (baseType) {
+            const assigneeName = c.assignee?.name || LABEL_UNSET
+            if (!assigneeMap.has(assigneeName)) assigneeMap.set(assigneeName, initRanking(assigneeName))
+            const assigneeEntry = assigneeMap.get(assigneeName)!
+            addAssigned(assigneeEntry, personalNet)
+            assigneeEntry.count++
 
-        // 社内紹介者の紹介売上 → internalReferrer で紐づいた担当者に加算
-        if (referralFee > 0 && c.internalReferrerId != null) {
-            const refAssigneeName = c.internalReferrer?.name || LABEL_UNSET
-            if (!assigneeMap.has(refAssigneeName)) assigneeMap.set(refAssigneeName, initRanking(refAssigneeName))
-            addReferral(assigneeMap.get(refAssigneeName)!, referralFee)
-        }
+            // 社内紹介者の紹介売上 → internalReferrer で紐づいた担当者に加算
+            if (referralFee > 0 && c.internalReferrerId != null) {
+                const refAssigneeName = c.internalReferrer?.name || LABEL_UNSET
+                if (!assigneeMap.has(refAssigneeName)) assigneeMap.set(refAssigneeName, initRanking(refAssigneeName))
+                addReferral(assigneeMap.get(refAssigneeName)!, referralFee)
+            }
 
-        // 部門別（担当売上）
-        const deptName = deptMap.get(assigneeName) || LABEL_UNSET
-        if (!deptRankingMap.has(deptName)) deptRankingMap.set(deptName, initRanking(deptName))
-        const deptEntry = deptRankingMap.get(deptName)!
-        addAssigned(deptEntry, personalNet)
-        deptEntry.count++
+            const deptName = deptMap.get(assigneeName) || LABEL_UNSET
+            if (!deptRankingMap.has(deptName)) deptRankingMap.set(deptName, initRanking(deptName))
+            const deptEntry = deptRankingMap.get(deptName)!
+            addAssigned(deptEntry, personalNet)
+            deptEntry.count++
 
-        // 部門別（社内紹介売上）
-        if (referralFee > 0 && c.internalReferrerId != null) {
-            const refAssigneeName2 = c.internalReferrer?.name || LABEL_UNSET
-            const refDeptName = deptMap.get(refAssigneeName2) || LABEL_UNSET
-            if (!deptRankingMap.has(refDeptName)) deptRankingMap.set(refDeptName, initRanking(refDeptName))
-            addReferral(deptRankingMap.get(refDeptName)!, referralFee)
+            if (referralFee > 0 && c.internalReferrerId != null) {
+                const refAssigneeName = c.internalReferrer?.name || LABEL_UNSET
+                const refDeptName = deptMap.get(refAssigneeName) || LABEL_UNSET
+                if (!deptRankingMap.has(refDeptName)) deptRankingMap.set(refDeptName, initRanking(refDeptName))
+                addReferral(deptRankingMap.get(refDeptName)!, referralFee)
+            }
         }
 
         // 紹介者ランキング（社外紹介者のみ + 社内紹介者）— 完了・手続中のみ集計

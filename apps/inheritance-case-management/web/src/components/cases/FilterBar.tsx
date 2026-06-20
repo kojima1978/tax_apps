@@ -100,6 +100,7 @@ export function FilterBar({
         search: (v) => `検索: ${v}`,
         status: (v) => `ステータス: ${v}`,
         fiscalYear: (v) => `年度: ${v}年度`,
+        fiscalYears: (v) => `年度: ${String(v).split(',').join('・')}`,
         department: (v) => `部門: ${v}`,
         assigneeId: (v) => `担当: ${assignees.find(a => a.id === v)?.name || v}`,
         internalReferrerId: (v) => `紹介者: ${assignees.find(a => a.id === v)?.name || v}`,
@@ -137,6 +138,18 @@ export function FilterBar({
             onClear: () => {
                 onFilterChange("caseCompletedFrom", undefined)
                 onFilterChange("caseCompletedTo", undefined)
+            },
+        })
+    }
+
+    if (queryParams.billedFrom || queryParams.billedTo) {
+        activeFilters.push({
+            key: "billedRange",
+            label: `請求日: ${formatExclusiveDateRange(queryParams.billedFrom, queryParams.billedTo)}`,
+            chipStyle: DEFAULT_CHIP_STYLE,
+            onClear: () => {
+                onFilterChange("billedFrom", undefined)
+                onFilterChange("billedTo", undefined)
             },
         })
     }

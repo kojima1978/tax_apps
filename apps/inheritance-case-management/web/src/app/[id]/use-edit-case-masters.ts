@@ -5,6 +5,17 @@ import { getReferrers } from "@/lib/api/referrers"
 import { getHeirPersons } from "@/lib/api/heir-persons"
 import { getRelatedPartyPersons } from "@/lib/api/related-party-persons"
 
+const MASTER_LOAD_RETRY_DELAY_MS = 500
+
+async function loadWithRetry<T>(load: () => Promise<T>): Promise<T> {
+    try {
+        return await load()
+    } catch {
+        await new Promise(resolve => setTimeout(resolve, MASTER_LOAD_RETRY_DELAY_MS))
+        return load()
+    }
+}
+
 export function useEditCaseMasters() {
     const [assignees, setAssignees] = useState<Assignee[]>([])
     const [referrers, setReferrers] = useState<Referrer[]>([])
@@ -12,23 +23,27 @@ export function useEditCaseMasters() {
     const [relatedPartyPersons, setRelatedPartyPersons] = useState<RelatedPartyPerson[]>([])
 
     useEffect(() => {
+        let cancelled = false
+
         const loadMasters = async () => {
             try {
                 const [as, rs, hps, rpps] = await Promise.all([
-                    getAssignees(),
-                    getReferrers(),
-                    getHeirPersons(),
-                    getRelatedPartyPersons(),
+                    loadWithRetry(getAssignees),
+                    loadWithRetry(getReferrers),
+                    loadWithRetry(getHeirPersons),
+                    loadWithRetry(getRelatedPartyPersons),
                 ])
+                if (cancelled) return
                 setAssignees(as)
                 setReferrers(rs)
                 setHeirPersons(hps)
                 setRelatedPartyPersons(rpps)
             } catch (e) {
-                console.error("Failed to load masters", e)
+                if (!cancelled) console.error("Failed to load masters", e)
             }
         }
-        loadMasters()
+        void loadMasters()
+        return () => { cancelled = true }
     }, [])
 
     return {

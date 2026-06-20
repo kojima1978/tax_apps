@@ -13,6 +13,7 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.isUndivided !== undefined) searchParams.set('isUndivided', String(params.isUndivided));
   if (params?.hideClosed) searchParams.set('hideClosed', 'true');
   if (params?.fiscalYear) searchParams.set('fiscalYear', String(params.fiscalYear));
+  if (params?.fiscalYears) searchParams.set('fiscalYears', params.fiscalYears);
   if (params?.search) searchParams.set('search', params.search);
   if (params?.assigneeId) searchParams.set('assigneeId', String(params.assigneeId));
   if (params?.internalReferrerId) searchParams.set('internalReferrerId', String(params.internalReferrerId));
@@ -26,6 +27,8 @@ export async function getCases(params?: CasesQueryParams): Promise<PaginatedResp
   if (params?.caseAddedTo) searchParams.set('caseAddedTo', params.caseAddedTo);
   if (params?.caseCompletedFrom) searchParams.set('caseCompletedFrom', params.caseCompletedFrom);
   if (params?.caseCompletedTo) searchParams.set('caseCompletedTo', params.caseCompletedTo);
+  if (params?.billedFrom) searchParams.set('billedFrom', params.billedFrom);
+  if (params?.billedTo) searchParams.set('billedTo', params.billedTo);
   if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
 
@@ -70,6 +73,7 @@ export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | '
   if (params?.isUndivided !== undefined) searchParams.set('isUndivided', String(params.isUndivided));
   if (params?.hideClosed) searchParams.set('hideClosed', 'true');
   if (params?.fiscalYear) searchParams.set('fiscalYear', String(params.fiscalYear));
+  if (params?.fiscalYears) searchParams.set('fiscalYears', params.fiscalYears);
   if (params?.search) searchParams.set('search', params.search);
   if (params?.assigneeId) searchParams.set('assigneeId', String(params.assigneeId));
   if (params?.internalReferrerId) searchParams.set('internalReferrerId', String(params.internalReferrerId));
@@ -83,6 +87,8 @@ export async function bulkDeleteCases(params?: Omit<CasesQueryParams, 'page' | '
   if (params?.caseAddedTo) searchParams.set('caseAddedTo', params.caseAddedTo);
   if (params?.caseCompletedFrom) searchParams.set('caseCompletedFrom', params.caseCompletedFrom);
   if (params?.caseCompletedTo) searchParams.set('caseCompletedTo', params.caseCompletedTo);
+  if (params?.billedFrom) searchParams.set('billedFrom', params.billedFrom);
+  if (params?.billedTo) searchParams.set('billedTo', params.billedTo);
 
   const queryString = searchParams.toString();
   const url = queryString ? `/cases/bulk-delete?${queryString}` : '/cases/bulk-delete';

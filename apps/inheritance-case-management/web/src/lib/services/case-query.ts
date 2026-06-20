@@ -9,6 +9,7 @@ export interface CaseWhereParams {
   isUndivided?: boolean;
   hideClosed?: boolean;
   fiscalYear?: number;
+  fiscalYears?: string;
   search?: string;
   assigneeId?: number;
   internalReferrerId?: number;
@@ -22,6 +23,8 @@ export interface CaseWhereParams {
   caseAddedTo?: string;
   caseCompletedFrom?: string;
   caseCompletedTo?: string;
+  billedFrom?: string;
+  billedTo?: string;
 }
 
 function csvOrSingle(value: string): string | { in: string[] } {
@@ -97,11 +100,14 @@ export function buildCaseWhereClause(params: CaseWhereParams): Prisma.Inheritanc
   if (params.isUndivided !== undefined) {
     where.isUndivided = params.isUndivided;
   }
-  if (params.hideClosed) {
+  // 名前検索と明示的なステータス指定では、完了案件を含む指定条件を優先する。
+  if (params.hideClosed && !params.search && !params.status) {
     appendAnd(where, { status: { notIn: ['見送り', '入金済'] } });
   }
   if (params.fiscalYear) {
     where.fiscalYear = params.fiscalYear;
+  } else if (params.fiscalYears) {
+    where.fiscalYear = { in: params.fiscalYears.split(',').map(Number) };
   }
   if (params.search) {
     applySearch(where, params.search);
@@ -131,6 +137,12 @@ export function buildCaseWhereClause(params: CaseWhereParams): Prisma.Inheritanc
     where.caseCompletedDate = {
       ...(params.caseCompletedFrom ? { gte: toDate(params.caseCompletedFrom) } : {}),
       ...(params.caseCompletedTo ? { lt: toDate(params.caseCompletedTo) } : {}),
+    };
+  }
+  if (params.billedFrom || params.billedTo) {
+    where.billedDate = {
+      ...(params.billedFrom ? { gte: toDate(params.billedFrom) } : {}),
+      ...(params.billedTo ? { lt: toDate(params.billedTo) } : {}),
     };
   }
 

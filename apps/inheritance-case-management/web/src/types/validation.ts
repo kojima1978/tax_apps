@@ -210,6 +210,7 @@ export const listQuerySchema = z.object({
   isUndivided: z.coerce.boolean().optional(),
   hideClosed: z.coerce.boolean().optional(),
   fiscalYear: z.coerce.number().int().optional(),
+  fiscalYears: z.string().regex(/^\d{4}(,\d{4})*$/).optional(),
   search: z.string().optional(),
   assigneeId: z.coerce.number().int().optional(),
   internalReferrerId: z.coerce.number().int().optional(),
@@ -223,6 +224,8 @@ export const listQuerySchema = z.object({
   caseAddedTo: dateQuerySchema,
   caseCompletedFrom: dateQuerySchema,
   caseCompletedTo: dateQuerySchema,
+  billedFrom: dateQuerySchema,
+  billedTo: dateQuerySchema,
   sortBy: sortFieldSchema.optional().default('dateOfDeath'),
   sortOrder: sortOrderSchema.optional().default('asc'),
 });

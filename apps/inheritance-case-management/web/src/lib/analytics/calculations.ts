@@ -1,5 +1,5 @@
 import type { InheritanceCase } from "@/types/shared"
-import { isAccepted, isCompleted } from "@/types/constants"
+import { isAnalyticsConfirmedStatus, isAnalyticsEstimateStatus } from "@/types/constants"
 
 /** 確定/見込のうち適切な方のネット売上を返す */
 export function calcBestNet(c: InheritanceCase): number {
@@ -7,9 +7,8 @@ export function calcBestNet(c: InheritanceCase): number {
 }
 
 export function getAnalyticsBaseType(c: InheritanceCase): "fee" | "estimate" | null {
-    if (!isAccepted(c.status)) return null
-    if (isCompleted(c.status)) return (c.feeAmount || 0) > 0 ? "fee" : "estimate"
-    if (c.status === "手続中" || c.status === "最終確認") return "estimate"
+    if (isAnalyticsEstimateStatus(c.status)) return "estimate"
+    if (isAnalyticsConfirmedStatus(c.status)) return "fee"
     return null
 }
 

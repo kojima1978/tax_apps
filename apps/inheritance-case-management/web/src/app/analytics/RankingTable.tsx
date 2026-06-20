@@ -1,4 +1,8 @@
+"use client"
+
+import { useState } from "react"
 import Link from "next/link"
+import { ChevronRight } from "lucide-react"
 import { formatCurrency, LABEL_NONE } from "@/lib/analytics-utils"
 
 type RankingColumnDef = {
@@ -21,6 +25,17 @@ interface RankingTableProps {
 }
 
 export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSort, sortState, groupBy, showSubRows, showBreakdown, buildHref }: RankingTableProps) {
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+    const toggleSubRows = (name: string) => {
+        setExpandedRows(current => {
+            const next = new Set(current)
+            if (next.has(name)) next.delete(name)
+            else next.add(name)
+            return next
+        })
+    }
+
     const renderTh = (col: RankingColumnDef) => {
         const align = col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : ""
         const sortable = onSort && col.sortKey
@@ -94,12 +109,31 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
     } else {
         data.forEach(r => {
             const hasSubRows = showSubRows && r.departments && r.departments.length > 0
+            const isExpanded = expandedRows.has(r.name)
             rows.push(
                 <tr key={r.name}>
                     <td className={`p-3 font-medium ${hasSubRows ? "font-semibold" : ""}`}>
-                        <div>{renderName(r.name)}</div>
+                        <div className="flex items-center gap-1">
+                            {hasSubRows ? (
+                                <button
+                                    type="button"
+                                    className="-ml-1 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    aria-label={`${r.name}の支店を${isExpanded ? "非表示" : "表示"}`}
+                                    aria-expanded={isExpanded}
+                                    onClick={() => toggleSubRows(r.name)}
+                                >
+                                    <ChevronRight
+                                        className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            ) : showSubRows ? (
+                                <span className="w-7 shrink-0" aria-hidden="true" />
+                            ) : null}
+                            {renderName(r.name)}
+                        </div>
                         {showBreakdown && (
-                            <div className="text-xs text-muted-foreground font-normal mt-0.5">
+                            <div className={`text-xs text-muted-foreground font-normal mt-0.5 ${showSubRows ? "pl-8" : ""}`}>
                                 確定: {formatCurrency(r.confirmedFee ?? 0)}　見込: {formatCurrency(r.estimateFee ?? 0)}
                             </div>
                         )}
@@ -108,7 +142,7 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
                     <td className="p-3 text-center text-muted-foreground align-top">{r.count}</td>
                 </tr>
             )
-            if (showSubRows && r.departments) {
+            if (showSubRows && isExpanded && r.departments) {
                 r.departments.forEach(dept => {
                     rows.push(
                         <tr key={`${r.name}-${dept.name}`} className="bg-muted/30">

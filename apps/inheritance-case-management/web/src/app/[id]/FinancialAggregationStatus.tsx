@@ -10,7 +10,7 @@ export function FinancialAggregationStatus({ formData }: { formData: Inheritance
     if (completed) {
         const amount = formData.feeAmount || 0
         return (
-            <div className="col-span-1 flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-black sm:col-span-2">
+            <div className="col-span-1 flex items-center gap-1.5 rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-xs text-black sm:col-span-2">
                 <BarChart3 className="h-4 w-4 shrink-0" />
                 <span>ダッシュボード集計: <strong>確定額 {formatCurrency(amount)}</strong> として集計中</span>
             </div>
@@ -20,7 +20,7 @@ export function FinancialAggregationStatus({ formData }: { formData: Inheritance
     if (ongoing) {
         const amount = formData.estimateAmount || 0
         return (
-            <div className="col-span-1 flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-black sm:col-span-2">
+            <div className="col-span-1 flex items-center gap-1.5 rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-xs text-black sm:col-span-2">
                 <BarChart3 className="h-4 w-4 shrink-0" />
                 <span>ダッシュボード集計: <strong>見込額 {formatCurrency(amount)}</strong> として集計中</span>
             </div>
@@ -28,7 +28,7 @@ export function FinancialAggregationStatus({ formData }: { formData: Inheritance
     }
 
     return (
-        <div className="col-span-1 flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-muted-foreground sm:col-span-2">
+        <div className="col-span-1 flex items-center gap-1.5 rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-xs text-muted-foreground sm:col-span-2">
             <BarChart3 className="h-4 w-4 shrink-0" />
             <span>ダッシュボード集計: 集計対象外（ステータスが「手続中」以降の場合に集計されます）</span>
         </div>

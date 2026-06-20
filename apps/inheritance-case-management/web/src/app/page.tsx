@@ -124,7 +124,12 @@ function InheritanceMockupPageContent() {
 
     const handleFilterChange = useCallback((key: keyof CasesQueryParams, value: string | undefined) => {
         const parsed = parseCaseListFilterValue(key, value)
-        setQueryParams((prev) => ({ ...prev, [key]: parsed, page: 1 }))
+        setQueryParams((prev) => ({
+            ...prev,
+            ...(key === "fiscalYear" ? { fiscalYears: undefined } : {}),
+            [key]: parsed,
+            page: 1,
+        }))
     }, [])
 
     const handleKpiFilterClick = useCallback((filter: KPICardFilterKey) => {

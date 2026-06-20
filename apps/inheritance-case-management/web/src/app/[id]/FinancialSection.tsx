@@ -23,7 +23,7 @@ export function FinancialSection({
 }: FinancialSectionProps) {
     return (
         <CollapsibleSection title="金額情報" icon={Banknote} isOpen={isOpen} onToggle={onToggle} compact>
-            <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 [&_input]:!h-8">
                 <div className="space-y-1.5">
                     <Label htmlFor="propertyValue" className="text-xs">
                         遺産総額

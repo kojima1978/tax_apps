@@ -4,8 +4,7 @@ import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { CurrencyField } from "@/components/ui/CurrencyField"
-import { EmptyState } from "@/components/ui/EmptyState"
-import { Download, GripVertical, Receipt } from "lucide-react"
+import { Download, GripVertical, Trash2 } from "lucide-react"
 import type { Expense } from "@/types/shared"
 import { EXPENSE_DESCRIPTION_PRESETS } from "@/types/constants"
 import { formatCurrency } from "@/lib/analytics-utils"
@@ -77,8 +76,9 @@ function DescriptionField({
 
     if (showInput) {
         return (
-            <div className="flex gap-2">
+            <div className="flex gap-1">
                 <Input
+                    aria-label="立替金の内容"
                     placeholder="内容を入力"
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
@@ -88,7 +88,7 @@ function DescriptionField({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-10 px-2 text-muted-foreground hover:text-foreground whitespace-nowrap"
+                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap"
                     onClick={() => { setFreeInput(false); onChange("") }}
                 >
                     一覧
@@ -99,6 +99,7 @@ function DescriptionField({
 
     return (
         <select
+            aria-label="立替金の内容"
             value={isPreset ? value : ""}
             onChange={(e) => {
                 const v = e.target.value
@@ -109,7 +110,7 @@ function DescriptionField({
                     onChange(v)
                 }
             }}
-            className="flex h-11 w-full rounded-lg border-2 border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-10"
+            className="flex h-8 w-full rounded-md border-2 border-input bg-background px-2 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
             <option value="" disabled>選択...</option>
             {EXPENSE_DESCRIPTION_PRESETS.map((opt) => (
@@ -135,14 +136,15 @@ function SortableExpenseRow({
 
     return (
         <div
+            data-expense-row
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-            className="grid grid-cols-1 gap-2 items-start rounded-lg border p-3 lg:grid-cols-[auto_120px_130px_minmax(180px,1fr)_minmax(160px,1fr)_auto] lg:gap-3"
+            className="grid grid-cols-1 items-start gap-1.5 rounded-md border p-2 sm:grid-cols-[auto_112px_105px_minmax(125px,1fr)_minmax(110px,0.8fr)_auto]"
         >
             <button
                 type="button"
                 aria-label="ドラッグして順序変更"
-                className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none mt-2.5"
+                className="mt-2 cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"
                 {...attributes}
                 {...listeners}
             >
@@ -150,6 +152,7 @@ function SortableExpenseRow({
             </button>
             <div>
                 <Input
+                    aria-label="立替日"
                     type="date"
                     value={expense.date}
                     onChange={(e) => onFieldChange(index, "date", e.target.value)}
@@ -157,6 +160,7 @@ function SortableExpenseRow({
             </div>
             <div>
                 <CurrencyField
+                    aria-label="立替金額"
                     placeholder="金額"
                     value={expense.amount || undefined}
                     onValueChange={(value) => onFieldChange(index, "amount", value ? Number(value) : 0)}
@@ -170,6 +174,7 @@ function SortableExpenseRow({
             </div>
             <div>
                 <Input
+                    aria-label="立替金メモ"
                     placeholder="備考（購入場所など）"
                     value={expense.memo || ""}
                     onChange={(e) => onFieldChange(index, "memo", e.target.value)}
@@ -180,10 +185,12 @@ function SortableExpenseRow({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-10 px-2 text-gray-500 hover:text-gray-800"
+                    aria-label="この立替金を削除"
+                    title="削除"
+                    className="h-8 w-8 p-0 text-gray-500 hover:text-gray-800"
                     onClick={() => onDelete(index)}
                 >
-                    削除
+                    <Trash2 className="h-3.5 w-3.5" />
                 </Button>
             </div>
         </div>
@@ -233,12 +240,19 @@ export function ExpenseEditor({ expenses, onChange }: ExpenseEditorProps) {
     const total = expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
 
     return (
-        <div className="space-y-3">
-            <div className="flex items-center justify-end">
-                <Button type="button" variant="outline" size="sm" onClick={handleAdd}>
+        <div className="space-y-2 [&_input]:!h-8">
+            <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] text-muted-foreground">日付・金額・内容・メモを入力</span>
+                <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={handleAdd}>
                     + 追加
                 </Button>
             </div>
+
+            {expenses.length > 0 && (
+                <div className="hidden grid-cols-[auto_112px_105px_minmax(125px,1fr)_minmax(110px,0.8fr)_auto] gap-1.5 px-2 text-[10px] text-muted-foreground sm:grid">
+                    <span className="w-4" /><span>日付</span><span>金額</span><span>内容</span><span>メモ</span><span className="w-8" />
+                </div>
+            )}
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
@@ -255,23 +269,20 @@ export function ExpenseEditor({ expenses, onChange }: ExpenseEditorProps) {
             </DndContext>
 
             {expenses.length === 0 && (
-                <EmptyState
-                    icon={Receipt}
-                    title="立替金が登録されていません"
-                    description="「+ 追加」ボタンで立替金を追加できます"
-                    action={{ label: "+ 追加", onClick: handleAdd }}
-                />
+                <div className="rounded-md border border-dashed py-4 text-center text-xs text-muted-foreground">
+                    立替金は登録されていません
+                </div>
             )}
 
             {expenses.length > 0 && (
-                <div className="flex justify-between items-center pt-2 border-t">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => exportExpensesExcel(expenses, total)}>
-                        <Download className="h-4 w-4 mr-1" />
+                <div className="flex items-center justify-between border-t pt-1.5">
+                    <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => exportExpensesExcel(expenses, total)}>
+                        <Download className="mr-1 h-3.5 w-3.5" />
                         Excel出力
                     </Button>
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-muted-foreground">合計</span>
-                        <span className="text-lg font-bold">{formatCurrency(total)}</span>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-[11px] font-medium text-muted-foreground">合計</span>
+                        <span className="text-sm font-bold">{formatCurrency(total)}</span>
                     </div>
                 </div>
             )}
