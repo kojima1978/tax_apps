@@ -11,6 +11,10 @@ build/
 # Database
 *.db
 *.db-journal
+*.dump
+*.dump.gz
+*.sql.gz
+*.backup
 
 # Environment files
 .env
