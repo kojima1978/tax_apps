@@ -7,13 +7,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-    [Security.Principal.WindowsBuiltInRole]::Administrator
-)
-if (-not $isAdmin) {
-    throw "This script requires Administrator privileges. Right-click PowerShell and select 'Run as administrator'."
-}
-
 if ($Unregister) {
     $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if (-not $existing) {
@@ -53,7 +46,7 @@ $settings = New-ScheduledTaskSettingsSet `
 $principal = New-ScheduledTaskPrincipal `
     -UserId ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name) `
     -LogonType Interactive `
-    -RunLevel Highest
+    -RunLevel Limited
 
 $description = "Runs backup-db.bat daily at $Time to back up all Tax Apps databases (PostgreSQL, SQLite)."
 

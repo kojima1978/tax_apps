@@ -201,7 +201,7 @@ resolve_app_dir() {
 # require_app_arg <command_name> <app_name>
 # resolve_app_dir + ensure_network を一括実行。RESOLVED_DIR を設定。
 require_app_arg() {
-  local cmd_name="$1"
+  local _cmd_name="$1"
   local app_name="${2:?アプリ名を指定してください}"
   RESOLVED_DIR=$(resolve_app_dir "$app_name")
 }
@@ -275,7 +275,7 @@ _do_start() {
 _do_compose_action() {
   local dir="$1" name="$2" action="$3" label="$4"
   log "  $label: $name"
-  docker compose -f "$dir/docker-compose.yml" $action
+  docker compose -f "$dir/docker-compose.yml" "$action"
 }
 
 cmd_start() {
@@ -665,7 +665,37 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
-  # 7. Port conflicts
+  # 7. Encrypted backup freshness
+  local backup_base="$PROJECT_ROOT/docker/backups"
+  local backup_key="${BACKUP_KEY_FILE:-$HOME/.tax-apps/backup.key}"
+  local latest_backup=""
+  latest_backup=$(find "$backup_base" -maxdepth 1 -type f -name '*.tar.gz.enc' -print 2>/dev/null |
+    while IFS= read -r file; do printf '%s\t%s\n' "$(stat -c %Y "$file" 2>/dev/null || echo 0)" "$file"; done |
+    sort -nr | head -1 | cut -f2-)
+  if [[ -z "$latest_backup" ]]; then
+    warn "No encrypted full backup found. Run: ./manage.sh backup"
+    ((++pf_warn))
+  else
+    local backup_mtime backup_age_hours
+    backup_mtime=$(stat -c %Y "$latest_backup" 2>/dev/null || echo 0)
+    backup_age_hours=$(( ($(date +%s) - backup_mtime) / 3600 ))
+    if [[ $backup_age_hours -gt ${BACKUP_MAX_AGE_HOURS:-26} ]]; then
+      warn "Latest encrypted backup is ${backup_age_hours} hours old: $(basename "$latest_backup")"
+      ((++pf_warn))
+    else
+      ok "Encrypted backup is current: $(basename "$latest_backup")"
+      ((++pf_ok))
+    fi
+  fi
+  if [[ ! -s "$backup_key" ]]; then
+    warn "Backup key not found yet: $backup_key"
+    ((++pf_warn))
+  else
+    ok "Backup key exists outside repository"
+    ((++pf_ok))
+  fi
+
+  # 8. Port conflicts
   local port_conflict=0
   local tax_apps_ports=()
   local ports=(80 3000 3001 3002 3003 3004 3007 3010 3012 3013 3014 3015 3017 3020 3022 5432)
@@ -687,7 +717,7 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
-  # 8. Host disk space
+  # 9. Host disk space
   local free_kb
   free_kb=$(df -k "$PROJECT_ROOT" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0")
   if [[ $free_kb -lt $((5*1024*1024)) ]]; then
@@ -698,7 +728,7 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
-  # 9. Docker daemon memory
+  # 10. Docker daemon memory
   local docker_mem_bytes
   docker_mem_bytes=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo "0")
   if [[ "$docker_mem_bytes" =~ ^[0-9]+$ && "$docker_mem_bytes" -gt 0 ]]; then
@@ -766,11 +796,12 @@ case "$COMMAND" in
   status)    cmd_status ;;
   backup)    "$SCRIPT_DIR/backup.sh" backup ;;
   restore)   "$SCRIPT_DIR/backup.sh" restore "${2:-}" ;;
+  verify)    "$SCRIPT_DIR/backup.sh" verify "${2:-}" ;;
   clean)     cmd_clean ;;
   clean-cache) cmd_clean_cache "${2:-}" ;;
   preflight) cmd_preflight ;;
   *)
-    echo "Usage: $0 {start|stop|down|restart|build|logs|status|backup|restore|clean|clean-cache|preflight} [app-name]"
+    echo "Usage: $0 {start|stop|down|restart|build|logs|status|backup|restore|verify|clean|clean-cache|preflight} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start              全アプリを起動（ネットワーク自動作成）"

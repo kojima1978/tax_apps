@@ -33,10 +33,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 LOCK_DIR="${TMPDIR:-/tmp}/tax-apps-docker-ops.lock"
 LOCK_HELD=0
+RESTORE_WORK_DIR=""
 BACKUP_BASE="${BACKUP_BASE:-$SCRIPT_DIR/../backups}"
 LATEST_BACKUP_BASE="${LATEST_BACKUP_BASE:-$(cd "$PROJECT_ROOT/.." && pwd)/tax_apps_backup_latest}"
 LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
 FULL_BACKUP_RETENTION_DAYS="${FULL_BACKUP_RETENTION_DAYS:-${RETENTION_DAYS:-7}}"
+BACKUP_KEY_FILE="${BACKUP_KEY_FILE:-$HOME/.tax-apps/backup.key}"
+BACKUP_ENCRYPTION_ITERATIONS="${BACKUP_ENCRYPTION_ITERATIONS:-200000}"
 
 PG_TARGETS=(
   "ITCM PostgreSQL:itcm-postgres:postgres:inheritance_tax_db:inheritance-case-management_postgres_data:itcm-postgres:inheritance-case-management"
@@ -44,9 +47,9 @@ PG_TARGETS=(
 )
 
 SQLITE_TARGETS=(
-  "medical-stock-valuation-data:medical-stock-valuation-data"
-  "insurance-app-data:insurance-app-data"
-  "inheritance-tax-docs-data:inheritance-tax-docs-data"
+  "Medical Stock SQLite:medical-stock-valuation:/app/data/doctor.db:medical-stock-valuation-data:medical-stock-valuation-data"
+  "Insurance App SQLite:insurance-app:/app/data/insurance.sqlite:insurance-app-data:insurance-app-data"
+  "Inheritance Tax Docs SQLite:inheritance-tax-docs:/app/data/resources.sqlite:inheritance-tax-docs-data:inheritance-tax-docs-data"
 )
 
 BIND_TARGETS=(
@@ -58,9 +61,9 @@ SETTINGS_TARGETS=(
   "Bank Analyzer .env:apps/bank-analyzer-django/.env:bank-analyzer-.env"
 )
 
-warn() { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
-err() { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
-ok() { echo -e "\033[1;32m[OK]\033[0m    $*"; }
+warn() { printf '\033[1;33m[WARN]\033[0m  %s\n' "$*"; }
+err() { printf '\033[1;31m[ERROR]\033[0m %s\n' "$*" >&2; }
+ok() { printf '\033[1;32m[OK]\033[0m    %s\n' "$*"; }
 
 check_dependencies() {
   if ! command -v docker >/dev/null 2>&1; then
@@ -74,10 +77,117 @@ check_dependencies() {
 }
 
 release_operation_lock() {
+  if [[ -n "$RESTORE_WORK_DIR" && -d "$RESTORE_WORK_DIR" ]]; then
+    rm -rf "$RESTORE_WORK_DIR"
+    RESTORE_WORK_DIR=""
+  fi
   if [[ "$LOCK_HELD" -eq 1 ]]; then
     rm -rf "$LOCK_DIR"
     LOCK_HELD=0
   fi
+}
+
+ensure_backup_encryption_key() {
+  if ! command -v openssl >/dev/null 2>&1; then
+    err "openssl is required for encrypted backups."
+    return 1
+  fi
+
+  if [[ ! -s "$BACKUP_KEY_FILE" ]]; then
+    local old_umask
+    old_umask=$(umask)
+    umask 077
+    mkdir -p "$(dirname "$BACKUP_KEY_FILE")"
+    openssl rand -base64 48 > "$BACKUP_KEY_FILE"
+    chmod 600 "$BACKUP_KEY_FILE" 2>/dev/null || true
+    umask "$old_umask"
+    ok "Created backup key outside repository: $(to_win_path "$BACKUP_KEY_FILE")"
+    warn "Store a secure offline copy of this key. Encrypted backups cannot be restored without it."
+  fi
+
+  if command -v powershell.exe >/dev/null 2>&1; then
+    # PowerShell variables in this literal must not be expanded by Bash.
+    # shellcheck disable=SC2016
+    TAX_APPS_BACKUP_KEY_PATH="$(to_win_path "$BACKUP_KEY_FILE")" powershell.exe -NoProfile -Command '
+      $path = $env:TAX_APPS_BACKUP_KEY_PATH
+      $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+      $acl = [Security.AccessControl.FileSecurity]::new()
+      $acl.SetOwner($identity.User)
+      $acl.SetAccessRuleProtection($true, $false)
+      foreach ($sidValue in @($identity.User.Value, "S-1-5-18", "S-1-5-32-544")) {
+        $sid = [Security.Principal.SecurityIdentifier]::new($sidValue)
+        $rule = [Security.AccessControl.FileSystemAccessRule]::new(
+          $sid,
+          [Security.AccessControl.FileSystemRights]::FullControl,
+          [Security.AccessControl.AccessControlType]::Allow
+        )
+        [void]$acl.AddAccessRule($rule)
+      }
+      Set-Acl -LiteralPath $path -AclObject $acl
+    ' >/dev/null || {
+      err "Could not restrict Windows ACL on backup key: $BACKUP_KEY_FILE"
+      return 1
+    }
+  fi
+}
+
+encrypt_backup_directory() {
+  local source_dir="$1"
+  local parent_dir base_name output_file temp_file
+  parent_dir="$(dirname "$source_dir")"
+  base_name="$(basename "$source_dir")"
+  output_file="${source_dir}.tar.gz.enc"
+  temp_file="${output_file}.tmp"
+
+  ensure_backup_encryption_key || return 1
+  local key_path
+  key_path="$(to_win_path "$BACKUP_KEY_FILE")"
+  rm -f "$temp_file"
+  if ! tar czf - -C "$parent_dir" "$base_name" |
+    openssl enc -aes-256-cbc -salt -pbkdf2 -iter "$BACKUP_ENCRYPTION_ITERATIONS" \
+      -md sha256 -pass "file:$key_path" -out "$temp_file"; then
+    rm -f "$temp_file"
+    err "Backup encryption failed. Plain backup was retained."
+    return 1
+  fi
+
+  if ! openssl enc -d -aes-256-cbc -pbkdf2 -iter "$BACKUP_ENCRYPTION_ITERATIONS" \
+    -md sha256 -pass "file:$key_path" -in "$temp_file" |
+    tar tzf - >/dev/null; then
+    rm -f "$temp_file"
+    err "Encrypted backup verification failed. Plain backup was retained."
+    return 1
+  fi
+
+  mv "$temp_file" "$output_file"
+  rm -rf "$source_dir"
+  ENCRYPTED_BACKUP_PATH="$output_file"
+  ok "Encrypted backup: $(basename "$output_file")"
+}
+
+extract_encrypted_backup() {
+  local archive="$1"
+  ensure_backup_encryption_key || return 1
+  RESTORE_WORK_DIR="$(mktemp -d "$BACKUP_BASE/.restore-work.XXXXXX")"
+  local key_path
+  key_path="$(to_win_path "$BACKUP_KEY_FILE")"
+
+  if ! openssl enc -d -aes-256-cbc -pbkdf2 -iter "$BACKUP_ENCRYPTION_ITERATIONS" \
+    -md sha256 -pass "file:$key_path" -in "$archive" |
+    tar xzf - -C "$RESTORE_WORK_DIR"; then
+    err "Could not decrypt backup. Check BACKUP_KEY_FILE."
+    rm -rf "$RESTORE_WORK_DIR"
+    RESTORE_WORK_DIR=""
+    return 1
+  fi
+
+  local archive_name
+  archive_name="$(basename "$archive" .tar.gz.enc)"
+  if [[ ! -d "$RESTORE_WORK_DIR/$archive_name" ]]; then
+    err "Encrypted backup did not contain the expected directory."
+    return 1
+  fi
+  EXTRACTED_BACKUP_PATH="$RESTORE_WORK_DIR/$archive_name"
 }
 
 acquire_operation_lock() {
@@ -139,6 +249,15 @@ dir_size() {
     du -sb "$dir" 2>/dev/null | awk '{print $1}' || echo "0"
   else
     echo "0"
+  fi
+}
+
+path_size() {
+  local path="$1"
+  if [[ -f "$path" ]]; then
+    wc -c < "$path" | tr -d ' '
+  else
+    dir_size "$path"
   fi
 }
 
@@ -204,7 +323,7 @@ strip_cr() {
 }
 
 is_full_backup_name() {
-  local name="$1"
+  local name="${1%.tar.gz.enc}"
   [[ "$name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}$ || "$name" =~ ^pre-restore_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}$ ]]
 }
 
@@ -337,14 +456,65 @@ backup_sqlite_volumes() {
   local sqlite_ok=0 sqlite_skip=0
   local backup_dir_win
   backup_dir_win="$(to_win_path "$backup_dir")"
-  for pair in "$@"; do
-    local vol="${pair%%:*}"
-    local fname="${pair##*:}"
+  for target in "$@"; do
+    local label container db_path vol fname
+    IFS=: read -r label container db_path vol fname <<< "$target"
     if docker volume inspect "$vol" >/dev/null 2>&1; then
-      if MSYS_NO_PATHCONV=1 docker run --rm -v "$vol:/data" -v "$backup_dir_win:/backup" alpine tar czf "/backup/${fname}.tar.gz" -C /data . >/dev/null 2>&1; then
+      if is_container_running "$container"; then
+        local stage_dir="$backup_dir/.sqlite-stage-${fname}"
+        local raw_archive="$backup_dir/.sqlite-raw-${fname}.tar.gz"
+        local temp_db="/tmp/tax-apps-backup-${fname}-$$.sqlite"
+        rm -rf "$stage_dir" "$raw_archive"
+        mkdir -p "$stage_dir"
+
+        if ! MSYS_NO_PATHCONV=1 docker exec "$container" node -e '
+          const Database = require("better-sqlite3");
+          const [source, destination] = process.argv.slice(1);
+          const db = new Database(source, { readonly: true, fileMustExist: true });
+          db.backup(destination).then(() => {
+            db.close();
+            const copy = new Database(destination, { readonly: true, fileMustExist: true });
+            const result = copy.pragma("integrity_check", { simple: true });
+            copy.close();
+            if (result !== "ok") throw new Error(`integrity_check: ${result}`);
+          }).catch((error) => { console.error(error); process.exitCode = 1; });
+        ' "$db_path" "$temp_db" >/dev/null 2>&1; then
+          err "$label online backup failed"
+          MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" >/dev/null 2>&1 || true
+          rm -rf "$stage_dir" "$raw_archive"
+          (( backup_fail++ )) || true
+          continue
+        fi
+
+        if ! MSYS_NO_PATHCONV=1 docker run --rm -v "$vol:/data:ro" -v "$backup_dir_win:/backup" \
+          alpine:3.22 tar czf "/backup/$(basename "$raw_archive")" -C /data . >/dev/null 2>&1; then
+          err "$label volume data copy failed"
+          MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" >/dev/null 2>&1 || true
+          rm -rf "$stage_dir" "$raw_archive"
+          (( backup_fail++ )) || true
+          continue
+        fi
+
+        tar xzf "$raw_archive" -C "$stage_dir"
+        local db_name
+        db_name="$(basename "$db_path")"
+        rm -f "$stage_dir/$db_name" "$stage_dir/$db_name-wal" "$stage_dir/$db_name-shm"
+        if ! docker cp "$container:$temp_db" "$stage_dir/$db_name" >/dev/null 2>&1; then
+          err "$label database copy failed"
+          MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" >/dev/null 2>&1 || true
+          rm -rf "$stage_dir" "$raw_archive"
+          (( backup_fail++ )) || true
+          continue
+        fi
+        MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" >/dev/null 2>&1 || true
+        tar czf "$backup_dir/${fname}.tar.gz" -C "$stage_dir" .
+        rm -rf "$stage_dir" "$raw_archive"
+        (( sqlite_ok++ )) || true
+      elif MSYS_NO_PATHCONV=1 docker run --rm -v "$vol:/data:ro" -v "$backup_dir_win:/backup" \
+        alpine:3.22 tar czf "/backup/${fname}.tar.gz" -C /data . >/dev/null 2>&1; then
         (( sqlite_ok++ )) || true
       else
-        err "$vol backup failed"
+        err "$label backup failed"
         (( backup_fail++ )) || true
       fi
     else
@@ -369,14 +539,27 @@ restore_sqlite_volumes() {
   local backup_dir_win
   backup_dir_win="$(to_win_path "$backup_dir")"
   for pair in "$@"; do
-    local fname="${pair%%:*}"
-    local vol="${pair##*:}"
+    local fname vol container
+    IFS=: read -r fname vol container <<< "$pair"
     if [[ -f "$backup_dir/$fname" ]]; then
+      local was_running=0
+      if is_container_running "$container"; then
+        echo "  Stopping $container for consistent volume restore..."
+        docker stop "$container" >/dev/null
+        was_running=1
+      fi
       docker volume inspect "$vol" >/dev/null 2>&1 || docker volume create "$vol" >/dev/null 2>&1
-      if MSYS_NO_PATHCONV=1 docker run --rm -v "$vol:/data" -v "$backup_dir_win:/backup" alpine sh -c "cd /data && rm -rf * && tar xzf /backup/$fname" >/dev/null 2>&1; then
+      if MSYS_NO_PATHCONV=1 docker run --rm -v "$vol:/data" -v "$backup_dir_win:/backup:ro" alpine:3.22 \
+        sh -c "rm -rf -- /data/* /data/.[!.]* /data/..?* && tar xzf /backup/$fname -C /data" >/dev/null 2>&1; then
         (( sqlite_ok++ )) || true
       else
         (( restore_fail++ )) || true
+      fi
+      if [[ $was_running -eq 1 ]]; then
+        docker start "$container" >/dev/null || {
+          err "Failed to restart $container after restore"
+          (( restore_fail++ )) || true
+        }
       fi
     fi
   done
@@ -462,7 +645,8 @@ backup_bank_analyzer_json() {
   local step_label="$1"
   local container="bank-analyzer"
   local dest_dir="$backup_dir/bank-analyzer-json"
-  local temp_dir="/tmp/bank-analyzer-json-$(basename "$backup_dir")"
+  local temp_dir
+  temp_dir="/tmp/bank-analyzer-json-$(basename "$backup_dir")"
 
   echo "$step_label Bank Analyzer JSON exports ..."
   if ! is_container_running "$container"; then
@@ -548,17 +732,27 @@ cmd_backup() {
 
   if [[ $backup_ok -gt 0 ]]; then
     write_backup_manifest
+    if ! encrypt_backup_directory "$backup_dir"; then
+      (( backup_fail++ )) || true
+      print_summary_banner "Backup Failed" "$backup_fail"
+      echo "  Plain backup retained for recovery: $backup_dir/"
+      return 1
+    fi
+    backup_dir="$ENCRYPTED_BACKUP_PATH"
   fi
 
   print_summary_banner "Backup Complete" "$backup_fail"
-  echo "  Destination: $backup_dir/"
-  echo "  Size: $(format_size "$(dir_size "$backup_dir")")"
+  echo "  Destination: $backup_dir"
+  echo "  Size: $(format_size "$(path_size "$backup_dir")")"
   echo "  OK: $backup_ok  Skipped: $backup_skip  Failed: $backup_fail"
   echo ""
   if [[ $backup_ok -eq 0 ]]; then
     warn "No data was backed up. Removing empty directory."
     rm -rf "$backup_dir"
     return 1
+  elif [[ $backup_fail -gt 0 ]]; then
+    warn "Incomplete encrypted backup was not promoted to the latest-backup directory."
+    echo "  Resolve the errors and run the backup again."
   else
     copy_latest_backup_set "$LATEST_BACKUP_BASE/all-apps" "$backup_dir"
     if [[ "$backup_label" == "pre-restore" ]]; then
@@ -567,8 +761,10 @@ cmd_backup() {
       echo "  Retention: ${FULL_BACKUP_RETENTION_DAYS} days in $(to_win_path "$BACKUP_BASE")"
       remove_old_dirs "$BACKUP_BASE" "????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
       remove_old_dirs "$BACKUP_BASE" "pre-restore_????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
+      remove_old_files "$BACKUP_BASE" "????-??-??_??????.tar.gz.enc" "$FULL_BACKUP_RETENTION_DAYS"
+      remove_old_files "$BACKUP_BASE" "pre-restore_????-??-??_??????.tar.gz.enc" "$FULL_BACKUP_RETENTION_DAYS"
     fi
-    echo "  To restore: ./manage.sh restore $backup_name"
+    echo "  To restore: ./manage.sh restore $(basename "$backup_dir")"
   fi
   echo ""
 
@@ -590,8 +786,10 @@ cmd_restore() {
       err "$1 is not a full backup set."
       echo "  Use a directory like 2026-02-22_153000 or pre-restore_2026-02-22_153000."
       echo ""
-    elif [[ -d "$BACKUP_BASE/$1" ]]; then
+    elif [[ -d "$BACKUP_BASE/$1" || -f "$BACKUP_BASE/$1" ]]; then
       backup_dir="$BACKUP_BASE/$1"
+    elif [[ -f "$BACKUP_BASE/$1.tar.gz.enc" ]]; then
+      backup_dir="$BACKUP_BASE/$1.tar.gz.enc"
     else
       err "$BACKUP_BASE/$1 not found."
       echo ""
@@ -602,7 +800,10 @@ cmd_restore() {
     local -a backups=()
     while IFS= read -r d; do
       backups+=("$(basename "$d")")
-    done < <(find "$BACKUP_BASE" -mindepth 1 -maxdepth 1 -type d \( -name '????-??-??_??????' -o -name 'pre-restore_????-??-??_??????' \) -print 2>/dev/null | sort -r)
+    done < <(find "$BACKUP_BASE" -mindepth 1 -maxdepth 1 \
+      \( -type d \( -name '????-??-??_??????' -o -name 'pre-restore_????-??-??_??????' \) \
+      -o -type f \( -name '????-??-??_??????.tar.gz.enc' -o -name 'pre-restore_????-??-??_??????.tar.gz.enc' \) \) \
+      -print 2>/dev/null | sort -r)
 
     if [[ ${#backups[@]} -eq 0 ]]; then
       err "No backups found. Run: ./manage.sh backup"
@@ -614,7 +815,7 @@ cmd_restore() {
     for i in "${!backups[@]}"; do
       local bk="${backups[$i]}"
       local size
-      size=$(format_size "$(dir_size "$BACKUP_BASE/$bk")")
+      size=$(format_size "$(path_size "$BACKUP_BASE/$bk")")
       echo "  [$((i+1))] $bk  ($size)"
     done
     echo ""
@@ -636,8 +837,16 @@ cmd_restore() {
     backup_dir="$BACKUP_BASE/${backups[$idx]}"
   fi
 
-  echo "Restore from: $backup_dir/"
+  echo "Restore from: $backup_dir"
   echo ""
+
+  if [[ -f "$backup_dir" && "$backup_dir" == *.tar.gz.enc ]]; then
+    echo "Decrypting backup to a temporary restore directory..."
+    extract_encrypted_backup "$backup_dir" || return 1
+    backup_dir="$EXTRACTED_BACKUP_PATH"
+    ok "Encrypted backup opened"
+  fi
+
   verify_backup_manifest "$backup_dir" || return 1
   echo ""
   echo "Contents:"
@@ -684,9 +893,9 @@ cmd_restore() {
   (( step++ )) || true
   local -a sqlite_restore_pairs=()
   for target in "${SQLITE_TARGETS[@]}"; do
-    local fname="${target##*:}"
-    local vol="${target%%:*}"
-    sqlite_restore_pairs+=("$fname.tar.gz:$vol")
+    local _label _container _db_path vol fname
+    IFS=: read -r _label _container _db_path vol fname <<< "$target"
+    sqlite_restore_pairs+=("$fname.tar.gz:$vol:$_container")
   done
   restore_sqlite_volumes "[$step/$total]" "${sqlite_restore_pairs[@]}"
 
@@ -712,6 +921,27 @@ cmd_restore() {
     echo "    ./manage.sh restart bank-analyzer-django"
     echo ""
   fi
+}
+
+cmd_verify() {
+  local requested="${1:-}"
+  if [[ -z "$requested" ]]; then
+    err "Specify an encrypted backup file."
+    echo "  Usage: $0 verify YYYY-MM-DD_HHMMSS.tar.gz.enc"
+    return 1
+  fi
+
+  local archive="$requested"
+  [[ -f "$archive" ]] || archive="$BACKUP_BASE/$requested"
+  if [[ ! -f "$archive" || "$archive" != *.tar.gz.enc ]]; then
+    err "Encrypted backup not found: $requested"
+    return 1
+  fi
+
+  print_banner "Tax Apps - Backup Verification"
+  extract_encrypted_backup "$archive" || return 1
+  verify_backup_manifest "$EXTRACTED_BACKUP_PATH" || return 1
+  ok "Encrypted backup is restorable: $(basename "$archive")"
 }
 
 log_file_ok() {
@@ -941,7 +1171,6 @@ cmd_itcm_backup() {
   echo
 
   local sq3_container="inheritance-tax-docs"
-  local sq3_src="/app/data"
   local sq3_dir="$BACKUP_BASE/inheritance-tax-docs-data"
   local sq3_file="inheritance-tax-docs-data_${stamp}.tar.gz"
   local -a latest_inheritance_docs_sources=()
@@ -1033,7 +1262,7 @@ cmd_itcm_backup() {
 
 COMMAND="${1:-help}"
 case "$COMMAND" in
-  backup|restore|itcm)
+  backup|restore|verify|itcm)
     check_dependencies
     acquire_operation_lock "$COMMAND"
     ;;
@@ -1042,9 +1271,12 @@ esac
 case "$COMMAND" in
   backup)  cmd_backup ;;
   restore) cmd_restore "${2:-}" ;;
-  itcm)    cmd_itcm_backup ;;
+  verify)  cmd_verify "${2:-}" ;;
+  # Keep the historical command name used by backup-db.bat, but create the
+  # same encrypted, restorable full backup as the main backup command.
+  itcm)    cmd_backup ;;
   *)
-    echo "Usage: $0 {backup|restore [dir]|itcm}"
+    echo "Usage: $0 {backup|restore [backup]|verify <backup>|itcm}"
     exit 1
     ;;
 esac

@@ -43,15 +43,11 @@
 
 - **`backup.sh`** ← **本体**
   バックアップ・リストア・ITCM 定期バックアップを統合した Bash 本体。**ホスト側で実行**（Git Bash または Linux）。
-  - `backup.sh`（引数なし）: 全データの完全バックアップ
-  - `backup.sh itcm`: ITCM 中心の定期バックアップ
-    - ITCM PostgreSQL ダンプ
-    - ITCM JSON エクスポート（画面の「エクスポート」相当）
-    - ITCM Excel テンプレート（見積書・請求書・依頼票）
-    - ITCM 復元補助ファイル（.env, Prisma schema 等）
-    - Bank Analyzer PostgreSQL ダンプ
-    - Medical Stock SQLite
+  - `backup.sh backup`: 全データの暗号化完全バックアップ
+  - `backup.sh itcm`: Windowsタスク用の互換名（暗号化済み全体バックアップ）
   - `backup.sh restore [dir]`: バックアップからのリストア
+  - `backup.sh verify <file>`: データを上書きせず復号とSHA-256検証
+  - 暗号鍵: `~/.tax-apps/backup.key`（リポジトリ外、別媒体への保管必須）
 
 ### Windows 補助ラッパー
 
@@ -61,13 +57,13 @@
 ### タスク登録（自動定期バックアップ）
 
 - **`register-backup-task.ps1`** ← **本体**
-  毎日指定時刻（デフォルト 03:00）に `backup-db.bat` を実行する Windows スケジュールタスクを登録する PowerShell。要管理者権限。`RunLevel=Highest` で登録。`-Unregister` スイッチで削除も可能。
+  毎日指定時刻（デフォルト 03:00）に `backup-db.bat` を実行する Windows スケジュールタスクを現在ユーザーの最小権限で登録する PowerShell。`-Unregister` スイッチで削除も可能。
 
 - **`register-backup-task.bat`**
-  `register-backup-task.ps1` を呼ぶ **UAC 自己昇格ラッパー**。ダブルクリック → UAC 昇格 → 登録。
+  `register-backup-task.ps1` を呼ぶラッパー。UACなしで登録。
 
 - **`unregister-backup-task.bat`**
-  `register-backup-task.ps1 -Unregister` を呼ぶ UAC 自己昇格ラッパー。ダブルクリック → UAC 昇格 → タスク削除。
+  `register-backup-task.ps1 -Unregister` を呼ぶラッパー。UACなしでタスク削除。
 
 ---
 
@@ -122,8 +118,8 @@
 | `backup.sh` | 本体 (Bash) | バックアップ/リストア本体 |
 | `backup-db.bat` | 補助 (CMD) | backup.sh itcm の Git Bash ラッパー |
 | `register-backup-task.ps1` | 本体 (PS) | バックアップタスク登録 |
-| `register-backup-task.bat` | 補助 (CMD) | UAC 自己昇格 → 登録 |
-| `unregister-backup-task.bat` | 補助 (CMD) | UAC 自己昇格 → タスク削除 |
+| `register-backup-task.bat` | 補助 (CMD) | 現在ユーザーへタスク登録 |
+| `unregister-backup-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除 |
 | `docker-watchdog.ps1` | 本体 (PS) | Docker Desktop daemon 監視/復旧 |
 | `docker-watchdog.bat` | 補助 (CMD) | 手動実行用ラッパー |
 | `register-docker-watchdog-task.ps1` | 本体 (PS) | ウォッチドッグタスク登録 |
@@ -140,8 +136,8 @@
 | 本番モードで起動 | `start-prod.bat` をダブルクリック |
 | 停止 | `stop.bat` をダブルクリック |
 | 状態確認 | `status.bat` をダブルクリック |
-| 毎日 03:00 の自動バックアップを設定 | `register-backup-task.bat` をダブルクリック → UAC「はい」 |
-| バックアップタスクを削除 | `unregister-backup-task.bat` をダブルクリック → UAC「はい」 |
+| 毎日 03:00 の自動バックアップを設定 | `register-backup-task.bat` をダブルクリック |
+| バックアップタスクを削除 | `unregister-backup-task.bat` をダブルクリック |
 | 15 分ごとの Docker 監視を設定 | `register-docker-watchdog-task.bat` をダブルクリック → UAC「はい」 |
 | 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック → UAC「はい」 |
 

@@ -174,12 +174,13 @@ cd tax_apps
 ./docker/scripts/manage.sh status            全アプリの状態を表示
 ./docker/scripts/manage.sh backup            全データベース・データをバックアップ（backup.sh に委譲）
 ./docker/scripts/manage.sh restore [dir]     バックアップからリストア（backup.sh に委譲）
+./docker/scripts/manage.sh verify <file>     暗号化バックアップを復号・整合性検証
 ./docker/scripts/manage.sh clean             不要なコンテナ・イメージを削除
 ./docker/scripts/manage.sh preflight         起動前チェック（Docker, ポート等）
 ./docker/scripts/backup.sh itcm              ITCM定期バックアップ（JSONエクスポート含む）
 ```
 
-バックアップは `docker/backups/` に7日間保存し、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/` に追加コピーします。全体バックアップは `all-apps/`、ITCM定期バックアップは `itcm-daily/` に分けて保存します。
+バックアップはAES-256暗号化して `docker/backups/` に7日間保存し、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/all-apps/` に追加コピーします。暗号鍵はリポジトリ外の `~/.tax-apps/backup.key` に保存されます。
 
 ### 開発モード vs 本番モード
 
