@@ -21,6 +21,13 @@ export const STORAGE_KEYS = {
 export const getDataStorageKey = (type: DocListType): string =>
   `inheritance_tax_docs_${type}_data`;
 
+// ゴミ箱ストレージキー（種別ごと）
+export const getTrashStorageKey = (type: DocListType): string =>
+  `inheritance_tax_docs_${type}_trash`;
+
+// ゴミ箱の保持上限（種別ごと、超過分は古いものから破棄）
+export const TRASH_LIMIT = 50;
+
 // 会社情報
 export const COMPANY_INFO = {
   name: '税理士法人マスエージェント',
@@ -70,6 +77,31 @@ export interface EditableCategory {
 
 // 書類リスト全体の状態
 export type EditableDocumentList = EditableCategory[];
+
+// ─── ゴミ箱（削除した書類・カテゴリの復元用） ───
+
+// 削除した書類のゴミ箱エントリ
+export interface TrashedDocument {
+  kind: 'document';
+  trashId: string;
+  deletedAt: string;        // ISO日時
+  categoryId: string;       // 元のカテゴリID
+  categoryName: string;     // 表示・カテゴリ消失時のフォールバック用
+  index: number;            // 元のカテゴリ内での位置
+  document: EditableDocument;
+}
+
+// 削除したカテゴリのゴミ箱エントリ
+export interface TrashedCategory {
+  kind: 'category';
+  trashId: string;
+  deletedAt: string;
+  index: number;            // 元のリスト内での位置
+  category: EditableCategory;
+}
+
+export type TrashItem = TrashedDocument | TrashedCategory;
+export type Trash = TrashItem[];
 
 export { CATEGORIES } from './documents';
 export { SIMPLIFIED_CATEGORIES } from './simplifiedDocuments';

@@ -15,6 +15,7 @@ import {
   Menu,
   Home,
   FileText,
+  Trash2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
@@ -56,6 +57,8 @@ type EditToolbarProps = {
   isDark: boolean;
   toggleDark: () => void;
   isExporting: boolean;
+  trashCount: number;
+  onOpenTrash: () => void;
 };
 
 // ─── コンポーネント ───
@@ -84,6 +87,8 @@ export const EditToolbar = ({
   isDark,
   toggleDark,
   isExporting,
+  trashCount,
+  onOpenTrash,
 }: EditToolbarProps) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -212,6 +217,21 @@ export const EditToolbar = ({
               aria-label={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
             >
               {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+
+            {/* ゴミ箱 */}
+            <button
+              onClick={onOpenTrash}
+              className="relative p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+              aria-label={`ゴミ箱（削除した書類・カテゴリ ${trashCount}件）`}
+              title="ゴミ箱"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {trashCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold leading-none text-white bg-red-500 rounded-full">
+                  {trashCount > 99 ? '99+' : trashCount}
+                </span>
+              )}
             </button>
           </div>
 

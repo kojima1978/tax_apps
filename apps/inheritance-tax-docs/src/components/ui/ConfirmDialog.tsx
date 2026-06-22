@@ -12,7 +12,7 @@ type DialogOverlayProps = {
   children: React.ReactNode;
 };
 
-const DialogOverlay = ({ labelledBy, onClose, role = 'dialog', maxWidth = 'max-w-md', children }: DialogOverlayProps) => (
+export const DialogOverlay = ({ labelledBy, onClose, role = 'dialog', maxWidth = 'max-w-md', children }: DialogOverlayProps) => (
   <div
     className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in"
     role={role}
@@ -161,6 +161,10 @@ export const ImportConfirmDialog = ({ preview, onConfirm, onCancel }: ImportConf
           <span className="font-medium dark:text-slate-200">
             {preview.documentList.reduce((acc, cat) => acc + cat.documents.length, 0)}
           </span>
+        </p>
+        <p>
+          <span className="text-slate-500 dark:text-slate-400">ゴミ箱:</span>{' '}
+          <span className="font-medium dark:text-slate-200">{preview.trash?.length ?? 0}</span>件
         </p>
         {preview.exportedAt && (
           <p>

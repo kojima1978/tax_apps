@@ -42,6 +42,14 @@ export const ToastContainer = ({ toasts, removeToast }: ToastContainerProps) => 
           >
             <Icon className={`w-5 h-5 flex-shrink-0 ${config.iconColor}`} aria-hidden="true" />
             <span className={`text-sm font-medium ${config.text}`}>{toast.message}</span>
+            {toast.action && (
+              <button
+                onClick={() => { toast.action!.onClick(); removeToast(toast.id); }}
+                className={`ml-1 px-2 py-0.5 rounded text-xs font-bold underline underline-offset-2 hover:no-underline hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${config.text}`}
+              >
+                {toast.action.label}
+              </button>
+            )}
             <button
               onClick={() => removeToast(toast.id)}
               className="ml-2 p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"

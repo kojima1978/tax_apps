@@ -33,4 +33,10 @@ export const TOAST_MESSAGES = {
   documentAdded: '書類を追加しました',
   documentDeleted: '書類を削除しました',
   categoryDeleted: 'カテゴリを削除しました',
+  restoreSuccess: '復元しました',
+  restoreAllSuccess: 'すべて復元しました',
+  trashEmptied: 'ゴミ箱を空にしました',
 } as const;
+
+// 削除トーストのUndoラベル
+export const UNDO_LABEL = '元に戻す';

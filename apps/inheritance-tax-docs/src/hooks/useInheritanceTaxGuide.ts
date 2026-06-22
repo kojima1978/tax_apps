@@ -3,8 +3,10 @@ import {
   STORAGE_KEYS,
   DOC_LIST_TYPE_LABELS,
   getDataStorageKey,
+  getTrashStorageKey,
   type DocListType,
   type EditableDocumentList,
+  type Trash,
 } from '@/constants';
 import { initializeEditableList } from '@/utils/editableListUtils';
 import { exportToExcel } from '@/utils/excelExporter';
@@ -20,6 +22,9 @@ export const useInheritanceTaxGuide = () => {
   const [documentList, setDocumentList] = useState<EditableDocumentList>(() =>
     initializeEditableList('inheritance-tax')
   );
+
+  // ゴミ箱（削除した書類・カテゴリ）
+  const [trash, setTrash] = useState<Trash>([]);
 
   // 担当者・お客様名
   const [clientName, setClientName] = useState('');
@@ -66,6 +71,15 @@ export const useInheritanceTaxGuide = () => {
       } else {
         setDocumentList(initializeEditableList(effectiveType));
       }
+
+      // ストレージからゴミ箱を復元
+      const savedTrash = localStorage.getItem(getTrashStorageKey(effectiveType));
+      if (savedTrash) {
+        try {
+          const parsedTrash = JSON.parse(savedTrash) as Trash;
+          if (Array.isArray(parsedTrash)) setTrash(parsedTrash);
+        } catch { /* ゴミ箱の破損データは無視 */ }
+      }
     } catch { /* ストレージ使用不可時は無視 */ }
 
     isInitialized.current = true;
@@ -92,9 +106,26 @@ export const useInheritanceTaxGuide = () => {
     } catch { /* ストレージ使用不可時は無視 */ }
   }, [docListType, documentList]);
 
+  // 変更検知：ゴミ箱をストレージへ保存
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    try {
+      localStorage.setItem(getTrashStorageKey(docListType), JSON.stringify(trash));
+    } catch { /* ストレージ使用不可時は無視 */ }
+  }, [docListType, trash]);
+
   // 書類リスト種別変更 → リスト再初期化（別種別のデータがあれば復元）
   const handleDocListTypeChange = useCallback((newType: DocListType) => {
     setDocListType(newType);
+
+    // 切り替え先のゴミ箱を復元（保存effectが旧ゴミ箱を新キーへ上書きしないよう先に同期）
+    try {
+      const savedTrash = localStorage.getItem(getTrashStorageKey(newType));
+      const parsedTrash = savedTrash ? JSON.parse(savedTrash) : [];
+      setTrash(Array.isArray(parsedTrash) ? parsedTrash : []);
+    } catch {
+      setTrash([]);
+    }
 
     // 切り替え先のデータをストレージから復元
     try {
@@ -147,6 +178,7 @@ export const useInheritanceTaxGuide = () => {
     personInCharge,
     personInChargeContact,
     documentList,
+    trash,
 
     // Handlers
     handleDocListTypeChange,
@@ -159,5 +191,6 @@ export const useInheritanceTaxGuide = () => {
     setPersonInCharge,
     setPersonInChargeContact,
     setDocumentList,
+    setTrash,
   };
 };

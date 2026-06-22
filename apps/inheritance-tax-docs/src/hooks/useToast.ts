@@ -2,10 +2,21 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 export type ToastType = 'success' | 'error' | 'info';
 
+export type ToastAction = {
+  label: string;
+  onClick: () => void;
+};
+
 export type Toast = {
   id: number;
   message: string;
   type: ToastType;
+  action?: ToastAction;
+};
+
+type AddToastOptions = {
+  action?: ToastAction;
+  duration?: number;
 };
 
 export const useToast = () => {
@@ -19,13 +30,13 @@ export const useToast = () => {
     return () => { timers.forEach(clearTimeout); timers.clear(); };
   }, []);
 
-  const addToast = useCallback((message: string, type: ToastType = 'success') => {
+  const addToast = useCallback((message: string, type: ToastType = 'success', options?: AddToastOptions) => {
     const id = nextId.current++;
-    setToasts(prev => [...prev, { id, message, type }]);
+    setToasts(prev => [...prev, { id, message, type, action: options?.action }]);
     const timer = setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
       timersRef.current.delete(id);
-    }, 3000);
+    }, options?.duration ?? 3000);
     timersRef.current.set(id, timer);
   }, []);
 

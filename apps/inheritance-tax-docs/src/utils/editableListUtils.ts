@@ -7,6 +7,8 @@ import {
   type EditableCategory,
   type EditableDocument,
   type EditableDocumentList,
+  type TrashedDocument,
+  type TrashedCategory,
 } from '@/constants';
 
 // 一意のIDを生成（HTTP環境でも動作するフォールバック付き）
@@ -285,3 +287,85 @@ export const reorderCategories = (
   oldIndex: number,
   newIndex: number
 ): EditableDocumentList => reorderArray(list, oldIndex, newIndex);
+
+// ─── ゴミ箱（復元用） ───
+
+// 配列の指定位置に要素を挿入（範囲外は末尾に挿入）
+const insertAt = <T>(arr: T[], index: number, item: T): T[] => {
+  const result = [...arr];
+  const pos = index < 0 || index > result.length ? result.length : index;
+  result.splice(pos, 0, item);
+  return result;
+};
+
+// 書類のゴミ箱エントリを生成（現リストから位置・カテゴリ名を捕捉）
+export const makeTrashedDocument = (
+  list: EditableDocumentList,
+  categoryId: string,
+  documentId: string
+): TrashedDocument | null => {
+  const category = list.find(cat => cat.id === categoryId);
+  if (!category) return null;
+  const index = category.documents.findIndex(doc => doc.id === documentId);
+  if (index === -1) return null;
+  return {
+    kind: 'document',
+    trashId: generateId(),
+    deletedAt: new Date().toISOString(),
+    categoryId,
+    categoryName: category.name,
+    index,
+    document: category.documents[index]!,
+  };
+};
+
+// カテゴリのゴミ箱エントリを生成（現リストから位置を捕捉）
+export const makeTrashedCategory = (
+  list: EditableDocumentList,
+  categoryId: string
+): TrashedCategory | null => {
+  const index = list.findIndex(cat => cat.id === categoryId);
+  if (index === -1) return null;
+  return {
+    kind: 'category',
+    trashId: generateId(),
+    deletedAt: new Date().toISOString(),
+    index,
+    category: list[index]!,
+  };
+};
+
+// ゴミ箱の書類を元のカテゴリ・位置に復元（元カテゴリが無ければ同名カテゴリを末尾に新設）
+export const restoreDocumentToList = (
+  list: EditableDocumentList,
+  trashed: TrashedDocument
+): EditableDocumentList => {
+  const exists = list.some(cat => cat.id === trashed.categoryId);
+  if (exists) {
+    return updateCategory(list, trashed.categoryId, cat => ({
+      ...cat,
+      documents: insertAt(cat.documents, trashed.index, trashed.document),
+    }));
+  }
+  return [
+    ...list,
+    {
+      id: trashed.categoryId,
+      name: trashed.categoryName,
+      documents: [trashed.document],
+      isExpanded: true,
+      isDisabled: false,
+    },
+  ];
+};
+
+// ゴミ箱のカテゴリを元の位置に復元（同一IDが既存ならID衝突を避けて採番し直す）
+export const restoreCategoryToList = (
+  list: EditableDocumentList,
+  trashed: TrashedCategory
+): EditableDocumentList => {
+  const category = list.some(cat => cat.id === trashed.category.id)
+    ? { ...trashed.category, id: generateId() }
+    : trashed.category;
+  return insertAt(list, trashed.index, category);
+};

@@ -23,7 +23,8 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Dialogs } from '@/components/ui/Dialogs';
 import { DocumentFormModal } from '@/components/ui/DocumentFormModal';
-import { TOAST_MESSAGES } from '@/constants/messages';
+import { TrashModal } from '@/components/ui/TrashModal';
+import { TOAST_MESSAGES, UNDO_LABEL } from '@/constants/messages';
 
 export const EditableListStep = () => {
   const {
@@ -36,6 +37,7 @@ export const EditableListStep = () => {
     personInCharge,
     personInChargeContact,
     documentList,
+    trash,
     handleDocListTypeChange,
     handlePrint,
     handleExcelExport,
@@ -46,6 +48,7 @@ export const EditableListStep = () => {
     setPersonInCharge,
     setPersonInChargeContact,
     setDocumentList,
+    setTrash,
   } = useInheritanceTaxGuide();
 
   const { toasts, addToast, removeToast } = useToast();
@@ -53,6 +56,8 @@ export const EditableListStep = () => {
   const editing = useEditableListEditing({
     documentList,
     setDocumentList,
+    trash,
+    setTrash,
     clientName,
     setClientName,
     deceasedName,
@@ -114,6 +119,37 @@ export const EditableListStep = () => {
     addToast(TOAST_MESSAGES.importSuccess, 'success');
   }, [editing.confirmImport, addToast]);
 
+  // ─── ゴミ箱（復元） ───
+  const [showTrashModal, setShowTrashModal] = useState(false);
+
+  // 削除確定 → ゴミ箱へ退避し、Undoボタン付きトーストを表示
+  const handleDeleteConfirmWithToast = useCallback(() => {
+    const trashed = editing.confirmDelete();
+    if (!trashed) return;
+    const message = trashed.kind === 'document'
+      ? `「${trashed.document.name}」を削除しました`
+      : `カテゴリ「${trashed.category.name}」を削除しました`;
+    addToast(message, 'info', {
+      action: { label: UNDO_LABEL, onClick: () => editing.restoreFromTrash(trashed.trashId) },
+      duration: 6000,
+    });
+  }, [editing.confirmDelete, editing.restoreFromTrash, addToast]);
+
+  const handleRestoreFromTrash = useCallback((trashId: string) => {
+    editing.restoreFromTrash(trashId);
+    addToast(TOAST_MESSAGES.restoreSuccess, 'success');
+  }, [editing.restoreFromTrash, addToast]);
+
+  const handleRestoreAll = useCallback(() => {
+    editing.restoreAllFromTrash();
+    addToast(TOAST_MESSAGES.restoreAllSuccess, 'success');
+  }, [editing.restoreAllFromTrash, addToast]);
+
+  const handleClearTrash = useCallback(() => {
+    editing.clearTrash();
+    addToast(TOAST_MESSAGES.trashEmptied, 'info');
+  }, [editing.clearTrash, addToast]);
+
   // ─── 書類追加/編集モーダル ───
   // editingDoc は { categoryId, docId } — 編集モーダル
   // addingToCategoryId — 追加モーダル
@@ -166,6 +202,8 @@ export const EditableListStep = () => {
         isDark={isDark}
         toggleDark={toggleDark}
         isExporting={isExporting}
+        trashCount={trash.length}
+        onOpenTrash={() => setShowTrashModal(true)}
       />
 
       <div className="p-4 md:px-8 md:py-6">
@@ -310,11 +348,23 @@ export const EditableListStep = () => {
         hasDeleteTarget={!!editing.deleteTarget}
         deleteDialogMessage={editing.deleteDialogMessage}
         deleteDialogSubMessage={editing.deleteDialogSubMessage}
-        onDeleteConfirm={editing.confirmDelete}
+        onDeleteConfirm={handleDeleteConfirmWithToast}
         onDeleteCancel={editing.cancelDelete}
         importError={!!editing.importError}
         onDismissImportError={editing.dismissImportError}
       />
+
+      {/* ゴミ箱モーダル */}
+      {showTrashModal && (
+        <TrashModal
+          trash={trash}
+          onRestore={handleRestoreFromTrash}
+          onRemove={editing.removeFromTrash}
+          onRestoreAll={handleRestoreAll}
+          onClear={handleClearTrash}
+          onClose={() => setShowTrashModal(false)}
+        />
+      )}
 
       {/* トースト通知 */}
       <ToastContainer toasts={toasts} removeToast={removeToast} />

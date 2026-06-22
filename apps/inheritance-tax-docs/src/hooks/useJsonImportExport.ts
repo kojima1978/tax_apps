@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
-import type { EditableDocumentList, EditableDocument, EditableCategory, DocListType, SpecificName } from '@/constants';
+import type { EditableDocumentList, EditableDocument, EditableCategory, DocListType, SpecificName, Trash } from '@/constants';
 import { DOC_LIST_TYPE_LABELS } from '@/constants';
 import { generateId } from '@/utils/editableListUtils';
 
 type SetDocumentList = React.Dispatch<React.SetStateAction<EditableDocumentList>>;
+type SetTrash = React.Dispatch<React.SetStateAction<Trash>>;
 
 // エクスポートするデータの型
 export interface ExportData {
@@ -15,6 +16,7 @@ export interface ExportData {
   personInCharge: string;
   personInChargeContact: string;
   documentList: EditableDocumentList;
+  trash?: Trash;
 }
 
 // インポートファイルの最大サイズ（5MB）
@@ -178,6 +180,15 @@ function parseNewFormat(data: Record<string, unknown>): ExportData | null {
       };
     });
 
+    // ゴミ箱（任意・後方互換）。不正な要素は除外する
+    const trash: Trash = Array.isArray(data.trash)
+      ? ((data.trash as Record<string, unknown>[]).filter(t =>
+          typeof t?.trashId === 'string' &&
+          ((t.kind === 'document' && typeof t.document === 'object' && t.document !== null) ||
+            (t.kind === 'category' && typeof t.category === 'object' && t.category !== null))
+        ) as unknown as Trash)
+      : [];
+
     return {
       version: (data.version as string) || '2.0',
       exportedAt: (data.exportedAt as string) || '',
@@ -187,6 +198,7 @@ function parseNewFormat(data: Record<string, unknown>): ExportData | null {
       personInCharge: (data.personInCharge as string) || '',
       personInChargeContact: (data.personInChargeContact as string) || '',
       documentList,
+      trash,
     };
   } catch {
     return null;
@@ -229,6 +241,8 @@ export const readJsonFile = async (file: File): Promise<ExportData | null> => {
 type UseJsonImportExportArgs = {
   documentList: EditableDocumentList;
   setDocumentList: SetDocumentList;
+  trash: Trash;
+  setTrash: SetTrash;
   clientName: string;
   setClientName: (name: string) => void;
   deceasedName: string;
@@ -243,6 +257,8 @@ type UseJsonImportExportArgs = {
 export const useJsonImportExport = ({
   documentList,
   setDocumentList,
+  trash,
+  setTrash,
   clientName,
   setClientName,
   deceasedName,
@@ -267,6 +283,7 @@ export const useJsonImportExport = ({
       personInCharge,
       personInChargeContact,
       documentList,
+      trash,
     };
 
     const jsonString = JSON.stringify(exportData, null, 2);
@@ -283,7 +300,7 @@ export const useJsonImportExport = ({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [documentList, clientName, deceasedName, personInCharge, personInChargeContact, docListType]);
+  }, [documentList, trash, clientName, deceasedName, personInCharge, personInChargeContact, docListType]);
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -303,6 +320,7 @@ export const useJsonImportExport = ({
   const confirmImport = useCallback(() => {
     if (importPreview) {
       setDocumentList(importPreview.documentList);
+      setTrash(importPreview.trash ?? []);
       if (importPreview.clientName) setClientName(importPreview.clientName);
       if (importPreview.deceasedName) setDeceasedName(importPreview.deceasedName);
       if (importPreview.personInCharge) setPersonInCharge(importPreview.personInCharge);
@@ -310,7 +328,7 @@ export const useJsonImportExport = ({
       setShowImportDialog(false);
       setImportPreview(null);
     }
-  }, [importPreview, setDocumentList, setClientName, setDeceasedName, setPersonInCharge, setPersonInChargeContact]);
+  }, [importPreview, setDocumentList, setTrash, setClientName, setDeceasedName, setPersonInCharge, setPersonInChargeContact]);
 
   const cancelImport = useCallback(() => {
     setShowImportDialog(false);
