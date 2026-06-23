@@ -5,6 +5,7 @@ param(
     [int]$CooldownMinutes = 45,
     [int]$MaxRecoverySeconds = 300,
     [switch]$StartAppsAfterRecovery,
+    [switch]$SkipContainerHealthRecovery,
     [switch]$DryRun
 )
 
@@ -162,6 +163,68 @@ function Test-DockerHealthy {
     }
     Write-WatchdogLog "WARN" $message
     return $false
+}
+
+function Restart-UnhealthyTaxAppsContainers {
+    param([string]$DockerCli)
+
+    if ($SkipContainerHealthRecovery) {
+        return
+    }
+
+    $result = Invoke-ProcessWithTimeout `
+        -FilePath $DockerCli `
+        -ArgumentList @(
+            "ps",
+            "--filter", "label=tax-apps.autoheal=true",
+            "--filter", "health=unhealthy",
+            "--format", "{{.Names}}"
+        ) `
+        -TimeoutSeconds 30
+
+    if ($result.TimedOut) {
+        Write-WatchdogLog "WARN" "docker ps for unhealthy containers timed out."
+        return
+    }
+
+    if ($result.ExitCode -ne 0) {
+        $message = ($result.StdErr | Out-String).Trim()
+        if ([string]::IsNullOrWhiteSpace($message)) {
+            $message = "docker ps exited with code $($result.ExitCode)."
+        }
+        Write-WatchdogLog "WARN" "Could not check unhealthy containers. $message"
+        return
+    }
+
+    $containers = @(
+        ($result.StdOut -split "`r?`n") |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+
+    foreach ($container in $containers) {
+        Write-WatchdogLog "WARN" "Restarting unhealthy Tax Apps container: $container"
+
+        if ($DryRun) {
+            Write-WatchdogLog "INFO" "DryRun is enabled; container restart skipped."
+            continue
+        }
+
+        $restart = Invoke-ProcessWithTimeout `
+            -FilePath $DockerCli `
+            -ArgumentList @("restart", "--time", "30", $container) `
+            -TimeoutSeconds 90
+
+        if (-not $restart.TimedOut -and $restart.ExitCode -eq 0) {
+            Write-WatchdogLog "INFO" "Container restarted: $container"
+        }
+        elseif ($restart.TimedOut) {
+            Write-WatchdogLog "WARN" "docker restart timed out: $container"
+        }
+        else {
+            $message = ($restart.StdErr | Out-String).Trim()
+            Write-WatchdogLog "WARN" "docker restart failed for $container. $message"
+        }
+    }
 }
 
 function Get-WatchdogState {
@@ -322,6 +385,7 @@ try {
     Write-WatchdogLog "INFO" "Checking Docker daemon. DockerCli=$dockerCli"
 
     if (Test-DockerHealthy -DockerCli $dockerCli) {
+        Restart-UnhealthyTaxAppsContainers -DockerCli $dockerCli
         exit 0
     }
 
@@ -329,6 +393,7 @@ try {
     Start-Sleep -Seconds $RetryDelaySeconds
 
     if (Test-DockerHealthy -DockerCli $dockerCli) {
+        Restart-UnhealthyTaxAppsContainers -DockerCli $dockerCli
         exit 0
     }
 
@@ -344,6 +409,7 @@ try {
 
     if (Wait-DockerRecovery -DockerCli $dockerCli) {
         Start-TaxAppsAfterRecovery
+        Restart-UnhealthyTaxAppsContainers -DockerCli $dockerCli
         exit 0
     }
 

@@ -56,7 +56,7 @@ services:
     networks:
       - tax-apps-network
     ports:
-      - "3004:3004"
+      - "127.0.0.1:3004:3004"
     volumes:
       # ソースコードをマウント（ホットリロード用）
       - ./src:/app/src:ro

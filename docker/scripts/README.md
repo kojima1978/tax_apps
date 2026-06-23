@@ -71,12 +71,12 @@
 
 ### 重要
 
-監視対象は **Docker Desktop daemon 自体**（`docker info` の応答性）であり、個別コンテナの死活監視ではない。個別コンテナの自動復旧は各 `docker-compose.yml` の `restart: unless-stopped` と `tax-apps-autoheal` ラベルが担当する。
+監視対象は **Docker Desktop daemon 自体**（`docker info` の応答性）と、`tax-apps.autoheal=true` ラベル付きコンテナの health 状態です。unhealthy コンテナの再起動はホスト側の Docker CLI から実行し、コンテナへ Docker socket は渡しません。
 
 ### 本体スクリプト
 
 - **`docker-watchdog.ps1`** ← **本体**
-  `docker info` で Docker Desktop daemon の応答を確認し、2 回連続失敗（タイムアウト or 非 0 終了）時に復旧処理を実行する PowerShell 本体。
+  `docker info` で Docker Desktop daemon の応答を確認し、2 回連続失敗（タイムアウト or 非 0 終了）時に復旧処理を実行する PowerShell 本体。daemon が正常な場合は、`tax-apps.autoheal=true` ラベル付きの unhealthy コンテナをホスト側 Docker CLI で再起動する。
   - **復旧手順**:
     1. Docker 関連プロセスを kill（`Docker Desktop`, `com.docker.backend`, `com.docker.build`, `docker-sandbox`, `docker`）
     2. `com.docker.service` 再起動（管理者権限必須）
@@ -120,7 +120,7 @@
 | `register-backup-task.ps1` | 本体 (PS) | バックアップタスク登録 |
 | `register-backup-task.bat` | 補助 (CMD) | 現在ユーザーへタスク登録 |
 | `unregister-backup-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除 |
-| `docker-watchdog.ps1` | 本体 (PS) | Docker Desktop daemon 監視/復旧 |
+| `docker-watchdog.ps1` | 本体 (PS) | Docker Desktop daemon 監視/復旧、unhealthy コンテナ再起動 |
 | `docker-watchdog.bat` | 補助 (CMD) | 手動実行用ラッパー |
 | `register-docker-watchdog-task.ps1` | 本体 (PS) | ウォッチドッグタスク登録 |
 | `register-docker-watchdog-task.bat` | 補助 (CMD) | UAC 自己昇格 → 登録 |

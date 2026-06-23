@@ -54,7 +54,7 @@ services:
     networks:
       - tax-apps-network
     ports:
-      - "3002:3002"
+      - "127.0.0.1:3002:3002"
     volumes:
       - ./src:/app/src:ro
       - ./public:/app/public:ro

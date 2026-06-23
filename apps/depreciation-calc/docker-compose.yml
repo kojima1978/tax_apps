@@ -43,7 +43,7 @@ services:
     networks:
       - tax-apps-network
     ports:
-      - "3015:3015"
+      - "127.0.0.1:3015:3015"
     volumes:
       - ./src:/app/src:ro
       - ./index.html:/app/index.html:ro

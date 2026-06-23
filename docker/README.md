@@ -152,7 +152,7 @@ rd /s /q tax_apps
 | `start-prod.bat` | Windows (CMD) | ワンクリックで本番モード起動 |
 | `stop.bat` | Windows (CMD) | ワンクリックで全アプリ停止 |
 | `status.bat` | Windows (CMD) | ワンクリックで状態確認 |
-| `docker-watchdog.ps1` | Windows PowerShell | Docker Desktop の応答確認と自動再起動 |
+| `docker-watchdog.ps1` | Windows PowerShell | Docker Desktop の応答確認・自動再起動・unhealthy コンテナ再起動 |
 | `docker-watchdog.bat` | Windows (CMD) | 手動実行用の watchdog ラッパー（`-DryRun` 等の動作確認用。タスクスケジューラからは `.ps1` が直接呼ばれる） |
 | `register-docker-watchdog-task.ps1` | Windows PowerShell | 15分ごとの Docker watchdog タスクを登録（`-Unregister` で解除） |
 | `register-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク登録の自己昇格ラッパー（ダブルクリックで UAC 昇格 → 登録） |
@@ -169,7 +169,7 @@ rd /s /q tax_apps
 | 停止 | `stop.bat` | ダブルクリックするだけで全アプリを停止 |
 | 状態確認 | `status.bat` | ダブルクリックするだけで状態を確認 |
 | 自動バックアップ | `backup-db.bat` | `backup.sh itcm` を呼び出す補助。ITCM PostgreSQLダンプ + JSONエクスポート + Excelテンプレート等を7日間保持 |
-| Docker自動復旧 | `docker-watchdog.bat` | `docker info` が連続失敗した場合に Docker Desktop を再起動 |
+| Docker自動復旧 | `docker-watchdog.bat` | `docker info` が連続失敗した場合に Docker Desktop を再起動し、unhealthy コンテナも再起動 |
 
 > 詳細操作は下記「コマンド一覧」を参照してください。Windows のコマンドプロンプトから実行する場合は、補助ラッパーとして `manage.bat` に読み替えできます。
 
@@ -598,6 +598,8 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 
 ### ポートマップ
 
+ホストへ publish するポートは `127.0.0.1` に限定しています。LAN など外部端末からは直接アクセスできず、同一PC上のブラウザまたは Gateway 経由で利用します。
+
 | Port | サービス | Compose プロジェクト |
 |:-----|:---------|:-------------------|
 | 80 | Nginx Gateway | docker/gateway |
@@ -661,7 +663,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | ログローテーション | 10MB × 3ファイル |
 | リソース制限 | deploy.resources による memory limit/reservation（Gateway/Portal は 256M/64M） |
 | ヘルスチェック | 全サービスに設定。コンテナ内の自己診断は IPv6 誤判定を避けるため `127.0.0.1` を使用 |
-| 自動復旧 | `tax-apps.autoheal=true` ラベル付きの unhealthy コンテナを、動作確認済み digest 固定の `tax-apps-autoheal` が再起動 |
+| 自動復旧 | `tax-apps.autoheal=true` ラベル付きの unhealthy コンテナを、ホスト側の `docker-watchdog.ps1` が再起動（Docker socket はコンテナへ渡さない） |
 | 依存関係管理 | service_healthy 条件 |
 | 外部ネットワーク | `tax-apps-network` で全コンテナ間通信 |
 

@@ -123,7 +123,7 @@ services:
       bank-analyzer-db:
         condition: service_healthy
     ports:
-      - "3007:3007"
+      - "127.0.0.1:3007:3007"
     volumes:
       # ソースコードをマウント（ホットリロード用）
       - ./analyzer:/app/analyzer:ro
@@ -217,7 +217,7 @@ services:
       bank-analyzer-db:
         condition: service_healthy
     ports:
-      - "3007:3007"
+      - "127.0.0.1:3007:3007"
     volumes:
       # ユーザー設定のみ（ソースコードはイメージ内）
       - ./data:/app/data

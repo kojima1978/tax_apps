@@ -37,7 +37,7 @@ services:
     networks:
       - tax-apps-network
     ports:
-      - "3014:3014"
+      - "127.0.0.1:3014:3014"
     volumes:
       - ./src:/app/src:ro
       - ./index.html:/app/index.html:ro

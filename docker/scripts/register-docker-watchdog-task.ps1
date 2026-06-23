@@ -67,7 +67,7 @@ $principal = New-ScheduledTaskPrincipal `
     -LogonType Interactive `
     -RunLevel Highest
 
-$description = "Checks Docker Desktop every $IntervalMinutes minutes and restarts it when docker info does not respond."
+$description = "Checks Docker Desktop every $IntervalMinutes minutes, restarts it when docker info does not respond, and restarts unhealthy Tax Apps containers."
 if ($StartAppsAfterRecovery) {
     $description += " Auto-starts Tax Apps after recovery."
 }

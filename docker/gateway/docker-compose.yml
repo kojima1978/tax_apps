@@ -66,7 +66,7 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m,mode=1777
     ports:
-      - "80:80"
+      - "127.0.0.1:80:80"
     volumes:
       - ../../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
@@ -90,32 +90,13 @@ services:
       target: runner
     container_name: portal-app
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3000/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 5s
-
-  # ===========================================
-  # Autoheal (restart unhealthy containers)
-  # ===========================================
-  autoheal:
-    image: willfarrell/autoheal@sha256:cdb6271bea1fedd140e0629c01248a5712591032c424185e578b336791a4534d
-    container_name: tax-apps-autoheal
-    restart: unless-stopped
-    network_mode: none
-    environment:
-      AUTOHEAL_CONTAINER_LABEL: tax-apps.autoheal
-      AUTOHEAL_INTERVAL: "15"
-      AUTOHEAL_START_PERIOD: "60"
-      AUTOHEAL_DEFAULT_STOP_TIMEOUT: "30"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
 
 networks:
   tax-apps-network:

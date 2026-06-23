@@ -49,7 +49,7 @@ services:
     networks:
       - tax-apps-network
     ports:
-      - "3010:3010"
+      - "127.0.0.1:3010:3010"
     volumes:
       # ソースコードをマウント（ホットリロード用）
       - ./app:/app/app:ro

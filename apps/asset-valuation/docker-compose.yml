@@ -42,7 +42,7 @@ services:
     networks:
       - tax-apps-network
     ports:
-      - "3017:3017"
+      - "127.0.0.1:3017:3017"
     volumes:
       - ./src:/app/src:ro
       - ./index.html:/app/index.html:ro

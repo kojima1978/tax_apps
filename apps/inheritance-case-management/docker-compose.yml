@@ -46,7 +46,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${DB_PORT:-3022}:5432"
+      - "127.0.0.1:${DB_PORT:-3022}:5432"
     shm_size: 128m
     logging: *default-logging
     labels: *autoheal-labels
@@ -97,7 +97,7 @@ services:
       # テンプレートファイル（見積書・請求書Excel）
       - ./templates:/app/templates:ro
     ports:
-      - "3020:3020"
+      - "127.0.0.1:3020:3020"
     depends_on:
       postgres:
         condition: service_healthy
