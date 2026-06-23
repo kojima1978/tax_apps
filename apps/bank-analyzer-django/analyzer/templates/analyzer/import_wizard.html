@@ -384,6 +384,9 @@
                 </div>
             </div>
 
+            <!-- 重複インポートの事前アラート -->
+            <div id="duplicateWarningBanner" class="alert alert-warning d-none mt-2"></div>
+
             <!-- ファイル別プレビュー（編集可能テーブル） -->
             <div class="accordion" id="previewAccordion"></div>
 
@@ -790,7 +793,9 @@ function renderPreview() {
                     </td>
                     <td class="calc-balance text-end">${(row.calc_balance || row.balance || 0).toLocaleString()}</td>`}
                     <td class="status-cell text-center">
-                        ${isDuplicate ? '<span class="badge bg-warning text-dark">重複</span>' : ''}
+                        ${isDuplicate ? (row.dup_confidence === 'low'
+                            ? '<span class="badge bg-secondary" title="既存データとキーは一致しますが、残高情報がなく確証はありません。要確認">重複?</span>'
+                            : '<span class="badge bg-warning text-dark" title="既存データと残高まで一致（重複の可能性が高い）">重複</span>') : ''}
                         ${noBalance ? '' : (isError ? '<span class="badge bg-danger">誤差</span>' : '<span class="badge bg-success">OK</span>')}
                     </td>
                 </tr>
@@ -856,6 +861,9 @@ function renderPreview() {
     document.getElementById('summaryNewRows').textContent = newRows;
     document.getElementById('summaryErrors').textContent = errorCount;
 
+    // 重複インポートの事前アラート（連続一致／高重複率を検知したファイル）
+    renderDuplicateWarning();
+
     // 残高なし時の制御
     const noBalanceWarning = document.getElementById('noBalanceWarning');
     const allowNoBalanceCheck = document.getElementById('allowNoBalance');
@@ -879,6 +887,43 @@ function renderPreview() {
     setupEditableTableEvents();
     initSortable();
     updateErrorNav();
+}
+
+// ===== 重複インポートの事前アラート =====
+function renderDuplicateWarning() {
+    const banner = document.getElementById('duplicateWarningBanner');
+    if (!banner) return;
+
+    const warnings = [];
+    wizardState.parsedData.forEach((fileData) => {
+        if (fileData.warning) {
+            warnings.push({ filename: fileData.filename, message: fileData.warning.message });
+        }
+    });
+
+    if (warnings.length === 0) {
+        banner.classList.add('d-none');
+        banner.innerHTML = '';
+        return;
+    }
+
+    const items = warnings.map(w =>
+        `<li class="small"><strong>${w.filename}</strong>: ${w.message}</li>`
+    ).join('');
+
+    banner.innerHTML = `
+        <div class="d-flex align-items-start">
+            <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+            <div>
+                <strong>重複インポートの可能性があります</strong>
+                <ul class="mb-1 mt-1 ps-3">${items}</ul>
+                <div class="small text-muted">
+                    「重複スキップ」が有効な場合、既存データと一致する行は取り込まれません。
+                    内容を確認のうえ、問題なければそのまま実行できます。
+                </div>
+            </div>
+        </div>`;
+    banner.classList.remove('d-none');
 }
 
 // ===== イベントリスナー設定 =====

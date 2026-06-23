@@ -53,7 +53,7 @@ from .transaction import (
 from .wizard import (
     import_wizard,
     make_dedup_key,
-    build_existing_keys,
+    build_existing_counts,
     mark_duplicates,
 )
 
@@ -113,7 +113,7 @@ __all__ = [
     # Wizard
     'import_wizard',
     'make_dedup_key',
-    'build_existing_keys',
+    'build_existing_counts',
     'mark_duplicates',
 
     # API endpoints

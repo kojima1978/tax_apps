@@ -924,3 +924,186 @@ class UpdateTransactionTest(TestCase):
             }
         )
         self.assertFalse(result)
+
+
+class ImportDedupTest(TestCase):
+    """インポート重複判定（同じ日・同じ金額の取り込み漏れ対策）のテスト"""
+
+    def setUp(self):
+        from .handlers.wizard import (
+            make_dedup_key, build_existing_counts, build_existing_index,
+            mark_duplicates, max_duplicate_run, build_duplicate_warning,
+        )
+        self.make_dedup_key = make_dedup_key
+        self.build_existing_counts = build_existing_counts
+        self.build_existing_index = build_existing_index
+        self.mark_duplicates = mark_duplicates
+        self.max_duplicate_run = max_duplicate_run
+        self.build_duplicate_warning = build_duplicate_warning
+        self.case = Case.objects.create(name="重複テスト")
+        self.account = Account.objects.create(
+            case=self.case, account_number="1234567", bank_name="テスト銀行",
+        )
+
+    def _row(self, date_str, amount_out=0, amount_in=0, description="", account_number="1234567", balance=None):
+        return {
+            'date': date_str, 'amount_out': amount_out, 'amount_in': amount_in,
+            'description': description, 'account_number': account_number, 'balance': balance,
+        }
+
+    def test_key_distinguishes_by_description(self):
+        """同じ日・同じ金額でも摘要が違えば別キーになる"""
+        k1 = self.make_dedup_key("1234567", "2024-01-15", 10000, 0, "ATM出金")
+        k2 = self.make_dedup_key("1234567", "2024-01-15", 10000, 0, "振込")
+        self.assertNotEqual(k1, k2)
+
+    def test_key_same_when_all_match(self):
+        """全項目一致なら同一キー"""
+        k1 = self.make_dedup_key("1234567", "2024-01-15", 10000, 0, "ATM出金")
+        k2 = self.make_dedup_key("1234567", "2024-01-15", 10000, 0, "ATM出金")
+        self.assertEqual(k1, k2)
+
+    def test_build_counts_tracks_multiplicity(self):
+        """DBに同一キーが複数あれば件数として保持される"""
+        for _ in range(2):
+            Transaction.objects.create(
+                case=self.case, account=self.account, date=date(2024, 1, 15),
+                description="同じ摘要", amount_out=10000, amount_in=0,
+            )
+        counts = self.build_existing_counts(self.case)
+        key = self.make_dedup_key("1234567", date(2024, 1, 15), 10000, 0, "同じ摘要")
+        self.assertEqual(counts[key], 2)
+
+    def test_same_day_same_amount_not_dropped_on_fresh_import(self):
+        """【回帰】DBが空なら、同じ日・同じ金額・同じ摘要が2件でも両方とも取り込める"""
+        counts = self.build_existing_counts(self.case)  # DB空 → 空のCounter
+        rows = [
+            self._row("2024-01-15", amount_out=10000, description="ATM出金"),
+            self._row("2024-01-15", amount_out=10000, description="ATM出金"),
+        ]
+        dup_count = self.mark_duplicates(rows, counts)
+        self.assertEqual(dup_count, 0)
+        self.assertFalse(rows[0]['is_duplicate'])
+        self.assertFalse(rows[1]['is_duplicate'])
+
+    def test_reimport_skips_only_db_count(self):
+        """DBに1件ある状態でCSVに同一キーが2件 → 1件だけ重複、残り1件は新規"""
+        Transaction.objects.create(
+            case=self.case, account=self.account, date=date(2024, 1, 15),
+            description="ATM出金", amount_out=10000, amount_in=0,
+        )
+        counts = self.build_existing_counts(self.case)
+        rows = [
+            self._row("2024-01-15", amount_out=10000, description="ATM出金"),
+            self._row("2024-01-15", amount_out=10000, description="ATM出金"),
+        ]
+        dup_count = self.mark_duplicates(rows, counts)
+        self.assertEqual(dup_count, 1)
+        self.assertTrue(rows[0]['is_duplicate'])
+        self.assertFalse(rows[1]['is_duplicate'])
+
+    def test_different_description_is_not_duplicate(self):
+        """DBにある取引と摘要が違えば重複扱いしない"""
+        Transaction.objects.create(
+            case=self.case, account=self.account, date=date(2024, 1, 15),
+            description="ATM出金", amount_out=10000, amount_in=0,
+        )
+        counts = self.build_existing_counts(self.case)
+        rows = [self._row("2024-01-15", amount_out=10000, description="振込")]
+        dup_count = self.mark_duplicates(rows, counts)
+        self.assertEqual(dup_count, 0)
+        self.assertFalse(rows[0]['is_duplicate'])
+
+    def test_counts_consumed_across_multiple_files(self):
+        """同一Counterを複数回呼んでも、DB件数を超えた分は重複にならない"""
+        Transaction.objects.create(
+            case=self.case, account=self.account, date=date(2024, 1, 15),
+            description="ATM出金", amount_out=10000, amount_in=0,
+        )
+        counts = self.build_existing_counts(self.case)
+        # ファイル1: 1件目はDBと重複
+        file1 = [self._row("2024-01-15", amount_out=10000, description="ATM出金")]
+        self.assertEqual(self.mark_duplicates(file1, counts), 1)
+        # ファイル2: 同じキーでもDB件数は消費済みなので新規扱い
+        file2 = [self._row("2024-01-15", amount_out=10000, description="ATM出金")]
+        self.assertEqual(self.mark_duplicates(file2, counts), 0)
+        self.assertFalse(file2[0]['is_duplicate'])
+
+    # ---- 残高ベースの確信度判定 ----
+
+    def test_balance_match_is_high_confidence(self):
+        """残高まで一致 → 高確信度の重複"""
+        Transaction.objects.create(
+            case=self.case, account=self.account, date=date(2024, 1, 15),
+            description="ATM出金", amount_out=10000, amount_in=0, balance=90000,
+        )
+        counts, balances = self.build_existing_index(self.case)
+        rows = [self._row("2024-01-15", amount_out=10000, description="ATM出金", balance=90000)]
+        self.mark_duplicates(rows, counts, balances)
+        self.assertTrue(rows[0]['is_duplicate'])
+        self.assertEqual(rows[0]['dup_confidence'], 'high')
+
+    def test_same_key_different_balance_picks_matching_row(self):
+        """同日同額同摘要が2件でも、残高が一致する行だけを重複に選ぶ"""
+        Transaction.objects.create(
+            case=self.case, account=self.account, date=date(2024, 1, 15),
+            description="ATM出金", amount_out=10000, amount_in=0, balance=90000,
+        )
+        counts, balances = self.build_existing_index(self.case)
+        rows = [
+            self._row("2024-01-15", amount_out=10000, description="ATM出金", balance=50000),  # 別取引
+            self._row("2024-01-15", amount_out=10000, description="ATM出金", balance=90000),  # 既存と一致
+        ]
+        dup_count = self.mark_duplicates(rows, counts, balances)
+        self.assertEqual(dup_count, 1)
+        # 残高一致した2件目が高確信度の重複、残高違いの1件目は新規
+        self.assertFalse(rows[0]['is_duplicate'])
+        self.assertTrue(rows[1]['is_duplicate'])
+        self.assertEqual(rows[1]['dup_confidence'], 'high')
+
+    def test_missing_balance_is_low_confidence(self):
+        """残高情報が無い場合は低確信度（要確認）"""
+        Transaction.objects.create(
+            case=self.case, account=self.account, date=date(2024, 1, 15),
+            description="ATM出金", amount_out=10000, amount_in=0, balance=None,
+        )
+        counts, balances = self.build_existing_index(self.case)
+        rows = [self._row("2024-01-15", amount_out=10000, description="ATM出金", balance=None)]
+        self.mark_duplicates(rows, counts, balances)
+        self.assertTrue(rows[0]['is_duplicate'])
+        self.assertEqual(rows[0]['dup_confidence'], 'low')
+
+    # ---- 連続ブロック検知・事前アラート ----
+
+    def test_max_duplicate_run(self):
+        """連続する重複候補の最大長を返す"""
+        rows = [
+            {'is_duplicate': False}, {'is_duplicate': True}, {'is_duplicate': True},
+            {'is_duplicate': False}, {'is_duplicate': True},
+        ]
+        self.assertEqual(self.max_duplicate_run(rows), 2)
+
+    def test_warning_triggers_on_consecutive_run(self):
+        """連続一致がしきい値以上ならアラートを生成"""
+        rows = [{'is_duplicate': True} for _ in range(3)] + [{'is_duplicate': False}]
+        warning = self.build_duplicate_warning(rows, duplicate_count=3, row_count=4)
+        self.assertIsNotNone(warning)
+        self.assertEqual(warning['max_run'], 3)
+
+    def test_warning_not_triggered_for_isolated_duplicates(self):
+        """単発の重複（正当な同日同額）ではアラートを出さない"""
+        rows = [
+            {'is_duplicate': True}, {'is_duplicate': False}, {'is_duplicate': False},
+            {'is_duplicate': False}, {'is_duplicate': False},
+        ]
+        warning = self.build_duplicate_warning(rows, duplicate_count=1, row_count=5)
+        self.assertIsNone(warning)
+
+    def test_warning_triggers_on_high_ratio(self):
+        """連続でなくても重複率が高ければアラート（30%以上・3件以上）"""
+        rows = [
+            {'is_duplicate': True}, {'is_duplicate': False}, {'is_duplicate': True},
+            {'is_duplicate': False}, {'is_duplicate': True}, {'is_duplicate': False},
+        ]
+        warning = self.build_duplicate_warning(rows, duplicate_count=3, row_count=6)
+        self.assertIsNotNone(warning)
