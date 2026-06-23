@@ -2,6 +2,40 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
+<style>
+/* ドラッグ＆ドロップエリア */
+.json-drop-zone {
+    border: 3px dashed #dee2e6;
+    border-radius: 12px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    transition: all 0.2s ease;
+    background: #f8f9fa;
+    cursor: pointer;
+}
+.json-drop-zone:hover,
+.json-drop-zone.drag-over {
+    border-color: #0d6efd;
+    background: rgba(13, 110, 253, 0.05);
+}
+.json-drop-zone.drag-over {
+    transform: scale(1.01);
+}
+.json-drop-zone.is-error {
+    border-color: #dc3545;
+    background: rgba(220, 53, 69, 0.05);
+}
+.json-drop-zone-icon {
+    font-size: 3rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+    line-height: 1;
+}
+.json-drop-zone:hover .json-drop-zone-icon {
+    color: #0d6efd;
+}
+</style>
+
 <div class="row justify-content-center">
     <div class="col-md-8">
         <nav aria-label="breadcrumb">
@@ -28,7 +62,21 @@
 
                 <div class="mb-3">
                     {{ form.json_file.label_tag }}
-                    {{ form.json_file }}
+
+                    <!-- ドラッグ＆ドロップエリア -->
+                    <div id="jsonDropZone" class="json-drop-zone">
+                        <div class="json-drop-zone-icon"><i class="bi bi-filetype-json"></i></div>
+                        <p class="mb-1 fw-bold">JSONファイルをここにドラッグ＆ドロップ</p>
+                        <p class="text-muted small mb-0">またはクリックして選択 ※最大10MB</p>
+                        <div id="jsonSelectedFile" class="mt-2 fw-bold text-primary d-none"></div>
+                    </div>
+                    <div id="jsonFileError" class="text-danger small mt-2 d-none">
+                        <i class="bi bi-exclamation-circle me-1"></i>JSONファイルを選択してください。
+                    </div>
+
+                    <!-- 実体のファイル入力（ドロップゾーンに連動。非表示だが送信・検証に使用） -->
+                    <div class="d-none">{{ form.json_file }}</div>
+
                     {% if form.json_file.help_text %}
                     <div class="form-text">{{ form.json_file.help_text }}</div>
                     {% endif %}
@@ -65,4 +113,93 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const dropZone = document.getElementById('jsonDropZone');
+    const fileInput = document.getElementById('id_json_file');
+    const selectedFile = document.getElementById('jsonSelectedFile');
+    const fileError = document.getElementById('jsonFileError');
+    if (!dropZone || !fileInput) return;
+
+    // 非表示の input に対するブラウザ標準の required 検証は
+    // 「フォーカス不可」エラーになるため、検証は自前 + サーバー側に委ねる
+    fileInput.removeAttribute('required');
+
+    function showFileName(name) {
+        selectedFile.textContent = '選択中: ' + name;
+        selectedFile.classList.remove('d-none');
+        clearError();
+    }
+
+    function clearError() {
+        dropZone.classList.remove('is-error');
+        if (fileError) fileError.classList.add('d-none');
+    }
+
+    function showError() {
+        dropZone.classList.add('is-error');
+        if (fileError) fileError.classList.remove('d-none');
+    }
+
+    // クリックでファイル選択ダイアログを開く
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // ファイル選択ダイアログでの選択を反映
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+            showFileName(fileInput.files[0].name);
+        }
+    });
+
+    // ドラッグ中の見た目
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('drag-over');
+        });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('drag-over');
+        });
+    });
+
+    // ドロップされたファイルを input に反映
+    dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || !files.length) return;
+
+        const file = files[0];
+        if (!file.name.toLowerCase().endsWith('.json')) {
+            alert('JSONファイル（.json）を選択してください');
+            return;
+        }
+
+        // DataTransfer を使って input.files に代入（フォーム送信で利用される）
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+
+        showFileName(file.name);
+    });
+
+    // 未選択のまま送信したらインラインで警告（サーバー側検証も併用）
+    const form = fileInput.closest('form');
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            if (!fileInput.files.length) {
+                e.preventDefault();
+                showError();
+                dropZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    }
+})();
+</script>
 {% endblock %}
