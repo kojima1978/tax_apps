@@ -64,17 +64,50 @@ export type RollingAnnualPoint = {
 }
 
 /** 入金済み案件を月別に集計し、移動年計を算出（基準: 入金日 paidDate） */
-export function computeRollingAnnual(cases: InheritanceCase[], baseMonth?: string): RollingAnnualPoint[] {
+type MonthlyRollup = { fee: number; count: number }
+
+function addMonthlyRollup(map: Map<string, MonthlyRollup>, key: string, fee: number, count = 1) {
+    if (!map.has(key)) map.set(key, { fee: 0, count: 0 })
+    const m = map.get(key)!
+    m.fee += fee
+    m.count += count
+}
+
+function assigneeDepartmentName(name: string | null | undefined, deptMap: Map<string, string>): string {
+    if (!name) return LABEL_UNSET
+    return deptMap.get(name) || LABEL_UNSET
+}
+
+export function computeRollingAnnual(
+    cases: InheritanceCase[],
+    baseMonth?: string,
+    departmentName?: string,
+    deptMap: Map<string, string> = new Map(),
+): RollingAnnualPoint[] {
     const monthlyMap = new Map<string, { fee: number; count: number }>()
     cases.forEach(c => {
         if (!isAnalyticsConfirmedStatus(c.status)) return
         if (!c.paidDate) return
         const d = new Date(c.paidDate)
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        if (!monthlyMap.has(key)) monthlyMap.set(key, { fee: 0, count: 0 })
-        const m = monthlyMap.get(key)!
-        m.fee += calcNet(c, "fee")
-        m.count++
+
+        if (!departmentName) {
+            addMonthlyRollup(monthlyMap, key, calcNet(c, "fee"))
+            return
+        }
+
+        const assignedDeptName = assigneeDepartmentName(c.assignee?.name, deptMap)
+        if (assignedDeptName === departmentName) {
+            addMonthlyRollup(monthlyMap, key, calcNetPersonal(c, "fee"))
+        }
+
+        const referralFee = calcReferralFee(c, "fee")
+        if (referralFee > 0 && c.internalReferrerId != null) {
+            const refDeptName = assigneeDepartmentName(c.internalReferrer?.name, deptMap)
+            if (refDeptName === departmentName) {
+                addMonthlyRollup(monthlyMap, key, referralFee)
+            }
+        }
     })
 
     const now = new Date()

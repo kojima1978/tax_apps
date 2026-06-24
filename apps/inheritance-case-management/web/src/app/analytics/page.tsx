@@ -5,7 +5,7 @@ import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
 import type { InheritanceCase, Assignee } from "@/types/shared"
 import type { RankingData } from "@/lib/analytics-utils"
-import { calcNet, calcReferralFee, getAnalyticsBaseType, aggregateCases, computeRollingAnnual } from "@/lib/analytics-utils"
+import { calcNet, calcReferralFee, getAnalyticsBaseType, aggregateCases, computeRollingAnnual, LABEL_UNSET } from "@/lib/analytics-utils"
 import { isAccepted } from "@/types/constants"
 import { RefreshCw } from "lucide-react"
 import { useRankingSort } from "@/hooks/use-ranking-sort"
@@ -14,6 +14,8 @@ import { BreakdownTab } from "./BreakdownTab"
 import { ReferrerTab } from "./ReferrerTab"
 import dynamic from "next/dynamic"
 const AnnualTrendTab = dynamic(() => import("./AnnualTrendTab").then(m => m.AnnualTrendTab), { ssr: false })
+
+const ALL_DEPARTMENTS_VALUE = "__all__"
 
 type TabId = "overview" | "trend" | "breakdown" | "referrer"
 
@@ -39,6 +41,7 @@ export default function AnalyticsPage() {
     const [years, setYears] = useState<number[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [annualBaseMonth, setAnnualBaseMonth] = useState(getCurrentMonth)
+    const [annualDepartment, setAnnualDepartment] = useState(ALL_DEPARTMENTS_VALUE)
 
     const isAllYears = selectedYears.size === 0
 
@@ -51,7 +54,7 @@ export default function AnalyticsPage() {
                 setAssigneesData(assignees)
 
                 const map = new Map<string, string>()
-                assignees.forEach(a => map.set(a.name, a.department?.name || ""))
+                assignees.forEach(a => map.set(a.name, a.department?.name || LABEL_UNSET))
                 setDeptMap(map)
 
                 const uniqueYears = Array.from(new Set(cases.map(c => c.fiscalYear))).sort((a, b) => b - a)
@@ -93,9 +96,33 @@ export default function AnalyticsPage() {
         [filteredData, deptMap]
     )
 
+    const annualDepartmentOptions = useMemo(() => {
+        const options = new Map<string, number>()
+        const addOption = (name: string, sortOrder: number) => {
+            const current = options.get(name)
+            if (current == null || sortOrder < current) options.set(name, sortOrder)
+        }
+
+        assigneesData.forEach(a => {
+            addOption(a.department?.name || LABEL_UNSET, a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER)
+        })
+
+        data.forEach(c => {
+            if (!c.assignee?.department?.name || (c.internalReferrerId != null && !c.internalReferrer?.department?.name)) {
+                addOption(LABEL_UNSET, Number.MAX_SAFE_INTEGER)
+            }
+        })
+
+        return Array.from(options.entries())
+            .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0], "ja"))
+            .map(([name]) => name)
+    }, [assigneesData, data])
+
+    const annualDepartmentName = annualDepartment === ALL_DEPARTMENTS_VALUE ? undefined : annualDepartment
+
     const rollingAnnualData = useMemo(
-        () => computeRollingAnnual(data, annualBaseMonth),
-        [annualBaseMonth, data]
+        () => computeRollingAnnual(data, annualBaseMonth, annualDepartmentName, deptMap),
+        [annualBaseMonth, annualDepartmentName, data, deptMap]
     )
 
     const handleAnnualBaseMonthChange = useCallback((value: string) => {
@@ -269,6 +296,9 @@ export default function AnalyticsPage() {
                     data={rollingAnnualData}
                     baseMonth={annualBaseMonth}
                     onBaseMonthChange={handleAnnualBaseMonthChange}
+                    departmentOptions={annualDepartmentOptions}
+                    selectedDepartment={annualDepartment}
+                    onDepartmentChange={setAnnualDepartment}
                 />
             )}
 

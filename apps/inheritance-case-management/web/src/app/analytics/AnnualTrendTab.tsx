@@ -10,7 +10,12 @@ interface AnnualTrendTabProps {
     data: RollingAnnualPoint[]
     baseMonth: string
     onBaseMonthChange: (value: string) => void
+    departmentOptions: string[]
+    selectedDepartment: string
+    onDepartmentChange: (value: string) => void
 }
+
+const ALL_DEPARTMENTS_VALUE = "__all__"
 
 function formatMan(v: number): string {
     return `${Math.round(v / 10000).toLocaleString()}万`
@@ -59,7 +64,14 @@ function buildMonthHref(point: RollingAnnualPoint): string {
     return `/?${params.toString()}`
 }
 
-export function AnnualTrendTab({ data, baseMonth, onBaseMonthChange }: AnnualTrendTabProps) {
+export function AnnualTrendTab({
+    data,
+    baseMonth,
+    onBaseMonthChange,
+    departmentOptions,
+    selectedDepartment,
+    onDepartmentChange,
+}: AnnualTrendTabProps) {
 
     const xInterval = Math.max(0, Math.floor(data.length / 12) - 1)
     const currentMonth = getCurrentMonth()
@@ -74,6 +86,20 @@ export function AnnualTrendTab({ data, baseMonth, onBaseMonthChange }: AnnualTre
                         <p className="mt-1 text-sm text-muted-foreground">基準月を含む過去24か月の月間実績と直近12か月累計</p>
                     </div>
                     <div className="flex flex-wrap items-end gap-1.5">
+                        <label className="grid gap-1 text-xs font-medium text-muted-foreground" htmlFor="annual-department">
+                            部門
+                            <select
+                                id="annual-department"
+                                value={selectedDepartment}
+                                onChange={event => onDepartmentChange(event.target.value)}
+                                className="h-9 rounded-md border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                <option value={ALL_DEPARTMENTS_VALUE}>全体</option>
+                                {departmentOptions.map(name => (
+                                    <option key={name} value={name}>{name}</option>
+                                ))}
+                            </select>
+                        </label>
                         <button
                             type="button"
                             onClick={() => onBaseMonthChange(shiftMonth(baseMonth, -1))}
