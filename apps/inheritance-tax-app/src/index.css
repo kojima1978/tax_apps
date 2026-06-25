@@ -1031,6 +1031,17 @@
   /* ゾーンバーは印刷時やや低めにして紙面を節約（色は維持） */
   .insurance-print .h-7 { height: 18px !important; }
 
+  /* 比較表が2ページにまたがるとき:
+     ・列見出し(thead)を各ページ先頭に繰り返す
+     ・セクション(tbody)はページ境界で分断しない（見出しの取り残し防止） */
+  .insurance-print thead {
+    display: table-header-group;
+  }
+  .insurance-print tbody.comparison-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   /* 贈与ページ */
   .cash-gift-print {
     padding: 0 !important;

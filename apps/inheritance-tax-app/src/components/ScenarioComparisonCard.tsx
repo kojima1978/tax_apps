@@ -90,6 +90,14 @@ export function ScenarioComparisonCard<T>({
   highlightCols,
   bottomSlot,
 }: ScenarioComparisonCardProps<T>) {
+  // セクション（sectionHeader 区切り）ごとに tbody を分割する。
+  // 印刷時に tbody へ break-inside: avoid を効かせ、1セクションが
+  // ページ境界で分断されない（見出しが前ページに取り残されない）ようにする。
+  const sections: ComparisonRowDef<T>[][] = [];
+  for (const row of rows) {
+    if (row.sectionHeader || sections.length === 0) sections.push([]);
+    sections[sections.length - 1].push(row);
+  }
   return (
     <div className={CARD}>
       <h3 className="text-lg font-bold text-gray-800 mb-2">{title}</h3>
@@ -177,41 +185,43 @@ export function ScenarioComparisonCard<T>({
               <th className={TH}>差額（Δ）</th>
             </tr>
           </thead>
-          <tbody>
-            {rows.map(row => {
-              const currentVal = row.getCurrent(result);
-              const proposedVal = row.getProposed(result);
-              const diff = proposedVal - currentVal;
-              const borderClass = row.sectionEnd ? 'border-b-2 border-b-gray-400' : '';
-              const pfx = row.valuePrefix || '';
-              const fmtVal = (v: number) => v > 0 && pfx ? `${pfx}${formatCurrency(v)}` : formatCurrency(v);
-              return (
-                <React.Fragment key={row.id}>
-                  {row.sectionHeader && (
-                    <tr className="bg-gray-100">
-                      <td colSpan={4} className="px-3 py-1.5 text-xs font-bold text-gray-600 tracking-wide">
-                        {row.sectionHeader}
-                        {row.sectionDescription && (
-                          <span className="ml-2 font-normal text-gray-400">{row.sectionDescription}</span>
-                        )}
+          {sections.map((sectionRows, si) => (
+            <tbody key={si} className="comparison-section">
+              {sectionRows.map(row => {
+                const currentVal = row.getCurrent(result);
+                const proposedVal = row.getProposed(result);
+                const diff = proposedVal - currentVal;
+                const borderClass = row.sectionEnd ? 'border-b-2 border-b-gray-400' : '';
+                const pfx = row.valuePrefix || '';
+                const fmtVal = (v: number) => v > 0 && pfx ? `${pfx}${formatCurrency(v)}` : formatCurrency(v);
+                return (
+                  <React.Fragment key={row.id}>
+                    {row.sectionHeader && (
+                      <tr className="bg-gray-100">
+                        <td colSpan={4} className="px-3 py-1.5 text-xs font-bold text-gray-600 tracking-wide">
+                          {row.sectionHeader}
+                          {row.sectionDescription && (
+                            <span className="ml-2 font-normal text-gray-400">{row.sectionDescription}</span>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    <tr className={row.highlight ? 'bg-green-50 font-semibold' : 'hover:bg-gray-50'}>
+                      <td className={`${TD} text-left font-medium ${borderClass}`}>
+                        {row.rowSign && <span className="text-gray-400 mr-1">{row.rowSign}</span>}
+                        {row.label}
+                      </td>
+                      <td className={`${TD} ${borderClass}`}>{fmtVal(currentVal)}</td>
+                      <td className={`${TD} ${borderClass}`}>{fmtVal(proposedVal)}</td>
+                      <td className={`${TD} font-medium ${diff !== 0 ? deltaColor(diff) : 'text-gray-400'} ${borderClass}`}>
+                        {diff !== 0 ? formatDelta(diff) : '—'}
                       </td>
                     </tr>
-                  )}
-                  <tr className={row.highlight ? 'bg-green-50 font-semibold' : 'hover:bg-gray-50'}>
-                    <td className={`${TD} text-left font-medium ${borderClass}`}>
-                      {row.rowSign && <span className="text-gray-400 mr-1">{row.rowSign}</span>}
-                      {row.label}
-                    </td>
-                    <td className={`${TD} ${borderClass}`}>{fmtVal(currentVal)}</td>
-                    <td className={`${TD} ${borderClass}`}>{fmtVal(proposedVal)}</td>
-                    <td className={`${TD} font-medium ${diff !== 0 ? deltaColor(diff) : 'text-gray-400'} ${borderClass}`}>
-                      {diff !== 0 ? formatDelta(diff) : '—'}
-                    </td>
-                  </tr>
-                </React.Fragment>
-              );
-            })}
-          </tbody>
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          ))}
         </table>
       </div>
 
