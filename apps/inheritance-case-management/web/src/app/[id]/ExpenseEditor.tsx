@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { CurrencyField } from "@/components/ui/CurrencyField"
 import { Download, GripVertical, Trash2 } from "lucide-react"
-import type { Expense } from "@/types/shared"
+import type { CaseHeir, Expense } from "@/types/shared"
 import { EXPENSE_DESCRIPTION_PRESETS } from "@/types/constants"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
@@ -14,8 +14,17 @@ import { CSS } from "@dnd-kit/utilities"
 import { useSensors, useSensor, PointerSensor, KeyboardSensor } from "@dnd-kit/core"
 import * as XLSX from "xlsx-js-style"
 
-function exportExpensesExcel(expenses: Expense[], total: number) {
+function exportExpensesExcel(expenses: Expense[], total: number, deceasedName: string, heirs: CaseHeir[]) {
+    const partyRows = [
+        ["被相続人", deceasedName],
+        ...heirs
+            .slice()
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map(heir => ["相続人", heir.person.name]),
+        [],
+    ]
     const rows = [
+        ...partyRows,
         ["日付", "内容", "金額", "備考（購入場所など）"],
         ...expenses.map(e => [e.date, e.description, e.amount || 0, e.memo || ""]),
         ["", "合計", total, ""],
@@ -30,8 +39,9 @@ function exportExpensesExcel(expenses: Expense[], total: number) {
 
     const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:D1")
     const thinBorder = { style: "thin", color: { rgb: "000000" } }
+    const expenseHeaderRow = partyRows.length
     for (let column = 0; column <= 3; column++) {
-        const headerCell = worksheet[XLSX.utils.encode_cell({ r: 0, c: column })]
+        const headerCell = worksheet[XLSX.utils.encode_cell({ r: expenseHeaderRow, c: column })]
         if (headerCell) {
             headerCell.s = { border: { bottom: thinBorder } }
         }
@@ -40,7 +50,7 @@ function exportExpensesExcel(expenses: Expense[], total: number) {
             totalCell.s = { ...totalCell.s, border: { top: thinBorder } }
         }
     }
-    for (let row = 1; row <= range.e.r; row++) {
+    for (let row = expenseHeaderRow + 1; row <= range.e.r; row++) {
         const amountCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 2 })]
         if (amountCell) {
             amountCell.z = "#,##0"
@@ -199,10 +209,12 @@ function SortableExpenseRow({
 
 interface ExpenseEditorProps {
     expenses: Expense[]
+    deceasedName: string
+    heirs: CaseHeir[]
     onChange: (expenses: Expense[]) => void
 }
 
-export function ExpenseEditor({ expenses, onChange }: ExpenseEditorProps) {
+export function ExpenseEditor({ expenses, deceasedName, heirs, onChange }: ExpenseEditorProps) {
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(KeyboardSensor),
@@ -276,7 +288,7 @@ export function ExpenseEditor({ expenses, onChange }: ExpenseEditorProps) {
 
             {expenses.length > 0 && (
                 <div className="flex items-center justify-between border-t pt-1.5">
-                    <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => exportExpensesExcel(expenses, total)}>
+                    <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => exportExpensesExcel(expenses, total, deceasedName, heirs)}>
                         <Download className="mr-1 h-3.5 w-3.5" />
                         Excel出力
                     </Button>

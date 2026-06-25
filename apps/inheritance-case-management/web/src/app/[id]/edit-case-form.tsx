@@ -235,6 +235,8 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             <CollapsibleSection title="立替金" icon={Receipt} isOpen={sections.isOpen("expenses")} onToggle={() => sections.toggle("expenses")} badge={`${(formData.expenses || []).length}件`} compact>
                 <ExpenseEditor
                     expenses={toExpenses(formData.expenses || [])}
+                    deceasedName={formData.deceasedName}
+                    heirs={formData.heirs || []}
                     onChange={(expenses) => setFormData(prev => ({ ...prev, expenses: toExpenseItems(expenses) }))}
                 />
             </CollapsibleSection>
