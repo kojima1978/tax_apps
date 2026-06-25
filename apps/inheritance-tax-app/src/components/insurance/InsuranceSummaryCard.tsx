@@ -88,7 +88,7 @@ function buildHighlights(result: InsuranceSimulationResult): HighlightItem[] {
     });
   }
   effectBreakdown.push({
-    label: '手取り増加額',
+    label: '受け継ぐ財産の増加額',
     value: netProceedsDiff,
     separator: 'double',
     isSummary: true,
@@ -113,7 +113,7 @@ function buildHighlights(result: InsuranceSimulationResult): HighlightItem[] {
         <>
           <p className="text-xl font-bold text-amber-700">＋{formatCurrency(taxIncrease)} <span className="text-[11px] font-normal">増</span></p>
           <TaxContrastBars benefit={newBenefit} taxIncrease={taxIncrease} />
-          <p className="text-[10px] text-gray-500 mt-2">受取保険金が増える税を上回り、差引でも手取りは {formatDelta(netProceedsDiff)}</p>
+          <p className="text-[10px] text-gray-500 mt-2">受取保険金が増える税を上回り、差引でも受け継ぐ財産は {formatDelta(netProceedsDiff)}</p>
         </>
       ) : (
         <p className="text-xl font-bold text-gray-600">変化なし</p>
@@ -254,7 +254,7 @@ function InsuranceZoneBar({ scenario }: { scenario: InsuranceScenarioResult }) {
       </div>
       {taxable > 0 && (
         <p className="text-xs text-gray-400 mt-2">
-          非課税枠（{formatCurrency(scenario.nonTaxableLimit)}）を超えた分も、保険金が保険料を上回る限り「現金で持つより」手取りは増えます。
+          非課税枠（{formatCurrency(scenario.nonTaxableLimit)}）を超えた分も、保険金が保険料を上回る限り「現金で持つより」受け継ぐ財産は増えます。
         </p>
       )}
     </div>
