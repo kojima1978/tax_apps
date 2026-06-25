@@ -79,12 +79,29 @@ export function reapportionTax(
   adjustAcquisitions(breakdowns);
 
   // 3. 按分税額の再計算
+  //    各人を切り捨てると合計が相続税の総額に満たず端数が出るため、不足分を
+  //    小数部の大きい順（同点は取得額の多い順）に1万円ずつ配分して、合計を
+  //    totalTax に一致させる（最大剰余法）。配分先は取得額が正の相続人のみ。
   const { totalTax } = taxResult;
   const denominator = getDenominator(breakdowns);
-  for (const b of breakdowns) {
-    b.proportionalTax = denominator > 0
-      ? Math.floor(totalTax * (b.acquisitionAmount / denominator))
-      : 0;
+  if (denominator > 0) {
+    const fracs = breakdowns.map(b => {
+      const exact = totalTax * (b.acquisitionAmount / denominator);
+      const floor = Math.floor(exact);
+      b.proportionalTax = floor;
+      return { b, frac: exact - floor };
+    });
+    let remainder = totalTax - breakdowns.reduce((s, b) => s + b.proportionalTax, 0);
+    const order = fracs
+      .filter(f => f.b.acquisitionAmount > 0)
+      .sort((a, c) => (c.frac - a.frac) || (c.b.acquisitionAmount - a.b.acquisitionAmount));
+    for (const f of order) {
+      if (remainder <= 0) break;
+      f.b.proportionalTax += 1;
+      remainder -= 1;
+    }
+  } else {
+    for (const b of breakdowns) b.proportionalTax = 0;
   }
 
   // 4. 2割加算（rank3）

@@ -84,12 +84,26 @@ export function calculateSplitTax(
   }
 
   // 按分税額の計算
+  //   各人を切り捨てると合計が相続税の総額に満たず端数が出るため、不足分を
+  //   小数部の大きい順（同点は取得額の多い順）に1万円ずつ配分して、合計を
+  //   totalTax に一致させる（最大剰余法）。配分先は取得額が正の相続人のみ。
   const totalAcquisition = acquisitions.reduce((s, a) => s + a, 0);
   const denominator = totalAcquisition > 0 ? totalAcquisition : estateValue;
 
-  const proportionalTaxes = acquisitions.map(a =>
-    denominator > 0 ? Math.floor(totalTax * (a / denominator)) : 0
-  );
+  const proportionalTaxes = acquisitions.map(() => 0);
+  if (denominator > 0) {
+    const fracs = acquisitions.map((a, i) => {
+      const exact = totalTax * (a / denominator);
+      proportionalTaxes[i] = Math.floor(exact);
+      return { i, frac: exact - Math.floor(exact), acq: a };
+    });
+    let remainder = totalTax - proportionalTaxes.reduce((s, t) => s + t, 0);
+    for (const f of fracs.filter(f => f.acq > 0).sort((x, y) => (y.frac - x.frac) || (y.acq - x.acq))) {
+      if (remainder <= 0) break;
+      proportionalTaxes[f.i] += 1;
+      remainder -= 1;
+    }
+  }
 
   // 2割加算（rank3）
   const surcharges = acquisitions.map(() => 0);

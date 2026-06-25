@@ -30,6 +30,10 @@ export type HighlightItem = {
   valueSuffix?: React.ReactNode;
   footnote?: React.ReactNode;
   breakdown?: WaterfallStep[];
+  /** カスタム本文。指定時は value/breakdown の既定描画の代わりに描画する */
+  content?: React.ReactNode;
+  /** カードの配色を明示指定（増減や符号に依らず固定したい場合） */
+  tone?: 'positive' | 'neutral' | 'caution';
 };
 
 interface ScenarioComparisonCardProps<T> {
@@ -38,6 +42,8 @@ interface ScenarioComparisonCardProps<T> {
   rows: ComparisonRowDef<T>[];
   topSlot?: React.ReactNode;
   highlights: HighlightItem[];
+  /** ハイライトの列数を上書き（既定はカード枚数から自動算出） */
+  highlightCols?: number;
   bottomSlot?: React.ReactNode;
 }
 
@@ -54,6 +60,14 @@ function getHighlightStyle(h: HighlightItem) {
   const textClass = isRatio
     ? (isPositive ? 'text-blue-700' : 'text-amber-700')
     : (isPositive ? 'text-green-700' : isNegative ? 'text-red-600' : 'text-gray-600');
+  if (h.tone) {
+    const toneStyle = {
+      positive: { bgClass: 'bg-green-50 border-2 border-green-300', textClass: 'text-green-700' },
+      caution: { bgClass: 'bg-amber-50 border-2 border-amber-300', textClass: 'text-amber-700' },
+      neutral: { bgClass: 'bg-gray-50 border border-gray-200', textClass: 'text-gray-600' },
+    }[h.tone];
+    return { formatted, ...toneStyle };
+  }
   return { formatted, bgClass, textClass };
 }
 
@@ -73,6 +87,7 @@ export function ScenarioComparisonCard<T>({
   rows,
   topSlot,
   highlights,
+  highlightCols,
   bottomSlot,
 }: ScenarioComparisonCardProps<T>) {
   return (
@@ -82,9 +97,24 @@ export function ScenarioComparisonCard<T>({
       {topSlot && <div className="mb-6">{topSlot}</div>}
 
       {/* 結果ハイライト */}
-      <div className={`grid grid-cols-1 gap-4 ${gridColsClass(highlights.length)}`}>
+      <div className={`grid grid-cols-1 gap-4 ${gridColsClass(highlightCols ?? highlights.length)}`}>
         {highlights.map(h => {
           const { formatted, bgClass, textClass } = getHighlightStyle(h);
+
+          if (h.content) {
+            return (
+              <div key={h.label} className={`rounded-lg p-4 text-center ${bgClass}`}>
+                <p className="text-xs text-gray-500 mb-1">{h.label}</p>
+                {h.description && (
+                  <p className="text-[10px] text-gray-400 mb-2">{h.description}</p>
+                )}
+                {h.content}
+                {h.footnote && (
+                  <p className="text-[10px] text-gray-500 mt-2">{h.footnote}</p>
+                )}
+              </div>
+            );
+          }
 
           if (h.breakdown) {
             return (

@@ -1009,6 +1009,28 @@
     break-before: auto !important;
   }
 
+  /* 色付きバー・カードを印刷でも確実に描画（背景色の印刷を強制）
+     これがないとゾーンバー・比較バー・サマリーが白く飛んで読めない */
+  .insurance-print,
+  .insurance-print * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ハイライトは2列で印刷（画面と同じ見やすい幅を維持） */
+  .insurance-print .grid.md\:grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* 各ハイライトカードはページ途中で割らない */
+  .insurance-print .grid.md\:grid-cols-2 > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ゾーンバーは印刷時やや低めにして紙面を節約（色は維持） */
+  .insurance-print .h-7 { height: 18px !important; }
+
   /* 贈与ページ */
   .cash-gift-print {
     padding: 0 !important;
