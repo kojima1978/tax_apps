@@ -246,6 +246,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     heirs={formData.heirs || []}
                     persons={heirPersons}
                     dateOfDeath={formData.dateOfDeath}
+                    deceasedName={formData.deceasedName}
                     onChange={(heirs) => setFormData(prev => ({ ...prev, heirs }))}
                     onPersonsChange={setHeirPersons}
                 />

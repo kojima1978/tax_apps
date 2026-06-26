@@ -1,5 +1,7 @@
-import type { InheritanceCase, HeirPerson, ProgressStep } from "@/types/shared";
+import type { InheritanceCase, HeirPerson, CaseHeir, ProgressStep } from "@/types/shared";
 import { formatId } from "@/types/shared";
+import { ageOnDate } from "@/lib/age";
+import { normalizePersonAddressParts } from "@/lib/person-address";
 import { MAX_HEIR_COLUMNS } from "./import-csv";
 import { formatPostalCodeForInput } from "./postal-code-format";
 
@@ -300,5 +302,52 @@ export function exportHeirPersonsToCSV(
   downloadCSVBlob(
     csvContent,
     filename || `相続人マスタ_${new Date().toISOString().split("T")[0]}.csv`
+  );
+}
+
+/** 案件の相続人一覧をCSV出力（続柄・案件メモなど案件固有情報を含む） */
+export function exportCaseHeirsToCSV(
+  heirs: CaseHeir[],
+  deceasedName: string,
+  dateOfDeath?: string | null,
+  filename?: string,
+) {
+  const headers = [
+    "続柄",
+    "氏名",
+    "フリガナ",
+    "生年月日",
+    "年齢（死亡日時点）",
+    "電話番号",
+    "郵便番号",
+    "住所",
+    "メモ（この案件）",
+  ];
+
+  const rows = heirs.map((h) => {
+    const p = h.person;
+    const age = ageOnDate(p.dateOfBirth, dateOfDeath);
+    return [
+      h.relationship || "",
+      p.name,
+      p.nameKana || "",
+      p.dateOfBirth || "",
+      age != null ? String(age) : "",
+      p.phone || "",
+      formatPostalCodeForInput(p.postalCode || ""),
+      normalizePersonAddressParts(p).address,
+      h.memo || "",
+    ];
+  });
+
+  const csvContent = [
+    headers.map(escapeCSVCell).join(","),
+    ...rows.map((row) => row.map(escapeCSVCell).join(",")),
+  ].join("\n");
+
+  const safeName = deceasedName.trim() || "案件";
+  downloadCSVBlob(
+    csvContent,
+    filename || `相続人_${safeName}_${new Date().toISOString().split("T")[0]}.csv`
   );
 }

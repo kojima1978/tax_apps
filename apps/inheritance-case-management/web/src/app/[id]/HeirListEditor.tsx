@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
-import { UserPlus, Plus, ArrowDownAZ } from "lucide-react"
+import { UserPlus, Plus, ArrowDownAZ, Download } from "lucide-react"
 import type { CaseHeir, HeirPerson } from "@/types/shared"
 import { createHeirPerson, updateHeirPerson } from "@/lib/api/heir-persons"
+import { exportCaseHeirsToCSV } from "@/lib/export-csv"
 import { fetchAddressFromPostalCode } from "@/lib/postal-code"
 import { normalizePostalCodeDigits } from "@/lib/postal-code-format"
 import { HeirAddModal } from "./HeirAddModal"
@@ -27,11 +28,12 @@ interface HeirListEditorProps {
     heirs: CaseHeir[]
     persons: HeirPerson[]
     dateOfDeath?: string
+    deceasedName?: string
     onChange: (heirs: CaseHeir[]) => void
     onPersonsChange: (persons: HeirPerson[]) => void
 }
 
-export function HeirListEditor({ heirs, persons, dateOfDeath, onChange, onPersonsChange }: HeirListEditorProps) {
+export function HeirListEditor({ heirs, persons, dateOfDeath, deceasedName, onChange, onPersonsChange }: HeirListEditorProps) {
     const [showAddModal, setShowAddModal] = useState(false)
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [editingIndex, setEditingIndex] = useState<number | null>(null)
@@ -147,12 +149,21 @@ export function HeirListEditor({ heirs, persons, dateOfDeath, onChange, onPerson
         onChange(sortHeirsByDateOfBirth(heirs))
     }
 
+    const handleExportCsv = () => {
+        exportCaseHeirsToCSV(heirs, deceasedName ?? "", dateOfDeath)
+    }
+
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-end gap-2">
                 {heirs.length > 1 && (
                     <Button type="button" variant="ghost" size="sm" onClick={handleResortByDateOfBirth} title="生年月日順に並びなおします">
                         <ArrowDownAZ className="h-3.5 w-3.5 mr-1" />生年月日順に並びなおす
+                    </Button>
+                )}
+                {heirs.length > 0 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={handleExportCsv} title="この案件の相続人をCSV出力">
+                        <Download className="h-3.5 w-3.5 mr-1" />CSV出力
                     </Button>
                 )}
                 <Button type="button" variant="outline" size="sm" onClick={() => { setShowAddModal(true); setShowCreateForm(false); setSearchQuery("") }}>
