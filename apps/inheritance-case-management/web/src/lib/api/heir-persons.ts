@@ -16,3 +16,10 @@ export interface RelatedCase {
 export function getHeirPersonRelatedCases(personId: number): Promise<RelatedCase[]> {
   return apiClient<RelatedCase[]>(`/heir-persons/${personId}/cases/`);
 }
+
+export function getHeirPersonRelatedCaseNames(personIds: number[]): Promise<Record<number, string[]>> {
+  return apiClient<Record<number, string[]>>('/heir-persons/related-cases/', {
+    method: 'POST',
+    body: JSON.stringify({ personIds }),
+  });
+}

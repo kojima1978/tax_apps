@@ -19,7 +19,7 @@ import type { CreateHeirPersonInput, UpdateHeirPersonInput } from "@/types/valid
 import { getHeirPersons, createHeirPerson, updateHeirPerson, deleteHeirPerson } from "@/lib/api/masters"
 import { useToast } from "@/components/ui/Toast"
 import { exportHeirPersonsToCSV } from "@/lib/export-csv"
-import { getHeirPersonRelatedCases } from "@/lib/api/heir-persons"
+import { getHeirPersonRelatedCaseNames } from "@/lib/api/heir-persons"
 import { Check, Download, X } from "lucide-react"
 import { useCallback, useState } from "react"
 import { RelatedCasesPopover } from "./RelatedCasesPopover"
@@ -140,11 +140,9 @@ function HeirPersonsContent() {
             const relatedCaseNames = new Map<number, string[]>()
 
             if (withCases.length > 0) {
-                const results = await Promise.all(
-                    withCases.map(p => getHeirPersonRelatedCases(p.id).then(cases => ({ id: p.id, cases })))
-                )
-                for (const { id, cases } of results) {
-                    relatedCaseNames.set(id, cases.map(c => c.deceasedName))
+                const result = await getHeirPersonRelatedCaseNames(withCases.map(p => p.id))
+                for (const person of withCases) {
+                    relatedCaseNames.set(person.id, result[person.id] ?? [])
                 }
             }
 
