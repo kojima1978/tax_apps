@@ -12,6 +12,7 @@ export interface GridCell {
   field?: string;                    // input のフィールドキー
   ariaLabel?: string;                // 入力欄のアクセシブル名
   align?: 'left' | 'center' | 'right';
+  textAlign?: 'left' | 'center' | 'right';
   fontSize?: number;
   bold?: boolean;
   noWrap?: boolean;                  // 明示改行以外では折り返さない
@@ -644,7 +645,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                     })}
                   </span>
                 ) : (
-                  text.includes('\n') ? <span style={{ whiteSpace: c.noWrap ? 'pre' : 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span> : text
+                  text.includes('\n') ? <span style={{ whiteSpace: c.noWrap ? 'pre' : 'pre-line', width: c.textAlign ? 'auto' : '100%', textAlign: c.textAlign ?? c.align ?? 'center' }}>{text}</span> : text
                 )
               ) : null}
           </div>

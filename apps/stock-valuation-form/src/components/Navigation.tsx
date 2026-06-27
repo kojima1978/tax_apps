@@ -9,43 +9,70 @@ interface NavigationProps {
 
 export function Navigation({ activeTab, onTabChange }: NavigationProps) {
   const activeRef = useRef<HTMLButtonElement>(null);
+  const activeIndex = TABS.findIndex((tab) => tab.id === activeTab);
+  const currentTab = TABS[activeIndex] ?? TABS[0];
+  const hasPrevious = activeIndex > 0;
+  const hasNext = activeIndex >= 0 && activeIndex < TABS.length - 1;
 
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   }, [activeTab]);
 
+  const move = (offset: number) => {
+    const nextTab = TABS[activeIndex + offset];
+    if (nextTab) onTabChange(nextTab.id);
+  };
+
   return (
-    <nav className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto', flex: 1 }}>
-      {TABS.map((tab) => {
-        const isActive = activeTab === tab.id;
-        return (
-          <button
-            key={tab.id}
-            ref={isActive ? activeRef : undefined}
-            onClick={() => onTabChange(tab.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: 6,
-              padding: '6px 10px',
-              fontSize: 11,
-              textAlign: 'left',
-              border: 'none',
-              borderRight: isActive ? '3px solid #1a1a1a' : '3px solid transparent',
-              background: isActive ? '#f5f5f0' : 'transparent',
-              fontWeight: isActive ? 700 : 400,
-              color: isActive ? '#1a1a1a' : '#555',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-            className={isActive ? '' : 'hover:bg-[#f0f0f0]'}
-            aria-current={isActive ? 'page' : undefined}
-          >
-            <span style={{ whiteSpace: 'nowrap' }}>{tab.label}</span>
-            <span style={{ fontSize: 9, opacity: 0.6 }}>{tab.subtitle}</span>
-          </button>
-        );
-      })}
+    <nav className="table-nav" aria-label="表の選択">
+      <div className="table-nav-controls">
+        <label className="table-select-label" htmlFor="table-selector">
+          表
+        </label>
+        <select
+          id="table-selector"
+          name="app.activeTable"
+          className="table-select"
+          value={activeTab}
+          onChange={(event) => onTabChange(event.target.value as TableId)}
+          aria-label="表示する表"
+        >
+          {TABS.map((tab) => (
+            <option key={tab.id} value={tab.id}>
+              {tab.label}　{tab.subtitle}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="table-nav-button" onClick={() => move(-1)} disabled={!hasPrevious}>
+          前へ
+        </button>
+        <button type="button" className="table-nav-button" onClick={() => move(1)} disabled={!hasNext}>
+          次へ
+        </button>
+        <span className="table-current-label" aria-live="polite">
+          {currentTab?.label} {currentTab?.subtitle}
+        </span>
+      </div>
+
+      <div className="table-tab-list" role="tablist" aria-label="表一覧">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              ref={isActive ? activeRef : undefined}
+              onClick={() => onTabChange(tab.id)}
+              className={`table-tab-button${isActive ? ' table-tab-button-active' : ''}`}
+              role="tab"
+              aria-selected={isActive}
+            >
+              <span className="table-tab-label">{tab.label}</span>
+              <span className="table-tab-subtitle">{tab.subtitle}</span>
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }

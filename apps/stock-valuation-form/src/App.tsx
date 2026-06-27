@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { useFormData } from '@/hooks/useFormData';
-// PNG様式変更時の座標測定には Table1_1Overlay と public/forms/table1.png を使用する。
+// Keep Table1_1Overlay and public/forms/table1.png for PNG layout measurement.
 import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
 import { Table1_2 } from '@/components/tables/table1-2';
 import { Table2 } from '@/components/tables/table2';
@@ -26,34 +26,18 @@ const TABLE_COMPONENTS: Record<TableId, React.ComponentType<TableProps>> = {
   table8: Table8,
 };
 
-/* SVG Icons (inline to avoid external dependency) */
-const MenuIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-    <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-  </svg>
-);
-
-const CloseIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
-
 export default function App() {
   const [activeTab, setActiveTab] = useState<TableId>('table1_1');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [printAll, setPrintAll] = useState(false);
   const { getField, updateField, resetAll, exportJson, importJson } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
 
   const tableProps: TableProps = { getField, updateField, onTabChange: setActiveTab };
-
   const ActiveTable = TABLE_COMPONENTS[activeTab];
 
-  /* Ctrl+S → JSON export */
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      e.preventDefault();
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+      event.preventDefault();
       exportJson();
     }
   }, [exportJson]);
@@ -63,7 +47,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  /* Print all: render all tables, trigger print, then restore */
   const handlePrintAll = () => {
     setPrintAll(true);
     requestAnimationFrame(() => {
@@ -72,92 +55,57 @@ export default function App() {
     });
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (file) importJson(file);
-    e.target.value = '';
+    event.target.value = '';
   };
 
   return (
     <div className="app-root" style={{ fontFamily: '"Noto Sans JP", sans-serif' }}>
-      {/* ヘッダー */}
-      <header className="no-print" style={{ position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid #e2e8f0', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', height: 40, display: 'flex', alignItems: 'center', padding: '0 12px' }}>
-        <a
-          href="/"
-          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, color: '#94a3b8', textDecoration: 'none', padding: '4px 8px', borderRadius: 6, transition: 'color 0.2s' }}
-          title="ポータルに戻る"
-          onMouseEnter={e => (e.currentTarget.style.color = '#059669')}
-          onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}
-        >
+      <header className="no-print app-header">
+        <a href="/" className="app-home-link" title="ポータルに戻る">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
             <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
           </svg>
           ポータル
         </a>
+        <div className="app-header-title">取引相場のない株式の評価明細書</div>
       </header>
 
-      {/* モバイルヒント */}
       <div className="no-print mobile-hint">
-        横スクロールまたはピンチで拡大縮小できます
+        横スクロールまたはピンチで拡大縮小できます。
       </div>
 
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 40px)', background: '#e5e5e5' }}>
-        {/* 左サイドバー */}
-        {sidebarOpen && (
-          <aside className="no-print app-sidebar">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#333', lineHeight: 1.3 }}>
-                取引相場のない株式の<br />評価明細書
-              </span>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="sidebar-close-btn"
-                aria-label="サイドバーを閉じる"
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="no-print app-topbar">
+        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-            {/* サイドバー下部: ツール */}
-            <div style={{ marginTop: 'auto', padding: '6px 10px', borderTop: '1px solid #ddd', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {([
-                { label: '保存 (JSON)', onClick: exportJson, title: 'Ctrl+S' },
-                { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
-                { label: '全表印刷', onClick: handlePrintAll },
-                { label: '現在の表を印刷', onClick: () => window.print() },
-                { label: '全データリセット', onClick: resetAll, danger: true },
-              ] as const).map((tool) => (
-                <button
-                  key={tool.label}
-                  onClick={tool.onClick}
-                  className={`sidebar-tool-btn${'danger' in tool && tool.danger ? ' sidebar-tool-btn-danger' : ''}`}
-                  title={'title' in tool ? tool.title : undefined}
-                >
-                  {tool.label}
-                </button>
-              ))}
-              <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
-            </div>
-          </aside>
-        )}
-
-        {/* メインコンテンツ */}
-        <main style={{ flex: 1, padding: 16, overflowX: 'auto' }}>
-          {!sidebarOpen && (
+        <div className="app-toolbar" aria-label="帳票操作">
+          {([
+            { label: '保存 (JSON)', onClick: exportJson, title: 'Ctrl+S' },
+            { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
+            { label: '全表印刷', onClick: handlePrintAll },
+            { label: '現在の表を印刷', onClick: () => window.print() },
+            { label: '全データリセット', onClick: resetAll, danger: true },
+          ] as const).map((tool) => (
             <button
-              className="no-print menu-toggle-btn"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="メニューを開く"
+              key={tool.label}
+              type="button"
+              onClick={tool.onClick}
+              className={`app-tool-btn${'danger' in tool && tool.danger ? ' app-tool-btn-danger' : ''}`}
+              title={'title' in tool ? tool.title : undefined}
             >
-              <MenuIcon />
-              <span>メニュー</span>
+              {tool.label}
             </button>
-          )}
+          ))}
+          <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+        </div>
+      </div>
 
+      <div className="app-shell">
+        <main className="app-main">
           {printAll ? (
-            /* 全表印刷モード */
             TABS.map((tab) => {
               const TableComp = TABLE_COMPONENTS[tab.id];
               return (

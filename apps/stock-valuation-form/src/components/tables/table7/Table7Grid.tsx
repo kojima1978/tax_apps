@@ -161,7 +161,7 @@ const CELLS: GridCell[] = [
   { field: 'f13', kind: 'input', top: 14.78, left: 31.01, width: 14.59, height: 3.08 },
   { field: 'f14', kind: 'input', top: 14.78, left: 45.19, width: 14.59, height: 3.08 },
   { field: '㋺', kind: 'input', readOnly: true, top: 14.78, left: 59.51, width: 14.59, height: 2.99 },
-  { kind: 'label', text: '受 取 配 当 金 等 収 受 割 合 （㋑÷（㋑＋㋺））※小数点以下３位未満切り捨て', top: 9.19, left: 73.83, width: 16.78, height: 4.14 },
+  { kind: 'label', text: '受取配当金等収受割合\n（㋑÷（㋑＋㋺））\n※小数点以下３位未満切り捨て', top: 9.19, left: 73.83, width: 16.78, height: 4.14 },
   { field: '㋩', kind: 'input', readOnly: true, top: 13.04, left: 73.83, width: 16.78, height: 4.92 },
   // Ⓑ－ⓑの金額
   { kind: 'label', text: 'Ⓑ－ⓑ\nの金額', top: 17.67, left: 10.96, width: 10.91, height: 5.88 },
@@ -242,7 +242,7 @@ const CELLS: GridCell[] = [
   {
     kind: 'input',
     allocationAdjustmentExpression: {
-      baseLabelLines: ['比準価額', '（㉔（㉕がある', 'ときは㉕）の金額）'],
+      baseLabelLines: ['比準価額', '（㉔（㉕があるときは㉕）の金額）'],
       baseValueField: 'mod2_base',
       paymentLabelLines: ['割当株式１株当たりの', '払込金額'],
       paymentField: 'mod_pay',
