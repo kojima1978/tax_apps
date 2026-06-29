@@ -1,8 +1,8 @@
 "use client"
 
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react"
-import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
-import { fetchAddressFromPostalCode } from "@/lib/postal-code"
+import { applyPostalCodeAddress, combinePersonAddress, normalizePersonAddressParts } from "@/lib/person-address"
+import { fetchAddressFromPostalCode, fetchPostalCodeFromAddress } from "@/lib/postal-code"
 import { normalizePostalCodeDigits } from "@/lib/postal-code-format"
 
 type EditingFields = Record<string, string>
@@ -10,6 +10,7 @@ type SetEditingFields = Dispatch<SetStateAction<EditingFields>>
 
 export function usePersonAddressEditing(setEditingFields: SetEditingFields) {
     const [isAddressSearching, setIsAddressSearching] = useState(false)
+    const [isPostalSearching, setIsPostalSearching] = useState(false)
 
     const updateAddressFromPostalCode = useCallback((addressFromPostalCode: string) => {
         setEditingFields(fields => ({
@@ -52,10 +53,27 @@ export function usePersonAddressEditing(setEditingFields: SetEditingFields) {
         await searchAddressByPostalCode(digits)
     }, [searchAddressByPostalCode, setEditingFields])
 
+    const searchPostalCodeByAddress = useCallback(async (fields: EditingFields) => {
+        const address = combinePersonAddress(fields.addressFromPostalCode, fields.addressManual) || (fields.address ?? "")
+        if (!address.trim()) return
+
+        setIsPostalSearching(true)
+        try {
+            const postalCode = await fetchPostalCodeFromAddress(address)
+            if (postalCode) {
+                setEditingFields(prev => ({ ...prev, postalCode }))
+            }
+        } finally {
+            setIsPostalSearching(false)
+        }
+    }, [setEditingFields])
+
     return {
         isAddressSearching,
+        isPostalSearching,
         handlePostalCodeChange,
         searchAddressByPostalCode,
+        searchPostalCodeByAddress,
         updateAddressFromPostalCode,
         updateAddressManual,
     }

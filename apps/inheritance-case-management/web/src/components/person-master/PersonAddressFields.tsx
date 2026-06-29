@@ -1,7 +1,7 @@
 "use client"
 
 import type { KeyboardEvent } from "react"
-import { Loader2, Search } from "lucide-react"
+import { Loader2, Search, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
@@ -15,8 +15,10 @@ interface PersonAddressFieldsProps {
     addressManual: string
     inputClassName: string
     isSearching: boolean
+    isSearchingPostal?: boolean
     onPostalCodeChange: (value: string) => void | Promise<void>
     onSearchPostalCode: () => void | Promise<void>
+    onSearchPostalCodeByAddress?: () => void | Promise<void>
     onAddressFromPostalCodeChange: (value: string) => void
     onAddressManualChange: (value: string) => void
     onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void
@@ -34,8 +36,10 @@ export function PersonAddressFields({
     addressManual,
     inputClassName,
     isSearching,
+    isSearchingPostal,
     onPostalCodeChange,
     onSearchPostalCode,
+    onSearchPostalCodeByAddress,
     onAddressFromPostalCodeChange,
     onAddressManualChange,
     onKeyDown,
@@ -76,14 +80,30 @@ export function PersonAddressFields({
             </div>
             <div className={cn("space-y-1", addressFromPostalCodeFieldClassName)}>
                 <Label htmlFor={fieldId("addressFromPostalCode")} className="text-xs text-muted-foreground">住所（郵便番号から自動入力）</Label>
-                <Input
-                    id={fieldId("addressFromPostalCode")}
-                    value={addressFromPostalCode}
-                    onChange={(e) => onAddressFromPostalCodeChange(e.target.value)}
-                    onKeyDown={onKeyDown}
-                    placeholder="都道府県 市区町村 町名"
-                    className={inputClassName}
-                />
+                <div className="flex gap-1">
+                    <Input
+                        id={fieldId("addressFromPostalCode")}
+                        value={addressFromPostalCode}
+                        onChange={(e) => onAddressFromPostalCodeChange(e.target.value)}
+                        onKeyDown={onKeyDown}
+                        placeholder="都道府県 市区町村 町名"
+                        className={inputClassName}
+                    />
+                    {onSearchPostalCodeByAddress && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={searchButtonClassName}
+                            disabled={isSearchingPostal}
+                            onClick={() => { void onSearchPostalCodeByAddress() }}
+                            title="住所から郵便番号を推測"
+                            aria-label="住所から郵便番号を推測"
+                        >
+                            {isSearchingPostal ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                        </Button>
+                    )}
+                </div>
             </div>
             <div className={cn("space-y-1", addressManualFieldClassName)}>
                 <Label htmlFor={fieldId("addressManual")} className="text-xs text-muted-foreground">{addressManualLabel}</Label>

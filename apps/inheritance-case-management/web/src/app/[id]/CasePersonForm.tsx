@@ -1,8 +1,12 @@
-import type { Dispatch, ReactNode, SetStateAction } from "react"
-import { Loader2, Search } from "lucide-react"
+"use client"
+
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
+import { Loader2, Search, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
+import { combinePersonAddress } from "@/lib/person-address"
+import { fetchPostalCodeFromAddress } from "@/lib/postal-code"
 import { formatPostalCodeForInput } from "@/lib/postal-code-format"
 import {
     type BasePersonFormState,
@@ -33,6 +37,20 @@ export function CasePersonForm<T extends BasePersonFormState>({
     identityFields,
     afterIdentityFields,
 }: CasePersonFormProps<T>) {
+    const [isPostalSearching, setIsPostalSearching] = useState(false)
+
+    const handleSearchPostalByAddress = async () => {
+        const address = combinePersonAddress(value.addressFromPostalCode, value.addressManual)
+        if (!address.trim()) return
+        setIsPostalSearching(true)
+        try {
+            const postalCode = await fetchPostalCodeFromAddress(address)
+            if (postalCode) onChange(person => ({ ...person, postalCode }))
+        } finally {
+            setIsPostalSearching(false)
+        }
+    }
+
     return (
         <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -90,11 +108,26 @@ export function CasePersonForm<T extends BasePersonFormState>({
                 </div>
                 <div className="space-y-1.5">
                     <Label>住所（郵便番号から自動入力）</Label>
-                    <Input
-                        value={value.addressFromPostalCode}
-                        onChange={e => onChange(person => withAddressFromPostalCode(person, e.target.value))}
-                        placeholder="都道府県 市区町村 町名"
-                    />
+                    <div className="flex gap-1">
+                        <Input
+                            value={value.addressFromPostalCode}
+                            onChange={e => onChange(person => withAddressFromPostalCode(person, e.target.value))}
+                            placeholder="都道府県 市区町村 町名"
+                            className="flex-1"
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="px-2 h-9 shrink-0"
+                            disabled={isPostalSearching}
+                            onClick={handleSearchPostalByAddress}
+                            title="住所から郵便番号を推測"
+                            aria-label="住所から郵便番号を推測"
+                        >
+                            {isPostalSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                        </Button>
+                    </div>
                 </div>
             </div>
             <div className="space-y-1.5">

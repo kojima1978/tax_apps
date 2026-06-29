@@ -233,8 +233,10 @@ function RelatedPartyPersonsContent() {
                             addressManual={ml.editingFields.addressManual || ""}
                             inputClassName={EDIT_INPUT_CLASS}
                             isSearching={addressEditing.isAddressSearching}
+                            isSearchingPostal={addressEditing.isPostalSearching}
                             onPostalCodeChange={addressEditing.handlePostalCodeChange}
                             onSearchPostalCode={() => addressEditing.searchAddressByPostalCode(ml.editingFields.postalCode || "")}
+                            onSearchPostalCodeByAddress={() => addressEditing.searchPostalCodeByAddress(ml.editingFields)}
                             onAddressFromPostalCodeChange={addressEditing.updateAddressFromPostalCode}
                             onAddressManualChange={addressEditing.updateAddressManual}
                             onKeyDown={handleEditKeyDown}
