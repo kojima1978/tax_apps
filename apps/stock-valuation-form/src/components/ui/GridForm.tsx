@@ -142,6 +142,8 @@ interface GridFormProps {
   references?: { label: string; url: string }[];
   /** タイトル行の右側に表示する操作UI（業種選択など） */
   toolbar?: ReactNode;
+  /** グリッド上に絶対配置で重ねる操作UI（帯の上に配置する行操作など。自前で位置指定） */
+  overlay?: ReactNode;
   /** Enterキーで循環する入力欄のaria-label順 */
   enterLoop?: string[];
   /** input/select の id・name に使用する表識別子 */
@@ -232,7 +234,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
  * 各矩形の left/right を縦線、top/bottom を横線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, width = '100%', title, references, toolbar, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
+export function GridForm({ cells, g, u, width = '100%', title, references, toolbar, overlay, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
   const { colTmpl, rowTmpl, placed, bounds } = useMemo(() => {
@@ -712,6 +714,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
           </div>
         );
       })}
+      {overlay}
       </div>
       {references && references.length > 0 && (
         <div style={{ padding: '4px 0 0', fontSize: 10, fontFamily: '"Noto Sans JP", sans-serif', color: '#555', display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>

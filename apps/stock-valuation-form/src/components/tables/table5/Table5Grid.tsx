@@ -4,10 +4,11 @@ import type { TableId, TableProps } from '@/types/form';
 const T = 'table5' as const;
 
 // ── 資産の部・負債の部の繰り返し入力行（空行）を自動生成 ──
-const ROWS = 15;            // データ行数（実フォームに合わせて調整可）
+const ROWS_PER_PAGE = 15;   // 1ページあたりのデータ行数（用紙レイアウト固定）
 const ROW_TOP = 18.06;      // データ1行目の上端%
 const TOTAL_TOP = 64.42;    // 合計行の上端%
-const PITCH = (TOTAL_TOP - ROW_TOP) / ROWS;
+const PITCH = (TOTAL_TOP - ROW_TOP) / ROWS_PER_PAGE;
+const DRAG_W = 2.2;         // 行頭のドラッグハンドル幅%
 const CORPORATE_TAX_RATE = 0.37; // 評価差額に対する法人税額等相当額の割合（様式⑧: ⑦×37％）
 const COMPUTED_FIELDS = new Set([
   '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫',
@@ -15,6 +16,7 @@ const COMPUTED_FIELDS = new Set([
 ]);
 
 const parseNum = (value: string) => Number(value.replace(/,/g, '')) || 0;
+const pageCountOf = (getField: TableProps['getField']) => Math.max(1, Number(getField(T, '_pages')) || 1);
 
 function isExcludedLiability(name: string) {
   return /引当金|準備金/.test(name.trim());
@@ -34,18 +36,39 @@ const LIAB_COLS: Col[] = [
   { left: 88.43, width: 4.91 },  // 備考
 ];
 
-function dataRows(prefix: string, cols: Col[]): GridCell[] {
+/**
+ * データ入力行（科目/相続税評価額/帳簿価額/備考）を 15 行ぶん生成。
+ * startRow=このページの先頭行番号（1, 16, 31, …）。行頭にドラッグハンドルを付与。
+ */
+function dataRows(prefix: 'a' | 'l', cols: Col[], startRow: number, showUnit: boolean): GridCell[] {
   const out: GridCell[] = [];
-  for (let r = 0; r < ROWS; r++) {
-    const top = +(ROW_TOP + r * PITCH).toFixed(2);
+  const height = +PITCH.toFixed(2);
+  for (let i = 0; i < ROWS_PER_PAGE; i++) {
+    const row = startRow + i;
+    const rowId = `${prefix}:${row}`;
+    const isSelected = (g: (field: string) => string) => g('_sel') === rowId;
+    const top = +(ROW_TOP + i * PITCH).toFixed(2);
+    // 行頭ハンドル：クリックで行選択（挿入・削除・上下移動の対象）
+    out.push({
+      kind: 'label', text: '⠿',
+      ariaLabel: `${prefix === 'a' ? '資産' : '負債'}${row}行を選択`,
+      selectValue: { field: '_sel', value: rowId },
+      highlightWhen: isSelected,
+      top, left: cols[0]!.left, width: DRAG_W, height, fontSize: 9, bold: true, noWrap: true,
+    });
     cols.forEach((c, ci) => {
+      const first = ci === 0;
       out.push({
-        field: `${prefix}_${r + 1}_${ci + 1}`,
+        field: `${prefix}_${row}_${ci + 1}`,
         kind: 'input',
         options: prefix === 'a' && ci === 3 ? ['', '株式等', '土地等'] : undefined,
         commaInteger: ci === 1 || ci === 2,
-        topRightLabel: r === 0 && (ci === 1 || ci === 2) ? '千円' : undefined,
-        top, left: c.left, width: c.width, height: +PITCH.toFixed(2),
+        topRightLabel: showUnit && i === 0 && (ci === 1 || ci === 2) ? '千円' : undefined,
+        highlightWhen: isSelected,
+        top,
+        left: first ? +(c.left + DRAG_W).toFixed(2) : c.left,
+        width: first ? +(c.width - DRAG_W).toFixed(2) : c.width,
+        height,
         align: ci === 0 ? 'left' : 'right',
       });
     });
@@ -53,8 +76,8 @@ function dataRows(prefix: string, cols: Col[]): GridCell[] {
   return out;
 }
 
-/** 第5表のグリッドセル（ピッカー測定＋空行の自動生成） */
-const CELLS: GridCell[] = [
+/** 1ページ目（本表）のグリッドセル：明細1〜15行＋合計＋各セクション */
+const MAIN_CELLS: GridCell[] = [
   // ── 外枠・3区分 ──
   { kind: 'cell', top: 8.9, left: 8.64, width: 84.56, height: 85.3 },
   { kind: 'cell', top: 8.9, left: 8.51, width: 84.69, height: 68.63 },
@@ -69,7 +92,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '帳 簿 価 額', top: 14.97, left: 34.56, width: 12.14, height: 3.37 },
   { kind: 'label', text: '備 考', top: 14.97, left: 46.28, width: 4.91, height: 3.28 },
   { kind: 'cell', top: 11.98, left: 8.51, width: 42.82, height: 65.44 },
-  ...dataRows('a', ASSET_COLS),
+  ...dataRows('a', ASSET_COLS, 1, true),
   // ── 資産 合計・㋑㋩㋥ ──
   { kind: 'label', text: '合 計', top: 64.42, left: 8.51, width: 14.73, height: 3.47 },
   { field: '①', kind: 'input', cornerLabel: '①', top: 64.42, left: 22.96, width: 11.87, height: 3.47 },
@@ -94,7 +117,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '相続税評価額', top: 15.07, left: 64.97, width: 12, height: 3.28 },
   { kind: 'label', text: '帳 簿 価 額', top: 15.16, left: 76.56, width: 12.14, height: 3.18 },
   { kind: 'label', text: '備 考', top: 15.16, left: 88.43, width: 4.91, height: 3.18 },
-  ...dataRows('l', LIAB_COLS),
+  ...dataRows('l', LIAB_COLS, 1, true),
   // ── 負債 合計 ──
   { kind: 'label', text: '合 計', top: 64.42, left: 51.06, width: 14.32, height: 3.28 },
   { field: '③', kind: 'input', cornerLabel: '③', top: 64.42, left: 65.24, width: 11.73, height: 3.37 },
@@ -124,14 +147,40 @@ const CELLS: GridCell[] = [
   { field: '⑫', kind: 'input', cornerLabel: '⑫', top: 90.83, left: 76.7, width: 16.64, height: 3.37 },
 ];
 
-const CALCULATED_CELLS = CELLS.map((cell) => (
+const CALCULATED_MAIN: GridCell[] = MAIN_CELLS.map((cell) => (
   cell.field && COMPUTED_FIELDS.has(cell.field)
     ? { ...cell, readOnly: true, commaInteger: true }
     : cell
 ));
 
+/** 続紙ページ（2ページ目以降）：明細行のみ。pageIndex は 0 始まり（>=1）。 */
+function continuationCells(pageIndex: number): GridCell[] {
+  const startRow = pageIndex * ROWS_PER_PAGE + 1;
+  return [
+    // 外枠（本表と同じ minY/maxY に合わせ、行ピッチを一致させる高さアンカー）
+    { kind: 'cell', top: 8.9, left: 8.64, width: 84.56, height: 85.3 },
+    // 資産の部
+    { kind: 'label', text: '資 産 の 部', top: 12.08, left: 8.51, width: 42.69, height: 3.18 },
+    { kind: 'label', text: '科 目', top: 15.16, left: 8.37, width: 14.87, height: 3.28 },
+    { kind: 'label', text: '相続税評価額', top: 14.97, left: 22.96, width: 11.87, height: 3.47 },
+    { kind: 'label', text: '帳 簿 価 額', top: 14.97, left: 34.56, width: 12.14, height: 3.37 },
+    { kind: 'label', text: '備 考', top: 14.97, left: 46.28, width: 4.91, height: 3.28 },
+    { kind: 'cell', top: 11.98, left: 8.51, width: 42.82, height: 52.44 },
+    ...dataRows('a', ASSET_COLS, startRow, false),
+    // 負債の部
+    { kind: 'cell', top: 11.98, left: 50.92, width: 42.28, height: 52.44 },
+    { kind: 'label', text: '負 債 の 部', top: 12.08, left: 50.92, width: 42.28, height: 3.28 },
+    { kind: 'label', text: '科 目', top: 14.97, left: 51.06, width: 14.18, height: 3.47 },
+    { kind: 'label', text: '相続税評価額', top: 15.07, left: 64.97, width: 12, height: 3.28 },
+    { kind: 'label', text: '帳 簿 価 額', top: 15.16, left: 76.56, width: 12.14, height: 3.18 },
+    { kind: 'label', text: '備 考', top: 15.16, left: 88.43, width: 4.91, height: 3.18 },
+    ...dataRows('l', LIAB_COLS, startRow, false),
+  ];
+}
+
 /** 第5表の自動計算（第3表の②③などからも参照する） */
 export function calcTable5(getField: TableProps['getField']) {
+  const totalRows = pageCountOf(getField) * ROWS_PER_PAGE;
   let assetEval = 0;
   let assetBook = 0;
   let stockEval = 0;
@@ -142,7 +191,7 @@ export function calcTable5(getField: TableProps['getField']) {
   let hasAssetInput = false;
   let hasLiabilityInput = false;
 
-  for (let row = 1; row <= ROWS; row++) {
+  for (let row = 1; row <= totalRows; row++) {
     const assetName = getField(T, `a_${row}_1`);
     const assetEvalRaw = getField(T, `a_${row}_2`);
     const assetBookRaw = getField(T, `a_${row}_3`);
@@ -224,8 +273,10 @@ export function calcTable5(getField: TableProps['getField']) {
   return calculated;
 }
 
-/** 第5表（CSSグリッド方式・完成版） */
+/** 第5表（CSSグリッド方式・続紙対応・行の選択／上下移動／挿入／削除） */
 export function Table5Grid({ getField, updateField, onJump }: TableProps) {
+  const pageCount = pageCountOf(getField);
+  const totalRows = pageCount * ROWS_PER_PAGE;
   const calculated = calcTable5(getField);
 
   const g = (f: string) => {
@@ -236,5 +287,142 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
     return getField(T, f);
   };
   const u = (f: string, v: string) => updateField(T, f, v);
-  return <GridForm cells={CALCULATED_CELLS} g={g} u={u} formId={T} width="100%" title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書" onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  const jump = onJump && ((t: { tab: string; field: string }) => onJump({ tab: t.tab as TableId, field: t.field }));
+
+  // リスト1件分（4列）の値を読み出すヘルパー
+  const readRows = (prefix: 'a' | 'l', count: number) =>
+    Array.from({ length: count }, (_, i) => [1, 2, 3, 4].map((c) => getField(T, `${prefix}_${i + 1}_${c}`)));
+  const writeRows = (prefix: 'a' | 'l', rows: string[][]) =>
+    rows.forEach((vals, i) => [1, 2, 3, 4].forEach((c, ci) => updateField(T, `${prefix}_${i + 1}_${c}`, vals[ci] ?? '')));
+
+  const addPage = () => u('_pages', String(pageCount + 1));
+  const removePage = () => {
+    if (pageCount <= 1) return;
+    const start = (pageCount - 1) * ROWS_PER_PAGE + 1;
+    let hasData = false;
+    for (let row = start; row <= pageCount * ROWS_PER_PAGE && !hasData; row++) {
+      for (const p of ['a', 'l'] as const) {
+        for (let c = 1; c <= 4; c++) if (getField(T, `${p}_${row}_${c}`).trim() !== '') hasData = true;
+      }
+    }
+    if (hasData && !window.confirm('最終ページの明細を削除します。よろしいですか？')) return;
+    for (let row = start; row <= pageCount * ROWS_PER_PAGE; row++) {
+      for (const p of ['a', 'l'] as const) for (let c = 1; c <= 4; c++) updateField(T, `${p}_${row}_${c}`, '');
+    }
+    u('_pages', String(pageCount - 1));
+  };
+
+  // pos の位置に空行を挿入し以降を1行下へ。末尾が埋まっている場合は自動で1ページ追加。
+  const insertRow = (prefix: 'a' | 'l', pos: number) => {
+    let total = totalRows;
+    let rows = readRows(prefix, total);
+    if (rows[total - 1]?.some((v) => v.trim() !== '')) {
+      u('_pages', String(pageCount + 1));
+      total += ROWS_PER_PAGE;
+      rows = rows.concat(Array.from({ length: ROWS_PER_PAGE }, () => ['', '', '', '']));
+    }
+    rows.splice(pos - 1, 0, ['', '', '', '']);
+    writeRows(prefix, rows.slice(0, total));
+    u('_sel', `${prefix}:${pos}`);
+  };
+
+  // pos の行を削除し以降を1行上へ。最終ページが資産・負債とも空になれば自動で1ページ削減。
+  const deleteRow = (prefix: 'a' | 'l', pos: number) => {
+    const total = totalRows;
+    const rows = readRows(prefix, total);
+    rows.splice(pos - 1, 1);
+    rows.push(['', '', '', '']);
+    writeRows(prefix, rows);
+    if (pageCount > 1) {
+      const other = prefix === 'a' ? 'l' : 'a';
+      const startIdx = (pageCount - 1) * ROWS_PER_PAGE;
+      let empty = true;
+      for (let i = startIdx; i < total && empty; i++) {
+        if (rows[i]?.some((v) => v.trim() !== '')) empty = false;
+        for (let c = 1; c <= 4 && empty; c++) if (getField(T, `${other}_${i + 1}_${c}`).trim() !== '') empty = false;
+      }
+      if (empty) u('_pages', String(pageCount - 1));
+    }
+    u('_sel', '');
+  };
+
+  // 選択行を1つ上/下のリスト位置と入れ替え（ページ跨ぎも可）
+  const moveRow = (prefix: 'a' | 'l', from: number, to: number) => {
+    if (to < 1 || to > totalRows) return;
+    const rows = readRows(prefix, totalRows);
+    const a = rows[from - 1];
+    const b = rows[to - 1];
+    if (!a || !b) return;
+    rows[from - 1] = b;
+    rows[to - 1] = a;
+    writeRows(prefix, rows);
+    u('_sel', `${prefix}:${to}`);
+  };
+
+  const sel = getField(T, '_sel');
+  const [selP, selRStr] = sel.split(':');
+  const selR = Number(selRStr);
+  const selValid = (selP === 'a' || selP === 'l') && Number.isInteger(selR) && selR >= 1 && selR <= totalRows;
+  const selList = selP === 'a' ? 'a' : 'l';
+
+  const btnStyle = { fontSize: 11, padding: '1px 8px', cursor: 'pointer', border: '1px solid #888', borderRadius: 4, background: '#fff' } as const;
+  // 帯オーバーレイ用の小さめボタン（枠線は様式の罫線と同じ 0.5px）
+  const opBtnStyle = { fontSize: 9, padding: '0 3px', cursor: 'pointer', border: '0.5px solid #000', borderRadius: 0, background: '#fff', lineHeight: 1.3, boxSizing: 'border-box' } as const;
+  // ページ追加/削除はタイトルバーに表示
+  const pageToolbar = (
+    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap' }}>
+      <span>明細 {pageCount}ページ（{totalRows}行）</span>
+      <button type="button" onClick={addPage} style={btnStyle}>＋ページ追加</button>
+      {pageCount > 1 && <button type="button" onClick={removePage} style={btnStyle}>－最終ページ削除</button>}
+    </span>
+  );
+  // 行操作は「１．資産及び負債の金額」の帯の上に重ねて表示
+  const rowOpsOverlay = (
+    <div className="no-print" style={{ position: 'absolute', top: 0, right: '0.6%', height: '3.95%', display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, whiteSpace: 'nowrap', background: 'transparent', padding: '0 3px' }}>
+      {selValid ? (
+        <>
+          <b>選択: {selList === 'a' ? '資産' : '負債'}{selR}行目</b>
+          <button type="button" onClick={() => moveRow(selList, selR, selR - 1)} disabled={selR <= 1} style={opBtnStyle}>↑上に移動</button>
+          <button type="button" onClick={() => moveRow(selList, selR, selR + 1)} disabled={selR >= totalRows} style={opBtnStyle}>↓下に移動</button>
+          <button type="button" onClick={() => insertRow(selList, selR)} style={opBtnStyle}>＋上に挿入</button>
+          <button type="button" onClick={() => insertRow(selList, selR + 1)} style={opBtnStyle}>＋下に挿入</button>
+          <button type="button" onClick={() => deleteRow(selList, selR)} style={{ ...opBtnStyle, color: '#b91c1c', borderColor: '#b91c1c' }}>×削除</button>
+          <button type="button" onClick={() => u('_sel', '')} style={opBtnStyle}>〇確定</button>
+        </>
+      ) : (
+        <span style={{ color: '#888' }}>行頭の ⠿ をクリックで行を選択 → 上下移動／挿入／削除</span>
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      {Array.from({ length: pageCount }).map((_, p) => (
+        <div className="gov-page" key={p} style={p < pageCount - 1 ? { marginBottom: '8mm' } : undefined}>
+          {p === 0 ? (
+            <GridForm
+              cells={CALCULATED_MAIN}
+              g={g}
+              u={u}
+              formId={T}
+              width="100%"
+              title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書"
+              toolbar={pageToolbar}
+              overlay={rowOpsOverlay}
+              onJump={jump}
+            />
+          ) : (
+            <GridForm
+              cells={continuationCells(p)}
+              g={g}
+              u={u}
+              formId={T}
+              width="100%"
+              title={`第５表（続）　資産・負債の明細（${p + 1}／${pageCount}ページ）`}
+            />
+          )}
+        </div>
+      ))}
+    </>
+  );
 }

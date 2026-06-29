@@ -129,12 +129,17 @@ export default function App() {
           {printAll ? (
             TABS.map((tab) => {
               const TableComp = TABLE_COMPONENTS[tab.id];
-              return (
+              // 第5表は続紙対応で自前に複数ページ（.gov-page）を描画するため外側で包まない
+              return tab.id === 'table5' ? (
+                <TableComp key={tab.id} {...tableProps} />
+              ) : (
                 <div key={tab.id} className="gov-page">
                   <TableComp {...tableProps} />
                 </div>
               );
             })
+          ) : activeTab === 'table5' ? (
+            <ActiveTable {...tableProps} />
           ) : (
             <div className="gov-page">
               <ActiveTable {...tableProps} />
