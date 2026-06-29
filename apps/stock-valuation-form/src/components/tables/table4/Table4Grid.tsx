@@ -1,6 +1,6 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
-import type { TableProps } from '@/types/form';
+import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table4' as const;
 
@@ -89,8 +89,8 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '１株当たりの資本金等の額\n（①÷（②－③））', noWrap: true, top: 8.9, left: 62.65, width: 13.09, height: 2.99 },
   { kind: 'label', text: '１株当たりの資本金等の額を50 円とした場合\nの発行済株式数\n(①÷50円）', fontSize: 5.5, noWrap: true, top: 9.09, left: 75.47, width: 14.32, height: 2.8 },
   { field: '①', kind: 'input', commaInteger: true, cornerLabel: '①', topRightLabel: '千円', top: 11.69, left: 24.05, width: 13.23, height: 3.18 },
-  { field: '②', kind: 'input', commaInteger: true, readOnly: true, cornerLabel: '②', topRightLabel: '株', top: 11.69, left: 37.01, width: 12.96, height: 3.18 },
-  { field: '③', kind: 'input', commaInteger: true, cornerLabel: '③', topRightLabel: '株', top: 11.6, left: 49.83, width: 13.09, height: 3.28 },
+  { field: '②', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: '①', hint: 'クリックで入力元（第１表の１・発行済株式の総数）へ移動します' }, cornerLabel: '②', topRightLabel: '株', top: 11.69, left: 37.01, width: 12.96, height: 3.18 },
+  { field: '③', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: 'f63', hint: 'クリックで入力元（第１表の１・自己株式数）へ移動します' }, cornerLabel: '③', topRightLabel: '株', top: 11.6, left: 49.83, width: 13.09, height: 3.28 },
   { field: '④', kind: 'input', readOnly: true, cornerLabel: '④', topRightLabel: '円', top: 11.6, left: 62.65, width: 13.09, height: 3.28 },
   { field: '⑤', kind: 'input', readOnly: true, cornerLabel: '⑤', topRightLabel: '株', top: 11.6, left: 75.47, width: 14.32, height: 3.28 },
   // ── 2. 比準要素等の金額の計算 ──
@@ -188,7 +188,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑱ 利 益 積 立 金 額', top: 40.32, left: 35.65, width: 16.78, height: 3.18 },
   { kind: 'label', text: '⑲純資産価額\n（⑰＋⑱)', noWrap: true, top: 40.22, left: 52.15, width: 16.64, height: 3.28 },
   { kind: 'label', text: '直 前 期', top: 43.4, left: 13.55, width: 6, height: 2.41 },
-  { field: 'n52', kind: 'input', commaInteger: true, readOnly: true, topRightLabel: '千円', top: 43.21, left: 19.42, width: 16.5, height: 2.7 },
+  { field: 'n52', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: '①', hint: 'クリックで入力元（第４表①・直前期末の資本金等の額）へ移動します' }, topRightLabel: '千円', top: 43.21, left: 19.42, width: 16.5, height: 2.7 },
   { field: 'n53', kind: 'input', signedCommaInteger: true, topRightLabel: '千円', top: 43.21, left: 35.65, width: 16.64, height: 2.7 },
   { field: '㋣', kind: 'input', readOnly: true, cornerLabel: '㋣', topRightLabel: '千円', top: 43.21, left: 52.01, width: 16.78, height: 2.7 },
   { kind: 'label', text: '直 前 々 期', top: 45.62, left: 13.69, width: 5.86, height: 2.51 },
@@ -212,12 +212,12 @@ const CELLS: GridCell[] = [
   { field: 'h5', kind: 'input', top: 47.93, left: 20.51, width: 16.78, height: 3.08 },
   { kind: 'label', text: '類 似 業 種 の 株 価', top: 50.83, left: 13.55, width: 2.32, height: 14.07 },
   { kind: 'label', text: '課税時期の属する月', fontSize: 6, noWrap: true, top: 50.73, left: 15.6, width: 8.73, height: 2.41 },
-  { field: 'h8', kind: 'input', topRightLabel: '月', top: 50.73, left: 24.19, width: 4.77, height: 2.41 },
+  { field: 'h8', kind: 'input', readOnly: true, jumpTo: { tab: 'table1_1', field: 'f14_m', hint: 'クリックで入力元（第１表の１・課税時期の月）へ移動します' }, topRightLabel: '月', top: 50.73, left: 24.19, width: 4.77, height: 2.41 },
   { field: '㋷', kind: 'input', commaInteger: true, cornerLabel: '㋷', topRightLabel: '円', highlightWhen: minValueHighlight(['㋷', '㋦', '㋸', '㋾', '㋻'], '㋷'), top: 50.63, left: 28.96, width: 8.18, height: 2.51 },
   { kind: 'label', text: '課税時期の属する月の\n前月', fontSize: 5.5, noWrap: true, top: 52.95, left: 15.6, width: 8.73, height: 2.12 },
-  { field: 'h11', kind: 'input', topRightLabel: '月', top: 52.85, left: 23.92, width: 5.05, height: 2.31 },
+  { field: 'h11', kind: 'input', readOnly: true, jumpTo: { tab: 'table1_1', field: 'f14_m', hint: 'クリックで入力元（第１表の１・課税時期の月）へ移動します。前月は課税時期の月から自動計算' }, topRightLabel: '月', top: 52.85, left: 23.92, width: 5.05, height: 2.31 },
   { kind: 'label', text: '課税時期の属する月の\n前々月', fontSize: 5.5, noWrap: true, top: 54.97, left: 15.73, width: 8.46, height: 2.22 },
-  { field: 'h13', kind: 'input', topRightLabel: '月', top: 54.97, left: 23.92, width: 5.05, height: 2.31 },
+  { field: 'h13', kind: 'input', readOnly: true, jumpTo: { tab: 'table1_1', field: 'f14_m', hint: 'クリックで入力元（第１表の１・課税時期の月）へ移動します。前々月は課税時期の月から自動計算' }, topRightLabel: '月', top: 54.97, left: 23.92, width: 5.05, height: 2.31 },
   { field: '㋸', kind: 'input', commaInteger: true, cornerLabel: '㋸', topRightLabel: '円', highlightWhen: minValueHighlight(['㋷', '㋦', '㋸', '㋾', '㋻'], '㋸'), top: 55.07, left: 28.69, width: 8.46, height: 2.22 },
   { field: '㋦', kind: 'input', commaInteger: true, cornerLabel: '㋦', topRightLabel: '円', highlightWhen: minValueHighlight(['㋷', '㋦', '㋸', '㋾', '㋻'], '㋦'), top: 52.95, left: 28.55, width: 8.46, height: 2.31 },
   { kind: 'label', text: '前年平均株価', top: 56.99, left: 15.6, width: 13.5, height: 2.41 },
@@ -234,13 +234,13 @@ const CELLS: GridCell[] = [
   { field: 'h58', kind: 'input', top: 64.8, left: 20.51, width: 16.5, height: 2.99 },
   { kind: 'label', text: '類 似 業 種 の 株 価', top: 67.5, left: 13.55, width: 2.45, height: 14.26 },
   { kind: 'label', text: '課税時期の属する月', fontSize: 6, noWrap: true, top: 67.6, left: 15.73, width: 8.59, height: 2.22 },
-  { field: 'h61', kind: 'input', topRightLabel: '月', top: 67.6, left: 24.05, width: 5.05, height: 2.31 },
+  { field: 'h61', kind: 'input', readOnly: true, jumpTo: { tab: 'table1_1', field: 'f14_m', hint: 'クリックで入力元（第１表の１・課税時期の月）へ移動します' }, topRightLabel: '月', top: 67.6, left: 24.05, width: 5.05, height: 2.31 },
   { field: '㋕', kind: 'input', commaInteger: true, cornerLabel: '㋕', topRightLabel: '円', highlightWhen: minValueHighlight(['㋕', '㋵', '㋟', '㋹', '㋞'], '㋕'), top: 67.5, left: 28.69, width: 8.32, height: 2.41 },
   { kind: 'label', text: '課税時期の属する月の\n前月', fontSize: 5.5, noWrap: true, top: 69.72, left: 15.87, width: 8.46, height: 2.22 },
-  { field: 'h64', kind: 'input', topRightLabel: '月', top: 69.62, left: 24.05, width: 4.91, height: 2.31 },
+  { field: 'h64', kind: 'input', readOnly: true, jumpTo: { tab: 'table1_1', field: 'f14_m', hint: 'クリックで入力元（第１表の１・課税時期の月）へ移動します。前月は課税時期の月から自動計算' }, topRightLabel: '月', top: 69.62, left: 24.05, width: 4.91, height: 2.31 },
   { field: '㋵', kind: 'input', commaInteger: true, cornerLabel: '㋵', topRightLabel: '円', highlightWhen: minValueHighlight(['㋕', '㋵', '㋟', '㋹', '㋞'], '㋵'), top: 69.72, left: 28.69, width: 8.32, height: 2.12 },
   { kind: 'label', text: '課税時期の属する月の\n前々月', fontSize: 5.5, noWrap: true, top: 71.74, left: 15.87, width: 8.46, height: 2.31 },
-  { field: 'h67', kind: 'input', topRightLabel: '月', top: 71.74, left: 23.92, width: 5.05, height: 2.31 },
+  { field: 'h67', kind: 'input', readOnly: true, jumpTo: { tab: 'table1_1', field: 'f14_m', hint: 'クリックで入力元（第１表の１・課税時期の月）へ移動します。前々月は課税時期の月から自動計算' }, topRightLabel: '月', top: 71.74, left: 23.92, width: 5.05, height: 2.31 },
   { field: '㋟', kind: 'input', commaInteger: true, cornerLabel: '㋟', topRightLabel: '円', highlightWhen: minValueHighlight(['㋕', '㋵', '㋟', '㋹', '㋞'], '㋟'), top: 71.74, left: 28.69, width: 8.46, height: 2.31 },
   { kind: 'label', text: '前年平均株価', top: 73.96, left: 15.87, width: 12.96, height: 2.22 },
   { field: '㋹', kind: 'input', commaInteger: true, cornerLabel: '㋹', topRightLabel: '円', highlightWhen: minValueHighlight(['㋕', '㋵', '㋟', '㋹', '㋞'], '㋹'), top: 73.86, left: 28.55, width: 8.46, height: 2.31 },
@@ -313,7 +313,8 @@ export function calcTable4(getField: TableProps['getField']) {
 
   // 1. 資本金等
   const cap = num('①');                         // 千円
-  const issued = num('②');
+  // ②発行済株式数＝第1表の1の①（評価会社の発行済株式の総数）を転記
+  const issued = parseNum(getField('table1_1', '①'));
   const treasuryShares = parseNum(
     getField('table1_1', 'f63') || getField('table1_1', 'treasury_shares'),
   );
@@ -355,9 +356,18 @@ export function calcTable4(getField: TableProps['getField']) {
   // C1/C2は単年か2年平均かを納税者が選択（既定は低い方を自動選択）
   const pickProfit = (single: number | null, two: number | null, mode: string) =>
     mode === 'single' ? single : mode === 'avg' ? two : single === null ? null : two === null ? single : Math.min(single, two);
+  const pickProfitSide = (single: number | null, two: number | null, mode: string): 'left' | 'right' | undefined => {
+    if (mode === 'single') return 'left';
+    if (mode === 'avg') return 'right';
+    if (single === null && two === null) return undefined;
+    if (single === null) return 'right';
+    if (two === null) return 'left';
+    return single <= two ? 'left' : 'right';
+  };
   const avg12 = p1 !== null && p2 !== null ? (p1 + p2) / 2 : null;
   const avg23 = p2 !== null && p3 !== null ? (p2 + p3) / 2 : null;
   const c1base = pickProfit(p1, avg12, raw('c1_mode'));
+  const c1baseSide = pickProfitSide(p1, avg12, raw('c1_mode'));
   const c2base = pickProfit(p2, avg23, raw('c2_mode'));
   // C1・C2・Ⓒが負数のときは0（記載要領3⑷⑸の注）
   const c1 = per50(c1base) !== null ? Math.max(0, fl(per50(c1base)!)) : null;
@@ -400,11 +410,11 @@ export function calcTable4(getField: TableProps['getField']) {
   const base28 = v27 ?? v26;
   const v28 = base28 !== null && modRatio2 !== null ? fl((base28 + (modPay ?? 0) * (modRatio ?? 0)) / (1 + modRatio2)) : null;
 
-  return { treasuryShares, cap4, cap4disp, cap5, i1, i2, i3, v9, v10, b1, b2, Bv, p1, p2, p3, c1, c2, Cv, t1, t2, d1, d2, Dv, A1, A2, e1B, e1C, e1D, e2B, e2C, e2D, r21, r24, size, shin, p22, p25, v26, v27, v28 };
+  return { issued, treasuryShares, cap4, cap4disp, cap5, i1, i2, i3, v9, v10, b1, b2, Bv, p1, p2, p3, c1, c1baseSide, c2, Cv, t1, t2, d1, d2, Dv, A1, A2, e1B, e1C, e1D, e2B, e2C, e2D, r21, r24, size, shin, p22, p25, v26, v27, v28 };
 }
 
 /** 第4表（CSSグリッド方式・完成版） */
-export function Table4Grid({ getField, updateField }: TableProps) {
+export function Table4Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
@@ -415,8 +425,18 @@ export function Table4Grid({ getField, updateField }: TableProps) {
 
   const c = calcTable4(getField);
 
+  // 類似業種の株価の「課税時期の属する月／前月／前々月」は第1表の1の課税時期(f14)の月から導出
+  const taxMonthRaw = getField('table1_1', 'f14_m');
+  const taxMonth = Number(taxMonthRaw.replace(/,/g, '').trim());
+  const taxMonthValid = taxMonthRaw.trim() !== '' && Number.isInteger(taxMonth) && taxMonth >= 1 && taxMonth <= 12;
+  const prevMonth = (back: number): string => (taxMonthValid ? String(((taxMonth - 1 - back + 12) % 12) + 1) : '');
+
   const g = (f: string): string => {
     switch (f) {
+      case 'h8': case 'h61': return taxMonthRaw; // 課税時期の属する月＝第1表の1の課税時期(f14)の月
+      case 'h11': case 'h64': return prevMonth(1); // 前月＝課税時期の月−1（年跨ぎ対応）
+      case 'h13': case 'h67': return prevMonth(2); // 前々月＝課税時期の月−2
+      case '②': return fmt(c.issued);
       case '③': return fmt(c.treasuryShares);
       case '④': return c.cap4disp;
       case '⑤': return fmt(c.cap5);
@@ -472,5 +492,17 @@ export function Table4Grid({ getField, updateField }: TableProps) {
       <label style={{ display: 'flex', alignItems: 'center', gap: 3 }}>C2:{modeSelect('c2_mode', '単年（㋭÷⑤）')}</label>
     </span>
   );
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第４表　類似業種比準価額等の計算明細書" toolbar={toolbar} references={REFERENCES} />;
+  const cells = CELLS.map((cell) => {
+    if (cell.kind === 'label' && cell.text === '㊁÷⑤又は(㊁＋㋭)÷２÷⑤' && cell.alternativeFractions) {
+      return {
+        ...cell,
+        alternativeFractions: {
+          ...cell.alternativeFractions,
+          selectedSide: c.c1baseSide,
+        },
+      };
+    }
+    return cell;
+  });
+  return <GridForm cells={cells} g={g} u={u} formId={T} width="100%" title="第４表　類似業種比準価額等の計算明細書" toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

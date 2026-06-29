@@ -3,7 +3,7 @@ import { calcTable4 } from '../table4/Table4Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { calcTable2 } from '../table2/Table2Grid';
-import type { TableProps } from '@/types/form';
+import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table7' as const;
 
@@ -49,7 +49,13 @@ const TABLE4_LINKED_FIELDS: Record<string, string> = {
 };
 
 const linkInputsToTable4 = (cells: GridCell[]): GridCell[] =>
-  cells.map((cell) => (cell.kind === 'input' ? { ...cell, readOnly: true } : cell));
+  cells.map((cell) => {
+    if (cell.kind !== 'input') return cell;
+    const linked = cell.field ? TABLE4_LINKED_FIELDS[cell.field] : undefined;
+    return linked
+      ? { ...cell, readOnly: true, jumpTo: { tab: 'table4', field: linked, hint: `クリックで入力元（第４表 ${linked}）へ移動します` } }
+      : { ...cell, readOnly: true };
+  });
 
 const minValueHighlight = (fields: string[], target: string) => (g: (field: string) => string) => {
   const values = fields
@@ -168,7 +174,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '１株（50円）当たりの年配当金額\n（第４表のⒷ）', top: 17.67, left: 21.74, width: 16.64, height: 3.08 },
   { kind: 'label', text: 'ⓑの金額\n（③×㋩）', top: 17.67, left: 38.1, width: 18.14, height: 2.99 },
   { kind: 'label', text: 'Ⓑ－ⓑの金額\n（③－④）', top: 17.77, left: 55.97, width: 18.14, height: 2.89 },
-  { field: '③', kind: 'input', readOnly: true, top: 20.66, left: 21.74, width: 11.87, height: 2.89 },
+  { field: '③', kind: 'input', readOnly: true, jumpTo: { tab: 'table4', field: 'B', hint: 'クリックで転記元（第４表 Ⓑ・1株当たりの年配当金額）へ移動します' }, top: 20.66, left: 21.74, width: 11.87, height: 2.89 },
   { field: 'f23', kind: 'input', readOnly: true, topRightLabel: '銭', top: 20.56, left: 33.33, width: 5.05, height: 2.99 },
   { field: '④', kind: 'input', readOnly: true, top: 20.56, left: 38.24, width: 13.23, height: 2.89 },
   { field: 'f25', kind: 'input', readOnly: true, topRightLabel: '銭', top: 20.56, left: 51.33, width: 4.77, height: 2.89 },
@@ -190,7 +196,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '直前期末の株式等の帳簿価額\nの合計額', top: 28.75, left: 38.24, width: 17.83, height: 3.28 },
   { kind: 'label', text: '直前期末の総資産価額\n(帳簿価額）', top: 28.75, left: 55.97, width: 18, height: 3.28 },
   { kind: 'label', text: '（イ）の金額\n（⑨×（⑩÷⑪））', top: 28.85, left: 73.83, width: 16.91, height: 3.28 },
-  { field: '⑨', kind: 'input', readOnly: true, top: 31.93, left: 21.6, width: 16.78, height: 2.8 },
+  { field: '⑨', kind: 'input', readOnly: true, jumpTo: { tab: 'table4', field: 'D', hint: 'クリックで転記元（第４表 Ⓓ・1株当たりの純資産価額）へ移動します' }, top: 31.93, left: 21.6, width: 16.78, height: 2.8 },
   { field: '⑩', kind: 'input', top: 31.93, left: 38.24, width: 18, height: 2.89 },
   { field: '⑪', kind: 'input', top: 31.84, left: 55.97, width: 18.14, height: 2.89 },
   { field: '⑫', kind: 'input', readOnly: true, top: 31.84, left: 73.83, width: 16.91, height: 2.89 },
@@ -198,7 +204,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '利益積立金額\n（第４表の⑱の「直前期」欄の金額）', top: 34.73, left: 21.74, width: 26.05, height: 3.86 },
   { kind: 'label', text: '１株当たりの資本金等の額を\n50円とした場合の発行済株式数\n（第４表の⑤の株式数）', top: 34.73, left: 47.51, width: 26.46, height: 3.86 },
   { kind: 'label', text: '（ロ）の金額\n（（⑬÷⑭）×ハ ）', top: 34.54, left: 73.83, width: 16.91, height: 3.95 },
-  { field: '⑬', kind: 'input', readOnly: true, top: 38.39, left: 21.87, width: 26.05, height: 2.8 },
+  { field: '⑬', kind: 'input', readOnly: true, jumpTo: { tab: 'table4', field: 'n53', hint: 'クリックで入力元（第４表 ⑱利益積立金額・直前期）へ移動します' }, top: 38.39, left: 21.87, width: 26.05, height: 2.8 },
   { field: '⑭', kind: 'input', readOnly: true, top: 38.39, left: 47.65, width: 26.32, height: 2.8 },
   { field: '⑮', kind: 'input', readOnly: true, top: 38.3, left: 73.97, width: 16.64, height: 2.99 },
   { kind: 'cell', text: '', top: 41.19, left: 19.28, width: 2.59, height: 5.88 },
@@ -334,7 +340,7 @@ export function calcTable7(getField: TableProps['getField']) {
 }
 
 /** 第7表（CSSグリッド方式・完成版） */
-export function Table7Grid({ getField, updateField }: TableProps) {
+export function Table7Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const table4Raw = (f: string) => getField('table4', f);
   const u = (f: string, v: string) => updateField(T, f, v);
@@ -407,5 +413,5 @@ export function Table7Grid({ getField, updateField }: TableProps) {
       </span>
     </span>
   );
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第７表　株式等保有特定会社の株式の価額の計算明細書" toolbar={toolbar} references={REFERENCES} />;
+  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第７表　株式等保有特定会社の株式の価額の計算明細書" toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

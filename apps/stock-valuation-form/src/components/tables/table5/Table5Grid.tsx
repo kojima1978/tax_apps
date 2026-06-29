@@ -1,5 +1,5 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
-import type { TableProps } from '@/types/form';
+import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table5' as const;
 
@@ -117,7 +117,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '課税時期現在の純資産価額\n（相続税評価額）（⑤－⑧）', top: 80.71, left: 51.06, width: 25.78, height: 3.57, align: 'left' },
   { field: '⑨', kind: 'input', cornerLabel: '⑨', top: 80.8, left: 76.56, width: 16.78, height: 3.47 },
   { kind: 'label', text: '課税時期現在の発行済株式数\n{(第１表の１の①)－自己株式数}', top: 84.08, left: 51.19, width: 25.64, height: 3.47, align: 'left' },
-  { field: '⑩', kind: 'input', cornerLabel: '⑩', top: 83.98, left: 76.7, width: 16.78, height: 3.57 },
+  { field: '⑩', kind: 'input', jumpTo: { tab: 'table1_1', field: '①', hint: 'クリックで入力元（第１表の１・①発行済株式の総数）へ移動します。自己株式数は第１表の１の自己株式欄で入力します' }, cornerLabel: '⑩', top: 83.98, left: 76.7, width: 16.78, height: 3.57 },
   { kind: 'label', text: '課税時期現在の1株当たりの純資産価額\n（相続税評価額）（⑨÷⑩）', top: 87.26, left: 51.06, width: 25.64, height: 3.66, align: 'left' },
   { field: '⑪', kind: 'input', cornerLabel: '⑪', top: 87.36, left: 76.56, width: 16.78, height: 3.57 },
   { kind: 'label', text: '同族株主等の議決権割合（第１表の１の⑤の割合）が\n50％以下の場合（⑪×80％）', top: 90.83, left: 51.06, width: 25.91, height: 3.28, align: 'left' },
@@ -225,7 +225,7 @@ export function calcTable5(getField: TableProps['getField']) {
 }
 
 /** 第5表（CSSグリッド方式・完成版） */
-export function Table5Grid({ getField, updateField }: TableProps) {
+export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   const calculated = calcTable5(getField);
 
   const g = (f: string) => {
@@ -236,5 +236,5 @@ export function Table5Grid({ getField, updateField }: TableProps) {
     return getField(T, f);
   };
   const u = (f: string, v: string) => updateField(T, f, v);
-  return <GridForm cells={CALCULATED_CELLS} g={g} u={u} formId={T} width="100%" title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書" />;
+  return <GridForm cells={CALCULATED_CELLS} g={g} u={u} formId={T} width="100%" title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書" onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

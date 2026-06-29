@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback, useId, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useMemo, useRef, useCallback, useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 
 /** グリッドセル定義（座標・サイズは％） */
 export interface GridCell {
@@ -27,6 +27,7 @@ export interface GridCell {
   noLeadingZero?: boolean;           // 先頭の0を許可しない整数入力
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                 // 自動計算などの編集不可欄
+  jumpTo?: { tab: string; field: string; hint?: string }; // 自動転記欄クリックで入力元へ移動
   options?: string[];                 // 選択式入力の候補（空文字は未選択）
   highlightWhen?: (g: (field: string) => string) => boolean; // 自動判定時の強調条件
   selectValue?: { field: string; value: string }; // セルをクリックして指定値を選択
@@ -100,6 +101,7 @@ export interface GridCell {
     prefix?: string;
     left: { numerator: string; denominator: string };
     right: { numerator: string; denominator: string };
+    selectedSide?: 'left' | 'right';
     suffix?: string;
   }; // 2つの分数を「又は」で並べる式
   companyRateExpression?: {
@@ -121,6 +123,12 @@ export interface GridCell {
     otherResultField: string;
     totalField: string;
   }; // 役員を除く従業員数の換算内訳
+  inlineChoices?: {
+    selectedKey?: string;
+    choices: { key: string; label: string }[];
+    separator?: string;
+  }; // セル内で選択肢を横並び表示し、選択中の項目だけ囲む
+  dragId?: string;
 }
 
 interface GridFormProps {
@@ -138,6 +146,9 @@ interface GridFormProps {
   enterLoop?: string[];
   /** input/select の id・name に使用する表識別子 */
   formId?: string;
+  /** 自動転記欄（jumpTo付き）クリック時に入力元へ移動する */
+  onJump?: (target: { tab: string; field: string }) => void;
+  onDragReorder?: (activeId: string, overId: string) => void;
 }
 
 /** 近接する境界線を統合（tol％以内は同一線とみなす） */
@@ -221,7 +232,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
  * 各矩形の left/right を縦線、top/bottom を横線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, width = '100%', title, references, toolbar, enterLoop, formId }: GridFormProps) {
+export function GridForm({ cells, g, u, width = '100%', title, references, toolbar, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
   const { colTmpl, rowTmpl, placed, bounds } = useMemo(() => {
@@ -250,6 +261,8 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
   }, [cells]);
 
   const gridRef = useRef<HTMLDivElement>(null);
+  const dragIdRef = useRef<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   // Enter で次の入力欄（DOM順＝右→下）へフォーカス移動
   const onEnterNext = useCallback((e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== 'Enter') return;
@@ -287,7 +300,10 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
         const highlighted = c.highlightWhen?.(g) ?? false;
         const selectable = c.selectValue;
         const toggleField = c.toggleField;
-        const interactive = selectable || toggleField;
+        const dragId = c.dragId;
+        const isDragHandle = dragId !== undefined;
+        const dragOver = isDragHandle && dragOverId === dragId;
+        const interactive = selectable || toggleField || isDragHandle;
         const selectCell = () => {
           if (toggleField) {
             u(toggleField, g(toggleField) === '1' ? '' : '1');
@@ -299,38 +315,68 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
         return (
           <div
             key={i}
-            role={toggleField ? 'checkbox' : selectable ? 'button' : undefined}
+            role={isDragHandle ? 'button' : toggleField ? 'checkbox' : selectable ? 'button' : undefined}
             tabIndex={interactive ? 0 : undefined}
-            aria-label={interactive ? c.ariaLabel ?? `${text}を選択` : undefined}
+            aria-label={interactive ? c.ariaLabel ?? (isDragHandle ? `${text}をドラッグして並び替え` : `${text}を選択`) : undefined}
             aria-checked={toggleField ? g(toggleField) === '1' : undefined}
             aria-pressed={selectable ? g(selectable.field) === selectable.value : undefined}
-            onClick={interactive ? selectCell : undefined}
-            onKeyDown={interactive ? (event) => {
+            draggable={isDragHandle}
+            onClick={selectable || toggleField ? selectCell : undefined}
+            onKeyDown={selectable || toggleField ? (event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 selectCell();
               }
             } : undefined}
+            onDragStart={isDragHandle ? (event) => {
+              dragIdRef.current = dragId;
+              event.dataTransfer.effectAllowed = 'move';
+              event.dataTransfer.setData('text/plain', dragId);
+            } : undefined}
+            onDragOver={isDragHandle ? (event) => {
+              const activeId = dragIdRef.current ?? event.dataTransfer.getData('text/plain');
+              if (activeId && activeId !== dragId) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                setDragOverId(dragId);
+              }
+            } : undefined}
+            onDragLeave={isDragHandle ? () => {
+              if (dragOverId === dragId) setDragOverId(null);
+            } : undefined}
+            onDrop={isDragHandle ? (event) => {
+              event.preventDefault();
+              const activeId = dragIdRef.current ?? event.dataTransfer.getData('text/plain');
+              if (activeId && activeId !== dragId) onDragReorder?.(activeId, dragId);
+              dragIdRef.current = null;
+              setDragOverId(null);
+            } : undefined}
+            onDragEnd={isDragHandle ? () => {
+              dragIdRef.current = null;
+              setDragOverId(null);
+            } : undefined}
             style={{
             gridColumn: c.exactPosition ? undefined : `${cs} / ${ce}`,
             gridRow: c.exactPosition ? undefined : `${rs} / ${re}`,
-            border: '0.5px solid #000',
+            border: isDragHandle ? '0.5px solid #64748b' : '0.5px solid #000',
             position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.topRightLabel || c.bottomLabel || c.rightLabel ? 'relative' : undefined,
             top: c.exactPosition ? `${((c.top - bounds.top) / bounds.height) * 100}%` : undefined,
             left: c.exactPosition ? `${((c.left - bounds.left) / bounds.width) * 100}%` : undefined,
             width: c.exactPosition ? `${(c.width / bounds.width) * 100}%` : undefined,
             height: c.exactPosition ? `${(c.height / bounds.height) * 100}%` : undefined,
-            zIndex: c.exactPosition ? 1 : undefined,
+            zIndex: c.exactPosition ? isDragHandle ? 3 : 1 : undefined,
             display: 'flex',
             alignItems: 'center',
             justifyContent: isVertical ? (c.align === 'center' ? 'center' : 'flex-start') : justify,
             writingMode: isVertical ? 'vertical-rl' : undefined,
             fontSize,
             fontWeight: c.bold || highlighted ? 700 : 400,
-            background: highlighted ? '#fff3b0' : undefined,
-            boxShadow: highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
-            cursor: interactive ? 'pointer' : undefined,
+            color: isDragHandle ? '#334155' : undefined,
+            background: dragOver ? '#dbeafe' : highlighted ? '#fff3b0' : isDragHandle ? '#f8fafc' : undefined,
+            boxShadow: dragOver ? 'inset 0 0 0 1.5px #2563eb' : highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
+            cursor: isDragHandle ? 'grab' : interactive ? 'pointer' : undefined,
             userSelect: interactive ? 'none' : undefined,
+            touchAction: isDragHandle ? 'none' : undefined,
             padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
             lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: 'center',
           }}>
@@ -506,7 +552,8 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
               : c.kind === 'input' && c.field
               ? <>
                   {c.cornerLabel && <span style={{ position: 'absolute', top: c.cornerLabelTop ?? 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
-                  <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                  {c.jumpTo && onJump && <span style={{ position: 'absolute', top: 1, right: c.topRightLabel ? 10 : 2, fontSize: 7, lineHeight: 1, color: '#2563eb', pointerEvents: 'none' }} aria-hidden="true">✎</span>}
+                  <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} title={c.jumpTo?.hint} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} onClick={c.jumpTo && onJump ? () => onJump(c.jumpTo!) : undefined} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', cursor: c.jumpTo && onJump ? 'pointer' : undefined }} />
                 </>
               : c.kind === 'label' && c.verticalSectionHeading ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%' }}>
@@ -539,12 +586,12 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                   {c.alternativeFractions.caption && <span>{c.alternativeFractions.caption}</span>}
                   <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35em' }}>
                     {c.alternativeFractions.prefix && <span>{c.alternativeFractions.prefix}</span>}
-                    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '2em' }}>
+                    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '2em', padding: '0.08em 0.18em', ...(c.alternativeFractions.selectedSide === 'left' ? { background: '#fff3b0', boxShadow: 'inset 0 0 0 0.7px #d97706' } : {}) }}>
                       <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.25em 1px' }}>{c.alternativeFractions.left.numerator}</span>
                       <span style={{ paddingTop: 1 }}>{c.alternativeFractions.left.denominator}</span>
                     </span>
                     <span>又は</span>
-                    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '5.5em' }}>
+                    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '5.5em', padding: '0.08em 0.18em', ...(c.alternativeFractions.selectedSide === 'right' ? { background: '#fff3b0', boxShadow: 'inset 0 0 0 0.7px #d97706' } : {}) }}>
                       <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.25em 1px' }}>{c.alternativeFractions.right.numerator}</span>
                       <span style={{ paddingTop: 1 }}>{c.alternativeFractions.right.denominator}</span>
                     </span>
@@ -628,6 +675,20 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                     ))}
                   </span>
                   <span style={{ paddingTop: 1 }}>{c.fractionExpression.denominator}</span>
+                </span>
+              ) : c.kind === 'label' && c.inlineChoices ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.25em', width: '100%', height: '100%', lineHeight: 1, whiteSpace: 'nowrap' }}>
+                  {c.inlineChoices.choices.map((choice, index) => {
+                    const selected = choice.key === c.inlineChoices?.selectedKey;
+                    return (
+                      <span key={choice.key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25em' }}>
+                        {index > 0 && <span>{c.inlineChoices?.separator ?? '・'}</span>}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '4.1em', height: '1.7em', padding: '0 0.25em', border: selected ? '0.8px solid #000' : '0.8px solid transparent', borderRadius: '999px', boxSizing: 'border-box', fontWeight: selected ? 700 : undefined, background: selected ? '#fff8cc' : undefined }}>
+                          {choice.label}
+                        </span>
+                      </span>
+                    );
+                  })}
                 </span>
               ) : c.kind === 'label' ? (
                 c.link ? (

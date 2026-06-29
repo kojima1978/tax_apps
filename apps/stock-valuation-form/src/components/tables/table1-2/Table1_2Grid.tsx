@@ -81,10 +81,12 @@ function calc(g: G) {
 /** 会社規模の判定結果（第4表の斟酌率などで他表からも参照） */
 export const calcCompanySize = calc;
 
-const assetHL = (gyo: Gyo, r: number) => (g: G) => { const c = calc(g); return c.gyo === gyo && c.assetRank === r; };
-const txHL = (gyo: Gyo, r: number) => (g: G) => { const c = calc(g); return c.gyo === gyo && c.txRank === r; };
-const empHL = (band: Band) => (g: G) => calc(g).empBand === band;
+const isEmp70OrMore = (c: ReturnType<typeof calc>) => c.emp !== null && c.emp >= 70;
+const assetHL = (gyo: Gyo, r: number) => (g: G) => { const c = calc(g); return !isEmp70OrMore(c) && c.gyo === gyo && c.assetRank === r; };
+const txHL = (gyo: Gyo, r: number) => (g: G) => { const c = calc(g); return !isEmp70OrMore(c) && c.gyo === gyo && c.txRank === r; };
+const empHL = (band: Band) => (g: G) => { const c = calc(g); return !isEmp70OrMore(c) && c.empBand === band; };
 const resHL = (r: number) => (g: G) => calc(g).result === r;
+const matrixResHL = (r: number) => (g: G) => { const c = calc(g); return !isEmp70OrMore(c) && c.result === r; };
 const emp70HL = (g: G) => { const e = calc(g).emp; return e !== null && e >= 70; };
 const empU70HL = (g: G) => { const e = calc(g).emp; return e !== null && e < 70; };
 
@@ -124,7 +126,7 @@ const CELLS: GridCell[] = [
   // ── 判定基準（マトリクス） ──
   { kind: 'label', text: '判定基準', top: 29.14, left: 9.05, width: 2.45, height: 39.32, align: 'center' },
   { kind: 'label', text: '㋣直前期末以前１年間における従業員数に応ずる区分', top: 29.04, left: 11.23, width: 37.64, height: 5.01 },
-  { kind: 'label', text: '70人以上の会社は、大会社(㋠及び㋷は不要）', highlightWhen: emp70HL, top: 29.04, left: 48.6, width: 45.82, height: 2.51, align: 'left' },
+  { kind: 'label', text: '70人以上の会社は、大会社(チ及びリは不要）', highlightWhen: emp70HL, top: 29.04, left: 48.6, width: 45.82, height: 2.51, align: 'left' },
   { kind: 'label', text: '70人未満の会社は、㋠及び㋷により判定', highlightWhen: empU70HL, top: 31.36, left: 48.6, width: 45.96, height: 2.8, align: 'left' },
   { kind: 'label', text: '㋠直前期末の「総資産価額（帳簿価額）」及び\n直前期末以前１年間における「従業員数」に応ずる区分', top: 33.86, left: 11.23, width: 41.32, height: 3.95 },
   { kind: 'label', text: '㋷直前期末以前１年間の「取引金額」に応ずる区分', top: 33.96, left: 52.42, width: 29.87, height: 3.86 },
@@ -146,7 +148,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '30億円以上', highlightWhen: txHL('卸売業', 4), top: 45.04, left: 52.28, width: 9.96, height: 2.6 },
   { kind: 'label', text: '20億円以上', highlightWhen: txHL('小売・サービス業', 4), top: 44.95, left: 61.97, width: 9.96, height: 2.7 },
   { kind: 'label', text: '15億円以上', highlightWhen: txHL('その他', 4), top: 45.04, left: 71.79, width: 10.64, height: 2.6 },
-  { kind: 'label', text: '大 会 社', highlightWhen: resHL(4), top: 45.04, left: 82.02, width: 12.41, height: 2.51 },
+  { kind: 'label', text: '大 会 社', highlightWhen: matrixResHL(4), top: 45.04, left: 82.02, width: 12.41, height: 2.51 },
   // 中会社 0.90 行
   { kind: 'label', text: '４億円以上\n20億円未満', highlightWhen: assetHL('卸売業', 3), top: 47.55, left: 11.37, width: 9.96, height: 4.92 },
   { kind: 'label', text: '５億円以上\n15億円未満', highlightWhen: assetHL('小売・サービス業', 3), top: 47.45, left: 21.05, width: 10.23, height: 5.01 },
@@ -155,7 +157,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '７億円以上\n30億円未満', highlightWhen: txHL('卸売業', 3), top: 47.45, left: 52.28, width: 9.96, height: 5.01 },
   { kind: 'label', text: '５億円以上\n20億円未満', highlightWhen: txHL('小売・サービス業', 3), top: 47.36, left: 61.97, width: 9.82, height: 5.11 },
   { kind: 'label', text: '４億円以上\n15億円未満', highlightWhen: txHL('その他', 3), top: 47.45, left: 71.65, width: 10.5, height: 5.01 },
-  { kind: 'label', text: '0.90', highlightWhen: resHL(3), top: 47.45, left: 82.02, width: 9.96, height: 5.11 },
+  { kind: 'label', text: '0.90', highlightWhen: matrixResHL(3), top: 47.45, left: 82.02, width: 9.96, height: 5.11 },
   // 中会社 0.75 行
   { kind: 'label', text: '２億円以上\n４億円未満', highlightWhen: assetHL('卸売業', 2), top: 52.37, left: 11.23, width: 10.09, height: 4.92 },
   { kind: 'label', text: '2億5,000万円以上\n５億円未満', fontSize: 6.5, highlightWhen: assetHL('小売・サービス業', 2), top: 52.37, left: 21.05, width: 10.23, height: 5.01 },
@@ -164,7 +166,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '3億5,000万円以上\n７億円未満', fontSize: 6.5, highlightWhen: txHL('卸売業', 2), top: 52.37, left: 52.42, width: 9.82, height: 5.01 },
   { kind: 'label', text: '2億5,000万円以上\n５億円未満', fontSize: 6.5, highlightWhen: txHL('小売・サービス業', 2), top: 52.27, left: 61.97, width: 9.96, height: 5.2 },
   { kind: 'label', text: '２億円以上\n４億円未満', highlightWhen: txHL('その他', 2), top: 52.18, left: 71.65, width: 10.64, height: 5.2 },
-  { kind: 'label', text: '0.75', highlightWhen: resHL(2), top: 52.37, left: 82.02, width: 9.96, height: 5.11 },
+  { kind: 'label', text: '0.75', highlightWhen: matrixResHL(2), top: 52.37, left: 82.02, width: 9.96, height: 5.11 },
   { kind: 'label', text: '中会社', top: 47.36, left: 91.7, width: 2.86, height: 15.04, align: 'center' },
   // 中会社 0.60 行（様式の確定値で補完）
   { kind: 'label', text: '7,000万円以上\n2億円未満', fontSize: 6.5, highlightWhen: assetHL('卸売業', 1), top: 57.38, left: 11.23, width: 10.09, height: 4.92 },
@@ -174,7 +176,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '2億円以上\n3億5,000万円未満', fontSize: 6.5, highlightWhen: txHL('卸売業', 1), top: 57.38, left: 52.42, width: 9.82, height: 4.92 },
   { kind: 'label', text: '6,000万円以上\n2億5,000万円未満', fontSize: 6.5, highlightWhen: txHL('小売・サービス業', 1), top: 57.38, left: 61.97, width: 9.96, height: 4.92 },
   { kind: 'label', text: '8,000万円以上\n2億円未満', fontSize: 6.5, highlightWhen: txHL('その他', 1), top: 57.38, left: 71.65, width: 10.64, height: 4.92 },
-  { kind: 'label', text: '0.60', highlightWhen: resHL(1), top: 57.38, left: 82.02, width: 9.96, height: 4.92 },
+  { kind: 'label', text: '0.60', highlightWhen: matrixResHL(1), top: 57.38, left: 82.02, width: 9.96, height: 4.92 },
   // 小会社 行
   { kind: 'label', text: '7,000万円未満', highlightWhen: assetHL('卸売業', 0), top: 62.3, left: 11.23, width: 10.09, height: 2.6 },
   { kind: 'label', text: ' 4,000万円未満', highlightWhen: assetHL('小売・サービス業', 0), top: 62.2, left: 21.05, width: 10.37, height: 2.7 },
@@ -183,7 +185,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '２億円未満 ', highlightWhen: txHL('卸売業', 0), top: 62.3, left: 52.28, width: 9.82, height: 2.6 },
   { kind: 'label', text: '6,000万円未満', highlightWhen: txHL('小売・サービス業', 0), top: 62.3, left: 61.97, width: 9.82, height: 2.6 },
   { kind: 'label', text: ' 8,000万円未満', highlightWhen: txHL('その他', 0), top: 62.2, left: 71.65, width: 10.64, height: 2.7 },
-  { kind: 'label', text: '小 会 社', highlightWhen: resHL(0), top: 62.3, left: 82.02, width: 12.41, height: 2.51 },
+  { kind: 'label', text: '小 会 社', highlightWhen: matrixResHL(0), top: 62.3, left: 82.02, width: 12.41, height: 2.51 },
   // 脚注
   { kind: 'label', text: '・「会社規模とＬの割合（中会社）の区分」欄は、\n㋠欄の区分（「総資産価額（帳簿価額）」と「従業員数」とのいずれか下位の区分）と\n㋷欄（取引金額）の区分との\nいずれか上位の区分により判定します。', top: 64.8, left: 11.23, width: 83.19, height: 3.66, align: 'left' },
 ];

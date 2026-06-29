@@ -3,7 +3,7 @@ import { calcTable4 } from '../table4/Table4Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { calcShareholderJudgment } from '../Table1_1Grid';
-import type { TableProps } from '@/types/form';
+import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table3' as const;
 
@@ -37,9 +37,9 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '類似業種比準価額\n（第４表の㉖、㉗又は㉘の金額）', top: 8.61, left: 22.55, width: 23.19, height: 3.86 },
   { kind: 'label', text: '１株当たりの純資産価額\n（第５表の⑪の金額）', top: 8.61, left: 46.01, width: 23.19, height: 3.86 },
   { kind: 'label', text: '１株当たりの純資産価額の80％相当額\n（第5表の⑫の記載がある場合のその金額）', top: 8.51, left: 69.2, width: 23.59, height: 3.86 },
-  { field: '①', kind: 'input', readOnly: true, cornerLabel: '①', topRightLabel: '円', top: 12.27, left: 22.14, width: 23.73, height: 4.92 },
-  { field: '②', kind: 'input', readOnly: true, cornerLabel: '②', topRightLabel: '円', top: 12.37, left: 45.74, width: 23.46, height: 4.72 },
-  { field: '③', kind: 'input', readOnly: true, cornerLabel: '③', topRightLabel: '円', top: 12.47, left: 69.2, width: 23.46, height: 4.53 },
+  { field: '①', kind: 'input', readOnly: true, jumpTo: { tab: 'table4', field: '㉖', hint: 'クリックで転記元（第４表の㉖・類似業種比準価額）へ移動します' }, cornerLabel: '①', topRightLabel: '円', top: 12.27, left: 22.14, width: 23.73, height: 4.92 },
+  { field: '②', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑪', hint: 'クリックで転記元（第５表の⑪・1株当たりの純資産価額）へ移動します' }, cornerLabel: '②', topRightLabel: '円', top: 12.37, left: 45.74, width: 23.46, height: 4.72 },
+  { field: '③', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑫', hint: 'クリックで転記元（第５表の⑫・1株当たりの純資産価額の80％相当額）へ移動します' }, cornerLabel: '③', topRightLabel: '円', top: 12.47, left: 69.2, width: 23.46, height: 4.53 },
   { kind: 'label', text: '1株当たりの価額の計算', verticalSectionHeading: { number: '1', text: '株当たりの価額の計算', compact: true }, top: 16.9, left: 11.78, width: 3.68, height: 16.19 },
   { kind: 'label', text: '区分', top: 16.9, left: 15.33, width: 7.09, height: 2.51 },
   { kind: 'label', text: '１株当たりの価額の算定方法', top: 17, left: 22.28, width: 49.23, height: 2.31 },
@@ -135,9 +135,9 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '直 前 期 末 の 自 己 株 式 数', top: 45.38, left: 51.52, width: 12.96, height: 4.82 },
   { kind: 'label', text: '１株当たりの資本金等の額を\n50円とした場合の発済株式数\n（⑨÷50円）', top: 45.38, left: 64.39, width: 14.18, height: 4.92 },
   { kind: 'label', text: '１株当たりの資本金等の額\n（⑨÷（⑩－⑪））', top: 45.28, left: 78.3, width: 14.18, height: 4.92 },
-  { field: '⑨', kind: 'input', commaInteger: true, readOnly: true, cornerLabel: '⑨', topRightLabel: '千円', top: 50.01, left: 23.34, width: 14.32, height: 3.95 },
-  { field: '⑩', kind: 'input', commaInteger: true, readOnly: true, cornerLabel: '⑩', topRightLabel: '株', top: 50.1, left: 37.39, width: 14.32, height: 3.95 },
-  { field: '⑪', kind: 'input', commaInteger: true, cornerLabel: '⑪', topRightLabel: '株', top: 50.1, left: 51.57, width: 12.96, height: 3.86 },
+  { field: '⑨', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: '①', hint: 'クリックで入力元（第４表①・直前期末の資本金等の額）へ移動します' }, cornerLabel: '⑨', topRightLabel: '千円', top: 50.01, left: 23.34, width: 14.32, height: 3.95 },
+  { field: '⑩', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: '①', hint: 'クリックで入力元（第１表の１①・発行済株式の総数）へ移動します' }, cornerLabel: '⑩', topRightLabel: '株', top: 50.1, left: 37.39, width: 14.32, height: 3.95 },
+  { field: '⑪', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: 'f63', hint: 'クリックで入力元（第１表の１・自己株式数）へ移動します' }, cornerLabel: '⑪', topRightLabel: '株', top: 50.1, left: 51.57, width: 12.96, height: 3.86 },
   { field: '⑫', kind: 'input', readOnly: true, cornerLabel: '⑫', topRightLabel: '株', top: 50.1, left: 64.39, width: 14.18, height: 3.76 },
   { field: '⑬', kind: 'input', readOnly: true, cornerLabel: '⑬', topRightLabel: '円', top: 50.1, left: 78.3, width: 14.18, height: 3.95 },
   { kind: 'label', text: '直 前 期 末 以 前 ２ 年 間 の 配 当 金 額', top: 53.86, left: 11.74, width: 3.68, height: 10.99 },
@@ -147,12 +147,12 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑯差引経常的な年配当金額\n（ ⑭－⑮ ）', top: 53.96, left: 57.43, width: 17.73, height: 3.18 },
   { kind: 'label', text: '年 平 均 配 当 金 額', top: 54.15, left: 75.03, width: 17.59, height: 2.89 },
   { kind: 'label', text: '直 前 期', top: 56.95, left: 15.15, width: 8.46, height: 3.95 },
-  { field: 'f55', kind: 'input', commaInteger: true, readOnly: true, topRightLabel: '千円', top: 56.95, left: 23.34, width: 16.64, height: 4.05 },
-  { field: 'f56', kind: 'input', commaInteger: true, readOnly: true, topRightLabel: '千円', top: 57.04, left: 39.84, width: 17.59, height: 3.86 },
+  { field: 'f55', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: 'f28', hint: 'クリックで入力元（第４表・⑥年配当金額・直前期）へ移動します' }, topRightLabel: '千円', top: 56.95, left: 23.34, width: 16.64, height: 4.05 },
+  { field: 'f56', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: 'f29', hint: 'クリックで入力元（第４表・⑦非経常的な配当金額・直前期）へ移動します' }, topRightLabel: '千円', top: 57.04, left: 39.84, width: 17.59, height: 3.86 },
   { field: 'イ', kind: 'input', readOnly: true, cornerLabel: '㋑', topRightLabel: '千円', top: 57.04, left: 57.3, width: 17.73, height: 3.86 },
   { kind: 'label', text: '直 前 々 期', top: 60.75, left: 15.29, width: 8.32, height: 4.05 },
-  { field: 'f59', kind: 'input', commaInteger: true, readOnly: true, topRightLabel: '千円', top: 60.85, left: 23.47, width: 16.5, height: 3.86 },
-  { field: 'f60', kind: 'input', commaInteger: true, readOnly: true, topRightLabel: '千円', top: 60.85, left: 39.98, width: 17.59, height: 3.95 },
+  { field: 'f59', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: 'f32', hint: 'クリックで入力元（第４表・⑥年配当金額・直前々期）へ移動します' }, topRightLabel: '千円', top: 60.85, left: 23.47, width: 16.5, height: 3.86 },
+  { field: 'f60', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: 'f33', hint: 'クリックで入力元（第４表・⑦非経常的な配当金額・直前々期）へ移動します' }, topRightLabel: '千円', top: 60.85, left: 39.98, width: 17.59, height: 3.95 },
   { field: 'ロ', kind: 'input', readOnly: true, cornerLabel: '㋺', topRightLabel: '千円', top: 60.85, left: 57.43, width: 17.59, height: 3.95 },
   { field: '⑰（イ＋ロ）÷２ ', kind: 'input', readOnly: true, cornerLabel: '⑰(㋑＋㋺)÷2', topRightLabel: '千円', top: 56.9, left: 75.03, width: 17.59, height: 7.81 },
   { kind: 'label', text: '１株(50円)当たりの\n年配当金額', top: 64.61, left: 11.74, width: 11.73, height: 4.05, fontSize: 6.5 },
@@ -218,7 +218,7 @@ const CELLS: GridCell[] = [
 ];
 
 /** 第3表（CSSグリッド方式・完成版） */
-export function Table3Grid({ getField, updateField }: TableProps) {
+export function Table3Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
@@ -267,12 +267,12 @@ export function Table3Grid({ getField, updateField }: TableProps) {
   const v8 = base8 !== null && mod2Ratio2 !== null ? fl((base8 + (mod2Pay ?? 0) * (mod2Ratio ?? 0)) / (1 + mod2Ratio2)) : null;
   const gensoku = v8 ?? v7 ?? base; // 原則的評価方式の最終価額
 
-  // 2. 配当還元方式（⑨は主入力の第4表①、⑩は主入力の第1表の1①から転記、⑪は自己株式数と双方向同期）
+  // 2. 配当還元方式（⑨は第4表①、⑩は第1表の1①、⑪は第1表の1の自己株式数f63から転記）
   const effStr = (own: string, fb: string) => (raw(own).trim() !== '' ? raw(own) : getField('table4', fb));
   const linkedTreasuryShares = getField('table1_1', 'f63') || getField('table1_1', 'treasury_shares');
   const v9c = numOf(effStr('⑨', '①'));
   const v10c = numOf(getField('table1_1', '①'));
-  const v11c = numOf(raw('⑪').trim() !== '' ? raw('⑪') : linkedTreasuryShares);
+  const v11c = numOf(linkedTreasuryShares); // ⑪＝第1表の1の自己株式数（f63）を転記
   const v12 = v9c !== null ? fl(v9c * 20) : null; // ⑫=⑨×1000÷50
   // ⑬: 円未満切捨て。0となる場合は(⑩－⑪)の桁数の小数（記載要領3⑴ロ）
   const sharesNet3 = v10c !== null ? v10c - (v11c ?? 0) : null;
@@ -289,12 +289,16 @@ export function Table3Grid({ getField, updateField }: TableProps) {
       v13disp = String(v13);
     }
   }
-  const sub = (a: string, b: string) => { const x = num(a); return x === null ? null : x - (num(b) ?? 0); };
-  const ia = sub('f55', 'f56');  // イ=⑭－⑮（直前期）
-  const ro = sub('f59', 'f60');  // ロ（直前々期）
+  // ⑭⑮年配当金額は第4表⑥⑦から転記（直前期=f28/f29、直前々期=f32/f33）
+  const t4num = (f: string) => numOf(getField('table4', f));
+  const subT4 = (a: string, b: string) => { const x = t4num(a); return x === null ? null : x - (t4num(b) ?? 0); };
+  const ia = subT4('f28', 'f29');  // イ=⑭－⑮（直前期）
+  const ro = subT4('f32', 'f33');  // ロ（直前々期）
   const v17 = ia !== null && ro !== null ? (ia + ro) / 2 : null;
   // ⑱=⑰÷⑫（10銭未満切捨て、2円50銭未満は2円50銭）
-  const v18 = v17 !== null && v12 !== null && v12 > 0 ? Math.max(2.5, fl10sen((v17 * 1000) / v12)) : null;
+  const v18raw = v17 !== null && v12 !== null && v12 > 0 ? fl10sen((v17 * 1000) / v12) : null; // 切上げ前の計算値
+  const v18 = v18raw === null ? null : Math.max(2.5, v18raw);
+  const v18Floored = v18raw !== null && v18raw < 2.5; // 計算値が2円50銭未満→下限を適用
   const v19 = v18 !== null && v13 !== null ? fl((v18 * v13) / 5) : null; // ⑲=⑱÷10%×⑬÷50円
   const v20 = v19 === null ? null : gensoku !== null && v19 > gensoku ? gensoku : v19; // ⑳
 
@@ -353,11 +357,13 @@ export function Table3Grid({ getField, updateField }: TableProps) {
       case '⑧': return fmt(v8);
       case '⑨': return getField('table4', '①');
       case '⑩': return getField('table1_1', '①');
-      case '⑪': return raw('⑪').trim() !== ''
-        ? raw('⑪')
-        : linkedTreasuryShares;
+      case '⑪': return linkedTreasuryShares;
       case '⑫': return fmt(v12);
       case '⑬': return v13disp;
+      case 'f55': return getField('table4', 'f28');
+      case 'f56': return getField('table4', 'f29');
+      case 'f59': return getField('table4', 'f32');
+      case 'f60': return getField('table4', 'f33');
       case 'イ': return fmtDec1(ia);
       case 'ロ': return fmtDec1(ro);
       case '⑰（イ＋ロ）÷２ ': return fmtDec1(v17);
@@ -393,5 +399,18 @@ export function Table3Grid({ getField, updateField }: TableProps) {
       </label>
     </span>
   );
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" toolbar={toolbar} references={REFERENCES} />;
+  // ⑱が2円50銭未満で下限適用された場合、注記欄に「計算値→2円50銭」の比較を表示し、⑱欄とともに強調する
+  const noteText = v18Floored && v18raw !== null
+    ? `計算値 ${yenPart(v18raw)}円${senPart(v18raw)}銭\n→ 下限の2円50銭を適用`
+    : 'この金額が2円50銭未満の場合は\n2円50銭とします。';
+  const cells = CELLS.map((cell) => {
+    if (cell.kind === 'label' && cell.text === 'この金額が2円50銭未満の場合は\n2円50銭とします。') {
+      return { ...cell, text: noteText, highlightWhen: () => v18Floored };
+    }
+    if (cell.field === '⑱円' || cell.field === '⑱銭') {
+      return { ...cell, highlightWhen: () => v18Floored };
+    }
+    return cell;
+  });
+  return <GridForm cells={cells} g={g} u={u} formId={T} width="100%" title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

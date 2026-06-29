@@ -25,6 +25,8 @@ export interface TableProps {
   getField: (table: TableId, field: string) => string;
   updateField: (table: TableId, field: string, value: string) => void;
   onTabChange?: (tab: TableId) => void;
+  /** 自動転記欄をクリックしたとき、入力元の表・フィールドへ移動する */
+  onJump?: (target: { tab: TableId; field: string }) => void;
 }
 
 export const initialFormData: FormData = {

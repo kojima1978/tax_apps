@@ -32,7 +32,28 @@ export default function App() {
   const { getField, updateField, resetAll, exportJson, importJson } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
 
-  const tableProps: TableProps = { getField, updateField, onTabChange: setActiveTab };
+  // 自動転記欄クリック時に入力元の表へ移動し、対象欄をフォーカス＋一瞬ハイライト
+  const handleJump = useCallback((target: { tab: TableId; field: string }) => {
+    setActiveTab(target.tab);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(`[name="${target.tab}.${target.field}"]`);
+        if (!el) return;
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        el.focus();
+        const prevShadow = el.style.boxShadow;
+        const prevBg = el.style.background;
+        el.style.boxShadow = 'inset 0 0 0 2px #2563eb';
+        el.style.background = '#dbeafe';
+        setTimeout(() => {
+          el.style.boxShadow = prevShadow;
+          el.style.background = prevBg;
+        }, 1500);
+      });
+    });
+  }, []);
+
+  const tableProps: TableProps = { getField, updateField, onTabChange: setActiveTab, onJump: handleJump };
   const ActiveTable = TABLE_COMPONENTS[activeTab];
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {

@@ -3,7 +3,7 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcTable7 } from '../table7/Table7Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
-import type { TableProps } from '@/types/form';
+import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table8' as const;
 
@@ -38,7 +38,7 @@ function buildCells(cls: S1Class): GridCell[] {
   { kind: 'label', text: '相続税評価額による純資産価額\n(第５表の⑤の金額)', top: 9.19, left: 21.6, width: 22.91, height: 4.24 },
   { kind: 'label', text: '課税時期現在の株式等の価額の合計額\n(第５表の㋑の金額)', top: 9.19, left: 44.24, width: 23.05, height: 4.24 },
   { kind: 'label', text: '差引\n（①-②）', top: 9.28, left: 67.01, width: 23.32, height: 4.14 },
-  { field: '①', kind: 'input', readOnly: true, cornerLabel: '①', topRightLabel: '千円', top: 13.33, left: 21.74, width: 22.78, height: 3.08 },
+  { field: '①', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑤', hint: 'クリックで転記元（第５表 ⑤・相続税評価額による純資産価額）へ移動します' }, cornerLabel: '①', topRightLabel: '千円', top: 13.33, left: 21.74, width: 22.78, height: 3.08 },
   { field: '②', kind: 'input', cornerLabel: '②', topRightLabel: '千円', top: 13.33, left: 44.37, width: 22.78, height: 3.08 },
   { field: '③', kind: 'input', readOnly: true, cornerLabel: '③', topRightLabel: '千円', top: 13.14, left: 67.01, width: 23.32, height: 3.28 },
   { kind: 'label', text: '帳簿価額による純資産価額\n（第５表の⑥の金額）', top: 16.32, left: 21.74, width: 22.78, height: 4.14 },
@@ -56,7 +56,7 @@ function buildCells(cls: S1Class): GridCell[] {
   { kind: 'label', text: '課税時期現在の発行済株式数\n(第５表の⑩の株式数)', top: 30.49, left: 21.74, width: 22.78, height: 3.76 },
   { kind: 'label', text: '課税時期現在の修正後の１株当たりの 純資産価額\n(相続税評価額)\n(⑨ ÷ ⑩)', top: 30.39, left: 44.37, width: 22.78, height: 4.05 },
   { kind: 'label', text: '（注）第５表のニ及びホの金額に株式等\n以外の資産に係る金額が含まれている場合には、\nその金額を除いて計算します。', top: 30.39, left: 67.01, width: 23.32, height: 7.81 },
-  { field: '⑩', kind: 'input', readOnly: true, cornerLabel: '⑩', topRightLabel: '株', top: 34.25, left: 21.6, width: 23.05, height: 3.95 },
+  { field: '⑩', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑩', hint: 'クリックで転記元（第５表 ⑩・課税時期現在の発行済株式数）へ移動します' }, cornerLabel: '⑩', topRightLabel: '株', top: 34.25, left: 21.6, width: 23.05, height: 3.95 },
   { field: '⑪', kind: 'input', readOnly: true, cornerLabel: '⑪', topRightLabel: '円', top: 34.34, left: 44.37, width: 22.91, height: 3.95 },
   // 1株当たりのS1の金額の計算の基となる金額
   { kind: 'label', text: '１株当たりのＳ1の金額の\n計算の基となる金額', top: 38.1, left: 10.96, width: 15.68, height: 8.29 },
@@ -178,7 +178,7 @@ export function calcTable8(getField: TableProps['getField']) {
 }
 
 /** 第8表（CSSグリッド方式・完成版） */
-export function Table8Grid({ getField, updateField }: TableProps) {
+export function Table8Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
@@ -228,5 +228,5 @@ export function Table8Grid({ getField, updateField }: TableProps) {
       <span style={{ fontWeight: 700, color: '#b45309' }}>株式の価額(㉗)：{fmt(c.v27)}円</span>
     </span>
   );
-  return <GridForm cells={buildCells(cls)} g={g} u={u} formId={T} width="100%" title="第８表　株式等保有特定会社の株式の価額の計算明細書（続）" toolbar={toolbar} references={REFERENCES} />;
+  return <GridForm cells={buildCells(cls)} g={g} u={u} formId={T} width="100%" title="第８表　株式等保有特定会社の株式の価額の計算明細書（続）" toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

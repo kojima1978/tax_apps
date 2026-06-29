@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import type { TableProps } from '@/types/form';
 
@@ -8,6 +9,8 @@ const SH_ROWS = 10;          // 株主行数（実フォームに合わせて調
 const SH_TOP = 33.96;        // 1行目の上端%
 const SH_SELF = 76.37;       // 自己株式行の上端（データ行はここまで）
 const SH_PITCH = (SH_SELF - SH_TOP) / SH_ROWS;
+const SH_REORDER_FIELDS = [1, 2, 3, 4, 5] as const;
+const SH_DRAG_HANDLE_WIDTH = 2.4;
 
 // ── 計算の根拠（参考リンク） ──
 const REFERENCES = [
@@ -164,16 +167,40 @@ function shareholderRows(): GridCell[] {
     const top = +(SH_TOP + r * SH_PITCH).toFixed(2);
     const height = +SH_PITCH.toFixed(2);
     SH_COLS.forEach((c, ci) => {
+      const reservesDragHandle = r > 0 && ci === 0;
+      const left = reservesDragHandle ? +(c.left + SH_DRAG_HANDLE_WIDTH).toFixed(2) : c.left;
+      const width = reservesDragHandle ? +(c.width - SH_DRAG_HANDLE_WIDTH).toFixed(2) : c.width;
       if (r === 0 && ci === 1) {
         // 1行目の続柄欄は「納税義務者」固定
-        out.push({ kind: 'label', text: '納税\n義務者', top, left: c.left, width: c.width, height, fontSize: 8 });
+        out.push({ kind: 'label', text: '納税\n義務者', top, left, width, height, fontSize: 8 });
       } else if (ci === 2) {
         // 会社における役職名＝セレクト（役員該当の判定に連動）
-        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', options: OFFICER_ROLES, top, left: c.left, width: c.width, height, align: 'left' });
+        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', options: OFFICER_ROLES, top, left, width, height, align: 'left' });
       } else {
         const topRightLabel = r === 0 ? ['株', '個', '％'][ci - 3] : undefined;
-        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', topRightLabel, commaInteger: ci === 3 || ci === 4, readOnly: ci === 5, top, left: c.left, width: c.width, height, align: ci <= 2 ? 'left' : 'right' });
+        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', topRightLabel, commaInteger: ci === 3 || ci === 4, readOnly: ci === 5, top, left, width, height, align: ci <= 2 ? 'left' : 'right' });
       }
+    });
+  }
+  return out;
+}
+
+function shareholderDragHandles(): GridCell[] {
+  const out: GridCell[] = [];
+  for (let row = 2; row <= SH_ROWS; row++) {
+    const top = +(SH_TOP + (row - 1) * SH_PITCH).toFixed(2);
+    out.push({
+      kind: 'label',
+      text: '≡',
+      ariaLabel: `株主${row}行をドラッグして並び替え`,
+      dragId: String(row),
+      top,
+      left: SH_COLS[0]!.left,
+      width: SH_DRAG_HANDLE_WIDTH,
+      height: +SH_PITCH.toFixed(2),
+      fontSize: 12,
+      bold: true,
+      noWrap: true,
     });
   }
   return out;
@@ -228,6 +255,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '㋩議決権割合\n( ㋺ /④)', top: 30.39, left: 50.78, width: 8.73, height: 3.76 },
   // 株主データ行（自動生成・1行目続柄=納税義務者）
   ...shareholderRows(),
+  ...shareholderDragHandles(),
   // 自己株式行
   { kind: 'label', text: '自己株式', top: 76.37, left: 10.28, width: 10.77, height: 3.47 },
   { kind: 'cell', diagonal: 'bltr', top: 76.46, left: 20.92, width: 5.18, height: 3.37 },
@@ -254,7 +282,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '区分', top: 30.49, left: 60.88, width: 1.5, height: 7.81, align: 'center' },
   { kind: 'label', text: '筆頭株主グループの議決権割合（⑥の割合）', top: 30.49, left: 62.38, width: 22.78, height: 3.76 },
   { kind: 'label', text: '５０％超の\n場合', highlightWhen: (g) => g('⑥') !== '' && Number(g('⑥')) > 50, top: 33.96, left: 62.38, width: 7.77, height: 4.24 },
-  { kind: 'label', text: '３０%以上５０%以 下 の 場 合', highlightWhen: (g) => g('⑥') !== '' && Number(g('⑥')) >= 30 && Number(g('⑥')) <= 50, top: 33.96, left: 69.88, width: 7.64, height: 4.24 },
+  { kind: 'label', text: '３０%以上５０%\n以下の場合', fontSize: 7.5, highlightWhen: (g) => g('⑥') !== '' && Number(g('⑥')) >= 30 && Number(g('⑥')) <= 50, top: 33.96, left: 69.88, width: 7.64, height: 4.24 },
   { kind: 'label', text: '３０％未満の場 合', highlightWhen: (g) => g('⑥') !== '' && Number(g('⑥')) < 30, top: 33.96, left: 77.38, width: 7.77, height: 4.24 },
   { kind: 'label', text: '株主の区分', top: 30.39, left: 84.88, width: 8.59, height: 7.81 },
   { kind: 'label', text: '⑤の割合', top: 38.01, left: 60.88, width: 1.64, height: 8, align: 'center' },
@@ -298,6 +326,37 @@ const CELLS: GridCell[] = [
 
 /** 第1表の1（CSSグリッド方式・完成版） */
 export function Table1_1Grid({ getField, updateField }: TableProps) {
+  const reorderShareholderRows = useCallback((activeId: string, overId: string) => {
+    const fromRow = Number(activeId);
+    const toRow = Number(overId);
+    if (
+      !Number.isInteger(fromRow) ||
+      !Number.isInteger(toRow) ||
+      fromRow < 2 ||
+      toRow < 2 ||
+      fromRow > SH_ROWS ||
+      toRow > SH_ROWS ||
+      fromRow === toRow
+    ) {
+      return;
+    }
+
+    const rows = Array.from({ length: SH_ROWS - 1 }, (_, index) => {
+      const row = index + 2;
+      return SH_REORDER_FIELDS.map((col) => getField(T, `sh_${row}_${col}`));
+    });
+    const [moved] = rows.splice(fromRow - 2, 1);
+    if (!moved) return;
+    rows.splice(toRow - 2, 0, moved);
+
+    rows.forEach((values, index) => {
+      const row = index + 2;
+      SH_REORDER_FIELDS.forEach((col, colIndex) => {
+        updateField(T, `sh_${row}_${col}`, values[colIndex] ?? '');
+      });
+    });
+  }, [getField, updateField]);
+
   const sumShareholderVotes = () => {
     let total = 0;
     for (let row = 1; row <= SH_ROWS; row++) {
@@ -324,5 +383,5 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     return getField(T, f);
   };
   const u = (f: string, v: string) => updateField(T, f, v);
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" references={REFERENCES} />;
+  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" references={REFERENCES} onDragReorder={reorderShareholderRows} />;
 }

@@ -39,9 +39,11 @@ function buildCells(j: Judgments, resultName: string): GridCell[] {
     const value = g(field).replace(/,/g, '').trim();
     return value !== '' && Number(value) === 0;
   };
-  const sizeText = ['大会社', '中会社', '小会社']
-    .map((t, i) => ((j.sizeRank === 4 && i === 0) || (j.sizeRank !== null && j.sizeRank >= 1 && j.sizeRank <= 3 && i === 1) || (j.sizeRank === 0 && i === 2) ? `◎${t}` : t))
-    .join(' ・ ');
+  const sizeChoice =
+    j.sizeRank === 4 ? 'large' :
+    j.sizeRank !== null && j.sizeRank >= 1 && j.sizeRank <= 3 ? 'medium' :
+    j.sizeRank === 0 ? 'small' :
+    undefined;
   return [
   // ── 外枠・区分 ──
   { kind: 'cell', text: '', top: 8.51, left: 8.64, width: 85.38, height: 80.58 },
@@ -97,11 +99,27 @@ function buildCells(j: Judgments, resultName: string): GridCell[] {
   { kind: 'label', text: '総資産価額\n（第５表の①の金額）', fontSize: 6, top: 32.51, left: 23.37, width: 18.41, height: 3.86 },
   { kind: 'label', text: '土地等の価額の合計額\n（第５表の㋩の金額）', top: 32.51, left: 41.51, width: 17.59, height: 3.86 },
   { kind: 'label', text: '土地保有割合\n（⑤／④）', top: 32.51, left: 58.83, width: 9.14, height: 3.86 },
-  { kind: 'label', text: '会社の規模の判定\n（第１表の②の判定から自動）', top: 32.51, left: 67.7, width: 26.32, height: 3.86 },
+  { kind: 'label', text: '会社の規模の判定\n（第１表の２の３．会社の規模\n（Ｌの割合）の判定から自動）', fontSize: 7, top: 32.51, left: 67.7, width: 26.32, height: 3.86 },
   { field: '④', kind: 'input', readOnly: true, cornerLabel: '④', topRightLabel: '千円', top: 36.08, left: 23.24, width: 18.68, height: 3.76 },
   { field: '⑤', kind: 'input', readOnly: true, cornerLabel: '⑤', topRightLabel: '千円', top: 36.08, left: 41.51, width: 17.46, height: 3.76 },
   { field: '⑥', kind: 'input', readOnly: true, cornerLabel: '⑥', topRightLabel: '％', top: 36.18, left: 58.69, width: 9.27, height: 3.66 },
-  { kind: 'label', text: sizeText, highlightWhen: () => j.sizeRank !== null, top: 36.18, left: 67.7, width: 26.05, height: 3.66 },
+  {
+    kind: 'label',
+    text: '大会社 ・ 中会社 ・ 小会社',
+    inlineChoices: {
+      selectedKey: sizeChoice,
+      choices: [
+        { key: 'large', label: '大 会 社' },
+        { key: 'medium', label: '中 会 社' },
+        { key: 'small', label: '小 会 社' },
+      ],
+    },
+    highlightWhen: () => j.sizeRank !== null,
+    top: 36.18,
+    left: 67.7,
+    width: 26.05,
+    height: 3.66,
+  },
   { kind: 'label', text: '判 定 基 準', top: 39.55, left: 23.37, width: 8.59, height: 14.07 },
   { kind: 'label', text: '会社の規模', top: 39.65, left: 31.69, width: 7.77, height: 11.47 },
   { kind: 'label', text: '大 会 社', highlightWhen: () => j.landCol === 'big', top: 39.65, left: 39.16, width: 12.62, height: 11.47 },
