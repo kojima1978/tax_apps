@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { useFormData } from '@/hooks/useFormData';
+import { PrintRenderContext } from '@/components/ui/GridForm';
 // Keep Table1_1Overlay and public/forms/table1.png for PNG layout measurement.
 import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
 import { Table1_2 } from '@/components/tables/table1-2';
@@ -26,11 +27,16 @@ const TABLE_COMPONENTS: Record<TableId, React.ComponentType<TableProps>> = {
   table8: Table8,
 };
 
+type PrintTarget = 'current' | 'all';
+const PRINT_PREPARE_DELAY_MS = 80;
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TableId>('table1_1');
-  const [printAll, setPrintAll] = useState(false);
+  const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
   const { getField, updateField, resetAll, exportJson, importJson } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
+  const printRequestedRef = useRef(false);
+  const printAll = printTarget === 'all';
 
   // 自動転記欄クリック時に入力元の表へ移動し、対象欄をフォーカス＋一瞬ハイライト
   const handleJump = useCallback((target: { tab: TableId; field: string }) => {
@@ -68,13 +74,49 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const handlePrintAll = () => {
-    setPrintAll(true);
-    requestAnimationFrame(() => {
+  const finishPrint = useCallback(() => {
+    printRequestedRef.current = false;
+    setPrintTarget(null);
+  }, []);
+
+  const requestPrint = useCallback((target: PrintTarget) => {
+    if (printRequestedRef.current) return;
+    printRequestedRef.current = true;
+    setPrintTarget(target);
+  }, []);
+
+  useEffect(() => {
+    if (!printTarget) return;
+
+    let cancelled = false;
+    let fallbackTimer: number | undefined;
+
+    const waitForNextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const waitForPrintReady = async () => {
+      await waitForNextFrame();
+      await waitForNextFrame();
+      await document.fonts?.ready.catch(() => undefined);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, PRINT_PREPARE_DELAY_MS));
+
+      if (cancelled) return;
+
+      const onAfterPrint = () => {
+        if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
+        finishPrint();
+      };
+
+      window.addEventListener('afterprint', onAfterPrint, { once: true });
       window.print();
-      setPrintAll(false);
-    });
-  };
+      fallbackTimer = window.setTimeout(finishPrint, 1000);
+    };
+
+    void waitForPrintReady();
+
+    return () => {
+      cancelled = true;
+      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
+    };
+  }, [finishPrint, printTarget]);
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -83,6 +125,7 @@ export default function App() {
   };
 
   return (
+    <PrintRenderContext.Provider value={printTarget !== null}>
     <div className="app-root" style={{ fontFamily: '"Noto Sans JP", sans-serif' }}>
       <header className="no-print app-header">
         <a href="/" className="app-home-link" title="ポータルに戻る">
@@ -106,8 +149,8 @@ export default function App() {
           {([
             { label: '保存 (JSON)', onClick: exportJson, title: 'Ctrl+S' },
             { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
-            { label: '全表印刷', onClick: handlePrintAll },
-            { label: '現在の表を印刷', onClick: () => window.print() },
+            { label: '全表印刷', onClick: () => requestPrint('all') },
+            { label: '現在の表を印刷', onClick: () => requestPrint('current') },
             { label: '全データリセット', onClick: resetAll, danger: true },
           ] as const).map((tool) => (
             <button
@@ -148,5 +191,6 @@ export default function App() {
         </main>
       </div>
     </div>
+    </PrintRenderContext.Provider>
   );
 }

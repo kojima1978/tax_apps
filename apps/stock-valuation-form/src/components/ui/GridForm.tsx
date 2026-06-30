@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback, useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useRef, useCallback, useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 
 /** グリッドセル定義（座標・サイズは％） */
 export interface GridCell {
@@ -28,6 +28,7 @@ export interface GridCell {
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                 // 自動計算などの編集不可欄
   jumpTo?: { tab: string; field: string; hint?: string }; // 自動転記欄クリックで入力元へ移動
+  contextMenu?: { label: string; copyFrom: string; copyTo: string }[]; // 右クリックメニュー（copyFromの値をcopyToへコピー）
   options?: string[];                 // 選択式入力の候補（空文字は未選択）
   highlightWhen?: (g: (field: string) => string) => boolean; // 自動判定時の強調条件
   selectValue?: { field: string; value: string }; // セルをクリックして指定値を選択
@@ -205,6 +206,15 @@ function formatFixedDecimal(value: string, places: number): string {
 /** 和暦日付の複合入力ボックス共通スタイル */
 const DATE_BOX: CSSProperties = { textAlign: 'center', border: 'none', borderBottom: '1px solid #aaa', outline: 'none', background: 'transparent', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, minWidth: 0 };
 const SELECT_ARROW = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")`;
+export const PrintRenderContext = createContext(false);
+
+function formattedFieldValue(c: GridCell, g: (field: string) => string): string {
+  if (!c.field) return '';
+  if (c.signedCommaInteger) return formatSignedCommaInteger(g(c.field));
+  if (c.commaInteger) return formatCommaInteger(g(c.field));
+  if (c.integerDigits !== undefined || c.noLeadingZero) return normalizeInteger(g(c.field));
+  return g(c.field);
+}
 
 interface DateFieldsProps {
   field: string;
@@ -215,6 +225,18 @@ interface DateFieldsProps {
 }
 /** 和暦(選択)◯年◯月◯日 の入力群（field を接頭辞に _g/_y/_m/_d） */
 function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
+  const printRendering = useContext(PrintRenderContext);
+  if (printRendering) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'baseline', justifyContent: 'center', gap: 1, width: '100%', whiteSpace: 'nowrap' }}>
+        <span>{g(`${field}_g`) || '令和'}</span>
+        <span>{normalizeInteger(g(`${field}_y`))}</span><span>年</span>
+        <span>{normalizeInteger(g(`${field}_m`))}</span><span>月</span>
+        <span>{normalizeInteger(g(`${field}_d`))}</span><span>日</span>
+      </span>
+    );
+  }
+
   const num = (s: string) => (
     <input id={`${formId}-${field}_${s}`} name={`${formId}.${field}_${s}`} aria-label={`${field}_${s}`} value={normalizeInteger(g(`${field}_${s}`))} onChange={(e) => u(`${field}_${s}`, normalizeInteger(e.target.value).slice(0, 2))} onKeyDown={onKeyDown} maxLength={2} inputMode="numeric" style={{ ...DATE_BOX, width: '2em' }} />
   );
@@ -235,6 +257,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
 export function GridForm({ cells, g, u, width = '100%', title, references, toolbar, overlay, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
+  const printRendering = useContext(PrintRenderContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
   const { colTmpl, rowTmpl, placed, bounds } = useMemo(() => {
@@ -265,6 +288,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
   const gridRef = useRef<HTMLDivElement>(null);
   const dragIdRef = useRef<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: NonNullable<GridCell['contextMenu']> } | null>(null);
   // Enter で次の入力欄（DOM順＝右→下）へフォーカス移動
   const onEnterNext = useCallback((e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== 'Enter') return;
@@ -513,7 +537,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                     継続従業員 （5時間以上/日）
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '4.5em 1.8em 4em 1em 5em 1em', alignItems: 'center', justifyContent: 'end', gap: 2, padding: '0 3px', whiteSpace: 'nowrap' }}>
-                    <input id={`${inputPrefix}-${c.employeeBreakdown.regularField}`} name={`${inputPrefix}.${c.employeeBreakdown.regularField}`} aria-label="継続従業員数" title="0から9999までの整数を入力してください" value={normalizeInteger(g(c.employeeBreakdown.regularField))} onChange={(e) => u(c.employeeBreakdown!.regularField, normalizeInteger(e.target.value).slice(0, 4))} onKeyDown={onEnterNext} inputMode="numeric" pattern="[0-9]{1,4}" maxLength={4} style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }} />
+                    {printRendering ? <span style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }}>{normalizeInteger(g(c.employeeBreakdown.regularField))}</span> : <input id={`${inputPrefix}-${c.employeeBreakdown.regularField}`} name={`${inputPrefix}.${c.employeeBreakdown.regularField}`} aria-label="継続従業員数" title="0から9999までの整数を入力してください" value={normalizeInteger(g(c.employeeBreakdown.regularField))} onChange={(e) => u(c.employeeBreakdown!.regularField, normalizeInteger(e.target.value).slice(0, 4))} onKeyDown={onEnterNext} inputMode="numeric" pattern="[0-9]{1,4}" maxLength={4} style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }} />}
                     <span>人×</span>
                     <span style={{ textAlign: 'left' }}>1.0</span>
                     <span>=</span>
@@ -526,11 +550,11 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                     継続従業員以外 （5時間以下/日）
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '4.5em 1.8em 4em 1em 5em 1em', alignItems: 'center', justifyContent: 'end', gap: 2, padding: '0 3px', whiteSpace: 'nowrap' }}>
-                    <input id={`${inputPrefix}-${c.employeeBreakdown.otherField}`} name={`${inputPrefix}.${c.employeeBreakdown.otherField}`} aria-label="継続従業員以外の人数" title="0から9999までの整数を入力してください" value={normalizeInteger(g(c.employeeBreakdown.otherField))} onChange={(e) => u(c.employeeBreakdown!.otherField, normalizeInteger(e.target.value).slice(0, 4))} onKeyDown={onEnterNext} inputMode="numeric" pattern="[0-9]{1,4}" maxLength={4} style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }} />
+                    {printRendering ? <span style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }}>{normalizeInteger(g(c.employeeBreakdown.otherField))}</span> : <input id={`${inputPrefix}-${c.employeeBreakdown.otherField}`} name={`${inputPrefix}.${c.employeeBreakdown.otherField}`} aria-label="継続従業員以外の人数" title="0から9999までの整数を入力してください" value={normalizeInteger(g(c.employeeBreakdown.otherField))} onChange={(e) => u(c.employeeBreakdown!.otherField, normalizeInteger(e.target.value).slice(0, 4))} onKeyDown={onEnterNext} inputMode="numeric" pattern="[0-9]{1,4}" maxLength={4} style={{ ...DATE_BOX, width: '100%', textAlign: 'right' }} />}
                     <span>人×</span>
-                    <select id={`${inputPrefix}-${c.employeeBreakdown.otherRateField}`} name={`${inputPrefix}.${c.employeeBreakdown.otherRateField}`} aria-label="継続従業員以外の換算係数" value={g(c.employeeBreakdown.otherRateField)} onChange={(e) => u(c.employeeBreakdown!.otherRateField, e.target.value)} onKeyDown={onEnterNext} style={{ ...DATE_BOX, width: '100%', textAlign: 'left', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', paddingRight: 8, backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '6px' }}>
+                    {printRendering ? <span style={{ ...DATE_BOX, width: '100%', textAlign: 'left' }}>{g(c.employeeBreakdown.otherRateField)}</span> : <select id={`${inputPrefix}-${c.employeeBreakdown.otherRateField}`} name={`${inputPrefix}.${c.employeeBreakdown.otherRateField}`} aria-label="継続従業員以外の換算係数" value={g(c.employeeBreakdown.otherRateField)} onChange={(e) => u(c.employeeBreakdown!.otherRateField, e.target.value)} onKeyDown={onEnterNext} style={{ ...DATE_BOX, width: '100%', textAlign: 'left', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', paddingRight: 8, backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '6px' }}>
                       {Array.from({ length: 9 }, (_, index) => ((index + 1) / 10).toFixed(1)).map((rate) => <option key={rate} value={rate}>{rate}</option>)}
-                    </select>
+                    </select>}
                     <span>=</span>
                     <span style={{ textAlign: 'right' }}>{g(c.employeeBreakdown.otherResultField)}</span>
                     <span>人</span>
@@ -548,14 +572,14 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                 {g(c.field)}
               </div>
             ) : c.kind === 'input' && c.field && c.options
-              ? <select id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: 'left', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px' }}>
+              ? printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{g(c.field)}</div> : <select id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: 'left', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px' }}>
                   {c.options.map((option) => <option key={option || 'blank'} value={option}>{option}</option>)}
                 </select>
               : c.kind === 'input' && c.field
               ? <>
                   {c.cornerLabel && <span style={{ position: 'absolute', top: c.cornerLabelTop ?? 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
-                  {c.jumpTo && onJump && <span style={{ position: 'absolute', top: 1, right: c.topRightLabel ? 10 : 2, fontSize: 7, lineHeight: 1, color: '#2563eb', pointerEvents: 'none' }} aria-hidden="true">✎</span>}
-                  <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} title={c.jumpTo?.hint} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} onClick={c.jumpTo && onJump ? () => onJump(c.jumpTo!) : undefined} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', cursor: c.jumpTo && onJump ? 'pointer' : undefined }} />
+                  {!printRendering && c.jumpTo && onJump && <span style={{ position: 'absolute', top: 1, right: c.topRightLabel ? 10 : 2, fontSize: 7, lineHeight: 1, color: '#2563eb', pointerEvents: 'none' }} aria-hidden="true">✎</span>}
+                  {printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{formattedFieldValue(c, g)}</div> : <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} title={c.jumpTo?.hint} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} onClick={c.jumpTo && onJump ? () => onJump(c.jumpTo!) : undefined} onContextMenu={c.contextMenu ? (e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, items: c.contextMenu! }); } : undefined} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', cursor: c.jumpTo && onJump ? 'pointer' : undefined }} />}
                 </>
               : c.kind === 'label' && c.verticalSectionHeading ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%' }}>
@@ -723,6 +747,16 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
             <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: '#1d4ed8', textDecoration: 'underline' }}>{r.label}</a>
           ))}
         </div>
+      )}
+      {ctxMenu && (
+        <>
+          <div className="no-print" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }} style={{ position: 'fixed', inset: 0, zIndex: 1000 }} />
+          <div className="no-print" style={{ position: 'fixed', top: ctxMenu.y, left: ctxMenu.x, zIndex: 1001, background: '#fff', border: '0.5px solid #000', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', fontFamily: '"Noto Sans JP", sans-serif', fontSize: 11, minWidth: '12em' }}>
+            {ctxMenu.items.map((item, i) => (
+              <button key={i} type="button" onClick={() => { u(item.copyTo, g(item.copyFrom)); setCtxMenu(null); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '4px 12px', border: 'none', borderTop: i === 0 ? 'none' : '0.5px solid #eee', background: 'transparent', cursor: 'pointer', whiteSpace: 'nowrap' }}>{item.label}</button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
