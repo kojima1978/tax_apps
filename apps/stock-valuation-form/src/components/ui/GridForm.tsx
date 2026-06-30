@@ -740,7 +740,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
       })}
       {overlay}
       </div>
-      {references && references.length > 0 && (
+      {!printRendering && references && references.length > 0 && (
         <div className="no-print" style={{ padding: '4px 0 0', fontSize: 10, fontFamily: '"Noto Sans JP", sans-serif', color: '#555', display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
           <span style={{ fontWeight: 600 }}>計算の根拠：</span>
           {references.map((r, i) => (
