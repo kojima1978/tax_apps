@@ -632,4 +632,25 @@
   .app-sidebar {
     display: none !important;
   }
+
+  /* 印刷時はグリッドセルのハイライト（背景色・枠強調）を消す。
+     提出用の様式を白地に保ちつつ、box-shadow の再描画コストを無くして印刷を高速化。 */
+  .gf-cell {
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  .gf-cell input,
+  .gf-cell select {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* 印刷時は様式の外側（背景）を白に */
+  html,
+  body,
+  .app-root,
+  .app-shell,
+  .app-main {
+    background: #fff !important;
+  }
 }

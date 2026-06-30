@@ -39,13 +39,13 @@ function buildCells(cls: S1Class): GridCell[] {
   { kind: 'label', text: '課税時期現在の株式等の価額の合計額\n(第５表の㋑の金額)', top: 9.19, left: 44.24, width: 23.05, height: 4.24 },
   { kind: 'label', text: '差引\n（①-②）', top: 9.28, left: 67.01, width: 23.32, height: 4.14 },
   { field: '①', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑤', hint: 'クリックで転記元（第５表 ⑤・相続税評価額による純資産価額）へ移動します' }, cornerLabel: '①', topRightLabel: '千円', top: 13.33, left: 21.74, width: 22.78, height: 3.08 },
-  { field: '②', kind: 'input', cornerLabel: '②', topRightLabel: '千円', top: 13.33, left: 44.37, width: 22.78, height: 3.08 },
+  { field: '②', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: 'イ', hint: 'クリックで転記元（第５表 イ・株式等の相続税評価額の合計額）へ移動します' }, cornerLabel: '②', topRightLabel: '千円', top: 13.33, left: 44.37, width: 22.78, height: 3.08 },
   { field: '③', kind: 'input', readOnly: true, cornerLabel: '③', topRightLabel: '千円', top: 13.14, left: 67.01, width: 23.32, height: 3.28 },
   { kind: 'label', text: '帳簿価額による純資産価額\n（第５表の⑥の金額）', top: 16.32, left: 21.74, width: 22.78, height: 4.14 },
   { kind: 'label', text: '株式等の帳簿価額の合計額\n(第５表の㋺＋（㊁－㋭）の金額)\n(注）', top: 16.22, left: 44.37, width: 22.78, height: 4.24 },
   { kind: 'label', text: '差引\n（④－⑤）', top: 16.22, left: 67.01, width: 23.32, height: 4.14 },
   { field: '④', kind: 'input', readOnly: true, cornerLabel: '④', topRightLabel: '千円', top: 20.27, left: 21.6, width: 22.91, height: 3.28 },
-  { field: '⑤', kind: 'input', cornerLabel: '⑤', topRightLabel: '千円', top: 20.27, left: 44.37, width: 22.78, height: 3.18 },
+  { field: '⑤', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: 'ロ', hint: 'クリックで転記元（第５表 ロ・株式等の帳簿価額の合計額）へ移動します' }, cornerLabel: '⑤', topRightLabel: '千円', top: 20.27, left: 44.37, width: 22.78, height: 3.18 },
   { field: '⑥', kind: 'input', readOnly: true, cornerLabel: '⑥', topRightLabel: '千円', top: 20.27, left: 66.88, width: 23.46, height: 3.18 },
   { kind: 'label', text: '評価差額に相当する金額\n(③－⑥)', top: 23.45, left: 21.74, width: 22.78, height: 4.05 },
   { kind: 'label', text: '評価差額に対する法人税額等相当額\n（⑦×37％）', top: 23.36, left: 44.37, width: 22.78, height: 4.14 },
@@ -129,10 +129,10 @@ export function calcTable8(getField: TableProps['getField']) {
 
   // ── 1. S1の金額（続）純資産価額（相続税評価額）の修正計算 ──
   const v1 = t5['⑤'] ?? null;                                  // ① 相続税評価額純資産（第5表⑤）
-  const v2: number | null = num('②') ?? t5['イ'] ?? null;      // ② 株式等の相続税評価額（第5表イ・上書き可）
+  const v2: number | null = t5['イ'] ?? null;                  // ② 株式等の相続税評価額（第5表イを転記）
   const v3 = v1 !== null && v2 !== null ? v1 - v2 : null;       // ③ ①－②
   const v4 = t5['⑥'] ?? null;                                  // ④ 帳簿価額純資産（第5表⑥）
-  const v5: number | null = num('⑤') ?? t5['ロ'] ?? null;      // ⑤ 株式等の帳簿価額（第5表ロ・上書き可）
+  const v5: number | null = t5['ロ'] ?? null;                  // ⑤ 株式等の帳簿価額（第5表ロを転記）
   const v6 = v4 !== null && v5 !== null ? v4 - v5 : null;       // ⑥ ④－⑤
   const v7 = v3 !== null && v6 !== null ? Math.max(0, v3 - v6) : null; // ⑦ 評価差額（負数→0）
   const v8 = v7 !== null ? fl(v7 * CORPORATE_TAX_RATE) : null;  // ⑧ 法人税額等相当額（37％）
@@ -189,10 +189,10 @@ export function Table8Grid({ getField, updateField, onJump }: TableProps) {
   const g = (f: string): string => {
     switch (f) {
       case '①': return fmt(c.v1);
-      case '②': return raw('②').trim() !== '' ? raw('②') : fmt(c.v2);
+      case '②': return fmt(c.v2);
       case '③': return fmt(c.v3);
       case '④': return fmt(c.v4);
-      case '⑤': return raw('⑤').trim() !== '' ? raw('⑤') : fmt(c.v5);
+      case '⑤': return fmt(c.v5);
       case '⑥': return fmt(c.v6);
       case '⑦': return fmt(c.v7);
       case '⑧': return fmt(c.v8);
@@ -219,14 +219,5 @@ export function Table8Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
 
-  const sizeLabel = cls.hijun1 ? '比準要素数1の会社' : cls.big ? '大会社' : cls.mid ? `中会社（L=${cls.lRate?.toFixed(2) ?? '－'}）` : cls.small ? '小会社' : '未判定';
-  const toolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, whiteSpace: 'nowrap', flexWrap: 'wrap' }}>
-      <span>適用区分：<b>{sizeLabel}</b></span>
-      <span>S1：<b>{fmt(c.s1)}</b>円</span>
-      <span>S2(㉔)：<b>{fmt(c.v24)}</b>円</span>
-      <span style={{ fontWeight: 700, color: '#b45309' }}>株式の価額(㉗)：{fmt(c.v27)}円</span>
-    </span>
-  );
-  return <GridForm cells={buildCells(cls)} g={g} u={u} formId={T} width="100%" title="第８表　株式等保有特定会社の株式の価額の計算明細書（続）" toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={buildCells(cls)} g={g} u={u} formId={T} width="100%" title="第８表　株式等保有特定会社の株式の価額の計算明細書（続）" references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

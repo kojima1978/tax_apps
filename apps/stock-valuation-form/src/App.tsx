@@ -33,10 +33,22 @@ const PRINT_PREPARE_DELAY_MS = 80;
 export default function App() {
   const [activeTab, setActiveTab] = useState<TableId>('table1_1');
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
-  const { getField, updateField, resetAll, exportJson, importJson } = useFormData();
+  const { formData, getField, updateField, resetAll, exportJson, importJson } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
   const printRequestedRef = useRef(false);
   const printAll = printTarget === 'all';
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [printSelection, setPrintSelection] = useState<Record<TableId, boolean>>(
+    () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
+  );
+
+  // 表に（UI状態 _* を除く）入力値があるか
+  const hasData = useCallback(
+    (tab: TableId) => Object.entries(formData[tab]).some(([k, v]) => !k.startsWith('_') && String(v).trim() !== ''),
+    [formData],
+  );
+  const setAllSelection = (fn: (tab: TableId) => boolean) =>
+    setPrintSelection(Object.fromEntries(TABS.map((t) => [t.id, fn(t.id)])) as Record<TableId, boolean>);
 
   // 自動転記欄クリック時に入力元の表へ移動し、対象欄をフォーカス＋一瞬ハイライト
   const handleJump = useCallback((target: { tab: TableId; field: string }) => {
@@ -84,6 +96,17 @@ export default function App() {
     printRequestedRef.current = true;
     setPrintTarget(target);
   }, []);
+
+  // 全表印刷：選択ダイアログを開く（入力済みの表を初期チェック＝空様式はスキップ）
+  const openPrintDialog = useCallback(() => {
+    setAllSelection((tab) => hasData(tab));
+    setPrintDialogOpen(true);
+  }, [hasData]);
+  const confirmPrintSelected = useCallback(() => {
+    if (!TABS.some((t) => printSelection[t.id])) return;
+    setPrintDialogOpen(false);
+    requestPrint('all');
+  }, [printSelection, requestPrint]);
 
   useEffect(() => {
     if (!printTarget) return;
@@ -149,7 +172,7 @@ export default function App() {
           {([
             { label: '保存 (JSON)', onClick: exportJson, title: 'Ctrl+S' },
             { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
-            { label: '全表印刷', onClick: () => requestPrint('all') },
+            { label: '全表印刷', onClick: openPrintDialog },
             { label: '現在の表を印刷', onClick: () => requestPrint('current') },
             { label: '全データリセット', onClick: resetAll, danger: true },
           ] as const).map((tool) => (
@@ -170,7 +193,7 @@ export default function App() {
       <div className="app-shell">
         <main className="app-main">
           {printAll ? (
-            TABS.map((tab) => {
+            TABS.filter((tab) => printSelection[tab.id]).map((tab) => {
               const TableComp = TABLE_COMPONENTS[tab.id];
               // 第5表は続紙対応で自前に複数ページ（.gov-page）を描画するため外側で包まない
               return tab.id === 'table5' ? (
@@ -190,6 +213,40 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {printDialogOpen && (
+        <div className="no-print" onClick={() => setPrintDialogOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 8, padding: 20, minWidth: 340, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>印刷する表を選択</h2>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 12px' }}>入力のある表を初期選択しています（空の様式はチェックを外せばスキップ＝印刷が速くなります）。</p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <button type="button" onClick={() => setAllSelection(() => true)} className="app-tool-btn">全選択</button>
+              <button type="button" onClick={() => setAllSelection(() => false)} className="app-tool-btn">全解除</button>
+              <button type="button" onClick={() => setAllSelection((tab) => hasData(tab))} className="app-tool-btn">入力済みのみ</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {TABS.map((tab) => (
+                <label key={tab.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '3px 4px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!printSelection[tab.id]} onChange={(e) => setPrintSelection((p) => ({ ...p, [tab.id]: e.target.checked }))} />
+                  <span style={{ fontWeight: 600 }}>{tab.label}</span>
+                  <span style={{ color: '#888', fontSize: 11 }}>{tab.subtitle}</span>
+                  {!hasData(tab.id) && <span style={{ color: '#bbb', fontSize: 11, marginLeft: 'auto' }}>未入力</span>}
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button type="button" onClick={() => setPrintDialogOpen(false)} className="app-tool-btn">キャンセル</button>
+              <button type="button" onClick={confirmPrintSelected} disabled={!TABS.some((t) => printSelection[t.id])} className="app-tool-btn" style={{ fontWeight: 700 }}>印刷</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {printTarget !== null && (
+        <div className="no-print" style={{ position: 'fixed', inset: 0, zIndex: 2500, background: 'rgba(255,255,255,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={{ background: '#333', color: '#fff', padding: '10px 22px', borderRadius: 8, fontSize: 14, boxShadow: '0 4px 16px rgba(0,0,0,0.3)' }}>印刷準備中…</div>
+        </div>
+      )}
     </div>
     </PrintRenderContext.Provider>
   );

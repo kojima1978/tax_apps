@@ -369,6 +369,7 @@ export function calcTable4(getField: TableProps['getField']) {
   const c1base = pickProfit(p1, avg12, raw('c1_mode'));
   const c1baseSide = pickProfitSide(p1, avg12, raw('c1_mode'));
   const c2base = pickProfit(p2, avg23, raw('c2_mode'));
+  const c2baseSide = pickProfitSide(p2, avg23, raw('c2_mode'));
   // C1・C2・Ⓒが負数のときは0（記載要領3⑷⑸の注）
   const c1 = per50(c1base) !== null ? Math.max(0, fl(per50(c1base)!)) : null;
   const c2 = per50(c2base) !== null ? Math.max(0, fl(per50(c2base)!)) : null;
@@ -410,7 +411,7 @@ export function calcTable4(getField: TableProps['getField']) {
   const base28 = v27 ?? v26;
   const v28 = base28 !== null && modRatio2 !== null ? fl((base28 + (modPay ?? 0) * (modRatio ?? 0)) / (1 + modRatio2)) : null;
 
-  return { issued, treasuryShares, cap4, cap4disp, cap5, i1, i2, i3, v9, v10, b1, b2, Bv, p1, p2, p3, c1, c1baseSide, c2, Cv, t1, t2, d1, d2, Dv, A1, A2, e1B, e1C, e1D, e2B, e2C, e2D, r21, r24, size, shin, p22, p25, v26, v27, v28 };
+  return { issued, treasuryShares, cap4, cap4disp, cap5, i1, i2, i3, v9, v10, b1, b2, Bv, p1, p2, p3, c1, c1baseSide, c2, c2baseSide, Cv, t1, t2, d1, d2, Dv, A1, A2, e1B, e1C, e1D, e2B, e2C, e2D, r21, r24, size, shin, p22, p25, v26, v27, v28 };
 }
 
 /** 第4表（CSSグリッド方式・完成版） */
@@ -499,6 +500,15 @@ export function Table4Grid({ getField, updateField, onJump }: TableProps) {
         alternativeFractions: {
           ...cell.alternativeFractions,
           selectedSide: c.c1baseSide,
+        },
+      };
+    }
+    if (cell.kind === 'label' && cell.text === '㋭÷⑤又は(㋭＋㋬)÷２÷⑤' && cell.alternativeFractions) {
+      return {
+        ...cell,
+        alternativeFractions: {
+          ...cell.alternativeFractions,
+          selectedSide: c.c2baseSide,
         },
       };
     }

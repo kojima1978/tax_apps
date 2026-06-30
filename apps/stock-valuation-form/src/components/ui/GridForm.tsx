@@ -341,6 +341,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
         return (
           <div
             key={i}
+            className="gf-cell"
             role={isDragHandle ? 'button' : toggleField ? 'checkbox' : selectable ? 'button' : undefined}
             tabIndex={interactive ? 0 : undefined}
             aria-label={interactive ? c.ariaLabel ?? (isDragHandle ? `${text}をドラッグして並び替え` : `${text}を選択`) : undefined}
