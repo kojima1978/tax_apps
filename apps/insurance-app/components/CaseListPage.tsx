@@ -44,6 +44,7 @@ export default function CaseListPage({ onSelect }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showAgencyMaster, setShowAgencyMaster] = useState(false);
   const [isRestoringJson, setIsRestoringJson] = useState(false);
+  const [isJsonDragOver, setIsJsonDragOver] = useState(false);
   const restoreJsonInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -69,9 +70,7 @@ export default function CaseListPage({ onSelect }: Props) {
     }
   };
 
-  const handleRestoreJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+  const restoreJsonFile = useCallback(async (file: File | null) => {
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.json')) {
@@ -99,7 +98,20 @@ export default function CaseListPage({ onSelect }: Props) {
     } finally {
       setIsRestoringJson(false);
     }
+  }, [load, onSelect]);
+
+  const handleRestoreJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    e.target.value = '';
+    await restoreJsonFile(file);
   };
+
+  const handleJsonDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsJsonDragOver(false);
+    if (isRestoringJson) return;
+    void restoreJsonFile(e.dataTransfer.files[0] ?? null);
+  }, [isRestoringJson, restoreJsonFile]);
 
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
@@ -202,6 +214,34 @@ export default function CaseListPage({ onSelect }: Props) {
           <button onClick={() => setError(null)} className="error-close-btn">&times;</button>
         </div>
       )}
+
+      <div
+        className={`case-json-dropzone ${isJsonDragOver ? 'case-json-dropzone-active' : ''} ${isRestoringJson ? 'case-json-dropzone-disabled' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!isRestoringJson) setIsJsonDragOver(true);
+        }}
+        onDragLeave={() => setIsJsonDragOver(false)}
+        onDrop={handleJsonDrop}
+        onClick={() => !isRestoringJson && restoreJsonInputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !isRestoringJson) {
+            e.preventDefault();
+            restoreJsonInputRef.current?.click();
+          }
+        }}
+        aria-disabled={isRestoringJson}
+      >
+        <Upload size={22} />
+        <div>
+          <p className="case-json-dropzone-title">
+            {isRestoringJson ? 'JSON復元中...' : 'JSONファイルをドラッグ＆ドロップ'}
+          </p>
+          <p className="case-json-dropzone-sub">クリックしてファイル選択もできます</p>
+        </div>
+      </div>
 
       {!isLoading && cases.length > 0 && (
         <div className="case-search-bar">
