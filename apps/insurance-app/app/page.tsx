@@ -14,7 +14,18 @@ import CsvImportDialog from '@/components/CsvImportDialog';
 import CaseListPage from '@/components/CaseListPage';
 import ToastContainer, { type ToastMessage } from '@/components/Toast';
 import type { Policy, FamilyMember, Agency, AppState, EvaluationOverride } from '@/types';
-import { fetchAppState, saveAppState as apiSave, resetAppState, clearAppState, getExportUrl, getBackupUrl, restoreBackup } from '@/lib/api';
+import {
+  fetchAppState,
+  saveAppState as apiSave,
+  resetAppState,
+  clearAppState,
+  getExportUrl,
+  getBackupUrl,
+  restoreBackup,
+  restoreJsonAppState,
+  downloadAppStateJson,
+  isJsonStorageMode,
+} from '@/lib/api';
 
 import { AlertTriangle, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, ArrowLeft, DatabaseBackup, Home } from 'lucide-react';
 
@@ -53,6 +64,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
 }
 
 export default function Page() {
+  const jsonStorageMode = isJsonStorageMode();
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
@@ -152,6 +164,11 @@ export default function Page() {
   }, [menuOpen]);
 
   const handleBackup = () => {
+    if (jsonStorageMode) {
+      downloadAppStateJson({ familyMembers, policies, agency });
+      addToast('success', 'JSONバックアップをダウンロードしました');
+      return;
+    }
     window.open(getBackupUrl(), '_blank');
     addToast('success', 'バックアップをダウンロードしています');
   };
@@ -161,9 +178,18 @@ export default function Page() {
     if (!file) return;
     e.target.value = '';
 
+    const isJsonFile = file.name.toLowerCase().endsWith('.json');
     if (!window.confirm('バックアップから復元しますか？現在のデータはすべて上書きされます。')) return;
 
     try {
+      if (isJsonFile) {
+        if (!activeCaseId) return;
+        const state = await restoreJsonAppState(activeCaseId, file);
+        applyState(state);
+        addToast('success', 'JSONから復元しました');
+        return;
+      }
+
       await restoreBackup(file);
       addToast('success', '復元しました。ページをリロードします...');
       setTimeout(() => window.location.reload(), 1500);
@@ -294,6 +320,10 @@ export default function Page() {
 
   const handleExport = () => {
     if (!activeCaseId) return;
+    if (jsonStorageMode) {
+      downloadAppStateJson({ familyMembers, policies, agency });
+      return;
+    }
     window.open(getExportUrl(activeCaseId), '_blank');
   };
 
@@ -372,7 +402,7 @@ export default function Page() {
       <input
         ref={restoreInputRef}
         type="file"
-        accept=".sqlite,.db"
+        accept={jsonStorageMode ? '.json' : '.sqlite,.db,.json'}
         style={{ display: 'none' }}
         onChange={handleRestore}
       />
@@ -404,16 +434,20 @@ export default function Page() {
                 <button onClick={() => { setMenuOpen(false); loadSampleData(); }}>
                   <FileUp size={16} /> サンプル読込
                 </button>
-                <button onClick={() => { setMenuOpen(false); setCsvImportOpen(true); }}>
-                  <Upload size={16} /> CSV取込
-                </button>
+                {!jsonStorageMode && (
+                  <button onClick={() => { setMenuOpen(false); setCsvImportOpen(true); }}>
+                    <Upload size={16} /> CSV取込
+                  </button>
+                )}
                 <button onClick={() => { setMenuOpen(false); handleExport(); }}>
                   <Download size={16} /> JSON出力
                 </button>
                 <hr />
-                <button onClick={() => { setMenuOpen(false); handleBackup(); }}>
-                  <DatabaseBackup size={16} /> バックアップ
-                </button>
+                {!jsonStorageMode && (
+                  <button onClick={() => { setMenuOpen(false); handleBackup(); }}>
+                    <DatabaseBackup size={16} /> バックアップ
+                  </button>
+                )}
                 <button onClick={() => { setMenuOpen(false); restoreInputRef.current?.click(); }}>
                   <Settings size={16} /> 復元
                 </button>
