@@ -49,6 +49,20 @@ interface ImportDraft {
 
 const formatComma = (n: number) => n ? n.toLocaleString() : '';
 
+// 生年月日と基準日から満年齢を計算（不明な場合は null）
+const calcAgeAt = (birthDate: string, targetDate: string): number | null => {
+  if (!birthDate || !targetDate) return null;
+  const birth = new Date(birthDate);
+  const target = new Date(targetDate);
+  if (isNaN(birth.getTime()) || isNaN(target.getTime())) return null;
+  let age = target.getFullYear() - birth.getFullYear();
+  const monthDiff = target.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && target.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : null;
+};
+
 const normalizePersonName = (name: unknown) => {
   let n = String(name || '');
   n = n.replace(/(様|殿|くん|ちゃん|様方)$/, '');
@@ -71,6 +85,31 @@ const formatFamilyOptionLabel = (member: FamilyMember) => {
 
 const getDefaultFamilyMemberId = (members: FamilyMember[]) =>
   members.find(hasSearchableName)?.id || '';
+
+const buildDefaultFormData = (members: FamilyMember[]): Partial<Policy> => {
+  const insuredId = getDefaultFamilyMemberId(members);
+  const contractDate = new Date().toISOString().split('T')[0];
+  const insured = members.find(m => m.id === insuredId);
+  return {
+    companyName: '',
+    policyType: '終身保険',
+    policyNumber: '',
+    contractDate,
+    contractAge: calcAgeAt(insured?.birthDate || '', contractDate) ?? 30,
+    insuredId,
+    beneficiaryId: insuredId,
+    deathBenefitDisease: 0,
+    deathBenefitAccident: 0,
+    hospDayDisease: 0,
+    hospDayAccident: 0,
+    diagnosisBenefit: 0,
+    policyEndAge: 999,
+    paymentFrequency: 'monthly',
+    premiumAmount: 0,
+    paymentEndAge: 60,
+    maturityBenefit: 0,
+  };
+};
 
 const LEGACY_PROMPT_STORAGE_KEY = 'insurance-policy-import-prompt';
 
@@ -276,25 +315,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     };
   }, []);
 
-  const [formData, setFormData] = useState<Partial<Policy>>({
-    companyName: '',
-    policyType: '終身保険',
-    policyNumber: '',
-    contractDate: new Date().toISOString().split('T')[0],
-    contractAge: 30,
-    insuredId: getDefaultFamilyMemberId(familyMembers),
-    beneficiaryId: getDefaultFamilyMemberId(familyMembers),
-    deathBenefitDisease: 0,
-    deathBenefitAccident: 0,
-    hospDayDisease: 0,
-    hospDayAccident: 0,
-    diagnosisBenefit: 0,
-    policyEndAge: 999,
-    paymentFrequency: 'monthly',
-    premiumAmount: 0,
-    paymentEndAge: 60,
-    maturityBenefit: 0,
-  });
+  const [formData, setFormData] = useState<Partial<Policy>>(() => buildDefaultFormData(familyMembers));
 
   useEffect(() => {
     const wasOpen = previousOpenRef.current;
@@ -310,25 +331,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     if (editingPolicy) {
       setFormData(editingPolicy);
     } else {
-      setFormData({
-        companyName: '',
-        policyType: '終身保険',
-        policyNumber: '',
-        contractDate: new Date().toISOString().split('T')[0],
-        contractAge: 30,
-        insuredId: getDefaultFamilyMemberId(familyMembers),
-        beneficiaryId: getDefaultFamilyMemberId(familyMembers),
-        deathBenefitDisease: 0,
-        deathBenefitAccident: 0,
-        hospDayDisease: 0,
-        hospDayAccident: 0,
-        diagnosisBenefit: 0,
-        policyEndAge: 999,
-        paymentFrequency: 'monthly',
-        premiumAmount: 0,
-        paymentEndAge: 60,
-        maturityBenefit: 0,
-      });
+      setFormData(buildDefaultFormData(familyMembers));
     }
     setShowPasteArea(false);
     setShowPromptEditor(false);
@@ -373,6 +376,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       '払込方法': 'paymentFrequency',
       '保険料': 'premiumAmount',
       '払込終了年齢': 'paymentEndAge',
+      '払込満了年齢': 'paymentEndAge',
       '満期保険金': 'maturityBenefit',
       'コンサルタントメモ': 'consultantNote',
     };
@@ -408,11 +412,14 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
 
   const parseImportPolicyType = (v: any): PolicyType => {
     const type = String(v || '');
+    if (type.includes('収入保障定期')) return '収入保障定期保険';
+    if (type.includes('収入保障')) return '収入保障保険';
+    if (type.includes('がん') || type.includes('ガン') || type.includes('癌')) return 'がん保険';
     if (type.includes('医療')) return '医療保険';
     if (type.includes('年金')) return '個人年金保険';
-    if (type.includes('収入保障')) return '収入保障保険';
     if (type.includes('変額')) return '変額終身保険';
     if (type.includes('養老')) return '養老保険';
+    if (type.includes('定期') && !type.includes('終身')) return '定期保険';
     return '終身保険';
   };
 
@@ -503,7 +510,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       policyEndAge: String(json.policyEndAge || '').includes('終身') ? 999 : parseImportNum(json.policyEndAge),
       paymentFrequency: parseImportFrequency(json.paymentFrequency),
       premiumAmount: parseImportNum(json.premiumAmount),
-      paymentEndAge: parseImportNum(json.paymentEndAge),
+      paymentEndAge: String(json.paymentEndAge || '').includes('終身') ? 999 : parseImportNum(json.paymentEndAge),
       maturityBenefit: parseImportNum(json.maturityBenefit),
       consultantNote: json.consultantNote ? String(json.consultantNote).trim() : undefined,
     };
@@ -624,9 +631,15 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
 
   const reflectImportDraftToForm = (draft: ImportDraft, members: FamilyMember[] = []) => {
     members.forEach(member => onAddFamilyMember?.(member));
+    // 取込データに契約年齢がない場合は被保険者の生年月日と契約日から自動計算
+    const insuredMember = [...members, ...familyMembers].find(m => m.id === draft.insuredId);
+    const autoContractAge = !draft.data.contractAge
+      ? calcAgeAt(insuredMember?.birthDate || '', draft.data.contractDate || '')
+      : null;
     setFormData(prev => ({
       ...prev,
       ...draft.data,
+      ...(autoContractAge !== null ? { contractAge: autoContractAge } : {}),
       insuredId: draft.insuredId || '',
       beneficiaryId: draft.beneficiaryId || '',
     }));
@@ -794,6 +807,17 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
 
   const setField = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
 
+  // 契約日・被保険者の変更時に契約年齢を満年齢で自動計算（手入力で上書き可）
+  const setFieldWithContractAge = (field: 'contractDate' | 'insuredId', value: string) => {
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      const member = allVisibleMembers.find(m => m.id === next.insuredId);
+      const age = calcAgeAt(member?.birthDate || '', next.contractDate || '');
+      if (age !== null) next.contractAge = age;
+      return next;
+    });
+  };
+
   const handlePromptEditorToggle = () => {
     if (showPromptEditor) {
       setShowPromptEditor(false);
@@ -852,6 +876,8 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   };
 
   const isPension = formData.policyType === '個人年金保険';
+  const isIncomeProtectionTerm = formData.policyType === '収入保障定期保険';
+  const isWholeLifePayment = formData.paymentEndAge === 999;
 
   const [calcTotal, setCalcTotal] = useState<number | null>(null);
 
@@ -1109,8 +1135,11 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
               <label>保険種類</label>
               <select value={formData.policyType} onChange={e => setField('policyType', e.target.value as PolicyType)}>
                 <option value="終身保険">終身保険</option>
+                <option value="定期保険">定期保険</option>
                 <option value="収入保障保険">収入保障保険</option>
+                <option value="収入保障定期保険">収入保障定期保険</option>
                 <option value="医療保険">医療保険</option>
+                <option value="がん保険">がん保険</option>
                 <option value="個人年金保険">個人年金保険</option>
                 <option value="変額終身保険">変額終身保険</option>
                 <option value="養老保険">養老保険</option>
@@ -1118,7 +1147,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
             </div>
             <div className={`form-group ${formErrors.insuredId ? 'has-error' : ''}`}>
               <label>被保険者 <span className="required-mark">*</span></label>
-              <select value={formData.insuredId || ''} onChange={e => setField('insuredId', e.target.value)}>
+              <select value={formData.insuredId || ''} onChange={e => setFieldWithContractAge('insuredId', e.target.value)}>
                 <option value="">選択してください</option>
                 {familyMembers.map(m => <option key={m.id} value={m.id}>{formatFamilyOptionLabel(m)}</option>)}
               </select>
@@ -1132,12 +1161,21 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
               </select>
               {formErrors.beneficiaryId && <span className="field-error">{formErrors.beneficiaryId}</span>}
             </div>
-            <div className={`form-group ${formErrors.contractDate ? 'has-error' : ''}`}><label>契約日 <span className="required-mark">*</span></label><input type="date" value={formData.contractDate} onChange={e => setField('contractDate', e.target.value)} />{formErrors.contractDate && <span className="field-error">{formErrors.contractDate}</span>}</div>
+            <div className={`form-group ${formErrors.contractDate ? 'has-error' : ''}`}><label>契約日 <span className="required-mark">*</span></label><input type="date" value={formData.contractDate} onChange={e => setFieldWithContractAge('contractDate', e.target.value)} />{formErrors.contractDate && <span className="field-error">{formErrors.contractDate}</span>}</div>
+            <div className="form-group">
+              <label>契約年齢（歳）</label>
+              <input
+                type="number"
+                value={formData.contractAge ?? 0}
+                onChange={e => setField('contractAge', Number(e.target.value))}
+              />
+              <span className="field-hint">契約日・被保険者の生年月日から自動計算（満年齢）。手入力で上書きできます</span>
+            </div>
           </section>
 
           <section>
             <h4>保障内容</h4>
-            <CommaInput label="死亡保障（疾病）(円)" value={formData.deathBenefitDisease || 0} onChange={v => setField('deathBenefitDisease', v)} />
+            <CommaInput label={isIncomeProtectionTerm ? '死亡保険金月額 (円)' : '死亡保障（疾病）(円)'} value={formData.deathBenefitDisease || 0} onChange={v => setField('deathBenefitDisease', v)} />
             <CommaInput label="死亡保障（災害）(円)" value={formData.deathBenefitAccident || 0} onChange={v => setField('deathBenefitAccident', v)} />
             <CommaInput label="入院日額（疾病）(円)" value={formData.hospDayDisease || 0} onChange={v => setField('hospDayDisease', v)} />
             <CommaInput label="入院日額（災害）(円)" value={formData.hospDayAccident || 0} onChange={v => setField('hospDayAccident', v)} />
@@ -1156,7 +1194,27 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
               </select>
             </div>
             <CommaInput label="保険料（1回あたり）(円)" value={formData.premiumAmount || 0} onChange={v => setField('premiumAmount', v)} />
-            <div className={`form-group ${formErrors.paymentEndAge ? 'has-error' : ''}`}><label>払込終了年齢（歳）<span className="required-mark">*</span></label><input type="number" value={formData.paymentEndAge} onChange={e => setField('paymentEndAge', Number(e.target.value))} />{formErrors.paymentEndAge && <span className="field-error">{formErrors.paymentEndAge}</span>}</div>
+            <div className={`form-group ${formErrors.paymentEndAge ? 'has-error' : ''}`}>
+              <label>払込終了年齢（歳）<span className="required-mark">*</span></label>
+              <div className="payment-end-row">
+                <input
+                  type="number"
+                  value={isWholeLifePayment ? '' : formData.paymentEndAge}
+                  disabled={isWholeLifePayment}
+                  placeholder={isWholeLifePayment ? '終身払' : undefined}
+                  onChange={e => setField('paymentEndAge', Number(e.target.value))}
+                />
+                <label className="wholelife-pay-check">
+                  <input
+                    type="checkbox"
+                    checked={isWholeLifePayment}
+                    onChange={e => setField('paymentEndAge', e.target.checked ? 999 : 60)}
+                  />
+                  終身払
+                </label>
+              </div>
+              {formErrors.paymentEndAge && <span className="field-error">{formErrors.paymentEndAge}</span>}
+            </div>
             <CommaInput label="満期保険金 (円)" value={formData.maturityBenefit || 0} onChange={v => setField('maturityBenefit', v)} />
             {isPension && (
               <>

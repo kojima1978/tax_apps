@@ -1,4 +1,11 @@
-export type PolicyType = '個人年金保険' | '収入保障保険' | '変額終身保険' | '医療保険' | '終身保険' | '養老保険';
+export type PolicyType = '個人年金保険' | '収入保障保険' | '収入保障定期保険' | '定期保険' | 'がん保険' | '変額終身保険' | '医療保険' | '終身保険' | '養老保険';
+
+// 個々の保険分析（保障期間/払込状況/保障充足度）の手動上書き
+export interface EvaluationOverride {
+  label: string;
+  rating: 'good' | 'caution' | 'warning';
+  text: string;
+}
 
 export interface FamilyMember {
   id: string;
@@ -34,6 +41,8 @@ export interface Policy {
   maturityBenefit: number;
   // コンサルタントメモ
   consultantNote?: string;
+  // 個別評価の手動上書き（保障期間/払込状況/保障充足度）
+  evaluationOverrides?: EvaluationOverride[];
 }
 
 export interface Agency {

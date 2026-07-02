@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Policy } from '@/types';
 import { Activity, CreditCard, Info, Shield } from 'lucide-react';
-import { getActiveMonthlyPremium } from '@/utils/analysisUtils';
+import { getActiveMonthlyPremium, getDeathBenefitAtAge } from '@/utils/analysisUtils';
 
 interface SummaryDashboardProps {
   policies: Policy[];
@@ -17,18 +17,10 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({ policies, currentAg
     ? '一時払を除外。払込終了判定には生年月日が必要'
     : '一時払・払込終了済みは除外';
 
-  const totalDeathBenefit = currentAge === null ? null : policies.reduce((sum, p) => {
-    if (currentAge < p.policyEndAge || p.policyEndAge === 999) {
-        let amount = p.deathBenefitDisease;
-        if (p.policyType === '収入保障保険') {
-            const totalYears = p.policyEndAge - p.contractAge;
-            const remainingYears = p.policyEndAge - currentAge;
-            amount = (p.deathBenefitDisease * remainingYears) / totalYears;
-        }
-        return sum + amount;
-    }
-    return sum;
-  }, 0);
+  const totalDeathBenefit = currentAge === null ? null : policies.reduce(
+    (sum, p) => sum + getDeathBenefitAtAge(p, currentAge),
+    0,
+  );
 
   const totalHospBenefit = currentAge === null ? null : policies.reduce((sum, p) => {
     if (currentAge < p.policyEndAge || p.policyEndAge === 999) {

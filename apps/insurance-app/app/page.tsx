@@ -13,12 +13,12 @@ import CustomerModal from '@/components/CustomerModal';
 import CsvImportDialog from '@/components/CsvImportDialog';
 import CaseListPage from '@/components/CaseListPage';
 import ToastContainer, { type ToastMessage } from '@/components/Toast';
-import type { Policy, FamilyMember, Agency, AppState } from '@/types';
+import type { Policy, FamilyMember, Agency, AppState, EvaluationOverride } from '@/types';
 import { fetchAppState, saveAppState as apiSave, resetAppState, clearAppState, getExportUrl, getBackupUrl, restoreBackup } from '@/lib/api';
 
 import { AlertTriangle, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, ArrowLeft, DatabaseBackup, Home } from 'lucide-react';
 
-const VALID_POLICY_TYPES = ['個人年金保険', '収入保障保険', '変額終身保険', '医療保険', '終身保険', '養老保険'] as const;
+const VALID_POLICY_TYPES = ['個人年金保険', '収入保障保険', '収入保障定期保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険'] as const;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
 
 function validateBeforeSave(familyMembers: FamilyMember[], policies: Policy[], agency: Agency): string | null {
@@ -246,6 +246,11 @@ export default function Page() {
     setHasUnsavedChanges(true);
   };
 
+  const handleUpdateEvaluations = (policyId: string, overrides: EvaluationOverride[]) => {
+    setPolicies(prev => prev.map(p => p.id === policyId ? { ...p, evaluationOverrides: overrides } : p));
+    setHasUnsavedChanges(true);
+  };
+
   const handleEditStart = (policy: Policy) => {
     setEditingPolicy(policy);
     setIsPolicyFormOpen(true);
@@ -329,9 +334,10 @@ export default function Page() {
 
   const hasPrintableCharts = displayAge !== null;
   const hasPrintableAnalysis = displayAge !== null && policies.length > 0;
+  const hasBeneficiaryPage = hasPrintableAnalysis && policies.some(p => p.deathBenefitDisease > 0);
   const printTotalPages = 2
     + (hasPrintableCharts ? 1 : 0)
-    + (hasPrintableAnalysis ? 1 + policies.length : 0);
+    + (hasPrintableAnalysis ? (hasBeneficiaryPage ? 1 : 0) + 1 + policies.length : 0);
 
   return (
     <div className="App">
@@ -476,8 +482,10 @@ export default function Page() {
             currentAge={displayAge}
             familyMembers={familyMembers}
             onUpdateNote={handleUpdateNote}
-            printOverviewPage={4}
-            printFirstPolicyPage={5}
+            onUpdateEvaluations={handleUpdateEvaluations}
+            printBeneficiaryPage={4}
+            printOverviewPage={hasBeneficiaryPage ? 5 : 4}
+            printFirstPolicyPage={hasBeneficiaryPage ? 6 : 5}
             printTotalPages={printTotalPages}
           />
         )}

@@ -12,6 +12,12 @@ import {
 } from 'recharts';
 import ChartContainer from './ChartContainer';
 import type { Policy } from '@/types';
+import {
+  COVERAGE_CHART_COLORS,
+  buildCoverageColorMap,
+  getCoverageChartPolicies,
+  getDeathBenefitAtAge,
+} from '@/utils/analysisUtils';
 
 interface CoverageChartProps {
   policies: Policy[];
@@ -21,13 +27,8 @@ interface CoverageChartProps {
 const formatAxisTick = (value: number | string) =>
   Number(value).toLocaleString('ja-JP', { maximumFractionDigits: 0 });
 
-const COLORS = ['#a5b4fc', '#86efac', '#fde68a', '#fdba74'];
-
 const CoverageChart: React.FC<CoverageChartProps> = ({ policies, currentAge }) => {
-  const chartPolicies = useMemo(
-    () => policies.filter(policy => policy.deathBenefitDisease > 0),
-    [policies],
-  );
+  const chartPolicies = useMemo(() => getCoverageChartPolicies(policies), [policies]);
 
   const chartOrderKey = useMemo(
     () => chartPolicies.map(policy => policy.id).join('|'),
@@ -40,7 +41,7 @@ const CoverageChart: React.FC<CoverageChartProps> = ({ policies, currentAge }) =
   );
 
   const policyColors = useMemo(
-    () => new Map(chartPolicies.map((policy, index) => [policy.id, COLORS[index % COLORS.length]])),
+    () => buildCoverageColorMap(chartPolicies),
     [chartPolicies],
   );
 
@@ -49,19 +50,7 @@ const CoverageChart: React.FC<CoverageChartProps> = ({ policies, currentAge }) =
     for (let age = currentAge; age <= 90; age++) {
       const dataPoint: Record<string, number> = { age };
       chartPolicies.forEach((policy) => {
-        if (age < policy.policyEndAge || policy.policyEndAge === 999) {
-          let amount = policy.deathBenefitDisease;
-
-          if (policy.policyType === '収入保障保険') {
-            const totalYears = policy.policyEndAge - policy.contractAge;
-            const remainingYears = policy.policyEndAge - age;
-            amount = totalYears > 0 ? (policy.deathBenefitDisease * remainingYears) / totalYears : 0;
-          }
-
-          dataPoint[policy.id] = amount / 10000;
-        } else {
-          dataPoint[policy.id] = 0;
-        }
+        dataPoint[policy.id] = getDeathBenefitAtAge(policy, age) / 10000;
       });
       rows.push(dataPoint);
     }
@@ -70,7 +59,7 @@ const CoverageChart: React.FC<CoverageChartProps> = ({ policies, currentAge }) =
 
   const legendItems = chartPolicies.map((policy, index) => ({
     id: policy.id,
-    color: policyColors.get(policy.id) ?? COLORS[index % COLORS.length],
+    color: policyColors.get(policy.id) ?? COVERAGE_CHART_COLORS[index % COVERAGE_CHART_COLORS.length],
     label: `${policy.companyName} / ${policy.policyType}`,
   }));
 
@@ -113,7 +102,7 @@ const CoverageChart: React.FC<CoverageChartProps> = ({ policies, currentAge }) =
             />
             {/* Render in reverse because Recharts stacks the first series at the bottom. */}
             {stackPolicies.map((policy) => {
-              const color = policyColors.get(policy.id) ?? COLORS[0];
+              const color = policyColors.get(policy.id) ?? COVERAGE_CHART_COLORS[0];
               return (
                 <Area
                   key={policy.id}

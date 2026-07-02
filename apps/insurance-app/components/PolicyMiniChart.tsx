@@ -12,7 +12,7 @@ import {
   Tooltip,
 } from 'recharts';
 import type { Policy } from '@/types';
-import { INSURANCE_TYPE_INFO } from '@/utils/analysisUtils';
+import { INSURANCE_TYPE_INFO, getDeathBenefitAtAge } from '@/utils/analysisUtils';
 
 interface PolicyMiniChartProps {
   policy: Policy;
@@ -38,18 +38,10 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
     const inCoverage = policy.policyEndAge === 999 || age < policy.policyEndAge;
     let value = 0;
 
-    if (inCoverage) {
-      if (policy.deathBenefitDisease > 0) {
-        if (policy.policyType === '収入保障保険') {
-          const totalYears = policy.policyEndAge - policy.contractAge;
-          const remaining = policy.policyEndAge - age;
-          value = totalYears > 0 ? (policy.deathBenefitDisease * remaining) / totalYears / 10000 : 0;
-        } else {
-          value = policy.deathBenefitDisease / 10000;
-        }
-      } else if (policy.hospDayDisease > 0) {
-        value = policy.hospDayDisease;
-      }
+    if (policy.deathBenefitDisease > 0) {
+      value = getDeathBenefitAtAge(policy, age) / 10000;
+    } else if (inCoverage && policy.hospDayDisease > 0) {
+      value = policy.hospDayDisease;
     }
 
     data.push({ age, value });

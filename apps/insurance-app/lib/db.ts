@@ -176,4 +176,10 @@ function runMigrations(db: Database.Database): void {
   } catch {
     // column already exists
   }
+
+  try {
+    db.exec(`ALTER TABLE policies ADD COLUMN evaluation_overrides TEXT`);
+  } catch {
+    // column already exists
+  }
 }

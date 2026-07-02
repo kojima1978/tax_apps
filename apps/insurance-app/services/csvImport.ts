@@ -6,7 +6,7 @@ import { getAppState } from '@/services/appState';
 import type { Policy, PolicyType, FamilyMember, AppState } from '@/types';
 
 const VALID_POLICY_TYPES: PolicyType[] = [
-  '個人年金保険', '収入保障保険', '変額終身保険', '医療保険', '終身保険', '養老保険',
+  '個人年金保険', '収入保障保険', '収入保障定期保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険',
 ];
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
 

@@ -9,6 +9,8 @@ import {
   HeartPulse,
   ShieldCheck,
   PiggyBank,
+  CalendarClock,
+  Ribbon,
   BookOpen,
   AlertTriangle,
   Lightbulb,
@@ -49,7 +51,7 @@ interface InsuranceTypeOverviewProps {
 }
 
 const iconMap: Record<string, React.FC<{ size?: number }>> = {
-  Landmark, TrendingDown, LineChart, HeartPulse, ShieldCheck, PiggyBank,
+  Landmark, TrendingDown, LineChart, HeartPulse, ShieldCheck, PiggyBank, CalendarClock, Ribbon,
 };
 
 const insightIconMap: Record<PortfolioInsight['type'], React.FC<{ size?: number }>> = {

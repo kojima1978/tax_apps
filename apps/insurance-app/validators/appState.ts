@@ -1,9 +1,10 @@
 import type { PolicyType } from '@/types';
 
 const VALID_POLICY_TYPES: PolicyType[] = [
-  '個人年金保険', '収入保障保険', '変額終身保険', '医療保険', '終身保険', '養老保険',
+  '個人年金保険', '収入保障保険', '収入保障定期保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険',
 ];
 const VALID_GENDERS = ['male', 'female'] as const;
+const VALID_RATINGS = ['good', 'caution', 'warning'] as const;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
 
 interface ValidationError {
@@ -77,6 +78,19 @@ export function validateAppState(body: unknown): ValidationResult {
       }
       if (typeof p.premiumAmount !== 'number') errors.push({ field: `policies[${i}].premiumAmount`, message: '保険料は数値が必要です' });
       if (typeof p.paymentEndAge !== 'number') errors.push({ field: `policies[${i}].paymentEndAge`, message: '払込終了年齢は数値が必要です' });
+      if (p.evaluationOverrides !== undefined) {
+        if (!Array.isArray(p.evaluationOverrides)) {
+          errors.push({ field: `policies[${i}].evaluationOverrides`, message: 'evaluationOverrides は配列が必要です' });
+        } else {
+          for (let j = 0; j < p.evaluationOverrides.length; j++) {
+            const o = p.evaluationOverrides[j] as Record<string, unknown>;
+            if (!o || typeof o !== 'object' || typeof o.label !== 'string' || typeof o.text !== 'string'
+              || !VALID_RATINGS.includes(o.rating as typeof VALID_RATINGS[number])) {
+              errors.push({ field: `policies[${i}].evaluationOverrides[${j}]`, message: '評価の上書きが不正です' });
+            }
+          }
+        }
+      }
     }
   }
 

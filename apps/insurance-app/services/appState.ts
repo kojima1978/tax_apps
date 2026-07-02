@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db';
 import { getSampleFamilyMembers, getSampleAgency, getSamplePolicies } from '@/lib/sampleData';
-import type { AppState, FamilyMember, Policy, Agency } from '@/types';
+import type { AppState, FamilyMember, Policy, Agency, EvaluationOverride } from '@/types';
 
 interface FamilyMemberRow {
   id: string;
@@ -37,6 +37,7 @@ interface PolicyRow {
   annual_premium: number;
   maturity_benefit: number;
   consultant_note: string | null;
+  evaluation_overrides: string | null;
   sort_order: number;
 }
 
@@ -64,6 +65,16 @@ function rowToFamilyMember(row: FamilyMemberRow): FamilyMember {
   };
 }
 
+function parseEvaluationOverrides(raw: string | null): EvaluationOverride[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function rowToPolicy(row: PolicyRow): Policy {
   return {
     id: row.id,
@@ -86,6 +97,7 @@ function rowToPolicy(row: PolicyRow): Policy {
     annualPremium: row.annual_premium,
     maturityBenefit: row.maturity_benefit,
     consultantNote: row.consultant_note ?? undefined,
+    evaluationOverrides: parseEvaluationOverrides(row.evaluation_overrides),
   };
 }
 
@@ -116,7 +128,7 @@ function insertSampleData(caseId: string): void {
   }
 
   const policies = getSamplePolicies();
-  const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, consultant_note, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, consultant_note, evaluation_overrides, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   for (let i = 0; i < policies.length; i++) {
     const p = policies[i];
     insertPolicy.run(
@@ -142,6 +154,7 @@ function insertSampleData(caseId: string): void {
       p.annualPremium,
       p.maturityBenefit,
       p.consultantNote ?? null,
+      p.evaluationOverrides?.length ? JSON.stringify(p.evaluationOverrides) : null,
       i,
       ts,
       ts,
@@ -200,10 +213,10 @@ export function saveAppState(caseId: string, state: AppState): AppState {
       db.prepare('INSERT INTO agencies (id, case_id, name, representative, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(uuidv4(), caseId, state.agency.name, state.agency.representative, state.agency.phone, ts, ts);
     }
 
-    const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, consultant_note, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, consultant_note, evaluation_overrides, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (let i = 0; i < state.policies.length; i++) {
       const p = state.policies[i];
-      insertPolicy.run(p.id, caseId, p.companyName, p.policyType, p.policyNumber || null, p.contractDate, p.contractAge, p.insuredId, p.beneficiaryId || null, p.deathBenefitDisease, p.deathBenefitAccident, p.hospDayDisease, p.hospDayAccident, p.diagnosisBenefit, p.policyEndAge, p.paymentFrequency, p.premiumAmount, null, p.paymentEndAge, p.annualPremium, p.maturityBenefit, p.consultantNote ?? null, i, ts, ts);
+      insertPolicy.run(p.id, caseId, p.companyName, p.policyType, p.policyNumber || null, p.contractDate, p.contractAge, p.insuredId, p.beneficiaryId || null, p.deathBenefitDisease, p.deathBenefitAccident, p.hospDayDisease, p.hospDayAccident, p.diagnosisBenefit, p.policyEndAge, p.paymentFrequency, p.premiumAmount, null, p.paymentEndAge, p.annualPremium, p.maturityBenefit, p.consultantNote ?? null, p.evaluationOverrides?.length ? JSON.stringify(p.evaluationOverrides) : null, i, ts, ts);
     }
 
     db.prepare('INSERT OR REPLACE INTO app_state_meta (case_id, schema_version, updated_at) VALUES (?, 1, ?)').run(caseId, ts);

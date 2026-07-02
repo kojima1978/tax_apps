@@ -28,7 +28,8 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
   };
 
   const currentMonthlyBurden = policies.reduce((sum, p) => sum + getActiveMonthlyPremium(p, currentAge), 0);
-  const totalDeathBenefit = policies.reduce((sum, p) => sum + p.deathBenefitDisease, 0);
+  // 収入保障定期保険は月額表記のため一時金の合計には含めない
+  const totalDeathBenefit = policies.reduce((sum, p) => p.policyType === '収入保障定期保険' ? sum : sum + p.deathBenefitDisease, 0);
   const totalHospDay = policies.reduce((sum, p) => sum + p.hospDayDisease, 0);
   const monthlyBurdenTotalNote = currentAge === null
     ? '一時払を除外。払込終了判定には生年月日が必要'
@@ -186,7 +187,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
               <td>{policy.policyType}</td>
               <td>{policy.companyName}</td>
               <td>{policy.policyNumber || '-'}</td>
-              <td>{policy.deathBenefitDisease > 0 ? `${(policy.deathBenefitDisease / 10000).toLocaleString()}万円` : '-'}</td>
+              <td>{policy.deathBenefitDisease > 0 ? `${(policy.deathBenefitDisease / 10000).toLocaleString()}万円${policy.policyType === '収入保障定期保険' ? '/月' : ''}` : '-'}</td>
               <td>{policy.hospDayDisease > 0 ? `${policy.hospDayDisease.toLocaleString()}円` : '-'}</td>
               <td>{getMemberName(policy.beneficiaryId)}</td>
               <td>
