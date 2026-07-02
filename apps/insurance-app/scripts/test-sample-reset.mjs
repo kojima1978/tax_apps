@@ -20,8 +20,8 @@ try {
     method: 'POST',
   });
 
-  assert(state.familyMembers.length === 2, `Expected 2 sample family members, got ${state.familyMembers.length}`);
-  assert(state.policies.length === 4, `Expected 4 sample policies, got ${state.policies.length}`);
+  assert(state.familyMembers.length === 4, `Expected 4 sample family members, got ${state.familyMembers.length}`);
+  assert(state.policies.length === 9, `Expected 9 sample policies, got ${state.policies.length}`);
 
   const memberIds = new Set(state.familyMembers.map(member => member.id));
   const policyIds = new Set(state.policies.map(policy => policy.id));
