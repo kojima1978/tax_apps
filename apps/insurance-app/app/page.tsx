@@ -21,8 +21,6 @@ import {
   clearAppState,
   getExportUrl,
   getBackupUrl,
-  restoreBackup,
-  restoreJsonAppState,
   downloadAppStateJson,
   isJsonStorageMode,
 } from '@/lib/api';
@@ -84,7 +82,6 @@ export default function Page() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const addToast = useCallback((type: ToastMessage['type'], text: string) => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -171,31 +168,6 @@ export default function Page() {
     }
     window.open(getBackupUrl(), '_blank');
     addToast('success', 'バックアップをダウンロードしています');
-  };
-
-  const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-
-    const isJsonFile = file.name.toLowerCase().endsWith('.json');
-    if (!window.confirm('バックアップから復元しますか？現在のデータはすべて上書きされます。')) return;
-
-    try {
-      if (isJsonFile) {
-        if (!activeCaseId) return;
-        const state = await restoreJsonAppState(activeCaseId, file);
-        applyState(state);
-        addToast('success', 'JSONから復元しました');
-        return;
-      }
-
-      await restoreBackup(file);
-      addToast('success', '復元しました。ページをリロードします...');
-      setTimeout(() => window.location.reload(), 1500);
-    } catch (err) {
-      addToast('error', getErrorMessage(err, '復元に失敗しました。有効なバックアップファイルか確認してください。'));
-    }
   };
 
   const calculateAge = (birthDate: string) => {
@@ -399,14 +371,6 @@ export default function Page() {
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      <input
-        ref={restoreInputRef}
-        type="file"
-        accept={jsonStorageMode ? '.json' : '.sqlite,.db,.json'}
-        style={{ display: 'none' }}
-        onChange={handleRestore}
-      />
-
       <header className="app-header">
         <div>
           <h1>
@@ -442,15 +406,14 @@ export default function Page() {
                 <button onClick={() => { setMenuOpen(false); handleExport(); }}>
                   <Download size={16} /> JSON出力
                 </button>
-                <hr />
                 {!jsonStorageMode && (
-                  <button onClick={() => { setMenuOpen(false); handleBackup(); }}>
-                    <DatabaseBackup size={16} /> バックアップ
-                  </button>
+                  <>
+                    <hr />
+                    <button onClick={() => { setMenuOpen(false); handleBackup(); }}>
+                      <DatabaseBackup size={16} /> バックアップ
+                    </button>
+                  </>
                 )}
-                <button onClick={() => { setMenuOpen(false); restoreInputRef.current?.click(); }}>
-                  <Settings size={16} /> 復元
-                </button>
                 <hr />
                 <button className="dropdown-danger" onClick={() => { setMenuOpen(false); handleClear(); }}>
                   <Trash2 size={16} /> データ消去
