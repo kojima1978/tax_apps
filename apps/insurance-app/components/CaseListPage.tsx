@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2, Home } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2, Home, Upload } from 'lucide-react';
 import AgencyMasterModal from '@/components/AgencyMasterModal';
-import { fetchCases, createCase, deleteCase } from '@/lib/api';
+import { fetchCases, createCase, deleteCase, restoreJsonAppState } from '@/lib/api';
 import type { CaseSummary } from '@/lib/api';
 
 interface Props {
@@ -43,6 +43,8 @@ export default function CaseListPage({ onSelect }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('updated');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showAgencyMaster, setShowAgencyMaster] = useState(false);
+  const [isRestoringJson, setIsRestoringJson] = useState(false);
+  const restoreJsonInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -64,6 +66,38 @@ export default function CaseListPage({ onSelect }: Props) {
       onSelect(newCase.id);
     } catch {
       setError('案件の作成に失敗しました');
+    }
+  };
+
+  const handleRestoreJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      setError('JSONファイル(.json)を選択してください');
+      return;
+    }
+
+    if (!window.confirm('JSONから新しいお客様データを復元しますか？')) return;
+
+    setIsRestoringJson(true);
+    setError(null);
+    let createdCaseId: string | null = null;
+
+    try {
+      const newCase = await createCase();
+      createdCaseId = newCase.id;
+      await restoreJsonAppState(newCase.id, file);
+      onSelect(newCase.id);
+    } catch {
+      if (createdCaseId) {
+        await deleteCase(createdCaseId).catch(() => {});
+      }
+      setError('JSON復元に失敗しました。保険アプリのJSON出力ファイルか確認してください。');
+      await load().catch(() => {});
+    } finally {
+      setIsRestoringJson(false);
     }
   };
 
@@ -125,6 +159,13 @@ export default function CaseListPage({ onSelect }: Props) {
 
   return (
     <div className="case-list-page">
+      <input
+        ref={restoreJsonInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={handleRestoreJson}
+      />
       <header className="case-list-header">
         <div className="case-list-title-block">
           <h1>
@@ -139,6 +180,13 @@ export default function CaseListPage({ onSelect }: Props) {
           </p>
         </div>
         <div className="case-list-actions">
+          <button
+            className="case-agency-btn"
+            onClick={() => restoreJsonInputRef.current?.click()}
+            disabled={isRestoringJson}
+          >
+            <Upload size={18} /> {isRestoringJson ? '復元中...' : 'JSON復元'}
+          </button>
           <button className="case-agency-btn" onClick={() => setShowAgencyMaster(true)}>
             <Building2 size={18} /> 代理店管理
           </button>
@@ -184,6 +232,13 @@ export default function CaseListPage({ onSelect }: Props) {
           <p className="case-empty-sub">「新規お客様」ボタンから最初のお客様を登録しましょう</p>
           <button className="case-create-btn" onClick={handleCreate}>
             <Plus size={18} /> 最初のお客様を登録
+          </button>
+          <button
+            className="case-agency-btn"
+            onClick={() => restoreJsonInputRef.current?.click()}
+            disabled={isRestoringJson}
+          >
+            <Upload size={18} /> JSONから復元
           </button>
         </div>
       ) : filteredSorted.length === 0 ? (
