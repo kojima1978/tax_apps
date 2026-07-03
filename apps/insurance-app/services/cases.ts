@@ -37,6 +37,17 @@ export function listCases(): CaseSummary[] {
   }));
 }
 
+export function getCaseTitle(caseId: string): string | null {
+  const db = getDb();
+  const row = db.prepare('SELECT title FROM cases WHERE id = ?').get(caseId) as { title: string } | undefined;
+  return row?.title ?? null;
+}
+
+export function updateCaseTitle(caseId: string, title: string): void {
+  const db = getDb();
+  db.prepare('UPDATE cases SET title = ?, updated_at = ? WHERE id = ?').run(title, new Date().toISOString(), caseId);
+}
+
 export function createCase(): CaseSummary {
   const db = getDb();
   const caseId = uuidv4();

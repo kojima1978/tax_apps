@@ -24,7 +24,8 @@ export class ApiError extends Error {
 }
 
 const JSON_STORAGE_MODE = process.env.NEXT_PUBLIC_STORAGE_MODE === 'json';
-const STORAGE_VERSION = 1;
+const EXPORT_SCHEMA_VERSION = 2;
+const INSIGHT_TYPES = ['gap', 'redundancy', 'recommendation'] as const;
 const CASES_KEY = 'insurance-app:json-storage:cases:v1';
 const STATE_KEY_PREFIX = 'insurance-app:json-storage:state:v1:';
 const AGENCY_MASTERS_KEY = 'insurance-app:json-storage:agency-masters:v1';
@@ -37,6 +38,19 @@ interface JsonExportData extends AppState {
   schemaVersion?: number;
   exportedAt?: string;
   storageMode?: string;
+  caseTitle?: string;
+  portfolioInsights?: Omit<PortfolioInsightData, 'id'>[];
+}
+
+export interface ExportExtras {
+  caseTitle?: string;
+  portfolioInsights?: Omit<PortfolioInsightData, 'id'>[];
+}
+
+interface JsonImportPayload {
+  state: AppState;
+  caseTitle?: string;
+  portfolioInsights?: Omit<PortfolioInsightData, 'id'>[];
 }
 
 interface StoredPolicyPrompt {
@@ -157,7 +171,7 @@ function saveJsonCases(cases: CaseSummary[]): void {
   writeJson(CASES_KEY, cases);
 }
 
-function normalizeExportData(raw: unknown): AppState {
+function normalizeExportData(raw: unknown): JsonImportPayload {
   if (!raw || typeof raw !== 'object') {
     throw new Error('JSONデータが不正です');
   }
@@ -169,23 +183,42 @@ function normalizeExportData(raw: unknown): AppState {
     throw new Error('AppState形式のJSONではありません');
   }
 
+  // schemaVersion 2 で追加された項目。存在する場合のみ復元する(旧形式JSONは従来どおり)
+  const caseTitle = typeof source.caseTitle === 'string' && source.caseTitle.trim() ? source.caseTitle.trim() : undefined;
+  const portfolioInsights = Array.isArray(source.portfolioInsights)
+    ? (source.portfolioInsights as Record<string, unknown>[])
+        .filter(i => i && typeof i === 'object' && typeof i.text === 'string'
+          && INSIGHT_TYPES.includes(i.type as typeof INSIGHT_TYPES[number]))
+        .map(i => ({
+          type: i.type as typeof INSIGHT_TYPES[number],
+          text: i.text as string,
+          isCustom: !!i.isCustom,
+        }))
+    : undefined;
+
   return {
-    familyMembers: source.familyMembers,
-    policies: source.policies,
-    agency: source.agency,
-    updatedAt: now(),
-  } as AppState;
+    state: {
+      familyMembers: source.familyMembers,
+      policies: source.policies,
+      agency: source.agency,
+      updatedAt: now(),
+    } as AppState,
+    caseTitle,
+    portfolioInsights,
+  };
 }
 
-function buildExportData(state: AppState): JsonExportData {
+function buildExportData(state: AppState, extras: ExportExtras = {}): JsonExportData {
   return {
-    schemaVersion: STORAGE_VERSION,
+    schemaVersion: EXPORT_SCHEMA_VERSION,
     exportedAt: now(),
     storageMode: JSON_STORAGE_MODE ? 'json' : 'sqlite',
+    caseTitle: extras.caseTitle,
     familyMembers: state.familyMembers,
     agency: state.agency,
     policies: state.policies,
     updatedAt: state.updatedAt,
+    portfolioInsights: extras.portfolioInsights ?? [],
   };
 }
 
@@ -212,8 +245,11 @@ async function readJsonFile(file: File): Promise<unknown> {
   return JSON.parse(text);
 }
 
-export function downloadAppStateJson(state: AppState): void {
-  downloadJson(buildExportData(state), `insurance-app-state-${timestamp()}.json`);
+export function downloadAppStateJson(state: AppState, extras: ExportExtras = {}): void {
+  const primary = state.familyMembers.find(m => m.relationship === '本人') ?? state.familyMembers[0];
+  const namePart = (primary?.name ?? '').replace(/[\\/:*?"<>| -]/g, '').trim().slice(0, 30);
+  const base = namePart ? `insurance-app-state-${namePart}-${timestamp()}` : `insurance-app-state-${timestamp()}`;
+  downloadJson(buildExportData(state, extras), `${base}.json`);
 }
 
 export function fetchCases(): Promise<CaseSummary[]> {
@@ -298,7 +334,19 @@ export function getExportUrl(caseId: string): string {
 export async function restoreJsonAppState(caseId: string, file: File): Promise<AppState> {
   if (JSON_STORAGE_MODE) {
     const parsed = await readJsonFile(file);
-    return saveAppState(caseId, normalizeExportData(parsed));
+    const payload = normalizeExportData(parsed);
+    const saved = await saveAppState(caseId, payload.state);
+    if (payload.caseTitle) {
+      const title = payload.caseTitle;
+      saveJsonCases(ensureJsonCases().map(c => c.id === caseId ? { ...c, title } : c));
+    }
+    if (payload.portfolioInsights) {
+      writeJson(
+        portfolioInsightsKey(caseId),
+        payload.portfolioInsights.map((insight, index) => ({ id: `${caseId}-insight-${index + 1}`, ...insight })),
+      );
+    }
+    return saved;
   }
 
   const form = new FormData();

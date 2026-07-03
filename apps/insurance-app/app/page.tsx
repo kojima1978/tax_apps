@@ -22,6 +22,8 @@ import {
   getExportUrl,
   getBackupUrl,
   downloadAppStateJson,
+  fetchCases,
+  fetchPortfolioInsights,
   isJsonStorageMode,
 } from '@/lib/api';
 
@@ -160,9 +162,25 @@ export default function Page() {
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
 
-  const handleBackup = () => {
+  // JSONモード用: 案件タイトルと診断コメントも添えてダウンロード(localStorageから同期解決)
+  const downloadJsonWithExtras = async (caseId: string) => {
+    const [{ insights }, cases] = await Promise.all([
+      fetchPortfolioInsights(caseId),
+      fetchCases(),
+    ]);
+    downloadAppStateJson(
+      { familyMembers, policies, agency },
+      {
+        caseTitle: cases.find(c => c.id === caseId)?.title,
+        portfolioInsights: insights.map(({ type, text, isCustom }) => ({ type, text, isCustom })),
+      },
+    );
+  };
+
+  const handleBackup = async () => {
     if (jsonStorageMode) {
-      downloadAppStateJson({ familyMembers, policies, agency });
+      if (!activeCaseId) return;
+      await downloadJsonWithExtras(activeCaseId);
       addToast('success', 'JSONバックアップをダウンロードしました');
       return;
     }
@@ -290,10 +308,10 @@ export default function Page() {
     setIsSaving(false);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!activeCaseId) return;
     if (jsonStorageMode) {
-      downloadAppStateJson({ familyMembers, policies, agency });
+      await downloadJsonWithExtras(activeCaseId);
       return;
     }
     window.open(getExportUrl(activeCaseId), '_blank');

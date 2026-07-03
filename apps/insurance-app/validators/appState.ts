@@ -4,6 +4,7 @@ const VALID_POLICY_TYPES: PolicyType[] = [
   '個人年金保険', '収入保障保険', '収入保障定期保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険',
 ];
 const VALID_GENDERS = ['male', 'female'] as const;
+const VALID_INSIGHT_TYPES = ['gap', 'redundancy', 'recommendation'] as const;
 const VALID_RATINGS = ['good', 'caution', 'warning'] as const;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
 
@@ -91,6 +92,30 @@ export function validateAppState(body: unknown): ValidationResult {
           }
         }
       }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+export function validatePortfolioInsights(value: unknown): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  if (!Array.isArray(value)) {
+    return { valid: false, errors: [{ field: 'portfolioInsights', message: 'portfolioInsights は配列が必要です' }] };
+  }
+
+  for (let i = 0; i < value.length; i++) {
+    const insight = value[i] as Record<string, unknown>;
+    if (!insight || typeof insight !== 'object') {
+      errors.push({ field: `portfolioInsights[${i}]`, message: '診断コメントが不正です' });
+      continue;
+    }
+    if (!VALID_INSIGHT_TYPES.includes(insight.type as typeof VALID_INSIGHT_TYPES[number])) {
+      errors.push({ field: `portfolioInsights[${i}].type`, message: 'type は gap, redundancy, recommendation のいずれかが必要です' });
+    }
+    if (typeof insight.text !== 'string') {
+      errors.push({ field: `portfolioInsights[${i}].text`, message: 'text は文字列が必要です' });
     }
   }
 
