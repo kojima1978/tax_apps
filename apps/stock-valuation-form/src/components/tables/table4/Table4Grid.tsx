@@ -89,7 +89,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '１株当たりの資本金等の額\n（①÷（②－③））', noWrap: true, top: 8.9, left: 62.65, width: 13.09, height: 2.99 },
   { kind: 'label', text: '１株当たりの資本金等の額を50 円とした場合\nの発行済株式数\n(①÷50円）', fontSize: 5.5, noWrap: true, top: 9.09, left: 75.47, width: 14.32, height: 2.8 },
   { field: '①', kind: 'input', commaInteger: true, cornerLabel: '①', topRightLabel: '千円', top: 11.69, left: 24.05, width: 13.23, height: 3.18 },
-  { field: '②', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: '①', hint: 'クリックで入力元（第１表の１・発行済株式の総数）へ移動します' }, cornerLabel: '②', topRightLabel: '株', top: 11.69, left: 37.01, width: 12.96, height: 3.18 },
+  { field: '②', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: '⑤', hint: 'クリックで入力元（第１表の１⑤・発行済株式数）へ移動します' }, cornerLabel: '②', topRightLabel: '株', top: 11.69, left: 37.01, width: 12.96, height: 3.18 },
   { field: '③', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: 'f63', hint: 'クリックで入力元（第１表の１・自己株式数）へ移動します' }, cornerLabel: '③', topRightLabel: '株', top: 11.6, left: 49.83, width: 13.09, height: 3.28 },
   { field: '④', kind: 'input', readOnly: true, cornerLabel: '④', topRightLabel: '円', top: 11.6, left: 62.65, width: 13.09, height: 3.28 },
   { field: '⑤', kind: 'input', readOnly: true, cornerLabel: '⑤', topRightLabel: '株', top: 11.6, left: 75.47, width: 14.32, height: 3.28 },
@@ -313,8 +313,8 @@ export function calcTable4(getField: TableProps['getField']) {
 
   // 1. 資本金等
   const cap = num('①');                         // 千円
-  // ②発行済株式数＝第1表の1の①（評価会社の発行済株式の総数）を転記
-  const issued = parseNum(getField('table1_1', '①'));
+  // ②発行済株式数＝第1表の1の⑤（評価会社の発行済株式数）を転記
+  const issued = parseNum(getField('table1_1', '⑤'));
   const treasuryShares = parseNum(
     getField('table1_1', 'f63') || getField('table1_1', 'treasury_shares'),
   );

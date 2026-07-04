@@ -147,7 +147,7 @@ function pageCells(pageIndex: number): GridCell[] {
   { kind: 'label', text: '課税時期現在の純資産価額\n（相続税評価額）（⑤－⑧）', top: 80.71, left: 51.06, width: 25.78, height: 3.57, align: 'left' },
   { field: '⑨', kind: 'input', cornerLabel: '⑨', top: 80.8, left: 76.56, width: 16.78, height: 3.47 },
   { kind: 'label', text: '課税時期現在の発行済株式数\n{(第１表の１の①)－自己株式数}', top: 84.08, left: 51.19, width: 25.64, height: 3.47, align: 'left' },
-  { field: '⑩', kind: 'input', jumpTo: { tab: 'table1_1', field: '①', hint: 'クリックで入力元（第１表の１・①発行済株式の総数）へ移動します。自己株式数は第１表の１の自己株式欄で入力します' }, cornerLabel: '⑩', top: 83.98, left: 76.7, width: 16.78, height: 3.57 },
+  { field: '⑩', kind: 'input', jumpTo: { tab: 'table1_1', field: '⑤', hint: 'クリックで入力元（第１表の１・⑤発行済株式数）へ移動します。自己株式数は第１表の１の自己株式欄で入力します' }, cornerLabel: '⑩', top: 83.98, left: 76.7, width: 16.78, height: 3.57 },
   { kind: 'label', text: '課税時期現在の1株当たりの純資産価額\n（相続税評価額）（⑨÷⑩）', top: 87.26, left: 51.06, width: 25.64, height: 3.66, align: 'left' },
   { field: '⑪', kind: 'input', cornerLabel: '⑪', top: 87.36, left: 76.56, width: 16.78, height: 3.57 },
   { kind: 'label', text: '同族株主等の議決権割合（第１表の１の⑤の割合）が\n50％以下の場合（⑪×80％）', top: 90.83, left: 51.06, width: 25.91, height: 3.28, align: 'left' },
@@ -233,7 +233,7 @@ export function calcTable5(getField: TableProps['getField']) {
   const currentNet = netEval - corporateTaxEquivalent;
 
   const issuedShares = parseNum(
-    getField('table1_1', '①') || getField('table1_1', 'total_shares_sum'),
+    getField('table1_1', '⑤') || getField('table1_1', 'total_shares_sum'),
   );
   const treasuryShares = parseNum(
     getField('table1_1', 'f63') || getField('table1_1', 'treasury_shares'),
@@ -247,7 +247,7 @@ export function calcTable5(getField: TableProps['getField']) {
   for (let row = 1; row <= 10; row++) {
     groupVotes += parseNum(getField('table1_1', `sh_${row}_5`));
   }
-  const totalVotes = parseNum(getField('table1_1', '④'));
+  const totalVotes = parseNum(getField('table1_1', '⑥'));
   const votingRatio = totalVotes > 0 ? (groupVotes / totalVotes) * 100 : null;
   const netPerShare80 = votingRatio !== null && votingRatio <= 50 && netPerShare !== null
     ? Math.floor(netPerShare * 0.8)

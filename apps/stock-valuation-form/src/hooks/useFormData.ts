@@ -19,7 +19,7 @@ const CAPITAL_AMOUNT_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
 ];
 
 const ISSUED_SHARE_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
-  ['table1_1', '①'],
+  ['table1_1', '⑤'],
   ['table3', '⑩'],
   ['table6', '⑫'],
   ['table4', '②'],
@@ -78,13 +78,28 @@ function normalizeLinkedFields(data: FormData): FormData {
   }, data);
 }
 
+/** 旧様式（令和6年版）→令和8年様式の第1表の1のフィールド移行（①発行済株式→⑤、④議決権総数→⑥） */
+function migrateTable1_1R8(data: FormData): FormData {
+  const t = data.table1_1;
+  if (!t || (t['①'] === undefined && t['④'] === undefined)) return data;
+  const { ['①']: oldIssued, ['④']: oldTotalVotes, ...rest } = t;
+  return {
+    ...data,
+    table1_1: {
+      ...rest,
+      ...(oldIssued && !rest['⑤'] ? { '⑤': oldIssued } : {}),
+      ...(oldTotalVotes && !rest['⑥'] ? { '⑥': oldTotalVotes } : {}),
+    },
+  };
+}
+
 function normalizeFormData(data: FormData): FormData {
   const completeData = Object.keys(initialFormData).reduce<FormData>((next, table) => ({
     ...next,
     [table]: { ...initialFormData[table as TableId], ...(data[table as TableId] ?? {}) },
   }), initialFormData);
 
-  return normalizeLinkedFields(completeData);
+  return normalizeLinkedFields(migrateTable1_1R8(completeData));
 }
 
 function loadFromStorage(): FormData {

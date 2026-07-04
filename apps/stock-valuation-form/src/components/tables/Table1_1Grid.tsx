@@ -4,13 +4,42 @@ import type { TableProps } from '@/types/form';
 
 const T = 'table1_1' as const;
 
-// ── 株主テーブルの繰り返し行を自動生成 ──
-const SH_ROWS = 10;          // 株主行数（実フォームに合わせて調整可）
-const SH_TOP = 33.96;        // 1行目の上端%
-const SH_SELF = 76.37;       // 自己株式行の上端（データ行はここまで）
-const SH_PITCH = (SH_SELF - SH_TOP) / SH_ROWS;
-const SH_REORDER_FIELDS = [1, 2, 3, 4, 5] as const;
+// ══ 令和8年4月1日以降用の様式 ══
+// ・株主は1人あたり2行（上段: 氏名/役職名/㋑株式数/㋺未分割株式数、下段: 続柄/株式の種類/㋩議決権数/㋥議決権割合）
+// ・円数字の割当が変更: ①同族G議決権数(自動) ②=①/⑥ ③筆頭G議決権数 ④=③/⑥ ⑤発行済株式数 ⑥議決権の総数
+//   （旧様式の ①発行済株式→⑤、④議決権総数→⑥。判定の分母は⑥）
+// ・「２．少数株式所有者の評価方式の判定」は第１表の２へ移動（j_* フィールドは table1_2 に保存）
+// ・様式の識別コード（E01/G04等）は様式どおり独立した小セル（kind:'cell'+codeLabel）で再現。
+//   コード選択は記入枠のプルダウン（compactSelectedOption=閉時はコードのみ表示）、
+//   判定基準・判定の「１」記入枠は該当時に「１」を自動表示（JUDGE_FLAGS、保存しない導出値）
+// ・続柄コード(sh_r_2k)/役職コード(sh_r_3k)＝コード欄のプルダウンで「コード：名称」を選択（記載要領⑵⑶の対応表）
+//   → 続柄(sh_r_2)/役職名(sh_r_3)欄は標準名称の自動表示で入力不可。「その他」（続柄18/役職16）のときのみ
+//   具体名を手入力可（readOnlyWhen）。旧データ（名称のみ保存）からもコードを導出する後方互換つき。
+//   コード選び直し時は名称の手入力をクリア。株式種類コード（記載要領⑷）＝sh_r_9 に 1/2 を選択（普通株式のみは省略可）
+
+// ── 株主テーブルの繰り返し行 ──
+const SH_ROWS = 5; // 本表の株主数（1人=2行）。6人目以降は続紙（未実装）
+// 罫線検出による行上端%（ヘッダー2行の後、データ10行＋自己株式行）
+const ROW_TOPS = [40.88, 43.48, 46.07, 48.66, 51.25, 53.85, 56.44, 59.03, 61.62, 64.22, 66.81] as const;
+const SH_REORDER_FIELDS = ['1', '2', '2k', '3', '3k', '4', '5', '7', '8', '9'] as const;
 const SH_DRAG_HANDLE_WIDTH = 2.4;
+
+// ── 列座標（%・様式の罫線位置） ──
+const X = {
+  name: 12.25, nameEnd: 34.0,           // 氏名又は名称（上段。左端1.81%はE番号セル）
+  eCode: 12.25, eCodeEnd: 14.06,        // E番号（氏名）／G番号（続柄コード）の印字セル
+  relBox: 14.06, relBoxEnd: 17.69,      // 続柄コードの記入枠（＝コード選択）
+  relECode: 17.69, relECodeEnd: 19.5,   // E番号（続柄）の印字セル
+  rel: 19.5, relEnd: 34.0,              // 続柄（下段）
+  gCode: 34.0, gCodeEnd: 35.82,         // G番号（役職コード／株式種類コード）の印字セル
+  codeBox: 35.82, codeBoxEnd: 39.44,    // 役職コード／株式種類コードの記入枠（＝コード選択）
+  roleECode: 39.44, roleECodeEnd: 41.26,// E番号（役職名／株式の種類）の印字セル
+  role: 41.26, roleEnd: 59.39,          // 会社における役職名（上段）／株式の種類（下段）
+  numCode1: 59.39, numCode1End: 61.2,   // G番号（㋑株式数／㋩議決権数）の印字セル
+  num1: 61.2, num1End: 73.89,           // ㋑株式数／㋩議決権数
+  numCode2: 73.89, numCode2End: 75.71,  // G番号（㋺未分割／㋥割合）の印字セル
+  num2: 75.71, num2End: 88.48,          // ㋺未分割株式数／㋥議決権割合
+} as const;
 
 // ── 計算の根拠（参考リンク） ──
 const REFERENCES = [
@@ -18,117 +47,162 @@ const REFERENCES = [
   { label: '評価通達188-2（同族株主以外の株主等が取得した株式の評価）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-188_2' },
 ];
 
-// ── 会社における役職名（セレクト候補）＋役員該当の判定 ──
-// 評価通達188(2)の「役員」＝法人税法施行令71①一・二・四（社長・代表取締役・副社長・専務・常務・
-// 代表執行役・指名委員会等の執行役・監査等委員である取締役・会計参与・監査役・監事）。
-// 監査役設置会社の「平取締役」や相談役・顧問・執行役員（使用人）は、この「役員」に該当しない点に注意。
-const OFFICER_ROLES: string[] = [
-  '',
-  '代表取締役',
-  '社長・会長・副社長',
-  '専務・常務',
-  '執行役・代表執行役',
-  '監査等委員である取締役',
-  '会計参与',
-  '監査役・監事',
-  'みなし役員',
-  '取締役（平）',
-  '相談役・顧問',
-  '執行役員（使用人）',
-  '使用人・一般株主',
-];
-// 上記のうち「役員」に該当するもの
-const OFFICER_YAKUIN = new Set<string>([
-  '代表取締役', '社長・会長・副社長', '専務・常務', '執行役・代表執行役',
-  '監査等委員である取締役', '会計参与', '監査役・監事', 'みなし役員',
-]);
-/** 役職名から役員該当を判定（''=未選択→null）。㊁役員は納税義務者の役職名(sh_1_3)で自動判定する */
-const isOfficerRole = (role: string): boolean | null => (role === '' ? null : OFFICER_YAKUIN.has(role));
-/** 表内で手動選択した判定を優先し、未選択時は納税義務者の役職名から導出する */
-const effectiveOfficer = (g: (f: string) => string): boolean | null => {
-  const manual = g('j_yakuin');
-  if (manual === 'yes') return true;
-  if (manual === 'no') return false;
-  return isOfficerRole(g('sh_1_3'));
+// ── 役職コード（記載要領⑶の次表・令和8年4月1日以降用） ──
+// コード欄のプルダウンで「コード：役職名」を選択→役職名欄にその名称を自動表示（手入力で上書き可）。
+// 複数該当時は小さい方の番号を採る定め（例: 代表取締役社長→1）のため、選択肢はコード昇順。
+// コード16（その他）は具体的な役職名を役職名欄に記載する。
+const ROLE_LIST = [
+  { code: 1, name: '社長' },
+  { code: 2, name: '理事長' },
+  { code: 3, name: '代表取締役' },
+  { code: 4, name: '代表執行役' },
+  { code: 5, name: '代表理事' },
+  { code: 6, name: '清算人' },
+  { code: 7, name: '副社長' },
+  { code: 8, name: '専務' },
+  { code: 9, name: '専務理事' },
+  { code: 10, name: '常務' },
+  { code: 11, name: '常務理事' },
+  { code: 12, name: '副社長・専務・常務に準ずる役員' },
+  { code: 13, name: '取締役（指名委員会等・監査等委員）' },
+  { code: 14, name: '会計参与' },
+  { code: 15, name: '監査役並びに監事' },
+  { code: 16, name: 'その他' },
+] as const;
+const ROLE_CODE_OPTIONS = ['', ...ROLE_LIST.map((r) => ({ value: String(r.code), label: `${r.code}：${r.name}` }))];
+const roleNameOf = (code: string): string => ROLE_LIST.find((r) => String(r.code) === code)?.name ?? '';
+// 旧選択肢（名称保存）→コードの後方互換対応表
+const LEGACY_ROLE_CODES: Record<string, number> = {
+  '社長': 1, '理事長': 2, '代表取締役': 3, '代表執行役': 4, '代表理事': 5, '清算人': 6,
+  '副社長': 7, '専務': 8, '専務理事': 9, '常務': 10, '常務理事': 11,
+  '副社長・専務・常務に準ずる職制上の地位を有する役員': 12, '副社長・専務・常務に準ずる役員': 12,
+  '取締役（指名委員会等設置会社・監査等委員）': 13, '取締役（指名委員会等・監査等委員）': 13, '監査等委員である取締役': 13,
+  '会計参与': 14, '監査役並びに監事': 15, '監査役・監事': 15,
+  '取締役（平）': 16, '相談役・顧問': 16, '執行役員（使用人）': 16, '使用人・一般株主': 16, 'その他': 16,
+};
+/** 保存済みコード優先・なければ旧名称から導出した役職コード（''=不明） */
+const effectiveRoleCode = (storedCode: string, storedName: string): string =>
+  storedCode || (LEGACY_ROLE_CODES[storedName] !== undefined ? String(LEGACY_ROLE_CODES[storedName]) : '');
+/**
+ * 役職名から役員該当を判定（''=未選択→null）。
+ * 役職コード1〜15＝通達188(2)の「役員」（法人税法施行令71①一・二・四）、16（その他）＝非該当。
+ */
+export const isOfficerRole = (role: string): boolean | null => {
+  const code = effectiveRoleCode('', role);
+  return code === '' ? null : Number(code) <= 15;
 };
 
-// ── 判定マトリクスの自動ハイライト（⑤と⑥に基づく） ──
-// ⑥列の区分: 50%超 / 30%以上50%以下 / 30%未満 → 各列での⑤の閾値は 50 / 30 / 15
-const col6Threshold = (r6: number): 50 | 30 | 15 | null => (r6 > 50 ? 50 : r6 >= 30 ? 30 : r6 >= 0 ? 15 : null);
-const r5r6 = (g: (f: string) => string): { r5: number; r6: number; valid: boolean } => {
-  const s5 = g('⑤'), s6 = g('⑥');
-  const r5 = Number(s5), r6 = Number(s6);
-  return { r5, r6, valid: s5 !== '' && s6 !== '' && !isNaN(r5) && !isNaN(r6) };
+// ── 続柄コード（記載要領⑵の次表・令和8年4月1日以降用） ──
+// コード欄のプルダウンで「コード：続柄」を選択→続柄欄にその続柄を自動表示（手入力で上書き可）。
+// コード18（その他）は具体的な続柄を続柄欄に記載する。
+const ZOKUGARA_LIST = [
+  { code: 1, name: '配偶者' },
+  { code: 2, name: '子' },
+  { code: 3, name: '父' },
+  { code: 4, name: '母' },
+  { code: 5, name: '兄' },
+  { code: 6, name: '弟' },
+  { code: 7, name: '姉' },
+  { code: 8, name: '妹' },
+  { code: 9, name: '祖父' },
+  { code: 10, name: '祖母' },
+  { code: 11, name: '曾祖父' },
+  { code: 12, name: '曾祖母' },
+  { code: 13, name: '孫' },
+  { code: 14, name: '曾孫' },
+  { code: 15, name: '配偶者の父' },
+  { code: 16, name: '配偶者の母' },
+  { code: 17, name: '法人' },
+  { code: 18, name: 'その他' },
+] as const;
+const ZOKUGARA_CODE_OPTIONS = ['', ...ZOKUGARA_LIST.map((z) => ({ value: String(z.code), label: `${z.code}：${z.name}` }))];
+const zokugaraNameOf = (code: string): string => ZOKUGARA_LIST.find((z) => String(z.code) === code)?.name ?? '';
+// 旧選択肢（名称保存）→コードの後方互換対応表
+const LEGACY_ZOKUGARA_CODES: Record<string, number> = {
+  '配偶者': 1, '子': 2, '父': 3, '母': 4, '兄': 5, '弟': 6, '姉': 7, '妹': 8, '祖父': 9, '祖母': 10,
+  '曾祖父': 11, '曾祖母': 12, '孫': 13, '曾孫': 14, '配偶者の父': 15, '配偶者の母': 16, '法人': 17,
+  '甥': 18, '姪': 18, '叔父': 18, '叔母': 18, 'いとこ': 18, 'その他': 18,
 };
-// 同族株主等の各列（閾値）：その列が選択されていて、かつ⑤≥閾値
+/** 保存済みコード優先・なければ旧名称から導出した続柄コード（''=不明） */
+const effectiveZokugaraCode = (storedCode: string, storedName: string): string =>
+  storedCode || (LEGACY_ZOKUGARA_CODES[storedName] !== undefined ? String(LEGACY_ZOKUGARA_CODES[storedName]) : '');
+
+// ── 株式種類コード（記載要領⑷: 1=普通株式 / 2=普通株式以外。普通株式のみの会社は省略可） ──
+const STOCK_TYPE_OPTIONS = ['', { value: '1', label: '1：普通株式' }, { value: '2', label: '2：普通株式以外' }];
+
+// ── 判定マトリクスの自動ハイライト（②と④に基づく） ──
+// ④列の区分: 50%超 / 30%以上50%以下 / 30%未満 → 各列での②の閾値は 50 / 30 / 15
+const col4Threshold = (r4: number): 50 | 30 | 15 | null => (r4 > 50 ? 50 : r4 >= 30 ? 30 : r4 >= 0 ? 15 : null);
+const r2r4 = (g: (f: string) => string): { r2: number; r4: number; valid: boolean } => {
+  const s2 = g('②'), s4 = g('④');
+  const r2 = Number(s2), r4 = Number(s4);
+  return { r2, r4, valid: s2 !== '' && s4 !== '' && !isNaN(r2) && !isNaN(r4) };
+};
+// 同族株主等の各列（閾値）：その列が選択されていて、かつ②≥閾値
 const dozokuMatch = (th: 50 | 30 | 15) => (g: (f: string) => string) => {
-  const { r5, r6, valid } = r5r6(g);
-  return valid && col6Threshold(r6) === th && r5 >= th;
+  const { r2, r4, valid } = r2r4(g);
+  return valid && col4Threshold(r4) === th && r2 >= th;
 };
-// 同族株主等以外の各列：その列が選択されていて、かつ⑤<閾値
+// 同族株主等以外の各列：その列が選択されていて、かつ②<閾値
 const nonDozokuMatch = (th: 50 | 30 | 15) => (g: (f: string) => string) => {
-  const { r5, r6, valid } = r5r6(g);
-  return valid && col6Threshold(r6) === th && r5 < th;
+  const { r2, r4, valid } = r2r4(g);
+  return valid && col4Threshold(r4) === th && r2 < th;
 };
 // 最終判定（行全体）
 const isDozokuJudge = (g: (f: string) => string) => {
-  const { r5, r6, valid } = r5r6(g);
-  const th = col6Threshold(r6);
-  return valid && th !== null && r5 >= th;
+  const { r2, r4, valid } = r2r4(g);
+  const th = col4Threshold(r4);
+  return valid && th !== null && r2 >= th;
 };
 const isNonDozokuJudge = (g: (f: string) => string) => {
-  const { r5, r6, valid } = r5r6(g);
-  const th = col6Threshold(r6);
-  return valid && th !== null && r5 < th;
+  const { r2, r4, valid } = r2r4(g);
+  const th = col4Threshold(r4);
+  return valid && th !== null && r2 < th;
 };
-// ── 2.少数株式所有者の評価方式の判定（通達188(2)(4)）のハイライト用 ──
-const shosuState = (g: (f: string) => string): { applies: boolean; result: 'gensoku' | 'haito' | null } => {
-  const isDozoku = isDozokuJudge(g);
-  const indiv = g('sh_1_6'); // 納税義務者(1行目)の議決権割合㋩
-  const indivR = Number(indiv);
-  const applies = isDozoku && indiv !== '' && !isNaN(indivR) && indivR < 5;
-  const officer = effectiveOfficer(g); // ㊁役員（手動選択優先・なければ役職名から導出）
-  let result: 'gensoku' | 'haito' | null = null;
-  if (applies) {
-    if (officer === true) result = 'gensoku';                  // 役員である→原則
-    else if (officer === false) {                              // 役員でない→㋭へ
-      if (g('j_chushin_self') === 'yes') result = 'gensoku';   // 本人が中心的同族株主→原則
-      else if (g('j_chushin_self') === 'no') {                 // でない→㋬へ
-        if (g('j_chushin_other') === 'yes') result = 'haito';  // 他に中心的同族株主がいる→配当還元
-        else if (g('j_chushin_other') === 'no') result = 'gensoku';
-      }
-    }
-  }
-  return { applies, result };
-};
-const shosuGensoku = (g: (f: string) => string) => shosuState(g).result === 'gensoku';
-const shosuHaito = (g: (f: string) => string) => shosuState(g).result === 'haito';
 
-/** 第1表の1の株主判定（⑤⑥と同族株主等の判定。第3表の適用方式などから参照） */
+// 様式の「１」記入枠（判定基準G44〜G49・株主の区分・判定G50/G51）: 該当時に「１」を自動表示する条件
+const JUDGE_FLAGS: Record<string, (g: (f: string) => string) => boolean> = {
+  b_G44: dozokuMatch(50), b_G46: dozokuMatch(30), b_G48: dozokuMatch(15),
+  b_G45: nonDozokuMatch(50), b_G47: nonDozokuMatch(30), b_G49: nonDozokuMatch(15),
+  bs_dozoku: isDozokuJudge, bs_hidozoku: isNonDozokuJudge,
+  js_gensoku: isDozokuJudge, js_haito: isNonDozokuJudge,
+};
+
+/**
+ * 第1表の1の株主判定（②④と同族株主等の判定。第3表の適用方式などから参照）。
+ * 戻り値のプロパティ名は旧様式からの互換のため据え置き:
+ *   ratio5=②の割合（同族関係者グループ） / ratio6=④の割合（筆頭株主グループ）
+ * 少数株式所有者の判定（区分2）は新様式では第1表の2にあり、j_* は table1_2 から読む。
+ */
 export function calcShareholderJudgment(getField: TableProps['getField']) {
   const gf = (f: string) => getField('table1_1', f);
+  const g2 = (f: string) => getField('table1_2', f);
   const n = (s: string) => Number(s.replace(/,/g, '')) || 0;
   let votes = 0;
   for (let r = 1; r <= SH_ROWS; r++) votes += n(gf(`sh_${r}_5`));
-  const denom = n(gf('④'));
+  const denom = n(gf('⑥')); // 議決権の総数
   const pct = (v: number, has: boolean): number | null => {
     if (!has || denom <= 0) return null;
     const rawPct = (v / denom) * 100;
     if (rawPct > 50 && rawPct < 51) return 51; // 50%超51%未満は切り上げて51
     return Math.floor(rawPct);
   };
-  const ratio5 = pct(votes, votes > 0);
-  const ratio6 = pct(n(gf('③')), gf('③') !== '');
+  const ratio5 = pct(votes, votes > 0);                 // ②の割合
+  const ratio6 = pct(n(gf('③')), gf('③') !== '');      // ④の割合
   const th = ratio6 === null ? null : ratio6 > 50 ? 50 : ratio6 >= 30 ? 30 : 15;
   const isDozoku = ratio5 !== null && th !== null ? ratio5 >= th : null; // 1.株主及び評価方式の判定（議決権割合）
 
-  // 2.少数株式所有者の評価方式の判定（通達188(2)(4)）
-  // 同族株主等に該当する納税義務者(1行目)のうち、個人の議決権割合(㋩)が5%未満の者に適用
+  // 2.少数株式所有者の評価方式の判定（通達188(2)(4)）※新様式では第1表の2の「2.」欄
+  // 同族株主等に該当する納税義務者(1行目)のうち、議決権割合(㋥)が5%未満の者に適用
   const indivRatio = pct(n(gf('sh_1_5')), gf('sh_1_5') !== '');
   const shosuApplies = isDozoku === true && indivRatio !== null && indivRatio < 5;
-  const officer = effectiveOfficer(gf); // ㊁役員: 手動選択(j_yakuin)優先・なければ役職名(sh_1_3)から導出
-  const chushinSelf = gf('j_chushin_self');    // ㋭納税義務者が中心的な同族株主: yes→原則 / no→次へ
-  const chushinOther = gf('j_chushin_other');  // ㋬他に中心的な同族株主(株主): yes(がいる)→配当還元 / no(がいない)→原則
+  // ㋩役員: 第1表の2の手動選択(j_yakuin)優先・なければ役職コード(sh_1_3k、旧名称データからも導出)で判定
+  // 役職コード1〜15＝通達188(2)の「役員」、16（その他）＝非該当
+  const manualOfficer = g2('j_yakuin');
+  const roleCodeVal = effectiveRoleCode(gf('sh_1_3k'), gf('sh_1_3'));
+  const officer = manualOfficer === 'yes' ? true : manualOfficer === 'no' ? false : roleCodeVal === '' ? null : Number(roleCodeVal) <= 15;
+  const chushinSelf = g2('j_chushin_self');    // 納税義務者が中心的な同族株主: yes→原則 / no→次へ
+  const chushinOther = g2('j_chushin_other');  // 他に中心的な同族株主(株主): yes(がいる)→配当還元 / no(がいない)→原則
   let shosuResult: 'gensoku' | 'haito' | null = null;
   if (shosuApplies) {
     if (officer === true) shosuResult = 'gensoku';
@@ -151,180 +225,247 @@ export function calcShareholderJudgment(getField: TableProps['getField']) {
   return { ratio5, ratio6, isDozoku, indivRatio, shosuApplies, officer, shosuResult, isDozokuFinal };
 }
 
-type Col = { left: number; width: number };
-const SH_COLS: Col[] = [
-  { left: 10.14, width: 11.05 }, // 氏名又は名称
-  { left: 20.92, width: 4.91 },  // 続柄
-  { left: 25.69, width: 7.91 },  // 会社における役職名
-  { left: 33.4, width: 9.07 },   // ㋑株式数
-  { left: 42.19, width: 8.66 },  // ㋺議決権数
-  { left: 50.66, width: 8.7 },   // ㋩議決権割合
-];
+// ── 和暦日付の4列プルダウン（元号｜年｜月｜日を様式の列に合わせて分割） ──
+// 保存キーは従来の複合入力と同じ `${prefix}_g/_y/_m/_d`（元号未選択は令和扱い）
+const numOptions = (n: number) => ['', ...Array.from({ length: n }, (_, i) => String(i + 1))];
+const ERA_OPTS = ['令和', '平成'];
+const YEAR_OPTS = numOptions(64);
+const MONTH_OPTS = numOptions(12);
+const DAY_OPTS = numOptions(31);
+const DATE_COLS = [
+  { suffix: '_g', left: 19.5, width: 5.44, options: ERA_OPTS },
+  { suffix: '_y', left: 24.94, width: 5.44, options: YEAR_OPTS },
+  { suffix: '_m', left: 30.38, width: 5.44, options: MONTH_OPTS },
+  { suffix: '_d', left: 35.82, width: 5.44, options: DAY_OPTS },
+] as const;
 
+function dateSelectCells(prefix: string, top: number, height: number, code: string): GridCell[] {
+  return [
+    // N番号の印字セル（様式では元号列の左端）
+    { kind: 'cell' as const, codeLabel: code, top, left: 17.69, width: 1.81, height },
+    ...DATE_COLS.map((col) => ({
+      field: `${prefix}${col.suffix}`,
+      kind: 'input' as const,
+      options: [...col.options],
+      top,
+      left: col.left,
+      width: col.width,
+      height,
+    })),
+  ];
+}
+
+// 株主行の様式識別コード（roleCode=役職コード欄、relCode=続柄コード欄、typeCode=株式種類コード欄）
+const SH_CODES = [
+  { name: 'E05', roleCode: 'G04', roleName: 'E06', shares: 'G06', undiv: 'G07', relCode: '', relName: '', typeCode: 'G05', typeName: 'E07', votes: 'G08', ratio: 'G09' },
+  { name: 'E08', roleCode: 'G11', roleName: 'E10', shares: 'G13', undiv: 'G14', relCode: 'G10', relName: 'E09', typeCode: 'G12', typeName: 'E11', votes: 'G15', ratio: 'G16' },
+  { name: 'E12', roleCode: 'G18', roleName: 'E14', shares: 'G20', undiv: 'G21', relCode: 'G17', relName: 'E13', typeCode: 'G19', typeName: 'E15', votes: 'G22', ratio: 'G23' },
+  { name: 'E16', roleCode: 'G25', roleName: 'E18', shares: 'G27', undiv: 'G28', relCode: 'G24', relName: 'E17', typeCode: 'G26', typeName: 'E19', votes: 'G29', ratio: 'G30' },
+  { name: 'E20', roleCode: 'G32', roleName: 'E22', shares: 'G34', undiv: 'G35', relCode: 'G31', relName: 'E21', typeCode: 'G33', typeName: 'E23', votes: 'G36', ratio: 'G37' },
+] as const;
+
+/** 株主データ行（1人=2行×5人）を自動生成 */
 function shareholderRows(): GridCell[] {
   const out: GridCell[] = [];
-  for (let r = 0; r < SH_ROWS; r++) {
-    const top = +(SH_TOP + r * SH_PITCH).toFixed(2);
-    const height = +SH_PITCH.toFixed(2);
-    SH_COLS.forEach((c, ci) => {
-      const reservesDragHandle = r > 0 && ci === 0;
-      const left = reservesDragHandle ? +(c.left + SH_DRAG_HANDLE_WIDTH).toFixed(2) : c.left;
-      const width = reservesDragHandle ? +(c.width - SH_DRAG_HANDLE_WIDTH).toFixed(2) : c.width;
-      if (r === 0 && ci === 1) {
-        // 1行目の続柄欄は「納税義務者」固定
-        out.push({ kind: 'label', text: '納税\n義務者', top, left, width, height, fontSize: 8 });
-      } else if (ci === 2) {
-        // 会社における役職名＝セレクト（役員該当の判定に連動）
-        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', options: OFFICER_ROLES, top, left, width, height, align: 'left' });
-      } else {
-        const topRightLabel = r === 0 ? ['株', '個', '％'][ci - 3] : undefined;
-        out.push({ field: `sh_${r + 1}_${ci + 1}`, kind: 'input', topRightLabel, commaInteger: ci === 3 || ci === 4, readOnly: ci === 5, top, left, width, height, align: ci <= 2 ? 'left' : 'right' });
-      }
-    });
+  for (let r = 1; r <= SH_ROWS; r++) {
+    const topA = ROW_TOPS[(r - 1) * 2]!;
+    const topB = ROW_TOPS[(r - 1) * 2 + 1]!;
+    const hA = +(topB - topA).toFixed(2);
+    const hB = +(ROW_TOPS[(r - 1) * 2 + 2]! - topB).toFixed(2);
+    const hasHandle = r > 1;
+    const nameLeft = hasHandle ? +(X.eCodeEnd + SH_DRAG_HANDLE_WIDTH).toFixed(2) : X.eCodeEnd;
+    const nameWidth = +(X.nameEnd - nameLeft).toFixed(2);
+    const codes = SH_CODES[r - 1]!;
+    // 上段: [E番号][氏名] [G番号][役職コード選択][E番号][役職名(自動表示)] [G番号][㋑株式数] [G番号][㋺未分割株式数]
+    out.push({ kind: 'cell', codeLabel: codes.name, top: topA, left: X.eCode, width: +(X.eCodeEnd - X.eCode).toFixed(2), height: hA });
+    out.push({ field: `sh_${r}_1`, kind: 'input', ariaLabel: `株主${r}の氏名又は名称`, top: topA, left: nameLeft, width: nameWidth, height: hA, align: 'left' });
+    out.push({ kind: 'cell', codeLabel: codes.roleCode, top: topA, left: X.gCode, width: +(X.gCodeEnd - X.gCode).toFixed(2), height: hA });
+    out.push({ field: `sh_${r}_3k`, kind: 'input', options: [...ROLE_CODE_OPTIONS], compactSelectedOption: true, ariaLabel: `株主${r}の役職コード`, top: topA, left: X.codeBox, width: +(X.codeBoxEnd - X.codeBox).toFixed(2), height: hA });
+    out.push({ kind: 'cell', codeLabel: codes.roleName, top: topA, left: X.roleECode, width: +(X.roleECodeEnd - X.roleECode).toFixed(2), height: hA });
+    out.push({ field: `sh_${r}_3`, kind: 'input', readOnlyWhen: (g) => g(`sh_${r}_3k`) !== '16', ariaLabel: `株主${r}の会社における役職名（役職コードから自動表示。16：その他のときのみ入力可）`, top: topA, left: X.role, width: +(X.roleEnd - X.role).toFixed(2), height: hA, align: 'left' });
+    out.push({ kind: 'cell', codeLabel: codes.shares, top: topA, left: X.numCode1, width: +(X.numCode1End - X.numCode1).toFixed(2), height: hA });
+    out.push({ field: `sh_${r}_4`, kind: 'input', commaInteger: true, topRightLabel: r === 1 ? '株' : undefined, top: topA, left: X.num1, width: +(X.num1End - X.num1).toFixed(2), height: hA, align: 'right' });
+    out.push({ kind: 'cell', codeLabel: codes.undiv, top: topA, left: X.numCode2, width: +(X.numCode2End - X.numCode2).toFixed(2), height: hA });
+    out.push({ field: `sh_${r}_7`, kind: 'input', commaInteger: true, topRightLabel: r === 1 ? '株' : undefined, top: topA, left: X.num2, width: +(X.num2End - X.num2).toFixed(2), height: hA, align: 'right' });
+    // 下段: [G番号][続柄コード選択][E番号][続柄(自動表示)]（1行目=納税義務者固定） [G番号][株式種類コード選択][E番号][株式の種類] [G番号][㋩議決権数] [G番号][㋥割合(自動)]
+    if (r === 1) {
+      out.push({ kind: 'label', text: '納税義務者', top: topB, left: X.name, width: +(X.nameEnd - X.name).toFixed(2), height: hB });
+    } else {
+      out.push({ kind: 'cell', codeLabel: codes.relCode, top: topB, left: X.eCode, width: +(X.eCodeEnd - X.eCode).toFixed(2), height: hB });
+      out.push({ field: `sh_${r}_2k`, kind: 'input', options: [...ZOKUGARA_CODE_OPTIONS], compactSelectedOption: true, ariaLabel: `株主${r}の続柄コード`, top: topB, left: X.relBox, width: +(X.relBoxEnd - X.relBox).toFixed(2), height: hB });
+      out.push({ kind: 'cell', codeLabel: codes.relName, top: topB, left: X.relECode, width: +(X.relECodeEnd - X.relECode).toFixed(2), height: hB });
+      out.push({ field: `sh_${r}_2`, kind: 'input', readOnlyWhen: (g) => g(`sh_${r}_2k`) !== '18', ariaLabel: `株主${r}の続柄（続柄コードから自動表示。18：その他のときのみ入力可）`, top: topB, left: X.rel, width: +(X.relEnd - X.rel).toFixed(2), height: hB, align: 'left' });
+    }
+    out.push({ kind: 'cell', codeLabel: codes.typeCode, top: topB, left: X.gCode, width: +(X.gCodeEnd - X.gCode).toFixed(2), height: hB });
+    out.push({ field: `sh_${r}_9`, kind: 'input', options: [...STOCK_TYPE_OPTIONS], compactSelectedOption: true, ariaLabel: `株主${r}の株式種類コード（1=普通株式、2=普通株式以外）`, top: topB, left: X.codeBox, width: +(X.codeBoxEnd - X.codeBox).toFixed(2), height: hB });
+    out.push({ kind: 'cell', codeLabel: codes.typeName, top: topB, left: X.roleECode, width: +(X.roleECodeEnd - X.roleECode).toFixed(2), height: hB });
+    out.push({ field: `sh_${r}_8`, kind: 'input', ariaLabel: `株主${r}の株式の種類`, top: topB, left: X.role, width: +(X.roleEnd - X.role).toFixed(2), height: hB, align: 'left' });
+    out.push({ kind: 'cell', codeLabel: codes.votes, top: topB, left: X.numCode1, width: +(X.numCode1End - X.numCode1).toFixed(2), height: hB });
+    out.push({ field: `sh_${r}_5`, kind: 'input', commaInteger: true, topRightLabel: r === 1 ? '個' : undefined, top: topB, left: X.num1, width: +(X.num1End - X.num1).toFixed(2), height: hB, align: 'right' });
+    out.push({ kind: 'cell', codeLabel: codes.ratio, top: topB, left: X.numCode2, width: +(X.numCode2End - X.numCode2).toFixed(2), height: hB });
+    out.push({ field: `sh_${r}_6`, kind: 'input', readOnly: true, topRightLabel: r === 1 ? '％' : undefined, top: topB, left: X.num2, width: +(X.num2End - X.num2).toFixed(2), height: hB, align: 'right' });
+    // ドラッグハンドル（2人目以降・氏名行のE番号セル右隣）
+    if (hasHandle) {
+      out.push({
+        kind: 'label',
+        text: '≡',
+        ariaLabel: `株主${r}（2行分）をドラッグして並び替え`,
+        dragId: String(r),
+        top: topA,
+        left: X.eCodeEnd,
+        width: SH_DRAG_HANDLE_WIDTH,
+        height: hA,
+        fontSize: 12,
+        bold: true,
+        noWrap: true,
+      });
+    }
   }
   return out;
 }
 
-function shareholderDragHandles(): GridCell[] {
-  const out: GridCell[] = [];
-  for (let row = 2; row <= SH_ROWS; row++) {
-    const top = +(SH_TOP + (row - 1) * SH_PITCH).toFixed(2);
-    out.push({
-      kind: 'label',
-      text: '≡',
-      ariaLabel: `株主${row}行をドラッグして並び替え`,
-      dragId: String(row),
-      top,
-      left: SH_COLS[0]!.left,
-      width: SH_DRAG_HANDLE_WIDTH,
-      height: +SH_PITCH.toFixed(2),
-      fontSize: 12,
-      bold: true,
-      noWrap: true,
-    });
-  }
-  return out;
-}
-
-/** 第1表の1のグリッドセル（ピッカーで測定・確定したもの／ピッカー出力をそのまま保存） */
+/** 第1表の1のグリッドセル（令和8年4月1日以降用・罫線座標はPNGからの機械抽出） */
 const CELLS: GridCell[] = [
-  // ── 外枠・区分 ──
-  { kind: 'cell', text: '', top: 8.61, left: 8.37, width: 85.24, height: 83.28 },
-  { kind: 'cell', text: '', top: 8.61, left: 8.23, width: 85.24, height: 18.22 },
-  { kind: 'cell', text: '', top: 26.83, left: 8.23, width: 51.28, height: 65.06 },
-  { kind: 'cell', text: '', top: 26.73, left: 59.24, width: 34.23, height: 19.28 },
-  { kind: 'cell', text: '', top: 45.81, left: 58.97, width: 34.64, height: 8.1 },
-  { kind: 'cell', text: '', top: 53.72, left: 59.1, width: 34.51, height: 28.14 },
-  { kind: 'cell', diagonal: 'bltr', top: 81.57, left: 59.24, width: 34.37, height: 10.41 },
-  // ── 会社情報ヘッダー（左） ──
-  { kind: 'label', text: '会 社 名', top: 8.61, left: 8.23, width: 13.09, height: 5.2 },
-  { kind: 'label', text: '代 表 者 氏 名', top: 13.72, left: 8.23, width: 12.96, height: 3.47 },
-  { kind: 'label', text: '課 税 時 期', top: 16.9, left: 8.1, width: 13.09, height: 5.2, fontSize: 9 },
-  { kind: 'label', text: '直 前 期', top: 21.81, left: 8.1, width: 13.23, height: 5.11, fontSize: 9 },
-  { field: 'f12', kind: 'input', top: 8.61, left: 21.05, width: 29.87, height: 5.2, align: 'left' },
-  { field: 'f13', kind: 'input', top: 13.72, left: 20.92, width: 29.87, height: 3.47, align: 'left' },
-  { field: 'f14', kind: 'input', date: true, top: 17.09, left: 21.05, width: 29.87, height: 5.01 },
-  { field: 'f15', kind: 'input', dateRange: true, top: 22.01, left: 20.92, width: 29.87, height: 4.92 },
-  // ── 会社情報ヘッダー（右：本店所在地・事業内容） ──
-  { kind: 'label', text: '本店の所在地', top: 8.61, left: 50.65, width: 8.86, height: 5.2 },
-  { kind: 'label', text: '事　業\n内　容', top: 13.81, left: 50.65, width: 8.86, height: 13.01 },
-  { field: 'f18', kind: 'input', top: 8.42, left: 59.51, width: 34.1, height: 5.49, align: 'left' },
-  { kind: 'label', text: '取扱品目及び製造、卸売、\n小売等の区分', top: 13.72, left: 59.24, width: 18.28, height: 3.47 },
-  { kind: 'label', text: '業 種 目番号', top: 13.81, left: 77.38, width: 7.64, height: 3.28 },
-  { kind: 'label', text: '取引金額の\n構成比', top: 13.72, left: 84.88, width: 8.59, height: 3.28 },
-  { field: 'f22', kind: 'input', top: 17.09, left: 59.24, width: 18.28, height: 2.6, align: 'left' },
-  { field: 'f23', kind: 'input', integerDigits: 3, top: 17, left: 77.24, width: 7.77, height: 2.6 },
-  { field: 'f24', kind: 'input', rightLabel: '％', top: 17, left: 84.74, width: 8.73, height: 2.6 },
-  { field: 'f25', kind: 'input', top: 19.6, left: 59.38, width: 18.14, height: 2.41, align: 'left' },
-  { field: 'f26', kind: 'input', integerDigits: 3, top: 19.5, left: 77.38, width: 7.64, height: 2.51 },
-  { field: 'f27', kind: 'input', rightLabel: '％', top: 19.4, left: 84.74, width: 8.86, height: 2.7 },
-  { field: 'f28', kind: 'input', top: 22.01, left: 59.38, width: 18.14, height: 2.51, align: 'left' },
-  { field: 'f29', kind: 'input', integerDigits: 3, top: 21.91, left: 77.24, width: 7.77, height: 2.6 },
-  { field: 'f30', kind: 'input', rightLabel: '％', top: 21.91, left: 85.02, width: 8.59, height: 2.51 },
-  { field: 'f31', kind: 'input', top: 24.42, left: 59.24, width: 18.28, height: 2.41, align: 'left' },
-  { field: 'f32', kind: 'input', integerDigits: 3, top: 24.42, left: 77.38, width: 7.64, height: 2.41 },
-  { field: 'f33', kind: 'input', rightLabel: '％', top: 24.32, left: 84.88, width: 8.46, height: 2.6 },
-  // ── 1. 株主及び評価方式の判定（株主テーブル） ──
-  { kind: 'label', text: '１．株主及び評価方式の判定', top: 26.63, left: 8.1, width: 51.42, height: 4.05, align: 'left', fontSize: 10 },
-  { kind: 'label', text: '判定要素（課税時期現在の株式等の所在状況）', top: 30.49, left: 8.1, width: 2.45, height: 61.4, align: 'center' },
-  { kind: 'label', text: '氏名又は名称', top: 30.39, left: 10.14, width: 11.05, height: 3.76 },
-  { kind: 'label', text: '続 柄', top: 30.49, left: 20.92, width: 4.91, height: 3.76 },
-  { kind: 'label', text: '会社における 役 職 名', top: 30.39, left: 25.69, width: 7.91, height: 3.86 },
-  { kind: 'label', text: '㋑株 式 数\n（株式の種類）', top: 30.39, left: 33.33, width: 9, height: 3.86 },
-  { kind: 'label', text: '㋺議 決 権 数', top: 30.39, left: 42.19, width: 8.73, height: 3.86 },
-  { kind: 'label', text: '㋩議決権割合\n( ㋺ /④)', top: 30.39, left: 50.78, width: 8.73, height: 3.76 },
-  // 株主データ行（自動生成・1行目続柄=納税義務者）
+  // ── 氏名（被相続人又は受贈者） ──
+  { kind: 'label', text: '氏　　名\n（被相続人又は受贈者）', top: 13.68, left: 50.32, width: 14.51, height: 3.13, fontSize: 8 },
+  { field: 'decedent', kind: 'input', top: 13.68, left: 64.83, width: 23.65, height: 3.13, align: 'left' },
+  // ── 会社情報ヘッダー ──
+  { kind: 'label', text: '会　社　名', top: 19.43, left: 10.48, width: 7.21, height: 2.56 },
+  { kind: 'cell', codeLabel: 'E01', top: 19.43, left: 17.69, width: 1.81, height: 2.56 },
+  { field: 'f12', kind: 'input', top: 19.43, left: 19.5, width: 18.13, height: 2.56, align: 'left' },
+  { kind: 'label', text: '本　店　の\n所　在　地', top: 19.43, left: 37.63, width: 7.25, height: 2.56, fontSize: 8 },
+  { kind: 'cell', codeLabel: 'H04', top: 19.43, left: 44.88, width: 1.82, height: 2.56 },
+  { field: 'f18', kind: 'input', top: 19.43, left: 46.7, width: 41.78, height: 2.56, align: 'left' },
+  { kind: 'label', text: '代表者氏名', top: 21.99, left: 10.48, width: 7.21, height: 2.43 },
+  { kind: 'cell', codeLabel: 'H07', top: 21.99, left: 17.69, width: 1.81, height: 2.43 },
+  { field: 'f13', kind: 'input', top: 21.99, left: 19.5, width: 21.76, height: 2.43, align: 'left' },
+  { kind: 'label', text: '課 税 時 期', top: 24.42, left: 10.48, width: 7.21, height: 3.33, fontSize: 9 },
+  { kind: 'label', text: '元　号', top: 24.42, left: 17.69, width: 7.25, height: 0.99, fontSize: 7 },
+  { kind: 'label', text: '年', top: 24.42, left: 24.94, width: 5.44, height: 0.99, fontSize: 7 },
+  { kind: 'label', text: '月', top: 24.42, left: 30.38, width: 5.44, height: 0.99, fontSize: 7 },
+  { kind: 'label', text: '日', top: 24.42, left: 35.82, width: 5.44, height: 0.99, fontSize: 7 },
+  ...dateSelectCells('f14', 25.41, 2.34, 'N01'),
+  { kind: 'label', text: '直\n前\n期', top: 27.75, left: 10.48, width: 3.58, height: 4.61, fontSize: 9 },
+  { kind: 'label', text: '自', top: 27.75, left: 14.06, width: 3.63, height: 2.36 },
+  ...dateSelectCells('f15_from', 27.75, 2.36, 'N02'),
+  { kind: 'label', text: '至', top: 30.11, left: 14.06, width: 3.63, height: 2.25 },
+  ...dateSelectCells('f15_to', 30.11, 2.25, 'N03'),
+  { kind: 'label', text: '事　業\n内　容', top: 21.99, left: 41.26, width: 3.62, height: 10.37 },
+  { kind: 'label', text: '取扱品目及び製造、卸売、\n小売等の区分', top: 21.99, left: 44.88, width: 21.76, height: 3.42 },
+  { kind: 'label', text: '業　種　目\n番　　　号', top: 21.99, left: 66.64, width: 14.5, height: 3.42 },
+  { kind: 'label', text: '取引金額の\n構成比（％）', top: 21.99, left: 81.14, width: 7.34, height: 3.42, fontSize: 7.5 },
+  { kind: 'cell', codeLabel: 'E02', top: 25.41, left: 44.88, width: 1.82, height: 2.34 },
+  { field: 'f22', kind: 'input', top: 25.41, left: 46.7, width: 19.94, height: 2.34, align: 'left' },
+  { kind: 'cell', codeLabel: 'G01', top: 25.41, left: 66.64, width: 1.81, height: 2.34 },
+  { field: 'f23', kind: 'input', integerDigits: 4, top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
+  { kind: 'cell', codeLabel: 'C01', top: 25.41, left: 81.14, width: 1.82, height: 2.34 },
+  { field: 'f24', kind: 'input', rightLabel: '％', top: 25.41, left: 82.96, width: 5.52, height: 2.34 },
+  { kind: 'cell', codeLabel: 'E03', top: 27.75, left: 44.88, width: 1.82, height: 2.36 },
+  { field: 'f25', kind: 'input', top: 27.75, left: 46.7, width: 19.94, height: 2.36, align: 'left' },
+  { kind: 'cell', codeLabel: 'G02', top: 27.75, left: 66.64, width: 1.81, height: 2.36 },
+  { field: 'f26', kind: 'input', integerDigits: 4, top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
+  { kind: 'cell', codeLabel: 'C02', top: 27.75, left: 81.14, width: 1.82, height: 2.36 },
+  { field: 'f27', kind: 'input', rightLabel: '％', top: 27.75, left: 82.96, width: 5.52, height: 2.36 },
+  { kind: 'cell', codeLabel: 'E04', top: 30.11, left: 44.88, width: 1.82, height: 2.25 },
+  { field: 'f28', kind: 'input', top: 30.11, left: 46.7, width: 19.94, height: 2.25, align: 'left' },
+  { kind: 'cell', codeLabel: 'G03', top: 30.11, left: 66.64, width: 1.81, height: 2.25 },
+  { field: 'f29', kind: 'input', integerDigits: 4, top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
+  { kind: 'cell', codeLabel: 'C03', top: 30.11, left: 81.14, width: 1.82, height: 2.25 },
+  { field: 'f30', kind: 'input', rightLabel: '％', top: 30.11, left: 82.96, width: 5.52, height: 2.25 },
+  // ── 1. 株主及び評価方式の判定 ──
+  { kind: 'label', text: '１．株主及び評価方式の判定\n※　「判定基準」及び「判定」欄については、当てはまる項目の空欄に「１」を記入してください。', top: 32.36, left: 10.48, width: 78, height: 3.42, align: 'left', fontSize: 8.5 },
+  { kind: 'label', text: '判定要素（課税時期現在の株式等の所有状況）', top: 35.78, left: 10.48, width: 1.77, height: 49.01, align: 'center' },
+  // 株主テーブル ヘッダー（上段/下段）
+  { kind: 'label', text: '氏 名 又 は 名 称', top: 35.78, left: X.name, width: 21.75, height: 2.54 },
+  { kind: 'label', text: '役　職\nコード', top: 35.78, left: X.gCode, width: 7.26, height: 2.54, fontSize: 7.5 },
+  { kind: 'label', text: '会社における役職名', top: 35.78, left: X.role, width: 18.13, height: 2.54 },
+  { kind: 'label', text: '㋑　株 式 数（株）', top: 35.78, left: X.numCode1, width: 14.5, height: 2.54 },
+  { kind: 'label', text: '㋺　未分割の株式の\n株 式 数（株）', top: 35.78, left: X.numCode2, width: 14.59, height: 2.54, fontSize: 7.5 },
+  { kind: 'label', text: '続　柄\nコード', top: 38.32, left: X.eCode, width: 7.25, height: 2.56, fontSize: 7.5 },
+  { kind: 'label', text: '続　　　柄', top: 38.32, left: X.rel, width: 14.5, height: 2.56 },
+  { kind: 'label', text: '株式種類\nコード', top: 38.32, left: X.gCode, width: 7.26, height: 2.56, fontSize: 7.5 },
+  { kind: 'label', text: '株 式 の 種 類', top: 38.32, left: X.role, width: 18.13, height: 2.56 },
+  { kind: 'label', text: '㋩　議 決 権 数（個）', top: 38.32, left: X.numCode1, width: 14.5, height: 2.56 },
+  { kind: 'label', text: '㋥　議決権割合\n（㋩/⑥）（％）', top: 38.32, left: X.numCode2, width: 14.59, height: 2.56, fontSize: 7.5 },
+  // 株主データ行（自動生成・1人=2行）
   ...shareholderRows(),
-  ...shareholderDragHandles(),
   // 自己株式行
-  { kind: 'label', text: '自己株式', top: 76.37, left: 10.28, width: 10.77, height: 3.47 },
-  { kind: 'cell', diagonal: 'bltr', top: 76.46, left: 20.92, width: 5.18, height: 3.37 },
-  { kind: 'cell', diagonal: 'bltr', top: 76.56, left: 25.83, width: 7.91, height: 3.28 },
-  { field: 'f63', kind: 'input', commaInteger: true, top: 76.37, left: 33.46, width: 8.86, height: 3.47 },
-  { kind: 'cell', diagonal: 'bltr', top: 76.46, left: 42.06, width: 8.86, height: 3.37 },
-  { kind: 'cell', diagonal: 'bltr', top: 76.46, left: 50.65, width: 8.73, height: 3.28 },
-  // 合計行（②⑤ / ③⑥ / ①④）
-  { kind: 'label', text: '納税義務者の属する同族関係者グループの議決権の合計数', top: 79.64, left: 10.42, width: 23.32, height: 4.24 },
-  { kind: 'cell', diagonal: 'bltr', top: 79.64, left: 33.33, width: 9, height: 4.24 },
-  { field: '②', kind: 'input', commaInteger: true, readOnly: true, cornerLabel: '②', top: 79.64, left: 42.19, width: 8.59, height: 4.14 },
-  { field: '⑤', kind: 'input', readOnly: true, cornerLabel: '⑤', topRightLabel: '（②/④）', top: 79.64, left: 50.65, width: 8.86, height: 4.24 },
-  { kind: 'label', text: '筆頭株主グループの議決権の合計数', top: 83.79, left: 10.28, width: 23.32, height: 4.05 },
-  { kind: 'cell', diagonal: 'bltr', top: 83.69, left: 33.33, width: 8.86, height: 4.05 },
-  { field: '③', kind: 'input', commaInteger: true, cornerLabel: '③', top: 83.69, left: 42.19, width: 8.73, height: 4.14 },
-  { field: '⑥', kind: 'input', readOnly: true, cornerLabel: '⑥', topRightLabel: '（③/④）', top: 83.69, left: 50.51, width: 8.86, height: 4.14 },
-  { kind: 'label', text: '評価会社の発行済株式又は議決権の総数', top: 87.64, left: 10.28, width: 23.32, height: 4.14 },
-  { field: '①', kind: 'input', commaInteger: true, cornerLabel: '①', top: 87.64, left: 33.33, width: 9.14, height: 4.14 },
-  { field: '④', kind: 'input', commaInteger: true, cornerLabel: '④', top: 87.74, left: 42.19, width: 8.59, height: 4.05 },
-  { kind: 'label', text: '100', top: 87.64, left: 50.65, width: 8.59, height: 4.14 },
-  // ── 判定基準・判定マトリクス（右上） ──
-  { kind: 'label', text: '判定基準', top: 26.83, left: 59.38, width: 1.77, height: 19.08, align: 'center' },
-  { kind: 'label', text: '納税義務者の属する同族関係者グループの議決権割合\n（⑤の割合）を基として、区分します。', top: 26.92, left: 60.88, width: 32.87, height: 3.66, align: 'left', fontSize: 7.5 },
-  { kind: 'label', text: '区分', top: 30.49, left: 60.88, width: 1.5, height: 7.81, align: 'center' },
-  { kind: 'label', text: '筆頭株主グループの議決権割合（⑥の割合）', top: 30.49, left: 62.38, width: 22.78, height: 3.76 },
-  { kind: 'label', text: '５０％超の\n場合', highlightWhen: (g) => g('⑥') !== '' && Number(g('⑥')) > 50, top: 33.96, left: 62.38, width: 7.77, height: 4.24 },
-  { kind: 'label', text: '３０%以上５０%\n以下の場合', fontSize: 7.5, highlightWhen: (g) => g('⑥') !== '' && Number(g('⑥')) >= 30 && Number(g('⑥')) <= 50, top: 33.96, left: 69.88, width: 7.64, height: 4.24 },
-  { kind: 'label', text: '３０％未満の場 合', highlightWhen: (g) => g('⑥') !== '' && Number(g('⑥')) < 30, top: 33.96, left: 77.38, width: 7.77, height: 4.24 },
-  { kind: 'label', text: '株主の区分', top: 30.39, left: 84.88, width: 8.59, height: 7.81 },
-  { kind: 'label', text: '⑤の割合', top: 38.01, left: 60.88, width: 1.64, height: 8, align: 'center' },
-  // 同族株主等の行：列ごとに「⑥の区分」かつ「⑤≥列の閾値」のときハイライト
-  { kind: 'label', text: '５０％超', highlightWhen: dozokuMatch(50), top: 38.1, left: 62.38, width: 7.64, height: 4.05 },
-  { kind: 'label', text: '３０％以上', highlightWhen: dozokuMatch(30), top: 38.01, left: 69.88, width: 7.64, height: 4.05 },
-  { kind: 'label', text: '１５％以上', highlightWhen: dozokuMatch(15), top: 37.91, left: 77.38, width: 7.64, height: 4.24 },
-  { kind: 'label', text: ' 同族株主等', highlightWhen: isDozokuJudge, top: 38.01, left: 84.88, width: 8.59, height: 4.05 },
-  // 同族株主等以外の行：⑤<列の閾値のときハイライト
-  { kind: 'label', text: '５０％未満', highlightWhen: nonDozokuMatch(50), top: 41.86, left: 62.38, width: 7.77, height: 4.14 },
-  { kind: 'label', text: '３０％未満', highlightWhen: nonDozokuMatch(30), top: 41.96, left: 69.88, width: 7.64, height: 4.05 },
-  { kind: 'label', text: '１５％未満', highlightWhen: nonDozokuMatch(15), top: 42.06, left: 77.24, width: 7.77, height: 3.86 },
-  { kind: 'label', text: '同族株主等\n以外の株主', highlightWhen: isNonDozokuJudge, top: 41.96, left: 84.88, width: 8.59, height: 4.05 },
-  { kind: 'label', text: '判定', top: 45.91, left: 59.38, width: 1.64, height: 7.9, align: 'center' },
-  { kind: 'label', text: '同族株主等\n(原則的評価方式等)', highlightWhen: isDozokuJudge, top: 45.81, left: 60.88, width: 16.64, height: 4.24 },
-  { kind: 'label', text: '同族株主等以外の株主\n（配当還元方式）', highlightWhen: isNonDozokuJudge, top: 45.81, left: 77.38, width: 16.09, height: 4.24 },
-  { kind: 'label', text: '｢同族株主等に該当する納税義務者のうち、議決権割合( ㋩ の割合）が５％未満の者の評価方式は、「２．少数株式所有者の評価方式の判定」欄により判定します。', top: 49.77, left: 60.74, width: 32.87, height: 4.24, align: 'left' },
-  // ── 2. 少数株式所有者の評価方式の判定（右下） ──
-  { kind: 'label', text: '２．少数株式所有者の評価方式の判定', top: 53.72, left: 59.38, width: 34.23, height: 4.14, align: 'left', fontSize: 10 },
-  { kind: 'label', text: '判定要素', top: 57.77, left: 59.24, width: 1.91, height: 20.43, align: 'center' },
-  { kind: 'label', text: '項 目', top: 57.57, left: 60.74, width: 9.41, height: 4.14 },
-  { kind: 'label', text: '判 定 内 容', top: 57.77, left: 70.01, width: 23.46, height: 3.95 },
-  { kind: 'label', text: '氏 名', top: 61.52, left: 60.88, width: 9.14, height: 3.95 },
-  { field: 'f6', kind: 'input', top: 61.52, left: 69.74, width: 23.87, height: 4.05 },
-  { kind: 'label', text: '㊁役 員', top: 65.28, left: 60.88, width: 9.27, height: 4.05 },
-  // ㊁役員は納税義務者の役職名(sh_1_3)から自動判定。クリック選択はせず、結果（である／でない）だけを強調
-  { kind: 'label', text: 'である（原則的評価方式等）', highlightWhen: (g) => effectiveOfficer(g) === true, top: 65.28, left: 69.88, width: 11.8, height: 3.95 },
-  { kind: 'label', text: 'でない（次の㋭へ）', highlightWhen: (g) => effectiveOfficer(g) === false, top: 65.28, left: 81.68, width: 11.79, height: 3.95 },
-  { kind: 'label', text: '㋭納税義務者が\n中心的な同族株主', top: 69.33, left: 61.01, width: 9, height: 3.28 },
-  // セル内クリックで「である／でない」を選択（j_chushin_self）
-  { kind: 'label', text: 'である（原則的評価方式等）', selectValue: { field: 'j_chushin_self', value: 'yes' }, highlightWhen: (g) => g('j_chushin_self') === 'yes', top: 69.04, left: 69.88, width: 11.8, height: 3.76 },
-  { kind: 'label', text: 'でない（次の㋬へ）', selectValue: { field: 'j_chushin_self', value: 'no' }, highlightWhen: (g) => g('j_chushin_self') === 'no', top: 69.04, left: 81.68, width: 11.79, height: 3.76 },
-  { kind: 'label', text: '㋬納税義務者以外に中心的な同族株主（又は株主）', top: 72.42, left: 60.88, width: 9.27, height: 5.78 },
-  // セル内クリックで「がいる／がいない」を選択（j_chushin_other）
-  { kind: 'label', text: 'がいる（配当還元方式）', selectValue: { field: 'j_chushin_other', value: 'yes' }, highlightWhen: (g) => g('j_chushin_other') === 'yes', top: 72.51, left: 69.88, width: 11.8, height: 5.78 },
-  { kind: 'label', text: 'がいない（原則的評価方式等）', selectValue: { field: 'j_chushin_other', value: 'no' }, highlightWhen: (g) => g('j_chushin_other') === 'no', top: 72.51, left: 81.68, width: 11.79, height: 5.78 },
-  { kind: 'label', text: '判 定', top: 78.2, left: 59.38, width: 10.64, height: 3.57 },
-  { kind: 'label', text: '原則的評価方式等', highlightWhen: shosuGensoku, top: 78.01, left: 70.01, width: 11.73, height: 3.86 },
-  { kind: 'label', text: '配当還元方式', highlightWhen: shosuHaito, top: 78.01, left: 81.74, width: 11.73, height: 3.86 },
+  { kind: 'label', text: '自己株式の株式数', top: 66.81, left: X.name, width: 21.75, height: 2.59 },
+  { kind: 'cell', diagonal: 'bltr', top: 66.81, left: X.gCode, width: 25.39, height: 2.59 },
+  { kind: 'cell', codeLabel: 'G38', top: 66.81, left: X.numCode1, width: 1.81, height: 2.59 },
+  { field: 'f63', kind: 'input', commaInteger: true, top: 66.81, left: X.num1, width: 12.69, height: 2.59 },
+  { kind: 'cell', diagonal: 'bltr', top: 66.81, left: X.numCode2, width: 14.59, height: 2.59 },
+  // 合計ブロック（①②/③④/⑤⑥）
+  { kind: 'label', text: '納税義務者の属する同族関係者グループの議決権の合計数', top: 69.4, left: X.name, width: 47.14, height: 4.05 },
+  { kind: 'label', text: '①　議 決 権 数', top: 69.4, left: X.numCode1, width: 14.5, height: 1.45, fontSize: 7.5 },
+  { kind: 'cell', codeLabel: 'G39', top: 70.85, left: X.numCode1, width: 1.81, height: 2.6 },
+  { field: '①', kind: 'input', commaInteger: true, readOnly: true, top: 70.85, left: X.num1, width: 12.69, height: 2.6 },
+  { kind: 'label', text: '②　議決権割合（①/⑥）', top: 69.4, left: X.numCode2, width: 14.59, height: 1.45, fontSize: 7.5 },
+  { kind: 'cell', codeLabel: 'G40', top: 70.85, left: X.numCode2, width: 1.82, height: 2.6 },
+  { field: '②', kind: 'input', readOnly: true, topRightLabel: '％', top: 70.85, left: X.num2, width: 12.77, height: 2.6 },
+  { kind: 'label', text: '筆頭株主グループの議決権の合計数', top: 73.45, left: X.name, width: 47.14, height: 4.07 },
+  { kind: 'label', text: '③　議 決 権 数', top: 73.45, left: X.numCode1, width: 14.5, height: 1.48, fontSize: 7.5 },
+  { kind: 'cell', codeLabel: 'G41', top: 74.93, left: X.numCode1, width: 1.81, height: 2.59 },
+  { field: '③', kind: 'input', commaInteger: true, top: 74.93, left: X.num1, width: 12.69, height: 2.59 },
+  { kind: 'label', text: '④　議決権割合（③/⑥）', top: 73.45, left: X.numCode2, width: 14.59, height: 1.48, fontSize: 7.5 },
+  { kind: 'cell', codeLabel: 'G42', top: 74.93, left: X.numCode2, width: 1.82, height: 2.59 },
+  { field: '④', kind: 'input', readOnly: true, topRightLabel: '％', top: 74.93, left: X.num2, width: 12.77, height: 2.59 },
+  { kind: 'label', text: '評 価 会 社 の 発 行 済 株 式 又 は 議 決 権 の 総 数', top: 77.52, left: X.name, width: 47.14, height: 7.27 },
+  { kind: 'label', text: '⑤　発行済株式数', top: 77.52, left: X.numCode1, width: 14.5, height: 1.03, fontSize: 7.5 },
+  { kind: 'cell', codeLabel: 'G43', top: 78.55, left: X.numCode1, width: 1.81, height: 2.59 },
+  { field: '⑤', kind: 'input', commaInteger: true, top: 78.55, left: X.num1, width: 12.69, height: 2.59 },
+  { kind: 'cell', diagonal: 'bltr', top: 77.52, left: X.numCode2, width: 14.59, height: 3.62 },
+  { kind: 'label', text: '⑥　議決権の総数', top: 81.14, left: X.numCode1, width: 14.5, height: 1.05, fontSize: 7.5 },
+  { kind: 'cell', codeLabel: 'C04', top: 82.19, left: X.numCode1, width: 1.81, height: 2.6 },
+  { field: '⑥', kind: 'input', commaInteger: true, top: 82.19, left: X.num1, width: 12.69, height: 2.6 },
+  { kind: 'label', text: '議 決 権 割 合', top: 81.14, left: X.numCode2, width: 14.59, height: 1.05, fontSize: 7.5 },
+  { kind: 'label', text: '100', top: 82.19, left: X.numCode2, width: 14.59, height: 2.6 },
+  // ── 判定基準 ──
+  { kind: 'label', text: '判定基準', top: 84.79, left: 10.48, width: 1.77, height: 9.23, align: 'center' },
+  { kind: 'label', text: '納税義務者の属する同族関係者グループの議決権割合（②の割合）を基として、区分します。', top: 84.79, left: X.name, width: 76.23, height: 1.51, align: 'left', fontSize: 7.5 },
+  { kind: 'label', text: '区\n分', top: 86.3, left: X.name, width: 5.44, height: 3.02 },
+  { kind: 'label', text: '筆 頭 株 主 グ ル ー プ の 議 決 権 割 合（ ④ の 割 合 ）', top: 86.3, left: 17.69, width: 48.95, height: 1.51, fontSize: 7.5 },
+  { kind: 'label', text: '50 ％ 超 の 場 合', highlightWhen: (g) => g('④') !== '' && Number(g('④')) > 50, top: 87.81, left: 17.69, width: 16.31, height: 1.51, fontSize: 7.5 },
+  { kind: 'label', text: '30 ％以上 50 ％以下の場合', highlightWhen: (g) => g('④') !== '' && Number(g('④')) >= 30 && Number(g('④')) <= 50, top: 87.81, left: 34, width: 16.32, height: 1.51, fontSize: 7.5 },
+  { kind: 'label', text: '30 ％ 未 満 の 場 合', highlightWhen: (g) => g('④') !== '' && Number(g('④')) < 30, top: 87.81, left: 50.32, width: 16.32, height: 1.51, fontSize: 7.5 },
+  { kind: 'label', text: '株 主 の 区 分', top: 86.3, left: 66.64, width: 21.84, height: 3.02 },
+  { kind: 'label', text: '②\nの\n割\n合', top: 89.32, left: X.name, width: 5.44, height: 4.7, fontSize: 8 },
+  // 同族株主等の行：列ごとに「④の区分」かつ「②≥列の閾値」のときハイライト（該当時は記入枠に「１」を自動表示）
+  { kind: 'cell', codeLabel: 'G44', top: 89.32, left: 17.69, width: 1.81, height: 2.33 },
+  { field: 'b_G44', kind: 'input', readOnly: true, ariaLabel: '判定基準G44（該当時は１）', highlightWhen: dozokuMatch(50), top: 89.32, left: 19.5, width: 1.81, height: 2.33, align: 'center' },
+  { kind: 'label', text: '50　％　超', highlightWhen: dozokuMatch(50), top: 89.32, left: 21.31, width: 12.69, height: 2.33 },
+  { kind: 'cell', codeLabel: 'G46', top: 89.32, left: 34, width: 1.82, height: 2.33 },
+  { field: 'b_G46', kind: 'input', readOnly: true, ariaLabel: '判定基準G46（該当時は１）', highlightWhen: dozokuMatch(30), top: 89.32, left: 35.82, width: 1.81, height: 2.33, align: 'center' },
+  { kind: 'label', text: '30　％　以　上', highlightWhen: dozokuMatch(30), top: 89.32, left: 37.63, width: 12.69, height: 2.33 },
+  { kind: 'cell', codeLabel: 'G48', top: 89.32, left: 50.32, width: 1.82, height: 2.33 },
+  { field: 'b_G48', kind: 'input', readOnly: true, ariaLabel: '判定基準G48（該当時は１）', highlightWhen: dozokuMatch(15), top: 89.32, left: 52.14, width: 1.81, height: 2.33, align: 'center' },
+  { kind: 'label', text: '15　％　以　上', highlightWhen: dozokuMatch(15), top: 89.32, left: 53.95, width: 12.69, height: 2.33 },
+  { field: 'bs_dozoku', kind: 'input', readOnly: true, ariaLabel: '株主の区分：同族株主等（該当時は１）', highlightWhen: isDozokuJudge, top: 89.32, left: 66.64, width: 3.63, height: 2.33, align: 'center' },
+  { kind: 'label', text: '同　族　株　主　等', highlightWhen: isDozokuJudge, top: 89.32, left: 70.27, width: 18.21, height: 2.33 },
+  // 同族株主等以外の行：②<列の閾値のときハイライト
+  { kind: 'cell', codeLabel: 'G45', top: 91.65, left: 17.69, width: 1.81, height: 2.37 },
+  { field: 'b_G45', kind: 'input', readOnly: true, ariaLabel: '判定基準G45（該当時は１）', highlightWhen: nonDozokuMatch(50), top: 91.65, left: 19.5, width: 1.81, height: 2.37, align: 'center' },
+  { kind: 'label', text: '50　％　未　満', highlightWhen: nonDozokuMatch(50), top: 91.65, left: 21.31, width: 12.69, height: 2.37 },
+  { kind: 'cell', codeLabel: 'G47', top: 91.65, left: 34, width: 1.82, height: 2.37 },
+  { field: 'b_G47', kind: 'input', readOnly: true, ariaLabel: '判定基準G47（該当時は１）', highlightWhen: nonDozokuMatch(30), top: 91.65, left: 35.82, width: 1.81, height: 2.37, align: 'center' },
+  { kind: 'label', text: '30　％　未　満', highlightWhen: nonDozokuMatch(30), top: 91.65, left: 37.63, width: 12.69, height: 2.37 },
+  { kind: 'cell', codeLabel: 'G49', top: 91.65, left: 50.32, width: 1.82, height: 2.37 },
+  { field: 'b_G49', kind: 'input', readOnly: true, ariaLabel: '判定基準G49（該当時は１）', highlightWhen: nonDozokuMatch(15), top: 91.65, left: 52.14, width: 1.81, height: 2.37, align: 'center' },
+  { kind: 'label', text: '15　％　未　満', highlightWhen: nonDozokuMatch(15), top: 91.65, left: 53.95, width: 12.69, height: 2.37 },
+  { field: 'bs_hidozoku', kind: 'input', readOnly: true, ariaLabel: '株主の区分：同族株主等以外（該当時は１）', highlightWhen: isNonDozokuJudge, top: 91.65, left: 66.64, width: 3.63, height: 2.37, align: 'center' },
+  { kind: 'label', text: '同族株主等以外の株主', highlightWhen: isNonDozokuJudge, top: 91.65, left: 70.27, width: 18.21, height: 2.37 },
+  // ── 判定 ──
+  { kind: 'label', text: '判\n定', top: 94.02, left: 10.48, width: 1.77, height: 5.32, align: 'center' },
+  { kind: 'cell', codeLabel: 'G50', top: 94.02, left: X.name, width: 1.81, height: 2.36 },
+  { field: 'js_gensoku', kind: 'input', readOnly: true, ariaLabel: '判定：同族株主等（該当時は１）', highlightWhen: isDozokuJudge, top: 94.02, left: 14.06, width: 1.81, height: 2.36, align: 'center' },
+  { kind: 'label', text: '同　族　株　主　等\n（原則的評価方式等）', highlightWhen: isDozokuJudge, top: 94.02, left: 15.87, width: 21.76, height: 2.36 },
+  { kind: 'cell', codeLabel: 'G51', top: 94.02, left: 37.63, width: 1.81, height: 2.36 },
+  { field: 'js_haito', kind: 'input', readOnly: true, ariaLabel: '判定：同族株主等以外の株主（該当時は１）', highlightWhen: isNonDozokuJudge, top: 94.02, left: 39.44, width: 1.82, height: 2.36, align: 'center' },
+  { kind: 'label', text: '同族株主等以外の株主\n（配 当 還 元 方 式）', highlightWhen: isNonDozokuJudge, top: 94.02, left: 41.26, width: 21.83, height: 2.36 },
+  { kind: 'label', text: '「同族株主等」に該当する納税義務者のうち、議決権割合（㋥の割合）が５％未満の者の評価方式は、第１表の２「２．少数株式所有者の評価方式の判定」欄により判定します。', top: 96.38, left: X.name, width: 50.84, height: 2.96, align: 'left', fontSize: 7 },
 ];
 
-/** 第1表の1（CSSグリッド方式・完成版） */
+/** 第1表の1（CSSグリッド方式・令和8年4月1日以降用） */
 export function Table1_1Grid({ getField, updateField }: TableProps) {
   const reorderShareholderRows = useCallback((activeId: string, overId: string) => {
     const fromRow = Number(activeId);
@@ -365,23 +506,53 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     return total > 0 ? String(total) : '';
   };
 
-  const percentage = (numeratorField: string, denominatorField: string, roundUpOver50 = false) => {
-    const numeratorRaw = numeratorField === '②' ? sumShareholderVotes() : getField(T, numeratorField);
-    const denominator = Number(getField(T, denominatorField).replace(/,/g, ''));
+  // 議決権割合＝分子÷⑥（議決権の総数）。50%超51%未満は51に切上げ、その他は切捨て
+  const percentage = (numeratorField: string, roundUpOver50 = false) => {
+    const numeratorRaw = numeratorField === '①' ? sumShareholderVotes() : getField(T, numeratorField);
+    const denominator = Number(getField(T, '⑥').replace(/,/g, ''));
     if (numeratorRaw === '' || denominator <= 0) return '';
     const raw = (Number(numeratorRaw.replace(/,/g, '')) / denominator) * 100;
     if (roundUpOver50 && raw > 50 && raw < 51) return '51';
     return String(Math.floor(raw));
   };
 
-  const g = (f: string) => {
+  const g = (f: string): string => {
+    // 「１」記入枠: 該当時に「１」を自動表示（判定基準・株主の区分・判定）
+    const flag = JUDGE_FLAGS[f];
+    if (flag) return flag(g) ? '1' : '';
     const ratioMatch = /^sh_(\d+)_6$/.exec(f);
-    if (ratioMatch) return percentage(`sh_${ratioMatch[1]}_5`, '④');
-    if (f === '②') return sumShareholderVotes();
-    if (f === '⑤') return percentage('②', '④', true);
-    if (f === '⑥') return percentage('③', '④', true);
+    if (ratioMatch) return percentage(`sh_${ratioMatch[1]}_5`);
+    // コード欄: 保存値優先・なければ旧名称データから導出（後方互換）
+    const codeMatch = /^sh_(\d+)_(2|3)k$/.exec(f);
+    if (codeMatch) {
+      const stored = getField(T, f);
+      const name = getField(T, `sh_${codeMatch[1]}_${codeMatch[2]}`);
+      return codeMatch[2] === '2' ? effectiveZokugaraCode(stored, name) : effectiveRoleCode(stored, name);
+    }
+    // 続柄・役職名欄: 選択コードの標準名称を自動表示（入力不可）。
+    // 「その他」（続柄18/役職16）のみ手入力値を表示。コード不明（旧自由入力）は保存値をそのまま表示
+    const nameMatch = /^sh_(\d+)_(2|3)$/.exec(f);
+    if (nameMatch) {
+      const stored = getField(T, f);
+      const kind = nameMatch[2];
+      const code = kind === '2'
+        ? effectiveZokugaraCode(getField(T, `sh_${nameMatch[1]}_2k`), stored)
+        : effectiveRoleCode(getField(T, `sh_${nameMatch[1]}_3k`), stored);
+      if (code === '') return stored;
+      const standardName = kind === '2' ? zokugaraNameOf(code) : roleNameOf(code);
+      const isOther = kind === '2' ? code === '18' : code === '16';
+      return isOther ? (stored || standardName) : standardName;
+    }
+    if (f === '①') return sumShareholderVotes();
+    if (f === '②') return percentage('①', true);
+    if (f === '④') return percentage('③', true);
     return getField(T, f);
   };
-  const u = (f: string, v: string) => updateField(T, f, v);
+  const u = (f: string, v: string) => {
+    updateField(T, f, v);
+    // コードを選び直したら名称欄の上書きをクリアし、標準名称の自動表示に戻す
+    const codeMatch = /^sh_(\d+)_(2|3)k$/.exec(f);
+    if (codeMatch) updateField(T, `sh_${codeMatch[1]}_${codeMatch[2]}`, '');
+  };
   return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" references={REFERENCES} onDragReorder={reorderShareholderRows} />;
 }

@@ -136,7 +136,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '１株当たりの資本金等の額を\n50円とした場合の発済株式数\n（⑨÷50円）', top: 45.38, left: 64.39, width: 14.18, height: 4.92 },
   { kind: 'label', text: '１株当たりの資本金等の額\n（⑨÷（⑩－⑪））', top: 45.28, left: 78.3, width: 14.18, height: 4.92 },
   { field: '⑨', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: '①', hint: 'クリックで入力元（第４表①・直前期末の資本金等の額）へ移動します' }, cornerLabel: '⑨', topRightLabel: '千円', top: 50.01, left: 23.34, width: 14.32, height: 3.95 },
-  { field: '⑩', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: '①', hint: 'クリックで入力元（第１表の１①・発行済株式の総数）へ移動します' }, cornerLabel: '⑩', topRightLabel: '株', top: 50.1, left: 37.39, width: 14.32, height: 3.95 },
+  { field: '⑩', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: '⑤', hint: 'クリックで入力元（第１表の１⑤・発行済株式数）へ移動します' }, cornerLabel: '⑩', topRightLabel: '株', top: 50.1, left: 37.39, width: 14.32, height: 3.95 },
   { field: '⑪', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: 'f63', hint: 'クリックで入力元（第１表の１・自己株式数）へ移動します' }, cornerLabel: '⑪', topRightLabel: '株', top: 50.1, left: 51.57, width: 12.96, height: 3.86 },
   { field: '⑫', kind: 'input', readOnly: true, cornerLabel: '⑫', topRightLabel: '株', top: 50.1, left: 64.39, width: 14.18, height: 3.76 },
   { field: '⑬', kind: 'input', readOnly: true, cornerLabel: '⑬', topRightLabel: '円', top: 50.1, left: 78.3, width: 14.18, height: 3.95 },
@@ -271,7 +271,7 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
   const effStr = (own: string, fb: string) => (raw(own).trim() !== '' ? raw(own) : getField('table4', fb));
   const linkedTreasuryShares = getField('table1_1', 'f63') || getField('table1_1', 'treasury_shares');
   const v9c = numOf(effStr('⑨', '①'));
-  const v10c = numOf(getField('table1_1', '①'));
+  const v10c = numOf(getField('table1_1', '⑤'));
   const v11c = numOf(linkedTreasuryShares); // ⑪＝第1表の1の自己株式数（f63）を転記
   const v12 = v9c !== null ? fl(v9c * 20) : null; // ⑫=⑨×1000÷50
   // ⑬: 円未満切捨て。0となる場合は(⑩－⑪)の桁数の小数（記載要領3⑴ロ）
@@ -356,7 +356,7 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
       case 'mod2_base': return fmt(base8);
       case '⑧': return fmt(v8);
       case '⑨': return getField('table4', '①');
-      case '⑩': return getField('table1_1', '①');
+      case '⑩': return getField('table1_1', '⑤');
       case '⑪': return linkedTreasuryShares;
       case '⑫': return fmt(v12);
       case '⑬': return v13disp;

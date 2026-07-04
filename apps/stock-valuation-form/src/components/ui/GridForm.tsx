@@ -18,6 +18,7 @@ export interface GridCell {
   noWrap?: boolean;                  // 明示改行以外では折り返さない
   cornerLabel?: string;             // 入力欄の左上に表示する固定ラベル
   cornerLabelTop?: number;          // 固定ラベルの上端位置（px）
+  codeLabel?: string;               // 様式の識別コード（E01/G04等）をセル左上に小さく表示
   topRightLabel?: string;            // セルの右上に表示する固定ラベル
   bottomLabel?: string;              // セル下部に表示する固定注記
   rightLabel?: string;               // セルの右端中央に表示する固定ラベル
@@ -27,9 +28,11 @@ export interface GridCell {
   noLeadingZero?: boolean;           // 先頭の0を許可しない整数入力
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                 // 自動計算などの編集不可欄
+  readOnlyWhen?: (g: (field: string) => string) => boolean; // 条件付きの編集不可（例: コード「その他」以外は名称欄をロック）
   jumpTo?: { tab: string; field: string; hint?: string }; // 自動転記欄クリックで入力元へ移動
   contextMenu?: { label: string; copyFrom: string; copyTo: string }[]; // 右クリックメニュー（copyFromの値をcopyToへコピー）
-  options?: string[];                 // 選択式入力の候補（空文字は未選択）
+  options?: (string | { value: string; label: string })[]; // 選択式入力の候補（空文字は未選択。value=保存値/label=表示。文字列は両者同一）
+  compactSelectedOption?: boolean;    // 選択中の項目はvalue（コード）のみ表示（狭いコード記入枠用。リストを開くと全文表示）
   highlightWhen?: (g: (field: string) => string) => boolean; // 自動判定時の強調条件
   selectValue?: { field: string; value: string }; // セルをクリックして指定値を選択
   toggleField?: string; // セルをクリックして指定フィールドをオン・オフ
@@ -324,6 +327,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
         const fontSize = c.fontSize ?? (isVertical ? 8 : len > 40 ? 6 : len > 24 ? 6.5 : len > 12 ? 7.5 : 9);
         const justify = c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center';
         const highlighted = c.highlightWhen?.(g) ?? false;
+        const readOnly = c.readOnly || (c.readOnlyWhen?.(g) ?? false);
         const selectable = c.selectValue;
         const toggleField = c.toggleField;
         const dragId = c.dragId;
@@ -386,7 +390,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
             gridColumn: c.exactPosition ? undefined : `${cs} / ${ce}`,
             gridRow: c.exactPosition ? undefined : `${rs} / ${re}`,
             border: isDragHandle ? '0.5px solid #64748b' : '0.5px solid #000',
-            position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.topRightLabel || c.bottomLabel || c.rightLabel ? 'relative' : undefined,
+            position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.codeLabel || c.topRightLabel || c.bottomLabel || c.rightLabel ? 'relative' : undefined,
             top: c.exactPosition ? `${((c.top - bounds.top) / bounds.height) * 100}%` : undefined,
             left: c.exactPosition ? `${((c.left - bounds.left) / bounds.width) * 100}%` : undefined,
             width: c.exactPosition ? `${(c.width / bounds.width) * 100}%` : undefined,
@@ -407,6 +411,7 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
             padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
             lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: 'center',
           }}>
+            {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
             {c.topRightLabel && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.topRightLabel}</span>}
             {c.bottomLabel && <span style={{ position: 'absolute', right: 2, bottom: 2, left: 2, fontSize: 6, lineHeight: 1, textAlign: 'left', pointerEvents: 'none' }}>{c.bottomLabel}</span>}
             {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
@@ -574,13 +579,17 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
               </div>
             ) : c.kind === 'input' && c.field && c.options
               ? printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{g(c.field)}</div> : <select id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: 'left', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px' }}>
-                  {c.options.map((option) => <option key={option || 'blank'} value={option}>{option}</option>)}
+                  {c.options.map((option) => {
+                    const o = typeof option === 'string' ? { value: option, label: option } : option;
+                    const label = c.compactSelectedOption && o.value !== '' && o.value === g(c.field!) ? o.value : o.label;
+                    return <option key={o.value || 'blank'} value={o.value}>{label}</option>;
+                  })}
                 </select>
               : c.kind === 'input' && c.field
               ? <>
                   {c.cornerLabel && <span style={{ position: 'absolute', top: c.cornerLabelTop ?? 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
                   {!printRendering && c.jumpTo && onJump && <span style={{ position: 'absolute', top: 1, right: c.topRightLabel ? 10 : 2, fontSize: 7, lineHeight: 1, color: '#2563eb', pointerEvents: 'none' }} aria-hidden="true">✎</span>}
-                  {printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{formattedFieldValue(c, g)}</div> : <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} title={c.jumpTo?.hint} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} onClick={c.jumpTo && onJump ? () => onJump(c.jumpTo!) : undefined} onContextMenu={c.contextMenu ? (e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, items: c.contextMenu! }); } : undefined} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={c.readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', cursor: c.jumpTo && onJump ? 'pointer' : undefined }} />}
+                  {printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{formattedFieldValue(c, g)}</div> : <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} title={c.jumpTo?.hint} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} onClick={c.jumpTo && onJump ? () => onJump(c.jumpTo!) : undefined} onContextMenu={c.contextMenu ? (e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, items: c.contextMenu! }); } : undefined} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', cursor: c.jumpTo && onJump ? 'pointer' : undefined }} />}
                 </>
               : c.kind === 'label' && c.verticalSectionHeading ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%' }}>
