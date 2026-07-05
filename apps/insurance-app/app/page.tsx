@@ -460,13 +460,13 @@ export default function Page() {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <header className="app-header">
-        <div>
-          <h1>
+        <div className="header-title-area">
+          <h1 className="app-title">
             <a href="/" className="back-to-list-btn" title="ポータルに戻る" style={{ marginRight: '0.25rem' }}>
-              <Home size={20} />
+              <Home size={16} />
             </a>
             <button className="back-to-list-btn" onClick={handleBackToList} title="お客様一覧に戻る">
-              <ArrowLeft size={20} />
+              <ArrowLeft size={16} />
             </button>
             保険証券分析・診断ダッシュボード
           </h1>
@@ -489,7 +489,7 @@ export default function Page() {
           </div>
           <div className="dropdown-wrapper" ref={menuRef}>
             <button onClick={() => setMenuOpen(v => !v)} className="dropdown-trigger">
-              <Menu size={18} /> データ管理 <ChevronDown size={14} />
+              <Menu size={16} /> データ管理 <ChevronDown size={12} />
             </button>
             {menuOpen && (
               <div className="dropdown-menu">
@@ -520,10 +520,10 @@ export default function Page() {
             )}
           </div>
           <button onClick={handleSave} className="save-button" disabled={!hasUnsavedChanges || isSaving}>
-            <Save size={18} /> {isSaving ? '保存中...' : hasUnsavedChanges ? '保存' : '保存済み'}
+            <Save size={16} /> {isSaving ? '保存中...' : hasUnsavedChanges ? '保存' : '保存済み'}
           </button>
-          <button onClick={handlePrint} className="print-button">
-            <Printer size={18} /> <span>印刷 / PDF保存</span>
+          <button onClick={handlePrint} className="print-button" title="印刷 / PDF保存">
+            <Printer size={16} /> <span>印刷</span>
           </button>
         </div>
       </header>

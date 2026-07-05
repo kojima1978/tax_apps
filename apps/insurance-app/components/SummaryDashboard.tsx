@@ -28,7 +28,7 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({ policies, familyMem
     return currentAge === null ? 0 : getDeathBenefitAtAge(policy, currentAge);
   };
   const totalDeathBenefit = currentAge === null ? null : policies.reduce((sum, p) => sum + getPolicyDeathBenefit(p), 0);
-  const deathBenefitNote = '今日死亡した場合の概算。収入保障系は月額×残存期間で換算';
+  const deathBenefitNote = '試算日時点の概算。収入保障系は月額×残存期間で換算';
 
   const totalHospBenefit = currentAge === null ? null : policies.reduce((sum, p) => {
     if (currentAge < p.policyEndAge || p.policyEndAge === 999) {
@@ -54,13 +54,16 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({ policies, familyMem
       <div className="summary-card">
         <div className="card-header">
           <Shield className="icon" />
-          <span>現在の死亡保障額</span>
+          <span>現在の保障額</span>
           <Info size={14} className="card-info-icon" aria-label={deathBenefitNote} />
         </div>
         <div className={`card-value ${totalDeathBenefit === null ? 'card-value-muted' : ''}`}>
           {totalDeathBenefit === null ? '年齢未入力' : `${(totalDeathBenefit / 10000).toLocaleString()}万円`}
         </div>
-        <div className="card-subtext">{deathBenefitNote}</div>
+        <div className="card-subtext card-subtext-two-line">
+          <span>試算日時点の概算。</span>
+          <span>収入保障系は月額×残存期間で換算</span>
+        </div>
       </div>
 
       <div className="summary-card">

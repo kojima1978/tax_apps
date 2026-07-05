@@ -218,6 +218,8 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
           {filteredPolicies.map((policy) => {
             const originalIndex = policies.indexOf(policy);
             const pensionMeta = getPensionMeta(policy);
+            const statusBadges = getStatusBadges(policy);
+            const [paymentFrequencyBadge, ...otherStatusBadges] = statusBadges;
             return (
             <tr
               key={policy.id}
@@ -254,20 +256,31 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
               <td>{getMemberName(policy.beneficiaryId)}</td>
               <td>
                 <div className="premium-cell">
-                  <div className="premium-main">{formatPrimaryAmount(policy, policy.premiumAmount, policy.foreignPremiumAmount)}</div>
-                  {formatCurrencyMeta(policy, policy.premiumAmount) && <div className="premium-meta">{formatCurrencyMeta(policy, policy.premiumAmount)}</div>}
+                  <div className="premium-primary-row">
+                    {paymentFrequencyBadge && (
+                      <span className={`policy-status-badge premium-frequency-badge ${paymentFrequencyBadge.className}`}>
+                        {paymentFrequencyBadge.label}
+                      </span>
+                    )}
+                    <div className="premium-amount-stack">
+                      <div className="premium-main">{formatPrimaryAmount(policy, policy.premiumAmount, policy.foreignPremiumAmount)}</div>
+                      {formatCurrencyMeta(policy, policy.premiumAmount) && <div className="premium-meta">{formatCurrencyMeta(policy, policy.premiumAmount)}</div>}
+                    </div>
+                  </div>
                   <div className="premium-meta">{getPremiumMeta(policy)}</div>
                   {pensionMeta && <div className="premium-meta pension-meta">{pensionMeta}</div>}
-                  <div className="policy-status-badges">
-                    {getStatusBadges(policy).map(badge => (
-                      <span
-                        key={`${policy.id}-${badge.className}`}
-                        className={`policy-status-badge ${badge.className}`}
-                      >
-                        {badge.label}
-                      </span>
-                    ))}
-                  </div>
+                  {otherStatusBadges.length > 0 && (
+                    <div className="policy-status-badges">
+                      {otherStatusBadges.map(badge => (
+                        <span
+                          key={`${policy.id}-${badge.className}`}
+                          className={`policy-status-badge ${badge.className}`}
+                        >
+                          {badge.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </td>
               <td className="actions-cell">
