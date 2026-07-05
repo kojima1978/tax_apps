@@ -27,10 +27,13 @@ import {
   isJsonStorageMode,
 } from '@/lib/api';
 
-import { AlertTriangle, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, ArrowLeft, DatabaseBackup, Home } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, ArrowLeft, DatabaseBackup, Home, XCircle } from 'lucide-react';
 
 const VALID_POLICY_TYPES = ['個人年金保険', '収入保障保険', '収入保障定期保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険'] as const;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
+const DEATH_BENEFIT_TYPES = ['終身保険', '定期保険', '収入保障保険', '収入保障定期保険', '変額終身保険', '養老保険'] as const;
+const MEDICAL_BENEFIT_TYPES = ['医療保険', 'がん保険'] as const;
+const FINITE_END_AGE_TYPES = ['定期保険', '収入保障保険', '収入保障定期保険', '養老保険'] as const;
 
 function validateBeforeSave(familyMembers: FamilyMember[], policies: Policy[], agency: Agency): string | null {
   if (familyMembers.length === 0) return '家族情報が1件もありません';
@@ -48,6 +51,23 @@ function validateBeforeSave(familyMembers: FamilyMember[], policies: Policy[], a
     if (!p.contractDate) return '契約日が未入力の証券があります';
     if (!p.insuredId) return '被保険者が未設定の証券があります';
     if (!VALID_FREQUENCIES.includes(p.paymentFrequency)) return `払方「${p.paymentFrequency}」が不正です`;
+    if (p.currency === 'USD' && (!p.exchangeRate || p.exchangeRate <= 0)) return 'ドル建て商品は為替レートが必要です';
+    if (p.policyType === '個人年金保険') {
+      if (!p.paymentEndAge || p.paymentEndAge === 999) return '個人年金保険は年金受取開始年齢が必要です';
+      if (!p.policyEndAge || p.policyEndAge === 999) return '個人年金保険は受取終了年齢が必要です';
+      if (p.policyEndAge <= p.paymentEndAge) return '個人年金保険の受取終了年齢は受取開始年齢より後にしてください';
+      if (!p.maturityBenefit || p.maturityBenefit <= 0) return '個人年金保険は年金原資（受取総額）が必要です';
+    } else {
+      if ((DEATH_BENEFIT_TYPES as readonly string[]).includes(p.policyType)) {
+        if (!p.beneficiaryId) return `${p.policyType}は保険金受取人が必要です`;
+        if (!p.deathBenefitDisease || p.deathBenefitDisease <= 0) return `${p.policyType}は死亡保障額が必要です`;
+      }
+      if ((MEDICAL_BENEFIT_TYPES as readonly string[]).includes(p.policyType) && (p.hospDayDisease || 0) <= 0 && (p.diagnosisBenefit || 0) <= 0) {
+        return `${p.policyType}は入院日額または診断一時金が必要です`;
+      }
+      if (p.policyType === '養老保険' && (!p.maturityBenefit || p.maturityBenefit <= 0)) return '養老保険は満期保険金が必要です';
+      if ((FINITE_END_AGE_TYPES as readonly string[]).includes(p.policyType) && p.policyEndAge === 999) return `${p.policyType}は保険期間の終了年齢が必要です`;
+    }
   }
   return null;
 }
@@ -61,6 +81,18 @@ function getErrorMessage(err: unknown, fallback: string): string {
     if (typeof message === 'string' && message.trim() && !message.startsWith('API Error:')) return message;
   }
   return fallback;
+}
+
+function formatLastSavedAt(value?: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString('ja-JP', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 export default function Page() {
@@ -80,6 +112,8 @@ export default function Page() {
   const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -94,11 +128,23 @@ export default function Page() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const markUnsaved = useCallback(() => {
+    setHasUnsavedChanges(true);
+    setSaveError(null);
+  }, []);
+
   const applyState = useCallback((state: AppState) => {
     setFamilyMembers(state.familyMembers);
     setPolicies(state.policies);
     setAgency(state.agency);
     setHasUnsavedChanges(false);
+    setSaveError(null);
+    setLastSavedAt(formatLastSavedAt(state.updatedAt) ?? new Date().toLocaleString('ja-JP', {
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }));
     setError(null);
   }, []);
 
@@ -124,6 +170,7 @@ export default function Page() {
     }
     setActiveCaseId(null);
     setHasUnsavedChanges(false);
+    setSaveError(null);
     setError(null);
     setMenuOpen(false);
   };
@@ -145,6 +192,7 @@ export default function Page() {
     const handler = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
+        e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handler);
@@ -217,7 +265,7 @@ export default function Page() {
     } else {
       setPolicies([...policies, policy]);
     }
-    setHasUnsavedChanges(true);
+    markUnsaved();
   };
 
   const handleAddFamilyMemberFromPolicy = useCallback((member: FamilyMember) => {
@@ -227,13 +275,13 @@ export default function Page() {
       }
       return [...prev, member];
     });
-    setHasUnsavedChanges(true);
-  }, []);
+    markUnsaved();
+  }, [markUnsaved]);
 
   const handleDeletePolicy = (id: string) => {
     if (window.confirm("この保険証券を削除しますか？")) {
       setPolicies(policies.filter(p => p.id !== id));
-      setHasUnsavedChanges(true);
+      markUnsaved();
     }
   };
 
@@ -254,17 +302,17 @@ export default function Page() {
       nextPolicies.splice(insertionIndex, 0, movedPolicy);
       return nextPolicies;
     });
-    setHasUnsavedChanges(true);
+    markUnsaved();
   };
 
   const handleUpdateNote = (policyId: string, note: string) => {
     setPolicies(prev => prev.map(p => p.id === policyId ? { ...p, consultantNote: note } : p));
-    setHasUnsavedChanges(true);
+    markUnsaved();
   };
 
   const handleUpdateEvaluations = (policyId: string, overrides: EvaluationOverride[]) => {
     setPolicies(prev => prev.map(p => p.id === policyId ? { ...p, evaluationOverrides: overrides } : p));
-    setHasUnsavedChanges(true);
+    markUnsaved();
   };
 
   const handleEditStart = (policy: Policy) => {
@@ -293,19 +341,25 @@ export default function Page() {
     if (!activeCaseId) return;
     const validationError = validateBeforeSave(familyMembers, policies, agency);
     if (validationError) {
+      setSaveError(validationError);
       addToast('warning', validationError);
       return;
     }
     setIsSaving(true);
+    setSaveError(null);
     setError(null);
     try {
       const state = await apiSave(activeCaseId, { familyMembers, policies, agency });
       applyState(state);
       addToast('success', '保存しました');
     } catch (err) {
-      addToast('error', getErrorMessage(err, '保存に失敗しました'));
+      const message = getErrorMessage(err, '保存に失敗しました');
+      setSaveError(message);
+      setHasUnsavedChanges(true);
+      addToast('error', message);
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const handleExport = async () => {
@@ -326,18 +380,23 @@ export default function Page() {
     if (!activeCaseId) return;
     const validationError = validateBeforeSave(updatedFamily, policies, updatedAgency);
     if (validationError) {
+      setSaveError(validationError);
       addToast('warning', validationError);
       throw new Error(validationError);
     }
 
     setIsSaving(true);
+    setSaveError(null);
     setError(null);
     try {
       const state = await apiSave(activeCaseId, { familyMembers: updatedFamily, policies, agency: updatedAgency });
       applyState(state);
       addToast('success', '世帯・代理店情報を保存しました');
     } catch (err) {
-      addToast('error', getErrorMessage(err, '世帯・代理店情報の保存に失敗しました'));
+      const message = getErrorMessage(err, '世帯・代理店情報の保存に失敗しました');
+      setSaveError(message);
+      setHasUnsavedChanges(true);
+      addToast('error', message);
       throw err;
     } finally {
       setIsSaving(false);
@@ -358,6 +417,14 @@ export default function Page() {
   const printTotalPages = 2
     + (hasPrintableCharts ? 1 : 0)
     + (hasPrintableAnalysis ? (hasBeneficiaryPage ? 1 : 0) + 1 + policies.length : 0);
+  const saveStatus = isSaving
+    ? { kind: 'saving', icon: Clock3, label: '保存中...', detail: 'SQLiteへ反映しています' }
+    : saveError
+      ? { kind: 'error', icon: XCircle, label: '保存できていません', detail: saveError }
+      : hasUnsavedChanges
+        ? { kind: 'unsaved', icon: AlertTriangle, label: '未保存の変更があります', detail: '右の保存ボタンでSQLiteへ反映してください' }
+        : { kind: 'saved', icon: CheckCircle2, label: '保存済み', detail: lastSavedAt ? `${lastSavedAt} 更新` : 'SQLiteに反映済み' };
+  const SaveStatusIcon = saveStatus.icon;
 
   return (
     <div className="App">
@@ -407,6 +474,16 @@ export default function Page() {
           </div>
         </div>
         <div className="header-actions">
+          <div
+            className={`save-status save-status-${saveStatus.kind}`}
+            role={saveStatus.kind === 'error' ? 'alert' : 'status'}
+            aria-live="polite"
+            title={saveStatus.detail}
+          >
+            <SaveStatusIcon size={16} />
+            <span className="save-status-label">{saveStatus.label}</span>
+            <span className="save-status-detail">{saveStatus.detail}</span>
+          </div>
           <div className="dropdown-wrapper" ref={menuRef}>
             <button onClick={() => setMenuOpen(v => !v)} className="dropdown-trigger">
               <Menu size={18} /> データ管理 <ChevronDown size={14} />
@@ -440,7 +517,7 @@ export default function Page() {
             )}
           </div>
           <button onClick={handleSave} className="save-button" disabled={!hasUnsavedChanges || isSaving}>
-            <Save size={18} /> {isSaving ? '保存中...' : '保存'}
+            <Save size={18} /> {isSaving ? '保存中...' : hasUnsavedChanges ? '保存' : '保存済み'}
           </button>
           <button onClick={handlePrint} className="print-button">
             <Printer size={18} /> <span>印刷 / PDF保存</span>

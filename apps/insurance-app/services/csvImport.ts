@@ -9,6 +9,7 @@ const VALID_POLICY_TYPES: PolicyType[] = [
   '個人年金保険', '収入保障保険', '収入保障定期保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険',
 ];
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
+const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '収入保障定期保険', '養老保険'];
 
 const HEADER_MAP: Record<string, string> = {
   '保険会社': 'companyName',
@@ -26,11 +27,24 @@ const HEADER_MAP: Record<string, string> = {
   '入院日額災害': 'hospDayAccident',
   '診断一時金': 'diagnosisBenefit',
   '保険期間': 'policyEndAge',
+  '通貨': 'currency',
+  '為替レート': 'exchangeRate',
+  '保険料USD': 'foreignPremiumAmount',
+  '死亡保障疾病USD': 'foreignDeathBenefitDisease',
+  '死亡保障災害USD': 'foreignDeathBenefitAccident',
+  '入院日額疾病USD': 'foreignHospDayDisease',
+  '入院日額災害USD': 'foreignHospDayAccident',
+  '診断一時金USD': 'foreignDiagnosisBenefit',
+  '満期保険金USD': 'foreignMaturityBenefit',
+  '年金原資USD': 'foreignMaturityBenefit',
   '払方': 'paymentFrequency',
   '保険料': 'premiumAmount',
   '払込終了年月日': 'paymentEndDate',
   '払込終了年齢': 'paymentEndAge',
   '満期保険金': 'maturityBenefit',
+  '満期保険金/年金原資': 'maturityBenefit',
+  '年金原資': 'maturityBenefit',
+  '年金受取総額': 'maturityBenefit',
   'コンサルタントメモ': 'consultantNote',
   'フリガナ': 'nameKana',
   'カナ': 'nameKana',
@@ -51,6 +65,15 @@ interface CsvRow {
   hospDayAccident?: string;
   diagnosisBenefit?: string;
   policyEndAge?: string;
+  currency?: string;
+  exchangeRate?: string;
+  foreignPremiumAmount?: string;
+  foreignDeathBenefitDisease?: string;
+  foreignDeathBenefitAccident?: string;
+  foreignHospDayDisease?: string;
+  foreignHospDayAccident?: string;
+  foreignDiagnosisBenefit?: string;
+  foreignMaturityBenefit?: string;
   paymentFrequency?: string;
   premiumAmount?: string;
   paymentEndDate?: string;
@@ -135,6 +158,17 @@ function parseIntOrDefault(value: string | undefined, defaultValue: number): num
   const cleaned = value.replace(/,/g, '');
   const n = parseInt(cleaned, 10);
   return isNaN(n) ? defaultValue : n;
+}
+
+function parseNumberOrDefault(value: string | undefined, defaultValue: number): number {
+  if (!value || value.trim() === '') return defaultValue;
+  const cleaned = value.replace(/,/g, '');
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : defaultValue;
+}
+
+function yenFromForeign(amount: number, exchangeRate: number): number {
+  return Math.round((amount || 0) * (exchangeRate || 0));
 }
 
 function calcAnnualPremium(premiumAmount: number, frequency: string): number {
@@ -250,7 +284,7 @@ export function importCsv(
       errors.push({ row: rowNum, message: '払方は monthly, annual, single のいずれかが必要です' });
       continue;
     }
-    if (!row.premiumAmount?.trim()) {
+    if (!row.premiumAmount?.trim() && !row.foreignPremiumAmount?.trim()) {
       errors.push({ row: rowNum, message: '保険料は必須です' });
       continue;
     }
@@ -276,8 +310,66 @@ export function importCsv(
     }
     if (paymentEndAge < 0) paymentEndAge = 0;
 
-    const premiumAmount = parseIntOrDefault(row.premiumAmount, 0);
+    const policyType = row.policyType!.trim() as PolicyType;
+    const policyEndAge = parseIntOrDefault(row.policyEndAge, 0);
+    const currency = row.currency?.trim() === 'USD' || row.currency?.trim() === 'ドル' ? 'USD' : 'JPY';
+    const exchangeRate = currency === 'USD' ? parseNumberOrDefault(row.exchangeRate, 0) : 0;
+    const foreignPremiumAmount = parseNumberOrDefault(row.foreignPremiumAmount, 0);
+    const foreignDeathBenefitDisease = parseNumberOrDefault(row.foreignDeathBenefitDisease, 0);
+    const foreignDeathBenefitAccident = parseNumberOrDefault(row.foreignDeathBenefitAccident, 0);
+    const foreignHospDayDisease = parseNumberOrDefault(row.foreignHospDayDisease, 0);
+    const foreignHospDayAccident = parseNumberOrDefault(row.foreignHospDayAccident, 0);
+    const foreignDiagnosisBenefit = parseNumberOrDefault(row.foreignDiagnosisBenefit, 0);
+    const foreignMaturityBenefit = parseNumberOrDefault(row.foreignMaturityBenefit, 0);
+    if (currency === 'USD' && exchangeRate <= 0) {
+      errors.push({ row: rowNum, message: 'ドル建ては為替レートが必須です' });
+      continue;
+    }
+    const maturityBenefit = currency === 'USD' && foreignMaturityBenefit > 0
+      ? yenFromForeign(foreignMaturityBenefit, exchangeRate)
+      : parseIntOrDefault(row.maturityBenefit, 0);
+    const premiumAmount = currency === 'USD' && foreignPremiumAmount > 0
+      ? yenFromForeign(foreignPremiumAmount, exchangeRate)
+      : parseIntOrDefault(row.premiumAmount, 0);
+    const deathBenefitDisease = currency === 'USD' && foreignDeathBenefitDisease > 0
+      ? yenFromForeign(foreignDeathBenefitDisease, exchangeRate)
+      : parseIntOrDefault(row.deathBenefitDisease, 0);
+    const deathBenefitAccident = currency === 'USD' && foreignDeathBenefitAccident > 0
+      ? yenFromForeign(foreignDeathBenefitAccident, exchangeRate)
+      : parseIntOrDefault(row.deathBenefitAccident, 0);
+    const hospDayDisease = currency === 'USD' && foreignHospDayDisease > 0
+      ? yenFromForeign(foreignHospDayDisease, exchangeRate)
+      : parseIntOrDefault(row.hospDayDisease, 0);
+    const hospDayAccident = currency === 'USD' && foreignHospDayAccident > 0
+      ? yenFromForeign(foreignHospDayAccident, exchangeRate)
+      : parseIntOrDefault(row.hospDayAccident, 0);
+    const diagnosisBenefit = currency === 'USD' && foreignDiagnosisBenefit > 0
+      ? yenFromForeign(foreignDiagnosisBenefit, exchangeRate)
+      : parseIntOrDefault(row.diagnosisBenefit, 0);
     const freq = row.paymentFrequency!.trim() as Policy['paymentFrequency'];
+
+    if (policyType === '個人年金保険') {
+      if (!paymentEndAge || paymentEndAge === 999) {
+        errors.push({ row: rowNum, message: '個人年金保険は年金受取開始年齢が必須です' });
+        continue;
+      }
+      if (!policyEndAge || policyEndAge === 999) {
+        errors.push({ row: rowNum, message: '個人年金保険は受取終了年齢が必須です' });
+        continue;
+      }
+      if (policyEndAge <= paymentEndAge) {
+        errors.push({ row: rowNum, message: '個人年金保険の受取終了年齢は受取開始年齢より後にしてください' });
+        continue;
+      }
+      if (maturityBenefit <= 0) {
+        errors.push({ row: rowNum, message: '個人年金保険は年金原資（受取総額）が必須です' });
+        continue;
+      }
+    }
+    if (policyType !== '個人年金保険' && FINITE_END_AGE_TYPES.includes(policyType) && policyEndAge === 999) {
+      errors.push({ row: rowNum, message: `${policyType}は保険期間の終了年齢が必須です` });
+      continue;
+    }
 
     const policyNumber = row.policyNumber?.trim() ?? '';
     if (policyNumber && existingByNumber.has(policyNumber)) {
@@ -292,23 +384,32 @@ export function importCsv(
       policy: {
         id: uuidv4(),
         companyName: row.companyName!.trim(),
-        policyType: row.policyType!.trim() as PolicyType,
+        policyType,
         policyNumber,
         contractDate: row.contractDate!.trim(),
         contractAge,
         insuredId,
         beneficiaryId,
-        deathBenefitDisease: parseIntOrDefault(row.deathBenefitDisease, 0),
-        deathBenefitAccident: parseIntOrDefault(row.deathBenefitAccident, 0),
-        hospDayDisease: parseIntOrDefault(row.hospDayDisease, 0),
-        hospDayAccident: parseIntOrDefault(row.hospDayAccident, 0),
-        diagnosisBenefit: parseIntOrDefault(row.diagnosisBenefit, 0),
-        policyEndAge: parseIntOrDefault(row.policyEndAge, 0),
+        deathBenefitDisease,
+        deathBenefitAccident,
+        hospDayDisease,
+        hospDayAccident,
+        diagnosisBenefit,
+        policyEndAge,
+        currency,
+        exchangeRate,
+        foreignPremiumAmount,
+        foreignDeathBenefitDisease,
+        foreignDeathBenefitAccident,
+        foreignHospDayDisease,
+        foreignHospDayAccident,
+        foreignDiagnosisBenefit,
+        foreignMaturityBenefit,
         paymentFrequency: freq,
         premiumAmount,
         paymentEndAge,
         annualPremium: calcAnnualPremium(premiumAmount, freq),
-        maturityBenefit: parseIntOrDefault(row.maturityBenefit, 0),
+        maturityBenefit,
         consultantNote: row.consultantNote?.trim() || undefined,
       },
       paymentEndDate: row.paymentEndDate?.trim() || null,
@@ -348,7 +449,7 @@ export function importCsv(
       }
     }
 
-    const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, consultant_note, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, currency, exchange_rate, foreign_premium_amount, foreign_death_benefit_disease, foreign_death_benefit_accident, foreign_hosp_day_disease, foreign_hosp_day_accident, foreign_diagnosis_benefit, foreign_maturity_benefit, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, consultant_note, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
     for (const { policy, paymentEndDate } of parsed) {
       insertPolicy.run(
@@ -358,6 +459,14 @@ export function importCsv(
         policy.deathBenefitDisease, policy.deathBenefitAccident,
         policy.hospDayDisease, policy.hospDayAccident,
         policy.diagnosisBenefit, policy.policyEndAge,
+        policy.currency ?? 'JPY', policy.exchangeRate ?? 0,
+        policy.foreignPremiumAmount ?? 0,
+        policy.foreignDeathBenefitDisease ?? 0,
+        policy.foreignDeathBenefitAccident ?? 0,
+        policy.foreignHospDayDisease ?? 0,
+        policy.foreignHospDayAccident ?? 0,
+        policy.foreignDiagnosisBenefit ?? 0,
+        policy.foreignMaturityBenefit ?? 0,
         policy.paymentFrequency, policy.premiumAmount,
         paymentEndDate, policy.paymentEndAge,
         policy.annualPremium, policy.maturityBenefit,

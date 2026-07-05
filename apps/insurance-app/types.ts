@@ -1,4 +1,5 @@
 export type PolicyType = '個人年金保険' | '収入保障保険' | '収入保障定期保険' | '定期保険' | 'がん保険' | '変額終身保険' | '医療保険' | '終身保険' | '養老保険';
+export type PolicyCurrency = 'JPY' | 'USD';
 
 // 個々の保険分析（保障期間/払込状況/保障充足度）の手動上書き
 export interface EvaluationOverride {
@@ -33,6 +34,15 @@ export interface Policy {
   diagnosisBenefit: number;
   policyEndAge: number;
   // コスト
+  currency?: PolicyCurrency;
+  exchangeRate?: number;
+  foreignPremiumAmount?: number;
+  foreignDeathBenefitDisease?: number;
+  foreignDeathBenefitAccident?: number;
+  foreignHospDayDisease?: number;
+  foreignHospDayAccident?: number;
+  foreignDiagnosisBenefit?: number;
+  foreignMaturityBenefit?: number;
   paymentFrequency: 'monthly' | 'annual' | 'single';
   premiumAmount: number;
   paymentEndAge: number;

@@ -174,6 +174,26 @@ export function calculateProjectedTotalPremiums(policy: Policy): number {
   return policy.annualPremium * Math.max(0, paymentYears);
 }
 
+export function getPensionPayoutSummary(policy: Policy) {
+  const startAge = policy.paymentEndAge;
+  const endAge = policy.policyEndAge === 999 ? startAge + 20 : policy.policyEndAge;
+  const periodYears = Math.max(0, endAge - startAge);
+  const annualPayout = periodYears > 0 ? policy.maturityBenefit / periodYears : 0;
+  const projectedTotalPremiums = calculateProjectedTotalPremiums(policy);
+  const returnRate = projectedTotalPremiums > 0
+    ? (policy.maturityBenefit / projectedTotalPremiums * 100).toFixed(1)
+    : '---';
+
+  return {
+    startAge,
+    endAge,
+    periodYears,
+    annualPayout,
+    projectedTotalPremiums,
+    returnRate,
+  };
+}
+
 export function calculateRemainingPremiums(policy: Policy, currentAge: number): number {
   return Math.max(0, calculateProjectedTotalPremiums(policy) - calculateTotalPremiumsPaid(policy, currentAge));
 }

@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import type { Policy, FamilyMember } from '@/types';
 import { Edit2, GripVertical, Trash, Search, X } from 'lucide-react';
-import { getActiveMonthlyPremium, getMonthlyPremium, isExpired, isPaidUp } from '@/utils/analysisUtils';
+import { getActiveMonthlyPremium, getMonthlyPremium, getPensionPayoutSummary, isExpired, isPaidUp } from '@/utils/analysisUtils';
 
 type DropPosition = 'before' | 'after';
 
@@ -36,6 +36,17 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
     : '対象: 月払・年払（払込中）';
 
   const freqLabel = (f: string) => f === 'monthly' ? '月払' : f === 'annual' ? '年払' : '一時払';
+  const formatPrimaryAmount = (policy: Policy, yenAmount: number, foreignAmount?: number) => {
+    if (policy.currency === 'USD' && foreignAmount && foreignAmount > 0) {
+      return `$${foreignAmount.toLocaleString()}`;
+    }
+    return `${yenAmount.toLocaleString()}円`;
+  };
+
+  const formatCurrencyMeta = (policy: Policy, yenAmount: number) => {
+    if (policy.currency !== 'USD') return null;
+    return `円換算: ${yenAmount.toLocaleString()}円（1USD=${policy.exchangeRate || 0}円）`;
+  };
 
   const getPaymentEndLabel = (policy: Policy) =>
     policy.paymentEndAge === 999 ? '終身払い' : `${policy.paymentEndAge}歳まで`;
@@ -46,6 +57,13 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
       return `年払・月換算${Math.round(getMonthlyPremium(policy)).toLocaleString()}円`;
     }
     return `月払・${getPaymentEndLabel(policy)}`;
+  };
+
+  const getPensionMeta = (policy: Policy) => {
+    if (policy.policyType !== '個人年金保険' || policy.maturityBenefit <= 0) return null;
+    const pension = getPensionPayoutSummary(policy);
+    if (pension.periodYears <= 0) return '年金受取: 受取終了年齢を確認';
+    return `年金受取: ${pension.startAge}歳から${pension.periodYears}年・年額${Math.round(pension.annualPayout).toLocaleString()}円`;
   };
 
   const getStatusBadges = (policy: Policy) => {
@@ -156,6 +174,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
         <tbody>
           {filteredPolicies.map((policy) => {
             const originalIndex = policies.indexOf(policy);
+            const pensionMeta = getPensionMeta(policy);
             return (
             <tr
               key={policy.id}
@@ -187,13 +206,15 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
               <td>{policy.policyType}</td>
               <td>{policy.companyName}</td>
               <td>{policy.policyNumber || '-'}</td>
-              <td>{policy.deathBenefitDisease > 0 ? `${(policy.deathBenefitDisease / 10000).toLocaleString()}万円${policy.policyType === '収入保障定期保険' ? '/月' : ''}` : '-'}</td>
-              <td>{policy.hospDayDisease > 0 ? `${policy.hospDayDisease.toLocaleString()}円` : '-'}</td>
+              <td>{policy.deathBenefitDisease > 0 ? `${policy.currency === 'USD' && policy.foreignDeathBenefitDisease ? `$${policy.foreignDeathBenefitDisease.toLocaleString()}` : `${(policy.deathBenefitDisease / 10000).toLocaleString()}万円`}${policy.policyType === '収入保障定期保険' ? '/月' : ''}` : '-'}</td>
+              <td>{policy.hospDayDisease > 0 ? formatPrimaryAmount(policy, policy.hospDayDisease, policy.foreignHospDayDisease) : '-'}</td>
               <td>{getMemberName(policy.beneficiaryId)}</td>
               <td>
                 <div className="premium-cell">
-                  <div className="premium-main">{policy.premiumAmount.toLocaleString()}円</div>
+                  <div className="premium-main">{formatPrimaryAmount(policy, policy.premiumAmount, policy.foreignPremiumAmount)}</div>
+                  {formatCurrencyMeta(policy, policy.premiumAmount) && <div className="premium-meta">{formatCurrencyMeta(policy, policy.premiumAmount)}</div>}
                   <div className="premium-meta">{getPremiumMeta(policy)}</div>
+                  {pensionMeta && <div className="premium-meta pension-meta">{pensionMeta}</div>}
                   <div className="policy-status-badges">
                     {getStatusBadges(policy).map(badge => (
                       <span

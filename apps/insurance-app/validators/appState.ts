@@ -7,6 +7,10 @@ const VALID_GENDERS = ['male', 'female'] as const;
 const VALID_INSIGHT_TYPES = ['gap', 'redundancy', 'recommendation'] as const;
 const VALID_RATINGS = ['good', 'caution', 'warning'] as const;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
+const VALID_CURRENCIES = ['JPY', 'USD'] as const;
+const DEATH_BENEFIT_TYPES: PolicyType[] = ['終身保険', '定期保険', '収入保障保険', '収入保障定期保険', '変額終身保険', '養老保険'];
+const MEDICAL_BENEFIT_TYPES: PolicyType[] = ['医療保険', 'がん保険'];
+const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '収入保障定期保険', '養老保険'];
 
 interface ValidationError {
   field: string;
@@ -74,11 +78,49 @@ export function validateAppState(body: unknown): ValidationResult {
       if (typeof p.contractAge !== 'number') errors.push({ field: `policies[${i}].contractAge`, message: '契約年齢は数値が必要です' });
       if (typeof p.insuredId !== 'string' || !p.insuredId) errors.push({ field: `policies[${i}].insuredId`, message: '被保険者は必須です' });
       if (typeof p.policyEndAge !== 'number') errors.push({ field: `policies[${i}].policyEndAge`, message: '保険期間は数値が必要です' });
+      if (p.currency !== undefined && !VALID_CURRENCIES.includes(p.currency as typeof VALID_CURRENCIES[number])) {
+        errors.push({ field: `policies[${i}].currency`, message: '通貨は JPY または USD が必要です' });
+      }
+      if (p.currency === 'USD' && (typeof p.exchangeRate !== 'number' || p.exchangeRate <= 0)) {
+        errors.push({ field: `policies[${i}].exchangeRate`, message: 'ドル建ては為替レートが必要です' });
+      }
       if (!VALID_FREQUENCIES.includes(p.paymentFrequency as typeof VALID_FREQUENCIES[number])) {
         errors.push({ field: `policies[${i}].paymentFrequency`, message: '払方は monthly, annual, single のいずれかが必要です' });
       }
       if (typeof p.premiumAmount !== 'number') errors.push({ field: `policies[${i}].premiumAmount`, message: '保険料は数値が必要です' });
       if (typeof p.paymentEndAge !== 'number') errors.push({ field: `policies[${i}].paymentEndAge`, message: '払込終了年齢は数値が必要です' });
+      if (p.policyType === '個人年金保険') {
+        if (typeof p.paymentEndAge === 'number' && (!p.paymentEndAge || p.paymentEndAge === 999)) {
+          errors.push({ field: `policies[${i}].paymentEndAge`, message: '個人年金保険は年金受取開始年齢が必要です' });
+        }
+        if (typeof p.policyEndAge === 'number' && (!p.policyEndAge || p.policyEndAge === 999)) {
+          errors.push({ field: `policies[${i}].policyEndAge`, message: '個人年金保険は受取終了年齢が必要です' });
+        }
+        if (typeof p.policyEndAge === 'number' && typeof p.paymentEndAge === 'number' && p.policyEndAge <= p.paymentEndAge) {
+          errors.push({ field: `policies[${i}].policyEndAge`, message: '受取終了年齢は受取開始年齢より後にしてください' });
+        }
+        if (typeof p.maturityBenefit !== 'number' || p.maturityBenefit <= 0) {
+          errors.push({ field: `policies[${i}].maturityBenefit`, message: '個人年金保険は年金原資（受取総額）が必要です' });
+        }
+      }
+      if (VALID_POLICY_TYPES.includes(p.policyType as PolicyType) && p.policyType !== '個人年金保険') {
+        const policyType = p.policyType as PolicyType;
+        if (DEATH_BENEFIT_TYPES.includes(policyType) && (typeof p.deathBenefitDisease !== 'number' || p.deathBenefitDisease <= 0)) {
+          errors.push({ field: `policies[${i}].deathBenefitDisease`, message: '死亡保障がある保険は死亡保障額が必要です' });
+        }
+        if (DEATH_BENEFIT_TYPES.includes(policyType) && (typeof p.beneficiaryId !== 'string' || !p.beneficiaryId)) {
+          errors.push({ field: `policies[${i}].beneficiaryId`, message: '死亡保障がある保険は受取人が必要です' });
+        }
+        if (MEDICAL_BENEFIT_TYPES.includes(policyType) && (Number(p.hospDayDisease || 0) <= 0 && Number(p.diagnosisBenefit || 0) <= 0)) {
+          errors.push({ field: `policies[${i}].hospDayDisease`, message: '医療保険・がん保険は入院日額または診断一時金が必要です' });
+        }
+        if (policyType === '養老保険' && (typeof p.maturityBenefit !== 'number' || p.maturityBenefit <= 0)) {
+          errors.push({ field: `policies[${i}].maturityBenefit`, message: '養老保険は満期保険金が必要です' });
+        }
+        if (FINITE_END_AGE_TYPES.includes(policyType) && p.policyEndAge === 999) {
+          errors.push({ field: `policies[${i}].policyEndAge`, message: `${policyType}は保険期間の終了年齢が必要です` });
+        }
+      }
       if (p.evaluationOverrides !== undefined) {
         if (!Array.isArray(p.evaluationOverrides)) {
           errors.push({ field: `policies[${i}].evaluationOverrides`, message: 'evaluationOverrides は配列が必要です' });

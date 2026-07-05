@@ -95,6 +95,15 @@ function runMigrations(db: Database.Database): void {
       hosp_day_accident INTEGER NOT NULL DEFAULT 0,
       diagnosis_benefit INTEGER NOT NULL DEFAULT 0,
       policy_end_age INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'JPY' CHECK (currency IN ('JPY', 'USD')),
+      exchange_rate REAL NOT NULL DEFAULT 0,
+      foreign_premium_amount REAL NOT NULL DEFAULT 0,
+      foreign_death_benefit_disease REAL NOT NULL DEFAULT 0,
+      foreign_death_benefit_accident REAL NOT NULL DEFAULT 0,
+      foreign_hosp_day_disease REAL NOT NULL DEFAULT 0,
+      foreign_hosp_day_accident REAL NOT NULL DEFAULT 0,
+      foreign_diagnosis_benefit REAL NOT NULL DEFAULT 0,
+      foreign_maturity_benefit REAL NOT NULL DEFAULT 0,
       payment_frequency TEXT NOT NULL CHECK (payment_frequency IN ('monthly', 'annual', 'single')),
       premium_amount INTEGER NOT NULL DEFAULT 0,
       payment_end_date TEXT,
@@ -181,5 +190,25 @@ function runMigrations(db: Database.Database): void {
     db.exec(`ALTER TABLE policies ADD COLUMN evaluation_overrides TEXT`);
   } catch {
     // column already exists
+  }
+
+  const optionalPolicyColumns = [
+    `ALTER TABLE policies ADD COLUMN currency TEXT NOT NULL DEFAULT 'JPY' CHECK (currency IN ('JPY', 'USD'))`,
+    `ALTER TABLE policies ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE policies ADD COLUMN foreign_premium_amount REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE policies ADD COLUMN foreign_death_benefit_disease REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE policies ADD COLUMN foreign_death_benefit_accident REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE policies ADD COLUMN foreign_hosp_day_disease REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE policies ADD COLUMN foreign_hosp_day_accident REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE policies ADD COLUMN foreign_diagnosis_benefit REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE policies ADD COLUMN foreign_maturity_benefit REAL NOT NULL DEFAULT 0`,
+  ];
+
+  for (const sql of optionalPolicyColumns) {
+    try {
+      db.exec(sql);
+    } catch {
+      // column already exists
+    }
   }
 }

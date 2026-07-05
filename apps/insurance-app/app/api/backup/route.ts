@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { getDb, closeDb } from '@/lib/db';
 
@@ -12,6 +12,12 @@ const getDatabasePath = () =>
     : isServerless
       ? resolve('/tmp', 'insurance.sqlite')
       : resolve(process.cwd(), 'data', 'insurance.sqlite');
+
+function removeSqliteSidecarFiles(dbPath: string) {
+  for (const path of [`${dbPath}-wal`, `${dbPath}-shm`]) {
+    if (existsSync(path)) unlinkSync(path);
+  }
+}
 
 export function GET() {
   try {
@@ -63,7 +69,10 @@ export async function POST(request: NextRequest) {
     const dbPath = getDatabasePath();
 
     closeDb();
+    removeSqliteSidecarFiles(dbPath);
     writeFileSync(dbPath, buffer);
+    removeSqliteSidecarFiles(dbPath);
+    getDb();
 
     return NextResponse.json({ ok: true, message: 'データベースを復元しました。ページをリロードしてください。' });
   } catch (err) {

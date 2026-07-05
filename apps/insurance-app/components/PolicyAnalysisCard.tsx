@@ -8,6 +8,7 @@ import {
   INSURANCE_TYPE_INFO,
   EVALUATION_LABELS,
   RATING_LABELS,
+  getPensionPayoutSummary,
   getMonthlyPremium,
   type EvaluationResult,
 } from '@/utils/analysisUtils';
@@ -73,8 +74,17 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
     if (amount >= 10000) return `${(amount / 10000).toLocaleString()}万円`;
     return `${amount.toLocaleString()}円`;
   };
+  const formatPolicyMoney = (yenAmount: number, foreignAmount?: number) => {
+    if (policy.currency === 'USD' && foreignAmount && foreignAmount > 0) {
+      return `$${foreignAmount.toLocaleString()}（円換算 ${formatYen(yenAmount)}）`;
+    }
+    return formatYen(yenAmount);
+  };
 
   const monthly = getMonthlyPremium(policy);
+  const pensionSummary = policy.policyType === '個人年金保険' && policy.maturityBenefit > 0
+    ? getPensionPayoutSummary(policy)
+    : null;
 
   return (
     <div className={`policy-analysis-card ${analysis.isExpired ? 'expired-card' : ''}`}>
@@ -110,13 +120,13 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
                 {policy.deathBenefitDisease > 0 && (
                   <div className="pac-data-row">
                     <span className="pac-data-label">{policy.policyType === '収入保障定期保険' ? '死亡保険金月額' : '死亡保障（疾病）'}</span>
-                    <span className="pac-data-value">{formatYen(policy.deathBenefitDisease)}</span>
+                    <span className="pac-data-value">{formatPolicyMoney(policy.deathBenefitDisease, policy.foreignDeathBenefitDisease)}</span>
                   </div>
                 )}
                 {policy.deathBenefitAccident > 0 && policy.deathBenefitAccident !== policy.deathBenefitDisease && (
                   <div className="pac-data-row">
                     <span className="pac-data-label">死亡保障（災害）</span>
-                    <span className="pac-data-value">{formatYen(policy.deathBenefitAccident)}</span>
+                    <span className="pac-data-value">{formatPolicyMoney(policy.deathBenefitAccident, policy.foreignDeathBenefitAccident)}</span>
                   </div>
                 )}
                 {(policy.policyType === '収入保障保険' || policy.policyType === '収入保障定期保険') && analysis.currentDeathBenefit > 0 && (
@@ -128,30 +138,61 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
                 {policy.hospDayDisease > 0 && (
                   <div className="pac-data-row">
                     <span className="pac-data-label">入院日額（疾病）</span>
-                    <span className="pac-data-value">{policy.hospDayDisease.toLocaleString()}円</span>
+                    <span className="pac-data-value">{formatPolicyMoney(policy.hospDayDisease, policy.foreignHospDayDisease)}</span>
                   </div>
                 )}
                 {policy.hospDayAccident > 0 && policy.hospDayAccident !== policy.hospDayDisease && (
                   <div className="pac-data-row">
                     <span className="pac-data-label">入院日額（災害）</span>
-                    <span className="pac-data-value">{policy.hospDayAccident.toLocaleString()}円</span>
+                    <span className="pac-data-value">{formatPolicyMoney(policy.hospDayAccident, policy.foreignHospDayAccident)}</span>
                   </div>
                 )}
                 {policy.diagnosisBenefit > 0 && (
                   <div className="pac-data-row">
                     <span className="pac-data-label">診断一時金</span>
-                    <span className="pac-data-value">{formatYen(policy.diagnosisBenefit)}</span>
+                    <span className="pac-data-value">{formatPolicyMoney(policy.diagnosisBenefit, policy.foreignDiagnosisBenefit)}</span>
                   </div>
                 )}
                 {policy.maturityBenefit > 0 && (
                   <div className="pac-data-row">
-                    <span className="pac-data-label">満期保険金</span>
-                    <span className="pac-data-value">{formatYen(policy.maturityBenefit)}</span>
+                    <span className="pac-data-label">{policy.policyType === '個人年金保険' ? '年金原資（受取総額）' : '満期保険金'}</span>
+                    <span className="pac-data-value">{formatPolicyMoney(policy.maturityBenefit, policy.foreignMaturityBenefit)}</span>
                   </div>
                 )}
               </div>
               <div className="pac-coverage-period">
                 保障期間: {policy.policyEndAge === 999 ? '終身' : `${policy.policyEndAge}歳まで`}
+              </div>
+            </div>
+          )}
+
+          {pensionSummary && (
+            <div className="pac-section">
+              <h5><Landmark size={14} /> 年金受取</h5>
+              <div className="pac-data-grid">
+                <div className="pac-data-row">
+                  <span className="pac-data-label">年金受取開始</span>
+                  <span className="pac-data-value">{pensionSummary.startAge}歳</span>
+                </div>
+                <div className="pac-data-row">
+                  <span className="pac-data-label">受取期間</span>
+                  <span className="pac-data-value">{policy.policyEndAge === 999 ? '終身' : `${pensionSummary.periodYears}年間`}</span>
+                </div>
+                <div className="pac-data-row">
+                  <span className="pac-data-label">年間年金額</span>
+                  <span className="pac-data-value">{formatYen(Math.round(pensionSummary.annualPayout))}</span>
+                </div>
+                <div className="pac-data-row">
+                  <span className="pac-data-label">年金受取総額</span>
+                  <span className="pac-data-value">{formatPolicyMoney(policy.maturityBenefit, policy.foreignMaturityBenefit)}</span>
+                </div>
+                <div className="pac-data-row highlight-row">
+                  <span className="pac-data-label">返戻率</span>
+                  <span className="pac-data-value">{pensionSummary.returnRate}%</span>
+                </div>
+              </div>
+              <div className="pac-coverage-period">
+                年金原資 ÷ {policy.policyEndAge === 999 ? '20年（仮置き）' : `${pensionSummary.periodYears}年`}で年間年金額を概算
               </div>
             </div>
           )}
@@ -162,7 +203,11 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
               <div className="pac-data-row">
                 <span className="pac-data-label">月額保険料</span>
                 <span className="pac-data-value">
-                  {policy.paymentFrequency === 'single' ? '一時払' : `${Math.round(monthly).toLocaleString()}円`}
+                  {policy.paymentFrequency === 'single'
+                    ? '一時払'
+                    : policy.currency === 'USD' && policy.foreignPremiumAmount
+                      ? `$${Math.round(policy.foreignPremiumAmount / (policy.paymentFrequency === 'annual' ? 12 : 1)).toLocaleString()}（円換算 ${Math.round(monthly).toLocaleString()}円）`
+                      : `${Math.round(monthly).toLocaleString()}円`}
                 </span>
               </div>
               <div className="pac-data-row">
@@ -181,44 +226,6 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
               </div>
             </div>
           </div>
-
-          {policy.policyType === '個人年金保険' && policy.maturityBenefit > 0 && (() => {
-            const annuityStartAge = policy.paymentEndAge;
-            const payoutEndAge = policy.policyEndAge === 999 ? annuityStartAge + 20 : policy.policyEndAge;
-            const payoutPeriod = payoutEndAge - annuityStartAge;
-            const annualPayout = payoutPeriod > 0 ? policy.maturityBenefit / payoutPeriod : 0;
-            const returnRate = analysis.projectedTotalPremiums > 0
-              ? (policy.maturityBenefit / analysis.projectedTotalPremiums * 100).toFixed(1)
-              : '---';
-
-            return (
-              <div className="pac-section">
-                <h5><Landmark size={14} /> 年金受取</h5>
-                <div className="pac-data-grid">
-                  <div className="pac-data-row">
-                    <span className="pac-data-label">年金受取開始</span>
-                    <span className="pac-data-value">{annuityStartAge}歳</span>
-                  </div>
-                  <div className="pac-data-row">
-                    <span className="pac-data-label">受取期間</span>
-                    <span className="pac-data-value">{policy.policyEndAge === 999 ? '終身' : `${payoutPeriod}年間`}</span>
-                  </div>
-                  <div className="pac-data-row">
-                    <span className="pac-data-label">年間年金額</span>
-                    <span className="pac-data-value">{formatYen(Math.round(annualPayout))}</span>
-                  </div>
-                  <div className="pac-data-row">
-                    <span className="pac-data-label">年金受取総額</span>
-                    <span className="pac-data-value">{formatYen(policy.maturityBenefit)}</span>
-                  </div>
-                  <div className="pac-data-row highlight-row">
-                    <span className="pac-data-label">返戻率</span>
-                    <span className="pac-data-value">{returnRate}%</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
         </div>
 
         <div className="pac-right">
