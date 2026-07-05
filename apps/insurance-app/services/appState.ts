@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db';
 import { getSampleFamilyMembers, getSampleAgency, getSamplePolicies } from '@/lib/sampleData';
+import { isIncomeProtectionPolicyType, normalizePolicyType } from '@/types';
 import type { AppState, FamilyMember, Policy, Agency, EvaluationOverride } from '@/types';
 
 interface FamilyMemberRow {
@@ -84,11 +85,22 @@ function parseEvaluationOverrides(raw: string | null): EvaluationOverride[] | un
   }
 }
 
-function rowToPolicy(row: PolicyRow): Policy {
+function normalizePolicyForStorage(policy: Policy): Policy {
+  const policyType = normalizePolicyType(policy.policyType);
+  const isIncomeProtection = isIncomeProtectionPolicyType(policyType);
   return {
+    ...policy,
+    policyType,
+    deathBenefitAccident: isIncomeProtection ? 0 : policy.deathBenefitAccident,
+    foreignDeathBenefitAccident: isIncomeProtection ? 0 : policy.foreignDeathBenefitAccident,
+  };
+}
+
+function rowToPolicy(row: PolicyRow): Policy {
+  return normalizePolicyForStorage({
     id: row.id,
     companyName: row.company_name,
-    policyType: row.policy_type as Policy['policyType'],
+    policyType: normalizePolicyType(row.policy_type),
     policyNumber: row.policy_number ?? '',
     contractDate: row.contract_date,
     contractAge: row.contract_age,
@@ -116,7 +128,7 @@ function rowToPolicy(row: PolicyRow): Policy {
     maturityBenefit: row.maturity_benefit,
     consultantNote: row.consultant_note ?? undefined,
     evaluationOverrides: parseEvaluationOverrides(row.evaluation_overrides),
-  };
+  });
 }
 
 function rowToAgency(row: AgencyRow): Agency {
@@ -242,7 +254,7 @@ export function saveAppState(caseId: string, state: AppState): AppState {
 
     const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, currency, exchange_rate, foreign_premium_amount, foreign_death_benefit_disease, foreign_death_benefit_accident, foreign_hosp_day_disease, foreign_hosp_day_accident, foreign_diagnosis_benefit, foreign_maturity_benefit, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, consultant_note, evaluation_overrides, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (let i = 0; i < state.policies.length; i++) {
-      const p = state.policies[i];
+      const p = normalizePolicyForStorage(state.policies[i]);
       insertPolicy.run(p.id, caseId, p.companyName, p.policyType, p.policyNumber || null, p.contractDate, p.contractAge, p.insuredId, p.beneficiaryId || null, p.deathBenefitDisease, p.deathBenefitAccident, p.hospDayDisease, p.hospDayAccident, p.diagnosisBenefit, p.policyEndAge, p.currency ?? 'JPY', p.exchangeRate ?? 0, p.foreignPremiumAmount ?? 0, p.foreignDeathBenefitDisease ?? 0, p.foreignDeathBenefitAccident ?? 0, p.foreignHospDayDisease ?? 0, p.foreignHospDayAccident ?? 0, p.foreignDiagnosisBenefit ?? 0, p.foreignMaturityBenefit ?? 0, p.paymentFrequency, p.premiumAmount, null, p.paymentEndAge, p.annualPremium, p.maturityBenefit, p.consultantNote ?? null, p.evaluationOverrides?.length ? JSON.stringify(p.evaluationOverrides) : null, i, ts, ts);
     }
 

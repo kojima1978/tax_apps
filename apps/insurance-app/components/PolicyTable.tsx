@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember } from '@/types';
 import { Edit2, GripVertical, Trash, Search, X } from 'lucide-react';
-import { getActiveMonthlyPremium, getMonthlyPremium, getPensionPayoutSummary, isExpired, isPaidUp } from '@/utils/analysisUtils';
+import { getActiveMonthlyPremium, getIncomeProtectionDeathBenefitTotal, getMonthlyPremium, getPensionPayoutSummary, isExpired, isLikelyIncomeProtectionGrossAmount, isPaidUp } from '@/utils/analysisUtils';
 
 type DropPosition = 'before' | 'after';
 
@@ -28,8 +29,14 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
   };
 
   const currentMonthlyBurden = policies.reduce((sum, p) => sum + getActiveMonthlyPremium(p, currentAge), 0);
-  // 収入保障定期保険は月額表記のため一時金の合計には含めない
-  const totalDeathBenefit = policies.reduce((sum, p) => p.policyType === '収入保障定期保険' ? sum : sum + p.deathBenefitDisease, 0);
+  const isIncomeProtection = (policy: Policy) => isIncomeProtectionPolicyType(policy.policyType);
+  const formatYenShort = (amount: number) =>
+    amount >= 10000 ? `${(amount / 10000).toLocaleString()}万円` : `${amount.toLocaleString()}円`;
+  const getIncomeProtectionTotal = (policy: Policy) => {
+    const insured = familyMembers.find(member => member.id === policy.insuredId);
+    return getIncomeProtectionDeathBenefitTotal(policy, insured?.birthDate ?? '');
+  };
+  const totalDeathBenefit = policies.reduce((sum, p) => sum + (isIncomeProtection(p) ? getIncomeProtectionTotal(p) ?? 0 : p.deathBenefitDisease), 0);
   const totalHospDay = policies.reduce((sum, p) => sum + p.hospDayDisease, 0);
   const monthlyBurdenTotalNote = currentAge === null
     ? '一時払を除外。払込終了判定には生年月日が必要'
@@ -46,6 +53,42 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
   const formatCurrencyMeta = (policy: Policy, yenAmount: number) => {
     if (policy.currency !== 'USD') return null;
     return `円換算: ${yenAmount.toLocaleString()}円（1USD=${policy.exchangeRate || 0}円）`;
+  };
+
+  const formatDeathBenefitCell = (policy: Policy) => {
+    if (policy.deathBenefitDisease <= 0) return '-';
+    if (isIncomeProtection(policy)) {
+      if (isLikelyIncomeProtectionGrossAmount(policy)) {
+        return (
+          <div className="benefit-cell benefit-warning">
+            <div className="benefit-main">金額要確認</div>
+            <div className="benefit-meta">月額欄に総額らしい金額: {formatYenShort(policy.deathBenefitDisease)}</div>
+          </div>
+        );
+      }
+      const currentTotal = getIncomeProtectionTotal(policy);
+      return (
+        <div className="benefit-cell benefit-income-protection">
+          <div className="benefit-line">
+            <span className="benefit-label">月額保障</span>
+            <span className="benefit-value">
+              {policy.currency === 'USD' && policy.foreignDeathBenefitDisease
+              ? `$${policy.foreignDeathBenefitDisease.toLocaleString()}`
+              : formatYenShort(policy.deathBenefitDisease)}
+            </span>
+          </div>
+          {currentTotal !== null && (
+            <div className="benefit-line">
+              <span className="benefit-label">累計保障</span>
+              <span className="benefit-value">{formatYenShort(currentTotal)}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return policy.currency === 'USD' && policy.foreignDeathBenefitDisease
+      ? `$${policy.foreignDeathBenefitDisease.toLocaleString()}`
+      : formatYenShort(policy.deathBenefitDisease);
   };
 
   const getPaymentEndLabel = (policy: Policy) =>
@@ -164,7 +207,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
             <th>保険種類</th>
             <th>保険会社</th>
             <th>証券番号</th>
-            <th>死亡保障</th>
+            <th>死亡保障<br /><span className="th-note">収入保障は月額</span></th>
             <th>入院日額</th>
             <th>受取人</th>
             <th>保険料</th>
@@ -206,7 +249,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
               <td>{policy.policyType}</td>
               <td>{policy.companyName}</td>
               <td>{policy.policyNumber || '-'}</td>
-              <td>{policy.deathBenefitDisease > 0 ? `${policy.currency === 'USD' && policy.foreignDeathBenefitDisease ? `$${policy.foreignDeathBenefitDisease.toLocaleString()}` : `${(policy.deathBenefitDisease / 10000).toLocaleString()}万円`}${policy.policyType === '収入保障定期保険' ? '/月' : ''}` : '-'}</td>
+              <td>{formatDeathBenefitCell(policy)}</td>
               <td>{policy.hospDayDisease > 0 ? formatPrimaryAmount(policy, policy.hospDayDisease, policy.foreignHospDayDisease) : '-'}</td>
               <td>{getMemberName(policy.beneficiaryId)}</td>
               <td>
@@ -242,7 +285,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
             <td></td>
             <td></td>
             <td></td>
-            <td style={{ fontWeight: 700 }}>{totalDeathBenefit > 0 ? `${(totalDeathBenefit / 10000).toLocaleString()}万円` : '-'}</td>
+            <td style={{ fontWeight: 700 }}>{totalDeathBenefit > 0 ? formatYenShort(totalDeathBenefit) : '-'}</td>
             <td style={{ fontWeight: 700 }}>{totalHospDay > 0 ? `${totalHospDay.toLocaleString()}円` : '-'}</td>
             <td style={{ textAlign: 'right', fontWeight: 700 }}>
               <div className="total-label">

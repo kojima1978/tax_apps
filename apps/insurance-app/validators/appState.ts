@@ -1,16 +1,15 @@
+import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType } from '@/types';
 import type { PolicyType } from '@/types';
 
-const VALID_POLICY_TYPES: PolicyType[] = [
-  '個人年金保険', '収入保障保険', '収入保障定期保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険',
-];
+const VALID_POLICY_TYPES: PolicyType[] = DISPLAY_POLICY_TYPES;
 const VALID_GENDERS = ['male', 'female'] as const;
 const VALID_INSIGHT_TYPES = ['gap', 'redundancy', 'recommendation'] as const;
 const VALID_RATINGS = ['good', 'caution', 'warning'] as const;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
 const VALID_CURRENCIES = ['JPY', 'USD'] as const;
-const DEATH_BENEFIT_TYPES: PolicyType[] = ['終身保険', '定期保険', '収入保障保険', '収入保障定期保険', '変額終身保険', '養老保険'];
+const DEATH_BENEFIT_TYPES: PolicyType[] = ['終身保険', '定期保険', '収入保障保険', '変額終身保険', '養老保険'];
 const MEDICAL_BENEFIT_TYPES: PolicyType[] = ['医療保険', 'がん保険'];
-const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '収入保障定期保険', '養老保険'];
+const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '養老保険'];
 
 interface ValidationError {
   field: string;
@@ -106,7 +105,8 @@ export function validateAppState(body: unknown): ValidationResult {
       if (VALID_POLICY_TYPES.includes(p.policyType as PolicyType) && p.policyType !== '個人年金保険') {
         const policyType = p.policyType as PolicyType;
         if (DEATH_BENEFIT_TYPES.includes(policyType) && (typeof p.deathBenefitDisease !== 'number' || p.deathBenefitDisease <= 0)) {
-          errors.push({ field: `policies[${i}].deathBenefitDisease`, message: '死亡保障がある保険は死亡保障額が必要です' });
+          const label = isIncomeProtectionPolicyType(policyType) ? '死亡保険金月額' : '死亡保障額';
+          errors.push({ field: `policies[${i}].deathBenefitDisease`, message: `死亡保障がある保険は${label}が必要です` });
         }
         if (DEATH_BENEFIT_TYPES.includes(policyType) && (typeof p.beneficiaryId !== 'string' || !p.beneficiaryId)) {
           errors.push({ field: `policies[${i}].beneficiaryId`, message: '死亡保障がある保険は受取人が必要です' });

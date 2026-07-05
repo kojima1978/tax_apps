@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import type { Policy } from '@/types';
+import { isIncomeProtectionPolicyType, type Policy } from '@/types';
 import { INSURANCE_TYPE_INFO, getDeathBenefitAtAge } from '@/utils/analysisUtils';
 
 interface PolicyMiniChartProps {
@@ -30,7 +30,7 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
     return <PensionMiniChart policy={policy} currentAge={currentAge} typeInfo={typeInfo} />;
   }
 
-  const startAge = policy.contractAge;
+  const startAge = currentAge;
   const endAge = policy.policyEndAge === 999 ? Math.max(90, currentAge + 20) : Math.max(policy.policyEndAge + 5, currentAge + 5);
 
   const data = [];
@@ -49,6 +49,7 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
 
   const isHosp = policy.deathBenefitDisease <= 0 && policy.hospDayDisease > 0;
   const unit = isHosp ? '円/日' : '万円';
+  const areaType = isIncomeProtectionPolicyType(policy.policyType) ? 'linear' : 'stepAfter';
 
   return (
     <div className="mini-chart-container">
@@ -74,7 +75,7 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
   labelFormatter={(label) => `${label}歳`}
 />
           <Area
-            type="stepAfter"
+            type={areaType}
             dataKey="value"
             stroke={typeInfo.borderColor}
             fill={typeInfo.bgColor}
@@ -117,26 +118,34 @@ const PensionMiniChart: React.FC<{
   currentAge: number;
   typeInfo: (typeof INSURANCE_TYPE_INFO)[keyof typeof INSURANCE_TYPE_INFO];
 }> = ({ policy, currentAge }) => {
-  const startAge = policy.contractAge;
+  const startAge = currentAge;
   const annuityStartAge = policy.paymentEndAge;
-  const endAge = policy.policyEndAge === 999 ? annuityStartAge + 20 : policy.policyEndAge;
+  const endAge = Math.max(
+    currentAge,
+    policy.policyEndAge === 999 ? annuityStartAge + 20 : policy.policyEndAge,
+  );
+  const chartEndAge = endAge + 1;
   const payoutPeriod = endAge - annuityStartAge;
   const annualPayout = payoutPeriod > 0 ? policy.maturityBenefit / payoutPeriod : 0;
 
   const data = [];
-  for (let age = startAge; age <= endAge; age++) {
-    let accumulation = 0;
-    let payout = 0;
+  for (let age = startAge; age <= chartEndAge; age++) {
+    let accumulation: number | null = null;
+    let payout: number | null = null;
 
-    if (age < annuityStartAge) {
+    if (age <= annuityStartAge) {
       if (policy.paymentFrequency === 'single') {
-        accumulation = policy.premiumAmount / 10000;
+        accumulation = 0;
       } else {
         const years = age - startAge;
         accumulation = (policy.annualPremium * years) / 10000;
       }
-    } else if (age <= endAge) {
+    }
+
+    if (age >= annuityStartAge && age <= endAge) {
       payout = annualPayout / 10000;
+    } else if (age === chartEndAge) {
+      payout = 0;
     }
 
     data.push({ age, accumulation, payout });
@@ -161,16 +170,17 @@ const PensionMiniChart: React.FC<{
           <Tooltip
   formatter={(value, name) => [
     `${Number(value ?? 0).toLocaleString()}万円`,
-    name === 'accumulation' ? '年金原資' : '年金受取額',
+    name === 'accumulation' ? '今後払込見込' : '年金受取額',
   ]}
   labelFormatter={(label) => `${label}歳`}
 />
           <Area
-            type="monotone"
+            type="linear"
             dataKey="accumulation"
-            name="年金原資"
+            name="今後払込見込"
             stroke="#f59e0b"
             fill="#fef3c7"
+            fillOpacity={0.62}
             strokeWidth={2}
           />
           <Area
@@ -179,6 +189,7 @@ const PensionMiniChart: React.FC<{
             name="年金受取額"
             stroke="#6b8e23"
             fill="#e8f5e0"
+            fillOpacity={0.72}
             strokeWidth={2}
           />
           <ReferenceLine

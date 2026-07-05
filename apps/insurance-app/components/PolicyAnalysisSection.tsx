@@ -34,6 +34,23 @@ const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
   if (policies.length === 0) return null;
 
   const hasBeneficiaryPage = policies.some(policy => policy.deathBenefitDisease > 0);
+  const calculateAge = (birthDate: string): number | null => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    if (Number.isNaN(birth.getTime())) return null;
+
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age >= 0 ? age : null;
+  };
+  const getPolicyCurrentAge = (policy: Policy) => {
+    const insured = familyMembers.find(member => member.id === policy.insuredId);
+    return calculateAge(insured?.birthDate ?? '') ?? currentAge;
+  };
 
   return (
     <div className="analysis-section">
@@ -64,7 +81,7 @@ const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
             <div key={policy.id} className="analysis-card-page">
               <PolicyAnalysisCard
                 policy={policy}
-                currentAge={currentAge}
+                currentAge={getPolicyCurrentAge(policy)}
                 familyMembers={familyMembers}
                 onUpdateNote={onUpdateNote}
                 onUpdateEvaluations={onUpdateEvaluations}

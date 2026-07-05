@@ -1,5 +1,17 @@
-export type PolicyType = '個人年金保険' | '収入保障保険' | '収入保障定期保険' | '定期保険' | 'がん保険' | '変額終身保険' | '医療保険' | '終身保険' | '養老保険';
+export type PolicyType = '個人年金保険' | '収入保障保険' | '定期保険' | 'がん保険' | '変額終身保険' | '医療保険' | '終身保険' | '養老保険';
 export type PolicyCurrency = 'JPY' | 'USD';
+
+export const DISPLAY_POLICY_TYPES: PolicyType[] = ['個人年金保険', '収入保障保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険'];
+
+export function normalizePolicyType(policyType: string): PolicyType {
+  const value = policyType.trim();
+  if (value === '収入保障定期保険') return '収入保障保険';
+  return value as PolicyType;
+}
+
+export function isIncomeProtectionPolicyType(policyType: string): boolean {
+  return normalizePolicyType(policyType) === '収入保障保険';
+}
 
 // 個々の保険分析（保障期間/払込状況/保障充足度）の手動上書き
 export interface EvaluationOverride {

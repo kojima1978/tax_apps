@@ -1,3 +1,4 @@
+import { isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, PolicyType } from '@/types';
 
 export interface EvaluationResult {
@@ -61,15 +62,6 @@ export const INSURANCE_TYPE_INFO: Record<PolicyType, InsuranceTypeInfo> = {
     shortDescription: '万一の際に毎月定額の保険金を遺族に支払う保険',
     longDescription: '被保険者が亡くなった場合、保険期間満了まで毎月一定額が遺族に支払われます。保険期間が進むほど受取総額が減少するため、保険料が割安です。子育て世帯の生活保障として合理的な選択です。',
     purpose: '遺族の生活費保障（特に子育て期間）',
-  },
-  '収入保障定期保険': {
-    iconName: 'TrendingDown',
-    color: '#0c4a6e',
-    bgColor: '#e0f2fe',
-    borderColor: '#0ea5e9',
-    shortDescription: '万一の際に満了まで死亡保険金月額を遺族に支払う定期保険',
-    longDescription: '被保険者が亡くなった場合、保険期間満了まで毎月定額の死亡保険金（月額）が遺族に支払われます。経過年数とともに受取総額が逓減するため保険料が割安で、必要保障額の減少に合わせた合理的な設計です。',
-    purpose: '遺族の生活費保障（必要保障額の逓減に対応）',
   },
   '定期保険': {
     iconName: 'CalendarClock',
@@ -199,37 +191,69 @@ export function calculateRemainingPremiums(policy: Policy, currentAge: number): 
 }
 
 // 死亡保障推移グラフの系列色（全体グラフと受取人別グラフで共通の割当）
-export const COVERAGE_CHART_COLORS = ['#a5b4fc', '#86efac', '#fde68a', '#fdba74'];
+export const COVERAGE_CHART_COLORS = ['#a5b4fc', '#86efac', '#fde68a', '#fdba74', '#67e8f9', '#f0abfc', '#fda4af', '#c4b5fd'];
 
-// 死亡保障推移グラフの対象証券と描画順（収入保障定期保険は積み上げ最上段=先頭）
+// 死亡保障推移グラフの対象証券と描画順（収入保障系は積み上げ最上段=先頭）
 export function getCoverageChartPolicies(policies: Policy[]): Policy[] {
-  const filtered = policies.filter(policy => policy.deathBenefitDisease > 0);
-  return [
-    ...filtered.filter(policy => policy.policyType === '収入保障定期保険'),
-    ...filtered.filter(policy => policy.policyType !== '収入保障定期保険'),
-  ];
+  return policies.filter(policy => policy.deathBenefitDisease > 0 && !isLikelyIncomeProtectionGrossAmount(policy));
+}
+
+function getStableColorIndex(policyId: string): number {
+  let hash = 0;
+  for (let i = 0; i < policyId.length; i++) {
+    hash = (hash * 31 + policyId.charCodeAt(i)) >>> 0;
+  }
+  return hash % COVERAGE_CHART_COLORS.length;
 }
 
 export function buildCoverageColorMap(chartPolicies: Policy[]): Map<string, string> {
-  return new Map(chartPolicies.map((policy, index) => [policy.id, COVERAGE_CHART_COLORS[index % COVERAGE_CHART_COLORS.length]]));
+  const used = new Set<number>();
+  const colorsById = new Map<string, string>();
+
+  [...chartPolicies]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .forEach(policy => {
+      let colorIndex = getStableColorIndex(policy.id);
+      while (used.has(colorIndex) && used.size < COVERAGE_CHART_COLORS.length) {
+        colorIndex = (colorIndex + 1) % COVERAGE_CHART_COLORS.length;
+      }
+      used.add(colorIndex);
+      colorsById.set(policy.id, COVERAGE_CHART_COLORS[colorIndex]);
+    });
+
+  return colorsById;
 }
 
-// 指定年齢時点の死亡保障額。収入保障系は経過年数とともに逓減する
-// （収入保障保険=deathBenefitDiseaseは受取総額、収入保障定期保険=死亡保険金月額）
+// 指定年齢時点の死亡保障額。収入保障系は月額を残存期間の受取総額に換算する
 export function getDeathBenefitAtAge(policy: Policy, age: number): number {
+  if (age < policy.contractAge) return 0;
   if (policy.policyEndAge !== 999 && age >= policy.policyEndAge) return 0;
-  if (policy.policyType === '収入保障保険') {
-    const totalYears = policy.policyEndAge - policy.contractAge;
-    const remainingYears = policy.policyEndAge - age;
-    if (totalYears <= 0) return 0;
-    return (policy.deathBenefitDisease * remainingYears) / totalYears;
-  }
-  if (policy.policyType === '収入保障定期保険') {
+  if (isIncomeProtectionPolicyType(policy.policyType)) {
+    if (isLikelyIncomeProtectionGrossAmount(policy)) return 0;
     if (policy.policyEndAge === 999) return 0;
     const remainingYears = Math.max(0, policy.policyEndAge - age);
     return policy.deathBenefitDisease * 12 * remainingYears;
   }
   return policy.deathBenefitDisease;
+}
+
+export function getIncomeProtectionDeathBenefitTotal(policy: Policy, insuredBirthDate: string, asOf: Date = new Date()): number | null {
+  if (!isIncomeProtectionPolicyType(policy.policyType) || policy.policyEndAge === 999) return null;
+  if (isLikelyIncomeProtectionGrossAmount(policy)) return null;
+
+  const birth = new Date(insuredBirthDate);
+  if (Number.isNaN(birth.getTime())) return null;
+
+  const endDate = new Date(birth);
+  endDate.setFullYear(birth.getFullYear() + policy.policyEndAge);
+  if (asOf >= endDate) return 0;
+
+  const remainingMonths = monthsBetween(asOf, endDate);
+  return policy.deathBenefitDisease * remainingMonths;
+}
+
+export function isLikelyIncomeProtectionGrossAmount(policy: Policy): boolean {
+  return isIncomeProtectionPolicyType(policy.policyType) && policy.deathBenefitDisease >= 1000000;
 }
 
 export function getCurrentDeathBenefit(policy: Policy, currentAge: number): number {
@@ -320,7 +344,14 @@ function evaluateCoverageAdequacy(policy: Policy, currentAge: number): Evaluatio
     return { rating: 'good', label: '保障充足度', text: `死亡保障${(benefit / 10000).toLocaleString()}万円を確保しています` };
   }
 
-  if (policy.policyType === '収入保障保険' || policy.policyType === '収入保障定期保険') {
+  if (isIncomeProtectionPolicyType(policy.policyType)) {
+    if (isLikelyIncomeProtectionGrossAmount(policy)) {
+      return {
+        rating: 'warning',
+        label: '保障充足度',
+        text: '死亡保険金月額に総額が入っている可能性があります。証券の月額給付額を確認してください',
+      };
+    }
     const current = getCurrentDeathBenefit(policy, currentAge);
     if (current < 5000000) {
       return { rating: 'warning', label: '保障充足度', text: `現在の受取総額は${(current / 10000).toLocaleString()}万円に逓減しています` };
@@ -342,16 +373,11 @@ function generateConsultantNote(policy: Policy, currentAge: number): string {
 
   switch (policy.policyType) {
     case '収入保障保険': {
-      const current = getCurrentDeathBenefit(policy, currentAge);
-      let note = `収入保障保険は保険期間の経過とともに受取総額が減少する合理的な設計です。現在の受取総額は約${(current / 10000).toLocaleString()}万円です。`;
-      if (remainCov !== 'lifetime' && remainCov <= 10) {
-        note += `保障期間終了（${policy.policyEndAge}歳）後の遺族保障について別途検討が必要です。`;
+      if (isLikelyIncomeProtectionGrossAmount(policy)) {
+        return '収入保障保険は死亡保険金月額をもとに受取総額を計算します。現在の入力額は月額としては大きいため、総額が入っていないか証券の月額給付額を確認してください。';
       }
-      return note;
-    }
-    case '収入保障定期保険': {
       const current = getCurrentDeathBenefit(policy, currentAge);
-      let note = `収入保障定期保険は死亡保険金月額${(policy.deathBenefitDisease / 10000).toLocaleString()}万円が保険期間満了まで支払われ、経過年数とともに受取総額が逓減する合理的な設計です。現在の受取総額は約${(current / 10000).toLocaleString()}万円です。`;
+      let note = `収入保障保険は死亡保険金月額${(policy.deathBenefitDisease / 10000).toLocaleString()}万円が保険期間満了まで支払われ、経過年数とともに受取総額が逓減する合理的な設計です。現在の受取総額は約${(current / 10000).toLocaleString()}万円です。`;
       if (remainCov !== 'lifetime' && remainCov <= 10) {
         note += `保障期間終了（${policy.policyEndAge}歳）後の遺族保障について別途検討が必要です。`;
       }
@@ -399,9 +425,7 @@ function generateConsultantNote(policy: Policy, currentAge: number): string {
     case '個人年金保険': {
       let note = '公的年金を補完する私的年金として、老後の安定収入を確保します。';
       if (policy.maturityBenefit > 0) {
-        const total = calculateProjectedTotalPremiums(policy);
-        const returnRate = total > 0 ? ((policy.maturityBenefit / total) * 100).toFixed(1) : '---';
-        note += `払込総額に対する返戻率は約${returnRate}%の見込みです。`;
+        note += `年金受取総額は${(policy.maturityBenefit / 10000).toLocaleString()}万円の予定です。`;
       }
       if (paidUp) {
         note += '払込が完了しています。据置期間中も積立金が増加します。';
@@ -418,9 +442,7 @@ function generateConsultantNote(policy: Policy, currentAge: number): string {
     case '養老保険': {
       let note = '死亡保障と貯蓄を兼ね備えた保険です。';
       if (policy.maturityBenefit > 0) {
-        const total = calculateProjectedTotalPremiums(policy);
-        const returnRate = total > 0 ? ((policy.maturityBenefit / total) * 100).toFixed(1) : '---';
-        note += `満期保険金${(policy.maturityBenefit / 10000).toLocaleString()}万円（返戻率約${returnRate}%）が予定されています。`;
+        note += `満期保険金${(policy.maturityBenefit / 10000).toLocaleString()}万円が予定されています。`;
       }
       return note;
     }
@@ -460,7 +482,8 @@ export function analyzePortfolio(policies: Policy[], currentAge: number): Portfo
     insights.push({ type: 'gap', text: '有効な医療保険がありません。入院時の自己負担に備える保障の検討をお勧めします。' });
   }
 
-  const hasDeathBenefit = activePolicies.some(p => p.deathBenefitDisease > 0);
+  const deathBenefitPolicies = activePolicies.filter(p => p.deathBenefitDisease > 0 && !isLikelyIncomeProtectionGrossAmount(p));
+  const hasDeathBenefit = deathBenefitPolicies.length > 0;
   if (!hasDeathBenefit) {
     insights.push({ type: 'gap', text: '有効な死亡保障がありません。遺族の生活保障について検討をお勧めします。' });
   }
@@ -471,7 +494,7 @@ export function analyzePortfolio(policies: Policy[], currentAge: number): Portfo
     insights.push({ type: 'recommendation', text: `医療保険の保障が${earliest}歳で終了します。高齢期の医療費増加に備え、終身型医療保険の検討をお勧めします。` });
   }
 
-  const incomeProtection = activePolicies.filter(p => p.policyType === '収入保障保険' || p.policyType === '収入保障定期保険');
+  const incomeProtection = activePolicies.filter(p => isIncomeProtectionPolicyType(p.policyType));
   incomeProtection.forEach(p => {
     const remaining = getRemainingCoverageYears(p, currentAge);
     if (remaining !== 'lifetime' && remaining <= 10) {
@@ -479,7 +502,6 @@ export function analyzePortfolio(policies: Policy[], currentAge: number): Portfo
     }
   });
 
-  const deathBenefitPolicies = activePolicies.filter(p => p.deathBenefitDisease > 0);
   if (deathBenefitPolicies.length >= 3) {
     insights.push({ type: 'redundancy', text: `死亡保障のある保険が${deathBenefitPolicies.length}件あります。保障の重複がないか確認をお勧めします。` });
   }

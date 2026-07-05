@@ -13,6 +13,7 @@ import CustomerModal from '@/components/CustomerModal';
 import CsvImportDialog from '@/components/CsvImportDialog';
 import CaseListPage from '@/components/CaseListPage';
 import ToastContainer, { type ToastMessage } from '@/components/Toast';
+import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember, Agency, AppState, EvaluationOverride } from '@/types';
 import {
   fetchAppState,
@@ -29,11 +30,11 @@ import {
 
 import { AlertTriangle, CheckCircle2, Clock3, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, ArrowLeft, DatabaseBackup, Home, XCircle } from 'lucide-react';
 
-const VALID_POLICY_TYPES = ['個人年金保険', '収入保障保険', '収入保障定期保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険'] as const;
+const VALID_POLICY_TYPES = DISPLAY_POLICY_TYPES;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
-const DEATH_BENEFIT_TYPES = ['終身保険', '定期保険', '収入保障保険', '収入保障定期保険', '変額終身保険', '養老保険'] as const;
+const DEATH_BENEFIT_TYPES = ['終身保険', '定期保険', '収入保障保険', '変額終身保険', '養老保険'] as const;
 const MEDICAL_BENEFIT_TYPES = ['医療保険', 'がん保険'] as const;
-const FINITE_END_AGE_TYPES = ['定期保険', '収入保障保険', '収入保障定期保険', '養老保険'] as const;
+const FINITE_END_AGE_TYPES = ['定期保険', '収入保障保険', '養老保険'] as const;
 
 function validateBeforeSave(familyMembers: FamilyMember[], policies: Policy[], agency: Agency): string | null {
   if (familyMembers.length === 0) return '家族情報が1件もありません';
@@ -60,7 +61,9 @@ function validateBeforeSave(familyMembers: FamilyMember[], policies: Policy[], a
     } else {
       if ((DEATH_BENEFIT_TYPES as readonly string[]).includes(p.policyType)) {
         if (!p.beneficiaryId) return `${p.policyType}は保険金受取人が必要です`;
-        if (!p.deathBenefitDisease || p.deathBenefitDisease <= 0) return `${p.policyType}は死亡保障額が必要です`;
+        if (!p.deathBenefitDisease || p.deathBenefitDisease <= 0) {
+          return `${p.policyType}は${isIncomeProtectionPolicyType(p.policyType) ? '死亡保険金月額' : '死亡保障額'}が必要です`;
+        }
       }
       if ((MEDICAL_BENEFIT_TYPES as readonly string[]).includes(p.policyType) && (p.hospDayDisease || 0) <= 0 && (p.diagnosisBenefit || 0) <= 0) {
         return `${p.policyType}は入院日額または診断一時金が必要です`;
@@ -422,7 +425,7 @@ export default function Page() {
     : saveError
       ? { kind: 'error', icon: XCircle, label: '保存できていません', detail: saveError }
       : hasUnsavedChanges
-        ? { kind: 'unsaved', icon: AlertTriangle, label: '未保存の変更があります', detail: '右の保存ボタンでSQLiteへ反映してください' }
+        ? { kind: 'unsaved', icon: AlertTriangle, label: '未保存:', detail: '保存ボタンでSQLiteへ反映' }
         : { kind: 'saved', icon: CheckCircle2, label: '保存済み', detail: lastSavedAt ? `${lastSavedAt} 更新` : 'SQLiteに反映済み' };
   const SaveStatusIcon = saveStatus.icon;
 
@@ -540,7 +543,7 @@ export default function Page() {
             </div>
           )}
 
-          <SummaryDashboard policies={policies} currentAge={displayAge} />
+          <SummaryDashboard policies={policies} familyMembers={familyMembers} currentAge={displayAge} />
 
           <PolicyTable
             policies={policies}

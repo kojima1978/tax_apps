@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Users, AlertTriangle } from 'lucide-react';
-import type { Policy, FamilyMember } from '@/types';
+import { isIncomeProtectionPolicyType, type Policy, type FamilyMember } from '@/types';
 import {
   COVERAGE_CHART_COLORS,
   buildCoverageColorMap,
@@ -35,14 +35,77 @@ interface BeneficiaryGroup {
 const formatAxisTick = (value: number | string) =>
   Number(value).toLocaleString('ja-JP', { maximumFractionDigits: 0 });
 
+const formatAgeLabel = (value: number | string) => {
+  const age = Number(value);
+  if (!Number.isFinite(age)) return `${value}歳`;
+  if (Number.isInteger(age)) return `${age}歳`;
+  return `${Math.ceil(age)}歳直前`;
+};
+
+const buildAgeTicks = (startAge: number, endAge: number, interval = 5) => {
+  const ticks = [startAge];
+  const firstTick = Math.ceil(startAge / interval) * interval;
+  for (let age = firstTick; age < endAge; age += interval) {
+    if (age !== startAge) ticks.push(age);
+  }
+  if (!ticks.includes(endAge)) ticks.push(endAge);
+  return ticks;
+};
+
+const getCoverageAreaType = (policy: Policy): 'linear' =>
+  isIncomeProtectionPolicyType(policy.policyType) ? 'linear' : 'linear';
+
+const buildCoverageAgePoints = (policies: Policy[], currentAge: number, endAge: number) => {
+  const points = new Set<number>();
+  for (let age = currentAge; age <= endAge; age++) points.add(age);
+
+  policies.forEach(policy => {
+    if (
+      !isIncomeProtectionPolicyType(policy.policyType) &&
+      policy.policyEndAge !== 999 &&
+      policy.policyEndAge > currentAge &&
+      policy.policyEndAge <= endAge
+    ) {
+      points.add(Number((policy.policyEndAge - 0.001).toFixed(3)));
+    }
+  });
+
+  return [...points].sort((a, b) => a - b);
+};
+
+const BeneficiaryTooltip = ({ active, label, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const items = payload.filter((item: any) => Number(item.value) > 0);
+  if (items.length === 0) return null;
+
+  return (
+    <div className="coverage-tooltip coverage-tooltip-compact">
+      <div className="coverage-tooltip-age">{formatAgeLabel(label)}</div>
+      <div className="coverage-tooltip-list">
+        {items.map((item: any) => (
+          <div key={item.dataKey} className="coverage-tooltip-row">
+            <span className="coverage-tooltip-dot" style={{ backgroundColor: item.color }} />
+            <span className="coverage-tooltip-name">
+              {item.name}
+            </span>
+            <strong>{formatAxisTick(item.value)}万円</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
   policies,
   familyMembers,
   currentAge,
 }) => {
+  const endAge = 90;
   // 全体グラフと同じ順序・色割当を使い、グラフ間の対応を揃える
   const chartPolicies = useMemo(() => getCoverageChartPolicies(policies), [policies]);
   const policyColors = useMemo(() => buildCoverageColorMap(chartPolicies), [chartPolicies]);
+  const ageTicks = useMemo(() => buildAgeTicks(currentAge, endAge), [currentAge, endAge]);
 
   const groups = useMemo<BeneficiaryGroup[]>(() => {
     const byBeneficiary = new Map<string, Policy[]>();
@@ -82,13 +145,14 @@ const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
 
   const buildGroupData = (groupPolicies: Policy[]) => {
     const rows: Record<string, number>[] = [];
-    for (let age = currentAge; age <= 90; age++) {
+    const agePoints = buildCoverageAgePoints(groupPolicies, currentAge, endAge);
+    agePoints.forEach((age) => {
       const row: Record<string, number> = { age };
       groupPolicies.forEach(policy => {
         row[policy.id] = getDeathBenefitAtAge(policy, age) / 10000;
       });
       rows.push(row);
-    }
+    });
     return rows;
   };
 
@@ -103,8 +167,6 @@ const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
       <div className="bcs-grid">
         {groups.map(group => {
           const data = buildGroupData(group.policies);
-          // Recharts は最初の系列が最下段になるため逆順で描画（先頭=最上段）
-          const stackPolicies = [...group.policies].reverse();
           const currentTotal = group.policies.reduce(
             (sum, policy) => sum + getDeathBenefitAtAge(policy, currentAge),
             0,
@@ -128,26 +190,43 @@ const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
                 <AreaChart
                   key={group.policies.map(policy => policy.id).join('|')}
                   data={data}
-                  margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                  margin={{ top: 4, right: 8, left: -4, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="age" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} tickFormatter={formatAxisTick} width={52} />
-                  <Tooltip
-                    formatter={(value: any, name: any) => [`${formatAxisTick(value)}万円`, name]}
-                    labelFormatter={(label) => `${label}歳`}
+                  <CartesianGrid strokeDasharray="4 6" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="age"
+                    type="number"
+                    domain={[currentAge, endAge]}
+                    ticks={ageTicks}
+                    tick={{ fontSize: 10, fill: '#64748b' }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
                   />
-                  {stackPolicies.map(policy => {
+                  <YAxis
+                    tick={{ fontSize: 10, fill: '#64748b' }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    tickFormatter={formatAxisTick}
+                    width={52}
+                  />
+                  <Tooltip
+                    content={<BeneficiaryTooltip />}
+                    cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
+                  />
+                  {group.policies.map(policy => {
                     const color = policyColors.get(policy.id) ?? COVERAGE_CHART_COLORS[0];
                     return (
                       <Area
                         key={policy.id}
-                        type="monotone"
+                        type={getCoverageAreaType(policy)}
                         dataKey={policy.id}
                         name={`${policy.companyName} / ${policy.policyType}`}
                         stackId="1"
                         stroke={color}
                         fill={color}
+                        fillOpacity={0.42}
+                        strokeWidth={2}
+                        activeDot={{ r: 3, stroke: '#ffffff', strokeWidth: 2 }}
                         isAnimationActive={false}
                       />
                     );

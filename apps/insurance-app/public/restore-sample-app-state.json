@@ -73,8 +73,8 @@
       "contractAge": 39,
       "insuredId": "restore-m1",
       "beneficiaryId": "restore-m2",
-      "deathBenefitDisease": 18000000,
-      "deathBenefitAccident": 18000000,
+      "deathBenefitDisease": 250000,
+      "deathBenefitAccident": 0,
       "hospDayDisease": 0,
       "hospDayAccident": 0,
       "diagnosisBenefit": 0,
@@ -150,7 +150,7 @@
       "paymentEndAge": 60,
       "annualPremium": 180000,
       "maturityBenefit": 3600000,
-      "consultantNote": "老後資金準備用。払込期間と返戻率を確認。"
+      "consultantNote": "老後資金準備用。受取開始時期と年間年金額を確認。"
     },
     {
       "id": "restore-p6",

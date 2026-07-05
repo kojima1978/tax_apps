@@ -3,13 +3,13 @@ import iconv from 'iconv-lite';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db';
 import { getAppState } from '@/services/appState';
+import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType, normalizePolicyType } from '@/types';
 import type { Policy, PolicyType, FamilyMember, AppState } from '@/types';
 
-const VALID_POLICY_TYPES: PolicyType[] = [
-  '個人年金保険', '収入保障保険', '収入保障定期保険', '定期保険', 'がん保険', '変額終身保険', '医療保険', '終身保険', '養老保険',
-];
+const VALID_POLICY_TYPES: PolicyType[] = DISPLAY_POLICY_TYPES;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
-const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '収入保障定期保険', '養老保険'];
+const DEATH_BENEFIT_TYPES: PolicyType[] = ['終身保険', '定期保険', '収入保障保険', '変額終身保険', '養老保険'];
+const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '養老保険'];
 
 const HEADER_MAP: Record<string, string> = {
   '保険会社': 'companyName',
@@ -247,7 +247,8 @@ export function importCsv(
       errors.push({ row: rowNum, message: '保険会社は必須です' });
       continue;
     }
-    if (!row.policyType?.trim() || !VALID_POLICY_TYPES.includes(row.policyType.trim() as PolicyType)) {
+    const normalizedPolicyType = row.policyType?.trim() ? normalizePolicyType(row.policyType.trim()) : null;
+    if (!normalizedPolicyType || !VALID_POLICY_TYPES.includes(normalizedPolicyType)) {
       errors.push({ row: rowNum, message: '保険種類が不正です' });
       continue;
     }
@@ -310,7 +311,7 @@ export function importCsv(
     }
     if (paymentEndAge < 0) paymentEndAge = 0;
 
-    const policyType = row.policyType!.trim() as PolicyType;
+    const policyType = normalizedPolicyType;
     const policyEndAge = parseIntOrDefault(row.policyEndAge, 0);
     const currency = row.currency?.trim() === 'USD' || row.currency?.trim() === 'ドル' ? 'USD' : 'JPY';
     const exchangeRate = currency === 'USD' ? parseNumberOrDefault(row.exchangeRate, 0) : 0;
@@ -370,6 +371,23 @@ export function importCsv(
       errors.push({ row: rowNum, message: `${policyType}は保険期間の終了年齢が必須です` });
       continue;
     }
+    if (policyType !== '個人年金保険' && DEATH_BENEFIT_TYPES.includes(policyType)) {
+      if (!beneficiaryId) {
+        errors.push({ row: rowNum, message: `${policyType}は受取人が必須です` });
+        continue;
+      }
+      if (deathBenefitDisease <= 0) {
+        errors.push({
+          row: rowNum,
+          message: `${policyType}は${isIncomeProtectionPolicyType(policyType) ? '死亡保険金月額' : '死亡保障額'}が必須です`,
+        });
+        continue;
+      }
+      if (isIncomeProtectionPolicyType(policyType) && deathBenefitDisease >= 1000000) {
+        errors.push({ row: rowNum, message: '収入保障保険は死亡保険金月額を入力してください。総額ではなく月額を確認してください' });
+        continue;
+      }
+    }
 
     const policyNumber = row.policyNumber?.trim() ?? '';
     if (policyNumber && existingByNumber.has(policyNumber)) {
@@ -391,7 +409,7 @@ export function importCsv(
         insuredId,
         beneficiaryId,
         deathBenefitDisease,
-        deathBenefitAccident,
+        deathBenefitAccident: isIncomeProtectionPolicyType(policyType) ? 0 : deathBenefitAccident,
         hospDayDisease,
         hospDayAccident,
         diagnosisBenefit,

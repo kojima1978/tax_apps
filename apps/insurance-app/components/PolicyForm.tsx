@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType, normalizePolicyType } from '@/types';
 import type { Policy, PolicyType, FamilyMember } from '@/types';
 import { AlertTriangle, Clipboard, FileUp, Info, RotateCcw, Save, Upload, X } from 'lucide-react';
 import { mergeRelationshipSuggestions } from '@/utils/relationshipOptions';
@@ -50,12 +51,12 @@ interface ImportDraft {
 const formatComma = (n: number) => n ? n.toLocaleString() : '';
 const yenFromForeign = (amount: number, exchangeRate: number) => Math.round((amount || 0) * (exchangeRate || 0));
 
-const DEATH_BENEFIT_TYPES: PolicyType[] = ['終身保険', '定期保険', '収入保障保険', '収入保障定期保険', '変額終身保険', '養老保険'];
+const DEATH_BENEFIT_TYPES: PolicyType[] = ['終身保険', '定期保険', '収入保障保険', '変額終身保険', '養老保険'];
 const MEDICAL_BENEFIT_TYPES: PolicyType[] = ['医療保険', 'がん保険'];
 const DIAGNOSIS_BENEFIT_TYPES: PolicyType[] = ['医療保険', 'がん保険'];
 const MATURITY_BENEFIT_TYPES: PolicyType[] = ['終身保険', '変額終身保険', '養老保険'];
 const BENEFICIARY_TYPES: PolicyType[] = [...DEATH_BENEFIT_TYPES];
-const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '収入保障定期保険', '養老保険'];
+const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '養老保険'];
 
 // 生年月日と基準日から満年齢を計算（不明な場合は null）
 const calcAgeAt = (birthDate: string, targetDate: string): number | null => {
@@ -495,7 +496,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
 
   const parseImportPolicyType = (v: any): PolicyType => {
     const type = String(v || '');
-    if (type.includes('収入保障定期')) return '収入保障定期保険';
+    if (type.includes('収入保障定期')) return '収入保障保険';
     if (type.includes('収入保障')) return '収入保障保険';
     if (type.includes('がん') || type.includes('ガン') || type.includes('癌')) return 'がん保険';
     if (type.includes('医療')) return '医療保険';
@@ -503,6 +504,8 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     if (type.includes('変額')) return '変額終身保険';
     if (type.includes('養老')) return '養老保険';
     if (type.includes('定期') && !type.includes('終身')) return '定期保険';
+    const normalized = normalizePolicyType(type);
+    if (DISPLAY_POLICY_TYPES.includes(normalized)) return normalized;
     return '終身保険';
   };
 
@@ -609,7 +612,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     const hasMedicalBenefit = MEDICAL_BENEFIT_TYPES.includes(policyType);
     const hasDiagnosisBenefit = DIAGNOSIS_BENEFIT_TYPES.includes(policyType);
     const hasMaturityBenefit = isPensionImport || MATURITY_BENEFIT_TYPES.includes(policyType);
-    const hasAccidentDeathBenefit = hasDeathBenefit && policyType !== '収入保障保険' && policyType !== '収入保障定期保険';
+    const hasAccidentDeathBenefit = hasDeathBenefit && !isIncomeProtectionPolicyType(policyType);
 
     const data: Partial<Policy> = {
       companyName: json.companyName ? String(json.companyName).replace(/様$/, '').trim() : '',
@@ -1006,7 +1009,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       const hasDiagnosisBenefit = DIAGNOSIS_BENEFIT_TYPES.includes(policyType);
       const hasMaturityBenefit = policyType === '個人年金保険' || MATURITY_BENEFIT_TYPES.includes(policyType);
       const hasBeneficiary = BENEFICIARY_TYPES.includes(policyType);
-      const isIncomeProtectionType = policyType === '収入保障保険' || policyType === '収入保障定期保険';
+      const isIncomeProtectionType = isIncomeProtectionPolicyType(policyType);
 
       if (FINITE_END_AGE_TYPES.includes(policyType) && prev.policyEndAge === 999) {
         next.policyEndAge = defaultFiniteEndAge(prev.contractAge);
@@ -1127,7 +1130,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
 
   const isPension = formData.policyType === '個人年金保険';
   const selectedPolicyType = formData.policyType || '終身保険';
-  const isIncomeProtection = formData.policyType === '収入保障保険' || formData.policyType === '収入保障定期保険';
+  const isIncomeProtection = isIncomeProtectionPolicyType(selectedPolicyType);
   const hasDeathBenefitFields = DEATH_BENEFIT_TYPES.includes(selectedPolicyType);
   const hasMedicalBenefitFields = MEDICAL_BENEFIT_TYPES.includes(selectedPolicyType);
   const hasDiagnosisBenefitFields = DIAGNOSIS_BENEFIT_TYPES.includes(selectedPolicyType);
@@ -1471,15 +1474,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
             <div className="form-group">
               <label>保険種類</label>
               <select value={formData.policyType} onChange={e => setPolicyType(e.target.value as PolicyType)}>
-                <option value="終身保険">終身保険</option>
-                <option value="定期保険">定期保険</option>
-                <option value="収入保障保険">収入保障保険</option>
-                <option value="収入保障定期保険">収入保障定期保険</option>
-                <option value="医療保険">医療保険</option>
-                <option value="がん保険">がん保険</option>
-                <option value="個人年金保険">個人年金保険</option>
-                <option value="変額終身保険">変額終身保険</option>
-                <option value="養老保険">養老保険</option>
+                {DISPLAY_POLICY_TYPES.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
               </select>
             </div>
             <div className="form-group">
@@ -1539,7 +1536,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
               <>
                 <div className="form-context-note" role="note">
                   <Info size={15} aria-hidden="true" />
-                  <span>開始年齢・終了年齢・年金原資から、受取期間、年間年金額、返戻率を表示します。</span>
+                  <span>開始年齢・終了年齢・年金原資から、受取期間と年間年金額を表示します。</span>
                 </div>
                 <div className={`form-group ${formErrors.paymentEndAge ? 'has-error' : ''}`}>
                   <label>年金受取開始年齢（歳）<span className="required-mark">*</span></label>

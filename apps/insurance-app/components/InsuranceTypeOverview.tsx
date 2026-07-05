@@ -75,6 +75,9 @@ const insightTypeLabels: Record<PortfolioInsight['type'], string> = {
 let nextId = 1;
 const genId = () => `insight-${nextId++}`;
 
+const mapAutoInsights = (policies: Policy[], currentAge: number): EditableInsight[] =>
+  analyzePortfolio(policies, currentAge).map(a => ({ ...a, id: genId(), isCustom: false }));
+
 const InsuranceTypeOverview: React.FC<InsuranceTypeOverviewProps> = ({ caseId, policies, currentAge }) => {
   const grouped = policies.reduce<Record<PolicyType, Policy[]>>((acc, p) => {
     if (!acc[p.policyType]) acc[p.policyType] = [];
@@ -138,25 +141,26 @@ const InsuranceTypeOverview: React.FC<InsuranceTypeOverviewProps> = ({ caseId, p
     insightsLoadedRef.current = false;
     fetchPortfolioInsights(caseId).then(({ insights, hasData }) => {
       if (hasData && insights.length > 0) {
-        setEditableInsights(insights.map(i => ({
+        const customInsights = insights.filter(i => i.isCustom).map(i => ({
           id: i.id || genId(),
           type: i.type,
           text: i.text,
           isCustom: i.isCustom,
-        })));
+        }));
+        const mapped = [...mapAutoInsights(policies, currentAge), ...customInsights];
+        setEditableInsights(mapped);
+        persistInsights(mapped);
       } else {
-        const auto = analyzePortfolio(policies, currentAge);
-        const mapped = auto.map(a => ({ ...a, id: genId(), isCustom: false }));
+        const mapped = mapAutoInsights(policies, currentAge);
         setEditableInsights(mapped);
         if (policies.length > 0) persistInsights(mapped);
       }
       insightsLoadedRef.current = true;
     }).catch(() => {
-      const auto = analyzePortfolio(policies, currentAge);
-      setEditableInsights(auto.map(a => ({ ...a, id: genId(), isCustom: false })));
+      setEditableInsights(mapAutoInsights(policies, currentAge));
       insightsLoadedRef.current = true;
     });
-  }, [caseId]);
+  }, [caseId, policies, currentAge]);
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -203,8 +207,7 @@ const InsuranceTypeOverview: React.FC<InsuranceTypeOverviewProps> = ({ caseId, p
 
   const handleReset = async () => {
     await resetPortfolioInsights(caseId).catch(() => {});
-    const auto = analyzePortfolio(policies, currentAge);
-    const mapped = auto.map(a => ({ ...a, id: genId(), isCustom: false }));
+    const mapped = mapAutoInsights(policies, currentAge);
     setEditableInsights(mapped);
     persistInsights(mapped);
     setEditingId(null);

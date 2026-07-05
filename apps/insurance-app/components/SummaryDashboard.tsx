@@ -1,14 +1,16 @@
 import React from 'react';
-import type { Policy } from '@/types';
+import { isIncomeProtectionPolicyType } from '@/types';
+import type { Policy, FamilyMember } from '@/types';
 import { Activity, CreditCard, Info, Shield } from 'lucide-react';
-import { getActiveMonthlyPremium, getDeathBenefitAtAge } from '@/utils/analysisUtils';
+import { getActiveMonthlyPremium, getDeathBenefitAtAge, getIncomeProtectionDeathBenefitTotal } from '@/utils/analysisUtils';
 
 interface SummaryDashboardProps {
   policies: Policy[];
+  familyMembers: FamilyMember[];
   currentAge: number | null;
 }
 
-const SummaryDashboard: React.FC<SummaryDashboardProps> = ({ policies, currentAge }) => {
+const SummaryDashboard: React.FC<SummaryDashboardProps> = ({ policies, familyMembers, currentAge }) => {
   const totalMonthlyPremium = policies.reduce((sum, p) => {
     return sum + getActiveMonthlyPremium(p, currentAge);
   }, 0);
@@ -17,10 +19,16 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({ policies, currentAg
     ? '一時払を除外。払込終了判定には生年月日が必要'
     : '一時払・払込終了済みは除外';
 
-  const totalDeathBenefit = currentAge === null ? null : policies.reduce(
-    (sum, p) => sum + getDeathBenefitAtAge(p, currentAge),
-    0,
-  );
+  const getPolicyDeathBenefit = (policy: Policy) => {
+    if (isIncomeProtectionPolicyType(policy.policyType)) {
+      const insured = familyMembers.find(member => member.id === policy.insuredId);
+      const exactTotal = getIncomeProtectionDeathBenefitTotal(policy, insured?.birthDate ?? '');
+      if (exactTotal !== null) return exactTotal;
+    }
+    return currentAge === null ? 0 : getDeathBenefitAtAge(policy, currentAge);
+  };
+  const totalDeathBenefit = currentAge === null ? null : policies.reduce((sum, p) => sum + getPolicyDeathBenefit(p), 0);
+  const deathBenefitNote = '今日死亡した場合の概算。収入保障系は月額×残存期間で換算';
 
   const totalHospBenefit = currentAge === null ? null : policies.reduce((sum, p) => {
     if (currentAge < p.policyEndAge || p.policyEndAge === 999) {
@@ -47,10 +55,12 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({ policies, currentAg
         <div className="card-header">
           <Shield className="icon" />
           <span>現在の死亡保障額</span>
+          <Info size={14} className="card-info-icon" aria-label={deathBenefitNote} />
         </div>
         <div className={`card-value ${totalDeathBenefit === null ? 'card-value-muted' : ''}`}>
           {totalDeathBenefit === null ? '年齢未入力' : `${(totalDeathBenefit / 10000).toLocaleString()}万円`}
         </div>
+        <div className="card-subtext">{deathBenefitNote}</div>
       </div>
 
       <div className="summary-card">

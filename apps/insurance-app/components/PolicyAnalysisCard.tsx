@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember, EvaluationOverride } from '@/types';
 import { Calculator, MessageSquare, Landmark, ClipboardList, Check, Plus, X } from 'lucide-react';
 import {
@@ -9,7 +10,9 @@ import {
   EVALUATION_LABELS,
   RATING_LABELS,
   getPensionPayoutSummary,
+  getIncomeProtectionDeathBenefitTotal,
   getMonthlyPremium,
+  isLikelyIncomeProtectionGrossAmount,
   type EvaluationResult,
 } from '@/utils/analysisUtils';
 import EvaluationBadge from '@/components/EvaluationBadge';
@@ -26,6 +29,7 @@ interface PolicyAnalysisCardProps {
 const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, currentAge, familyMembers, onUpdateNote, onUpdateEvaluations }) => {
   const analysis = analyzePolicy(policy, currentAge);
   const typeInfo = INSURANCE_TYPE_INFO[policy.policyType];
+  const isIncomeProtection = isIncomeProtectionPolicyType(policy.policyType);
 
   // 個別評価（保障期間/払込状況/保障充足度）の手動編集
   const overrides = policy.evaluationOverrides ?? [];
@@ -67,9 +71,6 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
     return member ? member.name : '未設定';
   };
 
-  const contractDate = new Date(policy.contractDate);
-  const contractLabel = `${contractDate.getFullYear()}年${contractDate.getMonth() + 1}月`;
-
   const formatYen = (amount: number) => {
     if (amount >= 10000) return `${(amount / 10000).toLocaleString()}万円`;
     return `${amount.toLocaleString()}円`;
@@ -85,6 +86,11 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
   const pensionSummary = policy.policyType === '個人年金保険' && policy.maturityBenefit > 0
     ? getPensionPayoutSummary(policy)
     : null;
+  const insuredBirthDate = familyMembers.find(member => member.id === policy.insuredId)?.birthDate ?? '';
+  const incomeProtectionCurrentTotal = isIncomeProtection
+    ? getIncomeProtectionDeathBenefitTotal(policy, insuredBirthDate)
+    : null;
+  const incomeProtectionAmountWarning = isLikelyIncomeProtectionGrossAmount(policy);
 
   return (
     <div className={`policy-analysis-card ${analysis.isExpired ? 'expired-card' : ''}`}>
@@ -105,8 +111,6 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
         </div>
         <div className="pac-header-meta">
           <span>証券番号: {policy.policyNumber}</span>
-          <span>契約: {contractLabel}</span>
-          <span>契約年齢: {policy.contractAge}歳</span>
           <span>被保険者: {getMemberName(policy.insuredId)}</span>
         </div>
       </div>
@@ -119,7 +123,7 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
               <div className="pac-data-grid">
                 {policy.deathBenefitDisease > 0 && (
                   <div className="pac-data-row">
-                    <span className="pac-data-label">{policy.policyType === '収入保障定期保険' ? '死亡保険金月額' : '死亡保障（疾病）'}</span>
+                    <span className="pac-data-label">{isIncomeProtection ? '死亡保険金月額' : '死亡保障（疾病）'}</span>
                     <span className="pac-data-value">{formatPolicyMoney(policy.deathBenefitDisease, policy.foreignDeathBenefitDisease)}</span>
                   </div>
                 )}
@@ -129,10 +133,16 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
                     <span className="pac-data-value">{formatPolicyMoney(policy.deathBenefitAccident, policy.foreignDeathBenefitAccident)}</span>
                   </div>
                 )}
-                {(policy.policyType === '収入保障保険' || policy.policyType === '収入保障定期保険') && analysis.currentDeathBenefit > 0 && (
+                {isIncomeProtection && incomeProtectionCurrentTotal !== null && incomeProtectionCurrentTotal > 0 && (
                   <div className="pac-data-row highlight-row">
-                    <span className="pac-data-label">現在の受取総額</span>
-                    <span className="pac-data-value">{formatYen(Math.round(analysis.currentDeathBenefit))}</span>
+                    <span className="pac-data-label">現在の受取総額（今日死亡時）</span>
+                    <span className="pac-data-value">{formatYen(Math.round(incomeProtectionCurrentTotal))}</span>
+                  </div>
+                )}
+                {incomeProtectionAmountWarning && (
+                  <div className="pac-data-row highlight-row">
+                    <span className="pac-data-label">金額確認</span>
+                    <span className="pac-data-value">死亡保険金月額に総額が入っている可能性があります</span>
                   </div>
                 )}
                 {policy.hospDayDisease > 0 && (
@@ -186,10 +196,6 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
                   <span className="pac-data-label">年金受取総額</span>
                   <span className="pac-data-value">{formatPolicyMoney(policy.maturityBenefit, policy.foreignMaturityBenefit)}</span>
                 </div>
-                <div className="pac-data-row highlight-row">
-                  <span className="pac-data-label">返戻率</span>
-                  <span className="pac-data-value">{pensionSummary.returnRate}%</span>
-                </div>
               </div>
               <div className="pac-coverage-period">
                 年金原資 ÷ {policy.policyEndAge === 999 ? '20年（仮置き）' : `${pensionSummary.periodYears}年`}で年間年金額を概算
@@ -198,7 +204,7 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
           )}
 
           <div className="pac-section">
-            <h5><Calculator size={14} /> コスト分析</h5>
+            <h5><Calculator size={14} /> 今後の保険料</h5>
             <div className="pac-data-grid">
               <div className="pac-data-row">
                 <span className="pac-data-label">月額保険料</span>
@@ -206,13 +212,9 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
                   {policy.paymentFrequency === 'single'
                     ? '一時払'
                     : policy.currency === 'USD' && policy.foreignPremiumAmount
-                      ? `$${Math.round(policy.foreignPremiumAmount / (policy.paymentFrequency === 'annual' ? 12 : 1)).toLocaleString()}（円換算 ${Math.round(monthly).toLocaleString()}円）`
+                  ? `$${Math.round(policy.foreignPremiumAmount / (policy.paymentFrequency === 'annual' ? 12 : 1)).toLocaleString()}（円換算 ${Math.round(monthly).toLocaleString()}円）`
                       : `${Math.round(monthly).toLocaleString()}円`}
                 </span>
-              </div>
-              <div className="pac-data-row">
-                <span className="pac-data-label">累計支払済</span>
-                <span className="pac-data-value">{formatYen(Math.round(analysis.totalPremiumsPaid))}</span>
               </div>
               {analysis.remainingPremiums > 0 && (
                 <div className="pac-data-row">
@@ -220,10 +222,6 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
                   <span className="pac-data-value">{formatYen(Math.round(analysis.remainingPremiums))}</span>
                 </div>
               )}
-              <div className="pac-data-row">
-                <span className="pac-data-label">総支払見込</span>
-                <span className="pac-data-value">{formatYen(Math.round(analysis.projectedTotalPremiums))}</span>
-              </div>
             </div>
           </div>
         </div>

@@ -94,12 +94,40 @@ h1 {
   border: 1px solid #e2e8f0;
 }
 
+.coverage-chart {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.coverage-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.coverage-chart-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.coverage-chart-header p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .coverage-chart-legend {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.5rem 1rem;
-  margin: 0 0 0.35rem;
+  gap: 0.45rem 0.85rem;
+  margin: 0 0 0.65rem;
   padding: 0;
   list-style: none;
   color: #334155;
@@ -112,14 +140,76 @@ h1 {
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .coverage-chart-legend span {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
   border: 1px solid rgba(15, 23, 42, 0.12);
   flex: 0 0 auto;
+}
+
+.coverage-tooltip {
+  max-width: 320px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+}
+
+.coverage-tooltip-compact {
+  max-width: 260px;
+  padding: 0.5rem 0.6rem;
+}
+
+.coverage-tooltip-age {
+  margin-bottom: 0.4rem;
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.coverage-tooltip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.coverage-tooltip-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+  color: #334155;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.coverage-tooltip-row strong {
+  color: #0f172a;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.coverage-tooltip-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.coverage-tooltip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-container {
@@ -163,6 +253,15 @@ h1 {
   color: #475569;
   font-weight: 600;
   border-bottom: 2px solid #e2e8f0;
+}
+
+.policy-table .th-note {
+  display: inline-block;
+  margin-top: 0.15rem;
+  color: #64748b;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .policy-table td {
@@ -258,6 +357,60 @@ h1 {
   flex-direction: column;
   gap: 0.25rem;
   min-width: 8.5rem;
+}
+
+.benefit-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 7.5rem;
+}
+
+.benefit-income-protection {
+  gap: 0.12rem;
+  min-width: 6.8rem;
+}
+
+.benefit-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.benefit-label {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.benefit-label::after {
+  content: "：";
+}
+
+.benefit-value {
+  color: #0f172a;
+  font-weight: 800;
+  text-align: right;
+}
+
+.benefit-main {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.benefit-meta {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.benefit-warning .benefit-main,
+.benefit-warning .benefit-meta {
+  color: #b45309;
 }
 
 .premium-main {
@@ -501,6 +654,7 @@ h1 {
   display: flex;
   gap: 0.75rem;
   align-items: center;
+  min-width: 0;
 }
 
 .dropdown-wrapper {
@@ -658,28 +812,35 @@ h1 {
 .save-status {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  min-height: 2.35rem;
-  max-width: 22rem;
-  padding: 0.45rem 0.65rem;
+  gap: 0.38rem;
+  box-sizing: border-box;
+  height: 2.25rem;
+  max-width: min(24rem, 34vw);
+  min-width: 0;
+  padding: 0.28rem 0.58rem;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #334155;
-  font-size: 0.78rem;
-  line-height: 1.2;
+  font-size: clamp(0.68rem, 0.72vw, 0.78rem);
+  line-height: 1;
   font-weight: 700;
   white-space: nowrap;
+  flex: 0 1 auto;
 }
 
 .save-status svg {
   flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
 }
 
 .save-status-label,
 .save-status-detail {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .save-status-label {
@@ -689,6 +850,7 @@ h1 {
 .save-status-detail {
   color: #64748b;
   font-weight: 600;
+  flex: 1 1 auto;
 }
 
 .save-status-saved {
