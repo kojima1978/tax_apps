@@ -1,10 +1,16 @@
-import { GridForm, type GridCell } from '@/components/ui/GridForm';
+﻿import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable4 } from '../table4/Table4Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import type { TableProps } from '@/types/form';
 
 const T = 'table2' as const;
+
+// ══ 令和8年4月1日以降用の様式 ══
+// ・判定要素の転記元表示が「第４表の１」（Ⓑ１Ⓒ１Ⓓ１／Ⓑ２Ⓒ２Ⓓ２）に変更
+// ・識別コード（G01〜G31・N01）は様式どおり独立セルで再現し、判定の「１」記入枠は該当時に自動表示
+// ・開業年月日（N01）は元号/年/月/日の4列プルダウン
+// ・判定ロジックは通達189のまま（比準要素数1/株保50%/土地保有70・90%/開業3年/開業前・休業中/清算中）
 
 // ── 計算の根拠（参考リンク） ──
 const REFERENCES = [
@@ -13,7 +19,16 @@ const REFERENCES = [
 
 const fl = (v: number) => Math.floor(v + 1e-9);
 
-/** 第2表の判定結果（buildCellsのハイライトと判定結果表示に使用） */
+// ── 和暦日付の4列プルダウン（第1表の1と同方式・第2表の列位置） ──
+const numOptions = (n: number) => ['', ...Array.from({ length: n }, (_, i) => String(i + 1))];
+const DATE_OPTS = {
+  g: ['令和', '平成', '昭和'],
+  y: numOptions(64),
+  m: numOptions(12),
+  d: numOptions(31),
+} as const;
+
+/** 第2表の判定結果（ハイライト・「１」記入枠の表示に使用） */
 interface Judgments {
   s1: boolean | null;            // 1. 比準要素数1の会社
   kabuRatio: number | null;      // ③ 株式等保有割合（1%未満切捨て）
@@ -30,189 +45,214 @@ interface Judgments {
   s6: boolean;                   // 6. 清算中
 }
 
-/** 第2表のグリッドセル（ピッカー測定値＋判定ハイライト） */
-function buildCells(j: Judgments, resultName: string): GridCell[] {
+/** 「１」記入枠（b_G01〜b_G31）の該当状態 */
+function flagStates(c: ReturnType<typeof calcTable2>): Record<string, boolean> {
+  const j = c.j;
   const landTh = j.landCol === 'big' || j.landCol === 'smallA' ? 70 : j.landCol === 'mid' || j.landCol === 'smallB' ? 90 : null;
   const landHit = (col: Judgments['landCol'], over: boolean) =>
     j.landCol === col && j.landRatio !== null && landTh !== null && (over ? j.landRatio >= landTh : j.landRatio < landTh);
+  return {
+    b_G01: j.s1 === true, b_G02: j.s1 === false,
+    b_G03: j.s2 === true, b_G04: j.s2 === false,
+    b_G05: j.sizeRank === 4, b_G06: j.sizeRank !== null && j.sizeRank >= 1 && j.sizeRank <= 3, b_G07: j.sizeRank === 0,
+    b_G08: landHit('big', true), b_G09: landHit('big', false),
+    b_G10: landHit('mid', true), b_G11: landHit('mid', false),
+    b_G12: landHit('smallA', true), b_G13: landHit('smallA', false),
+    b_G14: landHit('smallB', true), b_G15: landHit('smallB', false),
+    b_G16: j.s4a === true, b_G17: j.s4a === false,
+    b_G18: j.s4b === true, b_G19: j.s4b === false,
+    b_G20: j.s5a, b_G21: !j.s5a,
+    b_G22: j.s5b, b_G23: !j.s5b,
+    b_G24: j.s6, b_G25: !j.s6,
+    b_G26: c.result === 1, b_G27: c.result === 2, b_G28: c.result === 3,
+    b_G29: c.result === 4, b_G30: c.result === 5, b_G31: c.result === 6,
+  };
+}
+
+/** 判定セル（[コード][１記入枠][項目]）を生成。textPropsでselectValue等を追加 */
+function judgeCells(
+  flags: Record<string, boolean>,
+  top: number,
+  height: number,
+  code: string,
+  text: string,
+  codeL: number,
+  boxL: number,
+  textL: number,
+  textEnd: number,
+  textProps?: Partial<GridCell>,
+): GridCell[] {
+  const hl = () => flags[`b_${code}`] === true;
+  return [
+    { kind: 'cell', codeLabel: code, top, left: codeL, width: +(boxL - codeL).toFixed(2), height },
+    { field: `b_${code}`, kind: 'input', readOnly: true, ariaLabel: `${code}（該当時は１）`, highlightWhen: hl, top, left: boxL, width: +(textL - boxL).toFixed(2), height, align: 'center' },
+    { kind: 'label', text, highlightWhen: hl, top, left: textL, width: +(textEnd - textL).toFixed(2), height, ...textProps },
+  ];
+}
+
+/** 第2表のグリッドセル（令和8年様式・罫線座標はPNGからの機械抽出） */
+function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
+  const j = c.j;
+  const flags = flagStates(c);
   const fieldIsZero = (g: (field: string) => string, field: string) => {
     const value = g(field).replace(/,/g, '').trim();
     return value !== '' && Number(value) === 0;
   };
-  const sizeChoice =
-    j.sizeRank === 4 ? 'large' :
-    j.sizeRank !== null && j.sizeRank >= 1 && j.sizeRank <= 3 ? 'medium' :
-    j.sizeRank === 0 ? 'small' :
-    undefined;
+  const jc = (top: number, height: number, code: string, text: string, codeL: number, boxL: number, textL: number, textEnd: number, textProps?: Partial<GridCell>) =>
+    judgeCells(flags, top, height, code, text, codeL, boxL, textL, textEnd, textProps);
   return [
-  // ── 外枠・区分 ──
-  { kind: 'cell', text: '', top: 8.51, left: 8.64, width: 85.38, height: 80.58 },
-  { kind: 'cell', text: '', top: 8.51, left: 8.51, width: 85.51, height: 12.05 },
-  { kind: 'cell', text: '', top: 20.37, left: 8.51, width: 85.51, height: 9.83 },
-  { kind: 'cell', text: '', top: 30.01, left: 8.51, width: 85.51, height: 25.73 },
-  { kind: 'cell', text: '', top: 55.65, left: 8.51, width: 85.51, height: 15.52 },
-  { kind: 'cell', text: '', top: 70.87, left: 8.51, width: 43.37, height: 5.11 },
-  { kind: 'cell', text: '', top: 70.87, left: 51.74, width: 42.28, height: 5.11 },
-  { kind: 'cell', text: '', top: 75.89, left: 8.51, width: 85.51, height: 13.2 },
-  // ── 1. 比準要素数1の会社（判定要素は第4表から自動転記） ──
-  { kind: 'label', text: '１. 比準要素数１の会社', top: 8.51, left: 8.51, width: 15, height: 12.05 },
-  { kind: 'label', text: '判 定 要 素', top: 8.51, left: 23.34, width: 44.73, height: 2.6 },
-  { kind: 'label', text: '(１)直前期末を基とした判定要素', top: 10.92, left: 23.34, width: 22.48, height: 2.6 },
-  { kind: 'label', text: '(２)直前々期末を基とした判定要素', top: 10.92, left: 45.6, width: 22.37, height: 2.6 },
-  { kind: 'label', text: '第４表の\nB１の金額', top: 13.34, left: 23.24, width: 7.5, height: 3.76 },
-  { kind: 'label', text: '第４表の\nC１の金額', top: 13.24, left: 30.46, width: 7.77, height: 3.95 },
-  { kind: 'label', text: '第４表の\nD１の金額', top: 13.24, left: 38.1, width: 7.77, height: 3.86 },
-  { field: 'f16', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f16'), top: 16.9, left: 23.24, width: 5.05, height: 3.66 },
-  { field: 'f17', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f16'), topRightLabel: '銭', top: 16.9, left: 28.01, width: 2.73, height: 3.66 },
-  { field: 'f18', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f18'), topRightLabel: '円', top: 17, left: 30.46, width: 7.77, height: 3.57 },
-  { field: 'f19', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f19'), topRightLabel: '円', top: 16.9, left: 38.1, width: 7.77, height: 3.57 },
-  { kind: 'label', text: '第４表の\nB２の金額', top: 13.24, left: 45.74, width: 7.36, height: 3.86 },
-  { kind: 'label', text: '第４表の\nC２の金額', top: 13.33, left: 52.83, width: 7.64, height: 3.76 },
-  { kind: 'label', text: '第４表の\nD２の金額', top: 13.24, left: 60.2, width: 7.77, height: 3.86 },
-  { field: 'f23', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f23'), top: 16.9, left: 45.74, width: 4.91, height: 3.66 },
-  { field: 'f24', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f23'), topRightLabel: '銭', top: 16.9, left: 50.38, width: 2.66, height: 3.57 },
-  { field: 'f25', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f25'), topRightLabel: '円', top: 16.8, left: 52.83, width: 7.5, height: 3.76 },
-  { field: 'f26', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f26'), topRightLabel: '円', top: 16.9, left: 60.2, width: 7.77, height: 3.57 },
-  { kind: 'label', text: '判 定 基 準', top: 8.61, left: 67.83, width: 3.68, height: 8.58 },
-  { kind: 'label', text: '⑴欄のいずれか２の判定要素が０であり、\nかつ、\n⑵欄のいずれか２以上の判定要素が0\nである（該当）・でない（非該当）', top: 8.51, left: 71.24, width: 22.78, height: 8.48 },
-  { kind: 'label', text: '判定', top: 16.9, left: 67.83, width: 3.82, height: 3.66 },
-  { kind: 'label', text: '該当', highlightWhen: () => j.s1 === true, top: 16.9, left: 71.38, width: 11.18, height: 3.47 },
-  { kind: 'label', text: '非該当', highlightWhen: () => j.s1 === false, top: 16.8, left: 82.29, width: 11.59, height: 3.57 },
-  // ── 2. 株式等保有特定会社（①②=第5表から自動転記） ──
-  { kind: 'label', text: '２. 株式等保有特定会社', top: 20.37, left: 8.51, width: 15, height: 9.83 },
-  { kind: 'label', text: '判 定 要 素', top: 20.37, left: 23.24, width: 70.78, height: 2.7 },
-  { kind: 'label', text: '総資産価額\n（第５表の①の金額）', fontSize: 6, top: 22.78, left: 23.37, width: 18.55, height: 3.76 },
-  { kind: 'label', text: '株式等の価額の合計額\n（第５表の㋑の金額）', fontSize: 6, top: 22.87, left: 41.65, width: 17.32, height: 3.76 },
-  { kind: 'label', text: '株式等保有割合（②／①）', top: 22.87, left: 58.69, width: 9.27, height: 3.66 },
-  { field: '①', kind: 'input', readOnly: true, cornerLabel: '①', topRightLabel: '千円', top: 26.44, left: 23.37, width: 18.41, height: 3.76 },
-  { field: '②', kind: 'input', readOnly: true, cornerLabel: '②', topRightLabel: '千円', top: 26.54, left: 41.65, width: 17.32, height: 3.57 },
-  { field: '③', kind: 'input', readOnly: true, cornerLabel: '③', topRightLabel: '％', top: 26.25, left: 58.69, width: 9.27, height: 3.86 },
-  { kind: 'label', text: '判 定 基 準', top: 22.78, left: 67.7, width: 3.96, height: 4.63 },
-  { kind: 'label', text: '③の割合が\n50％以上である', highlightWhen: () => j.s2 === true, top: 22.87, left: 71.38, width: 11.32, height: 4.43 },
-  { kind: 'label', text: '③の割合が\n50％未満である', highlightWhen: () => j.s2 === false, top: 22.78, left: 82.43, width: 11.59, height: 4.43 },
-  { kind: 'label', text: '判 定', top: 27.31, left: 67.7, width: 3.96, height: 2.8 },
-  { kind: 'label', text: '該　　当', highlightWhen: () => j.s2 === true, top: 27.12, left: 71.38, width: 11.32, height: 3.08 },
-  { kind: 'label', text: '非 該 当', highlightWhen: () => j.s2 === false, top: 27.21, left: 82.43, width: 11.59, height: 2.99 },
-  // ── 3. 土地保有特定会社（④⑤=第5表・会社規模=第1表の2から自動） ──
-  { kind: 'label', text: '３. 土地保有特定会社', top: 30.1, left: 8.51, width: 15.14, height: 25.73 },
-  { kind: 'label', text: '判 定 要 素', top: 29.91, left: 23.37, width: 70.65, height: 2.8 },
-  { kind: 'label', text: '総資産価額\n（第５表の①の金額）', fontSize: 6, top: 32.51, left: 23.37, width: 18.41, height: 3.86 },
-  { kind: 'label', text: '土地等の価額の合計額\n（第５表の㋩の金額）', top: 32.51, left: 41.51, width: 17.59, height: 3.86 },
-  { kind: 'label', text: '土地保有割合\n（⑤／④）', top: 32.51, left: 58.83, width: 9.14, height: 3.86 },
-  { kind: 'label', text: '会社の規模の判定\n（第１表の２の３．会社の規模\n（Ｌの割合）の判定から自動）', fontSize: 7, top: 32.51, left: 67.7, width: 26.32, height: 3.86 },
-  { field: '④', kind: 'input', readOnly: true, cornerLabel: '④', topRightLabel: '千円', top: 36.08, left: 23.24, width: 18.68, height: 3.76 },
-  { field: '⑤', kind: 'input', readOnly: true, cornerLabel: '⑤', topRightLabel: '千円', top: 36.08, left: 41.51, width: 17.46, height: 3.76 },
-  { field: '⑥', kind: 'input', readOnly: true, cornerLabel: '⑥', topRightLabel: '％', top: 36.18, left: 58.69, width: 9.27, height: 3.66 },
-  {
-    kind: 'label',
-    text: '大会社 ・ 中会社 ・ 小会社',
-    inlineChoices: {
-      selectedKey: sizeChoice,
-      choices: [
-        { key: 'large', label: '大 会 社' },
-        { key: 'medium', label: '中 会 社' },
-        { key: 'small', label: '小 会 社' },
-      ],
-    },
-    highlightWhen: () => j.sizeRank !== null,
-    top: 36.18,
-    left: 67.7,
-    width: 26.05,
-    height: 3.66,
-  },
-  { kind: 'label', text: '判 定 基 準', top: 39.55, left: 23.37, width: 8.59, height: 14.07 },
-  { kind: 'label', text: '会社の規模', top: 39.65, left: 31.69, width: 7.77, height: 11.47 },
-  { kind: 'label', text: '大 会 社', highlightWhen: () => j.landCol === 'big', top: 39.65, left: 39.16, width: 12.62, height: 11.47 },
-  { kind: 'label', text: '中 会 社', highlightWhen: () => j.landCol === 'mid', top: 39.65, left: 51.6, width: 12.27, height: 11.37 },
-  { kind: 'label', text: '小会社\n（総資産価額（帳簿価額）が次の基準に該当する会社）', top: 39.74, left: 63.74, width: 30.28, height: 3.37 },
-  { kind: 'label', text: '･卸売業　　　　　：20億円以上\n･小売・サービス業：15億円以上\n･上記以外の業種　：15億円以上', align: 'left', highlightWhen: () => j.landCol === 'smallA', highlightLinePrefixes: () => j.landCol === 'smallA' && j.landIndustryPrefix ? [j.landIndustryPrefix] : [], top: 43.02, left: 63.74, width: 14.87, height: 8 },
-  { kind: 'label', text: '･卸売業　　　　　：7,000万円以上20億円未満\n･小売・サービス業：4,000万円以上15億円未満\n･上記以外の業種　：5,000万円以上15億円未満', align: 'left', highlightWhen: () => j.landCol === 'smallB', highlightLinePrefixes: () => j.landCol === 'smallB' && j.landIndustryPrefix ? [j.landIndustryPrefix] : [], top: 43.02, left: 78.33, width: 15.68, height: 8 },
-  { kind: 'label', text: '⑥の割合', top: 50.92, left: 31.69, width: 7.77, height: 2.6 },
-  { kind: 'label', text: '70％以上', highlightWhen: () => landHit('big', true), top: 50.92, left: 39.19, width: 6.68, height: 2.7 },
-  { kind: 'label', text: '70％未満', highlightWhen: () => landHit('big', false), top: 50.92, left: 45.6, width: 6.27, height: 2.6 },
-  { kind: 'label', text: '90％以上', highlightWhen: () => landHit('mid', true), top: 50.83, left: 51.6, width: 6.27, height: 2.7 },
-  { kind: 'label', text: '90％未満', highlightWhen: () => landHit('mid', false), top: 50.92, left: 57.6, width: 6.27, height: 2.51 },
-  { kind: 'label', text: '70％以上', highlightWhen: () => landHit('smallA', true), top: 50.83, left: 63.6, width: 7.91, height: 2.7 },
-  { kind: 'label', text: '70％未満', highlightWhen: () => landHit('smallA', false), top: 50.83, left: 71.38, width: 7.23, height: 2.7 },
-  { kind: 'label', text: '90％以上', highlightWhen: () => landHit('smallB', true), top: 50.92, left: 78.33, width: 7.77, height: 2.6 },
-  { kind: 'label', text: '90％未満', highlightWhen: () => landHit('smallB', false), top: 50.83, left: 85.84, width: 8.18, height: 2.7 },
-  { kind: 'label', text: '判 定', top: 53.24, left: 23.37, width: 15.96, height: 2.51 },
-  { kind: 'label', text: '該 当', highlightWhen: () => j.landCol === 'big' && j.s3 === true, top: 53.33, left: 39.06, width: 6.96, height: 2.41 },
-  { kind: 'label', text: '非該当', highlightWhen: () => j.landCol === 'big' && j.s3 === false, top: 53.33, left: 45.74, width: 6, height: 2.41 },
-  { kind: 'label', text: '該 当', highlightWhen: () => j.landCol === 'mid' && j.s3 === true, top: 53.33, left: 51.6, width: 6.14, height: 2.31 },
-  { kind: 'label', text: '非該当', highlightWhen: () => j.landCol === 'mid' && j.s3 === false, top: 53.34, left: 57.6, width: 6.27, height: 2.4 },
-  { kind: 'label', text: '該 当', highlightWhen: () => j.landCol === 'smallA' && j.s3 === true, top: 53.33, left: 63.74, width: 7.64, height: 2.31 },
-  { kind: 'label', text: '非該当', highlightWhen: () => j.landCol === 'smallA' && j.s3 === false, top: 53.33, left: 71.24, width: 7.23, height: 2.31 },
-  { kind: 'label', text: '該 当', highlightWhen: () => j.landCol === 'smallB' && j.s3 === true, top: 53.43, left: 78.33, width: 7.77, height: 2.22 },
-  { kind: 'label', text: '非該当', highlightWhen: () => j.landCol === 'smallB' && j.s3 === false, top: 53.24, left: 85.84, width: 8.05, height: 2.41 },
-  // ── 4. 開業後3年未満の会社等 ──
-  { kind: 'label', text: '４ 開 業 後 ３ 年 未 満 の 会 社 等', top: 55.65, left: 8.51, width: 2.73, height: 15.42 },
-  { kind: 'label', text: '⑴ 開業後３年未満\nの会社', top: 55.65, left: 10.96, width: 12.55, height: 6.07 },
-  { kind: 'label', text: '判 定 要 素', top: 55.55, left: 23.24, width: 19.78, height: 2.7 },
-  { kind: 'label', text: ' 開業年月日', top: 58.05, left: 23.24, width: 7.5, height: 3.57 },
-  { field: 'f85', kind: 'input', date: true, top: 58.05, left: 30.46, width: 12.55, height: 3.57 },
-  { kind: 'label', text: '判 定 基 準', top: 55.65, left: 42.74, width: 9.14, height: 3.66 },
-  { kind: 'label', text: '課税時期において\n開業後３年未満である', top: 55.55, left: 51.6, width: 19.78, height: 3.76 },
-  { kind: 'label', text: '課税時期において\n開業後３年未満でない', top: 55.65, left: 71.24, width: 22.64, height: 3.66 },
-  { kind: 'label', text: ' 判 定', top: 59.12, left: 42.74, width: 9, height: 2.41 },
-  { kind: 'label', text: '該 当', highlightWhen: () => j.s4a === true, top: 59.12, left: 51.6, width: 19.78, height: 2.41 },
-  { kind: 'label', text: '非 該 当', highlightWhen: () => j.s4a === false, top: 59.21, left: 71.24, width: 22.64, height: 2.41 },
-  { kind: 'label', text: '⑵ 比準要素数0\nの会社', top: 61.52, left: 10.96, width: 12.62, height: 9.54 },
-  { kind: 'label', text: '判 定 要 素', top: 61.52, left: 23.37, width: 7.36, height: 9.54 },
-  { kind: 'label', text: '直前期末を基とした判定要素', top: 61.43, left: 30.46, width: 27.28, height: 2.7 },
-  { kind: 'label', text: '第４表の\nB１の金額', top: 64.03, left: 30.6, width: 9.96, height: 3.57 },
-  { field: 'f96', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f96'), top: 67.5, left: 30.6, width: 6.14, height: 3.47 },
-  { field: 'f97', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f96'), topRightLabel: '銭', top: 67.5, left: 36.46, width: 4.09, height: 3.57 },
-  { kind: 'label', text: '第４表の\nC１の金額', top: 63.93, left: 40.28, width: 8.86, height: 3.66 },
-  { field: 'f99', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f99'), topRightLabel: '円', top: 67.5, left: 40.28, width: 8.73, height: 3.57 },
-  { kind: 'label', text: '第４表の\nD１の金額', top: 63.93, left: 48.88, width: 8.86, height: 3.66 },
-  { field: 'f101', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f101'), topRightLabel: '円', top: 67.6, left: 48.88, width: 8.86, height: 3.37 },
-  { kind: 'label', text: '判 定基 準', top: 61.62, left: 57.6, width: 6.27, height: 5.98 },
-  { kind: 'label', text: '直前期末を基とした判定要素がいずれも0\nである（該当）・でない（非該当）', top: 61.52, left: 63.6, width: 30.41, height: 6.17 },
-  { kind: 'label', text: '判 定 ', top: 67.5, left: 57.6, width: 6.41, height: 3.47 },
-  { kind: 'label', text: '該 当', highlightWhen: () => j.s4b === true, top: 67.5, left: 63.74, width: 14.87, height: 3.47 },
-  { kind: 'label', text: '非 該 当', highlightWhen: () => j.s4b === false, top: 67.6, left: 78.47, width: 15.55, height: 3.47 },
-  // ── 5. 開業前又は休業中の会社（判定セルを直接クリックして指定） ──
-  { kind: 'label', text: '５. 開業前又は休業中の会社', top: 70.97, left: 8.51, width: 18.68, height: 5.01 },
-  { kind: 'label', text: '開業前の会社の判定', top: 70.97, left: 26.92, width: 12.41, height: 2.6 },
-  { kind: 'label', text: '該　当', ariaLabel: '開業前の会社の判定：該当', selectValue: { field: 's5_kaigyomae', value: '1' }, highlightWhen: () => j.s5a, top: 73.48, left: 26.92, width: 6.14, height: 2.51 },
-  { kind: 'label', text: '非該当', ariaLabel: '開業前の会社の判定：非該当', selectValue: { field: 's5_kaigyomae', value: '' }, highlightWhen: () => !j.s5a, top: 73.48, left: 32.78, width: 6.68, height: 2.51 },
-  { kind: 'label', text: ' 休業中の会社の判定', top: 70.97, left: 39.19, width: 12.68, height: 2.6 },
-  { kind: 'label', text: '該　当', ariaLabel: '休業中の会社の判定：該当', selectValue: { field: 's5_kyugyo', value: '1' }, highlightWhen: () => j.s5b, top: 73.38, left: 39.19, width: 6.68, height: 2.51 },
-  { kind: 'label', text: '非該当', ariaLabel: '休業中の会社の判定：非該当', selectValue: { field: 's5_kyugyo', value: '' }, highlightWhen: () => !j.s5b, top: 73.48, left: 45.74, width: 6, height: 2.51 },
-  // ── 6. 清算中の会社 ──
-  { kind: 'label', text: '６． 清 算 中 の 会 社', top: 70.87, left: 51.6, width: 19.91, height: 5.01 },
-  { kind: 'label', text: '判 定', top: 70.97, left: 71.38, width: 22.64, height: 2.51 },
-  { kind: 'label', text: '該 当', ariaLabel: '清算中の会社の判定：該当', selectValue: { field: 's6_seisan', value: '1' }, highlightWhen: () => j.s6, top: 73.38, left: 71.38, width: 11.18, height: 2.51 },
-  { kind: 'label', text: '非 該 当', ariaLabel: '清算中の会社の判定：非該当', selectValue: { field: 's6_seisan', value: '' }, highlightWhen: () => !j.s6, top: 73.28, left: 82.43, width: 11.46, height: 2.7 },
-  // ── 7. 特定の評価会社の判定結果 ──
-  { kind: 'label', text: '７. 特定の評価会社の判定結果', top: 75.89, left: 8.51, width: 18.55, height: 13.2 },
-  {
-    kind: 'label',
-    text: `１．比準要素数１の会社
-
-２．株式等保有特定会社
-
-３．土地保有特定会社
-
-４．開業後３年未満の会社等
-
-５．開業前又は休業中の会社
-
-６．清算中の会社
-
-判定結果　${resultName}
-
-（なお、上記の「１．比準要素数１の会社」欄から「６．清算中の会社」欄の判定において
-２以上に該当する場合には、後の番号の判定によります。）`,
-    align: 'left',
-    fontSize: 6.5,
-    emphasizeLinePrefix: '判定結果　',
-    top: 75.79,
-    left: 26.92,
-    width: 67.1,
-    height: 13.2,
-  },
+    // ── 会社名・注記 ──
+    { kind: 'label', text: '会　社　名', top: 11.11, left: 51.13, width: 12.09, height: 2.62 },
+    { field: 'company', kind: 'input', top: 11.11, left: 63.22, width: 30.37, height: 2.62, align: 'left' },
+    { kind: 'label', text: '※　１〜６の「判定」欄並びに７の判定結果欄については、当てはまる項目の空欄に「１」を記入してください。', top: 14.59, left: 5.96, width: 87.63, height: 1.54, align: 'left', fontSize: 8 },
+    // ── 1. 比準要素数1の会社 ──
+    { kind: 'label', text: '１．比準要素\n数１の会社', top: 16.13, left: 6.04, width: 9.47, height: 10.54 },
+    { kind: 'label', text: '判　　定　　要　　素', top: 16.13, left: 15.51, width: 53.75, height: 2.08 },
+    { kind: 'label', text: '⑴ 直前期末を基とした判定要素', top: 18.21, left: 15.51, width: 26.43, height: 1.99 },
+    { kind: 'label', text: '⑵ 直前々期末を基とした判定要素', top: 18.21, left: 41.94, width: 27.32, height: 1.99 },
+    { kind: 'label', text: '第４表の１\nⒷ１の金額\n（円）（銭）', fontSize: 6.5, top: 20.2, left: 15.51, width: 10.07, height: 3.93 },
+    { kind: 'label', text: '第４表の１\nⒸ１の金額\n（円）', fontSize: 6.5, top: 20.2, left: 25.58, width: 7.98, height: 3.93 },
+    { kind: 'label', text: '第４表の１\nⒹ１の金額\n（円）', fontSize: 6.5, top: 20.2, left: 33.56, width: 8.38, height: 3.93 },
+    { kind: 'label', text: '第４表の１\nⒷ２の金額\n（円）（銭）', fontSize: 6.5, top: 20.2, left: 41.94, width: 11.52, height: 3.93 },
+    { kind: 'label', text: '第４表の１\nⒸ２の金額\n（円）', fontSize: 6.5, top: 20.2, left: 53.46, width: 7.9, height: 3.93 },
+    { kind: 'label', text: '第４表の１\nⒹ２の金額\n（円）', fontSize: 6.5, top: 20.2, left: 61.36, width: 7.9, height: 3.93 },
+    { field: 'f16', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f16'), top: 24.13, left: 15.51, width: 5.88, height: 2.54, align: 'right' },
+    { field: 'f17', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f16'), topRightLabel: '銭', top: 24.13, left: 21.39, width: 4.19, height: 2.54, align: 'right' },
+    { field: 'f18', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f18'), topRightLabel: '円', top: 24.13, left: 25.58, width: 7.98, height: 2.54, align: 'right' },
+    { field: 'f19', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f19'), topRightLabel: '円', top: 24.13, left: 33.56, width: 8.38, height: 2.54, align: 'right' },
+    { field: 'f23', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f23'), top: 24.13, left: 41.94, width: 6.85, height: 2.54, align: 'right' },
+    { field: 'f24', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f23'), topRightLabel: '銭', top: 24.13, left: 48.79, width: 4.67, height: 2.54, align: 'right' },
+    { field: 'f25', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f25'), topRightLabel: '円', top: 24.13, left: 53.46, width: 7.9, height: 2.54, align: 'right' },
+    { field: 'f26', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f26'), topRightLabel: '円', top: 24.13, left: 61.36, width: 7.9, height: 2.54, align: 'right' },
+    { kind: 'label', text: '判定基準', top: 16.13, left: 69.26, width: 2.58, height: 8, align: 'center' },
+    { kind: 'label', text: '⑴欄のいずれか２の判定要素が０であり、かつ、\n⑵欄のいずれか２以上の判定要素が０', top: 16.13, left: 71.84, width: 21.75, height: 5.27, align: 'left', fontSize: 7 },
+    { kind: 'label', text: 'で　あ　る', highlightWhen: () => j.s1 === true, top: 21.4, left: 71.84, width: 11.28, height: 2.73 },
+    { kind: 'label', text: 'で　な　い', highlightWhen: () => j.s1 === false, top: 21.4, left: 83.12, width: 10.47, height: 2.73 },
+    { kind: 'label', text: '判\n定', top: 24.13, left: 69.26, width: 2.58, height: 2.54, align: 'center', fontSize: 7 },
+    ...jc(24.13, 2.54, 'G01', '該　　当', 71.84, 74.42, 77.07, 83.12),
+    ...jc(24.13, 2.54, 'G02', '非　該　当', 83.12, 85.7, 88.28, 93.59),
+    // ── 2. 株式等保有特定会社 ──
+    { kind: 'label', text: '２．株式等保\n有特定会社', top: 26.89, left: 6.04, width: 9.47, height: 8.69 },
+    { kind: 'label', text: '判　　定　　要　　素', top: 26.89, left: 15.51, width: 53.75, height: 1.97 },
+    { kind: 'label', text: '①　総　資　産　価　額\n（第５表の①の金額）\n（千円）', fontSize: 6.5, top: 28.86, left: 15.51, width: 18.05, height: 4.19 },
+    { kind: 'label', text: '②　株式等の価額の合計額\n（第５表の㋑の金額）\n（千円）', fontSize: 6.5, top: 28.86, left: 33.56, width: 19.9, height: 4.19 },
+    { kind: 'label', text: '③　株式等保有割合\n（　②　／　①　）\n（％）', fontSize: 6.5, top: 28.86, left: 53.46, width: 15.8, height: 4.19 },
+    { field: '①', kind: 'input', readOnly: true, top: 33.05, left: 15.51, width: 18.05, height: 2.53, align: 'right' },
+    { field: '②', kind: 'input', readOnly: true, top: 33.05, left: 33.56, width: 19.9, height: 2.53, align: 'right' },
+    { field: '③', kind: 'input', readOnly: true, top: 33.05, left: 53.46, width: 15.8, height: 2.53, align: 'right' },
+    { kind: 'label', text: '判定基準', top: 26.89, left: 69.26, width: 2.58, height: 6.16, align: 'center' },
+    { kind: 'label', text: '③の割合が', top: 26.89, left: 71.84, width: 21.75, height: 3.42, align: 'left' },
+    { kind: 'label', text: '50％以上である', highlightWhen: () => j.s2 === true, top: 30.31, left: 71.84, width: 11.28, height: 2.74 },
+    { kind: 'label', text: '50％未満である', highlightWhen: () => j.s2 === false, top: 30.31, left: 83.12, width: 10.47, height: 2.74 },
+    { kind: 'label', text: '判\n定', top: 33.05, left: 69.26, width: 2.58, height: 2.53, align: 'center', fontSize: 7 },
+    ...jc(33.05, 2.53, 'G03', '該　　当', 71.84, 74.42, 77.07, 83.12),
+    ...jc(33.05, 2.53, 'G04', '非　該　当', 83.12, 85.7, 88.28, 93.59),
+    // ── 3. 土地保有特定会社 ──
+    { kind: 'label', text: '３．土地保有\n特定会社', top: 35.81, left: 6.04, width: 9.47, height: 25.61 },
+    { kind: 'label', text: '判　　定　　要　　素', top: 35.81, left: 15.51, width: 53.75, height: 1.97 },
+    { kind: 'label', text: '④　総　資　産　価　額\n（第５表の①の金額）\n（千円）', fontSize: 6.5, top: 37.78, left: 15.51, width: 18.05, height: 4.33 },
+    { kind: 'label', text: '⑤　土地等の価額の合計額\n（第５表の㋩の金額）\n（千円）', fontSize: 6.5, top: 37.78, left: 33.56, width: 19.9, height: 4.33 },
+    { kind: 'label', text: '⑥　土 地 保 有 割 合\n（　⑤　／　④　）\n（％）', fontSize: 6.5, top: 37.78, left: 53.46, width: 15.8, height: 4.33 },
+    { field: '④', kind: 'input', readOnly: true, top: 42.11, left: 15.51, width: 18.05, height: 2.65, align: 'right' },
+    { field: '⑤', kind: 'input', readOnly: true, top: 42.11, left: 33.56, width: 19.9, height: 2.65, align: 'right' },
+    { field: '⑥', kind: 'input', readOnly: true, top: 42.11, left: 53.46, width: 15.8, height: 2.65, align: 'right' },
+    { kind: 'label', text: '会 社 の 規 模 の 判 定', top: 35.81, left: 69.26, width: 24.33, height: 1.97 },
+    { kind: 'label', text: '大　会　社', top: 37.78, left: 69.26, width: 7.81, height: 1.59 },
+    { kind: 'label', text: '中　会　社', top: 37.78, left: 77.07, width: 8.63, height: 1.59 },
+    { kind: 'label', text: '小　会　社', top: 37.78, left: 85.7, width: 7.89, height: 1.59 },
+    { kind: 'cell', codeLabel: 'G05', top: 39.37, left: 69.26, width: 2.58, height: 5.39 },
+    { field: 'b_G05', kind: 'input', readOnly: true, ariaLabel: 'G05 大会社（該当時は１）', highlightWhen: () => flags['b_G05'] === true, top: 39.37, left: 71.84, width: 5.23, height: 5.39, align: 'center' },
+    { kind: 'cell', codeLabel: 'G06', top: 39.37, left: 77.07, width: 2.58, height: 5.39 },
+    { field: 'b_G06', kind: 'input', readOnly: true, ariaLabel: 'G06 中会社（該当時は１）', highlightWhen: () => flags['b_G06'] === true, top: 39.37, left: 79.65, width: 6.05, height: 5.39, align: 'center' },
+    { kind: 'cell', codeLabel: 'G07', top: 39.37, left: 85.7, width: 2.58, height: 5.39 },
+    { field: 'b_G07', kind: 'input', readOnly: true, ariaLabel: 'G07 小会社（該当時は１）', highlightWhen: () => flags['b_G07'] === true, top: 39.37, left: 88.28, width: 5.31, height: 5.39, align: 'center' },
+    // 判定基準（会社規模×⑥の割合）
+    { kind: 'label', text: '判定基準', top: 44.76, left: 15.51, width: 5.08, height: 14.13, align: 'center' },
+    { kind: 'label', text: '会社の規模', top: 44.76, left: 20.59, width: 7.33, height: 12.53 },
+    { kind: 'label', text: '大　会　社', highlightWhen: () => j.landCol === 'big', top: 44.76, left: 27.92, width: 15.88, height: 12.53 },
+    { kind: 'label', text: '中　会　社', highlightWhen: () => j.landCol === 'mid', top: 44.76, left: 43.8, width: 15.22, height: 12.53 },
+    { kind: 'label', text: '小　会　社\n（総資産価額（帳簿価額）が次の基準に該当する会社）', fontSize: 6.5, top: 44.76, left: 59.02, width: 34.57, height: 2.96 },
+    { kind: 'label', text: '･卸売業\n　　　　20億円以上\n･小売・サービス業\n　　　　15億円以上\n･上記以外の業種\n　　　　15億円以上', align: 'left', fontSize: 6, highlightWhen: () => j.landCol === 'smallA', highlightLinePrefixes: () => j.landCol === 'smallA' && j.landIndustryPrefix ? [j.landIndustryPrefix] : [], top: 47.72, left: 59.02, width: 17.17, height: 9.57 },
+    { kind: 'label', text: '･卸売業\n　7,000万円以上20億円未満\n･小売・サービス業\n　4,000万円以上15億円未満\n･上記以外の業種\n　5,000万円以上15億円未満', align: 'left', fontSize: 6, highlightWhen: () => j.landCol === 'smallB', highlightLinePrefixes: () => j.landCol === 'smallB' && j.landIndustryPrefix ? [j.landIndustryPrefix] : [], top: 47.72, left: 76.19, width: 17.4, height: 9.57 },
+    { kind: 'label', text: '⑥の割合', top: 57.29, left: 20.59, width: 7.33, height: 1.6 },
+    { kind: 'label', text: '70％以上', highlightWhen: () => flags['b_G08'] === true, top: 57.29, left: 27.92, width: 7.09, height: 1.6, fontSize: 7 },
+    { kind: 'label', text: '70％未満', highlightWhen: () => flags['b_G09'] === true, top: 57.29, left: 35.01, width: 8.79, height: 1.6, fontSize: 7 },
+    { kind: 'label', text: '90％以上', highlightWhen: () => flags['b_G10'] === true, top: 57.29, left: 43.8, width: 7.33, height: 1.6, fontSize: 7 },
+    { kind: 'label', text: '90％未満', highlightWhen: () => flags['b_G11'] === true, top: 57.29, left: 51.13, width: 7.89, height: 1.6, fontSize: 7 },
+    { kind: 'label', text: '70％以上', highlightWhen: () => flags['b_G12'] === true, top: 57.29, left: 59.02, width: 7.9, height: 1.6, fontSize: 7 },
+    { kind: 'label', text: '70％未満', highlightWhen: () => flags['b_G13'] === true, top: 57.29, left: 66.92, width: 9.27, height: 1.6, fontSize: 7 },
+    { kind: 'label', text: '90％以上', highlightWhen: () => flags['b_G14'] === true, top: 57.29, left: 76.19, width: 9.51, height: 1.6, fontSize: 7 },
+    { kind: 'label', text: '90％未満', highlightWhen: () => flags['b_G15'] === true, top: 57.29, left: 85.7, width: 7.89, height: 1.6, fontSize: 7 },
+    { kind: 'label', text: '判　　定', top: 58.89, left: 15.51, width: 12.41, height: 2.53 },
+    ...jc(58.89, 2.53, 'G08', '該当', 27.92, 30.26, 32.11, 35.01, { fontSize: 7 }),
+    ...jc(58.89, 2.53, 'G09', '非該当', 35.01, 37.35, 40.09, 43.8, { fontSize: 7 }),
+    ...jc(58.89, 2.53, 'G10', '該当', 43.8, 46.13, 47.99, 51.13, { fontSize: 7 }),
+    ...jc(58.89, 2.53, 'G11', '非該当', 51.13, 53.46, 55.32, 59.02, { fontSize: 7 }),
+    ...jc(58.89, 2.53, 'G12', '該当', 59.02, 61.36, 63.22, 66.92, { fontSize: 7 }),
+    ...jc(58.89, 2.53, 'G13', '非該当', 66.92, 69.26, 71.84, 76.19, { fontSize: 7 }),
+    ...jc(58.89, 2.53, 'G14', '該当', 76.19, 78.77, 80.54, 85.7, { fontSize: 7 }),
+    ...jc(58.89, 2.53, 'G15', '非該当', 85.7, 88.28, 90.05, 93.59, { fontSize: 7 }),
+    // ── 4. 開業後3年未満の会社等 ──
+    { kind: 'label', text: '４・開業後３年未満の会社等', top: 61.65, left: 6.04, width: 1.86, height: 14.85, align: 'center' },
+    // (1) 開業後3年未満の会社
+    { kind: 'label', text: '⑴　開業後３\n年未満の\n会社', top: 61.65, left: 7.9, width: 7.61, height: 7.12, align: 'left', fontSize: 7 },
+    { kind: 'label', text: '判　　定　　要　　素', top: 61.65, left: 15.51, width: 32.52, height: 1.43 },
+    { kind: 'label', text: '開業年月日', top: 63.08, left: 15.51, width: 5.88, height: 5.69, fontSize: 7.5 },
+    { kind: 'label', text: '元　号', top: 63.08, left: 23.73, width: 6.53, height: 1.45, fontSize: 7 },
+    { kind: 'label', text: '年', top: 63.08, left: 30.26, width: 4.75, height: 1.45, fontSize: 7 },
+    { kind: 'label', text: '月', top: 63.08, left: 35.01, width: 6.93, height: 1.45, fontSize: 7 },
+    { kind: 'label', text: '日', top: 63.08, left: 41.94, width: 6.09, height: 1.45, fontSize: 7 },
+    { kind: 'cell', codeLabel: 'N01', top: 63.08, left: 21.39, width: 2.34, height: 5.69 },
+    { field: 'f85_g', kind: 'input', options: [...DATE_OPTS.g], top: 64.53, left: 23.73, width: 6.53, height: 4.24 },
+    { field: 'f85_y', kind: 'input', options: [...DATE_OPTS.y], top: 64.53, left: 30.26, width: 4.75, height: 4.24 },
+    { field: 'f85_m', kind: 'input', options: [...DATE_OPTS.m], top: 64.53, left: 35.01, width: 6.93, height: 4.24 },
+    { field: 'f85_d', kind: 'input', options: [...DATE_OPTS.d], top: 64.53, left: 41.94, width: 6.09, height: 4.24 },
+    { kind: 'label', text: '判定\n基準', top: 61.65, left: 48.03, width: 3.06, height: 2.88, fontSize: 7 },
+    { kind: 'label', text: '課 税 時 期 に お い て 開 業 後 ３ 年 未 満', top: 61.65, left: 51.09, width: 42.5, height: 1.43 },
+    { kind: 'label', text: 'で　あ　る', highlightWhen: () => j.s4a === true, top: 63.08, left: 51.09, width: 20.75, height: 1.45 },
+    { kind: 'label', text: 'で　な　い', highlightWhen: () => j.s4a === false, top: 63.08, left: 71.84, width: 21.75, height: 1.45 },
+    { kind: 'label', text: '判定', top: 64.53, left: 48.03, width: 3.06, height: 4.24, fontSize: 7 },
+    ...jc(64.53, 4.24, 'G16', '該　　当', 51.13, 53.46, 57.17, 71.84),
+    ...jc(64.53, 4.24, 'G17', '非　該　当', 71.84, 74.42, 77.07, 93.59),
+    // (2) 比準要素数0の会社
+    { kind: 'label', text: '⑵　比準要素\n数０の会\n社', top: 68.77, left: 7.9, width: 7.61, height: 7.73, align: 'left', fontSize: 7 },
+    { kind: 'label', text: '判定要素', top: 68.77, left: 15.51, width: 5.88, height: 7.73 },
+    { kind: 'label', text: '直　前　期　末　を　基　と　し　た　判　定　要　素', top: 68.77, left: 21.39, width: 39.97, height: 1.4 },
+    { kind: 'label', text: '第　４　表　の　１\nⒷ１　の　金　額\n（円）（銭）', fontSize: 6.5, top: 70.17, left: 21.39, width: 15.96, height: 3.79 },
+    { kind: 'label', text: '第４表の１\nⒸ１の金額\n（円）', fontSize: 6.5, top: 70.17, left: 37.35, width: 11.44, height: 3.79 },
+    { kind: 'label', text: '第４表の１\nⒹ１の金額\n（円）', fontSize: 6.5, top: 70.17, left: 48.79, width: 12.57, height: 3.79 },
+    { field: 'f96', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f96'), top: 73.96, left: 21.39, width: 12.17, height: 2.54, align: 'right' },
+    { field: 'f97', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f96'), topRightLabel: '銭', top: 73.96, left: 33.56, width: 3.79, height: 2.54, align: 'right' },
+    { field: 'f99', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f99'), topRightLabel: '円', top: 73.96, left: 37.35, width: 11.44, height: 2.54, align: 'right' },
+    { field: 'f101', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f101'), topRightLabel: '円', top: 73.96, left: 48.79, width: 12.57, height: 2.54, align: 'right' },
+    { kind: 'label', text: '判定基準', top: 68.77, left: 61.36, width: 5.56, height: 5.19, align: 'center' },
+    { kind: 'label', text: '直前期末を基とした判定要素がいずれも０', top: 68.77, left: 66.92, width: 26.67, height: 3.71, align: 'left', fontSize: 7 },
+    { kind: 'label', text: 'で　あ　る', highlightWhen: () => j.s4b === true, top: 72.48, left: 66.92, width: 16.2, height: 1.48 },
+    { kind: 'label', text: 'で　な　い', highlightWhen: () => j.s4b === false, top: 72.48, left: 83.12, width: 10.47, height: 1.48 },
+    { kind: 'label', text: '判　　定', top: 73.96, left: 61.36, width: 7.9, height: 2.54 },
+    ...jc(73.96, 2.54, 'G18', '該　　当', 69.26, 71.84, 74.42, 83.12),
+    ...jc(73.96, 2.54, 'G19', '非　該　当', 83.12, 85.7, 88.28, 93.59),
+    // ── 5. 開業前又は休業中の会社 / 6. 清算中の会社 ──
+    { kind: 'label', text: '５．開業前又\nは休業中の\n会社', top: 76.7, left: 6.04, width: 9.47, height: 4.44, align: 'left', fontSize: 7.5 },
+    { kind: 'label', text: '開 業 前 の 会 社 の 判 定', top: 76.7, left: 15.51, width: 21.84, height: 1.9 },
+    { kind: 'label', text: '休 業 中 の 会 社 の 判 定', top: 76.7, left: 37.35, width: 24.01, height: 1.9 },
+    ...jc(78.6, 2.54, 'G20', '該　　当', 15.51, 17.85, 19.7, 25.58, { selectValue: { field: 's5_kaigyomae', value: '1' }, ariaLabel: '開業前の会社の判定：該当' }),
+    ...jc(78.6, 2.54, 'G21', '非　該　当', 25.58, 27.92, 30.26, 37.35, { selectValue: { field: 's5_kaigyomae', value: '' }, ariaLabel: '開業前の会社の判定：非該当' }),
+    ...jc(78.6, 2.54, 'G22', '該　　当', 37.35, 40.09, 41.94, 48.79, { selectValue: { field: 's5_kyugyo', value: '1' }, ariaLabel: '休業中の会社の判定：該当' }),
+    ...jc(78.6, 2.54, 'G23', '非　該　当', 48.79, 51.13, 53.46, 61.36, { selectValue: { field: 's5_kyugyo', value: '' }, ariaLabel: '休業中の会社の判定：非該当' }),
+    { kind: 'label', text: '６．清算中の\n会社', top: 76.7, left: 61.36, width: 10.36, height: 4.44, align: 'left', fontSize: 7.5 },
+    { kind: 'label', text: '判　　　　　定', top: 76.7, left: 71.72, width: 21.87, height: 1.9 },
+    ...jc(78.6, 2.54, 'G24', '該　　当', 71.84, 74.42, 77.07, 83.12, { selectValue: { field: 's6_seisan', value: '1' }, ariaLabel: '清算中の会社の判定：該当' }),
+    ...jc(78.6, 2.54, 'G25', '非　該　当', 83.12, 85.7, 88.28, 93.59, { selectValue: { field: 's6_seisan', value: '' }, ariaLabel: '清算中の会社の判定：非該当' }),
+    // ── 7. 特定の評価会社の判定結果 ──
+    { kind: 'label', text: '７．特定の評\n価会社の判\n定結果', top: 81.37, left: 6.04, width: 9.47, height: 7.83, align: 'left', fontSize: 7.5 },
+    ...jc(81.37, 2.53, 'G26', '１．比準要素数１の会社', 15.51, 17.85, 19.7, 37.35, { align: 'left' }),
+    ...jc(81.37, 2.53, 'G27', '２．株式等保有特定会社', 37.35, 40.09, 41.94, 61.36, { align: 'left' }),
+    ...jc(83.9, 2.65, 'G28', '３．土地保有特定会社', 15.51, 17.85, 19.7, 37.35, { align: 'left' }),
+    ...jc(83.9, 2.65, 'G29', '４．開業後３年未満の会社等', 37.35, 40.09, 41.94, 61.36, { align: 'left' }),
+    ...jc(86.55, 2.65, 'G30', '５．開業前又は休業中の会社', 15.51, 17.85, 19.7, 37.35, { align: 'left' }),
+    ...jc(86.55, 2.65, 'G31', '６．清算中の会社', 37.35, 40.09, 41.94, 61.36, { align: 'left' }),
+    { kind: 'label', text: '　上記の「１．比準要素数１の会社」欄から「６．清算中の会社」欄の判定において２以上に該当する場合には、後の番号の判定によります。', top: 81.37, left: 61.36, width: 32.23, height: 7.83, align: 'left', fontSize: 7 },
   ];
 }
 
@@ -263,8 +303,8 @@ export function calcTable2(getField: TableProps['getField']) {
   const landTh = landCol === 'big' || landCol === 'smallA' ? 70 : landCol === 'mid' || landCol === 'smallB' ? 90 : null;
   const s3 = landRatio === null ? null : landTh === null ? (sizeRank === 0 && assetBook !== null && gyo !== '' ? false : null) : landRatio >= landTh;
 
-  // 4(1). 開業後3年未満（開業年月日=和暦入力、課税時期=第1表の1と比較）
-  const western = (g: string, y: number) => (g === '平成' ? 1988 + y : 2018 + y);
+  // 4(1). 開業後3年未満（開業年月日=和暦入力、課税時期=第1表の1と比較。未入力は判定不能）
+  const western = (g: string, y: number) => (g === '昭和' ? 1925 + y : g === '平成' ? 1988 + y : 2018 + y);
   const readDate = (gf: (f: string) => string, p: string): Date | null => {
     const y = Number(gf(`${p}_y`)), m = Number(gf(`${p}_m`)), d = Number(gf(`${p}_d`));
     if (!y || !m || !d) return null;
@@ -274,7 +314,7 @@ export function calcTable2(getField: TableProps['getField']) {
   const openDate = readDate(raw, 'f85');
   const s4a = taxDate !== null && openDate !== null
     ? taxDate.getTime() < new Date(openDate.getFullYear() + 3, openDate.getMonth(), openDate.getDate()).getTime()
-    : false;
+    : null;
 
   // 5・6. 開業前/休業中/清算中（判定セルを直接クリックして指定）
   const s5a = raw('s5_kaigyomae') === '1';
@@ -291,7 +331,7 @@ export function calcTable2(getField: TableProps['getField']) {
 
 const RESULT_NAMES: Record<number, string> = { 0: '一般の評価会社（非該当）', 1: '１．比準要素数１の会社', 2: '２．株式等保有特定会社', 3: '３．土地保有特定会社', 4: '４．開業後３年未満の会社等', 5: '５．開業前又は休業中の会社', 6: '６．清算中の会社' };
 
-/** 第2表（CSSグリッド方式・完成版） */
+/** 第2表（CSSグリッド方式・令和8年4月1日以降用） */
 export function Table2Grid({ getField, updateField }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
@@ -301,8 +341,10 @@ export function Table2Grid({ getField, updateField }: TableProps) {
   const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
 
   const c = calcTable2(getField);
+  const flags = flagStates(c);
 
   const g = (f: string): string => {
+    if (f.startsWith('b_G')) return flags[f] ? '1' : '';
     switch (f) {
       case 'f16': return yenPart(c.t4.b1); case 'f17': return senPart(c.t4.b1);
       case 'f18': return fmt(c.t4.c1); case 'f19': return fmt(c.t4.d1);
@@ -318,5 +360,11 @@ export function Table2Grid({ getField, updateField }: TableProps) {
     }
   };
 
-  return <GridForm cells={buildCells(c.j, RESULT_NAMES[c.result] ?? RESULT_NAMES[0]!)} g={g} u={u} formId={T} width="100%" title="第２表　特定の評価会社の判定の明細書" references={REFERENCES} />;
+  const toolbar = (
+    <span className="no-print" style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+      判定結果：{RESULT_NAMES[c.result] ?? RESULT_NAMES[0]!}
+    </span>
+  );
+
+  return <GridForm cells={buildCells(c)} g={g} u={u} formId={T} width="100%" title="第２表　特定の評価会社の判定の明細書" toolbar={toolbar} references={REFERENCES} />;
 }

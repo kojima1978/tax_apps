@@ -5,7 +5,7 @@ const STORAGE_KEY = 'stock-valuation-form-data';
 
 const TREASURY_SHARE_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', 'f63'],
-  ['table3', '⑪'],
+  ['table3', '⑮'],
   ['table4', '③'],
   ['table6', '⑬'],
   ['table1_1', 'treasury_shares'],
@@ -13,14 +13,14 @@ const TREASURY_SHARE_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
 
 const CAPITAL_AMOUNT_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table4', '①'],
-  ['table3', '⑨'],
+  ['table3', '⑬'],
   ['table6', '⑪'],
   ['table4', 'n52'],
 ];
 
 const ISSUED_SHARE_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', '⑤'],
-  ['table3', '⑩'],
+  ['table3', '⑭'],
   ['table6', '⑫'],
   ['table4', '②'],
 ];
