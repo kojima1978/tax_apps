@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db';
 import { INSURANCE_TYPE_INFO } from '@/utils/analysisUtils';
+import { DISPLAY_POLICY_TYPES } from '@/types';
 import type { PolicyType } from '@/types';
 
 export interface InsuranceTypeDescription {
@@ -16,7 +17,7 @@ export function listDescriptions(): InsuranceTypeDescription[] {
 
   const saved = new Map(rows.map(r => [r.policy_type, { longDescription: r.long_description, purpose: r.purpose }]));
 
-  return (Object.keys(INSURANCE_TYPE_INFO) as PolicyType[]).map(type => ({
+  return DISPLAY_POLICY_TYPES.map(type => ({
     policyType: type,
     longDescription: saved.get(type)?.longDescription ?? INSURANCE_TYPE_INFO[type].longDescription,
     purpose: saved.get(type)?.purpose ?? INSURANCE_TYPE_INFO[type].purpose,

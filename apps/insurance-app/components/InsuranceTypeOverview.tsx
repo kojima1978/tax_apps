@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { DISPLAY_POLICY_TYPES } from '@/types';
 import type { Policy, PolicyType } from '@/types';
 import {
   Landmark,
@@ -221,7 +222,10 @@ const InsuranceTypeOverview: React.FC<InsuranceTypeOverviewProps> = ({ caseId, p
       </h3>
 
       <div className="type-overview-grid">
-        {(Object.entries(grouped) as [PolicyType, Policy[]][]).map(([type, typePolicies]) => {
+        {DISPLAY_POLICY_TYPES
+          .map(type => [type, grouped[type]] as const)
+          .filter((entry): entry is readonly [PolicyType, Policy[]] => Boolean(entry[1]?.length))
+          .map(([type, typePolicies]) => {
           const info = INSURANCE_TYPE_INFO[type];
           const Icon = iconMap[info.iconName];
           const totalMonthly = typePolicies.reduce((sum, p) => sum + getActiveMonthlyPremium(p, currentAge), 0);

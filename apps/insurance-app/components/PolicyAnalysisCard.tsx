@@ -112,6 +112,7 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
         <div className="pac-header-meta">
           <span>証券番号: {policy.policyNumber}</span>
           <span>被保険者: {getMemberName(policy.insuredId)}</span>
+          <span>保険金受取人: {getMemberName(policy.beneficiaryId)}</span>
         </div>
       </div>
 

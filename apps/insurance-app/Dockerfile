@@ -64,7 +64,7 @@ RUN mkdir -p /app/data && chown -R node:node /app/data
 USER node
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:${APP_PORT}/insurance/api/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:${PORT}/insurance/api/health/ || exit 1
 
 EXPOSE ${APP_PORT}
 CMD ["node", "server.js"]
