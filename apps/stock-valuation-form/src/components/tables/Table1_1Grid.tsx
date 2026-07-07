@@ -18,7 +18,12 @@ const T = 'table1_1' as const;
 //   コード選び直し時は名称の手入力をクリア。株式種類コード（記載要領⑷）＝sh_r_9 に 1/2 を選択（普通株式のみは省略可）
 
 // ── 株主テーブルの繰り返し行 ──
-const SH_ROWS = 5; // 本表の株主数（1人=2行）。6人目以降は続紙（未実装）
+const SH_ROWS = 5;  // 本表の株主数（1人=2行）
+const CONT_SH = 13; // 続紙1ページあたりの株主数（令和8年様式 第1表の1続）
+/** 続紙ページ数（_shpages。0=本表のみ） */
+const shPageCountOf = (getField: TableProps['getField']) => Math.max(0, Number(getField('table1_1', '_shpages')) || 0);
+/** 総株主数（本表5＋続紙13×ページ） */
+const totalShOf = (getField: TableProps['getField']) => SH_ROWS + CONT_SH * shPageCountOf(getField);
 // 罫線検出による行上端%（ヘッダー2行の後、データ10行＋自己株式行）
 const ROW_TOPS = [40.88, 43.48, 46.07, 48.66, 51.25, 53.85, 56.44, 59.03, 61.62, 64.22, 66.81] as const;
 const SH_REORDER_FIELDS = ['1', '2', '2k', '3', '3k', '4', '5', '7', '8', '9'] as const;
@@ -179,7 +184,8 @@ export function calcShareholderJudgment(getField: TableProps['getField']) {
   const g2 = (f: string) => getField('table1_2', f);
   const n = (s: string) => Number(s.replace(/,/g, '')) || 0;
   let votes = 0;
-  for (let r = 1; r <= SH_ROWS; r++) votes += n(gf(`sh_${r}_5`));
+  const totalSh = totalShOf(getField); // 本表＋続紙の全株主
+  for (let r = 1; r <= totalSh; r++) votes += n(gf(`sh_${r}_5`));
   const denom = n(gf('⑥')); // 議決権の総数
   const pct = (v: number, has: boolean): number | null => {
     if (!has || denom <= 0) return null;
@@ -465,6 +471,85 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '「同族株主等」に該当する納税義務者のうち、議決権割合（㋥の割合）が５％未満の者の評価方式は、第１表の２「２．少数株式所有者の評価方式の判定」欄により判定します。', top: 96.38, left: X.name, width: 50.84, height: 2.96, align: 'left', fontSize: 7 },
 ];
 
+// ══ 第1表の1続（株主の追加用紙 r08-02）＝13名分（1人2行）。列は本表とほぼ同じだが左マージンが少し違う。 ══
+const CX = {
+  eCode: 10.15, eCodeEnd: 12.09, relBox: 12.09, relBoxEnd: 15.95, relECode: 15.95, relECodeEnd: 17.89,
+  rel: 17.89, relEnd: 33.36, name: 12.09, nameEnd: 33.36, gCode: 33.36, gCodeEnd: 35.29,
+  codeBox: 35.29, codeBoxEnd: 39.16, roleECode: 39.16, roleECodeEnd: 41.1, role: 41.1, roleEnd: 60.44,
+  numCode1: 60.44, numCode1End: 62.37, num1: 62.37, num1End: 75.91, numCode2: 75.91, numCode2End: 77.84,
+  num2: 77.84, num2End: 91.38,
+} as const;
+const CONT_SH_TOP = 21.6;        // 続紙データ1行目の上端%
+const CONT_SH_PITCH = 2.76;      // 1行の高さ%（1人＝2行）
+const pad = (p: string, n: number) => `${p}${String(n).padStart(2, '0')}`;
+/** 続紙 株主kの識別コード（記載要領の続紙コード体系）: E=(4k-3..4k)、G=(7k-6..7k） */
+function contCodes(k: number) {
+  const e = (k - 1) * 4, gg = (k - 1) * 7;
+  return {
+    name: pad('E', e + 1), relName: pad('E', e + 2), roleName: pad('E', e + 3), typeName: pad('E', e + 4),
+    relCode: pad('G', gg + 1), roleCode: pad('G', gg + 2), typeCode: pad('G', gg + 3),
+    shares: pad('G', gg + 4), undiv: pad('G', gg + 5), votes: pad('G', gg + 6), ratio: pad('G', gg + 7),
+  };
+}
+/** 続紙の株主1人分（globalIdx=通しの株主番号、k=ページ内1〜13）のセル */
+function contShareholder(globalIdx: number, k: number): GridCell[] {
+  const topA = +(CONT_SH_TOP + (k - 1) * 2 * CONT_SH_PITCH).toFixed(2);
+  const topB = +(topA + CONT_SH_PITCH).toFixed(2);
+  const h = CONT_SH_PITCH;
+  const c = contCodes(k);
+  const w = (a: number, b: number) => +(b - a).toFixed(2);
+  const r = globalIdx;
+  return [
+    // 上段
+    { kind: 'cell', codeLabel: c.name, top: topA, left: CX.eCode, width: w(CX.eCode, CX.eCodeEnd), height: h },
+    { field: `sh_${r}_1`, kind: 'input', ariaLabel: `株主${r}の氏名又は名称`, top: topA, left: CX.name, width: w(CX.name, CX.nameEnd), height: h, align: 'left' },
+    { kind: 'cell', codeLabel: c.roleCode, top: topA, left: CX.gCode, width: w(CX.gCode, CX.gCodeEnd), height: h },
+    { field: `sh_${r}_3k`, kind: 'input', options: [...ROLE_CODE_OPTIONS], compactSelectedOption: true, ariaLabel: `株主${r}の役職コード`, top: topA, left: CX.codeBox, width: w(CX.codeBox, CX.codeBoxEnd), height: h },
+    { kind: 'cell', codeLabel: c.roleName, top: topA, left: CX.roleECode, width: w(CX.roleECode, CX.roleECodeEnd), height: h },
+    { field: `sh_${r}_3`, kind: 'input', readOnlyWhen: (g) => g(`sh_${r}_3k`) !== '16', ariaLabel: `株主${r}の役職名`, top: topA, left: CX.role, width: w(CX.role, CX.roleEnd), height: h, align: 'left' },
+    { kind: 'cell', codeLabel: c.shares, top: topA, left: CX.numCode1, width: w(CX.numCode1, CX.numCode1End), height: h },
+    { field: `sh_${r}_4`, kind: 'input', commaInteger: true, top: topA, left: CX.num1, width: w(CX.num1, CX.num1End), height: h, align: 'right' },
+    { kind: 'cell', codeLabel: c.undiv, top: topA, left: CX.numCode2, width: w(CX.numCode2, CX.numCode2End), height: h },
+    { field: `sh_${r}_7`, kind: 'input', commaInteger: true, top: topA, left: CX.num2, width: w(CX.num2, CX.num2End), height: h, align: 'right' },
+    // 下段
+    { kind: 'cell', codeLabel: c.relCode, top: topB, left: CX.eCode, width: w(CX.eCode, CX.eCodeEnd), height: h },
+    { field: `sh_${r}_2k`, kind: 'input', options: [...ZOKUGARA_CODE_OPTIONS], compactSelectedOption: true, ariaLabel: `株主${r}の続柄コード`, top: topB, left: CX.relBox, width: w(CX.relBox, CX.relBoxEnd), height: h },
+    { kind: 'cell', codeLabel: c.relName, top: topB, left: CX.relECode, width: w(CX.relECode, CX.relECodeEnd), height: h },
+    { field: `sh_${r}_2`, kind: 'input', readOnlyWhen: (g) => g(`sh_${r}_2k`) !== '18', ariaLabel: `株主${r}の続柄`, top: topB, left: CX.rel, width: w(CX.rel, CX.relEnd), height: h, align: 'left' },
+    { kind: 'cell', codeLabel: c.typeCode, top: topB, left: CX.gCode, width: w(CX.gCode, CX.gCodeEnd), height: h },
+    { field: `sh_${r}_9`, kind: 'input', options: [...STOCK_TYPE_OPTIONS], compactSelectedOption: true, ariaLabel: `株主${r}の株式種類コード`, top: topB, left: CX.codeBox, width: w(CX.codeBox, CX.codeBoxEnd), height: h },
+    { kind: 'cell', codeLabel: c.typeName, top: topB, left: CX.roleECode, width: w(CX.roleECode, CX.roleECodeEnd), height: h },
+    { field: `sh_${r}_8`, kind: 'input', ariaLabel: `株主${r}の株式の種類`, top: topB, left: CX.role, width: w(CX.role, CX.roleEnd), height: h, align: 'left' },
+    { kind: 'cell', codeLabel: c.votes, top: topB, left: CX.numCode1, width: w(CX.numCode1, CX.numCode1End), height: h },
+    { field: `sh_${r}_5`, kind: 'input', commaInteger: true, top: topB, left: CX.num1, width: w(CX.num1, CX.num1End), height: h, align: 'right' },
+    { kind: 'cell', codeLabel: c.ratio, top: topB, left: CX.numCode2, width: w(CX.numCode2, CX.numCode2End), height: h },
+    { field: `sh_${r}_6`, kind: 'input', readOnly: true, top: topB, left: CX.num2, width: w(CX.num2, CX.num2End), height: h, align: 'right' },
+  ];
+}
+/** 続紙1ページ分（pageIndex=1始まり）：ヘッダー＋13株主 */
+function continuationPageCells(pageIndex: number): GridCell[] {
+  const firstGlobal = SH_ROWS + (pageIndex - 1) * CONT_SH + 1; // このページ先頭の通し株主番号
+  const out: GridCell[] = [
+    { kind: 'cell', text: '', top: 16.98, left: 8.14, width: 83.32, height: 76.6 },
+    { kind: 'label', text: '１．株主及び評価方式の判定（続）', top: 13.02, left: 8.14, width: 83.32, height: 2.5, align: 'left', fontSize: 10 },
+    { kind: 'label', text: '判定要素（課税時期現在の株式等の所有状況）', top: 21.6, left: 8.14, width: 2.01, height: 71.98, align: 'center' },
+    // ヘッダー（上段/下段）
+    { kind: 'label', text: '氏 名 又 は 名 称', top: 16.98, left: CX.name, width: +(CX.nameEnd - CX.name).toFixed(2), height: 2.02 },
+    { kind: 'label', text: '役　職\nコード', top: 16.98, left: CX.gCode, width: +(CX.codeBoxEnd - CX.gCode).toFixed(2), height: 2.02, fontSize: 7.5 },
+    { kind: 'label', text: '会社における役職名', top: 16.98, left: CX.role, width: +(CX.roleEnd - CX.role).toFixed(2), height: 2.02 },
+    { kind: 'label', text: '㋑　株 式 数（株）', top: 16.98, left: CX.num1, width: +(CX.num1End - CX.num1).toFixed(2), height: 2.02 },
+    { kind: 'label', text: '㋺　未分割の株式の\n株 式 数（株）', top: 16.98, left: CX.num2, width: +(CX.num2End - CX.num2).toFixed(2), height: 2.02, fontSize: 7.5 },
+    { kind: 'label', text: '続　柄\nコード', top: 19.0, left: CX.eCode, width: +(CX.relBoxEnd - CX.eCode).toFixed(2), height: 2.6, fontSize: 7.5 },
+    { kind: 'label', text: '続　　　柄', top: 19.0, left: CX.rel, width: +(CX.relEnd - CX.rel).toFixed(2), height: 2.6 },
+    { kind: 'label', text: '株式種類\nコード', top: 19.0, left: CX.gCode, width: +(CX.codeBoxEnd - CX.gCode).toFixed(2), height: 2.6, fontSize: 7.5 },
+    { kind: 'label', text: '株 式 の 種 類', top: 19.0, left: CX.role, width: +(CX.roleEnd - CX.role).toFixed(2), height: 2.6 },
+    { kind: 'label', text: '㋩　議 決 権 数（個）', top: 19.0, left: CX.num1, width: +(CX.num1End - CX.num1).toFixed(2), height: 2.6 },
+    { kind: 'label', text: '㋥　議決権割合\n（㋩/⑥）（％）', top: 19.0, left: CX.num2, width: +(CX.num2End - CX.num2).toFixed(2), height: 2.6, fontSize: 7.5 },
+  ];
+  for (let k = 1; k <= CONT_SH; k++) out.push(...contShareholder(firstGlobal + k - 1, k));
+  return out;
+}
+
 /** 第1表の1（CSSグリッド方式・令和8年4月1日以降用） */
 export function Table1_1Grid({ getField, updateField }: TableProps) {
   const reorderShareholderRows = useCallback((activeId: string, overId: string) => {
@@ -498,9 +583,11 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     });
   }, [getField, updateField]);
 
+  const shPageCount = shPageCountOf(getField);
+  const totalSh = totalShOf(getField);
   const sumShareholderVotes = () => {
     let total = 0;
-    for (let row = 1; row <= SH_ROWS; row++) {
+    for (let row = 1; row <= totalSh; row++) {
       total += Number(getField(T, `sh_${row}_5`).replace(/,/g, '')) || 0;
     }
     return total > 0 ? String(total) : '';
@@ -554,5 +641,40 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     const codeMatch = /^sh_(\d+)_(2|3)k$/.exec(f);
     if (codeMatch) updateField(T, `sh_${codeMatch[1]}_${codeMatch[2]}`, '');
   };
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" references={REFERENCES} onDragReorder={reorderShareholderRows} />;
+
+  // 続紙の追加／削除（株主が5名を超える場合）
+  const SH_FIELDS = ['1', '2', '2k', '3', '3k', '4', '5', '6', '7', '8', '9'] as const;
+  const addShPage = () => updateField(T, '_shpages', String(shPageCount + 1));
+  const removeShPage = () => {
+    if (shPageCount <= 0) return;
+    const start = SH_ROWS + (shPageCount - 1) * CONT_SH + 1;
+    let hasData = false;
+    for (let r = start; r <= totalSh && !hasData; r++) {
+      for (const c of SH_FIELDS) if (getField(T, `sh_${r}_${c}`).trim() !== '') hasData = true;
+    }
+    if (hasData && !window.confirm('最終続紙の株主明細を削除します。よろしいですか？')) return;
+    for (let r = start; r <= totalSh; r++) for (const c of SH_FIELDS) updateField(T, `sh_${r}_${c}`, '');
+    updateField(T, '_shpages', String(shPageCount - 1));
+  };
+  const btnStyle = { fontSize: 11, padding: '1px 8px', cursor: 'pointer', border: '1px solid #888', borderRadius: 4, background: '#fff' } as const;
+  const toolbar = (
+    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap' }}>
+      <span>株主 {totalSh}名{shPageCount > 0 ? `（続紙${shPageCount}）` : ''}</span>
+      <button type="button" onClick={addShPage} style={btnStyle}>＋続紙追加（13名）</button>
+      {shPageCount > 0 && <button type="button" onClick={removeShPage} style={btnStyle}>－最終続紙削除</button>}
+    </span>
+  );
+
+  return (
+    <>
+      <div className="gov-page" style={shPageCount > 0 ? { marginBottom: '8mm' } : undefined}>
+        <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" toolbar={toolbar} references={REFERENCES} onDragReorder={reorderShareholderRows} />
+      </div>
+      {Array.from({ length: shPageCount }).map((_, i) => (
+        <div className="gov-page" key={i} style={i < shPageCount - 1 ? { marginBottom: '8mm' } : undefined}>
+          <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} />
+        </div>
+      ))}
+    </>
+  );
 }

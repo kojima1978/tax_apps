@@ -7,11 +7,10 @@ import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
 import { Table1_2 } from '@/components/tables/table1-2';
 import { Table2 } from '@/components/tables/table2';
 import { Table3 } from '@/components/tables/table3';
-import { Table4 } from '@/components/tables/table4';
+import { Table4_1, Table4_2 } from '@/components/tables/table4';
 import { Table5 } from '@/components/tables/table5';
 import { Table6 } from '@/components/tables/table6';
-import { Table7 } from '@/components/tables/table7';
-import { Table8 } from '@/components/tables/table8';
+import { Table7_1, Table7_2, Table7_3 } from '@/components/tables/table7';
 import type { TableId, TableProps } from '@/types/form';
 import { TABS } from '@/data/constants';
 
@@ -20,11 +19,22 @@ const TABLE_COMPONENTS: Record<TableId, React.ComponentType<TableProps>> = {
   table1_2: Table1_2,
   table2: Table2,
   table3: Table3,
-  table4: Table4,
+  table4: Table4_2,   // 旧table4 IDのフォールバック（タブには出さない）
+  table4_1: Table4_1,
+  table4_2: Table4_2,
   table5: Table5,
   table6: Table6,
-  table7: Table7,
-  table8: Table8,
+  table7: Table7_2,   // 旧table7 IDのフォールバック（タブには出さない）
+  table7_1: Table7_1,
+  table7_2: Table7_2,
+  table7_3: Table7_3,
+  table8: Table7_3,   // 旧table8 IDのフォールバック（第7表の3のデータバケット）
+};
+
+// 表示のみ分割し、データは共通バケットに保存する（第4表→table4、第7表の1/2→table7、第7表の3→table8）
+const DATA_BUCKET: Partial<Record<TableId, TableId>> = {
+  table4_1: 'table4', table4_2: 'table4',
+  table7_1: 'table7', table7_2: 'table7', table7_3: 'table8',
 };
 
 type PrintTarget = 'current' | 'all';
@@ -42,9 +52,12 @@ export default function App() {
     () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
   );
 
-  // 表に（UI状態 _* を除く）入力値があるか
+  // 表に（UI状態 _* を除く）入力値があるか。第4表の1／2は共通バケット table4 を参照する
   const hasData = useCallback(
-    (tab: TableId) => Object.entries(formData[tab]).some(([k, v]) => !k.startsWith('_') && String(v).trim() !== ''),
+    (tab: TableId) => {
+      const bucket = DATA_BUCKET[tab] ?? tab;
+      return Object.entries(formData[bucket]).some(([k, v]) => !k.startsWith('_') && String(v).trim() !== '');
+    },
     [formData],
   );
   const setAllSelection = (fn: (tab: TableId) => boolean) =>
