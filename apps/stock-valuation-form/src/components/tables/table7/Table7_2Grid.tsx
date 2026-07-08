@@ -190,6 +190,8 @@ const CELLS: GridCell[] = [
   { kind: 'cell', codeLabel: 'J08', top: 83.79, left: 44.0, width: 1.9, height: 2.73 },
   { field: 'mod_pay', kind: 'input', commaInteger: true, top: 83.79, left: 45.9, width: 15.5, height: 2.73, align: 'right' },
   { kind: 'label', text: '円', top: 83.79, left: 61.4, width: 1.9, height: 2.73, fontSize: 7 },
+  { field: 'mod_pay_sen', kind: 'input', integerDigits: 2, top: 83.79, left: 63.3, width: 7.6, height: 2.73, align: 'right' },
+  { kind: 'label', text: '銭', top: 83.79, left: 70.9, width: 1.9, height: 2.73, fontSize: 7 },
   { kind: 'label', text: '修正比準価額\n㉔（㉖があるときは㉖）\n＋㉗×㉘÷（１株＋㉙）（円）', top: 83.79, left: 75.91, width: 16.52, height: 8.18, fontSize: 6 },
   { kind: 'label', text: '１株当たりの割当株式数', top: 86.52, left: 25.3, width: 16.8, height: 2.71, fontSize: 7 },
   { kind: 'label', text: '㉘', top: 86.52, left: 42.1, width: 1.9, height: 2.71 },

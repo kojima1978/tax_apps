@@ -61,6 +61,12 @@ export interface GridCell {
     numerator: string;
     denominator: string;
   }; // 単純な分数
+  titledFraction?: {
+    titleLines: string[];
+    numeratorLines: string[];
+    denominator: string;
+    suffix?: string;
+  }; // 表題付きの分数（第4表の2 ㉜の修正比準価額など）
   fractionProductExpression?: {
     left: { numerator: string; denominator: string; valueField?: string };
     right: { numerator: string; denominator: string; valueField?: string };
@@ -638,6 +644,19 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', minWidth: '2.5em', lineHeight: 1 }}>
                   <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.45em 1px' }}>{c.simpleFraction.numerator}</span>
                   <span style={{ paddingTop: 1 }}>{c.simpleFraction.denominator}</span>
+                </span>
+              ) : c.kind === 'label' && c.titledFraction ? (
+                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '96%', height: '100%', lineHeight: 1.15 }}>
+                  {c.titledFraction.titleLines.map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', textAlign: 'center' }}>
+                    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', borderBottom: '0.7px solid #000', padding: '0 0.4em 1px' }}>
+                      {c.titledFraction.numeratorLines.map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}
+                    </span>
+                    <span style={{ paddingTop: 1 }}>
+                      {c.titledFraction.denominator}
+                      {c.titledFraction.suffix && <span style={{ marginLeft: '0.6em' }}>{c.titledFraction.suffix}</span>}
+                    </span>
+                  </span>
                 </span>
               ) : c.kind === 'label' && c.stackedDivisionExpression ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.8em', width: '98%', height: '100%', lineHeight: 1.1, whiteSpace: 'nowrap' }}>

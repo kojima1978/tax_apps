@@ -31,6 +31,9 @@ const TABLE_COMPONENTS: Record<TableId, React.ComponentType<TableProps>> = {
   table8: Table7_3,   // 旧table8 IDのフォールバック（第7表の3のデータバケット）
 };
 
+// 自前で複数ページ（.gov-page）を描画するタブ（外側で .gov-page ラップしない）
+const SELF_PAGING = new Set<TableId>(['table5', 'table1_1']);
+
 // 表示のみ分割し、データは共通バケットに保存する（第4表→table4、第7表の1/2→table7、第7表の3→table8）
 const DATA_BUCKET: Partial<Record<TableId, TableId>> = {
   table4_1: 'table4', table4_2: 'table4',
@@ -208,8 +211,8 @@ export default function App() {
           {printAll ? (
             TABS.filter((tab) => printSelection[tab.id]).map((tab) => {
               const TableComp = TABLE_COMPONENTS[tab.id];
-              // 第5表は続紙対応で自前に複数ページ（.gov-page）を描画するため外側で包まない
-              return tab.id === 'table5' ? (
+              // 第5表・第1表の1は続紙対応で自前に複数ページ（.gov-page）を描画するため外側で包まない
+              return SELF_PAGING.has(tab.id) ? (
                 <TableComp key={tab.id} {...tableProps} />
               ) : (
                 <div key={tab.id} className="gov-page">
@@ -217,7 +220,7 @@ export default function App() {
                 </div>
               );
             })
-          ) : activeTab === 'table5' ? (
+          ) : SELF_PAGING.has(activeTab) ? (
             <ActiveTable {...tableProps} />
           ) : (
             <div className="gov-page">

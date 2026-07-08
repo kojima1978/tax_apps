@@ -326,7 +326,7 @@ export function calcTable7(getField: TableProps['getField']) {
   // 比準価額の修正
   const modDiv = senPair('mod_div', 'mod_div_sen');
   const v25 = v24 !== null && modDiv !== null ? fl(v24 - modDiv) : null;       // ㉕
-  const modPay = num('mod_pay'), modRatio = num('mod_ratio'), modRatio2 = num('mod_ratio2');
+  const modPay = senPair('mod_pay', 'mod_pay_sen'), modRatio = num('mod_ratio'), modRatio2 = num('mod_ratio2');
   const base26 = v25 ?? v24;
   const v26 = base26 !== null && modRatio2 !== null ? fl((base26 + (modPay ?? 0) * (modRatio ?? 0)) / (1 + modRatio2)) : null; // ㉖
 

@@ -407,7 +407,7 @@ export function calcTable4(getField: TableProps['getField']) {
   // 比準価額の修正: ㉗=㉖－1株当たりの配当金額、㉘=(㉗(ないときは㉖)＋払込金額×割当株式数)÷(1＋割当・交付株式数)
   const modDiv = senPair('mod_div', 'mod_div_sen');
   const v27 = v26 !== null && modDiv !== null ? fl(v26 - modDiv) : null;
-  const modPay = num('mod_pay'), modRatio = num('mod_ratio'), modRatio2 = num('mod_ratio2');
+  const modPay = senPair('mod_pay', 'mod_pay_sen'), modRatio = num('mod_ratio'), modRatio2 = num('mod_ratio2');
   const base28 = v27 ?? v26;
   const v28 = base28 !== null && modRatio2 !== null ? fl((base28 + (modPay ?? 0) * (modRatio ?? 0)) / (1 + modRatio2)) : null;
 
