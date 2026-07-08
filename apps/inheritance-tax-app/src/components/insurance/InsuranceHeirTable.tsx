@@ -23,6 +23,11 @@ function buildInsuranceColumns(scenario: InsuranceScenarioResult): HeirColumn[] 
   const { heirBreakdowns, taxResult } = scenario;
   const totalPremiumPaid = heirBreakdowns.reduce((s, b) => s + b.premiumPaid, 0);
   const totalBaseAcquisition = scenario.adjustedEstate + scenario.premiumDeduction - scenario.taxableInsurance;
+  const getPretaxProceeds = (i: number) => {
+    const insurance = heirBreakdowns[i];
+    return getHeirBaseAcquisition(scenario, i) - (insurance?.premiumPaid ?? 0) + (insurance?.totalBenefit ?? 0);
+  };
+  const totalPretaxProceeds = totalBaseAcquisition - totalPremiumPaid + scenario.totalBenefit;
 
   return [
     heirLabelColumn(i => heirBreakdowns[i]?.label),
@@ -33,6 +38,7 @@ function buildInsuranceColumns(scenario: InsuranceScenarioResult): HeirColumn[] 
       getTotalValue: () => totalPremiumPaid > 0 ? formatTriangleDeduction(totalPremiumPaid) : '—',
     },
     currencyColumn('受け取る保険金', i => heirBreakdowns[i]?.totalBenefit ?? 0, scenario.totalBenefit),
+    currencyColumn('税引前の財産', getPretaxProceeds, totalPretaxProceeds),
     currencyColumn('支払う相続税', i => taxResult.heirBreakdowns[i]?.finalTax ?? 0, taxResult.totalFinalTax),
     currencyColumn('残る財産', i => getHeirNetProceeds(scenario, i), scenario.totalNetProceeds, { bold: true }),
   ];
