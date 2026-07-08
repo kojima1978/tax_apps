@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, formatDelta } from '../utils';
+import { formatCurrency } from '../utils';
 import { TH, TD } from './tableStyles';
 
 interface HeirNetComparisonTableProps {
@@ -10,6 +10,12 @@ interface HeirNetComparisonTableProps {
   totalCurrentNet: number;
   totalProposedNet: number;
   totalDiff: number;
+}
+
+function formatTriangleDelta(diff: number): string {
+  if (diff > 0) return `+${formatCurrency(diff)}`;
+  if (diff < 0) return `△${formatCurrency(Math.abs(diff))}`;
+  return '±0';
 }
 
 export const HeirNetComparisonTable: React.FC<HeirNetComparisonTableProps> = ({
@@ -23,15 +29,15 @@ export const HeirNetComparisonTable: React.FC<HeirNetComparisonTableProps> = ({
 }) => {
   return (
     <div>
-      <h4 className="text-base font-bold text-gray-700 mb-2">相続人別 納税後比較</h4>
+      <h4 className="text-base font-bold text-gray-700 mb-2">相続人別 残る財産比較</h4>
       <div className="overflow-x-auto table-scroll-hint">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-green-600 text-white">
               <th className={TH}>相続人</th>
-              <th className={TH}>現状 納税後</th>
-              <th className={TH}>提案 納税後</th>
-              <th className={TH}>差額（Δ）</th>
+              <th className={TH}>現在のまま 残る財産</th>
+              <th className={TH}>保険に加入した場合 残る財産</th>
+              <th className={TH}>差額</th>
             </tr>
           </thead>
           <tbody>
@@ -46,7 +52,7 @@ export const HeirNetComparisonTable: React.FC<HeirNetComparisonTableProps> = ({
                   <td className={TD}>{formatCurrency(currentNet)}</td>
                   <td className={TD}>{formatCurrency(proposedNet)}</td>
                   <td className={`${TD} font-medium ${diff > 0 ? 'text-green-700' : diff < 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                    {diff !== 0 ? formatDelta(diff) : '—'}
+                    {diff !== 0 ? formatTriangleDelta(diff) : '—'}
                   </td>
                 </tr>
               );
@@ -56,7 +62,7 @@ export const HeirNetComparisonTable: React.FC<HeirNetComparisonTableProps> = ({
               <td className={TD}>{formatCurrency(totalCurrentNet)}</td>
               <td className={TD}>{formatCurrency(totalProposedNet)}</td>
               <td className={`${TD} font-bold ${totalDiff > 0 ? 'text-green-700' : totalDiff < 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                {totalDiff !== 0 ? formatDelta(totalDiff) : '—'}
+                {totalDiff !== 0 ? formatTriangleDelta(totalDiff) : '—'}
               </td>
             </tr>
           </tbody>
