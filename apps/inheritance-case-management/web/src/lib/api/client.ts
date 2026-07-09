@@ -1,4 +1,10 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/itcm/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/itcm/api-v1';
+
+function normalizeEndpoint(endpoint: string): string {
+  const [pathname, query = ''] = endpoint.split('?');
+  const normalizedPath = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  return query ? `${normalizedPath}?${query}` : normalizedPath;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -16,7 +22,7 @@ export async function apiClient<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(`${API_URL}${normalizeEndpoint(endpoint)}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

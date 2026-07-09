@@ -49,7 +49,7 @@ async function generateFromTemplate(
     referralFeeAmount?: number;
   },
 ): Promise<Blob> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/itcm/api';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/itcm/api-v1';
   const res = await fetch(`${apiUrl}/templates/generate/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

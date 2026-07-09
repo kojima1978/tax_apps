@@ -78,7 +78,7 @@ services:
       dockerfile: Dockerfile
       target: dev
       args:
-        NEXT_PUBLIC_API_URL: /itcm/api
+        NEXT_PUBLIC_API_URL: /itcm/api-v1
     container_name: itcm-frontend
     networks:
       - tax-apps-network
@@ -86,6 +86,7 @@ services:
     environment:
       <<: *common-env
       NODE_ENV: development
+      NEXT_PUBLIC_API_URL: /itcm/api-v1
       NODE_OPTIONS: "--max-old-space-size=1536"
       WATCHPACK_POLLING: "true"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
@@ -105,7 +106,7 @@ services:
     stop_grace_period: 15s
     logging: *default-logging
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/api/health/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/api/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
       <<: *healthcheck-defaults
       start_period: 120s
     deploy:
