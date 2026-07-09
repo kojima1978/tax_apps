@@ -10,6 +10,8 @@ interface HeirNetComparisonTableProps {
   totalCurrentNet: number;
   totalProposedNet: number;
   totalDiff: number;
+  title?: string;
+  description?: string;
 }
 
 function formatTriangleDelta(diff: number): string {
@@ -26,10 +28,15 @@ export const HeirNetComparisonTable: React.FC<HeirNetComparisonTableProps> = ({
   totalCurrentNet,
   totalProposedNet,
   totalDiff,
+  title = '相続人別 残る財産比較',
+  description,
 }) => {
   return (
     <div>
-      <h4 className="text-base font-bold text-gray-700 mb-2">相続人別 残る財産比較</h4>
+      <h4 className="text-base font-bold text-gray-700 mb-2">{title}</h4>
+      {description && (
+        <p className="text-xs text-gray-500 mb-3">{description}</p>
+      )}
       <div className="overflow-x-auto table-scroll-hint">
         <table className="w-full border-collapse">
           <thead>

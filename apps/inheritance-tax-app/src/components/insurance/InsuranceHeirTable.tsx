@@ -87,7 +87,7 @@ function InsuranceResultSummary({ result }: { result: InsuranceSimulationResult 
   return (
     <div className="space-y-3">
       <div className={`rounded-lg border px-4 py-4 ${positive ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-        <p className={`text-xs font-medium ${positive ? 'text-green-700' : 'text-red-700'}`}>結論</p>
+        <p className={`text-xs font-medium ${positive ? 'text-green-700' : 'text-red-700'}`}>3. 結論</p>
         <div className="mt-1 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <p className={`text-2xl font-bold ${positive ? 'text-green-700' : 'text-red-700'}`}>
@@ -135,24 +135,10 @@ export const InsuranceHeirTable: React.FC<InsuranceHeirTableProps> = ({ result }
     <div className={CARD}>
       <h3 className="text-lg font-bold text-gray-800 mb-4">試算結果</h3>
 
-      <InsuranceResultSummary result={result} />
-
-      <div className="mt-6">
-        <HeirNetComparisonTable
-          heirCount={heirCount}
-          getLabel={i => current.heirBreakdowns[i]?.label || ''}
-          getCurrentNet={i => getHeirNetProceeds(current, i)}
-          getProposedNet={i => getHeirNetProceeds(proposed, i)}
-          totalCurrentNet={current.totalNetProceeds}
-          totalProposedNet={proposed.totalNetProceeds}
-          totalDiff={result.netProceedsDiff}
-        />
-      </div>
-
-      <div className="mt-6 border-t border-gray-200 pt-5">
-        <h4 className="text-base font-bold text-gray-700 mb-2">相続人別内訳（詳しい計算内容）</h4>
+      <div>
+        <h4 className="text-base font-bold text-gray-700 mb-2">1. 相続人別内訳</h4>
         <p className="text-xs text-gray-500 mb-3">
-          各相続人が相続する財産、支払う保険料、受け取る保険金、支払う相続税を現在のままと保険に加入した場合で確認できます。
+          税引前の財産から相続税を差し引き、最後に残る財産までを確認できます。
         </p>
       </div>
 
@@ -179,6 +165,24 @@ export const InsuranceHeirTable: React.FC<InsuranceHeirTableProps> = ({ result }
           compactRows
           showTaxTotal={false}
         />
+      </div>
+
+      <div className="mt-6 border-t border-gray-200 pt-5">
+        <HeirNetComparisonTable
+          title="2. 相続人別 残る財産比較"
+          description="現在のままと保険に加入した場合で、税金を払った後に残る財産を比べます。"
+          heirCount={heirCount}
+          getLabel={i => current.heirBreakdowns[i]?.label || ''}
+          getCurrentNet={i => getHeirNetProceeds(current, i)}
+          getProposedNet={i => getHeirNetProceeds(proposed, i)}
+          totalCurrentNet={current.totalNetProceeds}
+          totalProposedNet={proposed.totalNetProceeds}
+          totalDiff={result.netProceedsDiff}
+        />
+      </div>
+
+      <div className="mt-6 border-t border-gray-200 pt-5">
+        <InsuranceResultSummary result={result} />
       </div>
     </div>
   );
