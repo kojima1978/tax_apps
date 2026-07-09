@@ -1,5 +1,6 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable4 } from './Table4Grid';
+import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 
 // ══ 第4表の2（令和8年4月1日以降用）══
@@ -255,5 +256,6 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第４表の２　類似業種比準価額等の計算明細書（続）" references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T);
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の２　類似業種比準価額等の計算明細書（続）" formCode="NTA0VNA210020010" headerExtra={headerExtra} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

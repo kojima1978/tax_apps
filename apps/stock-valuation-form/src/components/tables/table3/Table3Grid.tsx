@@ -3,6 +3,7 @@ import { calcTable4 } from '../table4/Table4Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { calcShareholderJudgment } from '../Table1_1Grid';
+import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table3' as const;
@@ -209,7 +210,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '㉖　源泉徴収されるべき\n所得税相当額', fontSize: 7, top: 71.51, left: 49.27, width: 22.33, height: 2.68 },
   { kind: 'label', text: '㉗　配当期待権の価額\n（㉕－㉖）', fontSize: 7, top: 71.51, left: 71.6, width: 20.74, height: 2.68 },
   ...yenSenInput('J03', 'exp_div', 'exp_div_sen', 74.19, 2.59, 27.32, 29.61, 39.16, 40.98, 47.46, 49.27),
-  ...yenSenInput('J04', 'exp_tax', 'exp_tax_sen', 74.19, 2.59, 49.27, 51.09, 60.15, 61.97, 67.96, 69.78),
+  ...yenSenInput('J04', 'exp_tax', 'exp_tax_sen', 74.19, 2.59, 49.27, 51.09, 60.15, 61.97, 69.78, 71.6),
   ...yenSenInput('J05', '㉗円', 'f72', 74.19, 2.59, 71.6, 73.89, 82.96, 84.77, 90.21, 92.34, { readOnly: true }),
   // 株式の割当てを受ける権利
   { kind: 'label', text: '株式の割当てを受ける権利\n（割当株式１株当たりの価額）', fontSize: 6.5, ariaLabel: '割当てを受ける権利を選択', toggleField: 'right_wariate', highlightWhen: (g) => g('right_wariate') === '1', top: 76.78, left: 10.27, width: 17.05, height: 5.64 },
@@ -442,5 +443,6 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
     }
     return cell;
   });
-  return <GridForm cells={cells} g={g} u={u} formId={T} width="100%" title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T);
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA200010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

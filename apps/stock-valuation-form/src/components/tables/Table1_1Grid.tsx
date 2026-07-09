@@ -331,11 +331,12 @@ function shareholderRows(): GridCell[] {
 }
 
 /** 第1表の1のグリッドセル（令和8年4月1日以降用・罫線座標はPNGからの機械抽出） */
+// 本表（会社名〜判定）のアスペクト比。氏名欄(y13.68)を外に出し会社名(y19.43)を上端にした分、
+// 縦スケールを従来と同一に保つよう調整: 297 × (99.34-19.43)/(99.34-13.68) = 277.07
+const MAIN_ASPECT = '210 / 277.07';
+
 const CELLS: GridCell[] = [
-  // ── 氏名（被相続人又は受贈者） ──
-  { kind: 'label', text: '氏　　名\n（被相続人又は受贈者）', top: 13.68, left: 50.32, width: 14.51, height: 3.13, fontSize: 8 },
-  { field: 'decedent', kind: 'input', top: 13.68, left: 64.83, width: 23.65, height: 3.13, align: 'left' },
-  // ── 会社情報ヘッダー ──
+  // ── 会社情報ヘッダー ──（氏名欄は本表の外＝headerExtra の浮遊枠に分離）
   { kind: 'label', text: '会　社　名', top: 19.43, left: 10.48, width: 7.21, height: 2.56 },
   { kind: 'cell', codeLabel: 'E01', top: 19.43, left: 17.69, width: 1.81, height: 2.56 },
   { field: 'f12', kind: 'input', top: 19.43, left: 19.5, width: 18.13, height: 2.56, align: 'left' },
@@ -665,14 +666,35 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     </span>
   );
 
+  // 氏名（被相続人又は受贈者）欄＝本表の外に浮く独立枠（実様式どおり右寄せ・左側は開放）。
+  // 幅・高さは本表の座標系に合わせて算出（x50.28-88.48→右端揃え幅48.87%、縦横比は本表スケール準拠）。
+  const shimeiBox = (
+    <div style={{ display: 'flex', padding: '3mm 0 5mm', fontFamily: '"Noto Sans JP", sans-serif' }}>
+      <div style={{ marginLeft: 'auto', width: '48.87%', aspectRatio: '9.46 / 1', display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
+        <div style={{ flex: '0 0 38%', borderRight: '1px solid #000', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.25, padding: '0 2px' }}>
+          <span style={{ fontSize: 9, letterSpacing: '0.8em', paddingLeft: '0.8em' }}>氏名</span>
+          <span style={{ fontSize: 7 }}>（被相続人又は受贈者）</span>
+        </div>
+        <input
+          id={`${T}-decedent`}
+          name={`${T}.decedent`}
+          aria-label="被相続人又は受贈者の氏名"
+          value={g('decedent')}
+          onChange={(e) => u('decedent', e.target.value)}
+          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', padding: '0 6px', fontSize: 11, fontFamily: 'inherit' }}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="gov-page" style={shPageCount > 0 ? { marginBottom: '8mm' } : undefined}>
-        <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" toolbar={toolbar} references={REFERENCES} onDragReorder={reorderShareholderRows} />
+        <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" aspectRatio={MAIN_ASPECT} title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" formCode="NTA0VNA170010010" headerExtra={shimeiBox} toolbar={toolbar} references={REFERENCES} onDragReorder={reorderShareholderRows} />
       </div>
       {Array.from({ length: shPageCount }).map((_, i) => (
         <div className="gov-page" key={i} style={i < shPageCount - 1 ? { marginBottom: '8mm' } : undefined}>
-          <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} />
+          <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} formCode="NTA0VNA170020010" />
         </div>
       ))}
     </>

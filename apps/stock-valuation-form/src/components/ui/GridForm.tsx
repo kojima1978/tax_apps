@@ -148,6 +148,12 @@ interface GridFormProps {
   width?: string;
   /** 枠外上部に表示する様式タイトル */
   title?: string;
+  /** 様式ID（例: NTA0VNA170010010）。指定時はタイトル上部に中央配置の「様式ID」枠を表示し、タイトルを中央寄せにする */
+  formCode?: string;
+  /** グリッドのアスペクト比（省略時 '210 / 297'＝A4全体）。氏名欄を外に出した本表など、A4の一部だけを描くときに縦横比を保つため指定 */
+  aspectRatio?: string;
+  /** タイトルヘッダーとグリッドの間に差し込む要素（氏名欄など、本表の外に浮く独立枠） */
+  headerExtra?: ReactNode;
   /** 枠外下部に表示する参考リンク（計算の根拠等） */
   references?: { label: string; url: string }[];
   /** タイトル行の右側に表示する操作UI（業種選択など） */
@@ -265,7 +271,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
  * 各矩形の left/right を縦線、top/bottom を横線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, width = '100%', title, references, toolbar, overlay, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
+export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, references, toolbar, overlay, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
   const printRendering = useContext(PrintRenderContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
@@ -315,13 +321,26 @@ export function GridForm({ cells, g, u, width = '100%', title, references, toolb
 
   return (
     <div style={{ width, margin: '0 auto' }}>
-      {title && (
+      {title && (formCode ? (
+        // 様式ID枠つきヘッダー（様式ID＝中央上部、タイトル＝中央寄せ、toolbar＝右上のQRコード位置）
+        <div style={{ padding: '2px 0 6px', fontFamily: '"Noto Sans JP", sans-serif' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: 22 }}>
+            <div style={{ display: 'inline-flex', border: '1px solid #000', fontSize: 11, lineHeight: 1.5 }}>
+              <span style={{ padding: '1px 8px', borderRight: '1px solid #000' }}>様式ID</span>
+              <span style={{ padding: '1px 14px', letterSpacing: '0.08em' }}>{formCode}</span>
+            </div>
+            {toolbar && <div className="no-print" style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}>{toolbar}</div>}
+          </div>
+          <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, lineHeight: 1.3, marginTop: 4 }}>{title}</div>
+        </div>
+      ) : (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '2px 0 4px', fontFamily: '"Noto Sans JP", sans-serif' }}>
           <span style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3 }}>{title}</span>
           {toolbar}
         </div>
-      )}
-      <div ref={gridRef} style={{ width: '100%', aspectRatio: '210 / 297', display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif', position: 'relative' }}>
+      ))}
+      {headerExtra}
+      <div ref={gridRef} style={{ width: '100%', aspectRatio, display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif', position: 'relative' }}>
       {placed.map(({ c, cs, ce, rs, re }, i) => {
         // 縦長のラベルは縦書き（帯見出し）。スペースは縦書き時に除去。
         const ratio = c.height / c.width;

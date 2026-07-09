@@ -1,6 +1,7 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable7 } from './Table7Grid';
 import { calcTable2 } from '../table2/Table2Grid';
+import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 
 // ══ 第7表の1（令和8年4月1日以降用）══
@@ -63,7 +64,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑤　Ⓑ － ⓑ の 金 額\n　　（③－④）', fontSize: 6.5, top: 30.74, left: 51.29, width: 21.27, height: 3.96 },
   ...yenSen('', '③', 'f23', 34.7, 3.33, 9.99, 9.99, 24.05, 25.99, 29.9, 31.79),
   ...yenSen('', '④', 'f25', 34.7, 3.33, 31.79, 31.79, 43.55, 45.49, 49.4, 51.29),
-  ...yenSen('J01', '⑤', 'f27', 34.7, 3.33, 51.29, 53.22, 62.89, 64.83, 68.6, 70.63),
+  ...yenSen('J01', '⑤', 'f27', 34.7, 3.33, 51.29, 53.22, 62.89, 64.83, 70.63, 72.56),
   // ── Ⓒ－ⓒの金額 ──
   { kind: 'label', text: 'Ⓒ　　－　　ⓒ　　の　　金　　額', top: 38.03, left: 9.99, width: 62.57, height: 2.51 },
   { kind: 'cell', diagonal: 'tlbr', top: 38.03, left: 72.56, width: 19.34, height: 9.72 },
@@ -93,7 +94,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑭　１株当たりの資本金等の額を50円とした場合\n　　の発行済株式数（第４表の１の⑤の株式数）', fontSize: 6.5, top: 58.03, left: 51.29, width: 19.34, height: 4.96 },
   { kind: 'label', text: '⑮　（ロ）の金額\n　　（（⑬÷⑭）×㋩）', fontSize: 6.5, top: 58.03, left: 70.63, width: 21.27, height: 4.96 },
   { field: '⑬', kind: 'input', readOnly: true, topRightLabel: '千円', top: 62.99, left: 14.38, width: 36.91, height: 3.33, align: 'right' },
-  { field: '⑭', kind: 'input', readOnly: true, topRightLabel: '株', top: 62.99, left: 51.29, width: 17.41, height: 3.33, align: 'right' },
+  { field: '⑭', kind: 'input', readOnly: true, topRightLabel: '株', top: 62.99, left: 51.29, width: 19.34, height: 3.33, align: 'right' },
   { kind: 'cell', codeLabel: 'G09', top: 62.99, left: 70.63, width: 1.93, height: 3.33 },
   { field: '⑮', kind: 'input', readOnly: true, topRightLabel: '円', top: 62.99, left: 72.56, width: 19.34, height: 3.33, align: 'right' },
   { kind: 'label', text: '⑯　ⓓの金額（⑫＋⑮）', fontSize: 6.5, top: 66.32, left: 9.99, width: 21.8, height: 4.11 },
@@ -143,5 +144,6 @@ export function Table7_1Grid({ getField, updateField, onJump }: TableProps) {
       第2表判定：株式等保有特定会社に{judge.s2 === true ? '該当' : judge.s2 === false ? '非該当' : '未判定'}
     </span>
   );
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第７表の１　株式等保有特定会社の株式の価額の計算明細書" toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T);
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の１　株式等保有特定会社の株式の価額の計算明細書" formCode="NTA0VNA240010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

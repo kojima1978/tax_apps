@@ -1,6 +1,7 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import type { TableProps } from '@/types/form';
 import { calcShareholderJudgment } from '../Table1_1Grid';
+import { extractCompanyFloatHeader } from '../companyFloatHeader';
 
 const T = 'table1_2' as const;
 
@@ -327,5 +328,6 @@ export function Table1_2Grid({ getField, updateField }: TableProps) {
       </select>
     </label>
   );
-  return <GridForm cells={buildCells(judge)} g={g} u={u} formId={T} width="100%" title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" toolbar={toolbar} references={REFERENCES} enterLoop={ENTER_LOOP} />;
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(judge), g, u, T);
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} enterLoop={ENTER_LOOP} />;
 }

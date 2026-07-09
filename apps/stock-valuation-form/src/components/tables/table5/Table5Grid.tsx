@@ -449,6 +449,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
               formId={T}
               width="100%"
               title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書"
+              formCode="NTA0VNA220010010"
               toolbar={pageToolbar}
               overlay={rowOpsOverlay}
               onJump={jump}
@@ -461,6 +462,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
               formId={T}
               width="100%"
               title={`第５表（続）　１株当たりの純資産価額（相続税評価額）の計算明細書（${p + 1}／${pageCount}ページ）`}
+              formCode="NTA0VNA220020010"
               overlay={rowOpsOverlay}
             />
           )}

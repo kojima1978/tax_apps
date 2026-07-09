@@ -2,6 +2,7 @@
 import { calcTable4 } from '../table4/Table4Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
+import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableProps } from '@/types/form';
 
 const T = 'table2' as const;
@@ -366,5 +367,6 @@ export function Table2Grid({ getField, updateField }: TableProps) {
     </span>
   );
 
-  return <GridForm cells={buildCells(c)} g={g} u={u} formId={T} width="100%" title="第２表　特定の評価会社の判定の明細書" toolbar={toolbar} references={REFERENCES} />;
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(c), g, u, T);
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第２表　特定の評価会社の判定の明細書" formCode="NTA0VNA190010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} />;
 }

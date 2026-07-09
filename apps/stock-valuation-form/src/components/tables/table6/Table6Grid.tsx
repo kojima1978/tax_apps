@@ -3,6 +3,7 @@ import { calcTable4 } from '../table4/Table4Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import { calcShareholderJudgment } from '../Table1_1Grid';
+import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table6' as const;
@@ -342,5 +343,6 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
     if (cell.field === '㉔円' || cell.field === '㉔銭') return { ...cell, highlightWhen: () => v24Floored };
     return cell;
   });
-  return <GridForm cells={cells} g={g} u={u} formId={T} width="100%" title="第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書" toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T);
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA230010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }
