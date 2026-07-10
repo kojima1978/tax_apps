@@ -1,4 +1,5 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
+import { companyFloatBox } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table5' as const;
@@ -7,11 +8,12 @@ const T = 'table5' as const;
 // 本表（1ページ目）は15行＋合計欄、続紙（2ページ目以降）は合計欄なしで23行（令和8年様式 第5表続）。
 const MAIN_ROWS = 15;       // 本表のデータ行数
 const CONT_ROWS = 23;       // 続紙のデータ行数
+const MAX_PAGES = 2;        // 本表1＋続紙1枚まで（＝最大38行）
 const ROW_TOP = 18.06;      // 本表データ1行目の上端%
 const TOTAL_TOP = 64.42;    // 本表 合計行の上端%
 const PITCH = (TOTAL_TOP - ROW_TOP) / MAIN_ROWS;
 const CONT_ROW_TOP = 18.06; // 続紙データ1行目の上端%
-const CONT_BOTTOM = 96.7;   // 続紙データ最終行の下端%
+const CONT_BOTTOM = 97.7;   // 続紙データ最終行の下端%（＝資産/負債の外枠の底。ここに揃えないと最下行の下に半端な空白が出る）
 const CONT_PITCH = (CONT_BOTTOM - CONT_ROW_TOP) / CONT_ROWS;
 const DRAG_W = 2.2;         // 行頭のドラッグハンドル幅%
 const CORPORATE_TAX_RATE = 0.38; // 評価差額に対する法人税額等相当額の割合（令和8年様式⑧: ⑦×38％）
@@ -334,9 +336,11 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   const writeRows = (prefix: 'a' | 'l', rows: string[][]) =>
     rows.forEach((vals, i) => [1, 2, 3, 4].forEach((c, ci) => updateField(T, `${prefix}_${i + 1}_${c}`, vals[ci] ?? '')));
 
-  const addPage = () => u('_pages', String(pageCount + 1));
+  const canAddPage = pageCount < MAX_PAGES;
+  const canRemovePage = pageCount > 1;
+  const addPage = () => { if (canAddPage) u('_pages', String(pageCount + 1)); };
   const removePage = () => {
-    if (pageCount <= 1) return;
+    if (!canRemovePage) return;
     const start = pageStartRow(pageCount - 1);
     const end = totalRows;
     let hasData = false;
@@ -353,10 +357,15 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   };
 
   // pos の位置に空行を挿入し以降を1行下へ。末尾が埋まっている場合は自動で1ページ追加。
+  // 続紙が上限に達していて末尾行にデータがあるときは、押し出される行が消えるため挿入しない。
   const insertRow = (prefix: 'a' | 'l', pos: number) => {
     let total = totalRows;
     let rows = readRows(prefix, total);
     if (rows[total - 1]?.some((v) => v.trim() !== '')) {
+      if (!canAddPage) {
+        window.alert('続紙は1枚までです。最終行にデータがあるため、これ以上行を追加できません。');
+        return;
+      }
       u('_pages', String(pageCount + 1));
       total += CONT_ROWS;
       rows = rows.concat(Array.from({ length: CONT_ROWS }, () => ['', '', '', '']));
@@ -407,15 +416,19 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   const selValid = (selP === 'a' || selP === 'l') && Number.isInteger(selR) && selR >= 1 && selR <= totalRows;
   const selList = selP === 'a' ? 'a' : 'l';
 
-  const btnStyle = { fontSize: 11, padding: '1px 8px', cursor: 'pointer', border: '1px solid #888', borderRadius: 4, background: '#fff' } as const;
+  const btnStyle = (enabled: boolean) => ({
+    fontSize: 11, lineHeight: 1.4, padding: '0 6px', border: '1px solid #888', borderRadius: 3,
+    background: '#fff', cursor: enabled ? 'pointer' : 'not-allowed',
+    color: enabled ? '#111' : '#aaa', borderColor: enabled ? '#888' : '#ddd',
+  } as const);
   // 帯オーバーレイ用の小さめボタン（枠線は様式の罫線と同じ 0.5px）
   const opBtnStyle = { fontSize: 9, padding: '0 3px', cursor: 'pointer', border: '0.5px solid #000', borderRadius: 0, background: '#fff', lineHeight: 1.3, boxSizing: 'border-box' } as const;
-  // ページ追加/削除はタイトルバーに表示
+  // 続紙の追加/削除はタイトルバーに表示（続紙は1枚まで）
   const pageToolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap' }}>
-      <span>明細 {pageCount}ページ（{totalRows}行）</span>
-      <button type="button" onClick={addPage} style={btnStyle}>＋ページ追加</button>
-      {pageCount > 1 && <button type="button" onClick={removePage} style={btnStyle}>－最終ページ削除</button>}
+    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap' }}>
+      <span>続紙</span>
+      <button type="button" onClick={addPage} disabled={!canAddPage} title={canAddPage ? `続紙を追加（明細${CONT_ROWS}行分）` : '続紙は1枚までです'} style={btnStyle(canAddPage)}>追加</button>
+      <button type="button" onClick={removePage} disabled={!canRemovePage} title={canRemovePage ? '続紙を削除' : '続紙はありません'} style={btnStyle(canRemovePage)}>削除</button>
     </span>
   );
   // 行操作は「１．資産及び負債の金額」の帯の上に重ねて表示
@@ -450,6 +463,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
               width="100%"
               title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書"
               formCode="NTA0VNA220010010"
+              headerExtra={companyFloatBox(g, u, T, { widthPct: 41, aspect: 9.5, labelFrac: 0.34 })}
               toolbar={pageToolbar}
               overlay={rowOpsOverlay}
               onJump={jump}
@@ -463,6 +477,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
               width="100%"
               title={`第５表（続）　１株当たりの純資産価額（相続税評価額）の計算明細書（${p + 1}／${pageCount}ページ）`}
               formCode="NTA0VNA220020010"
+              headerExtra={companyFloatBox(g, u, T, { widthPct: 41, aspect: 9.5, labelFrac: 0.34 })}
               overlay={rowOpsOverlay}
             />
           )}

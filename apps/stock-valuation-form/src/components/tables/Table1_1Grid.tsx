@@ -20,6 +20,7 @@ const T = 'table1_1' as const;
 // ── 株主テーブルの繰り返し行 ──
 const SH_ROWS = 5;  // 本表の株主数（1人=2行）
 const CONT_SH = 13; // 続紙1ページあたりの株主数（令和8年様式 第1表の1続）
+const MAX_SH_PAGES = 1; // 続紙は1枚まで（＝株主 最大18名）
 /** 続紙ページ数（_shpages。0=本表のみ） */
 const shPageCountOf = (getField: TableProps['getField']) => Math.max(0, Number(getField('table1_1', '_shpages')) || 0);
 /** 総株主数（本表5＋続紙13×ページ） */
@@ -45,12 +46,6 @@ const X = {
   numCode2: 73.89, numCode2End: 75.71,  // G番号（㋺未分割／㋥割合）の印字セル
   num2: 75.71, num2End: 88.48,          // ㋺未分割株式数／㋥議決権割合
 } as const;
-
-// ── 計算の根拠（参考リンク） ──
-const REFERENCES = [
-  { label: '評価通達188（同族株主以外の株主等が取得した株式）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-188' },
-  { label: '評価通達188-2（同族株主以外の株主等が取得した株式の評価）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-188_2' },
-];
 
 // ── 役職コード（記載要領⑶の次表・令和8年4月1日以降用） ──
 // コード欄のプルダウンで「コード：役職名」を選択→役職名欄にその名称を自動表示（手入力で上書き可）。
@@ -643,11 +638,13 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     if (codeMatch) updateField(T, `sh_${codeMatch[1]}_${codeMatch[2]}`, '');
   };
 
-  // 続紙の追加／削除（株主が5名を超える場合）
+  // 続紙の追加／削除（株主が5名を超える場合。続紙は1枚まで＝最大18名）
   const SH_FIELDS = ['1', '2', '2k', '3', '3k', '4', '5', '6', '7', '8', '9'] as const;
-  const addShPage = () => updateField(T, '_shpages', String(shPageCount + 1));
+  const canAdd = shPageCount < MAX_SH_PAGES;
+  const canRemove = shPageCount > 0;
+  const addShPage = () => { if (canAdd) updateField(T, '_shpages', String(shPageCount + 1)); };
   const removeShPage = () => {
-    if (shPageCount <= 0) return;
+    if (!canRemove) return;
     const start = SH_ROWS + (shPageCount - 1) * CONT_SH + 1;
     let hasData = false;
     for (let r = start; r <= totalSh && !hasData; r++) {
@@ -657,12 +654,16 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     for (let r = start; r <= totalSh; r++) for (const c of SH_FIELDS) updateField(T, `sh_${r}_${c}`, '');
     updateField(T, '_shpages', String(shPageCount - 1));
   };
-  const btnStyle = { fontSize: 11, padding: '1px 8px', cursor: 'pointer', border: '1px solid #888', borderRadius: 4, background: '#fff' } as const;
+  const btnStyle = (enabled: boolean) => ({
+    fontSize: 11, lineHeight: 1.4, padding: '0 6px', border: '1px solid #888', borderRadius: 3,
+    background: '#fff', cursor: enabled ? 'pointer' : 'not-allowed',
+    color: enabled ? '#111' : '#aaa', borderColor: enabled ? '#888' : '#ddd',
+  } as const);
   const toolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap' }}>
-      <span>株主 {totalSh}名{shPageCount > 0 ? `（続紙${shPageCount}）` : ''}</span>
-      <button type="button" onClick={addShPage} style={btnStyle}>＋続紙追加（13名）</button>
-      {shPageCount > 0 && <button type="button" onClick={removeShPage} style={btnStyle}>－最終続紙削除</button>}
+    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap' }}>
+      <span>続紙</span>
+      <button type="button" onClick={addShPage} disabled={!canAdd} title={canAdd ? '続紙を追加（株主13名分）' : '続紙は1枚までです'} style={btnStyle(canAdd)}>追加</button>
+      <button type="button" onClick={removeShPage} disabled={!canRemove} title={canRemove ? '続紙を削除' : '続紙はありません'} style={btnStyle(canRemove)}>削除</button>
     </span>
   );
 
@@ -670,7 +671,7 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
   // 幅・高さは本表の座標系に合わせて算出（x50.28-88.48→右端揃え幅48.87%、縦横比は本表スケール準拠）。
   const shimeiBox = (
     <div style={{ display: 'flex', padding: '3mm 0 5mm', fontFamily: '"Noto Sans JP", sans-serif' }}>
-      <div style={{ marginLeft: 'auto', width: '48.87%', aspectRatio: '9.46 / 1', display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
+      <div className="gf-float-box" style={{ marginLeft: 'auto', width: '48.87%', aspectRatio: '9.46 / 1', display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
         <div style={{ flex: '0 0 38%', borderRight: '1px solid #000', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.25, padding: '0 2px' }}>
           <span style={{ fontSize: 9, letterSpacing: '0.8em', paddingLeft: '0.8em' }}>氏名</span>
           <span style={{ fontSize: 7 }}>（被相続人又は受贈者）</span>
@@ -690,7 +691,7 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
   return (
     <>
       <div className="gov-page" style={shPageCount > 0 ? { marginBottom: '8mm' } : undefined}>
-        <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" aspectRatio={MAIN_ASPECT} title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" formCode="NTA0VNA170010010" headerExtra={shimeiBox} toolbar={toolbar} references={REFERENCES} onDragReorder={reorderShareholderRows} />
+        <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" aspectRatio={MAIN_ASPECT} title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" formCode="NTA0VNA170010010" headerExtra={shimeiBox} toolbar={toolbar} onDragReorder={reorderShareholderRows} />
       </div>
       {Array.from({ length: shPageCount }).map((_, i) => (
         <div className="gov-page" key={i} style={i < shPageCount - 1 ? { marginBottom: '8mm' } : undefined}>

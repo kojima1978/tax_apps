@@ -13,12 +13,6 @@ const T = 'table6' as const;
 // 土地保有特定/開業後3年未満/開業前休業中）＝④⑤⑥⑦⑧。⑤=第7表の3の㉗（旧第8表、データはtable8バケット）。
 // 保存フィールド名（mod9_div/mod10_pay等）は旧名を維持。識別コード（J/G/C）を独立セルで再現。
 
-const REFERENCES = [
-  { label: '評価通達189（特定の評価会社の株式の評価）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/05.htm#a-189' },
-  { label: '評価通達187（株式の価額の修正）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-187' },
-  { label: '評価通達190〜193（株式に関する権利の評価）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/06.htm#a-190' },
-];
-
 const fl = (v: number) => Math.floor(v + 1e-9);
 const fl10sen = (v: number) => Math.floor(v * 10 + 1e-7) / 10;
 const fl2sen = (v: number) => Math.floor(v * 100 + 1e-7) / 100;
@@ -344,5 +338,5 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
     return cell;
   });
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA230010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA230010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

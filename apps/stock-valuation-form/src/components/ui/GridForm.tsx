@@ -154,8 +154,6 @@ interface GridFormProps {
   aspectRatio?: string;
   /** タイトルヘッダーとグリッドの間に差し込む要素（氏名欄など、本表の外に浮く独立枠） */
   headerExtra?: ReactNode;
-  /** 枠外下部に表示する参考リンク（計算の根拠等） */
-  references?: { label: string; url: string }[];
   /** タイトル行の右側に表示する操作UI（業種選択など） */
   toolbar?: ReactNode;
   /** グリッド上に絶対配置で重ねる操作UI（帯の上に配置する行操作など。自前で位置指定） */
@@ -178,6 +176,13 @@ function snapLines(values: number[], tol = 0.7): number[] {
     if (last === undefined || v - last > tol) lines.push(v);
   }
   return lines;
+}
+
+/** 入力できる欄か（自動計算＝readOnly や無効化された欄はカーソル移動でスキップする） */
+function isEditableField(el: Element): boolean {
+  if (el instanceof HTMLInputElement) return !el.readOnly && !el.disabled;
+  if (el instanceof HTMLSelectElement) return !el.disabled;
+  return false;
 }
 
 function nearestIndex(lines: number[], v: number): number {
@@ -271,7 +276,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
  * 各矩形の left/right を縦線、top/bottom を横線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, references, toolbar, overlay, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
+export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, toolbar, overlay, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
   const printRendering = useContext(PrintRenderContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
@@ -315,15 +320,18 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
       items.find((item) => item.getAttribute('aria-label') === nextLabel)?.focus();
       return;
     }
+    // 現在位置より後ろで、最初に入力できる欄へ移動（自動計算欄は飛ばす）
     const idx = items.indexOf(e.currentTarget);
-    if (idx >= 0 && idx + 1 < items.length) items[idx + 1]!.focus();
+    if (idx < 0) return;
+    items.slice(idx + 1).find(isEditableField)?.focus();
   }, [enterLoop]);
 
   return (
-    <div style={{ width, margin: '0 auto' }}>
+    // .gov-page（A4・overflow:hidden）の内側で縦フレックス。ヘッダーは縮まず、本表が残り高さにぴったり収まる。
+    <div style={{ width, margin: '0 auto', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {title && (formCode ? (
         // 様式ID枠つきヘッダー（様式ID＝中央上部、タイトル＝中央寄せ、toolbar＝右上のQRコード位置）
-        <div style={{ padding: '2px 0 6px', fontFamily: '"Noto Sans JP", sans-serif' }}>
+        <div style={{ flexShrink: 0, padding: '2px 0 6px', fontFamily: '"Noto Sans JP", sans-serif' }}>
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: 22 }}>
             <div style={{ display: 'inline-flex', border: '1px solid #000', fontSize: 11, lineHeight: 1.5 }}>
               <span style={{ padding: '1px 8px', borderRight: '1px solid #000' }}>様式ID</span>
@@ -334,13 +342,14 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
           <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, lineHeight: 1.3, marginTop: 4 }}>{title}</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '2px 0 4px', fontFamily: '"Noto Sans JP", sans-serif' }}>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '2px 0 4px', fontFamily: '"Noto Sans JP", sans-serif' }}>
           <span style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3 }}>{title}</span>
           {toolbar}
         </div>
       ))}
-      {headerExtra}
-      <div ref={gridRef} style={{ width: '100%', aspectRatio, display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif', position: 'relative' }}>
+      {headerExtra && <div style={{ flexShrink: 0 }}>{headerExtra}</div>}
+      {/* aspectRatio は親の高さが不定なときの既定サイズ。親がA4で高さ確定なら flex で残り高さにフィットする */}
+      <div ref={gridRef} style={{ width: '100%', aspectRatio, flex: '1 1 auto', minHeight: 0, display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif', position: 'relative' }}>
       {placed.map(({ c, cs, ce, rs, re }, i) => {
         // 縦長のラベルは縦書き（帯見出し）。スペースは縦書き時に除去。
         const ratio = c.height / c.width;
@@ -372,7 +381,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             key={i}
             className="gf-cell"
             role={isDragHandle ? 'button' : toggleField ? 'checkbox' : selectable ? 'button' : undefined}
-            tabIndex={interactive ? 0 : undefined}
+            tabIndex={selectable || toggleField ? 0 : undefined}
             aria-label={interactive ? c.ariaLabel ?? (isDragHandle ? `${text}をドラッグして並び替え` : `${text}を選択`) : undefined}
             aria-checked={toggleField ? g(toggleField) === '1' : undefined}
             aria-pressed={selectable ? g(selectable.field) === selectable.value : undefined}
@@ -614,7 +623,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
               ? <>
                   {c.cornerLabel && <span style={{ position: 'absolute', top: c.cornerLabelTop ?? 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
                   {!printRendering && c.jumpTo && onJump && <span style={{ position: 'absolute', top: 1, right: c.topRightLabel ? 10 : 2, fontSize: 7, lineHeight: 1, color: '#2563eb', pointerEvents: 'none' }} aria-hidden="true">✎</span>}
-                  {printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{formattedFieldValue(c, g)}</div> : <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} title={c.jumpTo?.hint} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} onClick={c.jumpTo && onJump ? () => onJump(c.jumpTo!) : undefined} onContextMenu={c.contextMenu ? (e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, items: c.contextMenu! }); } : undefined} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={readOnly} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', cursor: c.jumpTo && onJump ? 'pointer' : undefined }} />}
+                  {printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{formattedFieldValue(c, g)}</div> : <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} title={c.jumpTo?.hint} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} onClick={c.jumpTo && onJump ? () => onJump(c.jumpTo!) : undefined} onContextMenu={c.contextMenu ? (e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, items: c.contextMenu! }); } : undefined} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={readOnly} tabIndex={readOnly ? -1 : undefined} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', cursor: c.jumpTo && onJump ? 'pointer' : undefined }} />}
                 </>
               : c.kind === 'label' && c.verticalSectionHeading ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%' }}>
@@ -788,14 +797,6 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
       })}
       {overlay}
       </div>
-      {!printRendering && references && references.length > 0 && (
-        <div className="no-print" style={{ padding: '4px 0 0', fontSize: 10, fontFamily: '"Noto Sans JP", sans-serif', color: '#555', display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
-          <span style={{ fontWeight: 600 }}>計算の根拠：</span>
-          {references.map((r, i) => (
-            <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: '#1d4ed8', textDecoration: 'underline' }}>{r.label}</a>
-          ))}
-        </div>
-      )}
       {ctxMenu && (
         <>
           <div className="no-print" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }} style={{ position: 'fixed', inset: 0, zIndex: 1000 }} />

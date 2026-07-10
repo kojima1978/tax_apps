@@ -11,10 +11,6 @@ import type { TableId, TableProps } from '@/types/form';
 const T = 'table7' as const;
 const fl = (v: number) => Math.floor(v + 1e-9);
 
-const REFERENCES = [
-  { label: '評価通達189-3（株式等保有特定会社のS1+S2方式）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/05.htm#a-189' },
-];
-
 // [コード][円値][円][銭値][銭] の金額入力
 function yenSen(code: string, yenField: string, senField: string, top: number, h: number, codeL: number, yenL: number, yenU: number, senL: number, senU: number, end: number): GridCell[] {
   return [
@@ -145,5 +141,5 @@ export function Table7_1Grid({ getField, updateField, onJump }: TableProps) {
     </span>
   );
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の１　株式等保有特定会社の株式の価額の計算明細書" formCode="NTA0VNA240010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の１　株式等保有特定会社の株式の価額の計算明細書" formCode="NTA0VNA240010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

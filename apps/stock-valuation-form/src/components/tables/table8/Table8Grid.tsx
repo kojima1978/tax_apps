@@ -7,12 +7,6 @@ import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table8' as const;
 
-// ── 計算の根拠（参考リンク） ──
-const REFERENCES = [
-  { label: '評価通達189-3（株式等保有特定会社のS1+S2方式）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/05.htm#a-189' },
-  { label: '評価通達186-2（純資産価額・法人税額等相当額）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-186_2' },
-];
-
 // ── 端数処理 ──
 const CORPORATE_TAX_RATE = 0.38;                 // 評価差額に対する法人税額等相当額（令和8年様式：38％）
 const fl = (v: number) => Math.floor(v + 1e-9);  // 表示単位未満切捨て
@@ -219,5 +213,5 @@ export function Table8Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
 
-  return <GridForm cells={buildCells(cls)} g={g} u={u} formId={T} width="100%" title="第７表の３　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240030010" references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={buildCells(cls)} g={g} u={u} formId={T} width="100%" title="第７表の３　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240030010" onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

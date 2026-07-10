@@ -13,11 +13,6 @@ const T = 'table2' as const;
 // ・開業年月日（N01）は元号/年/月/日の4列プルダウン
 // ・判定ロジックは通達189のまま（比準要素数1/株保50%/土地保有70・90%/開業3年/開業前・休業中/清算中）
 
-// ── 計算の根拠（参考リンク） ──
-const REFERENCES = [
-  { label: '評価通達189（特定の評価会社の株式）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/05.htm#a-189' },
-];
-
 const fl = (v: number) => Math.floor(v + 1e-9);
 
 // ── 和暦日付の4列プルダウン（第1表の1と同方式・第2表の列位置） ──
@@ -368,5 +363,5 @@ export function Table2Grid({ getField, updateField }: TableProps) {
   );
 
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(c), g, u, T);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第２表　特定の評価会社の判定の明細書" formCode="NTA0VNA190010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第２表　特定の評価会社の判定の明細書" formCode="NTA0VNA190010010" headerExtra={headerExtra} toolbar={toolbar} />;
 }

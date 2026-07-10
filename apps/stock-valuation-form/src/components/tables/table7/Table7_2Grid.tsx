@@ -12,11 +12,6 @@ import type { TableId, TableProps } from '@/types/form';
 const T = 'table7' as const;
 const fl = (v: number) => Math.floor(v + 1e-9);
 
-const REFERENCES = [
-  { label: '評価通達189-3（株式等保有特定会社のS1+S2方式）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/05.htm#a-189' },
-  { label: '評価通達180（類似業種比準価額）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/03.htm#a-180' },
-];
-
 const minValueHighlight = (fields: string[], target: string) => (g: (field: string) => string) => {
   const values = fields.map((field) => ({ field, value: Number(g(field).replace(/,/g, '').trim()) })).filter(({ field, value }) => g(field).trim() !== '' && !isNaN(value));
   if (values.length === 0) return false;
@@ -266,5 +261,5 @@ export function Table7_2Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の２　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240020010" headerExtra={headerExtra} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の２　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240020010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

@@ -15,14 +15,6 @@ const T = 'table3' as const;
 // ・識別コード（J01/G01/C01等）は様式どおり独立セルで再現
 // ・計算ロジックは従来どおり（③80%相当額の使用箇所・Lの割合・2円50銭下限・原則との比較）
 
-// ── 計算の根拠（参考リンク） ──
-const REFERENCES = [
-  { label: '評価通達179（取引相場のない株式の評価の原則）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/02.htm#a-179' },
-  { label: '評価通達187（株式の価額の修正）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-187' },
-  { label: '評価通達188-2（同族株主以外の株主等が取得した株式の評価）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-188_2' },
-  { label: '評価通達190〜193（株式に関する権利の評価）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/06.htm#a-190' },
-];
-
 // ── 端数処理（第3表記載要領） ──
 const fl = (v: number) => Math.floor(v + 1e-9);                 // 円未満切捨て
 const fl10sen = (v: number) => Math.floor(v * 10 + 1e-7) / 10;  // 10銭未満切捨て
@@ -444,5 +436,5 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
     return cell;
   });
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA200010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA200010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

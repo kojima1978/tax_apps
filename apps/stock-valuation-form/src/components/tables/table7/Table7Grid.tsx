@@ -7,13 +7,6 @@ import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table7' as const;
 
-// ── 計算の根拠（参考リンク） ──
-const REFERENCES = [
-  { label: '評価通達189-3（株式等保有特定会社のS1+S2方式）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/05.htm#a-189' },
-  { label: '評価通達180（類似業種比準価額）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/03.htm#a-180' },
-  { label: '評価通達187（株式の価額の修正）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-187' },
-];
-
 // ── 端数処理（第7表記載要領＝第4表の記載方法等4に準ずる） ──
 const fl = (v: number) => Math.floor(v + 1e-9);                 // 円未満切捨て
 const fl10sen = (v: number) => Math.floor(v * 10 + 1e-7) / 10;  // 10銭未満切捨て
@@ -413,5 +406,5 @@ export function Table7Grid({ getField, updateField, onJump }: TableProps) {
       </span>
     </span>
   );
-  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第７表　株式等保有特定会社の株式の価額の計算明細書" toolbar={toolbar} references={REFERENCES} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" title="第７表　株式等保有特定会社の株式の価額の計算明細書" toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

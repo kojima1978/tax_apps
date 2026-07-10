@@ -11,12 +11,6 @@ const T = 'table1_2' as const;
 //   ㋠継続勤務従業員数(emp_regular) ＋ ㋦（㋷労働時間合計(emp_hours)÷1,800時間）＝ ㋸従業員数（判定に使用）
 // ・様式の識別コード（E01/G09等）は codeLabel で再現
 
-// ── 計算の根拠（参考リンク） ──
-const REFERENCES = [
-  { label: '評価通達178（取引相場のない株式の評価上の区分）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/02.htm#a-178' },
-  { label: '評価通達188（同族株主以外の株主等が取得した株式）', url: 'https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/08/04.htm#a-188' },
-];
-
 const ENTER_LOOP = [
   '直前期末の総資産価額',
   '直前期末以前１年間の取引金額',
@@ -329,5 +323,5 @@ export function Table1_2Grid({ getField, updateField }: TableProps) {
     </label>
   );
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(judge), g, u, T);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} toolbar={toolbar} references={REFERENCES} enterLoop={ENTER_LOOP} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} toolbar={toolbar} enterLoop={ENTER_LOOP} />;
 }

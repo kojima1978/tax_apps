@@ -58,7 +58,7 @@ export function extractCompanyFloatHeader(
 
   const headerExtra = (
     <div style={{ display: 'flex', padding: '3mm 0 4mm', fontFamily: '"Noto Sans JP", sans-serif' }}>
-      <div style={{ marginLeft: 'auto', width: `${(boxWidthFrac * 100).toFixed(2)}%`, aspectRatio: `${boxAspect.toFixed(3)} / 1`, display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
+      <div className="gf-float-box" style={{ marginLeft: 'auto', width: `${(boxWidthFrac * 100).toFixed(2)}%`, aspectRatio: `${boxAspect.toFixed(3)} / 1`, display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
         <div style={{ flex: `0 0 ${(split * 100).toFixed(1)}%`, borderRight: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, letterSpacing: '0.4em', paddingLeft: '0.4em' }}>会社名</div>
         <input
           id={`${formId}-company`}
@@ -72,4 +72,32 @@ export function extractCompanyFloatHeader(
     </div>
   );
   return { mainCells, headerExtra, aspectRatio };
+}
+
+/**
+ * 会社名の独立浮遊枠だけを生成する（本表に会社名セルがない続紙などで、上部に会社名欄を足すとき用）。
+ * widthPct=枠の幅（%）、aspect=枠の縦横比（w/h）、labelFrac=「会社名」ラベル部分の割合。
+ */
+export function companyFloatBox(
+  g: (f: string) => string,
+  u: (f: string, v: string) => void,
+  formId: string,
+  opts: { widthPct: number; aspect: number; labelFrac?: number } = { widthPct: 41, aspect: 9 },
+): ReactNode {
+  const { widthPct, aspect, labelFrac = 0.36 } = opts;
+  return (
+    <div style={{ display: 'flex', padding: '3mm 0 4mm', fontFamily: '"Noto Sans JP", sans-serif' }}>
+      <div className="gf-float-box" style={{ marginLeft: 'auto', width: `${widthPct}%`, aspectRatio: `${aspect} / 1`, display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
+        <div style={{ flex: `0 0 ${(labelFrac * 100).toFixed(1)}%`, borderRight: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, letterSpacing: '0.4em', paddingLeft: '0.4em' }}>会社名</div>
+        <input
+          id={`${formId}-company`}
+          name={`${formId}.company`}
+          aria-label="会社名"
+          value={g('company')}
+          onChange={(e) => u('company', e.target.value)}
+          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', padding: '0 6px', fontSize: 11, fontFamily: 'inherit' }}
+        />
+      </div>
+    </div>
+  );
 }
