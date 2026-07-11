@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
+import { companyFloatBox } from './companyFloatHeader';
 import type { TableProps } from '@/types/form';
 
 const T = 'table1_1' as const;
@@ -479,8 +480,8 @@ const CX = {
   numCode1: 60.44, numCode1End: 62.37, num1: 62.37, num1End: 75.91, numCode2: 75.91, numCode2End: 77.84,
   num2: 77.84, num2End: 91.38,
 } as const;
-const CONT_SH_TOP = 21.6;        // 続紙データ1行目の上端%
-const CONT_SH_PITCH = 2.76;      // 1行の高さ%（1人＝2行）
+const CONT_SH_TOP = 24.19;       // 続紙データ1行目の上端%（r08-02実測）
+const CONT_SH_PITCH = 2.7635;    // 1行の高さ%（1人＝2行。(96.04-24.19)/26行）
 const pad = (p: string, n: number) => `${p}${String(n).padStart(2, '0')}`;
 /** 続紙 株主kの識別コード（記載要領の続紙コード体系）: E=(4k-3..4k)、G=(7k-6..7k） */
 function contCodes(k: number) {
@@ -529,23 +530,25 @@ function contShareholder(globalIdx: number, k: number): GridCell[] {
 /** 続紙1ページ分（pageIndex=1始まり）：ヘッダー＋13株主 */
 function continuationPageCells(pageIndex: number): GridCell[] {
   const firstGlobal = SH_ROWS + (pageIndex - 1) * CONT_SH + 1; // このページ先頭の通し株主番号
+  // 座標は r08-02 の罫線実測値: 外枠 8.22-91.38 × 16.98-96.04、見出しバンド 16.98-19.00（枠内最上段）、
+  // ヘッダー上段 19.00-21.60／下段 21.60-24.19、データ26行 24.19-96.04
   const out: GridCell[] = [
-    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '株主及び評価方式の判定（続）', top: 13.02, left: 8.14, width: 83.32, height: 80.56 },
-    { kind: 'cell', text: '', top: 16.98, left: 8.14, width: 83.32, height: 76.6 },
-    { kind: 'label', text: '１．株主及び評価方式の判定（続）', semanticRole: 'columnheader', ariaLabel: '株主及び評価方式の判定（続）', top: 13.02, left: 8.14, width: 83.32, height: 2.5, align: 'left', fontSize: 10 },
-    { kind: 'label', text: '判定要素（課税時期現在の株式等の所有状況）', top: 21.6, left: 8.14, width: 2.01, height: 71.98, align: 'center' },
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '株主及び評価方式の判定（続）', top: 16.98, left: 8.22, width: 83.16, height: 79.06 },
+    { kind: 'cell', text: '', top: 16.98, left: 8.22, width: 83.16, height: 79.06 },
+    { kind: 'label', text: '１．株主及び評価方式の判定（続）', semanticRole: 'columnheader', ariaLabel: '株主及び評価方式の判定（続）', top: 16.98, left: 8.22, width: 83.16, height: 2.02, align: 'left', fontSize: 9, bold: true },
+    { kind: 'label', text: '判定要素（課税時期現在の株式等の所有状況）', top: 19.0, left: 8.22, width: 1.93, height: 77.04, align: 'center' },
     // ヘッダー（上段/下段）
-    { kind: 'label', text: '氏 名 又 は 名 称', semanticRole: 'columnheader', ariaLabel: '氏名又は名称', top: 16.98, left: CX.name, width: +(CX.nameEnd - CX.name).toFixed(2), height: 2.02 },
-    { kind: 'label', text: '役　職\nコード', semanticRole: 'columnheader', ariaLabel: '役職コード', top: 16.98, left: CX.gCode, width: +(CX.codeBoxEnd - CX.gCode).toFixed(2), height: 2.02, fontSize: 7.5 },
-    { kind: 'label', text: '会社における役職名', semanticRole: 'columnheader', ariaLabel: '会社における役職名', top: 16.98, left: CX.role, width: +(CX.roleEnd - CX.role).toFixed(2), height: 2.02 },
-    { kind: 'label', text: '㋑　株 式 数（株）', semanticRole: 'columnheader', ariaLabel: '株式数', top: 16.98, left: CX.num1, width: +(CX.num1End - CX.num1).toFixed(2), height: 2.02 },
-    { kind: 'label', text: '㋺　未分割の株式の\n株 式 数（株）', semanticRole: 'columnheader', ariaLabel: '未分割の株式数', top: 16.98, left: CX.num2, width: +(CX.num2End - CX.num2).toFixed(2), height: 2.02, fontSize: 7.5 },
-    { kind: 'label', text: '続　柄\nコード', semanticRole: 'columnheader', ariaLabel: '続柄コード', top: 19.0, left: CX.eCode, width: +(CX.relBoxEnd - CX.eCode).toFixed(2), height: 2.6, fontSize: 7.5 },
-    { kind: 'label', text: '続　　　柄', semanticRole: 'columnheader', ariaLabel: '続柄', top: 19.0, left: CX.rel, width: +(CX.relEnd - CX.rel).toFixed(2), height: 2.6 },
-    { kind: 'label', text: '株式種類\nコード', semanticRole: 'columnheader', ariaLabel: '株式種類コード', top: 19.0, left: CX.gCode, width: +(CX.codeBoxEnd - CX.gCode).toFixed(2), height: 2.6, fontSize: 7.5 },
-    { kind: 'label', text: '株 式 の 種 類', semanticRole: 'columnheader', ariaLabel: '株式の種類', top: 19.0, left: CX.role, width: +(CX.roleEnd - CX.role).toFixed(2), height: 2.6 },
-    { kind: 'label', text: '㋩　議 決 権 数（個）', semanticRole: 'columnheader', ariaLabel: '議決権数', top: 19.0, left: CX.num1, width: +(CX.num1End - CX.num1).toFixed(2), height: 2.6 },
-    { kind: 'label', text: '㋥　議決権割合\n（㋩/⑥）（％）', semanticRole: 'columnheader', ariaLabel: '議決権割合', top: 19.0, left: CX.num2, width: +(CX.num2End - CX.num2).toFixed(2), height: 2.6, fontSize: 7.5 },
+    { kind: 'label', text: '氏 名 又 は 名 称', semanticRole: 'columnheader', ariaLabel: '氏名又は名称', top: 19.0, left: CX.eCode, width: +(CX.nameEnd - CX.eCode).toFixed(2), height: 2.6 },
+    { kind: 'label', text: '役　職\nコード', semanticRole: 'columnheader', ariaLabel: '役職コード', top: 19.0, left: CX.gCode, width: +(CX.codeBoxEnd - CX.gCode).toFixed(2), height: 2.6, fontSize: 7.5 },
+    { kind: 'label', text: '会社における役職名', semanticRole: 'columnheader', ariaLabel: '会社における役職名', top: 19.0, left: CX.roleECode, width: +(CX.roleEnd - CX.roleECode).toFixed(2), height: 2.6 },
+    { kind: 'label', text: '㋑　株 式 数（株）', semanticRole: 'columnheader', ariaLabel: '株式数', top: 19.0, left: CX.numCode1, width: +(CX.num1End - CX.numCode1).toFixed(2), height: 2.6 },
+    { kind: 'label', text: '㋺　未分割の株式の\n株 式 数（株）', semanticRole: 'columnheader', ariaLabel: '未分割の株式数', top: 19.0, left: CX.numCode2, width: +(CX.num2End - CX.numCode2).toFixed(2), height: 2.6, fontSize: 7.5 },
+    { kind: 'label', text: '続　柄\nコード', semanticRole: 'columnheader', ariaLabel: '続柄コード', top: 21.6, left: CX.eCode, width: +(CX.relBoxEnd - CX.eCode).toFixed(2), height: 2.59, fontSize: 7.5 },
+    { kind: 'label', text: '続　　　柄', semanticRole: 'columnheader', ariaLabel: '続柄', top: 21.6, left: CX.relECode, width: +(CX.relEnd - CX.relECode).toFixed(2), height: 2.59 },
+    { kind: 'label', text: '株式種類\nコード', semanticRole: 'columnheader', ariaLabel: '株式種類コード', top: 21.6, left: CX.gCode, width: +(CX.codeBoxEnd - CX.gCode).toFixed(2), height: 2.59, fontSize: 7.5 },
+    { kind: 'label', text: '株 式 の 種 類', semanticRole: 'columnheader', ariaLabel: '株式の種類', top: 21.6, left: CX.roleECode, width: +(CX.roleEnd - CX.roleECode).toFixed(2), height: 2.59 },
+    { kind: 'label', text: '㋩　議 決 権 数（個）', semanticRole: 'columnheader', ariaLabel: '議決権数', top: 21.6, left: CX.numCode1, width: +(CX.num1End - CX.numCode1).toFixed(2), height: 2.59 },
+    { kind: 'label', text: '㋥　議決権割合\n（㋩/⑥）（％）', semanticRole: 'columnheader', ariaLabel: '議決権割合', top: 21.6, left: CX.numCode2, width: +(CX.num2End - CX.numCode2).toFixed(2), height: 2.59, fontSize: 7.5 },
   ];
   for (let k = 1; k <= CONT_SH; k++) out.push(...contShareholder(firstGlobal + k - 1, k));
   return out;
@@ -700,7 +703,7 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
       </div>
       {Array.from({ length: shPageCount }).map((_, i) => (
         <div className="gov-page" key={i} style={i < shPageCount - 1 ? { marginBottom: '8mm' } : undefined}>
-          <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} formCode="NTA0VNA170020010" />
+          <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} formCode="NTA0VNA170020010" headerExtra={companyFloatBox((f) => g(f === 'company' ? 'f12' : f), (f, v) => u(f === 'company' ? 'f12' : f, v), `${T}-cont${i + 1}`, { widthPct: 46.6, aspect: 8.9, labelFrac: 0.3 })} />
         </div>
       ))}
     </>
