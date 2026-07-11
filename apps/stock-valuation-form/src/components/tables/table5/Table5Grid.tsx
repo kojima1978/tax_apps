@@ -348,7 +348,11 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
         for (let c = 1; c <= 4; c++) if (getField(T, `${p}_${row}_${c}`).trim() !== '') hasData = true;
       }
     }
-    if (hasData && !window.confirm('最終ページの明細を削除します。よろしいですか？')) return;
+    // 誤操作防止のため削除は常に確認する。入力済みのときはより強く警告。
+    const message = hasData
+      ? '続紙を削除します。\n入力済みの明細もすべて削除され、元に戻せません。\n本当に削除してよろしいですか？'
+      : '続紙を削除します。よろしいですか？';
+    if (!window.confirm(message)) return;
     for (let row = start; row <= end; row++) {
       for (const p of ['a', 'l'] as const) for (let c = 1; c <= 4; c++) updateField(T, `${p}_${row}_${c}`, '');
     }

@@ -658,7 +658,11 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
     for (let r = start; r <= totalSh && !hasData; r++) {
       for (const c of SH_FIELDS) if (getField(T, `sh_${r}_${c}`).trim() !== '') hasData = true;
     }
-    if (hasData && !window.confirm('最終続紙の株主明細を削除します。よろしいですか？')) return;
+    // 誤操作防止のため削除は常に確認する。入力済みのときはより強く警告。
+    const message = hasData
+      ? '続紙を削除します。\n入力済みの株主明細もすべて削除され、元に戻せません。\n本当に削除してよろしいですか？'
+      : '続紙を削除します。よろしいですか？';
+    if (!window.confirm(message)) return;
     for (let r = start; r <= totalSh; r++) for (const c of SH_FIELDS) updateField(T, `sh_${r}_${c}`, '');
     updateField(T, '_shpages', String(shPageCount - 1));
   };
