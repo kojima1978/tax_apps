@@ -64,7 +64,7 @@ function rowCode(prefix: 'a' | 'l', i: number, ci: number, liabBase: number): st
   return pad('E', base + 2 * i + 2);               // 備考
 }
 
-function dataRows(prefix: 'a' | 'l', cols: Col[], startRow: number, showUnit: boolean, showCodes: boolean, rowCount: number, rowTop: number, pitch: number, liabBase: number): GridCell[] {
+function dataRows(prefix: 'a' | 'l', cols: Col[], startRow: number, showCodes: boolean, rowCount: number, rowTop: number, pitch: number, liabBase: number): GridCell[] {
   const out: GridCell[] = [];
   const height = +pitch.toFixed(2);
   for (let i = 0; i < rowCount; i++) {
@@ -89,7 +89,6 @@ function dataRows(prefix: 'a' | 'l', cols: Col[], startRow: number, showUnit: bo
         options: prefix === 'a' && ci === 3 ? ['', '株式等', '土地等'] : undefined,
         commaInteger: isAmount,
         codeLabel: showCodes ? rowCode(prefix, i, ci, liabBase) : undefined,
-        topRightLabel: showUnit && i === 0 && isAmount ? '千円' : undefined,
         contextMenu: isAmount ? [
           { label: '相続税評価額 → 帳簿価額にコピー', copyFrom: `${prefix}_${row}_2`, copyTo: `${prefix}_${row}_3` },
           { label: '帳簿価額 → 相続税評価額にコピー', copyFrom: `${prefix}_${row}_3`, copyTo: `${prefix}_${row}_2` },
@@ -114,18 +113,18 @@ function pageCells(pageIndex: number): GridCell[] {
   // ── 外枠・3区分 ──
   { kind: 'cell', top: 8.9, left: 8.64, width: 84.56, height: 85.3 },
   { kind: 'cell', top: 8.9, left: 8.51, width: 84.69, height: 68.63 },
-  { kind: 'cell', top: 77.33, left: 8.51, width: 42.69, height: 16.77 },
-  { kind: 'cell', top: 77.14, left: 50.92, width: 42.55, height: 17.06 },
+  { kind: 'cell', semanticRole: 'group', ariaLabel: '評価差額に対する法人税額等相当額の計算', top: 77.33, left: 8.51, width: 42.69, height: 16.77 },
+  { kind: 'cell', semanticRole: 'group', ariaLabel: '1株当たりの純資産価額の計算', top: 77.14, left: 50.92, width: 42.55, height: 17.06 },
   // ── 1. 資産及び負債の金額（タイトル帯） ──
   { kind: 'label', text: '１．資産及び負債の金額（課税時期現在）', top: 8.9, left: 8.64, width: 84.56, height: 3.37, align: 'left' },
   // ── 資産の部 ──
-  { kind: 'label', text: '資 産 の 部', top: 12.08, left: 8.51, width: 42.69, height: 3.18 },
-  { kind: 'label', text: '科 目', top: 15.16, left: 8.37, width: 14.87, height: 3.28 },
-  { kind: 'label', text: '相続税評価額', top: 14.97, left: 22.96, width: 11.87, height: 3.47 },
-  { kind: 'label', text: '帳 簿 価 額', top: 14.97, left: 34.56, width: 12.14, height: 3.37 },
-  { kind: 'label', text: '備 考', top: 14.97, left: 46.28, width: 4.91, height: 3.28 },
-  { kind: 'cell', top: 11.98, left: 8.51, width: 42.82, height: 65.44 },
-  ...dataRows('a', ASSET_COLS, startRow, true, showCodes, MAIN_ROWS, ROW_TOP, PITCH, 30),
+  { kind: 'label', text: '資 産 の 部', semanticRole: 'columnheader', ariaLabel: '資産の部', top: 12.08, left: 8.51, width: 42.69, height: 3.18 },
+  { kind: 'label', text: '科 目', semanticRole: 'columnheader', ariaLabel: '科目', top: 15.16, left: 8.37, width: 14.87, height: 3.28 },
+  { kind: 'label', text: '相続税評価額', semanticRole: 'columnheader', ariaLabel: '相続税評価額', top: 14.97, left: 22.96, width: 11.87, height: 3.47 },
+  { kind: 'label', text: '帳 簿 価 額', semanticRole: 'columnheader', ariaLabel: '帳簿価額', top: 14.97, left: 34.56, width: 12.14, height: 3.37 },
+  { kind: 'label', text: '備 考', semanticRole: 'columnheader', ariaLabel: '備考', top: 14.97, left: 46.28, width: 4.91, height: 3.28 },
+  { kind: 'cell', semanticRole: 'group', ariaLabel: '資産の部', top: 11.98, left: 8.51, width: 42.82, height: 65.44 },
+  ...dataRows('a', ASSET_COLS, startRow, showCodes, MAIN_ROWS, ROW_TOP, PITCH, 30),
   // ── 資産 合計・㋑㋩㋥ ──（丸番号は上端ヘッダー、G/Eコードはセル左上）
   { kind: 'label', text: '合 計', top: 64.42, left: 8.51, width: 14.73, height: 3.47 },
   { field: '①', kind: 'input', cornerLabel: '①', codeLabel: 'G61', cornerLabelTop: 9, top: 64.42, left: 22.96, width: 11.87, height: 3.47 },
@@ -144,13 +143,13 @@ function pageCells(pageIndex: number): GridCell[] {
   { field: 'ホ', kind: 'input', cornerLabel: '㋭', codeLabel: 'G69', cornerLabelTop: 9, top: 74.05, left: 34.69, width: 11.87, height: 3.37 },
   { field: 'a_genbutsu_bikou', kind: 'input', codeLabel: 'E65', top: 74.15, left: 46.42, width: 4.77, height: 3.37 },
   // ── 負債の部 ──
-  { kind: 'cell', top: 11.98, left: 50.92, width: 42.28, height: 55.9 },
-  { kind: 'label', text: '負 債 の 部', top: 12.08, left: 50.92, width: 42.28, height: 3.28 },
-  { kind: 'label', text: '科 目', top: 14.97, left: 51.06, width: 14.18, height: 3.47 },
-  { kind: 'label', text: '相続税評価額', top: 15.07, left: 64.97, width: 12, height: 3.28 },
-  { kind: 'label', text: '帳 簿 価 額', top: 15.16, left: 76.56, width: 12.14, height: 3.18 },
-  { kind: 'label', text: '備 考', top: 15.16, left: 88.43, width: 4.91, height: 3.18 },
-  ...dataRows('l', LIAB_COLS, startRow, true, showCodes, MAIN_ROWS, ROW_TOP, PITCH, 30),
+  { kind: 'cell', semanticRole: 'group', ariaLabel: '負債の部', top: 11.98, left: 50.92, width: 42.28, height: 55.9 },
+  { kind: 'label', text: '負 債 の 部', semanticRole: 'columnheader', ariaLabel: '負債の部', top: 12.08, left: 50.92, width: 42.28, height: 3.28 },
+  { kind: 'label', text: '科 目', semanticRole: 'columnheader', ariaLabel: '科目', top: 14.97, left: 51.06, width: 14.18, height: 3.47 },
+  { kind: 'label', text: '相続税評価額', semanticRole: 'columnheader', ariaLabel: '相続税評価額', top: 15.07, left: 64.97, width: 12, height: 3.28 },
+  { kind: 'label', text: '帳 簿 価 額', semanticRole: 'columnheader', ariaLabel: '帳簿価額', top: 15.16, left: 76.56, width: 12.14, height: 3.18 },
+  { kind: 'label', text: '備 考', semanticRole: 'columnheader', ariaLabel: '備考', top: 15.16, left: 88.43, width: 4.91, height: 3.18 },
+  ...dataRows('l', LIAB_COLS, startRow, showCodes, MAIN_ROWS, ROW_TOP, PITCH, 30),
   // ── 負債 合計 ──
   { kind: 'label', text: '合 計', top: 64.42, left: 51.06, width: 14.32, height: 3.28 },
   { field: '③', kind: 'input', cornerLabel: '③', codeLabel: 'G63', cornerLabelTop: 9, top: 64.42, left: 65.24, width: 11.73, height: 3.37 },
@@ -159,24 +158,24 @@ function pageCells(pageIndex: number): GridCell[] {
   // 負債側・合計下の未使用領域（資産側の株式等/土地等/現物出資に対応）に黒斜線
   { kind: 'cell', diagonal: 'bltr', top: 67.79, left: 50.92, width: 42.28, height: 9.35 },
   // ── 2. 評価差額に対する法人税額等相当額の計算 ──
-  { kind: 'label', text: '２．評価差額に対する法人税額等相当額の計算', top: 77.52, left: 8.64, width: 42.69, height: 3.37, align: 'left' },
-  { kind: 'label', text: '⑤ 相続税評価額による純資産価額\n　（①－③）', top: 80.8, left: 8.37, width: 26.73, height: 3.47, align: 'left' },
+  { kind: 'label', text: '２．評価差額に対する法人税額等相当額の計算', semanticRole: 'columnheader', ariaLabel: '評価差額に対する法人税額等相当額の計算', top: 77.52, left: 8.64, width: 42.69, height: 3.37, align: 'left' },
+  { kind: 'label', text: '⑤ 相続税評価額による純資産価額\n　（①－③）', semanticRole: 'rowheader', ariaLabel: '⑤ 相続税評価額による純資産価額', top: 80.8, left: 8.37, width: 26.73, height: 3.47, align: 'left' },
   { field: '⑤', kind: 'input', codeLabel: 'G70', topRightLabel: '千円', top: 80.8, left: 34.69, width: 16.5, height: 3.37 },
-  { kind: 'label', text: '⑥ 帳簿価額による純資産価額\n　【{②＋(ニ－ホ)－④}、マイナスの場合は０】', top: 83.98, left: 8.37, width: 26.59, height: 3.57, align: 'left' },
+  { kind: 'label', text: '⑥ 帳簿価額による純資産価額\n　【{②＋(ニ－ホ)－④}、マイナスの場合は０】', semanticRole: 'rowheader', ariaLabel: '⑥ 帳簿価額による純資産価額', top: 83.98, left: 8.37, width: 26.59, height: 3.57, align: 'left' },
   { field: '⑥', kind: 'input', codeLabel: 'G71', topRightLabel: '千円', top: 84.08, left: 34.69, width: 16.5, height: 3.47 },
-  { kind: 'label', text: '⑦ 評価差額に相当する金額\n　（⑤－⑥、マイナスの場合は０）', top: 87.36, left: 8.51, width: 26.46, height: 3.47, align: 'left' },
+  { kind: 'label', text: '⑦ 評価差額に相当する金額\n　（⑤－⑥、マイナスの場合は０）', semanticRole: 'rowheader', ariaLabel: '⑦ 評価差額に相当する金額', top: 87.36, left: 8.51, width: 26.46, height: 3.47, align: 'left' },
   { field: '⑦', kind: 'input', codeLabel: 'G72', topRightLabel: '千円', top: 87.26, left: 34.56, width: 16.64, height: 3.66 },
-  { kind: 'label', text: '⑧ 評価差額に対する法人税額等相当額\n　（⑦×38％）', top: 90.63, left: 8.51, width: 26.46, height: 3.57, align: 'left' },
+  { kind: 'label', text: '⑧ 評価差額に対する法人税額等相当額\n　（⑦×38％）', semanticRole: 'rowheader', ariaLabel: '⑧ 評価差額に対する法人税額等相当額', top: 90.63, left: 8.51, width: 26.46, height: 3.57, align: 'left' },
   { field: '⑧', kind: 'input', codeLabel: 'G73', topRightLabel: '千円', top: 90.63, left: 34.56, width: 16.64, height: 3.57 },
   // ── 3. 1株当たりの純資産価額の計算 ──
-  { kind: 'label', text: '３．１株当たりの純資産価額の計算', top: 77.33, left: 50.78, width: 42.55, height: 3.57, align: 'left' },
-  { kind: 'label', text: '⑨ 課税時期現在の純資産価額\n　（相続税評価額）（⑤－⑧）', top: 80.71, left: 51.06, width: 25.78, height: 3.57, align: 'left' },
+  { kind: 'label', text: '３．１株当たりの純資産価額の計算', semanticRole: 'columnheader', ariaLabel: '1株当たりの純資産価額の計算', top: 77.33, left: 50.78, width: 42.55, height: 3.57, align: 'left' },
+  { kind: 'label', text: '⑨ 課税時期現在の純資産価額\n　（相続税評価額）（⑤－⑧）', semanticRole: 'rowheader', ariaLabel: '⑨ 課税時期現在の純資産価額', top: 80.71, left: 51.06, width: 25.78, height: 3.57, align: 'left' },
   { field: '⑨', kind: 'input', codeLabel: 'G74', topRightLabel: '千円', top: 80.8, left: 76.56, width: 16.78, height: 3.47 },
-  { kind: 'label', text: '⑩ 課税時期現在の発行済株式数\n　（第１表の１⑤）－自己株式数', top: 84.08, left: 51.19, width: 25.64, height: 3.47, align: 'left' },
+  { kind: 'label', text: '⑩ 課税時期現在の発行済株式数\n　（第１表の１⑤）－自己株式数', semanticRole: 'rowheader', ariaLabel: '⑩ 課税時期現在の発行済株式数', top: 84.08, left: 51.19, width: 25.64, height: 3.47, align: 'left' },
   { field: '⑩', kind: 'input', jumpTo: { tab: 'table1_1', field: '⑤', hint: 'クリックで入力元（第１表の１・⑤発行済株式数）へ移動します。自己株式数は第１表の１の自己株式欄で入力します' }, codeLabel: 'G75', topRightLabel: '株', top: 83.98, left: 76.7, width: 16.78, height: 3.57 },
-  { kind: 'label', text: '⑪ 課税時期現在の１株当たりの\n　純資産価額（相続税評価額）（⑨÷⑩）', top: 87.26, left: 51.06, width: 25.64, height: 3.66, align: 'left' },
+  { kind: 'label', text: '⑪ 課税時期現在の１株当たりの\n　純資産価額（相続税評価額）（⑨÷⑩）', semanticRole: 'rowheader', ariaLabel: '⑪ 課税時期現在の1株当たりの純資産価額', top: 87.26, left: 51.06, width: 25.64, height: 3.66, align: 'left' },
   { field: '⑪', kind: 'input', codeLabel: 'G76', topRightLabel: '円', top: 87.36, left: 76.56, width: 16.78, height: 3.57 },
-  { kind: 'label', text: '⑫ 同族株主等の議決権割合（第１表の１\n　の②の割合）が50％以下の場合（⑪×80％）', top: 90.83, left: 51.06, width: 25.91, height: 3.28, align: 'left' },
+  { kind: 'label', text: '⑫ 同族株主等の議決権割合（第１表の１\n　の②の割合）が50％以下の場合（⑪×80％）', semanticRole: 'rowheader', ariaLabel: '⑫ 同族株主等の議決権割合が50％以下の場合', top: 90.83, left: 51.06, width: 25.91, height: 3.28, align: 'left' },
   { field: '⑫', kind: 'input', codeLabel: 'G77', topRightLabel: '円', top: 90.83, left: 76.7, width: 16.64, height: 3.37 },
   ];
 }
@@ -201,21 +200,21 @@ function continuationPageCells(pageIndex: number): GridCell[] {
     { kind: 'cell', top: 8.9, left: 8.64, width: 84.56, height: 88.8 },
     { kind: 'label', text: '１．資産及び負債の金額（課税時期現在）（続）', top: 8.9, left: 8.64, width: 84.56, height: 3.18, align: 'left' },
     // 資産の部 ヘッダー
-    { kind: 'cell', top: 11.98, left: 8.51, width: 42.82, height: 85.72 },
-    { kind: 'label', text: '資 産 の 部', top: 12.08, left: 8.51, width: 42.69, height: 3.18 },
-    { kind: 'label', text: '科 目', top: 15.16, left: 8.37, width: 14.87, height: 2.9 },
-    { kind: 'label', text: '相続税評価額\n（千円）', fontSize: 7, top: 15.16, left: 22.96, width: 11.87, height: 2.9 },
-    { kind: 'label', text: '帳 簿 価 額\n（千円）', fontSize: 7, top: 15.16, left: 34.56, width: 12.14, height: 2.9 },
-    { kind: 'label', text: '備 考', top: 15.16, left: 46.28, width: 4.91, height: 2.9 },
-    ...dataRows('a', CONT_ASSET_COLS, startRow, true, true, CONT_ROWS, CONT_ROW_TOP, CONT_PITCH, 46),
+    { kind: 'cell', semanticRole: 'group', ariaLabel: '資産の部（続）', top: 11.98, left: 8.51, width: 42.82, height: 85.72 },
+    { kind: 'label', text: '資 産 の 部', semanticRole: 'columnheader', ariaLabel: '資産の部', top: 12.08, left: 8.51, width: 42.69, height: 3.18 },
+    { kind: 'label', text: '科 目', semanticRole: 'columnheader', ariaLabel: '科目', top: 15.16, left: 8.37, width: 14.87, height: 2.9 },
+    { kind: 'label', text: '相続税評価額\n（千円）', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7, top: 15.16, left: 22.96, width: 11.87, height: 2.9 },
+    { kind: 'label', text: '帳 簿 価 額\n（千円）', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7, top: 15.16, left: 34.56, width: 12.14, height: 2.9 },
+    { kind: 'label', text: '備 考', semanticRole: 'columnheader', ariaLabel: '備考', top: 15.16, left: 46.28, width: 4.91, height: 2.9 },
+    ...dataRows('a', CONT_ASSET_COLS, startRow, true, CONT_ROWS, CONT_ROW_TOP, CONT_PITCH, 46),
     // 負債の部 ヘッダー
-    { kind: 'cell', top: 11.98, left: 50.92, width: 42.28, height: 85.72 },
-    { kind: 'label', text: '負 債 の 部', top: 12.08, left: 50.92, width: 42.28, height: 3.18 },
-    { kind: 'label', text: '科 目', top: 15.16, left: 51.06, width: 14.18, height: 2.9 },
-    { kind: 'label', text: '相続税評価額\n（千円）', fontSize: 7, top: 15.16, left: 64.97, width: 12, height: 2.9 },
-    { kind: 'label', text: '帳 簿 価 額\n（千円）', fontSize: 7, top: 15.16, left: 76.56, width: 12.14, height: 2.9 },
-    { kind: 'label', text: '備 考', top: 15.16, left: 88.43, width: 4.91, height: 2.9 },
-    ...dataRows('l', CONT_LIAB_COLS, startRow, true, true, CONT_ROWS, CONT_ROW_TOP, CONT_PITCH, 46),
+    { kind: 'cell', semanticRole: 'group', ariaLabel: '負債の部（続）', top: 11.98, left: 50.92, width: 42.28, height: 85.72 },
+    { kind: 'label', text: '負 債 の 部', semanticRole: 'columnheader', ariaLabel: '負債の部', top: 12.08, left: 50.92, width: 42.28, height: 3.18 },
+    { kind: 'label', text: '科 目', semanticRole: 'columnheader', ariaLabel: '科目', top: 15.16, left: 51.06, width: 14.18, height: 2.9 },
+    { kind: 'label', text: '相続税評価額\n（千円）', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7, top: 15.16, left: 64.97, width: 12, height: 2.9 },
+    { kind: 'label', text: '帳 簿 価 額\n（千円）', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7, top: 15.16, left: 76.56, width: 12.14, height: 2.9 },
+    { kind: 'label', text: '備 考', semanticRole: 'columnheader', ariaLabel: '備考', top: 15.16, left: 88.43, width: 4.91, height: 2.9 },
+    ...dataRows('l', CONT_LIAB_COLS, startRow, true, CONT_ROWS, CONT_ROW_TOP, CONT_PITCH, 46),
   ];
 }
 

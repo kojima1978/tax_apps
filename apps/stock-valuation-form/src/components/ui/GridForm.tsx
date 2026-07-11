@@ -11,6 +11,8 @@ export interface GridCell {
   text?: string;                     // label/cell の表示文字
   field?: string;                    // input のフィールドキー
   ariaLabel?: string;                // 入力欄のアクセシブル名
+  semanticRole?: 'group' | 'columnheader' | 'rowheader' | 'presentation';
+  groupBorder?: boolean;             // group の外枠セルを描画するか（既存罫線を利用する場合は false）
   align?: 'left' | 'center' | 'right';
   textAlign?: 'left' | 'center' | 'right';
   fontSize?: number;
@@ -350,7 +352,8 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
       {headerExtra && <div style={{ flexShrink: 0 }}>{headerExtra}</div>}
       {/* aspectRatio は親の高さが不定なときの既定サイズ。親がA4で高さ確定なら flex で残り高さにフィットする */}
       <div ref={gridRef} style={{ width: '100%', aspectRatio, flex: '1 1 auto', minHeight: 0, display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif', position: 'relative' }}>
-      {placed.map(({ c, cs, ce, rs, re }, i) => {
+      {(() => {
+        const renderCell = ({ c, cs, ce, rs, re }: (typeof placed)[number], i: number) => {
         // 縦長のラベルは縦書き（帯見出し）。スペースは縦書き時に除去。
         const ratio = c.height / c.width;
         const isVertical = c.kind === 'label' && ratio > 2.5 && !c.verticalSectionHeading;
@@ -380,9 +383,9 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
           <div
             key={i}
             className="gf-cell"
-            role={isDragHandle ? 'button' : toggleField ? 'checkbox' : selectable ? 'button' : undefined}
+            role={isDragHandle ? 'button' : toggleField ? 'checkbox' : selectable ? 'button' : c.semanticRole}
             tabIndex={selectable || toggleField ? 0 : undefined}
-            aria-label={interactive ? c.ariaLabel ?? (isDragHandle ? `${text}をドラッグして並び替え` : `${text}を選択`) : undefined}
+            aria-label={interactive ? c.ariaLabel ?? (isDragHandle ? `${text}をドラッグして並び替え` : `${text}を選択`) : c.ariaLabel}
             aria-checked={toggleField ? g(toggleField) === '1' : undefined}
             aria-pressed={selectable ? g(selectable.field) === selectable.value : undefined}
             draggable={isDragHandle}
@@ -794,7 +797,44 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
               ) : null}
           </div>
         );
-      })}
+        };
+
+        const groupEntries = placed
+          .map((entry, index) => ({ entry, index }))
+          .filter(({ entry }) => entry.c.semanticRole === 'group');
+        const containedBy = (entry: (typeof placed)[number], group: (typeof placed)[number]) => (
+          entry !== group
+          && entry.c.left >= group.c.left - 0.2
+          && entry.c.top >= group.c.top - 0.2
+          && entry.c.left + entry.c.width <= group.c.left + group.c.width + 0.2
+          && entry.c.top + entry.c.height <= group.c.top + group.c.height + 0.2
+        );
+        const groupedIndexes = new Set<number>();
+        groupEntries.forEach(({ entry: group }) => {
+          placed.forEach((entry, index) => {
+            if (containedBy(entry, group)) groupedIndexes.add(index);
+          });
+        });
+
+        return placed.map((entry, index) => {
+          if (entry.c.semanticRole !== 'group') {
+            return groupedIndexes.has(index) ? null : renderCell(entry, index);
+          }
+          const members = placed
+            .map((candidate, memberIndex) => ({ candidate, memberIndex }))
+            .filter(({ candidate }) => containedBy(candidate, entry));
+          const borderCell = {
+            ...entry,
+            c: { ...entry.c, semanticRole: 'presentation' as const, ariaLabel: undefined },
+          };
+          return (
+            <div key={`group-${index}`} role="group" aria-label={entry.c.ariaLabel} style={{ display: 'contents' }}>
+              {entry.c.groupBorder === false ? null : renderCell(borderCell, index)}
+              {members.map(({ candidate, memberIndex }) => renderCell(candidate, memberIndex))}
+            </div>
+          );
+        });
+      })()}
       {overlay}
       </div>
       {ctxMenu && (
