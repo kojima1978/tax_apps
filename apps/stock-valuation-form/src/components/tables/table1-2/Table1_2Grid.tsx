@@ -245,7 +245,7 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
     { kind: 'label', text: '0.90', highlightWhen: matrixResHL(3), top: 64.87, left: 82.96, width: 5.68, height: 3.28 },
     { kind: 'label', text: '0.75', highlightWhen: matrixResHL(2), top: 68.15, left: 82.96, width: 5.68, height: 3.27 },
     { kind: 'label', text: '0.60', highlightWhen: matrixResHL(1), top: 71.42, left: 82.96, width: 5.68, height: 3.28 },
-    { kind: 'label', text: '中\n会\n社', top: 64.87, left: 88.64, width: 1.89, height: 9.83, align: 'center' },
+    { kind: 'label', text: '中会社', top: 64.87, left: 88.64, width: 1.89, height: 9.83, align: 'center', forceVertical: true },
     { kind: 'label', text: '小　会　社', highlightWhen: matrixResHL(0), top: 74.7, left: 82.96, width: 7.57, height: 3.28 },
     // 脚注
     { kind: 'label', text: '・　「会社規模とＬの割合（中会社）の区分」欄は、㋻欄の区分（「総資産価額（帳簿価額）」と「従業員数」とのいずれか下位の区分）と㋕欄（取引金額）の区分とのいずれか上位の区分により判定します。', fontSize: 7, top: 77.98, left: 11, width: 79.53, height: 2.62, align: 'left' },

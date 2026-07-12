@@ -16,6 +16,8 @@ export interface GridCell {
   align?: 'left' | 'center' | 'right';
   textAlign?: 'left' | 'center' | 'right';
   fontSize?: number;
+  forceHorizontal?: boolean;         // 縦長セルでも横書きを維持する
+  forceVertical?: boolean;           // セル比率にかかわらず縦書きにする
   bold?: boolean;
   noWrap?: boolean;                  // 明示改行以外では折り返さない
   cornerLabel?: string;             // 入力欄の左上に表示する固定ラベル
@@ -23,6 +25,8 @@ export interface GridCell {
   codeLabel?: string;               // 様式の識別コード（E01/G04等）をセル左上に小さく表示
   topRightLabel?: string;            // セルの右上に表示する固定ラベル
   bottomLabel?: string;              // セル下部に表示する固定注記
+  bottomLabelAlign?: 'left' | 'right'; // セル下部の固定注記の配置
+  bottomSegments?: { text: string; width: number }[]; // 直下の複数セル幅に合わせた下部注記
   rightLabel?: string;               // セルの右端中央に表示する固定ラベル
   integerDigits?: number;            // 数字のみの最大桁数
   commaInteger?: boolean;            // 整数を3桁区切りカンマで表示
@@ -357,7 +361,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
         const renderCell = ({ c, cs, ce, rs, re }: (typeof placed)[number], i: number) => {
         // 縦長のラベルは縦書き（帯見出し）。スペースは縦書き時に除去。
         const ratio = c.height / c.width;
-        const isVertical = c.kind === 'label' && ratio > 2.5 && !c.verticalSectionHeading;
+        const isVertical = c.kind === 'label' && !c.verticalSectionHeading && !c.forceHorizontal && (c.forceVertical || ratio > 2.5);
         const raw = c.text ?? '';
         const text = isVertical ? raw.replace(/[ 　]/g, '') : raw;
         // 文字数に応じて自動縮小（長文ラベルがはみ出さないように）
@@ -428,7 +432,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             gridColumn: c.exactPosition ? undefined : `${cs} / ${ce}`,
             gridRow: c.exactPosition ? undefined : `${rs} / ${re}`,
             border: isDragHandle ? '0.5px solid #64748b' : '0.5px solid #000',
-            position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.codeLabel || c.topRightLabel || c.bottomLabel || c.rightLabel ? 'relative' : undefined,
+            position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.codeLabel || c.topRightLabel || c.bottomLabel || c.bottomSegments || c.rightLabel ? 'relative' : undefined,
             top: c.exactPosition ? `${((c.top - bounds.top) / bounds.height) * 100}%` : undefined,
             left: c.exactPosition ? `${((c.left - bounds.left) / bounds.width) * 100}%` : undefined,
             width: c.exactPosition ? `${(c.width / bounds.width) * 100}%` : undefined,
@@ -451,7 +455,8 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
           }}>
             {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
             {c.topRightLabel && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.topRightLabel}</span>}
-            {c.bottomLabel && <span style={{ position: 'absolute', right: 2, bottom: 2, left: 2, fontSize: 6, lineHeight: 1, textAlign: 'left', pointerEvents: 'none' }}>{c.bottomLabel}</span>}
+            {c.bottomLabel && <span style={{ position: 'absolute', right: 2, bottom: 2, left: 2, fontSize: 6, lineHeight: 1, textAlign: c.bottomLabelAlign ?? 'left', pointerEvents: 'none' }}>{c.bottomLabel}</span>}
+            {c.bottomSegments && <span style={{ position: 'absolute', right: 0, bottom: 2, left: 0, display: 'grid', gridTemplateColumns: c.bottomSegments.map((segment) => `${segment.width}fr`).join(' '), fontSize: 6, lineHeight: 1, pointerEvents: 'none' }}>{c.bottomSegments.map((segment, segmentIndex) => <span key={`${segment.text}-${segmentIndex}`} style={{ boxSizing: 'border-box', paddingRight: 2, textAlign: 'right' }}>{segment.text}</span>)}</span>}
             {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
             {c.diagonal ? (
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>

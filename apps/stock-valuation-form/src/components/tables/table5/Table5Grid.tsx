@@ -155,8 +155,8 @@ function pageCells(pageIndex: number): GridCell[] {
   // ── 資産の部 ──
   { kind: 'label', text: '資　産　の　部', semanticRole: 'columnheader', ariaLabel: '資産の部', top: 16.52, left: 6.77, width: 44.32, height: 1.6 },
   { kind: 'label', text: '科　　目', semanticRole: 'columnheader', ariaLabel: '科目', top: 18.12, left: 6.77, width: 16.11, height: 4.27 },
-  { kind: 'label', text: '相 続 税 評 価 額\n（千円）', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7.5, top: 18.12, left: 22.88, width: 11.29, height: 4.27 },
-  { kind: 'label', text: '帳　簿　価　額\n（千円）', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7.5, top: 18.12, left: 34.17, width: 11.44, height: 4.27 },
+  { kind: 'label', text: '相 続 税 評 価 額', bottomLabel: '（千円）', bottomLabelAlign: 'right', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7.5, top: 18.12, left: 22.88, width: 11.29, height: 4.27 },
+  { kind: 'label', text: '帳　簿　価　額', bottomLabel: '（千円）', bottomLabelAlign: 'right', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7.5, top: 18.12, left: 34.17, width: 11.44, height: 4.27 },
   { kind: 'label', text: '備　考', semanticRole: 'columnheader', ariaLabel: '備考', top: 18.12, left: 45.61, width: 5.48, height: 4.27 },
   ...dataRows('a', ASSET_COLS, startRow, showCodes, MAIN_ROWS, ROW_TOP, PITCH, 30),
   // ── 資産 合計・㋑㋺㋩㊁㋭ ──（丸番号＝上帯、G/Eコード＝独立セル）
@@ -185,8 +185,8 @@ function pageCells(pageIndex: number): GridCell[] {
   // ── 負債の部 ──
   { kind: 'label', text: '負　債　の　部', semanticRole: 'columnheader', ariaLabel: '負債の部', top: 16.52, left: 51.41, width: 41.42, height: 1.6 },
   { kind: 'label', text: '科　　目', semanticRole: 'columnheader', ariaLabel: '科目', top: 18.12, left: 51.41, width: 13.13, height: 4.27 },
-  { kind: 'label', text: '相 続 税 評 価 額\n（千円）', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7.5, top: 18.12, left: 64.54, width: 11.33, height: 4.27 },
-  { kind: 'label', text: '帳　簿　価　額\n（千円）', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7.5, top: 18.12, left: 75.87, width: 11.4, height: 4.27 },
+  { kind: 'label', text: '相 続 税 評 価 額', bottomLabel: '（千円）', bottomLabelAlign: 'right', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7.5, top: 18.12, left: 64.54, width: 11.33, height: 4.27 },
+  { kind: 'label', text: '帳　簿　価　額', bottomLabel: '（千円）', bottomLabelAlign: 'right', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7.5, top: 18.12, left: 75.87, width: 11.4, height: 4.27 },
   { kind: 'label', text: '備　考', semanticRole: 'columnheader', ariaLabel: '備考', top: 18.12, left: 87.27, width: 5.56, height: 4.27 },
   ...dataRows('l', LIAB_COLS, startRow, showCodes, MAIN_ROWS, ROW_TOP, PITCH, 30),
   // ── 負債 合計 ──
@@ -243,16 +243,16 @@ function continuationPageCells(pageIndex: number): GridCell[] {
     { kind: 'cell', semanticRole: 'group', ariaLabel: '資産の部（続）', top: 16.64, left: 7.7, width: 41.94, height: 77.06 },
     { kind: 'label', text: '資　産　の　部', semanticRole: 'columnheader', ariaLabel: '資産の部', top: 16.64, left: 7.7, width: 41.94, height: 1.65 },
     { kind: 'label', text: '科　　目', semanticRole: 'columnheader', ariaLabel: '科目', top: 18.29, left: 7.7, width: 13.41, height: 4.3 },
-    { kind: 'label', text: '相 続 税 評 価 額\n（千円）', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7.5, top: 18.29, left: 21.11, width: 11.48, height: 4.3 },
-    { kind: 'label', text: '帳　簿　価　額\n（千円）', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7.5, top: 18.29, left: 32.59, width: 11.49, height: 4.3 },
+    { kind: 'label', text: '相 続 税 評 価 額', bottomLabel: '（千円）', bottomLabelAlign: 'right', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7.5, top: 18.29, left: 21.11, width: 11.48, height: 4.3 },
+    { kind: 'label', text: '帳　簿　価　額', bottomLabel: '（千円）', bottomLabelAlign: 'right', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7.5, top: 18.29, left: 32.59, width: 11.49, height: 4.3 },
     { kind: 'label', text: '備　考', semanticRole: 'columnheader', ariaLabel: '備考', top: 18.29, left: 44.08, width: 5.56, height: 4.3 },
     ...dataRows('a', CONT_ASSET_COLS, startRow, true, CONT_ROWS, CONT_ROW_TOP, CONT_PITCH, 46),
     // 負債の部 ヘッダー
     { kind: 'cell', semanticRole: 'group', ariaLabel: '負債の部（続）', top: 16.64, left: 49.96, width: 41.94, height: 77.06 },
     { kind: 'label', text: '負　債　の　部', semanticRole: 'columnheader', ariaLabel: '負債の部', top: 16.64, left: 49.96, width: 41.94, height: 1.65 },
     { kind: 'label', text: '科　　目', semanticRole: 'columnheader', ariaLabel: '科目', top: 18.29, left: 49.96, width: 13.26, height: 4.3 },
-    { kind: 'label', text: '相 続 税 評 価 額\n（千円）', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7.5, top: 18.29, left: 63.22, width: 11.48, height: 4.3 },
-    { kind: 'label', text: '帳　簿　価　額\n（千円）', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7.5, top: 18.29, left: 74.7, width: 11.48, height: 4.3 },
+    { kind: 'label', text: '相 続 税 評 価 額', bottomLabel: '（千円）', bottomLabelAlign: 'right', semanticRole: 'columnheader', ariaLabel: '相続税評価額（千円）', fontSize: 7.5, top: 18.29, left: 63.22, width: 11.48, height: 4.3 },
+    { kind: 'label', text: '帳　簿　価　額', bottomLabel: '（千円）', bottomLabelAlign: 'right', semanticRole: 'columnheader', ariaLabel: '帳簿価額（千円）', fontSize: 7.5, top: 18.29, left: 74.7, width: 11.48, height: 4.3 },
     { kind: 'label', text: '備　考', semanticRole: 'columnheader', ariaLabel: '備考', top: 18.29, left: 86.18, width: 5.72, height: 4.3 },
     ...dataRows('l', CONT_LIAB_COLS, startRow, true, CONT_ROWS, CONT_ROW_TOP, CONT_PITCH, 46),
   ];
