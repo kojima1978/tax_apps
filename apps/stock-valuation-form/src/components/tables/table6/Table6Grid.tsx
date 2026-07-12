@@ -38,11 +38,16 @@ const KUBUN_ROWS = [
 ] as const;
 
 const CELLS: GridCell[] = [
+  // 表内の各評価区分を、見た目を変えずに意味のあるDOMグループとしてまとめる。
+  { kind: 'cell', text: '純資産価額方式等による価額', ariaLabel: '純資産価額方式等による価額', semanticRole: 'group', groupBorder: false, top: 13.93, left: 7.25, width: 85.18, height: 36.35 },
+  { kind: 'cell', text: '配当還元方式による価額', ariaLabel: '配当還元方式による価額', semanticRole: 'group', groupBorder: false, top: 50.48, left: 7.25, width: 85.18, height: 24.56 },
+  { kind: 'cell', text: '株式に関する権利の評価', ariaLabel: '株式に関する権利の評価', semanticRole: 'group', groupBorder: false, top: 75.04, left: 7.25, width: 85.18, height: 18.55 },
+  { kind: 'cell', text: '株式及び株式に関する権利の価額', ariaLabel: '株式及び株式に関する権利の価額', semanticRole: 'group', groupBorder: false, top: 93.59, left: 7.25, width: 85.18, height: 3.48 },
   // 会社名
   { kind: 'label', text: '会　社　名', top: 11.0, left: 56.0, width: 13.98, height: 2.08 },
   { field: 'company', kind: 'input', top: 11.0, left: 69.98, width: 22.53, height: 2.08, align: 'left' },
   // ── 1. 純資産価額方式等による価額 ──
-  { kind: 'label', text: '１．純資産価額方式等による価額', top: 13.93, left: 7.25, width: 3.51, height: 36.35, align: 'center' },
+  { kind: 'label', text: '１．純資産価額方式等による価額', semanticRole: 'columnheader', top: 13.93, left: 7.25, width: 3.51, height: 36.35, align: 'center' },
   { kind: 'label', text: '１株当たりの\n価額の計算の\n基となる金額', fontSize: 7, top: 13.93, left: 10.76, width: 10.51, height: 6.53 },
   { kind: 'label', text: '①　類 似 業 種 比 準 価 額\n（第４表の２の㉖、㉘又は㉜の金額）\n（円）', fontSize: 6.5, top: 13.93, left: 21.27, width: 22.0, height: 3.88 },
   { kind: 'label', text: '②　１株当たりの純資産価額\n（第５表の⑪の金額）\n（円）', fontSize: 6.5, top: 13.93, left: 43.27, width: 23.05, height: 3.88 },
@@ -85,7 +90,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑭　修正後の株式の価額', titledFraction: { titleLines: ['⑭　修正後の株式の価額'], numeratorLines: ['④、⑤、⑥、⑦又は⑧', '（⑩があるときは⑩）＋⑪×⑫'], denominator: '１株＋⑬', suffix: '（円）' }, fontSize: 6, top: 42.28, left: 69.98, width: 22.45, height: 5.47 },
   { field: '⑭', kind: 'input', readOnly: true, top: 47.75, left: 69.98, width: 22.45, height: 2.53, align: 'right' },
   // ── 2. 配当還元方式による価額 ──
-  { kind: 'label', text: '２．配当還元方式による価額', top: 50.48, left: 7.25, width: 3.51, height: 24.56, align: 'center' },
+  { kind: 'label', text: '２．配当還元方式による価額', semanticRole: 'columnheader', top: 50.48, left: 7.25, width: 3.51, height: 24.56, align: 'center' },
   { kind: 'label', text: '１ 株 当 た り の 資 本 金 等 の 額 、 発 行 済 株 式 数 等', top: 50.48, left: 10.76, width: 81.67, height: 1.88 },
   { kind: 'label', text: '⑮　直前期末の\n資本金等の額\n（千円）', fontSize: 6.5, top: 52.36, left: 10.76, width: 17.85, height: 4.02 },
   { kind: 'label', text: '⑯　直前期末の\n発行済株式数\n（株）', fontSize: 6.5, top: 52.36, left: 28.61, width: 14.66, height: 4.02 },
@@ -140,7 +145,7 @@ const CELLS: GridCell[] = [
   { field: '㉖', kind: 'input', readOnly: true, top: 71.23, left: 79.25, width: 11.0, height: 3.61, align: 'right' },
   { kind: 'label', text: '円', top: 71.23, left: 90.25, width: 2.18, height: 3.61, fontSize: 7 },
   // ── 3. 株式に関する権利の評価（1及び2に共通） ──
-  { kind: 'label', text: '３．株式に関する権利の評価（１及び２に共通）', top: 75.04, left: 7.25, width: 3.51, height: 18.55, align: 'center' },
+  { kind: 'label', text: '３．株式に関する権利の評価（１及び２に共通）', semanticRole: 'columnheader', top: 75.04, left: 7.25, width: 3.51, height: 18.55, align: 'center' },
   { kind: 'label', text: '配　当　期　待　権', ariaLabel: '配当期待権を選択', toggleField: 'right_haito', highlightWhen: (g) => g('right_haito') === '1', top: 75.04, left: 10.76, width: 17.85, height: 5.33 },
   { kind: 'label', text: '㉗　１株当たりの予想配当金額', fontSize: 7, top: 75.04, left: 28.61, width: 20.18, height: 2.71 },
   { kind: 'label', text: '㉘　源泉徴収されるべき所得税相当額', fontSize: 7, top: 75.04, left: 48.79, width: 21.19, height: 2.71 },
@@ -177,7 +182,7 @@ const CELLS: GridCell[] = [
   { field: '㉞', kind: 'input', readOnly: true, top: 90.85, left: 72.4, width: 17.85, height: 2.51, align: 'right' },
   { kind: 'label', text: '円', top: 90.85, left: 90.25, width: 2.18, height: 2.51, fontSize: 7 },
   // ── 4. 株式及び株式に関する権利の価額 ──
-  { kind: 'label', text: '４．株式及び株式に関する\n権利の価額\n（１．及び２．に共通）', fontSize: 6.5, top: 93.59, left: 7.25, width: 15.88, height: 3.48 },
+  { kind: 'label', text: '４．株式及び株式に関する\n権利の価額\n（１．及び２．に共通）', semanticRole: 'columnheader', fontSize: 6.5, top: 93.59, left: 7.25, width: 15.88, height: 3.48 },
   { kind: 'label', text: '㉟　株式の評価額', fontSize: 7, top: 93.59, left: 23.13, width: 11.0, height: 3.48 },
   { kind: 'cell', codeLabel: 'C14', top: 93.59, left: 34.13, width: 1.81, height: 3.48 },
   { field: '㉟', kind: 'input', readOnly: true, top: 93.59, left: 35.94, width: 14.66, height: 3.48, align: 'right' },

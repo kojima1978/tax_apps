@@ -28,11 +28,14 @@ function mi(field: string, mark: string, top: number, h: number, valL: number, v
 }
 
 const CELLS: GridCell[] = [
+  // 表内の計算区分を、見た目を変えずに意味のあるDOMグループとしてまとめる。
+  { kind: 'cell', text: '1株当たりの資本金等の額等の計算', ariaLabel: '1株当たりの資本金等の額等の計算', semanticRole: 'group', groupBorder: false, top: 14.87, left: 7.17, width: 85.26, height: 7.3 },
+  { kind: 'cell', text: '比準要素等の金額の計算', ariaLabel: '比準要素等の金額の計算', semanticRole: 'group', groupBorder: false, top: 22.39, left: 7.17, width: 85.26, height: 57.89 },
   // ── 会社名 ──
   { kind: 'label', text: '会　社　名', top: 11.28, left: 57.7, width: 12.5, height: 2.71 },
   { field: 'company', kind: 'input', top: 11.28, left: 70.2, width: 22.31, height: 2.71, align: 'left' },
   // ── 1. 1株当たりの資本金等の額等の計算 ──
-  { kind: 'label', text: '１．１株当たりの資本金\n　　等の額等の計算', align: 'left', noWrap: true, top: 14.87, left: 7.17, width: 15.92, height: 7.3, fontSize: 7.5 },
+  { kind: 'label', text: '１．１株当たりの資本金\n　　等の額等の計算', semanticRole: 'columnheader', align: 'left', noWrap: true, top: 14.87, left: 7.17, width: 15.92, height: 7.3, fontSize: 7.5 },
   { kind: 'label', text: '①　直前期末の\n　　資本金等の額\n（千円）', fontSize: 7, top: 14.87, left: 23.09, width: 13.25, height: 4.7 },
   { kind: 'label', text: '②　直前期末の\n　　発行済株式数\n（株）', fontSize: 7, top: 14.87, left: 36.34, width: 13.86, height: 4.7 },
   { kind: 'label', text: '③　直前期末の\n　　自己株式数\n（株）', fontSize: 7, top: 14.87, left: 50.2, width: 13.26, height: 4.7 },
@@ -44,7 +47,7 @@ const CELLS: GridCell[] = [
   { field: '④', kind: 'input', readOnly: true, top: 19.57, left: 63.46, width: 13.82, height: 2.6, align: 'right' },
   { field: '⑤', kind: 'input', readOnly: true, top: 19.57, left: 77.28, width: 15.15, height: 2.6, align: 'right' },
   // ── 2. 比準要素等の金額の計算（左端の縦見出し：判定要素ブロックまで通し） ──
-  { kind: 'label', text: '２．比準要素等の金額の計算', top: 22.39, left: 7.17, width: 2.5, height: 57.89, align: 'center' },
+  { kind: 'label', text: '２．比準要素等の金額の計算', semanticRole: 'columnheader', top: 22.39, left: 7.17, width: 2.5, height: 57.89, align: 'center' },
   // === 年配当金額ブロック ===
   { kind: 'label', text: '１株（50円）当たりの年配当金額', top: 22.39, left: 9.67, width: 3.38, height: 13.56 },
   { kind: 'label', text: '直 前 期 末 以 前 ２ （ ３ ） 年 間 の 年 平 均 配 当 金 額 （ 千 円 ）', top: 22.39, left: 13.05, width: 79.38, height: 2.34 },

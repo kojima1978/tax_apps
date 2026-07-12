@@ -97,12 +97,19 @@ function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
   const jc = (top: number, height: number, code: string, text: string, codeL: number, boxL: number, textL: number, textEnd: number, textProps?: Partial<GridCell>) =>
     judgeCells(flags, top, height, code, text, codeL, boxL, textL, textEnd, textProps);
   return [
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '比準要素数1の会社', top: 16.13, left: 6.04, width: 87.55, height: 10.54 },
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '株式等保有特定会社', top: 26.89, left: 6.04, width: 87.55, height: 8.69 },
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '土地保有特定会社', top: 35.81, left: 6.04, width: 87.55, height: 25.61 },
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '開業後3年未満の会社等', top: 61.65, left: 6.04, width: 87.55, height: 14.85 },
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '開業前又は休業中の会社', top: 76.7, left: 6.04, width: 55.32, height: 4.44 },
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '清算中の会社', top: 76.7, left: 61.36, width: 32.23, height: 4.44 },
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '特定の評価会社の判定結果', top: 81.37, left: 6.04, width: 87.55, height: 7.83 },
     // ── 会社名・注記 ──
     { kind: 'label', text: '会　社　名', top: 11.11, left: 51.13, width: 12.09, height: 2.62 },
     { field: 'company', kind: 'input', top: 11.11, left: 63.22, width: 30.37, height: 2.62, align: 'left' },
     { kind: 'label', text: '※　１〜６の「判定」欄並びに７の判定結果欄については、当てはまる項目の空欄に「１」を記入してください。', top: 14.59, left: 5.96, width: 87.63, height: 1.54, align: 'left', fontSize: 8 },
     // ── 1. 比準要素数1の会社 ──
-    { kind: 'label', text: '１．比準要素\n数１の会社', top: 16.13, left: 6.04, width: 9.47, height: 10.54 },
+    { kind: 'label', text: '１．比準要素\n数１の会社', semanticRole: 'columnheader', ariaLabel: '比準要素数1の会社', top: 16.13, left: 6.04, width: 9.47, height: 10.54 },
     { kind: 'label', text: '判　　定　　要　　素', top: 16.13, left: 15.51, width: 53.75, height: 2.08 },
     { kind: 'label', text: '⑴ 直前期末を基とした判定要素', top: 18.21, left: 15.51, width: 26.43, height: 1.99 },
     { kind: 'label', text: '⑵ 直前々期末を基とした判定要素', top: 18.21, left: 41.94, width: 27.32, height: 1.99 },
@@ -128,7 +135,7 @@ function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
     ...jc(24.13, 2.54, 'G01', '該　　当', 71.84, 74.42, 77.07, 83.12),
     ...jc(24.13, 2.54, 'G02', '非　該　当', 83.12, 85.7, 88.28, 93.59),
     // ── 2. 株式等保有特定会社 ──
-    { kind: 'label', text: '２．株式等保\n有特定会社', top: 26.89, left: 6.04, width: 9.47, height: 8.69 },
+    { kind: 'label', text: '２．株式等保\n有特定会社', semanticRole: 'columnheader', ariaLabel: '株式等保有特定会社', top: 26.89, left: 6.04, width: 9.47, height: 8.69 },
     { kind: 'label', text: '判　　定　　要　　素', top: 26.89, left: 15.51, width: 53.75, height: 1.97 },
     { kind: 'label', text: '①　総　資　産　価　額\n（第５表の①の金額）\n（千円）', fontSize: 6.5, top: 28.86, left: 15.51, width: 18.05, height: 4.19 },
     { kind: 'label', text: '②　株式等の価額の合計額\n（第５表の㋑の金額）\n（千円）', fontSize: 6.5, top: 28.86, left: 33.56, width: 19.9, height: 4.19 },
@@ -144,7 +151,7 @@ function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
     ...jc(33.05, 2.53, 'G03', '該　　当', 71.84, 74.42, 77.07, 83.12),
     ...jc(33.05, 2.53, 'G04', '非　該　当', 83.12, 85.7, 88.28, 93.59),
     // ── 3. 土地保有特定会社 ──
-    { kind: 'label', text: '３．土地保有\n特定会社', top: 35.81, left: 6.04, width: 9.47, height: 25.61 },
+    { kind: 'label', text: '３．土地保有\n特定会社', semanticRole: 'columnheader', ariaLabel: '土地保有特定会社', top: 35.81, left: 6.04, width: 9.47, height: 25.61 },
     { kind: 'label', text: '判　　定　　要　　素', top: 35.81, left: 15.51, width: 53.75, height: 1.97 },
     { kind: 'label', text: '④　総　資　産　価　額\n（第５表の①の金額）\n（千円）', fontSize: 6.5, top: 37.78, left: 15.51, width: 18.05, height: 4.33 },
     { kind: 'label', text: '⑤　土地等の価額の合計額\n（第５表の㋩の金額）\n（千円）', fontSize: 6.5, top: 37.78, left: 33.56, width: 19.9, height: 4.33 },
@@ -189,7 +196,7 @@ function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
     ...jc(58.89, 2.53, 'G14', '該当', 76.19, 78.77, 80.54, 85.7, { fontSize: 7 }),
     ...jc(58.89, 2.53, 'G15', '非該当', 85.7, 88.28, 90.05, 93.59, { fontSize: 7 }),
     // ── 4. 開業後3年未満の会社等 ──
-    { kind: 'label', text: '４・開業後３年未満の会社等', top: 61.65, left: 6.04, width: 1.86, height: 14.85, align: 'center' },
+    { kind: 'label', text: '４・開業後３年未満の会社等', semanticRole: 'columnheader', ariaLabel: '開業後3年未満の会社等', top: 61.65, left: 6.04, width: 1.86, height: 14.85, align: 'center' },
     // (1) 開業後3年未満の会社
     { kind: 'label', text: '⑴　開業後３\n年未満の\n会社', top: 61.65, left: 7.9, width: 7.61, height: 7.12, align: 'left', fontSize: 7 },
     { kind: 'label', text: '判　　定　　要　　素', top: 61.65, left: 15.51, width: 32.52, height: 1.43 },
@@ -229,19 +236,19 @@ function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
     ...jc(73.96, 2.54, 'G18', '該　　当', 69.26, 71.84, 74.42, 83.12),
     ...jc(73.96, 2.54, 'G19', '非　該　当', 83.12, 85.7, 88.28, 93.59),
     // ── 5. 開業前又は休業中の会社 / 6. 清算中の会社 ──
-    { kind: 'label', text: '５．開業前又\nは休業中の\n会社', top: 76.7, left: 6.04, width: 9.47, height: 4.44, align: 'left', fontSize: 7.5 },
+    { kind: 'label', text: '５．開業前又\nは休業中の\n会社', semanticRole: 'columnheader', ariaLabel: '開業前又は休業中の会社', top: 76.7, left: 6.04, width: 9.47, height: 4.44, align: 'left', fontSize: 7.5 },
     { kind: 'label', text: '開 業 前 の 会 社 の 判 定', top: 76.7, left: 15.51, width: 21.84, height: 1.9 },
     { kind: 'label', text: '休 業 中 の 会 社 の 判 定', top: 76.7, left: 37.35, width: 24.01, height: 1.9 },
     ...jc(78.6, 2.54, 'G20', '該　　当', 15.51, 17.85, 19.7, 25.58, { selectValue: { field: 's5_kaigyomae', value: '1' }, ariaLabel: '開業前の会社の判定：該当' }),
     ...jc(78.6, 2.54, 'G21', '非　該　当', 25.58, 27.92, 30.26, 37.35, { selectValue: { field: 's5_kaigyomae', value: '' }, ariaLabel: '開業前の会社の判定：非該当' }),
     ...jc(78.6, 2.54, 'G22', '該　　当', 37.35, 40.09, 41.94, 48.79, { selectValue: { field: 's5_kyugyo', value: '1' }, ariaLabel: '休業中の会社の判定：該当' }),
     ...jc(78.6, 2.54, 'G23', '非　該　当', 48.79, 51.13, 53.46, 61.36, { selectValue: { field: 's5_kyugyo', value: '' }, ariaLabel: '休業中の会社の判定：非該当' }),
-    { kind: 'label', text: '６．清算中の\n会社', top: 76.7, left: 61.36, width: 10.36, height: 4.44, align: 'left', fontSize: 7.5 },
+    { kind: 'label', text: '６．清算中の\n会社', semanticRole: 'columnheader', ariaLabel: '清算中の会社', top: 76.7, left: 61.36, width: 10.36, height: 4.44, align: 'left', fontSize: 7.5 },
     { kind: 'label', text: '判　　　　　定', top: 76.7, left: 71.72, width: 21.87, height: 1.9 },
     ...jc(78.6, 2.54, 'G24', '該　　当', 71.84, 74.42, 77.07, 83.12, { selectValue: { field: 's6_seisan', value: '1' }, ariaLabel: '清算中の会社の判定：該当' }),
     ...jc(78.6, 2.54, 'G25', '非　該　当', 83.12, 85.7, 88.28, 93.59, { selectValue: { field: 's6_seisan', value: '' }, ariaLabel: '清算中の会社の判定：非該当' }),
     // ── 7. 特定の評価会社の判定結果 ──
-    { kind: 'label', text: '７．特定の評\n価会社の判\n定結果', top: 81.37, left: 6.04, width: 9.47, height: 7.83, align: 'left', fontSize: 7.5 },
+    { kind: 'label', text: '７．特定の評\n価会社の判\n定結果', semanticRole: 'columnheader', ariaLabel: '特定の評価会社の判定結果', top: 81.37, left: 6.04, width: 9.47, height: 7.83, align: 'left', fontSize: 7.5 },
     ...jc(81.37, 2.53, 'G26', '１．比準要素数１の会社', 15.51, 17.85, 19.7, 37.35, { align: 'left' }),
     ...jc(81.37, 2.53, 'G27', '２．株式等保有特定会社', 37.35, 40.09, 41.94, 61.36, { align: 'left' }),
     ...jc(83.9, 2.65, 'G28', '３．土地保有特定会社', 15.51, 17.85, 19.7, 37.35, { align: 'left' }),

@@ -150,24 +150,28 @@ const BLOCK2: BlockCfg = {
 };
 
 const CELLS: GridCell[] = [
+  // 続紙の各計算区分を、見た目を変えずに意味のあるDOMグループとしてまとめる。
+  { kind: 'cell', text: '1株50円当たりの比準価額の計算', ariaLabel: '1株50円当たりの比準価額の計算', semanticRole: 'group', groupBorder: false, top: 14.96, left: 9.31, width: 83.6, height: 58.69 },
+  { kind: 'cell', text: '1株当たりの比準価額', ariaLabel: '1株当たりの比準価額', semanticRole: 'group', groupBorder: false, top: 73.65, left: 9.31, width: 83.6, height: 4.81 },
+  { kind: 'cell', text: '比準価額の修正', ariaLabel: '比準価額の修正', semanticRole: 'group', groupBorder: false, top: 78.46, left: 9.31, width: 83.6, height: 13.51 },
   // 会社名
   { kind: 'label', text: '会　社　名', top: 11.34, left: 58.26, width: 12.5, height: 2.73 },
   { field: 'company', kind: 'input', top: 11.34, left: 70.76, width: 22.15, height: 2.73, align: 'left' },
   // 左端の縦見出し
-  { kind: 'label', text: '３．類似業種比準価額の計算', top: 14.96, left: 6.81, width: 2.5, height: 77.01, align: 'center' },
-  { kind: 'label', text: '１株（50円）当たりの比準価額の計算', top: 14.96, left: 9.31, width: 2.41, height: 58.69, align: 'center' },
+  { kind: 'label', text: '３．類似業種比準価額の計算', semanticRole: 'columnheader', top: 14.96, left: 6.81, width: 2.5, height: 77.01, align: 'center' },
+  { kind: 'label', text: '１株（50円）当たりの比準価額の計算', semanticRole: 'columnheader', top: 14.96, left: 9.31, width: 2.41, height: 58.69, align: 'center' },
   // 1回目・2回目
   ...simBlock(0, BLOCK1),
   ...simBlock(29.51, BLOCK2),
   // ── 1株当たりの比準価額 ㉖ ──
-  { kind: 'label', text: '１株当たりの比準価額', top: 73.65, left: 11.72, width: 14.35, height: 4.81 },
+  { kind: 'label', text: '１株当たりの比準価額', semanticRole: 'columnheader', top: 73.65, left: 11.72, width: 14.35, height: 4.81 },
   { kind: 'label', text: '比準価額（㉒と㉕とのいずれか低い方の金額）×　第４表の１の④の金額 ÷ 50円', productFractionExpression: { prefixLines: ['比準価額', '（㉒と㉕とのいずれか', '低い方の金額）'], numerator: '第４表の１の④の金額', denominator: '50円' }, top: 73.65, left: 26.07, width: 49.51, height: 4.81 },
   { kind: 'label', text: '比準価額（円）', top: 73.65, left: 75.58, width: 17.33, height: 1.48, fontSize: 7 },
   { kind: 'label', text: '㉖', top: 75.13, left: 75.58, width: 2.0, height: 3.33 },
   { kind: 'cell', codeLabel: 'C03', top: 75.13, left: 77.58, width: 1.94, height: 3.33 },
   { field: '㉖', kind: 'input', readOnly: true, top: 75.13, left: 79.52, width: 13.39, height: 3.33, align: 'right' },
   // ── 比準価額の修正 ──
-  { kind: 'label', text: '比 準 価 額 の 修 正', top: 78.46, left: 9.31, width: 2.41, height: 13.51, align: 'center' },
+  { kind: 'label', text: '比 準 価 額 の 修 正', semanticRole: 'columnheader', top: 78.46, left: 9.31, width: 2.41, height: 13.51, align: 'center' },
   { kind: 'label', text: '直前期末の翌日から課税\n時期までの間に配当金交\n付の効力が発生した場合', fontSize: 6, top: 78.46, left: 11.72, width: 14.35, height: 5.3, align: 'left' },
   { kind: 'label', text: '１株当たりの配当金額', top: 78.46, left: 26.07, width: 16.8, height: 5.3, fontSize: 7 },
   { kind: 'label', text: '㉗', top: 78.46, left: 42.87, width: 1.93, height: 5.3 },

@@ -141,11 +141,14 @@ function matrixCells(): GridCell[] {
  */
 function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell[] {
   return [
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '少数株式所有者の評価方式の判定', top: 14.7, left: 9.11, width: 81.42, height: 18.89 },
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '会社の規模（Lの割合）の判定', top: 33.82, left: 9.11, width: 81.42, height: 52.33 },
+    { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '増減資の状況その他評価上の参考事項', top: 86.38, left: 9.11, width: 81.42, height: 8.15 },
     // ── 会社名 ──
     { kind: 'label', text: '会　社　名', top: 11.28, left: 56.45, width: 11.36, height: 2.54 },
     { field: 'company', kind: 'input', top: 11.28, left: 67.81, width: 22.72, height: 2.54, align: 'left' },
     // ── 2. 少数株式所有者の評価方式の判定 ──
-    { kind: 'label', text: '２．少数株式所有者の評価方式の判定\n※　「判定要素」欄の㋭から㋣及び「判定」欄については、当てはまる項目の空欄に「１」を記入してください。', top: 14.7, left: 9.11, width: 81.42, height: 2.76, align: 'left', fontSize: 8.5 },
+    { kind: 'label', text: '２．少数株式所有者の評価方式の判定\n※　「判定要素」欄の㋭から㋣及び「判定」欄については、当てはまる項目の空欄に「１」を記入してください。', semanticRole: 'columnheader', ariaLabel: '少数株式所有者の評価方式の判定', top: 14.7, left: 9.11, width: 81.42, height: 2.76, align: 'left', fontSize: 8.5 },
     { kind: 'label', text: '判定要素', top: 17.46, left: 9.11, width: 1.89, height: 13.54, align: 'center' },
     { kind: 'label', text: '氏　　名', top: 17.46, left: 11, width: 30.3, height: 2.71 },
     { kind: 'cell', codeLabel: 'E01', top: 17.46, left: 41.3, width: 1.89, height: 2.71 },
@@ -186,7 +189,7 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
     { field: 'j1_res_haito', kind: 'input', readOnly: true, ariaLabel: '判定：配当還元方式（該当時は１）', highlightWhen: () => judge.shosuResult === 'haito', top: 31, left: 67.81, width: 1.89, height: 2.59, align: 'center' },
     { kind: 'label', text: '配当還元方式', highlightWhen: () => judge.shosuResult === 'haito', top: 31, left: 69.7, width: 20.83, height: 2.59 },
     // ── 3. 会社の規模（Ｌの割合）の判定 ──
-    { kind: 'label', text: '３．会社の規模（Ｌの割合）の判定\n※　「判定基準」及び「判定」欄については、当てはまる項目の空欄に「１」を記入してください。', top: 33.82, left: 9.11, width: 81.42, height: 2.68, align: 'left', fontSize: 8.5 },
+    { kind: 'label', text: '３．会社の規模（Ｌの割合）の判定\n※　「判定基準」及び「判定」欄については、当てはまる項目の空欄に「１」を記入してください。', semanticRole: 'columnheader', ariaLabel: '会社の規模（Lの割合）の判定', top: 33.82, left: 9.11, width: 81.42, height: 2.68, align: 'left', fontSize: 8.5 },
     { kind: 'label', text: '判定要素', top: 36.5, left: 9.11, width: 1.89, height: 12.47, align: 'center' },
     { kind: 'label', text: '項　　　目', top: 36.5, left: 11, width: 15.15, height: 1.65 },
     { kind: 'label', text: '金　額　（　千　円　）', top: 36.5, left: 26.15, width: 20.83, height: 1.65 },
@@ -267,7 +270,7 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
     { kind: 'label', text: '小　会　社', highlightWhen: resHL(0), top: 80.6, left: 56.45, width: 9.46, height: 5.55 },
     { kind: 'cell', diagonal: 'bltr', top: 80.6, left: 65.91, width: 24.62, height: 5.55 },
     // ── 4. 増（減）資の状況その他評価上の参考事項 ──
-    { kind: 'label', text: '４．増（減）資の状況その他評価上の参考事項', top: 86.38, left: 9.11, width: 81.42, height: 1.51, align: 'left' },
+    { kind: 'label', text: '４．増（減）資の状況その他評価上の参考事項', semanticRole: 'columnheader', ariaLabel: '増減資の状況その他評価上の参考事項', top: 86.38, left: 9.11, width: 81.42, height: 1.51, align: 'left' },
     { kind: 'cell', codeLabel: 'E02', top: 87.89, left: 9.11, width: 1.89, height: 6.64 },
     { field: 'f8', kind: 'input', ariaLabel: '増減資の状況その他評価上の参考事項', top: 87.89, left: 11, width: 79.53, height: 6.64, align: 'left' },
   ];

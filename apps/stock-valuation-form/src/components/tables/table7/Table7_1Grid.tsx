@@ -23,11 +23,13 @@ function yenSen(code: string, yenField: string, senField: string, top: number, h
 }
 
 const CELLS: GridCell[] = [
+  // S1の計算区分全体を、見た目を変えずに意味のあるDOMグループとしてまとめる。
+  { kind: 'cell', text: 'S1の金額（類似業種比準価額の修正計算）', ariaLabel: 'S1の金額（類似業種比準価額の修正計算）', semanticRole: 'group', groupBorder: false, top: 15.1, left: 7.74, width: 84.28, height: 58.69 },
   // 会社名
   { kind: 'label', text: '会　社　名', top: 11.42, left: 56.97, width: 12.5, height: 2.77 },
   { field: 'company', kind: 'input', top: 11.42, left: 69.47, width: 22.55, height: 2.77, align: 'left' },
   // 左端の縦見出し
-  { kind: 'label', text: '１．S１の金額（類似業種比準価額の修正計算）', top: 15.1, left: 7.74, width: 2.25, height: 58.69, align: 'center' },
+  { kind: 'label', text: '１．S１の金額（類似業種比準価額の修正計算）', semanticRole: 'columnheader', top: 15.1, left: 7.74, width: 2.25, height: 58.69, align: 'center' },
   // ── 受取配当金等収受割合の計算 ──
   { kind: 'label', text: '受 取 配 当 金 等 収 受 割 合 の 計 算 （ 千 円 ）', top: 15.1, left: 9.99, width: 62.57, height: 2.51 },
   { kind: 'label', text: '受取配当金等収受割合\n（㋑÷（㋑＋㋺））\n※少数点以下３位未満切り捨て', fontSize: 6.5, top: 15.1, left: 72.56, width: 19.34, height: 6.44 },
