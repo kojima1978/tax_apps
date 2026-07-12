@@ -122,7 +122,7 @@ function simBlock(d: number, cfg: BlockCfg): GridCell[] {
     { field: `${fp}eD`, kind: 'input', readOnly: true, top: t(37.52), left: 58.38, width: 17.2, height: 2.74, align: 'right' },
     // 比準割合 行
     { kind: 'label', text: '比 準\n割 合', top: t(40.26), left: 13.66, width: 5.72, height: 4.21, fontSize: 7 },
-    { kind: 'label', text: '（Ⓑ÷B＋Ⓒ÷C＋Ⓓ÷D）÷３', fractionExpression: { terms: [{ numerator: 'Ⓑ', denominator: 'B' }, { numerator: 'Ⓒ', denominator: 'C' }, { numerator: 'Ⓓ', denominator: 'D' }], denominator: '3' }, top: t(40.26), left: 19.38, width: 31.14, height: 4.21 },
+    { kind: 'label', text: '（Ⓑ÷B＋Ⓒ÷C＋Ⓓ÷D）÷３＝', fractionExpression: { terms: [{ numerator: 'Ⓑ', denominator: 'B' }, { numerator: 'Ⓒ', denominator: 'C' }, { numerator: 'Ⓓ', denominator: 'D' }], denominator: '3', suffix: '＝' }, top: t(40.26), left: 19.38, width: 31.14, height: 4.21 },
     { kind: 'label', text: cfg.ratioField, top: t(40.26), left: 50.52, width: 1.94, height: 4.21 },
     { kind: 'cell', codeLabel: cfg.ratioCode, top: t(40.26), left: 52.46, width: 1.89, height: 4.21 },
     { field: cfg.ratioField, kind: 'input', readOnly: true, top: t(40.26), left: 54.35, width: 21.23, height: 4.21, align: 'right' },
@@ -164,7 +164,8 @@ const CELLS: GridCell[] = [
   ...simBlock(0, BLOCK1),
   ...simBlock(29.51, BLOCK2),
   // ── 1株当たりの比準価額 ㉖ ──
-  { kind: 'label', text: '１株当たりの比準価額', semanticRole: 'columnheader', top: 73.65, left: 11.72, width: 14.35, height: 4.81 },
+  // ラベルは左端の縦見出し列（9.31-11.72）を含んで 9.31 起点（r08-07: この行では V 11.72 の縦線がない）
+  { kind: 'label', text: '１株当たりの比準価額', semanticRole: 'columnheader', top: 73.65, left: 9.31, width: 16.76, height: 4.81 },
   { kind: 'label', text: '比準価額（㉒と㉕とのいずれか低い方の金額）×　第４表の１の④の金額 ÷ 50円', productFractionExpression: { prefixLines: ['比準価額', '（㉒と㉕とのいずれか', '低い方の金額）'], numerator: '第４表の１の④の金額', denominator: '50円' }, top: 73.65, left: 26.07, width: 49.51, height: 4.81 },
   { kind: 'label', text: '比準価額（円）', top: 73.65, left: 75.58, width: 17.33, height: 1.48, fontSize: 7 },
   { kind: 'label', text: '㉖', top: 75.13, left: 75.58, width: 2.0, height: 3.33 },

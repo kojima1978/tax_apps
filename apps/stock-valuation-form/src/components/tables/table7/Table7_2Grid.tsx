@@ -131,7 +131,7 @@ function simBlock(y: BlockYs, cfg: BlockCfg): GridCell[] {
     { field: cfg.eD, kind: 'input', readOnly: true, top: y.yoso, left: 59.31, width: 16.52, height: rowH(y.yoso, y.hikaku), align: 'right' },
     // 比準割合 行
     { kind: 'label', text: '比 準\n割 合', fontSize: 7, top: y.hikaku, left: 13.9, width: 5.48, height: rowH(y.hikaku, y.end) },
-    { kind: 'label', text: '（[⑤]÷B＋[⑧]÷C＋[⑰]÷D）÷３', fractionExpression: { terms: [{ numerator: '[⑤]', denominator: 'B' }, { numerator: '[⑧]', denominator: 'C' }, { numerator: '[⑰]', denominator: 'D' }], denominator: '3' }, top: y.hikaku, left: 19.38, width: 30.9, height: rowH(y.hikaku, y.end) },
+    { kind: 'label', text: '（[⑤]÷B＋[⑧]÷C＋[⑰]÷D）÷３＝', fractionExpression: { terms: [{ numerator: '[⑤]', denominator: 'B' }, { numerator: '[⑧]', denominator: 'C' }, { numerator: '[⑰]', denominator: 'D' }], denominator: '3', suffix: '＝' }, top: y.hikaku, left: 19.38, width: 30.9, height: rowH(y.hikaku, y.end) },
     { kind: 'label', text: cfg.ratioField, top: y.hikaku, left: 50.28, width: 1.82, height: rowH(y.hikaku, y.end) },
     { kind: 'cell', codeLabel: cfg.ratioCode, top: y.hikaku, left: 52.1, width: 1.85, height: rowH(y.hikaku, y.end) },
     { field: cfg.ratioField, kind: 'input', readOnly: true, top: y.hikaku, left: 53.95, width: 21.88, height: rowH(y.hikaku, y.end), align: 'right' },

@@ -48,6 +48,7 @@ export interface GridCell {
   fractionExpression?: {
     terms: { numerator: string; denominator: string }[];
     denominator: string;
+    suffix?: string; // 式の右に置く記号（様式の「＝」など）
   }; // 複数の分数を加算し、さらに共通分母で割る式
   productFractionExpression?: {
     prefixLines: string[];
@@ -748,19 +749,22 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                   <span>））</span>
                 </span>
               ) : c.kind === 'label' && c.fractionExpression ? (
-                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', width: '94%', height: '100%', lineHeight: 1 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.55em', borderBottom: '0.7px solid #000', padding: '0 0.35em 1px' }}>
-                    {c.fractionExpression.terms.map((term, index) => (
-                      <span key={`${term.numerator}-${term.denominator}-${index}`} style={{ display: 'contents' }}>
-                        {index > 0 && <span>＋</span>}
-                        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '2em' }}>
-                          <span style={{ borderBottom: '0.7px solid #000', paddingBottom: 1 }}>{term.numerator}</span>
-                          <span style={{ paddingTop: 1 }}>{term.denominator}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.6em', width: '94%', height: '100%', lineHeight: 1 }}>
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.55em', borderBottom: '0.7px solid #000', padding: '0 0.35em 1px' }}>
+                      {c.fractionExpression.terms.map((term, index) => (
+                        <span key={`${term.numerator}-${term.denominator}-${index}`} style={{ display: 'contents' }}>
+                          {index > 0 && <span>＋</span>}
+                          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '2em' }}>
+                            <span style={{ borderBottom: '0.7px solid #000', paddingBottom: 1 }}>{term.numerator}</span>
+                            <span style={{ paddingTop: 1 }}>{term.denominator}</span>
+                          </span>
                         </span>
-                      </span>
-                    ))}
+                      ))}
+                    </span>
+                    <span style={{ paddingTop: 1 }}>{c.fractionExpression.denominator}</span>
                   </span>
-                  <span style={{ paddingTop: 1 }}>{c.fractionExpression.denominator}</span>
+                  {c.fractionExpression.suffix && <span>{c.fractionExpression.suffix}</span>}
                 </span>
               ) : c.kind === 'label' && c.inlineChoices ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.25em', width: '100%', height: '100%', lineHeight: 1, whiteSpace: 'nowrap' }}>
