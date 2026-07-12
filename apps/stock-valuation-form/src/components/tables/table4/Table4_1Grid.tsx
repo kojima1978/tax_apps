@@ -126,10 +126,10 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '１株（50円）当たりの年配当金額の計算', top: 62.74, left: 9.67, width: 24.78, height: 1.79, fontSize: 7 },
   { kind: 'label', text: '１株（50円）当たりの年利益金額の計算', top: 62.74, left: 34.45, width: 29.01, height: 1.79, fontSize: 7 },
   { kind: 'label', text: '１株（50円）当たりの純資産価額の計算', top: 62.74, left: 63.46, width: 28.97, height: 1.79, fontSize: 7 },
-  // 行1: Ⓑ1 / Ⓒ1 / D1
-  { kind: 'label', text: '⑨÷⑤', simpleFraction: { numerator: '⑨', denominator: '⑤' }, fontSize: 6.5, top: 64.53, left: 13.05, width: 2.46, height: 3.7 },
-  { kind: 'label', text: 'Ⓑ₁', top: 64.53, left: 15.51, width: 2.34, height: 3.7 },
-  { field: 'B1', kind: 'input', readOnly: true, top: 64.53, left: 17.85, width: 7.13, height: 3.7, align: 'right' },
+  // 行1: Ⓑ1 / Ⓒ1 / D1（Ⓑ列は 9.67 起点: [⑨/⑤ 9.67-13.05][Ⓑ₁ 13.05-15.51][値 15.51-24.98]）
+  { kind: 'label', text: '⑨÷⑤', simpleFraction: { numerator: '⑨', denominator: '⑤' }, fontSize: 6.5, top: 64.53, left: 9.67, width: 3.38, height: 3.7 },
+  { kind: 'label', text: 'Ⓑ₁', top: 64.53, left: 13.05, width: 2.46, height: 3.7 },
+  { field: 'B1', kind: 'input', readOnly: true, top: 64.53, left: 15.51, width: 9.47, height: 3.7, align: 'right' },
   { kind: 'label', text: '円', top: 64.53, left: 24.98, width: 1.89, height: 3.7, fontSize: 7 },
   { field: 'f45', kind: 'input', readOnly: true, top: 64.53, left: 26.87, width: 5.68, height: 3.7, align: 'right' },
   { kind: 'label', text: '銭', top: 64.53, left: 32.55, width: 1.9, height: 3.7, fontSize: 7 },
@@ -142,9 +142,9 @@ const CELLS: GridCell[] = [
   { field: 'D1', kind: 'input', readOnly: true, top: 64.53, left: 75.38, width: 15.15, height: 3.7, align: 'right' },
   { kind: 'label', text: '円', top: 64.53, left: 90.53, width: 1.9, height: 3.7, fontSize: 7 },
   // 行2: Ⓑ2 / Ⓒ2 / D2
-  { kind: 'label', text: '⑩÷⑤', simpleFraction: { numerator: '⑩', denominator: '⑤' }, fontSize: 6.5, top: 68.23, left: 13.05, width: 2.46, height: 3.68 },
-  { kind: 'label', text: 'Ⓑ₂', top: 68.23, left: 15.51, width: 2.34, height: 3.68 },
-  { field: 'B2', kind: 'input', readOnly: true, top: 68.23, left: 17.85, width: 7.13, height: 3.68, align: 'right' },
+  { kind: 'label', text: '⑩÷⑤', simpleFraction: { numerator: '⑩', denominator: '⑤' }, fontSize: 6.5, top: 68.23, left: 9.67, width: 3.38, height: 3.68 },
+  { kind: 'label', text: 'Ⓑ₂', top: 68.23, left: 13.05, width: 2.46, height: 3.68 },
+  { field: 'B2', kind: 'input', readOnly: true, top: 68.23, left: 15.51, width: 9.47, height: 3.68, align: 'right' },
   { kind: 'label', text: '円', top: 68.23, left: 24.98, width: 1.89, height: 3.68, fontSize: 7 },
   { field: 'f48', kind: 'input', readOnly: true, top: 68.23, left: 26.87, width: 5.68, height: 3.68, align: 'right' },
   { kind: 'label', text: '銭', top: 68.23, left: 32.55, width: 1.9, height: 3.68, fontSize: 7 },
@@ -157,13 +157,13 @@ const CELLS: GridCell[] = [
   { field: 'D2', kind: 'input', readOnly: true, top: 68.23, left: 75.38, width: 15.15, height: 3.68, align: 'right' },
   { kind: 'label', text: '円', top: 68.23, left: 90.53, width: 1.9, height: 3.68, fontSize: 7 },
   // 行3: キャプション
-  { kind: 'label', text: '１株（50円）当たりの年配当金額\n（　Ⓑ₁　の 金 額 ）', top: 71.91, left: 13.05, width: 21.4, height: 4.67, fontSize: 7 },
-  { kind: 'label', text: '１株（50円）当たりの年利益金額\n［㋥/⑤ 又は (㋥＋㋭)÷２/⑤ の金額］', top: 71.91, left: 34.45, width: 29.01, height: 4.67, fontSize: 6.5 },
+  { kind: 'label', text: '１株（50円）当たりの年配当金額\n（　Ⓑ₁　の 金 額 ）', top: 71.91, left: 9.67, width: 24.78, height: 4.67, fontSize: 7 },
+  { kind: 'label', text: '１株（50円）当たりの年利益金額［㋥/⑤ 又は (㋥＋㋭)÷２/⑤ の金額］', alternativeFractions: { caption: '１株（50円）当たりの年利益金額', prefix: '［', left: { numerator: '㊁', denominator: '⑤' }, right: { numerator: '(㊁＋㋭)÷２', denominator: '⑤' }, suffix: 'の金額 ］' }, top: 71.91, left: 34.45, width: 29.01, height: 4.67, fontSize: 6.5 },
   { kind: 'label', text: '１株（50円）当たりの純資産価額\n（　Ⓓ₁　の 金 額 ）', top: 71.91, left: 63.46, width: 28.97, height: 4.67, fontSize: 7 },
-  // 行4: Ⓑ / Ⓒ / Ⓓ
-  { kind: 'label', text: 'Ⓑ', top: 76.58, left: 13.05, width: 2.46, height: 3.7 },
-  { kind: 'cell', codeLabel: 'J01', top: 76.58, left: 15.51, width: 2.34, height: 3.7 },
-  { field: 'B', kind: 'input', readOnly: true, top: 76.58, left: 17.85, width: 7.13, height: 3.7, align: 'right' },
+  // 行4: Ⓑ / Ⓒ / Ⓓ（Ⓑ列は 9.67 起点: [Ⓑ 9.67-13.05][J01 13.05-15.51][値 15.51-24.98]）
+  { kind: 'label', text: 'Ⓑ', top: 76.58, left: 9.67, width: 3.38, height: 3.7 },
+  { kind: 'cell', codeLabel: 'J01', top: 76.58, left: 13.05, width: 2.46, height: 3.7 },
+  { field: 'B', kind: 'input', readOnly: true, top: 76.58, left: 15.51, width: 9.47, height: 3.7, align: 'right' },
   { kind: 'label', text: '円', top: 76.58, left: 24.98, width: 1.89, height: 3.7, fontSize: 7 },
   { field: 'f52', kind: 'input', readOnly: true, top: 76.58, left: 26.87, width: 5.68, height: 3.7, align: 'right' },
   { kind: 'label', text: '銭', top: 76.58, left: 32.55, width: 1.9, height: 3.7, fontSize: 7 },
