@@ -1,4 +1,5 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
+import { companyFloatBox } from '../companyFloatHeader';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcTable7 } from '../table7/Table7Grid';
 import { calcTable2 } from '../table2/Table2Grid';
@@ -20,92 +21,123 @@ interface S1Class {
   lRate: number | null;
 }
 
-/** 第8表のグリッドセル（測定値＋S1適用区分ハイライト） */
+/**
+ * 第8表（第7表の3）のグリッドセル。座標は r08-13 の罫線実測値。
+ * 様式どおり「番号＋ラベルのヘッダー行（単位は右下）」＋「空欄の値行」の2段構成。
+ * 入力欄には番号・単位を表示しない（C01〜C10 の識別コードのみ独立セル）。
+ */
 function buildCells(cls: S1Class): GridCell[] {
   const lText = cls.lRate === null ? '0.＿' : cls.lRate.toFixed(2);
+  // 修正計算ブロックのヘッダーセル（番号＋ラベル、右下に単位）
+  const head = (text: string, unit: string, top: number, h: number, left: number, right: number): GridCell =>
+    ({ kind: 'label', text, bottomLabel: unit, bottomLabelAlign: 'right', align: 'left', fontSize: 6.5, top, left, width: +(right - left).toFixed(2), height: h });
   return [
   // 続紙の各計算区分を、見た目を変えずに意味のあるDOMグループとしてまとめる。
-  { kind: 'cell', text: 'S1の金額（続）', ariaLabel: 'S1の金額（続）', semanticRole: 'group', groupBorder: false, top: 9.19, left: 8.51, width: 81.83, height: 59.76 },
-  { kind: 'cell', text: 'S2の金額', ariaLabel: 'S2の金額', semanticRole: 'group', groupBorder: false, top: 68.95, left: 8.51, width: 81.83, height: 16.29 },
-  { kind: 'cell', text: '株式等保有特定会社の株式の価額', ariaLabel: '株式等保有特定会社の株式の価額', semanticRole: 'group', groupBorder: false, top: 85.24, left: 8.51, width: 81.83, height: 9.06 },
+  { kind: 'cell', text: 'S1の金額（続）', ariaLabel: 'S1の金額（続）', semanticRole: 'group', groupBorder: false, top: 15.16, left: 8.3, width: 83.08, height: 56.41 },
+  { kind: 'cell', text: 'S2の金額', ariaLabel: 'S2の金額', semanticRole: 'group', groupBorder: false, top: 71.79, left: 8.3, width: 83.08, height: 13.28 },
+  { kind: 'cell', text: '株式等保有特定会社の株式の価額', ariaLabel: '株式等保有特定会社の株式の価額', semanticRole: 'group', groupBorder: false, top: 85.3, left: 8.3, width: 83.08, height: 7.86 },
   // ── 外枠 ──
-  { kind: 'cell', text: '', top: 9.28, left: 8.64, width: 81.69, height: 85.01 },
+  { kind: 'cell', text: '', top: 15.16, left: 8.3, width: 83.08, height: 78.0 },
   // ── 1. S1の金額（続）純資産価額（相続税評価額）の修正計算 ──
-  { kind: 'label', text: '１．S1の金額（続）', semanticRole: 'columnheader', top: 9.28, left: 8.51, width: 2.73, height: 59.85 },
-  { kind: 'label', text: '純 資 産 価 額( 相 続 税 評 価 額 )の 修 正 計 算', top: 9.19, left: 10.96, width: 10.91, height: 29.01 },
-  { kind: 'label', text: '相続税評価額による純資産価額\n(第５表の⑤の金額)', top: 9.19, left: 21.6, width: 22.91, height: 4.24 },
-  { kind: 'label', text: '課税時期現在の株式等の価額の合計額\n(第５表の㋑の金額)', top: 9.19, left: 44.24, width: 23.05, height: 4.24 },
-  { kind: 'label', text: '差引\n（①-②）', top: 9.28, left: 67.01, width: 23.32, height: 4.14 },
-  { field: '①', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑤', hint: 'クリックで転記元（第５表 ⑤・相続税評価額による純資産価額）へ移動します' }, cornerLabel: '①', topRightLabel: '千円', top: 13.33, left: 21.74, width: 22.78, height: 3.08 },
-  { field: '②', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: 'イ', hint: 'クリックで転記元（第５表 イ・株式等の相続税評価額の合計額）へ移動します' }, cornerLabel: '②', topRightLabel: '千円', top: 13.33, left: 44.37, width: 22.78, height: 3.08 },
-  { field: '③', kind: 'input', readOnly: true, cornerLabel: '③', topRightLabel: '千円', top: 13.14, left: 67.01, width: 23.32, height: 3.28 },
-  { kind: 'label', text: '帳簿価額による純資産価額\n（第５表の⑥の金額）', top: 16.32, left: 21.74, width: 22.78, height: 4.14 },
-  { kind: 'label', text: '株式等の帳簿価額の合計額\n(第５表の㋺＋（㊁－㋭）の金額)\n(注）', top: 16.22, left: 44.37, width: 22.78, height: 4.24 },
-  { kind: 'label', text: '差引\n（④－⑤）', top: 16.22, left: 67.01, width: 23.32, height: 4.14 },
-  { field: '④', kind: 'input', readOnly: true, cornerLabel: '④', topRightLabel: '千円', top: 20.27, left: 21.6, width: 22.91, height: 3.28 },
-  { field: '⑤', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: 'ロ', hint: 'クリックで転記元（第５表 ロ・株式等の帳簿価額の合計額）へ移動します' }, cornerLabel: '⑤', topRightLabel: '千円', top: 20.27, left: 44.37, width: 22.78, height: 3.18 },
-  { field: '⑥', kind: 'input', readOnly: true, cornerLabel: '⑥', topRightLabel: '千円', top: 20.27, left: 66.88, width: 23.46, height: 3.18 },
-  { kind: 'label', text: '評価差額に相当する金額\n(③－⑥)', top: 23.45, left: 21.74, width: 22.78, height: 4.05 },
-  { kind: 'label', text: '評価差額に対する法人税額等相当額\n（⑦×38％）', top: 23.36, left: 44.37, width: 22.78, height: 4.14 },
-  { kind: 'label', text: '課税時期現在の修正純資産価額\n（相続税評価額）\n（③－⑧）', top: 23.45, left: 66.88, width: 23.46, height: 3.95 },
-  { field: '⑦', kind: 'input', readOnly: true, cornerLabel: '⑦', topRightLabel: '千円', top: 27.5, left: 21.74, width: 22.78, height: 2.99 },
-  { field: '⑧', kind: 'input', readOnly: true, cornerLabel: '⑧', topRightLabel: '千円', top: 27.4, left: 44.37, width: 22.78, height: 3.08 },
-  { field: '⑨', kind: 'input', readOnly: true, cornerLabel: '⑨', topRightLabel: '千円', top: 27.4, left: 67.01, width: 23.19, height: 3.18 },
-  { kind: 'label', text: '課税時期現在の発行済株式数\n(第５表の⑩の株式数)', top: 30.49, left: 21.74, width: 22.78, height: 3.76 },
-  { kind: 'label', text: '課税時期現在の修正後の１株当たりの 純資産価額\n(相続税評価額)\n(⑨ ÷ ⑩)', top: 30.39, left: 44.37, width: 22.78, height: 4.05 },
-  { kind: 'label', text: '（注）第５表のニ及びホの金額に株式等\n以外の資産に係る金額が含まれている場合には、\nその金額を除いて計算します。', top: 30.39, left: 67.01, width: 23.32, height: 7.81 },
-  { field: '⑩', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑩', hint: 'クリックで転記元（第５表 ⑩・課税時期現在の発行済株式数）へ移動します' }, cornerLabel: '⑩', topRightLabel: '株', top: 34.25, left: 21.6, width: 23.05, height: 3.95 },
-  { field: '⑪', kind: 'input', readOnly: true, cornerLabel: '⑪', codeLabel: 'C01', cornerLabelTop: 9, topRightLabel: '円', top: 34.34, left: 44.37, width: 22.91, height: 3.95 },
-  // 1株当たりのS1の金額の計算の基となる金額
-  { kind: 'label', text: '１株当たりのＳ1の金額の\n計算の基となる金額', top: 38.1, left: 10.96, width: 15.68, height: 8.29 },
-  { kind: 'label', text: '修正後の類似業種比準価額\n（第７表の２の㉔、㉖又は㉚の金額）', top: 38.01, left: 26.37, width: 20.59, height: 4.34 },
-  { kind: 'label', text: '修正後の１株当たりの純資産価額\n（相続税評価額）\n（⑪の金額）', top: 38.1, left: 46.69, width: 20.59, height: 4.24 },
-  { field: '⑫', kind: 'input', readOnly: true, cornerLabel: '⑫', codeLabel: 'C02', cornerLabelTop: 9, topRightLabel: '円', top: 42.25, left: 26.37, width: 20.59, height: 4.14 },
-  { field: '⑬', kind: 'input', readOnly: true, cornerLabel: '⑬', codeLabel: 'C03', cornerLabelTop: 9, topRightLabel: '円', top: 42.06, left: 46.69, width: 20.46, height: 4.34 },
-  { kind: 'cell', diagonal: 'bltr', top: 38.1, left: 67.01, width: 23.32, height: 8.29 },
-  // 1株当たりのS1の金額の計算
-  { kind: 'label', text: '１株当たりのS1の金額の計算', top: 46.3, left: 10.96, width: 2.63, height: 22.84 },
-  { kind: 'label', text: '区 分', top: 46.2, left: 13.28, width: 8.59, height: 2.89 },
-  { kind: 'label', text: '１ 株 当 た り の Ｓ 1 の 金 額 の 算 定 方 法', top: 46.2, left: 21.6, width: 50.33, height: 2.89 },
-  { kind: 'label', text: '１株当たりのＳ1の金額', top: 46.3, left: 71.79, width: 18.55, height: 2.7 },
-  { kind: 'label', text: '比準要素数１である会社のＳ1 の 金 額', highlightWhen: () => cls.hijun1, top: 48.9, left: 13.28, width: 8.59, height: 5.3 },
-  { kind: 'label', text: '次のうちいずれか低い方の金額\nイ　⑬の金額\nロ　（⑫の金額×0.25）＋（⑬の金額×0.75）', textAlign: 'left', top: 48.9, left: 21.74, width: 50.19, height: 5.3 },
-  { field: '⑭', kind: 'input', readOnly: true, highlightWhen: () => cls.hijun1, cornerLabel: '⑭', codeLabel: 'C04', cornerLabelTop: 9, topRightLabel: '円', top: 48.9, left: 71.65, width: 18.68, height: 5.3 },
-  { kind: 'label', text: '上 記 以 外 の 会 社', top: 54.1, left: 13.28, width: 2.76, height: 15.04 },
-  { kind: 'label', text: '大 会 社 のＳ1の金額', highlightWhen: () => cls.big, top: 54.01, left: 15.73, width: 6.14, height: 5.11 },
-  { kind: 'label', text: '次のうちいずれか低い方の金額\n（⑬の記載がないときは⑫の金額）\nイ　⑫の金額\nロ　⑬の金額', textAlign: 'left', top: 54.01, left: 21.74, width: 50.19, height: 5.11 },
-  { field: '⑮', kind: 'input', readOnly: true, highlightWhen: () => cls.big, cornerLabel: '⑮', codeLabel: 'C05', cornerLabelTop: 9, topRightLabel: '円', top: 54.01, left: 71.65, width: 18.82, height: 5.1 },
-  { kind: 'label', text: '中 会 社 のＳ1の金額', highlightWhen: () => cls.mid, top: 58.92, left: 15.73, width: 6.14, height: 5.01 },
-  { kind: 'label', text: `（⑫と⑬とのいずれか 低い方の金額×Lの割合${lText}）＋（⑬の金額×（１－Lの割合${lText}））`, top: 58.92, left: 21.74, width: 50.19, height: 5.01 },
-  { field: '⑯', kind: 'input', readOnly: true, highlightWhen: () => cls.mid, cornerLabel: '⑯', codeLabel: 'C06', cornerLabelTop: 9, topRightLabel: '円', top: 58.92, left: 71.79, width: 18.55, height: 5.01 },
-  { kind: 'label', text: '小 会 社 のＳ1の金額', highlightWhen: () => cls.small, top: 63.74, left: 15.73, width: 6.14, height: 5.3 },
-  { kind: 'label', text: '次のうちいずれか低い方の金額\nイ　⑬の金額\nロ　（⑫の金額×0.50）＋（⑬の金額×0.50）', textAlign: 'left', top: 63.75, left: 21.74, width: 50.19, height: 5.39 },
-  { field: '⑰', kind: 'input', readOnly: true, highlightWhen: () => cls.small, cornerLabel: '⑰', codeLabel: 'C07', cornerLabelTop: 9, topRightLabel: '円', top: 63.74, left: 71.79, width: 18.55, height: 5.4 },
-  // ── 2. S2の金額 ──
-  { kind: 'label', text: '２．S2の金額', semanticRole: 'columnheader', top: 69.04, left: 8.51, width: 2.73, height: 16.39 },
-  { kind: 'label', text: '課税時期現在の株式等の価額の合計額\n（第５表の㋑の金額）', top: 68.95, left: 10.96, width: 19.23, height: 4.72 },
-  { kind: 'label', text: '株式等の帳簿価額の合計額\n(第５表の㋺＋(㊁－㋭)の金額)\n(注)', top: 69.04, left: 30.05, width: 20.59, height: 4.63 },
-  { kind: 'label', text: '株式等に係る評価差額に相当する金額\n（⑱－⑲）', top: 68.95, left: 50.38, width: 20.32, height: 4.63 },
-  { kind: 'label', text: '⑳の評価差額に対する法人税額等相当額\n（⑳×38％）', top: 69.04, left: 70.56, width: 19.78, height: 4.53 },
-  { field: '⑱', kind: 'input', cornerLabel: '⑱', topRightLabel: '千円', top: 73.57, left: 11.1, width: 19.09, height: 2.89 },
-  { field: '⑲', kind: 'input', cornerLabel: '⑲', topRightLabel: '千円', top: 73.57, left: 30.05, width: 20.46, height: 2.89 },
-  { field: '⑳', kind: 'input', readOnly: true, cornerLabel: '⑳', topRightLabel: '千円', top: 73.48, left: 50.38, width: 20.32, height: 2.99 },
-  { field: '㉑', kind: 'input', readOnly: true, cornerLabel: '㉑', topRightLabel: '千円', top: 73.48, left: 70.56, width: 19.78, height: 2.98 },
-  { kind: 'label', text: 'Ｓ2の純資産価額相当額\n（⑱－㉑）', top: 76.37, left: 11.1, width: 19.09, height: 4.53 },
-  { kind: 'label', text: '課税時期現在の発行済株式数\n（第５表の⑩の株式数）', top: 76.37, left: 30.05, width: 20.46, height: 4.43 },
-  { kind: 'label', text: 'Ｓ2の金額\n（㉒÷㉓）', top: 76.37, left: 50.38, width: 20.46, height: 4.44 },
-  { kind: 'label', text: '(注）第５表の㊁及び㋭の金額に株式等以外の\n資産に係る金額が含まれている場合には、\nその金額を除いて計算します。', top: 76.27, left: 70.56, width: 19.78, height: 9.16 },
-  { field: '㉒', kind: 'input', readOnly: true, cornerLabel: '㉒', topRightLabel: '千円', top: 80.8, left: 11.1, width: 19.09, height: 4.43 },
-  { field: '㉓', kind: 'input', readOnly: true, cornerLabel: '㉓', topRightLabel: '株', top: 80.8, left: 30.05, width: 20.46, height: 4.53 },
-  { field: '㉔', kind: 'input', readOnly: true, cornerLabel: '㉔', codeLabel: 'C08', cornerLabelTop: 9, topRightLabel: '円', top: 80.71, left: 50.38, width: 20.46, height: 4.63 },
-  // ── 3. 株式等保有特定会社の株式の価額 ──
-  { kind: 'label', text: '３.株式等保有特定会社の\n株式の価額', semanticRole: 'columnheader', top: 85.33, left: 8.78, width: 13.09, height: 8.96 },
-  { kind: 'label', text: '１株当たりの純資産価額\n（第５表の⑪の金額\n（第５表の⑫の金額がある ときはその金額）)', top: 85.33, left: 21.74, width: 22.91, height: 4.43 },
-  { kind: 'label', text: 'Ｓ1の金額とＳ2の金額との合計額\n（（⑭、⑮、⑯又は⑰）＋㉔）', top: 85.33, left: 44.37, width: 22.78, height: 4.53 },
-  { kind: 'label', text: '株式等保有特定会社の株式の価額\n（㉕と㉖とのいずれか低い方の金額）', top: 85.24, left: 66.88, width: 23.46, height: 4.53 },
-  { field: '㉕', kind: 'input', readOnly: true, cornerLabel: '㉕', codeLabel: 'C09', cornerLabelTop: 9, topRightLabel: '円', top: 89.67, left: 21.6, width: 22.91, height: 4.53 },
-  { field: '㉖', kind: 'input', readOnly: true, cornerLabel: '㉖', topRightLabel: '円', top: 89.77, left: 44.37, width: 22.78, height: 4.53 },
-  { field: '㉗', kind: 'input', readOnly: true, cornerLabel: '㉗', codeLabel: 'C10', cornerLabelTop: 9, topRightLabel: '円', top: 89.67, left: 67.01, width: 23.32, height: 4.53 },
+  { kind: 'label', text: '１．Ｓ1の金額（続）', semanticRole: 'columnheader', top: 15.16, left: 8.3, width: 1.85, height: 56.41 },
+  { kind: 'label', text: '純資産価額（相続税評価額）の修正計算', top: 15.16, left: 10.15, width: 3.87, height: 27.23 },
+  // 行1: ① ② ③（ヘッダー 15.16-19.15 / 値 19.15-21.88）
+  head('①　相続税評価額による純資産価額\n　　（第５表の⑤の金額）', '（千円）', 15.16, 3.99, 14.02, 39.16),
+  head('②　課税時期現在の株式等の価額の\n　　合計額（第５表の㋑の金額）', '（千円）', 15.16, 3.99, 39.16, 64.3),
+  head('③　差引（①－②）', '（千円）', 15.16, 3.99, 64.3, 91.38),
+  { field: '①', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑤', hint: 'クリックで転記元（第５表 ⑤・相続税評価額による純資産価額）へ移動します' }, top: 19.15, left: 14.02, width: 25.14, height: 2.73, align: 'right' },
+  { field: '②', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: 'イ', hint: 'クリックで転記元（第５表 イ・株式等の相続税評価額の合計額）へ移動します' }, top: 19.15, left: 39.16, width: 25.14, height: 2.73, align: 'right' },
+  { field: '③', kind: 'input', readOnly: true, top: 19.15, left: 64.3, width: 27.08, height: 2.73, align: 'right' },
+  // 行2: ④ ⑤ ⑥（ヘッダー 21.88-25.93 / 値 25.93-28.72）
+  head('④　帳簿価額による純資産価額\n　　（第５表の⑥の金額）', '（千円）', 21.88, 4.05, 14.02, 39.16),
+  head('⑤　株式等の帳簿価額の合計額\n　　（第５表の㋺＋（㊁－㋭）の金額）（注）', '（千円）', 21.88, 4.05, 39.16, 64.3),
+  head('⑥　差引（④－⑤）', '（千円）', 21.88, 4.05, 64.3, 91.38),
+  { field: '④', kind: 'input', readOnly: true, top: 25.93, left: 14.02, width: 25.14, height: 2.79, align: 'right' },
+  { field: '⑤', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: 'ロ', hint: 'クリックで転記元（第５表 ロ・株式等の帳簿価額の合計額）へ移動します' }, top: 25.93, left: 39.16, width: 25.14, height: 2.79, align: 'right' },
+  { field: '⑥', kind: 'input', readOnly: true, top: 25.93, left: 64.3, width: 27.08, height: 2.79, align: 'right' },
+  // 行3: ⑦ ⑧ ⑨（ヘッダー 28.72-32.71 / 値 32.71-35.50）
+  head('⑦　評価差額に相当する金額\n　　（③－⑥）', '（千円）', 28.72, 3.99, 14.02, 39.16),
+  head('⑧　評価差額に対する法人税額等相当額\n　　（⑦×38％）', '（千円）', 28.72, 3.99, 39.16, 64.3),
+  head('⑨　課税時期現在の修正純資産価額\n　　（相続税評価額）（③－⑧）', '（千円）', 28.72, 3.99, 64.3, 91.38),
+  { field: '⑦', kind: 'input', readOnly: true, top: 32.71, left: 14.02, width: 25.14, height: 2.79, align: 'right' },
+  { field: '⑧', kind: 'input', readOnly: true, top: 32.71, left: 39.16, width: 25.14, height: 2.79, align: 'right' },
+  { field: '⑨', kind: 'input', readOnly: true, top: 32.71, left: 64.3, width: 27.08, height: 2.79, align: 'right' },
+  // 行4: ⑩ ⑪（ヘッダー 35.50-39.60 / 値 39.60-42.39）＋（注）
+  head('⑩　課税時期現在の発行済株式数\n　　（第５表の⑩の株式数）', '（株）', 35.5, 4.1, 14.02, 39.16),
+  head('⑪　課税時期現在の修正後の１株当たりの\n　　純資産価額（相続税評価額）（⑨÷⑩）', '（円）', 35.5, 4.1, 39.16, 64.3),
+  { kind: 'label', text: '（注）第５表の㊁及び㋭の金額に株式等以\n　　外の資産に係る金額が含まれている\n　　場合には、その金額を除いて計算し\n　　ます。', align: 'left', fontSize: 6.5, top: 35.5, left: 64.3, width: 27.08, height: 6.89 },
+  { field: '⑩', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑩', hint: 'クリックで転記元（第５表 ⑩・課税時期現在の発行済株式数）へ移動します' }, top: 39.6, left: 14.02, width: 25.14, height: 2.79, align: 'right' },
+  { kind: 'cell', codeLabel: 'C01', top: 39.6, left: 39.16, width: 1.94, height: 2.79 },
+  { field: '⑪', kind: 'input', readOnly: true, top: 39.6, left: 41.1, width: 23.2, height: 2.79, align: 'right' },
+  // ── 1株当たりのS1の金額の計算の基となる金額（42.39-48.83） ──
+  { kind: 'label', text: '１株当たりのＳ1の金額\nの計算の基となる金額', top: 42.39, left: 10.15, width: 19.34, height: 6.44 },
+  head('⑫　修正後の類似業種比準価額\n　　（第７表の２の㉔、㉖又は㉚の金額）', '（円）', 42.39, 3.65, 29.49, 50.77),
+  head('⑬　修正後の１株当たりの純資産価額\n　　（相続税評価額）（⑪の金額）', '（円）', 42.39, 3.65, 50.77, 72.04),
+  { kind: 'cell', codeLabel: 'C02', top: 46.04, left: 29.49, width: 1.94, height: 2.79 },
+  { field: '⑫', kind: 'input', readOnly: true, top: 46.04, left: 31.43, width: 19.34, height: 2.79, align: 'right' },
+  { kind: 'cell', codeLabel: 'C03', top: 46.04, left: 50.77, width: 1.93, height: 2.79 },
+  { field: '⑬', kind: 'input', readOnly: true, top: 46.04, left: 52.7, width: 19.34, height: 2.79, align: 'right' },
+  { kind: 'cell', diagonal: 'bltr', top: 42.39, left: 72.04, width: 19.34, height: 6.44 },
+  // ── 1株当たりのS1の金額の計算（48.83-71.57） ──
+  { kind: 'label', text: '１株当たりのＳ1の金額の計算', top: 48.83, left: 10.15, width: 1.94, height: 22.74 },
+  { kind: 'label', text: '区分', top: 48.83, left: 12.09, width: 7.73, height: 2.74 },
+  { kind: 'label', text: '１ 株 当 た り の Ｓ 1 の 金 額 の 算 定 方 法', top: 48.83, left: 19.82, width: 50.28, height: 2.74 },
+  { kind: 'label', text: '１株当たりのＳ1の金額', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 7, top: 48.83, left: 70.1, width: 21.28, height: 2.68 },
+  // 比準要素数1（51.57-56.58）
+  { kind: 'label', text: '比準要素数１\nである会社の\nＳ1の金額', fontSize: 6.5, highlightWhen: () => cls.hijun1, top: 51.57, left: 12.09, width: 7.73, height: 5.01 },
+  { kind: 'label', text: '次のうちいずれか低い方の金額\nイ　⑬の金額\nロ　（⑫の金額 × 0.25）＋（⑬の金額 × 0.75）', textAlign: 'left', top: 51.57, left: 19.82, width: 50.2, height: 5.01 },
+  { kind: 'label', text: '⑭', highlightWhen: () => cls.hijun1, top: 51.57, left: 70.02, width: 2.02, height: 5.01 },
+  { kind: 'cell', codeLabel: 'C04', top: 51.57, left: 72.04, width: 1.93, height: 5.01 },
+  { field: '⑭', kind: 'input', readOnly: true, highlightWhen: () => cls.hijun1, top: 51.57, left: 73.97, width: 17.41, height: 5.01, align: 'right' },
+  // 大会社（56.58-61.60）
+  { kind: 'label', text: '上記以外の会社', top: 56.58, left: 12.09, width: 1.93, height: 14.99 },
+  { kind: 'label', text: '大会社の\nＳ1の金額', fontSize: 6.5, highlightWhen: () => cls.big, top: 56.58, left: 14.02, width: 5.8, height: 5.02 },
+  { kind: 'label', text: '次のうちいずれか低い方の金額（⑬の記載がないときは⑫の金額）\nイ　⑫の金額\nロ　⑬の金額', textAlign: 'left', top: 56.58, left: 19.82, width: 50.2, height: 5.02 },
+  { kind: 'label', text: '⑮', highlightWhen: () => cls.big, top: 56.58, left: 70.02, width: 2.02, height: 5.02 },
+  { kind: 'cell', codeLabel: 'C05', top: 56.58, left: 72.04, width: 1.93, height: 5.02 },
+  { field: '⑮', kind: 'input', readOnly: true, highlightWhen: () => cls.big, top: 56.58, left: 73.97, width: 17.41, height: 5.02, align: 'right' },
+  // 中会社（61.60-66.67）
+  { kind: 'label', text: '中会社の\nＳ1の金額', fontSize: 6.5, highlightWhen: () => cls.mid, top: 61.6, left: 14.02, width: 5.8, height: 5.07 },
+  { kind: 'label', text: `（⑫と⑬とのいずれか低い方の金額 × Lの割合${lText}）＋（⑬の金額 ×（１－Lの割合${lText}））`, top: 61.6, left: 19.82, width: 50.2, height: 5.07 },
+  { kind: 'label', text: '⑯', highlightWhen: () => cls.mid, top: 61.6, left: 70.02, width: 2.02, height: 5.07 },
+  { kind: 'cell', codeLabel: 'C06', top: 61.6, left: 72.04, width: 1.93, height: 5.07 },
+  { field: '⑯', kind: 'input', readOnly: true, highlightWhen: () => cls.mid, top: 61.6, left: 73.97, width: 17.41, height: 5.07, align: 'right' },
+  // 小会社（66.67-71.57）
+  { kind: 'label', text: '小会社の\nＳ1の金額', fontSize: 6.5, highlightWhen: () => cls.small, top: 66.67, left: 14.02, width: 5.8, height: 4.9 },
+  { kind: 'label', text: '次のうちいずれか低い方の金額\nイ　⑬の金額\nロ　（⑫の金額 × 0.50）＋（⑬の金額 × 0.50）', textAlign: 'left', top: 66.67, left: 19.82, width: 50.2, height: 4.9 },
+  { kind: 'label', text: '⑰', highlightWhen: () => cls.small, top: 66.67, left: 70.02, width: 2.02, height: 4.9 },
+  { kind: 'cell', codeLabel: 'C07', top: 66.67, left: 72.04, width: 1.93, height: 4.9 },
+  { field: '⑰', kind: 'input', readOnly: true, highlightWhen: () => cls.small, top: 66.67, left: 73.97, width: 17.41, height: 4.9, align: 'right' },
+  // ── 2. S2の金額（71.79-85.07） ──
+  { kind: 'label', text: '２．Ｓ2の金額', semanticRole: 'columnheader', top: 71.79, left: 8.3, width: 1.85, height: 13.28 },
+  // 行1: ⑱ ⑲ ⑳ ㉑（ヘッダー 71.79-75.90 / 値 75.90-78.63）
+  head('⑱　課税時期現在の株式等の価額の合計額\n　　（第５表の㋑の金額）', '（千円）', 71.79, 4.11, 10.15, 31.43),
+  head('⑲　株式等の帳簿価額の合計額\n　　（第５表の㋺＋（㊁－㋭）の金額）（注）', '（千円）', 71.79, 4.11, 31.43, 52.7),
+  head('⑳　株式等に係る評価差額に相当\n　　する金額（⑱－⑲）', '（千円）', 71.79, 4.11, 52.7, 72.04),
+  head('㉑　⑳の評価差額に対する法人税額\n　　等相当額（⑳×38％）', '（千円）', 71.79, 4.11, 72.04, 91.38),
+  { field: '⑱', kind: 'input', top: 75.9, left: 10.15, width: 21.28, height: 2.73, align: 'right' },
+  { field: '⑲', kind: 'input', top: 75.9, left: 31.43, width: 21.27, height: 2.73, align: 'right' },
+  { field: '⑳', kind: 'input', readOnly: true, top: 75.9, left: 52.7, width: 19.34, height: 2.73, align: 'right' },
+  { field: '㉑', kind: 'input', readOnly: true, top: 75.9, left: 72.04, width: 19.34, height: 2.73, align: 'right' },
+  // 行2: ㉒ ㉓ ㉔（ヘッダー 78.63-82.45 / 値 82.45-85.07）＋（注）
+  head('㉒　Ｓ2の純資産価額相当額\n　　（⑱－㉑）', '（千円）', 78.63, 3.82, 10.15, 31.43),
+  head('㉓　課税時期現在の発行済株式数\n　　（第５表の⑩の株式数）', '（株）', 78.63, 3.82, 31.43, 52.7),
+  head('㉔　Ｓ2の金額（㉒÷㉓）', '（円）', 78.63, 3.82, 52.7, 72.04),
+  { kind: 'label', text: '（注）第５表の㊁及び㋭の金額\n　　に株式等以外の資産に係る\n　　金額が含まれている場合に\n　　は、その金額を除いて計算\n　　します。', align: 'left', fontSize: 6.5, top: 78.63, left: 72.04, width: 19.34, height: 6.44 },
+  { field: '㉒', kind: 'input', readOnly: true, top: 82.45, left: 10.15, width: 21.28, height: 2.62, align: 'right' },
+  { field: '㉓', kind: 'input', readOnly: true, top: 82.45, left: 31.43, width: 21.27, height: 2.62, align: 'right' },
+  { kind: 'cell', codeLabel: 'C08', top: 82.45, left: 52.7, width: 1.93, height: 2.62 },
+  { field: '㉔', kind: 'input', readOnly: true, top: 82.45, left: 54.63, width: 17.41, height: 2.62, align: 'right' },
+  // ── 3. 株式等保有特定会社の株式の価額（85.30-93.16） ──
+  { kind: 'label', text: '３．株式等保有特定会社の\n　　株式の価額', semanticRole: 'columnheader', align: 'left', top: 85.3, left: 8.3, width: 19.26, height: 7.86 },
+  head('㉕　１株当たりの純資産価額（第５表\n　　の⑪の金額（第５表の⑫の金額が\n　　あるときはその金額））', '（円）', 85.3, 5.01, 27.56, 48.83),
+  head('㉖　Ｓ1の金額とＳ2の金額との合計額\n　　（（⑭、⑮、⑯又は⑰）＋㉔）', '（円）', 85.3, 5.01, 48.83, 70.1),
+  head('㉗　株式等保有特定会社の株式の価額\n　　（㉕と㉖とのいずれか低い方の金額）', '（円）', 85.3, 5.01, 70.1, 91.38),
+  { field: '㉕', kind: 'input', readOnly: true, top: 90.31, left: 27.56, width: 21.27, height: 2.85, align: 'right' },
+  { kind: 'cell', codeLabel: 'C09', top: 90.31, left: 48.83, width: 1.94, height: 2.85 },
+  { field: '㉖', kind: 'input', readOnly: true, top: 90.31, left: 50.77, width: 19.33, height: 2.85, align: 'right' },
+  { kind: 'cell', codeLabel: 'C10', top: 90.31, left: 70.1, width: 1.94, height: 2.85 },
+  { field: '㉗', kind: 'input', readOnly: true, top: 90.31, left: 72.04, width: 19.34, height: 2.85, align: 'right' },
   ];
 }
 
@@ -217,5 +249,8 @@ export function Table8Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
 
-  return <GridForm cells={buildCells(cls)} g={g} u={u} formId={T} width="100%" title="第７表の３　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240030010" onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  // 会社名は第7表の1・2（table7バケット）と共有
+  const gCompany = (f: string) => (f === 'company' ? getField('table7', 'company') : g(f));
+  const uCompany = (f: string, v: string) => (f === 'company' ? updateField('table7', 'company', v) : u(f, v));
+  return <GridForm cells={buildCells(cls)} g={g} u={u} formId={T} width="100%" title="第７表の３　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240030010" headerExtra={companyFloatBox(gCompany, uCompany, T, { widthPct: 42, aspect: 9, labelFrac: 0.33 })} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }
