@@ -605,15 +605,21 @@
     display: none !important;
   }
 
-  /* 高さを印刷可能領域（A4 297mm − @page margin 8mm×2）に確定させる。
-     height:auto だと GridForm の縦フレックスで本表の残り高さが決まらず、はみ出す。 */
+  /* 高さを印刷可能領域（A4 297mm − @page margin 8mm×2 ＝ 281mm）より少し小さく確定させる。
+     height:auto だと GridForm の縦フレックスで本表の残り高さが決まらず、はみ出す。
+     281mm ちょうどにするとブラウザの丸め誤差で最終行が次ページへあふれるため 3mm の余裕を取る。 */
   .gov-page {
     width: 100%;
-    height: 281mm;
+    height: 278mm;
     margin: 0;
     padding: 0;
     box-shadow: none;
-    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  /* 改ページは「2ページ目以降の直前」に入れる（最後のページの後に空白ページを作らないため） */
+  .gov-page + .gov-page {
+    page-break-before: always;
   }
 
   .gov-form {
@@ -702,5 +708,22 @@
   .app-shell,
   .app-main {
     background: #fff !important;
+  }
+
+  /* 画面用の min-height:100vh / padding が印刷に効くと最終ページの後に空白ページが出るためリセット */
+  html,
+  body,
+  .app-root,
+  .app-shell {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .app-main {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
   }
 }
