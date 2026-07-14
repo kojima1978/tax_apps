@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { type FormData, type TableId, initialFormData } from '@/types/form';
-import { industryCategoryOf } from '@/data/industryCategories';
+import { industryCategoryOf, similarIndustryDisplayNameOf } from '@/data/industryCategories';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
 
@@ -115,7 +115,7 @@ export function updateFormField(data: FormData, table: TableId, field: string, v
       table4: {
         ...data.table4,
         [field]: value,
-        [linkedSimilarIndustryField]: industryCategoryOf(value)?.名前 ?? '',
+        [linkedSimilarIndustryField]: similarIndustryDisplayNameOf(value),
       },
     };
   }
@@ -162,7 +162,7 @@ function normalizeIndustryFields(data: FormData): FormData {
   const normalizedTable4 = Object.entries(SIMILAR_INDUSTRY_FIELD_LINKS).reduce<Record<string, string>>(
     (table, [numberField, nameField]) => ({
       ...table,
-      [nameField]: industryCategoryOf(table[numberField] ?? '')?.名前 ?? '',
+      [nameField]: similarIndustryDisplayNameOf(table[numberField] ?? ''),
     }),
     data.table4,
   );

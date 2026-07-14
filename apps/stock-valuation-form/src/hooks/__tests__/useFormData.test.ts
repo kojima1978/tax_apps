@@ -86,7 +86,7 @@ describe('table 4-2 similar industry linkage', () => {
     const updated = updateFormField(initialFormData, 'table4', 'r1gyonum', '3');
 
     expect(updated.table4.r1gyonum).toBe('3');
-    expect(updated.table4.r1gyo).toBe('建築工事業（木造建築工事業を除く）');
+    expect(updated.table4.r1gyo).toBe('【小】建築工事業（木造建築工事業を除く）');
   });
 
   it('repairs the similar industry name while importing saved JSON', () => {
@@ -95,6 +95,6 @@ describe('table 4-2 similar industry linkage', () => {
       table4: { r2gyonum: '2', r2gyo: '古い名称' },
     });
 
-    expect(normalized.table4.r2gyo).toBe('総合工事業');
+    expect(normalized.table4.r2gyo).toBe('【中】総合工事業');
   });
 });

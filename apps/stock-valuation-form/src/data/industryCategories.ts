@@ -28,11 +28,16 @@ const MIDDLE_INDUSTRY_BY_PATH = new Map(
 );
 
 function industryOptionLabel(category: IndustryCategory): string {
+  const level = category.小分類 !== ''
+    ? '小分類'
+    : category.中分類 !== ''
+      ? '中分類'
+      : '大分類';
   const hierarchy = [category.大分類, category.中分類, category.小分類]
     .filter((name, index, names) => name !== '' && name !== names[index - 1])
     .join(' ＞ ');
 
-  return `${category.番号}　${hierarchy || category.名前}`;
+  return `${category.番号}　【${level}】${hierarchy || category.名前}`;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -45,6 +50,15 @@ export const INDUSTRY_OPTIONS = [
 
 export function industryCategoryOf(number: string): IndustryCategory | undefined {
   return INDUSTRY_BY_NUMBER.get(number);
+}
+
+/** 帳票の類似業種欄に表示する、区分記号付きの業種名。 */
+export function similarIndustryDisplayNameOf(number: string): string {
+  const category = industryCategoryOf(number);
+  if (!category) return '';
+
+  const level = category.小分類 !== '' ? '小' : category.中分類 !== '' ? '中' : '大';
+  return `【${level}】${category.名前}`;
 }
 
 /** 評価通達181に基づく原則区分と、選択できる直上区分を返す。 */

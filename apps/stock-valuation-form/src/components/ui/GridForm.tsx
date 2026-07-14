@@ -192,6 +192,16 @@ function isEditableField(el: Element): boolean {
   return false;
 }
 
+function selectedOptionLabel(
+  options: NonNullable<GridCell['options']>,
+  value: string,
+): string {
+  const option = options.find((candidate) => (
+    typeof candidate === 'string' ? candidate === value : candidate.value === value
+  ));
+  return typeof option === 'string' ? option : option?.label ?? '';
+}
+
 function nearestIndex(lines: number[], v: number): number {
   let best = 0, bd = Infinity;
   lines.forEach((l, i) => { const d = Math.abs(l - v); if (d < bd) { bd = d; best = i; } });
@@ -621,7 +631,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                 {g(c.field)}
               </div>
             ) : c.kind === 'input' && c.field && c.options
-              ? printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{g(c.field)}</div> : <select id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: 'left', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px' }}>
+              ? printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{g(c.field)}</div> : <select id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(c.options, g(c.field))}` : ''}`} title={selectedOptionLabel(c.options, g(c.field)) || undefined} value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: 'left', fontSize: 6, backgroundColor: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: 'pointer' }}>
                   {c.options.map((option) => {
                     const o = typeof option === 'string' ? { value: option, label: option } : option;
                     const label = c.compactSelectedOption && o.value !== '' && o.value === g(c.field!) ? o.value : o.label;
