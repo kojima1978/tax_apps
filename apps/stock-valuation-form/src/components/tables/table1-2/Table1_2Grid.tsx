@@ -277,7 +277,7 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
 }
 
 /** 第1表の2（CSSグリッド方式・令和8年4月1日以降用） */
-export function Table1_2Grid({ getField, updateField }: TableProps) {
+export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const employee = calcEmployees(raw);
   // 少数株式所有者の判定（第1表の1の株主判定・役職コードと本表のj_*から算出）
@@ -325,6 +325,6 @@ export function Table1_2Grid({ getField, updateField }: TableProps) {
       </select>
     </label>
   );
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(judge), g, u, T);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(judge), g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} toolbar={toolbar} enterLoop={ENTER_LOOP} />;
 }

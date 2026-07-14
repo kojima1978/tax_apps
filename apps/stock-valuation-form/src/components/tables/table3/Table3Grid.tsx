@@ -125,7 +125,7 @@ const CELLS: GridCell[] = [
   // 株式の価額の修正
   { kind: 'label', text: '株式の価額の修正', top: 33.96, left: 10.27, width: 1.82, height: 13.02 },
   { kind: 'label', text: '課税時期において\n配当期待権の発生\nしている場合', fontSize: 7, top: 33.96, left: 12.09, width: 12.69, height: 5.01 },
-  { kind: 'label', text: '⑦　１株当たりの\n配当金額', fontSize: 7, top: 33.96, left: 24.78, width: 24.49, height: 5.01, align: 'left' },
+  { kind: 'label', text: '⑦　１株当たりの\n配当金額', noWrap: true, fontSize: 7, top: 33.96, left: 24.78, width: 24.49, height: 5.01, align: 'left' },
   ...yenSenInput('J01', 'mod1_div', 'mod1_div_sen', 33.96, 5.01, 49.27, 51.09, 60.15, 61.97, 69.78, 71.6),
   { kind: 'label', text: '⑧　修正後の株式の価額\n（（④、⑤又は⑥）－⑦）', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 7, top: 33.96, left: 71.6, width: 20.74, height: 2.42 },
   { field: '⑧', kind: 'input', readOnly: true, top: 36.38, left: 71.6, width: 20.74, height: 2.59, align: 'right' },
@@ -440,6 +440,6 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
     }
     return cell;
   });
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA200010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

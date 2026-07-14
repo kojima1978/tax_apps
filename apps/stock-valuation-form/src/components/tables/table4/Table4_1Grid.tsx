@@ -237,6 +237,6 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
     }
     return cell;
   });
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の１　類似業種比準価額等の計算明細書" formCode="NTA0VNA210010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

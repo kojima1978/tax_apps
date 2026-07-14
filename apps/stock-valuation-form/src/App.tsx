@@ -71,7 +71,8 @@ export default function App() {
     setActiveTab(target.tab);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const el = document.querySelector<HTMLElement>(`[name="${target.tab}.${target.field}"]`);
+        const fieldTable = DATA_BUCKET[target.tab] ?? target.tab;
+        const el = document.querySelector<HTMLElement>(`[name="${fieldTable}.${target.field}"]`);
         if (!el) return;
         el.scrollIntoView({ block: 'center', behavior: 'smooth' });
         el.focus();

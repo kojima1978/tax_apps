@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { GridCell } from '@/components/ui/GridForm';
+import type { TableProps } from '@/types/form';
 
 // ══ 会社名の独立浮遊枠ヘルパー（令和8年様式）══
 // 実様式では「会社名」欄が本表の外・右上に浮く独立枠で、その左側・上側は開放。
@@ -28,6 +29,7 @@ export function extractCompanyFloatHeader(
   g: (f: string) => string,
   u: (f: string, v: string) => void,
   formId: string,
+  onJump?: TableProps['onJump'],
 ): CompanyFloatHeader {
   const companyCells = cells.filter(isCompanyCell);
   const mainCells = cells.filter((c) => !isCompanyCell(c));
@@ -64,9 +66,12 @@ export function extractCompanyFloatHeader(
           id={`${formId}-company`}
           name={`${formId}.company`}
           aria-label="会社名"
+          title="クリックで第１表の１の会社名入力欄へ移動します"
           value={g('company')}
           onChange={(e) => u('company', e.target.value)}
-          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', padding: '0 6px', fontSize: 11, fontFamily: 'inherit' }}
+          onClick={() => onJump?.({ tab: 'table1_1', field: 'f12' })}
+          readOnly
+          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: '#f7f7f7', padding: '0 6px', fontSize: 11, fontFamily: 'inherit', cursor: onJump ? 'pointer' : 'default' }}
         />
       </div>
     </div>
@@ -82,9 +87,9 @@ export function companyFloatBox(
   g: (f: string) => string,
   u: (f: string, v: string) => void,
   formId: string,
-  opts: { widthPct: number; aspect: number; labelFrac?: number } = { widthPct: 41, aspect: 9 },
+  opts: { widthPct: number; aspect: number; labelFrac?: number; onJump?: TableProps['onJump'] } = { widthPct: 41, aspect: 9 },
 ): ReactNode {
-  const { widthPct, aspect, labelFrac = 0.36 } = opts;
+  const { widthPct, aspect, labelFrac = 0.36, onJump } = opts;
   return (
     <div style={{ display: 'flex', padding: '3mm 0 4mm', fontFamily: '"Noto Sans JP", sans-serif' }}>
       <div className="gf-float-box" role="group" aria-label="会社名" style={{ marginLeft: 'auto', width: `${widthPct}%`, aspectRatio: `${aspect} / 1`, display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
@@ -93,9 +98,12 @@ export function companyFloatBox(
           id={`${formId}-company`}
           name={`${formId}.company`}
           aria-label="会社名"
+          title="クリックで第１表の１の会社名入力欄へ移動します"
           value={g('company')}
           onChange={(e) => u('company', e.target.value)}
-          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', padding: '0 6px', fontSize: 11, fontFamily: 'inherit' }}
+          onClick={() => onJump?.({ tab: 'table1_1', field: 'f12' })}
+          readOnly
+          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: '#f7f7f7', padding: '0 6px', fontSize: 11, fontFamily: 'inherit', cursor: onJump ? 'pointer' : 'default' }}
         />
       </div>
     </div>

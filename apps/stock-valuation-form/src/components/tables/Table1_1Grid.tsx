@@ -555,7 +555,7 @@ function continuationPageCells(pageIndex: number): GridCell[] {
 }
 
 /** 第1表の1（CSSグリッド方式・令和8年4月1日以降用） */
-export function Table1_1Grid({ getField, updateField }: TableProps) {
+export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   const reorderShareholderRows = useCallback((activeId: string, overId: string) => {
     const fromRow = Number(activeId);
     const toRow = Number(overId);
@@ -707,7 +707,7 @@ export function Table1_1Grid({ getField, updateField }: TableProps) {
       </div>
       {Array.from({ length: shPageCount }).map((_, i) => (
         <div className="gov-page" key={i} style={i < shPageCount - 1 ? { marginBottom: '8mm' } : undefined}>
-          <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} formCode="NTA0VNA170020010" headerExtra={companyFloatBox((f) => g(f === 'company' ? 'f12' : f), (f, v) => u(f === 'company' ? 'f12' : f, v), `${T}-cont${i + 1}`, { widthPct: 46.6, aspect: 8.9, labelFrac: 0.3 })} />
+          <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} formCode="NTA0VNA170020010" headerExtra={companyFloatBox((f) => g(f === 'company' ? 'f12' : f), (f, v) => u(f === 'company' ? 'f12' : f, v), `${T}-cont${i + 1}`, { widthPct: 46.6, aspect: 8.9, labelFrac: 0.3, onJump })} />
         </div>
       ))}
     </>

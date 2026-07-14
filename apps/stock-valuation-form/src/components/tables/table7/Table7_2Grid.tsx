@@ -45,6 +45,9 @@ const YS2: BlockYs = { gyo: 43.33, kabuHead: 45.95, colHead: 47.86, month: 50.4,
 /** S1類似業種比準価額の1ブロック（株価＋比準割合） */
 function simBlock(y: BlockYs, cfg: BlockCfg): GridCell[] {
   const h = (a: number, b: number) => +(b - a).toFixed(2);
+  const linkedIndustry = cfg.gyoField === 'f61'
+    ? { name: 'r1gyo', number: 'r1gyonum' }
+    : null;
   const price = (idx: number, left: number, w: number): GridCell => ({ field: cfg.prices[idx], kind: 'input', readOnly: true, commaInteger: true, cornerLabel: cfg.priceMarks[idx], highlightWhen: minValueHighlight(cfg.aHighlight, cfg.prices[idx]!), top: y.price, left, width: w, height: h(y.price, y.kubun), align: 'right' });
   const yen = (left: number, w: number, top: number, hh: number): GridCell => ({ kind: 'label', text: '円', top, left, width: w, height: hh, fontSize: 7 });
   const priceH = h(y.price, y.kubun);
@@ -53,10 +56,10 @@ function simBlock(y: BlockYs, cfg: BlockCfg): GridCell[] {
   return [
     // 類似業種名・業種目番号
     { kind: 'label', text: '類　似　業　種', top: y.gyo, left: 12.05, width: 16.35, height: h(y.gyo, y.kabuHead) },
-    { field: cfg.gyoField, kind: 'input', top: y.gyo, left: 28.4, width: 30.91, height: h(y.gyo, y.kabuHead), align: 'left' },
+    { field: cfg.gyoField, kind: 'input', readOnly: linkedIndustry !== null, jumpTo: linkedIndustry ? { tab: 'table4_2', field: linkedIndustry.name, hint: 'クリックで入力元（第４表の２・類似業種）へ移動します' } : undefined, top: y.gyo, left: 28.4, width: 30.91, height: h(y.gyo, y.kabuHead), align: 'left' },
     { kind: 'label', text: '業 種 目 番 号', top: y.gyo, left: 59.31, width: 11.0, height: h(y.gyo, y.kabuHead) },
     { kind: 'cell', codeLabel: cfg.gyoCode, top: y.gyo, left: 70.31, width: 1.81, height: h(y.gyo, y.kabuHead) },
-    { field: `${cfg.gyoField}num`, kind: 'input', top: y.gyo, left: 72.12, width: 20.18, height: h(y.gyo, y.kabuHead), align: 'left' },
+    { field: `${cfg.gyoField}num`, kind: 'input', readOnly: linkedIndustry !== null, jumpTo: linkedIndustry ? { tab: 'table4_2', field: linkedIndustry.number, hint: 'クリックで入力元（第４表の２・業種目番号）へ移動します' } : undefined, top: y.gyo, left: 72.12, width: 20.18, height: h(y.gyo, y.kabuHead), align: 'left' },
     // 類似業種の株価 ヘッダー
     { kind: 'label', text: '類　似　業　種　の　株　価', top: y.kabuHead, left: 12.05, width: 80.25, height: h(y.kabuHead, y.colHead) },
     { kind: 'label', text: '課税時期の\n属する月', fontSize: 6.5, top: y.colHead, left: 12.05, width: 12.69, height: h(y.colHead, y.month) },
@@ -165,7 +168,7 @@ const BLOCK2: BlockCfg = {
 
 // 第4表の類似業種株価・B/C/D・月へ連動（readonly＋ジャンプ）
 const TABLE4_LINKED: Record<string, string> = {
-  f61: 'h5', f66: 'h8', f68: 'h11', f70: 'h13', '㊁': '㋷', '㋭': '㋦', '㋬': '㋸', '㋣': '㋾', '㋠': '㋻',
+  f61: 'r1gyo', f61num: 'r1gyonum', f66: 'h8', f68: 'h11', f70: 'h13', '㊁': '㋷', '㋭': '㋦', '㋬': '㋸', '㋣': '㋾', '㋠': '㋻',
   f110: 'r1sB1', f111: 'r1sB2', f113: 'r1sC', f115: 'r1sD',
   b2_f61: 'h58', b2_f66: 'h61', b2_f68: 'h64', b2_f70: 'h67', 'b2_㊁': '㋕', 'b2_㋭': '㋵', 'b2_㋬': '㋟', 'b2_㋣': '㋹', 'b2_㋠': '㋞',
   b2_f110: 'r2sB1', b2_f111: 'r2sB2', b2_f113: 'r2sC', b2_f115: 'r2sD',
@@ -264,6 +267,6 @@ export function Table7_2Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の２　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240020010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

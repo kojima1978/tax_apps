@@ -506,7 +506,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
               width="100%"
               title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書"
               formCode="NTA0VNA220010010"
-              headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33 })}
+              headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33, onJump })}
               toolbar={pageToolbar}
               overlay={rowOpsOverlay}
               onJump={jump}
@@ -520,7 +520,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
               width="100%"
               title={`第５表（続）　１株当たりの純資産価額（相続税評価額）の計算明細書（${p + 1}／${pageCount}ページ）`}
               formCode="NTA0VNA220020010"
-              headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33 })}
+              headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33, onJump })}
               overlay={rowOpsOverlay}
             />
           )}

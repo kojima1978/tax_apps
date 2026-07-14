@@ -256,6 +256,6 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の２　類似業種比準価額等の計算明細書（続）" formCode="NTA0VNA210020010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

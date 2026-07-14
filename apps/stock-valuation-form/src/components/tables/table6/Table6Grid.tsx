@@ -342,6 +342,6 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
     if (cell.field === '㉔円' || cell.field === '㉔銭') return { ...cell, highlightWhen: () => v24Floored };
     return cell;
   });
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA230010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

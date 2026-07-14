@@ -335,7 +335,7 @@ export function calcTable2(getField: TableProps['getField']) {
 const RESULT_NAMES: Record<number, string> = { 0: '一般の評価会社（非該当）', 1: '１．比準要素数１の会社', 2: '２．株式等保有特定会社', 3: '３．土地保有特定会社', 4: '４．開業後３年未満の会社等', 5: '５．開業前又は休業中の会社', 6: '６．清算中の会社' };
 
 /** 第2表（CSSグリッド方式・令和8年4月1日以降用） */
-export function Table2Grid({ getField, updateField }: TableProps) {
+export function Table2Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
@@ -369,6 +369,6 @@ export function Table2Grid({ getField, updateField }: TableProps) {
     </span>
   );
 
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(c), g, u, T);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(c), g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第２表　特定の評価会社の判定の明細書" formCode="NTA0VNA190010010" headerExtra={headerExtra} toolbar={toolbar} />;
 }
