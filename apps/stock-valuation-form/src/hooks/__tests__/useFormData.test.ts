@@ -49,3 +49,52 @@ describe('normalizeFormData company name linkage', () => {
     expect(normalized.table8.company).toBe('旧データ株式会社');
   });
 });
+
+describe('table 1-1 industry linkage', () => {
+  it('fills the business description when an industry number is selected', () => {
+    const updated = updateFormField(initialFormData, 'table1_1', 'f23', '3');
+
+    expect(updated.table1_1.f23).toBe('3');
+    expect(updated.table1_1.f22).toBe(
+      '鉄骨鉄筋コンクリート造建築物、鉄筋コンクリート造建築物、無筋コンクリート造建築物及び鉄骨造建築物等の完成を請け負うもの',
+    );
+  });
+
+  it('updates and clears the linked description together with the industry number', () => {
+    const selected = updateFormField(initialFormData, 'table1_1', 'f26', '54');
+    const cleared = updateFormField(selected, 'table1_1', 'f26', '');
+
+    expect(selected.table1_1.f25).toBe(
+      '受託開発ソフトウェア業、組込みソフトウェア業、パッケージソフトウェア業及びゲームソフトウェア業を営むもの',
+    );
+    expect(cleared.table1_1.f26).toBe('');
+    expect(cleared.table1_1.f25).toBe('');
+  });
+
+  it('repairs stale linked content while importing saved JSON', () => {
+    const normalized = normalizeFormData({
+      ...initialFormData,
+      table1_1: { f29: '115', f28: '古い内容' },
+    });
+
+    expect(normalized.table1_1.f28).toBe('１から114に該当するもの以外のもの');
+  });
+});
+
+describe('table 4-2 similar industry linkage', () => {
+  it('fills the similar industry name when its number is selected', () => {
+    const updated = updateFormField(initialFormData, 'table4', 'r1gyonum', '3');
+
+    expect(updated.table4.r1gyonum).toBe('3');
+    expect(updated.table4.r1gyo).toBe('建築工事業（木造建築工事業を除く）');
+  });
+
+  it('repairs the similar industry name while importing saved JSON', () => {
+    const normalized = normalizeFormData({
+      ...initialFormData,
+      table4: { r2gyonum: '2', r2gyo: '古い名称' },
+    });
+
+    expect(normalized.table4.r2gyo).toBe('総合工事業');
+  });
+});

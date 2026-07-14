@@ -1,7 +1,19 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { type FormData, type TableId, initialFormData } from '@/types/form';
+import { industryCategoryOf } from '@/data/industryCategories';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
+
+const INDUSTRY_FIELD_LINKS: Readonly<Record<string, string>> = {
+  f23: 'f22',
+  f26: 'f25',
+  f29: 'f28',
+};
+
+const SIMILAR_INDUSTRY_FIELD_LINKS: Readonly<Record<string, string>> = {
+  r1gyonum: 'r1gyo',
+  r2gyonum: 'r2gyo',
+};
 
 const COMPANY_NAME_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', 'f12'],
@@ -84,6 +96,30 @@ function linkedFieldGroup(table: TableId, field: string) {
 }
 
 export function updateFormField(data: FormData, table: TableId, field: string, value: string): FormData {
+  const linkedIndustryField = table === 'table1_1' ? INDUSTRY_FIELD_LINKS[field] : undefined;
+  if (linkedIndustryField) {
+    return {
+      ...data,
+      table1_1: {
+        ...data.table1_1,
+        [field]: value,
+        [linkedIndustryField]: industryCategoryOf(value)?.内容 ?? '',
+      },
+    };
+  }
+
+  const linkedSimilarIndustryField = table === 'table4' ? SIMILAR_INDUSTRY_FIELD_LINKS[field] : undefined;
+  if (linkedSimilarIndustryField) {
+    return {
+      ...data,
+      table4: {
+        ...data.table4,
+        [field]: value,
+        [linkedSimilarIndustryField]: industryCategoryOf(value)?.名前 ?? '',
+      },
+    };
+  }
+
   const group = linkedFieldGroup(table, field);
   if (!group) {
     return {
@@ -111,6 +147,29 @@ function normalizeLinkedFields(data: FormData): FormData {
   }, data);
 }
 
+function normalizeIndustryFields(data: FormData): FormData {
+  const normalizedTable = Object.entries(INDUSTRY_FIELD_LINKS).reduce<Record<string, string>>(
+    (table, [numberField, contentField]) => {
+      const number = table[numberField] ?? '';
+      return {
+        ...table,
+        [contentField]: industryCategoryOf(number)?.内容 ?? '',
+      };
+    },
+    data.table1_1,
+  );
+
+  const normalizedTable4 = Object.entries(SIMILAR_INDUSTRY_FIELD_LINKS).reduce<Record<string, string>>(
+    (table, [numberField, nameField]) => ({
+      ...table,
+      [nameField]: industryCategoryOf(table[numberField] ?? '')?.名前 ?? '',
+    }),
+    data.table4,
+  );
+
+  return { ...data, table1_1: normalizedTable, table4: normalizedTable4 };
+}
+
 /** 旧様式（令和6年版）→令和8年様式の第1表の1のフィールド移行（①発行済株式→⑤、④議決権総数→⑥） */
 function migrateTable1_1R8(data: FormData): FormData {
   const t = data.table1_1;
@@ -132,7 +191,7 @@ export function normalizeFormData(data: FormData): FormData {
     [table]: { ...initialFormData[table as TableId], ...(data[table as TableId] ?? {}) },
   }), initialFormData);
 
-  return normalizeLinkedFields(migrateTable1_1R8(completeData));
+  return normalizeIndustryFields(normalizeLinkedFields(migrateTable1_1R8(completeData)));
 }
 
 function loadFromStorage(): FormData {

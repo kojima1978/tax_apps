@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable4 } from './Table4Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
+import { similarIndustryOptions } from '@/data/industryCategories';
 
 // ══ 第4表の2（令和8年4月1日以降用）══
 // 旧第4表の後半（3.類似業種比準価額の計算＋比準価額の修正）。
@@ -37,10 +39,10 @@ function simBlock(d: number, cfg: BlockCfg): GridCell[] {
   return [
     // 類似業種名・業種目番号
     { kind: 'label', text: '類　似　業　種', top: t(14.96), left: 11.72, width: 16.24, height: 2.73 },
-    { field: `${fp}gyo`, kind: 'input', top: t(14.96), left: 27.96, width: 30.42, height: 2.73, align: 'left' },
+    { field: `${fp}gyo`, kind: 'input', readOnly: true, top: t(14.96), left: 27.96, width: 30.42, height: 2.73, align: 'left' },
     { kind: 'label', text: '業 種 目 番 号', top: t(14.96), left: 58.38, width: 11.48, height: 2.73 },
     { kind: 'cell', codeLabel: cfg.aCode === 'G02' ? 'G01' : 'G07', top: t(14.96), left: 69.86, width: 1.9, height: 2.73 },
-    { field: `${fp}gyonum`, kind: 'input', top: t(14.96), left: 71.76, width: 21.07, height: 2.73, align: 'left' },
+    { field: `${fp}gyonum`, kind: 'input', compactSelectedOption: true, ariaLabel: fp === 'r1' ? '類似業種番号1' : '類似業種番号2', top: t(14.96), left: 71.76, width: 21.07, height: 2.73, align: 'left' },
     // 類似業種の株価 ヘッダー
     { kind: 'label', text: '類　似　業　種　の　株　価', top: t(17.69), left: 11.72, width: 81.11, height: 2.0 },
     { kind: 'label', text: '課税時期の\n属する月', fontSize: 6.5, top: t(19.69), left: 11.72, width: 12.41, height: 2.65 },
@@ -222,6 +224,22 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
 
   const c = calcTable4(getField);
 
+  const industry1 = getField('table1_1', 'f23');
+  const industry2 = getField('table1_1', 'f26');
+  const industry3 = getField('table1_1', 'f29');
+  const linkedIndustryOptions = useMemo(
+    () => similarIndustryOptions([industry1, industry2, industry3]),
+    [industry1, industry2, industry3],
+  );
+  const linkedCells = useMemo(
+    () => CELLS.map((cell) => (
+      cell.field === 'r1gyonum' || cell.field === 'r2gyonum'
+        ? { ...cell, options: linkedIndustryOptions }
+        : cell
+    )),
+    [linkedIndustryOptions],
+  );
+
   // 類似業種の株価の月は第1表の1の課税時期(f14)の月から導出
   const taxMonthRaw = getField('table1_1', 'f14_m');
   const taxMonth = Number(taxMonthRaw.replace(/,/g, '').trim());
@@ -256,6 +274,6 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T, onJump);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(linkedCells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の２　類似業種比準価額等の計算明細書（続）" formCode="NTA0VNA210020010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

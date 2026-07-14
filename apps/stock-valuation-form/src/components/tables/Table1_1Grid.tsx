@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { companyFloatBox } from './companyFloatHeader';
 import type { TableProps } from '@/types/form';
+import { INDUSTRY_OPTIONS } from '@/data/industryCategories';
 
 const T = 'table1_1' as const;
 
@@ -362,21 +363,21 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '業　種　目\n番　　　号', top: 21.99, left: 66.64, width: 14.5, height: 3.42 },
   { kind: 'label', text: '取引金額の\n構成比', bottomLabel: '（％）', bottomLabelAlign: 'right', top: 21.99, left: 81.14, width: 7.34, height: 3.42, fontSize: 7.5 },
   { kind: 'cell', codeLabel: 'E02', top: 25.41, left: 44.88, width: 1.82, height: 2.34 },
-  { field: 'f22', kind: 'input', top: 25.41, left: 46.7, width: 19.94, height: 2.34, align: 'left' },
+  { field: 'f22', kind: 'input', readOnly: true, top: 25.41, left: 46.7, width: 19.94, height: 2.34, align: 'left' },
   { kind: 'cell', codeLabel: 'G01', top: 25.41, left: 66.64, width: 1.81, height: 2.34 },
-  { field: 'f23', kind: 'input', integerDigits: 4, top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
+  { field: 'f23', kind: 'input', options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号1', top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
   { kind: 'cell', codeLabel: 'C01', top: 25.41, left: 81.14, width: 1.82, height: 2.34 },
   { field: 'f24', kind: 'input', top: 25.41, left: 82.96, width: 5.52, height: 2.34 },
   { kind: 'cell', codeLabel: 'E03', top: 27.75, left: 44.88, width: 1.82, height: 2.36 },
-  { field: 'f25', kind: 'input', top: 27.75, left: 46.7, width: 19.94, height: 2.36, align: 'left' },
+  { field: 'f25', kind: 'input', readOnly: true, top: 27.75, left: 46.7, width: 19.94, height: 2.36, align: 'left' },
   { kind: 'cell', codeLabel: 'G02', top: 27.75, left: 66.64, width: 1.81, height: 2.36 },
-  { field: 'f26', kind: 'input', integerDigits: 4, top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
+  { field: 'f26', kind: 'input', options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号2', top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
   { kind: 'cell', codeLabel: 'C02', top: 27.75, left: 81.14, width: 1.82, height: 2.36 },
   { field: 'f27', kind: 'input', top: 27.75, left: 82.96, width: 5.52, height: 2.36 },
   { kind: 'cell', codeLabel: 'E04', top: 30.11, left: 44.88, width: 1.82, height: 2.25 },
-  { field: 'f28', kind: 'input', top: 30.11, left: 46.7, width: 19.94, height: 2.25, align: 'left' },
+  { field: 'f28', kind: 'input', readOnly: true, top: 30.11, left: 46.7, width: 19.94, height: 2.25, align: 'left' },
   { kind: 'cell', codeLabel: 'G03', top: 30.11, left: 66.64, width: 1.81, height: 2.25 },
-  { field: 'f29', kind: 'input', integerDigits: 4, top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
+  { field: 'f29', kind: 'input', options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号3', top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
   { kind: 'cell', codeLabel: 'C03', top: 30.11, left: 81.14, width: 1.82, height: 2.25 },
   { field: 'f30', kind: 'input', top: 30.11, left: 82.96, width: 5.52, height: 2.25 },
   // ── 1. 株主及び評価方式の判定 ──
