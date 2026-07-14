@@ -3,6 +3,23 @@ import { type FormData, type TableId, initialFormData } from '@/types/form';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
 
+const COMPANY_NAME_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
+  ['table1_1', 'f12'],
+  ['table1_2', 'company'],
+  ['table2', 'company'],
+  ['table3', 'company'],
+  ['table4', 'company'],
+  ['table4_1', 'company'],
+  ['table4_2', 'company'],
+  ['table5', 'company'],
+  ['table6', 'company'],
+  ['table7', 'company'],
+  ['table7_1', 'company'],
+  ['table7_2', 'company'],
+  ['table7_3', 'company'],
+  ['table8', 'company'],
+];
+
 const TREASURY_SHARE_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', 'f63'],
   ['table3', '⑮'],
@@ -50,6 +67,7 @@ const PREVIOUS_EXTRAORDINARY_DIVIDEND_FIELDS: ReadonlyArray<readonly [TableId, s
 ];
 
 const LINKED_FIELD_GROUPS: ReadonlyArray<ReadonlyArray<readonly [TableId, string]>> = [
+  COMPANY_NAME_FIELDS,
   TREASURY_SHARE_FIELDS,
   CAPITAL_AMOUNT_FIELDS,
   ISSUED_SHARE_FIELDS,
@@ -63,6 +81,21 @@ function linkedFieldGroup(table: TableId, field: string) {
   return LINKED_FIELD_GROUPS.find((group) =>
     group.some(([targetTable, targetField]) => targetTable === table && targetField === field),
   );
+}
+
+export function updateFormField(data: FormData, table: TableId, field: string, value: string): FormData {
+  const group = linkedFieldGroup(table, field);
+  if (!group) {
+    return {
+      ...data,
+      [table]: { ...data[table], [field]: value },
+    };
+  }
+
+  return group.reduce<FormData>((next, [targetTable, targetField]) => ({
+    ...next,
+    [targetTable]: { ...next[targetTable], [targetField]: value },
+  }), data);
 }
 
 function normalizeLinkedFields(data: FormData): FormData {
@@ -93,7 +126,7 @@ function migrateTable1_1R8(data: FormData): FormData {
   };
 }
 
-function normalizeFormData(data: FormData): FormData {
+export function normalizeFormData(data: FormData): FormData {
   const completeData = Object.keys(initialFormData).reduce<FormData>((next, table) => ({
     ...next,
     [table]: { ...initialFormData[table as TableId], ...(data[table as TableId] ?? {}) },
@@ -123,20 +156,7 @@ export function useFormData() {
 
   const updateField = useCallback(
     (table: TableId, field: string, value: string) => {
-      setFormData((prev) => {
-        const group = linkedFieldGroup(table, field);
-        if (!group) {
-          return {
-            ...prev,
-            [table]: { ...prev[table], [field]: value },
-          };
-        }
-
-        return group.reduce<FormData>((next, [targetTable, targetField]) => ({
-          ...next,
-          [targetTable]: { ...next[targetTable], [targetField]: value },
-        }), prev);
-      });
+      setFormData((prev) => updateFormField(prev, table, field, value));
     },
     [],
   );

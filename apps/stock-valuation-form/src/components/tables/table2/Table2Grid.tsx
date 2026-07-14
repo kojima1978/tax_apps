@@ -221,7 +221,7 @@ function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
     { kind: 'label', text: '⑵\n比準要素数０\nの会社', top: 68.77, left: 7.9, width: 7.61, height: 7.73, align: 'left', fontSize: 7 },
     { kind: 'label', text: '判定要素', top: 68.77, left: 15.51, width: 5.88, height: 7.73 },
     { kind: 'label', text: '直　前　期　末　を　基　と　し　た　判　定　要　素', top: 68.77, left: 21.39, width: 39.97, height: 1.4 },
-    { kind: 'label', text: '第　４　表　の　１\nⒷ１　の　金　額', bottomSegments: [{ text: '（円）', width: 12.17 }, { text: '（銭）', width: 3.79 }], fontSize: 6.5, top: 70.17, left: 21.39, width: 15.96, height: 3.79 },
+    { kind: 'label', text: '第４表の１\nⒷ１の金額', bottomSegments: [{ text: '（円）', width: 12.17 }, { text: '（銭）', width: 3.79 }], fontSize: 6.5, top: 70.17, left: 21.39, width: 15.96, height: 3.79 },
     { kind: 'label', text: '第４表の１\nⒸ１の金額', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 6.5, top: 70.17, left: 37.35, width: 11.44, height: 3.79 },
     { kind: 'label', text: '第４表の１\nⒹ１の金額', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 6.5, top: 70.17, left: 48.79, width: 12.57, height: 3.79 },
     { field: 'f96', kind: 'input', readOnly: true, highlightWhen: (g) => fieldIsZero(g, 'f96'), top: 73.96, left: 21.39, width: 12.17, height: 2.54, align: 'right' },
