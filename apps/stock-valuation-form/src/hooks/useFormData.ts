@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { type FormData, type TableId, initialFormData } from '@/types/form';
 import { industryCategoryOf, similarIndustryDisplayNameOf } from '@/data/industryCategories';
 import { similarIndustryMetricValues } from '@/data/industryValuationMetrics';
+import { rolloverFormData } from './rollover';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
 
@@ -329,8 +330,27 @@ export function useFormData() {
     reader.readAsText(file);
   }, []);
 
+  /** 翌事業年度更新（実行前に現在データをJSONで自動バックアップ） */
+  const rolloverToNextYear = useCallback(() => {
+    const message = [
+      '翌事業年度への更新を行います。',
+      '',
+      '・課税時期・直前期（自/至）の年を1年進めます',
+      '・直前期の数値を直前々期へ順送りし、直前期欄を空欄にします',
+      '　（第４表の配当/利益/純資産、第７表の受取配当金等）',
+      '・第５表の金額、会社規模判定の数値、価額修正・株式に関する権利、',
+      '　類似業種の株価をクリアします（業種目番号・科目は維持）',
+      '・会社名・株主構成などの基本情報は維持します',
+      '',
+      '実行前に現在のデータをJSONファイルとして自動保存します。よろしいですか？',
+    ].join('\n');
+    if (!window.confirm(message)) return;
+    exportJson();
+    setFormData((prev) => normalizeFormData(rolloverFormData(prev)));
+  }, [exportJson]);
+
   /** Table-scoped selector — stable reference per table while that table's data is unchanged */
   const tableData = useMemo(() => formData, [formData]);
 
-  return { formData, tableData, updateField, getField, resetAll, exportJson, importJson };
+  return { formData, tableData, updateField, getField, resetAll, exportJson, importJson, rolloverToNextYear };
 }

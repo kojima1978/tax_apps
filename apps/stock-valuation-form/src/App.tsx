@@ -46,7 +46,7 @@ const PRINT_PREPARE_DELAY_MS = 80;
 export default function App() {
   const [activeTab, setActiveTab] = useState<TableId>('table1_1');
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
-  const { formData, getField, updateField, resetAll, exportJson, importJson } = useFormData();
+  const { formData, getField, updateField, resetAll, exportJson, importJson, rolloverToNextYear } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
   const printRequestedRef = useRef(false);
   const printAll = printTarget === 'all';
@@ -189,6 +189,7 @@ export default function App() {
           {([
             { label: '保存 (JSON)', onClick: exportJson, title: 'Ctrl+S' },
             { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
+            { label: '翌年度更新', onClick: rolloverToNextYear, title: '直前期の数値を直前々期へ順送りして翌事業年度の評価に移行します（実行前に自動バックアップ）' },
             { label: '全表印刷', onClick: openPrintDialog },
             { label: '現在の表を印刷', onClick: () => requestPrint('current') },
             { label: '全データリセット', onClick: resetAll, danger: true },
