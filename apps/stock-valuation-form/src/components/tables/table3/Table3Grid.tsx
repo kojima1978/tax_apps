@@ -66,7 +66,7 @@ const CELLS: GridCell[] = [
   { field: '①', kind: 'input', readOnly: true, jumpTo: { tab: 'table4', field: '㉖', hint: 'クリックで転記元（第４表の類似業種比準価額）へ移動します' }, top: 18.23, left: 19.34, width: 23.45, height: 2.6, align: 'right' },
   { field: '②', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑪', hint: 'クリックで転記元（第５表の⑪・1株当たりの純資産価額）へ移動します' }, top: 18.23, left: 42.79, width: 23.29, height: 2.6, align: 'right' },
   { field: '③', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑫', hint: 'クリックで転記元（第５表の⑫・1株当たりの純資産価額の80％相当額）へ移動します' }, top: 18.23, left: 66.08, width: 26.26, height: 2.6, align: 'right' },
-  { kind: 'label', text: '1株当たりの価額の計算', verticalSectionHeading: { number: '1', text: '株当たりの価額の計算', compact: true }, top: 20.83, left: 10.27, width: 1.82, height: 13.13 },
+  { kind: 'label', text: '１株当たりの価額の計算', verticalSectionHeading: { number: '１', text: '株当たりの価額の計算', compact: true }, top: 20.83, left: 10.27, width: 1.82, height: 13.13 },
   { kind: 'label', text: '区　分', top: 20.83, left: 12.09, width: 7.25, height: 2.13 },
   { kind: 'label', text: '１ 株 当 た り の 価 額 の 算 定 方 法 等', top: 20.83, left: 19.34, width: 52.26, height: 2.13 },
   { kind: 'label', text: '１株当たりの価額', bottomLabel: '（円）', bottomLabelAlign: 'right', top: 20.83, left: 71.6, width: 20.74, height: 2.13, fontSize: 7 },

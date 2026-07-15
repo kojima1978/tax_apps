@@ -86,7 +86,7 @@ const CELLS: GridCell[] = [
   { field: '⑨', kind: 'input', readOnly: true, top: 54.7, left: 14.38, width: 15.47, height: 3.33, align: 'right' },
   { kind: 'label', text: '円', top: 54.7, left: 29.85, width: 1.94, height: 3.33, fontSize: 7 },
   { kind: 'cell', codeLabel: 'G06', top: 54.7, left: 31.79, width: 1.93, height: 3.33 },
-  { field: '⑩', kind: 'input', commaInteger: true, top: 54.7, left: 33.72, width: 15.63, height: 3.33, align: 'right' },
+  { field: '⑩', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: 'ロ', hint: 'クリックで転記元（第５表の㋺・株式等の帳簿価額の合計額）へ移動します' }, top: 54.7, left: 33.72, width: 15.63, height: 3.33, align: 'right' },
   { kind: 'label', text: '千円', forceVertical: true, align: 'center', top: 54.7, left: 49.35, width: 1.94, height: 3.33, fontSize: 7 },
   { kind: 'cell', codeLabel: 'G07', top: 54.7, left: 51.29, width: 1.93, height: 3.33 },
   { field: '⑪', kind: 'input', commaInteger: true, top: 54.7, left: 53.22, width: 15.48, height: 3.33, align: 'right' },
@@ -138,7 +138,7 @@ export function Table7_1Grid({ getField, updateField, onJump }: TableProps) {
       case '⑦': return fmt(c.lowerC);
       case '⑧': return fmt(c.adjC);
       case '⑨': return fmt(c.Dv);
-      case '⑩': return raw('⑩').trim() !== '' ? raw('⑩') : fmt(c.kabuBook);
+      case '⑩': return fmt(c.kabuBook);
       case '⑪': return raw('⑪').trim() !== '' ? raw('⑪') : fmt(c.totalBook);
       case '⑫': return fmt(c.iKin);
       case '⑬': return fmt(c.ekiseki);

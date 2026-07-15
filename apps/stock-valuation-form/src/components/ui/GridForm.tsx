@@ -647,7 +647,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
               : c.kind === 'label' && c.verticalSectionHeading ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%' }}>
                   {c.verticalSectionHeading.compact ? (
-                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, writingMode: 'vertical-rl' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, writingMode: 'vertical-rl', textOrientation: 'upright' }}>
                       {`${c.verticalSectionHeading.number}${c.verticalSectionHeading.text}`.replace(/[ 　]/g, '')}
                     </span>
                   ) : (

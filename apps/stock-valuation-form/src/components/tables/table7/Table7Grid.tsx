@@ -190,7 +190,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '直前期末の総資産価額\n(帳簿価額）', top: 28.75, left: 55.97, width: 18, height: 3.28 },
   { kind: 'label', text: '（イ）の金額\n（⑨×（⑩÷⑪））', top: 28.85, left: 73.83, width: 16.91, height: 3.28 },
   { field: '⑨', kind: 'input', readOnly: true, jumpTo: { tab: 'table4', field: 'D', hint: 'クリックで転記元（第４表 Ⓓ・1株当たりの純資産価額）へ移動します' }, top: 31.93, left: 21.6, width: 16.78, height: 2.8 },
-  { field: '⑩', kind: 'input', top: 31.93, left: 38.24, width: 18, height: 2.89 },
+  { field: '⑩', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: 'ロ', hint: 'クリックで転記元（第５表の㋺・株式等の帳簿価額の合計額）へ移動します' }, top: 31.93, left: 38.24, width: 18, height: 2.89 },
   { field: '⑪', kind: 'input', top: 31.84, left: 55.97, width: 18.14, height: 2.89 },
   { field: '⑫', kind: 'input', readOnly: true, top: 31.84, left: 73.83, width: 16.91, height: 2.89 },
   { kind: 'label', text: '（ロ）の金額', top: 34.63, left: 19.28, width: 2.73, height: 6.65 },
@@ -293,7 +293,7 @@ export function calcTable7(getField: TableProps['getField']) {
 
   // Ⓓ－ⓓ（純資産・円）
   const Dv = t4.Dv;                                                          // ⑨ 第4表Ⓓ
-  const kabuBook: number | null = num('⑩') ?? t5['ロ'] ?? null;             // ⑩ 株式等帳簿価額（第5表ロ）
+  const kabuBook: number | null = t5['ロ'] ?? null;                         // ⑩ 株式等帳簿価額（第5表ロ・直接連動）
   const totalBook: number | null = num('⑪') ?? t5['②'] ?? null;            // ⑪ 総資産帳簿価額（第5表②）
   const iKin = Dv !== null && kabuBook !== null && totalBook !== null && totalBook > 0
     ? fl(Dv * (kabuBook / totalBook)) : null;                                // ⑫ (イ)
@@ -360,7 +360,7 @@ export function Table7Grid({ getField, updateField, onJump }: TableProps) {
       case '⑦': return fmt(c.lowerC);
       case '⑧': return fmt(c.adjC);
       case '⑨': return fmt(c.Dv);
-      case '⑩': return raw('⑩').trim() !== '' ? raw('⑩') : fmt(c.kabuBook);
+      case '⑩': return fmt(c.kabuBook);
       case '⑪': return raw('⑪').trim() !== '' ? raw('⑪') : fmt(c.totalBook);
       case '⑫': return fmt(c.iKin);
       case '⑬': return fmt(c.ekiseki);

@@ -56,7 +56,7 @@ const CELLS: GridCell[] = [
   { field: '②', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑪', hint: 'クリックで転記元（第５表の⑪・1株当たりの純資産価額）へ移動します' }, top: 17.81, left: 43.27, width: 23.05, height: 2.65, align: 'right' },
   { field: '③', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑫', hint: 'クリックで転記元（第５表の⑫・1株当たりの純資産価額の80％相当額）へ移動します' }, top: 17.81, left: 66.32, width: 26.11, height: 2.65, align: 'right' },
   // 区分テーブル
-  { kind: 'label', text: '１株当たりの価額の計算', verticalSectionHeading: { number: '1', text: '株当たりの価額の計算', compact: true }, top: 20.46, left: 10.76, width: 2.62, height: 16.12 },
+  { kind: 'label', text: '１株当たりの価額の計算', verticalSectionHeading: { number: '１', text: '株当たりの価額の計算', compact: true }, top: 20.46, left: 10.76, width: 2.62, height: 16.12 },
   { kind: 'label', text: '株 式 の 区 分', top: 20.46, left: 13.38, width: 13.41, height: 1.82 },
   { kind: 'label', text: '１ 株 当 た り の 価 額 の 算 定 方 法 等', top: 20.46, left: 26.79, width: 43.19, height: 1.82 },
   { kind: 'label', text: '１株当たりの価額', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 7, top: 20.46, left: 69.98, width: 22.45, height: 1.82 },

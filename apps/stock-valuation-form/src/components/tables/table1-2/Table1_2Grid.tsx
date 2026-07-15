@@ -164,19 +164,19 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
     // ㋬納税義務者が中心的な同族株主
     { kind: 'label', text: '㋬　納税義務者が中心的な同族株主', top: 22.88, left: 11, width: 30.3, height: 2.7, align: 'left' },
     { kind: 'cell', codeLabel: 'G03', top: 22.88, left: 41.3, width: 1.89, height: 2.7 },
-    { field: 'j1_cs_yes', kind: 'input', readOnly: true, ariaLabel: '中心的な同族株主である（該当時は１）', highlightWhen: (g) => g('j_chushin_self') === 'yes', top: 22.88, left: 43.19, width: 1.89, height: 2.7, align: 'center' },
-    { kind: 'label', text: 'である　（原則的評価方式等）', selectValue: { field: 'j_chushin_self', value: 'yes' }, highlightWhen: (g) => g('j_chushin_self') === 'yes', top: 22.88, left: 45.08, width: 20.83, height: 2.7 },
+    { field: 'j1_cs_yes', kind: 'input', readOnly: true, ariaLabel: '中心的な同族株主である（該当時は１）', highlightWhen: (g) => judge.chushinSelfActive && g('j_chushin_self') === 'yes', top: 22.88, left: 43.19, width: 1.89, height: 2.7, align: 'center' },
+    { kind: 'label', text: 'である　（原則的評価方式等）', selectValue: judge.chushinSelfActive ? { field: 'j_chushin_self', value: 'yes' } : undefined, highlightWhen: (g) => judge.chushinSelfActive && g('j_chushin_self') === 'yes', top: 22.88, left: 45.08, width: 20.83, height: 2.7 },
     { kind: 'cell', codeLabel: 'G04', top: 22.88, left: 65.91, width: 1.9, height: 2.7 },
-    { field: 'j1_cs_no', kind: 'input', readOnly: true, ariaLabel: '中心的な同族株主でない（該当時は１）', highlightWhen: (g) => g('j_chushin_self') === 'no', top: 22.88, left: 67.81, width: 1.89, height: 2.7, align: 'center' },
-    { kind: 'label', text: 'でない　（次の㋣へ）', selectValue: { field: 'j_chushin_self', value: 'no' }, highlightWhen: (g) => g('j_chushin_self') === 'no', top: 22.88, left: 69.7, width: 20.83, height: 2.7 },
+    { field: 'j1_cs_no', kind: 'input', readOnly: true, ariaLabel: '中心的な同族株主でない（該当時は１）', highlightWhen: (g) => judge.chushinSelfActive && g('j_chushin_self') === 'no', top: 22.88, left: 67.81, width: 1.89, height: 2.7, align: 'center' },
+    { kind: 'label', text: 'でない　（次の㋣へ）', selectValue: judge.chushinSelfActive ? { field: 'j_chushin_self', value: 'no' } : undefined, highlightWhen: (g) => judge.chushinSelfActive && g('j_chushin_self') === 'no', top: 22.88, left: 69.7, width: 20.83, height: 2.7 },
     // ㋣納税義務者以外に中心的な同族株主（又は株主）
     { kind: 'label', text: '㋣　納税義務者以外に中心的な同族株主（又は株主）', fontSize: 7, top: 25.58, left: 11, width: 30.3, height: 2.71, align: 'left' },
     { kind: 'cell', codeLabel: 'G05', top: 25.58, left: 41.3, width: 1.89, height: 2.71 },
-    { field: 'j1_co_no', kind: 'input', readOnly: true, ariaLabel: '中心的な同族株主がいない（該当時は１）', highlightWhen: (g) => g('j_chushin_other') === 'no', top: 25.58, left: 43.19, width: 1.89, height: 2.71, align: 'center' },
-    { kind: 'label', text: 'がいない（原則的評価方式等）', selectValue: { field: 'j_chushin_other', value: 'no' }, highlightWhen: (g) => g('j_chushin_other') === 'no', top: 25.58, left: 45.08, width: 20.83, height: 2.71 },
+    { field: 'j1_co_no', kind: 'input', readOnly: true, ariaLabel: '中心的な同族株主がいない（該当時は１）', highlightWhen: (g) => judge.chushinOtherActive && g('j_chushin_other') === 'no', top: 25.58, left: 43.19, width: 1.89, height: 2.71, align: 'center' },
+    { kind: 'label', text: 'がいない（原則的評価方式等）', selectValue: judge.chushinOtherActive ? { field: 'j_chushin_other', value: 'no' } : undefined, highlightWhen: (g) => judge.chushinOtherActive && g('j_chushin_other') === 'no', top: 25.58, left: 45.08, width: 20.83, height: 2.71 },
     { kind: 'cell', codeLabel: 'G06', top: 25.58, left: 65.91, width: 1.9, height: 2.71 },
-    { field: 'j1_co_yes', kind: 'input', readOnly: true, ariaLabel: '中心的な同族株主がいる（該当時は１）', highlightWhen: (g) => g('j_chushin_other') === 'yes', top: 25.58, left: 67.81, width: 1.89, height: 2.71, align: 'center' },
-    { kind: 'label', text: 'がいる　（配当還元方式）', selectValue: { field: 'j_chushin_other', value: 'yes' }, highlightWhen: (g) => g('j_chushin_other') === 'yes', top: 25.58, left: 69.7, width: 20.83, height: 2.71 },
+    { field: 'j1_co_yes', kind: 'input', readOnly: true, ariaLabel: '中心的な同族株主がいる（該当時は１）', highlightWhen: (g) => judge.chushinOtherActive && g('j_chushin_other') === 'yes', top: 25.58, left: 67.81, width: 1.89, height: 2.71, align: 'center' },
+    { kind: 'label', text: 'がいる　（配当還元方式）', selectValue: judge.chushinOtherActive ? { field: 'j_chushin_other', value: 'yes' } : undefined, highlightWhen: (g) => judge.chushinOtherActive && g('j_chushin_other') === 'yes', top: 25.58, left: 69.7, width: 20.83, height: 2.71 },
     // 中心的な同族株主の氏名
     { kind: 'label', text: '中心的な同族株主（又は株主）がいる場合は、\nその同族株主（又は株主）の氏名', fontSize: 7, top: 28.29, left: 11, width: 32.19, height: 2.71 },
     { field: 'j_chushin_name', kind: 'input', top: 28.29, left: 43.19, width: 47.34, height: 2.71, align: 'left' },
@@ -250,7 +250,7 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
     // 脚注
     { kind: 'label', text: '・　「会社規模とＬの割合（中会社）の区分」欄は、㋻欄の区分（「総資産価額（帳簿価額）」と「従業員数」とのいずれか下位の区分）と㋕欄（取引金額）の区分とのいずれか上位の区分により判定します。', fontSize: 7, top: 77.98, left: 11, width: 79.53, height: 2.62, align: 'left' },
     // ── 判定 ──
-    { kind: 'label', text: '判\n定', top: 80.6, left: 9.11, width: 1.89, height: 5.55, align: 'center' },
+    { kind: 'label', text: '判定', forceVertical: true, top: 80.6, left: 9.11, width: 1.89, height: 5.55, align: 'center' },
     { kind: 'cell', codeLabel: 'G50', top: 80.6, left: 11, width: 1.89, height: 5.55 },
     { field: 'k_res4', kind: 'input', readOnly: true, ariaLabel: '判定：大会社（該当時は１）', highlightWhen: resHL(4), top: 80.6, left: 12.89, width: 1.9, height: 5.55, align: 'center' },
     { kind: 'label', text: '大　会　社', highlightWhen: resHL(4), top: 80.6, left: 14.79, width: 9.46, height: 5.55 },
@@ -297,10 +297,10 @@ export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
       case 'f28': return formatEmployee(employee.total);
       case 'j1_yakuin_yes': return mark(judge.officer === true);
       case 'j1_yakuin_no': return mark(judge.officer === false);
-      case 'j1_cs_yes': return mark(raw('j_chushin_self') === 'yes');
-      case 'j1_cs_no': return mark(raw('j_chushin_self') === 'no');
-      case 'j1_co_no': return mark(raw('j_chushin_other') === 'no');
-      case 'j1_co_yes': return mark(raw('j_chushin_other') === 'yes');
+      case 'j1_cs_yes': return mark(judge.chushinSelfActive && raw('j_chushin_self') === 'yes');
+      case 'j1_cs_no': return mark(judge.chushinSelfActive && raw('j_chushin_self') === 'no');
+      case 'j1_co_no': return mark(judge.chushinOtherActive && raw('j_chushin_other') === 'no');
+      case 'j1_co_yes': return mark(judge.chushinOtherActive && raw('j_chushin_other') === 'yes');
       case 'j1_res_gensoku': return mark(judge.shosuResult === 'gensoku');
       case 'j1_res_haito': return mark(judge.shosuResult === 'haito');
       case 'w_emp70': return mark(size.emp !== null && size.emp >= 70);

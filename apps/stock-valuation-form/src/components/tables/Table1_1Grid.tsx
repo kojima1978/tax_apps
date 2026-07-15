@@ -206,6 +206,9 @@ export function calcShareholderJudgment(getField: TableProps['getField']) {
   const officer = manualOfficer === 'yes' ? true : manualOfficer === 'no' ? false : roleCodeVal === '' ? null : Number(roleCodeVal) <= 15;
   const chushinSelf = g2('j_chushin_self');    // 納税義務者が中心的な同族株主: yes→原則 / no→次へ
   const chushinOther = g2('j_chushin_other');  // 他に中心的な同族株主(株主): yes(がいる)→配当還元 / no(がいない)→原則
+  // 上位の判定で結論が出た場合、下位の判定要素は参照しない。
+  const chushinSelfActive = shosuApplies && officer === false;
+  const chushinOtherActive = chushinSelfActive && chushinSelf === 'no';
   let shosuResult: 'gensoku' | 'haito' | null = null;
   if (shosuApplies) {
     if (officer === true) shosuResult = 'gensoku';
@@ -225,7 +228,18 @@ export function calcShareholderJudgment(getField: TableProps['getField']) {
   else if (!shosuApplies) isDozokuFinal = true; // 同族株主等かつ5%以上→原則
   else isDozokuFinal = shosuResult === 'gensoku' ? true : shosuResult === 'haito' ? false : null;
 
-  return { ratio5, ratio6, isDozoku, indivRatio, shosuApplies, officer, shosuResult, isDozokuFinal };
+  return {
+    ratio5,
+    ratio6,
+    isDozoku,
+    indivRatio,
+    shosuApplies,
+    officer,
+    chushinSelfActive,
+    chushinOtherActive,
+    shosuResult,
+    isDozokuFinal,
+  };
 }
 
 // ── 和暦日付の4列プルダウン（元号｜年｜月｜日を様式の列に合わせて分割） ──

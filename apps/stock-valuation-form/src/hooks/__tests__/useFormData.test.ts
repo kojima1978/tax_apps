@@ -50,6 +50,36 @@ describe('normalizeFormData company name linkage', () => {
   });
 });
 
+describe('table 1-2 minority shareholder judgment', () => {
+  it('clears ㋬ and ㋣ when ㋭ determines the standard valuation method', () => {
+    const data: FormData = {
+      ...initialFormData,
+      table1_2: { j_yakuin: 'no', j_chushin_self: 'no', j_chushin_other: 'yes' },
+    };
+    const updated = updateFormField(data, 'table1_2', 'j_yakuin', 'yes');
+
+    expect(updated.table1_2).toMatchObject({
+      j_yakuin: 'yes',
+      j_chushin_self: '',
+      j_chushin_other: '',
+    });
+  });
+
+  it('clears ㋣ when ㋬ determines the standard valuation method', () => {
+    const data: FormData = {
+      ...initialFormData,
+      table1_2: { j_yakuin: 'no', j_chushin_self: 'no', j_chushin_other: 'yes' },
+    };
+    const updated = updateFormField(data, 'table1_2', 'j_chushin_self', 'yes');
+
+    expect(updated.table1_2).toMatchObject({
+      j_yakuin: 'no',
+      j_chushin_self: 'yes',
+      j_chushin_other: '',
+    });
+  });
+});
+
 describe('table 1-1 industry linkage', () => {
   it('fills the business description when an industry number is selected', () => {
     const updated = updateFormField(initialFormData, 'table1_1', 'f23', '3');

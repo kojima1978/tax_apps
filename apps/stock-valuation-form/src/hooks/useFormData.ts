@@ -141,6 +141,28 @@ function linkedFieldGroup(table: TableId, field: string) {
 }
 
 export function updateFormField(data: FormData, table: TableId, field: string, value: string): FormData {
+  if (table === 'table1_2' && field === 'j_yakuin') {
+    return {
+      ...data,
+      table1_2: {
+        ...data.table1_2,
+        [field]: value,
+        ...(value === 'yes' ? { j_chushin_self: '', j_chushin_other: '' } : {}),
+      },
+    };
+  }
+
+  if (table === 'table1_2' && field === 'j_chushin_self') {
+    return {
+      ...data,
+      table1_2: {
+        ...data.table1_2,
+        [field]: value,
+        ...(value === 'yes' ? { j_chushin_other: '' } : {}),
+      },
+    };
+  }
+
   const linkedIndustryField = table === 'table1_1' ? INDUSTRY_FIELD_LINKS[field] : undefined;
   if (linkedIndustryField) {
     return {

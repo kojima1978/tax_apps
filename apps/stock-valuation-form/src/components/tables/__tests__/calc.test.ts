@@ -5,6 +5,7 @@ import { calcShareholderJudgment } from '../Table1_1Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import { calcTable8 } from '../table8/Table8Grid';
+import { calcTable7 } from '../table7/Table7Grid';
 
 // 各表のフィールド値を与えると getField を返すモックビルダー（(table, field) 形式）
 type Data = Partial<Record<TableId, Record<string, string>>>;
@@ -67,6 +68,20 @@ describe('calcShareholderJudgment（第1表の1：株主判定＋少数株式所
     }));
     expect(j.shosuApplies).toBe(true);
     expect(j.officer).toBe(true);
+    expect(j.chushinSelfActive).toBe(false);
+    expect(j.chushinOtherActive).toBe(false);
+    expect(j.shosuResult).toBe('gensoku');
+    expect(j.isDozokuFinal).toBe(true);
+  });
+
+  it('区分2：㋬で原則的評価方式等なら㋣の保存値を参照しない', () => {
+    const j = calcShareholderJudgment(mkGetField({
+      table1_1: { sh_1_5: '40', sh_2_5: '560', '⑥': '1000', '③': '600', sh_1_3: '取締役（平）' },
+      table1_2: { j_chushin_self: 'yes', j_chushin_other: 'yes' },
+    }));
+
+    expect(j.chushinSelfActive).toBe(true);
+    expect(j.chushinOtherActive).toBe(false);
     expect(j.shosuResult).toBe('gensoku');
     expect(j.isDozokuFinal).toBe(true);
   });
@@ -133,6 +148,17 @@ describe('calcTable2（第2表：特定の評価会社の判定／通達189）',
     const c = calcTable2(mkGetField({}));
     expect(c.j.s2).toBeNull();
     expect(c.result).toBe(0);
+  });
+});
+
+describe('calcTable7（第7表の1：第5表との連動）', () => {
+  it('⑩は保存済みの値より第5表㋺の金額を優先する', () => {
+    const c = calcTable7(mkGetField({
+      table5: { a_1_1: '株式', a_1_2: '30000', a_1_3: '50000', a_1_4: '株式等' },
+      table7: { '⑩': '999999' },
+    }));
+
+    expect(c.kabuBook).toBe(50000);
   });
 });
 
