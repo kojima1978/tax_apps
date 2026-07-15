@@ -171,7 +171,7 @@ export function updateFormField(data: FormData, table: TableId, field: string, v
       table1_1: {
         ...data.table1_1,
         [field]: value,
-        [linkedIndustryField]: industryCategoryOf(value)?.内容 ?? '',
+        [linkedIndustryField]: industryCategoryOf(value)?.名前 ?? '',
       },
     };
   }
@@ -230,7 +230,7 @@ function normalizeIndustryFields(data: FormData): FormData {
       const number = table[numberField] ?? '';
       return {
         ...table,
-        [contentField]: industryCategoryOf(number)?.内容 ?? '',
+        [contentField]: industryCategoryOf(number)?.名前 ?? '',
       };
     },
     data.table1_1,

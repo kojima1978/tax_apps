@@ -81,22 +81,24 @@ describe('table 1-2 minority shareholder judgment', () => {
 });
 
 describe('table 1-1 industry linkage', () => {
-  it('fills the business description when an industry number is selected', () => {
+  it('fills the industry name when an industry number is selected', () => {
     const updated = updateFormField(initialFormData, 'table1_1', 'f23', '3');
 
     expect(updated.table1_1.f23).toBe('3');
-    expect(updated.table1_1.f22).toBe(
-      '鉄骨鉄筋コンクリート造建築物、鉄筋コンクリート造建築物、無筋コンクリート造建築物及び鉄骨造建築物等の完成を請け負うもの',
-    );
+    expect(updated.table1_1.f22).toBe('建築工事業（木造建築工事業を除く）');
+  });
+
+  it('fills the large-category name even when its content is blank', () => {
+    const updated = updateFormField(initialFormData, 'table1_1', 'f23', '1');
+
+    expect(updated.table1_1.f22).toBe('建設業');
   });
 
   it('updates and clears the linked description together with the industry number', () => {
     const selected = updateFormField(initialFormData, 'table1_1', 'f26', '54');
     const cleared = updateFormField(selected, 'table1_1', 'f26', '');
 
-    expect(selected.table1_1.f25).toBe(
-      '受託開発ソフトウェア業、組込みソフトウェア業、パッケージソフトウェア業及びゲームソフトウェア業を営むもの',
-    );
+    expect(selected.table1_1.f25).toBe('ソフトウェア業');
     expect(cleared.table1_1.f26).toBe('');
     expect(cleared.table1_1.f25).toBe('');
   });
@@ -107,7 +109,7 @@ describe('table 1-1 industry linkage', () => {
       table1_1: { f29: '115', f28: '古い内容' },
     });
 
-    expect(normalized.table1_1.f28).toBe('１から114に該当するもの以外のもの');
+    expect(normalized.table1_1.f28).toBe('その他の産業');
   });
 });
 
