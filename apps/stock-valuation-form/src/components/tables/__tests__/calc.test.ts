@@ -6,6 +6,7 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import { calcTable8 } from '../table8/Table8Grid';
 import { calcTable7 } from '../table7/Table7Grid';
+import { calcTable4 } from '../table4/Table4Grid';
 
 // 各表のフィールド値を与えると getField を返すモックビルダー（(table, field) 形式）
 type Data = Partial<Record<TableId, Record<string, string>>>;
@@ -199,5 +200,82 @@ describe('calcTable8（第8表：S1の続き・S2・株式の価額／第5表と
     }));
     expect(c2.v20).toBe(0); // 相続税評価額30000 < 帳簿価額50000 → 0
     expect(c2.v21).toBe(0);
+  });
+});
+
+describe('医療法人（持分あり）の評価（評価通達194-2：配当要素Ⓑを除外）', () => {
+  // ①資本金等10,000千円 → ⑤=200,000株、per50=金額×1000÷200,000
+  // 利益 e18=10,000千円 → Ⓒ=50円、純資産 n53=30,000千円 → Ⓓ=(10,000+30,000)×1000÷200,000=200円
+  const base = {
+    table1_1: { medical: '1', '⑤': '200000' },
+    table4: {
+      '①': '10,000', '②': '200000',
+      e18: '10,000', n53: '30,000',
+      r1sB1: '10', r1sB2: '80', r1sC: '25', r1sD: '100',
+      f28: '1,000', f32: '1,000', // 配当を入力しても医療法人ではⒷに反映しない
+    },
+  };
+
+  it('Ⓑ1/Ⓑ2/Ⓑは記載しない（null）、比準割合は（Ⓒ/C＋Ⓓ/D）÷2', () => {
+    const c = calcTable4(mkGetField(base));
+    expect(c.b1).toBeNull();
+    expect(c.b2).toBeNull();
+    expect(c.Bv).toBeNull();
+    expect(c.e1B).toBeNull();
+    expect(c.e1C).toBe(2);   // 50÷25
+    expect(c.e1D).toBe(2);   // 200÷100
+    expect(c.r21).toBe(2);   // (2＋2)÷2
+  });
+
+  it('通常モードでは同じ入力で比準割合は3要素÷3（配当ありならⒷも分子に）', () => {
+    const normal = { ...base, table1_1: { ...base.table1_1, medical: '' } };
+    const c = calcTable4(mkGetField(normal));
+    expect(c.b1).not.toBeNull(); // 配当1,000千円が反映される
+    // e1B=Ⓑ(2.5円)÷B(10.8?)…ここではB=10円80銭入力 → 2.5/10.8=0.23
+    expect(c.r21).not.toBeNull();
+    expect(c.r21).not.toBe(2);
+  });
+
+  it('比準要素数1の判定はC・Dの2要素で行う（いずれか1つが0）', () => {
+    const g = mkGetField({
+      table1_1: { medical: '1', '⑤': '200000' },
+      table4: {
+        '①': '10,000', '②': '200000',
+        e18: '0', e25: '0',            // 利益0 → C1=C2=0
+        n53: '30,000', n56: '10,000', n57: '30,000', // 純資産あり → D1,D2>0
+        r1sC: '25', r1sD: '100',
+      },
+      table5: {},
+    });
+    const c = calcTable2(g);
+    expect(c.j.s1).toBe(true);  // 医療法人: C1=0（1つ）かつ C2=0（1つ以上）→比準要素数1
+  });
+
+  it('同じ入力でも通常モードなら比準要素数1に該当しない（0が2つ必要）', () => {
+    const g = mkGetField({
+      table1_1: { '⑤': '200000' },
+      table4: {
+        '①': '10,000', '②': '200000',
+        f28: '0', f32: '0', f36: '0',  // 配当0 → B1=B2=0
+        e18: '0', e25: '0',
+        n53: '30,000', n56: '10,000', n57: '30,000',
+        r1sC: '25', r1sD: '100',
+      },
+      table5: {},
+    });
+    const c = calcTable2(g);
+    // 通常: B1=0,C1=0（2つ）かつ B2=0,C2=0（2以上）→ 該当する（対照として medical との差を確認）
+    expect(c.j.s1).toBe(true);
+    const cMedical = calcTable2(mkGetField({
+      table1_1: { medical: '1', '⑤': '200000' },
+      table4: {
+        '①': '10,000', '②': '200000',
+        e18: '10,000', e25: '10,000',  // 利益あり → C1,C2>0
+        n53: '30,000', n56: '10,000', n57: '30,000',
+        r1sC: '25', r1sD: '100',
+      },
+      table5: {},
+    }));
+    expect(cMedical.j.s1).toBe(false); // C・Dとも0でない → 非該当
   });
 });

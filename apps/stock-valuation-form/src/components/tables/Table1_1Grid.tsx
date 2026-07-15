@@ -688,6 +688,16 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   } as const);
   const toolbar = (
     <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 3, marginRight: 8, cursor: 'pointer' }} title="持分の定めのある医療法人の出資を評価する場合にチェック（評価通達194-2）。類似業種比準は配当要素を除いた（Ⓒ/C＋Ⓓ/D）÷2で計算し、配当還元方式は適用しません">
+        <input
+          id="table1_1-medical"
+          name="table1_1.medical"
+          type="checkbox"
+          checked={getField(T, 'medical') === '1'}
+          onChange={(e) => updateField(T, 'medical', e.target.checked ? '1' : '')}
+        />
+        医療法人（持分あり）
+      </label>
       <span>続紙</span>
       <button type="button" onClick={addShPage} disabled={!canAdd} title={canAdd ? '続紙を追加（株主13名分）' : '続紙は1枚までです'} style={btnStyle(canAdd)}>追加</button>
       <button type="button" onClick={removeShPage} disabled={!canRemove} title={canRemove ? '続紙を削除' : '続紙はありません'} style={btnStyle(canRemove)}>削除</button>

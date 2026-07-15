@@ -269,14 +269,16 @@ export function calcTable2(getField: TableProps['getField']) {
   const sizeRank = calcCompanySize((f) => getField('table1_2', f)).result;
 
   // 1. 比準要素数1（⑴のいずれか2が0かつ⑵の2以上が0。⑴がいずれも0なら比準要素数0=4⑵）
-  const set1 = [t4.b1, t4.c1, t4.d1];
-  const set2 = [t4.b2, t4.c2, t4.d2];
+  // 医療法人（持分あり）は配当要素Ⓑを除いた2要素（C・D）で判定する（評価通達194-2）
+  const medical = getField('table1_1', 'medical') === '1';
+  const set1 = medical ? [t4.c1, t4.d1] : [t4.b1, t4.c1, t4.d1];
+  const set2 = medical ? [t4.c2, t4.d2] : [t4.b2, t4.c2, t4.d2];
   const allKnown = (vs: (number | null)[]) => vs.every((v) => v !== null);
   const zeros = (vs: (number | null)[]) => vs.filter((v) => v === 0).length;
   const z1 = allKnown(set1) ? zeros(set1) : null;
   const z2 = allKnown(set2) ? zeros(set2) : null;
-  const s1 = z1 === null || z2 === null ? null : z1 === 2 && z2 >= 2;
-  const s4b = z1 === null ? null : z1 === 3;
+  const s1 = z1 === null || z2 === null ? null : medical ? z1 === 1 && z2 >= 1 : z1 === 2 && z2 >= 2;
+  const s4b = z1 === null ? null : medical ? z1 === 2 : z1 === 3;
 
   // 2. 株式等保有特定会社（③=②/①、1%未満切捨て、50%以上で該当）
   const a01 = t5['①'] ?? null;

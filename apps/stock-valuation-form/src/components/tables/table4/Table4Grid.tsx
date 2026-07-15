@@ -329,13 +329,17 @@ export function calcTable4(getField: TableProps['getField']) {
   const cap5 = cap !== null ? fl(cap * 20) : null; // ⑤株 = ①×1000÷50
   const per50 = (kc: number | null) => (kc !== null && cap5 !== null && cap5 > 0 ? (kc * 1000) / cap5 : null); // 千円→1株50円当たり円
 
-  // 2. 配当（⑧=⑥-⑦, ⑨⑩=2年平均, B=10銭未満切捨て）
+  // 医療法人（持分あり）: 剰余金の配当が禁止のため配当要素（Ⓑ/B）を除外して評価する
+  // （評価通達194-2。第1表の1のチェックで切替）
+  const medical = getField('table1_1', 'medical') === '1';
+
+  // 2. 配当（⑧=⑥-⑦, ⑨⑩=2年平均, B=10銭未満切捨て）。医療法人はⒷ1/Ⓑ2/Ⓑを記載しない
   const sub = (a: string, b: string) => { const x = num(a); return x === null ? null : x - (num(b) ?? 0); };
   const i1 = sub('f28', 'f29'), i2 = sub('f32', 'f33'), i3 = sub('f36', 'f37');
   const avg = (a: number | null, b: number | null) => (a !== null && b !== null ? (a + b) / 2 : null);
   const v9 = avg(i1, i2), v10 = avg(i2, i3);
-  const b1 = per50(v9) !== null ? fl10sen(per50(v9)!) : null;
-  const b2 = per50(v10) !== null ? fl10sen(per50(v10)!) : null;
+  const b1 = medical ? null : per50(v9) !== null ? fl10sen(per50(v9)!) : null;
+  const b2 = medical ? null : per50(v10) !== null ? fl10sen(per50(v10)!) : null;
   const Bv = b1;
 
   // 2. 利益（⑯=⑪-⑫+⑬-⑭+⑮, C=単年と2年平均の低い方・円未満切捨て）
@@ -384,7 +388,12 @@ export function calcTable4(getField: TableProps['getField']) {
   const A2 = minOf(['㋕', '㋵', '㋟', '㋹', '㋞']);
   const senPair = (y: string, s: string) => { const a = num(y); return a === null ? null : a + (num(s) ?? 0) / 100; };
   const elem = (v: number | null, base: number | null) => (v !== null && base !== null && base > 0 ? fl2(v / base) : null);
-  const ratio3 = (a: number | null, b: number | null, c: number | null) => (a !== null && b !== null && c !== null ? fl2((a + b + c) / 3) : null);
+  // 比準割合: 通常は（Ⓑ/B＋Ⓒ/C＋Ⓓ/D）÷3。医療法人は配当要素を除いた（Ⓒ/C＋Ⓓ/D）÷2
+  const ratio3 = (a: number | null, b: number | null, c: number | null) => (
+    medical
+      ? (b !== null && c !== null ? fl2((b + c) / 2) : null)
+      : (a !== null && b !== null && c !== null ? fl2((a + b + c) / 3) : null)
+  );
   // 斟酌率: 第1表の2の会社規模から自動連動（大0.7/中0.6/小0.5）
   const size = calcCompanySize((f) => getField('table1_2', f)).result;
   const shin = size === null ? null : size === 4 ? 0.7 : size === 0 ? 0.5 : 0.6;

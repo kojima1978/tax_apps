@@ -267,6 +267,13 @@ export function Table7_2Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(CELLS, g, u, T, onJump);
+  // 医療法人（持分あり）は比準割合の式表示を（[⑧]/C＋[⑰]/D）÷2 に切り替える（計算は第4表転記で切替済み）
+  const medical = getField('table1_1', 'medical') === '1';
+  const displayCells = medical
+    ? CELLS.map((c) => (c.kind === 'label' && c.fractionExpression
+      ? { ...c, text: '（[⑧]÷C＋[⑰]÷D）÷２＝', fractionExpression: { terms: [{ numerator: '[⑧]', denominator: 'C' }, { numerator: '[⑰]', denominator: 'D' }], denominator: '2', suffix: '＝' } }
+      : c))
+    : CELLS;
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(displayCells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の２　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240020010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

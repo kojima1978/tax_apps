@@ -334,8 +334,10 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
   const v24 = v23 === null ? null : gensoku !== null && v23 > gensoku ? gensoku : v23; // ㉔
 
   // 適用方式（自動=第1表の1・第1表の2の株主判定に連動、toolbarで手動切替可）
+  // 医療法人（持分あり）は配当がないため配当還元方式を適用しない（常に原則的評価方式）
+  const medical = getField('table1_1', 'medical') === '1';
   const mode = raw('hoshiki');
-  const useHaito = mode === 'haito' ? true : mode === 'gensoku' ? false : judge.isDozokuFinal === null ? null : !judge.isDozokuFinal;
+  const useHaito = medical ? false : mode === 'haito' ? true : mode === 'gensoku' ? false : judge.isDozokuFinal === null ? null : !judge.isDozokuFinal;
   const finalPrice = useHaito === null ? null : useHaito ? v24 ?? v23 : gensoku;
 
   // 3. 株式に関する権利の評価

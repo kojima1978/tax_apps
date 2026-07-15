@@ -274,6 +274,13 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(linkedCells, g, u, T, onJump);
+  // 医療法人（持分あり）は比準割合の式表示を（Ⓒ/C＋Ⓓ/D）÷2 に切り替える（計算は calcTable4 側で切替済み）
+  const medical = getField('table1_1', 'medical') === '1';
+  const displayCells = medical
+    ? linkedCells.map((c) => (c.kind === 'label' && c.fractionExpression
+      ? { ...c, text: '（Ⓒ÷C＋Ⓓ÷D）÷２＝', fractionExpression: { terms: [{ numerator: 'Ⓒ', denominator: 'C' }, { numerator: 'Ⓓ', denominator: 'D' }], denominator: '2', suffix: '＝' } }
+      : c))
+    : linkedCells;
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(displayCells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の２　類似業種比準価額等の計算明細書（続）" formCode="NTA0VNA210020010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

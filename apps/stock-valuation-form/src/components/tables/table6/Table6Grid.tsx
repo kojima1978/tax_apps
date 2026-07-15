@@ -267,8 +267,10 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
   const v25 = v24 !== null && v19 !== null ? fl((v24 * v19) / 5) : null; // ㉕=㉔÷10%×⑲÷50円
   const v26 = v25 === null ? null : jun !== null && v25 > jun ? jun : v25; // ㉖
 
+  // 医療法人（持分あり）は配当がないため配当還元方式を適用しない
+  const medical = getField('table1_1', 'medical') === '1';
   const mode = raw('hoshiki');
-  const useHaito = mode === 'haito' ? true : mode === 'junshisan' ? false : judge.isDozokuFinal === null ? null : !judge.isDozokuFinal;
+  const useHaito = medical ? false : mode === 'haito' ? true : mode === 'junshisan' ? false : judge.isDozokuFinal === null ? null : !judge.isDozokuFinal;
   const finalPrice = useHaito === null ? null : useHaito ? v26 ?? v25 : jun; // ㉟
 
   // 3. 権利
