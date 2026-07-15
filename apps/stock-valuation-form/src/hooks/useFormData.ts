@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { type FormData, type TableId, initialFormData } from '@/types/form';
 import { industryCategoryOf, similarIndustryDisplayNameOf } from '@/data/industryCategories';
+import { similarIndustryMetricValues } from '@/data/industryValuationMetrics';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
 
@@ -10,10 +11,54 @@ const INDUSTRY_FIELD_LINKS: Readonly<Record<string, string>> = {
   f29: 'f28',
 };
 
-const SIMILAR_INDUSTRY_FIELD_LINKS: Readonly<Record<string, string>> = {
-  r1gyonum: 'r1gyo',
-  r2gyonum: 'r2gyo',
+const SIMILAR_INDUSTRY_BLOCKS = {
+  r1gyonum: {
+    name: 'r1gyo', bYen: 'r1sB1', bSen: 'r1sB2', c: 'r1sC', d: 'r1sD',
+    currentPrice: '㋷', previousPrice: '㋦', twoMonthsPreviousPrice: '㋸',
+    previousYearAverage: '㋾', twoYearAverage: '㋻',
+  },
+  r2gyonum: {
+    name: 'r2gyo', bYen: 'r2sB1', bSen: 'r2sB2', c: 'r2sC', d: 'r2sD',
+    currentPrice: '㋕', previousPrice: '㋵', twoMonthsPreviousPrice: '㋟',
+    previousYearAverage: '㋹', twoYearAverage: '㋞',
+  },
 };
+
+type SimilarIndustryNumberField = keyof typeof SIMILAR_INDUSTRY_BLOCKS;
+
+function linkSimilarIndustryBlock(
+  table: Record<string, string>,
+  numberField: SimilarIndustryNumberField,
+  taxMonth: string,
+): Record<string, string> {
+  const block = SIMILAR_INDUSTRY_BLOCKS[numberField];
+  const number = table[numberField] ?? '';
+  const metrics = similarIndustryMetricValues(number, taxMonth);
+
+  return {
+    ...table,
+    [block.name]: similarIndustryDisplayNameOf(number),
+    [block.bYen]: metrics.bYen,
+    [block.bSen]: metrics.bSen,
+    [block.c]: metrics.c,
+    [block.d]: metrics.d,
+    [block.currentPrice]: metrics.currentPrice,
+    [block.previousPrice]: metrics.previousPrice,
+    [block.twoMonthsPreviousPrice]: metrics.twoMonthsPreviousPrice,
+    [block.previousYearAverage]: metrics.previousYearAverage,
+    [block.twoYearAverage]: metrics.twoYearAverage,
+  };
+}
+
+function linkAllSimilarIndustryBlocks(
+  table: Record<string, string>,
+  taxMonth: string,
+): Record<string, string> {
+  return (Object.keys(SIMILAR_INDUSTRY_BLOCKS) as SimilarIndustryNumberField[])
+    .reduce((linked, numberField) => (
+      linkSimilarIndustryBlock(linked, numberField, taxMonth)
+    ), table);
+}
 
 const COMPANY_NAME_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', 'f12'],
@@ -108,15 +153,24 @@ export function updateFormField(data: FormData, table: TableId, field: string, v
     };
   }
 
-  const linkedSimilarIndustryField = table === 'table4' ? SIMILAR_INDUSTRY_FIELD_LINKS[field] : undefined;
-  if (linkedSimilarIndustryField) {
+  if (table === 'table4' && field in SIMILAR_INDUSTRY_BLOCKS) {
+    const numberField = field as SimilarIndustryNumberField;
+    const changedTable = { ...data.table4, [field]: value };
     return {
       ...data,
-      table4: {
-        ...data.table4,
-        [field]: value,
-        [linkedSimilarIndustryField]: similarIndustryDisplayNameOf(value),
-      },
+      table4: linkSimilarIndustryBlock(
+        changedTable,
+        numberField,
+        data.table1_1.f14_m ?? '',
+      ),
+    };
+  }
+
+  if (table === 'table1_1' && field === 'f14_m') {
+    return {
+      ...data,
+      table1_1: { ...data.table1_1, [field]: value },
+      table4: linkAllSimilarIndustryBlocks(data.table4, value),
     };
   }
 
@@ -159,12 +213,9 @@ function normalizeIndustryFields(data: FormData): FormData {
     data.table1_1,
   );
 
-  const normalizedTable4 = Object.entries(SIMILAR_INDUSTRY_FIELD_LINKS).reduce<Record<string, string>>(
-    (table, [numberField, nameField]) => ({
-      ...table,
-      [nameField]: similarIndustryDisplayNameOf(table[numberField] ?? ''),
-    }),
+  const normalizedTable4 = linkAllSimilarIndustryBlocks(
     data.table4,
+    data.table1_1.f14_m ?? '',
   );
 
   return { ...data, table1_1: normalizedTable, table4: normalizedTable4 };

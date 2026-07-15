@@ -82,11 +82,34 @@ describe('table 1-1 industry linkage', () => {
 });
 
 describe('table 4-2 similar industry linkage', () => {
-  it('fills the similar industry name when its number is selected', () => {
-    const updated = updateFormField(initialFormData, 'table4', 'r1gyonum', '3');
+  it('fills the industry name, B/C/D and published prices when its number is selected', () => {
+    const dated = updateFormField(initialFormData, 'table1_1', 'f14_m', '4');
+    const updated = updateFormField(dated, 'table4', 'r1gyonum', '3');
 
     expect(updated.table4.r1gyonum).toBe('3');
     expect(updated.table4.r1gyo).toBe('【小】建築工事業（木造建築工事業を除く）');
+    expect(updated.table4).toMatchObject({
+      r1sB1: '21',
+      r1sB2: '10',
+      r1sC: '128',
+      r1sD: '780',
+      '㋷': '916',
+      '㋦': '952',
+      '㋸': '979',
+      '㋾': '753',
+      '㋻': '751',
+    });
+  });
+
+  it('refreshes both blocks when the tax month changes', () => {
+    const first = updateFormField(initialFormData, 'table4', 'r1gyonum', '1');
+    const both = updateFormField(first, 'table4', 'r2gyonum', '2');
+    const updated = updateFormField(both, 'table1_1', 'f14_m', '1');
+
+    expect(updated.table4).toMatchObject({
+      '㋷': '756', '㋦': '708', '㋸': '681',
+      '㋕': '682', '㋵': '650', '㋟': '626',
+    });
   });
 
   it('repairs the similar industry name while importing saved JSON', () => {
@@ -96,5 +119,8 @@ describe('table 4-2 similar industry linkage', () => {
     });
 
     expect(normalized.table4.r2gyo).toBe('【中】総合工事業');
+    expect(normalized.table4).toMatchObject({
+      r2sB1: '14', r2sB2: '60', r2sC: '71', r2sD: '600', '㋹': '543',
+    });
   });
 });
