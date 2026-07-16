@@ -1,7 +1,6 @@
 import XLSX from 'xlsx-js-style';
 import type { Asset } from '@/types';
 import { CATEGORY_CONFIG, groupByLabel } from '@/types';
-import { formatDate } from '@/utils/formatters';
 import { calcWithin3YearsDate, getCalculationTooltip } from '@/utils/calculation';
 
 /** 列ヘッダー */
@@ -88,6 +87,9 @@ const MARGINS = {
   footer: 0.2,
 };
 
+/** Excel標準の和暦日付表示（例: R08.07.01） */
+const JAPANESE_ERA_DATE_FORMAT = '[$-ja-JP-x-gannen]gee"."mm"."dd';
+
 
 /** セルスタイル生成ヘルパー */
 function textCell(
@@ -115,6 +117,104 @@ function numberCell(
   return { v: value, t: 'n', s: style };
 }
 
+function formulaNumberCell(
+  formula: string,
+  cachedValue: number,
+  options?: { bold?: boolean; format?: string; border?: XLSX.CellStyle['border'] }
+): XLSX.CellObject {
+  const cell = numberCell(cachedValue, options);
+  cell.f = formula;
+  return cell;
+}
+
+/** 建物の償却額はExcel数式、その他の残価率は算出済み数値を出力 */
+function depreciationFormulaCell(asset: Asset, row: number): XLSX.CellObject {
+  if (
+    asset.category === '無形固定資産' ||
+    asset.category === '繰延資産' ||
+    asset.category === '一括償却資産'
+  ) {
+    return textCell('-', { alignment: { horizontal: 'center' } });
+  }
+
+  if (asset.category !== '建物') {
+    return numberCell(asset.depreciationAmountOrRate, {
+      format: '0.000',
+    });
+  }
+
+  const excelRow = row + 1;
+  return formulaNumberCell(
+    `IF(E${excelRow}>=F${excelRow},G${excelRow}*0.9,G${excelRow}*0.9*(E${excelRow}/F${excelRow}))`,
+    asset.depreciationAmountOrRate
+  );
+}
+
+function sumFormulaCell(
+  column: number,
+  startRow: number,
+  endRow: number,
+  cachedValue: number,
+  options?: { bold?: boolean; border?: XLSX.CellStyle['border'] }
+): XLSX.CellObject {
+  const columnName = XLSX.utils.encode_col(column);
+  return formulaNumberCell(
+    `SUM(${columnName}${startRow + 1}:${columnName}${endRow + 1})`,
+    cachedValue,
+    options
+  );
+}
+
+/** 相続税評価額をExcel数式で算出 */
+function evaluationFormulaCell(asset: Asset, row: number): XLSX.CellObject {
+  if (asset.evaluationAmount === null) {
+    return textCell('-', { alignment: { horizontal: 'center' } });
+  }
+
+  const excelRow = row + 1;
+  let formula: string;
+
+  if (asset.evaluationBasis === '3年内_簿価' || asset.evaluationBasis === '簿価') {
+    formula = `J${excelRow}`;
+  } else if (asset.evaluationBasis === '財産性なし') {
+    formula = `G${excelRow}*0`;
+  } else if (asset.category === '建物') {
+    const rentalFactor = asset.isRental ? '*0.7' : '';
+    formula = `ROUNDDOWN((G${excelRow}-H${excelRow})*0.7${rentalFactor},0)`;
+  } else {
+    const config = CATEGORY_CONFIG[asset.category];
+    const valuationFactor = config.multiply07 ? '*0.7' : '';
+    const rentalFactor = asset.isRental && config.hasRental ? '*0.7' : '';
+    formula = `ROUNDDOWN(G${excelRow}*H${excelRow}${valuationFactor}${rentalFactor},0)`;
+  }
+
+  return formulaNumberCell(formula, asset.evaluationAmount);
+}
+
+/** 計算可能なExcel日付セル */
+function dateCell(dateStr: string): XLSX.CellObject {
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return textCell(dateStr);
+
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3])
+  );
+  if (isNaN(date.getTime())) return textCell(dateStr);
+
+  return {
+    v: date,
+    t: 'd',
+    z: JAPANESE_ERA_DATE_FORMAT,
+    s: {
+      font: BASE_FONT,
+      alignment: { horizontal: 'center' },
+      numFmt: JAPANESE_ERA_DATE_FORMAT,
+    },
+  };
+}
+
 /** メインのExcel出力関数 */
 export function exportToExcel(
   caseName: string,
@@ -133,7 +233,7 @@ export function exportToExcel(
 
   // ---- Row 2: 課税時期 ----
   ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell('課税時期', { bold: true });
-  ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = textCell(formatDate(taxDate));
+  ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = dateCell(taxDate);
   row++;
 
   // ---- Row 3: 3年以内 ----
@@ -177,6 +277,7 @@ export function exportToExcel(
     row++;
 
     // データ行
+    const dataStartRow = row;
     let sumAcquisitionCost = 0;
     let sumEvaluationAmount = 0;
     let sumBookValue = 0;
@@ -189,10 +290,10 @@ export function exportToExcel(
       ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = textCell(asset.name);
 
       // C: 取得年月
-      ws[XLSX.utils.encode_cell({ r: row, c: 2 })] = textCell(formatDate(asset.acquisitionDate));
+      ws[XLSX.utils.encode_cell({ r: row, c: 2 })] = dateCell(asset.acquisitionDate);
 
       // D: 課税時期
-      ws[XLSX.utils.encode_cell({ r: row, c: 3 })] = textCell(formatDate(taxDate));
+      ws[XLSX.utils.encode_cell({ r: row, c: 3 })] = dateCell(taxDate);
 
       // E: 経過年数
       ws[XLSX.utils.encode_cell({ r: row, c: 4 })] = numberCell(asset.elapsedYears, { format: '0' });
@@ -203,32 +304,12 @@ export function exportToExcel(
       // G: 取得価額
       ws[XLSX.utils.encode_cell({ r: row, c: 6 })] = numberCell(asset.acquisitionCost);
 
-      // H: 償却額 or 残価率
-      if (category === '無形固定資産' || category === '繰延資産' || category === '一括償却資産') {
-        // 償却計算なし → 空欄
-        ws[XLSX.utils.encode_cell({ r: row, c: 7 })] = textCell('-', {
-          alignment: { horizontal: 'center' },
-        });
-      } else if (category === '建物') {
-        // 建物は償却額（金額）
-        ws[XLSX.utils.encode_cell({ r: row, c: 7 })] = numberCell(
-          asset.depreciationAmountOrRate
-        );
-      } else {
-        // 他は残価率（小数）
-        ws[XLSX.utils.encode_cell({ r: row, c: 7 })] = numberCell(
-          asset.depreciationAmountOrRate,
-          { format: '0.000' }
-        );
-      }
+      // H: 建物の償却額はExcel数式、その他は残価率の数値
+      ws[XLSX.utils.encode_cell({ r: row, c: 7 })] = depreciationFormulaCell(asset, row);
 
-      // I: 相続税評価額
-      if (asset.evaluationAmount === null) {
-        ws[XLSX.utils.encode_cell({ r: row, c: 8 })] = textCell('-', {
-          alignment: { horizontal: 'center' },
-        });
-      } else {
-        ws[XLSX.utils.encode_cell({ r: row, c: 8 })] = numberCell(asset.evaluationAmount);
+      // I: 相続税評価額（Excel数式）
+      ws[XLSX.utils.encode_cell({ r: row, c: 8 })] = evaluationFormulaCell(asset, row);
+      if (asset.evaluationAmount !== null) {
         sumEvaluationAmount += asset.evaluationAmount;
       }
 
@@ -242,6 +323,7 @@ export function exportToExcel(
       sumBookValue += asset.bookValue;
       row++;
     }
+    const dataEndRow = row - 1;
 
     // 合計行（A列から全列に上罫線）
     ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell('', { border: TOP_BORDER });
@@ -252,19 +334,28 @@ export function exportToExcel(
     for (let c = 2; c <= 5; c++) {
       ws[XLSX.utils.encode_cell({ r: row, c })] = textCell('', { border: TOP_BORDER });
     }
-    ws[XLSX.utils.encode_cell({ r: row, c: 6 })] = numberCell(sumAcquisitionCost, {
-      bold: true,
-      border: TOP_BORDER,
-    });
+    ws[XLSX.utils.encode_cell({ r: row, c: 6 })] = sumFormulaCell(
+      6,
+      dataStartRow,
+      dataEndRow,
+      sumAcquisitionCost,
+      { bold: true, border: TOP_BORDER }
+    );
     ws[XLSX.utils.encode_cell({ r: row, c: 7 })] = textCell('', { border: TOP_BORDER });
-    ws[XLSX.utils.encode_cell({ r: row, c: 8 })] = numberCell(sumEvaluationAmount, {
-      bold: true,
-      border: TOP_BORDER,
-    });
-    ws[XLSX.utils.encode_cell({ r: row, c: 9 })] = numberCell(sumBookValue, {
-      bold: true,
-      border: TOP_BORDER,
-    });
+    ws[XLSX.utils.encode_cell({ r: row, c: 8 })] = sumFormulaCell(
+      8,
+      dataStartRow,
+      dataEndRow,
+      sumEvaluationAmount,
+      { bold: true, border: TOP_BORDER }
+    );
+    ws[XLSX.utils.encode_cell({ r: row, c: 9 })] = sumFormulaCell(
+      9,
+      dataStartRow,
+      dataEndRow,
+      sumBookValue,
+      { bold: true, border: TOP_BORDER }
+    );
     ws[XLSX.utils.encode_cell({ r: row, c: 10 })] = textCell('', { border: TOP_BORDER });
     row++;
 
