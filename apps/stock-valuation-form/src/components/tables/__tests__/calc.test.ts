@@ -50,6 +50,21 @@ describe('calcShareholderJudgment（第1表の1：株主判定＋少数株式所
     expect(j.isDozokuFinal).toBe(false);
   });
 
+  it('議決権割合の端数処理：②④は1%未満切捨て・50%超51%未満は51%に切上げ（記載要領）', () => {
+    // 505/1000 = 50.5% → ②④は51%へ切上げ、㋥（納税義務者個人）は切捨てのみで50%
+    const j = calcShareholderJudgment(mkGetField({ table1_1: { sh_1_5: '505', '⑥': '1000', '③': '505' } }));
+    expect(j.ratio5).toBe(51);
+    expect(j.ratio6).toBe(51);
+    expect(j.indivRatio).toBe(50);
+  });
+
+  it('議決権割合の端数処理：50%超51%未満の範囲外は単純切捨て', () => {
+    // 605/1000 = 60.5% → 60%
+    const j = calcShareholderJudgment(mkGetField({ table1_1: { sh_1_5: '605', '⑥': '1000', '③': '605' } }));
+    expect(j.ratio5).toBe(60);
+    expect(j.ratio6).toBe(60);
+  });
+
   it('区分2：同族株主等だが個人5%未満・平取締役(非役員)・他に中心的同族株主あり → 配当還元', () => {
     // 令和8年様式では区分2（少数株式所有者の判定）は第1表の2にあり、j_* は table1_2 に保存される
     const j = calcShareholderJudgment(mkGetField({
@@ -200,6 +215,32 @@ describe('calcTable8（第8表：S1の続き・S2・株式の価額／第5表と
     }));
     expect(c2.v20).toBe(0); // 相続税評価額30000 < 帳簿価額50000 → 0
     expect(c2.v21).toBe(0);
+  });
+});
+
+describe('calcTable4 ④＝1株当たりの資本金等の額の端数処理（記載要領の端数処理の例）', () => {
+  const mk = (cap: string, issued: string, treasury = '0') =>
+    calcTable4(mkGetField({ table1_1: { '⑤': issued, f63: treasury }, table4: { '①': cap } }));
+
+  it('円未満切捨てで0円となる場合は、株式数（②－③）の桁数未満の端数を切り捨てる', () => {
+    // 記載要領の例: 3,000千円 ÷（4,500,000株－0株）＝0.666666…
+    // 株式数が7桁 → 小数点以下7位未満を切捨て＝0.6666666
+    const c = mk('3,000', '4,500,000');
+    expect(c.cap4).toBe(0.6666666);
+    expect(c.cap4disp).toBe('0.6666666');
+  });
+
+  it('1円以上となる場合は円未満切捨て', () => {
+    // 10,000千円 ÷ 6,000株 ＝ 1,666.66… → 1,666円
+    const c = mk('10,000', '6,000');
+    expect(c.cap4).toBe(1666);
+    expect(c.cap4disp).toBe('1,666');
+  });
+
+  it('自己株式③を控除した株式数の桁数で判定する', () => {
+    // 3千円 ÷（100,000株－1株＝99,999株：5桁）＝0.0300003… → 小数点以下5位未満切捨て＝0.03
+    const c = mk('3', '100,000', '1');
+    expect(c.cap4).toBe(0.03);
   });
 });
 

@@ -136,10 +136,22 @@ function matrixCells(): GridCell[] {
 }
 
 /**
+ * 「２．少数株式所有者の評価方式の判定」を省略するか。
+ * 本欄は「同族株主等」に該当する納税義務者のうち議決権割合（㋥）が５％未満の者にのみ適用され、
+ * 該当しないことが確定した場合（非同族、または同族株主等かつ５％以上）は記載を省略する（様式の記載要領）。
+ * 判定材料が未入力（isDozoku/indivRatio が null）の間は省略扱いにしない。
+ */
+function isShosuOmitted(judge: ReturnType<typeof calcShareholderJudgment>): boolean {
+  return judge.isDozoku === false
+    || (judge.isDozoku === true && judge.indivRatio !== null && judge.indivRatio >= 5);
+}
+
+/**
  * グリッドセルを生成（罫線座標はPNGからの機械抽出）。
  * 「２．少数株式所有者の評価方式の判定」のハイライトは第1表の1の判定結果（judge）をクロージャで注入する。
  */
 function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell[] {
+  const omitted = isShosuOmitted(judge);
   return [
     { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '少数株式所有者の評価方式の判定', top: 14.7, left: 9.11, width: 81.42, height: 18.89 },
     { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '会社の規模（Lの割合）の判定', top: 33.82, left: 9.11, width: 81.42, height: 52.33 },
@@ -152,15 +164,16 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
     { kind: 'label', text: '判定要素', top: 17.46, left: 9.11, width: 1.89, height: 13.54, align: 'center' },
     { kind: 'label', text: '氏　　名', top: 17.46, left: 11, width: 30.3, height: 2.71 },
     { kind: 'cell', codeLabel: 'E01', top: 17.46, left: 41.3, width: 1.89, height: 2.71 },
-    { field: 'j_name', kind: 'input', top: 17.46, left: 43.19, width: 47.34, height: 2.71, align: 'left' },
+    { field: 'j_name', kind: 'input', readOnly: omitted, top: 17.46, left: 43.19, width: 47.34, height: 2.71, align: 'left' },
     // ㋭役員（役職コードから自動判定・クリックで手動上書き。コード枠には該当時「１」を自動表示）
+    // ※本欄が適用される場合（同族株主等かつ㋥5%未満）のみ自動表示・クリック選択を有効化
     { kind: 'label', text: '㋭　役　員', top: 20.17, left: 11, width: 30.3, height: 2.71, align: 'left' },
     { kind: 'cell', codeLabel: 'G01', top: 20.17, left: 41.3, width: 1.89, height: 2.71 },
-    { field: 'j1_yakuin_yes', kind: 'input', readOnly: true, ariaLabel: '役員である（該当時は１）', highlightWhen: () => judge.officer === true, top: 20.17, left: 43.19, width: 1.89, height: 2.71, align: 'center' },
-    { kind: 'label', text: 'である　（原則的評価方式等）', selectValue: { field: 'j_yakuin', value: 'yes' }, highlightWhen: () => judge.officer === true, top: 20.17, left: 45.08, width: 20.83, height: 2.71 },
+    { field: 'j1_yakuin_yes', kind: 'input', readOnly: true, ariaLabel: '役員である（該当時は１）', highlightWhen: () => judge.shosuApplies && judge.officer === true, top: 20.17, left: 43.19, width: 1.89, height: 2.71, align: 'center' },
+    { kind: 'label', text: 'である　（原則的評価方式等）', selectValue: omitted ? undefined : { field: 'j_yakuin', value: 'yes' }, highlightWhen: () => judge.shosuApplies && judge.officer === true, top: 20.17, left: 45.08, width: 20.83, height: 2.71 },
     { kind: 'cell', codeLabel: 'G02', top: 20.17, left: 65.91, width: 1.9, height: 2.71 },
-    { field: 'j1_yakuin_no', kind: 'input', readOnly: true, ariaLabel: '役員でない（該当時は１）', highlightWhen: () => judge.officer === false, top: 20.17, left: 67.81, width: 1.89, height: 2.71, align: 'center' },
-    { kind: 'label', text: 'でない　（次の㋬へ）', selectValue: { field: 'j_yakuin', value: 'no' }, highlightWhen: () => judge.officer === false, top: 20.17, left: 69.7, width: 20.83, height: 2.71 },
+    { field: 'j1_yakuin_no', kind: 'input', readOnly: true, ariaLabel: '役員でない（該当時は１）', highlightWhen: () => judge.shosuApplies && judge.officer === false, top: 20.17, left: 67.81, width: 1.89, height: 2.71, align: 'center' },
+    { kind: 'label', text: 'でない　（次の㋬へ）', selectValue: omitted ? undefined : { field: 'j_yakuin', value: 'no' }, highlightWhen: () => judge.shosuApplies && judge.officer === false, top: 20.17, left: 69.7, width: 20.83, height: 2.71 },
     // ㋬納税義務者が中心的な同族株主
     { kind: 'label', text: '㋬　納税義務者が中心的な同族株主', top: 22.88, left: 11, width: 30.3, height: 2.7, align: 'left' },
     { kind: 'cell', codeLabel: 'G03', top: 22.88, left: 41.3, width: 1.89, height: 2.7 },
@@ -179,7 +192,7 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
     { kind: 'label', text: 'がいる　（配当還元方式）', selectValue: judge.chushinOtherActive ? { field: 'j_chushin_other', value: 'yes' } : undefined, highlightWhen: (g) => judge.chushinOtherActive && g('j_chushin_other') === 'yes', top: 25.58, left: 69.7, width: 20.83, height: 2.71 },
     // 中心的な同族株主の氏名
     { kind: 'label', text: '中心的な同族株主（又は株主）がいる場合は、\nその同族株主（又は株主）の氏名', fontSize: 7, top: 28.29, left: 11, width: 32.19, height: 2.71 },
-    { field: 'j_chushin_name', kind: 'input', top: 28.29, left: 43.19, width: 47.34, height: 2.71, align: 'left' },
+    { field: 'j_chushin_name', kind: 'input', readOnly: omitted, top: 28.29, left: 43.19, width: 47.34, height: 2.71, align: 'left' },
     // 判定
     { kind: 'label', text: '判　　　定', top: 31, left: 9.11, width: 32.19, height: 2.59 },
     { kind: 'cell', codeLabel: 'G07', top: 31, left: 41.3, width: 1.89, height: 2.59 },
@@ -295,8 +308,8 @@ export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
     switch (f) {
       case 'emp_nu': return formatEmployee(employee.nu);
       case 'f28': return formatEmployee(employee.total);
-      case 'j1_yakuin_yes': return mark(judge.officer === true);
-      case 'j1_yakuin_no': return mark(judge.officer === false);
+      case 'j1_yakuin_yes': return mark(judge.shosuApplies && judge.officer === true);
+      case 'j1_yakuin_no': return mark(judge.shosuApplies && judge.officer === false);
       case 'j1_cs_yes': return mark(judge.chushinSelfActive && raw('j_chushin_self') === 'yes');
       case 'j1_cs_no': return mark(judge.chushinSelfActive && raw('j_chushin_self') === 'no');
       case 'j1_co_no': return mark(judge.chushinOtherActive && raw('j_chushin_other') === 'no');
@@ -326,5 +339,15 @@ export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
     </label>
   );
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(judge), g, u, T, onJump);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} toolbar={toolbar} enterLoop={ENTER_LOOP} />;
+  // 「2.」欄が省略となる場合は画面上にその旨を重ね表示（印刷には出さない。様式どおり空欄のまま）
+  // 座標はグリッド基準（セル外接範囲 top14.7〜94.53 / left9.11〜90.53 を0〜100%に正規化）:
+  // 判定要素帯 top17.46〜33.59 → top(17.46-14.7)/79.83=3.46%, height16.13/79.83=20.2%
+  const shosuOverlay = isShosuOmitted(judge) ? (
+    <div className="no-print" style={{ position: 'absolute', top: '3.46%', left: 0, width: '100%', height: '20.2%', background: 'rgba(130,130,130,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 5 }}>
+      <span style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid #999', color: '#555', fontSize: 10, padding: '3px 12px', textAlign: 'center' }}>
+        納税義務者が「同族株主等」に該当し議決権割合（㋥）が５％未満の場合のみ記載します<br />（該当しないため省略）
+      </span>
+    </div>
+  ) : null;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} toolbar={toolbar} overlay={shosuOverlay} enterLoop={ENTER_LOOP} />;
 }

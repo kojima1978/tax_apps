@@ -5,7 +5,7 @@ import { PrintRenderContext } from '@/components/ui/GridForm';
 // Keep Table1_1Overlay and public/forms/table1.png for PNG layout measurement.
 import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
 import { Table1_2 } from '@/components/tables/table1-2';
-import { Table2 } from '@/components/tables/table2';
+import { Table2, printTablesForJudgment } from '@/components/tables/table2';
 import { Table3 } from '@/components/tables/table3';
 import { Table4_1, Table4_2 } from '@/components/tables/table4';
 import { Table5 } from '@/components/tables/table5';
@@ -114,11 +114,12 @@ export default function App() {
     setPrintTarget(target);
   }, []);
 
-  // 全表印刷：選択ダイアログを開く（入力済みの表を初期チェック＝空様式はスキップ）
+  // 全表印刷：選択ダイアログを開く（第2表の判定結果に応じた記載対象の表を初期チェック）
   const openPrintDialog = useCallback(() => {
-    setAllSelection((tab) => hasData(tab));
+    const judgmentSet = new Set<TableId>(printTablesForJudgment(getField).tables);
+    setAllSelection((tab) => judgmentSet.has(tab));
     setPrintDialogOpen(true);
-  }, [hasData]);
+  }, [getField]);
   const confirmPrintSelected = useCallback(() => {
     if (!TABS.some((t) => printSelection[t.id])) return;
     setPrintDialogOpen(false);
@@ -232,23 +233,32 @@ export default function App() {
         </main>
       </div>
 
-      {printDialogOpen && (
+      {printDialogOpen && (() => {
+        // 第2表の判定結果から記載（提出）対象の表を導出（ダイアログ表示中のみ計算）
+        const judgment = printTablesForJudgment(getField);
+        const judgmentSet = new Set<TableId>(judgment.tables);
+        return (
         <div className="no-print" onClick={() => setPrintDialogOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 8, padding: 20, minWidth: 340, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
             <h2 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>印刷する表を選択</h2>
-            <p style={{ fontSize: 12, color: '#666', margin: '0 0 12px' }}>入力のある表を初期選択しています（空の様式はチェックを外せばスキップ＝印刷が速くなります）。</p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 12px' }}>第2表の判定結果に応じた記載対象の表を初期選択しています。チェックの追加・解除で自由に変更できます。</p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
               <button type="button" onClick={() => setAllSelection(() => true)} className="app-tool-btn">全選択</button>
               <button type="button" onClick={() => setAllSelection(() => false)} className="app-tool-btn">全解除</button>
               <button type="button" onClick={() => setAllSelection((tab) => hasData(tab))} className="app-tool-btn">入力済みのみ</button>
+              <button type="button" onClick={() => setAllSelection((tab) => judgmentSet.has(tab))} className="app-tool-btn" title="第2表の判定結果に応じて記載対象となる表だけを選択します">第2表の判定で選択</button>
             </div>
+            <p style={{ fontSize: 12, color: '#444', margin: '0 0 10px' }}>第2表の判定結果：<strong>{judgment.name}</strong></p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {TABS.map((tab) => (
                 <label key={tab.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '3px 4px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={!!printSelection[tab.id]} onChange={(e) => setPrintSelection((p) => ({ ...p, [tab.id]: e.target.checked }))} />
                   <span style={{ fontWeight: 600 }}>{tab.label}</span>
                   <span style={{ color: '#888', fontSize: 11 }}>{tab.subtitle}</span>
-                  {!hasData(tab.id) && <span style={{ color: '#bbb', fontSize: 11, marginLeft: 'auto' }}>未入力</span>}
+                  <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                    {judgmentSet.has(tab.id) && <span style={{ color: '#2563eb', fontSize: 11 }}>判定対象</span>}
+                    {!hasData(tab.id) && <span style={{ color: '#bbb', fontSize: 11 }}>未入力</span>}
+                  </span>
                 </label>
               ))}
             </div>
@@ -258,7 +268,8 @@ export default function App() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {printTarget !== null && (
         <div className="no-print" style={{ position: 'fixed', inset: 0, zIndex: 2500, background: 'rgba(255,255,255,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>

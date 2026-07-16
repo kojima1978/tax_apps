@@ -184,14 +184,15 @@ export function calcShareholderJudgment(getField: TableProps['getField']) {
   const totalSh = totalShOf(getField); // 本表＋続紙の全株主
   for (let r = 1; r <= totalSh; r++) votes += n(gf(`sh_${r}_5`));
   const denom = n(gf('⑥')); // 議決権の総数
-  const pct = (v: number, has: boolean): number | null => {
+  // 議決権割合＝1%未満切捨て。50%超51%未満→51%への切上げは②④のみ（㋥は切捨てのみ。記載要領）
+  const pct = (v: number, has: boolean, roundUp51 = false): number | null => {
     if (!has || denom <= 0) return null;
     const rawPct = (v / denom) * 100;
-    if (rawPct > 50 && rawPct < 51) return 51; // 50%超51%未満は切り上げて51
+    if (roundUp51 && rawPct > 50 && rawPct < 51) return 51;
     return Math.floor(rawPct);
   };
-  const ratio5 = pct(votes, votes > 0);                 // ②の割合
-  const ratio6 = pct(n(gf('③')), gf('③') !== '');      // ④の割合
+  const ratio5 = pct(votes, votes > 0, true);                 // ②の割合
+  const ratio6 = pct(n(gf('③')), gf('③') !== '', true);      // ④の割合
   const th = ratio6 === null ? null : ratio6 > 50 ? 50 : ratio6 >= 30 ? 30 : 15;
   const isDozoku = ratio5 !== null && th !== null ? ratio5 >= th : null; // 1.株主及び評価方式の判定（議決権割合）
 

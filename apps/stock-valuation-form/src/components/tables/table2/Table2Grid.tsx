@@ -3,7 +3,7 @@ import { calcTable4 } from '../table4/Table4Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
-import type { TableProps } from '@/types/form';
+import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table2' as const;
 
@@ -335,6 +335,32 @@ export function calcTable2(getField: TableProps['getField']) {
 }
 
 const RESULT_NAMES: Record<number, string> = { 0: '一般の評価会社（非該当）', 1: '１．比準要素数１の会社', 2: '２．株式等保有特定会社', 3: '３．土地保有特定会社', 4: '４．開業後３年未満の会社等', 5: '５．開業前又は休業中の会社', 6: '６．清算中の会社' };
+
+/**
+ * 第2表の判定結果に応じて記載（印刷）対象となる表。
+ * 全区分共通: 第1表の1・第1表の2・第2表。
+ * ・一般の評価会社        → ＋第3表・第4表の1/2・第5表（原則的評価方式）
+ * ・比準要素数1の会社     → ＋第4表の1/2・第5表・第6表（純資産、Ｌ=0.25併用に比準価額）
+ * ・株式等保有特定会社    → ＋第4表の1/2・第5表・第6表・第7表の1/2/3（S1＋S2方式）
+ * ・土地保有特定会社      → ＋第4表の1（第2表の判定要素の転記元）・第5表・第6表（純資産のみ）
+ * ・開業後3年未満の会社等 → ＋第5表・第6表（比準要素数0の判定による場合は第4表の1も）
+ * ・開業前又は休業中      → ＋第5表・第6表（純資産のみ）
+ * ・清算中の会社          → 共通のみ（清算分配見込額の複利現価＝計算表は使わない。通達189-6）
+ */
+export function printTablesForJudgment(getField: TableProps['getField']): { result: number; name: string; tables: TableId[] } {
+  const { j, result } = calcTable2(getField);
+  const base: TableId[] = ['table1_1', 'table1_2', 'table2'];
+  const t4: TableId[] = ['table4_1', 'table4_2'];
+  const tables: TableId[] =
+    result === 6 ? base
+      : result === 5 ? [...base, 'table5', 'table6']
+        : result === 4 ? [...base, ...(j.s4b === true ? ['table4_1' as TableId] : []), 'table5', 'table6']
+          : result === 3 ? [...base, 'table4_1', 'table5', 'table6']
+            : result === 2 ? [...base, ...t4, 'table5', 'table6', 'table7_1', 'table7_2', 'table7_3']
+              : result === 1 ? [...base, ...t4, 'table5', 'table6']
+                : [...base, 'table3', ...t4, 'table5'];
+  return { result, name: RESULT_NAMES[result] ?? RESULT_NAMES[0]!, tables };
+}
 
 /** 第2表（CSSグリッド方式・令和8年4月1日以降用） */
 export function Table2Grid({ getField, updateField, onJump }: TableProps) {
