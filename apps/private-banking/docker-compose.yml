@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: private-banking-postgres
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Tokyo
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pb_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-private_banking}
+    volumes:
+      - private_banking_postgres:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${DB_PORT:-3026}:5432"
+    networks:
+      - tax-apps-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-private_banking}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      target: dev
+    container_name: private-banking-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      TZ: Asia/Tokyo
+      WATCHPACK_POLLING: "true"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-pb_dev_password}@postgres:5432/${POSTGRES_DB:-private_banking}?schema=public
+    volumes:
+      - ./src:/app/src:ro
+      - ./public:/app/public:ro
+      - ./prisma:/app/prisma:ro
+      - private_banking_next:/app/.next
+    ports:
+      - "127.0.0.1:3025:3025"
+    networks:
+      - tax-apps-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:3025/private-banking/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  tax-apps-network:
+    external: true
+
+volumes:
+  private_banking_postgres:
+  private_banking_next:

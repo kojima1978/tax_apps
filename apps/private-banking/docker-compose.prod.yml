@@ -1,0 +1,12 @@
+services:
+  web:
+    build:
+      target: runner
+    environment:
+      NODE_ENV: production
+    volumes: []
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    security_opt:
+      - no-new-privileges:true

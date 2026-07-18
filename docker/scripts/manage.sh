@@ -60,6 +60,7 @@ APPS=(
   "apps/tax-docs"
   "apps/medical-stock-valuation"
   "apps/insurance-app"
+  "apps/private-banking"
   "apps/inheritance-tax-app"
   "apps/gift-tax-simulator"
   "apps/inheritance-tax-docs"
@@ -77,6 +78,7 @@ VOLUMES=(
   "bank-analyzer-sqlite"
   "tax-docs-data"
   "medical-stock-valuation-data"
+  "private-banking_private_banking_postgres"
 )
 check_dependencies() {
   if ! command -v docker >/dev/null 2>&1; then

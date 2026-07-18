@@ -1,0 +1,61 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Household {
+  id                      Int        @id @default(autoincrement())
+  name                    String     @default("山田家（サンプル）")
+  currency                String     @default("JPY")
+  estimatedInheritanceTax Decimal    @default(0) @db.Decimal(24, 0)
+  successionCosts         Decimal    @default(0) @db.Decimal(24, 0)
+  inheritanceTaxUpdatedAt DateTime?
+  hasSpouse               Boolean    @default(false)
+  heirRank                String     @default("rank1")
+  heirCount               Int        @default(1)
+  snapshots               Snapshot[]
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+}
+
+model Snapshot {
+  id          Int        @id @default(autoincrement())
+  householdId Int
+  household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  label       String
+  asOfDate    DateTime   @db.Date
+  isCurrent   Boolean    @default(false)
+  positions   Position[]
+  createdAt   DateTime   @default(now())
+
+  @@index([householdId, asOfDate])
+  @@index([isCurrent])
+}
+
+model Position {
+  id                 Int      @id @default(autoincrement())
+  snapshotId         Int
+  snapshot           Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  side               String
+  category           String
+  name               String
+  institution        String   @default("")
+  currency           String   @default("JPY")
+  originalAmount     Decimal  @db.Decimal(24, 2)
+  fxRate             Decimal  @default(1) @db.Decimal(18, 6)
+  valueJpy           Decimal  @db.Decimal(24, 0)
+  liquidity          String   @default("MEDIUM")
+  includedInNetWorth Boolean  @default(true)
+  valuationMethod    String   @default("手動入力")
+  note               String   @default("")
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([snapshotId, side, category])
+}
