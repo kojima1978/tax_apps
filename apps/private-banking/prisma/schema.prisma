@@ -10,9 +10,12 @@ datasource db {
 
 model Household {
   id                      Int        @id @default(autoincrement())
-  name                    String     @default("山田家（サンプル）")
+  clientCode              String     @unique
+  name                    String     @default("山田 太郎（サンプル）")
+  assignedStaff           String     @default("")
   currency                String     @default("JPY")
   estimatedInheritanceTax Decimal    @default(0) @db.Decimal(24, 0)
+  otherTaxes              Decimal    @default(0) @db.Decimal(24, 0)
   successionCosts         Decimal    @default(0) @db.Decimal(24, 0)
   inheritanceTaxUpdatedAt DateTime?
   hasSpouse               Boolean    @default(false)
@@ -24,16 +27,21 @@ model Household {
 }
 
 model Snapshot {
-  id          Int        @id @default(autoincrement())
-  householdId Int
-  household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  label       String
-  asOfDate    DateTime   @db.Date
-  isCurrent   Boolean    @default(false)
-  positions   Position[]
-  createdAt   DateTime   @default(now())
+  id                      Int        @id @default(autoincrement())
+  householdId             Int
+  household               Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  label                   String
+  asOfDate                DateTime   @db.Date
+  fiscalYear              Int
+  isCurrent               Boolean    @default(false)
+  estimatedInheritanceTax Decimal    @default(0) @db.Decimal(24, 0)
+  otherTaxes              Decimal    @default(0) @db.Decimal(24, 0)
+  positions               Position[]
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
 
   @@index([householdId, asOfDate])
+  @@unique([householdId, fiscalYear])
   @@index([isCurrent])
 }
 
@@ -52,6 +60,18 @@ model Position {
   liquidity          String   @default("MEDIUM")
   includedInNetWorth Boolean  @default(true)
   valuationMethod    String   @default("手動入力")
+  valuationFormula   String   @default("MANUAL")
+  valuationQuantity  Decimal? @db.Decimal(24, 6)
+  valuationUnitPrice Decimal? @db.Decimal(24, 2)
+  adjustmentRate     Decimal? @db.Decimal(12, 6)
+  landArea           Decimal? @db.Decimal(18, 4)
+  roadsideValue      Decimal? @db.Decimal(24, 2)
+  fixedAssetTaxValue Decimal? @db.Decimal(24, 2)
+  valuationMultiplier Decimal? @db.Decimal(12, 6)
+  ownershipShare     Decimal? @db.Decimal(12, 6)
+  ownershipNumerator Int?
+  ownershipDenominator Int?
+  assetDetails       Json?
   note               String   @default("")
   sortOrder          Int      @default(0)
   createdAt          DateTime @default(now())

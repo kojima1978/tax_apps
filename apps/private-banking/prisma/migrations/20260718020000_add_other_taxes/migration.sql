@@ -1,0 +1,2 @@
+ALTER TABLE "Household"
+ADD COLUMN "otherTaxes" DECIMAL(24,0) NOT NULL DEFAULT 0;

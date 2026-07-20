@@ -1028,6 +1028,25 @@
     page-break-inside: avoid;
   }
 
+  /* 結論のメトリクスカード（非課税枠含む4枚）は印刷時1行4列 */
+  .insurance-print .grid.lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  /* A4横1枚に収める: テーブル・結論ブロックを途中で割らない */
+  .insurance-print table,
+  .insurance-print .rounded-lg {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* A4横1枚化の圧縮: 画面用の固定行高・最小高さ・大きめ余白を解除 */
+  .insurance-print .h-8 { height: auto !important; }
+  .insurance-print .min-h-9,
+  .insurance-print .min-h-10 { min-height: 0 !important; }
+  .insurance-print .pt-5 { padding-top: 4px !important; }
+  .insurance-print .py-4 { padding-top: 3px !important; padding-bottom: 3px !important; }
+
   /* ゾーンバーは印刷時やや低めにして紙面を節約（色は維持） */
   .insurance-print .h-7 { height: 18px !important; }
 

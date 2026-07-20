@@ -1,39 +1,47 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-
-const inputSchema = z.object({
-  side: z.enum(["ASSET", "LIABILITY"]),
-  category: z.enum(["DEPOSIT", "SECURITIES", "REAL_ESTATE", "PRIVATE_SHARES", "INSURANCE", "COLLECTIBLES", "LOAN", "GUARANTEE"]),
-  name: z.string().trim().min(1).max(100),
-  institution: z.string().trim().max(100).default(""),
-  currency: z.string().trim().length(3).default("JPY"),
-  originalAmount: z.coerce.number().nonnegative(),
-  fxRate: z.coerce.number().positive().default(1),
-  liquidity: z.enum(["HIGH", "MEDIUM", "LOW"]).default("MEDIUM"),
-  valuationMethod: z.string().trim().max(100).default("手動入力"),
-  note: z.string().trim().max(500).default(""),
-});
+import { calculatedOriginalAmount, calculatedOwnershipShare, liquidityForCategory, normalizedValuationMethod, positionInputSchema } from "@/lib/position-input";
 
 export async function POST(request: Request) {
-  const parsed = inputSchema.safeParse(await request.json());
+  const body = await request.json();
+  const parsed = positionInputSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
 
-  const current = await prisma.snapshot.findFirst({ where: { isCurrent: true } });
-  if (!current) return NextResponse.json({ error: "現在のB/Sがありません。" }, { status: 404 });
+  const requestedSnapshotId = Number(body.snapshotId);
+  const snapshot = Number.isInteger(requestedSnapshotId) && requestedSnapshotId > 0
+    ? await prisma.snapshot.findUnique({ where: { id: requestedSnapshotId } })
+    : await prisma.snapshot.findFirst({ where: { isCurrent: true } });
+  if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
 
   const data = parsed.data;
-  const valueJpy = Math.round(data.originalAmount * data.fxRate);
-  const position = await prisma.position.create({
-    data: {
-      ...data,
-      snapshotId: current.id,
-      originalAmount: new Prisma.Decimal(data.originalAmount),
-      fxRate: new Prisma.Decimal(data.fxRate),
-      valueJpy: new Prisma.Decimal(valueJpy),
-      includedInNetWorth: data.category !== "GUARANTEE",
-    },
+  const originalAmount = calculatedOriginalAmount(data);
+  const valueJpy = Math.round(originalAmount * data.fxRate);
+  const includedInNetWorth = data.category !== "GUARANTEE";
+  const position = await prisma.$transaction(async (tx) => {
+    const lastPosition = await tx.position.findFirst({
+      where: data.side === "ASSET"
+        ? { snapshotId: snapshot.id, side: "ASSET" }
+        : { snapshotId: snapshot.id, side: "LIABILITY", includedInNetWorth },
+      orderBy: [{ sortOrder: "desc" }, { id: "desc" }],
+      select: { sortOrder: true },
+    });
+    const created = await tx.position.create({
+      data: {
+        ...data,
+        ownershipShare: calculatedOwnershipShare(data),
+        valuationMethod: normalizedValuationMethod(data),
+        liquidity: liquidityForCategory(data.category),
+        snapshotId: snapshot.id,
+        originalAmount: new Prisma.Decimal(originalAmount),
+        fxRate: new Prisma.Decimal(data.fxRate),
+        valueJpy: new Prisma.Decimal(valueJpy),
+        includedInNetWorth,
+        sortOrder: (lastPosition?.sortOrder ?? -1) + 1,
+      },
+    });
+    await tx.snapshot.update({ where: { id: snapshot.id }, data: { updatedAt: new Date() } });
+    return created;
   });
   return NextResponse.json({ id: position.id }, { status: 201 });
 }

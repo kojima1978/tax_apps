@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { getPortfolio } from "@/lib/portfolio";
 
-export async function GET() {
-  const portfolio = await getPortfolio();
+export async function GET(request: Request) {
+  const value = new URL(request.url).searchParams.get("householdId");
+  const householdId = value === null ? undefined : Number(value);
+  if (householdId !== undefined && !Number.isInteger(householdId)) {
+    return Response.json({ error: "顧客IDが正しくありません。" }, { status: 400 });
+  }
+  const portfolio = await getPortfolio(householdId);
   const current = portfolio.snapshots.find((snapshot) => snapshot.isCurrent);
   if (!current) return NextResponse.json({ error: "現在のB/Sがありません。" }, { status: 404 });
 

@@ -3,6 +3,7 @@ import type { InsuranceSimulationResult, InsuranceScenarioResult } from '../../t
 import { formatCurrency, getHeirBaseAcquisition, getHeirNetProceeds, heirLabelColumn, currencyColumn } from '../../utils';
 import { HeirScenarioTable, type HeirColumn } from '../HeirScenarioTable';
 import { HeirNetComparisonTable } from '../HeirNetComparisonTable';
+import { INSURANCE_EXEMPT_PER_HEIR } from '../../constants';
 import { CARD } from '../tableStyles';
 
 interface InsuranceHeirTableProps {
@@ -84,6 +85,12 @@ function InsuranceResultSummary({ result }: { result: InsuranceSimulationResult 
   const taxDiff = proposed.taxResult.totalFinalTax - current.taxResult.totalFinalTax;
   const positive = netProceedsDiff >= 0;
 
+  // 死亡保険金の非課税枠（500万円 × 法定相続人数）の適用状況
+  const exemptLimit = proposed.nonTaxableLimit;
+  const exemptHeirs = Math.round(exemptLimit / INSURANCE_EXEMPT_PER_HEIR);
+  const exemptApplied = proposed.nonTaxableAmount;
+  const exemptRemaining = exemptLimit - exemptApplied;
+
   return (
     <div className="space-y-3">
       <div className={`rounded-lg border px-4 py-4 ${positive ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
@@ -103,7 +110,7 @@ function InsuranceResultSummary({ result }: { result: InsuranceSimulationResult 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="新たに支払う保険料"
           value={newPremiumTotal > 0 ? formatTriangleDeduction(newPremiumTotal) : '—'}
@@ -121,6 +128,16 @@ function InsuranceResultSummary({ result }: { result: InsuranceSimulationResult 
           value={taxDiff !== 0 ? formatTriangleDelta(taxDiff) : '—'}
           note={taxDiff > 0 ? '相続税は増えます' : taxDiff < 0 ? '相続税は下がります' : '相続税は変わりません'}
           className={taxToneClass(taxDiff)}
+        />
+        <MetricCard
+          label="相続税の非課税枠"
+          value={formatCurrency(exemptLimit)}
+          note={
+            exemptRemaining > 0
+              ? `${INSURANCE_EXEMPT_PER_HEIR}万円×${exemptHeirs}人・うち${formatCurrency(exemptApplied)}を適用（残り${formatCurrency(exemptRemaining)}）`
+              : `${INSURANCE_EXEMPT_PER_HEIR}万円×${exemptHeirs}人・全額適用済`
+          }
+          className="text-green-700"
         />
       </div>
     </div>

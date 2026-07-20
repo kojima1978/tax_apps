@@ -47,11 +47,11 @@ const createPbComposition = ({
   };
 };
 
-const syncTaxToPb = async (totalFinalTax: number) => {
+const syncTaxToPb = async (totalFinalTax: number, householdId: number) => {
   const response = await fetch('/private-banking/api/inheritance-estimate', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ estimatedInheritanceTax: totalFinalTax * 10000 }),
+    body: JSON.stringify({ estimatedInheritanceTax: totalFinalTax * 10000, householdId }),
   });
   if (!response.ok) throw new Error('PB API error');
 };
@@ -68,9 +68,11 @@ export const CalculatorPage: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('source') !== 'pb') return;
+    const householdId = Number(params.get('householdId'));
+    if (!Number.isInteger(householdId) || householdId <= 0) return;
 
     const controller = new AbortController();
-    fetch('/private-banking/api/inheritance-export', { signal: controller.signal })
+    fetch(`/private-banking/api/inheritance-export?householdId=${householdId}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error('PB API error');
         return response.json() as Promise<PbInheritancePayload>;
@@ -96,7 +98,7 @@ export const CalculatorPage: React.FC = () => {
           setResult(calculated);
           setWeightedRate(calculateBracketAnalysis(importedEstateValue, importedComposition).weightedRate);
           setPbSyncMessage('想定相続税をPB管理B/Sへ連携しています。');
-          void syncTaxToPb(calculated.totalFinalTax)
+          void syncTaxToPb(calculated.totalFinalTax, householdId)
             .then(() => setPbSyncMessage('想定相続税をPB管理B/Sへ連携しました。'))
             .catch(() => setPbSyncMessage('想定相続税をPB管理B/Sへ連携できませんでした。'));
         }
@@ -120,8 +122,10 @@ export const CalculatorPage: React.FC = () => {
     setResult(calculated);
     setWeightedRate(calculateBracketAnalysis(estateValue, composition).weightedRate);
     if (new URLSearchParams(window.location.search).get('source') === 'pb') {
+      const householdId = Number(new URLSearchParams(window.location.search).get('householdId'));
+      if (!Number.isInteger(householdId) || householdId <= 0) return;
       setPbSyncMessage('PB管理B/Sへ想定相続税を連携しています。');
-      void syncTaxToPb(calculated.totalFinalTax)
+      void syncTaxToPb(calculated.totalFinalTax, householdId)
         .then(() => setPbSyncMessage('想定相続税をPB管理B/Sへ連携しました。'))
         .catch(() => setPbSyncMessage('想定相続税をPB管理B/Sへ連携できませんでした。'));
     }

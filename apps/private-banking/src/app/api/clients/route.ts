@@ -1,0 +1,53 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+
+const createClientSchema = z.object({
+  name: z.string().trim().min(1, "顧客名を入力してください。").max(100),
+  clientCode: z.string().trim().min(1, "顧客コードを入力してください。").max(30).regex(/^[A-Za-z0-9_-]+$/, "顧客コードは半角英数字・ハイフン・アンダースコアで入力してください。"),
+  assignedStaff: z.string().trim().max(100).optional().default(""),
+  fiscalYear: z.coerce.number().int().min(1900).max(2200),
+});
+
+export async function GET() {
+  const clients = await prisma.household.findMany({
+    select: {
+      id: true,
+      clientCode: true,
+      name: true,
+      assignedStaff: true,
+      snapshots: { orderBy: { fiscalYear: "desc" }, take: 1, select: { fiscalYear: true } },
+    },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+  });
+  return NextResponse.json(clients.map(({ snapshots, ...client }) => ({ ...client, latestFiscalYear: snapshots[0]?.fiscalYear ?? null })));
+}
+
+export async function POST(request: Request) {
+  const parsed = createClientSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "入力内容を確認してください。" }, { status: 400 });
+  try {
+    const created = await prisma.household.create({
+      data: {
+        name: parsed.data.name,
+        clientCode: parsed.data.clientCode.toUpperCase(),
+        assignedStaff: parsed.data.assignedStaff,
+        snapshots: {
+          create: {
+            label: "現在",
+            fiscalYear: parsed.data.fiscalYear,
+            asOfDate: new Date(Date.UTC(parsed.data.fiscalYear, 11, 31)),
+            isCurrent: true,
+          },
+        },
+      },
+      select: { id: true, clientCode: true, name: true, assignedStaff: true },
+    });
+    return NextResponse.json({ ...created, latestFiscalYear: parsed.data.fiscalYear }, { status: 201 });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+      return NextResponse.json({ error: "この顧客コードはすでに使用されています。" }, { status: 409 });
+    }
+    throw error;
+  }
+}
