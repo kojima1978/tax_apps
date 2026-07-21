@@ -16,7 +16,9 @@ services:
     build:
       target: runner
     init: false
-    volumes:
+    # !override で base の volumes を置換する（通常のリストはマージされ、
+    # 開発用のソースバインドが本番にも残ってしまうため）
+    volumes: !override
       - medical_stock_data:/app/data
     environment:
       NODE_ENV: production
