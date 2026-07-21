@@ -4,7 +4,9 @@ services:
       target: runner
     environment:
       NODE_ENV: production
-    volumes: []
+    # base の volumes（開発用 src バインドと .next named volume）を完全に無効化する。
+    # `volumes: []` はマージされて base 側が残り、.next が本番ビルドを覆い隠すため !reset が必須。
+    volumes: !reset []
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
