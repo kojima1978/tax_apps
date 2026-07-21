@@ -80,6 +80,10 @@ user_settings.json
 *.bak
 .cache/
 
+# 印刷レイアウト検証などの生成物（PDF/スクリーンショット）
+apps/*/output/
+apps/*/tmp/
+
 # Docker volumes data
 docker/backups/
 
