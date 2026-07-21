@@ -1,6 +1,7 @@
 import { AlertTriangle, Trash2, Upload, XCircle } from 'lucide-react';
 import type { ExportData } from '@/hooks/useJsonImportExport';
 import { DIALOG_MESSAGES } from '@/constants/messages';
+import { useOverlayDismiss } from '@/hooks/useOverlayDismiss';
 
 // ─── 共通ダイアログオーバーレイ ───
 
@@ -12,20 +13,23 @@ type DialogOverlayProps = {
   children: React.ReactNode;
 };
 
-export const DialogOverlay = ({ labelledBy, onClose, role = 'dialog', maxWidth = 'max-w-md', children }: DialogOverlayProps) => (
-  <div
-    className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in"
-    role={role}
-    aria-modal="true"
-    aria-labelledby={labelledBy}
-    onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
-    onClick={onClose}
-  >
-    <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 ${maxWidth} mx-4`} onClick={(e) => e.stopPropagation()}>
-      {children}
+export const DialogOverlay = ({ labelledBy, onClose, role = 'dialog', maxWidth = 'max-w-md', children }: DialogOverlayProps) => {
+  const dismiss = useOverlayDismiss(onClose);
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in"
+      role={role}
+      aria-modal="true"
+      aria-labelledby={labelledBy}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+      {...dismiss}
+    >
+      <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 ${maxWidth} mx-4`}>
+        {children}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── 共通ダイアログヘッダー ───
 

@@ -5,6 +5,7 @@ import {
   ArrowLeft, Home, Sun, Moon, Plus, Pencil, Trash2, GripVertical, X, Upload,
 } from 'lucide-react';
 import { useDarkMode } from '@/hooks/useDarkMode';
+import { useOverlayDismiss } from '@/hooks/useOverlayDismiss';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -159,6 +160,7 @@ function ResourceFormModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const dismiss = useOverlayDismiss(onClose);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,9 +192,8 @@ function ResourceFormModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" {...dismiss}>
       <form
-        onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
         className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md p-6 space-y-4"
       >
@@ -298,6 +299,7 @@ function ConfirmDeleteDialog({
   onConfirmed: () => void;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const dismiss = useOverlayDismiss(onClose);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -311,8 +313,8 @@ function ConfirmDeleteDialog({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" {...dismiss}>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
         <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">削除確認</h2>
         <p className="text-sm text-slate-600 dark:text-slate-400">
           「{resource.title}」を削除しますか？{resource.filename && 'ファイルも削除されます。'}

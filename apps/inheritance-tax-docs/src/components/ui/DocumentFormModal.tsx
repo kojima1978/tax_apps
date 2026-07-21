@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { useOverlayDismiss } from '@/hooks/useOverlayDismiss';
 
 // ─── フォームフィールド定義 ───
 
@@ -42,18 +43,19 @@ const DocumentFormModalComponent = ({ mode, initialValues, onSave, onClose }: Do
     if (e.key === 'Escape') onClose();
   };
 
+  const dismiss = useOverlayDismiss(onClose);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
       aria-labelledby="document-form-modal-title"
+      {...dismiss}
     >
       <div
         className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg mx-4"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
           <h3 id="document-form-modal-title" className="text-lg font-bold text-slate-800 dark:text-slate-100">

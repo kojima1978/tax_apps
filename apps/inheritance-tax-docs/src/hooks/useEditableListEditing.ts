@@ -122,8 +122,9 @@ export const useEditableListEditing = ({
 
   const handleResetToDefault = useCallback(() => {
     setDocumentList(initializeEditableList(docListType));
+    setTrash([]); // リセット時はゴミ箱も空にして初期状態へ戻す
     setShowResetDialog(false);
-  }, [setDocumentList, docListType]);
+  }, [setDocumentList, setTrash, docListType]);
 
   return {
     // 書類編集
