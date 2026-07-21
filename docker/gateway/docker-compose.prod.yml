@@ -2,6 +2,16 @@
 # Gateway + Portal - Production Override
 # ============================================
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# 【このファイルは意図的にほぼ空です】
+# gateway / portal-app は base の docker-compose.yml が最初から本番構成
+# （portal は target: runner、gateway は read_only + cap_drop）のため、
+# 上書きすべき項目がありません。以下の `init: true` は base の x-common に
+# 既に含まれており差分ゼロですが、manage.sh が
+# `if [[ -f "$dir/docker-compose.prod.yml" ]]` でこのファイルの存在を見て
+# --prod の対象に含めるため、削除せず残しています。
+#
+# 本番固有の設定（ログレベル、リソース上限など）を足す場合はここに書くこと。
 # ============================================
 
 services:

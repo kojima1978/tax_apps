@@ -24,12 +24,14 @@ nginx/
 │   ├── 50x.html       # サーバーエラーページ（レッドアイコン）
 │   └── 503.html       # メンテナンスページ（ブルーアイコン + パルスアニメーション）
 ├── includes/       # 共通設定ディレクトリ
-│   ├── proxy_params.conf       # 共通プロキシヘッダー設定
-│   ├── upstreams.conf          # アップストリーム参照情報（ホスト名:ポート一覧）
-│   ├── maps.conf               # map定義（WebSocket Upgrade, Font Routing）
-│   ├── rate_limit_general.conf # 一般レート制限（burst=200）
-│   └── rate_limit_api.conf     # APIレート制限（burst=10）
+│   ├── proxy_params.conf       # 共通プロキシヘッダー設定・upstream ヘッダーの除去
+│   ├── upstreams.conf          # $app_backend レジストリ（ホスト名:ポートの唯一の情報源）
+│   ├── maps.conf               # map定義（WebSocket Upgrade, Host許可判定, Font Routing）
+│   ├── security_headers.conf   # 共通セキュリティヘッダー（CSP含む）
+│   ├── rate_limit_general.conf # 一般レート制限（burst=100 nodelay）
+│   └── rate_limit_api.conf     # APIレート制限（burst=30 nodelay）
 ├── .dockerignore   # Dockerビルド除外設定
+├── robustness-checklist.md # 変更・再起動時の確認手順
 └── readme.md       # このファイル
 ```
 
@@ -46,7 +48,7 @@ nginx/
 
 - **レート制限**: API 60req/s（burst 30）、一般 300req/s（burst 100）（超過時は 429 を返却）
 - **接続数制限**: 1IPあたり50接続（全ロケーション共通）
-- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy。アップストリームが独自に返す同名ヘッダーは `proxy_params.conf` の `proxy_hide_header` で除去し、ゲートウェイの値に一本化する（矛盾する値が重複するとブラウザがヘッダーごと無視することがあるため。例: Django の `X-Frame-Options: DENY`）
 - **サーバー情報非表示**: server_tokens off, proxy_hide_header (X-Powered-By, Server)
 - **クライアントIP**: ゲートウェイがエッジのため real_ip は使わず、実接続元IP（`$remote_addr`）でレート制限・ログを取得（X-Forwarded-For 詐称によるレート制限回避を防止）
 - **APIエラー応答保護**: APIエンドポイントは `proxy_intercept_errors off` でバックエンドのJSON応答をそのまま返却
@@ -84,9 +86,14 @@ nginx/
 | `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Next.js + API Routes) |
 | `/itcm/api/` | `itcm-frontend:3020` | 相続税案件管理 API（同一サービス内） |
 | `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価 (Next.js) |
+| `/medical/api/` | `medical-stock-valuation:3010` | 医療法人株式評価 API |
 | `/insurance/` | `insurance-app:3030` | 保険管理 (Next.js) |
+| `/insurance/api/` | `insurance-app:3030` | 保険管理 API |
+| `/private-banking/` | `private-banking-app:3025` | ファミリーB/S管理 (Next.js) |
+| `/private-banking/api/` | `private-banking-app:3025` | ファミリーB/S管理 API |
 | `/inheritance-tax-app/` | `inheritance-tax-app:3004` | 相続税計算 (Vite) |
 | `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド (Vite) |
+| `/inheritance-tax-docs/api/` | `inheritance-tax-docs:3003` | 資料準備ガイド API (Express) |
 | `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター (Vite) |
 | `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 (Vite) |
 | `/depreciation-calc/` | `depreciation-calc:3015` | 減価償却計算 (Vite) |
@@ -155,26 +162,66 @@ proxy_read_timeout 60s;
 
 **注意**: `bank-analyzer` は CSV解析・RapidFuzz分類処理のため `proxy_read_timeout 300s` に設定済み
 
+### アドレスとルーティングの分離
+
+設定は「**アドレス（どこにあるか）**」と「**振る舞い（どう扱うか）**」を分けている。
+
+| | ファイル | 内容 |
+|:--|:--|:--|
+| アドレス | `includes/upstreams.conf` | `$app_backend` レジストリ。**ホスト名:ポートを書いてよい唯一の場所** |
+| 振る舞い | `default.conf` | アプリ名だけを扱い、アドレスは `$app_backend` 経由で引く |
+
+`$app_name`（= URL の第1セグメント、または location 内の `set $app_name xxx;`）から
+`$app_backend` を解決する。ポート変更時の修正はレジストリの1行だけで済む。
+
+> **注意**: nginx の `map` は1リクエスト内で最初に参照された時点の値がキャッシュされる。
+> `set $app_name ...;` は必ず `$app_backend` を参照する**前**に置くこと。
+
 ### 新しいアプリの追加
 
-1. `default.conf` にロケーション追加（`set $upstream_xxx` + `proxy_pass` パターン）:
+#### 1. レジストリに登録（全アプリ共通・必須）
+
+`includes/upstreams.conf` の `$app_backend` に1行追加する。キーは URL の第1セグメント:
+
+```nginx
+new-app  new-app:3000;
+```
+
+**これだけで `/new-app` → `/new-app/` の末尾スラッシュ正規化が自動的に効く**
+（アプリ名を列挙せず、レジストリ登録の有無で判定しているため）。
+
+#### 2. 振る舞いクラスに追加
+
+| アプリの種類 | 追加先 |
+|:--|:--|
+| Vite SPA（設定が他と同一） | `default.conf` の Vite 一括 location の正規表現に `new-app` を追加。**location ブロックの作成は不要** |
+| basePath 付き Next.js | 上記に加え、`default.conf` の `_next/static` 正規表現にも追加（静的アセットがキャッシュ対象になる） |
+| 個別設定が必要 | `default.conf` に location を作る（下記） |
+
+個別 location を作る場合は、アドレスではなく**アプリ名**を指定する:
 
 ```nginx
 location /new-app/ {
     include /etc/nginx/includes/rate_limit_general.conf;
 
-    set $upstream_new_app new-app:3000;
-    proxy_pass http://$upstream_new_app;
+    set $app_name new-app;
+    proxy_pass http://$app_backend;
 }
 ```
 
-2. （フォント対応が必要な場合）`includes/maps.conf` の `$nextjs_font_backend` に追加:
+> **注意**: 正規表現 location は前方一致 location より優先される。Vite 一括処理の
+> 対象アプリに個別ルート（例: `/xxx/api/`）を足す場合は `location ^~ /xxx/api/`
+> のように `^~` を付けないと、正規表現側に横取りされる。同様に、単一セグメントの
+> パスを個別処理したい場合は `location =` の完全一致にすること。
 
-```nginx
-~*/new-app/ new-app:3000;
-```
+API を持つアプリでは、バックエンドの JSON をそのまま返すため必ず
+`proxy_intercept_errors off;` と `rate_limit_api.conf` を指定すること。
 
-3. `includes/upstreams.conf` の参照一覧にホスト名:ポートを追記
+#### 3. （Next.js の dev フォント対応が必要な場合のみ）
+
+`includes/maps.conf` の `$nextjs_font_backend` に `~*/new-app/ new-app:3000;` を追加。
+このマップは Referer からアプリを判別する特殊な引き方のためレジストリを使えず、
+ここだけアドレスを直接書く（本番では使われない dev 専用ルート）。
 
 ## トラブルシューティング
 
@@ -224,19 +271,14 @@ curl -I http://localhost/itcm/
 
 ### LAN経由アクセス
 
-> **既定では LAN からアクセスできません。** `docker/gateway/docker-compose.yml` の `ports` は
-> `"127.0.0.1:80:80"` でループバックのみに公開しているため、他PCからは届きません。
+> **現在の設定は LAN に公開されています。** `docker/gateway/docker-compose.yml` の
+> `ports` は `"80:80"`（= `0.0.0.0:80`）です。ループバックのみに閉じる場合は
+> `"127.0.0.1:80:80"` に変更して `manage.bat restart gateway` してください。
 
-社内LAN内の他PCから Gateway にアクセスする場合、次の2点が必要です:
+社内LAN内の他PCから Gateway にアクセスする場合、必要なのは次の1点です
+（ポート公開は上記のとおり既に `0.0.0.0` になっています）:
 
-1. **公開先をLANに広げる** — `docker/gateway/docker-compose.yml` の `gateway` サービスの
-   ポート設定を `"127.0.0.1:80:80"` から `"80:80"`（= `0.0.0.0:80:80`）に変更して再起動:
-
-   ```bash
-   manage.bat restart gateway
-   ```
-
-2. **Windowsファイアウォールでポート80を許可**:
+1. **Windowsファイアウォールでポート80を許可**:
 
    ```powershell
    # 管理者権限のPowerShellで実行
@@ -244,6 +286,12 @@ curl -I http://localhost/itcm/
    ```
 
 設定後、`http://<ホストPCのIPアドレス>/` でアクセスできます。nginx側の設定変更は不要です（`proxy_set_header Host $host` によりどのIPでも正しく動作）。
+
+> **Host ヘッダーの許可リスト**: `includes/maps.conf` の `$host_allowed` で、
+> localhost・プライベートIP（10/172.16-31/192.168）・ドットを含まない
+> マシン名・`.local` / `.lan` / `.internal` のみを許可し、それ以外の FQDN は
+> 444（応答せず切断）で拒否します。外部ドメインを社内IPに向ける DNS
+> リバインディング対策です。社内で独自ドメインを使う場合はここに1行追加してください。
 
 ### よくある問題
 
