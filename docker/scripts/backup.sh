@@ -108,13 +108,28 @@ ensure_backup_encryption_key() {
   if command -v powershell.exe >/dev/null 2>&1; then
     # PowerShell variables in this literal must not be expanded by Bash.
     # shellcheck disable=SC2016
+    # ACL が既に期待どおりなら Set-Acl を呼ばない。
+    # 継承を無効化(protected)したファイルへ再度 Set-Acl すると SACL の書き込みを
+    # 伴い、非昇格プロセスでは SeSecurityPrivilege 不足で必ず失敗するため。
     TAX_APPS_BACKUP_KEY_PATH="$(to_win_path "$BACKUP_KEY_FILE")" powershell.exe -NoProfile -Command '
       $path = $env:TAX_APPS_BACKUP_KEY_PATH
       $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+      $wanted = @($identity.User.Value, "S-1-5-18", "S-1-5-32-544")
+
+      $current = Get-Acl -LiteralPath $path
+      $currentSids = @($current.Access | ForEach-Object {
+        $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+      })
+      $extra = @($currentSids | Where-Object { $wanted -notcontains $_ })
+      $missing = @($wanted | Where-Object { $currentSids -notcontains $_ })
+      if ($current.AreAccessRulesProtected -and $extra.Count -eq 0 -and $missing.Count -eq 0) {
+        exit 0
+      }
+
       $acl = [Security.AccessControl.FileSecurity]::new()
       $acl.SetOwner($identity.User)
       $acl.SetAccessRuleProtection($true, $false)
-      foreach ($sidValue in @($identity.User.Value, "S-1-5-18", "S-1-5-32-544")) {
+      foreach ($sidValue in $wanted) {
         $sid = [Security.Principal.SecurityIdentifier]::new($sidValue)
         $rule = [Security.AccessControl.FileSystemAccessRule]::new(
           $sid,
@@ -124,9 +139,10 @@ ensure_backup_encryption_key() {
         [void]$acl.AddAccessRule($rule)
       }
       Set-Acl -LiteralPath $path -AclObject $acl
-    ' >/dev/null || {
-      err "Could not restrict Windows ACL on backup key: $BACKUP_KEY_FILE"
-      return 1
+    ' >/dev/null 2>&1 || {
+      # 鍵の権限強化に失敗してもバックアップ自体は継続する(警告のみ)。
+      warn "Could not restrict Windows ACL on backup key: $BACKUP_KEY_FILE"
+      warn "Check the file permissions manually. Backup continues."
     }
   fi
 }
