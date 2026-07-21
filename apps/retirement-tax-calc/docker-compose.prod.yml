@@ -18,7 +18,8 @@ services:
     environment:
       TZ: Asia/Tokyo
     init: false
-    volumes: []
+    # `volumes: []` はマージされて base の開発用バインドが残るため !reset で無効化する
+    volumes: !reset []
     healthcheck:
       start_period: 10s
     deploy: *prod-deploy

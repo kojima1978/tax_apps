@@ -17,5 +17,6 @@ services:
       target: runner
     command: []
     init: false
-    volumes: []
+    # `volumes: []` はマージされて base の開発用バインドが残るため !reset で無効化する
+    volumes: !reset []
     deploy: *prod-deploy
