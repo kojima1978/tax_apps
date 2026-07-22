@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  AlertTriangle, ChevronRight, CircleCheck, Clock3, Copy, GripVertical, History, Landmark, LayoutDashboard, Link2,
-  LoaderCircle, Menu, Minus, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Printer, Search, ShieldCheck, Table2, Trash2, UserPlus, Users, WalletCards, X,
+  AlertTriangle, ChevronRight, CircleCheck, Clock3, Copy, DatabaseBackup, Download, FileJson, GripVertical, History, Landmark, LayoutDashboard, Link2,
+  LoaderCircle, Menu, Minus, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Printer, Search, ShieldCheck, Table2, Trash2, Upload, UserPlus, Users, WalletCards, X,
 } from "lucide-react";
-import { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, ClipboardEvent, DragEvent, FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Position = {
   id: number; side: "ASSET" | "LIABILITY"; category: string; name: string; institution: string;
@@ -43,7 +43,9 @@ type Portfolio = {
   snapshots: Snapshot[];
 };
 type ClientSummary = { id: number; clientCode: string; name: string; assignedStaff: string; latestFiscalYear: number | null };
-type Tab = "overview" | "assets" | "history";
+type Tab = "overview" | "assets" | "history" | "backup";
+type BackupKind = "full" | "household";
+type BackupPreview = { kind: BackupKind; exportedAt: string | null; subject: string; households: number; snapshots: number; positions: number };
 type BulkPositionPayload = Record<string, unknown>;
 type BulkModalMode = "add" | "edit";
 type BalanceScenario = "without-tax" | "with-tax";
@@ -718,6 +720,17 @@ export function Dashboard() {
     finally { setSaving(false); }
   }
 
+  async function reloadAfterRestore(kind: BackupKind, restoredHouseholdId?: number) {
+    if (kind === "full") {
+      // 復元後は顧客IDが入れ替わるため、選択中の顧客を既定へ戻す。
+      activeHouseholdIdRef.current = null;
+      window.localStorage.removeItem("pb-active-household-id");
+    }
+    setWorkingSnapshotId(null);
+    setError("");
+    await load(kind === "full" ? undefined : restoredHouseholdId);
+  }
+
   function editSnapshot(snapshotId: number) {
     setWorkingSnapshotId(snapshotId);
     setActiveTab("assets");
@@ -758,6 +771,7 @@ export function Dashboard() {
           <NavButton active={activeTab === "overview"} icon={<LayoutDashboard />} label="貸借対照表" onClick={() => { setActiveTab("overview"); setMenuOpen(false); }} />
           <NavButton active={activeTab === "assets"} icon={<WalletCards />} label="資産・負債明細" onClick={() => { setWorkingSnapshotId(null); setActiveTab("assets"); setMenuOpen(false); }} />
           <NavButton active={activeTab === "history"} icon={<History />} label="年度比較" onClick={() => { setActiveTab("history"); setMenuOpen(false); }} />
+          <NavButton active={activeTab === "backup"} icon={<DatabaseBackup />} label="バックアップ" onClick={() => { setActiveTab("backup"); setMenuOpen(false); }} />
         </nav>
         <div className="side-section"><p>外部連携</p><a className="side-link" href={`/inheritance-tax-app/?source=pb&householdId=${portfolio.household.id}`} aria-label="相続税シミュレーター" title="相続税シミュレーター"><Link2 /><span>相続税シミュレーター</span><ChevronRight /></a></div>
         <div className="security-note"><ShieldCheck /><div><strong>ローカル環境</strong><span>データは社内DBで管理</span></div></div>
@@ -862,6 +876,7 @@ export function Dashboard() {
 
           {(activeTab === "assets" || printSections?.has("details")) && workingSnapshot ? <div className={`report-document ${activeTab !== "assets" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={setWorkingSnapshotId} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkAdd={() => setBulkModalMode("add")} onBulkEdit={() => setBulkModalMode("edit")} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditTaxes={() => setSnapshotTaxModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => setActiveTab("history")} saving={saving} /></div> : null}
           {(activeTab === "history" || printSections?.has("history")) ? <div className={`report-document ${activeTab !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
+          {activeTab === "backup" ? <div className="report-document print-excluded-document"><BackupView householdId={portfolio.household.id} householdName={portfolio.household.name} clientCode={portfolio.household.clientCode} onRestored={reloadAfterRestore} /></div> : null}
         </main>
       </div>
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
@@ -1154,6 +1169,167 @@ function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnapshot, sa
       <div className="table-scroll"><table className="history-table"><thead><tr><th>基準日</th><th>状態</th><th className="number">資産合計</th><th className="number">負債合計</th><th className="number">純資産</th><th className="number">個人保証</th><th className="actions-column">操作</th></tr></thead><tbody>{[...orderedSnapshots].reverse().map((snapshot) => { const s = trendValues(snapshot); return <tr key={snapshot.id}><td><strong>{dateJa(snapshot.asOfDate)}</strong></td><td>{snapshot.isCurrent ? <span className="current-badge">現在</span> : snapshot.label}</td><td className="number">{compactYen(s.assets)}</td><td className="number">{compactYen(s.liabilities)}</td><td className="number emphasis">{compactYen(s.netWorth)}</td><td className="number">{compactYen(s.guarantees)}</td><td><div className="table-actions"><button type="button" className="row-action delete" title={`${snapshot.fiscalYear}年度を削除`} aria-label={`${snapshot.fiscalYear}年度のデータを削除`} onClick={() => onDeleteSnapshot(snapshot)}><Trash2 /><span className="sr-only">年度を削除</span></button></div></td></tr>; })}</tbody></table></div>
     </section>
   </>;
+}
+
+const backupTimestamp = (value: string | null) =>
+  value ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "不明";
+
+/** 選択されたJSONの中身を読み、確認画面に出す概要を組み立てる。不正なファイルは日本語メッセージで弾く。 */
+function readBackupPreview(payload: unknown): BackupPreview {
+  if (payload === null || typeof payload !== "object") throw new Error("バックアップファイルとして読み込めませんでした。");
+  const backup = payload as Record<string, unknown>;
+  if (backup.schemaVersion !== 1) throw new Error("このアプリのバックアップファイルではありません。");
+  const exportedAt = typeof backup.exportedAt === "string" ? backup.exportedAt : null;
+
+  if (backup.kind === "full") {
+    const data = backup.data as Record<string, unknown> | undefined;
+    const households = data?.households, snapshots = data?.snapshots, positions = data?.positions;
+    if (!Array.isArray(households) || !Array.isArray(snapshots) || !Array.isArray(positions)) throw new Error("全体バックアップの中身が壊れています。");
+    return { kind: "full", exportedAt, subject: `${households.length}件の顧客（全体）`, households: households.length, snapshots: snapshots.length, positions: positions.length };
+  }
+
+  if (backup.kind === "household") {
+    const household = backup.household as Record<string, unknown> | undefined;
+    const snapshots = backup.snapshots;
+    if (!household || !Array.isArray(snapshots)) throw new Error("顧客データファイルの中身が壊れています。");
+    const positions = snapshots.reduce((total: number, snapshot) => {
+      const rows = (snapshot as Record<string, unknown> | null)?.positions;
+      return total + (Array.isArray(rows) ? rows.length : 0);
+    }, 0);
+    return { kind: "household", exportedAt, subject: `${household.name ?? "顧客"}（${household.clientCode ?? "コード不明"}）`, households: 1, snapshots: snapshots.length, positions };
+  }
+
+  throw new Error("バックアップの種類を判別できませんでした。");
+}
+
+function BackupView({ householdId, householdName, clientCode, onRestored }: {
+  householdId: number;
+  householdName: string;
+  clientCode: string;
+  onRestored: (kind: BackupKind, restoredHouseholdId?: number) => Promise<void>;
+}) {
+  const [selected, setSelected] = useState<{ fileName: string; payload: unknown; preview: BackupPreview } | null>(null);
+  const [fileError, setFileError] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [completed, setCompleted] = useState("");
+
+  async function selectFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // 同じファイルを選び直したときも change が発火するようにクリアする。
+    event.target.value = "";
+    setCompleted("");
+    if (!file) return;
+    try {
+      const payload = JSON.parse(await file.text()) as unknown;
+      setSelected({ fileName: file.name, payload, preview: readBackupPreview(payload) });
+      setFileError("");
+    } catch (error) {
+      setSelected(null);
+      setFileError(error instanceof SyntaxError ? "JSONファイルとして読み込めませんでした。" : error instanceof Error ? error.message : "ファイルを読み込めませんでした。");
+    }
+  }
+
+  async function runRestore() {
+    if (!selected) return;
+    const { kind, households, snapshots, positions } = selected.preview;
+    setBusy(true); setFileError("");
+    try {
+      const response = await fetch(`${API_BASE}/backup/${kind === "full" ? "restore" : "import"}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(selected.payload),
+      });
+      const result = await response.json().catch(() => null) as { error?: string; household?: { id: number; name: string }; renamedClientCode?: string | null } | null;
+      if (!response.ok) throw new Error(result?.error ?? (kind === "full" ? "復元できませんでした。" : "取り込めませんでした。"));
+      setConfirming(false);
+      setSelected(null);
+      setCompleted(kind === "full"
+        ? `全データを復元しました（顧客${households}件・年度${snapshots}件・明細${positions}件）。`
+        : `「${result?.household?.name ?? "顧客"}」を新規顧客として取り込みました。${result?.renamedClientCode ? `顧客コードが重複したため ${result.renamedClientCode} に変更しています。` : ""}`);
+      await onRestored(kind, result?.household?.id);
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : "処理できませんでした。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <>
+    <section className="page-heading"><div><p className="eyebrow">BACKUP &amp; RESTORE</p><h2>バックアップ</h2><p>データをJSONファイルへ書き出し、必要なときに復元します。</p></div></section>
+    <div className="backup-grid">
+      <article className="panel">
+        <PanelHeader title="書き出し" subtitle="JSONファイルとしてダウンロードします" />
+        <div className="backup-body">
+          <div className="backup-option">
+            <div><strong>全顧客をまとめて書き出す</strong><span>すべての顧客・年度・明細を1つのファイルに保存します。障害時の復旧用です。</span></div>
+            <a className="button primary" href={`${API_BASE}/backup`} download><Download />全体を書き出す</a>
+          </div>
+          <div className="backup-option">
+            <div><strong>この顧客だけ書き出す</strong><span>{householdName}（{clientCode}）の全年度を保存します。別の環境へ新規顧客として取り込めます。</span></div>
+            <a className="button secondary" href={`${API_BASE}/backup?householdId=${householdId}`} download><Download />顧客を書き出す</a>
+          </div>
+        </div>
+      </article>
+      <article className="panel">
+        <PanelHeader title="復元・取り込み" subtitle="書き出したJSONファイルを読み込みます" />
+        <div className="backup-body">
+          <label className="backup-file-picker">
+            <FileJson />
+            <span><strong>バックアップファイルを選択</strong><small>全体／顧客単位の種類は自動で判定します</small></span>
+            <input type="file" accept="application/json,.json" onChange={(event) => void selectFile(event)} />
+          </label>
+          {fileError ? <p className="backup-message error" role="alert"><AlertTriangle />{fileError}</p> : null}
+          {completed ? <p className="backup-message success" role="status"><CircleCheck />{completed}</p> : null}
+          {selected ? <div className="backup-preview">
+            <dl>
+              <div><dt>ファイル</dt><dd>{selected.fileName}</dd></div>
+              <div><dt>種類</dt><dd>{selected.preview.kind === "full" ? "全体バックアップ（置き換え）" : "顧客単位（追加）"}</dd></div>
+              <div><dt>作成日時</dt><dd>{backupTimestamp(selected.preview.exportedAt)}</dd></div>
+              <div><dt>対象</dt><dd>{selected.preview.subject}</dd></div>
+              <div><dt>内容</dt><dd>顧客{selected.preview.households}件 / 年度{selected.preview.snapshots}件 / 明細{selected.preview.positions}件</dd></div>
+            </dl>
+            <div className="backup-preview-actions">
+              <button type="button" className="button secondary" onClick={() => setSelected(null)}>選び直す</button>
+              <button type="button" className={`button ${selected.preview.kind === "full" ? "danger-button" : "primary"}`} onClick={() => setConfirming(true)}><Upload />{selected.preview.kind === "full" ? "全データを置き換える" : "新規顧客として取り込む"}</button>
+            </div>
+          </div> : null}
+          <p className="backup-note" role="note"><AlertTriangle />全体バックアップの復元は<strong>現在のすべての顧客データを削除して置き換えます</strong>。実行前に現在のデータを書き出しておいてください。</p>
+        </div>
+      </article>
+    </div>
+    {confirming && selected ? <BackupConfirmModal preview={selected.preview} fileName={selected.fileName} busy={busy} error={fileError} onClose={() => setConfirming(false)} onConfirm={() => void runRestore()} /> : null}
+  </>;
+}
+
+function BackupConfirmModal({ preview, fileName, busy, error, onClose, onConfirm }: {
+  preview: BackupPreview;
+  fileName: string;
+  busy: boolean;
+  error: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const isFull = preview.kind === "full";
+  return <div className="modal-layer" role="presentation"><div className="modal delete-modal" role="dialog" aria-modal="true" aria-labelledby="backup-confirm-title">
+    <header><div><p className={`eyebrow ${isFull ? "danger-eyebrow" : ""}`}>{isFull ? "RESTORE ALL" : "IMPORT CLIENT"}</p><h2 id="backup-confirm-title">{isFull ? "全データを置き換えますか？" : "新規顧客として取り込みますか？"}</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={busy}><X /></button></header>
+    <div className="delete-modal-body">
+      <p>{isFull
+        ? "現在登録されているすべての顧客・年度・明細を削除し、選択したファイルの内容へ置き換えます。この操作は取り消せません。"
+        : "選択したファイルの顧客を新しい顧客として追加します。既存の顧客データは変更されません。"}</p>
+      <dl>
+        <div><dt>ファイル</dt><dd>{fileName}</dd></div>
+        <div><dt>対象</dt><dd>{preview.subject}</dd></div>
+        <div><dt>内容</dt><dd>顧客{preview.households}件 / 年度{preview.snapshots}件 / 明細{preview.positions}件</dd></div>
+      </dl>
+      {isFull ? <p className="backup-message warning" role="note"><AlertTriangle />先に<a href={`${API_BASE}/backup`} download>現在のデータを書き出す</a>ことをおすすめします。</p> : null}
+      {error ? <p className="backup-message error" role="alert"><AlertTriangle />{error}</p> : null}
+      <footer>
+        <button type="button" className="button secondary" onClick={onClose} disabled={busy}>キャンセル</button>
+        <button type="button" className={`button ${isFull ? "danger-button" : "primary"}`} onClick={onConfirm} disabled={busy}>{busy ? <LoaderCircle className="spin" /> : <Upload />}{isFull ? "置き換えを実行" : "取り込む"}</button>
+      </footer>
+    </div>
+  </div></div>;
 }
 
 function YearCreationModal({ snapshots, initialSourceId, onClose, onSubmit, onEditExisting, saving }: {
