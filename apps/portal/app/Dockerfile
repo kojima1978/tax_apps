@@ -45,6 +45,12 @@ server {
     server_tokens off;
     access_log off;
 
+    location = /health {
+        default_type text/plain;
+        add_header Cache-Control "no-store" always;
+        return 200 'OK';
+    }
+
     location / {
         try_files $uri $uri.html $uri/ /index.html;
     }
@@ -65,7 +71,7 @@ USER nginx
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://127.0.0.1:3000/ || exit 1
+    CMD wget --quiet --tries=1 --spider http://127.0.0.1:3000/health || exit 1
 
 # グレースフルシャットダウン（NginxはSIGQUITで graceful stop）
 STOPSIGNAL SIGQUIT

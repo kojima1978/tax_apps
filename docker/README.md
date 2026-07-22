@@ -248,14 +248,14 @@ rd /s /q tax_apps
 ./manage.sh start --prod
 
 # 個別アプリ
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
 ```
 
 個別アプリの例:
 
 ```bash
-docker compose -f apps\inheritance-tax-docs\docker-compose.yml -f apps\inheritance-tax-docs\docker-compose.prod.yml up -d --build
-docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-analyzer-django\docker-compose.prod.yml up -d --build
+docker compose -f apps\inheritance-tax-docs\docker-compose.yml -f apps\inheritance-tax-docs\docker-compose.prod.yml up -d --build --remove-orphans
+docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-analyzer-django\docker-compose.prod.yml up -d --build --remove-orphans
 ```
 
 ### 開発モードに戻す
@@ -628,14 +628,16 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | docker-compose.yml ファイル存在確認（13個、income-tax-calc 除外） | OK / WARN |
+| 3 | docker-compose.yml ファイル存在確認（14個、income-tax-calc 除外） | OK / WARN |
 | 4 | Compose config 検証 | OK / WARN |
 | 5 | Nginx 設定ファイル存在確認 | OK / WARN |
 | 6 | ITCM `.env` ファイル存在確認 | OK / WARN |
-| 7 | ポート競合検出（16ポート、Tax Apps 自身の使用ポートは除外） | OK / WARN |
-| 8 | ホストディスク空き容量（5GB未満で警告） | OK / WARN |
-| 9 | Docker daemon メモリ（4GB未満で警告） | OK / WARN |
-| 10 | Docker ディスク使用量表示 | OK / WARN |
+| 7 | 暗号化バックアップの鮮度・暗号鍵 | OK / WARN |
+| 8 | 平文バックアップディレクトリの残存 | OK / WARN |
+| 9 | ポート競合検出（16ポート、Tax Apps 自身の使用ポートは除外） | OK / WARN |
+| 10 | ホストディスク空き容量（5GB未満で警告） | OK / WARN |
+| 11 | Docker daemon メモリ（4GB未満で警告） | OK / WARN |
+| 12 | Docker ディスク使用量表示 | OK / WARN |
 
 ### Docker Build Cache Cleanup
 
@@ -652,7 +654,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 |:-----|:-----|
 | 動的DNS解決 | Docker DNS resolver + 変数で起動時のホスト名依存を排除。コンテナ未起動でも Gateway は起動し、該当サービスのみ 502 を返す |
 | Gzip圧縮 | CSS, JS, JSON等を自動圧縮 |
-| レート制限 | API 300req/s (burst=10), 一般 1000req/s (burst=200) |
+| レート制限 | API 60req/s (burst=30), 一般 300req/s (burst=100) |
 | セキュリティヘッダー | X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
 | ヘルスチェック | `/health`（liveness）、`/ready`（readiness）エンドポイント |
 
@@ -661,7 +663,8 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 設定 | 内容 |
 |:-----|:-----|
 | ログローテーション | 10MB × 3ファイル |
-| リソース制限 | deploy.resources による memory limit/reservation（Gateway/Portal は 256M/64M） |
+| リソース制限 | deploy.resources による memory limit/reservation（Gateway/Portal は 256M/64M）と PID 上限（256） |
+| 実行時保護 | Gateway/Portal は非root、read-only root filesystem、全 capability drop、no-new-privileges |
 | ヘルスチェック | 全サービスに設定。コンテナ内の自己診断は IPv6 誤判定を避けるため `127.0.0.1` を使用 |
 | 自動復旧 | `tax-apps.autoheal=true` ラベル付きの unhealthy コンテナを、ホスト側の `docker-watchdog.ps1` が再起動（Docker socket はコンテナへ渡さない） |
 | 依存関係管理 | service_healthy 条件 |

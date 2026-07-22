@@ -262,14 +262,14 @@ _do_start() {
     local prod_compose="$dir/docker-compose.prod.yml"
     if [[ -f "$prod_compose" ]]; then
       log "  起動[本番]: $name"
-      docker compose -f "$dir/docker-compose.yml" -f "$prod_compose" up -d --build
+      docker compose -f "$dir/docker-compose.yml" -f "$prod_compose" up -d --build --remove-orphans
     else
       log "  起動[本番]: $name"
-      docker compose -f "$dir/docker-compose.yml" up -d --build
+      docker compose -f "$dir/docker-compose.yml" up -d --build --remove-orphans
     fi
   else
     log "  起動: $name"
-    docker compose -f "$dir/docker-compose.yml" up -d
+    docker compose -f "$dir/docker-compose.yml" up -d --remove-orphans
   fi
 }
 
@@ -319,7 +319,7 @@ cmd_build() {
   require_app_arg "build" "${1:-}"
   ensure_network
   log "$(basename "$RESOLVED_DIR") を再ビルドして起動します..."
-  docker compose -f "$RESOLVED_DIR/docker-compose.yml" up -d --build
+  docker compose -f "$RESOLVED_DIR/docker-compose.yml" up -d --build --remove-orphans
   log "$(basename "$RESOLVED_DIR") のビルドが完了しました"
 }
 
@@ -697,7 +697,19 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
-  # 8. Port conflicts
+  # 暗号化導入前の平文バックアップには .env や個人情報が含まれるため、
+  # 残存していれば正常扱いせず明示的に警告する。
+  local plaintext_backup_count=0
+  plaintext_backup_count=$(find "$backup_base" -maxdepth 1 -type d \
+    \( -name '????-??-??_??????' -o -name 'pre-restore_????-??-??_??????' \) \
+    -print 2>/dev/null | wc -l | tr -d ' ')
+  if [[ "$plaintext_backup_count" -gt 0 ]]; then
+    warn "docker/backups に平文バックアップディレクトリが ${plaintext_backup_count} 件残っています"
+    echo "  暗号化バックアップを検証後、平文コピーを移行または安全に削除してください。"
+    ((++pf_warn))
+  fi
+
+  # 9. Port conflicts
   local port_conflict=0
   local tax_apps_ports=()
   local ports=(80 3000 3001 3002 3003 3004 3007 3010 3012 3013 3014 3015 3017 3020 3022 5432)
@@ -719,7 +731,7 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
-  # 9. Host disk space
+  # 10. Host disk space
   local free_kb
   free_kb=$(df -k "$PROJECT_ROOT" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0")
   if [[ $free_kb -lt $((5*1024*1024)) ]]; then
@@ -730,7 +742,7 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
-  # 10. Docker daemon memory
+  # 11. Docker daemon memory
   local docker_mem_bytes
   docker_mem_bytes=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo "0")
   if [[ "$docker_mem_bytes" =~ ^[0-9]+$ && "$docker_mem_bytes" -gt 0 ]]; then
@@ -748,7 +760,7 @@ cmd_preflight() {
     ((++pf_warn))
   fi
 
-  # 10. Docker disk usage
+  # 12. Docker disk usage
   if docker system df >/dev/null 2>&1; then
     echo ""
     echo "Docker disk usage:"

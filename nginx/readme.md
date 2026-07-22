@@ -56,7 +56,7 @@ nginx/
 ### 監視・トレーシング
 
 - **ヘルスチェック**: `/health` エンドポイント（Alpine BusyBox内蔵wget使用）
-- **Nginx Status**: `/nginx-status` (内部ネットワークのみ)
+- **Nginx Status**: `/nginx-status`（コンテナループバック限定。`docker exec` で確認）
 - **詳細ログ**: レスポンスタイム、アップストリーム時間（main形式）
 - **リクエストトレーシング**: X-Request-ID, X-Request-Start ヘッダー
 
@@ -73,7 +73,7 @@ nginx/
 ### 構成のモジュール化
 
 - **共通プロキシ設定**: `includes/proxy_params.conf` に共通のヘッダー設定（Host, X-Real-IP, WebSocket Upgrade等）を集約
-- **アップストリーム参照**: `includes/upstreams.conf` に全サービスのホスト名:ポート一覧を記載（`upstream` ブロックは使用せず、`default.conf` 内で `set $upstream_xxx` 変数として定義）
+- **アップストリーム参照**: `includes/upstreams.conf` の `map` に全サービスのホスト名:ポートを集約し、`default.conf` は `$app_backend` 経由で参照
 - **Map定義**: `includes/maps.conf` に WebSocket Upgrade と Next.js Font Routing の map を分離
 - **レート制限**: `includes/rate_limit_general.conf` / `rate_limit_api.conf` で burst 値を一元管理
 

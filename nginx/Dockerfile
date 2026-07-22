@@ -17,10 +17,10 @@ ENV TZ=Asia/Tokyo
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache tzdata && \
-    mkdir -p /tmp/nginx-cache /tmp/nginx-client-body /tmp/nginx-proxy-temp \
+    mkdir -p /var/cache/nginx/static-cache /var/cache/nginx/client-body \
+        /var/cache/nginx/proxy-temp \
         /tmp/nginx-fastcgi-temp /tmp/nginx-uwsgi-temp /tmp/nginx-scgi-temp && \
-    chown -R nginx:nginx /var/cache/nginx /var/log/nginx /tmp/nginx-cache \
-        /tmp/nginx-client-body /tmp/nginx-proxy-temp /tmp/nginx-fastcgi-temp \
+    chown -R nginx:nginx /var/cache/nginx /var/log/nginx /tmp/nginx-fastcgi-temp \
         /tmp/nginx-uwsgi-temp /tmp/nginx-scgi-temp
 
 COPY --link html/ /usr/share/nginx/html/

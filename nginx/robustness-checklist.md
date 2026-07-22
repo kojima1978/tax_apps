@@ -35,12 +35,14 @@ docker exec tax-apps-gateway nginx -t && docker exec tax-apps-gateway nginx -s r
 ```bash
 curl -I http://localhost/health
 curl -I http://localhost/ready
-curl http://localhost/nginx-status
+# status はコンテナループバック限定。ホストへは公開しない。
+docker exec tax-apps-gateway wget -qO- http://127.0.0.1/nginx-status
 docker compose -f docker/gateway/docker-compose.yml ps
 docker compose -f docker/gateway/docker-compose.yml logs --tail=100 gateway
 ```
 
-`/health` は Nginx 自体の liveness、`/ready` は portal upstream の readiness です。
+`/health` は Nginx 自体の liveness、`/ready` は portal upstream の軽量な
+`/health` エンドポイントを確認する readiness です。どちらも GET で即時完了します。
 
 ## 3. 障害時の期待値
 
@@ -60,4 +62,6 @@ docker compose -f docker/gateway/docker-compose.yml logs --tail=100 gateway
 | General rate limit | `nginx/nginx.conf` | `300r/s`, burst `100` |
 | Default proxy timeout | `nginx/includes/proxy_params.conf` | connect `10s`, read/send `60s` |
 | Bank analysis timeout | `nginx/default.conf` | read/send `300s` |
-| Static cache storage | `nginx/nginx.conf` | `/tmp/nginx-cache`, max `64m`, inactive `30d`（tmpfs 128m の範囲内） |
+| Static cache storage | `nginx/nginx.conf` | `/var/cache/nginx/static-cache`, max `32m`, inactive `30d`（専用 tmpfs 32m） |
+| Client body temp | `nginx/nginx.conf` | `/var/cache/nginx/client-body`（専用 tmpfs 64m） |
+| Proxy response temp | `nginx/nginx.conf` | `/var/cache/nginx/proxy-temp`, max `32m`（専用 tmpfs 32m） |
