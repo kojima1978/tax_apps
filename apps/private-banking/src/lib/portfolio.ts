@@ -199,7 +199,7 @@ export async function getPortfolio(householdId?: number) {
   });
 
   return {
-    household: { id: household.id, clientCode: household.clientCode, name: household.name, assignedStaff: household.assignedStaff, currency: household.currency },
+    household: { id: household.id, clientCode: household.clientCode, name: household.name, nameKana: household.nameKana, assignedStaff: household.assignedStaff, currency: household.currency },
     planning: {
       estimatedInheritanceTax: toNumber(household.estimatedInheritanceTax),
       otherTaxes: toNumber(household.otherTaxes),

@@ -12,6 +12,7 @@ model Household {
   id                      Int        @id @default(autoincrement())
   clientCode              String     @unique
   name                    String     @default("山田 太郎（サンプル）")
+  nameKana                String     @default("")
   assignedStaff           String     @default("")
   currency                String     @default("JPY")
   estimatedInheritanceTax Decimal    @default(0) @db.Decimal(24, 0)

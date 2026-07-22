@@ -1,10 +1,18 @@
 "use client";
 
 import {
-  AlertTriangle, ChevronRight, CircleCheck, Clock3, Copy, DatabaseBackup, Download, FileJson, GripVertical, History, Landmark, LayoutDashboard, Link2,
-  LoaderCircle, Menu, Minus, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Printer, Search, ShieldCheck, Table2, Trash2, Upload, UserPlus, Users, WalletCards, X,
+  AlertTriangle, ChevronLeft, ChevronRight, CircleCheck, Clock3, Copy, DatabaseBackup, GripVertical, History, LayoutDashboard, Link2,
+  LoaderCircle, Menu, Minus, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Printer, ShieldCheck, Table2, Trash2, WalletCards, X,
 } from "lucide-react";
-import { ChangeEvent, ClipboardEvent, DragEvent, FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { BackupView } from "@/components/backup-view";
+import { ClientFields } from "@/components/client-fields";
+import { PanelHeader } from "@/components/panel-header";
+import { PortalLink } from "@/components/portal-link";
+import { API_BASE } from "@/lib/api";
+import { ClientSummary } from "@/lib/clients";
 
 type Position = {
   id: number; side: "ASSET" | "LIABILITY"; category: string; name: string; institution: string;
@@ -35,23 +43,26 @@ type PositionSection = "ASSET" | "LIABILITY" | "CONTINGENT";
 type PositionSortMode = "manual" | "classification-asc" | "classification-desc";
 type ValuationFormula = "MANUAL" | "STOCK" | "LAND_ROADSIDE" | "LAND_MULTIPLIER" | "BUILDING";
 type Portfolio = {
-  household: { id: number; clientCode: string; name: string; assignedStaff: string; currency: string };
+  household: { id: number; clientCode: string; name: string; nameKana: string; assignedStaff: string; currency: string };
   planning: {
     estimatedInheritanceTax: number; otherTaxes: number; successionCosts: number; inheritanceTaxUpdatedAt: string | null;
     hasSpouse: boolean; heirRank: "none" | "rank1" | "rank2" | "rank3"; heirCount: number;
   };
   snapshots: Snapshot[];
 };
-type ClientSummary = { id: number; clientCode: string; name: string; assignedStaff: string; latestFiscalYear: number | null };
-type Tab = "overview" | "assets" | "history" | "backup";
-type BackupKind = "full" | "household";
-type BackupPreview = { kind: BackupKind; exportedAt: string | null; subject: string; households: number; snapshots: number; positions: number };
+/** サイドバーのメニュー。key はそのまま URL の `/customers/<id>/<key>` になる。 */
+const SECTIONS = [
+  { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
+  { key: "positions", label: "資産・負債明細", icon: WalletCards },
+  { key: "history", label: "年度比較", icon: History },
+  { key: "backup", label: "バックアップ", icon: DatabaseBackup },
+] as const;
+export type Section = typeof SECTIONS[number]["key"];
 type BulkPositionPayload = Record<string, unknown>;
 type BulkModalMode = "add" | "edit";
 type BalanceScenario = "without-tax" | "with-tax";
 type PrintSection = "balance" | "details" | "history";
 
-const API_BASE = "/private-banking/api";
 const categoryLabels: Record<string, string> = {
   DEPOSIT: "預金・現金", SECURITIES: "有価証券", HOME_REAL_ESTATE: "自宅", REAL_ESTATE: "収益不動産", IDLE_REAL_ESTATE: "遊休不動産",
   PRIVATE_SHARES: "自社株", BUSINESS_ASSETS: "事業用資産", LOAN_RECEIVABLE: "貸付金", INSURANCE: "生命保険", COLLECTIBLES: "その他資産",
@@ -376,9 +387,9 @@ const trendChildRows: Record<TrendGroup, TrendRow[]> = {
   ],
 };
 
-export function Dashboard() {
+export function Dashboard({ householdId, section }: { householdId: number; section: Section }) {
+  const router = useRouter();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [balanceScenario, setBalanceScenario] = useState<BalanceScenario>("without-tax");
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -388,42 +399,31 @@ export function Dashboard() {
   const [deletingPosition, setDeletingPosition] = useState<Position | null>(null);
   const [deletingSnapshot, setDeletingSnapshot] = useState<Snapshot | null>(null);
   const [forecastModalOpen, setForecastModalOpen] = useState(false);
-  const [workingSnapshotId, setWorkingSnapshotId] = useState<number | null>(null);
+  const searchParams = useSearchParams();
+  // 明細で開いている年度は URL のクエリで持ち、画面を移動しても選択が残るようにする。
+  const workingSnapshotId = Number(searchParams.get("snapshot")) || null;
   const [yearCreationSourceId, setYearCreationSourceId] = useState<number | null>(null);
   const [snapshotTaxModalOpen, setSnapshotTaxModalOpen] = useState(false);
   const [printGuideOpen, setPrintGuideOpen] = useState(false);
   const [printSections, setPrintSections] = useState<Set<PrintSection> | null>(null);
-  const [clients, setClients] = useState<ClientSummary[]>([]);
-  const [clientSwitcherOpen, setClientSwitcherOpen] = useState(false);
+  const [clientEditOpen, setClientEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const activeHouseholdIdRef = useRef<number | null>(null);
 
-  const load = useCallback(async (requestedHouseholdId?: number) => {
+  const load = useCallback(async () => {
     setError("");
     try {
-      const storedId = typeof window === "undefined" ? Number.NaN : Number(window.localStorage.getItem("pb-active-household-id"));
-      const householdId = requestedHouseholdId ?? activeHouseholdIdRef.current ?? (Number.isInteger(storedId) && storedId > 0 ? storedId : undefined);
-      const portfolioUrl = householdId ? `${API_BASE}/portfolio?householdId=${householdId}` : `${API_BASE}/portfolio`;
-      const responses = await Promise.all([
-        fetch(portfolioUrl, { cache: "no-store" }),
-        fetch(`${API_BASE}/clients`, { cache: "no-store" }),
-      ]);
-      let portfolioResponse = responses[0];
-      const clientsResponse = responses[1];
-      if (portfolioResponse.status === 404 && householdId) portfolioResponse = await fetch(`${API_BASE}/portfolio`, { cache: "no-store" });
-      if (!portfolioResponse.ok || !clientsResponse.ok) throw new Error();
-      const [nextPortfolio, nextClients] = await Promise.all([portfolioResponse.json() as Promise<Portfolio>, clientsResponse.json() as Promise<ClientSummary[]>]);
-      activeHouseholdIdRef.current = nextPortfolio.household.id;
-      window.localStorage.setItem("pb-active-household-id", String(nextPortfolio.household.id));
-      setPortfolio(nextPortfolio);
-      setClients(nextClients);
+      const response = await fetch(`${API_BASE}/portfolio?householdId=${householdId}`, { cache: "no-store" });
+      // URL の顧客が存在しない場合は一覧へ戻して選び直してもらう。
+      if (response.status === 404) { router.replace("/"); return; }
+      if (!response.ok) throw new Error();
+      setPortfolio(await response.json() as Portfolio);
     } catch {
       setError("データを読み込めませんでした。接続を確認してください。");
     }
-  }, []);
+  }, [householdId, router]);
 
-  // Initial client fetch is intentionally triggered once through the stable loader.
+  // 顧客が変わったときだけ、安定したローダー経由で読み直す。
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
 
@@ -518,43 +518,22 @@ export function Dashboard() {
     setEditingPosition(null);
   }
 
-  async function switchClient(householdId: number) {
-    if (householdId === portfolio?.household.id) {
-      setClientSwitcherOpen(false);
-      return;
-    }
-    setSaving(true);
-    setWorkingSnapshotId(null);
-    setEditingPosition(null);
-    setDeletingPosition(null);
-    setDeletingSnapshot(null);
-    setModalOpen(false);
-    setBulkModalMode(null);
-    setForecastModalOpen(false);
-    setSnapshotTaxModalOpen(false);
-    await load(householdId);
-    setClientSwitcherOpen(false);
-    setSaving(false);
-  }
-
-  async function createClient(event: FormEvent<HTMLFormElement>) {
+  async function saveClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError("");
     try {
       const response = await fetch(`${API_BASE}/clients`, {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget).entries())),
+        body: JSON.stringify({ ...Object.fromEntries(new FormData(event.currentTarget).entries()), id: householdId }),
       });
       const result = await response.json().catch(() => null) as (ClientSummary & { error?: string }) | null;
-      if (!response.ok || !result) throw new Error(result?.error ?? "顧客を登録できませんでした。");
-      await load(result.id);
-      setWorkingSnapshotId(null);
-      setActiveTab("overview");
-      setClientSwitcherOpen(false);
+      if (!response.ok || !result) throw new Error(result?.error ?? "顧客情報を保存できませんでした。");
+      setClientEditOpen(false);
+      await load();
     } catch (clientError) {
-      setError(clientError instanceof Error ? clientError.message : "顧客を登録できませんでした。");
+      setError(clientError instanceof Error ? clientError.message : "顧客情報を保存できませんでした。");
     } finally {
       setSaving(false);
     }
@@ -667,7 +646,8 @@ export function Dashboard() {
       const result = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) throw new Error(result?.error ?? "年度データを削除できませんでした。");
       setDeletingSnapshot(null);
-      setWorkingSnapshotId(null);
+      // 削除した年度を URL に残さない。
+      if (section === "positions" && workingSnapshotId === deletingSnapshot.id) router.replace(sectionHref("positions"));
       await load();
     } catch (error) {
       setError(error instanceof Error ? error.message : "年度データを削除できませんでした。");
@@ -720,20 +700,11 @@ export function Dashboard() {
     finally { setSaving(false); }
   }
 
-  async function reloadAfterRestore(kind: BackupKind, restoredHouseholdId?: number) {
-    if (kind === "full") {
-      // 復元後は顧客IDが入れ替わるため、選択中の顧客を既定へ戻す。
-      activeHouseholdIdRef.current = null;
-      window.localStorage.removeItem("pb-active-household-id");
-    }
-    setWorkingSnapshotId(null);
-    setError("");
-    await load(kind === "full" ? undefined : restoredHouseholdId);
-  }
+  const sectionHref = (target: Section, snapshotId?: number | null) =>
+    `/customers/${householdId}/${target}${target === "positions" && snapshotId ? `?snapshot=${snapshotId}` : ""}`;
 
   function editSnapshot(snapshotId: number) {
-    setWorkingSnapshotId(snapshotId);
-    setActiveTab("assets");
+    router.push(sectionHref("positions", snapshotId));
   }
 
   async function saveForecast(event: FormEvent<HTMLFormElement>) {
@@ -757,21 +728,26 @@ export function Dashboard() {
   }
 
   if (!portfolio || !current) {
-    return <main className="initial-loader"><div className="brand-mark"><Landmark /></div><LoaderCircle className="spin" /><p>{error || "貸借対照表を読み込んでいます"}</p>{error ? <button className="button secondary" onClick={() => void load()}>再読み込み</button> : null}</main>;
+    return <main className="initial-loader"><PortalLink /><LoaderCircle className="spin" /><p>{error || "貸借対照表を読み込んでいます"}</p>{error ? <button className="button secondary" onClick={() => void load()}>再読み込み</button> : null}</main>;
   }
 
   return (
     <div className="app-shell">
       <a href="#main-content" className="skip-link">本文へ移動</a>
       <aside className={`sidebar ${menuOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <div className="brand"><div className="brand-mark"><Landmark /></div><span>Personal Asset Balance Sheet</span></div>
+        <div className="brand"><PortalLink /><span>Personal Asset Balance Sheet</span></div>
         <button className="sidebar-toggle" aria-label={sidebarCollapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>{sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</button>
         <button className="close-menu" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)}><X /></button>
         <nav aria-label="メインメニュー">
-          <NavButton active={activeTab === "overview"} icon={<LayoutDashboard />} label="貸借対照表" onClick={() => { setActiveTab("overview"); setMenuOpen(false); }} />
-          <NavButton active={activeTab === "assets"} icon={<WalletCards />} label="資産・負債明細" onClick={() => { setWorkingSnapshotId(null); setActiveTab("assets"); setMenuOpen(false); }} />
-          <NavButton active={activeTab === "history"} icon={<History />} label="年度比較" onClick={() => { setActiveTab("history"); setMenuOpen(false); }} />
-          <NavButton active={activeTab === "backup"} icon={<DatabaseBackup />} label="バックアップ" onClick={() => { setActiveTab("backup"); setMenuOpen(false); }} />
+          {SECTIONS.map(({ key, label, icon: Icon }) => <Link
+            key={key}
+            className={`nav-button ${section === key ? "active" : ""}`}
+            href={sectionHref(key)}
+            aria-current={section === key ? "page" : undefined}
+            aria-label={label}
+            title={label}
+            onClick={() => setMenuOpen(false)}
+          ><Icon /><span>{label}</span></Link>)}
         </nav>
         <div className="side-section"><p>外部連携</p><a className="side-link" href={`/inheritance-tax-app/?source=pb&householdId=${portfolio.household.id}`} aria-label="相続税シミュレーター" title="相続税シミュレーター"><Link2 /><span>相続税シミュレーター</span><ChevronRight /></a></div>
         <div className="security-note"><ShieldCheck /><div><strong>ローカル環境</strong><span>データは社内DBで管理</span></div></div>
@@ -780,14 +756,17 @@ export function Dashboard() {
       <div className={`main-area ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <header className="topbar">
           <button className="menu-button" aria-label="メニューを開く" onClick={() => setMenuOpen(true)}><Menu /></button>
-          <div className="topbar-subject"><button type="button" className="client-switcher-trigger" onClick={() => setClientSwitcherOpen(true)} aria-label={`顧客を切り替える。現在は${portfolio.household.name}`} aria-haspopup="dialog"><Users /><span><small>選択中の顧客</small><strong>{portfolio.household.name}</strong><em>{portfolio.household.clientCode}{portfolio.household.assignedStaff ? `・担当 ${portfolio.household.assignedStaff}` : ""}</em></span><ChevronRight /></button></div>
-          <div className="top-actions"><span className="as-of" aria-label={`現在のB/S基準日 ${dateJa(current.asOfDate)}`}><Clock3 /><span><small>現在B/S基準日</small><strong>{dateJa(current.asOfDate)}</strong></span></span><button className="button secondary" onClick={() => setPrintGuideOpen(true)}><Printer />印刷・PDF出力</button></div>
+          <div className="topbar-subject">
+            <Link className="back-to-list" href="/"><ChevronLeft />一覧に戻る</Link>
+            <button type="button" className="client-switcher-trigger" onClick={() => { setError(""); setClientEditOpen(true); }} aria-label={`顧客情報を編集。現在は${portfolio.household.name}`} aria-haspopup="dialog"><span><strong>{portfolio.household.name}</strong><em>{portfolio.household.clientCode}{portfolio.household.assignedStaff ? `・担当 ${portfolio.household.assignedStaff}` : ""}</em></span><Pencil /></button>
+          </div>
+          <div className="top-actions"><span className="as-of" aria-label={`現在のB/S基準日 ${dateJa(current.asOfDate)}`}><Clock3 /><small>現在B/S基準日</small><strong>{dateJa(current.asOfDate)}</strong></span><button className="button secondary" onClick={() => setPrintGuideOpen(true)}><Printer />印刷・PDF出力</button></div>
         </header>
 
         <main id="main-content" className="content">
           {error ? <div className="error-banner" role="alert"><AlertTriangle />{error}<button onClick={() => setError("")} aria-label="閉じる"><X /></button></div> : null}
-          {(activeTab === "overview" || printSections?.has("balance")) ? (
-            <div className={`report-document ${activeTab !== "overview" ? "print-only-document" : ""} ${printSections && !printSections.has("balance") ? "print-excluded-document" : ""}`}>
+          {(section === "balance" || printSections?.has("balance")) ? (
+            <div className={`report-document ${section !== "balance" ? "print-only-document" : ""} ${printSections && !printSections.has("balance") ? "print-excluded-document" : ""}`}>
               <section className="page-heading"><div><p className="eyebrow">OWNER PERSONAL BALANCE SHEET</p><p>個人資産・負債を時価で俯瞰します。</p></div></section>
               <section className={`dashboard-grid balance-report-series screen-${balanceScenario}`}>
                 {(printSections?.has("balance") ? (["without-tax", "with-tax"] as const) : [balanceScenario]).map((reportScenario) => {
@@ -874,9 +853,9 @@ export function Dashboard() {
             </div>
           ) : null}
 
-          {(activeTab === "assets" || printSections?.has("details")) && workingSnapshot ? <div className={`report-document ${activeTab !== "assets" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={setWorkingSnapshotId} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkAdd={() => setBulkModalMode("add")} onBulkEdit={() => setBulkModalMode("edit")} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditTaxes={() => setSnapshotTaxModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => setActiveTab("history")} saving={saving} /></div> : null}
-          {(activeTab === "history" || printSections?.has("history")) ? <div className={`report-document ${activeTab !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
-          {activeTab === "backup" ? <div className="report-document print-excluded-document"><BackupView householdId={portfolio.household.id} householdName={portfolio.household.name} clientCode={portfolio.household.clientCode} onRestored={reloadAfterRestore} /></div> : null}
+          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkAdd={() => setBulkModalMode("add")} onBulkEdit={() => setBulkModalMode("edit")} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditTaxes={() => setSnapshotTaxModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
+          {(section === "history" || printSections?.has("history")) ? <div className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
+          {section === "backup" ? <div className="report-document print-excluded-document"><BackupView scope="household" household={portfolio.household} /></div> : null}
         </main>
       </div>
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
@@ -887,8 +866,8 @@ export function Dashboard() {
       {forecastModalOpen ? <ForecastModal planning={portfolio.planning} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}
       {snapshotTaxModalOpen && workingSnapshot ? <SnapshotTaxModal snapshot={workingSnapshot} onClose={() => setSnapshotTaxModalOpen(false)} onSubmit={saveSnapshotTaxes} saving={saving} /> : null}
-      {clientSwitcherOpen ? <ClientSwitcherModal clients={clients} activeClientId={portfolio.household.id} error={error} saving={saving} onClose={() => setClientSwitcherOpen(false)} onSelect={(householdId) => void switchClient(householdId)} onCreate={createClient} /> : null}
-      {printGuideOpen ? <PrintGuideModal activeTab={activeTab} onClose={() => setPrintGuideOpen(false)} onPrint={(sections) => {
+      {clientEditOpen ? <ClientEditModal household={portfolio.household} error={error} saving={saving} onClose={() => setClientEditOpen(false)} onSubmit={saveClient} /> : null}
+      {printGuideOpen ? <PrintGuideModal section={section} onClose={() => setPrintGuideOpen(false)} onPrint={(sections) => {
         setPrintSections(new Set(sections));
         const cleanup = () => { setPrintSections(null); };
         window.addEventListener("afterprint", cleanup, { once: true });
@@ -899,59 +878,34 @@ export function Dashboard() {
   );
 }
 
-function NavButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
-  return <button className={`nav-button ${active ? "active" : ""}`} aria-label={label} title={label} onClick={onClick}>{icon}<span>{label}</span></button>;
-}
-
-function PanelHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
-  return <header className="panel-header"><div><h3>{title}</h3>{subtitle ? <p>{subtitle}</p> : null}</div>{action ?? null}</header>;
-}
-
-function ClientSwitcherModal({ clients, activeClientId, error, saving, onClose, onSelect, onCreate }: {
-  clients: ClientSummary[];
-  activeClientId: number;
+function ClientEditModal({ household, error, saving, onClose, onSubmit }: {
+  household: Portfolio["household"];
   error: string;
   saving: boolean;
   onClose: () => void;
-  onSelect: (householdId: number) => void;
-  onCreate: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  const [query, setQuery] = useState("");
-  const [creating, setCreating] = useState(false);
-  const normalizedQuery = query.trim().toLocaleLowerCase("ja-JP");
-  const filteredClients = normalizedQuery
-    ? clients.filter((client) => `${client.name} ${client.clientCode} ${client.assignedStaff}`.toLocaleLowerCase("ja-JP").includes(normalizedQuery))
-    : clients;
-  const currentYear = new Date().getFullYear();
-
-  return <div className="modal-layer" role="presentation"><div className="modal client-switcher-modal" role="dialog" aria-modal="true" aria-labelledby="client-switcher-title">
-    <header><div><p className="eyebrow">CLIENTS</p><h2 id="client-switcher-title">{creating ? "顧客を追加" : "顧客を切り替え"}</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header>
-    {creating ? <form className="client-create-form" onSubmit={onCreate}>
-      <p className="client-modal-guidance">新しい顧客専用の貸借対照表を作成します。既存顧客のデータとは分離して保存されます。</p>
+  return <div className="modal-layer" role="presentation"><div className="modal client-switcher-modal" role="dialog" aria-modal="true" aria-labelledby="client-edit-title">
+    <header><div><p className="eyebrow">CLIENT</p><h2 id="client-edit-title">顧客情報を編集</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <form className="client-create-form" onSubmit={onSubmit}>
+      <p className="client-modal-guidance">かなを登録しておくと、顧客一覧の検索でかな入力からも探せます。</p>
       {error ? <p className="client-modal-error" role="alert"><AlertTriangle />{error}</p> : null}
-      <div className="form-grid client-create-grid">
-        <label>顧客名<input name="name" required maxLength={100} autoFocus placeholder="例：山田 太郎" /></label>
-        <label>顧客コード<input name="clientCode" required maxLength={30} pattern="(?:[A-Za-z0-9_]|-)+" placeholder="例：PB-000002" /></label>
-        <label>担当者<input name="assignedStaff" maxLength={100} placeholder="例：佐藤税理士" /></label>
-        <label>開始年度<input name="fiscalYear" type="number" min="1900" max="2200" defaultValue={currentYear} required /></label>
-      </div>
-      <footer><button type="button" className="button secondary" onClick={() => setCreating(false)}>顧客一覧へ戻る</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <UserPlus />}登録して切り替え</button></footer>
-    </form> : <div className="client-switcher-body">
-      <div className="client-switcher-toolbar"><label><span className="sr-only">顧客を検索</span><Search /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} autoFocus placeholder="顧客名・コード・担当者で検索" /></label><button type="button" className="button primary" onClick={() => setCreating(true)}><UserPlus />顧客を追加</button></div>
-      <p className="client-count">{filteredClients.length}件の顧客</p>
-      <div className="client-list" role="list">{filteredClients.map((client) => <button type="button" role="listitem" key={client.id} className={`client-list-item ${client.id === activeClientId ? "active" : ""}`} disabled={saving} onClick={() => onSelect(client.id)}><span className="client-avatar" aria-hidden="true">{client.name.slice(0, 1)}</span><span className="client-list-main"><strong>{client.name}</strong><small>{client.clientCode}{client.assignedStaff ? `・担当 ${client.assignedStaff}` : "・担当者未設定"}</small></span><span className="client-list-year">{client.latestFiscalYear ? `${client.latestFiscalYear}年度` : "年度なし"}</span>{client.id === activeClientId ? <span className="client-current-badge"><CircleCheck />選択中</span> : <ChevronRight />}</button>)}</div>
-      {filteredClients.length === 0 ? <div className="client-empty"><Search /><strong>該当する顧客がありません</strong><span>検索条件を変更してください。</span></div> : null}
-    </div>}
+      <div className="form-grid client-create-grid"><ClientFields defaults={household} autoFocus /></div>
+      <footer>
+        <button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button>
+        <button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button>
+      </footer>
+    </form>
   </div></div>;
 }
 
-function PrintGuideModal({ activeTab, onClose, onPrint }: { activeTab: Tab; onClose: () => void; onPrint: (sections: PrintSection[]) => void }) {
+function PrintGuideModal({ section, onClose, onPrint }: { section: Section; onClose: () => void; onPrint: (sections: PrintSection[]) => void }) {
   const options: Array<{ value: PrintSection; label: string }> = [
     { value: "balance", label: "貸借対照表" },
     { value: "details", label: "資産・負債明細" },
     { value: "history", label: "年度比較" },
   ];
-  const defaultSection: PrintSection = activeTab === "overview" ? "balance" : activeTab === "assets" ? "details" : "history";
+  const defaultSection: PrintSection = section === "balance" ? "balance" : section === "positions" ? "details" : "history";
   const [selected, setSelected] = useState<Set<PrintSection>>(() => new Set([defaultSection]));
 
   function toggleSection(section: PrintSection) {
@@ -1171,166 +1125,6 @@ function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnapshot, sa
   </>;
 }
 
-const backupTimestamp = (value: string | null) =>
-  value ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "不明";
-
-/** 選択されたJSONの中身を読み、確認画面に出す概要を組み立てる。不正なファイルは日本語メッセージで弾く。 */
-function readBackupPreview(payload: unknown): BackupPreview {
-  if (payload === null || typeof payload !== "object") throw new Error("バックアップファイルとして読み込めませんでした。");
-  const backup = payload as Record<string, unknown>;
-  if (backup.schemaVersion !== 1) throw new Error("このアプリのバックアップファイルではありません。");
-  const exportedAt = typeof backup.exportedAt === "string" ? backup.exportedAt : null;
-
-  if (backup.kind === "full") {
-    const data = backup.data as Record<string, unknown> | undefined;
-    const households = data?.households, snapshots = data?.snapshots, positions = data?.positions;
-    if (!Array.isArray(households) || !Array.isArray(snapshots) || !Array.isArray(positions)) throw new Error("全体バックアップの中身が壊れています。");
-    return { kind: "full", exportedAt, subject: `${households.length}件の顧客（全体）`, households: households.length, snapshots: snapshots.length, positions: positions.length };
-  }
-
-  if (backup.kind === "household") {
-    const household = backup.household as Record<string, unknown> | undefined;
-    const snapshots = backup.snapshots;
-    if (!household || !Array.isArray(snapshots)) throw new Error("顧客データファイルの中身が壊れています。");
-    const positions = snapshots.reduce((total: number, snapshot) => {
-      const rows = (snapshot as Record<string, unknown> | null)?.positions;
-      return total + (Array.isArray(rows) ? rows.length : 0);
-    }, 0);
-    return { kind: "household", exportedAt, subject: `${household.name ?? "顧客"}（${household.clientCode ?? "コード不明"}）`, households: 1, snapshots: snapshots.length, positions };
-  }
-
-  throw new Error("バックアップの種類を判別できませんでした。");
-}
-
-function BackupView({ householdId, householdName, clientCode, onRestored }: {
-  householdId: number;
-  householdName: string;
-  clientCode: string;
-  onRestored: (kind: BackupKind, restoredHouseholdId?: number) => Promise<void>;
-}) {
-  const [selected, setSelected] = useState<{ fileName: string; payload: unknown; preview: BackupPreview } | null>(null);
-  const [fileError, setFileError] = useState("");
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [completed, setCompleted] = useState("");
-
-  async function selectFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    // 同じファイルを選び直したときも change が発火するようにクリアする。
-    event.target.value = "";
-    setCompleted("");
-    if (!file) return;
-    try {
-      const payload = JSON.parse(await file.text()) as unknown;
-      setSelected({ fileName: file.name, payload, preview: readBackupPreview(payload) });
-      setFileError("");
-    } catch (error) {
-      setSelected(null);
-      setFileError(error instanceof SyntaxError ? "JSONファイルとして読み込めませんでした。" : error instanceof Error ? error.message : "ファイルを読み込めませんでした。");
-    }
-  }
-
-  async function runRestore() {
-    if (!selected) return;
-    const { kind, households, snapshots, positions } = selected.preview;
-    setBusy(true); setFileError("");
-    try {
-      const response = await fetch(`${API_BASE}/backup/${kind === "full" ? "restore" : "import"}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(selected.payload),
-      });
-      const result = await response.json().catch(() => null) as { error?: string; household?: { id: number; name: string }; renamedClientCode?: string | null } | null;
-      if (!response.ok) throw new Error(result?.error ?? (kind === "full" ? "復元できませんでした。" : "取り込めませんでした。"));
-      setConfirming(false);
-      setSelected(null);
-      setCompleted(kind === "full"
-        ? `全データを復元しました（顧客${households}件・年度${snapshots}件・明細${positions}件）。`
-        : `「${result?.household?.name ?? "顧客"}」を新規顧客として取り込みました。${result?.renamedClientCode ? `顧客コードが重複したため ${result.renamedClientCode} に変更しています。` : ""}`);
-      await onRestored(kind, result?.household?.id);
-    } catch (error) {
-      setFileError(error instanceof Error ? error.message : "処理できませんでした。");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return <>
-    <section className="page-heading"><div><p className="eyebrow">BACKUP &amp; RESTORE</p><h2>バックアップ</h2><p>データをJSONファイルへ書き出し、必要なときに復元します。</p></div></section>
-    <div className="backup-grid">
-      <article className="panel">
-        <PanelHeader title="書き出し" subtitle="JSONファイルとしてダウンロードします" />
-        <div className="backup-body">
-          <div className="backup-option">
-            <div><strong>全顧客をまとめて書き出す</strong><span>すべての顧客・年度・明細を1つのファイルに保存します。障害時の復旧用です。</span></div>
-            <a className="button primary" href={`${API_BASE}/backup`} download><Download />全体を書き出す</a>
-          </div>
-          <div className="backup-option">
-            <div><strong>この顧客だけ書き出す</strong><span>{householdName}（{clientCode}）の全年度を保存します。別の環境へ新規顧客として取り込めます。</span></div>
-            <a className="button secondary" href={`${API_BASE}/backup?householdId=${householdId}`} download><Download />顧客を書き出す</a>
-          </div>
-        </div>
-      </article>
-      <article className="panel">
-        <PanelHeader title="復元・取り込み" subtitle="書き出したJSONファイルを読み込みます" />
-        <div className="backup-body">
-          <label className="backup-file-picker">
-            <FileJson />
-            <span><strong>バックアップファイルを選択</strong><small>全体／顧客単位の種類は自動で判定します</small></span>
-            <input type="file" accept="application/json,.json" onChange={(event) => void selectFile(event)} />
-          </label>
-          {fileError ? <p className="backup-message error" role="alert"><AlertTriangle />{fileError}</p> : null}
-          {completed ? <p className="backup-message success" role="status"><CircleCheck />{completed}</p> : null}
-          {selected ? <div className="backup-preview">
-            <dl>
-              <div><dt>ファイル</dt><dd>{selected.fileName}</dd></div>
-              <div><dt>種類</dt><dd>{selected.preview.kind === "full" ? "全体バックアップ（置き換え）" : "顧客単位（追加）"}</dd></div>
-              <div><dt>作成日時</dt><dd>{backupTimestamp(selected.preview.exportedAt)}</dd></div>
-              <div><dt>対象</dt><dd>{selected.preview.subject}</dd></div>
-              <div><dt>内容</dt><dd>顧客{selected.preview.households}件 / 年度{selected.preview.snapshots}件 / 明細{selected.preview.positions}件</dd></div>
-            </dl>
-            <div className="backup-preview-actions">
-              <button type="button" className="button secondary" onClick={() => setSelected(null)}>選び直す</button>
-              <button type="button" className={`button ${selected.preview.kind === "full" ? "danger-button" : "primary"}`} onClick={() => setConfirming(true)}><Upload />{selected.preview.kind === "full" ? "全データを置き換える" : "新規顧客として取り込む"}</button>
-            </div>
-          </div> : null}
-          <p className="backup-note" role="note"><AlertTriangle />全体バックアップの復元は<strong>現在のすべての顧客データを削除して置き換えます</strong>。実行前に現在のデータを書き出しておいてください。</p>
-        </div>
-      </article>
-    </div>
-    {confirming && selected ? <BackupConfirmModal preview={selected.preview} fileName={selected.fileName} busy={busy} error={fileError} onClose={() => setConfirming(false)} onConfirm={() => void runRestore()} /> : null}
-  </>;
-}
-
-function BackupConfirmModal({ preview, fileName, busy, error, onClose, onConfirm }: {
-  preview: BackupPreview;
-  fileName: string;
-  busy: boolean;
-  error: string;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  const isFull = preview.kind === "full";
-  return <div className="modal-layer" role="presentation"><div className="modal delete-modal" role="dialog" aria-modal="true" aria-labelledby="backup-confirm-title">
-    <header><div><p className={`eyebrow ${isFull ? "danger-eyebrow" : ""}`}>{isFull ? "RESTORE ALL" : "IMPORT CLIENT"}</p><h2 id="backup-confirm-title">{isFull ? "全データを置き換えますか？" : "新規顧客として取り込みますか？"}</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={busy}><X /></button></header>
-    <div className="delete-modal-body">
-      <p>{isFull
-        ? "現在登録されているすべての顧客・年度・明細を削除し、選択したファイルの内容へ置き換えます。この操作は取り消せません。"
-        : "選択したファイルの顧客を新しい顧客として追加します。既存の顧客データは変更されません。"}</p>
-      <dl>
-        <div><dt>ファイル</dt><dd>{fileName}</dd></div>
-        <div><dt>対象</dt><dd>{preview.subject}</dd></div>
-        <div><dt>内容</dt><dd>顧客{preview.households}件 / 年度{preview.snapshots}件 / 明細{preview.positions}件</dd></div>
-      </dl>
-      {isFull ? <p className="backup-message warning" role="note"><AlertTriangle />先に<a href={`${API_BASE}/backup`} download>現在のデータを書き出す</a>ことをおすすめします。</p> : null}
-      {error ? <p className="backup-message error" role="alert"><AlertTriangle />{error}</p> : null}
-      <footer>
-        <button type="button" className="button secondary" onClick={onClose} disabled={busy}>キャンセル</button>
-        <button type="button" className={`button ${isFull ? "danger-button" : "primary"}`} onClick={onConfirm} disabled={busy}>{busy ? <LoaderCircle className="spin" /> : <Upload />}{isFull ? "置き換えを実行" : "取り込む"}</button>
-      </footer>
-    </div>
-  </div></div>;
-}
 
 function YearCreationModal({ snapshots, initialSourceId, onClose, onSubmit, onEditExisting, saving }: {
   snapshots: Snapshot[];

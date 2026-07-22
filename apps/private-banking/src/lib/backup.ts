@@ -25,6 +25,7 @@ function serializeHousehold(household: Household) {
     id: household.id,
     clientCode: household.clientCode,
     name: household.name,
+    nameKana: household.nameKana,
     assignedStaff: household.assignedStaff,
     currency: household.currency,
     estimatedInheritanceTax: decimalText(household.estimatedInheritanceTax),
@@ -144,6 +145,8 @@ const timestamp = z.string().min(1);
 const householdFieldsSchema = z.object({
   clientCode: z.string().trim().min(1).max(30),
   name: z.string().trim().min(1).max(100),
+  // かなは後から追加した項目のため、旧バックアップファイルでも取り込めるよう既定値を持たせる。
+  nameKana: z.string().max(100).default(""),
   assignedStaff: z.string().max(100).default(""),
   currency: z.string().max(10).default("JPY"),
   estimatedInheritanceTax: decimalLike.default(0),
@@ -233,6 +236,7 @@ function householdData(row: HouseholdFields) {
   return {
     clientCode: row.clientCode,
     name: row.name,
+    nameKana: row.nameKana,
     assignedStaff: row.assignedStaff,
     currency: row.currency,
     estimatedInheritanceTax: toDecimal(row.estimatedInheritanceTax),

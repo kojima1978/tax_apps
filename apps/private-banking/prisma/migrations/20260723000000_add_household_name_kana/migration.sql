@@ -1,0 +1,1 @@
+ALTER TABLE "Household" ADD COLUMN "nameKana" TEXT NOT NULL DEFAULT '';

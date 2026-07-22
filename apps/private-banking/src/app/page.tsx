@@ -1,5 +1,5 @@
-import { Dashboard } from "@/components/dashboard";
+import { ClientList } from "@/components/client-list";
 
 export default function Home() {
-  return <Dashboard />;
+  return <ClientList />;
 }
