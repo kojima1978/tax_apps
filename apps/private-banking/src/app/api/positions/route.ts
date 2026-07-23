@@ -8,10 +8,12 @@ export async function POST(request: Request) {
   const parsed = positionInputSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
 
+  // 顧客をまたいで現在年度を拾わないよう、対象年度は必ず呼び出し側から受け取る。
   const requestedSnapshotId = Number(body.snapshotId);
-  const snapshot = Number.isInteger(requestedSnapshotId) && requestedSnapshotId > 0
-    ? await prisma.snapshot.findUnique({ where: { id: requestedSnapshotId } })
-    : await prisma.snapshot.findFirst({ where: { isCurrent: true } });
+  if (!Number.isInteger(requestedSnapshotId) || requestedSnapshotId <= 0) {
+    return NextResponse.json({ error: "対象年度を指定してください。" }, { status: 400 });
+  }
+  const snapshot = await prisma.snapshot.findUnique({ where: { id: requestedSnapshotId } });
   if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
 
   const data = parsed.data;

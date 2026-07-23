@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Dashboard, Section } from "@/components/dashboard";
+import { Dashboard } from "@/components/dashboard";
+import type { Section } from "@/lib/portfolio-view";
 
 /** `/customers/[id]/<section>` の各ページから使う共通の入口。 */
 export async function CustomerSectionPage({ params, section }: { params: Promise<{ id: string }>; section: Section }) {

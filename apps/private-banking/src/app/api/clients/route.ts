@@ -17,6 +17,12 @@ const updateClientSchema = clientFieldsSchema.extend({
   id: z.coerce.number().int().positive(),
 });
 
+const deleteClientSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  // 誤削除を防ぐため、顧客コードの入力を照合する。
+  confirmationClientCode: z.string().trim().min(1),
+});
+
 export async function GET() {
   const clients = await prisma.household.findMany({
     select: {
@@ -80,4 +86,23 @@ export async function PATCH(request: Request) {
     }
     throw error;
   }
+}
+
+export async function DELETE(request: Request) {
+  const parsed = deleteClientSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "確認用の顧客コードを入力してください。" }, { status: 400 });
+
+  const result = await prisma.$transaction(async (tx) => {
+    const household = await tx.household.findUnique({ where: { id: parsed.data.id }, select: { id: true, clientCode: true, name: true } });
+    if (!household) return { status: 404, error: "顧客が見つかりません。" } as const;
+    if (household.clientCode !== parsed.data.confirmationClientCode.toUpperCase()) {
+      return { status: 400, error: "入力した顧客コードが削除対象と一致しません。" } as const;
+    }
+    // 年度・明細は onDelete: Cascade で一緒に消える。
+    await tx.household.delete({ where: { id: household.id } });
+    return { status: 200, name: household.name } as const;
+  });
+
+  if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ ok: true, name: result.name });
 }
