@@ -19,10 +19,10 @@ x-prod-db-deploy: &prod-db-deploy
       memory: 64M
 
 services:
-  postgres:
+  itcm-postgres:
     deploy: *prod-db-deploy
 
-  web:
+  itcm-web:
     build:
       target: runner
     labels:
@@ -37,5 +37,5 @@ services:
       TZ: Asia/Tokyo
       NODE_ENV: production
       NODE_OPTIONS: "--max-old-space-size=256"
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@itcm-postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
     deploy: *prod-deploy

@@ -226,13 +226,13 @@ services:
       DJANGO_DEBUG: "False"
       DJANGO_FORCE_SCRIPT_NAME: /bank-analyzer
       # 本番環境では必ず .env で設定すること
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-CHANGE_THIS_IN_PRODUCTION}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost}
       # PostgreSQL接続設定
       DB_ENGINE: postgresql
       DB_NAME: bank_analyzer
       DB_USER: bankuser
-      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_THIS_IN_PRODUCTION}
+      DB_PASSWORD: ${DB_PASSWORD:-}
       DB_HOST: bank-analyzer-db
       DB_PORT: "5432"
       # Gunicorn設定

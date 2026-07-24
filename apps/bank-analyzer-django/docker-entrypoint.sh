@@ -51,6 +51,21 @@ collect_static() {
 # ------------------------------------------
 echo "=== Bank Analyzer Django starting ==="
 
+if [ "${DJANGO_DEBUG:-False}" != "True" ]; then
+    case "${DJANGO_SECRET_KEY:-}" in
+        ""|dev-secret-key-not-for-production|CHANGE_THIS_IN_PRODUCTION)
+            echo "ERROR: A strong DJANGO_SECRET_KEY is required in production." >&2
+            exit 1
+            ;;
+    esac
+    case "${DB_PASSWORD:-}" in
+        ""|dev-password-change-in-production|CHANGE_THIS_IN_PRODUCTION)
+            echo "ERROR: A strong DB_PASSWORD is required in production." >&2
+            exit 1
+            ;;
+    esac
+fi
+
 wait_for_db
 run_migrations
 collect_static

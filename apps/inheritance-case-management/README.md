@@ -299,7 +299,7 @@ docker compose up -d
 docker compose up -d --build
 
 # ログ
-docker compose logs -f web
+docker compose logs -f itcm-web
 
 # 停止
 docker compose down
@@ -333,10 +333,10 @@ docker exec -it itcm-frontend npx prisma studio
 Dockerの一時コンテナで型チェックとlintを実行します。通常の開発コンテナはメモリ制限があるため、検査時だけNode.jsのヒープ上限を拡張します。
 
 ```bash
-docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run typecheck
-docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run lint
-docker compose run --rm --no-deps web npx prisma validate
-docker compose run --rm --no-deps web npm run db:verify-normalization
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 itcm-web npm run typecheck
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 itcm-web npm run lint
+docker compose run --rm --no-deps itcm-web npx prisma validate
+docker compose run --rm --no-deps itcm-web npm run db:verify-normalization
 ```
 
 ## Prisma 運用ルール

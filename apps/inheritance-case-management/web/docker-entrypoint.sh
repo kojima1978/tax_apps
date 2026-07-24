@@ -20,7 +20,7 @@ while true; do
       echo "--------------------------------------------"
       echo "対処法: PostgreSQLコンテナが起動しているか確認してください"
       echo "  docker compose ps"
-      echo "  docker compose up -d postgres"
+      echo "  docker compose up -d itcm-postgres"
       echo "============================================"
       exit 1
     fi

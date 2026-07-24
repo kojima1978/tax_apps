@@ -32,7 +32,7 @@ services:
   # PostgreSQL
   # Port: 3022 → 5432
   # ===========================================
-  postgres:
+  itcm-postgres:
     image: postgres:16-alpine
     container_name: itcm-postgres
     networks:
@@ -72,7 +72,7 @@ services:
   #   - 担当者・紹介元マスタ管理
   #   - API Routes内蔵
   # ===========================================
-  web:
+  itcm-web:
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -89,7 +89,7 @@ services:
       NEXT_PUBLIC_API_URL: /itcm/api-v1
       NODE_OPTIONS: "--max-old-space-size=1536"
       WATCHPACK_POLLING: "true"
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@itcm-postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
     volumes:
       # ソースコードをマウント（ホットリロード用）
       - ./web/src:/app/src:ro
@@ -100,7 +100,7 @@ services:
     ports:
       - "127.0.0.1:3020:3020"
     depends_on:
-      postgres:
+      itcm-postgres:
         condition: service_healthy
     init: true
     stop_grace_period: 15s

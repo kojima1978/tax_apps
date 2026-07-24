@@ -259,6 +259,9 @@ docker/scripts/manage.sh restart bank-analyzer-django
 
 ### 本番環境
 
+本番起動前に `.env` で `DJANGO_SECRET_KEY` と `DB_PASSWORD` を必ず設定してください。
+どちらかが未設定の場合、コンテナは安全のため起動を中止します。
+
 ```bash
 # manage.bat 経由（推奨）
 manage.bat start --prod
