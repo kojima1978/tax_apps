@@ -4,13 +4,6 @@
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 # ============================================
 
-x-prod-deploy: &prod-deploy
-  resources:
-    limits:
-      memory: 64M
-    reservations:
-      memory: 16M
-
 services:
   inheritance-tax-app:
     build:
@@ -18,4 +11,9 @@ services:
     init: false
     # `volumes: []` はマージされて base の開発用バインドが残るため !reset で無効化する
     volumes: !reset []
-    deploy: *prod-deploy
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M

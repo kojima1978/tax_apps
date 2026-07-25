@@ -167,6 +167,42 @@ Docker 環境で検証する場合は、既存イメージまたは管理スク�
 | `src/utils/taxCore.ts` | 相続税計算の共通コア |
 | `src/constants/index.ts` | 税率、基礎控除などの定数 |
 
+## 相続税計算API
+
+外部アプリから相続財産額と家族構成を受け取り、画面と同じ計算ロジックで相続税額を返します。金額の入出力単位はすべて円です。計算ロジックは万円単位のため、入力金額は1万円単位で指定してください。
+
+```http
+POST /inheritance-tax-app/api/calculate
+Content-Type: application/json
+```
+
+```json
+{
+  "estateValueJpy": 200000000,
+  "familyComposition": {
+    "hasSpouse": true,
+    "selectedRank": "rank1",
+    "heirCount": 2
+  },
+  "spouseAcquisition": {
+    "mode": "legal"
+  }
+}
+```
+
+`selectedRank` は `none`、`rank1`（子）、`rank2`（直系尊属）、`rank3`（兄弟姉妹）のいずれかです。`spouseAcquisition` を省略した場合は法定相続分で計算します。配偶者取得割合を指定する場合は0〜100%にしてください。
+
+主なレスポンス項目:
+
+- `totalInheritanceTaxJpy`: 配偶者控除などを反映した相続税額
+- `totalTaxBeforeDeductionsJpy`: 控除前の相続税総額
+- `basicDeductionJpy`: 基礎控除額
+- `taxableEstateJpy`: 課税遺産総額
+- `effectiveTaxRate`: 控除後の実効税率
+- `heirs`: 相続人ごとの取得額、控除額、最終税額
+
+環境変数 `INHERITANCE_TAX_API_KEY` を設定すると、`Authorization: Bearer <APIキー>` が必須になります。未設定のローカル開発環境では認証なしで利用できます。
+
 ## ライセンス
 
 (C) 2026 税理士法人マスエージェント
