@@ -3,6 +3,7 @@ import type { Heir, HeirComposition, HeirType, SpouseAcquisitionMode } from '../
 import { calculateDetailedInheritanceTax } from '../src/utils/taxCalculator';
 
 const JPY_PER_MAN_YEN = 10_000;
+const INSURANCE_EXEMPTION_PER_LEGAL_HEIR_JPY = 5_000_000;
 const rankSchema = z.enum(['none', 'rank1', 'rank2', 'rank3']);
 const jpySchema = z.number().finite().int().min(0).max(Number.MAX_SAFE_INTEGER).multipleOf(JPY_PER_MAN_YEN, {
   message: '金額は1万円単位で指定してください。',
@@ -36,6 +37,13 @@ const requestSchema = z.object({
       unit: z.literal('percent'),
     }),
   ]).optional(),
+  lifeInsurance: z.object({
+    surrenderValueJpy: jpySchema,
+    contracts: z.array(z.object({
+      deathBenefitJpy: jpySchema,
+      beneficiaryIsLegalHeir: z.boolean(),
+    })).max(100),
+  }).optional(),
 });
 
 export type InheritanceTaxApiRequest = z.infer<typeof requestSchema>;
@@ -79,8 +87,25 @@ const toJpy = (valueInManYen: number) => Math.round(valueInManYen * JPY_PER_MAN_
 
 export function calculateInheritanceTaxApi(payload: unknown) {
   const input = requestSchema.parse(payload);
+  const legalHeirCount = (input.familyComposition.hasSpouse ? 1 : 0)
+    + (input.familyComposition.selectedRank === 'none' ? 0 : input.familyComposition.heirCount);
+  const insuranceDeathBenefitJpy = input.lifeInsurance?.contracts.reduce((sum, contract) => sum + contract.deathBenefitJpy, 0) ?? 0;
+  const insuranceEligibleDeathBenefitJpy = input.lifeInsurance?.contracts.reduce(
+    (sum, contract) => sum + (contract.beneficiaryIsLegalHeir ? contract.deathBenefitJpy : 0),
+    0,
+  ) ?? 0;
+  const insuranceNonTaxableLimitJpy = input.lifeInsurance
+    ? INSURANCE_EXEMPTION_PER_LEGAL_HEIR_JPY * legalHeirCount
+    : 0;
+  const insuranceNonTaxableAmountJpy = Math.min(insuranceEligibleDeathBenefitJpy, insuranceNonTaxableLimitJpy);
+  const insuranceTaxableDeathBenefitJpy = insuranceDeathBenefitJpy - insuranceNonTaxableAmountJpy;
+  const insuranceSurrenderValueJpy = input.lifeInsurance?.surrenderValueJpy ?? 0;
+  const adjustedEstateValueJpy = Math.max(
+    0,
+    input.estateValueJpy - insuranceSurrenderValueJpy + insuranceTaxableDeathBenefitJpy,
+  );
   const result = calculateDetailedInheritanceTax(
-    input.estateValueJpy / JPY_PER_MAN_YEN,
+    adjustedEstateValueJpy / JPY_PER_MAN_YEN,
     createComposition(input.familyComposition),
     createSpouseMode(input.spouseAcquisition),
   );
@@ -89,7 +114,13 @@ export function calculateInheritanceTaxApi(payload: unknown) {
     schemaVersion: '1.0',
     calculatedAt: new Date().toISOString(),
     unit: 'JPY',
+    inputEstateValueJpy: input.estateValueJpy,
     estateValueJpy: toJpy(result.estateValue),
+    insuranceSurrenderValueJpy,
+    insuranceDeathBenefitJpy,
+    insuranceNonTaxableLimitJpy,
+    insuranceNonTaxableAmountJpy,
+    insuranceTaxableDeathBenefitJpy,
     basicDeductionJpy: toJpy(result.basicDeduction),
     taxableEstateJpy: toJpy(result.taxableAmount),
     totalTaxBeforeDeductionsJpy: toJpy(result.totalTax),

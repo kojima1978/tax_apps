@@ -186,11 +186,22 @@ Content-Type: application/json
   },
   "spouseAcquisition": {
     "mode": "legal"
+  },
+  "lifeInsurance": {
+    "surrenderValueJpy": 10000000,
+    "contracts": [
+      {
+        "deathBenefitJpy": 30000000,
+        "beneficiaryIsLegalHeir": true
+      }
+    ]
   }
 }
 ```
 
 `selectedRank` は `none`、`rank1`（子）、`rank2`（直系尊属）、`rank3`（兄弟姉妹）のいずれかです。`spouseAcquisition` を省略した場合は法定相続分で計算します。配偶者取得割合を指定する場合は0〜100%にしてください。
+
+`lifeInsurance` は省略できます。指定した場合、`estateValueJpy` に含まれる解約返戻金を `surrenderValueJpy` で差し引き、死亡保険金へ置き換えます。`beneficiaryIsLegalHeir` が `true` の契約には、全契約を通じて「500万円 × 法定相続人数」を上限とする非課税枠を適用します。
 
 主なレスポンス項目:
 
@@ -199,6 +210,8 @@ Content-Type: application/json
 - `basicDeductionJpy`: 基礎控除額
 - `taxableEstateJpy`: 課税遺産総額
 - `effectiveTaxRate`: 控除後の実効税率
+- `insuranceNonTaxableAmountJpy`: 実際に適用した死亡保険金の非課税額
+- `insuranceTaxableDeathBenefitJpy`: 非課税枠適用後の課税対象死亡保険金
 - `heirs`: 相続人ごとの取得額、控除額、最終税額
 
 環境変数 `INHERITANCE_TAX_API_KEY` を設定すると、`Authorization: Bearer <APIキー>` が必須になります。未設定のローカル開発環境では認証なしで利用できます。

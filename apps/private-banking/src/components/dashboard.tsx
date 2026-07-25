@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  AlertTriangle, ChevronLeft, ChevronRight, Clock3, DatabaseBackup, History, LayoutDashboard, Link2,
+  AlertTriangle, Calculator, ChevronLeft, ChevronRight, Clock3, DatabaseBackup, History, LayoutDashboard, Link2,
   LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Printer, ShieldCheck, WalletCards, X,
 } from "lucide-react";
 import Link from "next/link";
@@ -132,6 +132,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const [clientEditOpen, setClientEditOpen] = useState(false);
   const [clientDeleteOpen, setClientDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [taxApiStatus, setTaxApiStatus] = useState<"idle" | "loading" | "success">("idle");
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -293,15 +294,17 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       if (fieldName in fields) fields[fieldName] = unformatNumberInput(fields[fieldName] as FormDataEntryValue | undefined) ?? "";
     }
     const numericDetailFields = new Set(["deathBenefit", "totalIssuedShares", "interestRate", "floorArea"]);
-    const assetDetails: Record<string, string | number> = {};
+    const assetDetails: Record<string, string | number | boolean> = {};
     for (const [fieldName, rawValue] of Object.entries(fields)) {
       if (!fieldName.startsWith("assetDetail.")) continue;
       const detailName = fieldName.slice("assetDetail.".length);
       const value = String(rawValue).trim();
       if (value !== "") {
-        assetDetails[detailName] = numericDetailFields.has(detailName)
-          ? Number(value.replace(/,/g, ""))
-          : value;
+        assetDetails[detailName] = detailName === "beneficiaryIsLegalHeir"
+          ? value === "true"
+          : numericDetailFields.has(detailName)
+            ? Number(value.replace(/,/g, ""))
+            : value;
       }
       delete fields[fieldName];
     }
@@ -474,6 +477,28 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     finally { setSaving(false); }
   }
 
+  async function calculateInheritanceTaxViaApi() {
+    if (!portfolio || taxApiStatus === "loading") return;
+    setTaxApiStatus("loading");
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/inheritance-tax-calculate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ householdId: portfolio.household.id }),
+      });
+      const result = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(result?.error || "相続税を計算できませんでした。");
+      await load();
+      setBalanceScenario("with-tax");
+      setTaxApiStatus("success");
+      window.setTimeout(() => setTaxApiStatus("idle"), 3_000);
+    } catch (caught) {
+      setTaxApiStatus("idle");
+      setError(caught instanceof Error ? caught.message : "相続税を計算できませんでした。");
+    }
+  }
+
   if (!portfolio || !current) {
     return <main className="initial-loader"><PortalLink /><LoaderCircle className="spin" /><p>{error || "貸借対照表を読み込んでいます"}</p>{error ? <button className="button secondary" onClick={() => void load()}>再読み込み</button> : null}</main>;
   }
@@ -541,7 +566,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
                   <PanelHeader
                     title="貸借対照表"
                     subtitle={`${reportSnapshot.isCurrent ? "" : `${fiscalYearLabel(reportSnapshot)}・`}${taxIncluded ? "相続時予測（死亡保険金・税金を反映）" : "現在価値（保険は解約返戻金）"}`}
-                    action={reportScenario === balanceScenario ? <div className="balance-panel-actions"><div className="balance-scenario-switch" role="group" aria-label="貸借対照表の表示パターン"><button type="button" aria-pressed={!taxIncluded} onClick={() => setBalanceScenario("without-tax")}><span>税金なし</span><small>メイン</small></button><button type="button" aria-pressed={taxIncluded} onClick={() => setBalanceScenario("with-tax")}><span>税金あり</span><small>サブ</small></button></div>{reportSnapshot.isCurrent ? <button className="text-button compact" onClick={() => setForecastModalOpen(true)}>予測条件</button> : null}</div> : undefined}
+                    action={reportScenario === balanceScenario ? <div className="balance-panel-actions"><div className="balance-scenario-switch" role="group" aria-label="貸借対照表の表示パターン"><button type="button" aria-pressed={!taxIncluded} onClick={() => setBalanceScenario("without-tax")}><span>税金なし</span><small>メイン</small></button><button type="button" aria-pressed={taxIncluded} onClick={() => setBalanceScenario("with-tax")}><span>税金あり</span><small>サブ</small></button></div>{reportSnapshot.isCurrent ? <><button className="text-button compact tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : "APIで相続税を計算"}</button><button className="text-button compact" type="button" onClick={() => setForecastModalOpen(true)}>予測条件</button></> : null}</div> : undefined}
                   />
                   {taxIncluded && successionAssets.insuranceDeathBenefitMissingCount > 0 ? <p className="insurance-data-note" role="note"><AlertTriangle />死亡保険金が未入力の保険 {successionAssets.insuranceDeathBenefitMissingCount}件は、税金ありB/Sでは0円として計算しています。</p> : null}
                   <div className="classified-bs" role="group" aria-label={`貸借対照表・${taxIncluded ? "税金あり" : "税金なし"}`}>

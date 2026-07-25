@@ -115,7 +115,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .panel-header h3 { margin: 0; color: var(--navy-950); font-family: inherit; font-size: 16px; font-weight: 700; }
 .panel-header p { margin: 1px 0 0; color: var(--slate-500); font-size: 11px; }
 .text-button.compact { min-height: 42px; font-size: 10px; }
-.balance-panel-actions { display: flex; align-items: center; gap: 8px; }
+.balance-panel-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.tax-api-button { padding-inline: 11px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; }
+.tax-api-button:hover { color: #14532d; background: #dcfce7; }
+.tax-api-button:disabled { color: var(--slate-500); background: var(--slate-100); border-color: var(--slate-200); cursor: wait; }
+.tax-api-button:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 1px; }
 .balance-scenario-switch { padding: 3px; border: 1px solid #cddbd3; border-radius: 8px; background: #f3f7f4; display: inline-flex; align-items: stretch; gap: 3px; }
 .balance-scenario-switch button { min-width: 82px; min-height: 36px; padding: 4px 10px; border: 1px solid transparent; border-radius: 6px; color: var(--slate-600); background: transparent; cursor: pointer; }
 .balance-scenario-switch button span, .balance-scenario-switch button small { display: block; }
@@ -500,6 +504,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .asset-detail-fieldset > legend { padding: 0 5px; color: #166534; font-size: 12px; font-weight: 800; }
 .asset-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
 .asset-detail-grid .wide { grid-column: 1 / -1; }
+.insurance-exemption-check { min-height: 52px; padding: 9px 12px; border: 1px solid #cfe2d3; border-radius: 7px; background: #fff; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.insurance-exemption-check:has(input:focus-visible) { border-color: #16a34a; outline: 3px solid #bbf7d0; outline-offset: 1px; }
+.insurance-exemption-check input { width: 18px; height: 18px; min-height: 18px; margin: 1px 0 0; accent-color: #168642; flex: 0 0 auto; }
+.insurance-exemption-check span { min-width: 0; display: grid; gap: 2px; }
+.insurance-exemption-check strong { color: var(--navy-950); font-size: 12px; }
+.insurance-exemption-check small { color: var(--slate-600); font-size: 10px; font-weight: 500; line-height: 1.5; }
 .land-category-definition, .building-type-definition { margin-top: 5px; color: var(--slate-500); font-size: 9px; font-weight: 500; line-height: 1.55; display: block; }
 .asset-detail-note { margin: 10px 0 0; padding-top: 9px; color: var(--slate-600); border-top: 1px solid #e2ece4; font-size: 10px; line-height: 1.6; }
 .valuation-formula-fieldset { min-width: 0; margin: 2px 0 4px; padding: 14px; background: #fafcfb; border: 1px solid var(--slate-200); border-radius: 8px; }
@@ -611,6 +621,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .balance-panel-actions { width: 100%; align-items: stretch; justify-content: space-between; }
   .balance-scenario-switch { flex: 1 1 auto; }
   .balance-scenario-switch button { min-width: 0; flex: 1 1 0; }
+  .tax-api-button { flex: 1 1 auto; justify-content: center; }
   .insurance-data-note { margin-inline: 14px; }
   .forecast-link { align-items: flex-start; flex-direction: column; }
   .table-scroll { overflow: visible; }

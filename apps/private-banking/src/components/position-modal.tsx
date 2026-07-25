@@ -102,6 +102,10 @@ function AssetSpecificFields({
     <label>被保険者<input name="assetDetail.insuredPerson" defaultValue={details.insuredPerson ?? ""} /></label>
     <label>受取人<input name="assetDetail.beneficiary" defaultValue={details.beneficiary ?? ""} /></label>
     <label>死亡保険金<CommaNumberInput name="assetDetail.deathBenefit" defaultValue={details.deathBenefit ?? ""} maxFractionDigits={2} placeholder="" required={false} /></label>
+    <label className="insurance-exemption-check wide">
+      <input name="assetDetail.beneficiaryIsLegalHeir" type="checkbox" value="true" defaultChecked={details.beneficiaryIsLegalHeir === true} />
+      <span><strong>非課税枠の対象</strong><small>受取人が法定相続人の場合に選択してください。死亡保険金の非課税限度額は「500万円 × 法定相続人数」です。</small></span>
+    </label>
     <label>評価日<input name="assetDetail.valuationDate" type="date" defaultValue={details.valuationDate ?? ""} /></label>
   </div></fieldset>;
 

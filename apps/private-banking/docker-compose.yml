@@ -36,6 +36,8 @@ services:
       TZ: Asia/Tokyo
       WATCHPACK_POLLING: "true"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-pb_dev_password}@private-banking-postgres:5432/${POSTGRES_DB:-private_banking}?schema=public
+      INHERITANCE_TAX_API_URL: ${INHERITANCE_TAX_API_URL:-http://inheritance-tax-app:3004/inheritance-tax-app/api/calculate}
+      INHERITANCE_TAX_API_KEY: ${INHERITANCE_TAX_API_KEY:-}
     volumes:
       - ./src:/app/src:ro
       - ./public:/app/public:ro

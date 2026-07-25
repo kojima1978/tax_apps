@@ -26,6 +26,37 @@ describe('calculateInheritanceTaxApi', () => {
     expect(result.totalInheritanceTaxJpy).toBe(0);
   });
 
+  it('法定相続人が受け取る死亡保険金に500万円×法定相続人数の非課税枠を適用する', () => {
+    const result = calculateInheritanceTaxApi({
+      estateValueJpy: 200_000_000,
+      familyComposition: { hasSpouse: true, selectedRank: 'rank1', heirCount: 2 },
+      lifeInsurance: {
+        surrenderValueJpy: 10_000_000,
+        contracts: [{ deathBenefitJpy: 30_000_000, beneficiaryIsLegalHeir: true }],
+      },
+    });
+
+    expect(result.insuranceNonTaxableLimitJpy).toBe(15_000_000);
+    expect(result.insuranceNonTaxableAmountJpy).toBe(15_000_000);
+    expect(result.insuranceTaxableDeathBenefitJpy).toBe(15_000_000);
+    expect(result.estateValueJpy).toBe(205_000_000);
+  });
+
+  it('法定相続人以外が受け取る死亡保険金には非課税枠を適用しない', () => {
+    const result = calculateInheritanceTaxApi({
+      estateValueJpy: 100_000_000,
+      familyComposition: { hasSpouse: true, selectedRank: 'rank1', heirCount: 1 },
+      lifeInsurance: {
+        surrenderValueJpy: 5_000_000,
+        contracts: [{ deathBenefitJpy: 20_000_000, beneficiaryIsLegalHeir: false }],
+      },
+    });
+
+    expect(result.insuranceNonTaxableAmountJpy).toBe(0);
+    expect(result.insuranceTaxableDeathBenefitJpy).toBe(20_000_000);
+    expect(result.estateValueJpy).toBe(115_000_000);
+  });
+
   it('相続順位と人数の矛盾を拒否する', () => {
     const parsed = parseInheritanceTaxApiRequest({
       estateValueJpy: 100_000_000,

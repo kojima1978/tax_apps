@@ -14,7 +14,7 @@ export type Position = {
 export type AssetDetails = {
   accountType?: string; branchName?: string; accountSuffix?: string; maturityDate?: string;
   securityType?: string; securityCode?: string; valuationDate?: string;
-  insuranceType?: string; insuredPerson?: string; beneficiary?: string; deathBenefit?: number;
+  insuranceType?: string; insuredPerson?: string; beneficiary?: string; deathBenefit?: number; beneficiaryIsLegalHeir?: boolean;
   propertyType?: string; propertyAddress?: string; landCategory?: string;
   buildingType?: string; buildingStructure?: string; floorArea?: number;
   shareClass?: string; totalIssuedShares?: number; valuationApproach?: string;

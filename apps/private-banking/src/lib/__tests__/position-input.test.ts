@@ -149,6 +149,12 @@ describe("positionInputSchema", () => {
     expect(positionInputSchema.safeParse({ ...base, assetDetails: { borrower: "株式会社サンプル" } }).success).toBe(true);
   });
 
+  it("保険金の非課税枠対象フラグを真偽値へ正規化する", () => {
+    const base = { side: "ASSET", category: "INSURANCE", name: "終身保険", originalAmount: 1 };
+    expect(parse({ ...base, assetDetails: { beneficiaryIsLegalHeir: "true" } }).assetDetails.beneficiaryIsLegalHeir).toBe(true);
+    expect(parse({ ...base, assetDetails: { beneficiaryIsLegalHeir: "false" } }).assetDetails.beneficiaryIsLegalHeir).toBe(false);
+  });
+
   it("未入力の数値項目は null に正規化される", () => {
     const data = parse({ side: "ASSET", category: "DEPOSIT", name: "普通預金", originalAmount: 100, landArea: "" });
     expect(data.landArea).toBeNull();
