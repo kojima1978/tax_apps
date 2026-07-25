@@ -40,7 +40,6 @@ export type Portfolio = {
 /** サイドバーのメニュー key。そのまま URL の `/customers/<id>/<key>` になる。 */
 export type Section = "balance" | "positions" | "history" | "backup";
 export type BulkPositionPayload = Record<string, unknown>;
-export type BulkModalMode = "add" | "edit";
 export type BalanceScenario = "without-tax" | "with-tax";
 export type PrintSection = "balance" | "details" | "history";
 

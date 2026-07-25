@@ -22,7 +22,6 @@ import { ClientSummary } from "@/lib/clients";
 import { compactYen, dateJa, percent, unformatNumberInput } from "@/lib/format";
 import {
   type BalanceScenario,
-  type BulkModalMode,
   type BulkPositionPayload,
   type Portfolio,
   type Position,
@@ -61,7 +60,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [bulkModalMode, setBulkModalMode] = useState<BulkModalMode | null>(null);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [deletingPosition, setDeletingPosition] = useState<Position | null>(null);
   const [deletingSnapshot, setDeletingSnapshot] = useState<Snapshot | null>(null);
@@ -266,22 +265,22 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     finally { setSaving(false); }
   }
 
-  async function saveBulkPositions(positions: BulkPositionPayload[], mode: BulkModalMode) {
+  async function saveBulkPositions(positions: BulkPositionPayload[]) {
     if (!workingSnapshot) return false;
     setSaving(true); setError("");
     try {
       const response = await fetch(`${API_BASE}/positions/bulk`, {
-        method: mode === "edit" ? "PUT" : "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ snapshotId: workingSnapshot.id, positions }),
       });
       const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(result?.error ?? (mode === "edit" ? "一括修正できませんでした。入力内容を確認してください。" : "一括登録できませんでした。入力内容を確認してください。"));
-      setBulkModalMode(null);
+      if (!response.ok) throw new Error(result?.error ?? "明細を一括保存できませんでした。入力内容を確認してください。");
+      setBulkModalOpen(false);
       await load();
       return true;
     } catch (bulkError) {
-      setError(bulkError instanceof Error ? bulkError.message : mode === "edit" ? "一括修正できませんでした。" : "一括登録できませんでした。");
+      setError(bulkError instanceof Error ? bulkError.message : "明細を一括保存できませんでした。");
       return false;
     } finally {
       setSaving(false);
@@ -555,14 +554,14 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             </div>
           ) : null}
 
-          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkAdd={() => setBulkModalMode("add")} onBulkEdit={() => setBulkModalMode("edit")} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditTaxes={() => setSnapshotTaxModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
+          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditTaxes={() => setSnapshotTaxModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
           {(section === "history" || printSections?.has("history")) ? <div className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
           {section === "backup" ? <div className="report-document print-excluded-document"><BackupView scope="household" household={portfolio.household} /></div> : null}
         </main>
       </div>
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
       {modalOpen ? <PositionModal position={editingPosition} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
-      {bulkModalMode && workingSnapshot ? <BulkPositionModal mode={bulkModalMode} snapshot={workingSnapshot} onClose={() => setBulkModalMode(null)} onSubmit={(positions) => saveBulkPositions(positions, bulkModalMode)} saving={saving} /> : null}
+      {bulkModalOpen && workingSnapshot ? <BulkPositionModal snapshot={workingSnapshot} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /> : null}
       {deletingPosition ? <DeletePositionModal position={deletingPosition} onClose={() => setDeletingPosition(null)} onDelete={() => void deletePosition()} saving={saving} /> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
       {forecastModalOpen ? <ForecastModal planning={portfolio.planning} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}

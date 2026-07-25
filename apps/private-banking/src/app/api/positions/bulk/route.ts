@@ -35,6 +35,24 @@ const bulkPositionUpdateSchema = z.object({
   });
 });
 
+const bulkPositionManageSchema = z.object({
+  snapshotId: z.coerce.number().int().positive(),
+  positions: z.array(z.object({
+    id: z.coerce.number().int().positive().nullable().optional(),
+    data: positionInputSchema,
+  })).min(1).max(100),
+}).superRefine((data, context) => {
+  const ids = new Set<number>();
+  data.positions.forEach((position, index) => {
+    if (position.id) {
+      if (ids.has(position.id)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["positions", index, "id"], message: "同じ明細が重複しています。" });
+      ids.add(position.id);
+    }
+    if (position.data.side !== "ASSET") context.addIssue({ code: z.ZodIssueCode.custom, path: ["positions", index, "data", "side"], message: "表での編集・追加は資産の部のみ利用できます。" });
+    if (!bulkEntryCategories.has(position.data.category)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["positions", index, "data", "category"], message: "表での編集・追加の対象外科目です。" });
+  });
+});
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = bulkPositionInputSchema.safeParse(body);
@@ -133,4 +151,77 @@ export async function PUT(request: Request) {
   });
 
   return NextResponse.json({ ids: requestedIds, count: requestedIds.length });
+}
+
+export async function PATCH(request: Request) {
+  const body = await request.json().catch(() => null);
+  const parsed = bulkPositionManageSchema.safeParse(body);
+  if (!parsed.success) {
+    const rowIssue = parsed.error.issues.find((issue) => issue.path[0] === "positions" && typeof issue.path[1] === "number");
+    const rowNumber = typeof rowIssue?.path[1] === "number" ? rowIssue.path[1] + 1 : null;
+    return NextResponse.json(
+      { error: rowNumber ? `${rowNumber}行目の入力内容を確認してください。` : "表の入力内容を確認してください。" },
+      { status: 400 },
+    );
+  }
+
+  const snapshot = await prisma.snapshot.findUnique({ where: { id: parsed.data.snapshotId }, select: { id: true } });
+  if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
+
+  const requestedIds = parsed.data.positions.flatMap((position) => position.id ? [position.id] : []);
+  if (requestedIds.length > 0) {
+    const registeredPositions = await prisma.position.findMany({
+      where: { id: { in: requestedIds }, snapshotId: snapshot.id },
+      select: { id: true },
+    });
+    if (registeredPositions.length !== requestedIds.length) {
+      return NextResponse.json({ error: "対象年度に存在しない明細が含まれています。画面を更新してください。" }, { status: 409 });
+    }
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const lastPosition = await tx.position.findFirst({
+      where: { snapshotId: snapshot.id, side: "ASSET" },
+      orderBy: [{ sortOrder: "desc" }, { id: "desc" }],
+      select: { sortOrder: true },
+    });
+    let sortOrder = (lastPosition?.sortOrder ?? -1) + 1;
+    const updatedIds: number[] = [];
+    const createdIds: number[] = [];
+
+    for (const position of parsed.data.positions) {
+      const data = position.data;
+      const originalAmount = calculatedOriginalAmount(data);
+      const valueJpy = Math.round(originalAmount * data.fxRate);
+      const normalizedData = {
+        ...data,
+        ownershipShare: calculatedOwnershipShare(data),
+        valuationMethod: normalizedValuationMethod(data),
+        liquidity: liquidityForCategory(data.category),
+        originalAmount: new Prisma.Decimal(originalAmount),
+        fxRate: new Prisma.Decimal(data.fxRate),
+        valueJpy: new Prisma.Decimal(valueJpy),
+        includedInNetWorth: data.category !== "GUARANTEE",
+      };
+
+      if (position.id) {
+        await tx.position.update({ where: { id: position.id }, data: normalizedData });
+        updatedIds.push(position.id);
+      } else {
+        const created = await tx.position.create({
+          data: { ...normalizedData, snapshotId: snapshot.id, sortOrder },
+          select: { id: true },
+        });
+        createdIds.push(created.id);
+        sortOrder += 1;
+      }
+    }
+    await tx.snapshot.update({ where: { id: snapshot.id }, data: { updatedAt: new Date() } });
+    return { updatedIds, createdIds };
+  });
+
+  return NextResponse.json({
+    ...result,
+    count: result.updatedIds.length + result.createdIds.length,
+  });
 }
