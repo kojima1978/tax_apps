@@ -53,6 +53,63 @@ function BsAmount({ value, total }: { value: number; total: number }) {
   return <><span className="bs-money">{compactYen(value)}</span><em className="bs-percent">{percent.format(value / Math.max(total, 1) * 100)}%</em></>;
 }
 
+const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: string; description: string }> = [
+  { key: "balance", title: "貸借対照表", description: "現在価値と相続時予測による資産・負債の構成" },
+  { key: "details", title: "資産・負債明細", description: "資産、負債および保証債務の明細" },
+  { key: "history", title: "年度比較", description: "年度ごとの残高推移と比較" },
+];
+
+function PrintFrontMatter({
+  household,
+  snapshot,
+  sections,
+}: {
+  household: Portfolio["household"];
+  snapshot: Snapshot;
+  sections: PrintSection[];
+}) {
+  const includedSections = PRINT_SECTION_META.filter(({ key }) => sections.includes(key));
+
+  return (
+    <div className="print-front-matter" aria-hidden="true">
+      <section className="print-cover">
+        <div className="print-cover-mark">PERSONAL ASSET BALANCE SHEET</div>
+        <div className="print-cover-main">
+          <p>PRIVATE BANKING REPORT</p>
+          <h1>個人資産・負債管理レポート</h1>
+          <span className="print-cover-rule" />
+          <dl>
+            <div><dt>顧客名</dt><dd>{household.name}</dd></div>
+            <div><dt>顧客コード</dt><dd>{household.clientCode}</dd></div>
+            <div><dt>対象年度</dt><dd>{fiscalYearLabel(snapshot)}</dd></div>
+            <div><dt>B/S基準日</dt><dd>{dateJa(snapshot.asOfDate)}</dd></div>
+          </dl>
+        </div>
+        <p className="print-cover-confidential">CONFIDENTIAL</p>
+      </section>
+
+      <section className="print-toc">
+        <header>
+          <p>CONTENTS</p>
+          <h2>目次</h2>
+        </header>
+        <ol>
+          {includedSections.map(({ key, title, description }, index) => (
+            <li key={key}>
+              <span className="print-toc-index">{String(index + 1).padStart(2, "0")}</span>
+              <span className="print-toc-copy"><strong>{title}</strong><small>{description}</small></span>
+            </li>
+          ))}
+        </ol>
+        <footer>
+          <span>{household.name}</span>
+          <span>{fiscalYearLabel(snapshot)}・基準日 {dateJa(snapshot.asOfDate)}</span>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 export function Dashboard({ householdId, section }: { householdId: number; section: Section }) {
   const router = useRouter();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
@@ -422,6 +479,11 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   }
   // 表示中の年度。?snapshot= が無効なときは現在年度にフォールバックする。
   const reportSnapshot = workingSnapshot ?? current;
+  const currentPrintSection: PrintSection | null =
+    section === "balance" ? "balance" : section === "positions" ? "details" : section === "history" ? "history" : null;
+  const includedPrintSections = printSections
+    ? PRINT_SECTION_META.map(({ key }) => key).filter((key) => printSections.has(key))
+    : currentPrintSection ? [currentPrintSection] : [];
 
   return (
     <div className="app-shell">
@@ -446,6 +508,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       </aside>
 
       <div className={`main-area ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+        <PrintFrontMatter household={portfolio.household} snapshot={reportSnapshot} sections={includedPrintSections} />
         <header className="topbar">
           <button className="menu-button" aria-label="メニューを開く" onClick={() => setMenuOpen(true)}><Menu /></button>
           <div className="topbar-subject">
@@ -458,7 +521,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         <main id="main-content" className="content">
           {error ? <div className="error-banner" role="alert"><AlertTriangle />{error}<button onClick={() => setError("")} aria-label="閉じる"><X /></button></div> : null}
           {(section === "balance" || printSections?.has("balance")) ? (
-            <div className={`report-document ${section !== "balance" ? "print-only-document" : ""} ${printSections && !printSections.has("balance") ? "print-excluded-document" : ""}`}>
+            <div id="print-section-balance" className={`report-document ${section !== "balance" ? "print-only-document" : ""} ${printSections && !printSections.has("balance") ? "print-excluded-document" : ""}`}>
               <section className="page-heading detail-page-heading">
                 <div>
                   <p className="eyebrow">OWNER PERSONAL BALANCE SHEET</p>
@@ -554,8 +617,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             </div>
           ) : null}
 
-          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditTaxes={() => setSnapshotTaxModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
-          {(section === "history" || printSections?.has("history")) ? <div className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
+          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditTaxes={() => setSnapshotTaxModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
+          {(section === "history" || printSections?.has("history")) ? <div id="print-section-history" className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
           {section === "backup" ? <div className="report-document print-excluded-document"><BackupView scope="household" household={portfolio.household} /></div> : null}
         </main>
       </div>

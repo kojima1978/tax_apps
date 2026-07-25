@@ -732,14 +732,48 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .client-home-toolbar .button { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
-@page { size: A4 landscape; margin: 10mm; }
+.print-front-matter { display: none; }
+@page {
+  size: A4 landscape;
+  margin: 10mm 10mm 15mm;
+  @bottom-center {
+    content: counter(page);
+    color: #64748b;
+    font-family: Arial, "Noto Sans JP", sans-serif;
+    font-size: 8pt;
+  }
+}
 @media print {
+  .print-front-matter { display: block !important; }
+  .print-cover, .print-toc { min-height: 178mm; box-sizing: border-box; break-after: page; page-break-after: always; }
+  .print-cover { padding: 10mm 12mm 7mm; border: 1px solid #d7dfdb; display: flex; flex-direction: column; color: #0f2f26; background: linear-gradient(135deg, #f7faf8 0%, #fff 54%, #edf5f0 100%); }
+  .print-cover-mark { font-size: 8px; font-weight: 700; letter-spacing: .24em; }
+  .print-cover-main { width: 72%; margin: auto; padding: 0 0 4mm; }
+  .print-cover-main > p { margin: 0 0 4mm; color: #64748b; font-size: 9px; font-weight: 700; letter-spacing: .22em; }
+  .print-cover-main h1 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 31px; font-weight: 600; letter-spacing: .04em; }
+  .print-cover-rule { width: 24mm; height: 1.5px; margin: 7mm 0 9mm; background: #2f765e; display: block; }
+  .print-cover-main dl { width: 72%; margin: 0; }
+  .print-cover-main dl > div { padding: 2.5mm 0; border-bottom: 1px solid #d7dfdb; display: grid; grid-template-columns: 28mm 1fr; align-items: baseline; }
+  .print-cover-main dt { color: #64748b; font-size: 9px; font-weight: 600; }
+  .print-cover-main dd { margin: 0; color: #172c25; font-size: 11px; font-weight: 700; }
+  .print-cover-confidential { margin: 0; color: #718079; font-size: 7px; font-weight: 700; letter-spacing: .22em; text-align: right; }
+  .print-toc { padding: 10mm 16mm 7mm; display: flex; flex-direction: column; color: #172c25; background: #fff; }
+  .print-toc header { padding-bottom: 7mm; border-bottom: 2px solid #285f4d; }
+  .print-toc header p { margin: 0 0 2mm; color: #64748b; font-size: 8px; font-weight: 700; letter-spacing: .22em; }
+  .print-toc header h2 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 25px; font-weight: 600; }
+  .print-toc ol { margin: 8mm 0 0; padding: 0; list-style: none; }
+  .print-toc li { min-height: 21mm; padding: 4mm 2mm; border-bottom: 1px solid #d7dfdb; display: grid; grid-template-columns: 17mm 1fr; align-items: center; }
+  .print-toc-index { color: #2f765e; font-family: Georgia, serif; font-size: 17px; }
+  .print-toc-copy { display: flex; flex-direction: column; gap: 1.5mm; }
+  .print-toc-copy strong { color: #123c31; font-size: 14px; }
+  .print-toc-copy small { color: #64748b; font-size: 9px; }
+  .print-toc footer { margin-top: auto; padding-top: 4mm; border-top: 1px solid #d7dfdb; display: flex; justify-content: space-between; color: #64748b; font-size: 8px; }
   .print-only-document { display: block !important; }
   .print-excluded-document { display: none !important; }
   .report-document + .report-document { break-before: page; page-break-before: always; }
   html, body { width: 100%; max-width: 100%; overflow-x: clip; }
   body { overflow-y: visible; background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  .sidebar, .top-actions, .menu-button, .text-button, .balance-scenario-switch, .error-banner, .skip-link, .client-switcher-trigger > svg, .client-switcher-trigger small, .client-switcher-trigger em { display: none !important; }
+  .sidebar, .top-actions, .menu-button, .back-to-list, .text-button, .balance-scenario-switch, .error-banner, .skip-link, .client-switcher-trigger > svg, .client-switcher-trigger small, .client-switcher-trigger em { display: none !important; }
   .client-switcher-trigger { min-width: 0; max-width: none; min-height: 24px; margin: 0; padding: 0; border: 0; pointer-events: none; }
   .app-shell, .main-area { width: 100%; max-width: 100%; min-height: 0; height: auto; margin: 0; overflow-x: clip; }
   .main-area { margin: 0; }
