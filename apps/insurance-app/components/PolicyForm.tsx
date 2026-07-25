@@ -1004,7 +1004,18 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
           surrenderValues: prev.surrenderValues?.map(({ age, amount }) => ({ age, amount })),
         };
       }
-      return { ...prev, currency: 'USD', exchangeRate: prev.exchangeRate || 150 };
+      const nextRate = prev.exchangeRate || 150;
+      return {
+        ...prev,
+        currency: 'USD',
+        exchangeRate: nextRate,
+        // 円で入力済みの返戻金はドル額に変換しておく（外貨欄が0のまま円換算だけ残るのを防ぐ）
+        surrenderValues: prev.surrenderValues?.map(point => (
+          point.foreignAmount !== undefined
+            ? point
+            : { ...point, foreignAmount: nextRate > 0 ? Math.round(point.amount / nextRate) : 0 }
+        )),
+      };
     });
   };
 

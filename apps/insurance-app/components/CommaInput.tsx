@@ -1,16 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const formatComma = (n: number) => n ? n.toLocaleString() : '';
 
 // 数値入力のカンマ表示を共通化（フォーム行つき / 素の input の2種類）
 function useCommaDisplay(value: number, onChange: (n: number) => void) {
   const [display, setDisplay] = useState(formatComma(value));
+  const [lastValue, setLastValue] = useState(value);
 
-  useEffect(() => {
+  // 外部から value が変わったときだけ表示を作り直す（レンダー中の派生state更新）
+  if (value !== lastValue) {
+    setLastValue(value);
     setDisplay(formatComma(value));
-  }, [value]);
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/[^\d]/g, '');

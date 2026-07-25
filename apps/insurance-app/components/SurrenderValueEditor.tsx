@@ -88,6 +88,12 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
   paidAtAge,
 }) => {
   const [isOpen, setIsOpen] = useState(points.length > 0);
+  // 既存契約の編集時は formData が後から入るため、点が現れた時点で開く
+  const [hadPoints, setHadPoints] = useState(points.length > 0);
+  if (!hadPoints && points.length > 0) {
+    setHadPoints(true);
+    setIsOpen(true);
+  }
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteMessage, setPasteMessage] = useState('');
