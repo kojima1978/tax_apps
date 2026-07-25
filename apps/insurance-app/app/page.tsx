@@ -160,7 +160,7 @@ export default function Page() {
       addToast('error', getErrorMessage(err, 'データの読み込みに失敗しました'));
     }
     setIsLoading(false);
-  }, [applyState]);
+  }, [applyState, addToast]);
 
   const handleSelectCase = useCallback((caseId: string) => {
     setActiveCaseId(caseId);
@@ -462,6 +462,8 @@ export default function Page() {
       <header className="app-header">
         <div className="header-title-area">
           <h1 className="app-title">
+            {/* ゲートウェイのポータル（このアプリ外）へのリンクなので next/link は使えない */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/" className="back-to-list-btn" title="ポータルに戻る" style={{ marginRight: '0.25rem' }}>
               <Home size={16} />
             </a>
@@ -593,7 +595,6 @@ export default function Page() {
           familyMembers={familyMembers}
           existingPolicies={policies}
           editingPolicy={editingPolicy}
-          onCancel={() => setEditingPolicy(null)}
         />
 
       </main>

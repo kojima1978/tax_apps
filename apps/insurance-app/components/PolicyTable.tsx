@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember } from '@/types';
 import { Edit2, GripVertical, Trash, Search, X } from 'lucide-react';
@@ -23,10 +23,10 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
   const [dropTarget, setDropTarget] = useState<{ id: string; position: DropPosition } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const getMemberName = (id: string) => {
+  const getMemberName = useCallback((id: string) => {
     const member = familyMembers.find(m => m.id === id);
     return member ? `${member.relationship} (${member.name})` : '未設定';
-  };
+  }, [familyMembers]);
 
   const currentMonthlyBurden = policies.reduce((sum, p) => sum + getActiveMonthlyPremium(p, currentAge), 0);
   const isIncomeProtection = (policy: Policy) => isIncomeProtectionPolicyType(policy.policyType);
@@ -132,7 +132,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({ policies, familyMembers, curr
       getMemberName(p.insuredId).toLowerCase().includes(q) ||
       getMemberName(p.beneficiaryId).toLowerCase().includes(q)
     );
-  }, [policies, searchQuery, familyMembers]);
+  }, [policies, searchQuery, getMemberName]);
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, policyId: string) => {
     event.dataTransfer.effectAllowed = 'move';

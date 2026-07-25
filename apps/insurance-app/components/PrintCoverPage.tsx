@@ -2,6 +2,9 @@ import React from 'react';
 import type { Agency } from '@/types';
 import PrintPageNumber from '@/components/PrintPageNumber';
 
+// next.config.ts と同条件で basePath を解決する（素の img は basePath が自動付与されないため）
+const BASE_PATH = process.env.NEXT_PUBLIC_STORAGE_MODE === 'json' ? '' : '/insurance';
+
 interface PrintCoverPageProps {
   customerName: string;
   agency: Agency;
@@ -33,7 +36,9 @@ const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ customerName, agency, t
 
       <div className="cover-footer">
         <div className="logo-container">
-          <img src="/njpw_logo.webp" alt="Company Logo" className="agency-logo" />
+          {/* 印刷レイアウト用。next/image の遅延読み込み・最適化は印刷では不都合なので素の img を使う */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${BASE_PATH}/njpw_logo.webp`} alt="Company Logo" className="agency-logo" />
         </div>
         <div className="cover-agent">
           <div className="cover-agent-name">{agency.name}</div>

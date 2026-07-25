@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { Users, AlertTriangle } from 'lucide-react';
 import { isIncomeProtectionPolicyType, type Policy, type FamilyMember } from '@/types';
+import type { ChartTooltipProps } from '@/utils/chartTypes';
 import {
   COVERAGE_CHART_COLORS,
   buildCoverageColorMap,
@@ -73,22 +74,22 @@ const buildCoverageAgePoints = (policies: Policy[], currentAge: number, endAge: 
   return [...points].sort((a, b) => a - b);
 };
 
-const BeneficiaryTooltip = ({ active, label, payload }: any) => {
+const BeneficiaryTooltip = ({ active, label, payload }: ChartTooltipProps) => {
   if (!active || !payload?.length) return null;
-  const items = payload.filter((item: any) => Number(item.value) > 0);
+  const items = payload.filter(item => Number(item.value) > 0);
   if (items.length === 0) return null;
 
   return (
     <div className="coverage-tooltip coverage-tooltip-compact">
-      <div className="coverage-tooltip-age">{formatAgeLabel(label)}</div>
+      <div className="coverage-tooltip-age">{formatAgeLabel(label ?? '')}</div>
       <div className="coverage-tooltip-list">
-        {items.map((item: any) => (
+        {items.map(item => (
           <div key={item.dataKey} className="coverage-tooltip-row">
             <span className="coverage-tooltip-dot" style={{ backgroundColor: item.color }} />
             <span className="coverage-tooltip-name">
               {item.name}
             </span>
-            <strong>{formatAxisTick(item.value)}万円</strong>
+            <strong>{formatAxisTick(Number(item.value))}万円</strong>
           </div>
         ))}
       </div>

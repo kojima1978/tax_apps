@@ -25,6 +25,13 @@ function getInitial(name: string): string {
   return name.charAt(0);
 }
 
+const SortIcon = ({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) => {
+  if (sortKey !== col) return <ArrowUpDown size={12} className="case-sort-icon-idle" />;
+  return sortDir === 'asc'
+    ? <ArrowUp size={12} className="case-sort-icon-active" />
+    : <ArrowDown size={12} className="case-sort-icon-active" />;
+};
+
 function getAvatarColor(name: string): string {
   if (!name) return '#94a3b8';
   const colors = ['#3182ce', '#38a169', '#dd6b20', '#805ad5', '#d53f8c', '#319795', '#e53e3e'];
@@ -47,9 +54,8 @@ export default function CaseListPage({ onSelect }: Props) {
   const [isJsonDragOver, setIsJsonDragOver] = useState(false);
   const restoreJsonInputRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  // 初期値が isLoading=true / error=null なので、取得と反映だけを行う
+  const loadCases = useCallback(async () => {
     try {
       const data = await fetchCases();
       setCases(data);
@@ -59,7 +65,15 @@ export default function CaseListPage({ onSelect }: Props) {
     setIsLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // 初回取得。setState は Promise のコールバック内で行う（effect 内での同期 setState を避ける）
+  useEffect(() => {
+    let cancelled = false;
+    fetchCases()
+      .then(data => { if (!cancelled) setCases(data); })
+      .catch(() => { if (!cancelled) setError('案件一覧の取得に失敗しました'); })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleCreate = async () => {
     try {
@@ -94,11 +108,11 @@ export default function CaseListPage({ onSelect }: Props) {
         await deleteCase(createdCaseId).catch(() => {});
       }
       setError('JSON復元に失敗しました。保険アプリのJSON出力ファイルか確認してください。');
-      await load().catch(() => {});
+      await loadCases().catch(() => {});
     } finally {
       setIsRestoringJson(false);
     }
-  }, [load, onSelect]);
+  }, [loadCases, onSelect]);
 
   const handleRestoreJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -162,13 +176,6 @@ export default function CaseListPage({ onSelect }: Props) {
     return filtered;
   }, [cases, search, sortKey, sortDir]);
 
-  const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortKey !== col) return <ArrowUpDown size={12} className="case-sort-icon-idle" />;
-    return sortDir === 'asc'
-      ? <ArrowUp size={12} className="case-sort-icon-active" />
-      : <ArrowDown size={12} className="case-sort-icon-active" />;
-  };
-
   return (
     <div className="case-list-page">
       <input
@@ -181,6 +188,8 @@ export default function CaseListPage({ onSelect }: Props) {
       <header className="case-list-header">
         <div className="case-list-title-block">
           <h1>
+            {/* ゲートウェイのポータル（このアプリ外）へのリンクなので next/link は使えない */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/" className="back-to-list-btn" title="ポータルに戻る">
               <Home size={20} />
             </a>
@@ -293,16 +302,16 @@ export default function CaseListPage({ onSelect }: Props) {
             <thead>
               <tr>
                 <th className="case-th-sortable" onClick={() => handleSort('name')}>
-                  <span>お客様名</span> <SortIcon col="name" />
+                  <span>お客様名</span> <SortIcon col="name" sortKey={sortKey} sortDir={sortDir} />
                 </th>
                 <th className="case-th-sortable case-th-numeric" onClick={() => handleSort('members')}>
-                  <span>世帯人数</span> <SortIcon col="members" />
+                  <span>世帯人数</span> <SortIcon col="members" sortKey={sortKey} sortDir={sortDir} />
                 </th>
                 <th className="case-th-sortable case-th-numeric" onClick={() => handleSort('policies')}>
-                  <span>証券数</span> <SortIcon col="policies" />
+                  <span>証券数</span> <SortIcon col="policies" sortKey={sortKey} sortDir={sortDir} />
                 </th>
                 <th className="case-th-sortable" onClick={() => handleSort('updated')}>
-                  <span>最終更新</span> <SortIcon col="updated" />
+                  <span>最終更新</span> <SortIcon col="updated" sortKey={sortKey} sortDir={sortDir} />
                 </th>
                 <th className="case-th-actions"></th>
               </tr>

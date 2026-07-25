@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DISPLAY_POLICY_TYPES } from '@/types';
 import type { Policy, PolicyType } from '@/types';
 import {
@@ -37,7 +37,6 @@ import {
   fetchPortfolioInsights,
   savePortfolioInsights,
   resetPortfolioInsights,
-  type PortfolioInsightData,
 } from '@/lib/api';
 
 interface EditableInsight extends PortfolioInsight {
@@ -130,13 +129,13 @@ const InsuranceTypeOverview: React.FC<InsuranceTypeOverviewProps> = ({ caseId, p
     }
   };
 
-  const persistInsights = (insights: EditableInsight[]) => {
+  const persistInsights = useCallback((insights: EditableInsight[]) => {
     savePortfolioInsights(caseId, insights.map(i => ({
       type: i.type,
       text: i.text,
       isCustom: !!i.isCustom,
     }))).catch(() => {});
-  };
+  }, [caseId]);
 
   useEffect(() => {
     insightsLoadedRef.current = false;
@@ -161,7 +160,7 @@ const InsuranceTypeOverview: React.FC<InsuranceTypeOverviewProps> = ({ caseId, p
       setEditableInsights(mapAutoInsights(policies, currentAge));
       insightsLoadedRef.current = true;
     });
-  }, [caseId, policies, currentAge]);
+  }, [caseId, policies, currentAge, persistInsights]);
 
   useEffect(() => {
     if (editingId && editInputRef.current) {

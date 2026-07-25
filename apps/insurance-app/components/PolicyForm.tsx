@@ -19,7 +19,6 @@ interface PolicyFormProps {
   familyMembers: FamilyMember[];
   existingPolicies?: Policy[];
   editingPolicy: Policy | null;
-  onCancel: () => void;
 }
 
 interface UnresolvedNameRef {
@@ -38,6 +37,9 @@ interface UnresolvedName {
   gender: FamilyMember['gender'];
   refs?: UnresolvedNameRef[];
 }
+
+// AI取込JSONは形が不定なので、値は unknown のまま受け取り各パーサで正規化する
+type ImportRecord = Record<string, unknown>;
 
 interface ImportDraft {
   id: string;
@@ -187,12 +189,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   familyMembers,
   existingPolicies = [],
   editingPolicy,
-  onCancel,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pasteTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const previousOpenRef = useRef(false);
-  const previousEditingPolicyIdRef = useRef<string | null>(null);
   const [showPasteArea, setShowPasteArea] = useState(false);
   const [showPromptEditor, setShowPromptEditor] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -286,37 +285,30 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
 
   const [formData, setFormData] = useState<Partial<Policy>>(() => buildDefaultFormData(familyMembers));
 
-  useEffect(() => {
-    const wasOpen = previousOpenRef.current;
-    const previousEditingPolicyId = previousEditingPolicyIdRef.current;
-    const currentEditingPolicyId = editingPolicy?.id ?? null;
-    const shouldInitialize = isOpen && (!wasOpen || previousEditingPolicyId !== currentEditingPolicyId);
+  // 開いた瞬間・編集対象が変わった瞬間にフォームを初期化する（レンダー中の派生state更新）
+  const formSessionKey = isOpen ? (editingPolicy?.id ?? '__new__') : null;
+  const [initializedFormKey, setInitializedFormKey] = useState<string | null>(null);
 
-    previousOpenRef.current = isOpen;
-    previousEditingPolicyIdRef.current = currentEditingPolicyId;
-
-    if (!shouldInitialize) return;
-
-    if (editingPolicy) {
-      setFormData(editingPolicy);
-    } else {
-      setFormData(buildDefaultFormData(familyMembers));
+  if (formSessionKey !== initializedFormKey) {
+    setInitializedFormKey(formSessionKey);
+    if (formSessionKey !== null) {
+      setFormData(editingPolicy ?? buildDefaultFormData(familyMembers));
+      setShowPasteArea(false);
+      setShowPromptEditor(false);
+      setPasteText('');
+      setImportDrafts([]);
+      setPendingImportMembers([]);
+      setFormImportWarnings([]);
+      setUnresolvedNames([]);
+      setLinkBeneficiaryToInsured(false);
+      setPromptCopied(false);
+      setPromptSaved(false);
     }
-    setShowPasteArea(false);
-    setShowPromptEditor(false);
-    setPasteText('');
-    setImportDrafts([]);
-    setPendingImportMembers([]);
-    setFormImportWarnings([]);
-    setUnresolvedNames([]);
-    setLinkBeneficiaryToInsured(false);
-    setPromptCopied(false);
-    setPromptSaved(false);
-  }, [editingPolicy, familyMembers, isOpen]);
+  }
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const normalizeRawPolicyJson = (rawJson: any) => {
+  const normalizeRawPolicyJson = (rawJson: ImportRecord): ImportRecord => {
     const keyMap: Record<string, string> = {
       '保険会社': 'companyName',
       '保険会社名': 'companyName',
@@ -401,7 +393,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       'メモ': 'consultantNote',
     };
 
-    const json: Record<string, any> = {};
+    const json: ImportRecord = {};
     for (const [k, v] of Object.entries(rawJson || {})) {
       const trimmedKey = k.trim();
       const mappedKey = keyMap[trimmedKey] || trimmedKey;
@@ -410,7 +402,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     return json;
   };
 
-  const parseImportNum = (v: any) => {
+  const parseImportNum = (v: unknown) => {
     if (typeof v === 'number') return v;
     if (!v) return 0;
     const text = String(v).replace(/,/g, '');
@@ -420,14 +412,14 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     return cleaned ? parseInt(cleaned[0], 10) : 0;
   };
 
-  const parseImportDecimal = (v: any) => {
+  const parseImportDecimal = (v: unknown) => {
     if (typeof v === 'number') return v;
     if (!v) return 0;
     const cleaned = String(v).replace(/,/g, '').match(/[\d.]+/);
     return cleaned ? Number(cleaned[0]) : 0;
   };
 
-  const parseImportAge = (v: any) => {
+  const parseImportAge = (v: unknown) => {
     const text = String(v ?? '').trim();
     if (!text) return 0;
     if (/(終身|一生涯)/.test(text)) return 999;
@@ -437,15 +429,15 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   // AI取込JSONの「解約返戻金推移」を年齢別データに変換
   // [{年齢,金額}] / [{経過年数,解約返戻金}] / [[年齢,金額]] / {"60":1200000} のいずれにも対応
   const parseImportSurrenderValues = (
-    value: any,
+    value: unknown,
     contractAge: number,
     currency: Policy['currency'],
     exchangeRate: number,
   ): SurrenderValuePoint[] | undefined => {
     if (!value) return undefined;
 
-    const entries: { rawAge: any; rawAmount: any; isElapsed: boolean; isForeign: boolean }[] = [];
-    const pushObject = (obj: Record<string, any>) => {
+    const entries: { rawAge: unknown; rawAmount: unknown; isElapsed: boolean; isForeign: boolean }[] = [];
+    const pushObject = (obj: ImportRecord) => {
       const findKey = (pattern: RegExp) => Object.keys(obj).find(k => pattern.test(k.trim()));
       const elapsedKey = findKey(/^(経過年数|経過|年数|経過年|年目)$/);
       const ageKey = findKey(/^(年齢|歳|age)$/i);
@@ -467,11 +459,11 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
         if (Array.isArray(item) && item.length >= 2) {
           entries.push({ rawAge: item[0], rawAmount: item[1], isElapsed: false, isForeign: false });
         } else if (item && typeof item === 'object') {
-          pushObject(item as Record<string, any>);
+          pushObject(item as ImportRecord);
         }
       });
     } else if (typeof value === 'object') {
-      Object.entries(value as Record<string, any>).forEach(([k, v]) => {
+      Object.entries(value as ImportRecord).forEach(([k, v]) => {
         entries.push({ rawAge: k, rawAmount: v, isElapsed: /年目|経過/.test(k), isForeign: false });
       });
     } else {
@@ -502,7 +494,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     return [...byAge.values()].sort((a, b) => a.age - b.age);
   };
 
-  const parseImportDate = (v: any) => {
+  const parseImportDate = (v: unknown) => {
     if (!v) return '';
     const d = String(v);
     const stdMatch = d.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
@@ -512,7 +504,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     return '';
   };
 
-  const parseImportPolicyType = (v: any): PolicyType => {
+  const parseImportPolicyType = (v: unknown): PolicyType => {
     const type = String(v || '');
     if (type.includes('収入保障定期')) return '収入保障保険';
     if (type.includes('収入保障')) return '収入保障保険';
@@ -527,7 +519,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     return '終身保険';
   };
 
-  const parseImportFrequency = (v: any): Policy['paymentFrequency'] => {
+  const parseImportFrequency = (v: unknown): Policy['paymentFrequency'] => {
     const f = String(v || '').trim().toLowerCase();
     if (f.includes('single') || f.includes('lump') || f.includes('一時')) return 'single';
     if (f.includes('annual') || f.includes('year') || f.includes('年')) return 'annual';
@@ -535,18 +527,19 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     return 'monthly';
   };
 
-  const extractImportRecords = (parsed: any): any[] => {
-    if (Array.isArray(parsed)) return parsed;
-    if (Array.isArray(parsed?.policies)) return parsed.policies;
-    if (Array.isArray(parsed?.['保険証券'])) return parsed['保険証券'];
-    if (Array.isArray(parsed?.['証券'])) return parsed['証券'];
-    if (Array.isArray(parsed?.items)) return parsed.items;
-    if (Array.isArray(parsed?.data)) return parsed.data;
-    if (parsed?.policy && typeof parsed.policy === 'object') return [parsed.policy];
-    if (parsed?.['証券'] && typeof parsed['証券'] === 'object') return [parsed['証券']];
-    if (parsed?.['保険証券'] && typeof parsed['保険証券'] === 'object') return [parsed['保険証券']];
-    if (parsed?.data && typeof parsed.data === 'object') return [parsed.data];
-    return parsed && typeof parsed === 'object' ? [parsed] : [];
+  const extractImportRecords = (parsed: unknown): ImportRecord[] => {
+    if (Array.isArray(parsed)) return parsed as ImportRecord[];
+    if (!parsed || typeof parsed !== 'object') return [];
+    const root = parsed as ImportRecord;
+
+    for (const key of ['policies', '保険証券', '証券', 'items', 'data']) {
+      if (Array.isArray(root[key])) return root[key] as ImportRecord[];
+    }
+    for (const key of ['policy', '証券', '保険証券', 'data']) {
+      const child = root[key];
+      if (child && typeof child === 'object') return [child as ImportRecord];
+    }
+    return [root];
   };
 
   const findMemberIdByName = (members: FamilyMember[], nameStr: unknown) => {
@@ -600,7 +593,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   };
 
   const buildImportDraft = (
-    rawJson: any,
+    rawJson: ImportRecord,
     unresolvedMap: Map<string, UnresolvedName>,
   ): ImportDraft => {
     const json = normalizeRawPolicyJson(rawJson);
@@ -680,7 +673,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     const insuredName = String(json.insuredName || '').trim();
     const insuredBirthDate = parseImportDate(json.insuredBirthDate);
     const beneficiaryName = String(json.beneficiaryName || '').trim();
-    let insuredId = typeof json.insuredId === 'string' && existingMemberIds.has(json.insuredId)
+    const insuredId = typeof json.insuredId === 'string' && existingMemberIds.has(json.insuredId)
       ? json.insuredId
       : findMemberIdByName(familyMembers, insuredName);
 
@@ -734,7 +727,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     };
   };
 
-  const prepareJsonImport = (parsed: any) => {
+  const prepareJsonImport = (parsed: unknown) => {
     const records = extractImportRecords(parsed);
     if (records.length === 0) throw new Error('JSONに証券データがありません');
     if (records.length > 1) throw new Error('複数件のJSONはフォーム反映できません。1件ずつ取り込んでください。');
@@ -967,7 +960,8 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     }
   };
 
-  const setField = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
+  const setField = <K extends keyof Policy>(field: K, value: Policy[K]) =>
+    setFormData(prev => ({ ...prev, [field]: value }));
 
   const getMoneyValue = (yenField: keyof Policy, foreignField: keyof Policy) => (
     formData.currency === 'USD'
@@ -1722,7 +1716,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
             <h4>コスト・貯蓄性</h4>
             <div className="form-group">
               <label>払方</label>
-              <select value={formData.paymentFrequency} onChange={e => setField('paymentFrequency', e.target.value as any)}>
+              <select value={formData.paymentFrequency} onChange={e => setField('paymentFrequency', e.target.value as Policy['paymentFrequency'])}>
                 <option value="monthly">月払</option>
                 <option value="annual">年払</option>
                 <option value="single">一時払</option>

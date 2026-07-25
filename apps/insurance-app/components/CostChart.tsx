@@ -12,6 +12,7 @@ import {
 import ChartContainer from './ChartContainer';
 import type { Policy } from '@/types';
 import { getActiveMonthlyPremium } from '@/utils/analysisUtils';
+import type { ChartValue } from '@/utils/chartTypes';
 
 interface CostChartProps {
   policies: Policy[];
@@ -40,7 +41,7 @@ const CostChart: React.FC<CostChartProps> = ({ policies, currentAge }) => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="age" />
             <YAxis tickFormatter={formatAxisTick} width={80} />
-            <Tooltip formatter={(value: any) => [`${formatAxisTick(value)}円`, '月額負担']} />
+            <Tooltip formatter={(value: ChartValue) => [`${formatAxisTick(Number(value))}円`, '月額負担']} />
             <Bar dataKey="cost" fill="#f6ad55" />
           </BarChart>
         )}
