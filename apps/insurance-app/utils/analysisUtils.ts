@@ -1,5 +1,5 @@
 import { isIncomeProtectionPolicyType } from '@/types';
-import type { Policy, PolicyType } from '@/types';
+import type { Policy, PolicyType, SurrenderValuePoint } from '@/types';
 
 export interface EvaluationResult {
   rating: 'good' | 'caution' | 'warning';
@@ -188,6 +188,117 @@ export function getPensionPayoutSummary(policy: Policy) {
 
 export function calculateRemainingPremiums(policy: Policy, currentAge: number): number {
   return Math.max(0, calculateProjectedTotalPremiums(policy) - calculateTotalPremiumsPaid(policy, currentAge));
+}
+
+// --- 年齢別の解約返戻金（スパース入力＋線形補間） ---
+
+// 入力済みの返戻金を年齢昇順・重複排除で取り出す（同じ年齢は後の行を優先）
+export function getSurrenderValues(policy: Policy): SurrenderValuePoint[] {
+  const points = policy.surrenderValues;
+  if (!Array.isArray(points) || points.length === 0) return [];
+
+  const byAge = new Map<number, SurrenderValuePoint>();
+  points.forEach(point => {
+    if (!point || typeof point.age !== 'number' || typeof point.amount !== 'number') return;
+    if (!Number.isFinite(point.age) || !Number.isFinite(point.amount)) return;
+    if (point.age <= 0) return;
+    byAge.set(Math.round(point.age), { ...point, age: Math.round(point.age) });
+  });
+
+  return [...byAge.values()].sort((a, b) => a.age - b.age);
+}
+
+export function hasSurrenderValues(policy: Policy): boolean {
+  return getSurrenderValues(policy).length > 0;
+}
+
+// 指定年齢時点の払込累計（将来分を含むため年額ベースの概算）
+export function getCumulativePremiumsAtAge(policy: Policy, age: number): number {
+  if (age < policy.contractAge) return 0;
+  if (policy.paymentFrequency === 'single') return policy.premiumAmount;
+
+  const elapsedYears = age - policy.contractAge;
+  const paymentYears = policy.paymentEndAge === 999
+    ? elapsedYears
+    : Math.min(elapsedYears, Math.max(0, policy.paymentEndAge - policy.contractAge));
+  return policy.annualPremium * Math.max(0, paymentYears);
+}
+
+// 指定年齢時点の解約返戻金。入力点の間は線形補間、最初の入力点より前は契約時0からの補間、
+// 最後の入力点より後は横ばいとみなす（保障終了後は null）
+export function getSurrenderValueAtAge(policy: Policy, age: number): number | null {
+  const points = getSurrenderValues(policy);
+  if (points.length === 0) return null;
+  if (age < policy.contractAge) return null;
+
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (policy.policyEndAge !== 999 && age > Math.max(policy.policyEndAge, last.age)) return null;
+
+  if (age <= first.age) {
+    const span = first.age - policy.contractAge;
+    if (span <= 0) return first.amount;
+    return first.amount * ((age - policy.contractAge) / span);
+  }
+  if (age >= last.age) return last.amount;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const from = points[i];
+    const to = points[i + 1];
+    if (age >= from.age && age <= to.age) {
+      const span = to.age - from.age;
+      if (span <= 0) return to.amount;
+      return from.amount + (to.amount - from.amount) * ((age - from.age) / span);
+    }
+  }
+  return last.amount;
+}
+
+export interface SurrenderValueSummary {
+  currentAge: number;
+  currentAmount: number | null;
+  currentPaid: number;
+  currentRate: number | null;
+  breakEvenAge: number | null;
+  peak: SurrenderValuePoint | null;
+  firstAge: number;
+  lastAge: number;
+  count: number;
+}
+
+// 解約返戻率が初めて100%に達する年齢（損益分岐年齢）
+export function getSurrenderBreakEvenAge(policy: Policy): number | null {
+  const points = getSurrenderValues(policy);
+  if (points.length === 0) return null;
+
+  const lastAge = points[points.length - 1].age;
+  for (let age = Math.max(policy.contractAge, 0); age <= lastAge; age++) {
+    const value = getSurrenderValueAtAge(policy, age);
+    const paid = getCumulativePremiumsAtAge(policy, age);
+    if (value !== null && paid > 0 && value >= paid) return age;
+  }
+  return null;
+}
+
+export function getSurrenderValueSummary(policy: Policy, currentAge: number): SurrenderValueSummary | null {
+  const points = getSurrenderValues(policy);
+  if (points.length === 0) return null;
+
+  const currentAmount = getSurrenderValueAtAge(policy, currentAge);
+  const currentPaid = calculateTotalPremiumsPaid(policy, currentAge);
+  const peak = points.reduce((best, point) => (point.amount > best.amount ? point : best), points[0]);
+
+  return {
+    currentAge,
+    currentAmount,
+    currentPaid,
+    currentRate: currentAmount !== null && currentPaid > 0 ? (currentAmount / currentPaid) * 100 : null,
+    breakEvenAge: getSurrenderBreakEvenAge(policy),
+    peak,
+    firstAge: points[0].age,
+    lastAge: points[points.length - 1].age,
+    count: points.length,
+  };
 }
 
 // 死亡保障推移グラフの系列色（全体グラフと受取人別グラフで共通の割当）

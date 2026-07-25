@@ -192,6 +192,12 @@ function runMigrations(db: Database.Database): void {
     // column already exists
   }
 
+  try {
+    db.exec(`ALTER TABLE policies ADD COLUMN surrender_values TEXT`);
+  } catch {
+    // column already exists
+  }
+
   const optionalPolicyColumns = [
     `ALTER TABLE policies ADD COLUMN currency TEXT NOT NULL DEFAULT 'JPY' CHECK (currency IN ('JPY', 'USD'))`,
     `ALTER TABLE policies ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 0`,

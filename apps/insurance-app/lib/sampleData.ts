@@ -165,6 +165,14 @@ export function getSamplePolicies(): Policy[] {
       paymentEndAge: 65,
       annualPremium: 96000,
       maturityBenefit: 0,
+      // 低解約返戻型のイメージ（払込終了の65歳前後で元本回収）
+      surrenderValues: [
+        { age: 55, amount: 300000 },
+        { age: 60, amount: 750000 },
+        { age: 65, amount: 1300000 },
+        { age: 70, amount: 1460000 },
+        { age: 80, amount: 1700000 },
+      ],
     },
     {
       id: '8',
@@ -186,6 +194,11 @@ export function getSamplePolicies(): Policy[] {
       paymentEndAge: 30,
       annualPremium: 98400,
       maturityBenefit: 2000000,
+      surrenderValues: [
+        { age: 20, amount: 350000 },
+        { age: 25, amount: 900000 },
+        { age: 30, amount: 2000000 },
+      ],
     },
     {
       id: '9',

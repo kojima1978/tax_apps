@@ -121,6 +121,21 @@ export function validateAppState(body: unknown): ValidationResult {
           errors.push({ field: `policies[${i}].policyEndAge`, message: `${policyType}は保険期間の終了年齢が必要です` });
         }
       }
+      if (p.surrenderValues !== undefined) {
+        if (!Array.isArray(p.surrenderValues)) {
+          errors.push({ field: `policies[${i}].surrenderValues`, message: 'surrenderValues は配列が必要です' });
+        } else {
+          for (let j = 0; j < p.surrenderValues.length; j++) {
+            const point = p.surrenderValues[j] as Record<string, unknown>;
+            if (!point || typeof point !== 'object'
+              || typeof point.age !== 'number' || !Number.isFinite(point.age) || point.age < 0 || point.age > 120
+              || typeof point.amount !== 'number' || !Number.isFinite(point.amount) || point.amount < 0
+              || (point.foreignAmount !== undefined && typeof point.foreignAmount !== 'number')) {
+              errors.push({ field: `policies[${i}].surrenderValues[${j}]`, message: '年齢別の解約返戻金が不正です' });
+            }
+          }
+        }
+      }
       if (p.evaluationOverrides !== undefined) {
         if (!Array.isArray(p.evaluationOverrides)) {
           errors.push({ field: `policies[${i}].evaluationOverrides`, message: 'evaluationOverrides は配列が必要です' });

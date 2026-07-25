@@ -3,11 +3,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType, normalizePolicyType } from '@/types';
-import type { Policy, PolicyType, FamilyMember } from '@/types';
+import type { Policy, PolicyType, FamilyMember, SurrenderValuePoint } from '@/types';
 import { AlertTriangle, Clipboard, FileUp, Info, RotateCcw, Save, Upload, X } from 'lucide-react';
 import { mergeRelationshipSuggestions } from '@/utils/relationshipOptions';
 import { fetchPolicyPrompt, savePolicyPrompt } from '@/lib/api';
 import { DEFAULT_POLICY_PROMPT, LEGACY_DEFAULT_POLICY_PROMPTS, normalizePromptText } from '@/lib/policyPrompt';
+import { CommaInput, CommaInputRaw } from './CommaInput';
+import SurrenderValueEditor from './SurrenderValueEditor';
 
 interface PolicyFormProps {
   isOpen: boolean;
@@ -48,8 +50,7 @@ interface ImportDraft {
   warnings: string[];
 }
 
-const formatComma = (n: number) => n ? n.toLocaleString() : '';
-const yenFromForeign = (amount: number, exchangeRate: number) => Math.round((amount || 0) * (exchangeRate || 0));
+const yenFromForeign =(amount: number, exchangeRate: number) => Math.round((amount || 0) * (exchangeRate || 0));
 
 const DEATH_BENEFIT_TYPES: PolicyType[] = ['終身保険', '定期保険', '収入保障保険', '変額終身保険', '養老保険'];
 const MEDICAL_BENEFIT_TYPES: PolicyType[] = ['医療保険', 'がん保険'];
@@ -129,6 +130,25 @@ const buildDefaultFormData = (members: FamilyMember[]): Partial<Policy> => {
   };
 };
 
+// 保存前の整形: 不正な行を除き、同じ年齢は後の行を優先し、年齢順に並べる
+const normalizeSurrenderValues = (points?: SurrenderValuePoint[]): SurrenderValuePoint[] | undefined => {
+  if (!Array.isArray(points) || points.length === 0) return undefined;
+  const byAge = new Map<number, SurrenderValuePoint>();
+  points.forEach(point => {
+    const age = Number(point?.age);
+    const amount = Number(point?.amount);
+    if (!Number.isFinite(age) || age < 0 || age > 120) return;
+    if (!Number.isFinite(amount) || amount < 0) return;
+    byAge.set(age, {
+      age,
+      amount: Math.round(amount),
+      ...(point.foreignAmount !== undefined ? { foreignAmount: point.foreignAmount } : {}),
+    });
+  });
+  const sorted = [...byAge.values()].sort((a, b) => a.age - b.age);
+  return sorted.length > 0 ? sorted : undefined;
+};
+
 const LEGACY_PROMPT_STORAGE_KEY = 'insurance-policy-import-prompt';
 
 const createUnresolvedName = (
@@ -157,83 +177,6 @@ const getUnresolvedNameError = (item: UnresolvedName): string => {
     return '既存の家族を選択してください。';
   }
   return '';
-};
-
-const CommaInput: React.FC<{
-  value: number;
-  onChange: (n: number) => void;
-  label: string;
-  required?: boolean;
-  hint?: string;
-  error?: string;
-}> = ({ value, onChange, label, required = false, hint, error }) => {
-  const [display, setDisplay] = useState(formatComma(value));
-
-  useEffect(() => {
-    setDisplay(formatComma(value));
-  }, [value]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^\d]/g, '');
-    if (raw === '') {
-      setDisplay('');
-      onChange(0);
-    } else {
-      const num = Number(raw);
-      setDisplay(num.toLocaleString());
-      onChange(num);
-    }
-  };
-
-  return (
-    <div className={`form-group ${error ? 'has-error' : ''}`}>
-      <label>{label}{required && <> <span className="required-mark">*</span></>}</label>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={display}
-        onChange={handleChange}
-        onFocus={() => setDisplay(formatComma(value))}
-      />
-      {hint && <span className="field-hint">{hint}</span>}
-      {error && <span className="field-error">{error}</span>}
-    </div>
-  );
-};
-
-const CommaInputRaw: React.FC<{
-  value: number;
-  onChange: (n: number) => void;
-  placeholder?: string;
-}> = ({ value, onChange, placeholder }) => {
-  const [display, setDisplay] = useState(formatComma(value));
-
-  useEffect(() => {
-    setDisplay(formatComma(value));
-  }, [value]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^\d]/g, '');
-    if (raw === '') {
-      setDisplay('');
-      onChange(0);
-    } else {
-      const num = Number(raw);
-      setDisplay(num.toLocaleString());
-      onChange(num);
-    }
-  };
-
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      value={display}
-      onChange={handleChange}
-      onFocus={() => setDisplay(formatComma(value))}
-      placeholder={placeholder}
-    />
-  );
 };
 
 const PolicyForm: React.FC<PolicyFormProps> = ({
@@ -316,6 +259,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
 
         if (hasLegacyCustomPrompt && (saved.source === 'default' || databasePromptIsDefault)) {
           nextPrompt = (await savePolicyPrompt(legacyPrompt)).prompt;
+        } else if (databasePromptIsDefault) {
+          // カスタマイズしていない場合は旧デフォルトを最新のデフォルトに差し替える
+          nextPrompt = DEFAULT_POLICY_PROMPT;
         }
 
         removeLegacyPrompt();
@@ -447,6 +393,10 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       '年金受取総額': 'maturityBenefit',
       '解約返戻金': 'maturityBenefit',
       '返戻金': 'maturityBenefit',
+      '解約返戻金推移': 'surrenderValues',
+      '年齢別解約返戻金': 'surrenderValues',
+      '解約返戻金表': 'surrenderValues',
+      '返戻金推移': 'surrenderValues',
       'コンサルタントメモ': 'consultantNote',
       'メモ': 'consultantNote',
     };
@@ -482,6 +432,74 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     if (!text) return 0;
     if (/(終身|一生涯)/.test(text)) return 999;
     return parseImportNum(text);
+  };
+
+  // AI取込JSONの「解約返戻金推移」を年齢別データに変換
+  // [{年齢,金額}] / [{経過年数,解約返戻金}] / [[年齢,金額]] / {"60":1200000} のいずれにも対応
+  const parseImportSurrenderValues = (
+    value: any,
+    contractAge: number,
+    currency: Policy['currency'],
+    exchangeRate: number,
+  ): SurrenderValuePoint[] | undefined => {
+    if (!value) return undefined;
+
+    const entries: { rawAge: any; rawAmount: any; isElapsed: boolean; isForeign: boolean }[] = [];
+    const pushObject = (obj: Record<string, any>) => {
+      const findKey = (pattern: RegExp) => Object.keys(obj).find(k => pattern.test(k.trim()));
+      const elapsedKey = findKey(/^(経過年数|経過|年数|経過年|年目)$/);
+      const ageKey = findKey(/^(年齢|歳|age)$/i);
+      const foreignKey = findKey(/(USD|ドル)/);
+      const amountKey = findKey(/(金額|解約返戻金|返戻金|amount|value)/i);
+      const rawAge = ageKey !== undefined ? obj[ageKey] : (elapsedKey !== undefined ? obj[elapsedKey] : undefined);
+      const rawAmount = foreignKey !== undefined ? obj[foreignKey] : (amountKey !== undefined ? obj[amountKey] : undefined);
+      if (rawAge === undefined || rawAmount === undefined) return;
+      entries.push({
+        rawAge,
+        rawAmount,
+        isElapsed: ageKey === undefined && elapsedKey !== undefined,
+        isForeign: foreignKey !== undefined,
+      });
+    };
+
+    if (Array.isArray(value)) {
+      value.forEach(item => {
+        if (Array.isArray(item) && item.length >= 2) {
+          entries.push({ rawAge: item[0], rawAmount: item[1], isElapsed: false, isForeign: false });
+        } else if (item && typeof item === 'object') {
+          pushObject(item as Record<string, any>);
+        }
+      });
+    } else if (typeof value === 'object') {
+      Object.entries(value as Record<string, any>).forEach(([k, v]) => {
+        entries.push({ rawAge: k, rawAmount: v, isElapsed: /年目|経過/.test(k), isForeign: false });
+      });
+    } else {
+      return undefined;
+    }
+
+    const points: SurrenderValuePoint[] = [];
+    entries.forEach(({ rawAge, rawAmount, isElapsed, isForeign }) => {
+      const ageText = String(rawAge ?? '');
+      const ageNum = parseImportNum(ageText);
+      if (!ageNum && ageNum !== 0) return;
+      const elapsed = isElapsed || (/年目|経過/.test(ageText) && !/歳|才/.test(ageText));
+      const age = elapsed ? contractAge + ageNum : ageNum;
+      if (!Number.isFinite(age) || age < 0 || age > 120) return;
+
+      const useForeign = currency === 'USD' && (isForeign || exchangeRate > 0);
+      const amountNum = isForeign ? parseImportDecimal(rawAmount) : parseImportNum(rawAmount);
+      if (!Number.isFinite(amountNum) || amountNum < 0) return;
+
+      points.push(useForeign && isForeign
+        ? { age, amount: yenFromForeign(amountNum, exchangeRate), foreignAmount: amountNum }
+        : { age, amount: Math.round(amountNum) });
+    });
+
+    if (points.length === 0) return undefined;
+    const byAge = new Map<number, SurrenderValuePoint>();
+    points.forEach(point => byAge.set(point.age, point));
+    return [...byAge.values()].sort((a, b) => a.age - b.age);
   };
 
   const parseImportDate = (v: any) => {
@@ -613,13 +631,14 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     const hasDiagnosisBenefit = DIAGNOSIS_BENEFIT_TYPES.includes(policyType);
     const hasMaturityBenefit = isPensionImport || MATURITY_BENEFIT_TYPES.includes(policyType);
     const hasAccidentDeathBenefit = hasDeathBenefit && !isIncomeProtectionPolicyType(policyType);
+    const importContractAge = parseImportNum(json.contractAge);
 
     const data: Partial<Policy> = {
       companyName: json.companyName ? String(json.companyName).replace(/様$/, '').trim() : '',
       policyType,
       policyNumber: json.policyNumber ? String(json.policyNumber).trim() : '',
       contractDate: parseImportDate(json.contractDate),
-      contractAge: parseImportNum(json.contractAge),
+      contractAge: importContractAge,
       deathBenefitDisease: hasDeathBenefit
         ? (currency === 'USD' && foreignDeathBenefitDisease > 0 ? yenFromForeign(foreignDeathBenefitDisease, exchangeRate) : parseImportNum(json.deathBenefitDisease))
         : 0,
@@ -651,6 +670,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       maturityBenefit: hasMaturityBenefit
         ? (currency === 'USD' && foreignMaturityBenefit > 0 ? yenFromForeign(foreignMaturityBenefit, exchangeRate) : parseImportNum(json.maturityBenefit))
         : 0,
+      surrenderValues: hasMaturityBenefit
+        ? parseImportSurrenderValues(json.surrenderValues, importContractAge, currency, exchangeRate)
+        : undefined,
       consultantNote: json.consultantNote ? String(json.consultantNote).trim() : undefined,
     };
 
@@ -979,6 +1001,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
           foreignHospDayAccident: 0,
           foreignDiagnosisBenefit: 0,
           foreignMaturityBenefit: 0,
+          surrenderValues: prev.surrenderValues?.map(({ age, amount }) => ({ age, amount })),
         };
       }
       return { ...prev, currency: 'USD', exchangeRate: prev.exchangeRate || 150 };
@@ -996,6 +1019,10 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       hospDayAccident: yenFromForeign(prev.foreignHospDayAccident || 0, exchangeRate),
       diagnosisBenefit: yenFromForeign(prev.foreignDiagnosisBenefit || 0, exchangeRate),
       maturityBenefit: yenFromForeign(prev.foreignMaturityBenefit || 0, exchangeRate),
+      surrenderValues: prev.surrenderValues?.map(point => ({
+        ...point,
+        amount: point.foreignAmount !== undefined ? yenFromForeign(point.foreignAmount, exchangeRate) : point.amount,
+      })),
     }));
   };
 
@@ -1054,6 +1081,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       if (!hasMaturityBenefit) {
         next.maturityBenefit = 0;
         next.foreignMaturityBenefit = 0;
+        next.surrenderValues = [];
       }
 
       return next as Policy;
@@ -1148,6 +1176,45 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   const pensionAnnualPayout = pensionPayoutYears > 0
     ? (formData.maturityBenefit || 0) / pensionPayoutYears
     : 0;
+
+  const surrenderValues = formData.surrenderValues ?? [];
+
+  const setSurrenderValues = (points: SurrenderValuePoint[]) => {
+    setFormData(prev => ({ ...prev, surrenderValues: points }));
+  };
+
+  // 被保険者の現在年齢（クイック追加のボタン用）
+  const insuredCurrentAge = useMemo(() => {
+    const member = allVisibleMembers.find(m => m.id === formData.insuredId);
+    return calcAgeAt(member?.birthDate || '', new Date().toISOString().split('T')[0]);
+  }, [allVisibleMembers, formData.insuredId]);
+
+  // 返戻率の目安に使う払込累計（年額ベースの概算）
+  const paidAtAge = useMemo(() => (age: number) => {
+    const contractAge = Number(formData.contractAge || 0);
+    if (age < contractAge) return 0;
+    const premium = Number(formData.premiumAmount || 0);
+    if (formData.paymentFrequency === 'single') return premium;
+    const annual = formData.paymentFrequency === 'monthly' ? premium * 12 : premium;
+    const elapsedYears = age - contractAge;
+    const endAge = Number(formData.paymentEndAge || 0);
+    const paymentYears = endAge === 999 ? elapsedYears : Math.min(elapsedYears, Math.max(0, endAge - contractAge));
+    return Math.round(annual * paymentYears);
+  }, [formData.contractAge, formData.premiumAmount, formData.paymentFrequency, formData.paymentEndAge]);
+
+  const surrenderEditor = hasMaturityBenefitField ? (
+    <SurrenderValueEditor
+      points={surrenderValues}
+      onChange={setSurrenderValues}
+      currency={isUsdPolicy ? 'USD' : 'JPY'}
+      exchangeRate={Number(formData.exchangeRate || 0)}
+      contractAge={Number(formData.contractAge || 0)}
+      paymentEndAge={Number(formData.paymentEndAge || 0)}
+      policyEndAge={Number(formData.policyEndAge || 0)}
+      currentAge={insuredCurrentAge}
+      paidAtAge={paidAtAge}
+    />
+  ) : null;
 
   const [calcTotal, setCalcTotal] = useState<number | null>(null);
 
@@ -1245,6 +1312,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     if (!hasMaturityBenefitField) {
       finalPolicy.maturityBenefit = 0;
       finalPolicy.foreignMaturityBenefit = 0;
+      finalPolicy.surrenderValues = undefined;
+    } else {
+      finalPolicy.surrenderValues = normalizeSurrenderValues(finalPolicy.surrenderValues);
     }
     if (finalPolicy.currency !== 'USD') {
       finalPolicy.currency = 'JPY';
@@ -1256,6 +1326,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       finalPolicy.foreignHospDayAccident = 0;
       finalPolicy.foreignDiagnosisBenefit = 0;
       finalPolicy.foreignMaturityBenefit = 0;
+      finalPolicy.surrenderValues = finalPolicy.surrenderValues?.map(({ age, amount }) => ({ age, amount }));
     }
     onAdd(finalPolicy);
     handleClose();
@@ -1693,6 +1764,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                 <CommaInputRaw value={calcTotal ?? 0} onChange={setCalcTotal} placeholder="直接入力 or 計算ボタン" />
               </div>
             )}
+            {surrenderEditor}
           </section>
 
           <div className="form-actions full-width">

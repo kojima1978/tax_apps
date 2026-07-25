@@ -22,6 +22,13 @@ export function isIncomeProtectionPolicyType(policyType: string): boolean {
   return normalizePolicyType(policyType) === '収入保障保険';
 }
 
+// 年齢別の解約返戻金。入力した年齢だけを保持し、間は線形補間して扱う
+export interface SurrenderValuePoint {
+  age: number;
+  amount: number;          // 円換算額
+  foreignAmount?: number;  // 外貨建て契約の入力額
+}
+
 // 個々の保険分析（保障期間/払込状況/保障充足度）の手動上書き
 export interface EvaluationOverride {
   label: string;
@@ -70,6 +77,8 @@ export interface Policy {
   annualPremium: number;
   // 貯蓄性
   maturityBenefit: number;
+  // 年齢別の解約返戻金（任意入力・スパース）
+  surrenderValues?: SurrenderValuePoint[];
   // コンサルタントメモ
   consultantNote?: string;
   // 個別評価の手動上書き（保障期間/払込状況/保障充足度）

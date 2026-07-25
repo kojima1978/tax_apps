@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember, EvaluationOverride } from '@/types';
-import { Calculator, MessageSquare, Landmark, ClipboardList, Check, Plus, X } from 'lucide-react';
+import { Calculator, MessageSquare, Landmark, ClipboardList, Check, PiggyBank, Plus, X } from 'lucide-react';
 import {
   analyzePolicy,
   INSURANCE_TYPE_INFO,
@@ -13,6 +13,7 @@ import {
   getIncomeProtectionDeathBenefitTotal,
   getMonthlyPremium,
   isLikelyIncomeProtectionGrossAmount,
+  getSurrenderValueSummary,
   type EvaluationResult,
 } from '@/utils/analysisUtils';
 import EvaluationBadge from '@/components/EvaluationBadge';
@@ -72,7 +73,8 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
   };
 
   const formatYen = (amount: number) => {
-    if (amount >= 10000) return `${(amount / 10000).toLocaleString()}万円`;
+    // 補間値は端数が出るので万円表示は小数第1位まで
+    if (amount >= 10000) return `${(Math.round(amount / 1000) / 10).toLocaleString()}万円`;
     return `${amount.toLocaleString()}円`;
   };
   const formatPolicyMoney = (yenAmount: number, foreignAmount?: number) => {
@@ -91,6 +93,7 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
     ? getIncomeProtectionDeathBenefitTotal(policy, insuredBirthDate)
     : null;
   const incomeProtectionAmountWarning = isLikelyIncomeProtectionGrossAmount(policy);
+  const surrenderSummary = getSurrenderValueSummary(policy, currentAge);
 
   return (
     <div className={`policy-analysis-card ${analysis.isExpired ? 'expired-card' : ''}`}>
@@ -200,6 +203,45 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
               </div>
               <div className="pac-coverage-period">
                 年金原資 ÷ {policy.policyEndAge === 999 ? '20年（仮置き）' : `${pensionSummary.periodYears}年`}で年間年金額を概算
+              </div>
+            </div>
+          )}
+
+          {surrenderSummary && (
+            <div className="pac-section">
+              <h5><PiggyBank size={14} /> 解約返戻金</h5>
+              <div className="pac-data-grid">
+                <div className="pac-data-row highlight-row">
+                  <span className="pac-data-label">現在の解約返戻金（{currentAge}歳・推定）</span>
+                  <span className="pac-data-value">
+                    {surrenderSummary.currentAmount !== null ? formatYen(surrenderSummary.currentAmount) : '-'}
+                  </span>
+                </div>
+                <div className="pac-data-row">
+                  <span className="pac-data-label">払込累計</span>
+                  <span className="pac-data-value">{formatYen(Math.round(surrenderSummary.currentPaid))}</span>
+                </div>
+                <div className="pac-data-row">
+                  <span className="pac-data-label">返戻率</span>
+                  <span className="pac-data-value">
+                    {surrenderSummary.currentRate !== null ? `${surrenderSummary.currentRate.toFixed(1)}%` : '-'}
+                  </span>
+                </div>
+                <div className="pac-data-row">
+                  <span className="pac-data-label">損益分岐（元本回収）</span>
+                  <span className="pac-data-value">
+                    {surrenderSummary.breakEvenAge !== null ? `${surrenderSummary.breakEvenAge}歳` : '入力範囲内では到達せず'}
+                  </span>
+                </div>
+                {surrenderSummary.peak && (
+                  <div className="pac-data-row">
+                    <span className="pac-data-label">ピーク</span>
+                    <span className="pac-data-value">{surrenderSummary.peak.age}歳 {formatYen(surrenderSummary.peak.amount)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="pac-coverage-period">
+                入力した{surrenderSummary.count}件（{surrenderSummary.firstAge}〜{surrenderSummary.lastAge}歳）から線形補間した概算
               </div>
             </div>
           )}

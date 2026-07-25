@@ -24,7 +24,8 @@ export class ApiError extends Error {
 }
 
 const JSON_STORAGE_MODE = process.env.NEXT_PUBLIC_STORAGE_MODE === 'json';
-const EXPORT_SCHEMA_VERSION = 2;
+// 3: policies に surrenderValues（年齢別の解約返戻金）を追加
+const EXPORT_SCHEMA_VERSION = 3;
 const INSIGHT_TYPES = ['gap', 'redundancy', 'recommendation'] as const;
 const CASES_KEY = 'insurance-app:json-storage:cases:v1';
 const STATE_KEY_PREFIX = 'insurance-app:json-storage:state:v1:';
