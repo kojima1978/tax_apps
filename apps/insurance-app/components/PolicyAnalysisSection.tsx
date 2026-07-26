@@ -52,7 +52,7 @@ const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
   return (
     <div className="analysis-section">
       {hasBeneficiaryPage && (
-        <div className={sectionPanelClassName('beneficiary', activeSection, 'beneficiary-print-page')}>
+        <div className={sectionPanelClassName('beneficiary', activeSection, 'beneficiary-print-page print-page')}>
           <BeneficiaryCoverageSection
             policies={policies}
             familyMembers={familyMembers}
@@ -62,7 +62,7 @@ const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
         </div>
       )}
 
-      <div className={sectionPanelClassName('overview', activeSection, 'type-overview-print-page')}>
+      <div className={sectionPanelClassName('overview', activeSection, 'type-overview-print-page print-page')}>
         <InsuranceTypeOverview caseId={caseId} policies={policies} currentAge={currentAge} />
         <PrintPageNumber pageKey="overview" />
       </div>
@@ -75,7 +75,7 @@ const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
 
         <div className="analysis-cards-list">
           {policies.map(policy => (
-            <div key={policy.id} className="analysis-card-page">
+            <div key={policy.id} className="analysis-card-page print-page">
               <PolicyAnalysisCard
                 policy={policy}
                 currentAge={getPolicyCurrentAge(policy)}

@@ -3842,8 +3842,35 @@ body:has(.app-shell) #root {
     margin: 10mm;
   }
 
+  :root {
+    /* 紙1枚分の高さ。A4横 210mm − 上記 @page margin 10mm × 2 = 190mm から、
+       端数の丸めで空白ページが挟まるのを避ける安全余白 2mm を引いた値。
+       @page 側では var() が解決されないため margin は実値で書き、ここに対応関係を残している。
+       ページ番号(.print-page-number)を紙の右下に出すための唯一の基準値なので、
+       個々のページブロックで高さを直に書かないこと */
+    --print-page-height: 188mm;
+    /* サマリーページだけはアプリのヘッダーと同じ紙に載るため、その分を差し引く
+       (ヘッダー実測 17.2mm + margin-bottom 3mm。長い顧客名で伸びても溢れないよう切り上げ) */
+    --print-header-height: 21mm;
+    /* ページ番号と本文が重ならないように各ページブロックの下に空ける余白 */
+    --print-page-number-space: 8mm;
+  }
+
   .print-only {
     display: block !important;
+  }
+
+  /* 紙1枚に対応するページブロックの共通定義。
+     ページ番号は .print-page の右下に絶対配置されるので、
+     「ブロックの高さ = 紙の高さ」であることが番号が紙の右下に出る条件になる。
+     画面側の折りたたみ(.section-panel.is-hidden の height:0)より強くするため !important */
+  .print-page {
+    position: relative;
+    height: var(--print-page-height) !important;
+    box-sizing: border-box;
+    padding-bottom: var(--print-page-number-space);
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   /* 画面のサイドバーは印刷しない。本文は1カラムに戻す */
@@ -3860,9 +3887,9 @@ body:has(.app-shell) #root {
   }
 
   /* 印刷は画面で選択中のセクションに関係なく全ページを出力する。
-     高さをページ単位で指定しているブロック（.charts-container の 188mm 等）は
-     そちらを優先させたいので、height の復帰からは除外する */
-  .section-panel.is-hidden:not(.charts-container),
+     紙1枚に対応するブロック(.print-page)は自分で高さを持っているのでそちらに任せ、
+     それ以外(個別分析のまとめ等)だけ画面側の height:0 を解除する */
+  .section-panel.is-hidden:not(.print-page),
   .analysis-section {
     height: auto !important;
   }
@@ -3873,6 +3900,7 @@ body:has(.app-shell) #root {
     visibility: visible !important;
   }
 
+  /* 親の .print-page が紙1枚分の高さなので、その右下＝紙の右下に出る */
   .print-page-number {
     display: block !important;
     position: absolute;
@@ -3885,14 +3913,11 @@ body:has(.app-shell) #root {
   }
 
   .cover-page {
-    height: 188mm;
-    box-sizing: border-box;
     display: flex !important;
     flex-direction: column;
     page-break-after: always;
     padding: 0;
     margin: 0;
-    position: relative;
     overflow: hidden;
   }
 
@@ -4067,11 +4092,11 @@ body:has(.app-shell) #root {
     padding: 0 !important;
   }
 
+  /* サマリーだけはアプリのヘッダーと同じ紙に載るので、ヘッダー分だけ低くする。
+     証券が増えて1枚に収まらない場合は次の紙へ流したいので height ではなく min-height */
   .print-summary-page {
-    position: relative;
-    min-height: 0;
-    padding-bottom: 8mm;
-    box-sizing: border-box;
+    height: auto !important;
+    min-height: calc(var(--print-page-height) - var(--print-header-height));
     page-break-inside: auto;
     break-inside: auto;
   }
@@ -4191,16 +4216,12 @@ body:has(.app-shell) #root {
 
   .charts-container {
     page-break-before: always;
-    page-break-inside: avoid;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     gap: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    height: 188mm !important;
-    box-sizing: border-box !important;
-    position: relative !important;
   }
 
   .chart-item {
@@ -4284,15 +4305,6 @@ body:has(.app-shell) #root {
     break-after: auto;
   }
 
-  .beneficiary-print-page {
-    min-height: 190mm;
-    position: relative;
-    padding-bottom: 8mm;
-    box-sizing: border-box;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
   .beneficiary-print-page + .type-overview-print-page {
     page-break-before: always;
     break-before: page;
@@ -4303,15 +4315,6 @@ body:has(.app-shell) #root {
     break-inside: avoid;
     box-shadow: none !important;
     border: 1px solid #ccc !important;
-  }
-
-  .type-overview-print-page {
-    min-height: 190mm;
-    position: relative;
-    padding-bottom: 8mm;
-    box-sizing: border-box;
-    page-break-inside: avoid;
-    break-inside: avoid;
   }
 
   .type-overview-card, .pm-block {
@@ -4338,16 +4341,10 @@ body:has(.app-shell) #root {
     display: flex !important;
     flex-direction: column;
     justify-content: center;
-    height: 188mm;
-    position: relative;
-    padding-bottom: 8mm;
-    box-sizing: border-box;
     page-break-before: auto;
     break-before: auto;
     page-break-after: auto;
     break-after: auto;
-    page-break-inside: avoid;
-    break-inside: avoid;
   }
 
   .analysis-card-page + .analysis-card-page {

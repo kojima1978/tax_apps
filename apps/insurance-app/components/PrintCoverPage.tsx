@@ -16,7 +16,7 @@ const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ customerName, agency })
   const dateStr = `令和${reiwaYear}年${today.getMonth() + 1}月${today.getDate()}日`;
 
   return (
-    <div className="print-only cover-page">
+    <div className="print-only cover-page print-page">
       <div className="cover-accent-bar" />
 
       <div className="cover-top">

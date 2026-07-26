@@ -563,7 +563,7 @@ export default function Page() {
           </header>
 
           <main>
-            <section className={sectionPanelClassName('summary', currentSection, 'print-summary-page')}>
+            <section className={sectionPanelClassName('summary', currentSection, 'print-summary-page print-page')}>
               {!hasKnownCurrentAge && policies.length > 0 && (
                 <div className="age-analysis-notice no-print">
                   <AlertTriangle size={20} />
@@ -593,7 +593,7 @@ export default function Page() {
             </section>
 
             {hasPrintableCharts && displayAge !== null && (
-              <div className={sectionPanelClassName('charts', currentSection, 'charts-container')}>
+              <div className={sectionPanelClassName('charts', currentSection, 'charts-container print-page')}>
                 <div className="chart-item">
                   <CoverageChart policies={policies} currentAge={displayAge} />
                 </div>
