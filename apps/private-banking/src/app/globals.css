@@ -757,7 +757,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 @media print {
   .print-front-matter { display: block !important; }
   .print-cover, .print-toc { min-height: 178mm; box-sizing: border-box; break-after: page; page-break-after: always; }
-  .print-cover { padding: 10mm 12mm 7mm; border: 1px solid #d7dfdb; display: flex; flex-direction: column; color: #0f2f26; background: linear-gradient(135deg, #f7faf8 0%, #fff 54%, #edf5f0 100%); }
+  .print-cover { padding: 10mm 12mm 7mm; border: 1px solid #d7dfdb; display: flex; flex-direction: column; color: #0f2f26; background: #fff; }
   .print-cover-mark { font-size: 8px; font-weight: 700; letter-spacing: .24em; }
   .print-cover-main { width: 72%; margin: auto; padding: 0 0 4mm; }
   .print-cover-main > p { margin: 0 0 4mm; color: #64748b; font-size: 9px; font-weight: 700; letter-spacing: .22em; }
