@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Policy, FamilyMember, EvaluationOverride } from '@/types';
-import { ClipboardList } from 'lucide-react';
+import { FileSearch } from 'lucide-react';
 import BeneficiaryCoverageSection from '@/components/BeneficiaryCoverageSection';
 import InsuranceTypeOverview from '@/components/InsuranceTypeOverview';
 import PolicyAnalysisCard from '@/components/PolicyAnalysisCard';
@@ -69,7 +69,7 @@ const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
 
       <div className={sectionPanelClassName('analysis', activeSection, 'individual-analysis')}>
         <h3 className="analysis-section-title">
-          <ClipboardList size={20} />
+          <FileSearch size={20} />
           個々の保険の分析
         </h3>
 

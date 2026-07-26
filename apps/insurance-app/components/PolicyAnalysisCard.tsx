@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember, EvaluationOverride } from '@/types';
-import { Calculator, MessageSquare, Landmark, ClipboardList, Check, PiggyBank, Plus, X } from 'lucide-react';
+import { Calculator, MessageSquare, Landmark, FileSearch, Check, PiggyBank, Plus, X } from 'lucide-react';
 import {
   analyzePolicy,
   INSURANCE_TYPE_INFO,
@@ -98,7 +98,7 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
   return (
     <div className={`policy-analysis-card ${analysis.isExpired ? 'expired-card' : ''}`}>
       <h3 className="pac-print-section-title">
-        <ClipboardList size={20} />
+        <FileSearch size={20} />
         個々の保険の分析
       </h3>
       <div className="pac-header">

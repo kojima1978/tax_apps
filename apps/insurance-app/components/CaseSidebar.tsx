@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowLeft, Home, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
+import { ArrowLeft, Home, PanelLeftClose, PanelLeftOpen, UserCog } from 'lucide-react';
 import type { CaseSectionDef, CaseSectionKey } from '@/utils/caseSections';
 
 interface CaseSidebarProps {
@@ -74,7 +74,7 @@ const CaseSidebar: React.FC<CaseSidebarProps> = ({
         onClick={onOpenCustomer}
         title="世帯・家族情報を編集"
       >
-        <Settings size={16} />
+        <UserCog size={16} />
         {!collapsed && <span>{customerName || 'お客様情報'}</span>}
       </button>
       <button type="button" className="case-sidebar-link" onClick={onBackToList} title="お客様一覧に戻る">

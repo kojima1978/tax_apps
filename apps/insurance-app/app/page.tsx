@@ -32,7 +32,7 @@ import {
   isJsonStorageMode,
 } from '@/lib/api';
 
-import { AlertTriangle, CheckCircle2, Clock3, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, DatabaseBackup, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, Printer, Trash2, FileUp, UserCog, Save, Upload, Download, Menu, ChevronDown, DatabaseBackup, XCircle } from 'lucide-react';
 
 const VALID_POLICY_TYPES = DISPLAY_POLICY_TYPES;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
@@ -507,7 +507,7 @@ export default function Page() {
               <div className="customer-summary-display" onClick={() => setIsCustomerModalOpen(true)} title="クリックして情報を編集">
                 <span className="customer-name-tag">{self?.name} 様</span>
                 <span className="customer-meta-tag">({birthDateLabel} | {ageLabel} | 世帯人数: {familyMembers.length}名)</span>
-                <Settings size={16} className="settings-icon" />
+                <UserCog size={16} className="customer-edit-icon" />
               </div>
             </div>
             <div className="header-actions">
