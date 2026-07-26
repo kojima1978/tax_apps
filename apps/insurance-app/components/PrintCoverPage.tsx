@@ -8,10 +8,9 @@ const BASE_PATH = process.env.NEXT_PUBLIC_STORAGE_MODE === 'json' ? '' : '/insur
 interface PrintCoverPageProps {
   customerName: string;
   agency: Agency;
-  totalPages: number;
 }
 
-const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ customerName, agency, totalPages }) => {
+const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ customerName, agency }) => {
   const today = new Date();
   const reiwaYear = today.getFullYear() - 2018;
   const dateStr = `令和${reiwaYear}年${today.getMonth() + 1}月${today.getDate()}日`;
@@ -50,7 +49,7 @@ const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ customerName, agency, t
         </div>
       </div>
 
-      <PrintPageNumber currentPage={1} totalPages={totalPages} />
+      <PrintPageNumber pageKey="cover" />
     </div>
   );
 };

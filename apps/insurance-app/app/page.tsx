@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import SummaryDashboard from '@/components/SummaryDashboard';
 import CoverageChart from '@/components/CoverageChart';
 import CostChart from '@/components/CostChart';
@@ -12,7 +12,11 @@ import PrintPageNumber from '@/components/PrintPageNumber';
 import CustomerModal from '@/components/CustomerModal';
 import CsvImportDialog from '@/components/CsvImportDialog';
 import CaseListPage from '@/components/CaseListPage';
+import CaseSidebar from '@/components/CaseSidebar';
 import ToastContainer, { type ToastMessage } from '@/components/Toast';
+import { PrintPagesProvider } from '@/components/PrintPageContext';
+import { buildPrintPageKeys } from '@/utils/printPages';
+import { CASE_SECTIONS, sectionPanelClassName, type CaseSectionKey } from '@/utils/caseSections';
 import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember, Agency, AppState, EvaluationOverride } from '@/types';
 import {
@@ -28,7 +32,7 @@ import {
   isJsonStorageMode,
 } from '@/lib/api';
 
-import { AlertTriangle, CheckCircle2, Clock3, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, ArrowLeft, DatabaseBackup, Home, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, Printer, Trash2, FileUp, Settings, Save, Upload, Download, Menu, ChevronDown, DatabaseBackup, XCircle } from 'lucide-react';
 
 const VALID_POLICY_TYPES = DISPLAY_POLICY_TYPES;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
@@ -120,6 +124,8 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<CaseSectionKey>('summary');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const addToast = useCallback((type: ToastMessage['type'], text: string) => {
@@ -164,6 +170,7 @@ export default function Page() {
 
   const handleSelectCase = useCallback((caseId: string) => {
     setActiveCaseId(caseId);
+    setActiveSection('summary');
     loadFromApi(caseId);
   }, [loadFromApi]);
 
@@ -323,6 +330,8 @@ export default function Page() {
     setIsPolicyFormOpen(true);
   };
 
+  // 印刷は画面で選択中のセクションに関係なく全ページを出力する（非表示セクションの復帰は globals.css の @media print 側）。
+  // 非表示セクションも実寸でレイアウトされたままなのでグラフの再計測待ちは不要で、Ctrl+P でも同じ結果になる。
   const handlePrint = () => {
     window.print();
   };
@@ -406,6 +415,20 @@ export default function Page() {
     }
   };
 
+  // 出力できるページ = 表示できるセクション。印刷ページ番号もサイドバーの項目も同じ条件から導出する
+  const hasPrintableCharts = displayAge !== null;
+  const hasPrintableAnalysis = displayAge !== null && policies.length > 0;
+  const hasBeneficiaryPage = hasPrintableAnalysis && policies.some(p => p.deathBenefitDisease > 0);
+  const printPageKeys = useMemo(
+    () => buildPrintPageKeys({
+      hasChartsPage: hasPrintableCharts,
+      hasAnalysisPages: hasPrintableAnalysis,
+      hasBeneficiaryPage,
+      policies,
+    }),
+    [hasPrintableCharts, hasPrintableAnalysis, hasBeneficiaryPage, policies],
+  );
+
   if (!activeCaseId) {
     return <CaseListPage onSelect={handleSelectCase} />;
   }
@@ -414,12 +437,17 @@ export default function Page() {
     return <div className="loading-screen">データを読み込んでいます...</div>;
   }
 
-  const hasPrintableCharts = displayAge !== null;
-  const hasPrintableAnalysis = displayAge !== null && policies.length > 0;
-  const hasBeneficiaryPage = hasPrintableAnalysis && policies.some(p => p.deathBenefitDisease > 0);
-  const printTotalPages = 2
-    + (hasPrintableCharts ? 1 : 0)
-    + (hasPrintableAnalysis ? (hasBeneficiaryPage ? 1 : 0) + 1 + policies.length : 0);
+  const sectionAvailability: Record<CaseSectionKey, boolean> = {
+    summary: true,
+    charts: hasPrintableCharts,
+    beneficiary: hasBeneficiaryPage,
+    overview: hasPrintableAnalysis,
+    analysis: hasPrintableAnalysis,
+  };
+  const availableSections = CASE_SECTIONS.filter(section => sectionAvailability[section.key]);
+  // 証券を削除するなどで選択中のセクションが消えた場合はサマリーに戻す(レンダー中に解決)
+  const currentSection: CaseSectionKey = sectionAvailability[activeSection] ? activeSection : 'summary';
+
   const saveStatus = isSaving
     ? { kind: 'saving', icon: Clock3, label: '保存中...', detail: 'SQLiteへ反映しています' }
     : saveError
@@ -430,174 +458,177 @@ export default function Page() {
   const SaveStatusIcon = saveStatus.icon;
 
   return (
-    <div className="App">
-      <PrintCoverPage customerName={self?.name || ""} agency={agency} totalPages={printTotalPages} />
+    <PrintPagesProvider pageKeys={printPageKeys}>
+      <div className={`App app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <PrintCoverPage customerName={self?.name || ""} agency={agency} />
 
-      {isCustomerModalOpen && (
-        <CustomerModal
-          familyMembers={familyMembers}
-          agency={agency}
-          onSave={handleSaveModal}
-          onClose={() => setIsCustomerModalOpen(false)}
+        {isCustomerModalOpen && (
+          <CustomerModal
+            familyMembers={familyMembers}
+            agency={agency}
+            onSave={handleSaveModal}
+            onClose={() => setIsCustomerModalOpen(false)}
+          />
+        )}
+
+        {csvImportOpen && (
+          <CsvImportDialog
+            caseId={activeCaseId}
+            onClose={() => setCsvImportOpen(false)}
+            onImported={handleCsvImported}
+          />
+        )}
+
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+        <CaseSidebar
+          sections={availableSections}
+          activeKey={currentSection}
+          onSelect={setActiveSection}
+          counts={{ summary: policies.length, analysis: policies.length }}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(v => !v)}
+          customerName={self?.name ? `${self.name} 様` : ''}
+          onOpenCustomer={() => setIsCustomerModalOpen(true)}
+          onBackToList={handleBackToList}
         />
-      )}
 
-      {csvImportOpen && (
-        <CsvImportDialog
-          caseId={activeCaseId}
-          onClose={() => setCsvImportOpen(false)}
-          onImported={handleCsvImported}
-        />
-      )}
-
-      {error && (
-        <div className="error-banner">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="error-close-btn">&times;</button>
-        </div>
-      )}
-
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-      <header className="app-header">
-        <div className="header-title-area">
-          <h1 className="app-title">
-            {/* ゲートウェイのポータル（このアプリ外）へのリンクなので next/link は使えない */}
-            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-            <a href="/" className="back-to-list-btn" title="ポータルに戻る" style={{ marginRight: '0.25rem' }}>
-              <Home size={16} />
-            </a>
-            <button className="back-to-list-btn" onClick={handleBackToList} title="お客様一覧に戻る">
-              <ArrowLeft size={16} />
-            </button>
-            保険証券分析・診断ダッシュボード
-          </h1>
-          <div className="customer-summary-display" onClick={() => setIsCustomerModalOpen(true)} title="クリックして情報を編集">
-            <span className="customer-name-tag">{self?.name} 様</span>
-            <span className="customer-meta-tag">({birthDateLabel} | {ageLabel} | 世帯人数: {familyMembers.length}名)</span>
-            <Settings size={16} className="settings-icon" />
-          </div>
-        </div>
-        <div className="header-actions">
-          <div
-            className={`save-status save-status-${saveStatus.kind}`}
-            role={saveStatus.kind === 'error' ? 'alert' : 'status'}
-            aria-live="polite"
-            title={saveStatus.detail}
-          >
-            <SaveStatusIcon size={16} />
-            <span className="save-status-label">{saveStatus.label}</span>
-            <span className="save-status-detail">{saveStatus.detail}</span>
-          </div>
-          <div className="dropdown-wrapper" ref={menuRef}>
-            <button onClick={() => setMenuOpen(v => !v)} className="dropdown-trigger">
-              <Menu size={16} /> データ管理 <ChevronDown size={12} />
-            </button>
-            {menuOpen && (
-              <div className="dropdown-menu">
-                <button onClick={() => { setMenuOpen(false); loadSampleData(); }}>
-                  <FileUp size={16} /> サンプル読込
-                </button>
-                {!jsonStorageMode && (
-                  <button onClick={() => { setMenuOpen(false); setCsvImportOpen(true); }}>
-                    <Upload size={16} /> CSV取込
-                  </button>
-                )}
-                <button onClick={() => { setMenuOpen(false); handleExport(); }}>
-                  <Download size={16} /> JSON出力
-                </button>
-                {!jsonStorageMode && (
-                  <>
-                    <hr />
-                    <button onClick={() => { setMenuOpen(false); handleBackup(); }}>
-                      <DatabaseBackup size={16} /> バックアップ
-                    </button>
-                  </>
-                )}
-                <hr />
-                <button className="dropdown-danger" onClick={() => { setMenuOpen(false); handleClear(); }}>
-                  <Trash2 size={16} /> データ消去
-                </button>
-              </div>
-            )}
-          </div>
-          <button onClick={handleSave} className="save-button" disabled={!hasUnsavedChanges || isSaving}>
-            <Save size={16} /> {isSaving ? '保存中...' : hasUnsavedChanges ? '保存' : '保存済み'}
-          </button>
-          <button onClick={handlePrint} className="print-button" title="印刷 / PDF保存">
-            <Printer size={16} /> <span>印刷</span>
-          </button>
-        </div>
-      </header>
-
-      <main>
-        <section className="print-summary-page">
-          {!hasKnownCurrentAge && policies.length > 0 && (
-            <div className="age-analysis-notice no-print">
-              <AlertTriangle size={20} />
-              <div>
-                <strong>年齢を使う集計・グラフ・診断は非表示にしています</strong>
-                <p>本人の生年月日が未入力のため、現在年齢が必要な結果を計算できません。生年月日を入力すると自動で表示されます。</p>
-              </div>
-              <button type="button" onClick={() => setIsCustomerModalOpen(true)}>
-                世帯・家族情報を開く
-              </button>
+        <div className="main-area">
+          {error && (
+            <div className="error-banner">
+              <span>{error}</span>
+              <button onClick={() => setError(null)} className="error-close-btn">&times;</button>
             </div>
           )}
 
-          <SummaryDashboard policies={policies} familyMembers={familyMembers} currentAge={displayAge} />
-
-          <PolicyTable
-            policies={policies}
-            familyMembers={familyMembers}
-            currentAge={displayAge}
-            onDelete={handleDeletePolicy}
-            onEdit={handleEditStart}
-            onAddNew={() => setIsPolicyFormOpen(true)}
-            onReorder={handleReorderPolicy}
-          />
-
-          <PrintPageNumber currentPage={2} totalPages={printTotalPages} />
-        </section>
-
-        {displayAge !== null && (
-          <div className="charts-container">
-            <div className="chart-item">
-              <CoverageChart policies={policies} currentAge={displayAge} />
+          <header className="app-header">
+            <div className="header-title-area">
+              <h1 className="app-title">保険証券分析・診断ダッシュボード</h1>
+              <div className="customer-summary-display" onClick={() => setIsCustomerModalOpen(true)} title="クリックして情報を編集">
+                <span className="customer-name-tag">{self?.name} 様</span>
+                <span className="customer-meta-tag">({birthDateLabel} | {ageLabel} | 世帯人数: {familyMembers.length}名)</span>
+                <Settings size={16} className="settings-icon" />
+              </div>
             </div>
-            <div className="chart-item">
-              <CostChart policies={policies} currentAge={displayAge} />
+            <div className="header-actions">
+              <div
+                className={`save-status save-status-${saveStatus.kind}`}
+                role={saveStatus.kind === 'error' ? 'alert' : 'status'}
+                aria-live="polite"
+                title={saveStatus.detail}
+              >
+                <SaveStatusIcon size={16} />
+                <span className="save-status-label">{saveStatus.label}</span>
+                <span className="save-status-detail">{saveStatus.detail}</span>
+              </div>
+              <div className="dropdown-wrapper" ref={menuRef}>
+                <button onClick={() => setMenuOpen(v => !v)} className="dropdown-trigger">
+                  <Menu size={16} /> データ管理 <ChevronDown size={12} />
+                </button>
+                {menuOpen && (
+                  <div className="dropdown-menu">
+                    <button onClick={() => { setMenuOpen(false); loadSampleData(); }}>
+                      <FileUp size={16} /> サンプル読込
+                    </button>
+                    {!jsonStorageMode && (
+                      <button onClick={() => { setMenuOpen(false); setCsvImportOpen(true); }}>
+                        <Upload size={16} /> CSV取込
+                      </button>
+                    )}
+                    <button onClick={() => { setMenuOpen(false); handleExport(); }}>
+                      <Download size={16} /> JSON出力
+                    </button>
+                    {!jsonStorageMode && (
+                      <>
+                        <hr />
+                        <button onClick={() => { setMenuOpen(false); handleBackup(); }}>
+                          <DatabaseBackup size={16} /> バックアップ
+                        </button>
+                      </>
+                    )}
+                    <hr />
+                    <button className="dropdown-danger" onClick={() => { setMenuOpen(false); handleClear(); }}>
+                      <Trash2 size={16} /> データ消去
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button onClick={handleSave} className="save-button" disabled={!hasUnsavedChanges || isSaving}>
+                <Save size={16} /> {isSaving ? '保存中...' : hasUnsavedChanges ? '保存' : '保存済み'}
+              </button>
+              <button onClick={handlePrint} className="print-button" title="印刷 / PDF保存">
+                <Printer size={16} /> <span>印刷</span>
+              </button>
             </div>
-            <PrintPageNumber currentPage={3} totalPages={printTotalPages} />
-          </div>
-        )}
+          </header>
 
-        {displayAge !== null && (
-          <PolicyAnalysisSection
-            caseId={activeCaseId!}
-            policies={policies}
-            currentAge={displayAge}
-            familyMembers={familyMembers}
-            onUpdateNote={handleUpdateNote}
-            onUpdateEvaluations={handleUpdateEvaluations}
-            printBeneficiaryPage={4}
-            printOverviewPage={hasBeneficiaryPage ? 5 : 4}
-            printFirstPolicyPage={hasBeneficiaryPage ? 6 : 5}
-            printTotalPages={printTotalPages}
-          />
-        )}
+          <main>
+            <section className={sectionPanelClassName('summary', currentSection, 'print-summary-page')}>
+              {!hasKnownCurrentAge && policies.length > 0 && (
+                <div className="age-analysis-notice no-print">
+                  <AlertTriangle size={20} />
+                  <div>
+                    <strong>年齢を使う集計・グラフ・診断は非表示にしています</strong>
+                    <p>本人の生年月日が未入力のため、現在年齢が必要な結果を計算できません。生年月日を入力すると自動で表示されます。</p>
+                  </div>
+                  <button type="button" onClick={() => setIsCustomerModalOpen(true)}>
+                    世帯・家族情報を開く
+                  </button>
+                </div>
+              )}
 
-        <PolicyForm
-          isOpen={isPolicyFormOpen}
-          onClose={() => { setIsPolicyFormOpen(false); setEditingPolicy(null); }}
-          onAdd={handleAddOrUpdatePolicy}
-          onAddFamilyMember={handleAddFamilyMemberFromPolicy}
-          familyMembers={familyMembers}
-          existingPolicies={policies}
-          editingPolicy={editingPolicy}
-        />
+              <SummaryDashboard policies={policies} familyMembers={familyMembers} currentAge={displayAge} />
 
-      </main>
-    </div>
+              <PolicyTable
+                policies={policies}
+                familyMembers={familyMembers}
+                currentAge={displayAge}
+                onDelete={handleDeletePolicy}
+                onEdit={handleEditStart}
+                onAddNew={() => setIsPolicyFormOpen(true)}
+                onReorder={handleReorderPolicy}
+              />
+
+              <PrintPageNumber pageKey="summary" />
+            </section>
+
+            {hasPrintableCharts && displayAge !== null && (
+              <div className={sectionPanelClassName('charts', currentSection, 'charts-container')}>
+                <div className="chart-item">
+                  <CoverageChart policies={policies} currentAge={displayAge} />
+                </div>
+                <div className="chart-item">
+                  <CostChart policies={policies} currentAge={displayAge} />
+                </div>
+                <PrintPageNumber pageKey="charts" />
+              </div>
+            )}
+
+            {hasPrintableAnalysis && displayAge !== null && (
+              <PolicyAnalysisSection
+                caseId={activeCaseId!}
+                policies={policies}
+                currentAge={displayAge}
+                familyMembers={familyMembers}
+                onUpdateNote={handleUpdateNote}
+                onUpdateEvaluations={handleUpdateEvaluations}
+                activeSection={currentSection}
+              />
+            )}
+
+            <PolicyForm
+              isOpen={isPolicyFormOpen}
+              onClose={() => { setIsPolicyFormOpen(false); setEditingPolicy(null); }}
+              onAdd={handleAddOrUpdatePolicy}
+              onAddFamilyMember={handleAddFamilyMemberFromPolicy}
+              familyMembers={familyMembers}
+              existingPolicies={policies}
+              editingPolicy={editingPolicy}
+            />
+
+          </main>
+        </div>
+      </div>
+    </PrintPagesProvider>
   );
 }

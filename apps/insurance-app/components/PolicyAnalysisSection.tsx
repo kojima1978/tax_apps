@@ -5,6 +5,8 @@ import BeneficiaryCoverageSection from '@/components/BeneficiaryCoverageSection'
 import InsuranceTypeOverview from '@/components/InsuranceTypeOverview';
 import PolicyAnalysisCard from '@/components/PolicyAnalysisCard';
 import PrintPageNumber from '@/components/PrintPageNumber';
+import { policyPrintPageKey } from '@/utils/printPages';
+import { sectionPanelClassName, type CaseSectionKey } from '@/utils/caseSections';
 
 interface PolicyAnalysisSectionProps {
   caseId: string;
@@ -13,10 +15,8 @@ interface PolicyAnalysisSectionProps {
   familyMembers: FamilyMember[];
   onUpdateNote: (policyId: string, note: string) => void;
   onUpdateEvaluations: (policyId: string, overrides: EvaluationOverride[]) => void;
-  printBeneficiaryPage: number;
-  printOverviewPage: number;
-  printFirstPolicyPage: number;
-  printTotalPages: number;
+  /** サイドバーで選択中のセクション(このコンポーネントは3セクション分を持つ) */
+  activeSection: CaseSectionKey;
 }
 
 const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
@@ -26,10 +26,7 @@ const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
   familyMembers,
   onUpdateNote,
   onUpdateEvaluations,
-  printBeneficiaryPage,
-  printOverviewPage,
-  printFirstPolicyPage,
-  printTotalPages,
+  activeSection,
 }) => {
   if (policies.length === 0) return null;
 
@@ -55,29 +52,29 @@ const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
   return (
     <div className="analysis-section">
       {hasBeneficiaryPage && (
-        <div className="beneficiary-print-page">
+        <div className={sectionPanelClassName('beneficiary', activeSection, 'beneficiary-print-page')}>
           <BeneficiaryCoverageSection
             policies={policies}
             familyMembers={familyMembers}
             currentAge={currentAge}
           />
-          <PrintPageNumber currentPage={printBeneficiaryPage} totalPages={printTotalPages} />
+          <PrintPageNumber pageKey="beneficiary" />
         </div>
       )}
 
-      <div className="type-overview-print-page">
+      <div className={sectionPanelClassName('overview', activeSection, 'type-overview-print-page')}>
         <InsuranceTypeOverview caseId={caseId} policies={policies} currentAge={currentAge} />
-        <PrintPageNumber currentPage={printOverviewPage} totalPages={printTotalPages} />
+        <PrintPageNumber pageKey="overview" />
       </div>
 
-      <div className="individual-analysis">
+      <div className={sectionPanelClassName('analysis', activeSection, 'individual-analysis')}>
         <h3 className="analysis-section-title">
           <ClipboardList size={20} />
           個々の保険の分析
         </h3>
 
         <div className="analysis-cards-list">
-          {policies.map((policy, index) => (
+          {policies.map(policy => (
             <div key={policy.id} className="analysis-card-page">
               <PolicyAnalysisCard
                 policy={policy}
@@ -86,7 +83,7 @@ const PolicyAnalysisSection: React.FC<PolicyAnalysisSectionProps> = ({
                 onUpdateNote={onUpdateNote}
                 onUpdateEvaluations={onUpdateEvaluations}
               />
-              <PrintPageNumber currentPage={printFirstPolicyPage + index} totalPages={printTotalPages} />
+              <PrintPageNumber pageKey={policyPrintPageKey(policy.id)} />
             </div>
           ))}
         </div>
