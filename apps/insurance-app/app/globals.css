@@ -3865,9 +3865,11 @@ body:has(.app-shell) #root {
        ページ番号(.print-page-number)を紙の右下に出すための唯一の基準値なので、
        個々のページブロックで高さを直に書かないこと */
     --print-page-height: 188mm;
-    /* サマリーページだけはアプリのヘッダーと同じ紙に載るため、その分を差し引く
-       (ヘッダー実測 17.2mm + margin-bottom 3mm。長い顧客名で伸びても溢れないよう切り上げ) */
-    --print-header-height: 21mm;
+    /* サマリーページだけはアプリのヘッダーと同じ紙に載るため、その分を差し引く。
+       ここは推定値ではなく、下の header.app-header に固定した高さ(15mm)＋margin-bottom(3mm)と
+       必ず一致させること。ヘッダーを可変高のままにすると「確保した値 − 実寸」の差だけ
+       サマリーのページ番号が紙の途中に浮く(実測で3.2mm浮いていた) */
+    --print-header-height: 18mm;
     /* ページ番号と本文が重ならないように各ページブロックの下に空ける余白 */
     --print-page-number-space: 8mm;
   }
@@ -4202,7 +4204,16 @@ body:has(.app-shell) #root {
     margin-bottom: 0.55rem !important;
   }
 
+  /* 高さを固定する。可変のままだとサマリーページのページ番号が
+     「--print-header-height − ヘッダー実寸」の分だけ紙の途中に浮くため、
+     15mm + margin-bottom 3mm = --print-header-height(18mm) で必ず一致させる。
+     15mm はタイトル1行＋顧客情報1行の実測値ちょうど。.app-title も
+     .customer-summary-display も flex(既定で nowrap)なので長い顧客名でも2行にはならないが、
+     万一伸びてもページ番号の位置を狂わせないよう overflow で止める */
   header {
+    height: 15mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
     margin-bottom: 3mm !important;
     padding-bottom: 2.5mm !important;
     border-bottom: 1px solid #e2e8f0 !important;
