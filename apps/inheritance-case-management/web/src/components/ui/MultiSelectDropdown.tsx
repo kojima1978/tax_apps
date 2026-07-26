@@ -6,12 +6,13 @@ import { useClickOutside } from "@/hooks/use-click-outside"
 
 interface MultiSelectDropdownProps {
     placeholder: string
+    ariaLabel?: string
     options: readonly { value: string | number; label: string }[]
     selected: Set<string>
     onChange: (values: Set<string>) => void
 }
 
-export function MultiSelectDropdown({ placeholder, options, selected, onChange }: MultiSelectDropdownProps) {
+export function MultiSelectDropdown({ placeholder, ariaLabel, options, selected, onChange }: MultiSelectDropdownProps) {
     const [open, setOpen] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
     const close = useCallback(() => setOpen(false), [])
@@ -34,18 +35,21 @@ export function MultiSelectDropdown({ placeholder, options, selected, onChange }
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className={`h-9 px-2 text-xs border rounded-md bg-background flex items-center gap-1.5 min-w-[88px] ${selected.size > 0 ? "border-primary text-foreground" : "text-muted-foreground"}`}
+                aria-label={ariaLabel || placeholder}
+                aria-expanded={open}
+                aria-haspopup="listbox"
+                className={`flex h-11 min-w-[112px] items-center gap-1.5 rounded-lg border px-3 text-sm sm:h-10 ${selected.size > 0 ? "border-primary text-foreground" : "text-muted-foreground"}`}
             >
                 <span className="truncate">{label}</span>
                 <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
             </button>
             {open && (
-                <div className="absolute z-50 mt-1 bg-white border rounded-md shadow-md py-1 min-w-[168px]">
+                <div className="absolute z-50 mt-1 min-w-[200px] rounded-md border bg-white py-1 shadow-md" role="listbox" aria-label={ariaLabel || placeholder}>
                     {options.map(({ value, label: optLabel }) => {
                         const val = String(value)
                         const checked = selected.has(val)
                         return (
-                            <label key={val} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted cursor-pointer">
+                            <label key={val} className="flex min-h-11 cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-muted">
                                 <input
                                     type="checkbox"
                                     checked={checked}
@@ -60,7 +64,7 @@ export function MultiSelectDropdown({ placeholder, options, selected, onChange }
                         <button
                             type="button"
                             onClick={() => onChange(new Set())}
-                            className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 border-t"
+                            className="min-h-11 w-full border-t py-2 text-sm text-muted-foreground hover:text-foreground"
                         >
                             クリア
                         </button>

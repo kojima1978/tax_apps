@@ -197,6 +197,7 @@ const sortFieldSchema = z.enum([
   'status',
   'taxAmount',
   'feeAmount',
+  'bestAmount',
   'createdAt',
   'updatedAt',
 ]);

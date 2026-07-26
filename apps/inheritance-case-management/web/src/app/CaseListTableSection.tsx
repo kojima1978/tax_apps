@@ -58,7 +58,7 @@ export function CaseListTableSection({
     return (
         <div className="relative">
             {isFetching && (
-                <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[1px]" role="status" aria-live="polite">
                     <div className="text-sm text-muted-foreground flex items-center gap-2">
                         <RefreshCw className="h-4 w-4 animate-spin" />
                         更新中...
@@ -66,8 +66,8 @@ export function CaseListTableSection({
                 </div>
             )}
             {cases.length > 0 && (
-                <div className="flex w-full flex-wrap items-center justify-end gap-x-2 gap-y-0.5 rounded-t-md border px-2 py-1 text-[10px] bg-muted/50">
-                    <span className="text-muted-foreground">売上合計</span>
+                <div className="mb-2 flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border bg-muted/50 px-3 py-2 text-xs md:mb-0 md:justify-end md:rounded-b-none">
+                    <span className="font-medium text-muted-foreground">このページの売上合計</span>
                     <span className="font-bold">{formatCurrency(amountTotals.total)}</span>
                     <span className="text-black">確定 {formatCurrency(amountTotals.confirmed)}</span>
                     <span className="text-black/70">見込 {formatCurrency(amountTotals.estimate)}</span>

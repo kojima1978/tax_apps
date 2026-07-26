@@ -35,12 +35,12 @@ export function BulkDeleteModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="一括削除">
+    <Modal isOpen={isOpen} onClose={handleClose} title={`絞り込み中の${totalCount}件を削除`}>
       <div className="space-y-4">
-        <div className="flex items-center gap-3 p-3 bg-white border border-black/10 rounded-lg">
-          <AlertTriangle className="h-6 w-6 text-gray-600 shrink-0" />
-          <p className="text-sm text-black font-medium">
-            {filterDescription} の {totalCount}件 を削除します
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
+          <AlertTriangle className="h-6 w-6 shrink-0 text-red-700" />
+          <p className="text-sm font-medium text-red-900">
+            {filterDescription} に一致する {totalCount}件を削除します
           </p>
         </div>
 
@@ -49,15 +49,17 @@ export function BulkDeleteModal({
         </p>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">
+          <label htmlFor="bulk-delete-confirmation" className="text-sm font-medium">
             確認のため削除件数「{totalCount}」を入力してください
           </label>
           <input
+            id="bulk-delete-confirmation"
             type="text"
+            inputMode="numeric"
             value={confirmInput}
             onChange={(e) => setConfirmInput(e.target.value)}
             placeholder={String(totalCount)}
-            className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+            className="h-11 w-full rounded-md border px-3 py-2 text-base focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
             disabled={isDeleting}
           />
         </div>
@@ -69,7 +71,7 @@ export function BulkDeleteModal({
           <Button
             onClick={handleConfirm}
             disabled={!isConfirmed || isDeleting}
-            className="bg-black hover:bg-black/90 text-white"
+            className="bg-red-700 text-white shadow-[0_4px_0_0_#991b1b] hover:bg-red-800 hover:shadow-[0_2px_0_0_#991b1b]"
           >
             {isDeleting ? (
               <>

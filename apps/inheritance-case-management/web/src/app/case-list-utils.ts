@@ -89,6 +89,10 @@ export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQuer
         const value = searchParams.get(key)
         if (value) params[key] = value
     }
+    const sortBy = searchParams.get("sortBy")
+    const sortOrder = searchParams.get("sortOrder")
+    if (sortBy === "bestAmount") params.sortBy = sortBy
+    if (sortOrder === "asc" || sortOrder === "desc") params.sortOrder = sortOrder
 
     if (fiscalYear) {
         params.fiscalYear = Number(fiscalYear)
@@ -128,6 +132,8 @@ export function toCaseListUrlSearch(params: CasesQueryParams): string {
         if (params[key]) sp.set(key, params[key])
     }
     if (params.page && params.page > 1) sp.set("page", String(params.page))
+    if (params.sortBy) sp.set("sortBy", params.sortBy)
+    if (params.sortOrder) sp.set("sortOrder", params.sortOrder)
     return sp.toString()
 }
 

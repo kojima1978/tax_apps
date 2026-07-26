@@ -194,20 +194,51 @@ export async function listCases(params: {
   view?: 'list';
 }) {
   const { where, page, pageSize, sortBy, sortOrder, view } = params;
+  const skip = (page - 1) * pageSize;
+
+  if (sortBy === 'bestAmount') {
+    const compareByBestAmount = <
+      T extends { fiscalYear: number; feeAmount: number | null; estimateAmount: number | null; id: number }
+    >(a: T, b: T) => {
+      const fiscalYearComparison = b.fiscalYear - a.fiscalYear;
+      if (fiscalYearComparison !== 0) return fiscalYearComparison;
+      const aAmount = (a.feeAmount ?? 0) > 0 ? (a.feeAmount ?? 0) : (a.estimateAmount ?? 0);
+      const bAmount = (b.feeAmount ?? 0) > 0 ? (b.feeAmount ?? 0) : (b.estimateAmount ?? 0);
+      const amountComparison = aAmount - bAmount;
+      if (amountComparison !== 0) return sortOrder === 'asc' ? amountComparison : -amountComparison;
+      return a.id - b.id;
+    };
+
+    if (view === 'list') {
+      const allCases = await prisma.inheritanceCase.findMany({ where, select: CASE_LIST_SELECT });
+      const cases = allCases.toSorted(compareByBestAmount).slice(skip, skip + pageSize);
+      return {
+        data: cases.map(serializeCaseListItem),
+        pagination: { page, pageSize, total: allCases.length, totalPages: Math.ceil(allCases.length / pageSize) },
+      };
+    }
+
+    const allCases = await prisma.inheritanceCase.findMany({ where, include: CASE_INCLUDE });
+    const cases = allCases.toSorted(compareByBestAmount).slice(skip, skip + pageSize);
+    return {
+      data: cases.map(serializeCase),
+      pagination: { page, pageSize, total: allCases.length, totalPages: Math.ceil(allCases.length / pageSize) },
+    };
+  }
 
   const casesPromise = view === 'list'
     ? prisma.inheritanceCase.findMany({
         where,
         select: CASE_LIST_SELECT,
         orderBy: [{ fiscalYear: 'desc' }, { [sortBy]: sortOrder }],
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       })
     : prisma.inheritanceCase.findMany({
         where,
         include: CASE_INCLUDE,
         orderBy: [{ fiscalYear: 'desc' }, { [sortBy]: sortOrder }],
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       });
 

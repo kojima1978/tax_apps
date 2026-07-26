@@ -64,7 +64,12 @@ function MiniBadge({ label, style }: { label: string; style: { dot: string; bg: 
 function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onToggle: () => void }) {
     return (
         <div className="flex justify-end">
-            <Button variant="ghost" onClick={onToggle} className="h-7 px-1 text-[10px]">
+            <Button
+                variant="ghost"
+                onClick={onToggle}
+                className="h-10 px-2 text-xs"
+                aria-label={`売上で並べ替え${sort ? `（${sort === "asc" ? "昇順" : "降順"}）` : ""}`}
+            >
                 売上
                 <SortIcon direction={sort || false} />
             </Button>
@@ -85,10 +90,10 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                 <Link
                     href={getCaseDetailHrefWithClosedSections(c.id)}
                     onClick={(event) => event.stopPropagation()}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded border border-black/20 bg-white text-black transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-black/20 bg-white text-black transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label={`${c.deceasedName}様の案件を編集`}
                 >
-                    <PencilLine className="h-3 w-3" />
+                    <PencilLine className="h-4 w-4" />
                 </Link>
             )
         },
@@ -99,7 +104,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
         size: 34,
         header: () => <span className="inline-flex items-center h-8">NO</span>,
         cell: ({ row }) => (
-            <div className="text-center text-[10px] text-muted-foreground tabular-nums">
+            <div className="text-center text-xs text-muted-foreground tabular-nums">
                 {rowNumberOffset + row.index + 1}
             </div>
         ),
@@ -116,9 +121,9 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                 <div className={`min-w-0 border-l-3 pl-2 ${borderColor}`}>
                     <div className="min-w-0 leading-tight">
                         {c.deceasedNameKana && (
-                            <div className="truncate text-[9px] text-muted-foreground">{c.deceasedNameKana}</div>
+                            <div className="truncate text-[11px] text-muted-foreground">{c.deceasedNameKana}</div>
                         )}
-                        <div className="block truncate text-[11px] font-bold text-foreground">
+                        <div className="block truncate text-sm font-bold text-foreground">
                             {c.deceasedName || "(氏名未入力)"}
                         </div>
                     </div>
@@ -151,12 +156,12 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                     ? "text-foreground"
                     : deadlineStatus.className
             return (
-                <div className="space-y-0.5 leading-tight" title="1行目：申告期限、2行目：残り日数と相続開始日">
-                    <div className={`grid grid-cols-[34px_minmax(0,1fr)] items-center gap-1 text-[8px] ${deadlineClassName}`}>
+                    <div className="space-y-1 leading-tight" title="1行目：申告期限、2行目：残り日数と相続開始日">
+                    <div className={`grid grid-cols-[42px_minmax(0,1fr)] items-center gap-1 text-[11px] ${deadlineClassName}`}>
                         <span className="truncate font-medium">申告期限</span>
                         <span className="tabular-nums">{deadlineDate}</span>
                     </div>
-                    <div className="grid grid-cols-[34px_minmax(0,1fr)] items-center gap-1 text-[8px] text-muted-foreground">
+                    <div className="grid grid-cols-[42px_minmax(0,1fr)] items-center gap-1 text-[11px] text-muted-foreground">
                         <span className={`truncate font-medium ${!ended && !completed ? deadlineStatus.className : ""}`}>{remainingLabel}</span>
                         <span className="tabular-nums">{inheritanceDate}</span>
                     </div>
@@ -183,11 +188,11 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             const c = row.original
             return (
                 <div className="min-w-0 leading-tight">
-                    <div className="truncate text-[10px] font-medium text-foreground">
+                    <div className="truncate text-xs font-medium text-foreground">
                         {c.assignee?.name || <span className="text-muted-foreground">-</span>}
                     </div>
                     {c.internalReferrer?.name && (
-                        <div className="mt-0.5 truncate text-[9px] text-muted-foreground">
+                        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
                             {c.internalReferrer.name}
                         </div>
                     )}
@@ -209,20 +214,20 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                 <div className="leading-tight">
                     {hasFee ? (
                         <>
-                            <div className="grid grid-cols-[20px_minmax(0,1fr)] items-center gap-1 text-[10px] font-medium text-black">
-                                <span className="text-[9px]">確定</span>
+                            <div className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-1 text-xs font-medium text-black">
+                                <span className="text-[11px]">確定</span>
                                 <span className="whitespace-nowrap text-right tabular-nums">{formatCurrency(feeGross)}</span>
                             </div>
                             {estGross > 0 && (
-                                <div className="mt-0.5 grid grid-cols-[20px_minmax(0,1fr)] items-center gap-1 text-[9px] text-muted-foreground">
+                                <div className="mt-0.5 grid grid-cols-[28px_minmax(0,1fr)] items-center gap-1 text-[11px] text-muted-foreground">
                                     <span>見込</span>
                                     <span className="whitespace-nowrap text-right tabular-nums">{formatCurrency(estGross)}</span>
                                 </div>
                             )}
                         </>
                     ) : (
-                        <div className="grid grid-cols-[20px_minmax(0,1fr)] items-center gap-1 text-[10px] font-medium text-foreground">
-                            <span className="text-[9px]">見込</span>
+                        <div className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-1 text-xs font-medium text-foreground">
+                            <span className="text-[11px]">見込</span>
                             <span className="whitespace-nowrap text-right tabular-nums">{formatCurrency(estGross)}</span>
                         </div>
                     )}
@@ -240,8 +245,8 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             const hasMemo = c.hasMemo
             return (
                 <div className="min-w-0 leading-tight">
-                    <div className="whitespace-nowrap text-[10px] font-medium text-foreground">{c.summary || "-"}</div>
-                    <div className="mt-0.5 flex items-center gap-1 text-[9px] text-muted-foreground">
+                    <div className="whitespace-nowrap text-xs font-medium text-foreground">{c.summary || "-"}</div>
+                    <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                         <span>{c.fiscalYear}年度</span>
                         {hasMemo && <FileText className="h-3 w-3 text-muted-foreground/60" />}
                     </div>

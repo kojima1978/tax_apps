@@ -14,7 +14,6 @@ import { useCaseKpis, useCases } from "@/hooks/use-cases"
 import { useExportCSV } from "@/hooks/use-export-csv"
 import { bulkDeleteCases } from "@/lib/api/cases"
 import type { CasesQueryParams } from "@/lib/api/cases"
-import { calcBestGrossAmount } from "@/lib/case-amount-utils"
 import type { CaseListItem } from "@/types/shared"
 import { CaseListTableSection } from "./CaseListTableSection"
 import { CaseListToolbar } from "./CaseListToolbar"
@@ -77,20 +76,20 @@ function InheritanceMockupPageContent() {
     const [isDeleting, setIsDeleting] = useState(false)
     const cases = data?.data ?? EMPTY_CASES
     const pagination = data?.pagination
-    const [amountSort, setAmountSort] = useState<"asc" | "desc" | null>(null)
+    const amountSort = queryParams.sortBy === "bestAmount" ? queryParams.sortOrder ?? "asc" : null
 
     const toggleAmountSort = useCallback(() => {
-        setAmountSort((prev) => prev === null ? "desc" : prev === "desc" ? "asc" : null)
-    }, [])
-
-    const sortedCases = useMemo(() => {
-        if (!amountSort) return cases
-        return [...cases].sort((a, b) => {
-            const aAmount = calcBestGrossAmount(a)
-            const bAmount = calcBestGrossAmount(b)
-            return amountSort === "asc" ? aAmount - bAmount : bAmount - aAmount
+        setQueryParams((prev) => {
+            const current = prev.sortBy === "bestAmount" ? prev.sortOrder : null
+            if (current === null || current === undefined) {
+                return { ...prev, sortBy: "bestAmount", sortOrder: "desc", page: 1 }
+            }
+            if (current === "desc") {
+                return { ...prev, sortBy: "bestAmount", sortOrder: "asc", page: 1 }
+            }
+            return { ...prev, sortBy: undefined, sortOrder: undefined, page: 1 }
         })
-    }, [cases, amountSort])
+    }, [])
 
     const amountTotals = useMemo(() => calculateCaseListAmountTotals(cases), [cases])
     const rowNumberOffset = ((queryParams.page || 1) - 1) * (queryParams.pageSize || CASE_LIST_PAGE_SIZE)
@@ -227,7 +226,7 @@ function InheritanceMockupPageContent() {
                 isError={isError}
                 error={error}
                 isFetching={isFetching}
-                cases={sortedCases}
+                cases={cases}
                 columns={tableColumns}
                 hasFilters={hasFilters}
                 amountTotals={amountTotals}

@@ -24,14 +24,20 @@ export function AppHeader() {
             <div className="container mx-auto flex h-14 items-center justify-between px-4">
                 {/* Left: Home + App Name */}
                 <div className="flex items-center gap-3">
-                    <a href={PORTAL_HREF} className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
+                    <a
+                        href={PORTAL_HREF}
+                        aria-label="ポータル"
+                        className="flex h-11 w-11 items-center justify-center gap-1.5 rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-primary md:h-auto md:w-auto md:justify-start"
+                    >
                         <Home className="h-5 w-5" />
                         <span className="hidden md:inline text-sm font-medium">ポータル</span>
                     </a>
                     <Link
                         href="/"
+                        aria-label="案件一覧"
+                        aria-current={isActive("/") ? "page" : undefined}
                         className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                            "flex h-11 w-11 items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors md:h-auto md:w-auto md:px-3 md:py-1.5",
                             isActive("/")
                                 ? "bg-primary/10 text-primary"
                                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -48,8 +54,10 @@ export function AppHeader() {
                         <Link
                             key={href}
                             href={href}
+                            aria-label={label}
+                            aria-current={isActive(href) ? "page" : undefined}
                             className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                                "flex h-11 w-11 items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors md:h-auto md:w-auto md:px-3 md:py-1.5",
                                 isActive(href)
                                     ? "bg-primary/10 text-primary"
                                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -64,8 +72,10 @@ export function AppHeader() {
                 {/* Right: New Case Button */}
                 <Link
                     href="/new"
+                    aria-label="新規案件"
+                    aria-current={pathname === "/new" ? "page" : undefined}
                     className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border",
+                        "flex h-11 w-11 items-center justify-center gap-1.5 rounded-md border text-sm font-medium transition-colors sm:h-auto sm:w-auto sm:px-3 sm:py-1.5",
                         pathname === "/new"
                             ? "bg-primary/10 text-primary border-primary/20"
                             : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent hover:border-border"

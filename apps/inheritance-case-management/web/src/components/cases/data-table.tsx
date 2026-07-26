@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { Search, FolderOpen } from "lucide-react"
 import type { CaseListItem } from "@/types/shared"
 import { isHandlingEnded } from "@/types/constants"
+import { CaseMobileList } from "./CaseMobileList"
 
 interface DataTableProps {
     columns: ColumnDef<CaseListItem>[]
@@ -50,18 +51,35 @@ function DataTableComponent({
 
     const rows = table.getRowModel().rows
     const totalColumnSize = table.getTotalSize()
+    const emptyState = hasFilters ? (
+        <EmptyState
+            icon={Search}
+            title="条件に一致する案件がありません"
+            description="検索条件やフィルタを変更してください"
+            action={onClearFilters ? { label: "フィルタをクリア", onClick: onClearFilters } : undefined}
+        />
+    ) : (
+        <EmptyState
+            icon={FolderOpen}
+            title="案件が登録されていません"
+            description="新規案件を登録してください"
+            action={{ label: "新規案件登録", href: "/new" }}
+        />
+    )
 
     return (
         <div className="w-full">
-            <div className="w-full overflow-hidden rounded-md border">
-                <Table className="w-full max-w-full table-fixed text-[10px]">
+            {rows.length > 0 && <CaseMobileList data={data} />}
+            {rows.length === 0 && <div className="rounded-xl border md:hidden">{emptyState}</div>}
+            <div className="hidden w-full overflow-x-auto rounded-md border md:block">
+                <Table className="w-full min-w-[920px] table-fixed text-xs">
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => (
                                     <TableHead
                                         key={header.id}
-                                        className={cn("h-7 px-px py-1 text-[10px]", getResponsiveColumnClass(header.column.id))}
+                                        className={cn("h-11 px-2 py-2 text-xs", getResponsiveColumnClass(header.column.id))}
                                         style={{ width: `${(header.getSize() / totalColumnSize) * 100}%` }}
                                     >
                                         {header.isPlaceholder
@@ -92,7 +110,7 @@ function DataTableComponent({
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell
                                             key={cell.id}
-                                            className={cn("px-px py-1 align-top text-[10px] leading-tight", getResponsiveColumnClass(cell.column.id))}
+                                            className={cn("px-2 py-2 align-top text-xs leading-snug", getResponsiveColumnClass(cell.column.id))}
                                             style={{ width: `${(cell.column.getSize() / totalColumnSize) * 100}%` }}
                                         >
                                             {flexRender(
@@ -109,21 +127,7 @@ function DataTableComponent({
                                     colSpan={columns.length}
                                     className="h-48"
                                 >
-                                    {hasFilters ? (
-                                        <EmptyState
-                                            icon={Search}
-                                            title="条件に一致する案件がありません"
-                                            description="検索条件やフィルタを変更してください"
-                                            action={onClearFilters ? { label: "フィルタをクリア", onClick: onClearFilters } : undefined}
-                                        />
-                                    ) : (
-                                        <EmptyState
-                                            icon={FolderOpen}
-                                            title="案件が登録されていません"
-                                            description="新規案件を登録してください"
-                                            action={{ label: "新規案件登録", href: "/new" }}
-                                        />
-                                    )}
+                                    {emptyState}
                                 </TableCell>
                             </TableRow>
                         )}
