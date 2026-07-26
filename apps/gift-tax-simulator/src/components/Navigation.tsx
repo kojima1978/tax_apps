@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import Home from 'lucide-react/icons/home';
 import Calculator from 'lucide-react/icons/calculator';
 import Scale from 'lucide-react/icons/scale';
 import Table from 'lucide-react/icons/table';
@@ -187,10 +186,6 @@ const Navigation = ({
                 <span>{getFullAddress()}</span>
                 <span className="sidebar-company-phone"><Phone aria-hidden="true" />{COMPANY_INFO.phone}</span>
             </div>
-            <a href="/" className="sidebar-portal-link" title="業務支援ポータルに戻る">
-                <Home aria-hidden="true" />
-                <span>業務支援ポータル</span>
-            </a>
         </div>
 
         <button

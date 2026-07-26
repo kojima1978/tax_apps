@@ -9,9 +9,9 @@ export const CalculateButton: React.FC<CalculateButtonProps> = ({ onClick }) => 
   <button
     type="button"
     onClick={onClick}
-    className="w-full flex items-center justify-center gap-2 px-4 py-4 rounded-xl text-lg font-bold transition-all duration-200 cursor-pointer bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-600/30 hover:from-green-700 hover:to-green-800 hover:shadow-xl hover:shadow-green-700/30 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md"
+    className="w-full min-h-14 flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-lg font-bold transition-colors duration-200 cursor-pointer bg-green-700 text-white shadow-lg shadow-green-700/20 hover:bg-green-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-green-300 active:bg-green-900"
   >
-    <Calculator className="w-5 h-5" />
+    <Calculator className="w-5 h-5" aria-hidden="true" />
     計算する
   </button>
 );

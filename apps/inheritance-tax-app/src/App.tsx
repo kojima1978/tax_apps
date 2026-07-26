@@ -28,7 +28,7 @@ function App() {
         </Routes>
       </Suspense>
 
-      <footer className="bg-gray-800 text-white py-4 md:py-6 mt-8 md:mt-12 no-print">
+      <footer className="inheritance-footer bg-slate-800 text-white py-4 md:py-6 no-print">
         <div className="max-w-7xl mx-auto px-3 md:px-4 text-center text-xs md:text-sm">
           <p>&copy; 2026 相続税シミュレーター</p>
         </div>

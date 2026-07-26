@@ -206,15 +206,20 @@ export const CalculationSteps: React.FC<CalculationStepsProps> = ({ result }) =>
       <h3 className="text-base md:text-lg font-bold text-gray-800 mb-4 md:mb-6">計算過程</h3>
       <div className="calc-steps-grid space-y-4 md:space-y-6">
         {steps.map((step, index) => (
-          <div key={index} className="flex gap-3 md:gap-4 calc-step-item">
-            <div className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-xs md:text-sm font-bold">
-              {index + 1}
+          <React.Fragment key={index}>
+            {index === 6 && (
+              <h3 className="print-only calc-steps-continuation">計算過程（続き）</h3>
+            )}
+            <div className="flex gap-3 md:gap-4 calc-step-item">
+              <div className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-xs md:text-sm font-bold">
+                {index + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-gray-800 mb-1">{step.title}</h4>
+                {step.content}
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-gray-800 mb-1">{step.title}</h4>
-              {step.content}
-            </div>
-          </div>
+          </React.Fragment>
         ))}
       </div>
     </div>

@@ -167,8 +167,7 @@ body {
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.sidebar-nav-link svg,
-.sidebar-portal-link svg {
+.sidebar-nav-link svg {
   width: 19px;
   height: 19px;
   flex: 0 0 19px;
@@ -197,19 +196,16 @@ body {
 .sidebar-company {
   display: flex;
   flex-direction: column;
-  gap: 0.18rem;
-  padding: 0.65rem;
-  border: 1px solid #bbf7d0;
-  border-radius: 8px;
-  background: rgb(255 255 255 / 0.72);
+  gap: 0.15rem;
+  padding: 0 0.55rem 0.6rem;
   color: #64748b;
-  font-size: 0.65rem;
-  line-height: 1.5;
+  font-size: 0.62rem;
+  line-height: 1.45;
 }
 
 .sidebar-company strong {
   color: #166534;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
 }
 
 .sidebar-company-phone {
@@ -221,25 +217,6 @@ body {
 .sidebar-company-phone svg {
   width: 13px;
   height: 13px;
-}
-
-.sidebar-portal-link {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  gap: 0.65rem;
-  padding: 0.6rem 0.65rem;
-  border-radius: 8px;
-  color: #475569;
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: color 0.2s ease, background-color 0.2s ease;
-}
-
-.sidebar-portal-link:hover {
-  color: #166534;
-  background: #fff;
 }
 
 .sidebar-collapse-button {
@@ -273,8 +250,7 @@ body {
 .sidebar-collapsed .sidebar-brand-copy,
 .sidebar-collapsed .sidebar-group-label,
 .sidebar-collapsed .sidebar-nav-link span,
-.sidebar-collapsed .sidebar-company,
-.sidebar-collapsed .sidebar-portal-link span {
+.sidebar-collapsed .sidebar-company {
   display: none;
 }
 
@@ -283,8 +259,7 @@ body {
   padding-inline: 0;
 }
 
-.sidebar-collapsed .sidebar-nav-link,
-.sidebar-collapsed .sidebar-portal-link {
+.sidebar-collapsed .sidebar-nav-link {
   justify-content: center;
   padding-inline: 0;
 }
@@ -449,7 +424,6 @@ body {
 
 .sidebar-nav-link:focus-visible,
 .sidebar-brand-link:focus-visible,
-.sidebar-portal-link:focus-visible,
 .sidebar-collapse-button:focus-visible,
 .topbar-print-button:focus-visible,
 .mobile-menu-button:focus-visible,
@@ -1714,8 +1688,7 @@ tr.rate-row-highlight td {
 
   .sidebar-collapsed .sidebar-brand-copy,
   .sidebar-collapsed .sidebar-group-label,
-  .sidebar-collapsed .sidebar-nav-link span,
-  .sidebar-collapsed .sidebar-portal-link span {
+  .sidebar-collapsed .sidebar-nav-link span {
     display: flex;
   }
 
@@ -1728,8 +1701,7 @@ tr.rate-row-highlight td {
     padding: 0 0.25rem 0.85rem;
   }
 
-  .sidebar-collapsed .sidebar-nav-link,
-  .sidebar-collapsed .sidebar-portal-link {
+  .sidebar-collapsed .sidebar-nav-link {
     justify-content: flex-start;
     padding-inline: 0.65rem;
   }
