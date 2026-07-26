@@ -4251,8 +4251,12 @@ body:has(.app-shell) #root {
     page-break-before: always;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: center !important;
-    gap: 0 !important;
+    /* グラフは実寸のまま上から積む（下の .chart-item のコメント参照）。
+       2つ合計 約180mm で、ページブロック188mm の中にページ番号の分も残る */
+    justify-content: flex-start !important;
+    /* 1つ目のX軸ラベルと2つ目の見出しの間隔。実寸の合計が約183mmなので
+       ページ番号の場所を潰さない範囲でこれ以上は広げられない */
+    gap: 2mm !important;
     margin: 0 !important;
     padding: 0 !important;
   }
@@ -4264,22 +4268,25 @@ body:has(.app-shell) #root {
     background: transparent !important;
     border-radius: 0 !important;
     padding: 0 !important;
-    margin: 0 0 8mm 0 !important;
-    height: 80mm !important;
+    margin: 0 !important;
+    /* **高さを固定しないこと**。グラフのSVGは画面で描画した実寸のまま印刷され、
+       印刷時に再描画されない（ChartContainer は ResizeObserver 頼み）ので、
+       枠だけ縮めても中身は縮まず、はみ出して次のグラフの見出しに重なる。
+       枠に押し込もうとすると今度はSVGが viewBox 比で縮小され左右に大きな余白が出るため、
+       実寸のまま積むのが唯一きれいに収まる方法 */
+    height: auto !important;
     overflow: visible !important;
     box-sizing: border-box !important;
+    /* 親のflexに詰められて再び重なるのを防ぐ */
     flex-shrink: 0 !important;
-  }
-
-  .chart-item:last-child {
-    margin-bottom: 0 !important;
   }
 
   .chart-item > div {
     display: flex !important;
     flex-direction: column !important;
-    height: 100% !important;
+    height: auto !important;
     width: 100% !important;
+    /* CostChart の inline marginTop:40px を打ち消す */
     margin-top: 0 !important;
   }
 
@@ -4290,19 +4297,10 @@ body:has(.app-shell) #root {
     flex-shrink: 0 !important;
   }
 
-  .chart-item .recharts-responsive-container {
-    flex: 1 1 0 !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-  }
-
-  .chart-item .recharts-responsive-container > div {
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
-  }
+  /* ここに以前あった .chart-item .recharts-responsive-container の flex:1 1 0 は、
+     CoverageChart / CostChart が ResponsiveContainer から自前の ChartContainer に
+     移行した時点でどの要素にもマッチしなくなり、グラフの高さ制限が外れていた。
+     高さは .chart-item 側で実寸に任せる方針にしたので復活させないこと */
 
   .chart-item .recharts-wrapper {
     width: 100% !important;
