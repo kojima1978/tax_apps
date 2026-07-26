@@ -10,6 +10,9 @@ interface ComparisonTableProps {
   spouseOwnEstate: number;
 }
 
+/** 印刷時に残す取得割合の刻み（画面は5%刻みのまま） */
+const PRINT_RATIO_STEP = 10;
+
 type Column = {
   label: string;
   group: 'common' | 'first' | 'second';
@@ -38,11 +41,6 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
     if (selectedRatio === null) return null;
     return data.find(r => r.ratio === selectedRatio) ?? null;
   }, [data, selectedRatio]);
-
-  const optimalRow = useMemo(() => {
-    if (minTotalTax < 0) return null;
-    return data.find(r => r.totalTax === minTotalTax) ?? null;
-  }, [data, minTotalTax]);
 
   const handleRowClick = (ratio: number) => {
     setSelectedRatio(prev => prev === ratio ? null : ratio);
@@ -88,11 +86,13 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
           {data.map((row) => {
             const isOptimal = row.totalTax === minTotalTax;
             const isSelected = row.ratio === selectedRatio;
+            // 印刷はA4横1枚に収めるため10%刻みに間引く（最適解の行は5%単位でも必ず残す）
+            const printable = isOptimal || row.ratio % PRINT_RATIO_STEP === 0;
             return (
               <tr
                 key={row.ratio}
                 onClick={() => handleRowClick(row.ratio)}
-                className={`group cursor-pointer transition-colors ${isSelected ? 'bg-green-200 ring-2 ring-inset ring-green-400' : 'hover:bg-green-50'} ${isOptimal && !isSelected ? 'bg-green-100 border-l-4 border-l-green-500 font-semibold' : ''}`}
+                className={`group cursor-pointer transition-colors ${printable ? '' : 'no-print'} ${isSelected ? 'bg-green-200 ring-2 ring-inset ring-green-400' : 'hover:bg-green-50'} ${isOptimal && !isSelected ? 'bg-green-100 border-l-4 border-l-green-500 font-semibold' : ''}`}
               >
                 {COLUMNS.map((col, i) => (
                   <td
@@ -119,25 +119,19 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = memo(({ data, spo
       {data.length > 0 && (
         <p className="mt-3 text-xs text-green-700">
           ★ 緑色の行が合計税額が最も低い取得割合です
-          <span className="ml-3 text-gray-500">（行をクリックで相続人別内訳を表示）</span>
+          <span className="ml-3 text-gray-500 no-print">（行をクリックで相続人別内訳を表示）</span>
+          <span className="ml-3 text-gray-500 print-only-inline">
+            （{PRINT_RATIO_STEP}%刻みで抜粋しています）
+          </span>
         </p>
       )}
 
       {selectedRow && (
-        <ComparisonDetailPanel
-          row={selectedRow}
-          spouseOwnEstate={spouseOwnEstate}
-          onClose={() => setSelectedRatio(null)}
-        />
-      )}
-
-      {!selectedRow && optimalRow && (
-        <div className="print-only-block">
+        <div className="no-print">
           <ComparisonDetailPanel
-            row={optimalRow}
+            row={selectedRow}
             spouseOwnEstate={spouseOwnEstate}
-            onClose={() => {}}
-            optimalLabel
+            onClose={() => setSelectedRatio(null)}
           />
         </div>
       )}

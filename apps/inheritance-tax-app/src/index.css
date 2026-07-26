@@ -1081,7 +1081,8 @@
 }
 
 .print-only,
-.print-only-block {
+.print-only-block,
+.print-only-inline {
   display: none !important;
 }
 
@@ -1119,6 +1120,64 @@
 
   .print-only-block {
     display: block !important;
+  }
+
+  .print-only-inline {
+    display: inline !important;
+  }
+
+  /* 前提条件: 罫線1本の1行バンドにまとめる */
+  .print-conditions dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 18px;
+    margin: 0;
+    padding: 4px 2px;
+    border-top: 1px solid #d1d5db;
+    border-bottom: 1px solid #d1d5db;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .print-conditions dl > div {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+  }
+
+  .print-conditions dt {
+    color: #6b7280;
+  }
+
+  .print-conditions dt::after {
+    content: ':';
+  }
+
+  .print-conditions dd {
+    margin: 0;
+    color: #111827;
+    font-weight: 600;
+  }
+
+  /* 注意事項: 本文末尾に小さくまとめる */
+  .print-cautions {
+    margin-top: 6px;
+    padding-top: 4px;
+    border-top: 1px solid #d1d5db;
+    font-size: 8.5px;
+    line-height: 1.45;
+    color: #4b5563;
+    break-inside: avoid;
+  }
+
+  .print-cautions p {
+    margin: 0;
+  }
+
+  .print-cautions-label {
+    font-weight: 700;
+    color: #374151;
+    margin-right: 4px;
   }
 
   body {
@@ -1167,41 +1226,11 @@
     padding: 8px 12px !important;
   }
 
-  /* 前提条件ボックス */
-  .comparison-print .print-only-block .border {
-    background-color: #f0fdf4 !important;
-    border: 1px solid #bbf7d0 !important;
-    border-radius: 6px !important;
-    padding: 8px 14px !important;
-    margin-bottom: 8px !important;
-  }
-
-  .comparison-print .print-only-block h3 {
-    font-size: 12px !important;
-    margin-bottom: 4px !important;
-  }
-
-  .comparison-print .print-only-block h4 {
-    font-size: 11px !important;
-    margin-bottom: 2px !important;
-  }
-
-  .comparison-print .print-only-block .grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 8px !important;
-  }
-
-  .comparison-print .print-only-block dt,
-  .comparison-print .print-only-block dd {
-    font-size: 10px !important;
-  }
-
-  .comparison-print .print-only-block dl {
-    margin: 0 !important;
-  }
-
-  .comparison-print .print-only-block .space-y-0\.5 > * + * {
-    margin-top: 1px !important;
+  /* 背景色を印刷に反映。これがないとヘッダー行の緑が飛び、白文字の見出しが読めなくなる */
+  .comparison-print,
+  .comparison-print * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   /* セクション間余白 */
@@ -1238,9 +1267,9 @@
     font-size: 10px !important;
   }
 
-  /* 2次遺産額の内訳サブテキスト */
+  /* 2次遺産額の内訳サブテキストは前提条件と配偶者取得額の列に同じ情報があるため印刷では省く */
   .comparison-print table td .text-\[10px\] {
-    font-size: 8px !important;
+    display: none !important;
   }
 
   /* 凡例テキスト */

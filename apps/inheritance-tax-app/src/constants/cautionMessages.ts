@@ -26,6 +26,18 @@ export const COMPARISON_CAUTIONS = [
   CAUTION_DISCLAIMER,
 ] as const;
 
+/**
+ * 1次2次比較ページの印刷用注意書き。
+ * 入力方法の案内（固有財産額の入れ方）は配布資料には不要なため除き、
+ * 前提と免責だけをお客様向けの表現で残す。
+ */
+export const COMPARISON_PRINT_CAUTIONS = [
+  'この比較は1次相続と2次相続の合計税額を概算で比較したものです。',
+  '2次相続の相続人は、1次相続の配偶者以外の相続人と同じ構成と仮定しています。',
+  '2次相続の遺産額は、配偶者の固有財産と1次相続での取得額の合計としています。',
+  CAUTION_DISCLAIMER,
+] as const;
+
 /** 保険ページ */
 export const INSURANCE_CAUTIONS = [
   '死亡保険金の非課税限度額 = 500万円 × 法定相続人数（相続人が受け取る保険金のみ対象）',

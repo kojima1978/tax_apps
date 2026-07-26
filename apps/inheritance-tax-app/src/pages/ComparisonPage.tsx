@@ -6,28 +6,48 @@ import { SectionHeader } from '../components/SectionHeader';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { ComparisonTable } from '../components/comparison/ComparisonTable';
 import { PrintConditions } from '../components/PrintConditions';
+import { PrintCautions } from '../components/PrintCautions';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
 import { useScrollToResult } from '../hooks/useScrollToResult';
 import { useFormValidation } from '../hooks/useFormValidation';
-import type { HeirComposition } from '../types';
+import type { HeirComposition, ComparisonRow } from '../types';
 import { createDefaultComposition } from '../constants';
-import { COMPARISON_CAUTIONS } from '../constants/cautionMessages';
-import { calculateComparisonTable, formatCurrency } from '../utils';
+import { COMPARISON_CAUTIONS, COMPARISON_PRINT_CAUTIONS } from '../constants/cautionMessages';
+import { calculateComparisonTable, formatCurrency, formatPrintDate } from '../utils';
 import { CARD } from '../components/tableStyles';
+
+/**
+ * 「計算する」を押した時点の入力値ごと保持するスナップショット。
+ * 前提条件の表示を現在の入力値ではなくこの値から組み立てることで、
+ * 再計算せずに印刷しても表と前提条件が食い違わないようにする。
+ */
+interface ComparisonResult {
+  rows: ComparisonRow[];
+  estateValue: number;
+  spouseOwnEstate: number;
+  composition: HeirComposition;
+  calculatedAt: Date;
+}
 
 export const ComparisonPage: React.FC = () => {
   const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
   const [estateValue, setEstateValue] = useState<number>(0);
   const [spouseOwnEstate, setSpouseOwnEstate] = useState<number>(0);
-  const [comparisonData, setComparisonData] = useState<ReturnType<typeof calculateComparisonTable>>([]);
+  const [result, setResult] = useState<ComparisonResult | null>(null);
 
   const heirRef = useRef<HTMLDivElement>(null);
   const estateRef = useRef<HTMLDivElement>(null);
 
   const onValid = useCallback(() => {
-    setComparisonData(calculateComparisonTable(estateValue, spouseOwnEstate, composition));
+    setResult({
+      rows: calculateComparisonTable(estateValue, spouseOwnEstate, composition),
+      estateValue,
+      spouseOwnEstate,
+      composition,
+      calculatedAt: new Date(),
+    });
   }, [estateValue, spouseOwnEstate, composition]);
 
   const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
@@ -35,23 +55,35 @@ export const ComparisonPage: React.FC = () => {
     { condition: !composition.hasSpouse, ref: heirRef, message: '配偶者ありの構成を選択してください（1次2次比較に必要）' },
   ], onValid);
 
-  const hasData = comparisonData.length > 0;
+  const hasData = result !== null && result.rows.length > 0;
   const resultRef = useScrollToResult(hasData);
 
-  const printSections = useMemo(() => [
-    {
-      title: '1次相続',
-      items: [
-        { label: '相続財産額', value: formatCurrency(estateValue) },
-      ],
-    },
-    {
-      title: '2次相続',
-      items: [
-        { label: '配偶者固有財産', value: formatCurrency(spouseOwnEstate) },
-      ],
-    },
-  ], [estateValue, spouseOwnEstate]);
+  /** 表示中の結果が現在の入力と食い違っているか（再計算忘れの検知） */
+  const isStale = useMemo(() => {
+    if (!result) return false;
+    return result.estateValue !== estateValue
+      || result.spouseOwnEstate !== spouseOwnEstate
+      // 相続人構成は毎回新しいオブジェクトが作られるため値で比較する
+      || JSON.stringify(result.composition) !== JSON.stringify(composition);
+  }, [result, estateValue, spouseOwnEstate, composition]);
+
+  const printSections = useMemo(() => {
+    if (!result) return [];
+    return [
+      {
+        title: '1次相続',
+        items: [
+          { label: '相続財産額', value: formatCurrency(result.estateValue) },
+        ],
+      },
+      {
+        title: '2次相続',
+        items: [
+          { label: '配偶者固有財産', value: formatCurrency(result.spouseOwnEstate) },
+        ],
+      },
+    ];
+  }, [result]);
 
   return (
     <PageLayout
@@ -76,6 +108,7 @@ export const ComparisonPage: React.FC = () => {
               <CurrencyInput
                 id="estate-value"
                 label="対象者の相続財産額"
+                hint="基礎控除を差し引く前の金額（債務・葬式費用控除後の課税価格）を入力してください"
                 value={estateValue}
                 onChange={setEstateValue}
                 placeholder="例: 20000"
@@ -84,6 +117,7 @@ export const ComparisonPage: React.FC = () => {
               <CurrencyInput
                 id="spouse-estate"
                 label="配偶者の固有財産額"
+                hint={spouseOwnEstate <= 0 ? '未入力の場合は0円として計算します（2次相続の税額が小さく出ます）' : undefined}
                 value={spouseOwnEstate}
                 onChange={setSpouseOwnEstate}
                 placeholder="例: 5000"
@@ -108,11 +142,24 @@ export const ComparisonPage: React.FC = () => {
       }
       resultRef={resultRef}
       resultSection={
-        hasData ? (
+        hasData && result ? (
           <div className="result-fade-in space-y-4 md:space-y-6">
-            <PrintHeader title="1次相続・2次相続 配偶者取得割合別比較" />
-            <PrintConditions sections={printSections} composition={composition} />
-            <ComparisonTable data={comparisonData} spouseOwnEstate={spouseOwnEstate} />
+            {isStale && (
+              <StatusCard
+                variant="warning"
+                compact
+                title="入力が変更されています"
+                description="下の結果は変更前の入力で計算したものです。「計算する」を押して再計算してください。"
+                className="no-print"
+              />
+            )}
+            <PrintHeader
+              title="1次相続・2次相続 配偶者取得割合別比較"
+              date={formatPrintDate(result.calculatedAt)}
+            />
+            <PrintConditions sections={printSections} composition={result.composition} />
+            <ComparisonTable data={result.rows} spouseOwnEstate={result.spouseOwnEstate} />
+            <PrintCautions items={COMPARISON_PRINT_CAUTIONS} />
           </div>
         ) : null
       }

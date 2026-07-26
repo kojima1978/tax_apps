@@ -26,6 +26,15 @@ export function formatPercent(value: number, decimals: number = 2): string {
   return `${value.toFixed(decimals)}%`;
 }
 
+/**
+ * 印刷物の作成日フォーマット
+ * @param date 日時
+ * @returns 「2026年7月27日」形式の文字列
+ */
+export function formatPrintDate(date: Date): string {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 /** 差額を符号付きフォーマット（+1,000万円 / −500万円 / ±0） */
 export function formatDelta(diff: number): string {
   if (diff > 0) return `+${formatCurrency(diff)}`;
@@ -85,9 +94,9 @@ function gcd(a: number, b: number): number {
   return a;
 }
 
-/** 符号付き金額フォーマット（+1,000万円 / -500万円） */
+/** 符号付き金額フォーマット（+1,000万円 / △500万円） */
 export function formatSignedCurrency(value: number): string {
-  const sign = value >= 0 ? '+' : '';
+  const sign = value >= 0 ? '+' : '△';
   return `${sign}${formatCurrency(Math.abs(value))}`;
 }
 

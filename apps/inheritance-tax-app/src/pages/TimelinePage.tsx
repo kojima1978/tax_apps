@@ -18,8 +18,23 @@ import type { HeirComposition, TimelineSimulationResult } from '../types';
 import { createDefaultComposition } from '../constants';
 import { TIMELINE_CAUTIONS } from '../constants/cautionMessages';
 import { calculateTimelineSimulation } from '../utils/timelineCalculator';
-import { formatCurrency, formatSignedCurrency } from '../utils';
+import { formatCurrency, formatSignedCurrency, formatPrintDate } from '../utils';
 import { CARD } from '../components/tableStyles';
+
+/**
+ * 「計算する」を押した時点の入力値ごと保持するスナップショット。
+ * 前提条件の表示を現在の入力値ではなくこの値から組み立てることで、
+ * 再計算せずに印刷しても表と前提条件が食い違わないようにする。
+ */
+interface TimelineResult {
+  simulation: TimelineSimulationResult;
+  estateValue: number;
+  spouseOwnEstate: number;
+  annualChange: number;
+  selectedYears: number[];
+  composition: HeirComposition;
+  calculatedAt: Date;
+}
 
 export const TimelinePage: React.FC = () => {
   const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
@@ -27,20 +42,28 @@ export const TimelinePage: React.FC = () => {
   const [spouseOwnEstate, setSpouseOwnEstate] = useState<number>(0);
   const [annualChange, setAnnualChange] = useState<number>(0);
   const [selectedYears, setSelectedYears] = useState<number[]>([5, 10, 15]);
-  const [result, setResult] = useState<TimelineSimulationResult | null>(null);
+  const [result, setResult] = useState<TimelineResult | null>(null);
 
   const heirRef = useRef<HTMLDivElement>(null);
   const estateRef = useRef<HTMLDivElement>(null);
   const yearRef = useRef<HTMLDivElement>(null);
 
   const onValid = useCallback(() => {
-    setResult(calculateTimelineSimulation(
+    setResult({
+      simulation: calculateTimelineSimulation(
+        estateValue,
+        spouseOwnEstate,
+        annualChange,
+        selectedYears,
+        composition,
+      ),
       estateValue,
       spouseOwnEstate,
       annualChange,
       selectedYears,
       composition,
-    ));
+      calculatedAt: new Date(),
+    });
   }, [estateValue, spouseOwnEstate, annualChange, selectedYears, composition]);
 
   const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
@@ -52,22 +75,39 @@ export const TimelinePage: React.FC = () => {
   const hasData = result !== null;
   const resultRef = useScrollToResult(hasData);
 
-  const printSections = useMemo(() => [
-    {
-      title: '1次相続',
-      items: [
-        { label: '相続財産額', value: formatCurrency(estateValue) },
-      ],
-    },
-    {
-      title: '2次相続',
-      items: [
-        { label: '配偶者固有財産', value: formatCurrency(spouseOwnEstate) },
-        { label: '年間収支', value: `${formatSignedCurrency(annualChange)}/年${annualChange < 0 ? '（資産減少）' : annualChange > 0 ? '（資産増加）' : ''}` },
-        { label: 'シミュレーション年数', value: selectedYears.sort((a, b) => a - b).map(y => `${y}年後`).join(' / ') },
-      ],
-    },
-  ], [estateValue, spouseOwnEstate, annualChange, selectedYears]);
+  /** 表示中の結果が現在の入力と食い違っているか（再計算忘れの検知） */
+  const isStale = useMemo(() => {
+    if (!result) return false;
+    const sorted = (years: number[]) => JSON.stringify([...years].sort((a, b) => a - b));
+    return result.estateValue !== estateValue
+      || result.spouseOwnEstate !== spouseOwnEstate
+      || result.annualChange !== annualChange
+      || sorted(result.selectedYears) !== sorted(selectedYears)
+      // 相続人構成は毎回新しいオブジェクトが作られるため値で比較する
+      || JSON.stringify(result.composition) !== JSON.stringify(composition);
+  }, [result, estateValue, spouseOwnEstate, annualChange, selectedYears, composition]);
+
+  const printSections = useMemo(() => {
+    if (!result) return [];
+    const { annualChange: change } = result;
+    return [
+      {
+        title: '1次相続',
+        items: [
+          { label: '相続財産額', value: formatCurrency(result.estateValue) },
+        ],
+      },
+      {
+        title: '2次相続',
+        items: [
+          { label: '配偶者固有財産', value: formatCurrency(result.spouseOwnEstate) },
+          { label: '年間収支', value: `${formatSignedCurrency(change)}/年${change < 0 ? '（資産減少）' : change > 0 ? '（資産増加）' : ''}` },
+          // state の配列を直接 sort すると破壊的変更になるためコピーしてから並べ替える
+          { label: 'シミュレーション年数', value: [...result.selectedYears].sort((a, b) => a - b).map(y => `${y}年後`).join(' / ') },
+        ],
+      },
+    ];
+  }, [result]);
 
   return (
     <PageLayout
@@ -159,13 +199,25 @@ export const TimelinePage: React.FC = () => {
       resultSection={
         hasData && result ? (
           <div className="result-fade-in space-y-4 md:space-y-6">
-            <PrintHeader title="2次相続タイムライン・シミュレーション" />
+            {isStale && (
+              <StatusCard
+                variant="warning"
+                compact
+                title="入力が変更されています"
+                description="下の結果は変更前の入力で計算したものです。「計算する」を押して再計算してください。"
+                className="no-print"
+              />
+            )}
+            <PrintHeader
+              title="2次相続タイムライン・シミュレーション"
+              date={formatPrintDate(result.calculatedAt)}
+            />
             <PrintConditions
               sections={printSections}
-              composition={composition}
+              composition={result.composition}
             />
-            <TimelineSummary summaries={result.summaries} annualChange={annualChange} />
-            <TimelineTable result={result} spouseOwnEstate={spouseOwnEstate} />
+            <TimelineSummary summaries={result.simulation.summaries} annualChange={result.annualChange} />
+            <TimelineTable result={result.simulation} spouseOwnEstate={result.spouseOwnEstate} />
           </div>
         ) : null
       }

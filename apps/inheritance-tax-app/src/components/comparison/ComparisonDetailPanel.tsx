@@ -7,7 +7,6 @@ interface ComparisonDetailPanelProps {
   row: ComparisonRow;
   spouseOwnEstate: number;
   onClose: () => void;
-  optimalLabel?: boolean;
 }
 
 const HeirTable: React.FC<{
@@ -43,13 +42,12 @@ const HeirTable: React.FC<{
   </table>
 );
 
-export const ComparisonDetailPanel: React.FC<ComparisonDetailPanelProps> = memo(({ row, spouseOwnEstate, onClose, optimalLabel }) => {
+export const ComparisonDetailPanel: React.FC<ComparisonDetailPanelProps> = memo(({ row, spouseOwnEstate, onClose }) => {
   return (
     <div className={`${CARD} mt-4 border-2 border-green-200 comparison-detail-print`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-gray-800">
           配偶者取得割合 {row.ratio}% の相続人別内訳
-          {optimalLabel && <span className="ml-2 text-green-700">★最適解</span>}
         </h3>
         <button
           type="button"
