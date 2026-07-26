@@ -251,6 +251,12 @@ rd /s /q tax_apps
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
 ```
 
+`manage.sh start --prod` は Private Banking の初回起動時に固有のデータベースパスワードを
+`.env` へ自動生成します。開発モードで作成済みの PostgreSQL ボリュームがある場合も、
+DB 内のロールへ同じパスワードを同期してから Web コンテナを起動します。
+シークレット初期化を含むため、Private Banking を本番モードで起動する場合は
+Compose コマンドの直接実行ではなく `manage.sh start --prod` を使用してください。
+
 個別アプリの例:
 
 ```bash

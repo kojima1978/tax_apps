@@ -245,6 +245,89 @@ for_each_app_reverse() {
   done
 }
 
+read_env_value() {
+  local env_file="$1" key="$2"
+  sed -n "s/^${key}=//p" "$env_file" | tail -1 | tr -d '\r'
+}
+
+set_env_value() {
+  local env_file="$1" key="$2" value="$3"
+  local tmp_file="${env_file}.tmp.$$"
+
+  awk -v key="$key" -v value="$value" '
+    BEGIN { updated = 0 }
+    index($0, key "=") == 1 {
+      print key "=" value
+      updated = 1
+      next
+    }
+    { print }
+    END {
+      if (!updated) {
+        print key "=" value
+      }
+    }
+  ' "$env_file" > "$tmp_file"
+  mv "$tmp_file" "$env_file"
+}
+
+ensure_private_banking_password() {
+  local dir="$1"
+  local env_file="$dir/.env"
+  local example_file="$dir/.env.example"
+  local password
+
+  if [[ ! -f "$env_file" ]]; then
+    if [[ ! -f "$example_file" ]]; then
+      err "private-banking: .env and .env.example are missing"
+      return 1
+    fi
+    cp "$example_file" "$env_file"
+    log "  .env を作成しました: private-banking"
+  fi
+
+  password=$(read_env_value "$env_file" "POSTGRES_PASSWORD")
+  if [[ -z "$password" || "$password" == "change-me" || "$password" == "pb_dev_password" || ${#password} -lt 24 ]]; then
+    password="pb_$(od -An -N24 -tx1 /dev/urandom | tr -d '[:space:]')"
+    if [[ ${#password} -lt 40 ]]; then
+      err "private-banking: failed to generate a production database password"
+      return 1
+    fi
+    set_env_value "$env_file" "POSTGRES_PASSWORD" "$password"
+    chmod 600 "$env_file" 2>/dev/null || true
+    ok "private-banking: generated a unique production database password"
+  fi
+}
+
+ensure_private_banking_production_env() {
+  local dir="$1"
+  local env_file="$dir/.env"
+  local password db_user db_name escaped_password
+
+  ensure_private_banking_password "$dir"
+  password=$(read_env_value "$env_file" "POSTGRES_PASSWORD")
+
+  db_user=$(read_env_value "$env_file" "POSTGRES_USER")
+  db_name=$(read_env_value "$env_file" "POSTGRES_DB")
+  db_user="${db_user:-postgres}"
+  db_name="${db_name:-private_banking}"
+
+  if [[ ! "$db_user" =~ ^[A-Za-z_][A-Za-z0-9_]*$ || ! "$db_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    err "private-banking: POSTGRES_USER and POSTGRES_DB must be simple SQL identifiers"
+    return 1
+  fi
+
+  # Start only PostgreSQL first. For an existing development volume, the
+  # POSTGRES_PASSWORD environment variable does not update the stored role.
+  # Synchronize it explicitly before starting the production web container.
+  docker compose -f "$dir/docker-compose.yml" up -d --wait private-banking-postgres
+  escaped_password=${password//\'/\'\'}
+  printf 'ALTER ROLE "%s" WITH PASSWORD '\''%s'\'';\n' "$db_user" "$escaped_password" |
+    docker compose -f "$dir/docker-compose.yml" exec -T private-banking-postgres \
+      psql -v ON_ERROR_STOP=1 -U "$db_user" -d "$db_name" >/dev/null
+  ok "private-banking: database credentials are synchronized"
+}
+
 # --- start用コールバック ---
 _do_start() {
   local dir="$1" name="$2" prod_mode="$3"
@@ -259,6 +342,9 @@ _do_start() {
     log "  .env を作成しました: $name"
   fi
   if [[ $prod_mode -eq 1 ]]; then
+    if [[ "$name" == "private-banking" ]]; then
+      ensure_private_banking_production_env "$dir"
+    fi
     local prod_compose="$dir/docker-compose.prod.yml"
     if [[ -f "$prod_compose" ]]; then
       log "  起動[本番]: $name"

@@ -8,6 +8,8 @@ services:
   inheritance-tax-app:
     build:
       target: runner
+    environment:
+      NODE_ENV: production
     init: false
     # `volumes: []` はマージされて base の開発用バインドが残るため !reset で無効化する
     volumes: !reset []
