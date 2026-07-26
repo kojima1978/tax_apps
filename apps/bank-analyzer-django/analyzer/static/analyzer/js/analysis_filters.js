@@ -292,6 +292,7 @@ const QuickFilters = {
             }
             btn.classList.toggle('btn-primary', isActive);
             btn.classList.toggle('btn-outline-secondary', !isActive);
+            btn.setAttribute('aria-pressed', String(isActive));
         });
     },
 
@@ -346,11 +347,43 @@ const FilterChips = {
 
     _AMOUNT_TYPE_LABELS: { out: '出金のみ', 'in': '入金のみ' },
 
-    _SKIP_PARAMS: ['tab', 'page', 'all_page', 'unclassified_page'],
+    _SKIP_PARAMS: ['tab', 'page', 'all_page', 'unclassified_page', 'group_page', 'sort', 'per_page'],
 
     init: function() {
         this._container = document.getElementById('activeFilterChips');
         if (!this._container) return;
+        var self = this;
+        this._container.addEventListener('click', function(e) {
+            var clearAll = e.target.closest('[data-clear-all-filters]');
+            if (clearAll) {
+                var current = new URLSearchParams(window.location.search);
+                var clean = new URLSearchParams({ tab: 'all' });
+                ['sort', 'per_page'].forEach(function(key) {
+                    if (current.get(key)) clean.set(key, current.get(key));
+                });
+                window.location.search = clean.toString();
+                return;
+            }
+
+            var closeBtn = e.target.closest('[data-filter-key]');
+            if (!closeBtn) return;
+
+            var key = closeBtn.dataset.filterKey;
+            var value = closeBtn.dataset.filterValue;
+            var newParams = new URLSearchParams(window.location.search);
+            var allValues = newParams.getAll(key);
+            if (allValues.length > 1) {
+                newParams.delete(key);
+                allValues.forEach(function(v) { if (v !== value) newParams.append(key, v); });
+            } else {
+                newParams.delete(key);
+            }
+
+            if (key === 'category' && newParams.getAll('category').length === 0) {
+                newParams.delete('category_mode');
+            }
+            window.location.search = newParams.toString();
+        });
         this._render();
     },
 
@@ -376,43 +409,51 @@ const FilterChips = {
             chips.push({ key: key, value: value, label: label, displayValue: displayValue });
         }
 
+        var countBadge = document.getElementById('activeFilterCount');
+        if (countBadge) {
+            countBadge.textContent = String(chips.length);
+            countBadge.hidden = chips.length === 0;
+        }
+
+        this._container.replaceChildren();
         if (chips.length === 0) {
             this._container.style.display = 'none';
             return;
         }
 
-        this._container.style.display = 'flex';
-        this._container.innerHTML = '<span class="small text-muted me-1"><i class="bi bi-funnel-fill"></i> 適用中:</span>';
+        this._container.style.display = 'block';
+        var heading = document.createElement('div');
+        heading.className = 'active-filter-heading';
+        var label = document.createElement('span');
+        label.innerHTML = '<i class="bi bi-funnel-fill" aria-hidden="true"></i> 適用中の条件 <strong>' + chips.length + '</strong>件';
+        var clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'btn btn-link btn-sm';
+        clearButton.dataset.clearAllFilters = '';
+        clearButton.textContent = 'すべて解除';
+        heading.append(label, clearButton);
+        this._container.appendChild(heading);
+
+        var chipList = document.createElement('div');
+        chipList.className = 'active-filter-chips';
+        this._container.appendChild(chipList);
 
         chips.forEach(function(chip) {
             var el = document.createElement('span');
             el.className = 'filter-chip';
-            el.innerHTML = '<strong>' + chip.label + '</strong>: ' + chip.displayValue +
-                ' <button type="button" class="btn-close" aria-label="削除" data-filter-key="' + chip.key + '" data-filter-value="' + chip.value + '"></button>';
-            self._container.appendChild(el);
-        });
-
-        this._container.addEventListener('click', function(e) {
-            var closeBtn = e.target.closest('.btn-close[data-filter-key]');
-            if (!closeBtn) return;
-
-            var key = closeBtn.dataset.filterKey;
-            var value = closeBtn.dataset.filterValue;
-            var newParams = new URLSearchParams(window.location.search);
-
-            var allValues = newParams.getAll(key);
-            if (allValues.length > 1) {
-                newParams.delete(key);
-                allValues.forEach(function(v) { if (v !== value) newParams.append(key, v); });
-            } else {
-                newParams.delete(key);
-            }
-
-            if (key === 'category' && newParams.getAll('category').length === 0) {
-                newParams.delete('category_mode');
-            }
-
-            window.location.search = newParams.toString();
+            var chipText = document.createElement('span');
+            var strong = document.createElement('strong');
+            strong.textContent = chip.label;
+            chipText.append(strong, document.createTextNode(': ' + chip.displayValue));
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'filter-chip-remove';
+            remove.setAttribute('aria-label', chip.label + '「' + chip.displayValue + '」を解除');
+            remove.dataset.filterKey = chip.key;
+            remove.dataset.filterValue = chip.value;
+            remove.innerHTML = '<i class="bi bi-x" aria-hidden="true"></i>';
+            el.append(chipText, remove);
+            chipList.appendChild(el);
         });
     }
 };
@@ -440,13 +481,13 @@ const FilterPresets = {
 
         var saveBtn = document.createElement('button');
         saveBtn.type = 'button';
-        saveBtn.className = 'btn btn-outline-secondary btn-sm ms-2';
+        saveBtn.className = 'btn btn-outline-secondary btn-sm search-preset-action';
         saveBtn.innerHTML = '<i class="bi bi-bookmark-plus"></i> 条件を保存';
         saveBtn.addEventListener('click', function() { self._savePreset(); });
         container.appendChild(saveBtn);
 
         var wrapper = document.createElement('div');
-        wrapper.className = 'dropdown d-inline-block ms-1';
+        wrapper.className = 'dropdown search-preset-action';
         wrapper.innerHTML =
             '<button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" id="presetDropdownBtn">' +
             '<i class="bi bi-bookmarks"></i> プリセット</button>' +
@@ -454,6 +495,19 @@ const FilterPresets = {
         container.appendChild(wrapper);
 
         this._dropdown = wrapper.querySelector('#presetDropdownMenu');
+        this._dropdown.addEventListener('click', function(e) {
+            var closeBtn = e.target.closest('[data-preset-index]');
+            if (!closeBtn) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            var idx = parseInt(closeBtn.dataset.presetIndex, 10);
+            var presets = self._getPresets();
+            presets.splice(idx, 1);
+            self._setPresets(presets);
+            self._renderPresets();
+            showToast('プリセットを削除しました', 'info');
+        });
     },
 
     _getPresets: function() {
@@ -466,19 +520,31 @@ const FilterPresets = {
     },
 
     _savePreset: function() {
-        var name = window.prompt('プリセット名を入力してください:');
-        if (!name) return;
-
         var params = new URLSearchParams(window.location.search);
         params.delete('tab');
         params.delete('page');
         params.delete('all_page');
+        params.delete('sort');
+        params.delete('per_page');
+        if (!params.toString()) {
+            showToast('保存する検索条件がありません', 'info');
+            return;
+        }
 
-        var presets = this._getPresets();
-        presets.push({ name: name, params: params.toString() });
-        this._setPresets(presets);
-        this._renderPresets();
-        showToast('プリセット「' + name + '」を保存しました', 'success');
+        var self = this;
+        ConfirmModal.prompt({
+            title: '検索条件を保存',
+            message: 'この検索条件に分かりやすい名前を付けてください。',
+            placeholder: '例: 100万円以上の出金',
+            confirmText: '保存',
+            onConfirm: function(name) {
+                var presets = self._getPresets();
+                presets.push({ name: name, params: params.toString() });
+                self._setPresets(presets);
+                self._renderPresets();
+                showToast('プリセット「' + name + '」を保存しました', 'success');
+            },
+        });
     },
 
     _renderPresets: function() {
@@ -494,29 +560,30 @@ const FilterPresets = {
         this._dropdown.innerHTML = '';
         presets.forEach(function(preset, index) {
             var li = document.createElement('li');
-            li.innerHTML =
-                '<a class="dropdown-item d-flex justify-content-between align-items-center" href="?tab=all&' + preset.params + '">' +
-                '<span>' + preset.name + '</span>' +
-                '<button type="button" class="btn-close ms-2" style="font-size:0.5rem;" data-preset-index="' + index + '"></button>' +
-                '</a>';
+            var link = document.createElement('a');
+            link.className = 'dropdown-item d-flex justify-content-between align-items-center gap-2';
+            link.href = '?tab=all&' + preset.params;
+            var name = document.createElement('span');
+            name.textContent = preset.name;
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'btn-close';
+            remove.style.fontSize = '0.5rem';
+            remove.dataset.presetIndex = String(index);
+            remove.setAttribute('aria-label', 'プリセット「' + preset.name + '」を削除');
+            link.append(name, remove);
+            li.appendChild(link);
             self._dropdown.appendChild(li);
         });
 
-        this._dropdown.addEventListener('click', function(e) {
-            var closeBtn = e.target.closest('[data-preset-index]');
-            if (!closeBtn) return;
-            e.preventDefault();
-            e.stopPropagation();
-
-            var idx = parseInt(closeBtn.dataset.presetIndex);
-            var presets = self._getPresets();
-            presets.splice(idx, 1);
-            self._setPresets(presets);
-            self._renderPresets();
-            showToast('プリセットを削除しました', 'info');
-        });
     }
 };
+
+function refreshFilterItemVisibility(item) {
+    item.style.display = item.dataset.bankHidden === 'true' || item.dataset.searchHidden === 'true'
+        ? 'none'
+        : '';
+}
 
 // ===== 銀行→口座 連動フィルター =====
 
@@ -544,7 +611,10 @@ const BankAccountFilter = {
             .map(function(cb) { return cb.value; });
 
         if (selectedBanks.length === 0) {
-            this._accountItems.forEach(function(item) { item.style.display = ''; });
+            this._accountItems.forEach(function(item) {
+                item.dataset.bankHidden = 'false';
+                refreshFilterItemVisibility(item);
+            });
             return;
         }
 
@@ -558,11 +628,32 @@ const BankAccountFilter = {
             var cb = item.querySelector('input[name="account"]');
             if (!cb) return;
             if (allowedAccounts.has(cb.value)) {
-                item.style.display = '';
+                item.dataset.bankHidden = 'false';
             } else {
-                item.style.display = 'none';
+                item.dataset.bankHidden = 'true';
                 cb.checked = false;
             }
+            refreshFilterItemVisibility(item);
+        });
+    }
+};
+
+// ===== 詳細候補リスト内検索 =====
+
+const FilterListSearch = {
+    init: function() {
+        document.querySelectorAll('.filter-list-search[data-filter-list]').forEach(function(input) {
+            var list = document.getElementById(input.dataset.filterList);
+            if (!list) return;
+            input.addEventListener('input', function() {
+                var query = input.value.trim().toLocaleLowerCase('ja');
+                list.querySelectorAll('.form-check').forEach(function(item) {
+                    var checkbox = item.querySelector('input[type="checkbox"]');
+                    var matches = !query || item.textContent.toLocaleLowerCase('ja').includes(query);
+                    item.dataset.searchHidden = String(!matches && !(checkbox && checkbox.checked));
+                    refreshFilterItemVisibility(item);
+                });
+            });
         });
     }
 };
@@ -581,7 +672,7 @@ const AutoFilter = {
         var self = this;
 
         this._form.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.target.matches('.filter-list-search')) {
                 e.preventDefault();
                 self._submit();
             }
@@ -613,6 +704,8 @@ const FilterPanel = {
 
         if (hasDetailFilter) {
             panel.classList.add('show');
+            var toggle = document.getElementById('filterPanelToggle');
+            if (toggle) toggle.setAttribute('aria-expanded', 'true');
         }
     },
 
@@ -682,9 +775,11 @@ QuickFilters.init();
 FilterChips.init();
 FilterPresets.init();
 BankAccountFilter.init();
+FilterListSearch.init();
 AutoFilter.init();
 FilterPanel.init();
 ProgressBar.init();
 GroupedView.init();
+ClassificationWorkbench.init();
 TransferView.init();
 CleanupView.init();

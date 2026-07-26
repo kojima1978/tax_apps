@@ -1,0 +1,24 @@
+Bundled frontend assets
+=======================
+
+The following assets are bundled so Bank Analyzer can operate without
+runtime access to third-party CDNs.
+
+- Bootstrap 5.3.0
+  License: MIT
+  Source: https://github.com/twbs/bootstrap
+
+- Bootstrap Icons 1.11.0
+  License: MIT
+  Source: https://github.com/twbs/icons
+
+- Plotly.js 2.27.0
+  License: MIT
+  Source: https://github.com/plotly/plotly.js
+
+- SortableJS 1.15.6
+  License: MIT
+  Source: https://github.com/SortableJS/Sortable
+
+Assets retrieved on 2026-07-26 from the version-pinned distribution URLs
+referenced by the project before bundling.

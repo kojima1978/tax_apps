@@ -13,7 +13,7 @@ from ..handlers import FIELD_LABELS, parse_amount
 from ..templatetags.japanese_date import wareki
 
 ITEMS_PER_PAGE = 100
-PER_PAGE_OPTIONS = [50, 100, 200, 500]
+PER_PAGE_OPTIONS = [25, 50, 100, 200]
 
 
 def get_per_page(request: HttpRequest) -> int:

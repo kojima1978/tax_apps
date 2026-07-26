@@ -144,3 +144,28 @@ class Transaction(models.Model):
             models.Index(fields=["case", "is_large"]),
             models.Index(fields=["case", "is_transfer"]),
         ]
+
+
+class DeletionBackup(models.Model):
+    """ID範囲削除した取引を復元するための一時バックアップ"""
+
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name="deletion_backups",
+        verbose_name="案件",
+    )
+    start_id = models.PositiveBigIntegerField(verbose_name="開始ID")
+    end_id = models.PositiveBigIntegerField(verbose_name="終了ID")
+    transaction_data = models.JSONField(default=list, verbose_name="取引バックアップ")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
+    restored_at = models.DateTimeField(null=True, blank=True, verbose_name="復元日時")
+
+    @property
+    def transaction_count(self):
+        return len(self.transaction_data or [])
+
+    class Meta:
+        verbose_name = "削除バックアップ"
+        verbose_name_plural = "削除バックアップ"
+        ordering = ["-created_at"]

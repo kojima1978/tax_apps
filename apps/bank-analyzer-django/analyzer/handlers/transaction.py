@@ -173,19 +173,50 @@ def handle_delete_by_range(request: HttpRequest, case, pk: int) -> HttpResponse:
     """ID範囲で取引を削除"""
     start_id = request.POST.get('start_id')
     end_id = request.POST.get('end_id')
+    confirmation = request.POST.get('delete_confirmation', '').strip()
 
     try:
         start_id_int = int(start_id)
         end_id_int = int(end_id)
+        expected_count = int(request.POST.get('expected_count', -1))
+        if confirmation != '削除':
+            messages.error(request, "確認欄に「削除」と入力してください。")
+            return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+        preview = TransactionService.preview_delete_by_range(case, start_id_int, end_id_int)
+        if preview['count'] != expected_count:
+            messages.warning(
+                request,
+                "削除対象の件数が変わりました。プレビューを更新してから再実行してください。",
+            )
+            return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
         count = TransactionService.delete_by_range(case, start_id_int, end_id_int)
         count_message(
             request, count,
-            f"ID {start_id_int}〜{end_id_int} の範囲で {count}件の取引を削除しました。",
+            f"ID {start_id_int}〜{end_id_int} の範囲で {count}件を削除しました。バックアップから復元できます。",
             "指定した範囲に削除対象の取引がありませんでした。",
         )
     except (ValueError, TypeError):
         messages.error(request, "IDは整数で入力してください。")
 
+    return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
+
+
+def handle_restore_range_backup(request: HttpRequest, case, pk: int) -> HttpResponse:
+    """ID範囲削除のバックアップを復元"""
+    try:
+        backup_id = int(request.POST.get('backup_id', ''))
+        restored, skipped = TransactionService.restore_deletion_backup(case, backup_id)
+        if restored:
+            message = f"{restored}件の取引を復元しました。"
+            if skipped:
+                message += f" IDが重複した{skipped}件は復元していません。"
+            messages.success(request, message)
+        else:
+            messages.warning(request, "復元できる取引がありませんでした。")
+    except (ValueError, TypeError):
+        messages.error(request, "バックアップ情報が正しくありません。")
     return redirect(build_redirect_url('analysis-dashboard', pk, 'cleanup'))
 
 

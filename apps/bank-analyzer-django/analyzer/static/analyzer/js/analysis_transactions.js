@@ -216,18 +216,36 @@ function _showSaveConfirmation(changes) {
 
 // テーブル行のセルを更新後のデータで書き換え
 function _updateRowCells(row, tx) {
-    // 摘要セル（td自体がtext-truncateの場合と、子要素の場合を両方対応）
-    var descCells = row.querySelectorAll('td.text-truncate');
-    if (descCells.length > 0) {
-        // 最初のtext-truncateは摘要
-        descCells[0].textContent = tx.description;
-        descCells[0].title = tx.description;
-        // 2番目のtext-truncateがあればメモ
-        if (descCells.length > 1) {
-            var memoText = tx.memo || '-';
-            descCells[1].title = tx.memo || '';
-            descCells[1].innerHTML = '<small class="text-muted">' + (memoText.length > 30 ? memoText.substring(0, 27) + '...' : memoText) + '</small>';
+    var descriptionCell = row.querySelector('.tx-description-cell');
+    var descriptionText = descriptionCell ? descriptionCell.querySelector('.text-truncate') : null;
+    if (descriptionCell && descriptionText) {
+        descriptionCell.title = tx.description || '';
+        descriptionText.textContent = tx.description || '';
+    } else {
+        var descCells = row.querySelectorAll('td.text-truncate');
+        if (descCells.length > 0) {
+            descCells[0].textContent = tx.description;
+            descCells[0].title = tx.description;
         }
+    }
+
+    var accountCell = row.querySelector('.tx-account-cell');
+    if (accountCell) {
+        var primary = accountCell.querySelector('.tx-account-primary');
+        var secondary = accountCell.querySelector('small');
+        if (primary) primary.textContent = (tx.bank_name || '-') + (tx.branch_name ? ' ' + tx.branch_name : '');
+        if (secondary) secondary.textContent = (tx.account_type || '-') + '・' + (tx.account_number || '-');
+    }
+
+    var amountCells = row.querySelectorAll('.tx-amount-cell');
+    if (amountCells.length >= 2) {
+        var bothZero = Number(tx.amount_out) === 0 && Number(tx.amount_in) === 0;
+        amountCells[0].textContent = Number(tx.amount_out) > 0
+            ? Number(tx.amount_out).toLocaleString()
+            : (bothZero ? '0' : '');
+        amountCells[1].textContent = Number(tx.amount_in) > 0
+            ? Number(tx.amount_in).toLocaleString()
+            : (bothZero ? '0' : '');
     }
 
     // カテゴリーセレクト
@@ -258,28 +276,50 @@ initSelectAll('selectAllDup', '.dup-check');
 
 // ===== URLパラメータに応じてタブを切り替え =====
 
-const urlParams = new URLSearchParams(window.location.search);
+let restoringAnalysisTab = false;
 
-if (urlParams.has('tab')) {
-    const tabId = urlParams.get('tab') + '-tab';
-    const targetTab = document.getElementById(tabId);
-    if (targetTab) {
-        const tab = new bootstrap.Tab(targetTab);
-        tab.show();
+function activateAnalysisTabFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let tabName = urlParams.get('tab');
+
+    if (!tabName && (
+        urlParams.has('bank') ||
+        urlParams.has('account') ||
+        urlParams.has('category') ||
+        urlParams.has('keyword')
+    )) {
+        tabName = 'all';
     }
-} else if (urlParams.has('bank') || urlParams.has('account') || urlParams.has('category') || urlParams.has('keyword')) {
-    const allTab = document.getElementById('all-tab');
-    if (allTab) {
-        const tab = new bootstrap.Tab(allTab);
-        tab.show();
-    }
+
+    const targetTab = document.getElementById((tabName || 'overview') + '-tab');
+    if (!targetTab) return;
+
+    restoringAnalysisTab = true;
+    bootstrap.Tab.getOrCreateInstance(targetTab).show();
+    queueMicrotask(function () {
+        restoringAnalysisTab = false;
+    });
 }
 
+activateAnalysisTabFromUrl();
+window.addEventListener('popstate', activateAnalysisTabFromUrl);
+
 // ===== 付箋ボタンのクリック処理（AJAX） =====
+
+function updateQuestionCandidateBadge(delta) {
+    const badge = document.querySelector('#flagged-tab .analysis-nav-badge');
+    if (!badge) return;
+    const count = Math.max(0, (parseInt(badge.textContent, 10) || 0) + delta);
+    badge.textContent = count;
+    badge.classList.toggle('bg-info', count > 0);
+    badge.classList.toggle('bg-light', count === 0);
+    badge.classList.toggle('text-secondary', count === 0);
+}
 
 document.querySelectorAll('.flag-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const button = this;
+        const wasFlagged = button.classList.contains('btn-info');
         const txId = button.getAttribute('data-tx-id');
         const sourceTab = button.getAttribute('data-source-tab');
         const row = button.closest('tr');
@@ -291,6 +331,9 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
 
         postJson(apiUrl, formData, {
             onSuccess: (data) => {
+                if (data.is_flagged !== wasFlagged) {
+                    updateQuestionCandidateBadge(data.is_flagged ? 1 : -1);
+                }
                 if (sourceTab === 'flagged' && !data.is_flagged) {
                     fadeOutRow(row, () => {
                         const tbody = document.querySelector('#flagged tbody');
@@ -298,26 +341,31 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
                             tbody.innerHTML = `
                                 <tr><td colspan="9">
                                     <div class="empty-state">
-                                        <div class="empty-state-icon"><i class="bi bi-bookmark"></i></div>
-                                        <div class="empty-state-text">付箋が付いた取引はありません</div>
+                                        <div class="empty-state-icon"><i class="bi bi-question-circle"></i></div>
+                                        <div class="empty-state-text">質問候補はありません</div>
                                     </div>
                                 </td></tr>`;
                         }
                     });
-                    showToast('付箋を外しました', 'info');
+                    showToast('質問候補から外しました', 'info');
+                } else if (sourceTab === 'unclassified' && data.is_flagged) {
+                    ProgressBar.update(1);
+                    updateUnclassifiedCount(1);
+                    fadeOutRow(row);
+                    showToast('質問候補へ移動しました', 'success');
                 } else {
                     if (data.is_flagged) {
                         button.classList.remove('btn-outline-secondary');
                         button.classList.add('btn-info');
-                        button.title = '付箋を外す';
+                        button.title = '質問候補から外す';
                         if (row) row.classList.add('table-warning');
-                        showToast('付箋を追加しました', 'success');
+                        showToast('質問候補に追加しました', 'success');
                     } else {
                         button.classList.remove('btn-info');
                         button.classList.add('btn-outline-secondary');
-                        button.title = '付箋を付ける';
+                        button.title = '質問候補に追加';
                         if (row) row.classList.remove('table-warning');
-                        showToast('付箋を外しました', 'info');
+                        showToast('質問候補から外しました', 'info');
                     }
                     enableButton(button);
                 }
@@ -332,8 +380,9 @@ document.querySelectorAll('#analysisTabs .nav-link').forEach(tab => {
     tab.addEventListener('shown.bs.tab', function() {
         const tabName = this.id.replace('-tab', '');
         const url = new URL(window.location);
+        if (restoringAnalysisTab || url.searchParams.get('tab') === tabName) return;
         url.searchParams.set('tab', tabName);
-        history.replaceState(null, '', url);
+        history.pushState({ analysisTab: tabName }, '', url);
     });
 });
 
@@ -389,6 +438,38 @@ if (applyBulkCategoryBtn) {
 }
 
 updateSelectionUI();
+
+// ===== 取引表の表示密度 =====
+
+const tableDensityToggle = document.getElementById('tableDensityToggle');
+const transactionTable = document.querySelector('#allTxForm .transaction-table');
+if (tableDensityToggle && transactionTable) {
+    const densityStorageKey = 'bankAnalyzer.compactTransactionTable';
+    const applyCompactDensity = function(compact) {
+        transactionTable.classList.toggle('is-compact', compact);
+        tableDensityToggle.setAttribute('aria-pressed', String(compact));
+        const label = tableDensityToggle.querySelector('span');
+        if (label) label.textContent = compact ? '標準表示' : 'コンパクト';
+        const icon = tableDensityToggle.querySelector('i');
+        if (icon) icon.className = compact ? 'bi bi-arrows-expand' : 'bi bi-arrows-collapse';
+    };
+    let compactByDefault = false;
+    try {
+        compactByDefault = localStorage.getItem(densityStorageKey) === 'true';
+    } catch (error) {
+        compactByDefault = false;
+    }
+    applyCompactDensity(compactByDefault);
+    tableDensityToggle.addEventListener('click', function() {
+        const compact = !transactionTable.classList.contains('is-compact');
+        applyCompactDensity(compact);
+        try {
+            localStorage.setItem(densityStorageKey, String(compact));
+        } catch (error) {
+            // 保存できない環境でも表示切替は利用できる。
+        }
+    });
+}
 
 // ===== 取引追加・削除機能 =====
 
@@ -519,25 +600,26 @@ function insertTxRow(tx) {
             <button type="button" class="btn btn-sm btn-outline-danger p-0 px-1 delete-tx-btn"
                 data-tx-id="${tx.id}" title="削除"><i class="bi bi-trash"></i></button>
         </td>
-        <td>${toWarekiShort(tx.date)}</td>
-        <td>${tx.bank_name || '-'}</td>
-        <td>${tx.branch_name || '-'}</td>
-        <td>${tx.account_type || '-'}</td>
-        <td>${tx.account_number || '-'}</td>
-        <td style="max-width:200px;" class="text-truncate" title="${tx.description || ''}">${tx.description || ''}</td>
-        <td class="text-end">${amtOut}</td>
-        <td class="text-end">${amtIn}</td>
+        <td class="text-nowrap tx-date-cell" data-date="${tx.date || ''}">${toWarekiShort(tx.date)}</td>
+        <td class="tx-account-cell">
+            <span class="tx-account-primary">${tx.bank_name || '-'}${tx.branch_name ? ' ' + tx.branch_name : ''}</span>
+            <small>${tx.account_type || '-'}・${tx.account_number || '-'}</small>
+        </td>
+        <td class="tx-description-cell" title="${tx.description || ''}"><span class="text-truncate">${tx.description || ''}</span></td>
+        <td class="text-end text-nowrap tx-amount-cell">${amtOut}</td>
+        <td class="text-end text-nowrap tx-amount-cell">${amtIn}</td>
         <td><select name="cat-${tx.id}" class="form-select form-select-sm" data-last-saved="${tx.category || '未分類'}">${catOptions.replace(`value="${tx.category || '未分類'}"`, `value="${tx.category || '未分類'}" selected`)}</select></td>
-        <td><button type="button" class="btn btn-sm btn-outline-info"
+        <td class="row-actions text-nowrap"><button type="button" class="btn btn-sm btn-outline-info"
             data-bs-toggle="modal" data-bs-target="#editModal"
             data-tx-id="${tx.id}" data-tx-date="${tx.date || ''}"
             data-tx-desc="${tx.description || ''}" data-tx-amount-out="${tx.amount_out}"
             data-tx-amount-in="${tx.amount_in}" data-tx-balance="${tx.balance || ''}"
             data-tx-cat="${tx.category || ''}" data-tx-memo="${tx.memo || ''}"
             data-tx-bank="${tx.bank_name || ''}" data-tx-branch="${tx.branch_name || ''}"
-            data-tx-account-type="${tx.account_type || ''}" data-tx-account="${tx.account_number || ''}">詳細</button></td>
-        <td><button type="button" class="btn btn-sm btn-outline-secondary flag-btn"
-            data-tx-id="${tx.id}" data-source-tab="all" title="付箋を付ける"><i class="bi bi-bookmark-fill" aria-hidden="true"></i></button></td>
+            data-tx-account-type="${tx.account_type || ''}" data-tx-account="${tx.account_number || ''}">詳細</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary flag-btn"
+                data-tx-id="${tx.id}" data-source-tab="all" title="付箋を付ける"><i class="bi bi-bookmark-fill" aria-hidden="true"></i></button>
+        </td>
     `;
     tbody.insertBefore(tr, tbody.firstChild);
     tr.querySelector('.insert-tx-btn').addEventListener('click', handleInsertBtnClick);

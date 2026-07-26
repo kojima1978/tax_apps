@@ -3,7 +3,7 @@ import json
 import logging
 
 from django.contrib import messages
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Min, Max
 from django.db.models.functions import TruncMonth
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -23,6 +23,7 @@ from ..handlers import (
     handle_update_transaction,
     handle_delete_duplicates,
     handle_delete_by_range,
+    handle_restore_range_backup,
     handle_toggle_flag,
     handle_update_memo,
     handle_bulk_replace_field,
@@ -34,6 +35,7 @@ from ..handlers import (
     handle_move_pattern,
     handle_classify_and_register_pattern,
     handle_get_category_keywords,
+    handle_preview_pattern_impact,
     handle_bulk_pattern_changes,
     handle_run_auto_classify,
 )
@@ -52,6 +54,7 @@ _ANALYSIS_ACTION_HANDLERS = {
     'update_transaction': handle_update_transaction,
     'delete_duplicates': handle_delete_duplicates,
     'delete_by_range': handle_delete_by_range,
+    'restore_range_backup': handle_restore_range_backup,
     'toggle_flag': handle_toggle_flag,
     'update_memo': handle_update_memo,
     'bulk_replace_field': handle_bulk_replace_field,
@@ -63,6 +66,7 @@ _ANALYSIS_ACTION_HANDLERS = {
     'move_pattern': handle_move_pattern,
     'classify_and_register_pattern': handle_classify_and_register_pattern,
     'get_category_keywords': handle_get_category_keywords,
+    'preview_pattern_impact': handle_preview_pattern_impact,
     'bulk_pattern_changes': handle_bulk_pattern_changes,
     'run_auto_classify': handle_run_auto_classify,
 }
@@ -106,10 +110,23 @@ def _build_chart_data(case):
         'counts': [s['count'] for s in category_stats],
         'totals': [((s['total_out'] or 0) + (s['total_in'] or 0)) for s in category_stats],
     }
-    unclassified_total = all_txs_qs.filter(category=UNCATEGORIZED).count()
+    # 質問候補へ送った未分類取引は、分類作業キューからは除外する。
+    unclassified_total = all_txs_qs.filter(
+        category=UNCATEGORIZED,
+        is_flagged=False,
+    ).count()
     total_tx_count = all_txs_qs.count()
     classified_count = total_tx_count - unclassified_total
     classified_pct = round(classified_count / total_tx_count * 100, 1) if total_tx_count > 0 else 0
+    totals = all_txs_qs.aggregate(
+        total_out=Sum('amount_out'),
+        total_in=Sum('amount_in'),
+        earliest_date=Min('date'),
+        latest_date=Max('date'),
+    )
+    total_out = totals['total_out'] or 0
+    total_in = totals['total_in'] or 0
+    flagged_count = all_txs_qs.filter(is_flagged=True).count()
     if unclassified_total:
         chart_categories['labels'].append('未分類')
         chart_categories['counts'].append(unclassified_total)
@@ -136,6 +153,12 @@ def _build_chart_data(case):
         'total_tx_count': total_tx_count,
         'classified_count': classified_count,
         'classified_pct': classified_pct,
+        'total_out': total_out,
+        'total_in': total_in,
+        'net_flow': total_in - total_out,
+        'flagged_count': flagged_count,
+        'earliest_transaction_date': totals['earliest_date'],
+        'latest_transaction_date': totals['latest_date'],
     }
 
 
@@ -167,7 +190,10 @@ def _build_transfer_context(pairs):
 
 def _build_unclassified_context(request, case, sort_order, keyword):
     """未分類タブのグルーピング + サジェストデータを構築"""
-    unclassified_qs = case.transactions.with_account_info().filter(category=UNCATEGORIZED).order_by(*sort_order)
+    unclassified_qs = case.transactions.with_account_info().filter(
+        category=UNCATEGORIZED,
+        is_flagged=False,
+    ).order_by(*sort_order)
     group_data = AnalysisService.build_unclassified_groups(unclassified_qs, keyword)
     group_page = paginate(group_data['groups'], request.GET.get('group_page', 1), 50)
 
@@ -195,6 +221,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
             'case': case,
             'no_data': True,
             'filter_state': filter_state,
+            'latest_deletion_backup': case.deletion_backups.filter(restored_at__isnull=True).first(),
         })
 
     keyword = filter_state.get('keyword', '')
@@ -205,7 +232,10 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     all_txs_count, all_txs_page = _filter_and_paginate(
         analysis_data['all_txs'], keyword, request.GET.get('page', 1), per_page,
     )
-    unclassified_txs = case.transactions.with_account_info().filter(category=UNCATEGORIZED).order_by(*sort_order)
+    unclassified_txs = case.transactions.with_account_info().filter(
+        category=UNCATEGORIZED,
+        is_flagged=False,
+    ).order_by(*sort_order)
     _, unclassified_page = _filter_and_paginate(
         unclassified_txs, keyword, request.GET.get('unclassified_page', 1), per_page,
     )
@@ -233,12 +263,21 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'suggestions_count': analysis_data.get('suggestions_count', 0),
         'ai_suggestions': analysis_data.get('ai_suggestions', []),
         'ai_groups': analysis_data.get('ai_groups', []),
+        'high_confidence_groups': [
+            group for group in analysis_data.get('ai_groups', [])
+            if group.get('score', 0) >= 95
+        ],
+        'high_confidence_tx_count': sum(
+            group.get('count', 0) for group in analysis_data.get('ai_groups', [])
+            if group.get('score', 0) >= 95
+        ),
         'ai_groups_json': json.dumps(
             [{k: v for k, v in g.items() if k != 'sample_date'} for g in analysis_data.get('ai_groups', [])],
             ensure_ascii=False,
         ),
         'global_patterns': sort_patterns_dict(config.get_classification_patterns()),
         'case_patterns': sort_patterns_dict(case.custom_patterns or {}),
+        'latest_deletion_backup': case.deletion_backups.filter(restored_at__isnull=True).first(),
         **_build_chart_data(case),
         **_build_transfer_context(analysis_data['transfer_pairs']),
     }

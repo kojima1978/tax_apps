@@ -363,6 +363,7 @@ class AnalysisService:
         # 未分類の取引を取得（countとデータ取得を1クエリに統合）
         unclassified_qs = case.transactions.filter(
             category=UNCATEGORIZED,
+            is_flagged=False,
         ).only('id', 'date', 'description', 'amount_out', 'amount_in')
         unclassified_count = unclassified_qs.count()
 
@@ -464,7 +465,13 @@ class AnalysisService:
         if keyword:
             transactions = filter_by_keyword(transactions, keyword)
 
-        group_map = defaultdict(lambda: {'count': 0, 'total_out': 0, 'total_in': 0, 'tx_ids': []})
+        group_map = defaultdict(lambda: {
+            'count': 0,
+            'total_out': 0,
+            'total_in': 0,
+            'tx_ids': [],
+            'samples': [],
+        })
         iterable = transactions if isinstance(transactions, list) else transactions.iterator()
         for tx in iterable:
             desc = tx.description or '（摘要なし）'
@@ -473,6 +480,13 @@ class AnalysisService:
             g['total_out'] += tx.amount_out or 0
             g['total_in'] += tx.amount_in or 0
             g['tx_ids'].append(tx.id)
+            if len(g['samples']) < 3:
+                g['samples'].append({
+                    'date': tx.date,
+                    'bank_name': getattr(tx, 'bank_name', '') or '',
+                    'amount_out': tx.amount_out or 0,
+                    'amount_in': tx.amount_in or 0,
+                })
 
         groups = []
         for desc, data in group_map.items():
@@ -483,6 +497,7 @@ class AnalysisService:
                 'total_in': data['total_in'],
                 'tx_ids_json': json.dumps(data['tx_ids']),
                 'first_tx_id': data['tx_ids'][0] if data['tx_ids'] else None,
+                'samples': data['samples'],
             })
         groups.sort(key=lambda g: g['count'], reverse=True)
 

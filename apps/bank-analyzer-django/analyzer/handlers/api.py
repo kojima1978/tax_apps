@@ -8,7 +8,7 @@ from datetime import datetime
 
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from ..models import Case, Transaction
 from ..services import TransactionService
@@ -203,3 +203,18 @@ def api_get_field_values(request: HttpRequest, pk: int) -> JsonResponse:
         })
     except Exception as e:
         return json_api_error(e, f"フィールド値取得APIエラー: field_name={field_name}")
+
+
+@require_GET
+def api_range_delete_preview(request: HttpRequest, pk: int) -> JsonResponse:
+    """ID範囲削除の対象件数とサンプルを返す"""
+    case = get_object_or_404(Case, pk=pk)
+    try:
+        start_id = int(request.GET.get('start_id', ''))
+        end_id = int(request.GET.get('end_id', ''))
+        preview = TransactionService.preview_delete_by_range(case, start_id, end_id)
+        return JsonResponse({'success': True, **preview})
+    except (ValueError, TypeError):
+        return json_error('開始IDと終了IDを整数で入力してください。')
+    except Exception as e:
+        return json_api_error(e, f"ID範囲削除プレビューAPIエラー: case_id={pk}")

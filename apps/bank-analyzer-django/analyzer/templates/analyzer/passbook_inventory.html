@@ -255,7 +255,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script src="{% static 'analyzer/vendor/sortable/Sortable-1.15.6.min.js' %}"></script>
 <script src="{% static 'analyzer/js/passbook_inventory.js' %}"></script>
 <script>
     PassbookInventory.init({

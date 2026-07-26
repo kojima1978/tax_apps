@@ -3,92 +3,210 @@
 {% load pagination_tags %}
 
 <!-- 未分類タブ -->
-<div class="tab-pane fade" id="unclassified" role="tabpanel" aria-labelledby="unclassified-tab">
+<div class="tab-pane fade" id="unclassified" role="tabpanel" aria-labelledby="unclassified-tab" tabindex="0">
     <div class="glass-card p-4">
 
-        <!-- 進捗バー -->
+        <!-- 分類ワークベンチ・ヘッダー -->
         {% if total_tx_count > 0 %}
-        <div class="mb-3" id="progressBarSection">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <small class="text-muted">
-                    分類進捗: <span id="classifiedCount">{{ classified_count }}</span> / <span id="totalTxCount">{{ total_tx_count }}</span>件
-                </small>
-                <small class="fw-bold" id="classifiedPct" style="color: {% if classified_pct >= 80 %}#16a34a{% elif classified_pct >= 50 %}#d97706{% else %}#dc2626{% endif %};">
-                    {{ classified_pct }}%
-                </small>
+        <section class="classification-workbench-header mb-3" id="progressBarSection" aria-labelledby="classificationWorkbenchTitle">
+            <div class="classification-workbench-title">
+                <div>
+                    <span class="classification-eyebrow">CLASSIFICATION WORKBENCH</span>
+                    <h2 class="h4 mb-1" id="classificationWorkbenchTitle">未分類を整理</h2>
+                    <p class="mb-0">取引を1件ずつ確認して分類します。同じ摘要をまとめたい場合はグループ表示も使えます。</p>
+                </div>
+                <div class="classification-shortcuts d-none d-lg-flex" aria-label="キーボードショートカット">
+                    <span><kbd>J</kbd><kbd>K</kbd> 移動</span>
+                    <span><kbd>1</kbd>〜<kbd>6</kbd> 分類</span>
+                    <span><kbd>Enter</kbd> 選択</span>
+                </div>
             </div>
-            <div class="progress" style="height: 8px;">
+
+            <div class="classification-metrics">
+                <div class="classification-metric classification-metric-primary">
+                    <span>残り</span>
+                    <strong id="unclassifiedRemainingCount">{{ unclassified_count|intcomma }}</strong>
+                    <small>件</small>
+                </div>
+                <div class="classification-metric">
+                    <span>グループ候補</span>
+                    <strong id="unclassifiedGroupCount">{{ unclassified_group_count|default:"0"|intcomma }}</strong>
+                    <small>組</small>
+                </div>
+                <div class="classification-metric">
+                    <span>高信頼度候補</span>
+                    <strong>{{ high_confidence_tx_count|default:"0"|intcomma }}</strong>
+                    <small>件</small>
+                </div>
+                <div class="classification-metric">
+                    <span>今回の処理</span>
+                    <strong id="sessionClassifiedCount">0</strong>
+                    <small>件</small>
+                </div>
+            </div>
+
+            <div class="classification-progress">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <small>
+                        整理済み <span id="classifiedCount">{{ classified_count }}</span> /
+                        <span id="totalTxCount">{{ total_tx_count }}</span>件
+                    </small>
+                    <small class="fw-bold" id="classifiedPct">{{ classified_pct }}%</small>
+                </div>
+                <div class="progress">
                 <div class="progress-bar {% if classified_pct >= 80 %}bg-success{% elif classified_pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
                      role="progressbar" id="classifiedProgressBar"
                      style="width: {{ classified_pct }}%;"
                      aria-valuenow="{{ classified_pct }}" aria-valuemin="0" aria-valuemax="100">
                 </div>
             </div>
-        </div>
+            </div>
+
+            <ol class="classification-flow" aria-label="分類作業の流れ">
+                <li class="is-current"><span>1</span>個別取引を確認・分類</li>
+                <li><span>2</span>必要に応じてグループ分類</li>
+                <li><span>3</span>判断できない取引を質問候補へ</li>
+            </ol>
+        </section>
         {% endif %}
 
+        {% if unclassified_count %}
         <!-- キーワード検索 + ビュー切替 -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <form method="get" class="d-flex gap-2 align-items-center" style="flex: 1; max-width: 400px;">
+        <div class="classification-toolbar mb-3">
+            <form method="get" class="classification-search">
                 <input type="hidden" name="tab" value="unclassified">
                 {% if filter_state.sort %}<input type="hidden" name="sort" value="{{ filter_state.sort }}">{% endif %}
                 {% if filter_state.per_page != '100' %}<input type="hidden" name="per_page" value="{{ filter_state.per_page }}">{% endif %}
-                <div class="input-group input-group-sm">
-                    <input type="text" name="keyword" class="form-control" value="{{ filter_state.keyword }}" placeholder="摘要をキーワード検索（半角/全角カタカナ対応）">
-                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                <label for="unclassifiedKeyword" class="visually-hidden">未分類取引の摘要を検索</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                    <input type="search" id="unclassifiedKeyword" name="keyword" class="form-control"
+                        value="{{ filter_state.keyword }}" placeholder="摘要を検索">
+                    <button class="btn btn-success" type="submit">検索</button>
                     {% if filter_state.keyword %}
-                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=unclassified" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+                    <a href="{% url 'analysis-dashboard' case.pk %}?tab=unclassified"
+                        class="btn btn-outline-secondary" aria-label="検索を解除"><i class="bi bi-x-lg"></i></a>
                     {% endif %}
                 </div>
             </form>
-            <div class="btn-group btn-group-sm" id="viewToggle">
-                <button type="button" class="btn btn-outline-primary active" data-view="flat" title="一覧表示">
-                    <i class="bi bi-list-ul"></i> 一覧
+            <div class="btn-group" id="viewToggle" aria-label="表示方法">
+                <button type="button" class="btn btn-outline-success active" data-view="flat"
+                    aria-pressed="true" title="取引を1件ずつ表示">
+                    <i class="bi bi-list-ul"></i> 個別
                 </button>
-                <button type="button" class="btn btn-outline-primary" data-view="grouped" title="グループ表示">
+                <button type="button" class="btn btn-outline-success" data-view="grouped"
+                    aria-pressed="false" title="摘要ごとにまとめて表示">
                     <i class="bi bi-collection"></i> グループ
                 </button>
             </div>
         </div>
 
+        {% if high_confidence_groups %}
+        <section class="high-confidence-queue mb-3" aria-labelledby="highConfidenceHeading">
+            <div class="high-confidence-summary">
+                <div class="high-confidence-icon"><i class="bi bi-stars" aria-hidden="true"></i></div>
+                <div>
+                    <span class="classification-eyebrow">任意の効率化</span>
+                    <h3 class="h6 mb-1" id="highConfidenceHeading">高信頼度の分類候補が{{ high_confidence_tx_count }}件あります</h3>
+                    <p class="mb-0">95%以上の候補だけを対象にします。適用前に下の内訳を確認できます。</p>
+                </div>
+                <button type="button" class="btn btn-success ms-auto"
+                    onclick="AISuggestions.bulkApply(95)">
+                    <i class="bi bi-check-all me-1" aria-hidden="true"></i>{{ high_confidence_tx_count }}件をまとめて適用
+                </button>
+            </div>
+            <details class="high-confidence-details">
+                <summary>候補の内訳を見る</summary>
+                <div class="high-confidence-list">
+                    {% for group in high_confidence_groups %}
+                    <div class="ai-group-row high-confidence-item"
+                        data-description="{{ group.description }}"
+                        data-category="{{ group.suggested_category }}"
+                        data-tx-ids="{{ group.tx_ids|join:',' }}"
+                        data-count="{{ group.count }}"
+                        data-score="{{ group.score }}">
+                        <span class="text-truncate" title="{{ group.description }}">{{ group.description }}</span>
+                        <span>{{ group.count }}件</span>
+                        <strong>{{ group.suggested_category }}</strong>
+                        <span class="confidence-score">{{ group.score }}%</span>
+                        <button type="button" class="btn btn-outline-success btn-sm ai-apply-group-btn">適用</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </details>
+        </section>
+        {% endif %}
+
+        <div class="classification-quick-bar mb-3" id="classificationQuickBar">
+            <div>
+                <span class="classification-eyebrow">よく使う分類</span>
+                <strong>取引を選び、ボタンまたは数字キーで分類</strong>
+            </div>
+            <div class="classification-quick-buttons" id="classificationQuickButtons">
+                {% for cat in categories|slice:":6" %}
+                <button type="button" class="btn btn-outline-secondary quick-category-btn"
+                    data-category="{{ cat }}" data-shortcut="{{ forloop.counter }}">
+                    <kbd>{{ forloop.counter }}</kbd>{{ cat }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         {% if unclassified_txs %}
 
         <!-- ===== グループ表示 ===== -->
         <div id="groupedView" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="classification-view-heading">
                 <h5 class="mb-0">
                     <i class="bi bi-collection text-warning me-1"></i>
-                    未分類: <strong>{{ unclassified_group_count|default:"0" }}</strong>グループ
+                    摘要グループ: <strong id="unclassifiedViewGroupCount">{{ unclassified_group_count|default:"0" }}</strong>組
                     <span class="text-muted">/</span>
                     <strong id="unclassifiedTxTotal">{{ unclassified_tx_total|default:"0" }}</strong>件
                     {% if filter_state.keyword %}<small class="text-muted ms-1">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
                 </h5>
-                <a href="{% url 'classify-preview' case.pk %}" class="btn btn-outline-primary btn-sm">
-                    <i class="bi bi-eye"></i> プレビューして一括分類
-                </a>
+                <span class="small text-muted">行を選択するとクイック分類が使えます</span>
             </div>
 
             {% if unclassified_groups %}
-            <div class="table-responsive">
-                <table class="table table-hover align-middle table-sm" id="groupedTable">
+            <div class="table-responsive classification-group-table-wrap" tabindex="0"
+                role="region" aria-label="未分類の摘要グループ">
+                <table class="table table-hover align-middle classification-group-table" id="groupedTable">
                     <thead>
                         <tr>
-                            <th style="min-width: 250px;">摘要</th>
-                            <th class="text-center" style="width: 150px;">件数</th>
+                            <th style="min-width: 300px;">摘要・対象取引</th>
+                            <th class="text-center" style="width: 120px;">件数</th>
                             <th class="text-end" style="width: 120px;">払戻合計</th>
                             <th class="text-end" style="width: 120px;">お預り合計</th>
-                            <th style="min-width: 180px;">分類</th>
+                            <th style="min-width: 200px;">分類</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for group in unclassified_groups %}
-                        <tr data-group-desc="{{ group.description|escapejs }}"
+                        <tr class="classification-group-row" tabindex="0"
+                            data-group-desc="{{ group.description|escapejs }}"
                             data-tx-ids="{{ group.tx_ids_json }}"
                             data-first-tx-id="{{ group.first_tx_id }}"
                             data-count="{{ group.count }}">
                             <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="text-truncate" style="max-width: 300px;" title="{{ group.description }}">{{ group.description }}</span>
+                                <div class="classification-group-description">
+                                    <span class="text-truncate" title="{{ group.description }}">{{ group.description }}</span>
+                                    <details class="classification-impact">
+                                        <summary>対象を確認</summary>
+                                        <div class="classification-samples">
+                                            {% for sample in group.samples %}
+                                            <span>
+                                                {{ sample.date|wareki_short }}・{{ sample.bank_name|default:"口座不明" }}・
+                                                {% if sample.amount_out > 0 %}払戻 {{ sample.amount_out|intcomma }}円{% else %}お預り {{ sample.amount_in|intcomma }}円{% endif %}
+                                            </span>
+                                            {% endfor %}
+                                            {% if group.count > 3 %}<small>ほか{{ group.count|add:"-3" }}件</small>{% endif %}
+                                        </div>
+                                    </details>
+                                    <a class="classification-individual-link"
+                                        href="?tab=unclassified&keyword={{ group.description|urlencode }}">
+                                        個別に確認
+                                    </a>
                                 </div>
                             </td>
                             <td>
@@ -113,8 +231,9 @@
                             </td>
                             <td>
                                 <div class="d-flex align-items-center gap-1">
-                                    <select class="form-select form-select-sm group-category-select">
-                                        <option value="">-- 分類 --</option>
+                                    <label for="groupCategory{{ forloop.counter }}" class="visually-hidden">{{ group.description }}の分類</label>
+                                    <select class="form-select group-category-select" id="groupCategory{{ forloop.counter }}">
+                                        <option value="">分類を選択</option>
                                         {% for cat in categories %}
                                         <option value="{{ cat }}">{{ cat }}</option>
                                         {% endfor %}
@@ -163,22 +282,19 @@
                 <input type="hidden" name="action" value="bulk_update_categories">
                 <input type="hidden" name="source_tab" value="unclassified">
 
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="classification-view-heading">
                     <h5 class="mb-0">
-                        <span class="text-warning me-2">&#x2753;</span>
-                        未分類取引: <span id="unclassifiedFlatCount">{{ unclassified_txs.paginator.count }}</span>件
+                        <i class="bi bi-list-check text-warning me-1" aria-hidden="true"></i>
+                        個別確認: <span id="unclassifiedFlatCount">{{ unclassified_txs.paginator.count }}</span>件
                         {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
                         {% if unclassified_txs.paginator.num_pages > 1 %}
                         <small class="text-muted">({{ unclassified_txs.number }} / {{ unclassified_txs.paginator.num_pages }}ページ)</small>
                         {% endif %}
                     </h5>
                     <div class="d-flex align-items-center gap-1">
-                        <a href="{% url 'classify-preview' case.pk %}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-eye"></i> プレビューして一括分類
-                        </a>
-                        <button type="submit" class="btn btn-outline-secondary btn-sm" title="カテゴリー変更は自動保存されます">
-                            <i class="bi bi-check-lg"></i> 一括保存
-                        </button>
+                        <span class="save-state-pill" role="status">
+                            <i class="bi bi-cloud-check" aria-hidden="true"></i>変更は自動保存
+                        </span>
                     </div>
                 </div>
 
@@ -227,10 +343,10 @@
                                 <div id="inlineKeywordCandidates" class="d-flex gap-1 flex-wrap"></div>
                                 <input type="text" id="inlinePatternKeyword" class="form-control form-control-sm" style="width: 180px;" placeholder="キーワード">
                                 <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-outline-primary active" data-scope="global" id="inlineScopeGlobal">
+                                    <button type="button" class="btn btn-outline-primary" data-scope="global" id="inlineScopeGlobal">
                                         <i class="bi bi-globe"></i> 全案件
                                     </button>
-                                    <button type="button" class="btn btn-outline-primary" data-scope="case" id="inlineScopeCase">
+                                    <button type="button" class="btn btn-outline-primary active" data-scope="case" id="inlineScopeCase">
                                         <i class="bi bi-folder"></i> 案件固有
                                     </button>
                                 </div>
@@ -242,30 +358,28 @@
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle table-sm" id="unclassifiedTable">
+                <div class="table-responsive transaction-table-responsive" tabindex="0"
+                    role="region" aria-label="未分類取引の個別一覧">
+                    <table class="table table-hover align-middle table-sm transaction-table" id="unclassifiedTable">
                         <thead>
                             <tr>
                                 <th style="width: 40px;">
                                     <input type="checkbox" class="form-check-input" id="selectAllUnclassified" title="全選択">
                                 </th>
-                                <th style="width: 60px;">+/-</th>
+                                <th style="width: 54px;">削除</th>
                                 <th>{% sort_header "unclassified" "date" "日付" filter_state %}</th>
-                                <th>銀行名</th>
-                                <th>支店名</th>
-                                <th>種別</th>
-                                <th>口座番号</th>
-                                <th>摘要</th>
+                                <th class="tx-account-column">口座</th>
+                                <th class="tx-description-column">摘要</th>
                                 <th>{% sort_header "unclassified" "amount_out" "払戻" filter_state %}</th>
                                 <th>{% sort_header "unclassified" "amount_in" "お預り" filter_state %}</th>
                                 <th style="min-width: 130px;">分類</th>
-                                <th>操作</th>
-                                <th><i class="bi bi-bookmark" aria-hidden="true"></i></th>
+                                <th style="min-width: 150px;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for tx in unclassified_txs %}
-                            <tr data-tx-id="{{ tx.id }}" data-description="{{ tx.description|escapejs }}"{% if tx.is_flagged %} class="table-warning"{% endif %}>
+                            <tr class="classification-flat-row{% if tx.is_flagged %} table-warning{% endif %}"
+                                tabindex="0" data-tx-id="{{ tx.id }}" data-description="{{ tx.description|escapejs }}">
                                 <td>
                                     <input type="checkbox" value="{{ tx.id }}" class="form-check-input unclassified-select-check">
                                 </td>
@@ -280,11 +394,13 @@
                                     </button>
                                 </td>
                                 <td class="text-nowrap tx-date-cell" data-date="{{ tx.date|date:'Y-m-d' }}">{{ tx.date|wareki_short }}</td>
-                                <td>{{ tx.bank_name|default:"-" }}</td>
-                                <td>{{ tx.branch_name|default:"-" }}</td>
-                                <td>{{ tx.account_type|default:"-" }}</td>
-                                <td>{{ tx.account_number|default:"-" }}</td>
-                                <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
+                                <td class="tx-account-cell">
+                                    <span class="tx-account-primary">{{ tx.bank_name|default:"-" }} {{ tx.branch_name|default:"" }}</span>
+                                    <small>{{ tx.account_type|default:"-" }}・{{ tx.account_number|default:"-" }}</small>
+                                </td>
+                                <td class="tx-description-cell" title="{{ tx.description }}">
+                                    <span class="text-truncate">{{ tx.description }}</span>
+                                </td>
                                 <td class="text-end">
                                     {% if tx.amount_out > 0 %}
                                     <span class="text-danger">{{ tx.amount_out|intcomma }}</span>
@@ -300,10 +416,8 @@
                                     {% include "analyzer/partials/_category_select.html" %}
                                     {% endwith %}
                                 </td>
-                                <td class="row-actions">
+                                <td class="row-actions text-nowrap">
                                     {% include "analyzer/partials/_edit_button.html" %}
-                                </td>
-                                <td class="row-actions">
                                     {% with source_tab="unclassified" %}
                                     {% include "analyzer/partials/_flag_button.html" %}
                                     {% endwith %}
@@ -346,11 +460,26 @@
             </div>
         </div>
 
+        {% elif unclassified_count and filter_state.keyword %}
+        <div class="text-center py-5">
+            <i class="bi bi-search display-4 text-secondary mb-3" aria-hidden="true"></i>
+            <h5>検索条件に一致する未分類取引はありません</h5>
+            <p class="text-muted">キーワードを変えるか、検索条件を解除してください。</p>
+            <a href="{% url 'analysis-dashboard' case.pk %}?tab=unclassified" class="btn btn-outline-primary">
+                検索条件を解除
+            </a>
+        </div>
         {% else %}
         <div class="text-center py-5">
-            <i class="bi bi-check-circle display-1 text-success mb-3"></i>
+            <i class="bi bi-check-circle display-1 text-success mb-3" aria-hidden="true"></i>
             <h5>すべて分類済みです</h5>
-            <p class="text-muted mb-0">未分類の取引はありません。</p>
+            <p class="text-muted">分類作業は完了です。続けて質問候補や集計結果を確認できます。</p>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                <a href="?tab=overview" class="btn btn-success">概要へ戻る</a>
+                {% if flagged_count %}
+                <a href="?tab=flagged" class="btn btn-outline-success">質問候補を確認</a>
+                {% endif %}
+            </div>
         </div>
         {% endif %}
     </div>

@@ -205,8 +205,8 @@ const PatternPrompt = {
             '<div class="d-flex align-items-center gap-2 flex-wrap">' +
             '<small class="text-muted"><i class="bi bi-bookmark-plus"></i></small>' +
             '<span class="small">「<strong>' + keyword + '</strong>」→「<strong>' + category + '</strong>」を常に適用しますか？</span>' +
-            '<button type="button" class="btn btn-success btn-sm pattern-prompt-global"><i class="bi bi-globe"></i> 全案件</button>' +
-            '<button type="button" class="btn btn-outline-success btn-sm pattern-prompt-case"><i class="bi bi-folder"></i> この案件</button>' +
+            '<button type="button" class="btn btn-success btn-sm pattern-prompt-case"><i class="bi bi-folder"></i> この案件に登録</button>' +
+            '<button type="button" class="btn btn-outline-secondary btn-sm pattern-prompt-global"><i class="bi bi-globe"></i> 全案件に登録</button>' +
             '<button type="button" class="btn btn-outline-secondary btn-sm pattern-prompt-dismiss"><i class="bi bi-x"></i></button>' +
             '</div>';
 
@@ -226,7 +226,7 @@ const PatternPrompt = {
             self.hide();
         });
 
-        this._timeout = setTimeout(function() { self.hide(); }, 10000);
+        this._timeout = setTimeout(function() { self.hide(); }, 15000);
     },
 
     _register: function(category, keyword, scope, description) {

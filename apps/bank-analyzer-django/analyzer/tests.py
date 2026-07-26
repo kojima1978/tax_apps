@@ -9,7 +9,7 @@ from django.test import TestCase, Client, override_settings
 from django.urls import reverse, set_script_prefix
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from .models import Account, Case, Transaction
+from .models import Account, Case, DeletionBackup, Transaction
 from .forms import CaseForm, SettingsForm
 from .services import TransactionService, AnalysisService, parse_int_ids
 from .templatetags.japanese_date import wareki, wareki_short, wareki_year, get_japanese_era
@@ -232,6 +232,27 @@ class TransactionServiceTest(TestCase):
         )
         self.assertEqual(count, 0)
 
+    def test_delete_by_range_creates_restorable_backup(self):
+        """ID範囲削除はプレビューでき、バックアップから復元できる"""
+        start_id = min(self.tx1.id, self.tx2.id)
+        end_id = max(self.tx1.id, self.tx2.id)
+
+        preview = TransactionService.preview_delete_by_range(self.case, start_id, end_id)
+        self.assertEqual(preview["count"], 2)
+        self.assertEqual(len(preview["sample"]), 2)
+
+        count = TransactionService.delete_by_range(self.case, start_id, end_id)
+        self.assertEqual(count, 2)
+        backup = DeletionBackup.objects.get(case=self.case)
+        self.assertEqual(backup.transaction_count, 2)
+        self.assertFalse(self.case.transactions.exists())
+
+        restored, skipped = TransactionService.restore_deletion_backup(self.case, backup.id)
+        self.assertEqual((restored, skipped), (2, 0))
+        self.assertEqual(self.case.transactions.count(), 2)
+        backup.refresh_from_db()
+        self.assertIsNotNone(backup.restored_at)
+
     def test_delete_unclassified_transactions_only_deletes_unclassified(self):
         """未分類取引だけを削除"""
         classified = Transaction.objects.create(
@@ -430,6 +451,16 @@ class ViewsTest(TestCase):
         response = self.client.get(reverse('case-list'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "テスト案件")
+        self.assertContains(response, 'id="caseSearchStatus"')
+        self.assertContains(response, 'aria-label="案件一覧"')
+
+    def test_base_uses_bundled_frontend_assets(self):
+        """共通画面が外部CDNではなく同梱資産を使用すること"""
+        response = self.client.get(reverse('case-list'))
+        self.assertContains(response, "analyzer/vendor/bootstrap/bootstrap.min.css")
+        self.assertContains(response, "analyzer/vendor/plotly/plotly-2.27.0.min.js")
+        self.assertNotContains(response, "cdn.jsdelivr.net")
+        self.assertNotContains(response, "fonts.googleapis.com")
 
     def test_case_create_view(self):
         """案件作成ビュー GET"""
@@ -448,6 +479,16 @@ class ViewsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "取引データがありません")
 
+    def test_analysis_dashboard_no_data_shows_restore_backup(self):
+        """全件削除後のデータなし画面から復元できる"""
+        tx = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15), description="復元対象",
+        )
+        TransactionService.delete_by_range(self.case, tx.id, tx.id)
+        response = self.client.get(reverse('analysis-dashboard', args=[self.case.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "直前に削除した1件を復元")
+
     def test_analysis_dashboard_with_data(self):
         """分析ダッシュボード（データあり）"""
         Transaction.objects.create(
@@ -459,6 +500,52 @@ class ViewsTest(TestCase):
         )
         response = self.client.get(reverse('analysis-dashboard', args=[self.case.pk]))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="analysisSidebar"')
+        self.assertContains(response, 'id="overview-tab"')
+        self.assertContains(response, 'aria-orientation="vertical"')
+        self.assertContains(response, 'id="analysisMobileMenuOpen"')
+        self.assertContains(response, 'class="overview-kpi-grid')
+        self.assertContains(response, 'id="inlineSaveSummary"')
+        self.assertContains(response, "transaction-table-responsive")
+        self.assertContains(response, "表は横にスクロールできます")
+        self.assertContains(response, 'id="transactionKeyword"')
+        self.assertContains(response, 'id="activeFilterCount"')
+        self.assertContains(response, "この条件で絞り込む")
+        self.assertContains(response, "不明な取引を、質問候補として残せます")
+        self.assertContains(response, "質問候補に追加")
+        self.assertContains(response, 'aria-label="月次の出金額と入金額を比較する棒グラフ"')
+
+    def test_unclassified_workbench_defaults_to_individual_transactions(self):
+        """未分類整理は個別取引を主表示にする"""
+        Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 15),
+            description="個別確認する取引",
+            amount_out=10000,
+            category="未分類",
+        )
+
+        response = self.client.get(
+            reverse('analysis-dashboard', args=[self.case.pk]),
+            {'tab': 'unclassified'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'class="btn btn-outline-success active" data-view="flat"',
+        )
+        self.assertContains(
+            response,
+            'class="btn btn-outline-success" data-view="grouped"',
+        )
+        self.assertContains(response, '<div id="flatView">')
+        self.assertContains(
+            response,
+            '<div id="groupedView" style="display: none;">',
+        )
+        self.assertContains(response, "個別取引を確認・分類")
+        self.assertContains(response, "取引を選び、ボタンまたは数字キーで分類")
 
     def test_export_csv_all(self):
         """全取引CSVエクスポート"""
@@ -498,6 +585,54 @@ class ViewsTest(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_flagged_unclassified_is_moved_out_of_classification_queue(self):
+        """質問候補に送った未分類取引は分類作業キューから除外される"""
+        pending = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="分類待ち", category="未分類",
+        )
+        Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 16),
+            description="質問候補", category="未分類", is_flagged=True,
+        )
+
+        response = self.client.get(
+            reverse('analysis-dashboard', args=[self.case.pk]),
+            {'tab': 'unclassified'},
+        )
+
+        self.assertEqual(response.context['unclassified_count'], 1)
+        self.assertEqual(
+            [tx.pk for tx in response.context['unclassified_txs']],
+            [pending.pk],
+        )
+
+    def test_preview_pattern_impact_counts_current_and_other_cases(self):
+        """グローバルパターン登録前に案件別の影響件数を確認できる"""
+        other_case = Case.objects.create(name="別案件")
+        Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="カード ABC", category="未分類",
+        )
+        Transaction.objects.create(
+            case=other_case, date=date(2024, 1, 16),
+            description="ABC 振替", category="未分類",
+        )
+        Transaction.objects.create(
+            case=other_case, date=date(2024, 1, 17),
+            description="ABC 要質問", category="未分類", is_flagged=True,
+        )
+
+        response = self.client.post(
+            reverse('analysis-dashboard', args=[self.case.pk]),
+            {'action': 'preview_pattern_impact', 'keyword': 'ABC'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['current_case_count'], 1)
+        self.assertEqual(response.json()['other_cases_count'], 1)
+
     def test_api_create_transaction(self):
         """取引追加API"""
         response = self.client.post(
@@ -529,6 +664,51 @@ class ViewsTest(TestCase):
             {'tx_id': '99999'}
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_api_range_delete_preview(self):
+        """ID範囲削除APIは実在する対象だけを返す"""
+        tx = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="削除プレビュー", amount_out=1234,
+        )
+        response = self.client.get(
+            reverse('api-range-delete-preview', args=[self.case.pk]),
+            {'start_id': tx.id, 'end_id': tx.id + 10},
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['sample'][0]['id'], tx.id)
+
+    def test_range_delete_requires_confirmation_and_exact_count(self):
+        """ID範囲削除は確認文字と最新件数の一致を要求する"""
+        tx = Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description="削除確認", amount_out=1234,
+        )
+        url = reverse('analysis-dashboard', args=[self.case.pk])
+
+        response = self.client.post(url, {
+            'action': 'delete_by_range',
+            'start_id': tx.id,
+            'end_id': tx.id,
+            'expected_count': 1,
+            'delete_confirmation': '違う文字',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Transaction.objects.filter(id=tx.id).exists())
+
+        response = self.client.post(url, {
+            'action': 'delete_by_range',
+            'start_id': tx.id,
+            'end_id': tx.id,
+            'expected_count': 1,
+            'delete_confirmation': '削除',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Transaction.objects.filter(id=tx.id).exists())
+        self.assertTrue(DeletionBackup.objects.filter(case=self.case).exists())
 
     def test_api_delete_unclassified_transactions(self):
         """未分類取引の一括削除API"""

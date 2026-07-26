@@ -11,13 +11,20 @@ function initViewToggle(toggleSelector, viewIdMap) {
     if (!btns.length) return;
     btns.forEach(function(btn) {
         btn.addEventListener('click', function() {
-            btns.forEach(function(b) { b.classList.remove('active'); });
+            btns.forEach(function(b) {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
             this.classList.add('active');
+            this.setAttribute('aria-pressed', 'true');
             var view = this.dataset.view;
             Object.keys(viewIdMap).forEach(function(name) {
                 var el = document.getElementById(viewIdMap[name]);
                 if (el) el.style.display = view === name ? '' : 'none';
             });
+            if (typeof ClassificationWorkbench !== 'undefined' && ClassificationWorkbench.focusFirst) {
+                ClassificationWorkbench.focusFirst();
+            }
         });
     });
 }
@@ -37,6 +44,8 @@ function updateUnclassifiedCount(delta) {
     if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent) || 0) - delta);
     var flatCountEl = document.getElementById('unclassifiedFlatCount');
     if (flatCountEl) flatCountEl.textContent = Math.max(0, (parseInt(flatCountEl.textContent) || 0) - delta);
+    var remainingEl = document.getElementById('unclassifiedRemainingCount');
+    if (remainingEl) remainingEl.textContent = Math.max(0, (parseInt(remainingEl.textContent.replace(/,/g, '')) || 0) - delta).toLocaleString();
     var badge = document.querySelector('#unclassified-tab .badge');
     if (badge) {
         var count = Math.max(0, (parseInt(badge.textContent) || 0) - delta);
@@ -136,6 +145,7 @@ const ProgressBar = {
     update: function(delta) {
         if (!this._bar || !this._total) return;
         this._classified += delta;
+        if (this._classified < 0) this._classified = 0;
         var pct = Math.round(this._classified / this._total * 10) / 10;
         if (pct > 100) pct = 100;
 
@@ -149,6 +159,12 @@ const ProgressBar = {
 
         // バークラス更新
         this._bar.className = 'progress-bar ' + (pct >= 80 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-danger');
+
+        var sessionEl = document.getElementById('sessionClassifiedCount');
+        if (sessionEl) {
+            var current = parseInt(sessionEl.textContent.replace(/,/g, ''), 10) || 0;
+            sessionEl.textContent = Math.max(0, current + delta).toLocaleString();
+        }
     },
 
     removeUnclassified: function(count) {
@@ -170,9 +186,104 @@ const ProgressBar = {
     }
 };
 
+// ===== 分類取り消し =====
+
+const ClassificationUndo = {
+    _bar: null,
+    _ids: [],
+    _category: '',
+    _customMessage: '',
+    _hideTimer: null,
+
+    show: function(txIds, category, customMessage) {
+        var ids = (txIds || []).map(String);
+        if (!ids.length) return;
+
+        this._ids = Array.from(new Set(this._ids.concat(ids)));
+        this._category = category || '';
+        this._customMessage = customMessage || '';
+        clearTimeout(this._hideTimer);
+
+        if (!this._bar) {
+            this._bar = document.createElement('div');
+            this._bar.className = 'classification-undo-bar';
+            this._bar.setAttribute('role', 'status');
+            this._bar.setAttribute('aria-live', 'polite');
+            this._bar.innerHTML =
+                '<span class="classification-undo-message"></span>' +
+                '<button type="button" class="btn btn-light btn-sm">元に戻す</button>' +
+                '<button type="button" class="classification-undo-close" aria-label="閉じる"><i class="bi bi-x-lg" aria-hidden="true"></i></button>';
+            document.body.appendChild(this._bar);
+            this._bar.querySelector('.btn').addEventListener('click', this.undo.bind(this));
+            this._bar.querySelector('.classification-undo-close').addEventListener('click', this.hide.bind(this));
+        }
+
+        this._bar.querySelector('.classification-undo-message').textContent = this._customMessage ||
+            this._ids.length + '件を「' + this._category + '」に分類しました';
+        this._bar.classList.add('show');
+        this._hideTimer = setTimeout(this.hide.bind(this), 20000);
+    },
+
+    undo: function() {
+        if (!this._ids.length) return;
+        var ids = this._ids.slice();
+        var formData = createFormData({
+            action: 'bulk_update_categories',
+            source_tab: 'unclassified',
+        });
+        ids.forEach(function(id) { formData.append('uncat-' + id, '未分類'); });
+
+        var button = this._bar.querySelector('.btn');
+        setButtonLoading(button, '戻しています...');
+        var self = this;
+        postJson(window.location.href, formData, {
+            onSuccess: function() {
+                ProgressBar.update(-ids.length);
+                updateUnclassifiedCount(-ids.length);
+                self.hide();
+                showToast(ids.length + '件を未分類に戻しました', 'info');
+                setTimeout(function() { window.location.reload(); }, 350);
+            },
+            onError: function() {
+                resetButton(button);
+            },
+        });
+    },
+
+    hide: function() {
+        clearTimeout(this._hideTimer);
+        if (this._bar) this._bar.classList.remove('show');
+        this._ids = [];
+        this._category = '';
+        this._customMessage = '';
+    },
+};
+
 // ===== インライン分類の即時保存（SaveQueue使用） =====
 
 var _categorySelectPattern = /^(cat-|uncat-|transfer-src-tbl-|transfer-dest-tbl-|transfer-src-|transfer-dest-)/;
+
+function updateInlineSaveSummary() {
+    var summary = document.getElementById('inlineSaveSummary');
+    if (!summary) return;
+    var text = summary.querySelector('span');
+    var icon = summary.querySelector('i');
+    var savingCount = document.querySelectorAll('.transaction-table tr.is-saving').length;
+    var failedCount = document.querySelectorAll('.transaction-table tr.save-failed').length;
+
+    summary.classList.toggle('is-saving', savingCount > 0);
+    summary.classList.toggle('has-error', failedCount > 0);
+    if (failedCount > 0) {
+        icon.className = 'bi bi-exclamation-circle';
+        text.textContent = failedCount + '件の保存に失敗';
+    } else if (savingCount > 0) {
+        icon.className = 'bi bi-cloud-arrow-up';
+        text.textContent = savingCount + '件を保存中';
+    } else {
+        icon.className = 'bi bi-cloud-check';
+        text.textContent = '自動保存済み';
+    }
+}
 
 document.addEventListener('change', function(e) {
     var select = e.target;
@@ -190,6 +301,11 @@ document.addEventListener('change', function(e) {
     var originalValue = lastSaved;
     var row = select.closest('tr') || select.closest('.transfer-side');
 
+    if (row) {
+        row.classList.remove('save-failed');
+        row.classList.add('is-saving');
+        updateInlineSaveSummary();
+    }
     select.disabled = true;
 
     var formData = createFormData({
@@ -210,15 +326,27 @@ document.addEventListener('change', function(e) {
         originalValue: originalValue,
         intendedValue: newCategory,
         onSuccess: function(data) {
+            if (row) {
+                row.classList.remove('is-saving', 'save-failed');
+                updateInlineSaveSummary();
+            }
             if (isUnclassifiedRow && row) {
                 ProgressBar.update(1);
                 updateUnclassifiedCount(1);
+                ClassificationUndo.show([txId], newCategory);
                 fadeOutRow(row);
             } else if (isAllTabRow && row && data.still_visible === false) {
                 fadeOutRow(row);
             } else if (row) {
                 row.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
                 setTimeout(function() { row.style.backgroundColor = ''; }, 800);
+            }
+        },
+        onError: function() {
+            if (row) {
+                row.classList.remove('is-saving');
+                row.classList.add('save-failed');
+                updateInlineSaveSummary();
             }
         },
     });

@@ -10,32 +10,38 @@
 </div>
 
 <div class="glass-card p-4 mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 case-list-toolbar">
         <h2 class="h4 mb-0">案件一覧</h2>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 case-list-actions">
             <a href="{% url 'import-json' %}" class="btn btn-outline-success d-flex align-items-center gap-2" title="JSONバックアップから復元">
-                <i class="bi bi-box-arrow-in-down"></i> JSONから復元
+                <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> JSONから復元
             </a>
             <a href="{% url 'case-create' %}" class="btn btn-primary d-flex align-items-center gap-2">
-                <i class="bi bi-plus-lg"></i> 新規案件作成
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> 新規案件作成
             </a>
         </div>
     </div>
 
     {% if cases %}
     <!-- 検索・ソート -->
-    <div class="d-flex gap-2 mb-3">
+    <div class="d-flex gap-2 mb-2 case-list-filters">
         <div class="input-group input-group-sm" style="max-width: 280px;">
-            <input type="text" class="form-control" id="caseSearchInput" placeholder="案件名で検索...">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <label class="visually-hidden" for="caseSearchInput">案件名で検索</label>
+            <input type="search" class="form-control" id="caseSearchInput" placeholder="案件名で検索..."
+                autocomplete="off" aria-describedby="caseSearchStatus">
+            <span class="input-group-text" aria-hidden="true"><i class="bi bi-search"></i></span>
         </div>
-        <select class="form-select form-select-sm" id="caseSortSelect" style="width: auto;">
+        <label class="visually-hidden" for="caseSortSelect">案件の並び順</label>
+        <select class="form-select form-select-sm" id="caseSortSelect" style="width: auto;" aria-label="案件の並び順">
             <option value="newest">新しい順</option>
             <option value="oldest">古い順</option>
             <option value="name">名前順</option>
             <option value="unclassified">未分類多い順</option>
         </select>
     </div>
+    <p class="small text-muted mb-3" id="caseSearchStatus" role="status" aria-live="polite">
+        {{ cases|length }}件の案件を表示中
+    </p>
 
     <div class="row g-3" id="caseCardGrid">
         {% for case in cases %}
@@ -48,11 +54,15 @@
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h5 class="card-title mb-0 text-dark">{{ case.name }}</h5>
                         <div class="d-flex gap-1 z-2" onclick="event.stopPropagation(); event.preventDefault();">
-                            <a href="{% url 'case-update' case.pk %}" class="btn btn-sm btn-outline-info p-1 px-2" title="編集" onclick="event.preventDefault(); window.location='{% url 'case-update' case.pk %}';">
-                                <i class="bi bi-pencil"></i>
+                            <a href="{% url 'case-update' case.pk %}" class="btn btn-sm btn-outline-info p-1 px-2 icon-action-btn"
+                                title="編集" aria-label="{{ case.name }}を編集"
+                                onclick="event.preventDefault(); window.location='{% url 'case-update' case.pk %}';">
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
                             </a>
-                            <a href="{% url 'case-delete' case.pk %}" class="btn btn-sm btn-outline-danger p-1 px-2" title="削除" onclick="event.preventDefault(); window.location='{% url 'case-delete' case.pk %}';">
-                                <i class="bi bi-trash"></i>
+                            <a href="{% url 'case-delete' case.pk %}" class="btn btn-sm btn-outline-danger p-1 px-2 icon-action-btn"
+                                title="削除" aria-label="{{ case.name }}を削除"
+                                onclick="event.preventDefault(); window.location='{% url 'case-delete' case.pk %}';">
+                                <i class="bi bi-trash" aria-hidden="true"></i>
                             </a>
                         </div>
                     </div>
@@ -92,6 +102,11 @@
         </div>
         {% endfor %}
     </div>
+    <div class="text-center py-5 text-muted d-none" id="caseSearchEmpty">
+        <i class="bi bi-search display-5 mb-3 d-block" aria-hidden="true"></i>
+        <p class="mb-1 fw-semibold">該当する案件はありません</p>
+        <p class="small mb-0">検索語を変更してお試しください。</p>
+    </div>
     {% else %}
     <div class="text-center py-5 text-muted">
         <i class="bi bi-folder2-open display-1 mb-3 d-block"></i>
@@ -115,16 +130,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('caseSearchInput');
     const sortSelect = document.getElementById('caseSortSelect');
     const grid = document.getElementById('caseCardGrid');
+    const searchStatus = document.getElementById('caseSearchStatus');
+    const searchEmpty = document.getElementById('caseSearchEmpty');
+
+    function updateSearchResults() {
+        const q = searchInput.value.trim().toLocaleLowerCase('ja');
+        let visibleCount = 0;
+        grid.querySelectorAll('.case-card-col').forEach(col => {
+            const name = col.dataset.name.toLocaleLowerCase('ja');
+            const isVisible = name.includes(q);
+            col.classList.toggle('d-none', !isVisible);
+            if (isVisible) visibleCount += 1;
+        });
+        searchStatus.textContent = q
+            ? `検索結果: ${visibleCount}件`
+            : `${visibleCount}件の案件を表示中`;
+        searchEmpty.classList.toggle('d-none', visibleCount !== 0);
+        grid.classList.toggle('d-none', visibleCount === 0);
+    }
 
     // 検索
     if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            const q = this.value.toLowerCase();
-            grid.querySelectorAll('.case-card-col').forEach(col => {
-                const name = col.dataset.name.toLowerCase();
-                col.style.display = name.includes(q) ? '' : 'none';
-            });
-        });
+        searchInput.addEventListener('input', updateSearchResults);
     }
 
     // ソート

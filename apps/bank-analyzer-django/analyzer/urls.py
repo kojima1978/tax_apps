@@ -28,6 +28,7 @@ urlpatterns = [
     path('case/<int:pk>/api/delete-unclassified-transactions/', views.api_delete_unclassified_transactions, name='api-delete-unclassified-transactions'),
     path('case/<int:pk>/api/transaction/', views.api_get_transaction, name='api-get-transaction'),
     path('case/<int:pk>/api/field-values/', views.api_get_field_values, name='api-field-values'),
+    path('case/<int:pk>/api/range-delete-preview/', views.api_range_delete_preview, name='api-range-delete-preview'),
     path('case/<int:pk>/api/reference-date/', views.api_update_reference_date, name='api-reference-date'),
     path('case/<int:pk>/api/save-passbook-inventory/', views.api_save_passbook_inventory, name='api-save-passbook-inventory'),
     path('case/<int:pk>/api/reorder-passbook-inventory/', views.api_reorder_passbook_inventory, name='api-reorder-passbook-inventory'),

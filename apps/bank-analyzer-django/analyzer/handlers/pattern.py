@@ -177,6 +177,30 @@ def handle_get_category_keywords(request: HttpRequest, case, pk: int) -> JsonRes
         return json_error(str(e))
 
 
+def handle_preview_pattern_impact(request: HttpRequest, case, pk: int) -> JsonResponse:
+    """パターン登録前に、未分類取引への影響件数を返す。"""
+    from ..lib.constants import UNCATEGORIZED
+    from ..models import Transaction
+
+    keyword = (request.POST.get('keyword') or '').strip()
+    if not keyword:
+        return json_error('キーワードが指定されていません')
+
+    matches = Transaction.objects.filter(
+        category=UNCATEGORIZED,
+        is_flagged=False,
+        description__icontains=keyword,
+    )
+    current_case_count = matches.filter(case=case).count()
+    other_cases_count = matches.exclude(case=case).count()
+    return JsonResponse({
+        'success': True,
+        'current_case_count': current_case_count,
+        'other_cases_count': other_cases_count,
+        'total_count': current_case_count + other_cases_count,
+    })
+
+
 def handle_bulk_pattern_changes(request: HttpRequest, case, pk: int) -> JsonResponse:
     """パターン変更を一括適用（AJAX専用）"""
     changes_json = request.POST.get('changes', '[]')
@@ -236,7 +260,11 @@ def handle_classify_and_register_pattern(
         )
 
         # 2. キーワードに一致する未分類取引を一括更新
-        qs = case.transactions.filter(category=UNCATEGORIZED, description__icontains=keyword)
+        qs = case.transactions.filter(
+            category=UNCATEGORIZED,
+            is_flagged=False,
+            description__icontains=keyword,
+        )
         count = qs.update(category=category)
 
         return JsonResponse({

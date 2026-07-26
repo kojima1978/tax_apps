@@ -395,6 +395,9 @@ function promptAndRegisterPattern(opts) {
     var defaultKeyword = extractKeywordFromDescription(description);
     var message = '「' + category + '」のパターンに追加するキーワード：\n摘要: ' + description + '\n適用範囲: ' + scopeLabel;
     if (opts.extraMessage) message += '\n' + opts.extraMessage;
+    if (scope === 'global') {
+        message += '\n注意: 今後取り込むすべての案件にもこのルールが適用されます。';
+    }
 
     ConfirmModal.prompt({
         title: 'パターン追加',
@@ -403,21 +406,45 @@ function promptAndRegisterPattern(opts) {
         placeholder: 'キーワードを入力',
         confirmText: confirmText,
         onConfirm: function(keyword) {
-            postAction(action, {
-                category: category,
-                keyword: keyword,
-                scope: scope,
-                description: description,
-            }, {
-                onSuccess: function(data) {
-                    var scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
-                    var count = data.count || 1;
-                    if (action === 'add_pattern') {
-                        showToast('キーワード「' + keyword + '」を「' + category + '」に追加しました' + scopeMsg, 'success');
-                    } else {
-                        showToast(count + '件を「' + category + '」に分類し、キーワード「' + keyword + '」を追加しました' + scopeMsg, 'success');
-                    }
-                    if (opts.onSuccess) opts.onSuccess(data);
+            var register = function() {
+                postAction(action, {
+                    category: category,
+                    keyword: keyword,
+                    scope: scope,
+                    description: description,
+                }, {
+                    onSuccess: function(data) {
+                        var scopeMsg = scope === 'case' ? '（案件固有）' : '（グローバル）';
+                        var count = data.count || 1;
+                        if (action === 'add_pattern') {
+                            showToast('キーワード「' + keyword + '」を「' + category + '」に追加しました' + scopeMsg, 'success');
+                        } else {
+                            showToast(count + '件を「' + category + '」に分類し、キーワード「' + keyword + '」を追加しました' + scopeMsg, 'success');
+                        }
+                        if (opts.onSuccess) opts.onSuccess(data);
+                    },
+                });
+            };
+
+            if (scope !== 'global') {
+                register();
+                return;
+            }
+
+            postAction('preview_pattern_impact', { keyword: keyword }, {
+                onSuccess: function(impact) {
+                    var impactMessage =
+                        'キーワード「' + keyword + '」を全案件に登録します。' +
+                        '\n現在の案件: ' + impact.current_case_count + '件' +
+                        '\nその他の案件: ' + impact.other_cases_count + '件' +
+                        '\n今後の取込みにも適用されます。';
+                    ConfirmModal.show({
+                        title: '全案件への影響を確認',
+                        message: impactMessage,
+                        confirmText: '全案件に登録',
+                        confirmClass: 'btn-warning',
+                        onConfirm: register,
+                    });
                 },
             });
         },

@@ -4,19 +4,23 @@
 {% load static %}
 
 {% block title %}分析 - Bank Analyzer{% endblock %}
+{% block main_class %}container-fluid analysis-page-container{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <h1 class="h2 mb-0"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> 編集・分析: {{ case.name }}</h1>
     <div class="d-flex gap-2 flex-wrap">
         <a href="{% url 'passbook-inventory' case.pk %}" class="btn btn-outline-info btn-sm">
-            <i class="bi bi-table"></i><span class="d-none d-md-inline ms-1">通帳有無一覧表</span>
+            <i class="bi bi-table" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">通帳有無一覧表</span>
+            <span class="visually-hidden d-md-none">通帳有無一覧表</span>
         </a>
         <a href="{% url 'import-wizard' case.pk %}" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-file-earmark-arrow-up"></i><span class="d-none d-md-inline ms-1">CSV追加取込</span>
+            <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">CSV追加取込</span>
+            <span class="visually-hidden d-md-none">CSV追加取込</span>
         </a>
         <a href="{% url 'export-json' case.pk %}" class="btn btn-outline-success btn-sm">
-            <i class="bi bi-box-arrow-down"></i><span class="d-none d-md-inline ms-1">JSONバックアップ</span>
+            <i class="bi bi-box-arrow-down" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">JSONバックアップ</span>
+            <span class="visually-hidden d-md-none">JSONバックアップ</span>
         </a>
     </div>
 </div>
@@ -25,12 +29,134 @@
 <div class="alert alert-info" role="alert">
     <h2 class="h5"><i class="bi bi-info-circle me-1"></i>取引データがありません</h2>
     <p class="mb-2">CSVまたはExcelファイルを追加取込すると、取引の編集・分析を開始できます。</p>
-    <a href="{% url 'import-wizard' case.pk %}" class="btn btn-primary btn-sm">
-        <i class="bi bi-file-earmark-arrow-up me-1"></i>CSV追加取込
-    </a>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'import-wizard' case.pk %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-file-earmark-arrow-up me-1"></i>CSV追加取込
+        </a>
+        {% if latest_deletion_backup %}
+        <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="restore_range_backup">
+            <input type="hidden" name="backup_id" value="{{ latest_deletion_backup.pk }}">
+            <button type="submit" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>
+                直前に削除した{{ latest_deletion_backup.transaction_count }}件を復元
+            </button>
+        </form>
+        {% endif %}
+    </div>
 </div>
 {% else %}
 
+<div class="analysis-mobile-section-bar glass-card mb-3">
+    <button type="button" class="btn analysis-mobile-menu-btn" id="analysisMobileMenuOpen"
+        aria-label="分析メニューを開く" aria-controls="analysisSidebar" aria-expanded="false">
+        <i class="bi bi-list" aria-hidden="true"></i>
+    </button>
+    <div>
+        <span class="analysis-mobile-section-eyebrow">表示中</span>
+        <strong id="analysisMobileCurrentLabel">概要</strong>
+    </div>
+</div>
+
+<div class="analysis-sidebar-backdrop" id="analysisSidebarBackdrop" hidden></div>
+
+<div class="analysis-shell" id="analysisShell">
+    <aside class="analysis-sidebar" id="analysisSidebar" aria-label="分析メニュー">
+        <div class="analysis-sidebar-panel">
+            <div class="analysis-sidebar-header">
+                <div class="analysis-sidebar-title">
+                    <span class="analysis-sidebar-kicker">BANK ANALYZER</span>
+                    <strong>案件メニュー</strong>
+                </div>
+                <button type="button" class="btn analysis-sidebar-close" id="analysisMobileMenuClose"
+                    aria-label="分析メニューを閉じる">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <button type="button" class="analysis-sidebar-toggle" id="analysisSidebarToggle"
+                aria-label="サイドバーを折りたたむ" aria-expanded="true">
+                <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
+            </button>
+
+            <nav class="analysis-nav" id="analysisTabs" role="tablist" aria-label="分析機能"
+                aria-orientation="vertical">
+                <div class="analysis-nav-group">
+                    <span class="analysis-nav-section-title">案件</span>
+                    <button class="nav-link analysis-nav-link active" id="overview-tab"
+                        data-bs-toggle="tab" data-bs-target="#overview" data-section-label="概要"
+                        type="button" role="tab" aria-controls="overview" aria-selected="true"
+                        title="概要">
+                        <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                        <span class="analysis-nav-label">概要</span>
+                    </button>
+                </div>
+
+                <div class="analysis-nav-group">
+                    <span class="analysis-nav-section-title">取引処理</span>
+                    <button class="nav-link analysis-nav-link" id="all-tab"
+                        data-bs-toggle="tab" data-bs-target="#all" data-section-label="取引一覧・検索"
+                        type="button" role="tab" aria-controls="all" aria-selected="false"
+                        title="取引一覧・検索">
+                        <i class="bi bi-table" aria-hidden="true"></i>
+                        <span class="analysis-nav-label">取引一覧・検索</span>
+                    </button>
+                    <button class="nav-link analysis-nav-link" id="unclassified-tab"
+                        data-bs-toggle="tab" data-bs-target="#unclassified" data-section-label="未分類"
+                        type="button" role="tab" aria-controls="unclassified" aria-selected="false"
+                        title="未分類">
+                        <i class="bi bi-question-circle" aria-hidden="true"></i>
+                        <span class="analysis-nav-label">未分類</span>
+                        <span class="badge {% if unclassified_count %}bg-warning text-dark{% else %}bg-light text-secondary{% endif %} analysis-nav-badge">{{ unclassified_count }}</span>
+                    </button>
+                    <button class="nav-link analysis-nav-link" id="ai-tab"
+                        data-bs-toggle="tab" data-bs-target="#ai" data-section-label="AI分類"
+                        type="button" role="tab" aria-controls="ai" aria-selected="false"
+                        title="AI分類">
+                        <i class="bi bi-cpu" aria-hidden="true"></i>
+                        <span class="analysis-nav-label">AI分類</span>
+                        <span class="badge {% if suggestions_count %}bg-primary{% else %}bg-light text-secondary{% endif %} analysis-nav-badge">{{ suggestions_count }}</span>
+                    </button>
+                </div>
+
+                <div class="analysis-nav-group">
+                    <span class="analysis-nav-section-title">分析</span>
+                    <button class="nav-link analysis-nav-link" id="transfers-tab"
+                        data-bs-toggle="tab" data-bs-target="#transfers" data-section-label="資金移動フロー"
+                        type="button" role="tab" aria-controls="transfers" aria-selected="false"
+                        title="資金移動フロー">
+                        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                        <span class="analysis-nav-label">資金移動フロー</span>
+                    </button>
+                    <button class="nav-link analysis-nav-link" id="flagged-tab"
+                        data-bs-toggle="tab" data-bs-target="#flagged" data-section-label="質問候補"
+                        type="button" role="tab" aria-controls="flagged" aria-selected="false"
+                        title="質問候補">
+                        <i class="bi bi-question-circle" aria-hidden="true"></i>
+                        <span class="analysis-nav-label">質問候補</span>
+                        <span class="badge {% if flagged_count %}bg-info{% else %}bg-light text-secondary{% endif %} analysis-nav-badge">{{ flagged_count }}</span>
+                    </button>
+                </div>
+
+                <div class="analysis-nav-group analysis-nav-group-management">
+                    <span class="analysis-nav-section-title">データ管理</span>
+                    <button class="nav-link analysis-nav-link" id="cleanup-tab"
+                        data-bs-toggle="tab" data-bs-target="#cleanup" data-section-label="データクレンジング"
+                        type="button" role="tab" aria-controls="cleanup" aria-selected="false"
+                        title="データクレンジング">
+                        <i class="bi bi-stars" aria-hidden="true"></i>
+                        <span class="analysis-nav-label">データクレンジング</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </aside>
+
+    <div class="analysis-main">
+        <div class="tab-content" id="analysisTabsContent">
+            <section class="tab-pane fade show active" id="overview" role="tabpanel"
+                aria-labelledby="overview-tab" tabindex="0">
 <!-- 基準日設定 -->
 <div class="glass-card px-4 py-3 mb-4">
     <div class="d-flex align-items-center gap-3 flex-wrap">
@@ -41,27 +167,91 @@
             {% else %}
             <span class="text-muted small" id="referenceDateValue">未設定</span>
             {% endif %}
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="toggleReferenceDateEdit(true)" title="変更">
-                <i class="bi bi-pencil"></i>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 icon-action-btn"
+                onclick="toggleReferenceDateEdit(true)" title="変更" aria-label="基準日を変更">
+                <i class="bi bi-pencil" aria-hidden="true"></i>
             </button>
             {% if case.reference_date %}
-            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="clearReferenceDate()" title="クリア">
-                <i class="bi bi-x-lg"></i>
+            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 icon-action-btn"
+                onclick="clearReferenceDate()" title="クリア" aria-label="基準日をクリア">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
             </button>
             {% endif %}
         </div>
         <div id="referenceDateEdit" class="d-none d-flex align-items-center gap-2">
             <input type="date" id="referenceDateInput" class="form-control form-control-sm w-auto"
                 value="{{ case.reference_date|date:'Y-m-d'|default:'' }}">
-            <button type="button" class="btn btn-sm btn-primary py-0 px-2" onclick="saveReferenceDate()">
-                <i class="bi bi-check-lg"></i>
+            <button type="button" class="btn btn-sm btn-primary py-0 px-2 icon-action-btn"
+                onclick="saveReferenceDate()" aria-label="基準日を保存">
+                <i class="bi bi-check-lg" aria-hidden="true"></i>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="toggleReferenceDateEdit(false)">
-                <i class="bi bi-x-lg"></i>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 icon-action-btn"
+                onclick="toggleReferenceDateEdit(false)" aria-label="基準日の編集をキャンセル">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
             </button>
         </div>
     </div>
 </div>
+
+<div class="overview-kpi-grid mb-4" aria-label="案件サマリー">
+    <article class="overview-kpi-card">
+        <span class="overview-kpi-label"><i class="bi bi-arrow-down-left" aria-hidden="true"></i>総入金</span>
+        <strong class="overview-kpi-value text-primary">¥{{ total_in|intcomma }}</strong>
+        <small>{{ total_tx_count|intcomma }}件の取引</small>
+    </article>
+    <article class="overview-kpi-card">
+        <span class="overview-kpi-label"><i class="bi bi-arrow-up-right" aria-hidden="true"></i>総出金</span>
+        <strong class="overview-kpi-value text-danger">¥{{ total_out|intcomma }}</strong>
+        <small>{{ earliest_transaction_date|date:"Y/m/d" }}〜{{ latest_transaction_date|date:"Y/m/d" }}</small>
+    </article>
+    <article class="overview-kpi-card">
+        <span class="overview-kpi-label"><i class="bi bi-calculator" aria-hidden="true"></i>収支差額</span>
+        <strong class="overview-kpi-value {% if net_flow < 0 %}text-danger{% else %}text-success{% endif %}">
+            ¥{{ net_flow|intcomma }}
+        </strong>
+        <small>入金 − 出金</small>
+    </article>
+    <article class="overview-kpi-card">
+        <span class="overview-kpi-label"><i class="bi bi-check2-circle" aria-hidden="true"></i>分類進捗</span>
+        <strong class="overview-kpi-value">{{ classified_pct }}%</strong>
+        <small>{{ classified_count|intcomma }} / {{ total_tx_count|intcomma }}件</small>
+    </article>
+    <article class="overview-kpi-card">
+        <span class="overview-kpi-label"><i class="bi bi-bookmark" aria-hidden="true"></i>要確認</span>
+        <strong class="overview-kpi-value">{{ flagged_count|intcomma }}件</strong>
+        <small>付箋付き取引</small>
+    </article>
+</div>
+
+<section class="overview-next-step glass-card p-3 mb-4" aria-labelledby="nextStepHeading">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+            <span class="overview-next-step-kicker">次に行う作業</span>
+            {% if unclassified_count %}
+            <h2 class="h5 mb-1" id="nextStepHeading">{{ unclassified_count }}件の未分類取引を確認</h2>
+            <p class="text-muted small mb-0">
+                {% if suggestions_count %}AI分類候補が{{ suggestions_count }}件あります。候補から進めると効率的です。{% else %}摘要をまとめて分類できます。{% endif %}
+            </p>
+            {% elif flagged_count %}
+            <h2 class="h5 mb-1" id="nextStepHeading">{{ flagged_count }}件の付箋を確認</h2>
+            <p class="text-muted small mb-0">確認事項やメモが残っている取引を整理しましょう。</p>
+            {% else %}
+            <h2 class="h5 mb-1" id="nextStepHeading">主要な確認作業は完了しています</h2>
+            <p class="text-muted small mb-0">概要を確認し、必要に応じて帳票やバックアップを出力できます。</p>
+            {% endif %}
+        </div>
+        {% if unclassified_count %}
+        <a href="?tab={% if suggestions_count %}ai{% else %}unclassified{% endif %}" class="btn btn-success">
+            {% if suggestions_count %}AI分類を開く{% else %}未分類を開く{% endif %}
+            <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+        </a>
+        {% elif flagged_count %}
+        <a href="?tab=flagged" class="btn btn-outline-success">付箋を開く</a>
+        {% else %}
+        <a href="?tab=all" class="btn btn-outline-success">取引一覧を確認</a>
+        {% endif %}
+    </div>
+</section>
 
 <!-- 登録口座一覧（折りたたみ + テーブル） -->
 <div class="glass-card p-4 mb-4">
@@ -101,10 +291,11 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="account_number" value="{{ acc.account_number }}">
                                 <input type="hidden" name="action" value="delete_account">
-                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1"
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 icon-action-btn"
                                     data-account-number="{{ acc.account_number }}"
+                                    aria-label="口座 {{ acc.account_number }} の全取引を削除"
                                     onclick="ConfirmModal.show({title:'口座データの削除',message:'口座「'+this.dataset.accountNumber+'」のデータを全て削除しますか？この操作は取り消せません。',confirmText:'削除',confirmClass:'btn-danger',onConfirm:()=>this.closest('form').submit()})">
-                                    <i class="bi bi-trash"></i>
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
                                 </button>
                             </form>
                         </td>
@@ -119,64 +310,41 @@
 <!-- サマリーチャート -->
 {% if chart_categories_json %}
 <div class="glass-card p-4 mb-4">
-    <h4 class="mb-3"><i class="bi bi-bar-chart-line"></i> サマリー</h4>
-    <div id="monthlyBarChart" style="height: 320px;"></div>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <div>
+            <h4 class="mb-0"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> 月次入出金</h4>
+            <small class="text-muted">大きな月は棒を選択すると金額を確認できます</small>
+        </div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="グラフ表示期間">
+            <button type="button" class="btn btn-outline-secondary active chart-range-btn" data-months="0">全期間</button>
+            <button type="button" class="btn btn-outline-secondary chart-range-btn" data-months="12">直近12か月</button>
+        </div>
+    </div>
+    <div id="monthlyBarChart" style="height: 320px;" role="img"
+        aria-label="月次の出金額と入金額を比較する棒グラフ"></div>
+    <details class="chart-data-details mt-2">
+        <summary>表形式のデータを表示</summary>
+        <div class="table-responsive mt-2">
+            <table class="table table-sm mb-0" id="monthlySummaryTable">
+                <caption class="visually-hidden">月次入出金グラフの表形式データ</caption>
+                <thead><tr><th>月</th><th class="text-end">出金</th><th class="text-end">入金</th></tr></thead>
+                <tbody id="monthlySummaryTableBody"></tbody>
+            </table>
+        </div>
+    </details>
 </div>
 {% endif %}
 
-<!-- タブ -->
-<ul class="nav nav-tabs mb-4" id="analysisTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all"
-            type="button" role="tab" aria-controls="all" aria-selected="true">
-            <i class="bi bi-table" aria-hidden="true"></i> 取引一覧・検索
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="unclassified-tab" data-bs-toggle="tab" data-bs-target="#unclassified"
-            type="button" role="tab" aria-controls="unclassified" aria-selected="false">
-            <i class="bi bi-question-circle" aria-hidden="true"></i> 未分類
-            {% if unclassified_count %}
-                <span class="badge bg-warning text-dark">{{ unclassified_count }}</span>
-            {% endif %}
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai"
-            type="button" role="tab" aria-controls="ai" aria-selected="false">
-            <i class="bi bi-cpu" aria-hidden="true"></i> AI分類
-            {% if suggestions_count %}
-                <span class="badge bg-primary">{{ suggestions_count }}</span>
-            {% endif %}
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="transfers-tab" data-bs-toggle="tab" data-bs-target="#transfers"
-            type="button" role="tab" aria-controls="transfers" aria-selected="false">
-            <i class="bi bi-arrow-left-right" aria-hidden="true"></i> 資金移動フロー
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="cleanup-tab" data-bs-toggle="tab" data-bs-target="#cleanup"
-            type="button" role="tab" aria-controls="cleanup" aria-selected="false">
-            <i class="bi bi-stars" aria-hidden="true"></i> データクレンジング
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="flagged-tab" data-bs-toggle="tab" data-bs-target="#flagged"
-            type="button" role="tab" aria-controls="flagged" aria-selected="false">
-            <i class="bi bi-bookmark" aria-hidden="true"></i> 付箋 {% if flagged_txs %}<span class="badge bg-info">{{ flagged_txs.count }}</span>{% endif %}
-        </button>
-    </li>
-</ul>
+            </section>
 
-<div class="tab-content" id="analysisTabsContent">
     {% include 'analyzer/partials/_tab_all.html' %}
     {% include 'analyzer/partials/_tab_unclassified.html' %}
     {% include 'analyzer/partials/_tab_ai.html' %}
     {% include 'analyzer/partials/_tab_transfers.html' %}
     {% include 'analyzer/partials/_tab_cleanup.html' %}
     {% include 'analyzer/partials/_tab_flagged.html' %}
+        </div>
+    </div>
 </div>
 
 <!-- 取引編集モーダル -->
@@ -479,6 +647,7 @@
 <script>window.BANK_TO_ACCOUNTS = {{ bank_to_accounts_json|safe }};</script>
 <script src="{% static 'analyzer/js/analysis_core.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_transactions.js' %}"></script>
+<script src="{% static 'analyzer/js/analysis_sidebar.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_patterns.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_tabs.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_filters.js' %}"></script>
@@ -502,41 +671,86 @@ document.addEventListener('click', function(e) {
 (function() {
     var catData = {{ chart_categories_json|safe }};
     var monthData = {{ chart_monthly_json|safe }};
+    var isCompactChart = window.matchMedia('(max-width: 575.98px)').matches;
     var plotlyLayout = {
         font: { family: '"Noto Sans JP", sans-serif', size: 12 },
         paper_bgcolor: 'transparent',
         plot_bgcolor: 'transparent',
-        margin: { t: 40, b: 40, l: 50, r: 20 },
+        margin: { t: 48, b: 56, l: isCompactChart ? 68 : 96, r: 20 },
     };
 
-    // 月次入出金推移
-    if (monthData.months.length > 0) {
-        Plotly.newPlot('monthlyBarChart', [
+    function renderMonthlyChart(monthCount) {
+        var start = monthCount > 0 ? Math.max(0, monthData.months.length - monthCount) : 0;
+        var months = monthData.months.slice(start);
+        var outValues = monthData.out.slice(start);
+        var inValues = monthData['in'].slice(start);
+        var combined = outValues.map(function(value, index) { return value + inValues[index]; });
+        var maxIndex = combined.indexOf(Math.max.apply(null, combined));
+        var annotations = maxIndex >= 0 && combined[maxIndex] > 0 ? [{
+            x: months[maxIndex],
+            y: Math.max(outValues[maxIndex], inValues[maxIndex]),
+            text: '最大取引月',
+            showarrow: true,
+            arrowhead: 2,
+            ax: 0,
+            ay: -36,
+            font: { size: 11, color: '#475569' },
+        }] : [];
+
+        Plotly.react('monthlyBarChart', [
             {
                 type: 'bar',
                 name: '出金',
-                x: monthData.months,
-                y: monthData.out,
+                x: months,
+                y: outValues,
                 marker: { color: '#dc2626', opacity: 0.8 },
+                hovertemplate: '%{x}<br>出金: ¥%{y:,}<extra></extra>',
             },
             {
                 type: 'bar',
                 name: '入金',
-                x: monthData.months,
-                y: monthData['in'],
+                x: months,
+                y: inValues,
                 marker: { color: '#2563eb', opacity: 0.8 },
+                hovertemplate: '%{x}<br>入金: ¥%{y:,}<extra></extra>',
             }
         ], {
             ...plotlyLayout,
-            title: { text: '月次入出金推移', font: { size: 14 } },
             barmode: 'group',
-            xaxis: { tickangle: -45 },
+            xaxis: { tickangle: -45, automargin: true },
             yaxis: {
-                tickformat: ',d',
-                title: { text: '円', standoff: 5 }
+                tickformat: isCompactChart ? '~s' : ',d',
+                automargin: true,
+                title: { text: '円', standoff: 8 }
             },
             legend: { orientation: 'h', y: 1.12, x: 0.5, xanchor: 'center' },
+            annotations: annotations,
         }, { responsive: true, displayModeBar: false });
+    }
+
+    if (monthData.months.length > 0) {
+        renderMonthlyChart(0);
+        document.querySelectorAll('.chart-range-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.chart-range-btn').forEach(function(item) {
+                    item.classList.toggle('active', item === button);
+                });
+                renderMonthlyChart(parseInt(button.dataset.months, 10) || 0);
+            });
+        });
+
+        var tableBody = document.getElementById('monthlySummaryTableBody');
+        monthData.months.forEach(function(month, index) {
+            var row = document.createElement('tr');
+            [month, Number(monthData.out[index]).toLocaleString(), Number(monthData['in'][index]).toLocaleString()]
+                .forEach(function(value, cellIndex) {
+                    var cell = document.createElement(cellIndex === 0 ? 'th' : 'td');
+                    cell.textContent = value;
+                    if (cellIndex > 0) cell.className = 'text-end';
+                    row.appendChild(cell);
+                });
+            tableBody.appendChild(row);
+        });
     }
 })();
 </script>

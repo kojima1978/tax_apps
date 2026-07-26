@@ -4,13 +4,15 @@
 取引データの CRUD 操作、分類、インポートのビジネスロジックを提供する。
 """
 import logging
+from datetime import date
 from typing import Optional
 
 import pandas as pd
 from django.db import transaction as db_transaction, IntegrityError
+from django.utils import timezone
 from django.db.models import Count
 
-from ..models import Account, Case, Transaction
+from ..models import Account, Case, DeletionBackup, Transaction
 from ..lib import analyzer, config, llm_classifier
 from ..lib.constants import UNCATEGORIZED
 from .utils import parse_date_value, parse_int_ids, get_transaction
@@ -146,7 +148,7 @@ class TransactionService:
         """
         patterns = config.get_classification_patterns()
         case_patterns = config.get_case_patterns(case)
-        txs = case.transactions.filter(category=UNCATEGORIZED).only(
+        txs = case.transactions.filter(category=UNCATEGORIZED, is_flagged=False).only(
             'id', 'date', 'description', 'amount_out', 'amount_in', 'category',
         ).order_by('-date', '-id')
 
@@ -196,7 +198,11 @@ class TransactionService:
 
         patterns = config.get_classification_patterns()
         case_patterns = config.get_case_patterns(case)
-        txs = case.transactions.filter(id__in=tx_ids, category=UNCATEGORIZED).only(
+        txs = case.transactions.filter(
+            id__in=tx_ids,
+            category=UNCATEGORIZED,
+            is_flagged=False,
+        ).only(
             'id', 'description', 'category',
         )
 
@@ -501,9 +507,83 @@ class TransactionService:
         if start_id > end_id:
             start_id, end_id = end_id, start_id
 
-        count, _ = case.transactions.filter(id__gte=start_id, id__lte=end_id).delete()
+        queryset = case.transactions.filter(id__gte=start_id, id__lte=end_id).order_by("id")
+        rows = list(queryset.values(
+            "id", "account_id", "date", "description", "amount_out", "amount_in",
+            "balance", "is_large", "is_transfer", "transfer_to", "category",
+            "classification_score", "is_flagged", "memo",
+        ))
+        if not rows:
+            return 0
+
+        for row in rows:
+            if row["date"]:
+                row["date"] = row["date"].isoformat()
+
+        with db_transaction.atomic():
+            DeletionBackup.objects.create(
+                case=case,
+                start_id=start_id,
+                end_id=end_id,
+                transaction_data=rows,
+            )
+            count, _ = queryset.delete()
         logger.info(f"ID範囲削除: case_id={case.id}, start_id={start_id}, end_id={end_id}, count={count}")
         return count
+
+    @staticmethod
+    def preview_delete_by_range(case: Case, start_id: int, end_id: int, sample_size: int = 5) -> dict:
+        """ID範囲削除の対象件数と先頭サンプルを返す"""
+        if start_id > end_id:
+            start_id, end_id = end_id, start_id
+        queryset = case.transactions.filter(id__gte=start_id, id__lte=end_id).order_by("id")
+        return {
+            "start_id": start_id,
+            "end_id": end_id,
+            "count": queryset.count(),
+            "sample": [
+                {
+                    "id": tx.id,
+                    "date": tx.date.isoformat() if tx.date else "",
+                    "description": tx.description or "",
+                    "amount_out": tx.amount_out,
+                    "amount_in": tx.amount_in,
+                }
+                for tx in queryset[:sample_size]
+            ],
+        }
+
+    @staticmethod
+    def restore_deletion_backup(case: Case, backup_id: int) -> tuple[int, int]:
+        """削除バックアップを復元し、(復元数, 競合スキップ数)を返す"""
+        backup = case.deletion_backups.filter(pk=backup_id, restored_at__isnull=True).first()
+        if not backup:
+            return 0, 0
+
+        rows = backup.transaction_data or []
+        ids = [row["id"] for row in rows]
+        existing_ids = set(Transaction.objects.filter(id__in=ids).values_list("id", flat=True))
+        restore_rows = []
+        for row in rows:
+            if row["id"] in existing_ids:
+                continue
+            values = dict(row)
+            if values.get("date"):
+                values["date"] = date.fromisoformat(values["date"])
+            restore_rows.append(Transaction(case=case, **values))
+
+        with db_transaction.atomic():
+            if restore_rows:
+                Transaction.objects.bulk_create(restore_rows, batch_size=500)
+            backup.restored_at = timezone.now()
+            backup.save(update_fields=["restored_at"])
+
+        skipped = len(rows) - len(restore_rows)
+        logger.info(
+            "ID範囲削除を復元: case_id=%s, backup_id=%s, restored=%s, skipped=%s",
+            case.id, backup.id, len(restore_rows), skipped,
+        )
+        return len(restore_rows), skipped
 
     @staticmethod
     def delete_unclassified_transactions(case: Case, tx_ids: list[str]) -> tuple[int, list[int]]:

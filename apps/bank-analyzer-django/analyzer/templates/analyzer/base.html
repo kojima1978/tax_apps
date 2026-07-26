@@ -7,73 +7,69 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Bank Analyzer{% endblock %}</title>
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap"
-        rel="stylesheet">
-
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Vendor assets are bundled for reliable offline/intranet operation. -->
+    <link href="{% static 'analyzer/vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'analyzer/vendor/bootstrap-icons/bootstrap-icons.css' %}" rel="stylesheet">
 
     <!-- Custom CSS -->
     <link href="{% static 'analyzer/css/style.css' %}" rel="stylesheet">
 </head>
 
 <body>
+    <a class="skip-link" href="#main-content">メインコンテンツへ移動</a>
     <header class="app-header sticky-top">
         <div class="container-fluid d-flex align-items-center justify-content-between px-4" style="height: 3.5rem;">
             <!-- Left: Portal + Nav Links -->
             <div class="d-flex align-items-center gap-2">
-                <a class="header-portal-link" href="/" title="ポータルに戻る">
-                    <i class="bi bi-house-door"></i>
-                    <span class="d-none d-md-inline">ポータル</span>
+                <a class="header-portal-link" href="/" title="ポータルに戻る" aria-label="ポータルに戻る">
+                    <i class="bi bi-house-door" aria-hidden="true"></i>
+                    <span class="header-link-label">ポータル</span>
                 </a>
-                <a class="header-nav-link {% if request.resolver_match.url_name == 'case-list' or request.resolver_match.url_name == 'case-create' %}active{% endif %}" href="{% url 'case-list' %}">
-                    <i class="bi bi-folder2-open"></i>
-                    <span class="d-none d-md-inline">案件一覧</span>
+                <a class="header-nav-link {% if request.resolver_match.url_name == 'case-list' or request.resolver_match.url_name == 'case-create' %}active{% endif %}" href="{% url 'case-list' %}"
+                    aria-label="案件一覧"{% if request.resolver_match.url_name == 'case-list' or request.resolver_match.url_name == 'case-create' %} aria-current="page"{% endif %}>
+                    <i class="bi bi-folder2-open" aria-hidden="true"></i>
+                    <span class="header-link-label"><span class="d-md-none">案件</span><span class="d-none d-md-inline">案件一覧</span></span>
                 </a>
-                <a class="header-nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" href="{% url 'settings' %}">
-                    <i class="bi bi-gear"></i>
-                    <span class="d-none d-md-inline">設定</span>
+                <a class="header-nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" href="{% url 'settings' %}"
+                    aria-label="設定"{% if request.resolver_match.url_name == 'settings' %} aria-current="page"{% endif %}>
+                    <i class="bi bi-gear" aria-hidden="true"></i>
+                    <span class="header-link-label">設定</span>
                 </a>
             </div>
 
             <!-- Right: Actions -->
             <div class="d-flex align-items-center gap-2">
-                <a class="header-action-btn" href="{% url 'customer-letter' %}" target="_blank">
-                    <i class="bi bi-envelope-paper"></i>
-                    <span class="d-none d-sm-inline">お客様配布用文書</span>
+                <a class="header-action-btn" href="{% url 'customer-letter' %}" target="_blank"
+                    aria-label="お客様配布用文書を新しいタブで開く">
+                    <i class="bi bi-envelope-paper" aria-hidden="true"></i>
+                    <span class="header-link-label"><span class="d-md-none">文書</span><span class="d-none d-md-inline">お客様配布用文書</span></span>
                 </a>
-                <a class="header-action-btn {% if request.resolver_match.url_name == 'case-create' %}active{% endif %}" href="{% url 'case-create' %}">
-                    <i class="bi bi-plus-lg"></i>
-                    <span class="d-none d-sm-inline">新規案件</span>
+                <a class="header-action-btn {% if request.resolver_match.url_name == 'case-create' %}active{% endif %}" href="{% url 'case-create' %}"
+                    aria-label="新規案件を作成"{% if request.resolver_match.url_name == 'case-create' %} aria-current="page"{% endif %}>
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                    <span class="header-link-label"><span class="d-md-none">新規</span><span class="d-none d-md-inline">新規案件</span></span>
                 </a>
             </div>
         </div>
     </header>
 
-    <div class="container mt-4">
+    <main class="{% block main_class %}container{% endblock %} mt-4" id="main-content" tabindex="-1">
         {% if messages %}
         <div class="mt-4">
             {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show glass-card border-0" role="alert">
                 {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="通知を閉じる"></button>
             </div>
             {% endfor %}
         </div>
         {% endif %}
 
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
     <!-- Bulk Operation Overlay -->
-    <div class="bulk-submit-overlay" id="bulkSubmitOverlay">
+    <div class="bulk-submit-overlay" id="bulkSubmitOverlay" role="status" aria-live="polite" aria-hidden="true">
         <div class="bulk-submit-box">
             <div class="spinner-border" role="status">
                 <span class="visually-hidden">処理中...</span>
@@ -82,8 +78,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="{% static 'analyzer/vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'analyzer/vendor/plotly/plotly-2.27.0.min.js' %}"></script>
     <script src="{% static 'analyzer/js/confirm_modal.js' %}"></script>
     <script>
     /** 一括操作フォーム送信時にオーバーレイ表示 */
@@ -94,6 +90,7 @@
             const text = document.getElementById('bulkSubmitText');
             text.textContent = form.dataset.bulkLabel || '処理中...';
             overlay.classList.add('active');
+            overlay.setAttribute('aria-hidden', 'false');
         }
     });
     </script>

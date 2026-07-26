@@ -24,6 +24,7 @@ from .pattern import (
     handle_update_pattern,
     handle_move_pattern,
     handle_get_category_keywords,
+    handle_preview_pattern_impact,
     handle_bulk_pattern_changes,
     handle_classify_and_register_pattern,
 )
@@ -45,6 +46,7 @@ from .transaction import (
     handle_update_transaction,
     handle_delete_duplicates,
     handle_delete_by_range,
+    handle_restore_range_backup,
     handle_toggle_flag,
     handle_update_memo,
     handle_bulk_replace_field,
@@ -65,6 +67,7 @@ from .api import (
     api_get_transaction,
     api_get_field_values,
     api_update_reference_date,
+    api_range_delete_preview,
 )
 
 __all__ = [
@@ -88,6 +91,7 @@ __all__ = [
     'handle_update_pattern',
     'handle_move_pattern',
     'handle_get_category_keywords',
+    'handle_preview_pattern_impact',
     'handle_bulk_pattern_changes',
     'handle_classify_and_register_pattern',
 
@@ -106,6 +110,7 @@ __all__ = [
     'handle_update_transaction',
     'handle_delete_duplicates',
     'handle_delete_by_range',
+    'handle_restore_range_backup',
     'handle_toggle_flag',
     'handle_update_memo',
     'handle_bulk_replace_field',
@@ -124,4 +129,5 @@ __all__ = [
     'api_get_transaction',
     'api_get_field_values',
     'api_update_reference_date',
+    'api_range_delete_preview',
 ]

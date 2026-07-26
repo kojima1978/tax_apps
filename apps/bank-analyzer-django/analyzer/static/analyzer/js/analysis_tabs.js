@@ -125,7 +125,7 @@ const UnclassifiedTab = {
             if (tbody.querySelectorAll('tr[data-tx-id]').length > 0) return;
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="13" class="text-center py-4">
+                    <td colspan="9" class="text-center py-4">
                         <i class="bi bi-check-circle text-success me-1"></i>
                         未分類取引はありません。
                     </td>
@@ -256,7 +256,7 @@ const UnclassifiedTab = {
                 var section = document.getElementById('inlinePatternSection');
                 var category = section ? section.dataset.category : '';
                 var scopeBtn = document.querySelector('#inlinePatternSection .btn-group .btn.active');
-                var scope = scopeBtn ? scopeBtn.dataset.scope : 'global';
+                var scope = scopeBtn ? scopeBtn.dataset.scope : 'case';
 
                 if (!keyword) { showToast('キーワードを入力してください', 'warning'); return; }
                 if (!category) { showToast('カテゴリーが指定されていません', 'warning'); return; }
@@ -327,6 +327,8 @@ const AISuggestions = {
             onSuccess: () => {
                 self.removeRow(txId);
                 self.updateBadgeCount(-1);
+                ClassificationUndo.show([txId], category);
+                ClassificationWorkbench.rememberCategory(category);
                 showToast(`「${category}」に分類しました`, 'success');
             },
         });
@@ -342,13 +344,19 @@ const AISuggestions = {
         row.style.opacity = '0.5';
         row.style.pointerEvents = 'none';
 
-        postAction('update_category', {
-            tx_id: txIds[0],
-            category: category,
-            apply_all: 'true',
-        }, {
+        const formData = createFormData({
+            action: 'bulk_update_categories',
+            source_tab: 'unclassified',
+        });
+        txIds.forEach(function(id) {
+            formData.append('uncat-' + id, category);
+        });
+
+        postJson(window.location.href, formData, {
             onSuccess: () => {
                 self.updateBadgeCount(-count);
+                ClassificationUndo.show(txIds, category);
+                ClassificationWorkbench.rememberCategory(category);
                 highlightAndRemoveRow(row);
                 self._removeRowsByDescription(description);
                 showToast(`「${category}」に${count}件分類しました`, 'success');
@@ -400,18 +408,38 @@ const AISuggestions = {
     },
 
     _removeRowsByDescription: function(description) {
-        var selectors = ['#aiFlatView .ai-flat-row', '#aiGroupedView .ai-group-row'];
+        var removedWorkbenchGroup = false;
+        var selectors = [
+            '#aiFlatView .ai-flat-row',
+            '#aiGroupedView .ai-group-row',
+            '.high-confidence-list .ai-group-row',
+            '#groupedTable .classification-group-row',
+            '#unclassifiedTable .classification-flat-row',
+        ];
         selectors.forEach(function(sel) {
             document.querySelectorAll(sel).forEach(function(row) {
-                if (row.dataset.description === description) {
+                if ((row.dataset.description || row.dataset.groupDesc) === description) {
+                    if (row.matches('#groupedTable .classification-group-row')) removedWorkbenchGroup = true;
                     highlightAndRemoveRow(row);
                 }
             });
         });
+        if (removedWorkbenchGroup) {
+            ['unclassifiedGroupCount', 'unclassifiedViewGroupCount'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.textContent = Math.max(0, (parseInt(el.textContent.replace(/,/g, ''), 10) || 0) - 1).toLocaleString();
+            });
+        }
     },
 
     bulkApply: function(minScore) {
         const scoreText = minScore === 95 ? '95%以上' : '85%以上';
+        const candidateRows = Array.from(document.querySelectorAll('.ai-group-row')).filter(row => {
+            return parseInt(row.dataset.score) >= minScore;
+        });
+        const candidateIds = Array.from(new Set(candidateRows.flatMap(row => {
+            return (row.dataset.txIds || '').split(',').filter(Boolean);
+        })));
 
         ConfirmModal.show({
             title: 'AI提案の一括適用',
@@ -436,8 +464,18 @@ const AISuggestions = {
                                 highlightAndRemoveRow(row);
                             }
                         });
+                        Array.from(new Set(candidateRows.map(function(row) {
+                            return row.dataset.description;
+                        }))).forEach(function(description) {
+                            self._removeRowsByDescription(description);
+                        });
                         self.updateBadgeCount(-removedCount);
                         const appliedCount = data.count || removedCount;
+                        ClassificationUndo.show(
+                            candidateIds.slice(0, appliedCount),
+                            '',
+                            appliedCount + '件の高信頼度候補を分類しました'
+                        );
                         showToast(`${appliedCount}件を一括適用しました（信頼度${scoreText}）`, 'success');
                     },
                 });
@@ -471,6 +509,9 @@ const AISuggestions = {
         }
         if (typeof ProgressBar !== 'undefined' && ProgressBar.update) {
             ProgressBar.update(-delta);
+        }
+        if (typeof updateUnclassifiedCount === 'function') {
+            updateUnclassifiedCount(-delta);
         }
     },
 
@@ -549,6 +590,140 @@ const AISuggestions = {
     },
 };
 
+// ===== 分類ワークベンチ =====
+
+const ClassificationWorkbench = {
+    _focusedRow: null,
+    _recentKey: 'bankAnalyzerRecentCategories',
+
+    init: function() {
+        if (!document.getElementById('classificationQuickBar')) return;
+        var self = this;
+
+        document.addEventListener('focusin', function(e) {
+            var row = e.target.closest('.classification-group-row, .classification-flat-row');
+            if (row) self._setFocusedRow(row);
+        });
+        document.addEventListener('click', function(e) {
+            var row = e.target.closest('.classification-group-row, .classification-flat-row');
+            if (row && !e.target.closest('a, button, select, input, summary')) self._setFocusedRow(row);
+        });
+
+        document.querySelectorAll('.quick-category-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                self.applyCategory(this.dataset.category);
+            });
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (!document.querySelector('#unclassified.active, #unclassified.show')) return;
+            if (e.target.matches('input, textarea, select') || e.ctrlKey || e.metaKey || e.altKey) return;
+            var key = e.key.toLowerCase();
+            if (key === 'j' || key === 'k') {
+                e.preventDefault();
+                self._moveFocus(key === 'j' ? 1 : -1);
+                return;
+            }
+            if (/^[1-6]$/.test(key)) {
+                var button = document.querySelector('.quick-category-btn[data-shortcut="' + key + '"]');
+                if (button) {
+                    e.preventDefault();
+                    self.applyCategory(button.dataset.category);
+                }
+                return;
+            }
+            if (key === 'enter' && self._focusedRow) {
+                var select = self._focusedRow.querySelector('.group-category-select, select[name^="uncat-"]');
+                if (select) {
+                    e.preventDefault();
+                    select.focus();
+                }
+            }
+        });
+
+        var first = this._visibleRows()[0];
+        if (first) this._setFocusedRow(first);
+        this._promoteRecentButtons();
+    },
+
+    _visibleRows: function() {
+        var groupedVisible = document.getElementById('groupedView');
+        var selector = groupedVisible && groupedVisible.style.display !== 'none'
+            ? '.classification-group-row'
+            : '.classification-flat-row';
+        return Array.from(document.querySelectorAll(selector)).filter(function(row) {
+            return row.offsetParent !== null;
+        });
+    },
+
+    _setFocusedRow: function(row) {
+        document.querySelectorAll('.classification-row-focused').forEach(function(item) {
+            item.classList.remove('classification-row-focused');
+        });
+        this._focusedRow = row;
+        row.classList.add('classification-row-focused');
+    },
+
+    _moveFocus: function(delta) {
+        var rows = this._visibleRows();
+        if (!rows.length) return;
+        var index = Math.max(0, rows.indexOf(this._focusedRow));
+        index = Math.min(rows.length - 1, Math.max(0, index + delta));
+        this._setFocusedRow(rows[index]);
+        rows[index].focus({ preventScroll: true });
+        rows[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    },
+
+    focusFirst: function() {
+        var first = this._visibleRows()[0];
+        if (first) this._setFocusedRow(first);
+    },
+
+    applyCategory: function(category) {
+        if (!this._focusedRow) {
+            showToast('分類する行を選択してください', 'warning');
+            return;
+        }
+        var select = this._focusedRow.querySelector('.group-category-select, select[name^="uncat-"]');
+        if (!select) return;
+        select.value = category;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        this.rememberCategory(category);
+    },
+
+    rememberCategory: function(category) {
+        var recent = this._getRecent().filter(function(item) { return item !== category; });
+        recent.unshift(category);
+        localStorage.setItem(this._recentKey, JSON.stringify(recent.slice(0, 6)));
+        this._promoteRecentButtons();
+    },
+
+    _getRecent: function() {
+        try { return JSON.parse(localStorage.getItem(this._recentKey) || '[]'); }
+        catch (e) { return []; }
+    },
+
+    _promoteRecentButtons: function() {
+        var container = document.getElementById('classificationQuickButtons');
+        if (!container) return;
+        var buttons = Array.from(container.querySelectorAll('.quick-category-btn'));
+        var recent = this._getRecent();
+        buttons.sort(function(a, b) {
+            var ai = recent.indexOf(a.dataset.category);
+            var bi = recent.indexOf(b.dataset.category);
+            ai = ai < 0 ? 999 : ai;
+            bi = bi < 0 ? 999 : bi;
+            return ai - bi;
+        });
+        buttons.forEach(function(button, index) {
+            button.dataset.shortcut = String(index + 1);
+            var kbd = button.querySelector('kbd');
+            if (kbd) kbd.textContent = String(index + 1);
+            container.appendChild(button);
+        });
+    },
+};
+
 // ===== グループ表示 =====
 
 const GroupedView = {
@@ -609,10 +784,27 @@ const GroupedView = {
     },
 
     _classifyGroup: function(row, category, select) {
-        var self = this;
         var txIds = JSON.parse(row.dataset.txIds || '[]');
-        var desc = row.dataset.groupDesc;
         var count = txIds.length;
+        if (!row.dataset.confirmed && count > 1) {
+            var self = this;
+            ConfirmModal.show({
+                title: 'グループ分類の確認',
+                message: '摘要「' + row.dataset.groupDesc + '」の' + count + '件を「' + category + '」に分類します。',
+                confirmText: count + '件を分類',
+                onConfirm: function() {
+                    row.dataset.confirmed = 'true';
+                    self._classifyGroup(row, category, select);
+                },
+            }).then(function(confirmed) {
+                if (!confirmed && select) select.value = '';
+            });
+            return;
+        }
+        delete row.dataset.confirmed;
+
+        var self = this;
+        var desc = row.dataset.groupDesc;
 
         if (select) select.disabled = true;
         StatusIndicator.saving();
@@ -636,6 +828,12 @@ const GroupedView = {
                     StatusIndicator.saved();
                     ProgressBar.update(updatedCount);
                     self._updateTxTotal(updatedCount);
+                    ClassificationUndo.show(txIds, category);
+                    ClassificationWorkbench.rememberCategory(category);
+                    ['unclassifiedGroupCount', 'unclassifiedViewGroupCount'].forEach(function(id) {
+                        var groupCount = document.getElementById(id);
+                        if (groupCount) groupCount.textContent = Math.max(0, (parseInt(groupCount.textContent.replace(/,/g, ''), 10) || 0) - 1).toLocaleString();
+                    });
                     highlightAndRemoveRow(row);
                     showToast('「' + desc + '」' + updatedCount + '件を「' + category + '」に分類しました' + (suffix || ''), 'success');
                     PatternPrompt.show(category, desc);
@@ -704,24 +902,105 @@ const TransferView = {
 
 const CleanupView = {
     init: function() {
+        const form = document.getElementById('rangeDeleteForm');
         const startId = document.getElementById('start_id');
         const endId = document.getElementById('end_id');
         const preview = document.getElementById('rangeDeletePreview');
+        const confirmation = document.getElementById('delete_confirmation');
+        const expectedCount = document.getElementById('rangeDeleteExpectedCount');
+        const deleteButton = document.getElementById('rangeDeleteBtn');
+        let previewCount = 0;
+        let previewTimer = null;
+        let previewController = null;
 
-        if (startId && endId && preview) {
-            const updatePreview = () => {
-                const s = parseInt(startId.value);
-                const e = parseInt(endId.value);
-                if (!isNaN(s) && !isNaN(e) && e >= s) {
-                    const count = e - s + 1;
-                    preview.textContent = count + '件が対象';
-                    preview.style.display = '';
-                } else {
-                    preview.style.display = 'none';
+        if (form && startId && endId && preview && confirmation && expectedCount && deleteButton) {
+            const updateButtonState = () => {
+                deleteButton.disabled = !(previewCount > 0 && confirmation.value.trim() === '削除');
+            };
+
+            const renderPreview = (data) => {
+                preview.replaceChildren();
+                const summary = document.createElement('div');
+                summary.className = data.count > 0
+                    ? 'alert alert-danger py-2 mb-2'
+                    : 'alert alert-secondary py-2 mb-0';
+                summary.innerHTML = data.count > 0
+                    ? '<strong>' + data.count + '件</strong>が削除対象です。内容を確認してください。'
+                    : '指定範囲に削除対象はありません。';
+                preview.appendChild(summary);
+
+                if (data.sample && data.sample.length) {
+                    const list = document.createElement('div');
+                    list.className = 'cleanup-delete-sample';
+                    data.sample.forEach(function(tx) {
+                        const item = document.createElement('div');
+                        item.className = 'cleanup-delete-sample-row';
+                        const amount = tx.amount_out > 0
+                            ? '出金 ' + tx.amount_out.toLocaleString() + '円'
+                            : '入金 ' + tx.amount_in.toLocaleString() + '円';
+                        item.textContent = 'ID ' + tx.id + '｜' + (tx.date || '日付なし') +
+                            '｜' + (tx.description || '摘要なし') + '｜' + amount;
+                        list.appendChild(item);
+                    });
+                    preview.appendChild(list);
+                    if (data.count > data.sample.length) {
+                        const more = document.createElement('div');
+                        more.className = 'small text-muted mt-1';
+                        more.textContent = 'ほか ' + (data.count - data.sample.length) + '件';
+                        preview.appendChild(more);
+                    }
                 }
             };
-            startId.addEventListener('input', updatePreview);
-            endId.addEventListener('input', updatePreview);
+
+            const loadPreview = () => {
+                const s = parseInt(startId.value);
+                const e = parseInt(endId.value);
+                previewCount = 0;
+                expectedCount.value = '-1';
+                updateButtonState();
+
+                if (isNaN(s) || isNaN(e) || s < 1 || e < 1) {
+                    preview.innerHTML = '<div class="text-muted small">開始IDと終了IDを入力すると、削除対象を確認できます。</div>';
+                    return;
+                }
+
+                if (previewController) previewController.abort();
+                previewController = new AbortController();
+                preview.innerHTML = '<div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>対象を確認中...</div>';
+                const url = new URL(form.dataset.previewUrl, window.location.origin);
+                url.searchParams.set('start_id', s);
+                url.searchParams.set('end_id', e);
+                fetch(url, { signal: previewController.signal })
+                    .then(function(response) {
+                        if (!response.ok) throw new Error('preview failed');
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        previewCount = data.count || 0;
+                        expectedCount.value = String(previewCount);
+                        renderPreview(data);
+                        updateButtonState();
+                    })
+                    .catch(function(error) {
+                        if (error.name === 'AbortError') return;
+                        preview.innerHTML = '<div class="alert alert-warning py-2 mb-0">対象を取得できませんでした。もう一度入力してください。</div>';
+                    });
+            };
+
+            const schedulePreview = () => {
+                clearTimeout(previewTimer);
+                previewTimer = setTimeout(loadPreview, 300);
+            };
+
+            startId.addEventListener('input', schedulePreview);
+            endId.addEventListener('input', schedulePreview);
+            confirmation.addEventListener('input', updateButtonState);
+            form.addEventListener('submit', function(event) {
+                if (previewCount < 1 || confirmation.value.trim() !== '削除') {
+                    event.preventDefault();
+                    showToast('対象を確認し、確認欄に「削除」と入力してください。', 'warning');
+                }
+            });
         }
     }
 };

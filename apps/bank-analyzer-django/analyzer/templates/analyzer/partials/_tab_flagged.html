@@ -2,10 +2,10 @@
 {% load japanese_date %}
 {% load pagination_tags %}
 
-<div class="tab-pane fade" id="flagged" role="tabpanel" aria-labelledby="flagged-tab">
+<div class="tab-pane fade" id="flagged" role="tabpanel" aria-labelledby="flagged-tab" tabindex="0">
     <div class="glass-card p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0 text-info"><i class="bi bi-pin-angle"></i> 付箋付き取引
+            <h4 class="mb-0 text-info"><i class="bi bi-question-circle"></i> 質問候補
                 {% if filter_state.keyword %}<small class="text-muted">(「{{ filter_state.keyword }}」で絞り込み中)</small>{% endif %}
             </h4>
             {% if flagged_txs %}
@@ -15,7 +15,8 @@
             {% endif %}
         </div>
         <p class="text-muted">
-            後で確認したい取引に付箋を付けることができます。各タブの取引一覧で<i class="bi bi-bookmark-fill"></i>ボタンをクリックして付箋を追加できます。
+            不明点のある取引をここに集め、詳細画面のメモに質問内容を記録できます。
+            取引一覧の <i class="bi bi-bookmark-fill" aria-hidden="true"></i> から質問候補へ追加してください。
         </p>
 
         <!-- キーワード検索 -->
@@ -24,48 +25,49 @@
         {% endwith %}
 
         {% if flagged_txs %}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle table-sm">
+        <div class="table-responsive transaction-table-responsive" tabindex="0"
+            role="region" aria-label="質問候補の取引一覧">
+            <table class="table table-hover align-middle table-sm transaction-table question-candidate-table">
                 <thead>
                     <tr>
                         <th>{% sort_header "flagged" "date" "日付" filter_state %}</th>
-                        <th>銀行名</th>
-                        <th>支店名</th>
-                        <th>種別</th>
-                        <th>口座番号</th>
+                        <th class="tx-account-column">口座</th>
                         <th>摘要</th>
                         <th>{% sort_header "flagged" "amount_out" "出金" filter_state %}</th>
                         <th>{% sort_header "flagged" "amount_in" "入金" filter_state %}</th>
                         <th>分類</th>
-                        <th>メモ</th>
-                        <th>詳細</th>
-                        <th>付箋</th>
+                        <th>質問メモ</th>
+                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for tx in flagged_txs %}
                     <tr data-tx-id="{{ tx.id }}">
                         <td class="text-nowrap tx-date-cell" data-date="{{ tx.date|date:'Y-m-d' }}">{{ tx.date|wareki_short }}</td>
-                        <td>{{ tx.bank_name|default:"-" }}</td>
-                        <td>{{ tx.branch_name|default:"-" }}</td>
-                        <td>{{ tx.account_type|default:"-" }}</td>
-                        <td>{{ tx.account_number|default:"-" }}</td>
-                        <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
-                        <td class="text-end text-danger">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% elif tx.amount_in == 0 %}0{% endif %}</td>
-                        <td class="text-end text-success">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% elif tx.amount_out == 0 %}0{% endif %}</td>
-                        <td><span class="badge bg-secondary">{{ tx.category|default:"-" }}</span></td>
-                        <td style="max-width: 150px;" class="text-truncate memo-cell" title="{{ tx.memo|default:'' }}" data-tx-id="{{ tx.id }}">
-                            <small class="text-muted">{{ tx.memo|default:"-"|truncatechars:30 }}</small>
+                        <td class="tx-account-cell">
+                            <span class="tx-account-primary">{{ tx.bank_name|default:"-" }} {{ tx.branch_name|default:"" }}</span>
+                            <small>{{ tx.account_type|default:"-" }}・{{ tx.account_number|default:"-" }}</small>
                         </td>
-                        <td class="row-actions">
+                        <td class="tx-description-cell" title="{{ tx.description }}">
+                            <span class="text-truncate">{{ tx.description }}</span>
+                        </td>
+                        <td class="text-end text-nowrap text-danger">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% elif tx.amount_in == 0 %}0{% endif %}</td>
+                        <td class="text-end text-nowrap text-success">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% elif tx.amount_out == 0 %}0{% endif %}</td>
+                        <td><span class="badge bg-secondary">{{ tx.category|default:"-" }}</span></td>
+                        <td class="question-memo-cell memo-cell" title="{{ tx.memo|default:'質問メモ未記入' }}" data-tx-id="{{ tx.id }}">
+                            {% if tx.memo %}
+                            <span class="text-truncate">{{ tx.memo }}</span>
+                            {% else %}
+                            <span class="question-memo-empty">未記入</span>
+                            {% endif %}
+                        </td>
+                        <td class="row-actions text-nowrap">
                             <div class="d-flex gap-1">
                                 {% include "analyzer/partials/_edit_button.html" %}
+                                {% with source_tab="flagged" %}
+                                {% include "analyzer/partials/_flag_button.html" %}
+                                {% endwith %}
                             </div>
-                        </td>
-                        <td class="row-actions">
-                            {% with source_tab="flagged" %}
-                            {% include "analyzer/partials/_flag_button.html" %}
-                            {% endwith %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -73,7 +75,7 @@
             </table>
         </div>
         {% else %}
-        {% include "analyzer/partials/_empty_state.html" with icon="bookmark" text="付箋が付いた取引はありません" hint="取引一覧で付箋ボタンをクリックして付箋を追加できます" %}
+        {% include "analyzer/partials/_empty_state.html" with icon="question-circle" text="質問候補はまだありません" hint="取引一覧で不明な取引を質問候補に追加してください" %}
         {% endif %}
     </div>
 </div>

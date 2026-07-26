@@ -2,45 +2,86 @@
 {% load japanese_date %}
 {% load pagination_tags %}
 
-<div class="tab-pane fade show active" id="all" role="tabpanel" aria-labelledby="all-tab">
+<div class="tab-pane fade" id="all" role="tabpanel" aria-labelledby="all-tab" tabindex="0">
     <div class="glass-card p-4">
-        <!-- クイックフィルター＋チップ（常時表示） -->
-        <div class="d-flex align-items-center flex-wrap gap-2 mb-2" id="quickFilters" data-case-pk="{{ case.pk }}">
-            <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-outline-secondary" data-quick="outOnly">出金のみ</button>
-                <button type="button" class="btn btn-outline-secondary" data-quick="inOnly">入金のみ</button>
-            </div>
-            <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-outline-secondary" data-quick="over300k">30万以上</button>
-                <button type="button" class="btn btn-outline-secondary" data-quick="over500k">50万以上</button>
-                <button type="button" class="btn btn-outline-secondary" data-quick="over1m">100万以上</button>
-            </div>
-            <div class="vr mx-1"></div>
-            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="false" id="filterPanelToggle">
-                <i class="bi bi-funnel"></i> 詳細フィルター
-            </button>
-        </div>
-
-        <!-- アクティブフィルター・チップ -->
-        <div id="activeFilterChips" class="mb-2 d-flex flex-wrap gap-1"></div>
-
-        <!-- 詳細フィルターパネル（折りたたみ） -->
-        <div class="collapse mb-3" id="filterPanel">
-            <form method="get" class="filter-panel-body" id="filterForm">
+        <section class="transaction-search-panel mb-3" aria-labelledby="transactionSearchHeading">
+            <form method="get" id="filterForm">
                 <input type="hidden" name="tab" value="all">
                 {% if filter_state.sort %}<input type="hidden" name="sort" value="{{ filter_state.sort }}">{% endif %}
                 {% if filter_state.per_page != '100' %}<input type="hidden" name="per_page" value="{{ filter_state.per_page }}">{% endif %}
-                <!-- ローディングオーバーレイ -->
                 <div class="filter-loading-overlay" id="filterLoadingOverlay">
                     <div class="spinner-border spinner-border-sm text-primary" role="status">
                         <span class="visually-hidden">読み込み中...</span>
                     </div>
                 </div>
-                <!-- 1段目: チェックボックス系 -->
-                <div class="row g-3 mb-2">
-                    <div class="col-md-3">
-                        <label class="form-label form-label-sm fw-semibold"><i class="bi bi-bank2 me-1"></i>銀行名</label>
-                        <div class="checkbox-filter-list">
+
+                <div class="transaction-search-primary">
+                    <div class="transaction-search-heading">
+                        <span class="transaction-search-eyebrow">取引を探す</span>
+                        <h2 class="h5 mb-0" id="transactionSearchHeading">摘要・キーワード検索</h2>
+                    </div>
+                    <div class="transaction-search-input">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <label for="transactionKeyword" class="visually-hidden">摘要をキーワードで検索</label>
+                        <input type="search" name="keyword" id="transactionKeyword"
+                            class="form-control" value="{{ filter_state.keyword }}"
+                            placeholder="摘要、振込先、メモなどを検索" enterkeyhint="search">
+                        {% if filter_state.keyword %}
+                        <a href="{% url 'analysis-dashboard' case.pk %}?tab=all"
+                            class="transaction-search-clear" aria-label="キーワードと検索条件を解除">
+                            <i class="bi bi-x-lg" aria-hidden="true"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    <button class="btn btn-success transaction-search-submit" type="submit" id="filterSubmitBtn">
+                        <i class="bi bi-search me-1" aria-hidden="true"></i>検索
+                    </button>
+                    <button class="btn btn-outline-secondary transaction-filter-toggle" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#filterPanel"
+                        aria-expanded="false" aria-controls="filterPanel" id="filterPanelToggle">
+                        <i class="bi bi-sliders" aria-hidden="true"></i>
+                        <span>詳細条件</span>
+                        <span class="badge bg-success ms-1" id="activeFilterCount" hidden>0</span>
+                    </button>
+                </div>
+
+                <div class="quick-filter-row" id="quickFilters" data-case-pk="{{ case.pk }}">
+                    <span class="quick-filter-label">よく使う条件</span>
+                    <div class="quick-filter-options">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="入出金種別">
+                            <button type="button" class="btn btn-outline-secondary" data-quick="outOnly">
+                                <i class="bi bi-arrow-up-right me-1" aria-hidden="true"></i>出金
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-quick="inOnly">
+                                <i class="bi bi-arrow-down-left me-1" aria-hidden="true"></i>入金
+                            </button>
+                        </div>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="最低金額">
+                            <button type="button" class="btn btn-outline-secondary" data-quick="over300k">30万円〜</button>
+                            <button type="button" class="btn btn-outline-secondary" data-quick="over500k">50万円〜</button>
+                            <button type="button" class="btn btn-outline-secondary" data-quick="over1m">100万円〜</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="activeFilterChips" class="active-filter-area" aria-live="polite"></div>
+
+                <div class="collapse" id="filterPanel">
+                    <div class="filter-panel-body">
+                        <div class="filter-panel-heading">
+                            <div>
+                                <h3 class="h6 mb-1"><i class="bi bi-sliders me-1" aria-hidden="true"></i>詳細条件</h3>
+                                <p class="small text-muted mb-0">複数の条件を組み合わせて絞り込めます</p>
+                            </div>
+                        </div>
+
+                        <div class="advanced-filter-grid">
+                    <fieldset class="filter-fieldset">
+                        <legend><i class="bi bi-bank2" aria-hidden="true"></i>銀行名</legend>
+                        <label class="visually-hidden" for="bankFilterSearch">銀行名の候補を検索</label>
+                        <input type="search" class="form-control form-control-sm filter-list-search"
+                            id="bankFilterSearch" placeholder="銀行名を絞り込み" data-filter-list="bankFilterList">
+                        <div class="checkbox-filter-list" id="bankFilterList">
                             {% for bank in banks %}
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="bank" value="{{ bank }}" id="bank_{{ forloop.counter }}" {% if bank in filter_state.bank %}checked{% endif %}>
@@ -48,9 +89,13 @@
                             </div>
                             {% endfor %}
                         </div>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label form-label-sm fw-semibold"><i class="bi bi-wallet2 me-1"></i>口座</label>
+                    </fieldset>
+
+                    <fieldset class="filter-fieldset">
+                        <legend><i class="bi bi-wallet2" aria-hidden="true"></i>口座</legend>
+                        <label class="visually-hidden" for="accountFilterSearch">口座番号の候補を検索</label>
+                        <input type="search" class="form-control form-control-sm filter-list-search"
+                            id="accountFilterSearch" placeholder="口座番号を絞り込み" data-filter-list="accountFilterList">
                         <div class="checkbox-filter-list" id="accountFilterList">
                             {% for acc in accounts %}
                             <div class="form-check account-filter-item">
@@ -59,10 +104,14 @@
                             </div>
                             {% endfor %}
                         </div>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label form-label-sm fw-semibold"><i class="bi bi-tag me-1"></i>分類</label>
-                        <div class="checkbox-filter-list">
+                    </fieldset>
+
+                    <fieldset class="filter-fieldset">
+                        <legend><i class="bi bi-tag" aria-hidden="true"></i>分類</legend>
+                        <label class="visually-hidden" for="categoryFilterSearch">分類の候補を検索</label>
+                        <input type="search" class="form-control form-control-sm filter-list-search"
+                            id="categoryFilterSearch" placeholder="分類を絞り込み" data-filter-list="categoryFilterList">
+                        <div class="checkbox-filter-list" id="categoryFilterList">
                             {% for cat in categories %}
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="category" value="{{ cat }}" id="cat_{{ forloop.counter }}" {% if cat in filter_state.category %}checked{% endif %}>
@@ -80,53 +129,84 @@
                                 <label class="form-check-label small" for="cat_mode_exclude">以外</label>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label form-label-sm fw-semibold"><i class="bi bi-search me-1"></i>キーワード</label>
-                        <input type="text" name="keyword" class="form-control form-control-sm" value="{{ filter_state.keyword }}"
-                            placeholder="摘要を検索...">
-                        <div class="mt-3">
-                            <label class="form-label form-label-sm fw-semibold"><i class="bi bi-calendar3 me-1"></i>日付範囲</label>
-                            <div class="d-flex align-items-center gap-1 mb-1">
-                                <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filter_state.date_from|default:'' }}">
-                                <span class="text-muted small">〜</span>
-                                <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filter_state.date_to|default:'' }}">
+                    </fieldset>
+
+                    <fieldset class="filter-fieldset filter-fieldset-inline">
+                        <legend><i class="bi bi-calendar3" aria-hidden="true"></i>取引日</legend>
+                        <div class="filter-range-inputs">
+                            <div>
+                                <label for="filterDateFrom">開始日</label>
+                                <input type="date" id="filterDateFrom" name="date_from"
+                                    class="form-control form-control-sm" value="{{ filter_state.date_from|default:'' }}">
+                            </div>
+                            <span aria-hidden="true">〜</span>
+                            <div>
+                                <label for="filterDateTo">終了日</label>
+                                <input type="date" id="filterDateTo" name="date_to"
+                                    class="form-control form-control-sm" value="{{ filter_state.date_to|default:'' }}">
                             </div>
                         </div>
-                    </div>
-                </div>
-                <!-- 2段目: 金額フィルター -->
-                <div class="d-flex align-items-end gap-3 pt-2 border-top">
-                    <div>
-                        <label class="form-label form-label-sm fw-semibold mb-1"><i class="bi bi-currency-yen me-1"></i>取引種別</label>
-                        <select name="amount_type" class="form-select form-select-sm">
+                    </fieldset>
+
+                    <fieldset class="filter-fieldset filter-fieldset-inline">
+                        <legend><i class="bi bi-arrow-left-right" aria-hidden="true"></i>入出金種別</legend>
+                        <label for="filterAmountType" class="visually-hidden">入出金種別</label>
+                        <select name="amount_type" id="filterAmountType" class="form-select">
                             <option value="both" {% if filter_state.amount_type == 'both' %}selected{% endif %}>両方</option>
                             <option value="out" {% if filter_state.amount_type == 'out' %}selected{% endif %}>出金のみ</option>
                             <option value="in" {% if filter_state.amount_type == 'in' %}selected{% endif %}>入金のみ</option>
                         </select>
-                    </div>
-                    <div>
-                        <label class="form-label form-label-sm fw-semibold mb-1">金額範囲</label>
-                        <div class="d-flex align-items-center gap-1">
-                            <input type="text" name="amount_min" class="form-control form-control-sm amount-comma-input" style="width: 130px;"
-                                value="{{ filter_state.amount_min }}" placeholder="最小" inputmode="numeric">
-                            <span class="text-muted">〜</span>
-                            <input type="text" name="amount_max" class="form-control form-control-sm amount-comma-input" style="width: 130px;"
-                                value="{{ filter_state.amount_max }}" placeholder="最大" inputmode="numeric">
+                    </fieldset>
+
+                    <fieldset class="filter-fieldset filter-fieldset-inline">
+                        <legend><i class="bi bi-currency-yen" aria-hidden="true"></i>金額範囲</legend>
+                        <div class="filter-range-inputs">
+                            <div>
+                                <label for="filterAmountMin">最小金額</label>
+                                <input type="text" name="amount_min" id="filterAmountMin"
+                                    class="form-control amount-comma-input"
+                                    value="{{ filter_state.amount_min }}" placeholder="0" inputmode="numeric">
+                            </div>
+                            <span aria-hidden="true">〜</span>
+                            <div>
+                                <label for="filterAmountMax">最大金額</label>
+                                <input type="text" name="amount_max" id="filterAmountMax"
+                                    class="form-control amount-comma-input"
+                                    value="{{ filter_state.amount_max }}" placeholder="上限なし" inputmode="numeric">
+                            </div>
                         </div>
-                    </div>
+                    </fieldset>
                 </div>
-                <!-- 3段目: アクションボタン -->
-                <div class="d-flex justify-content-end gap-2 pt-3 mt-2 border-top">
+
+                <div class="filter-panel-actions">
+                    <span class="small text-muted me-auto">
+                        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Enterキーでも検索できます
+                    </span>
                     <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-outline-secondary" id="filterResetBtn">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i>リセット
+                        <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>すべて解除
                     </a>
-                    <button class="btn btn-primary" type="submit" id="filterSubmitBtn">
-                        <i class="bi bi-search me-1"></i>絞り込む
+                    <button class="btn btn-success" type="submit" id="filterApplyBtn">
+                        <i class="bi bi-check2 me-1" aria-hidden="true"></i>この条件で絞り込む
                     </button>
                 </div>
+                        </div>
+                    </div>
             </form>
-        </div>
+        </section>
+
+        <aside class="question-workflow-guide mb-3" aria-label="質問候補の作り方">
+            <div class="question-workflow-icon" aria-hidden="true">
+                <i class="bi bi-question-circle"></i>
+            </div>
+            <div>
+                <strong>不明な取引を、質問候補として残せます</strong>
+                <p class="mb-0">検索結果の <i class="bi bi-bookmark-fill" aria-hidden="true"></i> を押し、詳細画面のメモに確認したい内容を記録してください。</p>
+            </div>
+            <a class="btn btn-outline-success btn-sm ms-auto text-nowrap"
+                href="{% url 'analysis-dashboard' case.pk %}?tab=flagged">
+                質問候補を見る
+            </a>
+        </aside>
 
         <!-- 分類編集フォーム -->
         <form method="post" id="allTxForm" class="bulk-form" data-bulk-label="分類を保存中...">
@@ -150,22 +230,27 @@
             <input type="hidden" name="filter_page" value="{{ all_txs.number }}">
             {% endif %}
 
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">
-                    <i class="bi bi-list-ul me-1 text-primary"></i>検索結果: <strong>{{ all_txs_count }}</strong>件
-                    {% if all_txs.paginator.num_pages > 1 %}
-                    <small class="text-muted fw-normal">({{ all_txs.number }} / {{ all_txs.paginator.num_pages }}ページ)</small>
+            <div class="transaction-toolbar d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div class="search-result-summary">
+                    <span class="search-result-label">検索結果</span>
+                    <strong>{{ all_txs_count|intcomma }}件</strong>
+                    {% if all_txs_count %}
+                    <small>{{ all_txs.start_index|intcomma }}〜{{ all_txs.end_index|intcomma }}件を表示</small>
                     {% endif %}
-                </h5>
-                <div class="d-flex align-items-center gap-1">
+                </div>
+                <div class="transaction-toolbar-actions d-flex align-items-center gap-1 flex-wrap">
+                    <span class="save-state-pill" id="inlineSaveSummary" role="status" aria-live="polite">
+                        <i class="bi bi-cloud-check" aria-hidden="true"></i>
+                        <span>自動保存済み</span>
+                    </span>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="tableDensityToggle"
+                        aria-pressed="false" title="行の高さを切り替え">
+                        <i class="bi bi-arrows-collapse" aria-hidden="true"></i>
+                        <span class="d-none d-lg-inline">コンパクト</span>
+                    </button>
                     <button type="button" class="btn btn-success btn-sm" id="addTxTopBtn" title="取引を追加">
                         <i class="bi bi-plus-lg me-1"></i>取引追加
                     </button>
-                    {% if all_txs %}
-                    <button type="submit" class="btn btn-outline-secondary btn-sm" title="カテゴリー変更は自動保存されます">
-                        <i class="bi bi-check-lg"></i> 一括保存
-                    </button>
-                    {% endif %}
                     <div class="dropdown">
                         <button class="btn btn-outline-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                             <i class="bi bi-download"></i> エクスポート
@@ -218,66 +303,69 @@
                 </div>
             </div>
 
-            <div class="table-responsive">
-                <table class="table table-hover align-middle table-sm">
+            <p class="table-scroll-hint d-md-none mb-2" id="transactionTableHint">
+                <i class="bi bi-arrow-left-right me-1" aria-hidden="true"></i>表は横にスクロールできます
+            </p>
+            <div class="table-responsive transaction-table-responsive" tabindex="0"
+                role="region" aria-label="取引一覧" aria-describedby="transactionTableHint">
+                <table class="table table-hover align-middle table-sm transaction-table">
                     <thead>
                         <tr>
                             <th style="width: 40px;">
-                                <input type="checkbox" class="form-check-input" id="selectAllTx" title="全選択">
+                                <input type="checkbox" class="form-check-input" id="selectAllTx"
+                                    title="全選択" aria-label="表示中の取引をすべて選択">
                             </th>
-                            <th style="width: 60px;">+/-</th>
+                            <th style="width: 74px;">行操作</th>
                             <th>{% sort_header "all" "date" "日付" filter_state %}</th>
-                            <th>銀行名</th>
-                            <th>支店名</th>
-                            <th>種別</th>
-                            <th>口座番号</th>
-                            <th>摘要</th>
+                            <th class="tx-account-column">口座</th>
+                            <th class="tx-description-column">摘要</th>
                             <th>{% sort_header "all" "amount_out" "払戻" filter_state %}</th>
                             <th>{% sort_header "all" "amount_in" "お預り" filter_state %}</th>
                             <th style="min-width: 130px;">分類</th>
-                            <th>操作</th>
-                            <th><i class="bi bi-bookmark" aria-hidden="true"></i></th>
+                            <th style="width: 94px;">操作</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for tx in all_txs %}
                         <tr data-tx-id="{{ tx.id }}"{% if tx.is_flagged %} class="table-warning"{% endif %}>
                             <td>
-                                <input type="checkbox" value="{{ tx.id }}" class="form-check-input tx-select-check">
+                                <input type="checkbox" value="{{ tx.id }}" class="form-check-input tx-select-check"
+                                    aria-label="{{ tx.date|date:'Y年n月j日' }}の取引を選択">
                             </td>
                             <td class="text-nowrap">
-                                <button type="button" class="btn btn-sm btn-outline-success p-0 px-1 insert-tx-btn"
+                                <button type="button" class="btn btn-sm btn-outline-success p-0 px-1 insert-tx-btn icon-action-btn"
                                     data-tx-id="{{ tx.id }}"
                                     data-tx-date="{{ tx.date|date:'Y-m-d' }}"
                                     data-tx-bank="{{ tx.bank_name|default:'' }}"
                                     data-tx-branch="{{ tx.branch_name|default:'' }}"
                                     data-tx-account-type="{{ tx.account_type|default:'' }}"
                                     data-tx-account="{{ tx.account_number|default:'' }}"
-                                    title="この下に追加">
-                                    <i class="bi bi-plus"></i>
+                                    title="この下に追加" aria-label="{{ tx.date|date:'Y年n月j日' }}の取引の下に追加">
+                                    <i class="bi bi-plus" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-danger p-0 px-1 delete-tx-btn"
-                                    data-tx-id="{{ tx.id }}" title="削除">
-                                    <i class="bi bi-trash"></i>
+                                <button type="button" class="btn btn-sm btn-outline-danger p-0 px-1 delete-tx-btn icon-action-btn"
+                                    data-tx-id="{{ tx.id }}" title="削除"
+                                    aria-label="{{ tx.date|date:'Y年n月j日' }}の取引を削除">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
                                 </button>
                             </td>
                             <td class="text-nowrap tx-date-cell" data-date="{{ tx.date|date:'Y-m-d' }}">{{ tx.date|wareki_short }}</td>
-                            <td>{{ tx.bank_name|default:"-" }}</td>
-                            <td>{{ tx.branch_name|default:"-" }}</td>
-                            <td>{{ tx.account_type|default:"-" }}</td>
-                            <td>{{ tx.account_number|default:"-" }}</td>
-                            <td style="max-width: 200px;" class="text-truncate" title="{{ tx.description }}">{{ tx.description }}</td>
-                            <td class="text-end">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% elif tx.amount_in == 0 %}0{% endif %}</td>
-                            <td class="text-end">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% elif tx.amount_out == 0 %}0{% endif %}</td>
+                            <td class="tx-account-cell">
+                                <span class="tx-account-primary">{{ tx.bank_name|default:"-" }} {{ tx.branch_name|default:"" }}</span>
+                                <small>{{ tx.account_type|default:"-" }}・{{ tx.account_number|default:"-" }}</small>
+                            </td>
+                            <td class="tx-description-cell" title="{{ tx.description }}">
+                                <span class="text-truncate">{{ tx.description }}</span>
+                            </td>
+                            <td class="text-end text-nowrap tx-amount-cell">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% elif tx.amount_in == 0 %}0{% endif %}</td>
+                            <td class="text-end text-nowrap tx-amount-cell">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% elif tx.amount_out == 0 %}0{% endif %}</td>
                             <td>
                                 {% with name_prefix="cat-" %}
                                 {% include "analyzer/partials/_category_select.html" %}
                                 {% endwith %}
                             </td>
-                            <td class="row-actions">
+                            <td class="row-actions text-nowrap">
                                 {% include "analyzer/partials/_edit_button.html" %}
-                            </td>
-                            <td class="row-actions">
                                 {% with source_tab="all" %}
                                 {% include "analyzer/partials/_flag_button.html" %}
                                 {% endwith %}
@@ -285,8 +373,21 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="13">
-                                {% include "analyzer/partials/_empty_state.html" with icon="search" text="取引が見つかりません" hint="フィルター条件を変更してお試しください" %}
+                            <td colspan="9">
+                                <div class="empty-state search-empty-state">
+                                    <div class="empty-state-icon"><i class="bi bi-search" aria-hidden="true"></i></div>
+                                    <p class="empty-state-text">条件に一致する取引がありません</p>
+                                    <p class="empty-state-hint">キーワードを短くするか、日付・金額の範囲を広げてください。</p>
+                                    <div class="d-flex justify-content-center gap-2 mt-3 flex-wrap">
+                                        <a href="{% url 'analysis-dashboard' case.pk %}?tab=all" class="btn btn-success btn-sm">
+                                            検索条件をすべて解除
+                                        </a>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            data-bs-toggle="collapse" data-bs-target="#filterPanel">
+                                            詳細条件を見直す
+                                        </button>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
