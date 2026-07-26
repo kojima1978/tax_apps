@@ -16,6 +16,9 @@ export const PrintPagesProvider: React.FC<PrintPagesProviderProps> = ({ pageKeys
   <PrintPagesContext.Provider value={pageKeys}>{children}</PrintPagesContext.Provider>
 );
 
+/** 目次のようにページ列全体を見たいコンポーネント向け */
+export const usePrintPageKeys = (): PrintPageKey[] => useContext(PrintPagesContext);
+
 export interface PrintPageInfo {
   currentPage: number;
   totalPages: number;

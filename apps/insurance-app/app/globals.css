@@ -4085,6 +4085,104 @@ body:has(.app-shell) #root {
     margin: 0 10px;
   }
 
+  /* --- 目次ページ(表紙の次) --- */
+  /* ページ番号は .print-page(=紙1枚分)の右下に出るので、
+     中身は .toc-body 側で持たせて .toc-page 自体には padding を足さない */
+  .toc-page {
+    display: flex !important;
+    flex-direction: column;
+    page-break-after: always;
+    break-after: page;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .toc-body {
+    padding: 14mm 15mm 0;
+  }
+
+  .toc-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 3mm;
+    border-bottom: 2px solid #3182ce;
+  }
+
+  .toc-head-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .toc-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1a365d;
+    letter-spacing: 0.18em;
+  }
+
+  .toc-title-sub {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .toc-customer {
+    font-size: 0.85rem;
+    color: #475569;
+  }
+
+  .toc-list {
+    list-style: none;
+    margin: 8mm 0 0;
+    padding: 0;
+  }
+
+  /* 見出し・リーダー(点線)・ページ番号の3列。
+     リーダーだけを伸ばすことで、見出しの長さに関係なく番号が右端で揃う */
+  .toc-row {
+    display: flex;
+    align-items: baseline;
+    font-size: 1rem;
+    color: #1e293b;
+    padding: 2.6mm 0;
+  }
+
+  .toc-row + .toc-row {
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .toc-row-leader {
+    flex: 1;
+    border-bottom: 1px dotted #cbd5e1;
+    margin: 0 8px 4px;
+  }
+
+  .toc-row-page {
+    font-variant-numeric: tabular-nums;
+    color: #1a365d;
+    font-weight: 700;
+    /* 「7〜12」のような範囲表記でも右端が揃うように最低幅を確保する */
+    min-width: 12mm;
+    text-align: right;
+  }
+
+  /* 証券ごとの行。グループ見出し「個々の保険の分析」にぶら下げる */
+  .toc-row.is-child {
+    font-size: 0.85rem;
+    color: #475569;
+    padding: 1.6mm 0 1.6mm 8mm;
+    border-top: none;
+  }
+
+  .toc-row.is-child .toc-row-page {
+    font-weight: 400;
+    color: #475569;
+  }
+
   .customer-summary-display {
     border: none !important;
     padding: 0 !important;

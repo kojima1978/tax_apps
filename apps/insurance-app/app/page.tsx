@@ -8,6 +8,7 @@ import PolicyTable from '@/components/PolicyTable';
 import PolicyForm from '@/components/PolicyForm';
 import PolicyAnalysisSection from '@/components/PolicyAnalysisSection';
 import PrintCoverPage from '@/components/PrintCoverPage';
+import PrintTocPage from '@/components/PrintTocPage';
 import PrintPageNumber from '@/components/PrintPageNumber';
 import CustomerModal from '@/components/CustomerModal';
 import CsvImportDialog from '@/components/CsvImportDialog';
@@ -461,6 +462,7 @@ export default function Page() {
     <PrintPagesProvider pageKeys={printPageKeys}>
       <div className={`App app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <PrintCoverPage customerName={self?.name || ""} agency={agency} />
+        <PrintTocPage policies={policies} customerName={self?.name || ""} />
 
         {isCustomerModalOpen && (
           <CustomerModal
