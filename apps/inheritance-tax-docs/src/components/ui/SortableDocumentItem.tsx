@@ -24,7 +24,10 @@ import { formatCheckedDate } from '@/utils/helpers';
 // ─── 番号バッジ共通スタイル ───
 
 const docNumberClass = 'flex-shrink-0 mr-2 mt-0.5 text-sm font-semibold text-slate-500 dark:text-slate-400 min-w-[2rem] text-right';
-const subItemNumberClass = 'flex-shrink-0 mr-2 text-xs font-medium text-slate-400 dark:text-slate-500 min-w-[2.5rem] text-right';
+const subItemNumberClass = 'flex-shrink-0 mr-2 text-xs font-medium text-slate-500 dark:text-slate-400 min-w-[2.5rem] text-right';
+
+// モバイルでは44x44pxのタップ領域を確保し、PCでは既存の密度を維持する
+const touchTargetClass = 'min-w-11 min-h-11 flex items-center justify-center sm:min-w-6 sm:min-h-6';
 
 const CheckboxIcon = ({ checked }: { checked: boolean }) => (
   <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
@@ -92,7 +95,7 @@ export const SortableDocumentItem = memo(({
     >
       {/* メインカード */}
       <div
-        className={`flex items-start p-3 rounded-lg border transition-all ${
+        className={`flex flex-wrap items-center sm:items-start p-3 rounded-lg border transition-all ${
           doc.excluded
             ? 'bg-slate-50/30 dark:bg-slate-800/20 border-slate-200 dark:border-slate-700 opacity-50'
             : doc.checked
@@ -104,7 +107,7 @@ export const SortableDocumentItem = memo(({
         <button
           {...attributes}
           {...listeners}
-          className="flex-shrink-0 p-2 mr-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing touch-none rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className={`flex-shrink-0 p-2 mr-1 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing touch-none rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${touchTargetClass}`}
           title="ドラッグして並び替え"
           aria-label={`${doc.name}を並び替え`}
           aria-roledescription="ドラッグ可能な書類"
@@ -115,7 +118,7 @@ export const SortableDocumentItem = memo(({
         {/* チェックボックス */}
         <button
           onClick={() => docHandlers.toggleCheck(categoryId, doc.id)}
-          className="flex-shrink-0 mr-2 mt-0.5 transition-colors"
+          className={`flex-shrink-0 mr-2 transition-colors sm:mt-0.5 ${touchTargetClass}`}
           role="checkbox"
           aria-checked={doc.checked}
           aria-label={`${doc.name}を${doc.checked ? '未提出に戻す' : '提出済みにする'}`}
@@ -126,15 +129,15 @@ export const SortableDocumentItem = memo(({
         {/* 番号 */}
         <span className={docNumberClass}>{docNumber}.</span>
 
-        {/* 書類内容 */}
-        <div className="flex-grow min-w-0">
+        {/* 書類内容 — basis を確保し、狭幅ではアクション群を次行へ折り返させる */}
+        <div className="flex-1 basis-48 min-w-0">
           {/* 書類名 */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`font-medium ${
               doc.checked
-                ? 'text-slate-400 dark:text-slate-500 line-through'
+                ? 'text-slate-500 dark:text-slate-400 line-through'
                 : doc.excluded
-                ? 'text-slate-400 dark:text-slate-500'
+                ? 'text-slate-500 dark:text-slate-400'
                 : 'text-slate-700 dark:text-slate-200'
             }`}>
               {doc.name}
@@ -150,7 +153,7 @@ export const SortableDocumentItem = memo(({
               <Badge label="急" colorClass="bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" />
             )}
             {doc.excluded && (
-              <Badge label="対象外" colorClass="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 line-through" />
+              <Badge label="対象外" colorClass="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 line-through" />
             )}
             {doc.checkedDate && (
               <Badge label={`済 ${formatCheckedDate(doc.checkedDate)}`} colorClass="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300" />
@@ -162,7 +165,8 @@ export const SortableDocumentItem = memo(({
             <div className="mt-1">
               <button
                 onClick={() => setIsDetailOpen(!isDetailOpen)}
-                className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                className="flex items-center gap-1 py-1 min-h-6 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                aria-expanded={isDetailOpen}
               >
                 {isDetailOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 詳細
@@ -173,7 +177,7 @@ export const SortableDocumentItem = memo(({
                     <p className="text-xs text-slate-500 dark:text-slate-400">{doc.description}</p>
                   )}
                   {doc.howToGet && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 flex items-start gap-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-1">
                       <Info className="w-3 h-3 mt-0.5 flex-shrink-0" aria-hidden="true" />
                       {doc.howToGet}
                     </p>
@@ -184,14 +188,14 @@ export const SortableDocumentItem = memo(({
           )}
         </div>
 
-        {/* アクションボタン */}
-        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+        {/* アクションボタン — 狭幅では2行目へ回して右寄せ */}
+        <div className="flex items-center gap-0.5 w-full justify-end mt-1 border-t border-slate-100 dark:border-slate-700/50 pt-1 sm:gap-1 sm:w-auto sm:mt-0 sm:ml-2 sm:border-t-0 sm:pt-0 flex-shrink-0">
           <button
             onClick={() => docHandlers.toggleCanDelegate(categoryId, doc.id)}
-            className={`p-1.5 rounded transition-colors ${
+            className={`p-1.5 rounded transition-colors ${touchTargetClass} ${
               doc.canDelegate
-                ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-900'
-                : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ? 'text-blue-600 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-900'
+                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
             }`}
             title="委任可を切り替え"
             aria-label={`${doc.name}の委任可を${doc.canDelegate ? '解除' : '設定'}`}
@@ -200,10 +204,10 @@ export const SortableDocumentItem = memo(({
           </button>
           <button
             onClick={() => docHandlers.toggleUrgent(categoryId, doc.id)}
-            className={`p-1.5 rounded transition-colors ${
+            className={`p-1.5 rounded transition-colors ${touchTargetClass} ${
               doc.urgent
-                ? 'text-red-600 bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900'
-                : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ? 'text-red-600 dark:text-red-300 bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900'
+                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
             }`}
             title="急を切り替え"
             aria-label={`${doc.name}の急を${doc.urgent ? '解除' : '設定'}`}
@@ -212,10 +216,10 @@ export const SortableDocumentItem = memo(({
           </button>
           <button
             onClick={() => docHandlers.toggleExcluded(categoryId, doc.id)}
-            className={`p-1.5 rounded transition-colors ${
+            className={`p-1.5 rounded transition-colors ${touchTargetClass} ${
               doc.excluded
-                ? 'text-slate-600 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500'
-                : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ? 'text-slate-600 dark:text-slate-100 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500'
+                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
             }`}
             title="対象外を切り替え"
             aria-label={`${doc.name}の対象外を${doc.excluded ? '解除' : '設定'}`}
@@ -224,7 +228,7 @@ export const SortableDocumentItem = memo(({
           </button>
           <button
             onClick={() => docHandlers.startEdit(categoryId, doc.id)}
-            className="p-1.5 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+            className={`p-1.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors ${touchTargetClass}`}
             title="書類を編集"
             aria-label={`${doc.name}を編集`}
           >
@@ -232,7 +236,7 @@ export const SortableDocumentItem = memo(({
           </button>
           <button
             onClick={() => subItemHandlers.startAdd(categoryId, doc.id)}
-            className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-colors"
+            className={`p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-colors ${touchTargetClass}`}
             title="個別名を追加"
             aria-label={`${doc.name}に個別名を追加`}
           >
@@ -240,7 +244,7 @@ export const SortableDocumentItem = memo(({
           </button>
           <button
             onClick={() => docHandlers.remove(categoryId, doc.id)}
-            className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors"
+            className={`p-1.5 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors ${touchTargetClass}`}
             title="書類を削除"
             aria-label={`${doc.name}を削除`}
           >
@@ -278,7 +282,7 @@ export const SortableDocumentItem = memo(({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => subItemHandlers.startEdit(categoryId, doc.id, sn.id, sn.text)}
-                      className="p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+                      className={`p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors ${touchTargetClass}`}
                       title="個別名を編集"
                       aria-label={`${sn.text}を編集`}
                     >
@@ -286,7 +290,7 @@ export const SortableDocumentItem = memo(({
                     </button>
                     <button
                       onClick={() => subItemHandlers.remove(categoryId, doc.id, sn.id)}
-                      className="p-1 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors"
+                      className={`p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors ${touchTargetClass}`}
                       title="個別名を削除"
                       aria-label={`${sn.text}を削除`}
                     >

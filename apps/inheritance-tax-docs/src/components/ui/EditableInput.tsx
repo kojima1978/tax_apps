@@ -14,7 +14,7 @@ const COLOR_CLASSES = {
   emerald: {
     ring: 'focus:ring-emerald-500',
     confirm: 'text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900',
-    addBtn: 'bg-emerald-600 text-white hover:bg-emerald-700',
+    addBtn: 'bg-emerald-700 text-white hover:bg-emerald-800',
   },
   blue: {
     ring: 'focus:ring-blue-500',
@@ -67,7 +67,7 @@ export const InlineEditInput = ({
       </button>
       <button
         onClick={onCancel}
-        className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
+        className="p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
         aria-label="編集をキャンセル"
       >
         <X className={iconSize} />

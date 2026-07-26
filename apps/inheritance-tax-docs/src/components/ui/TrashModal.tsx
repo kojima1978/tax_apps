@@ -34,20 +34,20 @@ export const TrashModal = ({ trash, onRestore, onRemove, onRestoreAll, onClear, 
             <Trash2 className="w-6 h-6 text-slate-500 dark:text-slate-300" aria-hidden="true" />
           </div>
           <h3 id="trash-modal-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">
-            ゴミ箱 <span className="text-sm font-normal text-slate-400 dark:text-slate-500">({trash.length})</span>
+            ゴミ箱 <span className="text-sm font-normal text-slate-500 dark:text-slate-400">({trash.length})</span>
           </h3>
         </div>
         <button
           onClick={onClose}
           aria-label="閉じる"
-          className="p-1.5 rounded text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
       {trash.length === 0 ? (
-        <p className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">
+        <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">
           削除した書類・カテゴリはありません
         </p>
       ) : (
@@ -75,7 +75,7 @@ export const TrashModal = ({ trash, onRestore, onRemove, onRestoreAll, onClear, 
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{name}</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {sub} ・ {formatDateTime(item.deletedAt)}
                     </p>
                   </div>
@@ -89,7 +89,7 @@ export const TrashModal = ({ trash, onRestore, onRemove, onRestoreAll, onClear, 
                     onClick={() => onRemove(item.trashId)}
                     aria-label="完全に削除"
                     title="完全に削除"
-                    className="flex-shrink-0 p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
+                    className="flex-shrink-0 p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -117,7 +117,7 @@ export const TrashModal = ({ trash, onRestore, onRemove, onRestoreAll, onClear, 
             )}
             <button
               onClick={onRestoreAll}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-medium transition-colors"
             >
               <RotateCcw className="w-4 h-4" />すべて復元
             </button>

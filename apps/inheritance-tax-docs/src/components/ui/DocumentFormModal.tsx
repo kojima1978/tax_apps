@@ -90,7 +90,7 @@ const DocumentFormModalComponent = ({ mode, initialValues, onSave, onClose }: Do
               disabled={!values.name.trim()}
               className={`px-4 py-2 text-sm text-white rounded-lg transition-colors ${
                 values.name.trim()
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  ? 'bg-emerald-700 hover:bg-emerald-800'
                   : 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed'
               }`}
             >

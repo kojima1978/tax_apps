@@ -206,7 +206,8 @@ export const EditableListStep = () => {
         onOpenTrash={() => setShowTrashModal(true)}
       />
 
-      <div className="p-4 md:px-8 md:py-6">
+      {/* ツールバー（max-w-7xl）と左右を揃える */}
+      <div className="max-w-7xl mx-auto p-4 md:px-8 md:py-6">
         {/* カテゴリリスト（画面表示のみ、印刷非表示） */}
         <div className="no-print">
           {/* 空状態 */}
@@ -258,7 +259,7 @@ export const EditableListStep = () => {
                         {/* 書類追加ボタン */}
                         <button
                           onClick={() => editing.setAddingToCategoryId(category.id)}
-                          className="mt-3 flex items-center px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg border border-dashed border-emerald-300 dark:border-emerald-700 transition-all w-full justify-center hover:border-emerald-400 dark:hover:border-emerald-600"
+                          className="mt-3 flex items-center px-4 py-2 text-sm text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg border border-dashed border-emerald-300 dark:border-emerald-700 transition-all w-full justify-center hover:border-emerald-400 dark:hover:border-emerald-600"
                           aria-label={`${category.name}に書類を追加`}
                         >
                           <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
@@ -293,7 +294,7 @@ export const EditableListStep = () => {
 
           {/* フッター */}
           <div className="mt-8 text-center">
-            <p className="text-sm text-slate-400 dark:text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               ※チェックを入れると提出済み（取り消し線）になります
             </p>
           </div>

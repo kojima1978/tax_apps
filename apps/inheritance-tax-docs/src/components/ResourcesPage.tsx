@@ -105,8 +105,10 @@ function SortableResourceCard({
       <button
         {...attributes}
         {...listeners}
-        className="flex-shrink-0 mt-1 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400"
+        className="flex-shrink-0 flex items-center justify-center min-w-6 min-h-6 cursor-grab active:cursor-grabbing text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
         tabIndex={-1}
+        aria-label="ドラッグして並び替え"
+        title="ドラッグして並び替え"
       >
         <GripVertical className="w-4 h-4" />
       </button>
@@ -126,16 +128,17 @@ function SortableResourceCard({
           </h2>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{resource.description}</p>
         </div>
-        <div className="flex-shrink-0 self-center text-slate-400 dark:text-slate-500">
+        <div className="flex-shrink-0 self-center text-slate-500 dark:text-slate-400">
           {isExternal ? <ExternalLink className="w-4 h-4" /> : <Download className="w-4 h-4" />}
         </div>
       </a>
 
-      <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => onEdit(resource)} className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50" title="編集">
+      {/* キーボード操作でも表示されるよう focus-within を併用 */}
+      <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+        <button onClick={() => onEdit(resource)} className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50" title="編集">
           <Pencil className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => onDelete(resource)} className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50" title="削除">
+        <button onClick={() => onDelete(resource)} className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50" title="削除">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -201,7 +204,7 @@ function ResourceFormModal({
           <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
             {resource ? 'リソース編集' : '新規リソース'}
           </h2>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button type="button" onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label="閉じる">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -252,7 +255,7 @@ function ResourceFormModal({
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-500 dark:text-slate-400 hover:border-emerald-400 hover:text-emerald-600 transition-colors w-full justify-center"
+                className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-500 dark:text-slate-400 hover:border-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors w-full justify-center"
               >
                 <Upload className="w-4 h-4" />
                 {file ? file.name : resource?.filename ?? 'ファイルを選択'}
@@ -272,7 +275,7 @@ function ResourceFormModal({
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white rounded-lg font-bold text-sm transition-colors"
+            className="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-500 text-white rounded-lg font-bold text-sm transition-colors"
           >
             {saving ? '保存中...' : resource ? '更新' : '登録'}
           </button>
@@ -378,22 +381,23 @@ export const ResourcesPage = () => {
         <div className="max-w-7xl mx-auto px-4 py-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <a href="/" className="flex items-center gap-1 text-slate-400 hover:text-emerald-600 transition-colors" title="ポータルに戻る">
+              <a href="/" className="flex items-center justify-center gap-1 min-h-6 min-w-6 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors" title="ポータルに戻る">
                 <Home className="h-5 w-5" />
                 <span className="hidden md:inline text-sm font-medium">ポータル</span>
               </a>
-              <span className="text-slate-300 dark:text-slate-600">|</span>
-              <Link to="/" className="flex items-center gap-1 text-slate-400 hover:text-emerald-600 transition-colors" title="書類リストに戻る">
+              {/* 装飾用の区切り — 読み上げ対象から除外 */}
+              <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
+              <Link to="/" className="flex items-center justify-center gap-1 min-h-6 min-w-6 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors" title="書類リストに戻る">
                 <ArrowLeft className="h-4 w-4" />
                 <span className="text-sm font-medium">書類リスト</span>
               </Link>
-              <span className="text-slate-300 dark:text-slate-600">|</span>
+              <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
               <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">参考資料</h1>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setEditTarget(null)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> 追加
               </button>
@@ -416,11 +420,11 @@ export const ResourcesPage = () => {
           </p>
 
           {loading ? (
-            <p className="text-center text-slate-400 py-10">読み込み中...</p>
+            <p className="text-center text-slate-500 dark:text-slate-400 py-10">読み込み中...</p>
           ) : resources.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-slate-400 mb-4">リソースがありません</p>
-              <button onClick={() => setEditTarget(null)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold">
+              <p className="text-slate-500 dark:text-slate-400 mb-4">リソースがありません</p>
+              <button onClick={() => setEditTarget(null)} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-sm font-bold transition-colors">
                 最初のリソースを追加
               </button>
             </div>

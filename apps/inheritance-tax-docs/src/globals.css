@@ -16,6 +16,26 @@ body.dark {
   color: #e2e8f0;
 }
 
+/* フォーカスリング — キーボード操作時のみ、全インタラクティブ要素へ一括適用 */
+:where(a, button, [role="button"], [role="checkbox"], summary, input, select, textarea):focus-visible {
+  outline: 2px solid #059669; /* emerald-600 */
+  outline-offset: 2px;
+}
+
+.dark :where(a, button, [role="button"], [role="checkbox"], summary, input, select, textarea):focus-visible {
+  outline-color: #34d399; /* emerald-400 — 暗背景でのコントラスト確保 */
+}
+
+/* ファイル選択は sr-only な input なので、ラベル側にリングを出す */
+label:has(input[type="file"]:focus-visible) {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+
+.dark label:has(input[type="file"]:focus-visible) {
+  outline-color: #34d399;
+}
+
 /* ヘッダーグラデーション */
 .header-gradient {
   background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #059669 100%);

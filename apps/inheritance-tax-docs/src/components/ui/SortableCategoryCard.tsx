@@ -35,11 +35,14 @@ export type CategoryHandlers = {
   remove: (id: string) => void;
 };
 
+// モバイルでは44x44pxのタップ領域を確保し、PCでは密度を維持しつつ最低24x24pxを保つ
+const touchTargetClass = 'min-w-11 min-h-11 justify-center sm:min-w-6 sm:min-h-6';
+
 // ─── カテゴリ名表示（カード・オーバーレイ共通） ───
 
 const CategoryNameDisplay = ({ category, categoryNumber }: { category: EditableCategory; categoryNumber?: number }) => (
-  <h3 className={`font-bold ${category.isDisabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>
-    {category.isDisabled && <span className="text-slate-400 dark:text-slate-500">【無効】</span>}
+  <h3 className={`font-bold ${category.isDisabled ? 'text-slate-700 dark:text-slate-300' : 'text-slate-800 dark:text-slate-100'}`}>
+    {category.isDisabled && <span className="text-slate-700 dark:text-slate-300">【無効】</span>}
     {categoryNumber != null && (
       <span className="mr-1">{toCircledNumber(categoryNumber)}</span>
     )}
@@ -98,6 +101,8 @@ export const SortableCategoryCard = memo(({
   const allChecked = totalCount > 0 && checkedCount === totalCount;
   const someChecked = checkedCount > 0 && !allChecked;
 
+  // 無効状態はヘッダー色と【無効】ラベルで表現する。カード全体を opacity で薄めると
+  // 内部テキストのコントラストが一律に落ちて WCAG 1.4.3 を満たせなくなるため使わない
   const headerBg = category.isDisabled
     ? 'bg-slate-100 dark:bg-slate-800/50'
     : 'bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30';
@@ -110,19 +115,19 @@ export const SortableCategoryCard = memo(({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg dark:shadow-slate-900/50 overflow-hidden transition-all hover:shadow-xl ${isDragging ? 'opacity-50 ring-2 ring-emerald-400' : ''} ${category.isDisabled ? 'opacity-60' : ''}`}
+      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg dark:shadow-slate-900/50 overflow-hidden transition-all hover:shadow-xl ${isDragging ? 'opacity-50 ring-2 ring-emerald-400' : ''}`}
       role="region"
       aria-label={`カテゴリ: ${category.name}`}
     >
       {/* カテゴリヘッダー */}
       <div
-        className={`flex items-center justify-between p-4 transition-colors ${headerBg}`}
+        className={`flex flex-wrap items-center p-4 transition-colors ${headerBg}`}
       >
         {/* ドラッグハンドル */}
         <button
           {...dragHandleProps.attributes}
           {...dragHandleProps.listeners}
-          className="flex-shrink-0 p-2 mr-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing touch-none rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className={`flex-shrink-0 p-2 mr-1 flex items-center text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing touch-none rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${touchTargetClass}`}
           title="ドラッグして並び替え"
           aria-label={`${category.name}カテゴリを並び替え`}
           aria-roledescription="ドラッグ可能なカテゴリ"
@@ -132,7 +137,7 @@ export const SortableCategoryCard = memo(({
         </button>
 
         <div
-          className="flex items-center gap-3 flex-grow cursor-pointer"
+          className="flex items-center gap-3 flex-1 basis-40 min-w-0 cursor-pointer"
           onClick={() => handlers.toggleExpand(category.id)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -170,7 +175,7 @@ export const SortableCategoryCard = memo(({
               </button>
               <button
                 onClick={editState.cancel}
-                className="p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+                className="p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
                 aria-label="編集をキャンセル"
               >
                 <X className="w-5 h-5" />
@@ -180,7 +185,8 @@ export const SortableCategoryCard = memo(({
             <CategoryNameDisplay category={category} categoryNumber={categoryNumber} />
           )}
         </div>
-        <div className="flex items-center gap-2">
+        {/* 操作群 — 狭幅では2行目へ回して右寄せ */}
+        <div className="flex items-center gap-1 w-full justify-end mt-2 pt-2 border-t border-black/5 dark:border-white/10 sm:gap-2 sm:w-auto sm:mt-0 sm:pt-0 sm:border-t-0">
           {editState.editingId !== category.id && (
             <>
               {/* 無効切り替え */}
@@ -189,9 +195,9 @@ export const SortableCategoryCard = memo(({
                   e.stopPropagation();
                   handlers.toggleDisabled(category.id);
                 }}
-                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center ${touchTargetClass} ${
                   category.isDisabled
-                    ? 'bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-400 dark:hover:bg-slate-500'
+                    ? 'bg-slate-300 dark:bg-slate-600 text-slate-800 dark:text-slate-100 hover:bg-slate-400 dark:hover:bg-slate-500'
                     : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
                 }`}
                 title="無効切り替え"
@@ -203,7 +209,7 @@ export const SortableCategoryCard = memo(({
               {/* 編集 */}
               <button
                 onClick={(e) => { e.stopPropagation(); handlers.startEdit(category.id, category.name); }}
-                className="p-1.5 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+                className={`p-1.5 flex items-center text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors ${touchTargetClass}`}
                 title="カテゴリ名を編集"
                 aria-label={`${category.name}のカテゴリ名を編集`}
               >
@@ -212,7 +218,7 @@ export const SortableCategoryCard = memo(({
               {/* 削除 */}
               <button
                 onClick={(e) => { e.stopPropagation(); handlers.remove(category.id); }}
-                className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors"
+                className={`p-1.5 flex items-center text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors ${touchTargetClass}`}
                 title="カテゴリを削除"
                 aria-label={`${category.name}カテゴリを削除`}
               >
@@ -227,7 +233,7 @@ export const SortableCategoryCard = memo(({
               e.stopPropagation();
               toggleAll(category.id, !allChecked);
             }}
-            className={`flex items-center px-3 py-1 rounded text-sm font-medium transition-colors ${
+            className={`flex items-center px-3 py-1 rounded text-sm font-medium transition-colors ${touchTargetClass} ${
               allChecked
                 ? 'bg-emerald-600 text-white'
                 : someChecked
