@@ -35,11 +35,13 @@ const CommonInputSection = ({
             </div>
             <div className="input-item toggle-buttons">
                 <label>計算対象</label>
-                <div className="flex-row">
+                <div className="flex-row" role="group" aria-label="計算対象">
                     <button
                         type="button"
                         className={`toggle-btn ${includeLand ? 'active' : ''}`}
                         onClick={() => setIncludeLand(!includeLand)}
+                        aria-pressed={includeLand}
+                        data-calculation-target
                     >
                         土地
                     </button>
@@ -47,10 +49,15 @@ const CommonInputSection = ({
                         type="button"
                         className={`toggle-btn ${includeBuilding ? 'active' : ''}`}
                         onClick={() => setIncludeBuilding(!includeBuilding)}
+                        aria-pressed={includeBuilding}
+                        data-calculation-target
                     >
                         建物
                     </button>
                 </div>
+                <small className="calculation-target-hint">
+                    選択した対象の入力欄が有効になります（複数選択可）
+                </small>
             </div>
         </div>
         {children}

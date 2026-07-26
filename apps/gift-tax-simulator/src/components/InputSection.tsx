@@ -1,4 +1,6 @@
-import { useCallback, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, type ChangeEvent, type KeyboardEvent } from 'react';
+import Sparkles from 'lucide-react/icons/sparkles';
+import RotateCcw from 'lucide-react/icons/rotate-ccw';
 import { type GiftType, GIFT_TYPE_OPTIONS } from '@/lib/tax-calculation';
 import ErrorMessage from './shared/ErrorMessage';
 
@@ -8,6 +10,8 @@ type Props = {
     giftType: GiftType;
     setGiftType: (val: GiftType) => void;
     onCalculate: () => void;
+    onSample: () => void;
+    onReset: () => void;
     errorMsg: string;
 };
 
@@ -17,13 +21,21 @@ const InputSection = ({
     giftType,
     setGiftType,
     onCalculate,
+    onSample,
+    onReset,
     errorMsg
 }: Props) => {
+    const amountInputRef = useRef<HTMLInputElement>(null);
+
     const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             onCalculate();
         }
     }, [onCalculate]);
+
+    useEffect(() => {
+        if (errorMsg) amountInputRef.current?.focus();
+    }, [errorMsg]);
 
     return (
         <div className="input-section">
@@ -37,6 +49,7 @@ const InputSection = ({
                 <div className="input-item flex-1">
                     <label htmlFor="giftAmount">贈与金額 (円)</label>
                     <input
+                        ref={amountInputRef}
                         type="text"
                         id="giftAmount"
                         placeholder="例: 10,000,000"
@@ -45,6 +58,8 @@ const InputSection = ({
                         value={amount}
                         onChange={setAmount}
                         onKeyDown={handleKeyDown}
+                        aria-invalid={Boolean(errorMsg)}
+                        aria-describedby={errorMsg ? 'giftAmountError' : undefined}
                     />
                 </div>
 
@@ -63,7 +78,19 @@ const InputSection = ({
 
                 <button className="btn-calc" onClick={onCalculate}>計算する</button>
             </div>
-            <ErrorMessage message={errorMsg} />
+            <div className="input-helper-actions no-print">
+                <button type="button" className="btn-input-helper sample" onClick={onSample}>
+                    <Sparkles aria-hidden="true" />
+                    1,000万円で試す
+                </button>
+                <button type="button" className="btn-input-helper" onClick={onReset}>
+                    <RotateCcw aria-hidden="true" />
+                    入力を消す
+                </button>
+            </div>
+            <div id="giftAmountError">
+                <ErrorMessage message={errorMsg} />
+            </div>
         </div>
     );
 };

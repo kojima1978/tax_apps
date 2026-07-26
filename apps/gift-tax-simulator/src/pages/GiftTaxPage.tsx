@@ -14,6 +14,8 @@ export default function GiftTaxPage() {
         giftType={form.giftType}
         setGiftType={form.setGiftType}
         onCalculate={form.handleCalculate}
+        onSample={form.handleSample}
+        onReset={form.handleReset}
         errorMsg={form.errorMsg}
       />
       <ResultSection results={form.results} giftType={form.giftType} />

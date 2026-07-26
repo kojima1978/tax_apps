@@ -3,7 +3,7 @@ import Calculator from 'lucide-react/icons/calculator';
 import TaxTable from './TaxTable';
 import CalculationProcess from './CalculationProcess';
 import RateTable from './RateTable';
-import PrintHeader from './PrintHeader';
+import ResultSummaryCard from './ResultSummaryCard';
 import { type CalculationResult, type GiftType } from '@/lib/tax-calculation';
 
 const TaxChart = lazy(() => import('./TaxChart'));
@@ -23,9 +23,21 @@ const ResultSection = ({ results, giftType }: Props) => {
         );
     }
 
+    const recommended = results.reduce((best, current) =>
+        current.totalTax < best.totalTax ? current : best,
+    );
+    const baseline = results[0];
+
     return (
         <div className="result-section">
-            <PrintHeader title="贈与税シミュレーション" />
+            <ResultSummaryCard
+                recommendation={`最も税額が低い：${recommended.name}`}
+                totalTax={recommended.totalTax}
+                savings={Math.max(0, baseline.totalTax - recommended.totalTax)}
+                comparisonLabel="一括贈与との差額"
+                filingCount={recommended.div}
+                effectiveRate={recommended.effectiveRate}
+            />
             <TaxTable results={results} />
             <Suspense fallback={null}>
                 <TaxChart results={results} />

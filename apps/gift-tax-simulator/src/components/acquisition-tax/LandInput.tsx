@@ -62,6 +62,9 @@ const LandInput = ({
 }: LandInputProps) => (
     <div className={`re-column ${disabled ? 'disabled' : ''}`}>
         <h3 className="re-column-title">土地の情報</h3>
+        {disabled && (
+            <p className="disabled-section-message">計算対象で「土地」を選択すると入力できます</p>
+        )}
 
         <div className="land-subsection">
             <h4 className="land-subsection-title">宅地（特例あり）</h4>

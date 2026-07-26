@@ -111,6 +111,7 @@ export default function AcquisitionTaxPage() {
                 </>
             }
             onCalculate={form.calculateTax}
+            onReset={form.resetForm}
             errorMsg={form.errorMsg}
             results={form.results}
             resultConfig={resultConfig}

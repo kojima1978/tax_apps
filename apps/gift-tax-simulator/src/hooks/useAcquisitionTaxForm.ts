@@ -48,6 +48,17 @@ export const useAcquisitionTaxForm = () => {
     // 面積decimal入力ハンドラ
     const handleDecimalInput = useDecimalInput();
 
+    useEffect(() => {
+        base.clearCalculatedResult();
+    }, [
+        resLandValuation, resLandArea, otherLandValuation,
+        buildingValuation, buildingArea, isResidential, isLongLifeQuality,
+        landShareNumerator, landShareDenominator,
+        buildingShareNumerator, buildingShareDenominator,
+        buildingDate.selYear, buildingDate.selMonth, buildingDate.selDay,
+        base.clearCalculatedResult,
+    ]);
+
     // 評価額をlocalStorageに保存（土地は宅地+その他の合計値を保存）
     useEffect(() => {
         const resVal = parseFormattedNumber(resLandValuation);
@@ -68,6 +79,30 @@ export const useAcquisitionTaxForm = () => {
     const { importLandValuation, importBuildingValuation } =
         useValuationImport('registration-tax', setResLandValuation, setBuildingValuation,
             setLandShareNumerator, setLandShareDenominator, setBuildingShareNumerator, setBuildingShareDenominator);
+
+    const resetForm = useCallback(() => {
+        base.resetBase();
+        setResLandValuation('');
+        setResLandArea('');
+        setOtherLandValuation('');
+        setBuildingValuation('');
+        setBuildingArea('');
+        setIsResidential(true);
+        setIsLongLifeQuality(false);
+        setLandShareNumerator('1');
+        setLandShareDenominator('1');
+        setBuildingShareNumerator('1');
+        setBuildingShareDenominator('1');
+        setAreaWarning('');
+        buildingDate.setSelYear('');
+        buildingDate.setSelMonth('');
+        buildingDate.setSelDay('');
+    }, [
+        base.resetBase,
+        buildingDate.setSelYear,
+        buildingDate.setSelMonth,
+        buildingDate.setSelDay,
+    ]);
 
     const calculateTax = useCallback(() => {
         setErrorMsg('');
@@ -213,6 +248,7 @@ export const useAcquisitionTaxForm = () => {
         areaWarning,
         yearOptions: YEAR_OPTIONS,
         calculateTax,
+        resetForm,
         handleDecimalInput,
         importLandValuation, importBuildingValuation,
     };

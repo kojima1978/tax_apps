@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 type FormattedNumberInputProps = {
     label: string;
     value: string;
@@ -18,10 +20,14 @@ const FormattedNumberInput = ({
     hint,
     hintClassName,
     decimal,
-}: FormattedNumberInputProps) => (
+}: FormattedNumberInputProps) => {
+    const inputId = useId();
+
+    return (
     <div className="input-item">
-        <label>{label}</label>
+        <label htmlFor={inputId}>{label}</label>
         <input
+            id={inputId}
             type="text"
             inputMode={decimal ? 'decimal' : 'numeric'}
             placeholder={placeholder}
@@ -31,6 +37,7 @@ const FormattedNumberInput = ({
         />
         {hint && <small className={hintClassName}>{hint}</small>}
     </div>
-);
+    );
+};
 
 export default FormattedNumberInput;

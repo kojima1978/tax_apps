@@ -1,6 +1,7 @@
+import { useEffect, useRef } from 'react';
+import RotateCcw from 'lucide-react/icons/rotate-ccw';
 import type { TransactionType, TaxResults } from '@/lib/real-estate-tax';
 import PageLayout from '@/components/PageLayout';
-import PrintHeader from '@/components/PrintHeader';
 import CommonInputSection from './CommonInputSection';
 import ImportButton from './ImportButton';
 import TaxResultBox, { type ResultGroup, type ResultItem } from './TaxResultBox';
@@ -35,6 +36,7 @@ type Props = {
     importConfig: ImportConfig;
     inputColumns: React.ReactNode;
     onCalculate: () => void;
+    onReset: () => void;
     errorMsg: string;
     results: TaxResults | null;
     resultConfig: ResultConfig | null;
@@ -51,16 +53,24 @@ const RealEstatePageLayout = ({
     inputNotice,
     importConfig,
     inputColumns,
-    onCalculate, errorMsg,
+    onCalculate, onReset, errorMsg,
     results, resultConfig,
     showDetails, setShowDetails,
     printTitle,
     printReference,
-}: Props) => (
-    <PageLayout className="real-estate-page">
-        {/* 印刷時のみ表示: ページ先頭に会社情報 */}
-        <PrintHeader title={printTitle} />
+}: Props) => {
+    const formRef = useRef<HTMLDivElement>(null);
 
+    useEffect(() => {
+        if (!errorMsg) return;
+        const target = formRef.current?.querySelector<HTMLElement>(
+            'input:not(:disabled), select:not(:disabled), [data-calculation-target]',
+        ) ?? document.querySelector<HTMLElement>('[data-calculation-target]');
+        target?.focus();
+    }, [errorMsg]);
+
+    return (
+    <PageLayout className="real-estate-page" printTitle={printTitle}>
         <CommonInputSection
             transactionType={transactionType}
             setTransactionType={setTransactionType}
@@ -87,12 +97,16 @@ const RealEstatePageLayout = ({
             />
         </div>
 
-        <div className="input-section input-section-flat">
+        <div ref={formRef} className="input-section input-section-flat">
             <div className="re-two-column">
                 {inputColumns}
             </div>
             <div className="calc-action-bar">
                 <button className="btn-calc" onClick={onCalculate}>計算する</button>
+                <button type="button" className="btn-input-helper no-print" onClick={onReset}>
+                    <RotateCcw aria-hidden="true" />
+                    入力を消す
+                </button>
                 <ErrorMessage message={errorMsg} />
             </div>
         </div>
@@ -119,6 +133,7 @@ const RealEstatePageLayout = ({
         )}
         {printReference}
     </PageLayout>
-);
+    );
+};
 
 export default RealEstatePageLayout;

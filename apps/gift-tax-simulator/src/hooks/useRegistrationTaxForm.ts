@@ -27,6 +27,16 @@ export const useRegistrationTaxForm = () => {
     const [buildingShareNumerator, setBuildingShareNumerator] = useState('1');
     const [buildingShareDenominator, setBuildingShareDenominator] = useState('1');
 
+    useEffect(() => {
+        base.clearCalculatedResult();
+    }, [
+        landValuation, buildingValuation,
+        isResidential, hasHousingCertificate,
+        landShareNumerator, landShareDenominator,
+        buildingShareNumerator, buildingShareDenominator,
+        base.clearCalculatedResult,
+    ]);
+
     // 評価額をlocalStorageに保存
     useEffect(() => {
         saveValuations('registration-tax', {
@@ -43,6 +53,18 @@ export const useRegistrationTaxForm = () => {
     const { importLandValuation, importBuildingValuation } =
         useValuationImport('acquisition-tax', setLandValuation, setBuildingValuation,
             setLandShareNumerator, setLandShareDenominator, setBuildingShareNumerator, setBuildingShareDenominator);
+
+    const resetForm = useCallback(() => {
+        base.resetBase();
+        setLandValuation('');
+        setBuildingValuation('');
+        setIsResidential(true);
+        setHasHousingCertificate(true);
+        setLandShareNumerator('1');
+        setLandShareDenominator('1');
+        setBuildingShareNumerator('1');
+        setBuildingShareDenominator('1');
+    }, [base.resetBase]);
 
     const calculateTax = useCallback(() => {
         setErrorMsg('');
@@ -106,6 +128,7 @@ export const useRegistrationTaxForm = () => {
         buildingShareNumerator, setBuildingShareNumerator,
         buildingShareDenominator, setBuildingShareDenominator,
         calculateTax,
+        resetForm,
         importLandValuation, importBuildingValuation,
     };
 };

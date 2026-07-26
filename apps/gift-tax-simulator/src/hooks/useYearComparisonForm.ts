@@ -13,9 +13,21 @@ export const useYearComparisonForm = () => {
         if (amount > 0) setTotalAmount(amount);
     }, [base.handleCalculate]);
 
+    const handleSample = useCallback(() => {
+        const { amount } = base.handleSample();
+        if (amount > 0) setTotalAmount(amount);
+    }, [base.handleSample]);
+
+    const handleReset = useCallback(() => {
+        base.handleReset();
+        setTotalAmount(0);
+    }, [base.handleReset]);
+
     return {
         ...base,
         totalAmount,
         handleCalculate,
+        handleSample,
+        handleReset,
     };
 };

@@ -17,11 +17,13 @@ export const useBaseGiftForm = <T>(
     const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const normalized = normalizeNumberString(e.target.value);
         setAmount(normalized ? Number(normalized).toLocaleString() : '');
+        setResults(null);
+        setErrorMsg('');
     }, []);
 
-    const handleCalculate = useCallback(() => {
+    const runCalculation = useCallback((inputAmount: string) => {
         setErrorMsg('');
-        const validation = validateGiftAmount(amount);
+        const validation = validateGiftAmount(inputAmount);
         if (!validation.ok) {
             setErrorMsg(validation.error);
             setResults(null);
@@ -36,12 +38,33 @@ export const useBaseGiftForm = <T>(
         }
         setResults(rows);
         return { amount: validation.amount };
-    }, [amount, giftType, calculate, validateResults]);
+    }, [giftType, calculate, validateResults]);
+
+    const handleCalculate = useCallback(() => runCalculation(amount), [amount, runCalculation]);
+
+    const handleGiftTypeChange = useCallback((value: GiftType) => {
+        setGiftType(value);
+        setResults(null);
+        setErrorMsg('');
+    }, []);
+
+    const handleSample = useCallback(() => {
+        const sampleAmount = '10,000,000';
+        setAmount(sampleAmount);
+        return runCalculation(sampleAmount);
+    }, [runCalculation]);
+
+    const handleReset = useCallback(() => {
+        setAmount('');
+        setGiftType('special');
+        setResults(null);
+        setErrorMsg('');
+    }, []);
 
     return {
         amount, setAmount: handleAmountChange,
-        giftType, setGiftType,
+        giftType, setGiftType: handleGiftTypeChange,
         results, errorMsg,
-        handleCalculate,
+        handleCalculate, handleSample, handleReset,
     };
 };

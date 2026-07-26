@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { TransactionType } from '@/lib/real-estate-tax';
 import { useFormattedInput } from './useFormattedInput';
 
@@ -7,15 +7,44 @@ import { useFormattedInput } from './useFormattedInput';
  * useAcquisitionTaxForm / useRegistrationTaxForm の共通部分を集約。
  */
 export function useRealEstateFormBase<T>() {
-    const [includeLand, setIncludeLand] = useState(false);
-    const [includeBuilding, setIncludeBuilding] = useState(false);
-    const [transactionType, setTransactionType] = useState<TransactionType>('gift');
+    const [includeLand, setIncludeLandState] = useState(false);
+    const [includeBuilding, setIncludeBuildingState] = useState(false);
+    const [transactionType, setTransactionTypeState] = useState<TransactionType>('gift');
 
     const [showDetails, setShowDetails] = useState(false);
     const [results, setResults] = useState<T | null>(null);
     const [errorMsg, setErrorMsg] = useState('');
 
     const handleFormattedInput = useFormattedInput();
+
+    const clearCalculatedResult = useCallback(() => {
+        setResults(null);
+        setErrorMsg('');
+    }, []);
+
+    const setIncludeLand = useCallback((value: boolean) => {
+        setIncludeLandState(value);
+        clearCalculatedResult();
+    }, [clearCalculatedResult]);
+
+    const setIncludeBuilding = useCallback((value: boolean) => {
+        setIncludeBuildingState(value);
+        clearCalculatedResult();
+    }, [clearCalculatedResult]);
+
+    const setTransactionType = useCallback((value: TransactionType) => {
+        setTransactionTypeState(value);
+        clearCalculatedResult();
+    }, [clearCalculatedResult]);
+
+    const resetBase = useCallback(() => {
+        setIncludeLandState(false);
+        setIncludeBuildingState(false);
+        setTransactionTypeState('gift');
+        setShowDetails(false);
+        setResults(null);
+        setErrorMsg('');
+    }, []);
 
     return {
         includeLand, setIncludeLand,
@@ -25,5 +54,6 @@ export function useRealEstateFormBase<T>() {
         results, setResults,
         errorMsg, setErrorMsg,
         handleFormattedInput,
+        resetBase, clearCalculatedResult,
     };
 }

@@ -92,6 +92,9 @@ const BuildingInput = ({
 }: BuildingInputProps) => (
     <div className={`re-column ${disabled ? 'disabled' : ''}`}>
         <h3 className="re-column-title">建物の情報</h3>
+        {disabled && (
+            <p className="disabled-section-message">計算対象で「建物」を選択すると入力できます</p>
+        )}
         <FormattedNumberInput
             label="固定資産税評価額"
             placeholder="例: 10,000,000"

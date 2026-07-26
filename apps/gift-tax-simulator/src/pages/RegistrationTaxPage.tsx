@@ -65,6 +65,9 @@ export default function RegistrationTaxPage() {
                     {/* 土地: 評価額 + 持ち分 */}
                     <div className={`re-column ${!form.includeLand ? 'disabled' : ''}`}>
                         <h3 className="re-column-title">土地の情報</h3>
+                        {!form.includeLand && (
+                            <p className="disabled-section-message">計算対象で「土地」を選択すると入力できます</p>
+                        )}
                         <FormattedNumberInput
                             label="固定資産税評価額"
                             placeholder="例: 15,000,000"
@@ -84,6 +87,9 @@ export default function RegistrationTaxPage() {
                     {/* 建物: 評価額 + 居住用 + 住宅用家屋証明 + 持ち分 */}
                     <div className={`re-column ${!form.includeBuilding ? 'disabled' : ''}`}>
                         <h3 className="re-column-title">建物の情報</h3>
+                        {!form.includeBuilding && (
+                            <p className="disabled-section-message">計算対象で「建物」を選択すると入力できます</p>
+                        )}
                         <FormattedNumberInput
                             label="固定資産税評価額"
                             placeholder="例: 10,000,000"
@@ -126,6 +132,7 @@ export default function RegistrationTaxPage() {
                 </>
             }
             onCalculate={form.calculateTax}
+            onReset={form.resetForm}
             errorMsg={form.errorMsg}
             results={form.results}
             resultConfig={resultConfig}
