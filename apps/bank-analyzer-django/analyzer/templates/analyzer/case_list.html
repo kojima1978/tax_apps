@@ -43,64 +43,97 @@
         {{ cases|length }}件の案件を表示中
     </p>
 
-    <div class="row g-3" id="caseCardGrid">
-        {% for case in cases %}
-        <div class="col-md-6 col-lg-4 case-card-col"
-            data-name="{{ case.name }}"
-            data-created="{{ case.created_at|date:'U' }}"
-            data-unclassified="{{ case.unclassified_count }}">
-            <div class="card bg-white border-light shadow-sm h-100 case-card">
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title mb-0 text-dark">{{ case.name }}</h5>
-                        <div class="d-flex gap-1 z-2" onclick="event.stopPropagation(); event.preventDefault();">
-                            <a href="{% url 'case-update' case.pk %}" class="btn btn-sm btn-outline-info p-1 px-2 icon-action-btn"
-                                title="編集" aria-label="{{ case.name }}を編集"
-                                onclick="event.preventDefault(); window.location='{% url 'case-update' case.pk %}';">
-                                <i class="bi bi-pencil" aria-hidden="true"></i>
-                            </a>
-                            <a href="{% url 'case-delete' case.pk %}" class="btn btn-sm btn-outline-danger p-1 px-2 icon-action-btn"
-                                title="削除" aria-label="{{ case.name }}を削除"
-                                onclick="event.preventDefault(); window.location='{% url 'case-delete' case.pk %}';">
-                                <i class="bi bi-trash" aria-hidden="true"></i>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="d-flex gap-3 text-muted small mb-2">
-                        <span><i class="bi bi-calendar-plus me-1"></i>{{ case.created_at|wareki_short }}</span>
-                        <span><i class="bi bi-clock-history me-1"></i>{{ case.updated_at|wareki_short }}</span>
-                    </div>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <span class="badge bg-secondary rounded-pill">
-                            <i class="bi bi-arrow-left-right"></i> {{ case.tx_count }} 取引
-                        </span>
-                        <span class="badge bg-light text-dark border rounded-pill">
-                            <i class="bi bi-bank"></i> {{ case.account_count }} 口座
-                        </span>
+    <div class="case-list-table-wrap">
+        <table class="table align-middle mb-0 case-list-table" id="caseListTable" aria-label="案件一覧">
+            <thead>
+                <tr>
+                    <th scope="col">案件名</th>
+                    <th scope="col">分類状況</th>
+                    <th scope="col" class="text-end case-col-transactions">取引</th>
+                    <th scope="col" class="text-end case-col-accounts">口座</th>
+                    <th scope="col" class="case-col-created">作成日</th>
+                    <th scope="col" class="case-col-updated">更新日</th>
+                    <th scope="col" class="text-end">操作</th>
+                </tr>
+            </thead>
+            <tbody id="caseListBody">
+                {% for case in cases %}
+                <tr class="case-list-row"
+                    data-name="{{ case.name }}"
+                    data-created="{{ case.created_at|date:'U' }}"
+                    data-unclassified="{{ case.unclassified_count }}">
+                    <td class="case-name-cell">
+                        <a href="{% url 'analysis-dashboard' case.pk %}" class="case-name-link">
+                            <span class="case-name-icon" aria-hidden="true"><i class="bi bi-folder2-open"></i></span>
+                            <span>
+                                <strong>{{ case.name }}</strong>
+                                <small>案件を開く</small>
+                            </span>
+                        </a>
+                    </td>
+                    <td>
                         {% if case.unclassified_count > 0 %}
-                        <span class="badge bg-warning text-dark rounded-pill">
-                            <i class="bi bi-question-circle"></i> 未分類 {{ case.unclassified_count }}
+                        <span class="case-status case-status-pending">
+                            <i class="bi bi-question-circle" aria-hidden="true"></i>
+                            未分類 {{ case.unclassified_count }}
+                        </span>
+                        {% elif case.tx_count > 0 %}
+                        <span class="case-status case-status-complete">
+                            <i class="bi bi-check-circle" aria-hidden="true"></i>
+                            分類完了
                         </span>
                         {% else %}
-                        {% if case.tx_count > 0 %}
-                        <span class="badge bg-success rounded-pill">
-                            <i class="bi bi-check-circle"></i> 分類完了
+                        <span class="case-status case-status-empty">
+                            <i class="bi bi-inbox" aria-hidden="true"></i>
+                            未取込
                         </span>
                         {% endif %}
-                        {% endif %}
-                    </div>
-                    <div class="mt-auto d-flex flex-column gap-2">
-                        <a href="{% url 'import-wizard' case.pk %}" class="btn btn-outline-success btn-sm w-100" onclick="event.stopPropagation();">
-                            <i class="bi bi-file-earmark-arrow-up me-1"></i> CSVを取り込む
-                        </a>
-                        <a href="{% url 'analysis-dashboard' case.pk %}" class="btn btn-primary btn-sm w-100" onclick="event.stopPropagation();">
-                            <i class="bi bi-graph-up me-1"></i> 分析を開く
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+                    </td>
+                    <td class="text-end case-number-cell case-col-transactions">
+                        <strong>{{ case.tx_count }}</strong><small>件</small>
+                    </td>
+                    <td class="text-end case-number-cell case-col-accounts">
+                        <strong>{{ case.account_count }}</strong><small>口座</small>
+                    </td>
+                    <td class="case-date-cell case-col-created">{{ case.created_at|wareki_short }}</td>
+                    <td class="case-date-cell case-col-updated">{{ case.updated_at|wareki_short }}</td>
+                    <td>
+                        <div class="case-row-actions">
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false"
+                                    aria-label="{{ case.name }}のその他の操作" title="その他の操作">
+                                    <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a href="{% url 'import-wizard' case.pk %}" class="dropdown-item">
+                                            <i class="bi bi-file-earmark-arrow-up me-2" aria-hidden="true"></i>CSVを取り込む
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="{% url 'case-update' case.pk %}" class="dropdown-item">
+                                            <i class="bi bi-pencil me-2" aria-hidden="true"></i>案件名を編集
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a href="{% url 'case-delete' case.pk %}" class="dropdown-item text-danger">
+                                            <i class="bi bi-trash me-2" aria-hidden="true"></i>案件を削除
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <a href="{% url 'analysis-dashboard' case.pk %}" class="btn btn-sm btn-primary case-open-button">
+                                <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                                <span class="case-list-open-label">開く</span>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     <div class="text-center py-5 text-muted d-none" id="caseSearchEmpty">
         <i class="bi bi-search display-5 mb-3 d-block" aria-hidden="true"></i>
@@ -129,24 +162,25 @@
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('caseSearchInput');
     const sortSelect = document.getElementById('caseSortSelect');
-    const grid = document.getElementById('caseCardGrid');
+    const table = document.getElementById('caseListTable');
+    const tableBody = document.getElementById('caseListBody');
     const searchStatus = document.getElementById('caseSearchStatus');
     const searchEmpty = document.getElementById('caseSearchEmpty');
 
     function updateSearchResults() {
         const q = searchInput.value.trim().toLocaleLowerCase('ja');
         let visibleCount = 0;
-        grid.querySelectorAll('.case-card-col').forEach(col => {
-            const name = col.dataset.name.toLocaleLowerCase('ja');
+        tableBody.querySelectorAll('.case-list-row').forEach(row => {
+            const name = row.dataset.name.toLocaleLowerCase('ja');
             const isVisible = name.includes(q);
-            col.classList.toggle('d-none', !isVisible);
+            row.classList.toggle('d-none', !isVisible);
             if (isVisible) visibleCount += 1;
         });
         searchStatus.textContent = q
             ? `検索結果: ${visibleCount}件`
             : `${visibleCount}件の案件を表示中`;
         searchEmpty.classList.toggle('d-none', visibleCount !== 0);
-        grid.classList.toggle('d-none', visibleCount === 0);
+        table.parentElement.classList.toggle('d-none', visibleCount === 0);
     }
 
     // 検索
@@ -157,8 +191,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // ソート
     if (sortSelect) {
         sortSelect.addEventListener('change', function() {
-            const cols = Array.from(grid.querySelectorAll('.case-card-col'));
-            cols.sort((a, b) => {
+            const rows = Array.from(tableBody.querySelectorAll('.case-list-row'));
+            rows.sort((a, b) => {
                 switch (this.value) {
                     case 'newest': return b.dataset.created - a.dataset.created;
                     case 'oldest': return a.dataset.created - b.dataset.created;
@@ -167,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return 0;
             });
-            cols.forEach(col => grid.appendChild(col));
+            rows.forEach(row => tableBody.appendChild(row));
         });
     }
 });

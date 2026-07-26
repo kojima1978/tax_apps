@@ -4,10 +4,12 @@
 モデル、フォーム、サービス、テンプレートタグのテストを含む。
 """
 from datetime import date, datetime
+from io import BytesIO
 
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse, set_script_prefix
 from django.core.files.uploadedfile import SimpleUploadedFile
+from openpyxl import load_workbook
 
 from .models import Account, Case, DeletionBackup, Transaction
 from .forms import CaseForm, SettingsForm
@@ -453,6 +455,9 @@ class ViewsTest(TestCase):
         self.assertContains(response, "テスト案件")
         self.assertContains(response, 'id="caseSearchStatus"')
         self.assertContains(response, 'aria-label="案件一覧"')
+        self.assertContains(response, 'id="caseListTable"')
+        self.assertContains(response, 'class="case-list-row"')
+        self.assertNotContains(response, 'id="caseCardGrid"')
 
     def test_base_uses_bundled_frontend_assets(self):
         """共通画面が外部CDNではなく同梱資産を使用すること"""
@@ -514,6 +519,9 @@ class ViewsTest(TestCase):
         self.assertContains(response, "不明な取引を、質問候補として残せます")
         self.assertContains(response, "質問候補に追加")
         self.assertContains(response, 'aria-label="月次の出金額と入金額を比較する棒グラフ"')
+        self.assertContains(response, "最終成果物")
+        self.assertContains(response, "分類別Excel出力")
+        self.assertContains(response, reverse('export-xlsx-by-category', args=[self.case.pk]))
 
     def test_unclassified_workbench_defaults_to_individual_transactions(self):
         """未分類整理は個別取引を主表示にする"""
@@ -561,6 +569,44 @@ class ViewsTest(TestCase):
         """データなしCSVエクスポート（リダイレクト）"""
         response = self.client.get(reverse('export-csv', args=[self.case.pk, 'all']))
         self.assertEqual(response.status_code, 302)
+
+    def test_export_xlsx_by_category_contains_deliverable_sheets(self):
+        """分類別Excelに分類・多額取引・付箋付きの各シートを出力する"""
+        Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 15),
+            description="生活費の支払い",
+            amount_out=10000,
+            category="生活費",
+        )
+        Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 16),
+            description="給与入金・要確認",
+            amount_in=600000,
+            category="給与",
+            is_flagged=True,
+            memo="入金元を確認",
+        )
+
+        response = self.client.get(
+            reverse('export-xlsx-by-category', args=[self.case.pk]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        self.assertIn('.xlsx', response['Content-Disposition'])
+
+        workbook = load_workbook(BytesIO(response.content))
+        self.assertIn("生活費", workbook.sheetnames)
+        self.assertIn("給与", workbook.sheetnames)
+        self.assertIn("50万円以上", workbook.sheetnames)
+        self.assertIn("付箋付き", workbook.sheetnames)
+        self.assertEqual(workbook["生活費"].max_row, 2)
+        self.assertEqual(workbook["付箋付き"].max_row, 2)
 
     def test_api_toggle_flag(self):
         """付箋トグルAPI"""
