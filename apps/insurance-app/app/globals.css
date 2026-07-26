@@ -6,6 +6,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root {
+  /* A4横の印刷可能幅（用紙297mm − @media print の @page margin 10mm × 2）。
+     案件詳細の本文カラム(.app-shell の右カラム)をこの幅に合わせることで、
+     画面のレイアウトがそのまま印刷結果になる。
+     グラフ(recharts)は描画時の実寸をpxで焼き込むため、本文が印刷可能幅を超えていると
+     Chrome が印刷全体を自動縮小し、紙の下側が大きく余ってページ番号も浮いてしまう。
+     @page 側では var() が解決されないので margin は実値で書いてある */
+  --print-content-width: 277mm;
+}
+
 #root {
   max-width: 1200px;
   margin: 0 auto;
@@ -3628,7 +3638,8 @@ h1 {
 
 /* ===== 案件詳細のシェル（サイドバー + 本文） ===== */
 
-/* サイドバーを出す画面では本文を画面幅いっぱいに使う（一覧画面は従来どおり中央寄せ） */
+/* サイドバーを出す画面では #root の 1200px 制限を外す（一覧画面は従来どおり）。
+   実際の横幅は下の .app-shell 側で決める */
 body:has(.app-shell) #root {
   max-width: none;
   padding: 1.25rem 1.5rem;
@@ -3636,13 +3647,18 @@ body:has(.app-shell) #root {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 236px minmax(0, 1fr);
+  /* 本文カラムを印刷可能幅で頭打ちにする = 画面の見た目がそのまま印刷結果になる。
+     ここを 1fr にするとワイドモニタでグラフが用紙より広く描かれ、
+     Chrome の印刷全体の自動縮小を招く（--print-content-width のコメント参照） */
+  grid-template-columns: 236px minmax(0, var(--print-content-width));
+  /* サイドバーごと中央に寄せて、広い画面で右側だけが空くのを避ける */
+  justify-content: center;
   gap: 1.5rem;
   align-items: start;
 }
 
 .app-shell.sidebar-collapsed {
-  grid-template-columns: 60px minmax(0, 1fr);
+  grid-template-columns: 60px minmax(0, var(--print-content-width));
 }
 
 .main-area {
@@ -3871,6 +3887,23 @@ body:has(.app-shell) #root {
     padding-bottom: var(--print-page-number-space);
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+
+  /* グラフ(recharts)は描画時の実寸を wrapper に px で焼き込むため、画面の幅がそのまま印刷にも残る。
+     用紙より広い要素が1つでもあると Chrome は「印刷全体」を縮小してしまい、
+     どのページも下側が大きく余ってページ番号が紙の途中に出る。
+     本文カラムは .app-shell 側で印刷可能幅に揃えてあるので通常ここは効かないが、
+     将来グラフが増えた場合の保険として、はみ出しを構造的に不可能にしておく。
+     SVGは viewBox を持つので幅を詰めても比率は保たれる。
+     ResponsiveContainer は「幅0の中間div」の上に実寸pxの wrapper を重ねる作りなので、
+     先に中間divへ幅を持たせないと max-width:100% がすべて0になりグラフが消える */
+  .recharts-responsive-container > div {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .recharts-wrapper {
+    max-width: 100% !important;
   }
 
   /* 画面のサイドバーは印刷しない。本文は1カラムに戻す */
