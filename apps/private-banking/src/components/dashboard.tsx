@@ -462,7 +462,6 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     if (!portfolio) return;
     setSaving(true); setError("");
     const form = new FormData(event.currentTarget);
-    const action = form.get("action");
     try {
       const response = await fetch(`${API_BASE}/inheritance-estimate`, {
         method: "PUT",
@@ -471,8 +470,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       });
       if (!response.ok) throw new Error();
       setForecastModalOpen(false);
-      if (action === "calculate") window.location.assign(`/inheritance-tax-app/?source=pb&autocalc=1&householdId=${portfolio.household.id}`);
-      else await load();
+      await load();
     } catch { setError("予測条件を保存できませんでした。"); }
     finally { setSaving(false); }
   }
