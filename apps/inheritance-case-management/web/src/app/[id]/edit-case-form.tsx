@@ -43,6 +43,7 @@ import {
     saveCaseFormDraft,
 } from "./case-form-draft"
 import { shouldCloseCaseDetailSections } from "@/lib/case-detail-section-state"
+import { CaseSectionNavigation, type CaseSectionNavigationItem } from "./CaseSectionNavigation"
 
 const CLOSED_SECTION_DEFAULTS = Object.fromEntries(
     SECTION_IDS.map((id) => [id, false]),
@@ -52,6 +53,17 @@ const CREATE_SECTION_DEFAULTS = {
     ...CLOSED_SECTION_DEFAULTS,
     basicInfo: true,
 }
+
+const CASE_SECTION_NAVIGATION_ITEMS = [
+    { id: "case-basic-info", label: "基本情報", sectionKey: "basicInfo" },
+    { id: "case-progress", label: "進捗管理", sectionKey: "progress" },
+    { id: "case-financial", label: "金額情報", sectionKey: "financial" },
+    { id: "case-expenses", label: "立替金", sectionKey: "expenses" },
+    { id: "case-heirs", label: "相続人", sectionKey: "heirs" },
+    { id: "case-related-parties", label: "関係者", sectionKey: "relatedParties" },
+    { id: "case-memo", label: "メモ", sectionKey: "memo" },
+    { id: "case-audit-log", label: "変更履歴", sectionKey: "auditLog" },
+] as const satisfies readonly CaseSectionNavigationItem[]
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -176,108 +188,136 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     )
 
     const estimateNetRevenue = useMemo(() => calculateEstimateNetRevenue(formData), [formData])
+    const caseSectionNavigationItems = useMemo(
+        () => formData.progress
+            ? CASE_SECTION_NAVIGATION_ITEMS
+            : CASE_SECTION_NAVIGATION_ITEMS.filter((item) => item.sectionKey !== "progress"),
+        [formData.progress],
+    )
 
     return (
         <div className="space-y-2 text-xs [&_input:not([type=checkbox])]:h-9 [&_input:not([type=checkbox])]:text-xs [&_select]:text-xs [&_textarea]:text-xs">
             {!isCreateMode && (
-                <div className="mb-2 flex items-center justify-between border-b pb-2">
-                    <h1 className="text-lg font-bold tracking-tight">案件詳細</h1>
-                    <div className="flex justify-end">
-                        <button
-                            type="button"
-                            onClick={sections.toggleAll}
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                            <ChevronsUpDown className="h-3.5 w-3.5" />
-                            {sections.allOpen ? "すべて閉じる" : "すべて開く"}
-                        </button>
+                <>
+                    <div className="mb-2 flex items-center justify-between border-b pb-2">
+                        <h1 className="text-lg font-bold tracking-tight">案件詳細</h1>
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                onClick={sections.toggleAll}
+                                className="flex min-h-9 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            >
+                                <ChevronsUpDown className="h-3.5 w-3.5" />
+                                {sections.allOpen ? "すべて閉じる" : "すべて開く"}
+                            </button>
+                        </div>
                     </div>
+                    <CaseSectionNavigation
+                        items={caseSectionNavigationItems}
+                        onOpenSection={sections.open}
+                    />
+                </>
+            )}
+
+            <div id="case-basic-info" className="scroll-mt-28">
+                <BasicInfoSection
+                    formData={formData}
+                    assignees={assignees}
+                    referrers={referrers}
+                    returnToPath={returnToPath}
+                    isOpen={sections.isOpen("basicInfo")}
+                    onToggle={() => sections.toggle("basicInfo")}
+                    handleChange={handleChange}
+                    setFormData={setFormData}
+                    onMasterEditNavigate={preserveDraftBeforeMasterNavigation}
+                />
+            </div>
+
+            {formData.progress && (
+                <div id="case-progress" className="scroll-mt-28">
+                    <CollapsibleSection title="進捗管理" icon={ListChecks} isOpen={sections.isOpen("progress")} onToggle={() => sections.toggle("progress")} badge={formData.status} compact>
+                        <ProgressEditor
+                            progress={toProgressSteps(formData.progress)}
+                            onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
+                            formData={formData}
+                            isCreateMode={isCreateMode}
+                            handleChange={handleChange}
+                            setFormData={setFormData}
+                            onNeedsConfirmedFee={() => sections.open("financial")}
+                        />
+                    </CollapsibleSection>
                 </div>
             )}
 
-            <BasicInfoSection
-                formData={formData}
-                assignees={assignees}
-                referrers={referrers}
-                returnToPath={returnToPath}
-                isOpen={sections.isOpen("basicInfo")}
-                onToggle={() => sections.toggle("basicInfo")}
-                handleChange={handleChange}
-                setFormData={setFormData}
-                onMasterEditNavigate={preserveDraftBeforeMasterNavigation}
-            />
+            <div id="case-financial" className="scroll-mt-28">
+                <FinancialSection
+                    formData={formData}
+                    netRevenue={netRevenue}
+                    estimateNetRevenue={estimateNetRevenue}
+                    isOpen={sections.isOpen("financial")}
+                    onToggle={() => sections.toggle("financial")}
+                    currencyChange={currencyChange}
+                    setFormData={setFormData}
+                    highlightFee={needsConfirmedFee}
+                />
+            </div>
 
-            {formData.progress && (
-                <CollapsibleSection title="進捗管理" icon={ListChecks} isOpen={sections.isOpen("progress")} onToggle={() => sections.toggle("progress")} badge={formData.status} compact>
-                    <ProgressEditor
-                        progress={toProgressSteps(formData.progress)}
-                        onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
-                        formData={formData}
-                        isCreateMode={isCreateMode}
-                        handleChange={handleChange}
-                        setFormData={setFormData}
-                        onNeedsConfirmedFee={() => sections.open("financial")}
+            <div id="case-expenses" className="scroll-mt-28">
+                <CollapsibleSection title="立替金" icon={Receipt} isOpen={sections.isOpen("expenses")} onToggle={() => sections.toggle("expenses")} badge={`${(formData.expenses || []).length}件`} compact>
+                    <ExpenseEditor
+                        expenses={toExpenses(formData.expenses || [])}
+                        deceasedName={formData.deceasedName}
+                        heirs={formData.heirs || []}
+                        onChange={(expenses) => setFormData(prev => ({ ...prev, expenses: toExpenseItems(expenses) }))}
                     />
                 </CollapsibleSection>
-            )}
+            </div>
 
-            <FinancialSection
-                formData={formData}
-                netRevenue={netRevenue}
-                estimateNetRevenue={estimateNetRevenue}
-                isOpen={sections.isOpen("financial")}
-                onToggle={() => sections.toggle("financial")}
-                currencyChange={currencyChange}
-                setFormData={setFormData}
-                highlightFee={needsConfirmedFee}
-            />
+            <div id="case-heirs" className="scroll-mt-28">
+                <CollapsibleSection title="相続人" icon={Users} isOpen={sections.isOpen("heirs")} onToggle={() => sections.toggle("heirs")} badge={`${(formData.heirs || []).length}件`} compact>
+                    <HeirListEditor
+                        heirs={formData.heirs || []}
+                        persons={heirPersons}
+                        dateOfDeath={formData.dateOfDeath}
+                        deceasedName={formData.deceasedName}
+                        onChange={(heirs) => setFormData(prev => ({ ...prev, heirs }))}
+                        onPersonsChange={setHeirPersons}
+                    />
+                </CollapsibleSection>
+            </div>
 
-            <CollapsibleSection title="立替金" icon={Receipt} isOpen={sections.isOpen("expenses")} onToggle={() => sections.toggle("expenses")} badge={`${(formData.expenses || []).length}件`} compact>
-                <ExpenseEditor
-                    expenses={toExpenses(formData.expenses || [])}
-                    deceasedName={formData.deceasedName}
-                    heirs={formData.heirs || []}
-                    onChange={(expenses) => setFormData(prev => ({ ...prev, expenses: toExpenseItems(expenses) }))}
-                />
-            </CollapsibleSection>
+            <div id="case-related-parties" className="scroll-mt-28">
+                <CollapsibleSection title="関係者" icon={Briefcase} isOpen={sections.isOpen("relatedParties")} onToggle={() => sections.toggle("relatedParties")} badge={`${(formData.relatedParties || []).length}件`} compact>
+                    <RelatedPartyListEditor
+                        parties={formData.relatedParties || []}
+                        persons={relatedPartyPersons}
+                        onChange={(relatedParties) => setFormData(prev => ({ ...prev, relatedParties }))}
+                        onPersonsChange={setRelatedPartyPersons}
+                    />
+                </CollapsibleSection>
+            </div>
 
-            <CollapsibleSection title="相続人" icon={Users} isOpen={sections.isOpen("heirs")} onToggle={() => sections.toggle("heirs")} badge={`${(formData.heirs || []).length}件`} compact>
-                <HeirListEditor
-                    heirs={formData.heirs || []}
-                    persons={heirPersons}
-                    dateOfDeath={formData.dateOfDeath}
-                    deceasedName={formData.deceasedName}
-                    onChange={(heirs) => setFormData(prev => ({ ...prev, heirs }))}
-                    onPersonsChange={setHeirPersons}
-                />
-            </CollapsibleSection>
-
-            <CollapsibleSection title="関係者" icon={Briefcase} isOpen={sections.isOpen("relatedParties")} onToggle={() => sections.toggle("relatedParties")} badge={`${(formData.relatedParties || []).length}件`} compact>
-                <RelatedPartyListEditor
-                    parties={formData.relatedParties || []}
-                    persons={relatedPartyPersons}
-                    onChange={(relatedParties) => setFormData(prev => ({ ...prev, relatedParties }))}
-                    onPersonsChange={setRelatedPartyPersons}
-                />
-            </CollapsibleSection>
-
-            <CollapsibleSection title="メモ" icon={StickyNote} isOpen={sections.isOpen("memo")} onToggle={() => sections.toggle("memo")} compact>
-                <textarea
-                    value={formData.memo || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
-                    placeholder="自由にメモを記載できます"
-                    rows={4}
-                    className="w-full min-h-[64px] resize-y rounded-md border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-            </CollapsibleSection>
+            <div id="case-memo" className="scroll-mt-28">
+                <CollapsibleSection title="メモ" icon={StickyNote} isOpen={sections.isOpen("memo")} onToggle={() => sections.toggle("memo")} compact>
+                    <textarea
+                        value={formData.memo || ""}
+                        onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
+                        placeholder="自由にメモを記載できます"
+                        rows={4}
+                        className="w-full min-h-[64px] resize-y rounded-md border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                </CollapsibleSection>
+            </div>
 
             {!isCreateMode && (
-                <AuditLogSection
-                    caseId={formData.id}
-                    isOpen={sections.isOpen("auditLog")}
-                    onToggle={() => sections.toggle("auditLog")}
-                    refreshKey={auditRefreshKey}
-                />
+                <div id="case-audit-log" className="scroll-mt-28">
+                    <AuditLogSection
+                        caseId={formData.id}
+                        isOpen={sections.isOpen("auditLog")}
+                        onToggle={() => sections.toggle("auditLog")}
+                        refreshKey={auditRefreshKey}
+                    />
+                </div>
             )}
 
             <StickyActionBar>
