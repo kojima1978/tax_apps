@@ -26,6 +26,21 @@ cd apps/<app-name> && docker compose -f docker-compose.yml -f docker-compose.pro
 cd apps/<app-name> && docker compose logs -f
 ```
 
+### ソース同期（private-banking / inheritance-case-management）
+
+この2アプリは dev でもソースを bind mount せず、**イメージ同梱物 + `docker compose watch`** で動かす。
+
+```bash
+# 編集しながら開発する間、別ターミナルで開いておく（フォアグラウンド）
+docker/scripts/manage.sh watch <app-name>
+```
+
+- watch を止めている間の変更は同期されない。その場合は `manage.sh build <app-name>` で取り込む。
+- `--watch` は `--detach` と併用できないため、`start` とは別プロセスで動かす設計。
+- **なぜ bind mount をやめたか**: Docker Desktop for Windows の bind mount(Windows→WSL2) は起動直後の `scandir` が EFAULT を返すことがあり、Next.js の dev サーバはルート表を watchpack の初期スキャン結果から組み立てる。スキャンに失敗したディレクトリ配下のルートが警告1行だけ残して丸ごと欠落し、「`✓ Ready` なのに 404」のまま稼働し続ける。コンテナ内から bind mount を無くすとこの経路自体が消える。
+- 同期経路が bind mount ではなくなった代わりに、Docker はオーバーレイ上位層へ直接書き込むためコンテナ内の inotify にイベントが届かない。**ポーリングが2箇所必要**: ルート表用の `WATCHPACK_POLLING`(compose の environment) と Turbopack 再コンパイル用の `watchOptions.pollIntervalMs`(next.config.ts)。
+- **スキャンガード**: 上の障害は healthcheck(`/api/health`) をすり抜けるため、両アプリの `docker-entrypoint.sh` に dev 限定のガードを入れてある。dev サーバの出力を FIFO 経由で監視し `Watchpack Error (initial scan)` を見つけたら即座に落とす → `restart: unless-stopped` で再起動。next は `exec` せず子プロセスとして起動し(PID 1 はハンドラの無いシグナルを無視するため)、`docker stop` の TERM は trap で転送している。
+
 ### manage.sh / backup.sh（全アプリ統合管理）
 
 コマンド例は `.sh` を本体として記載する。`.bat` は Windows のダブルクリック用・タスクスケジューラ用の補助ラッパーとして扱う。
@@ -51,6 +66,9 @@ docker/scripts/manage.sh start --prod
 
 # 特定アプリのみ再ビルド
 docker/scripts/manage.sh build <app-name>
+
+# ソース変更をコンテナへ同期（対応アプリのみ・フォアグラウンド）
+docker/scripts/manage.sh watch <app-name>
 
 # ログ確認
 docker/scripts/manage.sh logs <app-name>

@@ -28,8 +28,9 @@ services:
     labels:
       tax-apps.autoheal: "true"
     init: false
-    # !override で base の volumes を置換する（通常のリストはマージされ、
-    # 開発用の ./web/src ./web/public ./web/prisma バインドが本番にも残ってしまうため）
+    # !override で base の volumes を置換する（通常のリストはマージされるため、
+    # base に開発用のマウントが増えても本番に漏れないようにする）。
+    # 現状 base 側も templates のみだが、事故防止のため明示指定を維持する。
     volumes: !override
       # テンプレートファイル（見積書・請求書Excel）のみマウント
       - ./templates:/app/templates:ro

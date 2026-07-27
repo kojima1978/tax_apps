@@ -434,10 +434,30 @@ API計算用遺産額 =
 ### 15.1 Docker
 
 - 開発・ビルド・運用はDockerで行う。
-- 開発はソースを読み取り専用でマウントし、ホットリロードする。
+- 開発でもソースはマウントせず、イメージ同梱物で動作する。編集内容は `docker compose watch` で同期する（`docker/scripts/manage.sh watch private-banking` をフォアグラウンドで起動）。
 - 本番はNext.js standalone出力を使用する。
 - DBマイグレーションはコンテナ起動時に適用する。
 - 本番Webコンテナは読み取り専用ルートFS、非rootユーザー、`no-new-privileges`で動作する。
+- コンテナは `tax-apps.autoheal=true` ラベルを持ち、unhealthy になった場合はホスト側ウォッチドッグの再起動対象となる。
+
+#### 15.1.1 ソースをマウントしない理由
+
+Docker Desktop for Windows の bind mount（Windows→WSL2）は、起動直後の `scandir` が `EFAULT` を返すことがある。Next.js の dev サーバはルート表を watchpack の初期スキャン結果から組み立てるため、スキャンに失敗したディレクトリ配下のルートが警告1行だけ残して**丸ごと欠落**し、`✓ Ready` の表示のまま該当ルートが 404 を返し続ける。`/api/health` は影響を受けないため healthcheck も healthy のままとなり、障害が表面化しない。
+
+コンテナ内から bind mount を除去することでこの経路自体を無くす。代償として、Docker の sync がオーバーレイ上位層へ直接書き込みコンテナ内 inotify が発火しないため、次の2つのポーリング設定を併用する。
+
+| ノブ | 場所 | 担当 |
+|---|---|---|
+| `WATCHPACK_POLLING=true` | `docker-compose.yml` の `environment` | ルート表の更新 |
+| `watchOptions.pollIntervalMs` | `next.config.ts` | Turbopack の再コンパイル |
+
+#### 15.1.2 初期スキャン失敗の検知
+
+上記は原因経路を除去済みだが、再発時に静かに壊れないよう、開発モードでのみ `docker-entrypoint.sh` が dev サーバの出力を監視する。`Watchpack Error (initial scan)` を検知した場合はコンテナを異常終了させ、`restart: unless-stopped` による再起動に委ねる。
+
+- 監視は FIFO 経由で行い、dev サーバは `exec` せず子プロセスとして起動する（PID 1 はハンドラを持たないシグナルを無視するため）。
+- `docker stop` の `TERM`/`INT` は `trap` で子プロセスへ転送する。
+- 本番モード（`NODE_ENV=production`）ではこの監視は動作しない。
 
 ### 15.2 データ保全
 

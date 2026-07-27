@@ -104,6 +104,20 @@
 - **`unregister-docker-watchdog-task.bat`**
   `register-docker-watchdog-task.ps1 -Unregister` を呼ぶ UAC 自己昇格ラッパー。ダブルクリック → UAC 昇格 → タスク削除。
 
+### 登録状況の確認（重要）
+
+自動復旧は **① `tax-apps.autoheal=true` ラベル** と **② スケジュールタスク登録** の2段構えで、どちらか一方でも欠けると何も起きない。しかも欠けていること自体はどこにも表示されないため、過去にタスク未登録のまま数ヶ月気づかなかったことがある。
+
+`manage.sh status` の末尾で両方を確認できるようにしてある:
+
+```
+自動復旧（ウォッチドッグ）:
+  スケジュールタスク: 登録済み（Tax Apps Docker Watchdog）
+  autoheal ラベル: 稼働中の healthcheck 付きコンテナすべてに付与済み
+```
+
+★ が付いていたらその項目が未配線。ラベルは compose を直して `up -d` で再作成、タスクは `register-docker-watchdog-task.bat` をダブルクリックで登録する。
+
 ---
 
 ## ファイル一覧表

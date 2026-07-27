@@ -7,6 +7,9 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+x-autoheal-labels: &autoheal-labels
+  tax-apps.autoheal: "true"
+
 x-healthcheck-defaults: &healthcheck-defaults
   interval: 30s
   timeout: 10s
@@ -26,6 +29,7 @@ services:
         APP_DESCRIPTION: "所得税計算ツール"
         NPM_CACHE_ID: npm-store-income-tax-calc
     container_name: income-tax-calc
+    labels: *autoheal-labels
     networks:
       - tax-apps-network
     ports:

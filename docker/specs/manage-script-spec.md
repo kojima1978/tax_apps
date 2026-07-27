@@ -2,8 +2,8 @@
 
 Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh`) の技術仕様書
 
-**最終更新**: 2026-05-07
-**バージョン**: 3.4（salary-calc を削除）
+**最終更新**: 2026-07-28
+**バージョン**: 3.5（`watch` コマンド追加、`status` に自動復旧の配線チェックを追加）
 
 ---
 
@@ -124,6 +124,7 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 | 3.2 | `start` 前に `preflight_quick` を実行。`preflight` のポート競合判定で Tax Apps 自身の使用ポートを WARN から除外 |
 | 3.3 | `restore` 前に `pre-restore` バックアップを自動作成。`clean` Step 2 は `DELETE DATA` 入力必須に変更 |
 | 3.4 | salary-calc を削除。manage.sh、Nginx、ポータル、Docker docs から参照を削除 |
+| 3.5 | `watch` コマンド追加（private-banking / inheritance-case-management の bind mount 廃止に伴う compose watch 対応）。`status` の末尾に自動復旧（ウォッチドッグ）の配線チェックを追加。`WATCHDOG_TASK_NAME` 定数を追加 |
 
 ---
 
@@ -277,7 +278,38 @@ manage.sh build <app-name>
 | 引数 | `app-name`: 部分一致で解決 |
 | コマンド | `docker compose up -d --build` |
 
-### 5.6 logs
+### 5.6 watch
+
+```
+manage.sh watch <app-name>
+```
+
+| 項目 | 説明 |
+|:-----|:-----|
+| 概要 | ソース変更をコンテナへ同期（`docker compose watch`） |
+| 引数 | `app-name`: 部分一致で解決 |
+| 対象 | `docker-compose.yml` に `develop:` を持つアプリのみ（private-banking / inheritance-case-management） |
+| 前処理 | `develop:` の有無を検査、無ければエラー終了。`ensure_network` |
+| コマンド | `docker compose watch --no-up` |
+| 実行形態 | **フォアグラウンド**（`Ctrl+C` で終了） |
+| ラッパー | `manage.bat` からは非対応（常駐するため） |
+
+**なぜ start と分けるか**: `--watch` は `--detach` と併用できない（`--detach cannot be combined with --watch`）。したがって起動は `start` / `build` に任せ、`watch` は同期のみを担当するフォアグラウンドセッションとする。`--no-up` はこの分離のため。
+
+**制約**: compose watch は **起動後の変更しか同期しない**（起動前の差分は初期同期されない）。watch を止めている間に編集したものは `build <app-name>` でイメージに取り込む。この点は実行時に警告として表示する。
+
+**対象アプリで bind mount を使わない理由**: Docker Desktop for Windows の bind mount（Windows→WSL2）は起動直後の `scandir` が EFAULT を返すことがある。Next.js の dev サーバはルート表を watchpack の初期スキャン結果から組み立てるため、スキャンに失敗したディレクトリ配下のルートが警告1行だけ残して丸ごと欠落し、「`✓ Ready` なのに 404」の状態で稼働し続ける。コンテナ内から bind mount を無くすとこの経路自体が消える。
+
+代償として Docker がオーバーレイ上位層へ直接書き込むためコンテナ内の inotify にイベントが届かず、**ポーリング設定が2箇所必要**になる:
+
+| ノブ | 場所 | 担当 |
+|:-----|:-----|:-----|
+| `WATCHPACK_POLLING=true` | compose の `environment` | watchpack →**ルート表**の更新 |
+| `watchOptions.pollIntervalMs` | `next.config.ts` | Turbopack native watcher →**再コンパイル** |
+
+> `WATCHPACK_POLLING` は Turbopack 側には効かない。片方だけではファイルは同期されるのにルートが登録されない、あるいは登録されても再コンパイルされない。
+
+### 5.7 logs
 
 ```
 manage.bat logs <app-name>
@@ -291,7 +323,7 @@ manage.sh logs <app-name>
 | コマンド | `docker compose logs -f` |
 | 終了 | `Ctrl+C` で終了 |
 
-### 5.7 status
+### 5.8 status
 
 ```
 manage.bat status
@@ -303,8 +335,27 @@ manage.sh status
 | 概要 | 全アプリのコンテナ状態を一覧表示 |
 | 表示項目 | ネットワーク状態、コンテナ名、ステータス、ヘルス状態、再起動回数、OOM kill 状態、ポート |
 | 出力形式 | テーブル形式 |
+| 末尾 | 自動復旧（ウォッチドッグ）の配線状況を表示（下記） |
 
-### 5.8 backup
+**自動復旧の配線チェック** (`_print_autoheal_status`)
+
+unhealthy コンテナの自動再起動は **① compose の `tax-apps.autoheal=true` ラベル** と **② Windows スケジュールタスク「Tax Apps Docker Watchdog」の登録** の2段構えで、どちらか一方でも欠けると何も起きない。欠落は従来どこにも表示されなかったため、status の末尾に常時表示する。
+
+```
+自動復旧（ウォッチドッグ）:
+  スケジュールタスク: 登録済み（Tax Apps Docker Watchdog）
+  autoheal ラベル: 稼働中の healthcheck 付きコンテナすべてに付与済み
+```
+
+| チェック | 方法 | 未配線時の表示 |
+|:---------|:-----|:---------------|
+| タスク登録 | `schtasks.exe /Query /TN "$WATCHDOG_TASK_NAME"` の終了コード | `★未登録` ＋ `register-docker-watchdog-task.bat` の案内 |
+| ラベル付与 | 稼働中コンテナのうち healthcheck を持つものを `docker inspect` し、`tax-apps.autoheal` が `true` でないものを列挙 | `autoheal ラベル無し:★<コンテナ名>` |
+
+- healthcheck を持たないコンテナは autoheal の対象外なので集計しない。
+- `schtasks.exe` が見つからない環境（非 Windows）では「確認不可」と表示し、エラーにはしない。
+
+### 5.9 backup
 
 ```
 manage.bat backup
@@ -313,7 +364,7 @@ manage.sh backup
 
 詳細は [8章](#8-バックアップ仕様) を参照。
 
-### 5.9 restore
+### 5.10 restore
 
 ```
 manage.bat restore [backup-dir]
@@ -322,7 +373,7 @@ manage.sh restore [backup-dir]
 
 詳細は [9章](#9-リストア仕様) を参照。
 
-### 5.10 clean
+### 5.11 clean
 
 ```
 manage.bat clean
@@ -350,7 +401,7 @@ manage.sh clean
 
 > Step 2 をスキップすればデータを残してコンテナ・イメージのみ削除可能
 
-### 5.11 clean-cache
+### 5.12 clean-cache
 
 ```
 manage.bat clean-cache [--all]
@@ -365,7 +416,7 @@ manage.sh clean-cache [--all]
 | 削除しないもの | コンテナ、イメージ、ボリューム、DBデータ |
 | 表示 | 実行前後に `docker system df` を表示 |
 
-### 5.12 preflight
+### 5.13 preflight
 
 ```
 manage.bat preflight
@@ -389,6 +440,7 @@ manage.sh preflight
 | `_do_status` | `dir`, `name` | 単一アプリ状態表示 |
 | `_do_clean_app` | `dir`, `name` | 単一アプリのコンテナ・イメージ削除 |
 | `cmd_clean_cache` | `mode` | Docker Build Cache の確認付き削除 |
+| `_print_autoheal_status` | - | 自動復旧の配線状況表示（タスク登録 + autoheal ラベル欠落）。`cmd_status` の末尾から呼ぶ |
 
 ### ヘルパー関数
 
@@ -633,6 +685,7 @@ All checks passed!
 | `SCRIPT_DIR` | 計算値 | スクリプトディレクトリ |
 | `PROJECT_ROOT` | 計算値 | リポジトリルート |
 | `NETWORK_NAME` | `tax-apps-network` | 外部ネットワーク名 |
+| `WATCHDOG_TASK_NAME` | `Tax Apps Docker Watchdog` | Windows スケジュールタスク名（`register-docker-watchdog-task.ps1` の `$TaskName` 既定値と一致させること） |
 | `BACKUP_BASE` | `$SCRIPT_DIR/../backups` | バックアップベースディレクトリ |
 | `APPS` | 配列 (13要素) | `income-tax-calc` を除く管理対象アプリパス一覧 |
 | `VOLUMES` | 配列 (5要素) | データボリューム一覧 |

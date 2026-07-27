@@ -319,14 +319,30 @@ docker exec -it itcm-frontend npx prisma studio
 
 ## 変更反映の目安
 
+開発モードでも **ソースは bind mount していません**。イメージ同梱物で動作し、編集内容は `docker compose watch` で同期します。編集中は別ターミナルで下記を開いておいてください（フォアグラウンド、`Ctrl+C` で終了）。
+
+```bash
+docker\scripts\manage.bat watch inheritance-case-management
+```
+
 | 変更内容 | 開発モード |
 | --- | --- |
-| `web/src/` | コンテナ内 Next.js が反映 |
-| `web/public/` | コンテナ内 Next.js が反映 |
-| `web/prisma/` | マイグレーションまたは Prisma generate が必要 |
-| `templates/` | コンテナへ読み取り専用マウント |
-| `web/package.json` | 再ビルド |
-| `Dockerfile`, `docker-compose.yml` | 再ビルド |
+| `web/src/` | watch 起動中なら sync（約8秒で反映） |
+| `web/public/` | watch 起動中なら sync |
+| `web/prisma/` | watch が rebuild（Prisma Client 再生成のため） |
+| `templates/` | コンテナへ読み取り専用マウント（bind mount のまま） |
+| `web/package.json`, `web/package-lock.json`, `web/next.config.ts` | watch が rebuild |
+| `Dockerfile`, `docker-compose.yml` | 再ビルド（`manage.bat build ...`） |
+
+> **watch を止めている間の変更は同期されません。** compose watch は起動後の変更しか拾わず、初期同期を行わないためです。その場合は `manage.bat build inheritance-case-management` でイメージに取り込んでください。
+
+### bind mount をやめた理由
+
+Docker Desktop for Windows の bind mount（Windows→WSL2）は起動直後の `scandir` が `EFAULT` を返すことがあります。Next.js の dev サーバはルート表を watchpack の初期スキャン結果から組み立てるため、スキャンに失敗したディレクトリ配下のルートが警告1行だけ残して丸ごと欠落し、`✓ Ready` の表示のまま 404 を返し続けます（このコンテナでは `/app/src/app/api` ごと失敗した記録が残っていました＝API全滅）。`/api/health` は無傷なので healthcheck も healthy のままです。
+
+- 代償として inotify が発火しないため、`WATCHPACK_POLLING=true`（compose）と `watchOptions.pollIntervalMs`（`web/next.config.ts`）の**両方**が必要です。
+- 再発時に静かに壊れないよう、開発モードでは `web/docker-entrypoint.sh` が `Watchpack Error (initial scan)` を検知するとコンテナを落とし、`restart: unless-stopped` で再起動します。
+- `templates/` はビルドコンテキスト（`./web`）の外にあるためイメージに焼けず、bind mount のまま残しています。Next のルートスキャン対象外なので上記の問題は起きません。
 
 ## 品質チェック
 

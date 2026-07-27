@@ -12,7 +12,8 @@ COPY prisma ./prisma
 RUN --mount=type=cache,id=npm-store-private-banking,target=/root/.npm npm ci
 
 FROM deps AS dev
-ENV NODE_ENV=development WATCHPACK_POLLING=true HOSTNAME=0.0.0.0 TZ=Asia/Tokyo
+# ポーリング設定は docker-compose.yml 側に集約する（理由はそちらのコメント参照）。
+ENV NODE_ENV=development HOSTNAME=0.0.0.0 TZ=Asia/Tokyo
 COPY . .
 RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
 EXPOSE 3025

@@ -83,22 +83,57 @@ services:
     networks:
       - tax-apps-network
     restart: unless-stopped
+    labels: *autoheal-labels
     environment:
       <<: *common-env
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: /itcm/api-v1
       NODE_OPTIONS: "--max-old-space-size=1536"
+      # compose watch の sync は Docker デーモンがオーバーレイの上位層へ直接書くため、
+      # コンテナ内の inotify にイベントが届かない。Next の dev サーバはルート表を
+      # watchpack の監視結果から作る（setup-dev-bundler.js の knownFiles）ので、
+      # これが無いと同期されたファイルが増えてもルートとして登録されない。
+      # Turbopack 側の再コンパイルは別ノブで、web/next.config.ts の
+      # watchOptions.pollIntervalMs が担当する。両方必要。
       WATCHPACK_POLLING: "true"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@itcm-postgres:5432/${POSTGRES_DB:-inheritance_tax_db}?schema=public
     volumes:
-      # ソースコードをマウント（ホットリロード用）
-      - ./web/src:/app/src:ro
-      - ./web/public:/app/public:ro
-      - ./web/prisma:/app/prisma:ro
-      # テンプレートファイル（見積書・請求書Excel）
+      # テンプレートファイル（見積書・請求書Excel）。
+      # ビルドコンテキスト(./web)の外にあるためイメージに焼けず bind mount のまま。
+      # Next のルートスキャン対象外(/app/templates)なので、後述の EFAULT が起きても
+      # 「ルートが静かに消える」形にはならず、読み取り失敗として表面化する。
       - ./templates:/app/templates:ro
     ports:
       - "127.0.0.1:3020:3020"
+    # ソースは bind mount せずイメージ同梱物を使い、変更は compose watch で同期する。
+    #
+    # 理由: Docker Desktop for Windows の bind mount(Windows→WSL2)は起動直後の
+    # scandir が EFAULT を返すことがある。Next.js の dev サーバはルート表を
+    # watchpack の初期スキャン結果から組み立てるため(setup-dev-bundler.js)、
+    # スキャンに失敗したディレクトリ配下のルートが警告1行だけ残して丸ごと欠落し、
+    # 「✓ Ready なのに 404」という状態のまま稼働し続ける。実際にこのコンテナでは
+    # /app/src/app/api ごとスキャンに失敗した記録が残っていた（＝API全滅）。
+    #
+    # ホットリロードを使うときは
+    # `docker/scripts/manage.sh watch inheritance-case-management` を
+    # フォアグラウンドで起動しておく（--watch は --detach と併用できない）。
+    develop:
+      watch:
+        - action: sync
+          path: ./web/src
+          target: /app/src
+        - action: sync
+          path: ./web/public
+          target: /app/public
+        # schema 変更は Prisma Client の再生成が要るのでビルドからやり直す。
+        - action: rebuild
+          path: ./web/prisma
+        - action: rebuild
+          path: ./web/package.json
+        - action: rebuild
+          path: ./web/package-lock.json
+        - action: rebuild
+          path: ./web/next.config.ts
     depends_on:
       itcm-postgres:
         condition: service_healthy

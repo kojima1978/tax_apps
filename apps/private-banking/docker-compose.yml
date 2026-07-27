@@ -1,8 +1,14 @@
+# unhealthy になったときに docker-watchdog.ps1（ホスト側の定期タスク）が
+# 再起動する対象であることを示す。他アプリと同じキーを使うこと。
+x-autoheal-labels: &autoheal-labels
+  tax-apps.autoheal: "true"
+
 services:
   private-banking-postgres:
     image: postgres:16-alpine
     container_name: private-banking-postgres
     restart: unless-stopped
+    labels: *autoheal-labels
     environment:
       TZ: Asia/Tokyo
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -31,18 +37,50 @@ services:
       target: dev
     container_name: private-banking-app
     restart: unless-stopped
+    labels: *autoheal-labels
     environment:
       NODE_ENV: development
       TZ: Asia/Tokyo
+      # compose watch の sync は Docker デーモンがオーバーレイの上位層へ直接書くため、
+      # コンテナ内の inotify にイベントが届かない。Next の dev サーバはルート表を
+      # watchpack の監視結果から作る（setup-dev-bundler.js の knownFiles）ので、
+      # これが無いと同期されたファイルが増えてもルートとして登録されない。
+      # Turbopack 側の再コンパイルは別ノブで、next.config.ts の
+      # watchOptions.pollIntervalMs が担当する。両方必要。
       WATCHPACK_POLLING: "true"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-pb_dev_password}@private-banking-postgres:5432/${POSTGRES_DB:-private_banking}?schema=public
       INHERITANCE_TAX_API_URL: ${INHERITANCE_TAX_API_URL:-http://inheritance-tax-app:3004/inheritance-tax-app/api/calculate}
       INHERITANCE_TAX_API_KEY: ${INHERITANCE_TAX_API_KEY:-}
     volumes:
-      - ./src:/app/src:ro
-      - ./public:/app/public:ro
-      - ./prisma:/app/prisma:ro
       - private_banking_next:/app/.next
+    # ソースは bind mount せずイメージ同梱物を使い、変更は compose watch で同期する。
+    #
+    # 理由: Docker Desktop for Windows の bind mount(Windows→WSL2)は起動直後の
+    # scandir が EFAULT を返すことがある。Next.js の dev サーバはルート表を
+    # watchpack の初期スキャン結果から組み立てるため(setup-dev-bundler.js)、
+    # スキャンに失敗したディレクトリ配下のルートが警告1行だけ残して丸ごと欠落し、
+    # 「✓ Ready なのに 404」という状態のまま稼働し続ける。
+    # コンテナ内から bind mount を無くせばこの経路自体が消え、inotify も正常に効く。
+    #
+    # ホットリロードを使うときは `docker/scripts/manage.sh watch private-banking`
+    # をフォアグラウンドで起動しておく（--watch は --detach と併用できない）。
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: sync
+          path: ./public
+          target: /app/public
+        # schema 変更は Prisma Client の再生成が要るのでビルドからやり直す。
+        - action: rebuild
+          path: ./prisma
+        - action: rebuild
+          path: ./package.json
+        - action: rebuild
+          path: ./package-lock.json
+        - action: rebuild
+          path: ./next.config.ts
     ports:
       - "127.0.0.1:3025:3025"
     networks:

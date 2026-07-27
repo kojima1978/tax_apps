@@ -183,6 +183,7 @@ rd /s /q tax_apps
 | `./manage.sh down` | 全アプリを停止してコンテナ削除（逆順） |
 | `./manage.sh restart <app>` | 指定アプリのみ再起動 |
 | `./manage.sh build <app>` | 指定アプリを再ビルドして起動 |
+| `./manage.sh watch <app>` | 指定アプリのソース変更をコンテナへ同期（対応アプリのみ・フォアグラウンド） |
 | `./manage.sh logs <app>` | 指定アプリのログ表示 |
 | `./manage.sh status` | 全アプリの状態表示 |
 | `./manage.sh backup` | 全データベース・データをバックアップ |
@@ -235,11 +236,30 @@ rd /s /q tax_apps
 | 項目 | 開発モード (`start`) | 本番モード (`start --prod`) |
 |:-----|:--------------------|:---------------------------|
 | サーバー | Vite dev / Next.js dev / runserver | Nginx / Node standalone / Gunicorn |
-| ソースマウント | あり（ホットリロード対応） | なし（イメージに内包） |
+| ソースマウント | あり（ホットリロード対応）※ private-banking / inheritance-case-management を除く | なし（イメージに内包） |
 | 最適化 | なし | minify, tree-shaking, gzip |
 | 非rootユーザー | 一部 | 全アプリ |
 | メモリ使用量 | 多い（512M〜） | 少ない（64M〜256M） |
 | ビルド | 不要（キャッシュ起動） | 必要（初回・更新時） |
+
+### ソース同期（private-banking / inheritance-case-management）
+
+この2アプリは**開発モードでもソースを bind mount しません**。イメージに同梱したソースで動き、編集内容は `docker compose watch` で同期します。
+
+```bash
+# 編集しながら開発する間、別ターミナルで開いておく（フォアグラウンド、Ctrl+C で終了）
+./manage.sh watch private-banking
+```
+
+| 項目 | 内容 |
+|:-----|:-----|
+| なぜ bind mount をやめたか | Docker Desktop for Windows の bind mount（Windows→WSL2）は起動直後の `scandir` が EFAULT を返すことがあり、Next.js のルート表が静かに欠落する（「`✓ Ready` なのに 404」）。コンテナ内から bind mount を無くすとこの経路自体が消える |
+| なぜ `start` と別プロセスか | `--watch` は `--detach` と併用できないため（`docker compose watch --no-up` をフォアグラウンドで実行） |
+| 初期同期 | **しない**。watch を止めている間の編集は `./manage.sh build <app>` で取り込む |
+| sync 対象 | `src/`, `public/` |
+| rebuild 対象 | `prisma/`, `package.json`, `package-lock.json`, `next.config.ts` |
+| ポーリング設定 | Docker がオーバーレイ上位層へ直接書くためコンテナ内 inotify が発火しない。ルート表用に `WATCHPACK_POLLING=true`（compose）、Turbopack 再コンパイル用に `watchOptions.pollIntervalMs`（`next.config.ts`）の**両方**が必要 |
+| 例外 | ITCM の `./templates`（Excel テンプレート）はビルドコンテキスト外のため bind mount のまま |
 
 ### 本番モードで起動
 
@@ -494,6 +514,36 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-t
 > Docker 復旧後に Tax Apps も起動したい場合は、登録時に `-StartAppsAfterRecovery` を付けます。
 > 登録時に既存タスクがある場合は自動的に上書き更新され、登録後に次回実行時刻が表示されます。
 
+#### 配線の確認（重要）
+
+unhealthy コンテナの自動再起動は、次の**2つが揃って初めて動作**します。
+
+| # | 要素 | 場所 | 欠けたときの症状 |
+|:--|:-----|:-----|:-----------------|
+| ① | `tax-apps.autoheal: "true"` ラベル | 各アプリの `docker-compose.yml`（`x-autoheal-labels` アンカー） | そのコンテナだけ永久に再起動されない |
+| ② | スケジュールタスク登録 | Windows タスクスケジューラ | 全コンテナが再起動されない |
+
+どちらも欠けていること自体はエラーにならないため、`./manage.sh status` の末尾で常時確認できるようにしています。
+
+```
+自動復旧（ウォッチドッグ）:
+  スケジュールタスク: 登録済み（Tax Apps Docker Watchdog）
+  autoheal ラベル: 稼働中の healthcheck 付きコンテナすべてに付与済み
+```
+
+★ が付いた項目が未配線です。①は compose を直して `up -d` でコンテナを再作成、②は `register-docker-watchdog-task.bat` をダブルクリックして登録します。
+
+新しいアプリを追加するときは、healthcheck を定義したら**必ず同じサービスにラベルも付ける**こと（`labels: *autoheal-labels`）。
+
+動作確認は使い捨てコンテナで行えます。
+
+```bash
+docker run -d --name autoheal-probe --label tax-apps.autoheal=true \
+  --health-cmd "exit 1" --health-interval=3s --health-retries=1 alpine:3 sleep 300
+```
+
+unhealthy になった後に `.\docker-watchdog.bat` を実行すると、ログに `Restarting unhealthy Tax Apps container: autoheal-probe` → `Container restarted` が出ます。確認後は `docker rm -f autoheal-probe` で削除してください。
+
 ---
 
 ## トラブルシューティング
@@ -533,6 +583,26 @@ Windows + Docker Desktop 環境では、ボリュームマウントでファイ�
 ```bash
 ./manage.sh restart <app-name>
 ```
+
+**private-banking / inheritance-case-management はこの方法では反映されません。** この2アプリはソースを bind mount しておらず、`watch` を起動している間だけ同期されます（詳細は [ソース同期](#ソース同期private-banking--inheritance-case-management)）。
+
+```bash
+./manage.sh watch <app-name>
+```
+
+watch を止めている間に編集した分は同期されないため、その場合は `./manage.sh build <app-name>` でイメージに取り込みます。
+
+### `✓ Ready` と出ているのに一部のルートだけ 404
+
+Next.js の dev サーバはルート表を watchpack の初期スキャン結果から組み立てます。Docker Desktop for Windows の bind mount は起動直後の `scandir` が EFAULT を返すことがあり、失敗したディレクトリ配下のルートが**警告1行だけ残して丸ごと欠落**します。`/api/health` は生き残るため healthcheck は healthy のままです。
+
+上記2アプリでは bind mount を廃止して原因経路を除去済みですが、万一再発した場合に備え、dev 起動時のみ `docker-entrypoint.sh` が出力を監視し、`Watchpack Error (initial scan)` を検知したらコンテナを落とします（`restart: unless-stopped` で再起動）。
+
+```bash
+docker logs <container> 2>&1 | grep "Watchpack Error (initial scan)"
+```
+
+> Turbopack のポーリングが出す `watch error ([...]): Io(Os { code: 2, kind: NotFound })` は `.next-internal` の一時ファイル起因で無害です。上記とは別物なので混同しないこと。
 
 ### 特定アプリだけ起動したい
 
@@ -672,7 +742,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | リソース制限 | deploy.resources による memory limit/reservation（Gateway/Portal は 256M/64M）と PID 上限（256） |
 | 実行時保護 | Gateway/Portal は非root、read-only root filesystem、全 capability drop、no-new-privileges |
 | ヘルスチェック | 全サービスに設定。コンテナ内の自己診断は IPv6 誤判定を避けるため `127.0.0.1` を使用 |
-| 自動復旧 | `tax-apps.autoheal=true` ラベル付きの unhealthy コンテナを、ホスト側の `docker-watchdog.ps1` が再起動（Docker socket はコンテナへ渡さない） |
+| 自動復旧 | `tax-apps.autoheal=true` ラベル付きの unhealthy コンテナを、ホスト側の `docker-watchdog.ps1` が再起動（Docker socket はコンテナへ渡さない）。ラベルとスケジュールタスク登録の**両方**が必要で、配線状況は `manage.sh status` の末尾で確認する（[配線の確認](#配線の確認重要)） |
 | 依存関係管理 | service_healthy 条件 |
 | 外部ネットワーク | `tax-apps-network` で全コンテナ間通信 |
 

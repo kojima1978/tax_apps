@@ -48,6 +48,9 @@ LOCK_HELD=0
 # 外部ネットワーク名
 NETWORK_NAME="tax-apps-network"
 
+# Windows スケジュールタスク名（register-docker-watchdog-task.ps1 の既定値と一致させる）
+WATCHDOG_TASK_NAME="Tax Apps Docker Watchdog"
+
 # バックアップディレクトリ
 
 # ------------------------------------
@@ -409,6 +412,26 @@ cmd_build() {
   log "$(basename "$RESOLVED_DIR") のビルドが完了しました"
 }
 
+cmd_watch() {
+  require_app_arg "watch" "${1:-}"
+  local name; name=$(basename "$RESOLVED_DIR")
+
+  if ! grep -q "^\s*develop:" "$RESOLVED_DIR/docker-compose.yml"; then
+    err "$name は compose watch に対応していません（docker-compose.yml に develop: がありません）"
+    return 1
+  fi
+
+  ensure_network
+  log "$name のソース同期を開始します（Ctrl+C で終了）"
+  # --watch は --detach と併用できないため、これはフォアグラウンドで動かす。
+  # --no-up にして起動は cmd_start / cmd_build に任せ、ここは同期だけを担当する。
+  #
+  # 注意: compose watch は「起動後の変更」しか同期しない（起動前の差分は初期同期
+  # されない）。watch を止めている間に編集したものは build で取り込むこと。
+  warn "watch 停止中に加えた変更は同期されません。その場合は build $name を実行してください"
+  docker compose -f "$RESOLVED_DIR/docker-compose.yml" watch --no-up
+}
+
 cmd_logs() {
   require_app_arg "logs" "${1:-}"
   docker compose -f "$RESOLVED_DIR/docker-compose.yml" logs -f
@@ -429,6 +452,47 @@ _do_status() {
     done
 }
 
+# unhealthy コンテナの自動再起動が本当に配線されているかを表示する。
+#
+# 仕組みは「compose の tax-apps.autoheal ラベル」＋「ホスト側の定期タスクが
+# docker-watchdog.ps1 を呼ぶ」の2段構え。どちらが欠けても復旧は起きないが、
+# 欠けていること自体はどこにも現れない（実際にタスク未登録のまま数ヶ月
+# 気づかなかったことがある）ので、status で毎回見えるようにしておく。
+_print_autoheal_status() {
+  echo "自動復旧（ウォッチドッグ）:"
+
+  if command -v schtasks.exe >/dev/null 2>&1; then
+    if schtasks.exe /Query /TN "$WATCHDOG_TASK_NAME" >/dev/null 2>&1; then
+      echo "  スケジュールタスク: 登録済み（$WATCHDOG_TASK_NAME）"
+    else
+      echo "  スケジュールタスク: ★未登録 — unhealthy でも自動再起動されません"
+      echo "    登録: docker/scripts/register-docker-watchdog-task.bat をダブルクリック（UAC昇格）"
+    fi
+  else
+    echo "  スケジュールタスク: 確認不可（schtasks.exe が見つかりません）"
+  fi
+
+  local unlabeled=""
+  local cname
+  while read -r cname; do
+    [ -z "$cname" ] && continue
+    # healthcheck を持たないコンテナは autoheal の対象外なので数えない。
+    if [ "$(docker inspect -f '{{if .State.Health}}1{{end}}' "$cname" 2>/dev/null)" != "1" ]; then
+      continue
+    fi
+    if [ "$(docker inspect -f '{{index .Config.Labels "tax-apps.autoheal"}}' "$cname" 2>/dev/null)" != "true" ]; then
+      unlabeled="$unlabeled $cname"
+    fi
+  done < <(docker ps --format '{{.Names}}' 2>/dev/null)
+
+  if [ -n "$unlabeled" ]; then
+    echo "  autoheal ラベル無し:★$unlabeled"
+  else
+    echo "  autoheal ラベル: 稼働中の healthcheck 付きコンテナすべてに付与済み"
+  fi
+  echo ""
+}
+
 cmd_status() {
   print_banner "Tax Apps コンテナ状態"
   echo "ネットワーク: $NETWORK_NAME"
@@ -443,6 +507,7 @@ cmd_status() {
   for_each_app _do_status
   echo "========================================"
   echo ""
+  _print_autoheal_status
 }
 
 # ------------------------------------
@@ -892,6 +957,7 @@ case "$COMMAND" in
   down)      cmd_down ;;
   restart)   cmd_restart "${2:-}" ;;
   build)     cmd_build "${2:-}" ;;
+  watch)     cmd_watch "${2:-}" ;;
   logs)      cmd_logs "${2:-}" ;;
   status)    cmd_status ;;
   backup)    "$SCRIPT_DIR/backup.sh" backup ;;
@@ -901,7 +967,7 @@ case "$COMMAND" in
   clean-cache) cmd_clean_cache "${2:-}" ;;
   preflight) cmd_preflight ;;
   *)
-    echo "Usage: $0 {start|stop|down|restart|build|logs|status|backup|restore|verify|clean|clean-cache|preflight} [app-name]"
+    echo "Usage: $0 {start|stop|down|restart|build|watch|logs|status|backup|restore|verify|clean|clean-cache|preflight} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start              全アプリを起動（ネットワーク自動作成）"
@@ -910,6 +976,7 @@ case "$COMMAND" in
     echo "  down               全アプリを停止してコンテナ削除"
     echo "  restart <app>      指定アプリのみ再起動"
     echo "  build <app>        指定アプリを再ビルドして起動"
+    echo "  watch <app>        ソース変更をコンテナへ同期（フォアグラウンド、Ctrl+C で終了）"
     echo "  logs <app>         指定アプリのログ表示"
     echo "  status             全アプリの状態表示"
     echo ""
