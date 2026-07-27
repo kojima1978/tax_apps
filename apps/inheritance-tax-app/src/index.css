@@ -1345,24 +1345,31 @@
     margin-bottom: 8px !important;
   }
 
+  /* Tailwind の text-* は line-height も固定値で持つため、
+     font-size だけ縮めても行高が残る。相対 line-height に置き換えて実際に詰める */
   .calculator-print .text-2xl {
     font-size: 22px !important;
+    line-height: 1.25 !important;
   }
 
   .calculator-print .text-lg {
     font-size: 16px !important;
+    line-height: 1.3 !important;
   }
 
   .calculator-print .text-xl {
     font-size: 18px !important;
+    line-height: 1.3 !important;
   }
 
   .calculator-print .text-sm {
     font-size: 13px !important;
+    line-height: 1.4 !important;
   }
 
   .calculator-print .text-xs {
     font-size: 12px !important;
+    line-height: 1.4 !important;
   }
 
   .calculator-print .gap-4 {
@@ -1428,47 +1435,109 @@
     break-after: avoid;
   }
 
-  /* 計算過程: 印刷時2列レイアウト */
-  .calculator-print .calc-steps-grid {
+  /* 背景色を印刷に反映。これがないと表ヘッダーの緑が飛び、白文字の見出しが読めなくなる */
+  .calculator-print,
+  .calculator-print * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ====== 結果面: お客様配布用のA4横1枚 ======
+     ヘッダー帯 / 前提バンド / (結論 + 相続人別内訳) / 計算の流れ / 注意事項 の5段。
+     上から読むだけで「前提 → いくら → 誰がいくら → なぜ」が完結する並びにしている。 */
+  .calculator-print .calc-result-body {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 6px 14px !important;
-    columns: auto !important;
+    grid-template-columns: 38fr 62fr;
+    gap: 8px 14px;
+    align-items: start;
   }
 
-  .calculator-print .calc-steps-grid > * + * {
+  .calculator-print .calc-result-body > * + * {
     margin-top: 0 !important;
   }
 
-  .calculator-print .calc-step-item {
-    break-inside: avoid;
-    page-break-inside: avoid;
-    margin-bottom: 4px !important;
-    margin-top: 0 !important;
-  }
-
-  .calculator-print .calc-steps-continuation {
+  /* フル幅の帯（ヘッダー・前提・計算の流れ・注意事項） */
+  .calculator-print .calc-result-body > .print-only,
+  .calculator-print .calc-premise,
+  .calculator-print .calc-steps-card,
+  .calculator-print .print-cautions {
     grid-column: 1 / -1;
-    break-before: page;
-    page-break-before: always;
-    margin: 0 0 8px !important;
-    padding-bottom: 4px !important;
-    border-bottom: 1px solid #d1d5db;
-    color: #166534;
-    font-size: 14px !important;
-    font-weight: 800;
   }
 
-  .calculator-print .tax-bracket-card {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
+  /* ヘッダーの下罫線と重なるので、前提バンドの上罫線は落とす */
+  .calculator-print .calc-premise dl {
+    border-top: none;
+    padding-top: 2px;
   }
 
-  .calculator-print .calc-steps-grid .text-lg {
-    font-size: 14px !important;
+  .calculator-print .calc-summary-card {
+    grid-column: 1;
   }
 
-  /* 相続人別税額内訳: テーブルごと1ページに収める */
+  .calculator-print .heir-breakdown-card {
+    grid-column: 2;
+  }
+
+  /* ヘッダー: 1枚に収めるため1行帯まで圧縮する */
+  .calculator-print .calc-result-body > .print-only {
+    padding: 0 0 3px !important;
+    margin-bottom: 0 !important;
+    border-bottom-width: 1px !important;
+  }
+
+  .calculator-print .calc-result-body > .print-only .text-3xl {
+    font-size: 17px !important;
+    line-height: 1.2 !important;
+  }
+
+  .calculator-print .calc-result-body > .print-only p {
+    line-height: 1.3 !important;
+  }
+
+  .calculator-print .calc-result-body > .print-only .text-base {
+    font-size: 9px !important;
+    margin-top: 1px !important;
+  }
+
+  .calculator-print .calc-result-body > .print-only address {
+    font-size: 9px !important;
+    line-height: 1.35 !important;
+  }
+
+  .calculator-print .calc-result-body > .print-only address .text-lg {
+    font-size: 10px !important;
+  }
+
+  /* 結論カード: 納付税額1点に絞って大きく見せる */
+  .calculator-print .calc-summary-card h3 {
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+    margin-bottom: 5px !important;
+  }
+
+  .calculator-print .calc-headline {
+    padding: 12px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  .calculator-print .calc-headline-label {
+    font-size: 10px !important;
+    line-height: 1.3 !important;
+  }
+
+  .calculator-print .calc-headline-value {
+    font-size: 30px !important;
+    line-height: 1.15 !important;
+    margin-top: 3px !important;
+  }
+
+  .calculator-print .calc-headline-sub {
+    font-size: 10px !important;
+    line-height: 1.3 !important;
+    margin-top: 6px !important;
+  }
+
+  /* 相続人別内訳: 人数が増えても1ページに収まるよう行を詰める */
   .calculator-print .heir-breakdown-card {
     break-inside: avoid;
     page-break-inside: avoid;
@@ -1477,6 +1546,120 @@
 
   .calculator-print .heir-breakdown-card .overflow-x-auto {
     overflow: visible !important;
+  }
+
+  .calculator-print .heir-breakdown-card h3 {
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+    margin-bottom: 5px !important;
+  }
+
+  .calculator-print .heir-breakdown-card table {
+    font-size: 10px !important;
+  }
+
+  /* .calculator-print table .py-2 / .px-3 より詳細度を上げないと padding が上書きされない */
+  .calculator-print .heir-breakdown-card table th,
+  .calculator-print .heir-breakdown-card table td {
+    padding: 2px 6px !important;
+    line-height: 1.35 !important;
+  }
+
+  /* 計算の流れ: フル幅を使ってSTEPを横に並べる（3列/4列を自動で割り付け） */
+  .calculator-print .calc-steps-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .calculator-print .calc-steps-title {
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+    margin-bottom: 5px !important;
+  }
+
+  .calculator-print .calc-steps-grid {
+    display: grid !important;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 0 10px !important;
+    columns: auto !important;
+    align-items: start;
+  }
+
+  .calculator-print .calc-steps-grid > * + * {
+    margin-top: 0 !important;
+    padding-left: 10px;
+    border-left: 1px solid #e2e8f0;
+  }
+
+  .calculator-print .calc-step-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin: 0 !important;
+  }
+
+  /* 列幅が狭くなるため、帳票調の行間・文字を印刷用に詰める */
+  .calculator-print .calc-step-head {
+    padding-bottom: 2px !important;
+    margin-bottom: 3px !important;
+  }
+
+  .calculator-print .calc-step-head h4 {
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+
+  .calculator-print .calc-step-note {
+    font-size: 9px !important;
+    line-height: 1.35 !important;
+    margin-bottom: 2px !important;
+    padding-top: 0 !important;
+  }
+
+  .calculator-print .calc-formula-row {
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+  }
+
+  .calculator-print .calc-formula-row .text-sm,
+  .calculator-print .calc-formula-row .text-xs {
+    font-size: 10px !important;
+    line-height: 1.35 !important;
+  }
+
+  /* 式の内訳は列幅に収まらないので、項目名の下に折り返す */
+  .calculator-print .calc-formula-row .calc-formula-detail {
+    display: block !important;
+    margin-left: 0 !important;
+    font-size: 8.5px !important;
+    line-height: 1.25 !important;
+  }
+
+  .calculator-print .calc-group-label {
+    font-size: 9px !important;
+    line-height: 1.3 !important;
+    padding-top: 3px !important;
+    padding-bottom: 0 !important;
+  }
+
+  .calculator-print .calc-rate-strip {
+    padding: 2px 5px !important;
+  }
+
+  .calculator-print .calc-rate-strip .text-xs,
+  .calculator-print .calc-rate-strip .text-sm {
+    font-size: 9.5px !important;
+    line-height: 1.3 !important;
+  }
+
+  .calculator-print .calc-adjust-boxes > * + * {
+    margin-top: 3px !important;
+  }
+
+  .calculator-print .calc-adjust-box {
+    padding: 3px 5px !important;
+    font-size: 9.5px !important;
+    line-height: 1.4 !important;
   }
 
   /* ====== 保険ページ ====== */

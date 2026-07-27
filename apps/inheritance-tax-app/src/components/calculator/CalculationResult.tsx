@@ -3,82 +3,63 @@ import type { DetailedTaxCalculationResult } from '../../types';
 import { formatCurrency, formatPercent } from '../../utils';
 import { CARD } from '../tableStyles';
 import { PrintHeader } from '../PrintHeader';
+import { PrintCautions } from '../PrintCautions';
+import { CALCULATOR_PRINT_CAUTIONS } from '../../constants/cautionMessages';
+import { CalculationPremise } from './CalculationPremise';
 import { CalculationSteps } from './CalculationSteps';
-import { ProgressiveTaxBreakdown } from './ProgressiveTaxBreakdown';
+import { CalculationBasisDetails } from './CalculationBasisDetails';
 import { HeirBreakdownTable } from './HeirBreakdownTable';
-import { TaxBracketTable } from '../TaxBracketTable';
 
 interface CalculationResultProps {
   result: DetailedTaxCalculationResult;
-  weightedRate: number;
 }
 
-type HighlightItem = {
-  label: string;
-  getValue: (values: { result: DetailedTaxCalculationResult; weightedRate: number }) => string;
-};
+/**
+ * お客様配布用の1枚もの（A4横）を意識した構成。
+ * 前提 → 結論 → 誰がいくら納めるか → どう計算したか → 注意事項 の順で、
+ * 上から読むだけで説明が完結するようにしている。
+ */
+export const CalculationResult: React.FC<CalculationResultProps> = ({ result }) => {
+  // 負担率は「納付税額 ÷ 遺産総額」。result.effectiveTaxRate は「相続税の総額 ÷ 遺産総額」で
+  // 分子が納付税額と揃わないため、ここでは使わない（按分に使う実効税率は計算の流れ STEP 3 に表示）。
+  const burdenRate = result.estateValue > 0 ? (result.totalFinalTax / result.estateValue) * 100 : 0;
 
-const SUMMARY_ITEMS = [
-  { label: '遺産総額', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.estateValue) },
-  { label: '基礎控除', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.basicDeduction) },
-  { label: '課税遺産総額', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.taxableAmount) },
-  { label: '相続税の総額', getValue: (r: DetailedTaxCalculationResult) => formatCurrency(r.totalTax) },
-] as const;
-
-const HIGHLIGHT_ITEMS: HighlightItem[] = [
-  { label: '納付税額合計', getValue: ({ result }) => formatCurrency(result.totalFinalTax) },
-  { label: '相続税負担率', getValue: ({ result }) => formatPercent(result.effectiveTaxRate) },
-  { label: '加重平均適用税率', getValue: ({ weightedRate }) => formatPercent(weightedRate) },
-];
-
-export const CalculationResult: React.FC<CalculationResultProps> = ({ result, weightedRate }) => {
   return (
-    <>
-      {/* Page 1: 計算結果 + 計算過程 */}
-      <div className="space-y-4 md:space-y-6">
-        <PrintHeader title="相続税計算結果" />
+    <div className="calc-result-body space-y-4 md:space-y-6">
+      <PrintHeader title="相続税シミュレーション" />
+      <CalculationPremise result={result} />
 
-        {/* サマリーカード */}
-        <div className={CARD}>
-          <h3 className="text-lg font-bold text-gray-800 mb-4">計算結果</h3>
+      {/* 結論 */}
+      <div className={`${CARD} calc-summary-card`}>
+        <h3 className="mb-3 text-base md:text-lg font-bold text-slate-800">試算結果</h3>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-6">
-            {SUMMARY_ITEMS.map(({ label, getValue }) => (
-              <div key={label} className="text-center p-2 md:p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-[10px] md:text-xs text-gray-600 mb-0.5 md:mb-1">{label}</p>
-                <p className="text-xs md:text-sm font-bold text-gray-800">{getValue(result)}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-            {HIGHLIGHT_ITEMS.map(({ label, getValue }) => (
-              <div key={label} className="text-center p-3 md:p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 shadow-sm">
-                <p className="text-xs md:text-sm text-green-600 font-medium mb-0.5 md:mb-1">{label}</p>
-                <p className="text-xl md:text-2xl font-bold text-green-800">{getValue({ result, weightedRate })}</p>
-              </div>
-            ))}
-          </div>
+        <div className="calc-headline rounded-xl border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 px-4 py-5 text-center">
+          <p className="calc-headline-label text-xs md:text-sm font-medium text-green-700">
+            相続税の合計（納付税額）
+          </p>
+          <p className="calc-headline-value mt-1 text-3xl md:text-4xl font-bold tabular-nums tracking-tight text-green-800">
+            {formatCurrency(result.totalFinalTax)}
+          </p>
+          <p className="calc-headline-sub mt-2 text-xs text-slate-600">
+            遺産総額 {formatCurrency(result.estateValue)} に対する負担率{' '}
+            <span className="font-semibold tabular-nums text-slate-800">{formatPercent(burdenRate)}</span>
+          </p>
         </div>
-
-        {/* 計算過程 */}
-        <CalculationSteps result={result} />
-
-        {/* 相続人別内訳 */}
-        <HeirBreakdownTable
-          breakdowns={result.heirBreakdowns}
-          totalFinalTax={result.totalFinalTax}
-        />
       </div>
 
-      {/* Page 2: 累進税額の内訳 + 速算表 */}
-      <div className="mt-4 md:mt-6 space-y-4 md:space-y-6 print-page-break">
-        <PrintHeader title="累進税額の内訳" />
+      {/* 誰がいくら納めるか */}
+      <HeirBreakdownTable
+        breakdowns={result.heirBreakdowns}
+        totalFinalTax={result.totalFinalTax}
+      />
 
-        <ProgressiveTaxBreakdown breakdowns={result.heirBreakdowns} />
+      {/* どう計算したか */}
+      <CalculationSteps result={result} />
 
-        <TaxBracketTable />
-      </div>
-    </>
+      {/* 税理士向けの詳細根拠（画面のみ・折りたたみ） */}
+      <CalculationBasisDetails result={result} />
+
+      <PrintCautions items={CALCULATOR_PRINT_CAUTIONS} />
+    </div>
   );
 };

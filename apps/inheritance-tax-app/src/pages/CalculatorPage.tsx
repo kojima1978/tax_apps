@@ -11,7 +11,7 @@ import { useFormValidation } from '../hooks/useFormValidation';
 import type { Heir, HeirComposition, SpouseAcquisitionMode } from '../types';
 import { createDefaultComposition } from '../constants';
 import { CALCULATOR_CAUTIONS } from '../constants/cautionMessages';
-import { calculateDetailedInheritanceTax, calculateBracketAnalysis } from '../utils';
+import { calculateDetailedInheritanceTax } from '../utils';
 
 type PbFamilyComposition = {
   hasSpouse: boolean;
@@ -61,7 +61,6 @@ export const CalculatorPage: React.FC = () => {
   const [estateValue, setEstateValue] = useState<number>(0);
   const [spouseMode, setSpouseMode] = useState<SpouseAcquisitionMode>({ mode: 'legal' });
   const [result, setResult] = useState<ReturnType<typeof calculateDetailedInheritanceTax> | null>(null);
-  const [weightedRate, setWeightedRate] = useState(0);
   const [pbImportMessage, setPbImportMessage] = useState('');
   const [pbSyncMessage, setPbSyncMessage] = useState('');
 
@@ -96,7 +95,6 @@ export const CalculatorPage: React.FC = () => {
             legalShareMode,
           );
           setResult(calculated);
-          setWeightedRate(calculateBracketAnalysis(importedEstateValue, importedComposition).weightedRate);
           setPbSyncMessage('想定相続税をPB管理B/Sへ連携しています。');
           void syncTaxToPb(calculated.totalFinalTax, householdId)
             .then(() => setPbSyncMessage('想定相続税をPB管理B/Sへ連携しました。'))
@@ -120,7 +118,6 @@ export const CalculatorPage: React.FC = () => {
   const onValid = useCallback(() => {
     const calculated = calculateDetailedInheritanceTax(estateValue, composition, spouseMode);
     setResult(calculated);
-    setWeightedRate(calculateBracketAnalysis(estateValue, composition).weightedRate);
     if (new URLSearchParams(window.location.search).get('source') === 'pb') {
       const householdId = Number(new URLSearchParams(window.location.search).get('householdId'));
       if (!Number.isInteger(householdId) || householdId <= 0) return;
@@ -188,7 +185,7 @@ export const CalculatorPage: React.FC = () => {
         <>
           {result && result.taxableAmount > 0 && (
             <div className="result-fade-in">
-              <CalculationResult result={result} weightedRate={weightedRate} />
+              <CalculationResult result={result} />
             </div>
           )}
           {result && result.taxableAmount === 0 && estateValue > 0 && (
