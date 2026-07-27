@@ -1537,6 +1537,26 @@
     margin-top: 6px !important;
   }
 
+  /* 比較表示は狭い左カラムに金額が2つ並ぶため、単独表示より一段小さく組む */
+  .calculator-print .calc-headline-compare .calc-headline-label {
+    font-size: 9px !important;
+  }
+
+  .calculator-print .calc-headline-compare .calc-headline-value {
+    font-size: 20px !important;
+    margin-top: 2px !important;
+  }
+
+  .calculator-print .calc-headline-compare .calc-headline-sub {
+    font-size: 9px !important;
+    margin-top: 2px !important;
+  }
+
+  .calculator-print .calc-headline-arrow {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+
   /* 相続人別内訳: 人数が増えても1ページに収まるよう行を詰める */
   .calculator-print .heir-breakdown-card {
     break-inside: avoid;
