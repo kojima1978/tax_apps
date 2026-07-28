@@ -18,16 +18,14 @@ import type { CaseListItem } from "@/types/shared"
 import { CaseListTableSection } from "./CaseListTableSection"
 import { CaseListToolbar } from "./CaseListToolbar"
 import {
+    applyKpiCardFilter,
     calculateCaseListAmountTotals,
     CASE_LIST_PAGE_SIZE,
-    COMPLETED_STATUS_CSV,
     getActiveKpiFilter,
     getCaseListFilterDescription,
     getCaseListFilters,
     getCaseListKpiFilters,
     getHasCaseFilters,
-    getThisMonthRange,
-    ONGOING_STATUS,
     parseCaseListFilterValue,
     parseCaseListUrlParams,
     toCaseListUrlSearch,
@@ -124,35 +122,7 @@ function InheritanceMockupPageContent() {
     }, [])
 
     const handleKpiFilterClick = useCallback((filter: KPICardFilterKey) => {
-        const { from, to } = getThisMonthRange()
-        setQueryParams((prev) => {
-            const isActive = getActiveKpiFilter(prev) === filter
-            const next: CasesQueryParams = {
-                ...prev,
-                caseAddedFrom: undefined,
-                caseAddedTo: undefined,
-                caseCompletedFrom: undefined,
-                caseCompletedTo: undefined,
-                deadlineSoon: undefined,
-                page: 1,
-            }
-
-            if (isActive) {
-                // トグルOFF: status / 全件表示の指定も解除
-                if (filter === "ongoing" || filter === "completed") return { ...next, status: undefined }
-                if (filter === "total") return { ...next, hideClosed: undefined }
-                return next
-            }
-            switch (filter) {
-                case "deadlineSoon": return { ...next, deadlineSoon: true }
-                case "addedThisMonth": return { ...next, caseAddedFrom: from, caseAddedTo: to }
-                case "completedThisMonth": return { ...next, caseCompletedFrom: from, caseCompletedTo: to }
-                case "ongoing": return { ...next, status: ONGOING_STATUS, hideClosed: undefined }
-                case "completed": return { ...next, status: COMPLETED_STATUS_CSV, hideClosed: undefined }
-                case "total": return { ...next, status: undefined, hideClosed: false }
-                default: return next
-            }
-        })
+        setQueryParams((prev) => applyKpiCardFilter(prev, filter))
     }, [])
 
     const handleClearAll = useCallback(() => {

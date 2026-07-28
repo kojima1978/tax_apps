@@ -11,6 +11,10 @@ export const DATE_FILTER_KEYS = ["caseAddedFrom", "caseAddedTo", "caseCompletedF
 export const ONGOING_STATUS = ONGOING_STATUSES.join(",")
 export const COMPLETED_STATUS_CSV = [...COMPLETED_STATUSES].join(",")
 
+// KPIカードが設定しうるステータス値。この値と完全一致する場合のみ「カード由来」とみなす
+const KPI_CARD_STATUS_VALUES: readonly string[] = [ONGOING_STATUS, COMPLETED_STATUS_CSV]
+
+// KPI集計に渡さない絞り込みキー（カードの数値を互いに独立させる）
 const KPI_QUICK_FILTER_KEYS = [
     "deadlineSoon",
     "caseAddedFrom",
@@ -18,6 +22,17 @@ const KPI_QUICK_FILTER_KEYS = [
     "caseCompletedFrom",
     "caseCompletedTo",
 ] as const
+
+// 各KPIカードが占有するクエリパラメータ。カード切替時はこの範囲だけを解除する
+type KpiCardFilterKeys = "status" | "hideClosed" | "deadlineSoon" | "caseAddedFrom" | "caseAddedTo" | "caseCompletedFrom" | "caseCompletedTo"
+const KPI_CARD_OWNED_KEYS: Record<KPICardFilterKey, readonly KpiCardFilterKeys[]> = {
+    total: ["hideClosed"],
+    ongoing: ["status", "hideClosed"],
+    completed: ["status", "hideClosed"],
+    deadlineSoon: ["deadlineSoon", "hideClosed"],
+    addedThisMonth: ["caseAddedFrom", "caseAddedTo", "hideClosed"],
+    completedThisMonth: ["caseCompletedFrom", "caseCompletedTo", "hideClosed"],
+}
 const BOOLEAN_FILTER_KEYS = ["unassigned", "noReferrer", "deadlineSoon"] as const
 const NUMBER_FILTER_KEYS = ["assigneeId", "internalReferrerId", "staffId", "fiscalYear"] as const
 
@@ -57,6 +72,39 @@ export function getActiveKpiFilter(params: CasesQueryParams): KPICardFilterKey |
     if (params.caseCompletedFrom === from && params.caseCompletedTo === to) return "completedThisMonth"
     if (params.hideClosed === false) return "total"
     return null
+}
+
+function getKpiCardFilterPatch(filter: KPICardFilterKey): Partial<CasesQueryParams> {
+    const { from, to } = getThisMonthRange()
+    switch (filter) {
+        // 総案件数・期限間近・当月追加/完了はKPIの集計条件に合わせ、終了案件も含めて数える
+        case "total": return { hideClosed: false }
+        case "deadlineSoon": return { deadlineSoon: true, hideClosed: false }
+        case "addedThisMonth": return { caseAddedFrom: from, caseAddedTo: to, hideClosed: false }
+        case "completedThisMonth": return { caseCompletedFrom: from, caseCompletedTo: to, hideClosed: false }
+        // ステータス指定時は hideClosed がサーバ側で無視されるため未指定のまま
+        case "ongoing": return { status: ONGOING_STATUS }
+        case "completed": return { status: COMPLETED_STATUS_CSV }
+    }
+}
+
+// KPIカードのクリック結果を返す。直前に選択中だったカードの条件だけを解除するため、
+// カード同士で条件が積み重ならず、FilterBarで手動指定した絞り込みは維持される
+export function applyKpiCardFilter(params: CasesQueryParams, filter: KPICardFilterKey): CasesQueryParams {
+    const previous = getActiveKpiFilter(params)
+    const next: CasesQueryParams = { ...params, page: 1 }
+
+    if (previous) {
+        const mutable = next as Record<string, unknown>
+        for (const key of KPI_CARD_OWNED_KEYS[previous]) {
+            mutable[key] = undefined
+        }
+        // カード未選択の既定に戻す（ステータス未指定なら終了案件を除外）
+        if (!next.status) next.hideClosed = true
+    }
+
+    if (previous === filter) return next // 同じカードの再クリックは選択解除
+    return { ...next, ...getKpiCardFilterPatch(filter) }
 }
 
 export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQueryParams {
@@ -160,9 +208,12 @@ export function getCaseListFilters(params: CasesQueryParams): FilterOnlyQueryPar
 }
 
 export function getCaseListKpiFilters(params: CasesQueryParams): FilterOnlyQueryParams {
+    // 進行中/完了カードが設定したステータスはKPIの数値に反映しない（手動指定のステータスは反映する）
+    const hasCardStatus = !!params.status && KPI_CARD_STATUS_VALUES.includes(params.status)
     return Object.fromEntries(
         FILTER_KEYS
             .filter((key) => !(KPI_QUICK_FILTER_KEYS as readonly string[]).includes(key))
+            .filter((key) => !(key === "status" && hasCardStatus))
             .filter((key) => hasFilterValue(params[key]))
             .map((key) => [key, params[key]])
     ) as FilterOnlyQueryParams
