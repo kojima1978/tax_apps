@@ -63,14 +63,14 @@ def filter_by_keyword(items, keyword: str):
     横断検索に対応。スペース区切りで複数キーワードAND検索も可能。
 
     QuerySet・list[dict]・list[Model] いずれにも対応する。
-    QuerySetの場合はlist化して返す。
+    QuerySetの場合は検索条件をSQLへ追加し、遅延評価のまま返す。
 
     Args:
         items: QuerySet, list[dict], or list[Model]
         keyword: 検索キーワード（空文字の場合はそのまま返す）
 
     Returns:
-        フィルタ適用後のlist（QuerySetの場合もlist化される）
+        フィルタ適用後のQuerySetまたはlist
     """
     if not keyword:
         return items
@@ -79,13 +79,11 @@ def filter_by_keyword(items, keyword: str):
     if not keywords:
         return items
 
-    # QuerySetの場合はlist化してからフィルタ
+    # 正規化済みの検索列を使い、AND条件をDB側で評価する。
     if hasattr(items, 'model'):
-        items = list(items)
-        return [
-            item for item in items
-            if matches_all_keywords(getattr(item, 'description', ''), keywords)
-        ]
+        for kw in keywords:
+            items = items.filter(description_search__contains=kw)
+        return items
 
     # list[dict]の場合
     if items and isinstance(items[0], dict):

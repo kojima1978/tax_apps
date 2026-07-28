@@ -2,15 +2,21 @@
 import json
 import logging
 
+import pandas as pd
 from django.contrib import messages
-from django.db.models import Sum, Count, Min, Max
+from django.db.models import Sum, Count, Min, Max, Q
 from django.db.models.functions import TruncMonth
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
 from ..models import Case
 from ..lib import config
-from ..lib.constants import UNCATEGORIZED, sort_patterns_dict
+from ..lib.constants import (
+    UNCATEGORIZED,
+    STANDARD_CATEGORIES,
+    sort_categories,
+    sort_patterns_dict,
+)
 from ..lib.text_utils import filter_by_keyword
 from ..services import TransactionService, AnalysisService
 from ..handlers import (
@@ -39,9 +45,19 @@ from ..handlers import (
     handle_bulk_pattern_changes,
     handle_run_auto_classify,
 )
-from ._helpers import paginate, build_filter_state, get_sort_order_by, sort_dict_list, get_per_page
+from ._helpers import paginate, build_filter_state, get_sort_order_by, get_per_page
 
 logger = logging.getLogger(__name__)
+
+ANALYSIS_TABS = {
+    'overview',
+    'all',
+    'unclassified',
+    'ai',
+    'transfers',
+    'cleanup',
+    'flagged',
+}
 
 # 分析ダッシュボードのアクション → ハンドラー関数マッピング
 _ANALYSIS_ACTION_HANDLERS = {
@@ -85,8 +101,43 @@ def _filter_and_paginate(queryset, keyword, page, per_page):
     """キーワードフィルタ適用 + ページネーション"""
     if keyword:
         filtered = filter_by_keyword(queryset, keyword)
-        return len(filtered), paginate(filtered, page, per_page)
+        return filtered.count(), paginate(filtered, page, per_page)
     return queryset.count(), paginate(queryset, page, per_page)
+
+
+def _build_selection_options(case):
+    """フォーム選択肢をDataFrame化せずDBから構築する。"""
+    account_rows = list(
+        case.accounts.values('bank_name', 'branch_name', 'account_number')
+    )
+    banks = sorted({row['bank_name'] for row in account_rows if row['bank_name']})
+    branches = sorted({row['branch_name'] for row in account_rows if row['branch_name']})
+    accounts = sorted({row['account_number'] for row in account_rows if row['account_number']})
+
+    bank_to_accounts = {}
+    for row in account_rows:
+        bank = row['bank_name']
+        account = row['account_number']
+        if bank and account:
+            bank_to_accounts.setdefault(bank, set()).add(account)
+    bank_to_accounts = {
+        bank: sorted(account_numbers)
+        for bank, account_numbers in bank_to_accounts.items()
+    }
+
+    categories = set(
+        case.transactions.exclude(category='').values_list('category', flat=True).distinct()
+    )
+    categories.update(STANDARD_CATEGORIES)
+    categories.update(config.get_merged_patterns(case).keys())
+
+    return {
+        'banks': banks,
+        'branches': branches,
+        'accounts': accounts,
+        'categories': sort_categories(categories),
+        'bank_to_accounts_json': json.dumps(bank_to_accounts, ensure_ascii=False),
+    }
 
 
 def _build_chart_data(case):
@@ -206,6 +257,98 @@ def _build_unclassified_context(request, case, sort_order, keyword):
     }
 
 
+def _build_active_tab_context(request, case, active_tab, filter_state):
+    """表示対象タブに必要なデータだけを構築する。"""
+    keyword = filter_state.get('keyword', '')
+    per_page = get_per_page(request)
+    sort_param = filter_state.get('sort', '')
+    sort_order = get_sort_order_by(sort_param, default='date_asc')
+    transactions = case.transactions.with_account_info().order_by(*sort_order)
+
+    if active_tab == 'overview':
+        return {
+            'account_summary': AnalysisService._build_account_summary(case),
+            **_build_chart_data(case),
+        }
+
+    if active_tab == 'all':
+        filtered = AnalysisService.apply_filters(transactions, filter_state)
+        all_txs_count, all_txs_page = _filter_and_paginate(
+            filtered, '', request.GET.get('page', 1), per_page,
+        )
+        return {
+            'all_txs': all_txs_page,
+            'all_txs_count': all_txs_count,
+        }
+
+    if active_tab == 'unclassified':
+        unclassified_qs = transactions.filter(
+            category=UNCATEGORIZED,
+            is_flagged=False,
+        )
+        _, unclassified_page = _filter_and_paginate(
+            unclassified_qs,
+            keyword,
+            request.GET.get('unclassified_page', 1),
+            per_page,
+        )
+        return {
+            'unclassified_txs': unclassified_page,
+            **_build_unclassified_context(
+                request,
+                case,
+                sort_order,
+                keyword,
+            ),
+        }
+
+    if active_tab == 'ai':
+        ai_data = AnalysisService._build_ai_suggestions(case, filter_state)
+        ai_groups = ai_data.get('ai_groups', [])
+        return {
+            **ai_data,
+            'high_confidence_groups': [
+                group for group in ai_groups if group.get('score', 0) >= 95
+            ],
+            'high_confidence_tx_count': sum(
+                group.get('count', 0)
+                for group in ai_groups
+                if group.get('score', 0) >= 95
+            ),
+            'ai_groups_json': json.dumps(
+                [{key: value for key, value in group.items() if key != 'sample_date'}
+                 for group in ai_groups],
+                ensure_ascii=False,
+            ),
+            'global_patterns': sort_patterns_dict(config.get_classification_patterns()),
+            'case_patterns': sort_patterns_dict(case.custom_patterns or {}),
+        }
+
+    if active_tab in {'transfers', 'cleanup'}:
+        df = pd.DataFrame(list(transactions.values()))
+        if active_tab == 'transfers':
+            transfer_pairs = AnalysisService._build_transfer_data(
+                df,
+                filter_state,
+                sort_param,
+            )
+            return {
+                'transfer_pairs': transfer_pairs,
+                **_build_transfer_context(transfer_pairs),
+            }
+        return {
+            'duplicate_txs': AnalysisService._get_duplicate_transactions(df),
+        }
+
+    flagged_qs = filter_by_keyword(
+        transactions.filter(is_flagged=True),
+        keyword,
+    )
+    return {
+        'flagged_txs': list(flagged_qs),
+    }
+
+
 def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     """分析・表示ダッシュボード"""
     case = get_object_or_404(Case, pk=pk)
@@ -213,77 +356,47 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method == 'POST':
         return _handle_analysis_post(request, case, pk)
 
+    active_tab = request.GET.get('tab', 'overview')
+    if active_tab not in ANALYSIS_TABS:
+        active_tab = 'overview'
     filter_state = build_filter_state(request, include_tab_filters=True)
-    analysis_data = AnalysisService.get_analysis_data(case, filter_state)
 
-    if analysis_data.get('no_data'):
+    tx_counts = case.transactions.aggregate(
+        total=Count('id'),
+        unclassified=Count(
+            'id',
+            filter=Q(category=UNCATEGORIZED, is_flagged=False),
+        ),
+        flagged=Count('id', filter=Q(is_flagged=True)),
+    )
+    if not tx_counts['total']:
         return render(request, 'analyzer/analysis.html', {
             'case': case,
             'no_data': True,
+            'active_tab': active_tab,
             'filter_state': filter_state,
             'latest_deletion_backup': case.deletion_backups.filter(restored_at__isnull=True).first(),
         })
 
-    keyword = filter_state.get('keyword', '')
-    per_page = get_per_page(request)
-    sort_param = filter_state.get('sort', '')
-    sort_order = get_sort_order_by(sort_param, default='date_desc')
-
-    all_txs_count, all_txs_page = _filter_and_paginate(
-        analysis_data['all_txs'], keyword, request.GET.get('page', 1), per_page,
+    classified_count = tx_counts['total'] - tx_counts['unclassified']
+    classified_pct = round(
+        classified_count / tx_counts['total'] * 100,
+        1,
     )
-    unclassified_txs = case.transactions.with_account_info().filter(
-        category=UNCATEGORIZED,
-        is_flagged=False,
-    ).order_by(*sort_order)
-    _, unclassified_page = _filter_and_paginate(
-        unclassified_txs, keyword, request.GET.get('unclassified_page', 1), per_page,
-    )
-    flagged_txs = sort_dict_list(
-        filter_by_keyword(analysis_data['flagged_txs'], keyword), sort_param
-    )
-
     context = {
         'case': case,
-        'account_summary': analysis_data['account_summary'],
-        'transfer_pairs': analysis_data['transfer_pairs'],
-        'all_txs': all_txs_page,
-        'all_txs_count': all_txs_count,
-        'unclassified_txs': unclassified_page,
-        'duplicate_txs': analysis_data['duplicate_txs'],
-        'flagged_txs': flagged_txs,
-        'banks': analysis_data['banks'],
-        'branches': analysis_data['branches'],
-        'accounts': analysis_data['accounts'],
-        'categories': analysis_data['categories'],
-        'bank_to_accounts_json': json.dumps(analysis_data.get('bank_to_accounts', {}), ensure_ascii=False),
+        'active_tab': active_tab,
         'filter_state': filter_state,
-        'fuzzy_threshold': analysis_data.get('fuzzy_threshold', 90),
-        'unclassified_count': analysis_data.get('unclassified_count', 0),
-        'suggestions_count': analysis_data.get('suggestions_count', 0),
-        'ai_suggestions': analysis_data.get('ai_suggestions', []),
-        'ai_groups': analysis_data.get('ai_groups', []),
-        'high_confidence_groups': [
-            group for group in analysis_data.get('ai_groups', [])
-            if group.get('score', 0) >= 95
-        ],
-        'high_confidence_tx_count': sum(
-            group.get('count', 0) for group in analysis_data.get('ai_groups', [])
-            if group.get('score', 0) >= 95
-        ),
-        'ai_groups_json': json.dumps(
-            [{k: v for k, v in g.items() if k != 'sample_date'} for g in analysis_data.get('ai_groups', [])],
-            ensure_ascii=False,
-        ),
-        'global_patterns': sort_patterns_dict(config.get_classification_patterns()),
-        'case_patterns': sort_patterns_dict(case.custom_patterns or {}),
+        'total_tx_count': tx_counts['total'],
+        'classified_count': classified_count,
+        'classified_pct': classified_pct,
+        'unclassified_count': tx_counts['unclassified'],
+        'flagged_count': tx_counts['flagged'],
+        'suggestions_count': 0,
         'latest_deletion_backup': case.deletion_backups.filter(restored_at__isnull=True).first(),
-        **_build_chart_data(case),
-        **_build_transfer_context(analysis_data['transfer_pairs']),
+        **_build_selection_options(case),
+        **_build_active_tab_context(request, case, active_tab, filter_state),
     }
-
-    if request.GET.get('tab') == 'unclassified':
-        context.update(_build_unclassified_context(request, case, sort_order, keyword))
 
     return render(request, 'analyzer/analysis.html', context)
 

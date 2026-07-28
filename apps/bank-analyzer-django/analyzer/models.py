@@ -1,7 +1,9 @@
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import F
 
 from .lib.constants import UNCATEGORIZED
+from .lib.text_utils import normalize_text
 
 
 # Transaction.objects.with_account_info() で口座フィールドをアノテーションするための定義
@@ -86,6 +88,20 @@ class TransactionQuerySet(models.QuerySet):
         """口座フィールドをアノテーションして返す（DataFrame用）"""
         return self.select_related('account').annotate(**ACCOUNT_ANNOTATIONS)
 
+    def bulk_create(self, objs, **kwargs):
+        for obj in objs:
+            obj.description_search = normalize_text(obj.description or '')
+        return super().bulk_create(objs, **kwargs)
+
+    def bulk_update(self, objs, fields, **kwargs):
+        fields = list(fields)
+        if 'description' in fields:
+            for obj in objs:
+                obj.description_search = normalize_text(obj.description or '')
+            if 'description_search' not in fields:
+                fields.append('description_search')
+        return super().bulk_update(objs, fields, **kwargs)
+
 
 class Transaction(models.Model):
     """取引モデル - 銀行取引明細を管理"""
@@ -105,6 +121,12 @@ class Transaction(models.Model):
     )
     date = models.DateField(null=True, blank=True, verbose_name="取引日")
     description = models.CharField(max_length=255, null=True, blank=True, verbose_name="摘要")
+    description_search = models.TextField(
+        blank=True,
+        default='',
+        editable=False,
+        verbose_name="検索用摘要",
+    )
     amount_out = models.IntegerField(default=0, verbose_name="出金")
     amount_in = models.IntegerField(default=0, verbose_name="入金")
     balance = models.IntegerField(null=True, blank=True, verbose_name="残高")
@@ -131,6 +153,13 @@ class Transaction(models.Model):
     def __str__(self):
         return f"{self.date} - {self.description}"
 
+    def save(self, *args, **kwargs):
+        self.description_search = normalize_text(self.description or '')
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and 'description' in update_fields:
+            kwargs['update_fields'] = set(update_fields) | {'description_search'}
+        return super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = "取引"
         verbose_name_plural = "取引一覧"
@@ -143,6 +172,11 @@ class Transaction(models.Model):
             models.Index(fields=["case", "category"]),
             models.Index(fields=["case", "is_large"]),
             models.Index(fields=["case", "is_transfer"]),
+            GinIndex(
+                fields=["description_search"],
+                name="analyzer_tx_desc_trgm",
+                opclasses=["gin_trgm_ops"],
+            ),
         ]
 
 

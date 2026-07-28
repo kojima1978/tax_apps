@@ -199,7 +199,9 @@ const ClassificationUndo = {
         var ids = (txIds || []).map(String);
         if (!ids.length) return;
 
-        this._ids = Array.from(new Set(this._ids.concat(ids)));
+        // Undo is intentionally limited to the most recent classification
+        // operation. A bulk classification still counts as one operation.
+        this._ids = Array.from(new Set(ids));
         this._category = category || '';
         this._customMessage = customMessage || '';
         clearTimeout(this._hideTimer);

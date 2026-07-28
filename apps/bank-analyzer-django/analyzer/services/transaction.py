@@ -15,6 +15,7 @@ from django.db.models import Count
 from ..models import Account, Case, DeletionBackup, Transaction
 from ..lib import analyzer, config, llm_classifier
 from ..lib.constants import UNCATEGORIZED
+from ..lib.text_utils import normalize_text
 from .utils import parse_date_value, parse_int_ids, get_transaction
 from .classification import (
     classify_unclassified_transactions,
@@ -648,7 +649,10 @@ class TransactionService:
             return 0
 
         if field_name == 'description':
-            count = case.transactions.filter(description=old_value).update(description=new_value)
+            count = case.transactions.filter(description=old_value).update(
+                description=new_value,
+                description_search=normalize_text(new_value),
+            )
         elif field_name == 'account_number':
             with db_transaction.atomic():
                 source = (

@@ -88,70 +88,70 @@
                 aria-orientation="vertical">
                 <div class="analysis-nav-group">
                     <span class="analysis-nav-section-title">案件</span>
-                    <button class="nav-link analysis-nav-link active" id="overview-tab"
-                        data-bs-toggle="tab" data-bs-target="#overview" data-section-label="概要"
-                        type="button" role="tab" aria-controls="overview" aria-selected="true"
+                    <a class="nav-link analysis-nav-link{% if active_tab == 'overview' %} active{% endif %}" id="overview-tab"
+                        href="?tab=overview" data-bs-target="#overview" data-section-label="概要"
+                        role="tab" aria-controls="overview" aria-selected="{% if active_tab == 'overview' %}true{% else %}false{% endif %}"
                         title="概要">
                         <i class="bi bi-speedometer2" aria-hidden="true"></i>
                         <span class="analysis-nav-label">概要</span>
-                    </button>
+                    </a>
                 </div>
 
                 <div class="analysis-nav-group">
                     <span class="analysis-nav-section-title">取引処理</span>
-                    <button class="nav-link analysis-nav-link" id="all-tab"
-                        data-bs-toggle="tab" data-bs-target="#all" data-section-label="取引一覧・検索"
-                        type="button" role="tab" aria-controls="all" aria-selected="false"
+                    <a class="nav-link analysis-nav-link{% if active_tab == 'all' %} active{% endif %}" id="all-tab"
+                        href="?tab=all" data-bs-target="#all" data-section-label="取引一覧・検索"
+                        role="tab" aria-controls="all" aria-selected="{% if active_tab == 'all' %}true{% else %}false{% endif %}"
                         title="取引一覧・検索">
                         <i class="bi bi-table" aria-hidden="true"></i>
                         <span class="analysis-nav-label">取引一覧・検索</span>
-                    </button>
-                    <button class="nav-link analysis-nav-link" id="unclassified-tab"
-                        data-bs-toggle="tab" data-bs-target="#unclassified" data-section-label="未分類"
-                        type="button" role="tab" aria-controls="unclassified" aria-selected="false"
+                    </a>
+                    <a class="nav-link analysis-nav-link{% if active_tab == 'unclassified' %} active{% endif %}" id="unclassified-tab"
+                        href="?tab=unclassified" data-bs-target="#unclassified" data-section-label="未分類"
+                        role="tab" aria-controls="unclassified" aria-selected="{% if active_tab == 'unclassified' %}true{% else %}false{% endif %}"
                         title="未分類">
                         <i class="bi bi-question-circle" aria-hidden="true"></i>
                         <span class="analysis-nav-label">未分類</span>
                         <span class="badge {% if unclassified_count %}bg-warning text-dark{% else %}bg-light text-secondary{% endif %} analysis-nav-badge">{{ unclassified_count }}</span>
-                    </button>
-                    <button class="nav-link analysis-nav-link" id="ai-tab"
-                        data-bs-toggle="tab" data-bs-target="#ai" data-section-label="AI分類"
-                        type="button" role="tab" aria-controls="ai" aria-selected="false"
+                    </a>
+                    <a class="nav-link analysis-nav-link{% if active_tab == 'ai' %} active{% endif %}" id="ai-tab"
+                        href="?tab=ai" data-bs-target="#ai" data-section-label="AI分類"
+                        role="tab" aria-controls="ai" aria-selected="{% if active_tab == 'ai' %}true{% else %}false{% endif %}"
                         title="AI分類">
                         <i class="bi bi-cpu" aria-hidden="true"></i>
                         <span class="analysis-nav-label">AI分類</span>
                         <span class="badge {% if suggestions_count %}bg-primary{% else %}bg-light text-secondary{% endif %} analysis-nav-badge">{{ suggestions_count }}</span>
-                    </button>
+                    </a>
                 </div>
 
                 <div class="analysis-nav-group">
                     <span class="analysis-nav-section-title">分析</span>
-                    <button class="nav-link analysis-nav-link" id="transfers-tab"
-                        data-bs-toggle="tab" data-bs-target="#transfers" data-section-label="資金移動フロー"
-                        type="button" role="tab" aria-controls="transfers" aria-selected="false"
+                    <a class="nav-link analysis-nav-link{% if active_tab == 'transfers' %} active{% endif %}" id="transfers-tab"
+                        href="?tab=transfers" data-bs-target="#transfers" data-section-label="資金移動フロー"
+                        role="tab" aria-controls="transfers" aria-selected="{% if active_tab == 'transfers' %}true{% else %}false{% endif %}"
                         title="資金移動フロー">
                         <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
                         <span class="analysis-nav-label">資金移動フロー</span>
-                    </button>
-                    <button class="nav-link analysis-nav-link" id="flagged-tab"
-                        data-bs-toggle="tab" data-bs-target="#flagged" data-section-label="質問候補"
-                        type="button" role="tab" aria-controls="flagged" aria-selected="false"
+                    </a>
+                    <a class="nav-link analysis-nav-link{% if active_tab == 'flagged' %} active{% endif %}" id="flagged-tab"
+                        href="?tab=flagged" data-bs-target="#flagged" data-section-label="質問候補"
+                        role="tab" aria-controls="flagged" aria-selected="{% if active_tab == 'flagged' %}true{% else %}false{% endif %}"
                         title="質問候補">
                         <i class="bi bi-question-circle" aria-hidden="true"></i>
                         <span class="analysis-nav-label">質問候補</span>
                         <span class="badge {% if flagged_count %}bg-info{% else %}bg-light text-secondary{% endif %} analysis-nav-badge">{{ flagged_count }}</span>
-                    </button>
+                    </a>
                 </div>
 
                 <div class="analysis-nav-group analysis-nav-group-management">
                     <span class="analysis-nav-section-title">データ管理</span>
-                    <button class="nav-link analysis-nav-link" id="cleanup-tab"
-                        data-bs-toggle="tab" data-bs-target="#cleanup" data-section-label="データクレンジング"
-                        type="button" role="tab" aria-controls="cleanup" aria-selected="false"
+                    <a class="nav-link analysis-nav-link{% if active_tab == 'cleanup' %} active{% endif %}" id="cleanup-tab"
+                        href="?tab=cleanup" data-bs-target="#cleanup" data-section-label="データクレンジング"
+                        role="tab" aria-controls="cleanup" aria-selected="{% if active_tab == 'cleanup' %}true{% else %}false{% endif %}"
                         title="データクレンジング">
                         <i class="bi bi-stars" aria-hidden="true"></i>
                         <span class="analysis-nav-label">データクレンジング</span>
-                    </button>
+                    </a>
                 </div>
             </nav>
 
@@ -183,6 +183,7 @@
 
     <div class="analysis-main">
         <div class="tab-content" id="analysisTabsContent">
+{% if active_tab == 'overview' %}
             <section class="tab-pane fade show active" id="overview" role="tabpanel"
                 aria-labelledby="overview-tab" tabindex="0">
 <!-- 基準日設定 -->
@@ -366,13 +367,19 @@
 {% endif %}
 
             </section>
-
+{% elif active_tab == 'all' %}
     {% include 'analyzer/partials/_tab_all.html' %}
+{% elif active_tab == 'unclassified' %}
     {% include 'analyzer/partials/_tab_unclassified.html' %}
+{% elif active_tab == 'ai' %}
     {% include 'analyzer/partials/_tab_ai.html' %}
+{% elif active_tab == 'transfers' %}
     {% include 'analyzer/partials/_tab_transfers.html' %}
+{% elif active_tab == 'cleanup' %}
     {% include 'analyzer/partials/_tab_cleanup.html' %}
+{% elif active_tab == 'flagged' %}
     {% include 'analyzer/partials/_tab_flagged.html' %}
+{% endif %}
         </div>
     </div>
 </div>
@@ -677,7 +684,7 @@
 <script>window.BANK_TO_ACCOUNTS = {{ bank_to_accounts_json|safe }};</script>
 <script src="{% static 'analyzer/js/analysis_core.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_transactions.js' %}"></script>
-<script src="{% static 'analyzer/js/analysis_sidebar.js' %}"></script>
+<script src="{% static 'analyzer/js/analysis_sidebar.js' %}?v=20260728-tabs"></script>
 <script src="{% static 'analyzer/js/analysis_patterns.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_tabs.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_filters.js' %}"></script>

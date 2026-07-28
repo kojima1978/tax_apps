@@ -103,13 +103,18 @@
 
     nav.querySelectorAll('.analysis-nav-link').forEach(function (tab) {
         tab.addEventListener('click', function(event) {
-            if (tab.id !== 'unclassified-tab') return;
-            var url = new URL(window.location.href);
-            if (url.searchParams.get('tab') === 'unclassified') return;
+            var tabName = tab.id.replace('-tab', '');
+            var currentTab = new URL(window.location.href).searchParams.get('tab') || 'overview';
+            if (currentTab === tabName) {
+                event.preventDefault();
+                return;
+            }
+
             event.preventDefault();
-            url.searchParams.set('tab', 'unclassified');
-            url.searchParams.delete('keyword');
-            window.location.href = url.toString();
+            event.stopImmediatePropagation();
+            var url = new URL(window.location.pathname, window.location.origin);
+            url.searchParams.set('tab', tabName);
+            window.location.assign(url.toString());
         });
 
         tab.addEventListener('shown.bs.tab', function () {
@@ -134,7 +139,7 @@
         if (event.key === 'Home') nextIndex = 0;
         if (event.key === 'End') nextIndex = tabs.length - 1;
         tabs[nextIndex].focus();
-        bootstrap.Tab.getOrCreateInstance(tabs[nextIndex]).show();
+        tabs[nextIndex].click();
     });
 
     document.addEventListener('keydown', function (event) {

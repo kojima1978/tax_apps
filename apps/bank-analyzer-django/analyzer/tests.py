@@ -510,18 +510,56 @@ class ViewsTest(TestCase):
         self.assertContains(response, 'aria-orientation="vertical"')
         self.assertContains(response, 'id="analysisMobileMenuOpen"')
         self.assertContains(response, 'class="overview-kpi-grid')
-        self.assertContains(response, 'id="inlineSaveSummary"')
-        self.assertContains(response, "transaction-table-responsive")
-        self.assertContains(response, "表は横にスクロールできます")
-        self.assertContains(response, 'id="transactionKeyword"')
-        self.assertContains(response, 'id="activeFilterCount"')
-        self.assertContains(response, "この条件で絞り込む")
-        self.assertContains(response, "不明な取引を、質問候補として残せます")
-        self.assertContains(response, "質問候補に追加")
         self.assertContains(response, 'aria-label="月次の出金額と入金額を比較する棒グラフ"')
         self.assertContains(response, "最終成果物")
         self.assertContains(response, "分類別Excel出力")
         self.assertContains(response, reverse('export-xlsx-by-category', args=[self.case.pk]))
+        self.assertNotContains(response, 'id="transactionKeyword"')
+        self.assertNotContains(response, 'id="unclassifiedTable"')
+
+        all_response = self.client.get(
+            reverse('analysis-dashboard', args=[self.case.pk]),
+            {'tab': 'all'},
+        )
+        self.assertEqual(all_response.status_code, 200)
+        self.assertContains(all_response, 'id="inlineSaveSummary"')
+        self.assertContains(all_response, "transaction-table-responsive")
+        self.assertContains(all_response, "表は横にスクロールできます")
+        self.assertContains(all_response, 'id="transactionKeyword"')
+        self.assertContains(all_response, 'id="activeFilterCount"')
+        self.assertContains(all_response, "この条件で絞り込む")
+        self.assertContains(all_response, "不明な取引を、質問候補として残せます")
+        self.assertContains(all_response, "質問候補に追加")
+        self.assertNotContains(
+            all_response,
+            'aria-label="月次の出金額と入金額を比較する棒グラフ"',
+        )
+
+    def test_analysis_dashboard_renders_only_requested_tab(self):
+        """重いタブは要求された場合だけ生成する"""
+        Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 15),
+            description="オンデマンド表示",
+            category="未分類",
+        )
+
+        overview = self.client.get(
+            reverse('analysis-dashboard', args=[self.case.pk]),
+        )
+        self.assertEqual(overview.context['active_tab'], 'overview')
+        self.assertContains(overview, 'id="overview"')
+        self.assertNotContains(overview, 'id="unclassified"')
+        self.assertNotContains(overview, 'id="transfers"')
+
+        unclassified = self.client.get(
+            reverse('analysis-dashboard', args=[self.case.pk]),
+            {'tab': 'unclassified'},
+        )
+        self.assertEqual(unclassified.context['active_tab'], 'unclassified')
+        self.assertContains(unclassified, 'id="unclassified"')
+        self.assertNotContains(unclassified, 'id="overview"')
+        self.assertNotContains(unclassified, 'id="transfers"')
 
     def test_unclassified_workbench_defaults_to_individual_transactions(self):
         """未分類整理は個別取引を主表示にする"""
@@ -554,6 +592,33 @@ class ViewsTest(TestCase):
         )
         self.assertContains(response, "個別取引を確認・分類")
         self.assertContains(response, "取引を選び、ボタンまたは数字キーで分類")
+
+    def test_unclassified_workbench_defaults_to_date_ascending(self):
+        """未分類整理は日付の古い取引から表示する"""
+        older = Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 15),
+            description="古い未分類取引",
+            amount_out=10000,
+            category="未分類",
+        )
+        newer = Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 2, 15),
+            description="新しい未分類取引",
+            amount_out=20000,
+            category="未分類",
+        )
+
+        response = self.client.get(
+            reverse('analysis-dashboard', args=[self.case.pk]),
+            {'tab': 'unclassified'},
+        )
+
+        self.assertEqual(
+            [tx.pk for tx in response.context['unclassified_txs']],
+            [older.pk, newer.pk],
+        )
 
     def test_export_csv_all(self):
         """全取引CSVエクスポート"""
@@ -1080,6 +1145,26 @@ class ApplyFiltersTest(TestCase):
         """キーワードフィルター"""
         qs = self.case.transactions.all()
         result = AnalysisService.apply_filters(qs, {'keyword': 'イオン'})
+        self.assertEqual(result.count(), 1)
+
+    def test_filter_by_keyword_runs_in_sql_with_normalized_and_search(self):
+        """表記ゆれを正規化した複数語AND検索をSQLで行う"""
+        qs = self.case.transactions.all()
+
+        with self.assertNumQueries(0):
+            result = AnalysisService.apply_filters(
+                qs,
+                {'keyword': 'いおん 買い物'},
+            )
+
+        self.assertIn('description_search', str(result.query))
+        with self.assertNumQueries(1):
+            self.assertEqual(list(result.values_list('description', flat=True)), ['イオン 買い物'])
+
+    def test_filter_by_keyword_matches_half_width_katakana(self):
+        """半角カタカナの検索語も正規化列で検索できる"""
+        qs = self.case.transactions.all()
+        result = AnalysisService.apply_filters(qs, {'keyword': 'ｲｵﾝ'})
         self.assertEqual(result.count(), 1)
 
     def test_filter_by_date_range(self):
