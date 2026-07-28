@@ -685,8 +685,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .secondary-sim-best td.emphasis { color: #14532d; }
 .secondary-sim-badge { margin-left: 6px; padding: 1px 7px; font-size: 10px; font-weight: 800; color: #14532d; background: #bbf7d0; border-radius: 999px; }
 .secondary-sim-note { margin: 12px 0 0; padding: 10px 12px; font-size: 11px; color: #5b7268; background: #f7faf8; border: 1px solid #e2ece4; border-radius: 8px; line-height: 1.65; }
-.position-total-figures { display: flex; align-items: baseline; gap: 18px; }
-.position-total-burden { color: #5b7268; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; }
+.tax-burden-negative { color: #1d6f4f; }
 .history-tax-rate { display: block; margin-top: 2px; font-size: 10px; color: #6f7a74; font-weight: 600; white-space: nowrap; }
 .history-tax-empty { color: #9aa5a0; font-size: 11px; }
 .tax-calc-basis ol { margin: 0; padding: 8px 14px 5px 34px; }

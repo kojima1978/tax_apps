@@ -3,7 +3,7 @@
 import { GripVertical, Pencil, Plus, Table2, Trash2 } from "lucide-react";
 import { DragEvent, KeyboardEvent, useMemo, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
-import { yen } from "@/lib/format";
+import { triangleYen, yen } from "@/lib/format";
 import {
   type Position,
   type PositionSection,
@@ -28,13 +28,19 @@ export function AssetsView({ snapshot, snapshots, onSelectSnapshot, onCreateNext
   const assets = snapshot.positions.filter((p) => p.side === "ASSET");
   const liabilities = snapshot.positions.filter((p) => p.side === "LIABILITY" && p.includedInNetWorth);
   const contingencies = snapshot.positions.filter((p) => p.side === "LIABILITY" && !p.includedInNetWorth);
-  // 相続税負担額は、資産の部の各明細を「円換算時価 ÷ 資産合計 × 相続税総額」で按分する。
+  // 相続税負担額は、相続税総額を「円換算時価 ÷ 正味財産」の率で各明細へ按分する。
+  // 相続税は正味財産（資産合計 − 控除対象負債）に課されるため、負債は同率のマイナス（軽減）として扱い、
+  // 資産の部と負債の部の差引が相続税総額と一致する。偶発債務はB/S外なので対象外。
   // 税額は連携計算値（totalInheritanceTax）を優先し、未計算なら手動の想定相続税へフォールバックする。
   const totalAssets = assets.reduce((sum, p) => sum + p.valueJpy, 0);
+  const netEstate = totalAssets - liabilities.reduce((sum, p) => sum + p.valueJpy, 0);
   const totalInheritanceTax = snapshot.inheritanceTaxCalculation?.totalInheritanceTaxJpy ?? snapshot.estimatedInheritanceTax;
-  const taxBurden = (position: Position) => position.side === "ASSET" && totalAssets > 0 && totalInheritanceTax > 0
-    ? Math.round((position.valueJpy / totalAssets) * totalInheritanceTax)
-    : null;
+  const burdenRate = netEstate > 0 && totalInheritanceTax > 0 ? totalInheritanceTax / netEstate : 0;
+  const taxBurden = (position: Position) => {
+    if (burdenRate === 0) return null;
+    if (position.side === "ASSET") return Math.round(position.valueJpy * burdenRate);
+    return position.includedInNetWorth ? -Math.round(position.valueJpy * burdenRate) : null;
+  };
   const orderedSnapshots = [...snapshots].sort((a, b) => b.fiscalYear - a.fiscalYear);
   const updatedAt = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(snapshot.updatedAt));
   return <><section className="page-heading detail-page-heading"><div><p className="eyebrow">ASSET &amp; LIABILITY DETAILS</p><h2>資産・負債明細</h2><p className="detail-heading-meta"><span className={`detail-status ${snapshot.isCurrent ? "current" : "historical"}`}><span className="detail-status-screen">{snapshot.isCurrent ? "現在年度" : "過年度を編集中"}</span><span className="detail-status-print">{fiscalYearLabel(snapshot)}{snapshot.isCurrent ? "（現在）" : ""}</span></span><span className="detail-updated-at">最終更新 {updatedAt}</span>{!snapshot.isCurrent ? <span>現在年度のデータには影響しません</span> : null}</p></div><div className="page-heading-actions detail-page-actions"><label className="detail-year-selector"><span>表示年度</span><select aria-label="資産・負債明細の表示年度" value={snapshot.id} onChange={(event) => onSelectSnapshot(Number(event.target.value))}>{orderedSnapshots.map((item) => <option key={item.id} value={item.id}>{fiscalYearLabel(item)}{item.isCurrent ? "（現在）" : ""}</option>)}</select></label>{onBack ? <button className="button secondary" onClick={onBack}>年度比較へ戻る</button> : null}<button className="button secondary" onClick={onCreateNext}><Plus />年度を追加</button><button className="button secondary" onClick={onEditSettings}><Pencil />年度設定</button><div className="entry-action-group" role="group" aria-label="明細の追加と編集"><button className="button secondary" onClick={onBulkManage}><Table2 />表で編集・追加</button><button className="button primary" onClick={onAdd}><Plus />1件追加</button></div></div></section><PositionTable key={`${snapshot.id}-ASSET-${snapshot.updatedAt}`} title="資産の部" section="ASSET" items={assets} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /><PositionTable key={`${snapshot.id}-LIABILITY-${snapshot.updatedAt}`} title="負債の部" section="LIABILITY" items={liabilities} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /><PositionTable key={`${snapshot.id}-CONTINGENT-${snapshot.updatedAt}`} title="偶発債務の部（B/S外）" section="CONTINGENT" items={contingencies} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /></>;
@@ -69,7 +75,6 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
   const canManualReorder = classificationFilter === "ALL" && sortMode === "manual";
   const hasClassificationControls = classifications.length > 1;
   const visibleTotal = visibleItems.reduce((sum, position) => sum + position.valueJpy, 0);
-  const visibleBurdenTotal = visibleItems.reduce((sum, position) => sum + (taxBurden(position) ?? 0), 0);
 
   async function movePosition(positionId: number, targetIndex: number) {
     if (!canManualReorder) return;
@@ -150,6 +155,7 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
               const classification = middleClassification(p);
               const tone = classificationTone[classification] ?? "neutral";
               const isClassificationStart = index > 0 && middleClassification(visibleItems[index - 1]) !== classification;
+              const burden = taxBurden(p);
               return (
               <tr key={p.id} className={`classification-${tone} ${isClassificationStart ? "is-classification-start" : ""} ${draggedId === p.id ? "is-dragging" : ""} ${dropTargetId === p.id && draggedId !== p.id ? "is-drop-target" : ""}`} onDragOver={(event) => { if (!canManualReorder || draggedId === null || draggedId === p.id) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropTargetId(p.id); }} onDragLeave={() => setDropTargetId((current) => current === p.id ? null : current)} onDrop={(event) => dropPosition(event, p.id)}>
                 <td data-label="並び順" className="reorder-cell"><button type="button" className="drag-handle" draggable={!saving && canManualReorder} disabled={saving || !canManualReorder} aria-label={canManualReorder ? `${p.name}を並び替え。上下矢印キーでも移動できます` : dragDisabledMessage} title={canManualReorder ? "ドラッグして並び替え" : dragDisabledMessage} onDragStart={(event) => startDrag(event, p.id)} onDragEnd={() => { setDraggedId(null); setDropTargetId(null); }} onKeyDown={(event) => moveWithKeyboard(event, p.id)}><GripVertical /></button></td>
@@ -158,12 +164,12 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
                 <td data-label="所在地・金融機関等" title={institutionOrPropertyAddress(p) || undefined}>{institutionOrPropertyAddress(p) || "—"}</td>
                 <td data-label="評価方法" title={valuationBreakdown(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationBreakdown(p) ? <small className="valuation-breakdown">{valuationBreakdown(p)}</small> : null}</td>
                 <td data-label="円換算時価" className="number"><strong>{yen.format(p.valueJpy)}</strong>{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}{p.category === "INSURANCE" && p.assetDetails?.deathBenefit ? <small className="insurance-death-benefit">（死亡保険金 {yen.format(p.assetDetails.deathBenefit)}）</small> : null}</td>
-                <td data-label="相続税負担額" className="number">{(() => { const burden = taxBurden(p); return burden === null ? <span className="tax-burden-empty">—</span> : yen.format(burden); })()}</td>
+                <td data-label="相続税負担額" className="number">{burden === null ? <span className="tax-burden-empty">—</span> : <span className={burden < 0 ? "tax-burden-negative" : undefined}>{triangleYen(burden)}</span>}</td>
                 <td data-label="操作"><div className="table-actions"><button className="row-action edit" title="修正" aria-label={`${p.name}を修正`} onClick={() => onEdit(p)}><Pencil /><span className="sr-only">修正</span></button><button className="row-action delete" title="削除" aria-label={`${p.name}を削除`} onClick={() => onDelete(p)}><Trash2 /><span className="sr-only">削除</span></button></div></td>
               </tr>
             )})}
           </tbody>
-          <tfoot><tr><td className="position-total-row" colSpan={8}><div><span>{filterActive ? "表示中の合計" : "合計"}</span><span className="position-total-figures"><strong>{yen.format(visibleTotal)}</strong>{section === "ASSET" && visibleBurdenTotal > 0 ? <span className="position-total-burden">相続税負担額 {yen.format(visibleBurdenTotal)}</span> : null}</span></div></td></tr></tfoot>
+          <tfoot><tr><td className="position-total-row" colSpan={8}><div><span>{filterActive ? "表示中の合計" : "合計"}</span><strong>{yen.format(visibleTotal)}</strong></div></td></tr></tfoot>
         </table>
       </div>
     </section>

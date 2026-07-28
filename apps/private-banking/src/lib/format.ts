@@ -2,6 +2,10 @@
 
 export const yen = new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 });
 export const percent = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 });
+
+/** 会計慣行に合わせ、マイナス額を△付きで表示する（相続税負担額の軽減など）。 */
+export const triangleYen = (value: number) => value < 0 ? `△${yen.format(Math.abs(value))}` : yen.format(value);
+
 export const valuationNumber = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 6 });
 
 /** 億・万円で丸めた表示。B/Sの区画やサマリーで使う。 */
