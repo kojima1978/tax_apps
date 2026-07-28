@@ -65,6 +65,7 @@ function AssetSpecificFields({
     {propertyType === "LAND" ? <>
       <LandCategoryField defaultValue={details.landCategory ?? ""} />
       <label>面積（㎡）<CommaNumberInput name="landArea" defaultValue="" value={landArea} onValueChange={onLandAreaChange} maxFractionDigits={4} placeholder="" positive required={formula === "LAND_ROADSIDE"} /></label>
+      <label className="wide">小規模宅地等の特例（概算）<select name="assetDetail.smallLotType" defaultValue={details.smallLotType ?? ""}><option value="">適用しない</option><option value="RESIDENTIAL">特定居住用宅地（80%・限度330㎡）</option><option value="BUSINESS">特定事業用宅地（80%・限度400㎡）</option><option value="RENTAL">貸付事業用宅地（50%・限度200㎡）</option></select><small className="asset-detail-hint">選択すると相続税の概算計算で減額割合を反映します（限度面積を超える分は按分）。要件充足の可否は別途ご確認ください。</small></label>
     </> : <>
       <BuildingTypeField defaultValue={details.buildingType ?? ""} />
       <label>構造<select name="assetDetail.buildingStructure" defaultValue={details.buildingStructure ?? ""}><option value="">未選択</option><option value="WOOD">木造</option><option value="STEEL">鉄骨造</option><option value="RC">鉄筋コンクリート造</option><option value="SRC">鉄骨鉄筋コンクリート造</option><option value="OTHER">その他</option></select></label>

@@ -1,70 +1,26 @@
-import { AlertTriangle, Calculator, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Calculator, LoaderCircle, RefreshCw, ShieldCheck } from "lucide-react";
 import { compactYen, dateJa } from "@/lib/format";
 import type { InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 import { fiscalYearLabel, totals, type Portfolio, type Snapshot } from "@/lib/portfolio-view";
-
-const rate = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 });
 
 function MoneyRow({
   label,
   value,
   operator,
   emphasis,
+  note,
 }: {
   label: string;
   value: number;
   operator?: "−" | "＋" | "＝";
   emphasis?: "subtotal" | "total";
+  note?: string;
 }) {
   return <div className={`tax-calc-money-row ${emphasis ?? ""}`}>
     <span className="tax-calc-operator">{operator ?? ""}</span>
-    <span>{label}</span>
+    <span>{label}{note ? <small className="tax-calc-row-note">{note}</small> : null}</span>
     <strong>{value === 0 ? "0円" : compactYen(value)}</strong>
   </div>;
-}
-
-type GroupedHeir = InheritanceTaxCalculation["heirs"][number] & { labels: string[] };
-
-function groupHeirs(heirs: InheritanceTaxCalculation["heirs"]): GroupedHeir[] {
-  const groups = new Map<string, GroupedHeir>();
-  for (const heir of heirs) {
-    const key = [
-      heir.type,
-      heir.legalShareRatio,
-      heir.legalShareAmountJpy,
-      heir.taxOnLegalShareJpy,
-      heir.acquisitionAmountJpy,
-      heir.proportionalTaxJpy,
-      heir.surchargeAmountJpy,
-      heir.spouseDeductionJpy,
-      heir.finalTaxJpy,
-    ].join(":");
-    const existing = groups.get(key);
-    if (existing) {
-      existing.labels.push(heir.label);
-      existing.legalShareRatio += heir.legalShareRatio;
-      existing.legalShareAmountJpy += heir.legalShareAmountJpy;
-      existing.taxOnLegalShareJpy += heir.taxOnLegalShareJpy;
-      existing.acquisitionAmountJpy += heir.acquisitionAmountJpy;
-      existing.proportionalTaxJpy += heir.proportionalTaxJpy;
-      existing.surchargeAmountJpy += heir.surchargeAmountJpy;
-      existing.taxBeforeDeductionsJpy += heir.taxBeforeDeductionsJpy;
-      existing.spouseDeductionJpy += heir.spouseDeductionJpy;
-      existing.finalTaxJpy += heir.finalTaxJpy;
-    }
-    else groups.set(key, { ...heir, labels: [heir.label] });
-  }
-  return [...groups.values()];
-}
-
-function groupedLabel(group: GroupedHeir) {
-  if (group.labels.length <= 2) return group.labels.join("・");
-  const first = group.labels[0];
-  const last = group.labels[group.labels.length - 1];
-  const base = first.replace(/\d+$/, "");
-  return base && last.startsWith(base)
-    ? `${first}〜${last.slice(base.length)}（${group.labels.length}人）`
-    : `${first}ほか${group.labels.length - 1}人`;
 }
 
 export function InheritanceTaxReport({
@@ -72,11 +28,15 @@ export function InheritanceTaxReport({
   snapshot,
   planning,
   calculation,
+  onRecalculate,
+  recalculating,
 }: {
   household: Portfolio["household"];
   snapshot: Snapshot;
   planning: Portfolio["planning"];
   calculation: InheritanceTaxCalculation;
+  onRecalculate?: () => void;
+  recalculating?: boolean;
 }) {
   const currentTotals = totals(snapshot.positions);
   const familyChanged = calculation.familyComposition.hasSpouse !== planning.hasSpouse
@@ -85,9 +45,9 @@ export function InheritanceTaxReport({
   const balanceChanged = currentTotals.assets !== calculation.source.totalAssetsJpy
     || currentTotals.liabilities !== calculation.source.deductibleLiabilitiesJpy;
   const isStale = familyChanged || balanceChanged;
+  const smallLotReduction = calculation.source.smallLotReductionJpy ?? 0;
   const spouseDeduction = calculation.heirs.reduce((sum, heir) => sum + heir.spouseDeductionJpy, 0);
   const surcharge = calculation.heirs.reduce((sum, heir) => sum + heir.surchargeAmountJpy, 0);
-  const groupedHeirs = groupHeirs(calculation.heirs);
   const calculatedAt = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" })
     .format(new Date(calculation.calculatedAt));
 
@@ -105,7 +65,7 @@ export function InheritanceTaxReport({
       </dl>
     </header>
 
-    {isStale ? <p className="tax-calc-stale" role="alert"><AlertTriangle />計算後にB/Sまたは家族情報が変更されています。最新条件で再計算してください。</p> : null}
+    {isStale ? <p className="tax-calc-stale" role="alert"><AlertTriangle /><span>計算後にB/Sまたは家族情報が変更されています。最新条件で再計算してください。</span>{onRecalculate ? <button type="button" className="tax-calc-recalc" onClick={onRecalculate} disabled={recalculating}>{recalculating ? <LoaderCircle className="spin" /> : <RefreshCw />}{recalculating ? "再計算中" : "再計算"}</button> : null}</p> : null}
 
     <div className="tax-calc-columns">
       <article className="tax-calc-statement">
@@ -118,13 +78,14 @@ export function InheritanceTaxReport({
           <MoneyRow label="財産評価額 合計" value={calculation.source.totalAssetsJpy} operator="＝" emphasis="subtotal" />
           <MoneyRow label="債務" value={calculation.source.deductibleLiabilitiesJpy} operator="−" />
           <MoneyRow label="B/S基準の正味財産" value={calculation.source.estimatedNetEstateJpy} operator="＝" emphasis="subtotal" />
+          {smallLotReduction > 0 ? <MoneyRow label="小規模宅地等の特例（概算）" value={smallLotReduction} operator="−" /> : null}
           {calculation.insuranceSurrenderValueJpy > 0 ? <MoneyRow label="生命保険の解約返戻金" value={calculation.insuranceSurrenderValueJpy} operator="−" /> : null}
           {calculation.insuranceDeathBenefitJpy > 0 ? <MoneyRow label="死亡保険金" value={calculation.insuranceDeathBenefitJpy} operator="＋" /> : null}
           {calculation.insuranceNonTaxableAmountJpy > 0 ? <MoneyRow label="死亡保険金の非課税額" value={calculation.insuranceNonTaxableAmountJpy} operator="−" /> : null}
           <MoneyRow label="相続税計算上の遺産額" value={calculation.estateValueJpy} operator="＝" emphasis="subtotal" />
           <MoneyRow label="基礎控除額" value={calculation.basicDeductionJpy} operator="−" />
           <MoneyRow label="課税遺産総額" value={calculation.taxableEstateJpy} operator="＝" emphasis="subtotal" />
-          <MoneyRow label="相続税の総額" value={calculation.totalTaxBeforeDeductionsJpy} />
+          <MoneyRow label="相続税の総額" value={calculation.totalTaxBeforeDeductionsJpy} note={`実効税率 ${calculation.effectiveTaxRateBeforeDeductions.toFixed(1)}%`} />
           {surcharge > 0 ? <MoneyRow label="相続税額の2割加算" value={surcharge} operator="＋" /> : null}
           {spouseDeduction > 0 ? <MoneyRow label="配偶者の税額軽減" value={spouseDeduction} operator="−" /> : null}
           <MoneyRow label="相続税の納付税額（概算）" value={calculation.totalInheritanceTaxJpy} operator="＝" emphasis="total" />
@@ -142,27 +103,10 @@ export function InheritanceTaxReport({
         </ol>
         <div className="tax-calc-assumptions">
           <strong>概算に含めていない主な項目</strong>
-          <p>小規模宅地等の特例、葬式費用、生前贈与加算、未成年者・障害者控除、相次相続控除、外国税額控除</p>
+          <p>{smallLotReduction > 0 ? "葬式費用、生前贈与加算、未成年者・障害者控除、相次相続控除、外国税額控除（小規模宅地等の特例は選択宅地に概算適用）" : "小規模宅地等の特例、葬式費用、生前贈与加算、未成年者・障害者控除、相次相続控除、外国税額控除"}</p>
         </div>
       </article>
     </div>
-
-    <article className="tax-calc-heirs">
-      <h3>相続人別 税額内訳</h3>
-      {groupedHeirs.length === 0 ? <p className="tax-calc-no-tax">基礎控除以下のため、相続税は発生しない概算です。</p> : <table>
-        <thead><tr><th>相続人</th><th>法定相続分</th><th>法定取得額</th><th>算出税額</th><th>想定取得額</th><th>按分税額</th><th>加算／軽減</th><th>納付税額</th></tr></thead>
-        <tbody>{groupedHeirs.map((heir) => <tr key={`${heir.type}-${heir.legalShareRatio}-${heir.labels[0]}`}>
-          <th>{groupedLabel(heir)}</th>
-          <td>{rate.format(heir.legalShareRatio * 100)}%</td>
-          <td>{compactYen(heir.legalShareAmountJpy)}</td>
-          <td>{compactYen(heir.taxOnLegalShareJpy)}</td>
-          <td>{compactYen(heir.acquisitionAmountJpy)}</td>
-          <td>{compactYen(heir.proportionalTaxJpy)}</td>
-          <td>{heir.surchargeAmountJpy > 0 ? `＋${compactYen(heir.surchargeAmountJpy)}` : heir.spouseDeductionJpy > 0 ? `−${compactYen(heir.spouseDeductionJpy)}` : "−"}</td>
-          <td><strong>{compactYen(heir.finalTaxJpy)}</strong></td>
-        </tr>)}</tbody>
-      </table>}
-    </article>
 
     <footer className="tax-calc-notes">
       <p>※ {calculation.warnings.join(" ")}</p>

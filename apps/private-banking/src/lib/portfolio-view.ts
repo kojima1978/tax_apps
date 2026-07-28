@@ -17,7 +17,7 @@ export type AssetDetails = {
   accountType?: string; branchName?: string; accountSuffix?: string; maturityDate?: string;
   securityType?: string; securityCode?: string; valuationDate?: string;
   insuranceType?: string; insuredPerson?: string; beneficiary?: string; deathBenefit?: number; beneficiaryIsLegalHeir?: boolean;
-  propertyType?: string; propertyAddress?: string; landCategory?: string;
+  propertyType?: string; propertyAddress?: string; landCategory?: string; smallLotType?: string;
   buildingType?: string; buildingStructure?: string; floorArea?: number;
   shareClass?: string; totalIssuedShares?: number; valuationApproach?: string;
   businessAssetType?: string; businessName?: string; storageLocation?: string;
@@ -42,7 +42,7 @@ export type Portfolio = {
   snapshots: Snapshot[];
 };
 /** サイドバーのメニュー key。そのまま URL の `/customers/<id>/<key>` になる。 */
-export type Section = "balance" | "positions" | "profile" | "family" | "history" | "backup";
+export type Section = "balance" | "positions" | "tax" | "profile" | "family" | "history" | "backup";
 export type BulkPositionPayload = Record<string, unknown>;
 export type BalanceScenario = "without-tax" | "with-tax";
 export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "details" | "history";

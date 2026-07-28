@@ -58,6 +58,7 @@ const sourceSchema = z.object({
   totalAssetsJpy: nonNegativeJpy,
   deductibleLiabilitiesJpy: nonNegativeJpy,
   estimatedNetEstateJpy: nonNegativeJpy,
+  smallLotReductionJpy: nonNegativeJpy.optional(),
 });
 
 export const inheritanceTaxCalculationSchema = inheritanceTaxApiCalculationSchema.extend({

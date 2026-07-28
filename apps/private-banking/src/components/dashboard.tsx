@@ -21,6 +21,7 @@ import { PortalLink } from "@/components/portal-link";
 import { DeletePositionModal, PositionModal } from "@/components/position-modal";
 import { AssetsView } from "@/components/positions-view";
 import { PersonFamilyPrintView } from "@/components/print-person-family";
+import { SecondaryInheritanceSimulator } from "@/components/secondary-inheritance-simulator";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary } from "@/lib/clients";
 import type { FamilyMemberDraft } from "@/lib/family";
@@ -42,6 +43,7 @@ import {
 const SECTIONS = [
   { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
   { key: "positions", label: "資産・負債明細", icon: WalletCards },
+  { key: "tax", label: "相続税の概算", icon: Calculator },
   { key: "profile", label: "本人情報", icon: CircleUserRound },
   { key: "family", label: "親族関係", icon: UsersRound },
   { key: "history", label: "年度比較", icon: History },
@@ -63,7 +65,7 @@ function BsAmount({ value, total }: { value: number; total: number }) {
 const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: string; description: string }> = [
   { key: "profile-family", title: "本人・家族情報", description: "本人の基本情報と親族構成、法定相続分および年齢" },
   { key: "balance", title: "貸借対照表", description: "現在価値と相続時予測による資産・負債の構成" },
-  { key: "tax-calculation", title: "相続税の概算", description: "概算税額、計算根拠および相続人別の税額内訳" },
+  { key: "tax-calculation", title: "相続税の概算", description: "概算税額および計算根拠" },
   { key: "details", title: "資産・負債明細", description: "資産、負債および保証債務の明細" },
   { key: "history", title: "年度比較", description: "年度ごとの残高推移と比較" },
 ];
@@ -539,8 +541,9 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     section === "profile" || section === "family" ? "profile-family"
         : section === "balance" ? "balance"
           : section === "positions" ? "details"
-            : section === "history" ? "history"
-              : null;
+            : section === "tax" ? "tax-calculation"
+              : section === "history" ? "history"
+                : null;
   const includedPrintSections = printSections
     ? PRINT_SECTION_META.map(({ key }) => key).filter((key) => printSections.has(key))
     : currentPrintSection ? [currentPrintSection] : [];
@@ -677,10 +680,21 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
               </section>
             </div>
           ) : null}
-          {reportSnapshot.inheritanceTaxCalculation && (section === "balance" || printSections?.has("tax-calculation")) ? <div
+          {(section === "tax" || printSections?.has("tax-calculation")) ? <div
             id="print-section-tax-calculation"
-            className={`report-document tax-calculation-document ${section !== "balance" ? "print-only-document" : ""} ${printSections && !printSections.has("tax-calculation") ? "print-excluded-document" : ""}`}
-          ><InheritanceTaxReport household={portfolio.household} snapshot={reportSnapshot} planning={portfolio.planning} calculation={reportSnapshot.inheritanceTaxCalculation} /></div> : null}
+            className={`report-document tax-calculation-document ${section !== "tax" ? "print-only-document" : ""} ${printSections && !printSections.has("tax-calculation") ? "print-excluded-document" : ""}`}
+          >
+            {section === "tax" && reportSnapshot.isCurrent ? <div className="tax-section-toolbar">
+              <button className="button secondary tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : reportSnapshot.inheritanceTaxCalculation ? "APIで再計算" : "APIで相続税を計算"}</button>
+            </div> : null}
+            {reportSnapshot.inheritanceTaxCalculation
+              ? <>
+                <InheritanceTaxReport household={portfolio.household} snapshot={reportSnapshot} planning={portfolio.planning} calculation={reportSnapshot.inheritanceTaxCalculation} onRecalculate={section === "tax" && reportSnapshot.isCurrent ? () => void calculateInheritanceTaxViaApi() : undefined} recalculating={taxApiStatus === "loading"} />
+                {section === "tax" && portfolio.planning.hasSpouse && portfolio.planning.heirRank === "rank1" ? <SecondaryInheritanceSimulator householdId={portfolio.household.id} /> : null}
+              </>
+              : section === "tax" ? <div className="tax-empty-state" role="note"><Calculator /><p>まだ相続税の概算を計算していません。</p><p>{reportSnapshot.isCurrent ? "上のボタンから、現在のB/Sと親族関係をもとに概算税額を計算できます。" : "概算は現在年度のB/Sで計算してください。"}</p></div>
+              : null}
+          </div> : null}
 
           {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditSettings={() => setSnapshotSettingsModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
@@ -694,7 +708,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       {bulkModalOpen && workingSnapshot ? <BulkPositionModal snapshot={workingSnapshot} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /> : null}
       {deletingPosition ? <DeletePositionModal position={deletingPosition} onClose={() => setDeletingPosition(null)} onDelete={() => void deletePosition()} saving={saving} /> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
-      {forecastModalOpen ? <ForecastModal planning={portfolio.planning} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
+      {forecastModalOpen ? <ForecastModal planning={portfolio.planning} members={portfolio.familyMembers} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}
       {snapshotSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal snapshot={workingSnapshot} onClose={() => setSnapshotSettingsModalOpen(false)} onSubmit={saveSnapshotSettings} saving={saving} /> : null}
       {clientDeleteOpen ? <ClientDeleteModal household={portfolio.household} snapshotCount={portfolio.snapshots.length} positionCount={portfolio.snapshots.reduce((count, snapshot) => count + snapshot.positions.length, 0)} error={error} saving={saving} onClose={() => setClientDeleteOpen(false)} onSubmit={deleteClient} /> : null}

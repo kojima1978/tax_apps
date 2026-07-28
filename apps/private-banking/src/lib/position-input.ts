@@ -42,6 +42,7 @@ const assetDetailsSchema = z.object({
   propertyType: optionalDetailText,
   propertyAddress: optionalDetailText,
   landCategory: optionalDetailText,
+  smallLotType: optionalDetailText,
   buildingType: optionalDetailText,
   buildingStructure: optionalDetailText,
   floorArea: optionalDetailNumber,

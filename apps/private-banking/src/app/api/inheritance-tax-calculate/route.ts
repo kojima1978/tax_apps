@@ -56,12 +56,15 @@ export async function POST(request: Request) {
 
   const estimatedInheritanceTax = new Prisma.Decimal(calculation.data.totalInheritanceTaxJpy);
   const inheritanceTaxUpdatedAt = new Date(calculation.data.calculatedAt);
+  const smallLotApplied = integration.source.smallLotReductionJpy > 0;
   const calculationRecord = {
     ...calculation.data,
     source: integration.source,
     warnings: [
       "B/S登録額を基礎とした概算です。相続税評価額との差異を確認してください。",
-      "小規模宅地等の特例、葬式費用、生前贈与加算、未成年者・障害者控除等はこの概算に含めていません。",
+      smallLotApplied
+        ? "小規模宅地等の特例は選択した宅地ごとに減額割合・限度面積を概算適用しています。複数宅地の限度面積調整・選択替えや要件充足の判定は行っていません。"
+        : "小規模宅地等の特例、葬式費用、生前贈与加算、未成年者・障害者控除等はこの概算に含めていません。",
       "実際の遺産分割により配偶者の税額軽減および各人の納付税額は変動します。",
     ],
   };

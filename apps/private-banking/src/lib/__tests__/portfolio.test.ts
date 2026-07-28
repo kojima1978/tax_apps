@@ -129,6 +129,33 @@ describe("getPortfolio", () => {
     expect(first.positions[0].createdAt).toBe("2026-01-10T00:00:00.000Z");
   });
 
+  it("親族関係の明細があれば家族構成は明細から導出し、household の簡易入力値は使わない", async () => {
+    // household は hasSpouse:true / heirRank:1 / heirCount:3 だが、明細は配偶者＋子1人。
+    prismaMock.household.findUnique.mockResolvedValue(household);
+    const member = (relationship: string, sortOrder: number) => ({
+      id: sortOrder + 1,
+      name: relationship,
+      nameKana: "",
+      relationship,
+      acquisitionReason: "INHERITANCE",
+      civilShareNumerator: null,
+      civilShareDenominator: null,
+      taxShareNumerator: null,
+      taxShareDenominator: null,
+      specialTaxAddition: false,
+      disabilityCategory: "NONE",
+      birthDate: null,
+      note: "",
+      sortOrder,
+    });
+    prismaMock.familyMember.findMany.mockResolvedValue([member("SPOUSE", 0), member("CHILD", 1)]);
+
+    const portfolio = await getPortfolio(7);
+    expect(portfolio.planning.hasSpouse).toBe(true);
+    expect(portfolio.planning.heirRank).toBe("rank1");
+    expect(portfolio.planning.heirCount).toBe(1);
+  });
+
   it("年度は現在→年度降順で取得する", async () => {
     prismaMock.household.findUnique.mockResolvedValue(household);
     await getPortfolio(7);

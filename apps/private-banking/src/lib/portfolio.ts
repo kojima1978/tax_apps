@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { familyComposition, type AcquisitionReason, type Relationship } from "@/lib/family";
 import { parseInheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 import { prisma } from "@/lib/prisma";
 
@@ -41,6 +42,15 @@ export async function getPortfolio(householdId?: number) {
     orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
   });
 
+  // 家族構成は親族関係タブの明細を唯一の真実の源とする。
+  // 明細が1件でもあれば明細から導出し、明細が空のときだけ household に保存した簡易入力値を使う。
+  const composition = familyMembers.length > 0
+    ? familyComposition(familyMembers.map((member) => ({
+      relationship: member.relationship as Relationship,
+      acquisitionReason: member.acquisitionReason as AcquisitionReason,
+    })))
+    : { hasSpouse: household.hasSpouse, heirRank: household.heirRank as "none" | "rank1" | "rank2" | "rank3", heirCount: household.heirCount };
+
   return {
     household: {
       id: household.id,
@@ -56,9 +66,9 @@ export async function getPortfolio(householdId?: number) {
       otherTaxes: toNumber(household.otherTaxes),
       successionCosts: toNumber(household.successionCosts),
       inheritanceTaxUpdatedAt: household.inheritanceTaxUpdatedAt?.toISOString() ?? null,
-      hasSpouse: household.hasSpouse,
-      heirRank: household.heirRank,
-      heirCount: household.heirCount,
+      hasSpouse: composition.hasSpouse,
+      heirRank: composition.heirRank,
+      heirCount: composition.heirCount,
     },
     familyMembers: familyMembers.map((member) => ({
       id: member.id,

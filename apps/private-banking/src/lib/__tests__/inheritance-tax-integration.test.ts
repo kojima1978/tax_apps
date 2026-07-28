@@ -84,4 +84,37 @@ describe("createInheritanceTaxRequest", () => {
       contracts: [{ deathBenefitJpy: 30_000_000, beneficiaryIsLegalHeir: true }],
     });
   });
+
+  it("小規模宅地等の特例を選択した宅地は減額して遺産額へ反映する", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      snapshots: [{
+        ...portfolio.snapshots[0],
+        positions: [
+          // 特定居住用（80%・限度330㎡）: 面積165㎡は限度内なので全額の80%減額 → 8,000万円
+          { side: "ASSET", category: "HOME_REAL_ESTATE", valueJpy: 100_000_000, landArea: 165, assetDetails: { smallLotType: "RESIDENTIAL" } },
+          { side: "LIABILITY", valueJpy: 20_000_000, includedInNetWorth: true },
+        ],
+      }],
+    } as unknown as Portfolio);
+
+    expect(result.source.smallLotReductionJpy).toBe(80_000_000);
+    // 正味財産 8,000万 − 減額 8,000万 = 0
+    expect(result.request.estateValueJpy).toBe(0);
+  });
+
+  it("限度面積を超える宅地は面積按分で減額する", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      snapshots: [{
+        ...portfolio.snapshots[0],
+        positions: [
+          // 貸付事業用（50%・限度200㎡）: 面積400㎡は限度200㎡分のみ → 50% × (200/400) = 25%減額 → 2,500万円
+          { side: "ASSET", category: "IDLE_REAL_ESTATE", valueJpy: 100_000_000, landArea: 400, assetDetails: { smallLotType: "RENTAL" } },
+        ],
+      }],
+    } as unknown as Portfolio);
+
+    expect(result.source.smallLotReductionJpy).toBe(25_000_000);
+  });
 });

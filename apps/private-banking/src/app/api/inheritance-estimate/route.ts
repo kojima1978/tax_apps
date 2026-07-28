@@ -43,9 +43,14 @@ export async function PUT(request: Request) {
   if (parsed.data.successionCosts !== undefined) {
     data.successionCosts = new Prisma.Decimal(Math.round(parsed.data.successionCosts));
   }
-  if (parsed.data.hasSpouse !== undefined) data.hasSpouse = parsed.data.hasSpouse;
-  if (parsed.data.heirRank !== undefined) data.heirRank = parsed.data.heirRank;
-  if (parsed.data.heirCount !== undefined) data.heirCount = parsed.data.heirCount;
+  // 家族構成は親族関係タブの明細を唯一の真実の源とする。明細が1件でもあれば、
+  // 簡易入力（hasSpouse/heirRank/heirCount）は受け付けず明細から導出した値を優先する。
+  const familyMemberCount = await prisma.familyMember.count({ where: { householdId: household.id } });
+  if (familyMemberCount === 0) {
+    if (parsed.data.hasSpouse !== undefined) data.hasSpouse = parsed.data.hasSpouse;
+    if (parsed.data.heirRank !== undefined) data.heirRank = parsed.data.heirRank;
+    if (parsed.data.heirCount !== undefined) data.heirCount = parsed.data.heirCount;
+  }
 
   const updated = await prisma.$transaction(async (tx) => {
     const updatedHousehold = await tx.household.update({ where: { id: household.id }, data });
