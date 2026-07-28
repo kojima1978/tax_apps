@@ -227,7 +227,9 @@ const ClassificationUndo = {
                 '<button type="button" class="btn btn-light btn-sm">元に戻す</button>' +
                 '<button type="button" class="classification-undo-close" aria-label="閉じる"><i class="bi bi-x-lg" aria-hidden="true"></i></button>';
             document.body.appendChild(this._bar);
-            this._bar.querySelector('.btn').addEventListener('click', this.undo.bind(this));
+            this._bar.querySelector('.btn').addEventListener('click', function() {
+                ClassificationUndo.undo();
+            });
             this._bar.querySelector('.classification-undo-close').addEventListener('click', this.hide.bind(this));
         }
 
@@ -238,7 +240,7 @@ const ClassificationUndo = {
     },
 
     undo: function(changeGroup, triggerButton, expectedCount) {
-        var group = changeGroup || this._changeGroup;
+        var group = typeof changeGroup === 'string' ? changeGroup : this._changeGroup;
         if (!group) return;
         var formData = createFormData({
             action: 'undo_classification_change',

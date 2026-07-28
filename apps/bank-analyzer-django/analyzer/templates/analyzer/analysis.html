@@ -715,7 +715,7 @@
 {% if not no_data %}
 <script src="{% static 'analyzer/js/utils.js' %}"></script>
 <script>window.BANK_TO_ACCOUNTS = {{ bank_to_accounts_json|safe }};</script>
-<script src="{% static 'analyzer/js/analysis_core.js' %}"></script>
+<script src="{% static 'analyzer/js/analysis_core.js' %}?v=20260729-undo"></script>
 <script src="{% static 'analyzer/js/analysis_transactions.js' %}"></script>
 <script src="{% static 'analyzer/js/analysis_sidebar.js' %}?v=20260728-tabs"></script>
 <script src="{% static 'analyzer/js/analysis_patterns.js' %}"></script>
