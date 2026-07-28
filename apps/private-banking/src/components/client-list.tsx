@@ -8,6 +8,7 @@ import { ClientFields } from "@/components/client-fields";
 import { PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary, filterClients, highlightRanges, searchTerms } from "@/lib/clients";
+import { defaultAsOfDate } from "@/lib/snapshot-date";
 
 /** 顧客ページのうち、一覧から最初に開く画面。 */
 export const CLIENT_HOME_SECTION = "balance";
@@ -174,6 +175,15 @@ function ClientCreateModal({ error, saving, onClose, onSubmit }: {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const currentYear = new Date().getFullYear();
+  const [fiscalYear, setFiscalYear] = useState(String(currentYear));
+  const [asOfDate, setAsOfDate] = useState(defaultAsOfDate(currentYear));
+
+  function changeFiscalYear(value: string) {
+    setFiscalYear(value);
+    const year = Number(value);
+    if (Number.isInteger(year) && year >= 1900 && year <= 2200) setAsOfDate(defaultAsOfDate(year));
+  }
+
   return <div className="modal-layer" role="presentation"><div className="modal client-switcher-modal" role="dialog" aria-modal="true" aria-labelledby="client-create-title">
     <header><div><p className="eyebrow">CLIENTS</p><h2 id="client-create-title">顧客を追加</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <form className="client-create-form" onSubmit={onSubmit}>
@@ -181,7 +191,8 @@ function ClientCreateModal({ error, saving, onClose, onSubmit }: {
       {error ? <p className="client-modal-error" role="alert"><AlertTriangle />{error}</p> : null}
       <div className="form-grid client-create-grid">
         <ClientFields autoFocus />
-        <label>開始年度<input name="fiscalYear" type="number" min="1900" max="2200" defaultValue={currentYear} required /></label>
+        <label>開始年度<input name="fiscalYear" type="number" min="1900" max="2200" value={fiscalYear} onChange={(event) => changeFiscalYear(event.target.value)} required /></label>
+        <label>B/S基準日<input name="asOfDate" type="date" min={`${fiscalYear}-01-01`} max={`${fiscalYear}-12-31`} value={asOfDate} onChange={(event) => setAsOfDate(event.target.value)} aria-describedby="client-as-of-date-help" required /><small id="client-as-of-date-help" className="field-help">初期値は年度の1月1日です。必要な場合だけ変更してください。</small></label>
       </div>
       <footer>
         <button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button>

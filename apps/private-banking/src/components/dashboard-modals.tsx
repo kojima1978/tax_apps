@@ -2,36 +2,11 @@
 
 import { AlertTriangle, ChevronRight, CircleCheck, LoaderCircle, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { ClientFields } from "@/components/client-fields";
 import { compactYen } from "@/lib/format";
 import { type Portfolio, type PrintSection, type Section, type Snapshot, fiscalYearLabel, trendValues } from "@/lib/portfolio-view";
+import { defaultAsOfDate } from "@/lib/snapshot-date";
 
 /** ダッシュボード全体で使うモーダル群（顧客・年度・印刷・相続税）。 */
-
-export function ClientEditModal({ household, error, saving, onClose, onSubmit, onRequestDelete }: {
-  household: Portfolio["household"];
-  error: string;
-  saving: boolean;
-  onClose: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onRequestDelete: () => void;
-}) {
-  return <div className="modal-layer" role="presentation"><div className="modal client-switcher-modal" role="dialog" aria-modal="true" aria-labelledby="client-edit-title">
-    <header><div><p className="eyebrow">CLIENT</p><h2 id="client-edit-title">顧客情報を編集</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
-    <form className="client-create-form" onSubmit={onSubmit}>
-      <p className="client-modal-guidance">かなを登録しておくと、顧客一覧の検索でかな入力からも探せます。</p>
-      {error ? <p className="client-modal-error" role="alert"><AlertTriangle />{error}</p> : null}
-      <div className="form-grid client-create-grid"><ClientFields defaults={household} autoFocus /></div>
-      <footer className="client-edit-footer">
-        <button type="button" className="text-button danger-text-button" onClick={onRequestDelete} disabled={saving}><Trash2 />この顧客を削除</button>
-        <div className="client-edit-footer-actions">
-          <button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button>
-          <button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button>
-        </div>
-      </footer>
-    </form>
-  </div></div>;
-}
 
 export function ClientDeleteModal({ household, snapshotCount, positionCount, error, saving, onClose, onSubmit }: {
   household: Portfolio["household"];
@@ -59,11 +34,16 @@ export function ClientDeleteModal({ household, snapshotCount, positionCount, err
 
 export function PrintGuideModal({ section, onClose, onPrint }: { section: Section; onClose: () => void; onPrint: (sections: PrintSection[]) => void }) {
   const options: Array<{ value: PrintSection; label: string }> = [
+    { value: "profile-family", label: "本人・家族情報" },
     { value: "balance", label: "貸借対照表" },
     { value: "details", label: "資産・負債明細" },
     { value: "history", label: "年度比較" },
   ];
-  const defaultSection: PrintSection = section === "balance" ? "balance" : section === "positions" ? "details" : "history";
+  const defaultSection: PrintSection =
+    section === "profile" || section === "family" ? "profile-family"
+        : section === "balance" ? "balance"
+          : section === "positions" ? "details"
+            : "history";
   const [selected, setSelected] = useState<Set<PrintSection>>(() => new Set([defaultSection]));
 
   function toggleSection(section: PrintSection) {
@@ -98,6 +78,7 @@ export function YearCreationModal({ snapshots, initialSourceId, onClose, onSubmi
   const [creationMode, setCreationMode] = useState<"COPY" | "BLANK">("COPY");
   const [sourceId, setSourceId] = useState(initialSource.id);
   const [fiscalYear, setFiscalYear] = useState(String(initialSource.fiscalYear + 1));
+  const [asOfDate, setAsOfDate] = useState(defaultAsOfDate(initialSource.fiscalYear + 1));
   const source = snapshots.find((snapshot) => snapshot.id === sourceId) ?? initialSource;
   const targetYear = Number(fiscalYear);
   const validTargetYear = Number.isInteger(targetYear) && targetYear >= 1900 && targetYear <= 2200;
@@ -108,7 +89,15 @@ export function YearCreationModal({ snapshots, initialSourceId, onClose, onSubmi
     const nextSource = snapshots.find((snapshot) => snapshot.id === nextSourceId);
     if (!nextSource) return;
     setSourceId(nextSource.id);
-    setFiscalYear(String(nextSource.fiscalYear + 1));
+    const nextFiscalYear = nextSource.fiscalYear + 1;
+    setFiscalYear(String(nextFiscalYear));
+    setAsOfDate(defaultAsOfDate(nextFiscalYear));
+  }
+
+  function changeFiscalYear(value: string) {
+    setFiscalYear(value);
+    const year = Number(value);
+    if (Number.isInteger(year) && year >= 1900 && year <= 2200) setAsOfDate(defaultAsOfDate(year));
   }
 
   return <div className="modal-layer" role="presentation"><div className="modal year-creation-modal" role="dialog" aria-modal="true" aria-labelledby="year-creation-title">
@@ -121,7 +110,8 @@ export function YearCreationModal({ snapshots, initialSourceId, onClose, onSubmi
       </div></fieldset>
       <div className={`form-grid year-creation-grid ${creationMode === "BLANK" ? "blank-mode" : ""}`}>
         {creationMode === "COPY" ? <label>コピー元年度<select name="sourceSnapshotId" value={sourceId} onChange={(event) => changeSource(Number(event.target.value))} disabled={saving}>{orderedSnapshots.map((snapshot) => <option key={snapshot.id} value={snapshot.id}>{fiscalYearLabel(snapshot)}{snapshot.isCurrent ? "（現在）" : ""}</option>)}</select></label> : <input type="hidden" name="sourceSnapshotId" value={sourceId} />}
-        <label>作成年度<input name="fiscalYear" type="number" min="1900" max="2200" step="1" value={fiscalYear} onChange={(event) => setFiscalYear(event.target.value)} required disabled={saving} /></label>
+        <label>作成年度<input name="fiscalYear" type="number" min="1900" max="2200" step="1" value={fiscalYear} onChange={(event) => changeFiscalYear(event.target.value)} required disabled={saving} /></label>
+        <label>B/S基準日<input name="asOfDate" type="date" min={validTargetYear ? `${targetYear}-01-01` : undefined} max={validTargetYear ? `${targetYear}-12-31` : undefined} value={asOfDate} onChange={(event) => setAsOfDate(event.target.value)} aria-describedby="year-as-of-date-help" required disabled={saving} /><small id="year-as-of-date-help" className="field-help">初期値は年度の1月1日です。</small></label>
       </div>
       {validTargetYear && creationMode === "COPY" ? <div className="year-copy-preview" aria-label={`${source.fiscalYear}年度から${targetYear}年度へコピー`}><span>{source.fiscalYear}年度</span><ChevronRight /><strong>{targetYear}年度</strong></div> : null}
       {validTargetYear && creationMode === "BLANK" ? <div className="year-blank-preview" aria-label={`${targetYear}年度を空の状態で作成`}><strong>{targetYear}年度</strong><span>資産・負債・偶発債務 0件／税金 0円</span></div> : null}
@@ -156,8 +146,8 @@ export function DeleteSnapshotModal({ snapshot, snapshotCount, onClose, onSubmit
   </div></div>;
 }
 
-export function SnapshotTaxModal({ snapshot, onClose, onSubmit, saving }: { snapshot: Snapshot; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
-  return <div className="modal-layer" role="presentation"><div className="modal snapshot-tax-modal" role="dialog" aria-modal="true" aria-labelledby="snapshot-tax-title"><header><div><p className="eyebrow">TAX EDIT</p><h2 id="snapshot-tax-title">{fiscalYearLabel(snapshot)}の税金を修正</h2></div><button className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header><form onSubmit={onSubmit}><p className="form-intro">選択年度の税額だけを修正します。</p><div className="form-grid"><label>相続税<input name="estimatedInheritanceTax" type="number" min="0" step="1" defaultValue={snapshot.estimatedInheritanceTax} required /></label><label>その他税金<input name="otherTaxes" type="number" min="0" step="1" defaultValue={snapshot.otherTaxes} required /></label></div><footer><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button></footer></form></div></div>;
+export function SnapshotSettingsModal({ snapshot, onClose, onSubmit, saving }: { snapshot: Snapshot; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
+  return <div className="modal-layer" role="presentation"><div className="modal snapshot-tax-modal" role="dialog" aria-modal="true" aria-labelledby="snapshot-settings-title"><header><div><p className="eyebrow">FISCAL YEAR SETTINGS</p><h2 id="snapshot-settings-title">{fiscalYearLabel(snapshot)}の年度設定</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header><form onSubmit={onSubmit}><p className="form-intro">B/S基準日と、この年度の税額を修正します。</p><div className="form-grid snapshot-settings-grid"><label className="snapshot-date-field">B/S基準日<input name="asOfDate" type="date" min={`${snapshot.fiscalYear}-01-01`} max={`${snapshot.fiscalYear}-12-31`} defaultValue={snapshot.asOfDate} aria-describedby="snapshot-as-of-date-help" required /><small id="snapshot-as-of-date-help" className="field-help">対象年度内の日付を指定してください。</small></label><label>相続税<input name="estimatedInheritanceTax" type="number" min="0" step="1" defaultValue={snapshot.estimatedInheritanceTax} required /></label><label>その他税金<input name="otherTaxes" type="number" min="0" step="1" defaultValue={snapshot.otherTaxes} required /></label></div><footer><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button></footer></form></div></div>;
 }
 
 export function ForecastModal({ planning, onClose, onSubmit, saving }: { planning: Portfolio["planning"]; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {

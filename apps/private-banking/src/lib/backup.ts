@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import type { Household, Position, Snapshot } from "@prisma/client";
+import type { FamilyMember, Household, Position, Snapshot } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
@@ -26,6 +26,7 @@ function serializeHousehold(household: Household) {
     clientCode: household.clientCode,
     name: household.name,
     nameKana: household.nameKana,
+    birthDate: household.birthDate ? dateOnly(household.birthDate) : null,
     assignedStaff: household.assignedStaff,
     currency: household.currency,
     estimatedInheritanceTax: decimalText(household.estimatedInheritanceTax),
@@ -89,12 +90,35 @@ function serializePosition(position: Position) {
   };
 }
 
+function serializeFamilyMember(member: FamilyMember) {
+  return {
+    id: member.id,
+    householdId: member.householdId,
+    name: member.name,
+    nameKana: member.nameKana,
+    relationship: member.relationship,
+    acquisitionReason: member.acquisitionReason,
+    civilShareNumerator: member.civilShareNumerator,
+    civilShareDenominator: member.civilShareDenominator,
+    taxShareNumerator: member.taxShareNumerator,
+    taxShareDenominator: member.taxShareDenominator,
+    specialTaxAddition: member.specialTaxAddition,
+    disabilityCategory: member.disabilityCategory,
+    birthDate: member.birthDate ? dateOnly(member.birthDate) : null,
+    note: member.note,
+    sortOrder: member.sortOrder,
+    createdAt: member.createdAt.toISOString(),
+    updatedAt: member.updatedAt.toISOString(),
+  };
+}
+
 /** 全顧客ぶんをテーブル単位で書き出す（ID・シーケンスまで含めた完全復元用）。 */
 export async function exportAll() {
-  const [households, snapshots, positions] = await Promise.all([
+  const [households, snapshots, positions, familyMembers] = await Promise.all([
     prisma.household.findMany({ orderBy: { id: "asc" } }),
     prisma.snapshot.findMany({ orderBy: { id: "asc" } }),
     prisma.position.findMany({ orderBy: { id: "asc" } }),
+    prisma.familyMember.findMany({ orderBy: { id: "asc" } }),
   ]);
 
   return {
@@ -106,6 +130,7 @@ export async function exportAll() {
       households: households.map(serializeHousehold),
       snapshots: snapshots.map(serializeSnapshot),
       positions: positions.map(serializePosition),
+      familyMembers: familyMembers.map(serializeFamilyMember),
     },
   };
 }
@@ -115,6 +140,7 @@ export async function exportHousehold(householdId: number) {
   const household = await prisma.household.findUnique({
     where: { id: householdId },
     include: {
+      familyMembers: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
       snapshots: {
         orderBy: { fiscalYear: "asc" },
         include: { positions: { orderBy: [{ side: "asc" }, { sortOrder: "asc" }] } },
@@ -129,6 +155,7 @@ export async function exportHousehold(householdId: number) {
     source: "private-banking",
     exportedAt: new Date().toISOString(),
     household: omit(serializeHousehold(household), ["id", "createdAt", "updatedAt"]),
+    familyMembers: household.familyMembers.map((member) => omit(serializeFamilyMember(member), ["id", "householdId", "createdAt", "updatedAt"])),
     snapshots: household.snapshots.map((snapshot) => ({
       ...omit(serializeSnapshot(snapshot), ["id", "householdId", "createdAt", "updatedAt"]),
       positions: snapshot.positions.map((position) => omit(serializePosition(position), ["id", "snapshotId", "createdAt", "updatedAt"])),
@@ -147,6 +174,7 @@ const householdFieldsSchema = z.object({
   name: z.string().trim().min(1).max(100),
   // かなは後から追加した項目のため、旧バックアップファイルでも取り込めるよう既定値を持たせる。
   nameKana: z.string().max(100).default(""),
+  birthDate: z.string().nullable().default(null),
   assignedStaff: z.string().max(100).default(""),
   currency: z.string().max(10).default("JPY"),
   estimatedInheritanceTax: decimalLike.default(0),
@@ -195,6 +223,22 @@ const positionFieldsSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
+const familyMemberFieldsSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  nameKana: z.string().max(100).default(""),
+  relationship: z.string().min(1),
+  acquisitionReason: z.string().default("INHERITANCE"),
+  civilShareNumerator: z.number().int().min(0).nullable().optional(),
+  civilShareDenominator: z.number().int().positive().nullable().optional(),
+  taxShareNumerator: z.number().int().min(0).nullable().optional(),
+  taxShareDenominator: z.number().int().positive().nullable().optional(),
+  specialTaxAddition: z.boolean().default(false),
+  disabilityCategory: z.string().default("NONE"),
+  birthDate: z.string().min(10).nullable().optional(),
+  note: z.string().default(""),
+  sortOrder: z.number().int().default(0),
+});
+
 const timestampsSchema = z.object({ createdAt: timestamp, updatedAt: timestamp });
 
 export const fullBackupSchema = z.object({
@@ -205,6 +249,7 @@ export const fullBackupSchema = z.object({
     households: z.array(householdFieldsSchema.extend({ id: z.number().int().positive() }).merge(timestampsSchema)),
     snapshots: z.array(snapshotFieldsSchema.extend({ id: z.number().int().positive(), householdId: z.number().int().positive() }).merge(timestampsSchema)),
     positions: z.array(positionFieldsSchema.extend({ id: z.number().int().positive(), snapshotId: z.number().int().positive() }).merge(timestampsSchema)),
+    familyMembers: z.array(familyMemberFieldsSchema.extend({ id: z.number().int().positive(), householdId: z.number().int().positive() }).merge(timestampsSchema)).default([]),
   }),
 });
 
@@ -213,6 +258,7 @@ export const householdBackupSchema = z.object({
   kind: z.literal("household"),
   exportedAt: z.string().optional(),
   household: householdFieldsSchema,
+  familyMembers: z.array(familyMemberFieldsSchema).default([]),
   snapshots: z.array(snapshotFieldsSchema.extend({ positions: z.array(positionFieldsSchema).default([]) })),
 });
 
@@ -231,12 +277,14 @@ const toJson = (value: Record<string, unknown> | null | undefined) =>
 type HouseholdFields = z.infer<typeof householdFieldsSchema>;
 type SnapshotFields = z.infer<typeof snapshotFieldsSchema>;
 type PositionFields = z.infer<typeof positionFieldsSchema>;
+type FamilyMemberFields = z.infer<typeof familyMemberFieldsSchema>;
 
 function householdData(row: HouseholdFields) {
   return {
     clientCode: row.clientCode,
     name: row.name,
     nameKana: row.nameKana,
+    birthDate: row.birthDate === null ? null : toDateOnly(row.birthDate),
     assignedStaff: row.assignedStaff,
     currency: row.currency,
     estimatedInheritanceTax: toDecimal(row.estimatedInheritanceTax),
@@ -290,11 +338,29 @@ function positionData(row: PositionFields) {
   };
 }
 
-const SEQUENCE_TABLES = ["Household", "Snapshot", "Position"] as const;
+function familyMemberData(row: FamilyMemberFields) {
+  return {
+    name: row.name,
+    nameKana: row.nameKana,
+    relationship: row.relationship,
+    acquisitionReason: row.acquisitionReason,
+    civilShareNumerator: row.civilShareNumerator ?? null,
+    civilShareDenominator: row.civilShareDenominator ?? null,
+    taxShareNumerator: row.taxShareNumerator ?? null,
+    taxShareDenominator: row.taxShareDenominator ?? null,
+    specialTaxAddition: row.specialTaxAddition,
+    disabilityCategory: row.disabilityCategory,
+    birthDate: row.birthDate ? toDateOnly(row.birthDate) : null,
+    note: row.note,
+    sortOrder: row.sortOrder,
+  };
+}
+
+const SEQUENCE_TABLES = ["Household", "Snapshot", "Position", "FamilyMember"] as const;
 
 /** 既存データをすべて破棄し、バックアップの内容へ置き換える。 */
 export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
-  const { households, snapshots, positions } = backup.data;
+  const { households, snapshots, positions, familyMembers } = backup.data;
   if (households.length === 0) throw new BackupError("バックアップに顧客が1件も含まれていません。");
 
   const householdIds = new Set(households.map((household) => household.id));
@@ -303,6 +369,8 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
   if (orphanSnapshot) throw new BackupError(`年度データ（ID ${orphanSnapshot.id}）の顧客が見つかりません。バックアップが壊れている可能性があります。`);
   const orphanPosition = positions.find((position) => !snapshotIds.has(position.snapshotId));
   if (orphanPosition) throw new BackupError(`明細（ID ${orphanPosition.id}）の年度データが見つかりません。バックアップが壊れている可能性があります。`);
+  const orphanFamilyMember = familyMembers.find((member) => !householdIds.has(member.householdId));
+  if (orphanFamilyMember) throw new BackupError(`家族（ID ${orphanFamilyMember.id}）の顧客が見つかりません。バックアップが壊れている可能性があります。`);
 
   await prisma.$transaction(async (tx) => {
     await tx.position.deleteMany();
@@ -322,6 +390,11 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
     if (positions.length > 0) {
       await tx.position.createMany({
         data: positions.map((row) => ({ id: row.id, snapshotId: row.snapshotId, ...positionData(row), createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt) })),
+      });
+    }
+    if (familyMembers.length > 0) {
+      await tx.familyMember.createMany({
+        data: familyMembers.map((row) => ({ id: row.id, householdId: row.householdId, ...familyMemberData(row), createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt) })),
       });
     }
 
@@ -374,6 +447,7 @@ export async function importHousehold(backup: HouseholdBackup) {
           positions: { create: snapshot.positions.map(positionData) },
         })),
       },
+      familyMembers: { create: backup.familyMembers.map(familyMemberData) },
     },
     select: { id: true, clientCode: true, name: true },
   });

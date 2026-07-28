@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  AlertTriangle, Calculator, ChevronLeft, ChevronRight, Clock3, DatabaseBackup, History, LayoutDashboard, Link2,
-  LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Printer, ShieldCheck, WalletCards, X,
+  AlertTriangle, Calculator, ChevronLeft, ChevronRight, CircleUserRound, Clock3, DatabaseBackup, History, LayoutDashboard, Link2,
+  LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Printer, ShieldCheck, UsersRound, WalletCards, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,15 +10,19 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { BackupView } from "@/components/backup-view";
 import { BulkPositionModal } from "@/components/bulk-position-modal";
 import {
-  ClientDeleteModal, ClientEditModal, DeleteSnapshotModal, ForecastModal, PrintGuideModal, SnapshotTaxModal, YearCreationModal,
+  ClientDeleteModal, DeleteSnapshotModal, ForecastModal, PrintGuideModal, SnapshotSettingsModal, YearCreationModal,
 } from "@/components/dashboard-modals";
 import { HistoryView } from "@/components/history-view";
+import { FamilyView } from "@/components/family-view";
 import { PanelHeader } from "@/components/panel-header";
+import { PersonView } from "@/components/person-view";
 import { PortalLink } from "@/components/portal-link";
 import { DeletePositionModal, PositionModal } from "@/components/position-modal";
 import { AssetsView } from "@/components/positions-view";
+import { PersonFamilyPrintView } from "@/components/print-person-family";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary } from "@/lib/clients";
+import type { FamilyMemberDraft } from "@/lib/family";
 import { compactYen, dateJa, percent, unformatNumberInput } from "@/lib/format";
 import {
   type BalanceScenario,
@@ -37,6 +41,8 @@ import {
 const SECTIONS = [
   { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
   { key: "positions", label: "資産・負債明細", icon: WalletCards },
+  { key: "profile", label: "本人情報", icon: CircleUserRound },
+  { key: "family", label: "親族関係", icon: UsersRound },
   { key: "history", label: "年度比較", icon: History },
   { key: "backup", label: "バックアップ", icon: DatabaseBackup },
 ] as const satisfies ReadonlyArray<{ key: Section; label: string; icon: typeof LayoutDashboard }>;
@@ -54,6 +60,7 @@ function BsAmount({ value, total }: { value: number; total: number }) {
 }
 
 const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: string; description: string }> = [
+  { key: "profile-family", title: "本人・家族情報", description: "本人の基本情報と親族構成、法定相続分および年齢" },
   { key: "balance", title: "貸借対照表", description: "現在価値と相続時予測による資産・負債の構成" },
   { key: "details", title: "資産・負債明細", description: "資産、負債および保証債務の明細" },
   { key: "history", title: "年度比較", description: "年度ごとの残高推移と比較" },
@@ -126,11 +133,11 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   // 明細で開いている年度は URL のクエリで持ち、画面を移動しても選択が残るようにする。
   const workingSnapshotId = Number(searchParams.get("snapshot")) || null;
   const [yearCreationSourceId, setYearCreationSourceId] = useState<number | null>(null);
-  const [snapshotTaxModalOpen, setSnapshotTaxModalOpen] = useState(false);
+  const [snapshotSettingsModalOpen, setSnapshotSettingsModalOpen] = useState(false);
   const [printGuideOpen, setPrintGuideOpen] = useState(false);
   const [printSections, setPrintSections] = useState<Set<PrintSection> | null>(null);
-  const [clientEditOpen, setClientEditOpen] = useState(false);
   const [clientDeleteOpen, setClientDeleteOpen] = useState(false);
+  const [clientSaved, setClientSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [taxApiStatus, setTaxApiStatus] = useState<"idle" | "loading" | "success">("idle");
   const [error, setError] = useState("");
@@ -247,6 +254,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   async function saveClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
+    setClientSaved(false);
     setError("");
     try {
       const response = await fetch(`${API_BASE}/clients`, {
@@ -256,8 +264,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       });
       const result = await response.json().catch(() => null) as (ClientSummary & { error?: string }) | null;
       if (!response.ok || !result) throw new Error(result?.error ?? "顧客情報を保存できませんでした。");
-      setClientEditOpen(false);
       await load();
+      setClientSaved(true);
     } catch (clientError) {
       setError(clientError instanceof Error ? clientError.message : "顧客情報を保存できませんでした。");
     } finally {
@@ -431,7 +439,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     }
   }
 
-  async function saveSnapshotTaxes(event: FormEvent<HTMLFormElement>) {
+  async function saveSnapshotSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workingSnapshot) return;
     setSaving(true); setError("");
@@ -441,10 +449,11 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget).entries())),
       });
-      if (!response.ok) throw new Error();
-      setSnapshotTaxModalOpen(false);
+      const result = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(result?.error ?? "年度設定を保存できませんでした。");
+      setSnapshotSettingsModalOpen(false);
       await load();
-    } catch { setError("税金を修正できませんでした。"); }
+    } catch (error) { setError(error instanceof Error ? error.message : "年度設定を保存できませんでした。"); }
     finally { setSaving(false); }
   }
 
@@ -475,6 +484,28 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     finally { setSaving(false); }
   }
 
+  async function saveFamilyMembers(members: FamilyMemberDraft[]) {
+    if (!portfolio) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/family-members`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ householdId: portfolio.household.id, members }),
+      });
+      const result = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(result?.error ?? "家族情報を保存できませんでした。");
+      await load();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "家族情報を保存できませんでした。";
+      setError(message);
+      throw caught;
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function calculateInheritanceTaxViaApi() {
     if (!portfolio || taxApiStatus === "loading") return;
     setTaxApiStatus("loading");
@@ -503,7 +534,11 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   // 表示中の年度。?snapshot= が無効なときは現在年度にフォールバックする。
   const reportSnapshot = workingSnapshot ?? current;
   const currentPrintSection: PrintSection | null =
-    section === "balance" ? "balance" : section === "positions" ? "details" : section === "history" ? "history" : null;
+    section === "profile" || section === "family" ? "profile-family"
+        : section === "balance" ? "balance"
+          : section === "positions" ? "details"
+            : section === "history" ? "history"
+              : null;
   const includedPrintSections = printSections
     ? PRINT_SECTION_META.map(({ key }) => key).filter((key) => printSections.has(key))
     : currentPrintSection ? [currentPrintSection] : [];
@@ -536,13 +571,14 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
           <button className="menu-button" aria-label="メニューを開く" onClick={() => setMenuOpen(true)}><Menu /></button>
           <div className="topbar-subject">
             <Link className="back-to-list" href="/"><ChevronLeft />一覧に戻る</Link>
-            <button type="button" className="client-switcher-trigger" onClick={() => { setError(""); setClientEditOpen(true); }} aria-label={`顧客情報を編集。現在は${portfolio.household.name}`} aria-haspopup="dialog"><span><strong>{portfolio.household.name}</strong><em>{portfolio.household.clientCode}{portfolio.household.assignedStaff ? `・担当 ${portfolio.household.assignedStaff}` : ""}</em></span><Pencil /></button>
+            <button type="button" className="client-switcher-trigger" onClick={() => router.push(sectionHref("profile", null))} aria-label={`本人情報を開く。現在は${portfolio.household.name}`}><span><strong>{portfolio.household.name}</strong><em>{portfolio.household.clientCode}{portfolio.household.assignedStaff ? `・担当 ${portfolio.household.assignedStaff}` : ""}</em></span><Pencil /></button>
           </div>
-          <div className="top-actions"><span className="as-of" aria-label={`${reportSnapshot.isCurrent ? "現在" : fiscalYearLabel(reportSnapshot)}のB/S基準日 ${dateJa(reportSnapshot.asOfDate)}`}><Clock3 /><small>{reportSnapshot.isCurrent ? "現在B/S基準日" : `${fiscalYearLabel(reportSnapshot)}基準日`}</small><strong>{dateJa(reportSnapshot.asOfDate)}</strong></span><button className="button secondary" onClick={() => setPrintGuideOpen(true)}><Printer />印刷・PDF出力</button></div>
+          <div className="top-actions"><button type="button" className="as-of as-of-button" onClick={() => setSnapshotSettingsModalOpen(true)} aria-label={`${reportSnapshot.isCurrent ? "現在" : fiscalYearLabel(reportSnapshot)}のB/S基準日 ${dateJa(reportSnapshot.asOfDate)}。年度設定を開く`} aria-haspopup="dialog"><Clock3 /><small>{reportSnapshot.isCurrent ? "現在B/S基準日" : `${fiscalYearLabel(reportSnapshot)}基準日`}</small><strong>{dateJa(reportSnapshot.asOfDate)}</strong><Pencil className="as-of-edit-icon" aria-hidden="true" /></button><button className="button secondary" onClick={() => setPrintGuideOpen(true)}><Printer />印刷・PDF出力</button></div>
         </header>
 
         <main id="main-content" className="content">
           {error ? <div className="error-banner" role="alert"><AlertTriangle />{error}<button onClick={() => setError("")} aria-label="閉じる"><X /></button></div> : null}
+          {printSections?.has("profile-family") ? <div id="print-section-profile-family" className="report-document print-only-document"><PersonFamilyPrintView household={portfolio.household} members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} /></div> : null}
           {(section === "balance" || printSections?.has("balance")) ? (
             <div id="print-section-balance" className={`report-document ${section !== "balance" ? "print-only-document" : ""} ${printSections && !printSections.has("balance") ? "print-excluded-document" : ""}`}>
               <section className="page-heading detail-page-heading">
@@ -640,7 +676,9 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             </div>
           ) : null}
 
-          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditTaxes={() => setSnapshotTaxModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
+          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditSettings={() => setSnapshotSettingsModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
+          {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
+          {section === "family" ? <div className="report-document print-excluded-document"><FamilyView members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} saving={saving} onSave={saveFamilyMembers} /></div> : null}
           {(section === "history" || printSections?.has("history")) ? <div id="print-section-history" className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
           {section === "backup" ? <div className="report-document print-excluded-document"><BackupView scope="household" household={portfolio.household} /></div> : null}
         </main>
@@ -652,8 +690,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
       {forecastModalOpen ? <ForecastModal planning={portfolio.planning} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}
-      {snapshotTaxModalOpen && workingSnapshot ? <SnapshotTaxModal snapshot={workingSnapshot} onClose={() => setSnapshotTaxModalOpen(false)} onSubmit={saveSnapshotTaxes} saving={saving} /> : null}
-      {clientEditOpen ? <ClientEditModal household={portfolio.household} error={error} saving={saving} onClose={() => setClientEditOpen(false)} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientEditOpen(false); setClientDeleteOpen(true); }} /> : null}
+      {snapshotSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal snapshot={workingSnapshot} onClose={() => setSnapshotSettingsModalOpen(false)} onSubmit={saveSnapshotSettings} saving={saving} /> : null}
       {clientDeleteOpen ? <ClientDeleteModal household={portfolio.household} snapshotCount={portfolio.snapshots.length} positionCount={portfolio.snapshots.reduce((count, snapshot) => count + snapshot.positions.length, 0)} error={error} saving={saving} onClose={() => setClientDeleteOpen(false)} onSubmit={deleteClient} /> : null}
       {printGuideOpen ? <PrintGuideModal section={section} onClose={() => setPrintGuideOpen(false)} onPrint={(sections) => {
         setPrintSections(new Set(sections));

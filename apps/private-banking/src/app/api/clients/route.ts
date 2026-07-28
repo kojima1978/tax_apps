@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { defaultAsOfDate, isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
 
 const clientFieldsSchema = z.object({
   name: z.string().trim().min(1, "顧客名を入力してください。").max(100),
@@ -11,10 +12,24 @@ const clientFieldsSchema = z.object({
 
 const createClientSchema = clientFieldsSchema.extend({
   fiscalYear: z.coerce.number().int().min(1900).max(2200),
+  asOfDate: z.string().optional(),
+}).superRefine((data, context) => {
+  const asOfDate = data.asOfDate ?? defaultAsOfDate(data.fiscalYear);
+  if (!isAsOfDateForFiscalYear(asOfDate, data.fiscalYear)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["asOfDate"],
+      message: "B/S基準日は開始年度内の正しい日付を入力してください。",
+    });
+  }
 });
 
 const updateClientSchema = clientFieldsSchema.extend({
   id: z.coerce.number().int().positive(),
+  birthDate: z.string().default("").refine(
+    (value) => value === "" || parseDateOnlyUtc(value) !== null,
+    "生年月日は正しい日付を入力してください。",
+  ),
 });
 
 const deleteClientSchema = z.object({
@@ -41,6 +56,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const parsed = createClientSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "入力内容を確認してください。" }, { status: 400 });
+  const asOfDate = parseDateOnlyUtc(parsed.data.asOfDate ?? defaultAsOfDate(parsed.data.fiscalYear));
+  if (!asOfDate) return NextResponse.json({ error: "B/S基準日を確認してください。" }, { status: 400 });
   try {
     const created = await prisma.household.create({
       data: {
@@ -52,7 +69,7 @@ export async function POST(request: Request) {
           create: {
             label: "現在",
             fiscalYear: parsed.data.fiscalYear,
-            asOfDate: new Date(Date.UTC(parsed.data.fiscalYear, 11, 31)),
+            asOfDate,
             isCurrent: true,
           },
         },
@@ -71,11 +88,15 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const parsed = updateClientSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "入力内容を確認してください。" }, { status: 400 });
-  const { id, ...fields } = parsed.data;
+  const { id, birthDate, ...fields } = parsed.data;
   try {
     const updated = await prisma.household.update({
       where: { id },
-      data: { ...fields, clientCode: fields.clientCode.toUpperCase() },
+      data: {
+        ...fields,
+        birthDate: birthDate ? parseDateOnlyUtc(birthDate) : null,
+        clientCode: fields.clientCode.toUpperCase(),
+      },
       select: { id: true, clientCode: true, name: true, nameKana: true, assignedStaff: true },
     });
     return NextResponse.json(updated);

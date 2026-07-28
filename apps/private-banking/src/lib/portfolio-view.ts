@@ -1,4 +1,5 @@
 import { decimalToFraction, valuationNumber } from "@/lib/format";
+import type { FamilyMember } from "@/lib/family";
 
 /** 画面側で扱うポートフォリオの型。API (`/api/portfolio`) のレスポンスと対応する。 */
 export type Position = {
@@ -30,18 +31,19 @@ export type PositionSection = "ASSET" | "LIABILITY" | "CONTINGENT";
 export type PositionSortMode = "manual" | "classification-asc" | "classification-desc";
 export type ValuationFormula = "MANUAL" | "STOCK" | "LAND_ROADSIDE" | "LAND_MULTIPLIER" | "BUILDING";
 export type Portfolio = {
-  household: { id: number; clientCode: string; name: string; nameKana: string; assignedStaff: string; currency: string };
+  household: { id: number; clientCode: string; name: string; nameKana: string; birthDate: string | null; assignedStaff: string; currency: string };
   planning: {
     estimatedInheritanceTax: number; otherTaxes: number; successionCosts: number; inheritanceTaxUpdatedAt: string | null;
     hasSpouse: boolean; heirRank: "none" | "rank1" | "rank2" | "rank3"; heirCount: number;
   };
+  familyMembers: FamilyMember[];
   snapshots: Snapshot[];
 };
 /** サイドバーのメニュー key。そのまま URL の `/customers/<id>/<key>` になる。 */
-export type Section = "balance" | "positions" | "history" | "backup";
+export type Section = "balance" | "positions" | "profile" | "family" | "history" | "backup";
 export type BulkPositionPayload = Record<string, unknown>;
 export type BalanceScenario = "without-tax" | "with-tax";
-export type PrintSection = "balance" | "details" | "history";
+export type PrintSection = "profile-family" | "balance" | "details" | "history";
 
 export const categoryLabels: Record<string, string> = {
   DEPOSIT: "預金・現金", SECURITIES: "有価証券", HOME_REAL_ESTATE: "自宅", REAL_ESTATE: "収益不動産", IDLE_REAL_ESTATE: "遊休不動産",

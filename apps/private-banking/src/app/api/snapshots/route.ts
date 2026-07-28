@@ -1,19 +1,31 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { defaultAsOfDate, isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
 
 const duplicateYearMessage = (fiscalYear: number) =>
   `${fiscalYear}年度はすでに登録されています。同一年度には1件だけ登録できます。`;
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null) as { sourceSnapshotId?: unknown; fiscalYear?: unknown; creationMode?: unknown } | null;
-  const sourceSnapshotId = Number(body?.sourceSnapshotId);
-  const fiscalYear = Number(body?.fiscalYear);
-  const creationMode = body?.creationMode === undefined ? "COPY" : body.creationMode;
-
-  if (!Number.isInteger(sourceSnapshotId) || !Number.isInteger(fiscalYear) || fiscalYear < 1900 || fiscalYear > 2200 || !["COPY", "BLANK"].includes(String(creationMode))) {
+  const schema = z.object({
+    sourceSnapshotId: z.coerce.number().int().positive(),
+    fiscalYear: z.coerce.number().int().min(1900).max(2200),
+    creationMode: z.enum(["COPY", "BLANK"]).optional().default("COPY"),
+    asOfDate: z.string().optional(),
+  }).superRefine((data, context) => {
+    const asOfDate = data.asOfDate ?? defaultAsOfDate(data.fiscalYear);
+    if (!isAsOfDateForFiscalYear(asOfDate, data.fiscalYear)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["asOfDate"], message: "B/S基準日は作成年度内の正しい日付を入力してください。" });
+    }
+  });
+  const parsed = schema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json({ error: "作成方法と作成年度を正しく指定してください。" }, { status: 400 });
   }
+  const { sourceSnapshotId, fiscalYear, creationMode } = parsed.data;
+  const asOfDate = parseDateOnlyUtc(parsed.data.asOfDate ?? defaultAsOfDate(fiscalYear));
+  if (!asOfDate) return NextResponse.json({ error: "B/S基準日を確認してください。" }, { status: 400 });
 
   const source = await prisma.snapshot.findUnique({
     where: { id: sourceSnapshotId },
@@ -65,7 +77,7 @@ export async function POST(request: Request) {
         data: {
           householdId: source.householdId,
           label: becomesCurrent ? "現在" : `${fiscalYear}年度`,
-          asOfDate: new Date(Date.UTC(fiscalYear, 11, 31)),
+          asOfDate,
           fiscalYear,
           isCurrent: becomesCurrent,
           estimatedInheritanceTax: creationMode === "COPY" ? source.estimatedInheritanceTax : new Prisma.Decimal(0),

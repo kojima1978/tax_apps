@@ -2,8 +2,10 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
 
-const snapshotTaxSchema = z.object({
+const snapshotSettingsSchema = z.object({
+  asOfDate: z.string(),
   estimatedInheritanceTax: z.coerce.number().finite().min(0),
   otherTaxes: z.coerce.number().finite().min(0),
 });
@@ -15,18 +17,23 @@ const snapshotDeleteSchema = z.object({
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const snapshotId = Number(id);
-  const parsed = snapshotTaxSchema.safeParse(await request.json().catch(() => null));
+  const parsed = snapshotSettingsSchema.safeParse(await request.json().catch(() => null));
   if (!Number.isInteger(snapshotId) || !parsed.success) {
     return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
   }
 
   const snapshot = await prisma.snapshot.findUnique({ where: { id: snapshotId } });
   if (!snapshot) return NextResponse.json({ error: "対象年度が見つかりません。" }, { status: 404 });
+  if (!isAsOfDateForFiscalYear(parsed.data.asOfDate, snapshot.fiscalYear)) {
+    return NextResponse.json({ error: "B/S基準日は対象年度内の正しい日付を入力してください。" }, { status: 400 });
+  }
+  const asOfDate = parseDateOnlyUtc(parsed.data.asOfDate);
+  if (!asOfDate) return NextResponse.json({ error: "B/S基準日を確認してください。" }, { status: 400 });
 
   const estimatedInheritanceTax = new Prisma.Decimal(Math.round(parsed.data.estimatedInheritanceTax));
   const otherTaxes = new Prisma.Decimal(Math.round(parsed.data.otherTaxes));
   await prisma.$transaction(async (tx) => {
-    await tx.snapshot.update({ where: { id: snapshot.id }, data: { estimatedInheritanceTax, otherTaxes } });
+    await tx.snapshot.update({ where: { id: snapshot.id }, data: { asOfDate, estimatedInheritanceTax, otherTaxes } });
     if (snapshot.isCurrent) {
       await tx.household.update({
         where: { id: snapshot.householdId },

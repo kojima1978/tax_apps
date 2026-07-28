@@ -13,6 +13,7 @@ model Household {
   clientCode              String     @unique
   name                    String     @default("山田 太郎（サンプル）")
   nameKana                String     @default("")
+  birthDate               DateTime?  @db.Date
   assignedStaff           String     @default("")
   currency                String     @default("JPY")
   estimatedInheritanceTax Decimal    @default(0) @db.Decimal(24, 0)
@@ -22,9 +23,33 @@ model Household {
   hasSpouse               Boolean    @default(false)
   heirRank                String     @default("rank1")
   heirCount               Int        @default(1)
+  familyMembers           FamilyMember[]
   snapshots               Snapshot[]
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
+}
+
+model FamilyMember {
+  id                    Int       @id @default(autoincrement())
+  householdId           Int
+  household             Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name                  String
+  nameKana              String    @default("")
+  relationship          String
+  acquisitionReason     String    @default("INHERITANCE")
+  civilShareNumerator   Int?
+  civilShareDenominator Int?
+  taxShareNumerator     Int?
+  taxShareDenominator   Int?
+  specialTaxAddition    Boolean   @default(false)
+  disabilityCategory    String    @default("NONE")
+  birthDate             DateTime? @db.Date
+  note                  String    @default("")
+  sortOrder             Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([householdId, sortOrder])
 }
 
 model Snapshot {

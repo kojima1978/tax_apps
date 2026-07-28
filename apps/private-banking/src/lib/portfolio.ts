@@ -35,9 +35,21 @@ export async function getPortfolio(householdId?: number) {
     include: { positions: { orderBy: [{ side: "asc" }, { sortOrder: "asc" }] } },
     orderBy: [{ isCurrent: "desc" }, { fiscalYear: "desc" }],
   });
+  const familyMembers = await prisma.familyMember.findMany({
+    where: { householdId: household.id },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+  });
 
   return {
-    household: { id: household.id, clientCode: household.clientCode, name: household.name, nameKana: household.nameKana, assignedStaff: household.assignedStaff, currency: household.currency },
+    household: {
+      id: household.id,
+      clientCode: household.clientCode,
+      name: household.name,
+      nameKana: household.nameKana,
+      birthDate: household.birthDate?.toISOString().slice(0, 10) ?? null,
+      assignedStaff: household.assignedStaff,
+      currency: household.currency,
+    },
     planning: {
       estimatedInheritanceTax: toNumber(household.estimatedInheritanceTax),
       otherTaxes: toNumber(household.otherTaxes),
@@ -47,6 +59,22 @@ export async function getPortfolio(householdId?: number) {
       heirRank: household.heirRank,
       heirCount: household.heirCount,
     },
+    familyMembers: familyMembers.map((member) => ({
+      id: member.id,
+      name: member.name,
+      nameKana: member.nameKana,
+      relationship: member.relationship,
+      acquisitionReason: member.acquisitionReason,
+      civilShareNumerator: member.civilShareNumerator,
+      civilShareDenominator: member.civilShareDenominator,
+      taxShareNumerator: member.taxShareNumerator,
+      taxShareDenominator: member.taxShareDenominator,
+      specialTaxAddition: member.specialTaxAddition,
+      disabilityCategory: member.disabilityCategory,
+      birthDate: member.birthDate?.toISOString().slice(0, 10) ?? null,
+      note: member.note,
+      sortOrder: member.sortOrder,
+    })),
     snapshots: snapshots.map((snapshot) => ({
       id: snapshot.id,
       label: snapshot.label,

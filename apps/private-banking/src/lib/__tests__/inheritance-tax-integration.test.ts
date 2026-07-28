@@ -3,7 +3,7 @@ import type { Portfolio } from "@/lib/portfolio-view";
 import { createInheritanceTaxRequest } from "@/lib/inheritance-tax-integration";
 
 const portfolio = {
-  household: { id: 7, clientCode: "PB-000007", name: "山田 太郎", nameKana: "", assignedStaff: "", currency: "JPY" },
+  household: { id: 7, clientCode: "PB-000007", name: "山田 太郎", nameKana: "", birthDate: null, assignedStaff: "", currency: "JPY" },
   planning: {
     estimatedInheritanceTax: 0,
     otherTaxes: 0,
@@ -13,6 +13,7 @@ const portfolio = {
     heirRank: "rank1",
     heirCount: 2,
   },
+  familyMembers: [],
   snapshots: [{
     id: 18,
     label: "現在",
@@ -28,7 +29,7 @@ const portfolio = {
       { side: "LIABILITY", valueJpy: 50_000_000, includedInNetWorth: false },
     ],
   }],
-} as Portfolio;
+} as unknown as Portfolio;
 
 describe("createInheritanceTaxRequest", () => {
   it("現在年度の純資産を1万円単位へ丸めてAPIリクエストを作る", () => {

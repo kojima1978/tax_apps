@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const prismaMock = vi.hoisted(() => ({
   household: { findFirst: vi.fn(), findUnique: vi.fn() },
   snapshot: { findMany: vi.fn() },
+  familyMember: { findMany: vi.fn() },
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
@@ -19,6 +20,7 @@ const household = {
   clientCode: "PB-000007",
   name: "山田 太郎",
   nameKana: "ヤマダ タロウ",
+  birthDate: new Date("1970-05-10T00:00:00.000Z"),
   assignedStaff: "佐藤",
   currency: "JPY",
   estimatedInheritanceTax: decimal(12000000),
@@ -67,6 +69,7 @@ const snapshot = {
 beforeEach(() => {
   vi.clearAllMocks();
   prismaMock.snapshot.findMany.mockResolvedValue([snapshot]);
+  prismaMock.familyMember.findMany.mockResolvedValue([]);
 });
 
 describe("getPortfolio", () => {
@@ -100,6 +103,7 @@ describe("getPortfolio", () => {
       clientCode: "PB-000007",
       name: "山田 太郎",
       nameKana: "ヤマダ タロウ",
+      birthDate: "1970-05-10",
       assignedStaff: "佐藤",
       currency: "JPY",
     });
@@ -112,6 +116,7 @@ describe("getPortfolio", () => {
       heirRank: 1,
       heirCount: 3,
     });
+    expect(portfolio.familyMembers).toEqual([]);
 
     const [first] = portfolio.snapshots;
     expect(first.asOfDate).toBe("2025-12-31");
