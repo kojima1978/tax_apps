@@ -37,7 +37,12 @@ def handle_apply_rules(request: HttpRequest, case, pk: int) -> HttpResponse:
 def handle_apply_ai_suggestion(request: HttpRequest, case, pk: int, tx_id: str, category: str) -> HttpResponse:
     """AI分類提案を単一の取引に適用"""
     try:
-        count = TransactionService.apply_ai_suggestion(case, int(tx_id), category)
+        count, change_group = TransactionService.apply_ai_suggestion(
+            case,
+            int(tx_id),
+            category,
+            return_change_group=True,
+        )
     except ValueError:
         if is_ajax(request):
             return json_error('不正な取引IDです')
@@ -45,7 +50,12 @@ def handle_apply_ai_suggestion(request: HttpRequest, case, pk: int, tx_id: str, 
         return redirect('analysis-dashboard', pk=pk)
 
     if is_ajax(request):
-        return JsonResponse({'success': True, 'count': count, 'category': category})
+        return JsonResponse({
+            'success': True,
+            'count': count,
+            'category': category,
+            'change_group': change_group,
+        })
 
     messages.success(request, f"「{category}」に分類しました。")
     return redirect('analysis-dashboard', pk=pk)
@@ -55,10 +65,14 @@ def handle_apply_ai_suggestion(request: HttpRequest, case, pk: int, tx_id: str, 
 def handle_bulk_apply_ai_suggestions(request: HttpRequest, case, pk: int) -> HttpResponse:
     """AI分類提案を一括適用（信頼度閾値以上のもの）"""
     min_score_int = int(request.POST.get('min_score', 95))
-    count = TransactionService.bulk_apply_ai_suggestions(case, min_score_int)
+    count, change_group = TransactionService.bulk_apply_ai_suggestions(
+        case,
+        min_score_int,
+        return_change_group=True,
+    )
 
     if is_ajax(request):
-        return JsonResponse({'success': True, 'count': count})
+        return JsonResponse({'success': True, 'count': count, 'change_group': change_group})
 
     messages.success(request, f"信頼度{min_score_int}%以上の{count}件にAI分類を適用しました。")
     return redirect('analysis-dashboard', pk=pk)

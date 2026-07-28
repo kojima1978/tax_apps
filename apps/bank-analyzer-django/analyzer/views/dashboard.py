@@ -18,7 +18,7 @@ from ..lib.constants import (
     sort_patterns_dict,
 )
 from ..lib.text_utils import filter_by_keyword
-from ..services import TransactionService, AnalysisService
+from ..services import ClassificationHistoryService, TransactionService, AnalysisService
 from ..handlers import (
     handle_run_classifier,
     handle_apply_rules,
@@ -26,6 +26,7 @@ from ..handlers import (
     handle_update_category,
     handle_bulk_update_categories,
     handle_bulk_update_categories_transfer,
+    handle_undo_classification_change,
     handle_update_transaction,
     handle_delete_duplicates,
     handle_delete_by_range,
@@ -67,6 +68,7 @@ _ANALYSIS_ACTION_HANDLERS = {
     'update_category': handle_update_category,
     'bulk_update_categories': handle_bulk_update_categories,
     'bulk_update_transfer_categories': handle_bulk_update_categories_transfer,
+    'undo_classification_change': handle_undo_classification_change,
     'update_transaction': handle_update_transaction,
     'delete_duplicates': handle_delete_duplicates,
     'delete_by_range': handle_delete_by_range,
@@ -394,6 +396,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         'flagged_count': tx_counts['flagged'],
         'suggestions_count': 0,
         'latest_deletion_backup': case.deletion_backups.filter(restored_at__isnull=True).first(),
+        'latest_classification_change': ClassificationHistoryService.latest_summary(case),
         **_build_selection_options(case),
         **_build_active_tab_context(request, case, active_tab, filter_state),
     }

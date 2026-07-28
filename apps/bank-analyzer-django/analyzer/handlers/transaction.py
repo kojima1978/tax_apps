@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
-from ..services import TransactionService
+from ..services import ClassificationHistoryService, TransactionService
 from .base import is_ajax, json_error, count_message, build_redirect_url, build_transaction_data, handle_ajax_error, redirect_on_error, serialize_transaction
 
 # フィールドラベル定義（CSV出力・一括置換で共用）
@@ -89,11 +89,23 @@ def handle_update_category(request: HttpRequest, case, pk: int) -> HttpResponse:
         messages.error(request, "不正な取引IDです。")
         return redirect('analysis-dashboard', pk=pk)
 
-    count = TransactionService.update_transaction_category(case, tx_id_int, new_category, apply_all)
+    count, change_group = TransactionService.update_transaction_category(
+        case,
+        tx_id_int,
+        new_category,
+        apply_all,
+        return_change_group=True,
+    )
 
     if is_ajax(request):
         still_visible = _compute_still_visible(request, new_category)
-        return JsonResponse({'success': True, 'count': count, 'category': new_category, 'still_visible': still_visible})
+        return JsonResponse({
+            'success': True,
+            'count': count,
+            'category': new_category,
+            'still_visible': still_visible,
+            'change_group': change_group,
+        })
 
     if apply_all and count > 0:
         tx = case.transactions.filter(pk=tx_id_int).first()
@@ -115,10 +127,15 @@ _BULK_UPDATE_DEFAULT_PREFIXES = ['cat-', 'uncat-']
 def _handle_bulk_update(request: HttpRequest, case, pk: int, source_tab: str, prefixes: list[str]) -> HttpResponse:
     """カテゴリ一括更新の共通処理"""
     category_updates = _extract_category_updates(request, prefixes)
-    count = TransactionService.bulk_update_categories(case, category_updates)
+    count, change_group = TransactionService.bulk_update_categories(
+        case,
+        category_updates,
+        return_change_group=True,
+        source=f"bulk_{source_tab}",
+    )
 
     if is_ajax(request):
-        return JsonResponse({'success': True, 'count': count})
+        return JsonResponse({'success': True, 'count': count, 'change_group': change_group})
 
     count_message(request, count, f"{count}件の分類を更新しました。", "変更はありませんでした。", zero_level="info")
     filters = _extract_filters(request) if source_tab == 'all' else None
@@ -135,6 +152,23 @@ def handle_bulk_update_categories(request: HttpRequest, case, pk: int) -> HttpRe
 def handle_bulk_update_categories_transfer(request: HttpRequest, case, pk: int) -> HttpResponse:
     """資金移動タブのカテゴリー一括更新"""
     return _handle_bulk_update(request, case, pk, 'transfers', _BULK_UPDATE_PREFIXES['transfers'])
+
+
+def handle_undo_classification_change(request: HttpRequest, case, pk: int) -> HttpResponse:
+    """サーバーに保存した最新の分類変更を、変更直前の分類へ戻す"""
+    change_group = request.POST.get('change_group', '')
+    result = ClassificationHistoryService.undo_latest(case, change_group)
+
+    if is_ajax(request):
+        status = result.pop('status', 200 if result.get('success') else 400)
+        return JsonResponse(result, status=status)
+
+    if result.get('success'):
+        messages.success(request, f"{result['count']}件を変更直前の分類へ戻しました。")
+    else:
+        messages.error(request, result.get('error', '分類変更を取り消せませんでした。'))
+    source_tab = request.POST.get('source_tab', 'all')
+    return redirect(build_redirect_url('analysis-dashboard', pk, source_tab))
 
 
 @redirect_on_error('取引更新エラー')

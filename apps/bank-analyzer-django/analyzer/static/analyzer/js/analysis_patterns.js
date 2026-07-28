@@ -242,6 +242,12 @@ const PatternPrompt = {
                 var extra = data.count ? '（追加で' + data.count + '件分類）' : '';
                 showToast('パターン「' + keyword + '」→「' + category + '」を登録しました' + scopeMsg + extra, 'success');
                 if (data.count > 0) {
+                    ClassificationUndo.show(
+                        data.change_group,
+                        data.count,
+                        category,
+                        data.count + '件をパターンで分類しました'
+                    );
                     ProgressBar.update(data.count);
                     GroupedView._updateTxTotal(data.count);
                     self._removeMatchingRows(keyword);

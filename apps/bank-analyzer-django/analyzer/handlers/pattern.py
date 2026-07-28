@@ -10,6 +10,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
 from ..lib import config
+from ..services import ClassificationHistoryService
 from .base import handle_ajax_error, is_ajax, json_error, require_params
 
 logger = logging.getLogger(__name__)
@@ -265,7 +266,12 @@ def handle_classify_and_register_pattern(
             is_flagged=False,
             description__icontains=keyword,
         )
-        count = qs.update(category=category)
+        category_updates = {tx_id: category for tx_id in qs.values_list('id', flat=True)}
+        count, change_group = ClassificationHistoryService.apply_changes(
+            case,
+            category_updates,
+            source='pattern_registration',
+        )
 
         return JsonResponse({
             'success': True,
@@ -273,6 +279,7 @@ def handle_classify_and_register_pattern(
             'category': category,
             'keyword': keyword,
             'scope': scope,
+            'change_group': change_group,
         })
     except Exception as e:
         return handle_ajax_error(request, pk, e, "分類+パターン登録エラー")

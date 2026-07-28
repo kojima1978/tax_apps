@@ -22,6 +22,7 @@ from .classification import (
     match_with_priority,
     calculate_match_score,
 )
+from .classification_history import ClassificationHistoryService
 
 logger = logging.getLogger(__name__)
 
@@ -112,10 +113,15 @@ class TransactionService:
         updates = classify_unclassified_transactions(case, use_fuzzy=True)
 
         if updates:
-            Transaction.objects.bulk_update(updates, ['category', 'classification_score'])
-            logger.info(f"自動分類完了: case_id={case.id}, count={len(updates)}")
+            category_updates = {tx.id: tx.category for tx in updates}
+            count, _ = ClassificationHistoryService.apply_changes(
+                case, category_updates, source="auto_classifier",
+            )
+            Transaction.objects.bulk_update(updates, ['classification_score'])
+            logger.info(f"自動分類完了: case_id={case.id}, count={count}")
+            return count
 
-        return len(updates)
+        return 0
 
     @staticmethod
     def apply_classification_rules(case: Case) -> int:
@@ -131,10 +137,15 @@ class TransactionService:
         updates = classify_unclassified_transactions(case, use_fuzzy=False)
 
         if updates:
-            Transaction.objects.bulk_update(updates, ['category'])
-            logger.info(f"ルール適用完了: case_id={case.id}, count={len(updates)}")
+            count, _ = ClassificationHistoryService.apply_changes(
+                case,
+                {tx.id: tx.category for tx in updates},
+                source="classification_rule",
+            )
+            logger.info(f"ルール適用完了: case_id={case.id}, count={count}")
+            return count
 
-        return len(updates)
+        return 0
 
     @staticmethod
     def get_classification_preview(case: Case) -> list[dict]:
@@ -219,13 +230,24 @@ class TransactionService:
                 updates.append(tx)
 
         if updates:
-            Transaction.objects.bulk_update(updates, ['category'])
-            logger.info(f"選択分類適用: case_id={case.id}, count={len(updates)}")
+            count, _ = ClassificationHistoryService.apply_changes(
+                case,
+                {tx.id: tx.category for tx in updates},
+                source="classification_preview",
+            )
+            logger.info(f"選択分類適用: case_id={case.id}, count={count}")
+            return count
 
-        return len(updates)
+        return 0
 
     @staticmethod
-    def apply_ai_suggestion(case: Case, tx_id: int, category: str) -> int:
+    def apply_ai_suggestion(
+        case: Case,
+        tx_id: int,
+        category: str,
+        *,
+        return_change_group: bool = False,
+    ):
         """
         AI分類提案を単一の取引に適用
 
@@ -239,16 +261,23 @@ class TransactionService:
         """
         tx = get_transaction(case, tx_id)
         if not tx:
-            return 0
+            return (0, None) if return_change_group else 0
 
-        tx.category = category
-        tx.classification_score = 100  # 手動適用は100%
-        tx.save(update_fields=['category', 'classification_score'])
+        count, change_group = ClassificationHistoryService.apply_changes(
+            case, {tx_id: category}, source="ai_suggestion",
+        )
+        if count:
+            case.transactions.filter(pk=tx_id).update(classification_score=100)
         logger.info(f"AI提案適用: case_id={case.id}, tx_id={tx_id}, category={category}")
-        return 1
+        return (count, change_group) if return_change_group else count
 
     @staticmethod
-    def bulk_apply_ai_suggestions(case: Case, min_score: int = 95) -> int:
+    def bulk_apply_ai_suggestions(
+        case: Case,
+        min_score: int = 95,
+        *,
+        return_change_group: bool = False,
+    ):
         """
         AI分類提案を一括適用（信頼度閾値以上のもの）
 
@@ -262,10 +291,16 @@ class TransactionService:
         updates = classify_unclassified_transactions(case, use_fuzzy=True, min_score=min_score)
 
         if updates:
-            Transaction.objects.bulk_update(updates, ['category', 'classification_score'])
-            logger.info(f"AI提案一括適用: case_id={case.id}, min_score={min_score}, count={len(updates)}")
+            count, change_group = ClassificationHistoryService.apply_changes(
+                case,
+                {tx.id: tx.category for tx in updates},
+                source="ai_bulk",
+            )
+            Transaction.objects.bulk_update(updates, ['classification_score'])
+            logger.info(f"AI提案一括適用: case_id={case.id}, min_score={min_score}, count={count}")
+            return (count, change_group) if return_change_group else count
 
-        return len(updates)
+        return (0, None) if return_change_group else 0
 
     # =========================================================================
     # CRUD 操作
@@ -276,8 +311,10 @@ class TransactionService:
         case: Case,
         tx_id: int,
         new_category: str,
-        apply_all: bool = False
-    ) -> int:
+        apply_all: bool = False,
+        *,
+        return_change_group: bool = False,
+    ):
         """
         取引の分類を更新
 
@@ -292,20 +329,32 @@ class TransactionService:
         """
         tx = get_transaction(case, tx_id)
         if not tx:
-            return 0
+            return (0, None) if return_change_group else 0
 
         if apply_all:
-            count = case.transactions.filter(description=tx.description).update(category=new_category)
+            category_updates = {
+                related.id: new_category
+                for related in case.transactions.filter(description=tx.description).only("id")
+            }
+            count, change_group = ClassificationHistoryService.apply_changes(
+                case, category_updates, source="manual_same_description",
+            )
             logger.info(f"一括カテゴリー更新: case_id={case.id}, description={tx.description}, count={count}")
-            return count
         else:
-            tx.category = new_category
-            tx.save()
+            count, change_group = ClassificationHistoryService.apply_changes(
+                case, {tx_id: new_category}, source="manual",
+            )
             logger.info(f"カテゴリー更新: case_id={case.id}, tx_id={tx_id}")
-            return 1
+        return (count, change_group) if return_change_group else count
 
     @staticmethod
-    def bulk_update_categories(case: Case, category_updates: dict[str, str]) -> int:
+    def bulk_update_categories(
+        case: Case,
+        category_updates: dict[str, str],
+        *,
+        return_change_group: bool = False,
+        source: str = "bulk",
+    ):
         """
         複数取引のカテゴリーを一括更新
 
@@ -317,29 +366,19 @@ class TransactionService:
             更新された取引数
         """
         if not category_updates:
-            return 0
+            return (0, None) if return_change_group else 0
 
         tx_ids = parse_int_ids(list(category_updates.keys()))
         if tx_ids is None:
             logger.warning(f"不正な取引ID: {list(category_updates.keys())}")
-            return 0
+            return (0, None) if return_change_group else 0
 
-        transactions_to_update = list(
-            case.transactions.filter(id__in=tx_ids).only('id', 'category')
+        count, change_group = ClassificationHistoryService.apply_changes(
+            case, category_updates, source=source,
         )
-
-        updates = []
-        for tx in transactions_to_update:
-            new_category = category_updates.get(str(tx.id))
-            if new_category and tx.category != new_category:
-                tx.category = new_category
-                updates.append(tx)
-
-        if updates:
-            Transaction.objects.bulk_update(updates, ['category'])
-            logger.info(f"一括カテゴリー更新: case_id={case.id}, count={len(updates)}")
-
-        return len(updates)
+        if count:
+            logger.info(f"一括カテゴリー更新: case_id={case.id}, count={count}")
+        return (count, change_group) if return_change_group else count
 
     @staticmethod
     def update_transaction(case: Case, tx_id: int, data: dict) -> bool:
@@ -358,6 +397,9 @@ class TransactionService:
         if not tx:
             return False
 
+        new_category = data.get('category')
+        category_changed = new_category is not None and new_category != tx.category
+
         date_str = data.get('date')
         if date_str:
             parsed_date = parse_date_value(date_str)
@@ -367,6 +409,8 @@ class TransactionService:
             tx.date = parsed_date
 
         for field in TransactionService._DIRECT_FIELDS:
+            if field == 'category':
+                continue
             if field in data:
                 setattr(tx, field, data[field])
 
@@ -396,6 +440,10 @@ class TransactionService:
                 account.save()
 
         tx.save()
+        if category_changed:
+            ClassificationHistoryService.apply_changes(
+                case, {tx_id: new_category}, source="transaction_edit",
+            )
         logger.info(f"取引更新: case_id={case.id}, tx_id={tx_id}")
         return True
 

@@ -324,10 +324,10 @@ const AISuggestions = {
             tx_id: txId,
             category: category,
         }, {
-            onSuccess: () => {
+            onSuccess: (data) => {
                 self.removeRow(txId);
                 self.updateBadgeCount(-1);
-                ClassificationUndo.show([txId], category);
+                ClassificationUndo.show(data.change_group, data.count || 1, category);
                 ClassificationWorkbench.rememberCategory(category);
                 showToast(`「${category}」に分類しました`, 'success');
             },
@@ -353,9 +353,9 @@ const AISuggestions = {
         });
 
         postJson(window.location.href, formData, {
-            onSuccess: () => {
+            onSuccess: (data) => {
                 self.updateBadgeCount(-count);
-                ClassificationUndo.show(txIds, category);
+                ClassificationUndo.show(data.change_group, data.count || count, category);
                 ClassificationWorkbench.rememberCategory(category);
                 highlightAndRemoveRow(row);
                 self._removeRowsByDescription(description);
@@ -381,6 +381,7 @@ const AISuggestions = {
             extraMessage: '対象: ' + count + '件',
             onSuccess: function(data) {
                 var appliedCount = data.count || count;
+                ClassificationUndo.show(data.change_group, appliedCount, category);
                 self.updateBadgeCount(-appliedCount);
                 highlightAndRemoveRow(row);
                 self._removeRowsByDescription(description);
@@ -472,7 +473,8 @@ const AISuggestions = {
                         self.updateBadgeCount(-removedCount);
                         const appliedCount = data.count || removedCount;
                         ClassificationUndo.show(
-                            candidateIds.slice(0, appliedCount),
+                            data.change_group,
+                            appliedCount,
                             '',
                             appliedCount + '件の高信頼度候補を分類しました'
                         );
@@ -828,7 +830,7 @@ const GroupedView = {
                     StatusIndicator.saved();
                     ProgressBar.update(updatedCount);
                     self._updateTxTotal(updatedCount);
-                    ClassificationUndo.show(txIds, category);
+                    ClassificationUndo.show(data.change_group, updatedCount, category);
                     ClassificationWorkbench.rememberCategory(category);
                     ['unclassifiedGroupCount', 'unclassifiedViewGroupCount'].forEach(function(id) {
                         var groupCount = document.getElementById(id);

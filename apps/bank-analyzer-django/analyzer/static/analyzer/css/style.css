@@ -1792,6 +1792,76 @@ h1, h2, h3, h4 {
     min-height: 2.75rem;
 }
 
+.classification-history-strip {
+    display: flex;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 0.8rem 0.9rem;
+    color: #1e293b;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #2563eb;
+    border-radius: 0.65rem;
+}
+
+.classification-history-icon {
+    display: inline-flex;
+    flex: 0 0 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    color: #1d4ed8;
+    background: #dbeafe;
+    border-radius: 50%;
+}
+
+.classification-history-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.82rem;
+}
+
+.classification-history-content time,
+.classification-history-description {
+    color: #475569;
+}
+
+.classification-history-count {
+    padding: 0.12rem 0.45rem;
+    color: #1e40af;
+    font-weight: 600;
+    background: #dbeafe;
+    border-radius: 999px;
+}
+
+.classification-history-change {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    min-width: 0;
+    margin-top: 0.25rem;
+}
+
+.classification-history-description {
+    overflow: hidden;
+    margin-left: 0.35rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.classification-history-undo {
+    flex: 0 0 auto;
+    min-height: 2.75rem;
+    cursor: pointer;
+}
+
+.classification-history-undo:focus-visible,
+.classification-undo-bar button:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.35);
+    outline-offset: 2px;
+}
+
 .classification-undo-bar {
     position: fixed;
     bottom: 1.25rem;
@@ -1834,6 +1904,19 @@ h1, h2, h3, h4 {
     background: transparent;
     border: 0;
     border-radius: 50%;
+    cursor: pointer;
+}
+
+@media (max-width: 575.98px) {
+    .classification-history-strip {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .classification-history-undo {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
 }
 
 /* ===== Group Count Mini Bar ===== */

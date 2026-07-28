@@ -190,18 +190,29 @@ const ProgressBar = {
 
 const ClassificationUndo = {
     _bar: null,
-    _ids: [],
+    _changeGroup: '',
+    _count: 0,
     _category: '',
     _customMessage: '',
     _hideTimer: null,
 
-    show: function(txIds, category, customMessage) {
-        var ids = (txIds || []).map(String);
-        if (!ids.length) return;
+    init: function() {
+        var persistentButton = document.getElementById('undoLatestClassification');
+        if (!persistentButton) return;
+        persistentButton.addEventListener('click', function() {
+            ClassificationUndo.undo(
+                persistentButton.dataset.changeGroup,
+                persistentButton,
+                parseInt(persistentButton.dataset.changeCount || '0', 10)
+            );
+        });
+    },
 
-        // Undo is intentionally limited to the most recent classification
-        // operation. A bulk classification still counts as one operation.
-        this._ids = Array.from(new Set(ids));
+    show: function(changeGroup, count, category, customMessage) {
+        if (!changeGroup) return;
+
+        this._changeGroup = changeGroup;
+        this._count = Number(count) || 1;
         this._category = category || '';
         this._customMessage = customMessage || '';
         clearTimeout(this._hideTimer);
@@ -221,29 +232,28 @@ const ClassificationUndo = {
         }
 
         this._bar.querySelector('.classification-undo-message').textContent = this._customMessage ||
-            this._ids.length + '件を「' + this._category + '」に分類しました';
+            this._count + '件を「' + this._category + '」に分類しました';
         this._bar.classList.add('show');
         this._hideTimer = setTimeout(this.hide.bind(this), 20000);
     },
 
-    undo: function() {
-        if (!this._ids.length) return;
-        var ids = this._ids.slice();
+    undo: function(changeGroup, triggerButton, expectedCount) {
+        var group = changeGroup || this._changeGroup;
+        if (!group) return;
         var formData = createFormData({
-            action: 'bulk_update_categories',
-            source_tab: 'unclassified',
+            action: 'undo_classification_change',
+            change_group: group,
+            source_tab: new URL(window.location.href).searchParams.get('tab') || 'all',
         });
-        ids.forEach(function(id) { formData.append('uncat-' + id, '未分類'); });
 
-        var button = this._bar.querySelector('.btn');
+        var button = triggerButton || (this._bar && this._bar.querySelector('.btn'));
+        if (!button) return;
         setButtonLoading(button, '戻しています...');
         var self = this;
         postJson(window.location.href, formData, {
-            onSuccess: function() {
-                ProgressBar.update(-ids.length);
-                updateUnclassifiedCount(-ids.length);
+            onSuccess: function(data) {
                 self.hide();
-                showToast(ids.length + '件を未分類に戻しました', 'info');
+                showToast((data.count || expectedCount || self._count) + '件を変更直前の分類へ戻しました', 'info');
                 setTimeout(function() { window.location.reload(); }, 350);
             },
             onError: function() {
@@ -255,11 +265,16 @@ const ClassificationUndo = {
     hide: function() {
         clearTimeout(this._hideTimer);
         if (this._bar) this._bar.classList.remove('show');
-        this._ids = [];
+        this._changeGroup = '';
+        this._count = 0;
         this._category = '';
         this._customMessage = '';
     },
 };
+
+document.addEventListener('DOMContentLoaded', function() {
+    ClassificationUndo.init();
+});
 
 // ===== インライン分類の即時保存（SaveQueue使用） =====
 
@@ -328,6 +343,7 @@ document.addEventListener('change', function(e) {
         originalValue: originalValue,
         intendedValue: newCategory,
         onSuccess: function(data) {
+            ClassificationUndo.show(data.change_group, data.count || 1, newCategory);
             if (row) {
                 row.classList.remove('is-saving', 'save-failed');
                 updateInlineSaveSummary();
@@ -335,7 +351,6 @@ document.addEventListener('change', function(e) {
             if (isUnclassifiedRow && row) {
                 ProgressBar.update(1);
                 updateUnclassifiedCount(1);
-                ClassificationUndo.show([txId], newCategory);
                 fadeOutRow(row);
             } else if (isAllTabRow && row && data.still_visible === false) {
                 fadeOutRow(row);

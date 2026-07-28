@@ -203,3 +203,44 @@ class DeletionBackup(models.Model):
         verbose_name = "削除バックアップ"
         verbose_name_plural = "削除バックアップ"
         ordering = ["-created_at"]
+
+
+class ClassificationChange(models.Model):
+    """分類変更の監査履歴（1操作を change_group でまとめる）"""
+
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name="classification_changes",
+        verbose_name="案件",
+    )
+    transaction = models.ForeignKey(
+        Transaction,
+        on_delete=models.SET_NULL,
+        related_name="classification_changes",
+        null=True,
+        blank=True,
+        verbose_name="対象取引",
+    )
+    transaction_identifier = models.PositiveBigIntegerField(verbose_name="取引ID")
+    transaction_description = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="摘要（変更時点）",
+    )
+    old_category = models.CharField(max_length=100, verbose_name="変更前分類")
+    new_category = models.CharField(max_length=100, verbose_name="変更後分類")
+    change_group = models.UUIDField(db_index=True, verbose_name="変更操作ID")
+    source = models.CharField(max_length=50, default="manual", verbose_name="変更元")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="変更日時")
+    reverted_at = models.DateTimeField(null=True, blank=True, verbose_name="取消日時")
+
+    class Meta:
+        verbose_name = "分類変更履歴"
+        verbose_name_plural = "分類変更履歴"
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["case", "created_at"]),
+            models.Index(fields=["case", "reverted_at"]),
+        ]

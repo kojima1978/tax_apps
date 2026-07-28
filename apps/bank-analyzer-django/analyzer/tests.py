@@ -11,9 +11,14 @@ from django.urls import reverse, set_script_prefix
 from django.core.files.uploadedfile import SimpleUploadedFile
 from openpyxl import load_workbook
 
-from .models import Account, Case, DeletionBackup, Transaction
+from .models import Account, Case, ClassificationChange, DeletionBackup, Transaction
 from .forms import CaseForm, SettingsForm
-from .services import TransactionService, AnalysisService, parse_int_ids
+from .services import (
+    ClassificationHistoryService,
+    TransactionService,
+    AnalysisService,
+    parse_int_ids,
+)
 from .templatetags.japanese_date import wareki, wareki_short, wareki_year, get_japanese_era
 from .handlers import parse_amount
 from .views import sanitize_filename
@@ -218,6 +223,67 @@ class TransactionServiceTest(TestCase):
         self.tx2.refresh_from_db()
         self.assertEqual(self.tx1.category, "生活費")
         self.assertEqual(self.tx2.category, "贈与・教育費")
+
+    def test_classification_change_can_restore_exact_previous_category(self):
+        """生活費→贈与・教育費の変更を、未分類ではなく生活費へ戻せる"""
+        self.tx1.category = "生活費"
+        self.tx1.save(update_fields=["category"])
+
+        count, change_group = TransactionService.update_transaction_category(
+            self.case,
+            self.tx1.id,
+            "贈与・教育費",
+            return_change_group=True,
+        )
+
+        self.assertEqual(count, 1)
+        history = ClassificationChange.objects.get(change_group=change_group)
+        self.assertEqual(history.old_category, "生活費")
+        self.assertEqual(history.new_category, "贈与・教育費")
+        self.assertEqual(history.transaction_identifier, self.tx1.id)
+        self.assertEqual(history.transaction_description, "取引1")
+
+        result = ClassificationHistoryService.undo_latest(self.case, change_group)
+
+        self.assertTrue(result["success"])
+        self.tx1.refresh_from_db()
+        history.refresh_from_db()
+        self.assertEqual(self.tx1.category, "生活費")
+        self.assertIsNotNone(history.reverted_at)
+
+    def test_classification_undo_is_lifo_and_restores_each_old_category(self):
+        """一括変更は各取引の旧分類を保持し、最新操作から順に戻す"""
+        self.tx1.category = "生活費"
+        self.tx2.category = "税金"
+        self.tx1.save(update_fields=["category"])
+        self.tx2.save(update_fields=["category"])
+
+        _, first_group = TransactionService.bulk_update_categories(
+            self.case,
+            {self.tx1.id: "贈与・教育費", self.tx2.id: "贈与・教育費"},
+            return_change_group=True,
+        )
+        _, second_group = TransactionService.update_transaction_category(
+            self.case,
+            self.tx1.id,
+            "医療・介護",
+            return_change_group=True,
+        )
+
+        rejected = ClassificationHistoryService.undo_latest(self.case, first_group)
+        self.assertFalse(rejected["success"])
+        self.assertEqual(rejected["status"], 409)
+
+        self.assertTrue(
+            ClassificationHistoryService.undo_latest(self.case, second_group)["success"]
+        )
+        self.assertTrue(
+            ClassificationHistoryService.undo_latest(self.case, first_group)["success"]
+        )
+        self.tx1.refresh_from_db()
+        self.tx2.refresh_from_db()
+        self.assertEqual(self.tx1.category, "生活費")
+        self.assertEqual(self.tx2.category, "税金")
 
     def test_delete_duplicates(self):
         """重複削除"""
@@ -534,6 +600,50 @@ class ViewsTest(TestCase):
             all_response,
             'aria-label="月次の出金額と入金額を比較する棒グラフ"',
         )
+
+    def test_ajax_category_change_shows_history_and_can_be_undone(self):
+        """分類変更後は履歴を表示し、再読み込み後も直前の分類へ戻せる"""
+        tx = Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 15),
+            description="生活費から贈与へ変更",
+            category="生活費",
+        )
+        url = reverse('analysis-dashboard', args=[self.case.pk])
+
+        changed = self.client.post(
+            url,
+            {
+                'action': 'update_category',
+                'tx_id': tx.id,
+                'new_category': '贈与・教育費',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(changed.status_code, 200)
+        change_group = changed.json()['change_group']
+        self.assertTrue(change_group)
+
+        dashboard = self.client.get(url, {'tab': 'all'})
+        self.assertContains(dashboard, 'id="undoLatestClassification"')
+        self.assertContains(dashboard, "直前の分類変更")
+        self.assertContains(dashboard, "生活費")
+        self.assertContains(dashboard, "贈与・教育費")
+
+        undone = self.client.post(
+            url,
+            {
+                'action': 'undo_classification_change',
+                'change_group': change_group,
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(undone.status_code, 200)
+        self.assertTrue(undone.json()['success'])
+        tx.refresh_from_db()
+        self.assertEqual(tx.category, "生活費")
 
     def test_analysis_dashboard_renders_only_requested_tab(self):
         """重いタブは要求された場合だけ生成する"""
